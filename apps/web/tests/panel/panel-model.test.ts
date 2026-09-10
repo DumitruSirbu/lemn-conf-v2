@@ -12,7 +12,7 @@ import {
   slotMeta,
 } from "../support/selection-meta";
 
-import type { SelectionMeta } from "@lemnaria/configurator-domain";
+import { entryLabel, type SelectionMeta } from "@lemnaria/configurator-domain";
 
 import {
   asWidthChoice,
@@ -82,7 +82,7 @@ describe("describePanel — when the panel is open at all", () => {
   it("renders §9's header line from the selection's own numbers", () => {
     const panel = openPanelFor(occupiedMeta());
     expect(panel.header).toEqual({
-      label: "Corp bază 2 uși",
+      label: "Dulap bază 2 uși",
       detail: "Perete A · bază · 600 × 860 mm",
     });
   });
@@ -246,11 +246,7 @@ describe("describePanel — the replace list", () => {
   // The header reads "rând de sus", which is right in a header and ungrammatical mid-sentence.
   // The count line therefore takes the normalised band's own word and agrees it with the count.
   it("words the band for the sentence rather than reusing the header's label", () => {
-    const topRow = occupiedMeta({
-      band: "top",
-      bandLabel: "rând de sus",
-      widthMm: 700,
-    });
+    const topRow = occupiedMeta({ band: "top", widthMm: 700 });
     const lineFor = (count: number) =>
       findSection(
         openPanelFor(topRow, { offers: offers(count) }).sections,
@@ -546,7 +542,7 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
           currentMm: 600,
           freeMm: [800],
           blockedMm: [400],
-          label: "Corp suspendat",
+          label: entryLabel("wall-cabinet"),
         }),
       }).sections,
       "width",
@@ -554,7 +550,7 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
     const reasons = new Map(
       asWidthChoice(section).chips.map((chip) => [chip.widthMm, chip.reason]),
     );
-    expect(reasons.get(400)).toContain("Corp suspendat");
+    expect(reasons.get(400)).toContain("Dulap suspendat");
     expect(reasons.get(600)).toBeUndefined();
     expect(reasons.get(800)).toBeUndefined();
   });

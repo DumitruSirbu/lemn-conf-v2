@@ -18,7 +18,12 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import { normaliseBand } from "../../src/bands.js";
-import { describeBodyLabelAt } from "../../src/catalog.js";
+import {
+  describeBodyLabelAt,
+  entryLabel,
+  labelWithDoors,
+  type BodyLabel,
+} from "../../src/catalog.js";
 import type { Design, DesignPlacement, DesignWall } from "../../src/design.js";
 import {
   KITCHEN_L_DESIGN,
@@ -37,6 +42,7 @@ import {
   UnknownBodyError,
 } from "../../src/void-engine.js";
 import {
+  bodyOf,
   definitionOf,
   designOf,
   headingsOf,
@@ -228,7 +234,7 @@ describe("the label is the panel header's label, not a second derivation", () =>
       const projectedLabel = projectDesignForDisplay(design, CATALOG)[0]
         ?.entries[0]?.label;
 
-      expect(projectedLabel).toBe(header?.label);
+      expect(projectedLabel).toEqual(header?.label);
     }
 
     // And the migration is real — two entries, one seeded and one insertable — so the parity above
@@ -244,28 +250,33 @@ describe("the label is the panel header's label, not a second derivation", () =>
     const labelAfter = projectDesignForDisplay(after, CATALOG)[0]?.entries[0]
       ?.label;
 
-    // Both sides are `string | undefined`, so a projection that returned no group — or no entry —
+    // Both sides are `BodyLabel | undefined`, so a projection that returned no group — or no entry —
     // would leave the parity below comparing two `undefined`s and passing green. The floor is the
-    // name itself, read off the equivalent the resize migrates through.
-    expect(labelBefore).toBe(
-      describeBodyLabelAt(definitionOf("tall-pantry"), 600),
+    // descriptor itself, read off the equivalent the resize migrates through.
+    expect(labelBefore).toEqual(
+      describeBodyLabelAt(bodyOf("tall-pantry"), 600),
     );
-    expect(labelAfter).toBe(labelBefore);
+    expect(labelAfter).toEqual(labelBefore);
 
-    // **The one literal copy of a rendered name this file is allowed, and why it earns its keep.**
-    // Every comparison above derives both of its sides through `describeBodyLabelAt`, so they
-    // degrade *together*: a `describeBodyLabelAt` that stopped reading `definition.label`, or a
-    // catalogue that renamed this row to the bare kind label, leaves all of them green — measured
-    // 2026-09-06, both mutations passed this file whole. Pinned on the *rendered* name, door count
-    // included, because that string is what the panel header and the projection both put in front
-    // of the customer. It is the floor under the parity, not a replacement for it.
-    expect(labelBefore).toBe("Coloană cămară 2 uși");
+    // **The one written-out descriptor this file is allowed, and why it earns its keep.** Every
+    // comparison above derives both of its sides through `describeBodyLabelAt`, so they degrade
+    // *together*: a `describeBodyLabelAt` that stopped reading the catalogue equivalent, or one that
+    // dropped the door count, leaves all of them green — measured 2026-09-06, both mutations passed
+    // this file whole. Written out on the descriptor rather than on a rendered sentence, because
+    // since 6B-f the descriptor is what the projection publishes; the wording it resolves to is the
+    // catalogue's and is pinned by the copy lock. It is the floor under the parity, not a
+    // replacement for it.
+    expect(labelBefore).toEqual({
+      kind: "withDoors",
+      name: { kind: "entry", buildId: "tall-pantry" },
+      doors: 2,
+    });
   });
 
   it("follows the width across the whole door-count transition, not just 400 and 600", () => {
     // ADR 0035 decision 4's half-open bound: 499 is one door, 500 is two. A projection that copied
     // the count from anywhere but the current width is wrong exactly here and nowhere else.
-    const labelAt = (widthMm: number): string | undefined =>
+    const labelAt = (widthMm: number): BodyLabel | undefined =>
       projectDesignForDisplay(
         designOf([
           placement("p", "A", 900, 1500, "wall-cabinet", widthMm, 700),
@@ -273,14 +284,20 @@ describe("the label is the panel header's label, not a second derivation", () =>
         CATALOG,
       )[0]?.entries[0]?.label;
 
+    const wallCabinetAt = (doors: number) => ({
+      kind: "withDoors",
+      name: { kind: "entry", buildId: "wall-cabinet" },
+      doors,
+    });
+
     expect([labelAt(499), labelAt(500)]).toEqual([
-      "Corp suspendat 1 ușă",
-      "Corp suspendat 2 uși",
+      wallCabinetAt(1),
+      wallCabinetAt(2),
     ]);
     for (const widthMm of [200, 300, 450, 470, 550, 600, 750, 800]) {
       expect([widthMm, labelAt(widthMm)]).toEqual([
         widthMm,
-        describeBodyLabelAt(definitionOf("wall-cabinet"), widthMm),
+        describeBodyLabelAt(bodyOf("wall-cabinet"), widthMm),
       ]);
     }
   });
@@ -419,7 +436,7 @@ describe("the id tie-break rests on a validated uniqueness, not on luck", () => 
     const entry = (placementId: string): DisplayEntry => ({
       placementId,
       buildId: "wall-cabinet",
-      label: "Corp suspendat 2 uși",
+      label: labelWithDoors(entryLabel("wall-cabinet"), 2),
       wall: "A",
       band: "wall",
       rawBand: "wall",

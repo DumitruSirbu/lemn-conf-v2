@@ -15,6 +15,7 @@ import {
   describeBodyLabelAt,
   deriveDoorCount,
   INSERTABLE_BODY_DEFINITIONS,
+  type LabelledBody,
 } from "../../src/catalog.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -33,6 +34,10 @@ const APPLIANCE_COLUMN_IDS = [
 ] as const;
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
+
+function bodyOf(buildId: string): LabelledBody {
+  return { buildId, definition: definitionOf(buildId) };
+}
 
 function definitionOf(buildId: string): BodyDefinition {
   const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
@@ -183,11 +188,11 @@ describe("QA 5B8 — the three appliance columns still refuse every width but th
     "never counts doors in %s's name",
     (buildId) => {
       for (let widthMm = 300; widthMm <= 900; widthMm += 1) {
-        const label = describeBodyLabelAt(definitionOf(buildId), widthMm);
+        const label = describeBodyLabelAt(bodyOf(buildId), widthMm);
         expect([buildId, widthMm, label]).toEqual([
           buildId,
           widthMm,
-          definitionOf(buildId).label,
+          { kind: "entry", buildId },
         ]);
       }
     },
@@ -199,12 +204,15 @@ describe("QA 5B8 — the label and the bound agree at every millimetre, not only
   // reaches widths between them (ADR 0035 decision 4's own 470 example), so the continuum is what
   // has to agree.
   it("names the pantry by `deriveDoorCount` at every width inside its bound", () => {
-    const definition = definitionOf(PANTRY_ID);
+    const pantry = bodyOf(PANTRY_ID);
     for (let widthMm = 400; widthMm <= 800; widthMm += 1) {
-      const doors = deriveDoorCount(widthMm);
-      expect([widthMm, describeBodyLabelAt(definition, widthMm)]).toEqual([
+      expect([widthMm, describeBodyLabelAt(pantry, widthMm)]).toEqual([
         widthMm,
-        `Coloană cămară ${String(doors)} ${doors === 1 ? "ușă" : "uși"}`,
+        {
+          kind: "withDoors",
+          name: { kind: "entry", buildId: PANTRY_ID },
+          doors: deriveDoorCount(widthMm),
+        },
       ]);
     }
   });
@@ -212,26 +220,33 @@ describe("QA 5B8 — the label and the bound agree at every millimetre, not only
   // §9's own list, not the label function in isolation: the count the customer reads before they
   // tap has to be the count of the body that tap builds.
   it.each([
-    [450, "Coloană cămară 1 ușă"],
-    [499, "Coloană cămară 1 ușă"],
-    [500, "Coloană cămară 2 uși"],
-    [600, "Coloană cămară 2 uși"],
-    [800, "Coloană cămară 2 uși"],
-  ])("offers a %s mm opening the row named %s", (widthMm, label) => {
-    const { world, target } = openingOf(widthMm);
-    const offers = offersFor({
-      records: world.records,
-      voids: world.voids,
-      columns: world.columns,
-      catalog: world.catalog,
-      cabinetDepthMm: world.cabinetDepthMm,
-      target,
-    });
+    [450, 1],
+    [499, 1],
+    [500, 2],
+    [600, 2],
+    [800, 2],
+  ])(
+    "offers a %s mm opening a pantry row counting %i doors",
+    (widthMm, doors) => {
+      const { world, target } = openingOf(widthMm);
+      const offers = offersFor({
+        records: world.records,
+        voids: world.voids,
+        columns: world.columns,
+        catalog: world.catalog,
+        cabinetDepthMm: world.cabinetDepthMm,
+        target,
+      });
 
-    expect(offers.find((offer) => offer.buildId === PANTRY_ID)?.label).toBe(
-      label,
-    );
-  });
+      expect(
+        offers.find((offer) => offer.buildId === PANTRY_ID)?.label,
+      ).toEqual({
+        kind: "withDoors",
+        name: { kind: "entry", buildId: PANTRY_ID },
+        doors,
+      });
+    },
+  );
 });
 
 describe("QA 5B8 — a pantry that is in the design can be resized", () => {

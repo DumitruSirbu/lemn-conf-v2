@@ -23,7 +23,9 @@ import { syntheticDesign } from "./synthetic-world.js";
 
 /** The standing body's `buildId` — the top the insert re-plans and cannot rebuild. */
 export const WITNESS_STANDING_BUILD_ID = "replan-witness-top";
-const WITNESS_EQUIVALENT_ID = "replan-witness-narrow-wall";
+/** The row a rebuild of the standing body would go through — and, since 6B-f, the row that names
+ *  it (ADR 0064). Exported because a refusal about that body publishes this id. */
+export const WITNESS_EQUIVALENT_BUILD_ID = "replan-witness-narrow-wall";
 
 export const WITNESS_STANDING_ID = "w0";
 export const WITNESS_COLUMN_ALONG_MM = 300;
@@ -49,7 +51,7 @@ export function witnessCatalogAt(cabinetDepthMm: number): BodyCatalog {
   return new Map<string, BodyDefinition>([
     ...buildKitchenLBodyCatalog(cabinetDepthMm),
     [
-      WITNESS_EQUIVALENT_ID,
+      WITNESS_EQUIVALENT_BUILD_ID,
       {
         ...wallCabinet,
         sizesMm: [WITNESS_EQUIVALENT_WIDTH_MM],
@@ -66,7 +68,7 @@ export function witnessCatalogAt(cabinetDepthMm: number): BodyCatalog {
       {
         ...wallCabinet,
         insertable: false,
-        catalogEquivalentId: WITNESS_EQUIVALENT_ID,
+        catalogEquivalentId: WITNESS_EQUIVALENT_BUILD_ID,
       },
     ],
   ]);

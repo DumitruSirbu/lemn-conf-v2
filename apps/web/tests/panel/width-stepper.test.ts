@@ -24,6 +24,7 @@ import {
   offersFor,
   recomputeVoids,
   resolveCatalogEquivalent,
+  type BodyLabel,
   resolveWidthRangesMm,
   setWidth,
   toInsertableBody,
@@ -521,7 +522,7 @@ describe("a fixed-width body shows the one width it is made at", () => {
     if (section?.control !== "choice") throw new Error("expected chips");
     expect([section.chips[0]?.widthMm, section.chips[0]?.reason]).toEqual([
       600,
-      "„Corp plită și 2 sertare” nu își poate schimba lățimea.",
+      "„Dulap plită și 2 sertare” nu își poate schimba lățimea.",
     ]);
   });
 
@@ -567,7 +568,7 @@ describe("a fixed-width body shows the one width it is made at", () => {
 
 /** The label the engine's refusal names, read from the catalogue the same way `resolveResizableBody`
  *  reads it — the entry the row declares it is an instance of, never the seeded row's own id. */
-function describeWidthLabelOf(world: World, id: string): string {
+function describeWidthLabelOf(world: World, id: string): BodyLabel {
   const record = world.records.find((candidate) => candidate.id === id);
   if (!record) throw new Error(`no record ${id}`);
   const equivalent = resolveCatalogEquivalent(world.catalog, record.buildId);

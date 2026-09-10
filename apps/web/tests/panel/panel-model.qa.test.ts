@@ -321,11 +321,7 @@ describe("§9's derived count line — swept, not sampled", () => {
   });
 
   it("words the band for the sentence and leaves the raw label to the header", () => {
-    const topRow = occupiedMeta({
-      band: "top",
-      bandLabel: "rând de sus",
-      widthMm: 700,
-    });
+    const topRow = occupiedMeta({ band: "top", widthMm: 700 });
     const panel = openPanel(topRow, { offers: offers(5) });
     const section = replaceIn(panel.sections);
     expect(panel.header.detail).toContain("rând de sus");

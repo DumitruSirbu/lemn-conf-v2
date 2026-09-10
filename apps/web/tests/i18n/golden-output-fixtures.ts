@@ -1,3 +1,39 @@
+// The golden corpus: one fixture per rendered Romanian output the phase is answerable for.
+//
+// **Two gates read these, and they ask different questions.** `GOLDEN_OUTPUT_SHA256` pins every
+// fixture's rendered output — but what a moved hash *proves* differs by group, so it is not one gate
+// standing over all three: it runs the rejection group's resolution path end to end and the content
+// group's resolver, while for the catalog group it pins the door-count derivation and the declared
+// width sets, not the label resolver. The divergence check reads `renderLegacy`, and by 6B-f only
+// one group still has an independent second renderer to offer it:
+//
+// - **content**, both halves — `renderLegacy` is the content resolver's leaf or closure and
+//   `renderCorrected` is a direct `translate(...)` against the catalogue tree. **Two authors**, so
+//   the comparison catches a resolver that maps a leaf to the wrong key, and for the 23 function
+//   families it catches an ICU argument named wrongly as well. **Do not delete these.** They look
+//   like the two below and are not: this group is the only place the divergence check has anything
+//   to compare, and removing it to "finish the job" would retire a live gate.
+// - **rejection** — declares **no** `renderLegacy` since 6B-f. It had one, and it was the same
+//   expression as `renderCorrected`: a guaranteed pass wearing the costume of a check, over the most
+//   intricate resolution path in the phase (`resolveBodyLabel` running inside `resolveRejection`
+//   before interpolation). Deleting it says "no legacy comparison here" instead of "compares itself
+//   and passes"; the SHA manifest is the group's real gate and is untouched. It is a gate over the
+//   *path*, not over the resolver's totality: these 41 fixtures carry two descriptors between them
+//   (`base-cabinet` and `hood` below), so `resolveBodyLabel` is exercised for 2 of the 16 entries
+//   and none of the 13 kinds. `body-label.test.ts` asks the totality question.
+// - **catalog** — declares no `renderLegacy` either. Its witness *was* `describeBodyLabelAt`'s
+//   Romanian, the last renderer authoring words the catalogue did not, and 6B-f moved the domain to
+//   a `BodyLabel` descriptor. There is no second author left to disagree with, and the manifest does
+//   not stand in for one: `renderCorrected` here is `correctedCatalogueLabel`, which reads
+//   `catalog.entries.<buildId>` straight out of the tree and never calls `resolveBodyLabel` or
+//   `describeBodyName`. These 98 hashes therefore move on an approved wording edit — an unapproved
+//   one is the copy lock's to report, and the manifest says so rather than skipping — on
+//   `doorCountFollowsWidth`, on `sizesMm` or on `deriveDoorCount`. They cannot move on an app-side
+//   resolution defect, which is `body-label.test.ts`'s to catch.
+//
+// **Neither surviving absence is a repoint at `renderCorrected`.** A fixture comparing a resolver to
+// itself is layer-3 shape sitting in a layer-4 gate, which is the defect the four-layer test model
+// names — see `docs/milestones/M6B-internationalization.md` and `docs/WORKFLOW.md:444`.
 import { createTranslator } from "next-intl";
 
 import {
@@ -5,6 +41,7 @@ import {
   deriveDoorCount,
   INSERTABLE_BODY_DEFINITIONS,
   SAMPLE_PRICE_BOOK,
+  type BodyLabel,
   type EmptySpaceSide,
   type RejectionCode,
   type RejectionDetail,
@@ -20,7 +57,10 @@ export interface GoldenFixture {
   readonly id: string;
   readonly group: GoldenFixtureGroup;
   readonly sourceKey: string;
-  readonly renderLegacy: () => string;
+  /** **A second, independent renderer of the same output — absent unless one genuinely exists.**
+   *  Only the static content group has one; see this file's head comment for what each group
+   *  declares and why the other two declare nothing rather than comparing themselves. */
+  readonly renderLegacy?: () => string;
   readonly renderCorrected: () => string;
 }
 
@@ -57,8 +97,11 @@ function insertableDefinition(buildId: string) {
   return entry[1];
 }
 
-function bodyLabelFromCatalogue(buildId: string, widthMm: number): string {
-  return describeBodyLabelAt(insertableDefinition(buildId), widthMm);
+function bodyLabelFromCatalogue(buildId: string, widthMm: number): BodyLabel {
+  return describeBodyLabelAt(
+    { buildId, definition: insertableDefinition(buildId) },
+    widthMm,
+  );
 }
 
 function requiredFixtureValue<T>(value: T | undefined, id: string): T {
@@ -217,7 +260,12 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       ["base-dishwasher", 600],
     ] as const
   ).map(([buildId, widthMm]) => {
-    const bodyLabel = bodyLabelFromCatalogue(buildId, widthMm);
+    // The message takes a resolved string; the domain publishes a descriptor. Resolving it here is
+    // the same resolve-then-interpolate order `priceBreakdown.placementLabel`'s production caller
+    // uses, so the fixture exercises the seam rather than a shortcut around it.
+    const bodyLabel = resolvedContent.bodyLabel(
+      bodyLabelFromCatalogue(buildId, widthMm),
+    );
     return contentFixture(
       "priceBreakdown.placementLabel",
       `${buildId}-${String(widthMm)}`,
@@ -510,7 +558,8 @@ function rejectionFixture(
     code: detail.code,
     messageKey,
     detail,
-    renderLegacy: () => resolvedContent.rejection(detail),
+    // No `renderLegacy`: there is no second renderer of a refusal, and binding one to this same
+    // expression made the divergence check unfailable. `GOLDEN_OUTPUT_SHA256` pins the output.
     renderCorrected: () => resolvedContent.rejection(detail),
     ...options,
   };
@@ -813,7 +862,6 @@ export const CATALOGUE_FIXTURES: readonly GoldenFixture[] =
       id: `catalog.${buildId}.${String(widthMm)}`,
       group: "catalog" as const,
       sourceKey: `catalog.entries.${buildId}`,
-      renderLegacy: () => describeBodyLabelAt(definition, widthMm),
       renderCorrected: () =>
         correctedCatalogueLabel(buildId, definition, widthMm),
     }));
@@ -825,11 +873,21 @@ export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...CATALOGUE_FIXTURES,
 ];
 
+/** Not content families: they resolve a **domain descriptor** — a `RejectionDetail`, a `BodyLabel`,
+ *  a `Band` — through the catalogue rather than standing for an entry the legacy content module once
+ *  held. The walk below is the oracle for that module's 23 function-valued families, so a resolver
+ *  counted among them would fail the coverage gate for a family that never existed. */
+const DESCRIPTOR_RESOLVERS: ReadonlySet<string> = new Set([
+  "rejection",
+  "bodyLabel",
+  "bandLabel",
+]);
+
 export function collectContentFunctionFamilies(): readonly string[] {
   const families: string[] = [];
   function visit(value: unknown, path: string): void {
     if (typeof value === "function") {
-      if (path === "rejection") return;
+      if (DESCRIPTOR_RESOLVERS.has(path)) return;
       families.push(path);
       return;
     }

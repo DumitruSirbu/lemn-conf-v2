@@ -6,6 +6,7 @@
 // a failure renders *no* figure — not a zero, not a stale one, not a dash that reads as free), and
 // the flagged-total warning is owner-ruled copy belonging to the surface that renders it
 // (ADR 0065 decision 7b). A domain module inventing either would be inventing product copy.
+import type { BodyLabel } from "../catalog.js";
 import type { PriceBookCurrency, PriceBookStatus } from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
@@ -41,7 +42,7 @@ export interface CabinetPriceLine extends PriceLineCommon {
    *  one, and the body's own id where it has none. Published so a line names both the body the
    *  customer owns and the row it was priced as. */
   readonly pricedAsBuildId: string;
-  readonly label: string;
+  readonly label: BodyLabel;
   readonly widthMm: number;
 }
 

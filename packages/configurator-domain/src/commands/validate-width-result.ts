@@ -1,6 +1,7 @@
 // The two facts a rebuilt column is checked against before the resize is accepted: no opening may
 // have appeared where a body physically stands, and every body the move touched must land under a
 // column key the updated map actually holds.
+import type { BodyLabel } from "../catalog.js";
 import type { DesignPlacement } from "../design.js";
 import {
   recomputeVoids,
@@ -127,7 +128,7 @@ export function refuseColumnDrift(
   columns: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
   rebuilt: ReadonlyMap<string, DesignPlacement>,
-  label: string,
+  label: BodyLabel,
 ): RejectionDetail | undefined {
   const drifted = records.find(
     (record) => rebuilt.has(record.id) && !columns.has(record.col),

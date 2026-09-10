@@ -162,7 +162,7 @@ export function PriceBreakdown() {
       >
         {/* **No glyph beside it since 2026-09-09.** The mockups draw a caret here and the owner
             replaced it with a question mark, which is punctuation rather than decoration — so it is
-            part of the ruled string in `content/ro.ts` and is read out, where the caret was
+            part of the ruled string in `src/messages/ro.json` and is read out, where the caret was
             deliberately hidden from the accessibility tree. */}
         {view.title}
       </button>

@@ -2,10 +2,12 @@
 // be rebuilt through, and split by ADR 0035 decision 6 into the members the column's width governs
 // and the hoods it does not.
 import {
-  describeKindLabel,
+  describeBodyName,
+  kindLabel,
   EXTRACTOR_HOOD_KIND,
   resolveCatalogEquivalent,
   toInsertableBody,
+  type BodyLabel,
   type InsertableBody,
 } from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
@@ -30,7 +32,7 @@ import type {
  *  the answer still has a single author, and now so does the reason.
  *
  *  `unresolvable` wins when both hold, because a row with no entry to be rebuilt through has no
- *  label of its own either and would name its `kind` at the customer.
+ *  label of its own either and is named by its `kind` instead.
  *
  *  **Identity is declared, never inferred.** The equivalent comes from `resolveCatalogEquivalent`,
  *  which reads the pointer the row declares (ADR 0022) and verifies it is `insertable`. §5.4's
@@ -177,7 +179,10 @@ export function isHood(record: PlacementRecord): boolean {
 
 /** `resolveResizableBody`'s refusal already carries the member's own name; this reads it back out
  *  rather than resolving the label a second time and risking two answers. */
-function memberLabelOf(detail: RejectionDetail, fallback: string): string {
+function memberLabelOf(
+  detail: RejectionDetail,
+  fallback: BodyLabel,
+): BodyLabel {
   return detail.code === "NOT_RESIZABLE" ? detail.params.label : fallback;
 }
 
@@ -202,19 +207,24 @@ export function resolveRebuildBody(
   return toInsertableBody(equivalent.buildId, equivalent.definition);
 }
 
-/** A seeded row carries no `label`, so the refusal falls back to the entry's **kind name** — the
- *  same fallback §9's header uses, via the same `describeKindLabel`.
+/** The descriptor a refusal names this placement by — §9's header rule, resolved through the same
+ *  `describeBodyName`, so a body and the sentence refusing it never disagree.
  *
- *  It resolves the kind rather than returning it: every caller puts this string inside a Romanian
- *  refusal sentence the customer reads, and a bare `kind` is an internal identifier. The four corner
- *  rows are the ones exposed — they are the bodies with no `label` and no catalogue equivalent to
- *  inherit one from (ADR 0022) — so before this, `setWidth` on a wall corner return answered
- *  `„corner_wall_return" nu își poate schimba lățimea.` */
+ *  It publishes a descriptor rather than the raw `kind`: every caller puts the resolved string
+ *  inside a refusal sentence the customer reads, and a bare `kind` is an internal identifier. The
+ *  four corner rows are the ones exposed — they are the bodies with no catalogue equivalent to
+ *  inherit a name from (ADR 0022) — so before this, `setWidth` on a wall corner return answered
+ *  `„corner_wall_return" nu își poate schimba lățimea.`
+ *
+ *  A `buildId` the catalogue does not hold at all is named by the record's own kind, which is the
+ *  only fact left about it. */
 export function describeRecordLabel(
   catalog: BodyCatalog,
   record: PlacementRecord,
-): string {
-  return catalog.get(record.buildId)?.label ?? describeKindLabel(record.kind);
+): BodyLabel {
+  const definition = catalog.get(record.buildId);
+  if (definition === undefined) return kindLabel(record.kind);
+  return describeBodyName({ buildId: record.buildId, definition });
 }
 
 export function findPlacement(

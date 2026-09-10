@@ -167,8 +167,8 @@ describe("the two hob rows are distinguishable in the picker", () => {
       ),
     );
 
-    expect(labels.get("base-hob-2drawer")).toBe("Corp plită și 2 sertare");
-    expect(labels.get("base-hob-oven")).toBe("Corp plită și cuptor");
+    expect(labels.get("base-hob-2drawer")).toBe("Dulap plită și 2 sertare");
+    expect(labels.get("base-hob-oven")).toBe("Dulap plită și cuptor");
   });
 });
 

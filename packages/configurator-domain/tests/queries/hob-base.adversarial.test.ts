@@ -317,7 +317,6 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     // below carries that agreement. Masking it here would hide a future divergence.
     const withoutTheChoice = (definition: BodyDefinition) => ({
       ...definition,
-      label: "",
       canHandle: true,
       occupiedDepth: finishesAtMm(0),
       cabinetHandles: carriesHandles(0),
@@ -325,7 +324,6 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     });
 
     expect(withoutTheChoice(drawers)).toEqual(withoutTheChoice(oven));
-    expect(drawers.label).not.toBe(oven.label);
     expect([drawers.canFinish, drawers.canHandle]).toEqual([true, true]);
     expect([oven.canFinish, oven.canHandle]).toEqual([true, false]);
 

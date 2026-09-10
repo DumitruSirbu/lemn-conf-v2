@@ -7,6 +7,8 @@
 // that already carried `STRUCTURAL_CORNER`, and adding them changed no derived state anywhere else.
 import { describe, expect, it } from "vitest";
 
+import { isKnownKind, kindLabel } from "../../src/catalog.js";
+
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -28,6 +30,14 @@ const CORNER_BASE_IDS = ["p25", "p26"] as const;
 const CORNER_RETURN_IDS = ["p9", "p21"] as const;
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
+
+/** The `kind` the placement declares — the fact a corner is named by, since it declares no
+ *  catalogue equivalent (ADR 0022). */
+function cornerKindOf(id: string): string {
+  const record = seeded().records.find((candidate) => candidate.id === id);
+  if (!record) throw new Error(`fixture places no "${id}"`);
+  return record.kind;
+}
 
 function metaFor(id: string) {
   return describeSelection({ ...seeded(), target: { kind: "placement", id } });
@@ -112,13 +122,19 @@ describe("the base corner is a selectable placement (§11 row 16)", () => {
     if (result.reason.code !== "NOT_DELETABLE") {
       throw new Error(`${id} refused with ${result.reason.code}`);
     }
-    expect(result.reason.params.label).toMatch(/colț/);
+    // The kind the catalogue names a corner by — which is what makes the sentence say *corner*
+    // rather than the generic word. The Romanian it resolves to is the catalogue's since 6B-f.
+    expect(result.reason.params).toMatchObject({
+      label: { kind: "bodyKind" },
+    });
+    expect(isKnownKind(cornerKindOf(id))).toBe(true);
   });
 
   it.each(CORNER_BASE_IDS)(
     "%s is named, not left as the generic body",
     (id) => {
-      expect(metaFor(id)?.label).toMatch(/colț/);
+      expect(metaFor(id)?.label).toEqual(kindLabel(cornerKindOf(id)));
+      expect(isKnownKind(cornerKindOf(id))).toBe(true);
     },
   );
 });

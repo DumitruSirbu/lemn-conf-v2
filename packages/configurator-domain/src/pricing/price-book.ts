@@ -199,7 +199,8 @@ export interface CabinetPriceRule {
 }
 
 /** What every tier states about itself, whatever it is a tier *of*. The name and the one-line
- *  description live here rather than in `content/ro.ts` for ADR 0062's third prohibition: a tier is
+ *  description live here rather than in the app's message catalogue
+ *  (`apps/web/src/messages/ro.json`) for ADR 0062's third prohibition: a tier is
  *  book data rendered, never copy in a component that happens to agree with a number. */
 export interface TierIdentity {
   /** What a selection names. Stable, and not the rule id: one is a choice, the other is a price. */

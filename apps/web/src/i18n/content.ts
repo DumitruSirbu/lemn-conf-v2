@@ -1,6 +1,8 @@
 import type { _Translator, Messages } from "next-intl";
 
 import type {
+  Band,
+  BodyLabel,
   EmptySpaceSide,
   RejectionDetail,
 } from "@lemnaria/configurator-domain";
@@ -8,7 +10,154 @@ import type {
 export type ContentTranslator = _Translator<Messages>;
 
 function assertNever(value: never): never {
-  throw new Error(`Unhandled rejection descriptor: ${JSON.stringify(value)}`);
+  throw new Error(`Unhandled descriptor: ${JSON.stringify(value)}`);
+}
+
+/**
+ * Resolves a locale-free `BodyLabel` through the active message catalogue — §9's header, the ACTUAL
+ * badge, every offer row, the priced breakdown line, and the `{label}` inside a refusal.
+ *
+ * The two inner switches are **literal-key** and exhaustive, never `` translate(`catalog.kinds.${k}`) ``.
+ * A template key defeats next-intl's generated declaration, which is the one property ADR 0095
+ * decision 1 chose the library for: a catalogue row added without a message leaf must be a compile
+ * error rather than a blank label. It is also what makes `corner_wall_return_top`'s `rowWord`
+ * argument mandatory rather than remembered.
+ */
+export function resolveBodyLabel(
+  translate: ContentTranslator,
+  label: BodyLabel,
+): string {
+  switch (label.kind) {
+    case "entry":
+      return resolveEntryLabel(translate, label.buildId);
+    case "bodyKind":
+      return resolveKindLabel(translate, label.bodyKind);
+    case "emptySlot":
+      return translate("catalog.emptySlot");
+    // ADR 0033's count, wrapped around a name that is never itself counted — `labelWithDoors`
+    // throws on a nested wrap, so this recursion is one level deep by construction.
+    case "withDoors":
+      return translate("catalog.bodyLabelWithDoors", {
+        name: resolveBodyLabel(translate, label.name),
+        doors: label.doors,
+      });
+    default:
+      return assertNever(label);
+  }
+}
+
+/**
+ * §9's header line renders `Perete X · band · W × H mm` from this, and ADR 0066's top-row kind leaf
+ * reads the same word. Takes the **raw** band, so a seeded top-row cabinet still reads as the top
+ * row even though §5.2's gate treats it as `wall`.
+ */
+export function resolveBandLabel(
+  translate: ContentTranslator,
+  band: Band,
+): string {
+  switch (band) {
+    case "base":
+      return translate("band.base");
+    case "wall":
+      return translate("band.wall");
+    case "top":
+      return translate("band.top");
+    case "column":
+      return translate("band.column");
+    default:
+      return assertNever(band);
+  }
+}
+
+/** §11 row 24's fallback, and §9's header before it: a body the catalogue cannot name is still
+ *  named. Never a key path, never an empty string, and never the raw `kind` id. */
+function resolveUnknownBody(translate: ContentTranslator): string {
+  return translate("catalog.unknownKind");
+}
+
+function resolveEntryLabel(
+  translate: ContentTranslator,
+  buildId: string,
+): string {
+  switch (buildId) {
+    case "base-cabinet":
+      return translate("catalog.entries.base-cabinet");
+    case "base-3drawer":
+      return translate("catalog.entries.base-3drawer");
+    case "base-panbank":
+      return translate("catalog.entries.base-panbank");
+    case "base-hob-2drawer":
+      return translate("catalog.entries.base-hob-2drawer");
+    case "base-hob-oven":
+      return translate("catalog.entries.base-hob-oven");
+    case "base-bottle-cargo":
+      return translate("catalog.entries.base-bottle-cargo");
+    case "base-sink":
+      return translate("catalog.entries.base-sink");
+    case "base-dishwasher":
+      return translate("catalog.entries.base-dishwasher");
+    case "wall-cabinet":
+      return translate("catalog.entries.wall-cabinet");
+    case "wall-lift":
+      return translate("catalog.entries.wall-lift");
+    case "open-shelf":
+      return translate("catalog.entries.open-shelf");
+    case "hood":
+      return translate("catalog.entries.hood");
+    case "tall-pantry":
+      return translate("catalog.entries.tall-pantry");
+    case "tall-oven-tower":
+      return translate("catalog.entries.tall-oven-tower");
+    case "tall-fridge-housing":
+      return translate("catalog.entries.tall-fridge-housing");
+    case "fridge-free":
+      return translate("catalog.entries.fridge-free");
+    // A `BodyCatalog` can arrive from outside TypeScript (ADR 0062's seam, wave 6J's migration), so
+    // a build id with no leaf is reachable and is named rather than rendered as a hole.
+    default:
+      return resolveUnknownBody(translate);
+  }
+}
+
+function resolveKindLabel(
+  translate: ContentTranslator,
+  bodyKind: string,
+): string {
+  switch (bodyKind) {
+    case "base_cabinet":
+      return translate("catalog.kinds.base_cabinet");
+    case "dishwasher_housing":
+      return translate("catalog.kinds.dishwasher_housing");
+    case "induction_cooktop":
+      return translate("catalog.kinds.induction_cooktop");
+    case "tall_unit":
+      return translate("catalog.kinds.tall_unit");
+    case "fridge_housing":
+      return translate("catalog.kinds.fridge_housing");
+    case "fridge_freestanding":
+      return translate("catalog.kinds.fridge_freestanding");
+    case "wall_cabinet":
+      return translate("catalog.kinds.wall_cabinet");
+    case "open_shelf_unit":
+      return translate("catalog.kinds.open_shelf_unit");
+    case "extractor_hood":
+      return translate("catalog.kinds.extractor_hood");
+    case "corner_base_x":
+      return translate("catalog.kinds.corner_base_x");
+    case "corner_base_return":
+      return translate("catalog.kinds.corner_base_return");
+    case "corner_wall_return":
+      return translate("catalog.kinds.corner_wall_return");
+    // ADR 0066: the one kind leaf taking an argument. The row word comes from `band.top`, which is
+    // the same word §9's header calls this body's row, so the two cannot drift to two spellings.
+    case "corner_wall_return_top":
+      return translate("catalog.kinds.corner_wall_return_top", {
+        rowWord: resolveBandLabel(translate, "top"),
+      });
+    // §11 row 24: a kind the catalogue does not name — including `VOID_KIND`, which it never will.
+    default:
+      return resolveUnknownBody(translate);
+  }
 }
 
 /** next-intl 4.14.2's generated argument parser types a select-only message as accepting no values.
@@ -89,8 +238,13 @@ function resolveWidthsMadeClause(
 }
 
 /** Resolves a locale-free domain refusal through the active message catalogue. The exhaustive
- * literal-key switch keeps all 34 codes checked against both the domain union and generated ICU
- * argument declarations. */
+ * literal-key switch keeps all 35 codes checked against both the domain union and generated ICU
+ * argument declarations.
+ *
+ * **The descriptor is resolved before it is interpolated, and that order is forced rather than
+ * chosen.** ICU cannot reference a sub-message by argument, so a message reading `„{label}”` needs a
+ * resolved string; no `rejection.*` leaf changed for this, and each of them still declares `{label}`
+ * as a plain string argument. */
 export function resolveRejection(
   translate: ContentTranslator,
   detail: RejectionDetail,
@@ -106,40 +260,40 @@ export function resolveRejection(
       return translate("rejection.BODY_PROBE_UNAVAILABLE");
     case "ACCESSORY_NOT_DELETABLE":
       return translate("rejection.ACCESSORY_NOT_DELETABLE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "NOT_DELETABLE":
       return translate("rejection.NOT_DELETABLE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "NOT_IN_LIBRARY":
       return translate("rejection.NOT_IN_LIBRARY");
     case "NOT_INSERTABLE":
       return translate("rejection.NOT_INSERTABLE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "TARGET_NOT_REPLACEABLE":
       return translate("rejection.TARGET_NOT_REPLACEABLE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "BAND_MISMATCH":
       return translate("rejection.BAND_MISMATCH", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         slotBand: detail.params.slotBand,
       });
     case "WIDTH_TOO_LARGE":
       return translate("rejection.WIDTH_TOO_LARGE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         requiredMm: detail.params.requiredMm,
         availableMm: detail.params.availableMm,
       });
     case "WIDTH_TOO_SMALL":
       return detail.params.requiredMm === undefined
         ? translate("rejection.WIDTH_TOO_SMALL_UNKNOWN_FLOOR", {
-            label: detail.params.label,
+            label: resolveBodyLabel(translate, detail.params.label),
           })
         : translate("rejection.WIDTH_TOO_SMALL", {
-            label: detail.params.label,
+            label: resolveBodyLabel(translate, detail.params.label),
             requiredMm: detail.params.requiredMm,
             availableMm: detail.params.availableMm,
           });
@@ -149,7 +303,7 @@ export function resolveRejection(
         (detail.params.widthRangesMm?.length ?? 0) === 0;
       if (hasNoWidth) {
         return translate("rejection.WIDTH_NOT_SUPPORTED_NO_WIDTH", {
-          label: detail.params.label,
+          label: resolveBodyLabel(translate, detail.params.label),
         });
       }
       const widthsMadeClause = resolveWidthsMadeClause(
@@ -158,12 +312,12 @@ export function resolveRejection(
       );
       return detail.params.boundScope === "column"
         ? translate("rejection.WIDTH_NOT_SUPPORTED_COLUMN", {
-            label: detail.params.label,
+            label: resolveBodyLabel(translate, detail.params.label),
             widthsMadeClause,
             availableMm: detail.params.availableMm,
           })
         : translate("rejection.WIDTH_NOT_SUPPORTED_BODY", {
-            label: detail.params.label,
+            label: resolveBodyLabel(translate, detail.params.label),
             widthsMadeClause,
             availableMm: detail.params.availableMm,
           });
@@ -175,74 +329,74 @@ export function resolveRejection(
       });
     case "HEIGHT_EXCEEDS_LEVEL":
       return translate("rejection.HEIGHT_EXCEEDS_LEVEL", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         requiredMm: detail.params.requiredMm,
         availableMm: detail.params.availableMm,
       });
     case "HEIGHT_TOO_LARGE":
       return translate("rejection.HEIGHT_TOO_LARGE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         requiredMm: detail.params.requiredMm,
         availableMm: detail.params.availableMm,
       });
     case "NO_SNAP_POSITION":
       return translate("rejection.NO_SNAP_POSITION", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "BUILT_SIZE_MISMATCH":
       return translate("rejection.BUILT_SIZE_MISMATCH", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         builtMm: detail.params.builtMm,
         requiredMm: detail.params.requiredMm,
       });
     case "MEASUREMENT_UNUSABLE":
       return translate("rejection.MEASUREMENT_UNUSABLE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "COLUMN_MISMATCH":
       return translate("rejection.COLUMN_MISMATCH", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "NOT_RESIZABLE":
       return translate("rejection.NOT_RESIZABLE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "WIDTH_UNCHANGED":
       return translate("rejection.WIDTH_UNCHANGED", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         widthMm: detail.params.widthMm,
       });
     case "NO_EMPTY_SPACE":
       return translate("rejection.NO_EMPTY_SPACE", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         requestedMm: detail.params.requestedMm,
         deltaMm: detail.params.deltaMm,
         sides: resolveEmptySpaceSides(translate, detail.params.sides),
       });
     case "COLUMN_MEMBER_NOT_RESIZABLE":
       return translate("rejection.COLUMN_MEMBER_NOT_RESIZABLE", {
-        label: detail.params.label,
-        memberLabel: detail.params.memberLabel,
+        label: resolveBodyLabel(translate, detail.params.label),
+        memberLabel: resolveBodyLabel(translate, detail.params.memberLabel),
       });
     case "DEPENDENT_MEMBER_NOT_REBUILDABLE":
       return translate("rejection.DEPENDENT_MEMBER_NOT_REBUILDABLE", {
-        label: detail.params.label,
-        memberLabel: detail.params.memberLabel,
+        label: resolveBodyLabel(translate, detail.params.label),
+        memberLabel: resolveBodyLabel(translate, detail.params.memberLabel),
       });
     case "RESIZE_OPENS_GAP":
       return translate("rejection.RESIZE_OPENS_GAP", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         sides: resolveEmptySpaceSides(translate, detail.params.sides),
       });
     case "COLUMN_KEY_COLLISION":
       return translate("rejection.COLUMN_KEY_COLLISION", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         requestedMm: detail.params.requestedMm,
         sides: resolveEmptySpaceSides(translate, detail.params.sides),
       });
     case "COLUMN_HOOD_FLOOR":
       return translate("rejection.COLUMN_HOOD_FLOOR", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
         requestedMm: detail.params.requestedMm,
         hoodWidthMm: detail.params.hoodWidthMm,
       });
@@ -253,13 +407,13 @@ export function resolveRejection(
       });
     case "FINISH_NOT_SUPPORTED":
       return translate("rejection.FINISH_NOT_SUPPORTED", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "FINISH_NOT_OFFERED":
       return translate("rejection.FINISH_NOT_OFFERED");
     case "HANDLE_NOT_SUPPORTED":
       return translate("rejection.HANDLE_NOT_SUPPORTED", {
-        label: detail.params.label,
+        label: resolveBodyLabel(translate, detail.params.label),
       });
     case "UNKNOWN_MATERIAL_TIER":
       return translate("rejection.UNKNOWN_MATERIAL_TIER");
@@ -280,6 +434,11 @@ export function resolveRejection(
 export function resolveContent(translate: ContentTranslator) {
   return {
     rejection: (detail: RejectionDetail) => resolveRejection(translate, detail),
+    /** A domain descriptor resolved through `catalog.*`, not a content family — see
+     *  `resolveBodyLabel`. Held on `Content` for `rejection`'s reason: a model already threading the
+     *  resolved content has no translator of its own. */
+    bodyLabel: (label: BodyLabel) => resolveBodyLabel(translate, label),
+    bandLabel: (band: Band) => resolveBandLabel(translate, band),
     brand: translate("brand"),
     configure: {
       step: translate("configure.step", { step: 2, totalSteps: 4 }),

@@ -121,7 +121,10 @@ describe("the rows are wave 6A's groups, rendered", () => {
     ).toEqual(
       SHIPPED_GROUPS.flatMap((group) =>
         group.entries.map((entry) =>
-          ro.priceBreakdown.placementLabel(entry.label, entry.widthMm),
+          ro.priceBreakdown.placementLabel(
+            ro.bodyLabel(entry.label),
+            entry.widthMm,
+          ),
         ),
       ),
     );

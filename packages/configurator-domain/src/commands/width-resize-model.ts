@@ -3,7 +3,7 @@
 // Types only, and deliberately: every phase of `setWidth` is a pure function over these values, so
 // the one module they all import carries no behaviour of its own and cannot be a place a rule hides.
 import type { BodyProbe } from "../body-probe.js";
-import type { InsertableBody } from "../catalog.js";
+import type { BodyLabel, InsertableBody } from "../catalog.js";
 import type { Design } from "../design.js";
 import type { BodyCatalog, Column, PlacementRecord } from "../void-engine.js";
 import type {
@@ -75,7 +75,7 @@ export interface ColumnContext {
   readonly design: Design;
   readonly catalog: BodyCatalog;
   readonly records: readonly PlacementRecord[];
-  readonly label: string;
+  readonly label: BodyLabel;
 }
 
 /** One body about to be rebuilt: the same `ColumnMember`, with `alongMm` and `widthMm` moved from
@@ -122,7 +122,7 @@ export interface FrozenColumnMove {
 }
 
 export interface ColumnResize {
-  readonly label: string;
+  readonly label: BodyLabel;
   /** The width the column was squared up to. Read from here rather than off the first `Rebuild`,
    *  because that list also carries the hoods, which keep widths of their own. */
   readonly widthMm: number;
@@ -150,7 +150,7 @@ export interface ColumnResize {
  *  decision 6 as amended). Only `members` narrow the width, only `members` set the extent, and both
  *  lists are rebuilt — a hood at its own width and the run's new centre. */
 export interface ColumnPlan {
-  readonly label: string;
+  readonly label: BodyLabel;
   readonly column: Column;
   readonly members: readonly [ColumnMember, ...ColumnMember[]];
   readonly hoods: readonly ColumnMember[];

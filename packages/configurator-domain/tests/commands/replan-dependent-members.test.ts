@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import { normaliseBand } from "../../src/bands.js";
 import {
   columnDecidesADifferentDepth,
@@ -31,6 +33,7 @@ import { clearBodies, insertInto } from "../support/commands.js";
 import {
   witnessWorld,
   WITNESS_COLUMN_KEY,
+  WITNESS_EQUIVALENT_BUILD_ID,
 } from "../support/dependent-replan-witness.js";
 import {
   advance,
@@ -283,8 +286,12 @@ describe("the insert refuses whole when a dependent body cannot be rebuilt", () 
     // interpolates rather than weakening to the code alone.
     expect(result.reason.code).toBe("DEPENDENT_MEMBER_NOT_REBUILDABLE");
     if (result.reason.code !== "DEPENDENT_MEMBER_NOT_REBUILDABLE") return;
-    expect(result.reason.params.label).toContain("Coloană");
-    expect(result.reason.params.memberLabel).toContain("Corp suspendat");
+    expect(result.reason.params.label).toEqual(entryLabel("tall-pantry"));
+    // The standing body has no name of its own: it is named by the row a rebuild would go through,
+    // which is the witness's deliberately narrow equivalent (ADR 0064, and `describeBodyName`).
+    expect(result.reason.params.memberLabel).toEqual(
+      entryLabel(WITNESS_EQUIVALENT_BUILD_ID),
+    );
   });
 });
 

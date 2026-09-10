@@ -205,7 +205,7 @@ describe("the notice says which of the two situations this is", () => {
     // the selection that no access answer can alter.
     const panel = openPanel(occupiedMeta(), { canWrite: "checking" });
 
-    expect(panel.header.label).toBe(occupiedMeta().label);
+    expect(panel.header.label).toBe(ro.bodyLabel(occupiedMeta().label));
     expect(panel.sections).not.toHaveLength(0);
   });
 

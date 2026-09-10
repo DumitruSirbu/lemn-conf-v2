@@ -90,7 +90,10 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
   (tier) => tier.tierId,
 );
 
-const WRITABLE = describeEditability({ canWrite: true, saveStatus: "idle" });
+const WRITABLE = describeEditability(
+  { canWrite: true, saveStatus: "idle" },
+  content.panel,
+);
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({

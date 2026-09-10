@@ -36,11 +36,11 @@ export const WALL_CABINET_KIND = "wall_cabinet";
  *
  *  Declared here beside the kinds the domain reads as decisions, even though nothing branches on
  *  these two, for `EXTRACTOR_HOOD_KIND`'s reason: three sites have to spell each kind identically —
- *  the fixture row, `KIND_LABELS_RO` and the tests — and the label table is the one that goes wrong
- *  when they diverge. A divergence drops `describeKindLabel` through to `UNKNOWN_KIND_LABEL_RO`, so
- *  **both returns would read "Corp"** in the panel header and in wave 6D's priced document,
- *  silently reinstating the defect ADR 0066 exists to remove: two identical descriptions against two
- *  different amounts.
+ *  the fixture row, `catalog.ts`'s known-kind set and the message catalogue's `catalog.kinds.*` — and
+ *  the catalogue is the one that goes wrong when they diverge. A divergence drops the kind through
+ *  to `catalog.unknownKind`, so **both returns would read the same generic word** in the panel
+ *  header and in wave 6D's priced document, silently reinstating the defect ADR 0066 exists to
+ *  remove: two identical descriptions against two different amounts.
  *
  *  **Not** because a typo would empty a swap list, which is true in general and false here (ADR 0066
  *  correction 2026-09-03). It does hold for a body that can be replaced — `EXTRACTOR_HOOD_KIND`'s

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import { CHOOSES_ITS_OWN_COLOUR } from "../../src/body-finish-rule.js";
 import { baseFinishedDepthMm } from "../../src/catalog.js";
 import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
@@ -127,7 +129,7 @@ describe("offersFor — a void", () => {
       reason: {
         code: "WIDTH_NOT_SUPPORTED",
         params: {
-          label: "Hotă",
+          label: entryLabel("hood"),
           sizesMm: HOOD_CHIPS_MM,
           // The bound travels with the refusal so the sentence can say "between 600 and 800 mm"
           // rather than listing five chips and implying the hood is not made at 670. It is.

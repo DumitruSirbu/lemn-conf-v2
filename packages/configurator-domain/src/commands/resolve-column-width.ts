@@ -5,6 +5,7 @@ import {
   acceptsWidthMm,
   resolveBuildableSizes,
   resolveWidthRangesMm,
+  type BodyLabel,
 } from "../catalog.js";
 import type { BodyCatalog, WidthRangeMm } from "../void-engine.js";
 import type { RejectionDetail } from "./rejection.js";
@@ -74,7 +75,7 @@ export function resolveColumnExtent(
  *  550 or 650, and each of those does move the extent. */
 export function refuseIllegalWidth(
   input: SetWidthInput,
-  label: string,
+  label: BodyLabel,
   column: ColumnUnit,
   extent: ExtentMm,
 ): RejectionDetail | undefined {

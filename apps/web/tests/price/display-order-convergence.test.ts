@@ -90,7 +90,10 @@ const ENTRIES: readonly DisplayEntry[] = GROUPS.flatMap(
 );
 
 function labelOf(entry: DisplayEntry): string {
-  return ro.priceBreakdown.placementLabel(entry.label, entry.widthMm);
+  return ro.priceBreakdown.placementLabel(
+    ro.bodyLabel(entry.label),
+    entry.widthMm,
+  );
 }
 
 function breakdownView(): AvailableBreakdown {

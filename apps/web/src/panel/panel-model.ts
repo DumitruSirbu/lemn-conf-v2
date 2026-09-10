@@ -484,7 +484,7 @@ const CLOSED_PANEL: ClosedPanel = { kind: "closed" };
 export function describePanel(input: DescribePanelInput): PanelView {
   const { meta } = input;
   if (!meta) return CLOSED_PANEL;
-  const editability = describeEditability(input);
+  const editability = describeEditability(input, input.content.panel);
   const notice = describeNotice(input, editability);
   return {
     kind: "open",
@@ -650,10 +650,12 @@ function describeLockedNotice(input: DescribePanelInput): PanelNotice {
 
 function describeHeader(meta: SelectionMeta, content: Content): PanelHeader {
   return {
-    label: meta.label,
+    label: content.bodyLabel(meta.label),
+    // The band the selection carries, resolved here: `SelectionMeta` publishes the fact and never a
+    // second, presentational copy of it beside the fact.
     detail: content.panel.headerMeta(
       meta.wall,
-      meta.bandLabel,
+      content.bandLabel(meta.band),
       meta.widthMm,
       meta.heightMm,
     ),
@@ -808,7 +810,7 @@ function describeOfferRow(
       : undefined;
   return {
     buildId: offer.buildId,
-    label: offer.label,
+    label: availability.content.bodyLabel(offer.label),
     secondaryLine: describeOfferSecondaryLine(offer, availability),
     isCurrent: offer.isCurrent,
     isDisabled:

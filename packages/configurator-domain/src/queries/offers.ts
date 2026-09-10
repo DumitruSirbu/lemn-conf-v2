@@ -18,6 +18,7 @@ import {
   buildableSizes,
   describeBodyLabelAt,
   isKnownKind,
+  type BodyLabel,
   listInsertableBodies,
   resolveCatalogEquivalent,
   resolveWidthRangesMm,
@@ -66,7 +67,7 @@ export type OfferVerdict =
 
 export interface CatalogOffer {
   readonly buildId: string;
-  readonly label: string;
+  readonly label: BodyLabel;
   readonly kind: string;
   readonly band: Band;
   /** **The modular widths a customer picks from** — this entry's chips, narrowed by the floor that
@@ -166,9 +167,12 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
 function describeOfferLabel(
   body: InsertableBody,
   verdict: OfferVerdict,
-): string {
+): BodyLabel {
   if (verdict.status !== "offered") return body.label;
-  return describeBodyLabelAt(body.definition, verdict.widthMm);
+  return describeBodyLabelAt(
+    { buildId: body.buildId, definition: body.definition },
+    verdict.widthMm,
+  );
 }
 
 /** One entry against one opening, by the **same** evaluation `insertBody` runs — which is what makes

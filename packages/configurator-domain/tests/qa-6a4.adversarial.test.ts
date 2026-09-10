@@ -7,11 +7,7 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import {
-  describeBandLabel,
-  isBandAccepted,
-  normaliseBand,
-} from "../src/bands.js";
+import { isBandAccepted, normaliseBand } from "../src/bands.js";
 import {
   WALL_CABINET_KIND,
   WALL_CORNER_RETURN_KIND,
@@ -20,10 +16,10 @@ import {
 import { carriesHandles } from "../src/cabinet-handles.js";
 import {
   describeBodyLabelAt,
-  describeKindLabel,
+  kindLabel,
   isKnownKind,
   resolveCatalogEquivalent,
-  UNKNOWN_KIND_LABEL_RO,
+  type BodyLabel,
 } from "../src/catalog.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -67,15 +63,22 @@ function metaFor(world: KitchenWorld, placementId: string) {
 /** The breakdown line, as wave 6D will build it: `describeBodyLabelAt` at the placement's width and
  *  nothing else — no band, no height, no wall. Written out here rather than imported from the
  *  projection so this file's assertions do not move if `labelOf` changes shape. */
-function breakdownLineFor(placementId: string): string {
+function breakdownLineFor(placementId: string): BodyLabel {
   const placement = KITCHEN_L_DESIGN.placements.find(
     (candidate) => candidate.id === placementId,
   );
   if (!placement) throw new Error(`fixture has no placement "${placementId}"`);
   return describeBodyLabelAt(
-    definitionOf(placement.body.buildId),
+    {
+      buildId: placement.body.buildId,
+      definition: definitionOf(placement.body.buildId),
+    },
     placement.body.widthMm,
   );
+}
+
+function bodyOf(buildId: string) {
+  return { buildId, definition: definitionOf(buildId) };
 }
 
 /** The catalogue row a price rule would resolve through: the declared equivalent (ADR 0022) when
@@ -101,7 +104,9 @@ describe("6A4 — the defect at the surface that reported it", () => {
     // fixture, so the next row that lands in this trap fails here rather than in a customer's PDF.
     const straddling = new Map<string, readonly string[]>();
     for (const placement of KITCHEN_L_DESIGN.placements) {
-      const line = `${breakdownLineFor(placement.id)}|${String(placement.body.widthMm)}`;
+      // The descriptor and the width, serialised — since 6B-f a line is a descriptor plus a number
+      // rather than a string, and two placements share a printed line exactly when both agree.
+      const line = `${JSON.stringify(breakdownLineFor(placement.id))}|${String(placement.body.widthMm)}`;
       straddling.set(line, [
         ...(straddling.get(line) ?? []),
         priceIdentityOf(placement.body.buildId),
@@ -131,8 +136,9 @@ describe("6A4 — the defect at the surface that reported it", () => {
           !(RETURN_IDS as readonly string[]).includes(placement.id),
       )
       .map((placement) => breakdownLineFor(placement.id));
-    expect(otherLines).not.toContain(wallLine);
-    expect(otherLines).not.toContain(topLine);
+    const serialised = otherLines.map((line) => JSON.stringify(line));
+    expect(serialised).not.toContain(JSON.stringify(wallLine));
+    expect(serialised).not.toContain(JSON.stringify(topLine));
   });
 
   it("agrees across the breakdown, the projection and the panel header", () => {
@@ -197,33 +203,23 @@ describe("6A4 — the defect at the surface that reported it", () => {
 });
 
 describe("6A4 — the composed label and its coupling to the band table", () => {
-  it("pins both names as literals, so a reword of BAND_LABELS_RO.top is a visible change", () => {
-    // The wave's own test asserts the top return's name equals
-    // `` `Dulap de colț ${describeBandLabel("top")}` `` — which is the expression under test
-    // restated, so it holds for *any* value of `BAND_LABELS_RO.top` and cannot catch a reword.
-    // The owner ruled on the two strings (2026-09-03) and they reach a priced document, so the
-    // literals are pinned here. Single-sourcing the composition is still the right call: this
-    // assertion makes the coupling loud instead of silent.
-    expect([
-      describeKindLabel(WALL_CORNER_RETURN_KIND),
-      describeKindLabel(WALL_CORNER_RETURN_TOP_KIND),
-    ]).toEqual(["Dulap suspendat de colț", "Dulap de colț rând de sus"]);
-  });
-
-  it("keeps the composed name agreeing with the header that names the same row", () => {
-    // The reason for the coupling: §9's header renders `describeBandLabel(record.band)` for this
-    // body's row, and a name that says which row a body stands on is wrong the moment the two
-    // spellings drift. Asserted through the panel meta rather than through the constant.
+  // **The two rendered names moved to the app in 6B-f.** They are `catalog.kinds.*` leaves now,
+  // pinned by the whole-file copy lock and checked against the `band.top` word they compose with in
+  // `apps/web/tests/i18n/body-label.test.ts` — including the sentinel that proves the composition is
+  // live rather than a coincidence of spelling. What remains a domain question is which descriptor
+  // each row publishes, which is what these two assert.
+  it("keeps the top return's row and the header's row one and the same fact", () => {
+    // The reason for the coupling: §9's header renders this body's `band` and its kind leaf names
+    // that same row, so both must be reading `top` rather than two spellings of it.
     const meta = metaFor(seeded(), TOP_RETURN_ID);
-    expect(meta?.bandLabel).toBe(describeBandLabel("top"));
-    expect(meta?.label).toContain(describeBandLabel("top"));
+    expect(meta?.band).toBe("top");
+    expect(meta?.label).toEqual(kindLabel(WALL_CORNER_RETURN_TOP_KIND));
   });
 
-  it("keeps the two names free of the generic wall label they were confused with", () => {
-    const wallCabinetLabel = describeKindLabel(WALL_CABINET_KIND);
+  it("keeps the two returns free of the generic wall kind they were confused with", () => {
     for (const kind of [WALL_CORNER_RETURN_KIND, WALL_CORNER_RETURN_TOP_KIND]) {
-      expect(describeKindLabel(kind)).not.toBe(wallCabinetLabel);
-      expect(describeKindLabel(kind)).not.toBe(UNKNOWN_KIND_LABEL_RO);
+      expect(kind).not.toBe(WALL_CABINET_KIND);
+      expect(isKnownKind(kind)).toBe(true);
     }
   });
 });
@@ -260,16 +256,22 @@ describe("6A4 — the silent failure a typo would cause, constructed", () => {
         KITCHEN_L_DESIGN,
         catalogWithMisspeltKind(buildId, typo),
       );
-      expect(metaFor(broken, id)?.label).toBe(UNKNOWN_KIND_LABEL_RO);
+      expect(metaFor(broken, id)?.label).toEqual(kindLabel(typo));
       expect(
         describeBodyLabelAt(
-          definitionOf(buildId, catalogWithMisspeltKind(buildId, typo)),
+          {
+            buildId,
+            definition: definitionOf(
+              buildId,
+              catalogWithMisspeltKind(buildId, typo),
+            ),
+          },
           570,
         ),
-      ).toBe(UNKNOWN_KIND_LABEL_RO);
+      ).toEqual(kindLabel(typo));
 
       // And the correctly spelt tree does not, so the assertion above is about the typo.
-      expect(metaFor(seeded(), id)?.label).not.toBe(UNKNOWN_KIND_LABEL_RO);
+      expect(metaFor(seeded(), id)?.label).not.toEqual(kindLabel(typo));
     },
   );
 
@@ -392,7 +394,7 @@ describe("6A4 — what a new kind must not have changed", () => {
     for (const buildId of [WALL_RETURN_BUILD_ID, TOP_RETURN_BUILD_ID]) {
       expect([buildId, priceIdentityOf(buildId)]).toEqual([buildId, buildId]);
       expect(definitionOf(buildId).doorCountFollowsWidth).toBeUndefined();
-      expect(definitionOf(buildId).label).toBeUndefined();
+      expect(definitionOf(buildId).catalogEquivalentId).toBeUndefined();
     }
   });
 });
@@ -405,17 +407,14 @@ describe("6A4 — the names hold across widths", () => {
       // the two must stay distinct across the whole range, not only at the seeded 570. A door count
       // appearing at some widths would make one return's line collide with a wall cabinet's.
       const wallLine = describeBodyLabelAt(
-        definitionOf(WALL_RETURN_BUILD_ID),
+        bodyOf(WALL_RETURN_BUILD_ID),
         widthMm,
       );
-      const topLine = describeBodyLabelAt(
-        definitionOf(TOP_RETURN_BUILD_ID),
-        widthMm,
-      );
+      const topLine = describeBodyLabelAt(bodyOf(TOP_RETURN_BUILD_ID), widthMm);
 
-      expect(wallLine).toBe(describeKindLabel(WALL_CORNER_RETURN_KIND));
-      expect(topLine).toBe(describeKindLabel(WALL_CORNER_RETURN_TOP_KIND));
-      expect(wallLine).not.toBe(topLine);
+      expect(wallLine).toEqual(kindLabel(WALL_CORNER_RETURN_KIND));
+      expect(topLine).toEqual(kindLabel(WALL_CORNER_RETURN_TOP_KIND));
+      expect(wallLine).not.toEqual(topLine);
     },
   );
 
@@ -424,12 +423,9 @@ describe("6A4 — the names hold across widths", () => {
     (widthMm) => {
       // `wall-cabinet` *does* follow its width, so its name changes under the sweep while the
       // returns' do not. The one thing that must hold at every width is that they differ.
-      const wallCabinet = describeBodyLabelAt(
-        definitionOf("wall-cabinet"),
-        widthMm,
-      );
+      const wallCabinet = describeBodyLabelAt(bodyOf("wall-cabinet"), widthMm);
       for (const buildId of [WALL_RETURN_BUILD_ID, TOP_RETURN_BUILD_ID])
-        expect(describeBodyLabelAt(definitionOf(buildId), widthMm)).not.toBe(
+        expect(describeBodyLabelAt(bodyOf(buildId), widthMm)).not.toEqual(
           wallCabinet,
         );
     },

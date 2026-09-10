@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
+import { entryLabel, labelWithDoors } from "../../src/catalog.js";
+
 import { describeBodyLabelAt } from "../../src/catalog.js";
 import type { CabinetBody, DesignPlacement } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
@@ -20,7 +22,7 @@ import {
   projectDesignForDisplay,
 } from "../../src/queries/design-projection.js";
 import {
-  definitionOf,
+  bodyOf,
   designOf,
   headingsOf,
   PROJECTION_CATALOG as CATALOG,
@@ -105,8 +107,8 @@ describe("projectDesignForDisplay labels", () => {
 
     expect(entries).not.toHaveLength(0);
     for (const entry of entries) {
-      expect(entry.label).toBe(
-        describeBodyLabelAt(definitionOf(entry.buildId), entry.widthMm),
+      expect(entry.label).toEqual(
+        describeBodyLabelAt(bodyOf(entry.buildId), entry.widthMm),
       );
     }
   });
@@ -117,12 +119,12 @@ describe("projectDesignForDisplay labels", () => {
     const narrow = designOf([placedAt({ id: "x", body: { widthMm: 400 } })]);
     const wide = designOf([placedAt({ id: "x", body: { widthMm: 600 } })]);
 
-    expect(projectDesignForDisplay(narrow, CATALOG)[0]?.entries[0]?.label).toBe(
-      "Corp suspendat 1 ușă",
-    );
-    expect(projectDesignForDisplay(wide, CATALOG)[0]?.entries[0]?.label).toBe(
-      "Corp suspendat 2 uși",
-    );
+    expect(
+      projectDesignForDisplay(narrow, CATALOG)[0]?.entries[0]?.label,
+    ).toEqual(labelWithDoors(entryLabel("wall-cabinet"), 1));
+    expect(
+      projectDesignForDisplay(wide, CATALOG)[0]?.entries[0]?.label,
+    ).toEqual(labelWithDoors(entryLabel("wall-cabinet"), 2));
   });
 });
 

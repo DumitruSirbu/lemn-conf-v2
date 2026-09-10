@@ -1,13 +1,17 @@
 // Every way a command can refuse, as a stable code and its typed parameters. Customer-facing copy
 // belongs to the app's locale catalogue; the domain remains locale-free (ADR 0095 decision 3).
 import type { NormalisedBand } from "../bands.js";
+import type { BodyLabel } from "../catalog.js";
 import type { WidthRangeMm } from "../void-engine.js";
 
 /** A refusal whose code needs no interpolation parameters. */
 type NoParams = Readonly<Record<string, never>>;
 
 interface LabelParams {
-  readonly label: string;
+  /** **A descriptor, never a sentence** (ADR 0095 decision 4). The app resolves it through
+   *  `catalog.*` and interpolates the resulting string into this refusal's own message; ICU cannot
+   *  reference a sub-message by argument, so the order is resolve-then-interpolate. */
+  readonly label: BodyLabel;
 }
 
 /** Which fact refused a resize, published rather than left to be re-derived by whoever is holding
@@ -20,8 +24,11 @@ interface LabelParams {
  *  keep failing loudly rather than being dressed up as a constrained product.
  *
  *  **`unresolvable` wins when both are true.** A row that is `fixedWidth` *and* unfinished has
- *  nothing to say about a cabinet: its label falls back to a `kind` string, and publishing it would
- *  put `„base_cabinet”` in front of a customer. */
+ *  nothing to say about a *cabinet*, so its label falls back to its kind — which is a real word and
+ *  not a fallback of last resort: all four corner kinds are named (`corner_base_x`,
+ *  `corner_base_return`, `corner_wall_return`, `corner_wall_return_top`, ADR 0025 and ADR 0066), so
+ *  the refusal reads *"Dulap bază de colț"* rather than the generic `catalog.unknownKind`. Only a
+ *  kind `KNOWN_BODY_KINDS` does not carry falls that far, and no shipped row has one. */
 export type NotResizableCause = "fixed" | "unresolvable";
 
 interface NotResizableParams extends LabelParams {
@@ -137,7 +144,7 @@ interface EmptySpaceParams extends LabelParams {
  *  entirely, and naming what is actually in the way is the difference between a refusal they can
  *  act on and one they cannot. */
 interface ColumnMemberParams extends LabelParams {
-  readonly memberLabel: string;
+  readonly memberLabel: BodyLabel;
 }
 
 /** Which number of a `BodyMeasurement` was not a number. The value itself is deliberately absent:

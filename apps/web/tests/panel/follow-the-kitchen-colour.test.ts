@@ -29,7 +29,7 @@ vi.mock("@/i18n/use-content", async () => {
   return { useContent: () => ro };
 });
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { ro as content } from "../support/romanian-content";
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection, describePanel } from "@/panel/panel-model";
@@ -45,8 +45,14 @@ import { noWidthIsFree } from "../support/width-options";
 
 const PAL_ANTRACIT = paletteFinish("pal.antracit");
 
-const WRITABLE = describeEditability({ canWrite: true, saveStatus: "idle" });
-const LOCKED = describeEditability({ canWrite: false, saveStatus: "idle" });
+const WRITABLE = describeEditability(
+  { canWrite: true, saveStatus: "idle" },
+  ro.panel,
+);
+const LOCKED = describeEditability(
+  { canWrite: false, saveStatus: "idle" },
+  ro.panel,
+);
 
 function panelSectionFor(finish: ReturnType<typeof paletteFinish> | undefined) {
   const meta = occupiedMeta(finish === undefined ? {} : { finish });

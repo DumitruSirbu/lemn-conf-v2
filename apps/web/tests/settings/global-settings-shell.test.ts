@@ -77,10 +77,13 @@ const FIXED_NOW = "2026-09-03T12:00:00.000Z";
 /** These fixtures are about chips, the figure and the tab ring, never about access. Stated rather
  *  than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write
  *  surface cannot silently default to permitted (M6-AUD-001). */
-const WRITABLE_ACCESS = describeEditability({
-  canWrite: true,
-  saveStatus: "idle",
-});
+const WRITABLE_ACCESS = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "idle",
+  },
+  content.panel,
+);
 
 const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
   (tier) => tier.tierId,

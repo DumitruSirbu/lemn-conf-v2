@@ -1,6 +1,8 @@
 import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
+import { kindLabel } from "@lemnaria/configurator-domain";
+
 import {
   resolveContent,
   type Content,
@@ -91,6 +93,11 @@ function contentFor(
 
 const FUNCTION_FAMILIES = [
   "rejection",
+  // The two descriptor resolvers 6B-f added. They are not `ro.ts` content families — they turn a
+  // domain descriptor into words — but they are public functions on `Content` and are counted here
+  // so a resolver cannot be added without this list saying so.
+  "bodyLabel",
+  "bandLabel",
   "panel.headerMeta",
   "panel.countForBody",
   "panel.countForSlot",
@@ -155,7 +162,7 @@ describe("the localized content resolver", () => {
     ["ro", roMessages],
     ["ru", ruMessages as typeof roMessages],
   ] as const)(
-    "backs exactly 24 public functions with %s ICU messages",
+    "backs exactly 26 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentFor(locale, messages);
 
@@ -291,7 +298,7 @@ describe("the localized content resolver", () => {
         content.rejection({
           code: "NO_EMPTY_SPACE",
           params: {
-            label: "body-token",
+            label: kindLabel("body-token"),
             requestedMm: 650,
             deltaMm: 50,
             sides: [side],

@@ -3,6 +3,13 @@
  *
  * Values are SHA-256 digests of rendered Romanian fixture outputs. The inline copy lock is the
  * sole literal wording authority; this manifest deliberately contains no second Romanian corpus.
+ *
+ * **Rebaselined once, by wave 6B-f, over 31 of the 300 fixtures.** No catalogue leaf changed. What
+ * changed is the `{label}` those fixtures interpolate: it was `describeBodyLabelAt`'s Romanian, and
+ * it is now a `BodyLabel` resolved through `catalog.*` — so the 30 refusal fixtures carrying a label
+ * and the one `priceBreakdown.placementLabel` fixture built from one now read *Dulap* where the
+ * domain said *Corp*. That is the owner's rename at `3564c7c` reaching the refusal sentences, which
+ * had been the last surface still saying the old word.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -304,7 +311,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.priceBreakdown.groupHeading.wall-b-wall":
     "f0ecf1a3ea637ce95ea20d61885742c92a19789c36ccca4195249c803297394f",
   "content.priceBreakdown.placementLabel.base-cabinet-200":
-    "aa5c3fe78bf66d845b2aede93131b9b70e425fb544dee69f55674c38c7aa5ee2",
+    "c381cc4b0cdb75f420a04fd43c35a51adb80a8ffafdf877a67f557f3bb6d1f4e",
   "content.priceBreakdown.placementLabel.base-dishwasher-600":
     "839b3a9b42e2e68525418324486658e97570328f049e0159038137fcaebe18e2",
   "content.priceBreakdown.wholeKitchenLabel.accessory":
@@ -524,63 +531,63 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.webglUnavailable.titleMobile":
     "1f6e566133c1d51645cc79876acbf641808347343fda76a164d2104a08e0bf5e",
   "rejection.accessory-not-deletable":
-    "ac1c4f0b5674ff466646bdcc12d608fa77f18279bc5d9d50f66bf171ab8a119d",
+    "6a2cd2e57109d963747b0ce8240e1f0e99d24229931b4aaf1f8d11c245a4bc48",
   "rejection.band-mismatch-base":
-    "43a14d1822741a7cc46b3d2606549f5498ae64b3f3861c34f4813d4dea0bce21",
+    "89c7d48227ef8850ad3bf1ef1982c0d5eea5331e4f748cad15bd44416a48285c",
   "rejection.band-mismatch-wall":
-    "93d6fd5b4d3f4073d655ef300a150e4d4b02bf7f82200af35767559f74382ba5",
+    "0869194ec6c22eaed578e554c30710f8ad7a093017e9ac4f27cfb38dcb7fb8c8",
   "rejection.body-probe-unavailable":
     "4aea3d71a303c8d4353fac70f4b3dbc71e2981b9cd9ec04f626bb378f8baf2cc",
   "rejection.built-size-mismatch":
-    "0baf9e594f19f4e92c02f6c4b0342374f698d1b43dbe059f2dbd1073529a6110",
+    "61f4348df515f3e991f4e0dfd2ffc744e575655454d803b07d41cbb2cde46c59",
   "rejection.column-hood-floor":
-    "828b33b782f64c33d21b6e4f6a82a1dc6c31145f67e8152689703f18a1c3b395",
+    "18be106e55ee5538294aba28eb72a3e3c8141f3858a71b865f02cbc172eab1cc",
   "rejection.column-key-collision":
-    "2308b5b021d4a9ee98dc6e176b174c6ed6e018deca8298dfdbd77215d0b289b0",
+    "72b7e70fd6da3b702004a57acf270ce3e195883e9933a9ad8c221b6f03a5f72c",
   "rejection.column-member-not-resizable":
-    "dc81952aa03cabeba54185111ebcf5654b1265fadd88c7b0aaa131b0dc302657",
+    "49ef10d4ffa8c0eeeb43dcd3d4097a2f001a0bc72402431a510b0dff5f1a7fe7",
   "rejection.column-mismatch":
-    "f05913193ec870d158fa1c324a8f32c80ebaf712f742a9ea19ef098e27fcc0ff",
+    "50f5fe510d18d8c8cdf8153d00f13e8f1f7ad6279d972858c5e468f75aa869b3",
   "rejection.dependent-member-not-rebuildable":
-    "ecbda9d70a5b0e06346fae92ea6583fd50524410a752c8be743db6a52578b395",
+    "d4a1e6b97b43e563634a570cbd4d8c13ec615ccbdb6b0409d5946e71cf5e5c82",
   "rejection.finish-not-offered":
     "6343a5e2ccf324c74a9f653182827a78318bf127dd6f4f0a30c25e67d4c02652",
   "rejection.finish-not-supported":
-    "34093108500eef530caa052286730fc45ad296972497efb7cd2f7f690d972806",
+    "f08f930d95bf6be8e1018e6e98e448dc884076a1a9c33c3703a781dcf4b6d83c",
   "rejection.handle-not-supported":
-    "23fdc09a7fda0f256345bd74c10870475c3f625d344f5fb2ff6f216f1d931dd3",
+    "6a43a7404423fb6e1bfec0aa3c92833a4d46b5da75bec0402eb72d2078268d2b",
   "rejection.height-exceeds-level":
-    "01859dcb40705d9edb345708038826384c8860d2763301abe7961a92a2ed1451",
+    "64ea89fdd309d3468dd72e4833e42720674cf285b8aee44a60f66c270f6d0905",
   "rejection.height-too-large":
-    "51d7213f234e4384400d44970cb7f57573967762e8bf4867d65ada41440f13fc",
+    "de799a40dfddc58d46d832d864ae8220755ddf8911a7adef259d9a5d3289d040",
   "rejection.invalid-occurred-at":
     "df6586642a67d1a4e1a163e3230d0c57f28449b1fc7d326af7ad97ffc7b29463",
   "rejection.measurement-unusable":
-    "8216678c48405afd60e3dd8fac3a502655b6271cdc0f6ee2a1cde620ac862f25",
+    "8fef33c34773c37650a92197e2c02e8f930e2907bf86b5a5fca966c10c41bb5d",
   "rejection.no-empty-space":
-    "3a38bf336c10dffa5f365b9f6ae2f3b54cb9df17eae12e258758a9071562d848",
+    "05cf0c6efd4421d91965fb01cd494f79f1623f646ae1ab80a8b3800a86bc8a6e",
   "rejection.no-snap-position":
-    "a8339132274959fce5b1b4e6fa5dbac3f01de9db5f7ccb09ec916c7f86cb6e00",
+    "89835156cb96e25f1280f02d746b43a35ca2addfa7d07b4c4b789e24a09668cb",
   "rejection.non-integer-millimetres":
     "e388935635704da4555c9e95eaba3670f603d09c6f76320392b7bb679462a4ed",
   "rejection.not-deletable":
-    "7fcf11f6ec732dc9133f3148ab7c19380578584a67fa48ba17d89e963e6c5e40",
+    "17553fe890dcf852d02f6e4d2d5cd6d5defc96f1dffc304d040df24c4117ae1e",
   "rejection.not-in-library":
     "6b0733f87013e52732826bfd051dc7a46a50b08168aa530d522c9bc887baf39b",
   "rejection.not-insertable":
-    "1fe38f91c84fa867cdc4c251b10feb0a7b14f084be699994b1e8e977bbb27589",
+    "da68bc2c2060c758860a58b7bd1d4153029ae4da9e8609ccbeaf8eb37b07cd1e",
   "rejection.not-resizable-fixed":
-    "1a7115460c27f70de8a21295bbbfa3f3e16e0dbcc25e42e472876492212ea53f",
+    "7ef4c9077ba9222725be600b88daf4eedb6147b91fe13231b0e183013aef6b11",
   "rejection.not-resizable-unresolvable":
-    "1a7115460c27f70de8a21295bbbfa3f3e16e0dbcc25e42e472876492212ea53f",
+    "7ef4c9077ba9222725be600b88daf4eedb6147b91fe13231b0e183013aef6b11",
   "rejection.opening-too-short":
     "c4e48d722d4353545ed7232b8f697fd5d6d26c69dd259af7fbb244e41bf49565",
   "rejection.resize-opens-gap":
-    "131e8e7c66fcf855d6c8b6a2684bc5a2b22fe2f100872eaaca1e5aba308ba766",
+    "8621a23d33dd15fc1775e10036ce45ce171dae4a61a32e1ffcc8663b26202d2c",
   "rejection.target-not-found":
     "5a56dc6aa297255d596676381b8ceadb0df93c635cd77b5e3879857727b6af44",
   "rejection.target-not-replaceable":
-    "54578528cf3b6513d01ef4852edfd06323b750021b2456da0fae9e8c25c396e4",
+    "538ab545e753bb1ba790ecfbacefd4633a0424d016acd801ebcaf83bbcd050ba",
   "rejection.unknown-cabinet-depth":
     "6539446761c3ffd737a1d246bd752f1847c69da4f8914badcda054bf17cdd0bf",
   "rejection.unknown-hardware-tier":
@@ -590,19 +597,19 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "rejection.void-selected":
     "15c89458f47c1f3a113414576d6946f4aa0f509e6eb26f214f4ee4d4b9544db9",
   "rejection.width-not-supported-body-range":
-    "2d0c54f4105cb89d33948ed0a6d06fd9327c22460b2c58c8cbb03d2f74f5e667",
+    "9a1f2adb3c75ff28f2b3131ce7a2da3f20b11522077717dd7c24e040ffc9dd52",
   "rejection.width-not-supported-column-list":
-    "4b8eb05544ca4535be288571a66324e65c02653212c407c8151b96194270f6dc",
+    "1d4f9fd1ee761a9f64dd1eff460dc23a54e582eb7ac9e3269484045040975141",
   "rejection.width-not-supported-mixed-ranges":
-    "608e1c4d68df3bf275341c283fdb5a825b4dfb8c26be934976cb5241a966d86b",
+    "718c238a05ae89590290631d45844e146dce3bc691b4136b949134788f93a5f0",
   "rejection.width-not-supported-no-width":
-    "329df16260bbb49c1de4973b8759f06da49377b1460d810ab4294e9b269d06d0",
+    "2d725532d9bc1139d537ba37221d1fe02ae715fee234ccf30a72f0321555ffe0",
   "rejection.width-too-large":
-    "a87d4066dfb81b4894317204cecf6b65b54b597fa7d9a4c5bf7102910239a695",
+    "e73414a4ee17bbba139c42e824153de657e347009b504954e9e664913fafe317",
   "rejection.width-too-small":
-    "dac0da1614438c4218f64db905cd7074147ec0e224f39d4ba5283607700703d7",
+    "9cf9a29a1b3533414c9a9c489ac3e66ad7ef26a6ad2d742314f242a438f87902",
   "rejection.width-too-small-unknown-floor":
-    "2e1c32a47fe982db9439532b06f6adf3d69f0b31b6d08c09fa951fa62224c942",
+    "6013427f303715ac1cd4a7a42779c8803e3f1c700d1cdc0e509edc87920dfc84",
   "rejection.width-unchanged":
-    "c7e22a29fb8794a27d08e312cb066f0272282bfe6837c4c4a1cc466cd0f55cfe",
+    "29dbd133f142f0e3c48d4080dc7b115c9349eb0f8124d6f00465c37b6f548c75",
 };

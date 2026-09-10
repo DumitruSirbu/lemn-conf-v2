@@ -6,6 +6,8 @@
 // that quietly drops the bodies that do not fit.
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import {
   cabinetHandleCount,
   widthDerivedDoorLeafCount,
@@ -235,7 +237,7 @@ describe("a price is a formula over width, never a table keyed on the ladder", (
       lineId: "placement:p0:cabinet",
       placementId: "p0",
       buildId: "base-sink-800",
-      label: "Corp spălător",
+      label: entryLabel("base-sink"),
       widthMm: 800,
       quantity: 1,
     });

@@ -8,6 +8,7 @@ import correctedRomanian from "../../src/messages/ro.json";
 import {
   CATALOGUE_FIXTURES,
   collectContentFunctionFamilies,
+  CONTENT_FIXTURES,
   CONTENT_FUNCTION_FAMILIES,
   correctedMessageAt,
   FUNCTION_CONTENT_FIXTURES,
@@ -41,30 +42,29 @@ const GATE_O1_SEMANTIC_CORRECTION_KEYS = [
  * moved to the production content resolver in 6B-e. */
 const STAGED_GATE_O1_SEMANTIC_CORRECTION_KEYS = [] as const;
 
+/** One reviewed, deliberately accepted difference between a fixture's two renderers. */
 interface StagedDivergence {
   readonly gateO1CorrectionKeys: readonly string[];
   readonly reason: string;
 }
 
 /**
- * Reviewed differences between later-wave legacy renderers and the corrected source catalogue.
- * This list is temporary: 6B-e and 6B-f remove the remaining witnesses one family at a time.
+ * Reviewed differences between a fixture's two renderers, accepted rather than repaired.
+ *
+ * **Empty since 6B-f, and empty for the reason the table existed rather than by being relaxed.** Its
+ * last seven entries were the catalogue group, whose second renderer was `describeBodyLabelAt`'s
+ * Romanian — the one author still writing words the catalogue did not. That wave moved the domain to
+ * a `BodyLabel` descriptor and deleted the renderer with it, so those seven fixtures have nothing to
+ * diverge from. Nothing is staged and nothing is waiting: a fixture that diverges from here on is an
+ * unreviewed change, not a scheduled one.
+ *
+ * **What the check below still covers is the static content group, which is the only one with two
+ * independent renderers** — the content resolver's leaf against a direct `translateRuntime(path)`.
+ * A resolver that mapped a leaf to the wrong key fails there. The rejection and catalogue groups
+ * declare no second renderer at all and are skipped; `GOLDEN_OUTPUT_SHA256` is their gate.
  */
-const PRE_GATE_O1_COLLECTION_DIFFERENCE = {
-  gateO1CorrectionKeys: [],
-  reason:
-    "The collected catalogue already differed from the legacy witness before the owner's 12 semantic Gate O1 edits; the corrected catalogue is the baseline, and this staged entry must disappear with its extraction wave.",
-} as const;
-
-const STAGED_LEGACY_DIVERGENCES: Readonly<Record<string, StagedDivergence>> = {
-  "catalog.entries.base-3drawer": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-  "catalog.entries.base-cabinet": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-  "catalog.entries.base-hob-2drawer": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-  "catalog.entries.base-hob-oven": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-  "catalog.entries.base-sink": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-  "catalog.entries.wall-cabinet": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-  "catalog.entries.wall-lift": PRE_GATE_O1_COLLECTION_DIFFERENCE,
-};
+const STAGED_LEGACY_DIVERGENCES: Readonly<Record<string, StagedDivergence>> =
+  {};
 
 function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -196,11 +196,22 @@ describe("golden-output fixture coverage", () => {
   });
 });
 
+/** The precondition both golden gates stand on: these fixtures render `ro.json`, so an unapproved
+ *  wording edit moves hashes for a reason the manifest cannot distinguish from a resolution defect.
+ *
+ *  **Asserted rather than skipped on.** It used to be an early `return`, which made a red copy lock
+ *  render both gates below green in the same run — one failure hiding whatever the other would have
+ *  said. Fix the copy lock first, then rebaseline the hashes explicitly. */
+function expectApprovedRomanianCopy(): void {
+  expect(
+    isRomanianCopyApproved(correctedRomanian),
+    "Romanian copy is unapproved: settle it against the copy lock before reading these hashes",
+  ).toBe(true);
+}
+
 describe("corrected-source golden output", () => {
   it("matches the checked-in fixture-id to SHA-256 manifest", () => {
-    // An unapproved wording edit belongs to the sole literal copy lock first. Once that corpus is
-    // updated, this resumes and requires an explicit rendered-output hash rebaseline.
-    if (!isRomanianCopyApproved(correctedRomanian)) return;
+    expectApprovedRomanianCopy();
 
     const actual = Object.fromEntries(
       GOLDEN_FIXTURES.map((fixture) => [
@@ -211,15 +222,29 @@ describe("corrected-source golden output", () => {
     expect(actual).toEqual(GOLDEN_OUTPUT_SHA256);
   });
 
-  it("keeps every legacy divergence explicit and reviewed", () => {
-    // The divergence table records reviewed source/legacy differences, not pending copy edits.
-    if (!isRomanianCopyApproved(correctedRomanian)) return;
+  it("agrees resolver against catalogue on every content leaf, with nothing unreviewed", () => {
+    // Two assertions in one: the content group's resolver and the catalogue tree render every leaf
+    // identically, and no group carries a divergence that is not in the reviewed table.
+    //
+    // A fixture declaring only `renderCorrected` has no second renderer and is skipped — never
+    // compared against itself, which would pass unconditionally. The count below is what stops that
+    // skip from quietly emptying the check: if the last second renderer is ever deleted, this fails
+    // instead of passing over nothing.
+    expectApprovedRomanianCopy();
 
     const divergentFixtures = GOLDEN_FIXTURES.flatMap((fixture) => {
-      const legacy = fixture.renderLegacy();
-      const corrected = fixture.renderCorrected();
-      return legacy === corrected ? [] : [fixture];
+      const renderLegacy = fixture.renderLegacy;
+      if (renderLegacy === undefined) return [];
+      return renderLegacy() === fixture.renderCorrected() ? [] : [fixture];
     });
+    const comparedFixtures = GOLDEN_FIXTURES.filter(
+      (fixture) => fixture.renderLegacy !== undefined,
+    );
+    expect(comparedFixtures.map((fixture) => fixture.group)).toEqual(
+      comparedFixtures.map(() => "content"),
+    );
+    expect(comparedFixtures).toHaveLength(CONTENT_FIXTURES.length);
+
     const actualDivergenceKeys = sortedUnique(
       divergentFixtures.map((fixture) => fixture.sourceKey),
     );

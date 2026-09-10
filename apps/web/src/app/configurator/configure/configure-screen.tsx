@@ -94,9 +94,9 @@ export function ConfigureScreen({
           ‹
         </span>
         <span className={styles.wordmark}>{ro.brand}</span>
-        {/* The step, twice over and from one source (`content/ro.ts`): the pill the frames draw, and
-            — as its accessible name — the sentence the caption it replaced said. "2/4" read aloud is
-            two numbers and a slash, which announces less than the surface used to.
+        {/* The step, twice over and from one source (`src/messages/ro.json`): the pill the frames
+            draw, and — as its accessible name — the sentence the caption it replaced said. "2/4"
+            read aloud is two numbers and a slash, which announces less than the surface used to.
 
             `role="img"` over a visually hidden span, because a hidden span is a clipped one: the
             900 px containment gate reads every span in this row and fails any whose text is cut, and

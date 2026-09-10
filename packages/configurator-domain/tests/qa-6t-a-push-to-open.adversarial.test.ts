@@ -24,6 +24,8 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
+import { kindLabel } from "../src/catalog.js";
+
 import { isPushOpenByDefault } from "../src/bands.js";
 import { cabinetHandleCount } from "../src/cabinet-handles.js";
 import {
@@ -496,7 +498,7 @@ function entryAt(
 ): DisplayEntry {
   return {
     placementId: "under-test",
-    label: "under test",
+    label: kindLabel("under_test"),
     wall: "A",
     band: "wall",
     rawBand: "wall",

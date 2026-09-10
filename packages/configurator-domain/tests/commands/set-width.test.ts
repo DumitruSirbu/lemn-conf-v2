@@ -11,6 +11,8 @@
 // different claims and only the second makes an overlap unrepresentable.
 import { describe, expect, it } from "vitest";
 
+import { entryLabel, labelWithDoors } from "../../src/catalog.js";
+
 import { setWidth } from "../../src/commands/set-width.js";
 import type { Design, DesignPlacement, Handle } from "../../src/design.js";
 import type { Finish } from "../../src/materials.js";
@@ -341,7 +343,7 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
         ...after,
         target: { kind: "placement", id: resized?.id ?? "" },
       })?.label,
-    ).toBe("Corp suspendat 1 ușă");
+    ).toEqual(labelWithDoors(entryLabel("wall-cabinet"), 1));
   });
 
   // The width the whole 450 argument was about, and it is now an ordinary resize. ADR 0030 capped a
@@ -519,8 +521,10 @@ describe("a member that cannot change width stops the whole column", () => {
     // whole subject is changing the width, so there is no settled width to derive a count from — and
     // naming the count the body happens to have right now would be stating, in a sentence about why
     // it cannot change, a fact that the change would have altered.
-    expect(result.reason.params.label).toBe("Corp suspendat");
-    expect(result.reason.params.memberLabel).toBe("Corp plită și 2 sertare");
+    expect(result.reason.params.label).toEqual(entryLabel("wall-cabinet"));
+    expect(result.reason.params.memberLabel).toEqual(
+      entryLabel("base-hob-2drawer"),
+    );
   });
 
   it("refuses the selected body itself when it has no width to change", () => {

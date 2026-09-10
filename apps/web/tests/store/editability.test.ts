@@ -11,7 +11,7 @@
 // while the two surfaces disagreed again.
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { ro as content } from "../support/romanian-content";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability } from "@/store/editability";
@@ -42,27 +42,34 @@ const EVERY_SAVE_STATUS: readonly SaveStatus[] = [
 describe("whether a browser may be offered an edit", () => {
   it("unlocks only on an explicit true, so an unanswered probe is not an offer", () => {
     for (const canWrite of EVERY_WRITE_ACCESS) {
-      const { isReadOnly } = describeEditability({
-        canWrite,
-        saveStatus: "idle",
-      });
+      const { isReadOnly } = describeEditability(
+        {
+          canWrite,
+          saveStatus: "idle",
+        },
+        ro.panel,
+      );
       expect(isReadOnly, String(canWrite)).toBe(canWrite !== true);
     }
   });
 
   it("locks a writable browser the moment a save has been refused as unauthorized", () => {
     for (const saveStatus of EVERY_SAVE_STATUS) {
-      const { isReadOnly } = describeEditability({
-        canWrite: true,
-        saveStatus,
-      });
+      const { isReadOnly } = describeEditability(
+        {
+          canWrite: true,
+          saveStatus,
+        },
+        ro.panel,
+      );
       expect(isReadOnly, saveStatus).toBe(saveStatus === "unauthorized");
     }
   });
 
   it("gives the three locked states three different sentences, never one borrowed word", () => {
     const reasonFor = (canWrite: WriteAccess) =>
-      describeEditability({ canWrite, saveStatus: "idle" }).disabledReason;
+      describeEditability({ canWrite, saveStatus: "idle" }, ro.panel)
+        .disabledReason;
 
     expect(reasonFor(false)).toBe(ro.panel.readOnlyReason);
     expect(reasonFor("checking")).toBe(ro.panel.accessCheckingReason);
@@ -105,7 +112,7 @@ describe("the panel's answer, after the rule moved out of it", () => {
     let checkedPairs = 0;
     for (const canWrite of EVERY_WRITE_ACCESS)
       for (const saveStatus of EVERY_SAVE_STATUS) {
-        const shared = describeEditability({ canWrite, saveStatus });
+        const shared = describeEditability({ canWrite, saveStatus }, ro.panel);
         const panel = openPanelAt({ canWrite, saveStatus });
         if (panel.kind !== "open") throw new Error("expected an open panel");
 

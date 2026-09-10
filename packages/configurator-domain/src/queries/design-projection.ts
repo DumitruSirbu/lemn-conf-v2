@@ -9,7 +9,7 @@
 // I/O-free and rendering-free by construction: a pure function of the document and the catalogue,
 // returning plain data.
 import { normaliseBand, type NormalisedBand } from "../bands.js";
-import { describeBodyLabelAt } from "../catalog.js";
+import { describeBodyLabelAt, type BodyLabel } from "../catalog.js";
 import type { Design, DesignPlacement, DesignWall, Handle } from "../design.js";
 import type { Finish } from "../materials.js";
 import { compareOpaqueIds } from "../opaque-id-order.js";
@@ -27,7 +27,7 @@ export interface DisplayEntry {
   /** §6.3: identity is the chosen catalogue id, never re-inferred from geometry. */
   readonly buildId: string;
   /** ADR 0033, derived by `describeBodyLabelAt` and nowhere else — see `labelOf`. */
-  readonly label: string;
+  readonly label: BodyLabel;
   readonly wall: DesignWall;
   readonly band: NormalisedBand;
   /** The catalogue's own band, kept beside the normalised one so a line that names the *rând de
@@ -128,7 +128,10 @@ function toDisplayEntry(
   return {
     placementId: placement.id,
     buildId: placement.body.buildId,
-    label: describeBodyLabelAt(definition, placement.body.widthMm),
+    label: describeBodyLabelAt(
+      { buildId: placement.body.buildId, definition },
+      placement.body.widthMm,
+    ),
     wall: placement.wall,
     // ADR 0011 Gap C: `top` is a module row, not a catalogue band, and folding it here is what puts
     // the seeded top row inside the mockup's *Perete A · suspendate* group. Never key a group on

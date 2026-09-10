@@ -276,10 +276,13 @@ function groupNamed(
 /** These fixtures are about deltas, badges and copy, never about access. Stated rather than
  *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
  *  cannot silently default to permitted (M6-AUD-001). */
-const WRITABLE_ACCESS = describeEditability({
-  canWrite: true,
-  saveStatus: "idle",
-});
+const WRITABLE_ACCESS = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "idle",
+  },
+  ro.panel,
+);
 
 function markupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(

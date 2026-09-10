@@ -30,7 +30,8 @@
  * uppercase *De la* above the amount, and this file drew that on both shells. The owner ruled the
  * desktop form and then extended it: *"and do same on mobile as on desktop"*. **Frame 2A is
  * superseded by its own author**, dated, with the reason that they want the two shells to read the
- * same — this is not a mismatch to be tidied back, and `content/ro.ts` says so beside the string.
+ * same — this is not a mismatch to be tidied back, and `src/messages/ro.json` carries the ruled
+ * string this draws.
  *
  * Two spans rather than one, and the casing is here rather than in the string: `ro.price` holds one
  * ruled word, `De la`, written as it is spoken. Lowercasing it in the copy module would be a second

@@ -22,6 +22,8 @@ import {
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
+  entryLabel,
+  kindLabel,
   type Design,
   type PricingResult,
   type RejectionReason,
@@ -320,7 +322,7 @@ describe("a pricing failure puts nothing on the page", () => {
     expect(
       barMarkup(failed, {
         code: "NOT_DELETABLE",
-        params: { label: "Retur de colț" },
+        params: { label: kindLabel("corner_wall_return") },
       }),
     ).toBe("");
   });
@@ -451,7 +453,7 @@ describe("an overflowing design, on the page", () => {
       params: {
         sizesMm: [400, 600, 800],
         availableMm: 800,
-        label: "Corp bază",
+        label: entryLabel("base-cabinet"),
       },
     };
     const refusalMessage = ro.rejection(refusal);

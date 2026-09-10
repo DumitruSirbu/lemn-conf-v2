@@ -14,9 +14,9 @@ import {
 import {
   acceptsWidthMm,
   buildableSizes,
-  describeKindLabel,
+  kindLabel,
   resolveWidthRangesMm,
-  UNKNOWN_KIND_LABEL_RO,
+  type BodyLabel,
   type InsertableBody,
 } from "../catalog.js";
 import type { DesignWall } from "../design.js";
@@ -33,6 +33,7 @@ import {
   FIT_TOLERANCE_M,
   LEVELS,
   MIN_WIDTH_M,
+  VOID_KIND,
   type Column,
   type PlacementRecord,
   type VoidRecord,
@@ -221,10 +222,10 @@ export function resolveInsertOpening(lookup: OpeningLookup): OpeningResolution {
   return { ok: true, value: { ...found.value, column } };
 }
 
-function openingLabel(value: Omit<ResolvedOpening, "column">): string {
-  return value.replaced
-    ? describeKindLabel(value.replaced.kind)
-    : UNKNOWN_KIND_LABEL_RO;
+/** A void has no body to name, so it is named by `VOID_KIND` — which the catalogue does not name,
+ *  and which therefore resolves to the same generic word this refusal has always carried. */
+function openingLabel(value: Omit<ResolvedOpening, "column">): BodyLabel {
+  return kindLabel(value.replaced?.kind ?? VOID_KIND);
 }
 
 type PartialResolution =
@@ -250,7 +251,7 @@ function findOpening(lookup: OpeningLookup): PartialResolution {
       ok: false,
       detail: {
         code: "TARGET_NOT_REPLACEABLE",
-        params: { label: describeKindLabel(record.kind) },
+        params: { label: kindLabel(record.kind) },
       },
     };
   }

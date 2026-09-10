@@ -5,6 +5,8 @@
 // executed* below rather than sampled.
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import { openingFromPlacement } from "../../src/commands/insert-fit.js";
 import {
@@ -164,7 +166,7 @@ describe("swap in place", () => {
       ...after,
       target: { kind: "placement", id: result.effect.placementId },
     });
-    expect(meta?.label).toBe("Nișă frigider integrat");
+    expect(meta?.label).toEqual(entryLabel("tall-fridge-housing"));
     expect(meta?.kind).toBe("fridge_housing");
   });
 

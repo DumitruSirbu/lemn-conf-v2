@@ -193,7 +193,10 @@ function toBreakdownGroup(
     ),
     rows: group.entries.map((entry) => ({
       key: entry.placementId,
-      label: content.priceBreakdown.placementLabel(entry.label, entry.widthMm),
+      label: content.priceBreakdown.placementLabel(
+        content.bodyLabel(entry.label),
+        entry.widthMm,
+      ),
       amountText: describeRowAmount(
         amountFor(entry.placementId, amountByPlacement),
         content,

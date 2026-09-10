@@ -664,7 +664,15 @@ front of a customer.
 rather than met:** *"After every wave from 6B-c on, the golden-output harness is byte-identical"* and
 *"No behaviour a customer can observe changes in Romanian."* See *Re-planning against the rebased
 tree*, item 4. What replaces them is precise and stricter: the harness's SHA manifest already hashes
-`renderCorrected` only, so **no hash moves**, and the seven-entry `STAGED_LEGACY_DIVERGENCES` table
+`renderCorrected` only, so ~~**no hash moves**~~ — *struck 2026-09-10, it was false: **31 of the 300
+hashes moved**. The reasoning behind the criterion skipped a step. The manifest does hash
+`renderCorrected`, but before this wave the label arms of `renderCorrected` took the **domain's**
+already-rendered string, so resolving them against the catalogue changed the rendered word
+(`Corp bază` → `Dulap bază`) and moved the hash. Verified at the time of the strike: the copy lock
+and both message files are byte-untouched, so every moved hash is the owner's Gate O1 ruling at
+`3564c7c` reaching the screen, never a key restructuring. The criterion that actually holds is the
+one this paragraph opens with — a customer-visible Romanian wording change is **expected** here* —
+and the seven-entry `STAGED_LEGACY_DIVERGENCES` table
 in `golden-output.test.ts` — whose own comment says *"6B-e and 6B-f remove the remaining witnesses
 one family at a time"* — **must be empty when this wave closes**.
 
@@ -701,7 +709,24 @@ one family at a time"* — **must be empty when this wave closes**.
 - **`git grep -n "content/ro" -- apps packages` returns comment lines only.** The module file does
   not exist.
 - `packages/configurator-domain/src` contains **no identifier ending `_RO`** and no string literal
-  with a Romanian diacritic outside a comment. Falsify by grepping the tree.
+  with a Romanian diacritic outside a comment, ~~with no exception~~ **except
+  `pricing/sample-price-book.ts`, whose prose belongs to 6B-f2**. Falsify by grepping the tree with a
+  comment-stripping scanner — a plain `grep` counts comment lines and overstates the result.
+
+  *Amended 2026-09-10, after adversarial QA measured the wave against it.* `_RO` is met: zero
+  matches. The diacritic half was **not met as written** — 10 literals survive, all in
+  `sample-price-book.ts` (lines 272, 274, 279, 281, 331, 340, 355, 369, 376, 383), three of them
+  carrying the withdrawn word *corp*. They are not a 6B-f escape: this section's own Goal paragraph
+  already excepts "the price book's prose (6B-f2)", so the criterion contradicted the goal it serves.
+  The contradiction is an artefact of sequence — the criterion was written before
+  [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+  created 6B-f2 on 2026-09-10 — and the exception is named here rather than left implicit so that
+  6B-j does not re-report it as an escape, which `M6B-internationalization.md:893-895` would
+  otherwise instruct it to do.
+
+  **These literals are live, not dormant.** `apps/web/src/price/price-breakdown-model.ts:216` passes
+  `line.name` into `priceBreakdown.wholeKitchenLabel` unresolved, so until 6B-f2 lands the Russian
+  breakdown renders Romanian. That is the wave's justification, recorded where the criterion is.
 - **`STAGED_LEGACY_DIVERGENCES` in `golden-output.test.ts` is `{}`**, and the divergence test is not
   weakened to reach it: `renderLegacy` for the `catalog` group is **deleted** rather than repointed
   at `renderCorrected`. A fixture that compares a resolver against itself is layer-3 shape sitting in

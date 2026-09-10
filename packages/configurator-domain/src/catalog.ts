@@ -6,7 +6,6 @@
 // populations, because a seeded entry describes one already-built body and must never be offered.
 import { seatedOnCabinetFrontLine, seatedOnWallPlane } from "./seat-rule.js";
 import type { SeatRule } from "./seat-rule.js";
-import { describeBandLabel } from "./bands.js";
 import {
   EXTRACTOR_HOOD_KIND,
   WALL_CORNER_RETURN_KIND,
@@ -195,19 +194,6 @@ const CABINETRY_WIDTHS = cabinetryWidths({
   minMm: DEFAULT_MIN_WIDTH_MM,
   maxMm: CABINETRY_MAX_WIDTH_MM,
 });
-
-/** ADR 0033: the merged rows' **generic** names — no door count in them, so they are true at every
- *  width and at no width at all.
- *
- *  They are the same two strings §9's header already falls back to for a body whose kind the
- *  catalogue knows, and `KIND_LABELS_RO` below is defined from these rather than repeating them: the
- *  entry's name and its kind's name are now literally the same fact, which is what "the kind is the
- *  real identity" means once the door count stops being part of the identity.
- *
- *  The door count is added by `describeBodyLabelAt`, and **only where a width is actually known**. A
- *  refusal that is still deciding a width has no honest count to state, so it names the cabinet. */
-const BASE_CABINET_LABEL_RO = "Corp bază";
-const WALL_CABINET_LABEL_RO = "Corp suspendat";
 
 /** ADR 0017: the sink aperture's own width, which is the width at which the geometry is correct
  *  rather than merely inside `FIT_TOLERANCE_M`. */
@@ -506,7 +492,6 @@ const INSERTABLE_DEFAULTS = {
 } as const;
 
 interface BodyShape {
-  readonly label: string;
   readonly kind: string;
   readonly widthFlex: WidthFlex;
   readonly nominalHeightMm: number;
@@ -601,12 +586,10 @@ interface FrontDeclarations {
 }
 
 function baseCabinet(
-  label: string,
   cabinetDepthMm: number,
   declarations: FrontDeclarations,
 ): BodyDefinition {
   return insertableBody("base", {
-    label,
     kind: "base_cabinet",
     // Every insertable body's back face sits on the wall plane, so its seat is measurable and
     // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
@@ -627,12 +610,11 @@ function baseCabinet(
  *  band, same 860 mm worktop line, same 580 mm depth — so it is a `baseCabinet` with its width
  *  fixed, and the width is fixed because the appliance is. */
 function hobBase(
-  label: string,
   cabinetDepthMm: number,
   declarations: FrontDeclarations,
 ): BodyDefinition {
   return {
-    ...baseCabinet(label, cabinetDepthMm, declarations),
+    ...baseCabinet(cabinetDepthMm, declarations),
     widthFlex: HOB_BASE_WIDTHS_MM,
     ...discreteWidths(HOB_BASE_WIDTHS_MM),
     fixedWidth: true,
@@ -641,13 +623,11 @@ function hobBase(
 }
 
 function wallCabinet(
-  label: string,
   cabinetDepthMm: number,
   declarations: FrontDeclarations,
 ): BodyDefinition {
   return {
     ...insertableBody("wall", {
-      label,
       // Every insertable body's back face sits on the wall plane, so its seat is measurable and
       // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
       // predicting one). The two exceptions are seeded rows and declare their own.
@@ -677,7 +657,6 @@ function wallCabinet(
 }
 
 function fullHeightUnit(
-  label: string,
   kind: string,
   cabinetDepthMm: number,
   declarations: FrontDeclarations,
@@ -685,7 +664,6 @@ function fullHeightUnit(
   const columnDepthMm = columnCarcassDepthMm(cabinetDepthMm);
   return {
     ...insertableBody("column", {
-      label,
       kind,
       // Every insertable body's back face sits on the wall plane, so its seat is measurable and
       // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
@@ -736,7 +714,7 @@ export function buildInsertableBodyDefinitions(
       {
         // ADR 0061: the door count decides the handle count as well as the label — one bar per
         // leaf, so one handle below 500 mm and two at and above it.
-        ...baseCabinet(BASE_CABINET_LABEL_RO, cabinetDepthMm, {
+        ...baseCabinet(cabinetDepthMm, {
           cabinetHandles: handlesOnDoorLeaves({
             doorTiers: 1,
             handlesPerLeaf: 1,
@@ -754,7 +732,7 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "base-3drawer",
-      baseCabinet("Corp bază 3 sertare", cabinetDepthMm, {
+      baseCabinet(cabinetDepthMm, {
         cabinetHandles: carriesHandles(3),
         // Three drawers and no door leaf. This is the row ADR 0070 names first: `carriesHandles(3)`
         // here and `base-sink`'s `carriesHandles(2)` are the same kind of declaration, and one is
@@ -764,7 +742,7 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "base-panbank",
-      baseCabinet("Sertare pentru oale", cabinetDepthMm, {
+      baseCabinet(cabinetDepthMm, {
         cabinetHandles: carriesHandles(2),
         fronts: carriesDrawers(2),
       }),
@@ -778,7 +756,7 @@ export function buildInsertableBodyDefinitions(
     // no room for one.
     [
       "base-hob-2drawer",
-      hobBase("Corp plită și 2 sertare", cabinetDepthMm, {
+      hobBase(cabinetDepthMm, {
         cabinetHandles: carriesHandles(2),
         fronts: carriesDrawers(2),
       }),
@@ -789,7 +767,7 @@ export function buildInsertableBodyDefinitions(
         // ADR 0061 decision 2: the body's one bar belongs to the **oven**, so it has no cabinet
         // handle to bill and none for a hardware chip to reach. This is the same fact `canHandle:
         // false` below states about the panel, said about the price and the meshes.
-        ...hobBase("Corp plită și cuptor", cabinetDepthMm, {
+        ...hobBase(cabinetDepthMm, {
           cabinetHandles: NO_CABINET_HANDLES,
           // **A front, and not a door band.** `ovenFillerFront` closes the cavity the oven leaves
           // under the worktop with a fixed facade: nothing behind it opens, so it hangs on no hinge
@@ -821,7 +799,7 @@ export function buildInsertableBodyDefinitions(
     [
       "base-bottle-cargo",
       {
-        ...baseCabinet("Cargo îngust pentru sticle", cabinetDepthMm, {
+        ...baseCabinet(cabinetDepthMm, {
           cabinetHandles: carriesHandles(1),
           // ADR 0026: **a pull-out, so a drawer and not a leaf.** The builder says so in as many
           // words — "the front is a pull-out's, not a door's" — and it runs on runners like any
@@ -837,7 +815,7 @@ export function buildInsertableBodyDefinitions(
     [
       "base-sink",
       {
-        ...baseCabinet("Corp spălător", cabinetDepthMm, {
+        ...baseCabinet(cabinetDepthMm, {
           cabinetHandles: carriesHandles(2),
           // Two hinged leaves in one band, at every width from the 560 mm aperture up. ADR 0070's
           // other named row: the same `2` as `base-panbank` above, and nothing but this declaration
@@ -883,7 +861,7 @@ export function buildInsertableBodyDefinitions(
       {
         // ADR 0051: the niche wears a decor door of its own, and the one bar on this body is that
         // door's — the appliance behind it carries none.
-        ...baseCabinet("Nișă mașină de spălat vase", cabinetDepthMm, {
+        ...baseCabinet(cabinetDepthMm, {
           cabinetHandles: carriesHandles(1),
           // ADR 0051: one decor door over the machine, drawn by `doorSlab` at `baseCabinet`'s own
           // anchors, so it is the same 710 mm band every base leaf is.
@@ -910,7 +888,7 @@ export function buildInsertableBodyDefinitions(
     [
       "wall-cabinet",
       {
-        ...wallCabinet(WALL_CABINET_LABEL_RO, cabinetDepthMm, {
+        ...wallCabinet(cabinetDepthMm, {
           cabinetHandles: handlesOnDoorLeaves({
             doorTiers: 1,
             handlesPerLeaf: 1,
@@ -930,7 +908,7 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "wall-lift",
-      wallCabinet("Corp suspendat rabatabil", cabinetDepthMm, {
+      wallCabinet(cabinetDepthMm, {
         cabinetHandles: carriesHandles(1),
         // **One full-face leaf, and its handle edge is `"bottom"` rather than `"top"`** — which is
         // one half of why drawer-ness is declared here and never read off that field. A flap opens
@@ -946,7 +924,7 @@ export function buildInsertableBodyDefinitions(
     [
       "open-shelf",
       {
-        ...wallCabinet("Etajeră deschisă", cabinetDepthMm, {
+        ...wallCabinet(cabinetDepthMm, {
           cabinetHandles: NO_CABINET_HANDLES,
           fronts: NO_OPENING_FRONTS,
         }),
@@ -970,7 +948,7 @@ export function buildInsertableBodyDefinitions(
     [
       "hood",
       {
-        ...wallCabinet("Hotă", cabinetDepthMm, {
+        ...wallCabinet(cabinetDepthMm, {
           cabinetHandles: NO_CABINET_HANDLES,
           fronts: NO_OPENING_FRONTS,
         }),
@@ -1045,7 +1023,7 @@ export function buildInsertableBodyDefinitions(
         // Two tiers of doors, each leaf carrying one bar: two handles at 400 mm and four at 600.
         // The width decides the leaves *per tier* through the same `doorCountFollowsWidth` this row
         // declares below, and the pantry stacks two such tiers.
-        ...fullHeightUnit("Coloană cămară", "tall_unit", cabinetDepthMm, {
+        ...fullHeightUnit("tall_unit", cabinetDepthMm, {
           cabinetHandles: handlesOnDoorLeaves({
             doorTiers: 2,
             handlesPerLeaf: 1,
@@ -1073,22 +1051,17 @@ export function buildInsertableBodyDefinitions(
         // **ADR 0061's named case, on the counting half.** The builder draws four `handle_bar`
         // groups and exactly **two** are the cabinet's; the other two are the oven's and the
         // microwave's, which arrived with the appliances. 6B bills two.
-        ...fullHeightUnit(
-          "Coloană cuptor + microunde",
-          "tall_unit",
-          cabinetDepthMm,
-          {
-            cabinetHandles: carriesHandles(2),
-            // Two 500 mm cabinet leaves in a 2200 mm frame, one under the oven and one over the
-            // microwave. The lower one is drawn with a `"top"` handle edge and is a door all the
-            // same — the builder's own comment says that edge covers "doors below the worktop" too.
-            fronts: carriesFronts({
-              doorBands: doorBandsMm(OVEN_TOWER_DOOR_BAND_HEIGHTS_MM),
-              leavesPerBand: 1,
-              drawers: NO_DRAWERS,
-            }),
-          },
-        ),
+        ...fullHeightUnit("tall_unit", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(2),
+          // Two 500 mm cabinet leaves in a 2200 mm frame, one under the oven and one over the
+          // microwave. The lower one is drawn with a `"top"` handle edge and is a door all the
+          // same — the builder's own comment says that edge covers "doors below the worktop" too.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm(OVEN_TOWER_DOOR_BAND_HEIGHTS_MM),
+            leavesPerBand: 1,
+            drawers: NO_DRAWERS,
+          }),
+        }),
         // Two appliance fronts instead of two cabinet doors, and their bars reach further.
         //
         // **Wave 6I's criterion 2, as one line: the carcass follows and the appliances do not.**
@@ -1103,39 +1076,29 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "tall-fridge-housing",
-      fullHeightUnit(
-        "Nișă frigider integrat",
-        "fridge_housing",
-        cabinetDepthMm,
-        {
-          cabinetHandles: carriesHandles(3),
-          // Three leaves in three bands of their own heights: the fridge door, the freezer door and
-          // the top box's flap. **The clearest case for declaring bands per entry** — one body, three
-          // different heights, and only the tallest is over ADR 0070's 900 mm threshold.
-          fronts: carriesFronts({
-            doorBands: doorBandsMm(FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM),
-            leavesPerBand: 1,
-            drawers: NO_DRAWERS,
-          }),
-        },
-      ),
+      fullHeightUnit("fridge_housing", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(3),
+        // Three leaves in three bands of their own heights: the fridge door, the freezer door and
+        // the top box's flap. **The clearest case for declaring bands per entry** — one body, three
+        // different heights, and only the tallest is over ADR 0070's 900 mm threshold.
+        fronts: carriesFronts({
+          doorBands: doorBandsMm(FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM),
+          leavesPerBand: 1,
+          drawers: NO_DRAWERS,
+        }),
+      }),
     ],
     [
       "fridge-free",
       {
         // A freestanding appliance: its two bars hang off the appliance's own group and none of
         // them is cabinetry, which is what `canFinish`/`canHandle` below already say of the panel.
-        ...fullHeightUnit(
-          "Frigider, liber",
-          "fridge_freestanding",
-          cabinetDepthMm,
-          {
-            cabinetHandles: NO_CABINET_HANDLES,
-            // A machine somebody else builds: its two fronts are the appliance's own and it draws
-            // no `door_front` at all, so there is no cabinet leaf and no cabinet drawer here.
-            fronts: NO_OPENING_FRONTS,
-          },
-        ),
+        ...fullHeightUnit("fridge_freestanding", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          // A machine somebody else builds: its two fronts are the appliance's own and it draws
+          // no `door_front` at all, so there is no cabinet leaf and no cabinet drawer here.
+          fronts: NO_OPENING_FRONTS,
+        }),
         widthFlex: FREESTANDING_FRIDGE_WIDTHS_MM,
         ...discreteWidths(FREESTANDING_FRIDGE_WIDTHS_MM),
         nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
@@ -1172,83 +1135,162 @@ export function buildInsertableBodyDefinitions(
 export const INSERTABLE_BODY_DEFINITIONS: readonly CatalogEntry[] =
   buildInsertableBodyDefinitions(WORKTOP_DEPTH_MM);
 
-/** §9's header falls back to this when an entry has no `label` of its own — every seeded body,
- *  none of which the customer ever picks from a list. §11 row 24: a kind that is not in this table
- *  is unknown, and an unknown kind renders no replace section at all. */
-const KIND_LABELS_RO: Readonly<Record<string, string>> = {
-  base_cabinet: BASE_CABINET_LABEL_RO,
-  dishwasher_housing: "Nișă mașină de spălat vase",
-  induction_cooktop: "Plită cu inducție",
-  tall_unit: "Coloană",
-  fridge_housing: "Nișă frigider integrat",
-  fridge_freestanding: "Frigider",
-  wall_cabinet: WALL_CABINET_LABEL_RO,
-  open_shelf_unit: "Etajeră deschisă",
-  extractor_hood: "Hotă",
-  // ADR 0025: §3.1 lists both as kinds, but until the base legs became placements no selection
-  // could carry one, so neither was ever named. Without a name here the base corner's header reads
-  // the generic "Corp" — and §11 row 16 asks the panel to *explain* a corner, which starts with
-  // calling it one.
-  corner_base_x: "Corp bază de colț",
-  corner_base_return: "Racord bază de colț",
-  // ADR 0066: the wall band's mirror of the two rows above. Both returns are 570 mm wide and carry
-  // no catalogue equivalent (ADR 0022), so under the shared `wall_cabinet` kind both read exactly
-  // "Corp suspendat" — and the breakdown line renders the label and the width with no band, so wave
-  // 6D's priced document showed two identical descriptions at two different amounts. They differ by
-  // *row*, and the two names say so.
-  [WALL_CORNER_RETURN_KIND]: "Dulap suspendat de colț",
-  // The row word is read off `BAND_LABELS_RO.top` rather than written out a second time: §9's header
-  // already calls this body's row that, and a name that says which row a body stands on is wrong the
-  // moment the two spellings drift.
-  [WALL_CORNER_RETURN_TOP_KIND]: `Dulap de colț ${describeBandLabel("top")}`,
-};
-
-/** ADR 0033: the name the customer reads for this entry **at this width**.
+/** The thirteen `kind` strings the catalogue names. **A set and not a table of words** (ADR 0095
+ *  decision 4): §11 row 24 asks a structural question — does the catalogue know this kind — and the
+ *  sentence that answers a customer lives in `catalog.kinds.*`, one message leaf per member here.
  *
- *  For every row but the two merged cabinets this is just `label` — a hood is a hood at any width.
- *  For a row that declares `doorCountFollowsWidth` the count is appended from `deriveDoorCount`, so
- *  *Corp suspendat* becomes *Corp suspendat 1 ușă* at 400 and *Corp suspendat 2 uși* at 600. The two
- *  strings are byte-identical to the labels the two former entries carried, which is what makes this
- *  a merge rather than a rename.
+ *  The two wall corner returns are spelled from `body-kinds.ts` for the reason that module gives:
+ *  three declarations have to agree, and a divergence drops the kind through to `catalog.unknownKind`
+ *  in the panel header and on a priced line (ADR 0066). */
+const KNOWN_BODY_KINDS: ReadonlySet<string> = new Set([
+  "base_cabinet",
+  "dishwasher_housing",
+  "induction_cooktop",
+  "tall_unit",
+  "fridge_housing",
+  "fridge_freestanding",
+  "wall_cabinet",
+  "open_shelf_unit",
+  EXTRACTOR_HOOD_KIND,
+  // ADR 0025: §3.1 lists both as kinds, but until the base legs became placements no selection
+  // could carry one, so neither was ever named. Without a leaf for them the base corner's header
+  // reads the generic `catalog.unknownKind` — and §11 row 16 asks the panel to *explain* a corner,
+  // which starts with calling it one.
+  "corner_base_x",
+  "corner_base_return",
+  // ADR 0066: the wall band's mirror of the two rows above. Both returns are 570 mm wide and carry
+  // no catalogue equivalent (ADR 0022), so under the shared `wall_cabinet` kind both would read the
+  // same words — and the breakdown line renders the label and the width with no band, so 6D's
+  // priced document showed two identical descriptions at two different amounts. They differ by
+  // *row*, and their two leaves say so.
+  WALL_CORNER_RETURN_KIND,
+  WALL_CORNER_RETURN_TOP_KIND,
+]);
+
+/** **What the domain publishes in place of a name** (ADR 0095 decision 4): which message the app
+ *  must resolve, and the data that message interpolates — never the sentence itself.
+ *
+ *  A **closed** union of four cases rather than a generic `{ key, params }`, because a generic
+ *  descriptor would let a refusal carry any leaf in the catalogue, and the whole point of this seam
+ *  is that the domain cannot author copy. Four cases are switched over exhaustively by one resolver
+ *  and cannot be widened by accident.
+ *
+ *  Three cases are flat and `withDoors` wraps one of them, to a depth of exactly one — see
+ *  `labelWithDoors`, which refuses to nest. */
+export type BodyLabel =
+  /** One of §7's parameterised entries, by the id the customer chose: `catalog.entries.<buildId>`. */
+  | { readonly kind: "entry"; readonly buildId: string }
+  /** A body named by what it *is* rather than by a row a customer picked — every seeded instance
+   *  with no catalogue equivalent. `catalog.kinds.<bodyKind>`, falling through to
+   *  `catalog.unknownKind` for a kind the catalogue does not name. */
+  | { readonly kind: "bodyKind"; readonly bodyKind: string }
+  /** §9's empty slot: `catalog.emptySlot`. */
+  | { readonly kind: "emptySlot" }
+  /** ADR 0033's door count, wrapped around the name it qualifies: `catalog.bodyLabelWithDoors`. */
+  | {
+      readonly kind: "withDoors";
+      readonly name: BodyLabel;
+      readonly doors: number;
+    };
+
+export function entryLabel(buildId: string): BodyLabel {
+  return { kind: "entry", buildId };
+}
+
+export function kindLabel(bodyKind: string): BodyLabel {
+  return { kind: "bodyKind", bodyKind };
+}
+
+/** §9's empty slot. A constant rather than a constructor: the case carries no payload. */
+export const EMPTY_SLOT_LABEL: BodyLabel = { kind: "emptySlot" };
+
+/** ADR 0033's count, around the name it counts the doors of.
+ *
+ *  **Throws on a nested wrap**, because that is the boundary a careless `describeBodyLabelAt`
+ *  refactor crosses first: a doubly-wrapped label renders *"Dulap 2 uși 2 uși"* in front of a
+ *  customer rather than failing, and a name that is already counted has nothing left to count. */
+export function labelWithDoors(name: BodyLabel, doors: number): BodyLabel {
+  if (name.kind === "withDoors") {
+    throw new Error(
+      "A body label already counting doors cannot count them again",
+    );
+  }
+  return { kind: "withDoors", name, doors };
+}
+
+/** A catalogue row and the id it is filed under — the two facts a name is derived from, passed
+ *  together because neither answers alone: the id says which entry leaf, the definition says
+ *  whether there is one. */
+export interface LabelledBody {
+  readonly buildId: string;
+  readonly definition: BodyDefinition;
+}
+
+/** The body's **generic** descriptor: true at every width and at no width at all.
+ *
+ *  Three sources, in the order a body's identity is actually decided. A §7 entry is named by the row
+ *  the customer picked. A seeded instance is named by the row a §5.4 resize would rebuild it through
+ *  (ADR 0064), so it is called the same thing before and after that resize migrates its `buildId`.
+ *  Everything else — the four corner bodies, which declare no equivalent because §13.1 says a corner
+ *  is not a body a customer chooses — is named by its kind. */
+export function describeBodyName(body: LabelledBody): BodyLabel {
+  const { definition } = body;
+  if (definition.insertable === true) return entryLabel(body.buildId);
+  if (definition.catalogEquivalentId !== undefined) {
+    return entryLabel(definition.catalogEquivalentId);
+  }
+  return kindLabel(definition.kind);
+}
+
+/** ADR 0033: the descriptor for this entry **at this width**.
+ *
+ *  For every row but the two merged cabinets this is just the generic name — a hood is a hood at any
+ *  width. For a row that declares `doorCountFollowsWidth` the count from `deriveDoorCount` is
+ *  wrapped around it, so one `wall-cabinet` entry reads *1 ușă* at 400 and *2 uși* at 600.
  *
  *  **Call it wherever a label reaches a customer and a width is known** — the offer row, the ACTUAL
- *  badge, the panel header, and M6's price line. A caller that reads `definition.label` directly
+ *  badge, the panel header, and M6's price line. A caller that reads `describeBodyName` directly
  *  gets the generic name, which is correct rather than merely safe: it is what a body with no
  *  settled width *is*. That is why the width is a required argument and not an optional one — a
- *  caller without a width has to say so by not calling this.
- *
- *  Romanian counts its nouns: *1 ușă*, *2 uși*. The two forms are written here rather than in the
- *  panel because §12 keeps product copy out of components, and because the count that selects
- *  between them is decided here. */
+ *  caller without a width has to say so by not calling this. */
 export function describeBodyLabelAt(
-  definition: BodyDefinition,
+  body: LabelledBody,
   widthMm: number,
-): string {
-  const name = definition.label ?? describeKindLabel(definition.kind);
-  if (definition.doorCountFollowsWidth !== true) return name;
-  const doors = deriveDoorCount(widthMm);
-  return `${name} ${String(doors)} ${doors === 1 ? "ușă" : "uși"}`;
+): BodyLabel {
+  const name = describeBodyName(body);
+  if (body.definition.doorCountFollowsWidth !== true) return name;
+  return labelWithDoors(name, deriveDoorCount(widthMm));
 }
 
-/** What a body is called when the catalogue does not know its kind. */
-export const UNKNOWN_KIND_LABEL_RO = "Corp";
-
+/** §11 row 24: a kind the catalogue does not name is unknown, and an unknown kind renders no
+ *  replace section at all. */
 export function isKnownKind(kind: string): boolean {
-  // Own properties only: `kind in KIND_LABELS_RO` walks `Object.prototype`, so "toString" and its
-  // fellow inherited members would answer "known" and §11 row 24 would fail open on them.
-  return Object.hasOwn(KIND_LABELS_RO, kind);
+  return KNOWN_BODY_KINDS.has(kind);
 }
 
-export function describeKindLabel(kind: string): string {
-  const label = isKnownKind(kind) ? KIND_LABELS_RO[kind] : undefined;
-  return label ?? UNKNOWN_KIND_LABEL_RO;
+/** Every member of the set above, so a caller can ask what the whole set *is* rather than only
+ *  whether one kind is in it.
+ *
+ *  **The predicate alone cannot be swept.** A fourteenth member added here with no
+ *  `catalog.kinds.<kind>` leaf renders `catalog.unknownKind` in front of a customer, and a test
+ *  that has to name a kind before it can ask about it never sees the new one — which is how 6Z's
+ *  35th refusal code reached a screen as an empty string. `apps/web/tests/i18n/body-label.test.ts`
+ *  walks this list and requires a leaf for each member.
+ *
+ *  Copied into an array rather than handing out the set: a `ReadonlySet` is a compile-time promise
+ *  over a mutable object, and this crosses a package boundary. */
+export function knownBodyKinds(): readonly string[] {
+  return [...KNOWN_BODY_KINDS];
 }
 
 /** Everything §5.2 needs about a catalogue entry, with the optional fields resolved. A seeded
  *  entry has no insertable shape — that is the `NOT_INSERTABLE` refusal, not a defect. */
 export interface InsertableBody {
   readonly buildId: string;
-  readonly label: string;
+  /** The entry's generic descriptor, which is `entryLabel(buildId)` for every insertable row. Held
+   *  here rather than rebuilt at each refusal so a body and the sentence refusing it name it the
+   *  same way. */
+  readonly label: BodyLabel;
   readonly kind: string;
   readonly band: Band;
   readonly widthFlex: WidthFlex;
@@ -1270,10 +1312,9 @@ export function toInsertableBody(
   buildId: string,
   definition: BodyDefinition,
 ): InsertableBody | undefined {
-  const { label, widthFlex, nominalHeightMm, sizesMm } = definition;
+  const { widthFlex, nominalHeightMm, sizesMm } = definition;
   if (definition.insertable !== true) return undefined;
   if (
-    label === undefined ||
     widthFlex === undefined ||
     nominalHeightMm === undefined ||
     sizesMm === undefined
@@ -1282,7 +1323,7 @@ export function toInsertableBody(
   }
   return {
     buildId,
-    label,
+    label: entryLabel(buildId),
     kind: definition.kind,
     band: definition.band,
     widthFlex,

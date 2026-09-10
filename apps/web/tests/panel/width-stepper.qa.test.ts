@@ -267,7 +267,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
       // 5D2c product-logic B1: 560 is the *sink's* floor from this column, and a wall cabinet is
       // built 200-800 — so under the body's name the sentence was false about the very cabinet it
       // named. It now attributes the bound to the column that owns it.
-      "„Corp suspendat” este într-o coloană care se face între 560 și 800 mm, iar acum are 800 mm.",
+      "„Dulap suspendat” este într-o coloană care se face între 560 și 800 mm, iar acum are 800 mm.",
     );
     // The half that was the blocker: a bound is spoken as a bound. "doar în 600 sau 650 sau …"
     // denies every width between the chips, which is materially false of a cabinetry row.
@@ -289,7 +289,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     const section = walkToFloor("p4");
     expect(section.valueLabel).toBe("300 mm");
     expect(section.steps[0].reason).toBe(
-      "„Corp bază 3 sertare” este într-o coloană care se face între 300 și 800 mm, iar acum are 300 mm.",
+      "„Dulap bază 3 sertare” este într-o coloană care se face între 300 și 800 mm, iar acum are 300 mm.",
     );
   });
 

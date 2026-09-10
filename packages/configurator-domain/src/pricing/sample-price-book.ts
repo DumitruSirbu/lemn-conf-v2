@@ -12,7 +12,8 @@
 // later rather than a refactor.
 //
 // **And it is the only place a price may live** (ADR 0062's third prohibition): no amount, tier,
-// delta or rule may exist in `catalog.ts`, in `content/ro.ts`, or in a component. The 2E sheet's
+// delta or rule may exist in `catalog.ts`, in the app's message catalogue
+// (`apps/web/src/messages/ro.json`), or in a component. The 2E sheet's
 // *"de la +9 000"* is this data rendered, never copy that happens to agree with a number.
 //
 // **The tier names and descriptions below are provisional sample content, not owner-ruled copy.**

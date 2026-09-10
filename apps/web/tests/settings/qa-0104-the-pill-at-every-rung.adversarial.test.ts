@@ -39,7 +39,7 @@ vi.mock("@/i18n/use-content", async () => {
   return { useContent: () => ro };
 });
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import {
   createConfiguratorStore,
   type ConfiguratorState,

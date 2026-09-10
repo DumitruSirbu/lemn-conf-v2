@@ -258,9 +258,6 @@ export interface BodyDefinition {
    *  specific already-built body and reproduce M1's scene, so offering one would build a fixed
    *  instance into an opening it was never measured for. */
   readonly insertable?: boolean;
-  /** §7's Romanian catalogue name, on insertable entries. A seeded entry has none: nothing in the
-   *  product ever offers it in a list, so `describeKindLabel` names it by kind instead. */
-  readonly label?: string;
   readonly widthFlex?: WidthFlex;
   /** §7's `hFlex` column: the body builds to a cabinet-sized opening instead of its nominal
    *  height. */
@@ -316,13 +313,14 @@ export interface BodyDefinition {
    *  removed the only thing that had ever said how many doors a row has: its name. §7's builder has
    *  always branched on `TWO_DOOR_MIN_WIDTH_MM` and has always been right at every width; what lied
    *  was the label, which is why ADR 0033 calls every defect in this class "a naming defect wearing
-   *  geometry's clothes". `label` is now the entry's **generic** name — *Corp suspendat* — true at
-   *  every width, and `describeBodyLabelAt` adds the count where a width is actually known.
+   *  geometry's clothes". `describeBodyName` now answers the entry's **generic** descriptor, true at
+   *  every width, and `describeBodyLabelAt` wraps the count around it where a width is actually
+   *  known.
    *
    *  **Declared, never inferred.** `kind` is not enough: `base-3drawer`, `base-panbank` and
    *  `base-sink` all carry `base_cabinet` and none of them has a hinged door to count. Absent means
-   *  `false` — the label is whatever the row says — which is the conservative direction, since a row
-   *  that forgets to declare shows its own name rather than a door count nothing verified. */
+   *  `false` — the row is named generically — which is the conservative direction, since a row that
+   *  forgets to declare shows its own name rather than a door count nothing verified. */
   readonly doorCountFollowsWidth?: boolean;
 
   /** ADR 0033's amendment, and after ADR 0035 decision 2 **the entry's width model**: the widths this
@@ -505,6 +503,22 @@ export interface Column {
  *  `withCurrentFullHeightMembers` — from `deriveColumns` at load, or from the store's `applyCommandResult`
  *  after each command. Adding a second route to that consumer breaks the invariant silently. */
 export type ColumnExtent = Omit<Column, "hasFullHeightUnder">;
+
+/** The `kind` an opening with no body in it carries. `catalog.kinds` names no such kind by design,
+ *  so a descriptor built from it resolves to `catalog.unknownKind`.
+ *
+ *  **This constant is the one spelling of the *id*, not of the word.** The two paths that name a
+ *  void render different words: §9's selection publishes `EMPTY_SLOT_LABEL` →
+ *  `catalog.emptySlot` (*"Spațiu liber"*, `queries/describe-selection.ts:121`), while §5.2's
+ *  refusals build `kindLabel(VOID_KIND)` → `catalog.unknownKind` (*"Dulap"*,
+ *  `commands/insert-fit.ts:228`).
+ *
+ *  That divergence is **latent rather than user-visible**, which is why it is recorded here and not
+ *  fixed. The only refusal that ever names a void is `COLUMN_MISMATCH`
+ *  (`commands/insert-fit.ts:213-219`, through `openingLabel`), and it fires only when
+ *  `lookup.columns.get(opening.col)` misses. Voids and columns are derived together from the same
+ *  design, so a miss is an internal invariant break rather than a flow a customer walks. */
+export const VOID_KIND = "void";
 
 export interface VoidRecord {
   readonly id: string;

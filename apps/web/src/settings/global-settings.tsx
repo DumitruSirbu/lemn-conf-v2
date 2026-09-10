@@ -144,7 +144,10 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
    *  when the sheet opened. */
   const [refusal, setRefusal] = useState<ApplyRefusal | undefined>(undefined);
 
-  const editability = describeEditability({ canWrite, saveStatus });
+  const editability = describeEditability(
+    { canWrite, saveStatus },
+    content.panel,
+  );
 
   const anchorRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);

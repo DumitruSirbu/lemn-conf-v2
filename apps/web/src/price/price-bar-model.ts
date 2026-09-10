@@ -27,8 +27,6 @@
 // the bar's own line and never §9's banner.
 import type { PricingResult } from "@lemnaria/configurator-domain";
 
-import { ro } from "@/content/ro";
-
 import type { Content } from "@/i18n/content";
 
 import {
@@ -74,16 +72,13 @@ export interface DescribePriceBarInput {
 
 const UNPRICED_BAR: UnpricedBar = { kind: "unpriced" };
 
-const EMPTY_BAR: EmptyBar = {
-  kind: "empty",
-  prompt: ro.price.emptyKitchenPrompt,
-};
-
 export function describePriceBar(input: DescribePriceBarInput): PriceBarView {
   if (!input.pricing.ok) return UNPRICED_BAR;
 
   const { priced } = input.pricing;
-  if (holdsNoCabinets(priced)) return EMPTY_BAR;
+  if (holdsNoCabinets(priced)) {
+    return { kind: "empty", prompt: input.content.price.emptyKitchenPrompt };
+  }
 
   const warning = describeFlaggedTotalWarning(priced, input.content.price);
   return {

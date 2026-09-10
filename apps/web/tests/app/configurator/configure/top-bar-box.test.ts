@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../../../support/romanian-content";
 
 const CONFIGURE_DIRECTORY = resolve(
   import.meta.dirname,
@@ -50,8 +50,8 @@ const settingsStylesheet = readFileSync(
   "utf8",
 );
 
-const roSource = readFileSync(
-  resolve(import.meta.dirname, "../../../../src/content/ro.ts"),
+const contentSource = readFileSync(
+  resolve(import.meta.dirname, "../../../../src/i18n/content.ts"),
   "utf8",
 );
 
@@ -477,21 +477,19 @@ describe("the row the refreshed frames replaced", () => {
 });
 
 describe("the step number has one source", () => {
-  it("spells the pill and the sentence from the same two constants", () => {
-    const withoutComments = roSource.replace(/\/\*[\s\S]*?\*\//g, "");
+  it("resolves the pill and the sentence from one pair of step arguments", () => {
+    // The two constants this used to read moved into ICU arguments in 6B-d, and the module that
+    // held them was deleted in 6B-f. The invariant is unchanged and is checked where it now lives:
+    // both catalogue leaves are resolved with the *same* `{ step, totalSteps }`, so the pill and the
+    // caption cannot state two different progressions.
+    const stepArguments = [
+      ...contentSource.matchAll(
+        /translate\("configure\.(?:step|stepPill)", (\{ step: \d+, totalSteps: \d+ \})\)/g,
+      ),
+    ].map(([, values]) => values);
 
-    expect(withoutComments.match(/const CONFIGURE_STEP = \d+;/g)).toHaveLength(
-      1,
-    );
-    expect(
-      withoutComments.match(/const CONFIGURE_STEP_COUNT = \d+;/g),
-    ).toHaveLength(1);
-    expect(withoutComments).toContain(
-      "step: `Pasul ${String(CONFIGURE_STEP)} din ${String(CONFIGURE_STEP_COUNT)}`,",
-    );
-    expect(withoutComments).toContain(
-      "stepPill: `${String(CONFIGURE_STEP)}/${String(CONFIGURE_STEP_COUNT)}`,",
-    );
+    expect(stepArguments).toHaveLength(2);
+    expect(new Set(stepArguments).size).toBe(1);
   });
 
   it("draws the same numbers in both, so the two cannot disagree", () => {

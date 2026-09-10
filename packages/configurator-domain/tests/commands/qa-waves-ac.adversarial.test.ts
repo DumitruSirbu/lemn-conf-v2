@@ -213,7 +213,6 @@ function baseEntry(minWidthMm: number | undefined): BodyDefinition {
   const floorMm = minWidthMm ?? PROBE_DEFAULT_FLOOR_MM;
   return {
     ...template,
-    label: "Probă",
     widthRangesMm: [{ minMm: floorMm, maxMm: PROBE_CEILING_MM }],
     ...(minWidthMm === undefined ? {} : { minWidthMm }),
   };

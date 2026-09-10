@@ -4,16 +4,17 @@
 // `tall-pantry` (`resolve-column-members.ts`) and *"Coloană cămară 2 uși"* after — one cabinet, two
 // names, in what 6D turns into a priced document.
 //
-// Every comparison below is **derived on both sides**. The name now exists on the seeded row and on
-// its catalogue equivalent, and a table of expected strings would be a third copy — and would keep
-// passing while a new seeded row is added without its two fields.
+// Every comparison below is **derived on both sides**. The name is the equivalent's, resolved
+// through the pointer the seeded row declares, and a table of expected descriptors would be a second
+// copy — and would keep passing while a new seeded row is added without its pointer.
 import { describe, expect, it } from "vitest";
 
 import {
   describeBodyLabelAt,
-  describeKindLabel,
   isKnownKind,
-  UNKNOWN_KIND_LABEL_RO,
+  kindLabel,
+  type BodyLabel,
+  type LabelledBody,
 } from "../../src/catalog.js";
 import type { DesignPlacement } from "../../src/design.js";
 import {
@@ -33,15 +34,35 @@ import {
 
 const PANTRY_PLACEMENT_ID = "p6";
 
+/** Whether this descriptor names a row or a kind the catalogue holds — the only way a body reaches a
+ *  customer under its own name rather than under the generic word. Unwraps ADR 0033's door count,
+ *  which qualifies a name rather than being one. */
+function namesSomethingTheCatalogueKnows(
+  label: BodyLabel | undefined,
+): boolean {
+  if (label === undefined) return false;
+  if (label.kind === "withDoors")
+    return namesSomethingTheCatalogueKnows(label.name);
+  if (label.kind === "entry") return KITCHEN_L_BODY_CATALOG.has(label.buildId);
+  return label.kind === "bodyKind" && isKnownKind(label.bodyKind);
+}
+
 function definitionOf(buildId: string): BodyDefinition {
   const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
   if (!definition) throw new Error(`fixture has no entry "${buildId}"`);
   return definition;
 }
 
+function bodyOf(buildId: string): LabelledBody {
+  return { buildId, definition: definitionOf(buildId) };
+}
+
 /** The name the customer reads for this placement, off the panel header — the surface the defect was
  *  found on, and the one `describeBodyLabelAt` is called from. */
-function labelOf(world: KitchenWorld, placementId: string): string | undefined {
+function labelOf(
+  world: KitchenWorld,
+  placementId: string,
+): BodyLabel | undefined {
   return describeSelection({
     records: world.records,
     voids: world.voids,
@@ -115,9 +136,12 @@ describe("a seeded body's name across a resize", () => {
       compared += 1;
 
       const widthMm = placement.body.widthMm;
-      expect([placement.id, describeBodyLabelAt(seeded, widthMm)]).toEqual([
+      expect([
         placement.id,
-        describeBodyLabelAt(definitionOf(equivalentId), widthMm),
+        describeBodyLabelAt(bodyOf(placement.body.buildId), widthMm),
+      ]).toEqual([
+        placement.id,
+        describeBodyLabelAt(bodyOf(equivalentId), widthMm),
       ]);
     }
 
@@ -136,23 +160,22 @@ describe("a seeded body's name across a resize", () => {
       if (seeded.catalogEquivalentId !== undefined) continue;
       checked += 1;
 
-      expect([
+      expect([placement.id, seeded.doorCountFollowsWidth]).toEqual([
         placement.id,
-        seeded.label,
-        seeded.doorCountFollowsWidth,
-      ]).toEqual([placement.id, undefined, undefined]);
+        undefined,
+      ]);
       expect([placement.id, labelOf(world, placement.id)]).toEqual([
         placement.id,
-        describeKindLabel(seeded.kind),
+        kindLabel(seeded.kind),
       ]);
     }
 
     expect(checked).toBeGreaterThan(0);
   });
 
-  it("never renders the unknown-kind fallback, before or after the migration", () => {
+  it("never falls back to the unknown kind, before or after the migration", () => {
     // §11 row 24 renders no replace section at all for an unknown kind, so this is a larger problem
-    // than a name and is asserted at both ends rather than assumed from today's kind table.
+    // than a name and is asserted at both ends rather than assumed from today's kind set.
     const before = seededKitchen();
     const after = resizedThereAndBack(before, PANTRY_PLACEMENT_ID, 500, 600);
 
@@ -160,10 +183,10 @@ describe("a seeded body's name across a resize", () => {
       for (const placement of world.design.placements) {
         const kind = definitionOf(placement.body.buildId).kind;
         expect([placement.id, isKnownKind(kind)]).toEqual([placement.id, true]);
-        expect([placement.id, labelOf(world, placement.id)]).not.toEqual([
+        expect([
           placement.id,
-          UNKNOWN_KIND_LABEL_RO,
-        ]);
+          namesSomethingTheCatalogueKnows(labelOf(world, placement.id)),
+        ]).toEqual([placement.id, true]);
       }
     }
   });
@@ -171,13 +194,13 @@ describe("a seeded body's name across a resize", () => {
 
 describe("a seeded body's name does not depend on the cabinet depth", () => {
   // **The property M6 wave 6I relies on, asserted rather than assumed.** `catalogEquivalentNamer`
-  // resolves each seeded row's `label` and `doorCountFollowsWidth` against the §7 catalogue built at
-  // *the same depth the seeded map is being built at*, so that a catalogue built at 700 is not
-  // quietly half-built at 600.
+  // resolves each seeded row's `doorCountFollowsWidth` against the §7 catalogue built at *the same
+  // depth the seeded map is being built at*, so that a catalogue built at 700 is not quietly
+  // half-built at 600.
   //
   // That is only safe while names are depth-independent, which they are in every §7 row today —
   // which is exactly why nobody would notice if one stopped being. Pinning the lookup to the shipped
-  // depth would have hidden the question; this asks it. If a label ever does start following the
+  // depth would have hidden the question; this asks it. If a name ever does start following the
   // setting, this test says so instead of a constant deciding silently.
   //
   // Read off the depth map rather than written out here: `worktop-depth.ts` names `800 -> 500` as a
@@ -190,11 +213,15 @@ describe("a seeded body's name does not depend on the cabinet depth", () => {
   ): readonly (readonly [string, string | undefined, boolean | undefined])[] {
     return buildSeededBodyDefinitions(cabinetDepthMm).map(
       ([buildId, definition]) =>
-        [buildId, definition.label, definition.doorCountFollowsWidth] as const,
+        [
+          buildId,
+          definition.catalogEquivalentId,
+          definition.doorCountFollowsWidth,
+        ] as const,
     );
   }
 
-  it("gives every seeded row the same label and door-count flag at every declared depth", () => {
+  it("gives every seeded row the same equivalent and door-count flag at every declared depth", () => {
     const [shallowestMm, ...deeperDepthsMm] = DECLARED_DEPTHS_MM;
     if (shallowestMm === undefined) {
       throw new Error(
@@ -214,10 +241,12 @@ describe("a seeded body's name does not depend on the cabinet depth", () => {
     expect(deeperDepthsMm.length).toBeGreaterThan(0);
   });
 
-  // Guards the assertion above from passing vacuously: eighteen rows carry a name read off their
-  // catalogue equivalent, and the four corner rows deliberately carry none (ADR 0022).
+  // Guards the assertion above from passing vacuously: eighteen rows take their name from a
+  // catalogue equivalent, and the four corner rows deliberately declare none (ADR 0022).
   it("has eighteen named rows to compare, and four deliberately unnamed", () => {
-    const named = namesAt(600).filter(([, label]) => label !== undefined);
+    const named = namesAt(600).filter(
+      ([, equivalentId]) => equivalentId !== undefined,
+    );
 
     expect(named).toHaveLength(18);
     expect(namesAt(600)).toHaveLength(22);

@@ -4,19 +4,22 @@
 // The base fixture is a plain base cabinet with every flag on. Each named builder turns exactly the
 // flags §9 names for that case, so a test reads as "a corner return has no finish, handle or width"
 // rather than as a wall of literals.
-import type {
-  CatalogOffer,
-  RejectionReason,
-  SelectionMeta,
+import {
+  entryLabel,
+  EMPTY_SLOT_LABEL,
+  kindLabel,
+  labelWithDoors,
+  type CatalogOffer,
+  type RejectionReason,
+  type SelectionMeta,
 } from "@lemnaria/configurator-domain";
 
 const BASE_CABINET_META: SelectionMeta = {
   id: "p0",
-  label: "Corp bază 2 uși",
+  label: labelWithDoors(entryLabel("base-cabinet"), 2),
   empty: false,
   kind: "base_cabinet",
   band: "base",
-  bandLabel: "bază",
   wall: "A",
   widthMm: 600,
   heightMm: 860,
@@ -46,7 +49,7 @@ export function slotMeta(
   return {
     ...BASE_CABINET_META,
     id: "A|2.00:v0:0.00",
-    label: "Spațiu liber",
+    label: EMPTY_SLOT_LABEL,
     empty: true,
     kind: "void",
     widthMm: 700,
@@ -66,10 +69,9 @@ export function slotMeta(
 export function cornerReturnMeta(): SelectionMeta {
   return occupiedMeta({
     id: "p21",
-    label: "Retur de colț",
+    label: kindLabel("corner_wall_return"),
     kind: "wall_cabinet",
     band: "wall",
-    bandLabel: "suspendat",
     fixedWidth: true,
     canFinish: false,
     canHandle: false,
@@ -88,7 +90,7 @@ export function cornerReturnMeta(): SelectionMeta {
 export function offer(overrides: Partial<CatalogOffer> = {}): CatalogOffer {
   return {
     buildId: "base-cabinet",
-    label: "Corp bază 2 uși",
+    label: labelWithDoors(entryLabel("base-cabinet"), 2),
     kind: "base_cabinet",
     band: "base",
     sizesMm: [400, 600, 800],
@@ -106,11 +108,14 @@ export function offer(overrides: Partial<CatalogOffer> = {}): CatalogOffer {
 
 export function offers(count: number): CatalogOffer[] {
   return Array.from({ length: count }, (_unused, index) =>
-    offer({ buildId: `body-${String(index)}`, label: `Corp ${String(index)}` }),
+    offer({
+      buildId: `body-${String(index)}`,
+      label: entryLabel(`body-${String(index)}`),
+    }),
   );
 }
 
 export const REFUSAL: RejectionReason = {
   code: "NOT_DELETABLE",
-  params: { label: "Retur de colț" },
+  params: { label: kindLabel("corner_wall_return") },
 };

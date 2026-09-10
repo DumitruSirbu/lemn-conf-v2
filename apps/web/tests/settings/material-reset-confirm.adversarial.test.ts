@@ -414,10 +414,13 @@ describe("what the confirm step leaves behind when it replaces the body and foot
         // This block is about the confirmation's copy and its two steps, never about access. Stated
         // rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so
         // a write surface cannot silently default to permitted (M6-AUD-001).
-        editability: describeEditability({
-          canWrite: true,
-          saveStatus: "idle",
-        }),
+        editability: describeEditability(
+          {
+            canWrite: true,
+            saveStatus: "idle",
+          },
+          content.panel,
+        ),
         ...(step === "choosing"
           ? {}
           : {

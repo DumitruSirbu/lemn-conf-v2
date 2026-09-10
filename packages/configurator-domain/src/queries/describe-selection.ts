@@ -4,36 +4,34 @@
 // §8's rule is the point of this projection: "everything the panel disables, it disables from these
 // numbers — never by trying and catching a refusal". Nothing enters `meta` that the panel could not
 // derive from the selection itself.
-import {
-  describeBandLabel,
-  deriveSlotBand,
-  isPushOpenByDefault,
-} from "../bands.js";
+import { deriveSlotBand, isPushOpenByDefault } from "../bands.js";
 import {
   describeBodyLabelAt,
-  describeKindLabel,
+  EMPTY_SLOT_LABEL,
+  kindLabel,
   resolveBuildableSizes,
+  type BodyLabel,
 } from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
 import type { DesignWall, Handle } from "../design.js";
 import type { Finish } from "../materials.js";
 import { toMillimetres } from "../millimetres.js";
-import type {
-  Band,
-  BodyCatalog,
-  PlacementRecord,
-  StructuralReason,
-  VoidRecord,
+import {
+  VOID_KIND,
+  type Band,
+  type BodyCatalog,
+  type PlacementRecord,
+  type StructuralReason,
+  type VoidRecord,
 } from "../void-engine.js";
 
 export interface SelectionMeta {
   readonly id: string;
-  readonly label: string;
+  readonly label: BodyLabel;
   /** True for a void: §9 hides Finisaj, Mâner and Lățime, because there is nothing to finish. */
   readonly empty: boolean;
   readonly kind: string;
   readonly band: Band;
-  readonly bandLabel: string;
   readonly wall: DesignWall;
   readonly widthMm: number;
   readonly heightMm: number;
@@ -90,9 +88,6 @@ const DEFAULT_HANDLE: Handle = "steel";
 /** §6.5: at or above the top module line, handles are built and hidden. */
 const TOP_ROW_HANDLE: Handle = "push";
 
-const EMPTY_SLOT_LABEL_RO = "Spațiu liber";
-const VOID_KIND = "void";
-
 export interface DescribeSelectionInput {
   readonly records: readonly PlacementRecord[];
   readonly voids: readonly VoidRecord[];
@@ -123,11 +118,10 @@ function describeVoid(record: VoidRecord): SelectionMeta {
   const heightMm = toMillimetres(record.h);
   return {
     id: record.id,
-    label: EMPTY_SLOT_LABEL_RO,
+    label: EMPTY_SLOT_LABEL,
     empty: true,
     kind: VOID_KIND,
     band,
-    bandLabel: describeBandLabel(band),
     wall: record.wall,
     widthMm,
     heightMm,
@@ -174,12 +168,14 @@ function describeBody(
     // which carries no `label` of its own — still falls back to its kind, as it always has.
     label:
       definition === undefined
-        ? describeKindLabel(record.kind)
-        : describeBodyLabelAt(definition, record.widthMm),
+        ? kindLabel(record.kind)
+        : describeBodyLabelAt(
+            { buildId: record.buildId, definition },
+            record.widthMm,
+          ),
     empty: false,
     kind: record.kind,
     band: record.band,
-    bandLabel: describeBandLabel(record.band),
     wall: record.wall,
     widthMm: record.widthMm,
     heightMm: record.heightMm,

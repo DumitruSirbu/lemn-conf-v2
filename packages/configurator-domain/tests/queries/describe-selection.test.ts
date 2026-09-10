@@ -60,7 +60,6 @@ describe("describeSelection — an occupied body", () => {
       canFinish: true,
       canDelete: true,
     });
-    expect(meta?.bandLabel.length).toBeGreaterThan(0);
   });
 
   // §13.1 / §11 row 16: a corner is not a body the customer chooses, so §9 must publish it as one
@@ -266,7 +265,7 @@ describe("the width set a seeded body resolves through its declared equivalent",
   // width section then declines, which is the loud-at-the-section failure R2.7 preserved. The
   // pointer guard in `tests/fixtures/kitchen-l-design.test.ts` is what makes a broken pointer fail
   // on its own (FINDING R2.1: this cited `catalog.qa.test.ts`, which only covers `isKnownKind` and
-  // `describeKindLabel`).
+  // the kind descriptor).
   it("gives an empty set when the declared equivalent is not in the catalogue", () => {
     const seededEntry = KITCHEN_L_BODY_CATALOG.get("wall-2door-600");
     if (!seededEntry) throw new Error("no seeded entry wall-2door-600");

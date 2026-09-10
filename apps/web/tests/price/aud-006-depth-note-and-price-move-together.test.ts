@@ -35,7 +35,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -180,8 +180,12 @@ describe("depth does not reach an amount, and the sentence that says so", () => 
     // would hold for any wording, including a sentence that has quietly started promising a
     // depth-dependent price. When ADR 0100's coefficient ships, this line and the equality above
     // fail together — which is the coupling decision 5 asks for.
+    // **This literal was stale, and the 6B-f deletion is what exposed it.** It was pinned against
+    // `content/ro.ts`, which stopped being the shipped copy at 6B-c and never took the owner's Gate
+    // O1 edits or the `corp` → `dulap` rename (`3564c7c`). The sentence below is the catalogue's,
+    // which the whole-file copy lock pins; nothing was reworded here.
     expect(ro.globalSettings.depthNote).toBe(
-      "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+      "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
     );
   });
 });

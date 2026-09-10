@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { kindLabel } from "../../src/catalog.js";
+
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -137,7 +139,9 @@ describe("setFinish", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("FINISH_NOT_SUPPORTED");
-    expect(result.reason.params).toEqual({ label: "Etajeră deschisă" });
+    expect(result.reason.params).toEqual({
+      label: kindLabel("open_shelf_unit"),
+    });
     expect(result.design).toBe(shelf.design);
   });
 

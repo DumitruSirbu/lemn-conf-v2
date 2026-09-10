@@ -144,10 +144,13 @@ function confirmOf(view: GlobalSettingsView): MaterialResetConfirmView {
 /** These fixtures are about the confirmation and its copy, never about access. Stated rather than
  *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
  *  cannot silently default to permitted (M6-AUD-001). */
-const WRITABLE_ACCESS = describeEditability({
-  canWrite: true,
-  saveStatus: "idle",
-});
+const WRITABLE_ACCESS = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "idle",
+  },
+  ro.panel,
+);
 
 function choosingMarkupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
