@@ -172,18 +172,25 @@
   border-top: 1px solid var(--line);
 }
 
+/* **Reads as one sentence, matching the price bar** — owner's ruling of 2026-09-10: the sheet's
+ * footer said `DE LA` stacked above the amount in small letter-spaced caps while the bar beside it
+ * said *"de la 86 000 MDL"* on one line, and the same figure was being announced two ways on two
+ * surfaces a customer sees within a tap of each other. This is now `price-bar.module.css`'s
+ * treatment: one baseline-aligned row, the label at the amount's size and weight.
+ *
+ * `text-transform: lowercase` stays on the **label span alone** and must not move up to `.figure`,
+ * for the reason the bar records: one span covering both would take `MDL` down with it. */
 .figure {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 6px;
+  align-items: baseline;
   margin: 0;
 }
 
 .figureLabel {
-  font: 400 10.5px/1 var(--font-ui);
-  letter-spacing: 0.09em;
-  color: var(--ink-faint);
-  text-transform: uppercase;
+  font: 400 21px/1 var(--font-ui);
+  text-transform: lowercase;
 }
 
 .figureAmount {

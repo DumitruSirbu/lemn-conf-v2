@@ -39,6 +39,11 @@ const componentSource = readFileSync(
   resolve(PRICE_DIRECTORY, "price-bar.tsx"),
   "utf8",
 );
+const breakdownStylesheet = readFileSync(
+  resolve(PRICE_DIRECTORY, "price-breakdown.module.css"),
+  "utf8",
+);
+
 const barStylesheet = readFileSync(
   resolve(PRICE_DIRECTORY, "price-bar.module.css"),
   "utf8",
@@ -213,6 +218,66 @@ describe("the bar under a translation 40 % longer than its Romanian source", () 
       "line-clamp:",
     ]) {
       expect(barDeclarations, ceiling).not.toContain(ceiling);
+    }
+  });
+});
+
+/** **The two surfaces state the same figure and must state it the same way.** The bar and the
+ *  breakdown sheet's footer both render one `PriceFigure`, within a tap of each other, and until
+ *  2026-09-10 they disagreed: the bar said *"de la 86 000 MDL"* on one baseline while the footer
+ *  stacked `DE LA` above the amount in small letter-spaced capitals. The owner ruled them
+ *  consistent.
+ *
+ *  Nothing caught that drift, because no case asserted either treatment — which is why this one
+ *  exists rather than a note. It reads both stylesheets and requires the *same* three properties,
+ *  so bringing one back into line by editing only the other fails here. */
+describe("the sheet's footer figure and the bar's figure are one treatment", () => {
+  const ruleFor = (sheet: string, selector: string): string => {
+    const match = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(sheet);
+    if (match?.[1] === undefined) throw new Error(`no ${selector} rule found`);
+    return match[1];
+  };
+
+  it("lays both out as a baseline-aligned row rather than a stack", () => {
+    for (const [name, sheet] of [
+      ["bar", barStylesheet],
+      ["breakdown", breakdownStylesheet],
+    ] as const) {
+      const figure = ruleFor(sheet, ".figure");
+      expect(figure, name).toContain("flex-direction: row");
+      expect(figure, name).toContain("align-items: baseline");
+      expect(figure, name).not.toContain("flex-direction: column");
+    }
+  });
+
+  it("sets the prefix regular and the amount bold, at one size, in both", () => {
+    // The owner's second ruling of 2026-09-10: the prefix qualifies the figure and should not
+    // compete with it, so weight is what separates them and size is what joins them.
+    for (const [name, labelRule, amountRule] of [
+      [
+        "bar",
+        ruleFor(barStylesheet, ".label"),
+        ruleFor(barStylesheet, ".amount"),
+      ],
+      [
+        "breakdown",
+        ruleFor(breakdownStylesheet, ".figureLabel"),
+        ruleFor(breakdownStylesheet, ".figureAmount"),
+      ],
+    ] as const) {
+      expect(labelRule, name).toContain("400 21px/1");
+      expect(labelRule, name).toContain("text-transform: lowercase");
+      expect(labelRule, name).not.toContain("uppercase");
+      expect(amountRule, name).toContain("700 21px/1");
+    }
+  });
+
+  it("keeps `lowercase` off the container, which would take `MDL` down with it", () => {
+    for (const [name, sheet] of [
+      ["bar", barStylesheet],
+      ["breakdown", breakdownStylesheet],
+    ] as const) {
+      expect(ruleFor(sheet, ".figure"), name).not.toContain("text-transform");
     }
   });
 });

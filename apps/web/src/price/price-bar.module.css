@@ -46,8 +46,11 @@
   margin: 0;
 }
 
+/* **Regular, and only the amount is bold** — owner's ruling of 2026-09-10. The prefix is a
+ * qualifier on the figure, not part of it; setting both at 700 made *"de la"* compete with the
+ * number it qualifies. Same size and baseline so the pair still reads as one sentence. */
 .label {
-  font: 700 21px/1 var(--font-ui);
+  font: 400 21px/1 var(--font-ui);
   text-transform: lowercase;
 }
 
