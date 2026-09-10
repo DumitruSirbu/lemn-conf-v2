@@ -136,11 +136,14 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
     // a width. `COEFFICIENTS_BY_SHAPE` is the table this file owns, so a shape added in `price-
     // book.ts` without a line here fails as an unknown shape rather than passing unexamined.
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
-      expect(Object.keys(rule).sort()).toEqual([
-        "buildId",
-        "formula",
-        "ruleId",
-      ]);
+      // `suppliedBy` joins the shape as an **optional** key (owner, 2026-09-10): it says who puts
+      // the row in the kitchen, which is not a coefficient and not a width. Still exhaustive —
+      // a rule declares the three required keys and at most that one.
+      expect(Object.keys(rule).sort()).toEqual(
+        rule.suppliedBy === undefined
+          ? ["buildId", "formula", "ruleId"]
+          : ["buildId", "formula", "ruleId", "suppliedBy"],
+      );
       const coefficients = COEFFICIENTS_BY_SHAPE[rule.formula.shape];
       expect(coefficients).toBeDefined();
       expect(Object.keys(rule.formula).sort()).toEqual(

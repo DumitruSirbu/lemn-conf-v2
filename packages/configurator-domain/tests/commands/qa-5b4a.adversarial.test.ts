@@ -41,7 +41,7 @@ import {
   type VoidRecord,
 } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
-import { refused, verdictOf } from "../support/offers.js";
+import { offeredIds } from "../support/offers.js";
 import { cabinetDepthMmOf } from "../../src/design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -554,12 +554,13 @@ describe("the ADR 0037 gate, asserted as commands succeeding rather than voids e
       cabinetDepthMm: cabinetDepthMmOf(span.design),
       target: { kind: "void", id: strip.id },
     });
-    expect(offers.length).toBeGreaterThan(0);
-    // ADR 0032: the rows too wide for 200 mm are shown with their reason rather than removed.
-    expect(refused(offers).length).toBeGreaterThan(0);
-    expect(verdictOf(offers, "base-dishwasher")).toMatchObject({
-      status: "refused",
-    });
+    // **The reversal of ADR 0032** (owner, 2026-09-10): the rows too wide for a 200 mm strip are
+    // removed rather than shown with their reason. `base-dishwasher` is 450 mm at its narrowest, so
+    // its absence is the claim — and the rows that remain are the ones a customer can actually tap.
+    expect(offeredIds(offers)).not.toContain("base-dishwasher");
+    for (const offer of offers) {
+      expect(offer.buildsToWidthMm, offer.buildId).toBeLessThanOrEqual(200);
+    }
   });
 
   // The four-tap case, driven the same way: after the bottle cargo and its 300 mm neighbour, the
@@ -638,10 +639,7 @@ describe("a remainder wider than 800 mm is split at the ceiling (ADR 0052)", () 
       target: { kind: "void", id: opening.id },
     });
     // The whole gain: a `'fit'` row now builds to the opening instead of being refused against it.
-    const built = offers
-      .map((offer) => offer.verdict)
-      .filter((verdict) => verdict.status === "offered")
-      .map((verdict) => verdict.widthMm);
+    const built = offers.map((offer) => offer.buildsToWidthMm);
     expect(built).toContain(800);
     expect(built.every((widthMm) => widthMm <= 800)).toBe(true);
   });

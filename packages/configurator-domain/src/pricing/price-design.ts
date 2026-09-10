@@ -41,6 +41,7 @@ import {
   ACCESSORY_IDS,
   accessoryRuleOf,
   amountForBody,
+  DEFAULT_CABINET_SUPPLIER,
   exactAmountOfTerms,
   usableCoefficientOf,
   type AccessoryId,
@@ -282,6 +283,10 @@ function priceOnePlacement(
       // a second authority for the name of a body, which is what wave 6A exists to prevent.
       label: entry.label,
       widthMm: entry.widthMm,
+      // The one place the book's optional declaration becomes a fact every reader can rely on
+      // (ADR 0062 seam 1: absence is an ordinary declaration, not an omission). Defaulted here and
+      // nowhere else, so no surface has to know what a missing `suppliedBy` means.
+      suppliedBy: rule.suppliedBy ?? DEFAULT_CABINET_SUPPLIER,
       quantity: 1,
       unitAmountMinor: amountMinor,
       amountMinor,

@@ -9,7 +9,7 @@
     "stepPill": "{step, number}/{totalSteps, number}",
     "title": "Конфигуратор",
     "locale": "RU",
-    "localeSwitch": "Язык интерфейса: русский. Переключить на румынский",
+    "localeMenu": "Язык интерфейса: русский. Сменить язык",
     "back": "Комната",
     "orbitHint": "Коснись шкафа, чтобы изменить его · проведи пальцем, чтобы повернуть",
     "cameraGroupLabel": "Вид комнаты",
@@ -92,7 +92,7 @@
     "structuralReasons": {
       "corner": "Угловой шкаф нельзя заменить, удалить или изменить его размер. Выбери соседний шкаф."
     },
-    "finishFollowsKitchen": "Цвет кухни"
+    "finishFollowsKitchen": "Используй глобальный цвет кухни"
   },
   "price": {
     "startingPrefix": "От",
@@ -118,7 +118,8 @@
       "hardware": "Фурнитура",
       "material": "Материал"
     },
-    "included": "включено"
+    "included": "включено",
+    "notIncluded": "не входит в цену"
   },
   "globalSettings": {
     "open": "Общие настройки",
@@ -139,8 +140,8 @@
     "depthWarning": "Изменение глубины столешницы перестроит все шкафы и изменит их цену.",
     "depthNote": "Глубина столешницы не влияет на цену кухни — меняются только размеры шкафов.",
     "colourHeading": "Цвет кухни",
-    "colourNote": "Цвет не меняет цену кухни. Шкафы с выбранным цветом остаются без изменений.",
-    "colourWarning": "У каждого материала свои цвета, поэтому при смене материала цвет кухни становится цветом нового материала по умолчанию.",
+    "colourNote": "Цвет не меняет цену кухни. Шкафы с индивидуальным цветом сохраняют свой цвет при изменении цвета всей кухни.",
+    "colourWarning": "У каждого материала свои цвета, поэтому при смене материала цвет кухни принимает цвет нового материала по умолчанию.",
     "apply": "Применить",
     "cancel": "Отмена",
     "materialResetConfirm": {
@@ -289,7 +290,7 @@
     "WIDTH_TOO_SMALL": "Для «{label}» требуется ширина не менее {requiredMm, number, ::group-off} мм, а ширина свободного пространства — всего {availableMm, number, ::group-off} мм.",
     "WIDTH_TOO_SMALL_UNKNOWN_FLOOR": "Невозможно добавить «{label}»: минимальная ширина в каталоге указана неверно.",
     "WIDTH_NOT_SUPPORTED_NO_WIDTH": "«{label}» невозможно изготовить ни в одной ширине, которая также поддерживается расположенными выше шкафами.",
-    "WIDTH_NOT_SUPPORTED_COLUMN": "Колонна с «{label}» изготавливается {widthsMadeClause}, а сейчас имеет ширину {availableMm, number, ::group-off} мм.",
+    "WIDTH_NOT_SUPPORTED_COLUMN": "«{label}» находится в колонне, которая поддерживает ширину {widthsMadeClause}, а сейчас имеет {availableMm, number, ::group-off} мм.",
     "WIDTH_NOT_SUPPORTED_BODY": "«{label}» изготавливается {widthsMadeClause}, а ширина свободного пространства составляет {availableMm, number, ::group-off} мм.",
     "OPENING_TOO_SHORT": "Высота свободного пространства — всего {availableMm, number, ::group-off} мм; в проём высотой менее {minimumMm, number, ::group-off} мм шкаф не помещается.",
     "HEIGHT_EXCEEDS_LEVEL": "Высота «{label}» составляет {requiredMm, number, ::group-off} мм, поэтому он не помещается на этом уровне высотой {availableMm, number, ::group-off} мм. Только шкафы-колонны могут занимать больше одного уровня.",

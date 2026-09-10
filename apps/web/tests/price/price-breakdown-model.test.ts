@@ -98,6 +98,18 @@ function renderedRows(view: AvailableBreakdown): {
   ].map((match) => ({ label: match[1] ?? "", amount: match[2] ?? "" }));
 }
 
+/** The seeded placements the book says the manufacturer does not supply — the hood and the
+ *  free-standing fridge — read off the priced lines rather than named here, so the expectation
+ *  follows the book instead of a list somebody kept up to date by hand. */
+function customerSuppliedPlacementIds(): readonly string[] {
+  if (!SHIPPED_PRICING.ok) return [];
+  return SHIPPED_PRICING.priced.lines.flatMap((line) =>
+    line.kind === "cabinet" && line.suppliedBy === "customer"
+      ? [line.placementId]
+      : [],
+  );
+}
+
 describe("the rows are wave 6A's groups, rendered", () => {
   it("names every placement the projection holds, and no other", () => {
     const view = shippedBreakdown();
@@ -333,6 +345,44 @@ describe("what an amount reads as", () => {
 
     expect(material?.amount).toBe("inclus");
     expect(rows.map((row) => row.amount)).not.toContain("0");
+  });
+
+  it("reads nu este inclus on a body the manufacturer does not supply", () => {
+    // The owner's ruling of 2026-09-10: the hood and the free-standing fridge are drawn and
+    // displayed, and are not part of the price. *"inclus"* over a fridge told the customer Lemnaria
+    // was giving them one.
+    //
+    // The expected population is read off the **priced lines'** own `suppliedBy`, so this fails if
+    // the surface prints the sentence over the wrong body as loudly as if it printed none.
+    const notSuppliedKeys = customerSuppliedPlacementIds();
+    const rowsByKey = new Map(
+      shippedBreakdown()
+        .groups.flatMap((group) => group.rows)
+        .map((row) => [row.key, row.amountText]),
+    );
+
+    expect(notSuppliedKeys.length).toBe(2);
+    for (const key of notSuppliedKeys)
+      expect(rowsByKey.get(key), key).toBe(ro.priceBreakdown.notIncluded);
+  });
+
+  it("keeps every other zero at inclus, so the two zeros never print the same word", () => {
+    // **The defect this pairing exists to catch.** An experiment that keyed the wording off
+    // `amount === 0` put *"nu este inclus"* on the melamine row, which is free and genuinely is
+    // included. Nothing but a declared appliance may carry the new sentence.
+    const notSuppliedKeys = new Set(customerSuppliedPlacementIds());
+    const rows = shippedBreakdown().groups.flatMap((group) => group.rows);
+    const included = renderedRows(shippedBreakdown()).filter(
+      (row) => row.amount === ro.priceBreakdown.included,
+    );
+
+    expect(ro.priceBreakdown.included).not.toBe(ro.priceBreakdown.notIncluded);
+    // Not vacuous: the material tier is free, so at least one row genuinely reads *inclus*.
+    expect(included.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      if (notSuppliedKeys.has(row.key)) continue;
+      expect(row.amountText, row.key).not.toBe(ro.priceBreakdown.notIncluded);
+    }
   });
 
   it("rounds a line up to the thousand, through the one rounding site", () => {

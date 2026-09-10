@@ -10,6 +10,7 @@
 // enabled if and only if the step it offers succeeds.* It is asserted by actually walking, one press
 // at a time, through every width the shipped kitchen can reach.
 import {
+  buildableWidthSpanMm,
   cabinetDepthMmOf,
   columnWidthChoices,
   deriveColumns,
@@ -96,6 +97,7 @@ function panelAt(world: World, target: CommandTarget) {
       target,
       cabinetDepthMm: cabinetDepthMmOf(world.design),
     }),
+    buildableWidthSpanMm: buildableWidthSpanMm(world.catalog),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),
@@ -430,10 +432,16 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
 // Openings no cabinet fits still expose the catalogue, with every candidate refused in place.
 // -------------------------------------------------------------------------------------------
 
-describe("an opening no cabinet fits shows every candidate disabled", () => {
+describe("an opening no cabinet fits says so in one sentence, with no rows", () => {
   // ADR 0035 decision 7 creates this state: one press of `−50` vacates a selectable 50 mm strip.
-  // ADR 0032 requires the catalogue entries to stay visible and carry the engine's refusal.
-  it("explains each candidate refusal for a strip narrower than any cabinet", () => {
+  //
+  // **ADR 0032 required the catalogue entries to stay visible carrying the engine's refusal; the
+  // owner reversed that on 2026-09-10** — *"show only what is possible to insert"* — so the strip
+  // now renders no rows at all. What has to survive is that the panel is not an empty box: §9's
+  // zero-result sentence takes over, and it is the **informative** arm, naming the narrowest width
+  // the catalogue is made at. That bound comes from `buildableWidthSpanMm` now that no row is left
+  // to carry a `widthRangesMm`, which is the seam this test is really standing on.
+  it("names the narrowest cabinet for a strip narrower than any of them", () => {
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p4");
     if (!section) throw new Error("no stepper on p4");
     const shrunk = press(SEEDED_KITCHEN, "p4", section.steps[0].widthMm);
@@ -444,22 +452,20 @@ describe("an opening no cabinet fits shows every candidate disabled", () => {
     if (!strip) throw new Error("the shrink opened no 50 mm strip");
 
     const replace = replaceAt(world, { kind: "void", id: strip.id });
-    expect(replace.rows.length).toBeGreaterThan(0);
-    expect(replace.rows.every((row) => row.isDisabled)).toBe(true);
-    expect(replace.rows.every((row) => row.secondaryLine.length > 0)).toBe(
-      true,
+    const span = buildableWidthSpanMm(world.catalog);
+
+    expect(replace.rows).toEqual([]);
+    expect(replace.countLine).toBeUndefined();
+    expect(replace.emptyLine).toBe(
+      ro.panel.noOffersTooNarrow(50, span?.minMm ?? -1),
     );
-    expect(replace.rows.some((row) => row.secondaryLine.includes("50"))).toBe(
-      true,
-    );
-    expect(replace.emptyLine).toBeUndefined();
   });
 
   // **ADR 0037's own paragraph, and the owner's answer to it: "ok to have empty space left."** An
   // opening over §7's 800 mm ceiling fits no cabinet at all, and §9's zero-result rule inverts —
   // clearing a neighbour makes it wider. The shipped kitchen holds no column that wide, so this is a
   // synthetic 950 mm one, the width 5D2a's QA measured as reachable.
-  it("explains each candidate refusal for a span wider than every cabinet", () => {
+  it("names the widest cabinet for a span wider than every one of them", () => {
     const design: Design = {
       room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
       presetId: null,
@@ -495,15 +501,15 @@ describe("an opening no cabinet fits shows every candidate disabled", () => {
     if (!opening) throw new Error("no 950 mm opening");
 
     const replace = replaceAt(world, { kind: "void", id: opening.id });
-    expect(replace.rows.length).toBeGreaterThan(0);
-    expect(replace.rows.every((row) => row.isDisabled)).toBe(true);
-    expect(replace.rows.every((row) => row.secondaryLine.length > 0)).toBe(
-      true,
+    const span = buildableWidthSpanMm(world.catalog);
+
+    expect(replace.rows).toEqual([]);
+    expect(replace.countLine).toBeUndefined();
+    // ADR 0037's inversion, and the owner's *"ok to have empty space left"*: the sentence names the
+    // widest cabinet there is rather than asking for a delete that would widen the opening further.
+    expect(replace.emptyLine).toBe(
+      ro.panel.noOffersTooWide(950, span?.maxMm ?? -1),
     );
-    expect(replace.rows.some((row) => row.secondaryLine.includes("950"))).toBe(
-      true,
-    );
-    expect(replace.emptyLine).toBeUndefined();
   });
 });
 

@@ -554,7 +554,7 @@ export function resolveContent(translate: ContentTranslator) {
       stepPill: translate("configure.stepPill", { step: 2, totalSteps: 4 }),
       title: translate("configure.title"),
       locale: translate("configure.locale"),
-      localeSwitch: translate("configure.localeSwitch"),
+      localeMenu: translate("configure.localeMenu"),
       back: translate("configure.back"),
       backAction: translate("configure.backAction"),
       reviewCta: translate("configure.reviewCta"),
@@ -691,6 +691,7 @@ export function resolveContent(translate: ContentTranslator) {
         material: translate("priceBreakdown.wholeKitchenCategories.material"),
       },
       included: translate("priceBreakdown.included"),
+      notIncluded: translate("priceBreakdown.notIncluded"),
     },
     globalSettings: {
       open: translate("globalSettings.open"),

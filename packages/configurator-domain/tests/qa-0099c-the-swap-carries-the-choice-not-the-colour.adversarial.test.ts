@@ -127,7 +127,6 @@ function finishableOffersFor(
   placementId: string,
 ): readonly string[] {
   return offersFor({ ...world, target: { kind: "placement", id: placementId } })
-    .filter((offer) => offer.verdict.status === "offered")
     .map((offer) => offer.buildId)
     .filter((buildId) => world.catalog.get(buildId)?.canFinish === true);
 }
@@ -255,7 +254,6 @@ describe("ADR 0099 decision 2 — the §5.3 swap carries the choice and never th
       ...world,
       target: { kind: "placement", id: SWAP_TARGET_ID },
     })
-      .filter((offer) => offer.verdict.status === "offered")
       .map((offer) => offer.buildId)
       .filter((buildId) => world.catalog.get(buildId)?.canFinish === false);
     expect(unfinishable.length).toBeGreaterThan(0);

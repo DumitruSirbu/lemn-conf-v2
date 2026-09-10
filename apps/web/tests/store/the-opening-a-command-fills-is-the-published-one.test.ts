@@ -22,6 +22,7 @@
 // design already holds a `base-3drawer`, a `base-dishwasher` and a `tall-pantry` of its own.
 import {
   buildKitchenLBodyCatalog,
+  listInsertableBodies,
   offersFor,
   KITCHEN_L_DESIGN,
   wallLengthMm,
@@ -126,8 +127,10 @@ describe("an insert fills the opening the panel drew, not the one the document r
   });
 
   it("builds every offered row at the width its own row quoted", () => {
-    for (const offer of offersOnTheCappedOpening(atTheDeeperSetting())) {
-      if (offer.verdict.status !== "offered") continue;
+    const listed = offersOnTheCappedOpening(atTheDeeperSetting());
+    expect(listed.length).toBeGreaterThan(0);
+
+    for (const offer of listed) {
       const store = atTheDeeperSetting();
       const before = store.getState().records.map((record) => record.id);
 
@@ -138,20 +141,36 @@ describe("an insert fills the opening the panel drew, not the one the document r
       expect(
         theRecordTheTapAdded(store, before)?.widthMm,
         `${offer.buildId}'s built width`,
-      ).toBe(offer.verdict.widthMm);
+      ).toBe(offer.buildsToWidthMm);
     }
   });
 
-  it("refuses every row its own list refused, on that same opening", () => {
-    for (const offer of offersOnTheCappedOpening(atTheDeeperSetting())) {
-      if (offer.verdict.status === "offered") continue;
+  // **The converse, read from absence** since the owner's ruling of 2026-09-10 stopped the list
+  // carrying refused rows: an entry the list left out is one this opening's tap must refuse. Same
+  // correspondence, and the direction that matters more here — a row quietly missing from a capped
+  // opening is a cabinet the customer could have had.
+  it("refuses every row its own list left out, on that same opening", () => {
+    const offered = new Set(
+      offersOnTheCappedOpening(atTheDeeperSetting()).map(
+        (offer) => offer.buildId,
+      ),
+    );
+    let omitted = 0;
+
+    for (const body of listInsertableBodies(
+      atTheDeeperSetting().getState().catalog,
+    )) {
+      if (offered.has(body.buildId)) continue;
+      omitted += 1;
       const store = atTheDeeperSetting();
 
       store.getState().select({ kind: "void", id: theCappedOpeningId(store) });
-      store.getState().insert(offer.buildId);
+      store.getState().insert(body.buildId);
 
-      expect(store.getState().lastRejection, offer.buildId).not.toBeNull();
+      expect(store.getState().lastRejection, body.buildId).not.toBeNull();
     }
+
+    expect(omitted).toBeGreaterThan(0);
   });
 
   it("leaves no body past the end of its wall, whichever row was tapped", () => {

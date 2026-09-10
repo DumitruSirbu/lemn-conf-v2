@@ -404,6 +404,15 @@ export interface DescribePanelInput {
   /** `undefined` when nothing is selected, or when the selection no longer resolves. */
   readonly meta: SelectionMeta | undefined;
   readonly offers: readonly CatalogOffer[];
+  /** **What the catalogue can be built to at all** — `buildableWidthSpanMm(catalog)`, and never a
+   *  span derived from the list above.
+   *
+   *  It used to be read off the offers, which held every band-appropriate row whether or not it
+   *  fitted (ADR 0032). Since the owner's ruling of 2026-09-10 an opening nothing fits publishes no
+   *  rows, so the two informative empty sentences — *wider than the widest cabinet*, *narrower than
+   *  the narrowest* — would have had nothing to read. `undefined` is a real answer and leaves §9's
+   *  original sentence in place; see `describeEmptyLine`. */
+  readonly buildableWidthSpanMm?: WidthRangeMm | undefined;
   /** The **column's** candidate widths, already judged by the engine — `widthOptionsFor` ran
    *  `setWidth` once per candidate. This module renders that answer and does not second-guess it:
    *  "a chip is free iff the command succeeds" is only true if one side of it is not reimplemented
@@ -777,7 +786,11 @@ function describeReplaceSection(
       kind: "replace",
       title,
       rows,
-      emptyLine: describeEmptyLine(meta, input.offers, input.content),
+      emptyLine: describeEmptyLine(
+        meta,
+        input.buildableWidthSpanMm,
+        input.content,
+      ),
     };
   }
   return {
@@ -796,27 +809,29 @@ interface OfferRowAvailability {
   readonly content: Content;
 }
 
-/** §9's secondary line: the reason displaces the size on a disabled row, because at 390 px the row
- *  has one line under the name and the reason is the half the customer cannot guess. */
+/** §9's row: the size it would build to under the name, or the reason the whole panel is
+ *  unclickable where there is one.
+ *
+ *  **No refused arm since the owner's ruling of 2026-09-10.** `offersFor` publishes only what can
+ *  actually be inserted, so a row here is always one the engine planned — the two reasons left are
+ *  read-only and a probe still attaching, and both are facts about the panel rather than about the
+ *  entry. */
 function describeOfferRow(
   offer: CatalogOffer,
   availability: OfferRowAvailability,
 ): OfferRow {
-  // ADR 0033: an accepted offer's built width picks the drawing for a merged cabinet, exactly as it
-  // picks the label. A refused row has no built size and therefore no thumbnail.
-  const thumbnailUrl =
-    offer.verdict.status === "offered"
-      ? findCabinetThumbnailUrl(offer.buildId, offer.verdict.widthMm)
-      : undefined;
+  // ADR 0033: the built width picks the drawing for a merged cabinet, exactly as it picks the label.
+  const thumbnailUrl = findCabinetThumbnailUrl(
+    offer.buildId,
+    offer.buildsToWidthMm,
+  );
   return {
     buildId: offer.buildId,
     label: availability.content.bodyLabel(offer.label),
     secondaryLine: describeOfferSecondaryLine(offer, availability),
     isCurrent: offer.isCurrent,
     isDisabled:
-      availability.editability.isReadOnly ||
-      offer.verdict.status === "refused" ||
-      !availability.isBodyProbeAttached,
+      availability.editability.isReadOnly || !availability.isBodyProbeAttached,
     ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 }
@@ -826,10 +841,8 @@ function describeOfferSecondaryLine(
   { isBodyProbeAttached, editability, content }: OfferRowAvailability,
 ): string {
   if (editability.isReadOnly) return editability.disabledReason;
-  if (offer.verdict.status === "refused")
-    return content.rejection(offer.verdict.reason);
   if (!isBodyProbeAttached) return content.panel.probeUnavailable;
-  return content.panel.offerSize(offer.verdict.widthMm, offer.verdict.heightMm);
+  return content.panel.offerSize(offer.buildsToWidthMm, offer.buildsToHeightMm);
 }
 
 function describeCountLine(
@@ -859,21 +872,22 @@ function describeCountLine(
  *  selectable opening no cabinet fits. Advising a delete there is advice about a space nobody made
  *  on purpose and nobody has to fill.
  *
- *  **The two bounds are read from the offers, never written down here.** Every row — refused as well
- *  as offered, which is the whole of ADR 0032 — publishes `widthRangesMm`, "the widths this body may
- *  actually be built to". The narrowest floor and the widest ceiling across the rows the band
- *  admits are therefore facts the catalogue authored, and a panel constant beside them would be the
- *  two-numbers-agreeing-by-luck defect ADR 0028 is about. */
+ *  **The two bounds are still read from the catalogue and still never written down here** — but the
+ *  offer list is no longer where they come from. ADR 0032 put every band-appropriate row in the
+ *  list whatever its verdict, so a slot nothing fitted still published a `widthRangesMm` to take a
+ *  minimum and a maximum from; the owner's ruling of 2026-09-10 empties that list instead, and these
+ *  two sentences are exactly the ones a customer needs at that moment. `buildableWidthSpanMm`
+ *  answers from the catalogue directly, which is where the numbers always came from — a panel
+ *  constant beside them would be the two-numbers-agreeing-by-luck defect ADR 0028 is about. */
 function describeEmptyLine(
   meta: SelectionMeta,
-  offers: readonly CatalogOffer[],
+  span: WidthRangeMm | undefined,
   content: Content,
 ): string {
   if (!meta.empty)
     return content.panel.noOffersForBody(
       content.panel.bandWords[normaliseBand(meta.band)].one,
     );
-  const span = describeBuildableSpanMm(offers);
   if (span === undefined)
     return content.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
   if (meta.openWmm > span.maxMm)
@@ -881,20 +895,6 @@ function describeEmptyLine(
   if (meta.openWmm < span.minMm)
     return content.panel.noOffersTooNarrow(meta.openWmm, span.minMm);
   return content.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
-}
-
-/** The narrowest and widest width **any** row in this band can be built at. `undefined` when no row
- *  declares a range at all, which leaves §9's original sentence in place rather than inventing a
- *  bound from nothing. */
-function describeBuildableSpanMm(
-  offers: readonly CatalogOffer[],
-): { readonly minMm: number; readonly maxMm: number } | undefined {
-  const ranges = offers.flatMap((offer) => offer.widthRangesMm);
-  if (ranges.length === 0) return undefined;
-  return {
-    minMm: Math.min(...ranges.map((range) => range.minMm)),
-    maxMm: Math.max(...ranges.map((range) => range.maxMm)),
-  };
 }
 
 /** The disabled half of every `ChoiceChip`, in one place: §13.1 asks for the reason beside the

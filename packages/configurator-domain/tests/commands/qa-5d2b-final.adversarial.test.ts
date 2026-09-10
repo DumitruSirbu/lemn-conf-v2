@@ -227,10 +227,9 @@ describe("a shrink's strip widens on the next press", () => {
       target: { kind: "void", id: strip.id },
     });
 
-    expect(offers.length).toBeGreaterThan(0);
-    expect(
-      offers.filter((offer) => offer.verdict.status === "offered"),
-    ).toEqual([]);
+    // Since the owner's ruling of 2026-09-10 an unfillable strip publishes **no rows at all**,
+    // where it used to publish a full list of refusals. Same claim: nothing here is insertable.
+    expect(offers).toEqual([]);
   });
 });
 

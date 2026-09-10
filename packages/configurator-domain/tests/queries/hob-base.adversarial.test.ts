@@ -32,7 +32,6 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { describe, expect, it } from "vitest";
 
@@ -84,9 +83,10 @@ function hobOffersAt(widthMm: number) {
   const { world, opening } = baseOpeningOf(widthMm);
   // ADR 0032 keeps a refused entry in the list with its reason, so "offered" has to be said. The
   // 587 mm case below is the whole point of this helper: the row is present and refused, not absent.
-  return offeredRows(
-    offersFor({ ...world, target: { kind: "void", id: opening.id } }),
-  ).filter((offer) => HOB_BUILD_IDS.some((id) => id === offer.buildId));
+  return offersFor({
+    ...world,
+    target: { kind: "void", id: opening.id },
+  }).filter((offer) => HOB_BUILD_IDS.some((id) => id === offer.buildId));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
       const offered = hobOffersAt(widthMm);
 
       expect(offered.map((offer) => offer.buildId)).toEqual([...HOB_BUILD_IDS]);
-      expect(offered.map((offer) => offer.verdict.widthMm)).toEqual(
+      expect(offered.map((offer) => offer.buildsToWidthMm)).toEqual(
         HOB_BUILD_IDS.map(() => HOB_BASE_WIDTH_MM),
       );
     },
@@ -166,7 +166,7 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
 
       expect(offered).toHaveLength(HOB_BUILD_IDS.length);
       for (const offer of offered) {
-        expect([offer.buildId, offer.verdict.widthMm]).toEqual([
+        expect([offer.buildId, offer.buildsToWidthMm]).toEqual([
           offer.buildId,
           HOB_BASE_WIDTH_MM,
         ]);
@@ -274,7 +274,7 @@ describe("the opening a deleted hob cabinet leaves", () => {
 
     for (const buildId of HOB_BUILD_IDS) {
       expect(
-        offeredRows(offered).map((offer) => offer.buildId),
+        offered.map((offer) => offer.buildId),
         buildId,
       ).toContain(buildId);
     }

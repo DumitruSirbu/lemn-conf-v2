@@ -12,7 +12,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     stepPill: "{step, number}/{totalSteps, number}",
     title: "Configurare",
     locale: "RO",
-    localeSwitch: "Limba interfeței: română. Comută în rusă",
+    localeMenu: "Limba interfeței: română. Schimbă limba",
     back: "Cameră",
     orbitHint: "Atinge un dulap pentru a-l edita · trage pentru a roti",
     cameraGroupLabel: "Vedere cameră",
@@ -116,7 +116,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       corner:
         "Dulapul din colț nu poate fi înlocuit, șters sau redimensionat. Alege un dulap de lângă el.",
     },
-    finishFollowsKitchen: "Culoarea bucătăriei",
+    finishFollowsKitchen: "Preia culoarea bucătăriei",
   },
   price: {
     startingPrefix: "De la",
@@ -146,6 +146,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       material: "Material",
     },
     included: "inclus",
+    notIncluded: "nu este inclus",
   },
   globalSettings: {
     open: "Setări globale",
@@ -170,9 +171,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
     colourHeading: "Culoarea bucătăriei",
     colourNote:
-      "Culoarea nu schimbă prețul bucătăriei. Dulapurile cu o culoare aleasă rămân neschimbate.",
+      "Culoarea nu schimbă prețul bucătăriei. Dulapurile cu o culoare individuală la modificarea culorii pentru întreagă bucătărie își păstrează culoarea.",
     colourWarning:
-      "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei devine cea implicită a materialului nou.",
+      "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei preia culoarea implicită a materialului nou.",
     apply: "Aplică",
     cancel: "Renunță",
     materialResetConfirm: {
@@ -348,7 +349,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     WIDTH_NOT_SUPPORTED_NO_WIDTH:
       "„{label}” nu poate fi construit la nicio lățime pe care o acceptă și dulapurile de deasupra.",
     WIDTH_NOT_SUPPORTED_COLUMN:
-      "„{label}” este într-o coloană care se face {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
+      "„{label}” este într-o coloană care suportă o lățime {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
     WIDTH_NOT_SUPPORTED_BODY:
       "„{label}” se face {widthsMadeClause}, iar spațiul liber are {availableMm, number, ::group-off} mm.",
     OPENING_TOO_SHORT:

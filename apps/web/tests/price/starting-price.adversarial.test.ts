@@ -182,8 +182,14 @@ describe("the catalogue's own totals, priced and shown", () => {
     // kitchen holds one sink under one wall cabinet, so it earns one cover and one rack. That term
     // *is* a literal, because it is the owner's own flat *"Sink extras 600"* column being
     // reconciled against — the same standing the hinge and drawer literals have.
+    //
+    // **And down 1 490 000 on 2026-09-10**, when the owner ruled that the two appliance rows are
+    // drawn and not sold: the seeded `hood-600` billed 290 000 and the seeded `fridge-free-700`
+    // billed 1 200 000, and neither is the manufacturer's to charge for. The housings around them —
+    // `tall-oven-tower`, `tall-fridge-housing` — are joinery and did not move, which is why the
+    // cabinetry term drops by exactly those two lines.
     expect(SEEDED.priced.totalMinor).toBe(
-      9_427_500 +
+      7_937_500 +
         450_240 +
         SINK_EXTRAS_MINOR +
         SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR,

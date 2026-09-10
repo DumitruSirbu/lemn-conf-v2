@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SINK_CHIPS_MM } from "../support/width-model.js";
+import { offeredIds, offerFor } from "../support/offers.js";
 
 import {
   baseFinishedDepthMm,
@@ -25,7 +26,6 @@ import {
 } from "../../src/commands/insert-fit.js";
 import { toMetres } from "../../src/millimetres.js";
 import { offersFor, type CatalogOffer } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import { FIT_TOLERANCE_M, type BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import type { KitchenWorld } from "../support/kitchen-world.js";
@@ -145,9 +145,7 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
   it("does not offer the sink base for a 400 mm or a 500 mm opening", () => {
     for (const widthMm of [400, 500]) {
       const world = baseOpeningWorld(widthMm);
-      const offered = offeredRows(
-        offersFor({ ...world, target: baseVoidTarget(world) }),
-      );
+      const offered = offersFor({ ...world, target: baseVoidTarget(world) });
       expect(offered.length, `${String(widthMm)} mm`).toBeGreaterThan(0);
       expect(
         offered.map((offer) => offer.buildId),
@@ -158,9 +156,7 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
 
   it("offers the sink base for a 600 mm opening", () => {
     const world = baseOpeningWorld(600);
-    const offered = offeredRows(
-      offersFor({ ...world, target: baseVoidTarget(world) }),
-    );
+    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
     expect(offered.map((offer) => offer.buildId)).toContain("base-sink");
   });
 
@@ -177,7 +173,7 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
     for (const widthMm of widthsMm) {
       const world = baseOpeningWorld(widthMm);
       const target = baseVoidTarget(world);
-      const offered = offeredRows(offersFor({ ...world, target }));
+      const offered = offersFor({ ...world, target });
       for (const offer of offered) {
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
@@ -406,12 +402,12 @@ describe("R2.1: no shipped entry's width resolution changes", () => {
           kind: "void",
           id: voidAt(world, OPENING_COLUMN, y0).id,
         } as const;
-        for (const offer of offeredRows(offersFor({ ...world, target }))) {
+        for (const offer of offersFor({ ...world, target })) {
           const definition = definitionsByBuildId.get(offer.buildId);
           expect(definition, offer.buildId).toBeDefined();
           if (!definition) continue;
           expect(
-            offer.verdict.widthMm,
+            offer.buildsToWidthMm,
             `${String(openingMm)} mm @ ${String(y0)} -> ${offer.buildId}`,
           ).toBe(widthMmBeforeR2(definition, openingMm));
         }
@@ -495,21 +491,22 @@ describe("§9's width chips are narrowed by the same floor", () => {
   // careless filter would eat.
   it("leaves base-sink's chips stepped from its aperture", () => {
     const world = baseOpeningWorld(800);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
-    const sink = offered.find((offer) => offer.buildId === "base-sink");
-    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
+    const offers = offersFor({ ...world, target: baseVoidTarget(world) });
+
+    expect(offerFor(offers, "base-sink").sizesMm).toEqual(SINK_CHIPS_MM);
   });
 
-  // ADR 0032 decides what a **refused** row's chips mean, and the answer is "the same thing": the
-  // widths this body can be built at are a fact about the entry, not about the opening it was
-  // measured against. They are what "requires more space" means in millimetres, so they are the half
-  // of a disabled row a customer can act on — and narrowing them to what fits here would leave the
-  // row saying nothing at all.
-  it("leaves them there on a row it refuses, unnarrowed", () => {
+  // **ADR 0032's disabled row is gone, so the claim turns over.** That decision said a refused
+  // row keeps its unnarrowed chips, because they are what *"requires more space"* means in
+  // millimetres. The owner ruled on 2026-09-10 that the row itself should not be there — *"show
+  // only what is possible to insert"* — so what this proves now is the absence, and the pairing
+  // with the 800 mm opening above is what stops the absence from being vacuous: the same query
+  // offers `base-sink` the moment its 560 mm floor is met.
+  it("drops a row it refuses, rather than disabling it with its chips still on", () => {
     const world = baseOpeningWorld(400);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
-    const sink = offered.find((offer) => offer.buildId === "base-sink");
-    expect(sink?.verdict.status).toBe("refused");
-    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
+    const offers = offersFor({ ...world, target: baseVoidTarget(world) });
+
+    expect(offers.length).toBeGreaterThan(0);
+    expect(offeredIds(offers)).not.toContain("base-sink");
   });
 });

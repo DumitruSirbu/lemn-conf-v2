@@ -329,24 +329,26 @@ describe("describePanel — the replace list", () => {
 
   it("shows each row the size it would build to in this opening", () => {
     const panel = openPanelFor(slotMeta(), {
-      offers: [
-        offer({ verdict: { status: "offered", widthMm: 700, heightMm: 1850 } }),
-      ],
+      offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
     });
     expect(findSection(panel.sections, "replace")?.rows[0]?.secondaryLine).toBe(
       "700 × 1850 mm",
     );
   });
 
-  it("keeps a refused offer visible, disabled, with the localized engine reason", () => {
+  // **The greyed row ADR 0032 required is gone** (owner, 2026-09-10: *"show only what is possible to
+  // insert"*), so what used to be *"a refused offer stays visible, disabled, with the engine's
+  // reason"* is now this: every row the panel renders is enabled and carries its size, because
+  // `offersFor` published only rows the engine planned. The disabled arms that remain are the two
+  // panel-wide ones — read-only, and a probe still attaching — and each has its own test.
+  it("enables every row it renders, since a row it renders is one that can be inserted", () => {
     const panel = openPanelFor(slotMeta(), {
-      offers: [offer({ verdict: { status: "refused", reason: REFUSAL } })],
+      offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
     });
     const row = findSection(panel.sections, "replace")?.rows[0];
 
-    expect(row?.isDisabled).toBe(true);
-    expect(row?.secondaryLine).toBe(ro.rejection(REFUSAL));
-    expect(row?.thumbnailUrl).toBeUndefined();
+    expect(row?.isDisabled).toBe(false);
+    expect(row?.secondaryLine).toBe(ro.panel.offerSize(700, 1850));
   });
 
   // "Never offer what cannot be satisfied": until the scene mounts, `insertBody` refuses every

@@ -85,8 +85,9 @@ export function cornerReturnMeta(): SelectionMeta {
   });
 }
 
-/** ADR 0032: an offer carries a verdict. The default is `offered`, since these fixtures stand in for
- *  rows the panel renders as choosable; a refused one is built by passing a `verdict` override. */
+/** **Every offer is one the engine planned**, since the owner's ruling of 2026-09-10 removed the
+ *  refused row: there is no verdict to override and no fixture for a greyed entry, because the
+ *  panel has no such shape to render. `buildsTo*` is what a row would be built to here. */
 export function offer(overrides: Partial<CatalogOffer> = {}): CatalogOffer {
   return {
     buildId: "base-cabinet",
@@ -101,7 +102,8 @@ export function offer(overrides: Partial<CatalogOffer> = {}): CatalogOffer {
     // that copied it would be asserting the derivation rather than the rendering.
     widthRangesMm: [{ minMm: 300, maxMm: 800 }],
     isCurrent: false,
-    verdict: { status: "offered", widthMm: 600, heightMm: 860 },
+    buildsToWidthMm: 600,
+    buildsToHeightMm: 860,
     ...overrides,
   };
 }

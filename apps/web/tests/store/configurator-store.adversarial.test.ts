@@ -310,9 +310,7 @@ describe("the §10 signature flow, driven through the store", () => {
       catalog: KITCHEN_L_BODY_CATALOG,
       cabinetDepthMm: cabinetDepthMmOf(state.design),
       target: selection,
-    })
-      .filter((offer) => offer.verdict.status === "offered")
-      .map((offer) => offer.buildId);
+    }).map((offer) => offer.buildId);
   }
 });
 

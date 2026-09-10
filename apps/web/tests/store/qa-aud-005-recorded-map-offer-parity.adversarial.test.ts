@@ -60,8 +60,9 @@ const THE_CAPPED_COLUMN = "B|2.72";
  *  between two things the product says out loud rather than between a test and a refusal. */
 const AN_OFFERED_BODY = "base-cabinet";
 
-/** A sink base, whose 560 mm aperture is wider than the capped opening. The offer list refuses it
- *  by name and with a number: *"needs at least 560 mm, and the opening has only 500"*. */
+/** A sink base, whose 560 mm aperture is wider than the capped opening. The offer list leaves it
+ *  out — it refused it by name and with a number until the owner ruled a refused row off the panel
+ *  on 2026-09-10 — and the command has to refuse it too. */
 const A_BODY_THE_LIST_REFUSES = "base-sink";
 
 function createStore(design: Design) {
@@ -120,14 +121,6 @@ function offersOn(store: Store) {
   if (listed.length === 0)
     throw new Error("the capped opening offers nothing at all");
   return listed;
-}
-
-function offerFor(store: Store, buildId: string) {
-  const offer = offersOn(store).find(
-    (candidate) => candidate.buildId === buildId,
-  );
-  if (!offer) throw new Error(`${buildId} is not in the offer list at all`);
-  return offer;
 }
 
 function insertInto(store: Store, buildId: string): void {
@@ -205,8 +198,8 @@ describe("the opening a command resolves against is still the capped one", () =>
   // correspondence and not an example: for every entry the panel draws in this opening, the tap
   // must do what the row said it would. Today `base-cabinet`, `base-3drawer`, `base-panbank` and
   // `tall-pantry` are all quoted at the published 500 mm and all built at the recorded 600, and
-  // `base-sink` is refused in the list — *"needs at least 560 mm, and the opening has only 500"* —
-  // and accepted by the command.
+  // `base-sink` is absent from the list, because it needs 560 mm and the opening publishes 500; the
+  // test below is the half that proves the command agrees about it.
   it("does with the tap what every row of its own offer list said", () => {
     const listed = offersOn(atTheDeeperSetting());
 
@@ -218,13 +211,6 @@ describe("the opening a command resolves against is still the capped one", () =>
       insertInto(store, offer.buildId);
       const rejection = store.getState().lastRejection;
 
-      if (offer.verdict.status !== "offered") {
-        expect(
-          rejection,
-          `${offer.buildId} was refused in the list`,
-        ).not.toBeNull();
-        continue;
-      }
       expect(rejection, `${offer.buildId} was offered in the list`).toBeNull();
       const placed = theRecordThisTapAdded(store, idsBefore);
       // Non-vacuity: a lookup that answered `undefined` would make the width assertion below pass
@@ -235,7 +221,7 @@ describe("the opening a command resolves against is still the capped one", () =>
         `${offer.buildId} is the body that was built`,
       ).toBe(offer.buildId);
       expect(placed?.widthMm, `${offer.buildId}'s built width`).toBe(
-        offer.verdict.widthMm,
+        offer.buildsToWidthMm,
       );
     }
   });
@@ -243,10 +229,14 @@ describe("the opening a command resolves against is still the capped one", () =>
   // The single row that makes the correspondence above impossible to read as a rounding difference:
   // the list refuses this body *with the opening's width in the refusal*, and the command accepts
   // it and builds a 600 mm sink base on a wall with 500 mm of room left.
-  it("refuses what the offer list refuses, on the same opening", () => {
+  it("refuses what the offer list leaves out, on the same opening", () => {
+    // **Read from absence since the owner's ruling of 2026-09-10**: the list no longer publishes a
+    // refusal to compare against, so the row that is not there is the claim. The command still has
+    // to agree, which is the whole correspondence — a body missing from the list that the tap then
+    // accepted would be a cabinet the customer could have had and was never shown.
     const store = atTheDeeperSetting();
-    expect(offerFor(store, A_BODY_THE_LIST_REFUSES).verdict.status).toBe(
-      "refused",
+    expect(offersOn(store).map((offer) => offer.buildId)).not.toContain(
+      A_BODY_THE_LIST_REFUSES,
     );
 
     insertInto(store, A_BODY_THE_LIST_REFUSES);

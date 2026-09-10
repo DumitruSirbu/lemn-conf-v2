@@ -344,8 +344,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "fff58e0d5274b9323b1d417339767816cc64fdbb2be12d731af5db285f61b75a",
   "content.static.configure.locale":
     "0049aa51a630b7912728071542a064ffa7d385e0d14429bd59310a8347505815",
-  "content.static.configure.localeSwitch":
-    "df62a53218c0f0ecd25ce71cdfbaf809876b307499172f5066ba38b42b21141b",
+  "content.static.configure.localeMenu":
+    "c554551bc4543fc5ccf1e89b538d3c52aaa0b8f062a26f972e06ce8afb3fd72e",
   "content.static.configure.orbitHint":
     "a5a1d7ed1a50ecf519875a76a7e93fee7f415734480aa8cfa92db9b2e091189d",
   "content.static.configure.overflowWarning":
@@ -379,9 +379,9 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.globalSettings.colourHeading":
     "8eeb45a4c1771758345a3fb7c4dd85c148f27cbbfa1bd41e24b99a3b7bcd2308",
   "content.static.globalSettings.colourNote":
-    "aa712b4ff0a17a943822ebcc2a64dfe4ed19b48468efc9719d26c247888f46bf",
+    "b9fc1c4ff65e5166dd167cc39150d354b8f465018b4e00fe89cba30c2a48ad0c",
   "content.static.globalSettings.colourWarning":
-    "a388a3f9ae26de58c35be208d75129201723d91be583f097a2ba8b612f0c3608",
+    "ed9a12b4ab7d61f8bb77bcbab7b3cd7806471bb070a758e4fc610215400b0eab",
   "content.static.globalSettings.depthHeading":
     "a480381ded2d349e40b810313fdfb2deaec5f8e4b5463828973314f180700f94",
   "content.static.globalSettings.depthNote":
@@ -441,7 +441,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.panel.finishApproximationNote":
     "ccec4a76ac2cae280953a85095a9157497302963e8aaca1b9cbd1739107a9b32",
   "content.static.panel.finishFollowsKitchen":
-    "8eeb45a4c1771758345a3fb7c4dd85c148f27cbbfa1bd41e24b99a3b7bcd2308",
+    "e03a410201e622398fa8b215812a1b9d128964f3349890c994ea4d88bcc3a3e5",
   "content.static.panel.finishPickerLabel":
     "e7e6ad699ff3c5a2f296ed1100f2bbfc646101fba791ca9b610d4c2c5c52b733",
   "content.static.panel.finishTitle":
@@ -514,6 +514,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "4ed0dfac02e66a05154c4aee2ef2f3f3cbb9dd41977c6b33edb130c92fe24888",
   "content.static.priceBreakdown.included":
     "92b1126dbb94d72bbbd873b7f4ac99384adb16792d6bd4ad7798e0083bc70b06",
+  "content.static.priceBreakdown.notIncluded":
+    "1beac20fc518e11f8ece6cb4b72975da94a9a355fe55ad7b9192a3275cdf3b20",
   "content.static.priceBreakdown.note":
     "2010602ae21bad6e93d38ed6a0e0cfc854bcfffc0eb112ff9a7657a8c2a13bb0",
   "content.static.priceBreakdown.title":
@@ -607,7 +609,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "rejection.width-not-supported-body-range":
     "9a1f2adb3c75ff28f2b3131ce7a2da3f20b11522077717dd7c24e040ffc9dd52",
   "rejection.width-not-supported-column-list":
-    "1d4f9fd1ee761a9f64dd1eff460dc23a54e582eb7ac9e3269484045040975141",
+    "64559a5e1f9a215b338f666fd59b54ebcfe0c68a4454074b9746f5526bb270d9",
   "rejection.width-not-supported-mixed-ranges":
     "718c238a05ae89590290631d45844e146dce3bc691b4136b949134788f93a5f0",
   "rejection.width-not-supported-no-width":

@@ -86,7 +86,6 @@ import {
   createFakeProbeFactory,
 } from "./support/fake-probe.js";
 import { advance, createWorld } from "./support/kitchen-world.js";
-import { offered } from "./support/offers.js";
 
 const OCCURRED_AT = "2026-09-08T09:00:00.000Z";
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -461,16 +460,14 @@ function firstOfferedInsert(
   world: ReturnType<typeof createWorld>,
 ): { readonly voidId: string; readonly buildId: string } | undefined {
   for (const opening of world.voids) {
-    const rows = offered(
-      offersFor({
-        records: world.records,
-        voids: world.voids,
-        columns: world.columns,
-        catalog: world.catalog,
-        target: { kind: "void", id: opening.id },
-        cabinetDepthMm: world.cabinetDepthMm,
-      }),
-    );
+    const rows = offersFor({
+      records: world.records,
+      voids: world.voids,
+      columns: world.columns,
+      catalog: world.catalog,
+      target: { kind: "void", id: opening.id },
+      cabinetDepthMm: world.cabinetDepthMm,
+    });
     const first = rows[0];
     if (first !== undefined) {
       return { voidId: opening.id, buildId: first.buildId };

@@ -323,10 +323,7 @@ describe("so the 300 mm opening gets a one-door, correctly named — backlog 13"
       target: { kind: "void", id: opening.id },
     }).find((offer) => offer.buildId === WALL_CABINET_BUILD_ID);
 
-    expect(row?.verdict).toMatchObject({
-      status: "offered",
-      widthMm: NARROW_WIDTH_MM,
-    });
+    expect(row?.buildsToWidthMm).toBe(NARROW_WIDTH_MM);
     expect(row?.label).toEqual(
       labelWithDoors(entryLabel(WALL_CABINET_BUILD_ID), 1),
     );

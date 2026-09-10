@@ -7,7 +7,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import { clearBodies, resizeTo } from "../support/commands.js";
+import { clearBodies, insertInto, resizeTo } from "../support/commands.js";
 import { createWorld, voidAt } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
 
@@ -16,8 +16,12 @@ describe("WIDTH_NOT_SUPPORTED descriptor data", () => {
   // Every other test here constructs a `RejectionDetail` itself, so deleting `widthRangesMm` from the
   // command that produces it would leave this whole file green while the false list sentence came
   // back — which is precisely the failure class the file exists to close (clean-code review R3, the
-  // gap it named in this file). This one drives a real refusal through `offersFor` and reads what a
-  // customer would read.
+  // gap it named in this file). This one drives a real refusal and reads what a customer would read.
+  //
+  // **Driven through `insertBody` rather than through `offersFor`** since the owner's ruling of
+  // 2026-09-10: the replace list no longer carries a reason, because it no longer carries the row.
+  // The command is where a customer meets this sentence now, and it is the same `RejectionDetail`
+  // the list used to republish — so the case is unchanged and only its door is.
   it("states the bound on a refusal the engine actually produced", () => {
     const world = clearBodies(
       columnWorld(1000, [
@@ -34,16 +38,19 @@ describe("WIDTH_NOT_SUPPORTED descriptor data", () => {
     );
     const opening = voidAt(world, "A|1.00", 0);
 
-    const offered = offersFor({
-      ...world,
-      target: { kind: "void", id: opening.id },
-    });
-    const row = offered.find((offer) => offer.buildId === "base-cabinet");
-    if (row?.verdict.status !== "refused") {
+    const target = { kind: "void", id: opening.id } as const;
+    // The list and the command agree, which is the property `offersFor` was read for here: the row
+    // is absent because the command would refuse it.
+    expect(
+      offersFor({ ...world, target }).map((offer) => offer.buildId),
+    ).not.toContain("base-cabinet");
+
+    const refusal = insertInto(world, target, "base-cabinet");
+    if (refusal.ok) {
       throw new Error("expected base-cabinet refused at a 950 mm opening");
     }
 
-    expect(row.verdict.reason).toMatchObject({
+    expect(refusal.reason).toMatchObject({
       code: "WIDTH_NOT_SUPPORTED",
       params: {
         widthRangesMm: [{ minMm: 200, maxMm: 800 }],

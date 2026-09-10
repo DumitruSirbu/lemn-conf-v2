@@ -6,6 +6,7 @@
 // `offersFor` produces the list `meta` alone cannot (it needs the frozen column map). Nothing here
 // decides anything: `describePanel` owns every rule and this hook owns the subscription.
 import {
+  buildableWidthSpanMm,
   cabinetDepthMmOf,
   describeSelection,
   materialOfDesign,
@@ -31,6 +32,7 @@ export function usePanelView(): PanelView {
   const content = useContent();
   const meta = useSelectionMeta();
   const offers = useSelectionOffers();
+  const widthSpan = useBuildableWidthSpan();
   const widthAnswers = useSelectionWidthAnswers();
   const widthOptions = widthAnswers.options;
   const widthRanges = useSelectionWidthRanges();
@@ -54,6 +56,7 @@ export function usePanelView(): PanelView {
         content,
         meta,
         offers,
+        buildableWidthSpanMm: widthSpan,
         widthOptions,
         widthRanges,
         widthSteps,
@@ -68,6 +71,7 @@ export function usePanelView(): PanelView {
       content,
       meta,
       offers,
+      widthSpan,
       widthOptions,
       widthRanges,
       widthSteps,
@@ -144,6 +148,18 @@ function useSelectionOffers(): CatalogOffer[] {
         : [],
     [records, voids, columns, catalog, selection, cabinetDepthMm],
   );
+}
+
+/** **What §9 says when nothing fits** — the catalogue's own narrowest and widest buildable widths.
+ *
+ *  Its own hook because it depends on the catalogue alone: it is the same answer for every opening
+ *  in a kitchen, so it is memoised on the map rather than recomputed per selection. It stopped being
+ *  derivable from `offers` when the owner ruled on 2026-09-10 that a refused row is not shown —
+ *  `describeEmptyLine` has the rest of that story. */
+function useBuildableWidthSpan(): WidthRangeMm | undefined {
+  const catalog = useConfiguratorStore((state) => state.catalog);
+
+  return useMemo(() => buildableWidthSpanMm(catalog), [catalog]);
 }
 
 /** **What the column may be built within** — ADR 0035 decision 3's discriminator, read from the

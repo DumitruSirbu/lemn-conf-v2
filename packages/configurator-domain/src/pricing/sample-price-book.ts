@@ -21,6 +21,7 @@
 // under: a string nobody has ruled is not pinned by writing one and asserting it — it is raised. No
 // test in this wave pins their wording, and a wave that renders them owes the owner the question.
 import {
+  drawnButNotSupplied,
   pricedByWidth,
   pricedByWidthAndDoorLeaves,
   pricedByWidthAndHeight,
@@ -161,13 +162,19 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
       perHeightMillimetreMinor: 50,
     }),
   },
+  // **An appliance, not joinery — drawn and not sold, on the owner's ruling of 2026-09-10.** The
+  // extractor hood is bought by the customer, and `priceBreakdown.disclaimer` has always said the
+  // estimate excludes *bytovaya tekhnika*; charging for it contradicted the sentence printed above
+  // the line. What Lemnaria builds around a hood — a `wall-cabinet` above it, a chimney surround —
+  // is a different row and still priced.
+  //
+  // `drawnButNotSupplied` and not a bare `pricedFlat(0)`: the breakdown prints *nu este inclus*
+  // beside this row and *inclus* beside a melamine tier that is equally free, and it can only tell
+  // the two apart because this one says which of them it is.
   {
     ruleId: "cabinet.hood",
     buildId: "hood",
-    formula: pricedByWidth({
-      baseMinor: 200_000,
-      perWidthMillimetreMinor: 150,
-    }),
+    ...drawnButNotSupplied(),
   },
   // ADR 0048's resizable column: **two** stacked bands of leaves, so the threshold at 500 mm takes
   // it from two doors to four and the price steps twice. The count comes from
@@ -191,10 +198,15 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
     buildId: "tall-fridge-housing",
     formula: pricedFlat(700_000),
   },
+  // **The appliance itself, and no carpentry whatsoever — nothing to charge for.** Same ruling: a
+  // free-standing fridge is furniture the customer supplies, occupying a gap in the run. It was
+  // 1 200 000 and read as *12 000* on the breakdown, which is the line that exposed the
+  // contradiction. `tall-fridge-housing` — the built niche an *integrated* fridge sits in — is
+  // joinery and keeps its price; the two are different products and only one of them is ours.
   {
     ruleId: "cabinet.fridge-free",
     buildId: "fridge-free",
-    formula: pricedFlat(1_200_000),
+    ...drawnButNotSupplied(),
   },
   // The four bodies with no §7 equivalent — the corners, which ADR 0021 makes structural and which
   // §13.1 is explicit a customer never chooses. Having no equivalent is the correct answer for them

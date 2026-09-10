@@ -106,6 +106,13 @@ function readStylesheet(name: string): string {
  *  discipline `starting-price.adversarial.test.ts` keeps with the same number. */
 const ROUNDING_STEP_MDL = 1000;
 
+/** What a breakdown row prints where it prints no number. Read from the catalogue rather than
+ *  spelled here, so a copy edit moves the filter with the sentence. */
+const WORDS_INSTEAD_OF_AN_AMOUNT: readonly string[] = [
+  ro.priceBreakdown.included,
+  ro.priceBreakdown.notIncluded,
+];
+
 /** The seeded design's breakdown, as the application builds it. */
 function shippedBreakdown(): AvailableBreakdown {
   const view = describePriceBreakdown({
@@ -328,7 +335,12 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
     const rowTotal = amountsOf(
       [...view.groups.flatMap((group) => group.rows), ...view.wholeKitchenRows]
         .map((row) => row.amountText)
-        .filter((amountText) => amountText !== ro.priceBreakdown.included),
+        // The two rows that print words instead of a number: a free tier reads *inclus*, and a
+        // body the manufacturer does not supply reads *nu este inclus*. Neither is an amount, and
+        // adding either to the sum below reads as `NaN` rather than as a figure.
+        .filter(
+          (amountText) => !WORDS_INSTEAD_OF_AN_AMOUNT.includes(amountText),
+        ),
     ).reduce((running, amount) => running + amount, 0);
     const figure = amountsOf(numberTokens(view.figure.amountText))[0] ?? 0;
 

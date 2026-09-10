@@ -48,7 +48,9 @@ import {
 export interface BreakdownRow {
   readonly key: string;
   readonly label: string;
-  /** Already rounded and grouped. *"inclus"* where the amount is zero — see `describeRowAmount`. */
+  /** Already rounded and grouped. *"inclus"* where the amount is zero, and *"nu este inclus"* on a
+   *  body the manufacturer does not supply — `describeRowAmount` and `describeCabinetRowAmount`,
+   *  which is where the difference between those two zeros is decided. */
   readonly amountText: string;
 }
 
@@ -146,11 +148,11 @@ export function describePriceBreakdown(
   // every line went missing at once.
   if (holdsNoCabinets(priced) && input.groups.length === 0)
     return UNAVAILABLE_BREAKDOWN;
-  const amountByPlacement = indexCabinetAmounts(priced.lines);
+  const lineByPlacement = indexCabinetLines(priced.lines);
   const groups = input.groups.map((group) =>
-    toBreakdownGroup(group, amountByPlacement, input.content),
+    toBreakdownGroup(group, lineByPlacement, input.content),
   );
-  assertEveryPricedBodyIsPlaced(input.groups, amountByPlacement);
+  assertEveryPricedBodyIsPlaced(input.groups, lineByPlacement);
 
   const warning = describeFlaggedTotalWarning(priced, input.content.price);
   return {
@@ -182,7 +184,7 @@ export function describePriceBreakdown(
  *  dimension. */
 function toBreakdownGroup(
   group: DisplayGroup,
-  amountByPlacement: ReadonlyMap<string, number>,
+  lineByPlacement: ReadonlyMap<string, CabinetPriceLine>,
   content: Content,
 ): BreakdownGroup {
   return {
@@ -197,8 +199,8 @@ function toBreakdownGroup(
         content.bodyLabel(entry.label),
         entry.widthMm,
       ),
-      amountText: describeRowAmount(
-        amountFor(entry.placementId, amountByPlacement),
+      amountText: describeCabinetRowAmount(
+        cabinetLineFor(entry.placementId, lineByPlacement),
         content,
       ),
     })),
@@ -233,24 +235,45 @@ function describeRowAmount(amountMinor: number, content: Content): string {
   return describeRoundedAmount(amountMinor);
 }
 
-function indexCabinetAmounts(
+/**
+ * What one **body** row prints, and the one place the two kinds of zero are told apart — the owner's
+ * ruling of 2026-09-10: a free-standing fridge *"is drawn, it's displayed, but it's not included in
+ * the price, and it's not provided by the manufacturer."*
+ *
+ * **Keyed on the declaration and never on the amount.** `suppliedBy` is a fact the price book states
+ * and `priceOnePlacement` carries onto the line; PAL melaminat is zero too and genuinely *is*
+ * included, so a rule written as `amountMinor === 0` puts *nu este inclus* on the melamine row. That
+ * is not a hypothetical — it is what an experiment keyed that way rendered — and it is why a new
+ * zero-priced cabinet cannot inherit the appliance wording: it would have to declare itself
+ * customer-supplied to get it.
+ */
+function describeCabinetRowAmount(
+  line: CabinetPriceLine,
+  content: Content,
+): string {
+  if (line.suppliedBy === "customer") return content.priceBreakdown.notIncluded;
+  return describeRowAmount(line.amountMinor, content);
+}
+
+/** The whole line rather than its amount alone: a body row prints from **two** facts the query
+ *  published — what it costs, and who supplies it — and re-deriving either here would be a second
+ *  authority for it. */
+function indexCabinetLines(
   lines: readonly PriceLine[],
-): ReadonlyMap<string, number> {
+): ReadonlyMap<string, CabinetPriceLine> {
   return new Map(
-    lines
-      .filter(isCabinetLine)
-      .map((line) => [line.placementId, line.amountMinor]),
+    lines.filter(isCabinetLine).map((line) => [line.placementId, line]),
   );
 }
 
-function amountFor(
+function cabinetLineFor(
   placementId: string,
-  amountByPlacement: ReadonlyMap<string, number>,
-): number {
-  const amountMinor = amountByPlacement.get(placementId);
-  if (amountMinor === undefined)
+  lineByPlacement: ReadonlyMap<string, CabinetPriceLine>,
+): CabinetPriceLine {
+  const line = lineByPlacement.get(placementId);
+  if (line === undefined)
     throw new PriceBreakdownDivergenceError([placementId]);
-  return amountMinor;
+  return line;
 }
 
 /** The other direction, and the one that makes the projection load-bearing: a body pricing placed
@@ -258,12 +281,12 @@ function amountFor(
  *  would still contain it. */
 function assertEveryPricedBodyIsPlaced(
   groups: readonly DisplayGroup[],
-  amountByPlacement: ReadonlyMap<string, number>,
+  lineByPlacement: ReadonlyMap<string, CabinetPriceLine>,
 ): void {
   const placed = new Set(
     groups.flatMap((group) => group.entries.map((entry) => entry.placementId)),
   );
-  const unplaced = [...amountByPlacement.keys()].filter(
+  const unplaced = [...lineByPlacement.keys()].filter(
     (placementId) => !placed.has(placementId),
   );
   if (unplaced.length > 0) throw new PriceBreakdownDivergenceError(unplaced);

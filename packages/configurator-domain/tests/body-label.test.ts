@@ -137,10 +137,15 @@ describe("ADR 0033 on the offer list: a refused row states no door count", () =>
     }).find((offer) => offer.buildId === "base-cabinet")?.label;
   }
 
-  it("counts the doors on an offered row and not on a refused one", () => {
+  it("counts the doors on every row, from the width that row would build to", () => {
     // A 400 mm base opening: narrow enough that some §7 rows refuse it — `base-sink`'s 560 mm floor
-    // (ADR 0017) among them — and wide enough that others are offered, so both arms are exercised
-    // in one list rather than in two fixtures that could drift apart.
+    // (ADR 0017) among them — so the list is a **filtered** one and not the whole catalogue.
+    //
+    // **The refused arm this test used to carry is gone with the rows it described** (owner,
+    // 2026-09-10). It asserted that a row with no width shows its generic name; there is no such
+    // row now, so what is left to prove is the positive half — every row names the doors its own
+    // planned width earns — plus the fact that the refusals really did happen, which is the
+    // `base-sink` absence below rather than a count of rows nobody can see.
     const world = clearBodies(narrowColumnWorld(400), ["s0"]);
     const opening = voidAt(world, "A|0.40", 0);
 
@@ -154,35 +159,22 @@ describe("ADR 0033 on the offer list: a refused row states no door count", () =>
     });
 
     expect(rows.length).toBeGreaterThan(0);
-    let offered = 0;
-    let refused = 0;
+    // Not vacuous: the 400 mm opening genuinely refuses rows, so the sweep is over a filtered list.
+    expect(rows.map((row) => row.buildId)).not.toContain("base-sink");
 
     for (const row of rows) {
       const followsWidth =
         INSERTABLE_BY_ID.get(row.buildId)?.doorCountFollowsWidth === true;
-      if (row.verdict.status === "offered") {
-        offered += 1;
-        expect([row.buildId, row.label]).toEqual([
-          row.buildId,
-          followsWidth
-            ? labelWithDoors(
-                entryLabel(row.buildId),
-                deriveDoorCount(row.verdict.widthMm),
-              )
-            : entryLabel(row.buildId),
-        ]);
-      } else {
-        refused += 1;
-        // The generic name, whatever the row declares — a refused row has no width to count from.
-        expect([row.buildId, row.label]).toEqual([
-          row.buildId,
-          entryLabel(row.buildId),
-        ]);
-      }
+      expect([row.buildId, row.label]).toEqual([
+        row.buildId,
+        followsWidth
+          ? labelWithDoors(
+              entryLabel(row.buildId),
+              deriveDoorCount(row.buildsToWidthMm),
+            )
+          : entryLabel(row.buildId),
+      ]);
     }
-
-    expect(offered).toBeGreaterThan(0);
-    expect(refused).toBeGreaterThan(0);
   });
 
   it.each([

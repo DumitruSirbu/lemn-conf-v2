@@ -58,6 +58,7 @@ import { boundedFailureReason } from "../failure-text.js";
 
 import {
   ACCESSORY_IDS,
+  CABINET_SUPPLIERS,
   listRuleIds,
   PRICE_BOOK_CURRENCY,
   PRICE_BOOK_STATUSES,
@@ -289,8 +290,58 @@ function refuseUnreadableCabinetRule(
   return (
     refuseUnusableIdentifier(ruleId, "ruleId") ??
     refuseUnusableIdentifier(readDeclared(declared, "buildId"), "buildId") ??
-    refuseUnreadableFormula(readDeclared(declared, "formula"), ruleId)
+    refuseUnusableSupplier(readDeclared(declared, "suppliedBy"), ruleId) ??
+    refuseUnreadableFormula(readDeclared(declared, "formula"), ruleId) ??
+    refuseChargedCustomerSuppliedRule(declared, ruleId)
   );
+}
+
+/** **Who supplies a row decides what the customer is told about its zero**, so an unrecognised
+ *  answer is refused rather than read as the default. A book that means *the customer brings this
+ *  one* and spells it `"CUSTOMER"` would otherwise silently print *inclus* over a fridge, which is
+ *  the exact sentence the field exists to stop. Absent is not an answer and is not a fault:
+ *  `priceOnePlacement` defaults it to `DEFAULT_CABINET_SUPPLIER`. */
+function refuseUnusableSupplier(
+  declared: unknown,
+  ruleId: unknown,
+): PricingFailure | undefined {
+  if (declared === undefined) return undefined;
+  if (
+    typeof declared === "string" &&
+    (CABINET_SUPPLIERS as readonly string[]).includes(declared)
+  )
+    return undefined;
+  return invalidBook(
+    `The rule "${asText(ruleId)}" declares "suppliedBy" as ${describeDeclared(declared)}. ` +
+      `It is one of: ${CABINET_SUPPLIERS.join(", ")}`,
+  );
+}
+
+/** **A row the manufacturer does not supply may not carry a price**, because the total under the
+ *  breakdown would then hold an amount for something the same screen says is not included. Every
+ *  coefficient of such a rule must be zero — swept by kind, like the magnitude check above, so a
+ *  shape this build has never heard of is covered too rather than only the three it knows. */
+function refuseChargedCustomerSuppliedRule(
+  declared: Record<string, unknown>,
+  ruleId: unknown,
+): PricingFailure | undefined {
+  if (readDeclared(declared, "suppliedBy") !== "customer") return undefined;
+  const formula = readDeclared(declared, "formula");
+  if (!isRecord(formula)) return undefined;
+
+  const named = `rule "${asText(ruleId)}"`;
+  const fields = enumerableFieldsOf(formula);
+  if (fields === undefined)
+    return invalidBook(`The ${named} could not be enumerated for its amounts`);
+  for (const field of fields) {
+    const read = readDeclared(formula, field);
+    if (typeof read === "number" && read !== 0)
+      return invalidBook(
+        `The ${named} is supplied by the customer and may not be charged for, ` +
+          `but it declares "${field}" as ${String(read)}`,
+      );
+  }
+  return undefined;
 }
 
 /** A formula's amounts, held to a magnitude the arithmetic can hold.

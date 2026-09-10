@@ -181,6 +181,24 @@ export function pricedFlat(amountMinor: number): PriceFormula {
   });
 }
 
+/** **Who puts this row in the finished kitchen.** A book states it; nothing infers it.
+ *
+ *  `customer` is a row the configurator **draws but the manufacturer does not sell** — the owner's
+ *  ruling of 2026-09-10 about the free-standing fridge and the extractor hood: *"it's drawn, it's
+ *  displayed, but it's not included in the price, and it's not provided by the manufacturer."*
+ *
+ *  **Never inferred from an amount, and that is the whole point of the field.** A `customer` row
+ *  necessarily costs nothing, but so does a genuinely free `manufacturer` row — the melamine
+ *  material tier is zero and *is* included — and the two must not print the same sentence. Reading
+ *  `amountMinor === 0` conflates them, which is exactly the defect this replaces. */
+export const CABINET_SUPPLIERS = ["manufacturer", "customer"] as const;
+
+export type CabinetSupplier = (typeof CABINET_SUPPLIERS)[number];
+
+/** What a rule that says nothing means. Absence is *the manufacturer builds it*, so a new row —
+ *  including a new zero-priced one — is cabinetry until somebody writes down that it is not. */
+export const DEFAULT_CABINET_SUPPLIER: CabinetSupplier = "manufacturer";
+
 /**
  * What one catalogue row costs.
  *
@@ -196,6 +214,21 @@ export interface CabinetPriceRule {
    *  the four corner bodies, which ADR 0021 makes structural and which nothing in §7 builds. */
   readonly buildId: string;
   readonly formula: PriceFormula;
+  /** Optional, and absent means `DEFAULT_CABINET_SUPPLIER`: the overwhelming majority of rows are
+   *  joinery and should not have to say so. A row that declares `customer` must price to nothing —
+   *  `parsePriceBook` refuses a book that charges for something it does not supply, so the claim on
+   *  the screen and the arithmetic under the total cannot disagree. */
+  readonly suppliedBy?: CabinetSupplier | undefined;
+}
+
+/** A row the configurator draws and the manufacturer does not sell. The two facts — *free* and
+ *  *not ours* — are written by one call so a book cannot state one without the other, which is the
+ *  authoring half of the guarantee `parsePriceBook` enforces for books assembled elsewhere. */
+export function drawnButNotSupplied(): Pick<
+  CabinetPriceRule,
+  "formula" | "suppliedBy"
+> {
+  return { formula: pricedFlat(0), suppliedBy: "customer" };
 }
 
 /**

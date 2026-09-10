@@ -13,7 +13,11 @@ import { removePlacement } from "../../src/commands/remove-placement.js";
 import { insertBody } from "../../src/commands/insert-body.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered, refused } from "../support/offers.js";
+import {
+  listInsertableBodies,
+  type InsertableBody,
+} from "../../src/catalog.js";
+import { normaliseBand } from "../../src/bands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { OCCURRED_AT } from "../support/commands.js";
 import {
@@ -137,7 +141,7 @@ describe("a control the affordance enables is a command the engine accepts", () 
     let offeredRows = 0;
 
     for (const target of everySelection(world)) {
-      for (const offer of offered(offersFor({ ...world, target }))) {
+      for (const offer of offersFor({ ...world, target })) {
         offeredRows += 1;
         const result = insertBody({
           design: world.design,
@@ -159,43 +163,63 @@ describe("a control the affordance enables is a command the engine accepts", () 
     expect(offeredRows).toBeGreaterThan(0);
   });
 
-  // ADR 0032's other half, and the half that makes the first one honest. A verdict that says
-  // "refused" is a promise about what the command would do, so the command has to do it — and with
-  // **the same code**, since that code is the sentence the disabled row shows. Published from the
-  // list and re-derived from the command, the two must never be two answers.
-  it.each(WORLDS)(
-    "refuses every refused row in $name, by the same code",
-    (testCase) => {
-      const world = testCase.build();
-      let refusedRows = 0;
+  // **The other half, and the half that makes the first one honest — restated for the list the
+  // owner ruled on 2026-09-10.** ADR 0032 asserted that a row published as *refused* is refused by
+  // the command, with the same code, because that code was the sentence the disabled row showed.
+  // There are no disabled rows now, so the claim turns into its complement: an entry the list left
+  // out is an entry the command will not take. That is the same "one evaluation read from two ends"
+  // property, and it is the stronger direction — a list that quietly dropped something insertable
+  // hides a cabinet the customer could have had, and this is what catches it.
+  /** The entries the list was choosing **from** for this target — §9's swap sets are band-scoped
+   *  (ADR 0032 rule 5), and a band mismatch is not a fit refusal: it means the entry was never a
+   *  candidate here at all. A sweep over the whole catalogue would therefore demand that `insertBody`
+   *  refuse a base cabinet for a column member, which it does not and should not.
+   *
+   *  A void takes the whole catalogue, which is where §5.2's *"a column body goes anywhere"* earns the
+   *  full-height rows a base slot offers. */
+  function candidatesFor(
+    world: KitchenWorld,
+    target: CommandTarget,
+  ): readonly InsertableBody[] {
+    const candidates = listInsertableBodies(world.catalog);
+    if (target.kind === "void") return candidates;
+    const meta = describeSelection({ ...world, target });
+    if (!meta) return [];
+    return candidates.filter(
+      (body) => normaliseBand(body.band) === normaliseBand(meta.band),
+    );
+  }
 
-      for (const target of everySelection(world)) {
-        for (const offer of refused(offersFor({ ...world, target }))) {
-          refusedRows += 1;
-          const result = insertBody({
-            design: world.design,
-            catalog: world.catalog,
-            columns: world.columns,
-            voids: world.voids,
-            target,
-            buildId: offer.buildId,
-            probe: createFakeProbe(),
-            occurredAt: OCCURRED_AT,
-          });
-          expect(
-            result.ok,
-            `${offer.buildId} was refused for ${target.id} and then accepted`,
-          ).toBe(false);
-          if (result.ok) continue;
-          expect(result.reason.code, `${offer.buildId} for ${target.id}`).toBe(
-            offer.verdict.reason.code,
-          );
-        }
+  it.each(WORLDS)("refuses every entry it left out of $name", (testCase) => {
+    const world = testCase.build();
+    let omittedRows = 0;
+
+    for (const target of everySelection(world)) {
+      const offered = new Set(
+        offersFor({ ...world, target }).map((offer) => offer.buildId),
+      );
+      for (const body of candidatesFor(world, target)) {
+        if (offered.has(body.buildId)) continue;
+        omittedRows += 1;
+        const result = insertBody({
+          design: world.design,
+          catalog: world.catalog,
+          columns: world.columns,
+          voids: world.voids,
+          target,
+          buildId: body.buildId,
+          probe: createFakeProbe(),
+          occurredAt: OCCURRED_AT,
+        });
+        expect(
+          result.ok,
+          `${body.buildId} was left out for ${target.id} and then accepted`,
+        ).toBe(false);
       }
+    }
 
-      expect(refusedRows).toBeGreaterThan(0);
-    },
-  );
+    expect(omittedRows).toBeGreaterThan(0);
+  });
 
   // A void offers no appearance controls and no delete — the three refusals §5.1 lists, read from
   // the other end. This is the case the affordance would most easily get wrong, since a void is

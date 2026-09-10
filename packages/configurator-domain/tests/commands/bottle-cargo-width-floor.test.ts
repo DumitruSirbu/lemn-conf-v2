@@ -11,7 +11,6 @@ import { describe, expect, it } from "vitest";
 
 import { INSERTABLE_BODY_DEFINITIONS } from "../../src/catalog.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import { MIN_WIDTH_M } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
@@ -210,9 +209,10 @@ describe("§9's offer list reads the substituted floor too", () => {
     // derived from the catalogue rather than written down — a fourth declaration fails here loudly.
     for (const widthMm of [200, 250, 299]) {
       const world = baseOpeningWorld(widthMm);
-      const offered = offeredRows(
-        offersFor({ ...world, target: baseVoidTarget(world) }),
-      ).map((offer) => offer.buildId);
+      const offered = offersFor({
+        ...world,
+        target: baseVoidTarget(world),
+      }).map((offer) => offer.buildId);
 
       expect(offered, `${String(widthMm)} mm`).not.toEqual([]);
       for (const buildId of offered) {
@@ -236,9 +236,9 @@ describe("§9's offer list reads the substituted floor too", () => {
   it("reaches each of those widths by the mechanism that row actually has", () => {
     const offeredAt = (widthMm: number) => {
       const world = baseOpeningWorld(widthMm);
-      return offeredRows(
-        offersFor({ ...world, target: baseVoidTarget(world) }),
-      ).map((offer) => offer.buildId);
+      return offersFor({ ...world, target: baseVoidTarget(world) }).map(
+        (offer) => offer.buildId,
+      );
     };
 
     expect(offeredAt(200)).toEqual(["base-cabinet", CARGO_BUILD_ID]);
@@ -251,21 +251,20 @@ describe("§9's offer list reads the substituted floor too", () => {
     expect(subDefaultBaseBuildIds()).toEqual(["base-cabinet", CARGO_BUILD_ID]);
   });
 
-  // ADR 0032: the list is no longer empty down here — every base entry is present and refused, and
-  // that is the point of the record. What has to stay true is that **nothing is offered**.
+  // ADR 0032 made the list non-empty down here — every base entry present and refused — and the
+  // owner's ruling of 2026-09-10 emptied it again. The claim that survived both is the one that was
+  // always the point: **nothing is offered** at 199 mm. It is now the whole of the answer rather
+  // than a property of it, and the 200 mm row above is the pairing that keeps it honest.
   it("offers nothing at all below the cargo's floor", () => {
     const world = baseOpeningWorld(199);
     const offers = offersFor({ ...world, target: baseVoidTarget(world) });
 
-    expect(offeredRows(offers)).toEqual([]);
-    expect(offers.length).toBeGreaterThan(0);
+    expect(offers).toEqual([]);
   });
 
   it("still offers the cargo alongside everything else in a wide opening", () => {
     const world = baseOpeningWorld(600);
-    const offered = offeredRows(
-      offersFor({ ...world, target: baseVoidTarget(world) }),
-    );
+    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
 
     expect(offered.map((offer) => offer.buildId)).toContain(CARGO_BUILD_ID);
     expect(offered.map((offer) => offer.buildId)).toContain(
@@ -281,7 +280,7 @@ describe("§9's offer list reads the substituted floor too", () => {
     for (let widthMm = 190; widthMm <= 320; widthMm += 1) {
       const world = baseOpeningWorld(widthMm);
       const target = baseVoidTarget(world);
-      for (const offer of offeredRows(offersFor({ ...world, target }))) {
+      for (const offer of offersFor({ ...world, target })) {
         offersSeen += 1;
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(

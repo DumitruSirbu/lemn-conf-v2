@@ -512,38 +512,61 @@ describe("the step number has one source", () => {
   });
 });
 
-describe("the locale chip is the control that switches locale", () => {
-  /** **The chip left the header with ADR 0104 decision 2** — it is a grid item of its own, so frame
-   *  D2A can place it after the CTA while frame 2A keeps it in the header row — so the cell is what
-   *  is read rather than the header. */
-  function localeCellSource(): string {
-    const cell = /styles\.locale}>[\s\S]*?<\/div>/.exec(screenSource)?.[0];
-    if (!cell) throw new Error("no locale cell in the screen's source");
-    return cell;
-  }
+describe("the locale chip is the control that opens the language menu", () => {
+  /** **The cell left the screen with the owner's 2026-09-10 ruling** — the menu is positioned against
+   *  it, so the cell and the popover that fills it are one component — and this is what reads it. */
+  const menuSource = readFileSync(
+    resolve(CONFIGURE_DIRECTORY, "locale-menu.tsx"),
+    "utf8",
+  );
 
-  it("is a link to the other locale, at the path the customer is already on", () => {
-    // **Wave 6B-i, and it replaces this file's own "drawn and inert" check.** A locale here *is* a
-    // URL, so the control is an anchor rather than a scripted button: it is shareable, it works with
-    // JavaScript off, and the browser gives it the focus ring and the keyboard activation this
-    // stylesheet declares for nothing. The href being the current path is what keeps the switch a
-    // change of language rather than of place — `tests/i18n/locale-switch.test.ts` drives that end.
-    const cell = localeCellSource();
+  it("stands in the row as its own grid item and nothing else", () => {
+    // The band is still five cells. What changed is who renders the fifth: `.locale` is a direct
+    // child of `.screen` either way, which is what the two shells' `grid-template-areas` require.
+    expect(screenSource).toContain("<LocaleMenu />");
+    expect(screenSource).not.toContain("styles.locale}");
+    expect(menuSource).toContain("<div className={styles.locale}");
+  });
 
-    expect(cell).toContain("styles.localeChip");
-    expect(cell).toContain("<Link");
-    expect(cell).toContain("href={localeSwitch.pathname}");
-    expect(cell).toContain("locale={localeSwitch.locale}");
-    expect(cell).not.toContain("<button");
-    expect(cell).not.toContain("onClick");
-    expect(cell).not.toContain('role="button"');
+  it("is a button that opens a list of links, one per configured locale", () => {
+    // **The ruling, and it replaces wave 6B-i's link-shaped toggle.** The trigger *opens* something,
+    // so it is a button and says so; each choice still *is* a URL, so it stays an anchor — shareable,
+    // openable in a new tab, and navigated client-side by next-intl so the store survives the switch.
+    // The list is `menu.choices`, which is `routing.locales`: a third language is a third item with
+    // no edit here — `tests/i18n/locale-menu-scales.dom.test.ts` drives exactly that.
+    expect(menuSource).toContain("styles.localeChip");
+    expect(menuSource).toContain("<button");
+    expect(menuSource).toContain('type="button"');
+    expect(menuSource).toContain('aria-haspopup="true"');
+    expect(menuSource).toContain("aria-expanded={isOpen}");
+    expect(menuSource).toContain("menu.choices.map");
+    expect(menuSource).toContain("href={menu.pathname}");
+    expect(menuSource).toContain("locale={choice.locale}");
   });
 
   it("is named by a sentence rather than by the two letters it draws", () => {
-    // `RO` read aloud names neither the language of the page nor the language the link leads to, and
-    // which of the two the chip shows would otherwise be carried by its colour alone.
-    expect(localeCellSource()).toContain(
-      "aria-label={content.configure.localeSwitch}",
+    // `RO` read aloud names neither the language of the page nor what the control does, and which
+    // language is current would otherwise be carried by the chip's colour alone.
+    expect(menuSource).toContain("aria-label={content.configure.localeMenu}");
+  });
+
+  it("hangs the menu off the cell without letting it leave the phone's viewport", () => {
+    // §10.1's picking gate is 390 px and this cell is the last in the row on both shells, so the
+    // list is anchored to the cell's trailing edge and bounded by the paper it stands on.
+    const list = /\.localeList \{([^}]*)\}/.exec(stylesheet)?.[1];
+    if (!list) throw new Error("the menu declares no box");
+
+    expect(list).toContain("position: absolute;");
+    expect(list).toContain("top: 100%;");
+    expect(list).toContain("inset-inline-end: 14px;");
+    expect(list).toContain("max-width: calc(100vw - 28px);");
+  });
+
+  it("gives every choice §10.1's own touch target", () => {
+    // Unlike the chip, no frame fixes this row's box, so the 44 px target simply *is* the row rather
+    // than an invisible overlay beside it.
+    expect(declarationsOf(MOBILE_CSS, "localeOption")).toContain(
+      "min-height: var(--touch-target);",
     );
   });
 
@@ -563,7 +586,32 @@ describe("the locale chip is the control that switches locale", () => {
   });
 
   it("draws the caret the frames draw, and hides it from a screen reader", () => {
-    expect(screenSource).toContain("▾");
+    expect(menuSource).toContain("▾");
     expect(declarationsOf(MOBILE_CSS, "localeCaret")).not.toBe("");
+  });
+
+  /** **What the flag replaced, and what it did not.** The owner's 2026-09-10 ruling put a flag on
+   *  every row in place of the dot that used to mark one — so the mark is gone and the state it
+   *  carried had nowhere to go but the two cues that already carried it: `aria-current` for a screen
+   *  reader, weight and colour for everyone else. A flag identifies a language; it cannot say which
+   *  language is current, and this is the check that fails if the weight follows the dot out. */
+  it("still marks the current language once the dot is gone", () => {
+    expect(declarationsOf(MOBILE_CSS, "localeOptionCurrent")).toContain(
+      "font-weight: 700;",
+    );
+    expect(menuSource).toContain('aria-current={choice.isCurrent ? "true"');
+    expect(stylesheet).not.toMatch(/\.localeOption(Current)?::before/);
+  });
+
+  it("sizes the flag beside each name, and gives the white band an edge", () => {
+    // The flags are locale data (`i18n/locale-flags.tsx`) and cannot reach this stylesheet's names,
+    // so the one `svg` a choice contains is selected by element. Russia's top band is white and this
+    // menu stands on `--paper`; a `box-shadow` rather than a border, so the ring cannot move the
+    // endonyms the flags align.
+    const flag = /\.localeOption svg \{([^}]*)\}/.exec(stylesheet)?.[1];
+    if (!flag) throw new Error("the choice's flag declares no box");
+
+    expect(flag).toContain("flex: 0 0 auto;");
+    expect(flag).toMatch(/box-shadow: 0 0 0 1px/);
   });
 });

@@ -7,7 +7,11 @@
 // the flagged-total warning is owner-ruled copy belonging to the surface that renders it
 // (ADR 0065 decision 7b). A domain module inventing either would be inventing product copy.
 import type { BodyLabel } from "../catalog.js";
-import type { PriceBookCurrency, PriceBookStatus } from "./price-book.js";
+import type {
+  CabinetSupplier,
+  PriceBookCurrency,
+  PriceBookStatus,
+} from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
  *  whole-kitchen rules §12 permits a line to trace to instead; `accessory` traces to neither — it is
@@ -44,6 +48,14 @@ export interface CabinetPriceLine extends PriceLineCommon {
   readonly pricedAsBuildId: string;
   readonly label: BodyLabel;
   readonly widthMm: number;
+  /** **Who supplies this body** — the book's own declaration, defaulted once here and never
+   *  re-derived (`DEFAULT_CABINET_SUPPLIER`). Always present, so a surface reads a fact instead of
+   *  interpreting an absence.
+   *
+   *  A `customer` line is drawn in the scene, listed in the breakdown, and adds nothing to the
+   *  total. Published **beside** `amountMinor` rather than inferred from it: a manufacturer row can
+   *  be free too, and telling a customer their fridge is *included* is the defect this closes. */
+  readonly suppliedBy: CabinetSupplier;
 }
 
 /** A whole-kitchen tier, priced once after every placement line. Carries the tier's own key beside

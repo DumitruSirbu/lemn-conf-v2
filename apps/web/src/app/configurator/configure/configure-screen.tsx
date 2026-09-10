@@ -10,9 +10,7 @@ import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
-import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
-import { useLocaleSwitch } from "@/i18n/use-locale-switch";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
@@ -21,6 +19,7 @@ import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
 
 import styles from "./configure.module.css";
+import { LocaleMenu } from "./locale-menu";
 import { SelectionDebug } from "./selection-debug";
 import { useTopBarFit } from "./use-top-bar-fit";
 
@@ -43,7 +42,6 @@ export function ConfigureScreen({
   webglUnavailableTitleMobile?: string;
 } = {}) {
   const content = useContent();
-  const localeSwitch = useLocaleSwitch();
   const [support, setSupport] = useState<SupportState>("probing");
   const [presetId, setPresetId] = useState<CameraPresetId>("overview");
   const panel = usePanelView();
@@ -128,33 +126,17 @@ export function ConfigureScreen({
       <div className={styles.settings} ref={topBar.settingsTrackRef}>
         <GlobalSettings visibleCount={topBar.visibleCount} />
       </div>
-      {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and **wave 6B-i gives it its
-          behaviour**: a link to the one locale it is not (`i18n/use-locale-switch.ts` carries the
-          toggle-not-menu argument and the reference reading behind it).
+      {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and the owner's 2026-09-10
+          ruling gives the caret its meaning: it opens a menu of every locale `routing.locales`
+          declares. The cell itself is the component's, because the popover is positioned against it
+          — `locale-menu.tsx`, and `i18n/use-locale-menu.ts` for what the ruling supersedes.
 
-          **Switching language does not move the customer.** The href is this page's own locale-free
-          path, so `/d/{id}` stays `/d/{id}` and the configure step stays the configure step; and
-          next-intl's `Link` navigates client-side, so the store — a module singleton — is never torn
-          down and the design in it survives the switch whether or not it has been saved yet.
-
-          The two-letter code is the frames' own and is **not** the accessible name: `RO` read aloud
-          names neither the language it is in nor the language it leads to, and the current locale
-          would otherwise be indicated by the chip's colour alone. `configure.localeSwitch` says
-          both, in the language of the page it is on. */}
-      <div className={styles.locale}>
-        <Link
-          href={localeSwitch.pathname}
-          locale={localeSwitch.locale}
-          className={styles.localeChip}
-          aria-label={content.configure.localeSwitch}
-          data-testid="top-bar-locale"
-        >
-          <span className={styles.localeCode}>{content.configure.locale}</span>
-          <span className={styles.localeCaret} aria-hidden="true">
-            ▾
-          </span>
-        </Link>
-      </div>
+          **Switching language does not move the customer**, which is the one property the menu keeps
+          from the toggle it replaced: every choice's href is this page's own locale-free path, so
+          `/d/{id}` stays `/d/{id}` and the configure step stays the configure step; and next-intl's
+          `Link` navigates client-side, so the store — a module singleton — is never torn down and
+          the design in it survives the switch whether or not it has been saved yet. */}
+      <LocaleMenu />
       {/* On mobile this is the positioning context for the bottom sheet; on desktop it is the row
           the 420 px rail takes its space from. Which of the two happens is decided entirely in
           CSS — see `editor-panel.module.css`. */}

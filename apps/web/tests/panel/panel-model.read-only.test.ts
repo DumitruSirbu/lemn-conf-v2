@@ -382,17 +382,22 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.readOnlyReason);
   });
 
-  it("puts read-only ahead of a domain refusal on a disabled offer", () => {
+  // The domain refusal this used to race against no longer reaches a row at all (owner,
+  // 2026-09-10: an entry the engine refuses is absent, not disabled). What read-only still has to
+  // beat is the row's **size line**, which is what an enabled row would otherwise be showing.
+  it("puts read-only ahead of the size an offered row would otherwise show", () => {
     const replace = findSection(
       readOnlyPanel(occupiedMeta(), {
-        offers: [offer({ verdict: { status: "refused", reason: REFUSAL } })],
+        offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
       }),
       "replace",
     );
 
     expect(replace.rows[0]?.isDisabled).toBe(true);
     expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.readOnlyReason);
-    expect(replace.rows[0]?.secondaryLine).not.toBe(ro.rejection(REFUSAL));
+    expect(replace.rows[0]?.secondaryLine).not.toBe(
+      ro.panel.offerSize(700, 1850),
+    );
   });
 
   it("disables every finish chip and gives each one its reason", () => {

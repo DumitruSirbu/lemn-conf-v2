@@ -232,7 +232,12 @@ describe("the panel over the store's own state", () => {
 
   // ADR 0032 keeps refused catalogue entries visible and disabled with the command's exact reason.
   // Exercise the real command for every rendered row so enabled/disabled cannot drift from it.
-  it("marks every row exactly as the insert command answers", () => {
+  // **Every row the panel draws is one the command takes**, and since the owner's ruling of
+  // 2026-09-10 that is the whole of the correspondence: a row the engine would refuse is not drawn,
+  // so there is no disabled arm here to check and no refusal sentence under a row. The counterpart —
+  // that an entry the list left out really is refused — is asserted in the domain, against
+  // `offersFor` itself (`affordance-gates.adversarial.test.ts`).
+  it("draws only rows the insert command accepts, each enabled", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p1" });
     store.getState().remove();
@@ -244,23 +249,14 @@ describe("the panel over the store's own state", () => {
       throw new Error("no slot to insert into");
     expect(section.rows.length).toBeGreaterThan(0);
 
-    let accepted = 0;
-    let refused = 0;
     for (const row of section.rows) {
       const attempt = createStore();
       attempt.getState().select({ kind: "placement", id: "p1" });
       attempt.getState().remove();
       attempt.getState().insert(row.buildId);
-      const rejection = attempt.getState().lastRejection;
-      expect(row.isDisabled, row.buildId).toBe(rejection !== null);
-      if (rejection === null) {
-        accepted += 1;
-      } else {
-        expect(row.secondaryLine, row.buildId).toBe(ro.rejection(rejection));
-        refused += 1;
-      }
+
+      expect(attempt.getState().lastRejection, row.buildId).toBeNull();
+      expect(row.isDisabled, row.buildId).toBe(false);
     }
-    expect(accepted).toBeGreaterThan(0);
-    expect(refused).toBeGreaterThan(0);
   });
 });

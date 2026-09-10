@@ -168,6 +168,14 @@ const ROMANIAN_LITERAL_FILE_ALLOWANCES = [
       "by identity. An exception recorded as a key would not be an exact-string exception.",
   },
   {
+    files: ["apps/web/src/i18n/locale-endonyms.ts"],
+    permittedPositions: "Property[key.name='ro'] > *",
+    reason:
+      "The language menu names each language in its own language, so `Română` here is not Romanian " +
+      "copy — it is the same string in every locale and would need N² identical catalogue leaves. " +
+      "Narrowed to the `ro` property, so a Romanian sentence anywhere else in the file still fails.",
+  },
+  {
     files: ["packages/configurator-domain/src/pricing/sample-price-book.ts"],
     permittedPositions: "Property[key.name=/^(name|description)$/] > *",
     reason:

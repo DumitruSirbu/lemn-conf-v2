@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { entryLabel } from "../../src/catalog.js";
+import {
+  listInsertableBodies,
+  resolveWidthRangesMm,
+} from "../../src/catalog.js";
 
 import { CHOOSES_ITS_OWN_COLOUR } from "../../src/body-finish-rule.js";
 import { baseFinishedDepthMm } from "../../src/catalog.js";
@@ -11,16 +14,11 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import { offersFor } from "../../src/queries/offers.js";
-import {
-  offered as offeredRows,
-  refused as refusedRows,
-  verdictOf,
-} from "../support/offers.js";
+import { buildableWidthSpanMm, offersFor } from "../../src/queries/offers.js";
+import { offeredIds, offerFor } from "../support/offers.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { advancePast, createWorld, voidAt } from "../support/kitchen-world.js";
-import { HOOD_CHIPS_MM } from "../support/width-model.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -32,7 +30,7 @@ describe("offersFor — a void", () => {
       ...world,
       target: { kind: "void", id: slot.id },
     });
-    const bands = new Set(offeredRows(offered).map((offer) => offer.band));
+    const bands = new Set(offered.map((offer) => offer.band));
     expect(bands).toEqual(new Set(["base", "column"]));
     expect(offered.some((offer) => offer.isCurrent)).toBe(false);
   });
@@ -47,11 +45,7 @@ describe("offersFor — a void", () => {
       target: { kind: "void", id: slot.id },
     });
 
-    expect(verdictOf(offered, "base-dishwasher")).toBeDefined();
-    expect(
-      offered.find((offer) => offer.buildId === "base-dishwasher")
-        ?.widthRangesMm,
-    ).toEqual([
+    expect(offerFor(offered, "base-dishwasher").widthRangesMm).toEqual([
       { minMm: 450, maxMm: 450 },
       { minMm: 600, maxMm: 600 },
     ]);
@@ -74,11 +68,8 @@ describe("offersFor — a void", () => {
     // 570 is inside `open-shelf`'s 300–800 bound, so the shelf is built at the opening's own width.
     // ADR 0035 decision 2 did not change this row's answer, only the reason for it: the bound is now
     // stated rather than inferred from a ladder that declined to bound anything above 400.
-    expect(verdictOf(offered, "open-shelf")).toEqual({
-      status: "offered",
-      widthMm: 570,
-      heightMm: 700,
-    });
+    const shelf = offerFor(offered, "open-shelf");
+    expect([shelf.buildsToWidthMm, shelf.buildsToHeightMm]).toEqual([570, 700]);
   });
 
   // **570 is now a hinged cabinet**, and that is ADR 0035 decision 4 arriving where it is visible.
@@ -93,27 +84,22 @@ describe("offersFor — a void", () => {
       target: { kind: "void", id: slot.id },
     });
 
-    const row = offered.find((offer) => offer.buildId === "wall-cabinet");
+    const row = offerFor(offered, "wall-cabinet");
     // One range, not two: the owner retired ADR 0030's one-door cap on 2026-08-28, so the (400, 500)
     // hole this row used to publish is gone and a hinged cabinet is continuous across its bound.
-    expect(row?.widthRangesMm).toEqual([{ minMm: 200, maxMm: 800 }]);
-    expect(row?.verdict).toEqual({
-      status: "offered",
-      widthMm: 570,
-      heightMm: 700,
-    });
+    expect(row.widthRangesMm).toEqual([{ minMm: 200, maxMm: 800 }]);
+    expect([row.buildsToWidthMm, row.buildsToHeightMm]).toEqual([570, 700]);
   });
 
-  // ADR 0032, and `docs/BACKLOG.md` entry 13 with it: a row that cannot be built here stays in the
-  // list, refused, carrying what it *can* be built at. The old list simply dropped the row, so the
-  // customer saw a shorter list and was never told what would work.
+  // **The reversal of ADR 0032, on the row that provoked it.** That decision kept a row that cannot
+  // be built here in the list, refused, carrying what it *can* be built at; the owner ruled on
+  // 2026-09-10 that a greyed hood in a floor opening reads as *"WTF is this"* and must not be shown.
   //
-  // Asserted on the hood, which is the row ADR 0035 decision 5 floors at 600 — 570 is under it, and
-  // "make it 600" is exactly the answer the ranges give. The code is `WIDTH_NOT_SUPPORTED` rather
-  // than `WIDTH_TOO_SMALL` because the hood's 600 lives in its **bound**, not in a `minWidthMm`:
-  // §7's hood builder is correct at 599, and an upward `minWidthMm` would be claiming otherwise
-  // (ADR 0026 clause 2).
-  it("keeps a bounded entry in the list, refused, with the reason and the widths it does have", () => {
+  // Asserted on the hood, which is the row ADR 0035 decision 5 floors at 600 — 570 is under it. What
+  // it used to publish as a `WIDTH_NOT_SUPPORTED` verdict it now publishes as nothing at all, and
+  // the pairing with the 700 mm opening is what keeps the absence from being vacuous: the same
+  // catalogue row is offered the moment its floor is met.
+  it("drops a bounded entry the opening is too narrow for, rather than greying it", () => {
     const world = advancePast(seeded(), ["p9"]);
     const slot = voidAt(world, "B|0.61", 1.5);
     const offered = offersFor({
@@ -121,23 +107,8 @@ describe("offersFor — a void", () => {
       target: { kind: "void", id: slot.id },
     });
 
-    const row = offered.find((offer) => offer.buildId === "hood");
-    expect(row?.sizesMm).toEqual(HOOD_CHIPS_MM);
-    expect(row?.widthRangesMm).toEqual([{ minMm: 600, maxMm: 800 }]);
-    expect(row?.verdict).toEqual({
-      status: "refused",
-      reason: {
-        code: "WIDTH_NOT_SUPPORTED",
-        params: {
-          label: entryLabel("hood"),
-          sizesMm: HOOD_CHIPS_MM,
-          // The bound travels with the refusal so the sentence can say "between 600 and 800 mm"
-          // rather than listing five chips and implying the hood is not made at 670. It is.
-          widthRangesMm: [{ minMm: 600, maxMm: 800 }],
-          availableMm: 570,
-        },
-      },
-    });
+    expect(offered.length).toBeGreaterThan(0);
+    expect(offeredIds(offered)).not.toContain("hood");
   });
 
   // §9: never offer what cannot be satisfied — every remaining refusal is a bug in a list.
@@ -146,7 +117,7 @@ describe("offersFor — a void", () => {
     for (const y0 of [0, 1.5, 2.2]) {
       const slot = voidAt(world, "B|2.45", y0);
       const target = { kind: "void", id: slot.id } as const;
-      const offered = offeredRows(offersFor({ ...world, target }));
+      const offered = offersFor({ ...world, target });
       expect(offered.length, `slot ${String(y0)}`).toBeGreaterThan(0);
       for (const offer of offered) {
         const result = insertInto(world, target, offer.buildId);
@@ -155,25 +126,44 @@ describe("offersFor — a void", () => {
     }
   });
 
-  // The converse, which ADR 0032 makes assertable for the first time: the list now carries the
-  // refusals too, and each one has to be the refusal the command actually gives.
-  it("refuses everything it marks refused, with the same code", () => {
+  // **The converse, restated for the list the owner ruled on 2026-09-10.** ADR 0032 made this
+  // assertable by publishing refusals; with them gone the claim is that an entry the list left out
+  // is one the command will not take. Same "one evaluation, two ends" property, and the direction
+  // that matters more: a list that quietly dropped something insertable hides a cabinet the
+  // customer could have had.
+  it("refuses everything it leaves out, at every height in the column", () => {
     const world = clearBodies(seeded(), ["p7", "p24"]);
     let seen = 0;
     for (const y0 of [0, 1.5, 2.2]) {
       const slot = voidAt(world, "B|2.45", y0);
       const target = { kind: "void", id: slot.id } as const;
-      for (const offer of refusedRows(offersFor({ ...world, target }))) {
+      const offered = new Set(offeredIds(offersFor({ ...world, target })));
+      for (const body of listInsertableBodies(world.catalog)) {
+        if (offered.has(body.buildId)) continue;
         seen += 1;
-        const result = insertInto(world, target, offer.buildId);
-        expect(result.ok, `${String(y0)} -> ${offer.buildId}`).toBe(false);
-        if (result.ok) continue;
-        expect(result.reason.code, `${String(y0)} -> ${offer.buildId}`).toBe(
-          offer.verdict.reason.code,
-        );
+        const result = insertInto(world, target, body.buildId);
+        expect(result.ok, `${String(y0)} -> ${body.buildId}`).toBe(false);
       }
     }
     expect(seen).toBeGreaterThan(0);
+  });
+
+  // §5.2, restated as a claim the filter change could plausibly have broken: the band filter admits
+  // every full-height row into a base slot, and the fit filter that now follows it must not be what
+  // takes them away. Asserted on the population rather than on a count, so a column row that stopped
+  // being reachable names itself.
+  it("still reaches the column rows from a base slot after the fit filter", () => {
+    const world = clearBodies(seeded(), ["p7", "p24"]);
+    const slot = voidAt(world, "B|2.45", 0);
+    const offered = offersFor({
+      ...world,
+      target: { kind: "void", id: slot.id },
+    });
+
+    expect(
+      offered.filter((offer) => offer.band === "column").map((o) => o.buildId)
+        .length,
+    ).toBeGreaterThan(0);
   });
 
   it("returns nothing for a stale void id", () => {
@@ -181,6 +171,30 @@ describe("offersFor — a void", () => {
     expect(
       offersFor({ ...world, target: { kind: "void", id: "A|9.99:v0:0.00" } }),
     ).toEqual([]);
+  });
+});
+
+describe("buildableWidthSpanMm — what §9 says when nothing fits", () => {
+  // The bound §9's two informative empty sentences name. It came off the offer list until the owner
+  // ruled a refused row off the panel on 2026-09-10, and the list an unfillable opening publishes is
+  // now empty — so this reads the catalogue directly, and these are the numbers a customer is told.
+  it("spans the narrowest floor and the widest ceiling in the catalogue", () => {
+    const span = buildableWidthSpanMm(KITCHEN_L_BODY_CATALOG);
+    const ranges = listInsertableBodies(KITCHEN_L_BODY_CATALOG).flatMap(
+      (body) => resolveWidthRangesMm(body),
+    );
+
+    expect(ranges.length).toBeGreaterThan(0);
+    expect(span).toEqual({
+      minMm: Math.min(...ranges.map((range) => range.minMm)),
+      maxMm: Math.max(...ranges.map((range) => range.maxMm)),
+    });
+  });
+
+  it("answers undefined for a catalogue with nothing insertable in it", () => {
+    // Absence rather than an invented bound: `describeEmptyLine` then leaves §9's original sentence
+    // in place instead of naming a width nobody can build.
+    expect(buildableWidthSpanMm(new Map())).toBeUndefined();
   });
 });
 

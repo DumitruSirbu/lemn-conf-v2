@@ -34,7 +34,7 @@ import {
   type VoidRecord,
 } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
-import { refused, verdictOf } from "../support/offers.js";
+import { offeredIds } from "../support/offers.js";
 import { cabinetDepthMmOf } from "../../src/design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -286,11 +286,10 @@ describe("an insert splits the column it does not fill", () => {
     });
 
     expect(extentMmOf(columnAt(after, "A|2.90")).widthMm).toBe(50);
-    expect(offers.length).toBeGreaterThan(0);
-    expect(refused(offers)).toHaveLength(offers.length);
-    expect(verdictOf(offers, "base-bottle-cargo")).toMatchObject({
-      status: "refused",
-    });
+    // **A 50 mm remainder holds nothing, and since the owner's ruling of 2026-09-10 it says so by
+    // publishing no rows** rather than the whole catalogue greyed out. `base-bottle-cargo` is the
+    // narrowest §7 row there is, so its absence is what "nothing fits" means here.
+    expect(offeredIds(offers)).toEqual([]);
   });
 
   // Criterion 5, the exact-to-zero case (ADR 0031 rule 6 read for an insert): nothing is created,

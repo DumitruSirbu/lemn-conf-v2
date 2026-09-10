@@ -368,9 +368,17 @@ interface FollowTheKitchenStep {
   readonly onFollow: () => void;
 }
 
-/** ADR 0099 decision 8's control, drawn as one more chip in the row it belongs to rather than as a
- *  link under it: it is a choice among the choices, and the one that is standing when a cabinet has
- *  chosen nothing. */
+/** ADR 0099 decision 8's control, on **its own full-width row directly under the colour control**.
+ *
+ *  It used to be drawn as one more chip inside the scrolling row, on the argument that it is a
+ *  choice among the choices. **The owner overruled that on 2026-09-10** and the reason is the
+ *  decision's own: this is a *reset*, not a colour, and a reset that lives in a horizontally
+ *  scrolling carousel can scroll out of sight — which turns the way back out of an override into
+ *  something a customer has to hunt for, reintroducing as a scroll position the one-way door
+ *  decision 8 exists to prevent. Fixed row, centred label, always where it was left.
+ *
+ *  It carries `.followRow` rather than `.swatch` deliberately: a later change to swatch styling
+ *  must not be able to drag this control back into looking like a colour. */
 function FollowTheKitchenButton({
   step,
 }: {
@@ -379,14 +387,14 @@ function FollowTheKitchenButton({
   return (
     <button
       type="button"
-      className={styles.swatch}
+      className={styles.followRow}
       data-testid="finish-follow-kitchen"
       data-follow="true"
       aria-pressed={step.chip.isActive}
       disabled={step.chip.isDisabled}
       onClick={step.onFollow}
     >
-      <span className={styles.swatchLabel}>{step.chip.label}</span>
+      <span className={styles.followRowLabel}>{step.chip.label}</span>
       <ChipReason reason={step.chip.reason} />
     </button>
   );
@@ -421,10 +429,11 @@ function PaletteSwatchView({
         {section.chips.map((chip) => (
           <SwatchButton key={chip.value} chip={chip} onPick={onPick} />
         ))}
-        {/* Last in the row rather than first: the colours are what the customer came for, and the
-            way back is what they need once they have taken one. */}
-        {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       </div>
+      {/* **Outside `colour-options`, and that is the point** (owner ruling, 2026-09-10): the decor
+          list keeps its carousel untouched, and the way back sits still beneath it instead of
+          scrolling away with the colours. */}
+      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       <p className={styles.note}>{section.note}</p>
     </section>
   );
@@ -498,7 +507,8 @@ function RalPickerView({
         <span className={styles.pickerLabel}>{section.label}</span>
       </label>
       {/* **A picker needs the way back more than a swatch list does**: every hex it can produce is a
-          choice, so without this an MDF cabinet has no way at all to stop choosing. */}
+          choice, so without this an MDF cabinet has no way at all to stop choosing. Same full-width
+          row as under the decors, in the same place relative to the control it resets. */}
       {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       <ChipReason reason={section.reason} />
       <p className={styles.note}>{section.note}</p>

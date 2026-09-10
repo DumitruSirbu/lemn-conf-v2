@@ -695,8 +695,14 @@ describe("what wave 6S declared, wave 6T prices", () => {
 
   /** What the seeded design cost with **no** hardware billed — the figure every total below is this
    *  plus one hardware line. It was the whole design's total until wave 6T, when the Standard tier
-   *  stopped being zero. */
-  const CABINETRY_AND_MATERIAL_MINOR = 9_427_500;
+   *  stopped being zero.
+   *
+   *  **Down 1 490 000 from 9 427 500 on the owner's ruling of 2026-09-10**, which stopped charging
+   *  for the two rows the manufacturer does not supply: the seeded kitchen's `hood-600` (290 000)
+   *  and its `fridge-free-700` (1 200 000). The housings around them are joinery and are unchanged,
+   *  which is why the drop is exactly those two lines and not an appliance-shaped share of the
+   *  kitchen. */
+  const CABINETRY_AND_MATERIAL_MINOR = 7_937_500;
 
   /** ADR 0070 decision 4's two sink extras, which wave 6T2 added to every one of these totals: the
    *  seeded kitchen holds one sink under one wall cabinet, so it earns one cover and one rack. Flat

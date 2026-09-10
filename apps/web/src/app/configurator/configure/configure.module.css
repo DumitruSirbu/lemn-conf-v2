@@ -28,16 +28,24 @@
  * 58 e2e specs down in wave 6K-b3 and it is being re-decided by the restructure:
  *
  *   | layer                                    | mobile | desktop |
- *   | nav, settings' own paint, actions, locale |   2    |    2    |
+ *   | nav, settings' own paint, actions         |   2    |    2    |
  *   | the price cell                            | **3**  |  **5**  |
  *   | §9's panel — a sheet on mobile, a rail on desktop |   4    |    4    |
  *   | the breakdown's popover                   |   —    |    6    |
+ *   | the locale cell and the menu inside it     |   6    |    6    |
  *   | the settings item, its scrim, its sheet    |   7    |    7    |
  *
  * **The price cell is the one layer that differs by shell, and §9's panel is why.** Everything else
  * holds one number on both. The cell moved to 5 on desktop on 2026-09-09, after adversarial QA
  * measured that capping it at 3 caps the breakdown's popover with it — see the fourth row's note
  * below.
+ *
+ * **The locale cell left the band's shared `2` on 2026-09-10**, when the owner's ruling turned its
+ * chip into a dropdown, and it left by the table's own rule rather than by preference: the menu is
+ * nested in the cell, so the cell's number is the highest the menu can paint, and on desktop it drops
+ * straight over §9's rail at `4`. At `2` the open menu was behind the rail whenever a cabinet was
+ * selected. `6` clears the rail and the price cell and stays under the settings sheet's scrim, which
+ * is modal and must cover everything.
  *
  * **The rule that makes this table a table, stated exactly, because a summary of it sends the next
  * reader looking for the wrong thing: a `z-index` other than `auto` on a *grid or flex item*
@@ -153,7 +161,12 @@
   padding: 11px 0 11px 9px;
 }
 
+/* **`position: relative` and a layer of its own, both for the menu.** The dropdown hangs from this
+ * cell's bottom edge, and by the head comment's rule the cell's number is the highest that menu can
+ * ever paint — see the table's sixth row for why `2` was not enough. */
 .locale {
+  position: relative;
+  z-index: 6;
   grid-area: locale;
   flex: 0 0 auto;
   padding: 11px 14px 11px 9px;
@@ -219,11 +232,12 @@
   white-space: nowrap;
 }
 
-/* Drawn as the reference draws it, and since wave 6B-i it is the anchor that switches locale — the
- * frames' own box, with a link's default underline and colour taken back off it so the chip paints
- * exactly what it painted while it was a span. The focus ring is deliberately the user agent's: this
- * stylesheet declares none anywhere, and a control that quietly opted out of the browser's would be
- * the only unfocusable-looking thing in the row. */
+/* Drawn as the reference draws it, and since the owner's 2026-09-10 ruling it is the **button** that
+ * opens the language menu — the frames' own box, with a button's user-agent font, colour and text
+ * alignment taken back off it so the chip paints exactly what it painted while it was a span and then
+ * an anchor. The focus ring is deliberately the user agent's: this stylesheet declares none anywhere,
+ * and a control that quietly opted out of the browser's would be the only unfocusable-looking thing
+ * in the row. */
 .localeChip {
   position: relative;
   display: flex;
@@ -231,10 +245,14 @@
   gap: 4px;
   align-items: center;
   padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   background: #ece7dd;
   border: 1px solid var(--line);
   border-radius: 8px;
   text-decoration: none;
+  appearance: none;
 }
 
 /* §10.1's 44 px touch target, taken as an invisible hit area rather than by growing the chip — the
@@ -261,10 +279,86 @@
 }
 
 /* The frames draw this caret at `#7d7a72`; `--ink-faint` is the owner's 2026-09-03 WCAG ruling for
- * that value and is deliberately darker (`globals.css`). */
+ * that value and is deliberately darker (`globals.css`). Since the chip became a menu trigger the
+ * caret finally means what it draws, so it turns over when the menu is open — the sighted half of the
+ * claim `aria-expanded` makes to everyone else. */
 .localeCaret {
   font: 400 10px/1 var(--font-ui);
   color: var(--ink-faint);
+}
+
+.localeChip[aria-expanded="true"] .localeCaret {
+  transform: rotate(180deg);
+}
+
+/* The open menu, hung from the cell's bottom edge — which is the band's rule, so the list starts
+ * exactly where the top bar ends.
+ *
+ * **Anchored to the cell's trailing edge rather than the chip's leading one**, because this is the
+ * last cell in the row on both shells: a list that grew rightwards from the chip would leave the
+ * viewport. `max-width` is the second half of the same guarantee and is what holds at 390 px — the
+ * `28px` is this cell's own inline padding, so the menu can never be wider than the paper it stands
+ * on however long a future endonym is.
+ *
+ * It paints at the cell's `6` (see the head comment's table), not at its own `z-index`: this one is
+ * for the menu against the chip's 44 px hit area, which is a sibling's `::after` in the same cell. */
+.localeList {
+  position: absolute;
+  top: 100%;
+  inset-inline-end: 14px;
+  z-index: 1;
+  min-width: 148px;
+  max-width: calc(100vw - 28px);
+  padding: 5px;
+  margin: 6px 0 0;
+  list-style: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgb(28 24 20 / 14%);
+}
+
+/* §10.1's 44 px, taken as the row's real height here rather than as an invisible overlay: unlike the
+ * chip, nothing in the reference fixes this box's size, so the target can simply *be* the target. */
+.localeOption {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 12px;
+  font: 500 14px/1 var(--font-ui);
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+/* The flag beside each name — the owner's 2026-09-10 ruling, which put a flag on **every** row where
+ * a dot used to mark one. The dot is gone with it and the state it carried did not move here: a flag
+ * says which language a row is, never which one is current. `aria-current` is what a screen reader
+ * hears and `.localeOptionCurrent` below is the sighted cue, both unchanged.
+ *
+ * **Selected by element rather than by a class, and the layering decides it**: the flags are locale
+ * data and live in `i18n/locale-flags.tsx`, outside this route's folder, so they cannot reach this
+ * stylesheet's generated names. The only `svg` inside a choice is the flag.
+ *
+ * The SVGs carry their own size, and every one of them is 18 px wide while each keeps its country's
+ * proportion — so the endonyms line up whatever shape a future flag is. A `box-shadow` gives the
+ * edge rather than a `border`, because a border would move the names it aligns; and the edge is not
+ * decoration: Russia's top band is white and this menu stands on `--paper`, so without it a
+ * three-band flag would read as two. */
+.localeOption svg {
+  flex: 0 0 auto;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgb(28 24 20 / 15%);
+}
+
+.localeOption:hover {
+  background: #ece7dd;
+}
+
+.localeOptionCurrent {
+  font-weight: 700;
+  color: var(--accent-strong);
 }
 
 /* Frame 2A `:515–519`: the bottom bar's second row — `Înapoi` beside `Verifică designul`. On desktop
@@ -609,6 +703,11 @@
   .locale {
     grid-area: locale;
     padding-right: 28px;
+  }
+
+  /* Frame D2A's own inset, so the menu keeps the chip's trailing edge on this shell too. */
+  .localeList {
+    inset-inline-end: 28px;
   }
 
   .localeChip {

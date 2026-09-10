@@ -7,7 +7,6 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
@@ -115,7 +114,7 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
   it("row 6: never offers the hood for a 400 mm top slot", () => {
     const world = clearBodies(seeded(), ["p18"]);
     const target = voidTarget(world, "A|2.00", 2.2);
-    const offered = offeredRows(offersFor({ ...world, target })).map(
+    const offered = offersFor({ ...world, target }).map(
       (offer) => offer.buildId,
     );
     expect(offered).not.toContain("hood");
