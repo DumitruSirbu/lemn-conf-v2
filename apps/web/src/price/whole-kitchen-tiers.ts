@@ -35,6 +35,11 @@ export interface OfferedTier {
   readonly tierId: string;
   readonly name: string;
   readonly description: string;
+  /** The catalogue leaves the book row names for its two rendered fields, carried across unresolved —
+   *  ADR 0106 decision 3. This module has no translator and wants none: an offer is measured once
+   *  and read by a surface that already holds the resolved content. */
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
   /**
    * What choosing this adds, in exact minor units — presentation rounds it, and only in
    * `starting-price.ts`. Zero for the group's default, and never negative.
@@ -315,6 +320,10 @@ function offeredTier(
     tierId: tier.tierId,
     name: tier.name,
     description: tier.description,
+    ...(tier.nameKey === undefined ? {} : { nameKey: tier.nameKey }),
+    ...(tier.descriptionKey === undefined
+      ? {}
+      : { descriptionKey: tier.descriptionKey }),
     ...(deltaMinor === undefined ? {} : { deltaMinor }),
   };
 }

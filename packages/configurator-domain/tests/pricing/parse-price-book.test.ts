@@ -223,6 +223,85 @@ describe("a book states a commercially realistic amount of data (M6-AUD-010)", (
 });
 
 /**
+ * **A row's catalogue key, at the same boundary its words are held to** — ADR 0106 decision 1's
+ * `nameKey` / `descriptionKey`.
+ *
+ * The key is optional and its absence is the common case, so the boundary has to tell *unstated*
+ * from *stated badly*: a dashboard-authored row states neither and must parse, while a row stating a
+ * number, an object or a 5 000-character string is the same free multiplier on a refusal message
+ * that `MAX_IDENTIFIER_LENGTH` exists for.
+ */
+describe("a row's rendered text may name a catalogue leaf (ADR 0106)", () => {
+  it("parses the shipped book, whose rows name fourteen of them", () => {
+    // Every keyed row, accessories included: 6 tiers × 2 fields, less the two proper nouns
+    // *Hettich* and *Blum* that deliberately name none, plus the two accessories' 4. Walking the
+    // tiers alone would count 10 and the name of this test would be the defect.
+    const keyed = [
+      ...BOOK.hardware.tiers,
+      ...BOOK.material.tiers,
+      BOOK.accessories.sinkProtectiveCover,
+      BOOK.accessories.dishDryingRack,
+    ].flatMap((row) => [row.nameKey, row.descriptionKey]);
+
+    expect(keyed.filter((key) => key !== undefined)).toHaveLength(14);
+    expect(parsePriceBook(BOOK).ok).toBe(true);
+  });
+
+  it("accepts a row that names no key, which is what a dashboard writes", () => {
+    // ADR 0106 decision 2: `name` stays required and a book nobody at Lemnaria authored renders its
+    // own words. Absence must therefore parse, and it is asserted rather than assumed because the
+    // obvious implementation of "validate the key" refuses `undefined`.
+    const [first, ...rest] = BOOK.material.tiers;
+    if (!first) throw new Error("the sample offers no material tier");
+    const unkeyed: MaterialTier = {
+      tierId: first.tierId,
+      ruleId: first.ruleId,
+      name: first.name,
+      description: first.description,
+      wholeKitchenMinor: first.wholeKitchenMinor,
+    };
+
+    expect(
+      parsePriceBook(
+        bookWith({ material: { ...BOOK.material, tiers: [unkeyed, ...rest] } }),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["unbounded", "k".repeat(5_000)],
+    ["a number", 7],
+    ["an object", { key: "priceBook.material.melamine.name" }],
+    ["null", null],
+  ])("refuses a %s key rather than resolving it later", (_named, key) => {
+    const [first, ...rest] = BOOK.material.tiers;
+    if (!first) throw new Error("the sample offers no material tier");
+    const tiers = [{ ...first, nameKey: key }, ...rest];
+
+    expect(
+      refusalFrom(bookWith({ material: { ...BOOK.material, tiers } })).code,
+    ).toBe("INVALID_PRICE_BOOK");
+  });
+
+  it("refuses an accessory's key on the same terms as a tier's", () => {
+    // The accessory section reaches the same guard by a different route, so it is exercised rather
+    // than reasoned about: an accessory rule is read by id and not by position in a list.
+    const accessories = {
+      ...BOOK.accessories,
+      dishDryingRack: {
+        ...BOOK.accessories.dishDryingRack,
+        descriptionKey: "d".repeat(5_000),
+      },
+    };
+
+    expect(refusalFrom(bookWith({ accessories })).code).toBe(
+      "INVALID_PRICE_BOOK",
+    );
+  });
+});
+
+/**
  * **The arithmetic, in the two layers M6-AUD-015 asks for.**
  *
  * The coefficients below are the audit's own: on the real `wall-cabinet` rule path with a 600 × 700

@@ -26,7 +26,7 @@ const componentSource = readPanelSource("editor-panel.tsx");
 const stylesheetSource = readPanelSource("editor-panel.module.css");
 
 const DECORS = PALETTE_ENTRIES.map(
-  (entry) => [entry.name, swatchOf(paletteFinish(entry.entryId))] as const,
+  (entry) => [entry.entryId, swatchOf(paletteFinish(entry.entryId))] as const,
 );
 
 describe("the panel publishes the adapter's finish colours to its stylesheet", () => {
@@ -48,7 +48,7 @@ describe("the panel publishes the adapter's finish colours to its stylesheet", (
     );
   });
 
-  it.each(DECORS)("keeps no literal copy of %s's hex", (_name, swatch) => {
+  it.each(DECORS)("keeps no literal copy of %s's hex", (_entryId, swatch) => {
     expect(stylesheetSource.toLowerCase()).not.toContain(
       swatch.color.toLowerCase(),
     );

@@ -262,7 +262,9 @@ const DRAFTED_PUSH_TO_OPEN_MINOR = {
  *
  * **Their names and descriptions are not owner-ruled**, and ship as drafted placeholders under the
  * standing direction of 2026-09-04 — draft strings that carry their meaning now, and the manufacturer
- * dashboard makes copy editable later. Nothing pins their wording.
+ * dashboard makes copy editable later. Nothing pins their wording. Both now also name a catalogue
+ * leaf (ADR 0106 decision 1), which relocated those drafts without rewording them: the key is what a
+ * `/ru` customer reads and the authored string beside it is what any other book would render.
  *
  * **The rack is priced and never drawn** (ADR 0070 decision 4): no builder has a part for it, at any
  * width and any depth, and `sink-declaration.parity.test.ts` asserts that from the adapter side.
@@ -273,6 +275,8 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
     name: "Protecție de aluminiu pentru corpul spălătorului",
     description:
       "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna.",
+    nameKey: "priceBook.accessory.sink-protective-cover.name",
+    descriptionKey: "priceBook.accessory.sink-protective-cover.description",
     perUnitMinor: 20_000,
   },
   dishDryingRack: {
@@ -280,6 +284,8 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
     name: "Uscător de vase",
     description:
       "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat.",
+    nameKey: "priceBook.accessory.dish-drying-rack.name",
+    descriptionKey: "priceBook.accessory.dish-drying-rack.description",
     perUnitMinor: 40_000,
   },
 };
@@ -305,6 +311,11 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
  * price bar would render no figure at all.
  *
  * A line at zero is still not the same thing as a rule that is missing, in either group.
+ *
+ * **Every row that renders an ordinary word names the catalogue leaf it is written in** (ADR 0106
+ * decision 1), so a `/ru` customer reads the settings sheet in Russian. The two brand rows name no
+ * `nameKey` on purpose — see the Hettich row — and the amounts, the ids and the rules stay here,
+ * which is ADR 0062 decision 1 satisfied literally: what left is rendered text.
  */
 export const SAMPLE_PRICE_BOOK: PriceBook = {
   version: SAMPLE_PRICE_BOOK_VERSION,
@@ -330,6 +341,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         // longer says *incluse în preț*: this tier's mechanisms are now billed, and a description
         // asserting the opposite of the book's own numbers is worse than one pending review.
         description: "Balamale și glisiere fără amortizare, închidere simplă.",
+        nameKey: "priceBook.hardware.standard.name",
+        descriptionKey: "priceBook.hardware.standard.description",
         perHingeMinor: 1_760,
         perDrawerMinor: 64_000,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.standard,
@@ -337,8 +350,14 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
       {
         tierId: "hardware.soft-close",
         ruleId: "hardware.soft-close",
+        // **No `nameKey`, and that is the ruling rather than an omission.** *Hettich* is a proper
+        // noun and a translated one would be a defect, so ADR 0106's "the key wins when present"
+        // localises this row correctly by the row naming no key at all: `name` renders as typed, in
+        // every locale. The **description** is a Romanian sentence that happens to contain a brand,
+        // and it is keyed like any other.
         name: "Hettich",
         description: "Balamale și glisiere cu amortizare, de la Hettich.",
+        descriptionKey: "priceBook.hardware.soft-close.description",
         perHingeMinor: 8_500,
         // **Understated, and staying that way.** ADR 0070's Hettich drawer figure is a
         // **runners-only** product line while Standard's and Blum's are complete boxes — box sides
@@ -352,8 +371,10 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
       {
         tierId: "hardware.premium",
         ruleId: "hardware.premium",
+        // No `nameKey`, for the reason the Hettich row above states.
         name: "Blum",
         description: "Balamale și glisiere cu amortizare, de la Blum.",
+        descriptionKey: "priceBook.hardware.premium.description",
         perHingeMinor: 7_500,
         perDrawerMinor: 83_700,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.blum,
@@ -368,6 +389,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         ruleId: "material.melamine",
         name: "PAL melaminat",
         description: "Materialul standard al bucătăriei, inclus în preț.",
+        nameKey: "priceBook.material.melamine.name",
+        descriptionKey: "priceBook.material.melamine.description",
         wholeKitchenMinor: 0,
       },
       {
@@ -375,6 +398,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         ruleId: "material.painted-mdf",
         name: "MDF vopsit mat",
         description: "Fronturi din MDF vopsit mat, pentru toată bucătăria.",
+        nameKey: "priceBook.material.painted-mdf.name",
+        descriptionKey: "priceBook.material.painted-mdf.description",
         wholeKitchenMinor: 900_000,
       },
       {
@@ -382,6 +407,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         ruleId: "material.veneer",
         name: "Furnir natural",
         description: "Fronturi furniruite natural, pentru toată bucătăria.",
+        nameKey: "priceBook.material.veneer.name",
+        descriptionKey: "priceBook.material.veneer.description",
         wholeKitchenMinor: 1_800_000,
       },
     ],

@@ -238,22 +238,21 @@ describe("the swatch and the 3D paint from one declared hex", () => {
   // is inlined in the stylesheet; `qa-6p-finish-dom.adversarial.test.ts` asserts each swatch carries
   // *a* six-digit hex. Neither asserts the hex on a given swatch is that decor's own, so a component
   // publishing `chips[0].swatchColor` for every chip would satisfy both.
-  it.each(
-    PALETTE_ENTRIES.map(
-      (entry) => [entry.entryId, entry.name, entry.name] as const,
-    ),
-  )("publishes %s's own colour on its own swatch", (entryId) => {
-    const isVeneer = entryId.startsWith("veneer.");
-    const markup = markupFor(
-      isVeneer ? VENEER_KITCHEN : PAL_KITCHEN,
-      FINISHABLE,
-    );
-    const declared = swatchOf(paletteFinish(entryId)).color;
+  it.each(PALETTE_ENTRIES.map((entry) => [entry.entryId] as const))(
+    "publishes %s's own colour on its own swatch",
+    (entryId) => {
+      const isVeneer = entryId.startsWith("veneer.");
+      const markup = markupFor(
+        isVeneer ? VENEER_KITCHEN : PAL_KITCHEN,
+        FINISHABLE,
+      );
+      const declared = swatchOf(paletteFinish(entryId)).color;
 
-    expect(swatchButtonFor(markup, entryId)).toMatch(
-      new RegExp(`--swatch-colour:\\s*${declared}`),
-    );
-  });
+      expect(swatchButtonFor(markup, entryId)).toMatch(
+        new RegExp(`--swatch-colour:\\s*${declared}`),
+      );
+    },
+  );
 
   it.each(Object.entries(RULED_TINTS))(
     "still publishes ADR 0091's ruled tint for %s",

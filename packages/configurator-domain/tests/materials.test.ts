@@ -82,15 +82,14 @@ describe("a palette entry names a colour a customer can say out loud", () => {
     expect(paletteEntriesOf(materialById("material.veneer"))).toHaveLength(2);
   });
 
-  it("gives every entry a human name and never a code as its name", () => {
-    // The owner's ruling: the palette is a reference, not a specification, so what a customer reads
-    // is *Gri Havanna* and never *U755 ST9*. A supplier code carries digits and a decor name does
-    // not, which is what makes this falsifiable rather than a comment.
+  it("declares an id and a provenance, and no word a surface could print", () => {
+    // The owner's ruling — the palette is a reference, not a specification, so what a customer
+    // reads is *Gri Havanna* and never *U755 ST9* — is now kept where the word is: the `finish.*`
+    // catalogue leaves the app resolves `entryId` through, swept in both locales by
+    // `apps/web/tests/i18n/palette-names.test.ts`. What this asserts is that no Romanian came
+    // back here, which is the failure that put a Romanian decor name on a `/ru` screen.
     for (const entry of PALETTE_ENTRIES) {
-      expect(entry.name).not.toMatch(/\d/);
-      if (entry.supplierCode.kind === "catalogue") {
-        expect(entry.name).not.toBe(entry.supplierCode.code);
-      }
+      expect(Object.keys(entry).sort()).toEqual(["entryId", "supplierCode"]);
     }
   });
 

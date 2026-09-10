@@ -13,9 +13,10 @@
 // directions.
 //
 // **Colour is a reference, not a specification.** The owner's words: the real colour is chosen after
-// measurements, so a palette entry renders its human name and nothing else. The supplier code below
-// is internal provenance — what a decor is ordered as — and no surface presents it as a code a
-// customer picks from.
+// measurements, so a palette entry renders its human name and nothing else. That name is a
+// `finish.*` catalogue leaf resolved by the app and keyed on `entryId` (ADR 0095, wave 6B-f2) rather
+// than a Romanian string declared here. The supplier code below is internal provenance — what a
+// decor is ordered as — and no surface presents it as a code a customer picks from.
 import { z } from "zod";
 
 /** The three materials, **price-ordered**: PAL (melamine) < MDF (painted) < veneer (natural wood
@@ -83,13 +84,14 @@ export function unverifiedDecorCode(code: string): SupplierDecorCode {
   return { kind: "catalogue", code, confidence: "unverified" };
 }
 
-/** One entry a customer can pick by name. */
+/** One entry a customer can pick by name.
+ *
+ *  **The name it is picked by is not here.** `entryId` is the descriptor a surface resolves through
+ *  the app's catalogue — the `finish.*` leaves, one per id — which is ADR 0095's rule that the domain
+ *  publishes codes and never sentences. It used to carry the Romanian word itself, and that word
+ *  reached a `/ru` customer unresolved. */
 export interface PaletteEntry {
   readonly entryId: PaletteEntryId;
-  /** **The only thing a surface renders.** Human and non-technical, in the product's Romanian: the
-   *  palette helps a customer picture the kitchen, and the real colour is settled after
-   *  measurements. */
-  readonly name: string;
   /** Internal provenance, never rendered as a code a customer chooses from. */
   readonly supplierCode: SupplierDecorCode;
 }
@@ -191,32 +193,26 @@ export interface Material {
 const PAL_DECORS: readonly PaletteEntry[] = [
   {
     entryId: "pal.alb",
-    name: "Alb",
     supplierCode: unverifiedDecorCode("W1000 ST9 Alb Premium"),
   },
   {
     entryId: "pal.stejar-bardolino",
-    name: "Stejar Bardolino Natur",
     supplierCode: confirmedDecorCode("H1145 ST10"),
   },
   {
     entryId: "pal.stejar-halifax",
-    name: "Stejar Halifax Natur",
     supplierCode: confirmedDecorCode("H1180 ST37"),
   },
   {
     entryId: "pal.antracit",
-    name: "Antracit",
     supplierCode: unverifiedDecorCode("U963 ST9"),
   },
   {
     entryId: "pal.gri-havanna",
-    name: "Gri Havanna",
     supplierCode: confirmedDecorCode("U755 ST9"),
   },
   {
     entryId: "pal.nuc-warmia",
-    name: "Nuc Warmia Maro",
     supplierCode: confirmedDecorCode("H1307 ST19"),
   },
 ];
@@ -225,12 +221,10 @@ const PAL_DECORS: readonly PaletteEntry[] = [
 const VENEER_WOODS: readonly PaletteEntry[] = [
   {
     entryId: "veneer.stejar",
-    name: "Stejar",
     supplierCode: NOT_A_MANUFACTURED_DECOR,
   },
   {
     entryId: "veneer.nuc",
-    name: "Nuc",
     supplierCode: NOT_A_MANUFACTURED_DECOR,
   },
 ];

@@ -198,10 +198,17 @@ export interface CabinetPriceRule {
   readonly formula: PriceFormula;
 }
 
-/** What every tier states about itself, whatever it is a tier *of*. The name and the one-line
- *  description live here rather than in the app's message catalogue
- *  (`apps/web/src/messages/ro.json`) for ADR 0062's third prohibition: a tier is
- *  book data rendered, never copy in a component that happens to agree with a number. */
+/**
+ * What every tier states about itself, whatever it is a tier *of*.
+ *
+ * The name and the one-line description live here rather than in the app's message catalogue
+ * (`apps/web/src/messages/ro.json`) for ADR 0062's third prohibition: a tier is book data rendered,
+ * never copy in a component that happens to agree with a number.
+ *
+ * **A tier may also name the catalogue leaf its rendered text is written in** — ADR 0106 decision 1. The
+ * key wins where it is present and the authored text is what renders where it is not, so this
+ * product's own book localises its rows while a book nobody at Lemnaria authored still renders.
+ */
 export interface TierIdentity {
   /** What a selection names. Stable, and not the rule id: one is a choice, the other is a price. */
   readonly tierId: string;
@@ -209,6 +216,16 @@ export interface TierIdentity {
   readonly ruleId: string;
   readonly name: string;
   readonly description: string;
+  /** Optional, and absence is an ordinary row rather than an omission (ADR 0106 decision 2): the
+   *  authored `name` renders as typed.
+   *
+   *  **This product's own book** leaves it absent on a proper noun — *Hettich* and *Blum* are the
+   *  same word in every locale — but that is a fact about the shipped rows, not a rule this
+   *  interface can impose on every book it types, and nothing here enforces it. The guard is across
+   *  the package boundary, where the catalogue is: `apps/web/tests/i18n/price-book-text.test.ts`
+   *  names those two rows and fails if a later wave keys them. */
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
 }
 
 /** A hardware tier, priced **per mechanism** — ADR 0070 decision 1, which replaced the per-handle
@@ -262,6 +279,10 @@ export interface AccessoryRule {
   readonly ruleId: string;
   readonly name: string;
   readonly description: string;
+  /** The catalogue leaf this accessory's name is written in, on the same terms a tier's is — ADR
+   *  0106 decision 1. */
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
   /** Charged per unit — per sink for both of today's two. The **quantity** is a fact about the
    *  design and is never stated here. */
   readonly perUnitMinor: number;

@@ -292,6 +292,75 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
       [],
     );
   });
+
+  /**
+   * **What a row may publish besides its amounts, said rather than assumed** — ADR 0106 decision 1,
+   * which is the one change to a row's shape this file has ever had to admit.
+   *
+   * The sweep above is unchanged and unweakened: it asks where an *amount* lives, and no amount
+   * moved. What this adds is the other half of the same claim — that what left the book is a
+   * **rendered text and nothing else**. Each row still declares its own `tierId`, its own
+   * `ruleId` and its own amounts as own properties, and the two new fields are catalogue paths
+   * rather than figures.
+   *
+   * Stated as a whole-shape assertion for the reason the cabinet-rule sweep above is one: a row that
+   * quietly grew a field is a failure here rather than a sweep of whatever it happens to hold.
+   */
+  it("lets a row name the leaf its text is written in, and nothing else", () => {
+    const tierFields = ["tierId", "ruleId", "name", "description"];
+    const rows: readonly (readonly [
+      Record<string, unknown>,
+      readonly string[],
+    ])[] = [
+      ...SAMPLE_PRICE_BOOK.hardware.tiers.map(
+        (tier) =>
+          [
+            tier as unknown as Record<string, unknown>,
+            [
+              ...tierFields,
+              "perHingeMinor",
+              "perDrawerMinor",
+              "perPushToOpenMinor",
+            ],
+          ] as const,
+      ),
+      ...SAMPLE_PRICE_BOOK.material.tiers.map(
+        (tier) =>
+          [
+            tier as unknown as Record<string, unknown>,
+            [...tierFields, "wholeKitchenMinor"],
+          ] as const,
+      ),
+      ...Object.values(SAMPLE_PRICE_BOOK.accessories).map(
+        (accessory) =>
+          [
+            accessory as unknown as Record<string, unknown>,
+            ["ruleId", "name", "description", "perUnitMinor"],
+          ] as const,
+      ),
+    ];
+
+    expect(rows).toHaveLength(8);
+    for (const [row, required] of rows) {
+      const declared = Object.keys(row);
+      // Every field the row owed before this wave is still the row's own.
+      expect(declared.sort()).toEqual(expect.arrayContaining([...required]));
+      // And the only two it may have gained are the catalogue-key fields.
+      const permitted = [...required, "nameKey", "descriptionKey"];
+      expect(declared.filter((field) => !permitted.includes(field))).toEqual(
+        [],
+      );
+
+      for (const field of ["nameKey", "descriptionKey"] as const) {
+        const key = row[field];
+        if (key === undefined) continue;
+        // A catalogue path, never a figure and never an id a rule traces to. One anchored pattern
+        // carries the whole claim: its character class admits no digit, so a separate `\d`
+        // falsification could never fire, and a non-string fails `toMatch` on its own.
+        expect(key, field).toMatch(/^priceBook(\.[a-z-]+)+$/);
+      }
+    }
+  });
 });
 
 describe("the sample book says what it is worth", () => {

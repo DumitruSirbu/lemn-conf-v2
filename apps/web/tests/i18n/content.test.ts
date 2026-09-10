@@ -1,4 +1,4 @@
-import { createTranslator } from "next-intl";
+import type { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import { kindLabel } from "@lemnaria/configurator-domain";
@@ -10,6 +10,12 @@ import {
 } from "../../src/i18n/content";
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import {
+  CATALOGUES,
+  translatorFor,
+  type Catalogue,
+  type CatalogueLocale,
+} from "../support/catalogues";
 import { REJECTION_FIXTURES } from "./golden-output-fixtures";
 
 interface StringLeaf {
@@ -80,14 +86,17 @@ function functionLeaves(value: unknown, path = ""): readonly FunctionLeaf[] {
   );
 }
 
-function contentFor(
-  locale: "ro" | "ru",
-  messages: typeof roMessages,
+/** The shared `contentFor` resolves content and drops the translator; this file needs both, because
+ *  the raw translator **is** the oracle every assertion below compares the resolved surface against.
+ *  So it builds one translator and hands back the pair rather than resolving twice. */
+function contentAndOracleFor(
+  locale: CatalogueLocale,
+  messages: Catalogue,
 ): {
   readonly content: Content;
   readonly translate: ReturnType<typeof createTranslator>;
 } {
-  const translate = createTranslator({ locale, messages });
+  const translate = translatorFor(locale, messages);
   return { content: resolveContent(translate), translate };
 }
 
@@ -98,6 +107,10 @@ const FUNCTION_FAMILIES = [
   // so a resolver cannot be added without this list saying so.
   "bodyLabel",
   "bandLabel",
+  // 6B-f2's two, on the same footing: a palette entry id and a price book row's key are descriptors
+  // the domain publishes, and both are public functions on `Content`.
+  "finishName",
+  "bookText",
   "panel.headerMeta",
   "panel.countForBody",
   "panel.countForSlot",
@@ -135,13 +148,10 @@ describe("the localized content resolver", () => {
     });
   });
 
-  it.each([
-    ["ro", roMessages],
-    ["ru", ruMessages as typeof roMessages],
-  ] as const)(
+  it.each(CATALOGUES)(
     "maps all 105 resolved strings through the %s catalogue",
     (locale, messages) => {
-      const { content, translate } = contentFor(locale, messages);
+      const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
       expect(leaves).toHaveLength(105);
@@ -158,13 +168,10 @@ describe("the localized content resolver", () => {
     },
   );
 
-  it.each([
-    ["ro", roMessages],
-    ["ru", ruMessages as typeof roMessages],
-  ] as const)(
-    "backs exactly 26 public functions with %s ICU messages",
+  it.each(CATALOGUES)(
+    "backs exactly 28 public functions with %s ICU messages",
     (locale, messages) => {
-      const { content, translate } = contentFor(locale, messages);
+      const { content, translate } = contentAndOracleFor(locale, messages);
 
       expect(functionLeaves(content).map(({ path }) => path)).toEqual(
         FUNCTION_FAMILIES,
@@ -252,16 +259,24 @@ describe("the localized content resolver", () => {
           chosenCount: 2,
         }),
       );
+      expect(content.finishName("pal.gri-havanna")).toBe(
+        translate("finish.pal.gri-havanna"),
+      );
+      expect(
+        content.bookText("authored-token", "priceBook.material.veneer.name"),
+      ).toBe(translate("priceBook.material.veneer.name"));
+      // ADR 0106 decision 2's fallback, asserted in both locales: a row naming no key renders its
+      // own words rather than nothing, which is what a manufacturer-entered row will be after M8.
+      expect(content.bookText("authored-token", undefined)).toBe(
+        "authored-token",
+      );
     },
   );
 
-  it.each([
-    ["ro", roMessages],
-    ["ru", ruMessages as typeof roMessages],
-  ] as const)(
+  it.each(CATALOGUES)(
     "resolves all 35 rejection codes and 41 branch fixtures in %s",
     (locale, messages) => {
-      const { content } = contentFor(locale, messages);
+      const { content } = contentAndOracleFor(locale, messages);
       const codes = new Set<string>();
 
       expect(REJECTION_FIXTURES).toHaveLength(41);
@@ -277,13 +292,10 @@ describe("the localized content resolver", () => {
     },
   );
 
-  it.each([
-    ["ro", roMessages],
-    ["ru", ruMessages as typeof roMessages],
-  ] as const)(
+  it.each(CATALOGUES)(
     "renders all eight empty-space side/reason combinations distinctly in %s",
     (locale, messages) => {
-      const { content } = contentFor(locale, messages);
+      const { content } = contentAndOracleFor(locale, messages);
       const sides = [
         { side: "right", reason: "absent" },
         { side: "right", reason: "too_narrow" },
@@ -315,8 +327,8 @@ describe("the localized content resolver", () => {
   );
 
   it("actually switches the whole resolved surface instead of returning Romanian functions", () => {
-    const romanian = contentFor("ro", roMessages).content;
-    const russian = contentFor("ru", ruMessages as typeof roMessages).content;
+    const romanian = contentAndOracleFor("ro", roMessages).content;
+    const russian = contentAndOracleFor("ru", ruMessages as Catalogue).content;
     const roByPath = new Map(
       stringLeaves(romanian).map(({ path, value }) => [path, value]),
     );
@@ -335,7 +347,10 @@ describe("the localized content resolver", () => {
 });
 
 describe("Romanian CLDR plural bands", () => {
-  const { content: romanian, translate } = contentFor("ro", roMessages);
+  const { content: romanian, translate } = contentAndOracleFor(
+    "ro",
+    roMessages,
+  );
 
   it.each([
     [0, "few"],

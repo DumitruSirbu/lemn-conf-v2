@@ -46,12 +46,16 @@ export interface CabinetPriceLine extends PriceLineCommon {
   readonly widthMm: number;
 }
 
-/** A whole-kitchen tier, priced once after every placement line. */
+/** A whole-kitchen tier, priced once after every placement line. Carries the tier's own key beside
+ *  its authored name (ADR 0106 decision 1) so the breakdown resolves the same words the settings
+ *  sheet does — the line publishes the descriptor and resolves nothing. */
 export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly kind: "hardware" | "material";
   readonly tierId: string;
   readonly name: string;
   readonly description: string;
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
 }
 
 /** **An extra the design earns rather than chooses** — ADR 0070 decision 4's two sink extras, and
@@ -71,6 +75,8 @@ export interface AccessoryPriceLine extends PriceLineCommon {
   readonly accessoryId: string;
   readonly name: string;
   readonly description: string;
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
 }
 
 export type PriceLine =

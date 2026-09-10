@@ -4,6 +4,7 @@ import type {
   Band,
   BodyLabel,
   EmptySpaceSide,
+  PaletteEntryId,
   RejectionDetail,
 } from "@lemnaria/configurator-domain";
 
@@ -73,6 +74,107 @@ export function resolveBandLabel(
  *  named. Never a key path, never an empty string, and never the raw `kind` id. */
 function resolveUnknownBody(translate: ContentTranslator): string {
   return translate("catalog.unknownKind");
+}
+
+/**
+ * A palette entry's name, resolved from the entry id the domain publishes — ADR 0071's six decors
+ * and two woods, which `materials.ts` declares as ids and no longer as Romanian words.
+ *
+ * **A literal-key switch over a closed id union**, for `resolveEntryLabel`'s reason and one more: a
+ * ninth entry added to `PALETTE_ENTRY_IDS` is a compile error here rather than a chip whose label is
+ * the key path, and `` translate(`finish.${entryId}`) `` — which the ids would otherwise spell
+ * exactly — would defeat the generated declaration that makes that true.
+ */
+export function resolveFinishName(
+  translate: ContentTranslator,
+  entryId: PaletteEntryId,
+): string {
+  switch (entryId) {
+    case "pal.alb":
+      return translate("finish.pal.alb");
+    case "pal.stejar-bardolino":
+      return translate("finish.pal.stejar-bardolino");
+    case "pal.stejar-halifax":
+      return translate("finish.pal.stejar-halifax");
+    case "pal.antracit":
+      return translate("finish.pal.antracit");
+    case "pal.gri-havanna":
+      return translate("finish.pal.gri-havanna");
+    case "pal.nuc-warmia":
+      return translate("finish.pal.nuc-warmia");
+    case "veneer.stejar":
+      return translate("finish.veneer.stejar");
+    case "veneer.nuc":
+      return translate("finish.veneer.nuc");
+    default:
+      return assertNever(entryId);
+  }
+}
+
+/**
+ * **One rendered field of a price book row** — a tier's or an accessory's name or description, as
+ * ADR 0106 decision 1 publishes it: the row's own authored text, and the catalogue leaf it names
+ * where it names one.
+ *
+ * **The key wins when present, and the authored text is the fallback rather than a hole.** A row
+ * naming no key renders what it was typed with, in whatever language that was — which is ADR 0106
+ * decision 2 and the shape a manufacturer-entered row needs after M8, since a dashboard user types
+ * a name and does not mint a catalogue key. A row naming a key **this build has no arm for** lands
+ * on the same path: a book arrives from outside TypeScript through ADR 0062's seam, so an unknown
+ * key is reachable and is answered with the book's own words rather than with a key path on screen.
+ *
+ * The arms are literal keys for `resolveEntryLabel`'s reason. The shipped book's keys are swept for
+ * totality by `price-book-text.test.ts` — **and it is the `ru` arm of that sweep that bites, not the
+ * `ro` one.** Every Romanian leaf is the row's authored word byte for byte, so an arm deleted here
+ * falls back to that same word and the Romanian pass stays green; only the Russian pass sees the
+ * difference. A `ro`-only run says nothing about whether this switch is total.
+ */
+export function resolveBookText(
+  translate: ContentTranslator,
+  authored: string,
+  key: string | undefined,
+): string {
+  if (key === undefined) return authored;
+  return resolveBookLeaf(translate, key) ?? authored;
+}
+
+/** The leaf a book row's key names, or `undefined` where this build knows no such leaf. */
+function resolveBookLeaf(
+  translate: ContentTranslator,
+  key: string,
+): string | undefined {
+  switch (key) {
+    case "priceBook.hardware.standard.name":
+      return translate("priceBook.hardware.standard.name");
+    case "priceBook.hardware.standard.description":
+      return translate("priceBook.hardware.standard.description");
+    case "priceBook.hardware.soft-close.description":
+      return translate("priceBook.hardware.soft-close.description");
+    case "priceBook.hardware.premium.description":
+      return translate("priceBook.hardware.premium.description");
+    case "priceBook.material.melamine.name":
+      return translate("priceBook.material.melamine.name");
+    case "priceBook.material.melamine.description":
+      return translate("priceBook.material.melamine.description");
+    case "priceBook.material.painted-mdf.name":
+      return translate("priceBook.material.painted-mdf.name");
+    case "priceBook.material.painted-mdf.description":
+      return translate("priceBook.material.painted-mdf.description");
+    case "priceBook.material.veneer.name":
+      return translate("priceBook.material.veneer.name");
+    case "priceBook.material.veneer.description":
+      return translate("priceBook.material.veneer.description");
+    case "priceBook.accessory.sink-protective-cover.name":
+      return translate("priceBook.accessory.sink-protective-cover.name");
+    case "priceBook.accessory.sink-protective-cover.description":
+      return translate("priceBook.accessory.sink-protective-cover.description");
+    case "priceBook.accessory.dish-drying-rack.name":
+      return translate("priceBook.accessory.dish-drying-rack.name");
+    case "priceBook.accessory.dish-drying-rack.description":
+      return translate("priceBook.accessory.dish-drying-rack.description");
+    default:
+      return undefined;
+  }
 }
 
 function resolveEntryLabel(
@@ -439,6 +541,13 @@ export function resolveContent(translate: ContentTranslator) {
      *  resolved content has no translator of its own. */
     bodyLabel: (label: BodyLabel) => resolveBodyLabel(translate, label),
     bandLabel: (band: Band) => resolveBandLabel(translate, band),
+    finishName: (entryId: PaletteEntryId) =>
+      resolveFinishName(translate, entryId),
+    /** A price book row's rendered sentence — see `resolveBookText`. A descriptor resolver like
+     *  the three above and not a content family: the words are the book's, and what the catalogue
+     *  holds is the translation of the rows this product ships. */
+    bookText: (authored: string, key: string | undefined) =>
+      resolveBookText(translate, authored, key),
     brand: translate("brand"),
     configure: {
       step: translate("configure.step", { step: 2, totalSteps: 4 }),

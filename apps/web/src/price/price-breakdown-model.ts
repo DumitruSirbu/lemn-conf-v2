@@ -213,7 +213,10 @@ function toUnplacedRow(
     key: line.lineId,
     label: content.priceBreakdown.wholeKitchenLabel(
       content.priceBreakdown.wholeKitchenCategories[line.kind],
-      line.name,
+      // The book's row names the catalogue leaf its own words live in (ADR 0106 decision 1), so the
+      // sheet and this row say the same tier in the same language. A book row naming no leaf — the
+      // manufacturer-entered one ADR 0106 decision 2 keeps `name` required for — prints its own.
+      content.bookText(line.name, line.nameKey),
     ),
     amountText: describeRowAmount(line.amountMinor, content),
   };

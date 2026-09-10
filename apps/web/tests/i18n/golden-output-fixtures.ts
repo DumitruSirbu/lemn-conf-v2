@@ -881,6 +881,10 @@ const DESCRIPTOR_RESOLVERS: ReadonlySet<string> = new Set([
   "rejection",
   "bodyLabel",
   "bandLabel",
+  // Wave 6B-f2's two, on the same footing: a `PaletteEntryId` and a price book row's `nameKey` are
+  // descriptors the domain publishes, not entries the legacy content module ever held.
+  "finishName",
+  "bookText",
 ]);
 
 export function collectContentFunctionFamilies(): readonly string[] {

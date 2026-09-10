@@ -199,6 +199,44 @@ declare const messages: {
       "nuc": "Nuc"
     }
   },
+  "priceBook": {
+    "hardware": {
+      "standard": {
+        "name": "Standard",
+        "description": "Balamale și glisiere fără amortizare, închidere simplă."
+      },
+      "soft-close": {
+        "description": "Balamale și glisiere cu amortizare, de la Hettich."
+      },
+      "premium": {
+        "description": "Balamale și glisiere cu amortizare, de la Blum."
+      }
+    },
+    "material": {
+      "melamine": {
+        "name": "PAL melaminat",
+        "description": "Materialul standard al bucătăriei, inclus în preț."
+      },
+      "painted-mdf": {
+        "name": "MDF vopsit mat",
+        "description": "Fronturi din MDF vopsit mat, pentru toată bucătăria."
+      },
+      "veneer": {
+        "name": "Furnir natural",
+        "description": "Fronturi furniruite natural, pentru toată bucătăria."
+      }
+    },
+    "accessory": {
+      "sink-protective-cover": {
+        "name": "Protecție de aluminiu pentru corpul spălătorului",
+        "description": "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna."
+      },
+      "dish-drying-rack": {
+        "name": "Uscător de vase",
+        "description": "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat."
+      }
+    }
+  },
   "catalog": {
     "emptySlot": "Spațiu liber",
     "unknownKind": "Dulap",

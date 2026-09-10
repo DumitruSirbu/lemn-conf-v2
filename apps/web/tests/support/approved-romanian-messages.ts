@@ -235,6 +235,51 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       nuc: "Nuc",
     },
   },
+  // Wave 6B-f2 relocated these 14 leaves from `sample-price-book.ts`, byte for byte, under ADR 0095
+  // Amendment B and ADR 0106. **Not new copy**: every string below was owner-authored in the book
+  // and is locked here at the wording it shipped with, so a reword is an unapproved change in the
+  // same way any other leaf's is. The two brand tiers name no `name` leaf on purpose — *Hettich*
+  // and *Blum* are proper nouns and render from the book's own field in every locale.
+  priceBook: {
+    hardware: {
+      standard: {
+        name: "Standard",
+        description: "Balamale și glisiere fără amortizare, închidere simplă.",
+      },
+      "soft-close": {
+        description: "Balamale și glisiere cu amortizare, de la Hettich.",
+      },
+      premium: {
+        description: "Balamale și glisiere cu amortizare, de la Blum.",
+      },
+    },
+    material: {
+      melamine: {
+        name: "PAL melaminat",
+        description: "Materialul standard al bucătăriei, inclus în preț.",
+      },
+      "painted-mdf": {
+        name: "MDF vopsit mat",
+        description: "Fronturi din MDF vopsit mat, pentru toată bucătăria.",
+      },
+      veneer: {
+        name: "Furnir natural",
+        description: "Fronturi furniruite natural, pentru toată bucătăria.",
+      },
+    },
+    accessory: {
+      "sink-protective-cover": {
+        name: "Protecție de aluminiu pentru corpul spălătorului",
+        description:
+          "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna.",
+      },
+      "dish-drying-rack": {
+        name: "Uscător de vase",
+        description:
+          "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat.",
+      },
+    },
+  },
   catalog: {
     emptySlot: "Spațiu liber",
     unknownKind: "Dulap",

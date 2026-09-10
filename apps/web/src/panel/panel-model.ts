@@ -984,26 +984,31 @@ function describeSwatchSection(
     control: control.shape,
     title: content.panel.finishTitle,
     chips: control.entries.map((entry) =>
-      describeFinishChip(entry, chosen, editability),
+      describeFinishChip(entry, { chosen, editability, content }),
     ),
     note: content.panel.finishApproximationNote,
   };
 }
 
-/** One decor, rendered. The label is the entry's own declared name — ADR 0071 decision 4's, in the
- *  product's Romanian — and never a supplier code, which `materials.ts` keeps as internal
- *  provenance. The colour is the adapter's, so the swatch and the 3D paint from one declared hex. */
+/** One decor, rendered. The label is the entry's name resolved from its id through the catalogue —
+ *  ADR 0071 decision 4's word, in the customer's language — and never a supplier code, which
+ *  `materials.ts` keeps as internal provenance. The colour is the adapter's, so the swatch and the
+ *  3D paint from one declared hex. */
 function describeFinishChip(
   entry: PaletteEntry,
-  chosen: Finish | undefined,
-  editability: PanelEditability,
+  against: {
+    readonly chosen: Finish | undefined;
+    readonly editability: PanelEditability;
+    readonly content: Content;
+  },
 ): FinishChip {
+  const { chosen, editability, content } = against;
   const finish: Finish = { kind: "palette-entry", entryId: entry.entryId };
   const swatch = swatchOf(finish);
   return {
     value: entry.entryId,
     finish,
-    label: entry.name,
+    label: content.finishName(entry.entryId),
     swatchColor: swatch.color,
     isWood: swatch.isWood,
     isActive: chosen !== undefined && sameFinish(chosen, finish),

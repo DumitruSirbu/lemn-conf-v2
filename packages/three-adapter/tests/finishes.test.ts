@@ -44,11 +44,12 @@ beforeAll(() => {
   kit = makeKit({ createCanvas: createHeadlessCanvas });
 });
 
-/** Every declared entry, as the pair a `it.each` row reads. Taken from the domain's own generator,
- *  so a seventh decor joins this sweep without anything here being edited — which is the half of
- *  "the table is total" a type annotation cannot assert. */
+/** Every declared entry, as the pair a `it.each` row reads — named by its id, which is what a
+ *  palette entry declares since its human name moved to the app's catalogue. Taken from the domain's
+ *  own generator, so a seventh decor joins this sweep without anything here being edited — which is
+ *  the half of "the table is total" a type annotation cannot assert. */
 const DECLARED: readonly (readonly [string, Finish])[] = PALETTE_ENTRIES.map(
-  (entry) => [entry.name, paletteFinish(entry.entryId)] as const,
+  (entry) => [entry.entryId, paletteFinish(entry.entryId)] as const,
 );
 
 function makeFront(): THREE.Mesh {
@@ -81,20 +82,20 @@ describe("the finish table is total over the domain's declared palette", () => {
   // The failure this replaces is M4's *Finisaj* defect one layer down: a decor declared in the
   // domain, absent from the adapter, and rendering the kit's own default white with nothing said.
   // A missing row is a compile failure in `finishes.ts`; this is the runtime half.
-  it.each(DECLARED)("publishes a six-digit hex for %s", (_name, finish) => {
+  it.each(DECLARED)("publishes a six-digit hex for %s", (_entryId, finish) => {
     expect(swatchOf(finish).color).toMatch(FREE_COLOUR_PATTERN);
   });
 
   it.each(DECLARED)(
     "paints %s with exactly the colour it publishes",
-    (_name, finish) => {
+    (_entryId, finish) => {
       expect(colourOf(dressedFront(finish))).toBe(swatchOf(finish).color);
     },
   );
 
   it.each(DECLARED)(
     "paints %s the same way through applyBodyFinish",
-    (_name, finish) => {
+    (_entryId, finish) => {
       const body = new THREE.Group();
       body.add(makeFront());
       applyBodyFinish(body, kit.M, finish);
@@ -132,17 +133,20 @@ describe("a wood is one texture at several tints, and never a second generator",
   // becomes `M.oak` — tinted, not five generated grains. (`kitchen-parts.ts` instantiates that same
   // generator a second time for the floor, which no front ever samples.) A second texture object
   // reaching a front is a wave that left its scope.
-  it.each(WOODS)("draws %s on the kit's one oak map", (_name, finish) => {
+  it.each(WOODS)("draws %s on the kit's one oak map", (_entryId, finish) => {
     expect(
       (dressedFront(finish).material as THREE.MeshStandardMaterial).map,
     ).toBe(kit.M.oak.map);
   });
 
-  it.each(FLATS)("draws %s as a flat colour with no map", (_name, finish) => {
-    expect(
-      (dressedFront(finish).material as THREE.MeshStandardMaterial).map,
-    ).toBe(kit.M.door.map);
-  });
+  it.each(FLATS)(
+    "draws %s as a flat colour with no map",
+    (_entryId, finish) => {
+      expect(
+        (dressedFront(finish).material as THREE.MeshStandardMaterial).map,
+      ).toBe(kit.M.door.map);
+    },
+  );
 
   it("publishes isWood beside the hex rather than a second colour", () => {
     // The swatch's grain is derived from `color` in CSS. If `isWood` ever came from somewhere other
@@ -276,7 +280,7 @@ describe("the hob+oven filler panel is a front the customer can finish", () => {
     expect(fronts.map((front) => front.name)).toEqual([FILLER_MESH_NAME]);
   });
 
-  it.each(DECLARED)("wears %s once the body is dressed", (_name, finish) => {
+  it.each(DECLARED)("wears %s once the body is dressed", (_entryId, finish) => {
     const body = hobOvenBody();
     const [filler] = collectFronts(body);
     if (!filler) throw new Error(`no mesh named "${FILLER_MESH_NAME}"`);
@@ -313,7 +317,7 @@ describe("the dishwasher niche's decor door is a front the customer can finish",
 
   it.each(DECLARED)(
     "wears %s on the door and leaves every other mesh in the body alone",
-    (_name, finish) => {
+    (_entryId, finish) => {
       const body = nicheBody(0.6);
       const [door] = collectFronts(body);
       if (!door) throw new Error('no mesh named "door_front"');

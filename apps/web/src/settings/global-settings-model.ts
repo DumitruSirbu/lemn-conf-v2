@@ -19,7 +19,6 @@ import {
   lookUpMaterial,
   materialOffersFinish,
   MIN_CABINET_DEPTH_MM,
-  PALETTE_ENTRIES,
   type DisplayGroup,
   type Finish,
   type MaterialLookup,
@@ -731,15 +730,21 @@ export function describeSettingsPill(
     {
       key: "material" as const,
       label: input.content.globalSettings.pillMaterial(
-        selectedTierIn(input.offer.material, input.applied.materialTierId).name,
+        resolvedTierName(
+          selectedTierIn(input.offer.material, input.applied.materialTierId),
+          input.content,
+        ),
       ),
     },
-    ...colourEntryOf(input.applied),
+    ...colourEntryOf(input.applied, input.content),
     {
       key: "hardware" as const,
       label: input.content.globalSettings.pillHardware(
         chipCategories(input.content).hardware,
-        selectedTierIn(input.offer.hardware, input.applied.hardwareTierId).name,
+        resolvedTierName(
+          selectedTierIn(input.offer.hardware, input.applied.hardwareTierId),
+          input.content,
+        ),
       ),
     },
     {
@@ -828,10 +833,11 @@ export function describePillRung(
  */
 function colourEntryOf(
   applied: WholeKitchenChoice,
+  content: Content,
 ): readonly SettingsPillEntry[] {
   const finish = appliedFinishOf(applied);
   if (finish === undefined) return [];
-  return [{ key: "colour", label: nameOfFinish(finish) }];
+  return [{ key: "colour", label: nameOfFinish(finish, content) }];
 }
 
 /** What the pill's one swatch wears. Absent only where the applied material is undeclared, which is
@@ -851,16 +857,13 @@ function appliedFinishOf(applied: WholeKitchenChoice): Finish | undefined {
   return applied.finish ?? lookup.material.defaultFinish;
 }
 
-/** A palette entry's declared name — looked up across **every** material's palette rather than the
- *  applied one's, so a document carrying an entry from a material it has since left is still named
- *  rather than shown an id. **A free colour returns nothing**: it has no name, and the pill draws it
- *  rather than writing it. */
-function nameOfFinish(finish: Finish): string {
+/** A palette entry's name, resolved from the entry id through the catalogue — so a document carrying
+ *  an entry from a material it has since left is still named, and a `/ru` customer reads the pill in
+ *  Russian rather than in the palette's Romanian. **A free colour returns nothing**: it has no name,
+ *  and the pill draws it rather than writing it. */
+function nameOfFinish(finish: Finish, content: Content): string {
   if (finish.kind === "free-colour") return "";
-  return (
-    PALETTE_ENTRIES.find((entry) => entry.entryId === finish.entryId)?.name ??
-    finish.entryId
-  );
+  return content.finishName(finish.entryId);
 }
 
 /** What a screen reader is told about a colour the pill only draws. The visible pill shows a swatch;
@@ -870,7 +873,7 @@ function spokenColourOf(applied: WholeKitchenChoice, content: Content): string {
   if (finish === undefined) return "";
   return finish.kind === "free-colour"
     ? content.globalSettings.pillColourValue(finish.value)
-    : nameOfFinish(finish);
+    : nameOfFinish(finish, content);
 }
 
 function toGroupView(
@@ -891,8 +894,8 @@ function toGroupView(
     tierIds: group.tierIds,
     options: group.tiers.map((tier) => ({
       tierId: tier.tierId,
-      name: tier.name,
-      description: tier.description,
+      name: resolvedTierName(tier, content),
+      description: content.bookText(tier.description, tier.descriptionKey),
       ...(tier.deltaMinor === undefined
         ? {}
         : { deltaText: describeDelta(tier.deltaMinor, content) }),
@@ -921,6 +924,14 @@ function selectedTierIn(
   );
   if (!fallback) throw new UnofferedDefaultTierError(group.defaultTierId);
   return fallback;
+}
+
+/** What a tier is called on screen: the catalogue leaf its book row names, or the row's own authored
+ *  name where it names none — ADR 0106 decision 1, resolved here because this is where the content
+ *  is. The sheet's radios and the pill's segment go through this one function, so a tier cannot come
+ *  to be spelled two ways on the same screen. */
+function resolvedTierName(tier: OfferedTier, content: Content): string {
+  return content.bookText(tier.name, tier.nameKey);
 }
 
 /**

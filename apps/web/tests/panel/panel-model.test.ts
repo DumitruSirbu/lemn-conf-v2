@@ -438,12 +438,12 @@ describe("describePanel — finish and handle chips", () => {
     );
   });
 
-  it("labels each chip with the decor's own declared name", () => {
+  it("labels each chip with the decor's own catalogue name", () => {
     const section = swatchSectionOf(openPanelFor(occupiedMeta()).sections);
 
     expect(section.chips.map((chip) => chip.label)).toEqual(
-      paletteEntriesOf(materialById("material.melamine")).map(
-        (entry) => entry.name,
+      paletteEntriesOf(materialById("material.melamine")).map((entry) =>
+        ro.finishName(entry.entryId),
       ),
     );
   });
