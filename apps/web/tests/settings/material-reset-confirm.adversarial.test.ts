@@ -377,9 +377,11 @@ describe("the two copy sweeps reach this section and judge it", () => {
     // the natural Romanian phrasing of this very sentence fails on both counts. **It is a literal on
     // purpose** — it is a sentence the catalogue must *not* hold, so no leaf can supply it. Wave
     // 6B-j's allow-list, not a conversion.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a positive control: a sentence the catalogue must not hold, so no leaf can supply it.
     expect("Ai ales alte culori pentru în total 4 corpuri.").toMatch(
       SUM_CLAIM_PATTERN,
     );
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the second axis of the same positive control.
     expect("Ai ales alte culori pentru în total 4 corpuri.").toMatch(/\d/);
   });
 
@@ -393,8 +395,10 @@ describe("the two copy sweeps reach this section and judge it", () => {
     // enclosing section that still carries them, and the cedilla ban is asserted across all of it.
     const enclosing = copyLeaves(roMessages.globalSettings);
     expect(
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a comma-below character class, not wording.
       enclosing.filter((leaf) => /[șț]/.test(leaf)).length,
     ).toBeGreaterThan(0);
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the cedilla character class this file exists to refuse.
     for (const leaf of enclosing) expect(leaf, leaf).not.toMatch(/[şţ]/);
   });
 });

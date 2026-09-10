@@ -51,6 +51,7 @@ const SUB_PIXEL_SLACK = 0.5;
  *  copy — Romanian because diacritics change a glyph run's measured width, so a Latin-only string
  *  would test the overflow at the wrong metrics. */
 const OVERLONG_TITLE =
+  // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a metrics fixture rather than copy — the note above rules it Romanian because diacritics change the measured glyph run.
   "Configurare completă a bucătăriei pe toți pereții, cu toate corpurile alese";
 
 test.beforeEach(async ({ page }) => {

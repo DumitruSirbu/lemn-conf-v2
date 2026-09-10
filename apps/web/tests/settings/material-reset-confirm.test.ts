@@ -350,12 +350,14 @@ describe("the four strings, where the customer meets them", () => {
 
     // The three literals in this case are codepoints and one grapheme, asserted as *properties* of
     // the accepted wording rather than as the wording — wave 6B-j's allow-list, not a conversion.
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: codepoints and one grapheme, asserted as properties of the accepted wording rather than as the wording. */
     expect(ro.globalSettings.depthWarning).toContain("\u021b");
     expect(sentence).not.toMatch(/[şţ]/);
     expect(RULED.confirm).toContain("ă");
     expect(RULED.confirm).not.toMatch(/[şţ]/);
     expect(RULED.back).not.toMatch(/[şţ]/);
     expect(RULED.title).not.toMatch(/[şţ]/);
+    /* eslint-enable no-restricted-syntax */
   });
 });
 

@@ -173,6 +173,7 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
     // **The literal lives inside a regex, not a string.** A diacritic scanner that reads quoted and
     // template strings only cannot see this line — one did not, twice — so 6B-j's rule must scan
     // regex literals too, or it will report this package clean while the word is still in it.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the book's own authored prose, which ADR 0106 decision 2 keeps required — and it lives in a regex, which is why the third selector exists.
     expect(defaultTier.description).not.toMatch(/incluse? în preț/i);
   });
 });

@@ -70,12 +70,14 @@ describe("the stressed catalogue is still a catalogue", () => {
     });
     const rendered = translate("panel.countForBody", {
       count: 5,
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: an ICU argument handed to the transform, not a rendered sentence.
       bandWord: "bază",
       widthMm: 600,
     });
 
     expect(rendered).toContain("5");
     expect(rendered).toContain("600");
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the same argument, read back: the claim is that the transform returned it, not that any catalogue says it.
     expect(rendered).toContain("bază");
     expect(rendered).not.toContain("{");
   });
@@ -118,9 +120,11 @@ describe("the stressed catalogue actually stresses", () => {
   it("leaves an argument specification alone, and pads the branch body around it", () => {
     // The one worked example, spelled out because brace-depth parity is the transform's whole
     // correctness argument and a reader deserves to see it hold.
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: the worked example of brace-depth parity — the transform's input and its exact output, which a catalogue read cannot supply. */
     expect(
       pseudoLocalizeMessage("{count, plural, one {# dulap} other {# uși}}"),
     ).toBe("⟦{count, plural, one {# düläp··} other {# üșï··}}⟧");
+    /* eslint-enable no-restricted-syntax */
   });
 });
 

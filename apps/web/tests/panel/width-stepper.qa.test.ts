@@ -523,7 +523,9 @@ describe("§9's width copy describes the control that is actually there", () => 
   // 6B-j's allow-list rather than in a conversion.
   it("never tells the customer the feature is unavailable", () => {
     for (const note of [ro.panel.widthStepNote, ro.panel.widthChoiceNote]) {
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording: a reintroduced unavailability disclaimer must fail here.
       expect(note).not.toMatch(/nu este (încă )?disponibil/i);
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the second negative claim of the same pin.
       expect(note).not.toMatch(/în această versiune/i);
     }
   });
@@ -541,6 +543,7 @@ describe("§9's width copy describes the control that is actually there", () => 
   // not a false red.
   it("states the step and where the width comes from, without claiming a universal floor", () => {
     expect(ro.panel.widthStepNote).toContain("50");
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a positive claim that the note keeps naming the free space, matched on the one noun phrase it cannot lose — the note above records why it is not a tautology.
     expect(ro.panel.widthStepNote).toMatch(/spațiului liber/i);
     expect(ro.panel.widthStepNote).not.toContain("300");
   });

@@ -808,9 +808,11 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
     // was *removed* from it, so there is no leaf to name. A probe for an absent sentence has to
     // spell it. Wave 6B-j's allow-list, not a conversion.
     const hidden = [
+      /* eslint-disable no-restricted-syntax -- 6B-j allow-list: markup probes for a clause wave 6F removed from the catalogue, so there is no leaf to name. */
       '<p style="display:none">și poate limita unele finisaje per corp</p>',
       '<p aria-hidden="true">și poate limita unele finisaje per corp</p>',
       '<p hidden="">și poate limita unele finisaje per corp</p>',
+      /* eslint-enable no-restricted-syntax */
     ];
 
     for (const markup of hidden) expect(markup).toMatch(/finisaj/i);

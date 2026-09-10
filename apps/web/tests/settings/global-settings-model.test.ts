@@ -431,6 +431,7 @@ describe("the ruled words, and the one deliberately absent", () => {
     // `ț` U+021B, never `ţ` U+0163 — the same check `starting-price.adversarial.test.ts` keeps on
     // the owner's own sentence, applied to the two strings this wave drafted with a t-comma in them.
     for (const anchor of Object.values(content.globalSettings.groupAnchors)) {
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: codepoints rather than wording — the comma-below spelling of the two drafted anchor lines.
       expect(anchor, anchor).toContain("Fa\u021B\u0103");
       expect(anchor, anchor).not.toMatch(/[\u0163\u015F]/);
     }

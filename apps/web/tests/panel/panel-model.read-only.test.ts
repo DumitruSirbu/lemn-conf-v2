@@ -174,7 +174,9 @@ describe("the notice says which of the two situations this is", () => {
     //
     // **The two literals are deliberate and load-bearing** — a *negative* claim about the source
     // wording, which no catalogue read can express. Wave 6B-j's allow-list, not a conversion.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording, which no catalogue read can express — see the note above.
     expect(ro.panel.readOnlyNotice).not.toContain("browserul în care");
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the second half of the same negative claim.
     expect(ro.panel.readOnlyNotice).not.toContain("a fost creată");
   });
 
@@ -332,6 +334,7 @@ describe("the notice says which of the two situations this is", () => {
     //
     // **The literal is deliberate and load-bearing** — a *negative* claim about the source wording,
     // which no catalogue read can express. Wave 6B-j's allow-list, not a conversion.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording: no reload is offered — see the note above.
     expect(ro.panel.saveFailedNotice).not.toContain("reîncarcă pagina");
   });
 

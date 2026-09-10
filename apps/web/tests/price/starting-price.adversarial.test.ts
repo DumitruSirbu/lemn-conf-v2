@@ -419,11 +419,13 @@ describe("the flagged-total sentence accepted at Gate O1", () => {
     // and every `toBe` written from that paste would still pass.
     const warning = ro.price.overflowingTotalWarning;
 
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: codepoints rather than wording — U+0219/U+021B against U+015F/U+0163, the one difference a reviewer cannot see. */
     expect(warning).toContain("\u0219");
     expect(warning).toContain("\u021b");
     expect(warning).toContain("\u0103");
     expect(warning).not.toContain("\u015f");
     expect(warning).not.toContain("\u0163");
+    /* eslint-enable no-restricted-syntax */
   });
 
   it("keeps the accepted noun and has no added closing period", () => {

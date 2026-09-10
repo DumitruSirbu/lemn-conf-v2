@@ -17,7 +17,13 @@ import {
   type TierIdentity,
 } from "@lemnaria/configurator-domain";
 
-import { CATALOGUES, contentFor, leafAt } from "../support/catalogues";
+import {
+  CATALOGUES,
+  catalogueLeaves,
+  contentFor,
+  leafAt,
+  type CatalogueLocale,
+} from "../support/catalogues";
 import roMessages from "../../src/messages/ro.json";
 
 /** One rendered field a book row publishes: what it was authored as, and the leaf it names. */
@@ -182,6 +188,154 @@ describe("relocating a row's words relocated no amount", () => {
       for (const spelling of spellings) {
         expect(leaves, `${locale}:${spelling}`).not.toContain(spelling);
       }
+    }
+  });
+});
+
+/**
+ * **A keyed price-book text may not restate an amount, a delta or an earning rule** — ADR 0106
+ * Amendment A decision 5, and the sweep that amendment says is still owed.
+ *
+ * Three shipped leaves once did: *"…inclus în preț"* restated `wholeKitchenMinor: 0` in words, and
+ * two *"Inclus…"* clauses restated ADR 0070 decision 4's earning rule. The owner trimmed all three
+ * on 2026-09-10.
+ *
+ * **Why the digit sweep above cannot be widened into this one, recorded so the wrong fix is not
+ * reached for again.** That sweep filters `amount !== 0` and matches digits. Dropping the filter
+ * looks like the fix — zero is exactly what these leaves asserted — and is not: `String(0)` occurs
+ * inside every four-digit price, so every leaf beside a `9 000` would fail vacuously. The filter is
+ * correct. Prose asserting inclusion carries **no digit at all**, so no widening of a digit search
+ * reaches it. What was missing is a different sweep, and this is it.
+ *
+ * **It is a word check and therefore needs a policy**, which is what makes it an enforcement gate
+ * rather than a tighter assertion: a legitimate description may one day want one of these words, and
+ * the answer then is an entry below with the reason it is not a second copy of a fact.
+ */
+const INCLUSION_WORDS: Readonly<Record<CatalogueLocale, RegExp>> = {
+  // The `inclus` family, widened one step past Amendment A's three spellings to reach `inclusiv` and
+  // `incluzând` as well — the same claim in a different part of speech. `include` is outside it on
+  // purpose: *"Nu include transport"* is an exclusion, and the leaf that says so is not a book text.
+  ro: /\binclu[sz]\w*/iu,
+  // No `\b` before Cyrillic: JavaScript's word boundary is ASCII-only, so it never matches in front
+  // of `в`. Measured, not assumed — the anchored spelling silently matches nothing.
+  ru: /(включ|входит|входят|входящ)/iu,
+};
+
+/** A leaf ruled to carry an inclusion word anyway, with the reason it is not a restatement.
+ *
+ *  **Empty, and empty is the correct state**: the owner trimmed all three claims before this sweep
+ *  existed. The path is exercised against a fixture below rather than left to be discovered by
+ *  whoever first needs it. */
+interface RuledInclusionClaim {
+  readonly key: string;
+  readonly locale: CatalogueLocale;
+  readonly reason: string;
+}
+
+const RULED_TO_STATE_INCLUSION: readonly RuledInclusionClaim[] = [];
+
+/** Which of a catalogue's leaves state inclusion, minus the ones ruled to. One function, so the
+ *  shipped sweep and the fixture that proves the exemption path are the same code. */
+function unruledInclusionClaimsIn(
+  leaves: readonly (readonly [string, string])[],
+  locale: CatalogueLocale,
+  ruled: readonly RuledInclusionClaim[],
+): readonly string[] {
+  return leaves
+    .filter(([, text]) => INCLUSION_WORDS[locale].test(text))
+    .map(([key]) => key)
+    .filter(
+      (key) =>
+        !ruled.some((entry) => entry.key === key && entry.locale === locale),
+    );
+}
+
+function priceBookLeavesOf(
+  messages: (typeof CATALOGUES)[number][1],
+): readonly (readonly [string, string])[] {
+  return catalogueLeaves(messages.priceBook, "priceBook");
+}
+
+describe("a book text states no amount it is printed beside", () => {
+  it.each(CATALOGUES)(
+    "claims no inclusion in any %s book leaf",
+    (locale, messages) => {
+      const leaves = priceBookLeavesOf(messages);
+
+      // Non-vacuity: 16 leaves ship, and a walk that found none would pass this silently.
+      expect(leaves.length).toBeGreaterThan(10);
+      expect(
+        unruledInclusionClaimsIn(leaves, locale, RULED_TO_STATE_INCLUSION),
+      ).toEqual([]);
+    },
+  );
+
+  it("recognises each of the three claims the owner trimmed", () => {
+    // The positive control, and it is what stops the sweep above passing because the pattern matches
+    // nothing. These are the sentences ADR 0106 Amendment A tabulates, quoted as detector inputs.
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: the three trimmed claims, quoted as inputs to the detector rather than as copy — no leaf holds them any more, so nothing can supply them. */
+    const trimmed = [
+      "Materialul standard al bucătăriei, inclus în preț.",
+      "Inclusă întotdeauna, în corpul spălătorului.",
+      "Inclus unde există un corp suspendat.",
+    ];
+    /* eslint-enable no-restricted-syntax */
+
+    for (const claim of trimmed)
+      expect(INCLUSION_WORDS.ro.test(claim), claim).toBe(true);
+    // A description that merely describes must still pass, or the sweep is a ban on the letter i.
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: the shipped leaves quoted as negative detector inputs. Reading them through the catalogue would make this pair agree with whatever the catalogue currently says, which is the tautology the control exists to avoid. */
+    for (const kept of [
+      "Materialul standard al bucătăriei.",
+      "Montat în corpul suspendat de deasupra spălătorului.",
+    ])
+      expect(INCLUSION_WORDS.ro.test(kept), kept).toBe(false);
+    /* eslint-enable no-restricted-syntax */
+  });
+
+  it("recognises the same claim in Russian, where an ASCII word boundary does not", () => {
+    // Detector fixtures, not owner wording: the Russian catalogue is an unapproved draft and Gate O2
+    // is the owner's. What is asserted here is that the pattern reaches Cyrillic at all.
+    for (const claim of ["включено в цену", "Входит всегда", "включён в цену"])
+      expect(INCLUSION_WORDS.ru.test(claim), claim).toBe(true);
+    for (const kept of ["Стандартный материал кухни."])
+      expect(INCLUSION_WORDS.ru.test(kept), kept).toBe(false);
+  });
+
+  it("lets a ruled leaf through, and only the leaf and locale it names", () => {
+    // The exemption path, exercised against a fixture rather than left untried until the day
+    // somebody needs it — an escape hatch nobody has opened is an escape hatch nobody has tested.
+    const leaves = [
+      ["priceBook.material.melamine.description", "Cant ABS inclusiv."],
+      ["priceBook.material.veneer.description", "Lac mat inclusiv."],
+    ] as const;
+    const ruled: readonly RuledInclusionClaim[] = [
+      {
+        key: "priceBook.material.melamine.description",
+        locale: "ro",
+        reason: "fixture: names a component, not the row's own amount",
+      },
+    ];
+
+    expect(unruledInclusionClaimsIn(leaves, "ro", ruled)).toEqual([
+      "priceBook.material.veneer.description",
+    ]);
+    // The same entry does not travel to the other locale: a Russian leaf keeps its own ruling.
+    expect(unruledInclusionClaimsIn(leaves, "ru", ruled)).toEqual([]);
+    expect(unruledInclusionClaimsIn(leaves, "ro", [])).toEqual(
+      leaves.map(([key]) => key),
+    );
+  });
+
+  it("records a reason for every exemption it holds", () => {
+    // The mitigation ADR 0106 Amendment A asks for, asserted rather than asked for: an entry with no
+    // sentence beside it is indistinguishable from a suppression.
+    for (const entry of RULED_TO_STATE_INCLUSION) {
+      expect(entry.reason.length, entry.key).toBeGreaterThan(20);
+      expect(
+        leafAt(CATALOGUES[0][1], entry.key),
+        `${entry.key} names no leaf`,
+      ).toBeDefined();
     }
   });
 });
