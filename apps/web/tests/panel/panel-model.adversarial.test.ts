@@ -159,7 +159,7 @@ describe("the panel over the seeded kitchen", () => {
       kind: "void",
       id: baseSlot?.id ?? "",
     });
-    expect(section?.title).toBe("Adaugă aici un dulap");
+    expect(section?.title).toBe(ro.panel.replaceTitleEmpty);
     expect(section?.rows.length).toBeGreaterThan(0);
     expect(section?.countLine).toBe(
       ro.panel.countForSlot(

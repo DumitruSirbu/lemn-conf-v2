@@ -47,7 +47,9 @@ const CANVAS_BEFORE_THIS_WAVE_PX = 628;
 const SUB_PIXEL_SLACK = 0.5;
 
 /** Criterion 2's input: a title several times the longest the product ships. "Configurare" is 11
- *  characters; this is 78, which no shell has room for at 390 px. */
+ *  characters; this is 78, which no shell has room for at 390 px. A metrics fixture rather than
+ *  copy — Romanian because diacritics change a glyph run's measured width, so a Latin-only string
+ *  would test the overflow at the wrong metrics. */
 const OVERLONG_TITLE =
   "Configurare completă a bucătăriei pe toți pereții, cu toate corpurile alese";
 

@@ -112,7 +112,7 @@ describe("the panel over the store's own state", () => {
       (candidate) => candidate.kind === "replace",
     );
     if (section?.kind !== "replace") throw new Error("no replace section");
-    expect(section.title).toBe("Adaugă aici un dulap");
+    expect(section.title).toBe(ro.panel.replaceTitleEmpty);
     expect(section.rows.length).toBeGreaterThan(0);
     expect(section.countLine).toContain(String(section.rows.length));
   });

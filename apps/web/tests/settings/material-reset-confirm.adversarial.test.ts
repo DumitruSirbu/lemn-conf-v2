@@ -374,7 +374,9 @@ describe("the two copy sweeps reach this section and judge it", () => {
       expect(leaf, leaf).not.toMatch(/\d/);
     }
     // The positive control, so the two assertions above cannot pass by finding nothing to judge:
-    // the natural Romanian phrasing of this very sentence fails on both counts.
+    // the natural Romanian phrasing of this very sentence fails on both counts. **It is a literal on
+    // purpose** — it is a sentence the catalogue must *not* hold, so no leaf can supply it. Wave
+    // 6B-j's allow-list, not a conversion.
     expect("Ai ales alte culori pentru în total 4 corpuri.").toMatch(
       SUM_CLAIM_PATTERN,
     );

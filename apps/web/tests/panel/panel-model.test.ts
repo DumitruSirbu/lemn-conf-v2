@@ -82,8 +82,8 @@ describe("describePanel — when the panel is open at all", () => {
   it("renders §9's header line from the selection's own numbers", () => {
     const panel = openPanelFor(occupiedMeta());
     expect(panel.header).toEqual({
-      label: "Dulap bază 2 uși",
-      detail: "Perete A · bază · 600 × 860 mm",
+      label: ro.bodyLabel(occupiedMeta().label),
+      detail: ro.panel.headerMeta("A", ro.bandLabel("base"), 600, 860),
     });
   });
 });
@@ -219,10 +219,13 @@ describe("describePanel — the replace list", () => {
     const occupied = openPanelFor(occupiedMeta(), { offers: offers(1) });
     const slot = openPanelFor(slotMeta(), { offers: offers(1) });
     expect(findSection(occupied.sections, "replace")?.title).toBe(
-      "Înlocuiește",
+      ro.panel.replaceTitleOccupied,
     );
     expect(findSection(slot.sections, "replace")?.title).toBe(
-      "Adaugă aici un dulap",
+      ro.panel.replaceTitleEmpty,
+    );
+    expect(findSection(occupied.sections, "replace")?.title).not.toBe(
+      findSection(slot.sections, "replace")?.title,
     );
   });
 
@@ -258,7 +261,7 @@ describe("describePanel — the replace list", () => {
     expect(lineFor(1)).toBe(
       ro.panel.countForBody(1, ro.panel.bandWords.wall.one, 700),
     );
-    expect(lineFor(5) ?? "").not.toContain("rând de sus");
+    expect(lineFor(5) ?? "").not.toContain(ro.bandLabel("top"));
     expect(
       findSection(openPanelFor(topRow).sections, "replace")?.emptyLine,
     ).toBe(ro.panel.noOffersForBody(ro.panel.bandWords.wall.one));
@@ -295,11 +298,17 @@ describe("describePanel — the replace list", () => {
 
   // §9: a zero-result list shows a sentence saying what to clear, never a bare "0".
   it("replaces the count line with a sentence when nothing fits", () => {
-    for (const meta of [occupiedMeta(), slotMeta()]) {
+    // Which leaf, not which word: the two sentences differ because one selection is a body and the
+    // other a slot, and both say what to clear. Their wording is pinned in the copy lock.
+    const emptyLineFor = [
+      ro.panel.noOffersForBody(ro.panel.bandWords.base.one),
+      ro.panel.noOffersForSlot(700, 860),
+    ];
+    for (const [index, meta] of [occupiedMeta(), slotMeta()].entries()) {
       const section = findSection(openPanelFor(meta).sections, "replace");
       expect(section?.rows).toEqual([]);
       expect(section?.countLine).toBeUndefined();
-      expect(section?.emptyLine ?? "").toMatch(/Șterge/);
+      expect(section?.emptyLine).toBe(emptyLineFor[index]);
       expect(section?.emptyLine ?? "").not.toMatch(/\b0\b/);
     }
   });

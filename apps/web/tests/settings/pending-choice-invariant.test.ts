@@ -131,7 +131,7 @@ function commit(
   });
 }
 
-describe("any sequence of radio presses ending in Renunță", () => {
+describe("any sequence of radio presses ending in cancel", () => {
   propertyTest.prop([anyPressSequence])(
     "leaves the stored document byte-identical to the one the sheet opened on",
     (presses) => {
@@ -149,7 +149,7 @@ describe("any sequence of radio presses ending in Renunță", () => {
   );
 
   propertyTest.prop([anyPressSequence])(
-    "would have moved the document had it ended in Aplică, so the claim above is not vacuous",
+    "would have moved the document had it ended in apply, so the claim above is not vacuous",
     (presses) => {
       const { store } = freshStore();
       const opened = canonicalSerializeDesign(store.getState().design);

@@ -188,6 +188,8 @@ describe("what a failure may never do to the line's shape", () => {
     expect(reason).not.toContain("‬");
   });
 
+  // The Romanian is the test's subject, not copy: the log must carry a locale's own letters through
+  // unchanged, beside the bidirectional overrides it strips above.
   it("keeps ordinary non-ASCII text, which is not a forgery risk", () => {
     emitFailure(new Error("bucătărie: coloană inexistentă"));
 

@@ -163,15 +163,12 @@ describe("an overflowing design", () => {
     expect(findOverflowingPlacementIds(overflowing)).toEqual([OVERFLOWING_ID]);
   });
 
-  it("shows its total, flagged with the owner's own sentence", () => {
+  it("reaches for `price.overflowingTotalWarning` and no other leaf", () => {
+    // Which leaf the bar reaches for, not what it says: the wording of
+    // `price.overflowingTotalWarning` is pinned once, in the copy lock, and the two spellings this
+    // case used to carry beside it went red for an owner retranslation rather than for a defect.
     const bar = pricedBarFor(overflowing);
 
-    expect(ro.price.overflowingTotalWarning).toBe(
-      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
-    );
-    expect(bar.overflowWarning).toBe(
-      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
-    );
     expect(bar.overflowWarning).toBe(ro.price.overflowingTotalWarning);
   });
 

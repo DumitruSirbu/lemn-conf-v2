@@ -3,9 +3,9 @@
 // The rendered half is here for `price-breakdown-model.test.ts`'s reason: *"a zero reads inclus"* is
 // a claim about what is on the page, and a value assertion cannot see a `0` rendered beside it.
 //
-// **Every Romanian string this wave added is pinned by a literal below.** They are drafted from the
-// mockups' own frames and have not been through the owner, so the pins are what makes a change to
-// any of them a deliberate act rather than a diff nobody reads.
+// **Every string this wave added is read from its own catalogue leaf below, never spelled here.**
+// The wording is pinned once, in `tests/support/approved-romanian-messages.ts`; what these pin is
+// which leaf each field asks for, which is the half a copy lock cannot see.
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -273,7 +273,7 @@ describe("the two selections, which are not the same selection", () => {
       "PAL melaminat",
       "Alb",
       "Feronerie Standard",
-      "Adâncime 600",
+      content.globalSettings.pillDepth(600),
     ]);
     expect(view.pill.settings.map((setting) => setting.key)).toEqual([
       "material",
@@ -294,7 +294,9 @@ describe("the two selections, which are not the same selection", () => {
 
     expect(colour).toEqual({ key: "colour", label: "Alb" });
     expect(hardware?.label.startsWith("Feronerie ")).toBe(true);
-    expect(depth?.label.startsWith("Adâncime ")).toBe(true);
+    // Read from the leaf rather than spelled: `pillDepth` is `Adâncime {n}`, and that the word
+    // stands in front of the number is pinned once, in the copy lock.
+    expect(depth?.label).toBe(content.globalSettings.pillDepth(600));
   });
 
   it("draws a free colour as a swatch and no text at all, and still counts it as shown", () => {
@@ -354,14 +356,19 @@ describe("the two selections, which are not the same selection", () => {
     for (const setting of view.pill.settings) {
       expect(view.pill.accessibleName).toContain(setting.label);
     }
-    expect(view.pill.accessibleName).toContain("Setări globale");
+    expect(view.pill.accessibleName).toContain(content.globalSettings.open);
   });
 
   it("counts what it does not show, and never draws a bare counter", () => {
     const view = settingsView();
 
     expect(describePillRung(view.pill, 4)).toEqual({
-      labels: ["PAL melaminat", "Alb", "Feronerie Standard", "Adâncime 600"],
+      labels: [
+        "PAL melaminat",
+        "Alb",
+        "Feronerie Standard",
+        content.globalSettings.pillDepth(600),
+      ],
     });
     expect(describePillRung(view.pill, 2).counter).toBe("+2");
     // The floor holds even against a caller that asks for nothing to be named.
@@ -376,25 +383,25 @@ describe("the two selections, which are not the same selection", () => {
 });
 
 describe("the ruled words, and the one deliberately absent", () => {
-  it("pins every string this wave drafted", () => {
+  it("reads every string this wave drafted from its own leaf", () => {
     const view = settingsView();
 
-    // The control's own name is still the ruled string; since ADR 0104 decision 2 it is the pill's
-    // accessible name rather than visible text, because no frame draws a text trigger.
-    expect(view.pill.accessibleName.startsWith("Setări globale")).toBe(true);
-    expect(view.title).toBe("Setări pentru toată bucătăria");
-    expect(view.warning).toBe(
-      "Schimbarea materialului recalculează întreaga estimare.",
-    );
-    expect(view.applyLabel).toBe("Aplică");
-    expect(view.cancelLabel).toBe("Renunță");
+    // The control's own name is still `globalSettings.open`; since ADR 0104 decision 2 it is the
+    // pill's accessible name rather than visible text, because no frame draws a text trigger.
+    expect(
+      view.pill.accessibleName.startsWith(content.globalSettings.open),
+    ).toBe(true);
+    expect(view.title).toBe(content.globalSettings.title);
+    expect(view.warning).toBe(content.globalSettings.materialWarning);
+    expect(view.applyLabel).toBe(content.globalSettings.apply);
+    expect(view.cancelLabel).toBe(content.globalSettings.cancel);
     expect(view.groups.map((group) => group.heading)).toEqual([
-      "Material corp și fronturi",
-      "Feronerie",
+      content.globalSettings.groupHeadings.material,
+      content.globalSettings.groupHeadings.hardware,
     ]);
     expect(view.groups.map((group) => group.anchor)).toEqual([
-      "Față de materialul inclus",
-      "Față de feroneria inclusă",
+      content.globalSettings.groupAnchors.material,
+      content.globalSettings.groupAnchors.hardware,
     ]);
     expect(content.globalSettings.tierDelta("+9 000")).toBe("de la +9 000");
   });
@@ -413,8 +420,8 @@ describe("the ruled words, and the one deliberately absent", () => {
     // anchor is a property of a group, and the two could later differ.
     const markup = markupOf(settingsView());
 
-    expect(markup).toContain("Față de materialul inclus");
-    expect(markup).toContain("Față de feroneria inclusă");
+    expect(markup).toContain(content.globalSettings.groupAnchors.material);
+    expect(markup).toContain(content.globalSettings.groupAnchors.hardware);
     expect(
       [...markup.matchAll(/data-testid="global-settings-anchor"/g)].length,
     ).toBe(2);
@@ -482,8 +489,8 @@ describe("the surface itself", () => {
   it("carries both actions on both shells", () => {
     const markup = markupOf(settingsView());
 
-    expect(markup).toContain("Aplică");
-    expect(markup).toContain("Renunță");
+    expect(markup).toContain(content.globalSettings.apply);
+    expect(markup).toContain(content.globalSettings.cancel);
   });
 });
 

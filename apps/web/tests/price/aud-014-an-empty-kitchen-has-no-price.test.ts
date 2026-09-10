@@ -92,11 +92,8 @@ describe("an empty kitchen, priced", () => {
 
     expect(view.kind).toBe("empty");
     if (view.kind !== "empty") return;
-    // The literal beside the constant, per the M6 copy rule: a composed assertion would hold for any
-    // wording, including one that quietly started naming a number.
-    expect(view.prompt).toBe(
-      "Pentru a afișa un preț estimativ adaugă-ți cel puțin un dulap din catalog",
-    );
+    // The wording is pinned once, in the copy lock. What is left is the half a lock cannot see: the
+    // bar reaches for the prompt leaf, and the prompt names no number and no price prefix.
     expect(view.prompt).toBe(ro.price.emptyKitchenPrompt);
     expect(view.prompt).not.toMatch(/\d/);
     expect(view.prompt).not.toContain(ro.price.startingPrefix);

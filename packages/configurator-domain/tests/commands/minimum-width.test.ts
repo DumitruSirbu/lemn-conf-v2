@@ -268,7 +268,9 @@ const SYNTHETIC_SET_ENTRY = {
   fixedWidth: false,
   heightFlex: false,
   insertable: true,
-  label: "Nișă sintetică",
+  // ASCII on purpose: this entry ships in no catalogue and its label is never rendered or asserted,
+  // so a Romanian one would be the only customer-shaped string in a package that publishes none.
+  label: "Synthetic set entry",
   nominalHeightMm: 860,
   nominalDepthMm: 580,
   occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),

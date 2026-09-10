@@ -338,7 +338,7 @@ describe("the four strings, where the customer meets them", () => {
     expect(markup).toContain(RULED.back);
   });
 
-  it("names an outcome in each action rather than OK and Anulează", () => {
+  it("names an outcome in each action rather than OK and a bare cancel", () => {
     expect([RULED.confirm, RULED.back]).not.toContain("OK");
     expect([RULED.confirm, RULED.back]).not.toContain(ro.globalSettings.cancel);
   });
@@ -348,6 +348,8 @@ describe("the four strings, where the customer meets them", () => {
     // U+0219 (ș) against U+015F (ş), U+021B (ț) against U+0163 (ţ).
     const sentence = RULED.body(CHOSEN_COLOURS_ON_THE_MDF_FIXTURE);
 
+    // The three literals in this case are codepoints and one grapheme, asserted as *properties* of
+    // the accepted wording rather than as the wording — wave 6B-j's allow-list, not a conversion.
     expect(ro.globalSettings.depthWarning).toContain("\u021b");
     expect(sentence).not.toMatch(/[şţ]/);
     expect(RULED.confirm).toContain("ă");

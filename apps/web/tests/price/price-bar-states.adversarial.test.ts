@@ -412,9 +412,6 @@ describe("an overflowing design, on the page", () => {
 
     expect(markup).toContain(seededTotalText());
     expect(flag).toContain(ro.price.overflowingTotalWarning);
-    expect(flag).toContain(
-      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
-    );
     // The bar keeps frame D2A's shape on a flagged design, which is the point of the move.
     expect(markup).not.toContain(ro.price.overflowingTotalWarning);
     // Never reduced: the same figure the fitting design shows, because the body that does not fit is
@@ -567,7 +564,7 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
     expect(footer.price?.amountText).toBe(seededTotalText());
     expect(footer.overflowWarning).toBe(ro.price.overflowingTotalWarning);
     expect(textOfElement(markup, "panel-price-overflow")).toBe(
-      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
+      ro.price.overflowingTotalWarning,
     );
   });
 

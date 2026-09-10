@@ -194,7 +194,7 @@ function offeredFinishesOf(material: Material): readonly Finish[] {
   );
 }
 
-describe("ADR 0099 acceptance 1 — Aplică, not Renunță, is where an override could be lost", () => {
+describe("ADR 0099 acceptance 1 — apply, not cancel, is where an override could be lost", () => {
   /**
    * The wave's own property presses the model and then **cancels**, which cannot lose anything by
    * construction. This one presses the model and then **applies**, against the real store, and

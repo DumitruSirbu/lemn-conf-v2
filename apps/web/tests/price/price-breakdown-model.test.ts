@@ -28,6 +28,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { ro } from "../support/romanian-content";
+import { RULED_CURRENCY_CODE } from "../support/ruled-price-copy";
 import {
   describePriceBreakdown,
   PriceBreakdownDivergenceError,
@@ -130,15 +131,21 @@ describe("the rows are wave 6A's groups, rendered", () => {
     );
   });
 
-  it("names a body and its width, in frame 2D's own words", () => {
-    // The literal the composition above cannot fail on. This row is byte-identical to the one the
-    // frame draws — the mockup's other names predate ADR 0033's merge and the catalogue's since,
-    // but this body was never renamed, so the frame and the shipped label are the same string.
+  it("carries a row for the dishwasher housing at 600, named through the catalogue", () => {
+    // Frame 2D draws this row for the dishwasher housing at 600. The composition above cannot fail
+    // on which *entry* is named, so this one names it — through the catalogue, because under a
+    // second locale the same row is the same entry and a different sentence. Its wording is pinned
+    // once, in the copy lock.
     const labels = shippedBreakdown().groups.flatMap((group) =>
       group.rows.map((row) => row.label),
     );
 
-    expect(labels).toContain("Nișă mașină de spălat vase 600");
+    expect(labels).toContain(
+      ro.priceBreakdown.placementLabel(
+        ro.bodyLabel({ kind: "entry", buildId: "base-dishwasher" }),
+        600,
+      ),
+    );
   });
 
   it("heads each group with its wall and its band, from the group itself", () => {
@@ -152,8 +159,11 @@ describe("the rows are wave 6A's groups, rendered", () => {
         ),
       ),
     );
-    // The literal the composition above cannot fail on: frame 2D's own first heading.
-    expect(view.groups[0]?.heading).toBe("Perete A · bază");
+    // The composition above cannot fail on which wall or band the first group carries; this names
+    // both, read from the catalogue so a retranslation is not a false red.
+    expect(view.groups[0]?.heading).toBe(
+      ro.priceBreakdown.groupHeading("A", ro.priceBreakdown.bandHeadings.base),
+    );
   });
 
   // **Superseded by M6-AUD-014's ruling** (owner, 2026-09-09). This case used to assert that a
@@ -237,12 +247,20 @@ describe("the whole-kitchen section, which is data", () => {
    *  accessory rows arrived at wave 6T2 with no change to this surface beyond a category word — the
    *  seeded kitchen holds a sink under a wall cabinet, so it earns both extras. */
   it("renders the tiers and accessories the book produced, named from the book", () => {
+    const { wholeKitchenCategories, wholeKitchenLabel } = ro.priceBreakdown;
+
     expect(shippedBreakdown().wholeKitchenRows.map((row) => row.label)).toEqual(
       [
-        "Feronerie · Standard",
-        "Material · PAL melaminat",
-        "Accesorii · Protecție de aluminiu pentru corpul spălătorului",
-        "Accesorii · Uscător de vase",
+        wholeKitchenLabel(wholeKitchenCategories.hardware, "Standard"),
+        wholeKitchenLabel(wholeKitchenCategories.material, "PAL melaminat"),
+        wholeKitchenLabel(
+          wholeKitchenCategories.accessory,
+          ro.bookText("", "priceBook.accessory.sink-protective-cover.name"),
+        ),
+        wholeKitchenLabel(
+          wholeKitchenCategories.accessory,
+          ro.bookText("", "priceBook.accessory.dish-drying-rack.name"),
+        ),
       ],
     );
   });
@@ -283,7 +301,7 @@ describe("the whole-kitchen section, which is data", () => {
       kind: "hardware",
       ruleId: "rule.hardware.invented",
       tierId: "hardware.invented",
-      name: "Feronerie inventată",
+      name: "An invented tier",
       description: "A tier no book holds, standing in for one added later.",
       quantity: 1,
       unitAmountMinor: 700_000,
@@ -299,7 +317,10 @@ describe("the whole-kitchen section, which is data", () => {
       ),
     ).toEqual({
       key: "line.hardware.invented",
-      label: "Feronerie · Feronerie inventată",
+      label: ro.priceBreakdown.wholeKitchenLabel(
+        ro.priceBreakdown.wholeKitchenCategories.hardware,
+        "An invented tier",
+      ),
       amountText: "7 000",
     });
   });
@@ -332,8 +353,18 @@ describe("what an amount reads as", () => {
   it("prints no currency on a line — the surface states it once, on the figure", () => {
     const rows = renderedRows(shippedBreakdown());
 
-    for (const row of rows) expect(row.amount, row.label).not.toContain("MDL");
-    expect(shippedBreakdown().figure.amountText).toContain("MDL");
+    // The negative half reads the ruled literal on purpose — see `ruled-price-copy.ts`: derived
+    // from the book it would chase a changed currency and stop looking for the old one. The
+    // positive half is built from the leaf that owns the join since wave 6B-g.
+    const currencyTheLeafCarries = ro.price.amountWithCurrency("").trim();
+
+    for (const row of rows)
+      expect(row.amount, row.label).not.toContain(RULED_CURRENCY_CODE);
+    // Not vacuous: a leaf that dropped the currency would satisfy `toContain("")`.
+    expect(currencyTheLeafCarries).not.toBe("");
+    expect(shippedBreakdown().figure.amountText).toContain(
+      currencyTheLeafCarries,
+    );
   });
 });
 
@@ -342,9 +373,13 @@ describe("the figure at the foot of the sheet", () => {
     const view = shippedBreakdown();
 
     expect(view.figure.label).toBe(ro.price.startingPrefix);
+    // Built from `price.amountWithCurrency`, the leaf that owns the join since wave 6B-g. That the
+    // leaf is genuinely consulted rather than mirrored is proved in `amount-with-currency-seam`.
     expect(view.figure.amountText).toBe(
       SHIPPED_PRICING.ok
-        ? `${describeRoundedAmount(SHIPPED_PRICING.priced.totalMinor)} MDL`
+        ? ro.price.amountWithCurrency(
+            describeRoundedAmount(SHIPPED_PRICING.priced.totalMinor),
+          )
         : "",
     );
   });

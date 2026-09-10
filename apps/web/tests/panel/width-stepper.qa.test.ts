@@ -15,6 +15,7 @@ import {
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
+  entryLabel,
   insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -249,6 +250,26 @@ function walkToFloor(id: string): WidthStepperSection {
   throw new Error(`${id} never reached a floor`);
 }
 
+/** ADR 0035's column bound, spoken as a bound: the one sentence three of the four floors and the
+ *  ceiling all produce, so only what varies between them is written at each call. */
+function columnBoundReason(bound: {
+  readonly label: ReturnType<typeof entryLabel>;
+  readonly minMm: number;
+  readonly maxMm: number;
+  readonly availableMm: number;
+}): string {
+  return ro.rejection({
+    code: "WIDTH_NOT_SUPPORTED",
+    params: {
+      label: bound.label,
+      sizesMm: [],
+      widthRangesMm: [{ minMm: bound.minMm, maxMm: bound.maxMm }],
+      boundScope: "column",
+      availableMm: bound.availableMm,
+    },
+  });
+}
+
 describe("the four floors and the one ceiling, each said in the engine's own words", () => {
   // **§7's 800 mm ceiling**, which ADR 0035 decision 2 made the bound every cabinetry row carries
   // and decision 5 confirmed for the hood as well ("for hood there should not be any >800 mm width
@@ -262,16 +283,33 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     const wider = section.steps[1];
     expect(wider.widthMm).toBe(850);
     expect(wider.isDisabled).toBe(true);
+    // **`boundScope: "column"`, since 2026-08-30.** This pin was the clearest statement of 5D2c
+    // product-logic B1: 560 is the *sink's* floor from this column, and a wall cabinet is built
+    // 200-800 — so under the body's name the sentence was false about the very cabinet it named. It
+    // now attributes the bound to the column that owns it, and asserting the descriptor rather than
+    // the sentence is what fails when the scope goes back to `"body"` under identical wording.
     expect(wider.reason).toBe(
-      // **"este într-o coloană care", since 2026-08-30.** This pin was the clearest statement of
-      // 5D2c product-logic B1: 560 is the *sink's* floor from this column, and a wall cabinet is
-      // built 200-800 — so under the body's name the sentence was false about the very cabinet it
-      // named. It now attributes the bound to the column that owns it.
-      "„Dulap suspendat” este într-o coloană care se face între 560 și 800 mm, iar acum are 800 mm.",
+      columnBoundReason({
+        label: entryLabel("wall-cabinet"),
+        minMm: 560,
+        maxMm: 800,
+        availableMm: 800,
+      }),
     );
-    // The half that was the blocker: a bound is spoken as a bound. "doar în 600 sau 650 sau …"
+    // The half that was the blocker: a bound is spoken as a bound. Built as the sentence the *list*
+    // clause would have produced from the same code, label and available width — the list form
     // denies every width between the chips, which is materially false of a cabinetry row.
-    expect(wider.reason).not.toContain("doar în");
+    expect(wider.reason).not.toBe(
+      ro.rejection({
+        code: "WIDTH_NOT_SUPPORTED",
+        params: {
+          label: entryLabel("wall-cabinet"),
+          sizesMm: [560, 800],
+          boundScope: "column",
+          availableMm: 800,
+        },
+      }),
+    );
   });
 
   // **The entry's own floor** (ADR 0017): the sink's 560 mm aperture bounds `A|1.30` from below, and
@@ -279,7 +317,14 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
   it("names the sink's own 560 mm aperture on the `−50` that reaches it", () => {
     const section = walkToFloor("p11");
     expect(section.valueLabel).toBe("600 mm");
-    expect(section.steps[0].reason).toContain("între 560 și 800 mm");
+    expect(section.steps[0].reason).toBe(
+      columnBoundReason({
+        label: entryLabel("wall-cabinet"),
+        minMm: 560,
+        maxMm: 800,
+        availableMm: 600,
+      }),
+    );
   });
 
   // **§2's default floor**, which governs every entry that declares none of its own. `p4`'s
@@ -289,7 +334,12 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     const section = walkToFloor("p4");
     expect(section.valueLabel).toBe("300 mm");
     expect(section.steps[0].reason).toBe(
-      "„Dulap bază 3 sertare” este într-o coloană care se face între 300 și 800 mm, iar acum are 300 mm.",
+      columnBoundReason({
+        label: entryLabel("base-3drawer"),
+        minMm: 300,
+        maxMm: 800,
+        availableMm: 300,
+      }),
     );
   });
 
@@ -467,6 +517,10 @@ describe("§9's width copy describes the control that is actually there", () => 
   // thirteen widths while denying one the cabinet is built at. Neither was pinned. This is the pin,
   // and it is about the *claim* rather than the wording — a copy edit should not fail it, a
   // reintroduced disclaimer must.
+  // **The three patterns below are deliberate Romanian literals and are load-bearing.** They are
+  // *negative* claims about the source wording — a reintroduced disclaimer must fail here — and a
+  // catalogue read cannot express "this sentence is not in the catalogue". They belong on wave
+  // 6B-j's allow-list rather than in a conversion.
   it("never tells the customer the feature is unavailable", () => {
     for (const note of [ro.panel.widthStepNote, ro.panel.widthChoiceNote]) {
       expect(note).not.toMatch(/nu este (încă )?disponibil/i);
@@ -478,6 +532,13 @@ describe("§9's width copy describes the control that is actually there", () => 
   // of most cabinetry and false as a universal: ADR 0026's bottle cargo reaches 200, ADR 0017's sink
   // column floors at 600, and since 5D2b a hood floors its column at its own width. The floor now
   // lives on the disabled `−50`, which states the one that applies to *this* column.
+  // **The `/spațiului liber/i` below is on 6B-j's allow-list for a different reason than the
+  // negatives above.** It is a *positive* substring claim, so "a catalogue read cannot express it"
+  // does not apply — reading the leaf back would express it, and would be a tautology that passes
+  // whatever the sentence says. What it is instead is a claim that the note keeps naming the free
+  // space as the source of the width, which is the half of the clause 5D got wrong; matched
+  // case-insensitively on the one noun phrase the claim cannot lose, so a rewording around it is
+  // not a false red.
   it("states the step and where the width comes from, without claiming a universal floor", () => {
     expect(ro.panel.widthStepNote).toContain("50");
     expect(ro.panel.widthStepNote).toMatch(/spațiului liber/i);
@@ -514,9 +575,19 @@ describe("§9's width copy describes the control that is actually there", () => 
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p0");
     if (!section) throw new Error("no stepper on p0");
     expect(section.steps.map((step) => [step.label, step.ariaLabel])).toEqual([
-      ["−50 mm", "Micșorează lățimea cu 50 mm"],
-      ["+50 mm", "Mărește lățimea cu 50 mm"],
+      [
+        ro.panel.widthStepLabels.narrower,
+        ro.panel.widthStepAriaLabels.narrower,
+      ],
+      [ro.panel.widthStepLabels.wider, ro.panel.widthStepAriaLabels.wider],
     ]);
+    // Not vacuous: the two buttons must not have swapped, and the face must not be the name.
+    expect(ro.panel.widthStepLabels.narrower).not.toBe(
+      ro.panel.widthStepLabels.wider,
+    );
+    expect(ro.panel.widthStepAriaLabels.narrower).not.toBe(
+      ro.panel.widthStepLabels.narrower,
+    );
   });
 });
 

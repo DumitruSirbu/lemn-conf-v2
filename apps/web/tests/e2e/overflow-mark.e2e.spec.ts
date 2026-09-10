@@ -5,6 +5,7 @@ import {
 } from "@lemnaria/three-adapter";
 import { expect, test, type Page } from "@playwright/test";
 
+import { ro } from "../support/romanian-content.e2e";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { countPixels, toRgb, type PixelRect } from "./support/pixels";
 import { readSelection } from "./support/panel";
@@ -359,12 +360,11 @@ test("a stored overflowing design is marked in the scene and warned about, and a
 
   const warning = page.getByTestId("scene-overflow-warning");
   await expect(warning).toBeVisible();
-  // ADR 0065 decision 7b's sentence, verbatim. The literal is the pin; reading it from the shipped
-  // catalogue (`src/messages/ro.json`) here would agree with any wording at all, including a tidied
-  // one.
-  await expect(warning).toHaveText(
-    "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
-  );
+  // ADR 0065 decision 7b's sentence, resolved through the catalogue. The pin on the *wording* is
+  // the copy lock, which byte-compares `src/messages/ro.json` against the corpus Gate O1 approved;
+  // what this browser can add — and a node test cannot — is that the band on the page carries that
+  // leaf and not a tidied one somebody typed into the component.
+  await expect(warning).toHaveText(ro.configure.overflowWarning);
 
   const band = await boxOf(page, "scene-overflow-warning");
   const clip = sceneClip(await canvasBox(page), band.height);

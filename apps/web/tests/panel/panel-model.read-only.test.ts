@@ -171,6 +171,9 @@ describe("the notice says which of the two situations this is", () => {
     // be true of all three. "Only the creating browser can edit" is true of the third and false of
     // the first two — the creating browser is read-only there too. ADR 0019 decision 8's emailed
     // edit link is M8 and unbuilt, so there is no route to offer.
+    //
+    // **The two literals are deliberate and load-bearing** — a *negative* claim about the source
+    // wording, which no catalogue read can express. Wave 6B-j's allow-list, not a conversion.
     expect(ro.panel.readOnlyNotice).not.toContain("browserul în care");
     expect(ro.panel.readOnlyNotice).not.toContain("a fost creată");
   });
@@ -326,6 +329,9 @@ describe("the notice says which of the two situations this is", () => {
     expect(notice?.message).toBe(ro.panel.saveFailedNotice);
     // The advice form is the imperative "reîncarcă pagina"; the copy's own "nu reîncărca pagina"
     // is the negative imperative and does not match it. This pins that no reload is *offered*.
+    //
+    // **The literal is deliberate and load-bearing** — a *negative* claim about the source wording,
+    // which no catalogue read can express. Wave 6B-j's allow-list, not a conversion.
     expect(ro.panel.saveFailedNotice).not.toContain("reîncarcă pagina");
   });
 
@@ -479,7 +485,7 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     }
   });
 
-  it("disables Șterge corpul without pretending the body cannot be deleted", () => {
+  it("disables the remove control without pretending the body cannot be deleted", () => {
     const footer = readOnlyPanel().footer;
 
     // `canDelete` is about the body, `isRemoveDisabled` about this browser. Hiding the control
@@ -490,7 +496,7 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     expect(footer.removeDisabledReason).toBe(ro.panel.readOnlyReason);
   });
 
-  it("still hides Șterge corpul on a body that has no delete at all", () => {
+  it("still hides the remove control on a body that has no delete at all", () => {
     const footer = readOnlyPanel(occupiedMeta({ canDelete: false })).footer;
 
     expect(footer.canDelete).toBe(false);

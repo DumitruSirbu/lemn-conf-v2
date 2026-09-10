@@ -159,7 +159,7 @@ describe("the two hob rows are distinguishable in the picker", () => {
     }
   });
 
-  it("names them in Romanian, saying which appliance is under the hob", () => {
+  it("names each from its own catalogue entry, never from the shared hob kind", () => {
     const { world, opening } = clearedHobColumn();
     const labels = new Map(
       replaceSectionAt(world, { kind: "void", id: opening.id }).rows.map(
@@ -167,8 +167,17 @@ describe("the two hob rows are distinguishable in the picker", () => {
       ),
     );
 
-    expect(labels.get("base-hob-2drawer")).toBe("Dulap plită și 2 sertare");
-    expect(labels.get("base-hob-oven")).toBe("Dulap plită și cuptor");
+    // Resolved per `buildId`, which is the claim: the two share a `bodyKind` and would collapse to
+    // one word if the row named the kind. The sentences themselves are pinned in the copy lock.
+    expect(labels.get("base-hob-2drawer")).toBe(
+      ro.bodyLabel({ kind: "entry", buildId: "base-hob-2drawer" }),
+    );
+    expect(labels.get("base-hob-oven")).toBe(
+      ro.bodyLabel({ kind: "entry", buildId: "base-hob-oven" }),
+    );
+    expect(labels.get("base-hob-2drawer")).not.toBe(
+      labels.get("base-hob-oven"),
+    );
   });
 });
 

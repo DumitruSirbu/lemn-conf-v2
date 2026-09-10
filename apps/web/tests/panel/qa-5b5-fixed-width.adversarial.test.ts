@@ -18,6 +18,7 @@ import {
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
+  entryLabel,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
@@ -172,7 +173,7 @@ const WORLDS: readonly (readonly [string, () => World])[] = [
 
 describe("the section exists exactly where the domain published widths", () => {
   it.each(WORLDS)(
-    "renders LĂȚIME iff widthOptionsFor is non-empty, across every selection in %s",
+    "renders the width section iff widthOptionsFor is non-empty, across every selection in %s",
     (_name, build) => {
       const world = build();
       const disagreements: string[] = [];
@@ -342,8 +343,13 @@ describe("a fixed-width section is one active chip that nothing can enable", () 
     );
     if (section?.control !== "choice") throw new Error("expected chips");
     const reason = section.chips[0]?.reason;
-    expect(reason).toBeDefined();
-    expect(reason).not.toContain("lățimea");
+    expect(reason).toBe(ro.panel.readOnlyReason);
+    expect(reason).not.toBe(
+      ro.rejection({
+        code: "NOT_RESIZABLE",
+        params: { label: entryLabel("base-hob-2drawer"), cause: "fixed" },
+      }),
+    );
   });
 
   /** The section is a section, not a banner. §9's rejection banner is a separate section fed by the

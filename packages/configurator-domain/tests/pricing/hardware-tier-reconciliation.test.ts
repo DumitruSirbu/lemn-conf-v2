@@ -165,6 +165,14 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
         320_000 +
         SEEDED_MECHANISM_COUNTS.pushToOpen * defaultTier.perPushToOpenMinor,
     );
+    // **A deliberate Romanian literal in a package that publishes none.** It is a *negative* claim
+    // about the book's own authored prose — ADR 0106 decision 2 keeps that text required, in
+    // whatever language the row was typed in, so a manufacturer-entered row still renders — and the
+    // only way to say "this sentence is not there" is to spell it. Wave 6B-j's allow-list.
+    //
+    // **The literal lives inside a regex, not a string.** A diacritic scanner that reads quoted and
+    // template strings only cannot see this line — one did not, twice — so 6B-j's rule must scan
+    // regex literals too, or it will report this package clean while the word is still in it.
     expect(defaultTier.description).not.toMatch(/incluse? în preț/i);
   });
 });

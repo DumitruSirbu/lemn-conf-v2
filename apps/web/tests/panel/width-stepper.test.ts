@@ -19,6 +19,7 @@ import {
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
+  entryLabel,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
@@ -522,7 +523,10 @@ describe("a fixed-width body shows the one width it is made at", () => {
     if (section?.control !== "choice") throw new Error("expected chips");
     expect([section.chips[0]?.widthMm, section.chips[0]?.reason]).toEqual([
       600,
-      "„Dulap plită și 2 sertare” nu își poate schimba lățimea.",
+      ro.rejection({
+        code: "NOT_RESIZABLE",
+        params: { label: entryLabel("base-hob-2drawer"), cause: "fixed" },
+      }),
     ]);
   });
 

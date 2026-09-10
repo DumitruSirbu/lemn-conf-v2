@@ -459,7 +459,7 @@ describe("acceptance 6 — a document written before this wave", () => {
     );
   });
 
-  it("opens the sheet on no colour at all, so an untouched Aplică writes none", () => {
+  it("opens the sheet on no colour at all, so an untouched apply writes none", () => {
     const opening = resolveOpeningChoice(
       KITCHEN_L_DESIGN.settings ?? {},
       offerOf(KITCHEN_L_DESIGN),
@@ -505,7 +505,7 @@ describe("ADR 0099 decision 4 — a material change drops a colour it does not o
   });
 });
 
-describe("acceptance 7 — Renunță writes nothing, over any sequence of presses", () => {
+describe("acceptance 7 — cancel writes nothing, over any sequence of presses", () => {
   /** Every press the choosing step offers, as the model runs it. */
   type Press =
     | { readonly kind: "material"; readonly tierId: string }

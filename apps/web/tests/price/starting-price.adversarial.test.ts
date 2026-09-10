@@ -407,13 +407,12 @@ describe("rounded lines and a rounded total, and what the copy says about them",
   });
 });
 
+// **The wording itself is not asserted here.** `price.overflowingTotalWarning` is pinned byte for
+// byte by the copy lock (`tests/support/approved-romanian-messages.ts`), and the two `toBe` spellings
+// this block used to carry were a second copy of it — a place an owner retranslation goes red for a
+// reason that is not a defect. What is left below are *properties* of the accepted leaf that a byte
+// comparison reports as an unreadable diff: the codepoints, the closing period, and the ruled noun.
 describe("the flagged-total sentence accepted at Gate O1", () => {
-  it("is byte-identical to the accepted catalogue wording", () => {
-    expect(ro.price.overflowingTotalWarning).toBe(
-      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
-    );
-  });
-
   it("carries comma-below diacritics, not the cedillas that render identically", () => {
     // The one difference a reviewer cannot see: U+0219/U+021B (Romanian ș/ț) against U+015F/U+0163
     // (Turkish ş/ţ). A copy-paste through a legacy tool silently swaps them, and every visual check
@@ -428,9 +427,6 @@ describe("the flagged-total sentence accepted at Gate O1", () => {
   });
 
   it("keeps the accepted noun and has no added closing period", () => {
-    expect(ro.price.overflowingTotalWarning).toBe(
-      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
-    );
     expect(ro.price.overflowingTotalWarning.endsWith(".")).toBe(false);
     expect(ro.price.overflowingTotalWarning).toContain("dulapuri");
     expect(ro.price.overflowingTotalWarning).not.toContain("corpuri");

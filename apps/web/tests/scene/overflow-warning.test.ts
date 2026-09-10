@@ -70,13 +70,11 @@ beforeEach(() => {
   store.isBodyProbeAttached = true;
 });
 
+// The sentence's own wording is pinned byte for byte by the copy lock
+// (`tests/support/approved-romanian-messages.ts`) and is deliberately not spelled again here. What
+// is left is the claim a byte comparison cannot make: it is a *different* sentence from the
+// total's flag.
 describe("the ruled sentence", () => {
-  it("is stored verbatim, punctuation included", () => {
-    expect(ro.configure.overflowWarning).toBe(
-      "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
-    );
-  });
-
   it("is a different sentence from the flagged total's, and neither restates the other", () => {
     // ADR 0065 decision 7b: the scene warning says what is wrong and what to do about it; the
     // total's flag says what the number contains and that it is not final. Only the noun is shared.

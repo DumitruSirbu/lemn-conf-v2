@@ -324,17 +324,23 @@ describe("§9's derived count line — swept, not sampled", () => {
     const topRow = occupiedMeta({ band: "top", widthMm: 700 });
     const panel = openPanel(topRow, { offers: offers(5) });
     const section = replaceIn(panel.sections);
-    expect(panel.header.detail).toContain("rând de sus");
+    expect(panel.header.detail).toContain(ro.bandLabel("top"));
     expect(section?.countLine).toBe(
       ro.panel.countForBody(5, ro.panel.bandWords.wall.many, 700),
     );
-    expect(section?.countLine).not.toContain("rând de sus");
+    expect(section?.countLine).not.toContain(ro.bandLabel("top"));
   });
 
   it("says what to clear in the zero-result sentence, for both shapes", () => {
-    for (const meta of [occupiedMeta(), slotMeta()]) {
+    // Which leaf, not which word: the body's sentence and the slot's differ, and both say what to
+    // clear. Their wording is pinned once, in the copy lock.
+    const emptyLineFor = [
+      ro.panel.noOffersForBody(ro.panel.bandWords.base.one),
+      ro.panel.noOffersForSlot(700, 860),
+    ];
+    for (const [index, meta] of [occupiedMeta(), slotMeta()].entries()) {
       const line = replaceIn(openPanel(meta).sections)?.emptyLine ?? "";
-      expect(line).toMatch(/Șterge/);
+      expect(line).toBe(emptyLineFor[index]);
       expect(line).not.toMatch(/\b0\b/);
       expect(line.trim().endsWith(".")).toBe(true);
     }

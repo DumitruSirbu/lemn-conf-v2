@@ -803,6 +803,10 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
     // The guard's own falsifiability. A clause behind `display: none` or `aria-hidden` is still in
     // the markup, so the shipped predicate refuses it rather than being satisfied by it — asserted
     // by running that predicate over exactly those two shapes.
+    //
+    // **The three literals are deliberate and cannot be read from the catalogue**: wave 6F's clause
+    // was *removed* from it, so there is no leaf to name. A probe for an absent sentence has to
+    // spell it. Wave 6B-j's allow-list, not a conversion.
     const hidden = [
       '<p style="display:none">și poate limita unele finisaje per corp</p>',
       '<p aria-hidden="true">și poate limita unele finisaje per corp</p>',
