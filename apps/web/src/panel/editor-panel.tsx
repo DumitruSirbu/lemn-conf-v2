@@ -156,7 +156,7 @@ function PanelHeaderRow({
   readonly header: PanelHeader;
   readonly onClose: () => void;
 }) {
-  const ro = useContent();
+  const content = useContent();
   return (
     <header className={styles.header}>
       <div className={styles.headerText}>
@@ -171,7 +171,7 @@ function PanelHeaderRow({
         type="button"
         className={styles.close}
         data-testid="panel-close"
-        aria-label={ro.panel.close}
+        aria-label={content.panel.close}
         onClick={onClose}
       >
         ×
@@ -250,7 +250,7 @@ function OfferRowView({
   readonly row: OfferRow;
   readonly onPick: (buildId: string) => void;
 }) {
-  const ro = useContent();
+  const content = useContent();
   return (
     <li>
       <button
@@ -269,7 +269,7 @@ function OfferRowView({
           <span className={styles.rowMeta}>{row.secondaryLine}</span>
         </span>
         {row.isCurrent ? (
-          <span className={styles.badge}>{ro.panel.currentBadge}</span>
+          <span className={styles.badge}>{content.panel.currentBadge}</span>
         ) : null}
       </button>
     </li>

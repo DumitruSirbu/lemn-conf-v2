@@ -16,7 +16,7 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  *
  * So it is produced the way the visual verification produced it on the price bar: the **real**
  * element is injected at runtime — the shipped class from the shipped stylesheet, the owner's
- * ruled sentence from `ro.ts` — and what must not break is measured. Nothing here asserts that the
+ * ruled sentence from `src/messages/ro.json` — and what must not break is measured. Nothing here asserts that the
  * warning renders; `price-bar-states.adversarial.test.ts` does that. This asserts that the sheet
  * survives it.
  *

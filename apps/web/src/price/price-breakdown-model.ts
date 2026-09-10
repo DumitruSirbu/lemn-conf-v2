@@ -20,7 +20,7 @@
 // rather than trusting the projection.
 //
 // **Rounded lines and a rounded total need not sum.** Both round through `roundUpToThousandMdl`,
-// the one site, and on the shipped design the difference exceeds a whole step. `ro.priceBreakdown`'s
+// the one site, and on the shipped design the difference exceeds a whole step. `priceBreakdown`'s
 // disclaimer and note are what carry that; nothing here adds a subtotal, an equality claim, or a
 // row labelled *total*.
 import type {

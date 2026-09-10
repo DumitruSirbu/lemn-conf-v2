@@ -8,19 +8,7 @@ import { describe, expect, it } from "vitest";
 import ro from "@/messages/ro.json";
 import ru from "@/messages/ru.json";
 
-function flatten(
-  tree: Readonly<Record<string, unknown>>,
-  prefix = "",
-): readonly [string, string][] {
-  return Object.entries(tree).flatMap(([key, value]) => {
-    const path = prefix === "" ? key : `${prefix}.${key}`;
-    if (typeof value === "string") return [[path, value] as const];
-    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-      return flatten(value as Readonly<Record<string, unknown>>, path);
-    }
-    throw new Error(`${path} is not a message leaf or namespace`);
-  });
-}
+import { catalogueLeaves } from "../support/catalogues";
 
 function signature(
   elements: readonly MessageFormatElement[],
@@ -101,8 +89,8 @@ function multisetDifference(
 }
 
 describe("translation catalogue structural parity", () => {
-  const romanian = flatten(ro);
-  const russian = flatten(ru);
+  const romanian = catalogueLeaves(ro);
+  const russian = catalogueLeaves(ru);
 
   it("has the same complete ordered key set and no blank leaves", () => {
     expect(russian.map(([key]) => key)).toEqual(romanian.map(([key]) => key));

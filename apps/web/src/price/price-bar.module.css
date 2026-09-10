@@ -33,7 +33,7 @@
  * same — this is not a mismatch to be tidied back, and `src/messages/ro.json` carries the ruled
  * string this draws.
  *
- * Two spans rather than one, and the casing is here rather than in the string: `ro.price` holds one
+ * Two spans rather than one, and the casing is here rather than in the string: `price` holds one
  * ruled word, `De la`, written as it is spoken. Lowercasing it in the copy module would be a second
  * spelling of a ruled string, which is the failure that record already carries. A single span with
  * `text-transform: lowercase` would take `MDL` down with it.

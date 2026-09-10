@@ -304,6 +304,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "24f23b829d06996aea12e5ffe32500c999c9a39435f5789093362fb415de7c08",
   "content.panel.widthValue.800":
     "f69f628b976324f7c95133f9a0bf3ac0d9a15fa7b45782e09012d4c4b25a746a",
+  "content.price.amountWithCurrency.0":
+    "fffb5e471dd378e7ad12cc7d4e618e2fd3bb4e1313c7d50bb67b95c7cc63de24",
+  "content.price.amountWithCurrency.1_000_000_000":
+    "2bda1bc71d3b5108018893d4b2eb9fa6d59123071a376c0276e069bd6a618f1c",
+  "content.price.amountWithCurrency.43_000":
+    "3c5b36d09c775bdac0e8c214b4f280023b4354c7726adf067de0193759a00c00",
   "content.priceBreakdown.groupHeading.wall-a-base":
     "27f6f9677464002cbd9c9fb2e906fc090f38b0e6b6b056e3b0fbbda0123d22a3",
   "content.priceBreakdown.groupHeading.wall-a-column":

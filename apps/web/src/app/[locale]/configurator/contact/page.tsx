@@ -10,7 +10,7 @@ import { Link } from "@/i18n/navigation";
  */
 export default async function ContactPage() {
   const translate = await getTranslations();
-  const ro = resolveContent(translate);
+  const content = resolveContent(translate);
   return (
     <main
       style={{
@@ -21,7 +21,7 @@ export default async function ContactPage() {
       }}
     >
       <h1 style={{ margin: 0, font: "700 22px/1.25 var(--font-ui)" }}>
-        {ro.contactPlaceholder.title}
+        {content.contactPlaceholder.title}
       </h1>
       <p
         style={{
@@ -30,13 +30,13 @@ export default async function ContactPage() {
           color: "var(--ink-muted)",
         }}
       >
-        {ro.contactPlaceholder.body}
+        {content.contactPlaceholder.body}
       </p>
       <Link
         href="/configurator/configure"
         style={{ font: "700 14px/1 var(--font-ui)", color: "var(--accent)" }}
       >
-        {ro.contactPlaceholder.back}
+        {content.contactPlaceholder.back}
       </Link>
     </main>
   );

@@ -36,7 +36,7 @@ const OVERFLOW_WARNING_METRICS = {
  * the marks arrive together or not at all.
  */
 export function OverflowWarning() {
-  const ro = useContent();
+  const content = useContent();
   const overflowingIds = useOverflowingPlacementIds();
   const isSceneMounted = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,
@@ -59,7 +59,7 @@ export function OverflowWarning() {
           style={OVERFLOW_WARNING_METRICS}
           data-testid="scene-overflow-warning"
         >
-          {ro.configure.overflowWarning}
+          {content.configure.overflowWarning}
         </p>
       ) : null}
     </div>

@@ -189,7 +189,7 @@ describe("with the sheet shut, what stands on the screen", () => {
 
   it("hides the mockups' chevron from the accessibility tree, so the control's name is the ruled string", () => {
     // Frame D2E draws a glyph beside the words. A glyph inside the button and *not* hidden becomes
-    // part of the button's accessible name, which is then no longer the string `ro.ts` ruled.
+    // part of the button's accessible name, which is then no longer the string the catalogue ruled.
     const trigger =
       /<button[^>]*global-settings-trigger[^>]*>([\s\S]*?)<\/button>/.exec(
         closed,

@@ -98,6 +98,7 @@ declare const messages: {
   },
   "price": {
     "startingPrefix": "De la",
+    "amountWithCurrency": "{amount} MDL",
     "overflowingTotalWarning": "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
     "emptyKitchenPrompt": "Pentru a afișa un preț estimativ adaugă-ți cel puțin un dulap din catalog"
   },

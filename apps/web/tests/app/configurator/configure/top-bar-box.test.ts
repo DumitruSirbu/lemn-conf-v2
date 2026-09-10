@@ -507,8 +507,8 @@ describe("the step number has one source", () => {
   it("keeps the sentence as the pill's accessible name", () => {
     // The pill draws "2/4", which read aloud is two numbers and a slash. The caption it replaced
     // said "Pasul 2 din 4", and that is what the accessibility tree keeps.
-    expect(screenSource).toContain("aria-label={ro.configure.step}");
-    expect(screenSource).toContain("{ro.configure.stepPill}");
+    expect(screenSource).toContain("aria-label={content.configure.step}");
+    expect(screenSource).toContain("{content.configure.stepPill}");
   });
 });
 

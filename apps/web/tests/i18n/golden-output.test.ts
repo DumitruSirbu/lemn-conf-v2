@@ -22,6 +22,7 @@ import {
 } from "./golden-output-fixtures";
 import { GOLDEN_OUTPUT_SHA256 } from "./golden-output-hashes";
 import { isRomanianCopyApproved } from "../support/approved-romanian-messages";
+import { catalogueLeaves } from "../support/catalogues";
 
 const GATE_O1_SEMANTIC_CORRECTION_KEYS = [
   "globalSettings.materialResetConfirm.body",
@@ -74,25 +75,8 @@ function sortedUnique(values: readonly string[]): readonly string[] {
   return [...new Set(values)].sort();
 }
 
-function flattenMessageKeys(
-  tree: Readonly<Record<string, unknown>>,
-  prefix = "",
-): readonly string[] {
-  return Object.entries(tree).flatMap(([key, value]) => {
-    const path = prefix === "" ? key : `${prefix}.${key}`;
-    if (typeof value === "string") return [path];
-    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-      return flattenMessageKeys(
-        value as Readonly<Record<string, unknown>>,
-        path,
-      );
-    }
-    throw new Error(`${path} is not a catalogue message or namespace`);
-  });
-}
-
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 23 function-valued legacy content families", () => {
+  it("covers exactly the 24 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -185,11 +169,11 @@ describe("golden-output fixture coverage", () => {
 
   it("has one unique stable id for every fixture", () => {
     expect(RESOLVED_STATIC_CONTENT).toHaveLength(105);
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(56);
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
-    expect(GOLDEN_FIXTURES).toHaveLength(300);
+    expect(GOLDEN_FIXTURES).toHaveLength(303);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
@@ -279,7 +263,7 @@ describe("corrected-source golden output", () => {
   it("records Gate O1's 12 semantic corrections distinctly", () => {
     expect(GATE_O1_SEMANTIC_CORRECTION_KEYS).toHaveLength(12);
     expect(new Set(GATE_O1_SEMANTIC_CORRECTION_KEYS).size).toBe(12);
-    expect(flattenMessageKeys(correctedRomanian)).toEqual(
+    expect(catalogueLeaves(correctedRomanian).map(([key]) => key)).toEqual(
       expect.arrayContaining([...GATE_O1_SEMANTIC_CORRECTION_KEYS]),
     );
   });

@@ -40,7 +40,7 @@ export function ConfigureScreen({
 }: {
   webglUnavailableTitleMobile?: string;
 } = {}) {
-  const ro = useContent();
+  const content = useContent();
   const [support, setSupport] = useState<SupportState>("probing");
   const [presetId, setPresetId] = useState<CameraPresetId>("overview");
   const panel = usePanelView();
@@ -88,12 +88,12 @@ export function ConfigureScreen({
         <span
           className={styles.back}
           role="img"
-          aria-label={ro.configure.back}
+          aria-label={content.configure.back}
           data-testid="top-bar-back"
         >
           ‹
         </span>
-        <span className={styles.wordmark}>{ro.brand}</span>
+        <span className={styles.wordmark}>{content.brand}</span>
         {/* The step, twice over and from one source (`src/messages/ro.json`): the pill the frames
             draw, and — as its accessible name — the sentence the caption it replaced said. "2/4"
             read aloud is two numbers and a slash, which announces less than the surface used to.
@@ -105,13 +105,13 @@ export function ConfigureScreen({
         <span
           className={styles.stepPill}
           role="img"
-          aria-label={ro.configure.step}
+          aria-label={content.configure.step}
           data-testid="top-bar-step"
         >
-          {ro.configure.stepPill}
+          {content.configure.stepPill}
         </span>
         <span className={styles.title} data-testid="top-bar-title">
-          {ro.configure.title}
+          {content.configure.title}
         </span>
       </header>
       {/* Frames D2A / 2A's settings pill, which is **also the trigger** for the sheet it names
@@ -130,7 +130,7 @@ export function ConfigureScreen({
           state of this control today, and a control that did something would pre-empt a ruling. */}
       <div className={styles.locale}>
         <span className={styles.localeChip} data-testid="top-bar-locale">
-          <span className={styles.localeCode}>{ro.configure.locale}</span>
+          <span className={styles.localeCode}>{content.configure.locale}</span>
           <span className={styles.localeCaret} aria-hidden="true">
             ▾
           </span>
@@ -142,14 +142,14 @@ export function ConfigureScreen({
       <div className={styles.stage}>
         <div className={styles.viewport}>
           {support === "probing" ? (
-            <div className={styles.loading}>{ro.configure.loading}</div>
+            <div className={styles.loading}>{content.configure.loading}</div>
           ) : (
             <KitchenCanvas view={view} />
           )}
           <div
             className={styles.presets}
             role="group"
-            aria-label={ro.configure.cameraGroupLabel}
+            aria-label={content.configure.cameraGroupLabel}
           >
             {CAMERA_PRESETS.map((preset) => (
               <button
@@ -161,7 +161,7 @@ export function ConfigureScreen({
                   setPresetId(preset.id);
                 }}
               >
-                {ro.configure.cameraPresets[preset.id]}
+                {content.configure.cameraPresets[preset.id]}
               </button>
             ))}
           </div>
@@ -180,7 +180,7 @@ export function ConfigureScreen({
                 hidden" cannot answer differently on a state one of them has not considered. */}
             {panel.kind === "open" ? null : (
               <p className={styles.hint} data-testid="scene-hint">
-                <span>{ro.configure.orbitHint}</span>
+                <span>{content.configure.orbitHint}</span>
               </p>
             )}
             <FlaggedTotalWarning />
@@ -210,10 +210,10 @@ export function ConfigureScreen({
           worse than static text. */}
       <div className={styles.actions}>
         <span className={styles.backAction} data-testid="bottom-bar-back">
-          {ro.configure.backAction}
+          {content.configure.backAction}
         </span>
         <span className={styles.reviewCta} data-testid="review-cta">
-          {ro.configure.reviewCta}
+          {content.configure.reviewCta}
         </span>
       </div>
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
@@ -221,7 +221,7 @@ export function ConfigureScreen({
           measurement that would put it back. */}
       <div className={styles.measure} aria-hidden="true">
         <span className={styles.wordmark} ref={topBar.wordmarkProbeRef}>
-          {ro.brand}
+          {content.brand}
         </span>
       </div>
       <SettingsPillMeasurement

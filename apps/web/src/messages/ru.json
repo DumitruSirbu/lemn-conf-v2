@@ -95,6 +95,7 @@
   },
   "price": {
     "startingPrefix": "От",
+    "amountWithCurrency": "{amount} MDL",
     "overflowingTotalWarning": "Цена также включает шкафы, которые выходят за пределы стены и требуют корректировки",
     "emptyKitchenPrompt": "Чтобы увидеть ориентировочную цену, добавь хотя бы один шкаф из каталога"
   },

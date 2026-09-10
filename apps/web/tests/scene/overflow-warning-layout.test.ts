@@ -144,8 +144,8 @@ describe("the warning is an overlay on the scene, taking none of its height", ()
   });
 
   it("puts no text of its own on the screen", () => {
-    // The owner's ruled sentence is in `ro.ts`. A word injected by a pseudo-element would survive an
-    // edit to that constant invisibly — right in the content module and wrong on screen.
+    // The owner's ruled sentence is in `ro.json`. A word injected by a pseudo-element would survive
+    // an edit to that leaf invisibly — right in the catalogue and wrong on screen.
     expect(warningDeclarations).not.toMatch(/[^-]content:/);
   });
 });
@@ -184,7 +184,8 @@ describe("the warning never wears the refusal's colours", () => {
  *  identifier flags five files that are doing exactly what they should. The dotted form names the
  *  content key and nothing else.
  *
- *  It does not catch a destructured read (`const { overflowWarning } = ro.configure`). Recorded as a
+ *  It does not catch a destructured read (`const { overflowWarning } = content.configure`). Recorded
+ *  as a
  *  known hole rather than closed, because the only way to close it is the bare identifier above. */
 const SENTENCE_KEY = "configure.overflowWarning";
 
@@ -220,10 +221,11 @@ describe("one surface reads the sentence", () => {
   });
 
   it("is named by the scene warning and by no other module under src/", () => {
-    // The bare identifier, so a destructured read (`const { overflowWarning } = ro.configure`) is
-    // caught as well as a dotted one. Comments are stripped first for the reason the declaration
-    // guard above strips them: this file, and `ro.ts`, name in prose exactly what they forbid in
-    // code, and a cross-reference in a doc comment is not a second surface rendering the sentence.
+    // The bare identifier, so a destructured read (`const { overflowWarning } = content.configure`)
+    // is caught as well as a dotted one. Comments are stripped first for the reason the declaration
+    // guard above strips them: this file, and any module discussing the rule, name in prose exactly
+    // what they forbid in code, and a cross-reference in a doc comment is not a second surface
+    // rendering the sentence.
     const trespassers = sourceModulePaths().filter(
       (path) =>
         !SENTENCE_ALLOWED.includes(path) &&
@@ -234,8 +236,10 @@ describe("one surface reads the sentence", () => {
   });
 
   it("is earned by the one allowed module, so the entry is not dead weight", () => {
+    // `content`, not `ro`: wave 6B-g renamed the binding at all six sites, because under `/ru` it
+    // holds Russian and a binding that names the wrong locale is wrong rather than merely ugly.
     expect(withoutComments(read(SENTENCE_OWNER))).toContain(
-      `ro.${SENTENCE_KEY}`,
+      `content.${SENTENCE_KEY}`,
     );
   });
 });

@@ -7,7 +7,7 @@
  * uncommitted state. `global-settings.tsx`'s head comment carries the reason. */
 /* **The pill, and it is also the trigger** (ADR 0104 decision 2). Frames D2E and 2E draw the same
  * control open and shut, so there is no separate *Setări globale* button in any frame: the strip and
- * its text trigger are withdrawn, and `ro.globalSettings.open` is the pill's accessible name rather
+ * its text trigger are withdrawn, and `globalSettings.open` is the pill's accessible name rather
  * than visible text.
  *
  * This element is the pill's positioning context and nothing else. It carries `min-width: 0` for
@@ -157,7 +157,7 @@
 }
 
 /* Frame 2A `:490`: `+2`, in the accent, tabular so the number does not shift the pill as it changes.
- * **Derived, never a literal** — see `ro.globalSettings.pillCount`. */
+ * **Derived, never a literal** — see `globalSettings.pillCount`. */
 .counter {
   flex: 0 0 auto;
   font: 700 10px/1 var(--font-ui);

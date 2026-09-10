@@ -492,7 +492,7 @@ describe("§9's width copy describes the control that is actually there", () => 
   });
 
   // The note the customer reads is the one the model publishes, asserted through real sections of
-  // both kinds — a note changed in `ro.ts` and not wired here would otherwise stay invisible.
+  // both kinds — a note changed in `ro.json` and not wired here would otherwise stay invisible.
   it("is the note each rendered control actually carries", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     const stepper = stepperAt(world, "p0");

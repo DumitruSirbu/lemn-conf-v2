@@ -112,7 +112,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 17 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 24 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -126,6 +126,7 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "panel.offerSize",
   "panel.handleDefaultNote",
   "panel.widthValue",
+  "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
   "priceBreakdown.groupHeading",
   "priceBreakdown.wholeKitchenLabel",
@@ -252,6 +253,17 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       String(widthMm),
       () => romanianContent.panel.widthValue(widthMm),
       () => translate("panel.widthValue", { widthMm }),
+    ),
+  ),
+  // Already-grouped amounts, because the leaf joins a *string* to a currency and never formats a
+  // number — the whole point of ADR 0095 Amendment C. Zero and the seeded kitchen's own figure, so
+  // a reordering of the join is caught on the shape a customer actually reads.
+  ...["0", "43 000", "1 000 000 000"].map((amount) =>
+    contentFixture(
+      "price.amountWithCurrency",
+      amount.replaceAll(" ", "_"),
+      () => romanianContent.price.amountWithCurrency(amount),
+      () => translate("price.amountWithCurrency", { amount }),
     ),
   ),
   ...(

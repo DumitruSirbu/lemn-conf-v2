@@ -359,8 +359,9 @@ test("a stored overflowing design is marked in the scene and warned about, and a
 
   const warning = page.getByTestId("scene-overflow-warning");
   await expect(warning).toBeVisible();
-  // ADR 0065 decision 7b's sentence, verbatim. The literal is the pin; reading it from `ro.ts` here
-  // would agree with any wording at all, including a tidied one.
+  // ADR 0065 decision 7b's sentence, verbatim. The literal is the pin; reading it from the shipped
+  // catalogue (`src/messages/ro.json`) here would agree with any wording at all, including a tidied
+  // one.
   await expect(warning).toHaveText(
     "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
   );

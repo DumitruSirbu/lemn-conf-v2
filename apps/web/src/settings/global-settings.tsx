@@ -315,7 +315,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
       ref={anchorRef}
     >
       {/* **Frames D2A / 2A's pill, and it is the trigger** (ADR 0104 decision 2): no frame draws a
-          separate *Setări globale* control, so `ro.globalSettings.open` is this button's accessible
+          separate *Setări globale* control, so `globalSettings.open` is this button's accessible
           name rather than visible text — through `pillNameAllSettings`, which states **every**
           setting whether or not the pill has room to draw it. `+N` is a visual economy and must not
           cost a screen-reader user a setting.

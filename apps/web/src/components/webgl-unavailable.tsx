@@ -9,29 +9,29 @@ import styles from "./webgl-unavailable.module.css";
  * shows no price, and renders no stand-in preview of a configuration that was never made.
  */
 export function WebGLUnavailable({ titleMobile }: { titleMobile?: string }) {
-  const ro = useContent();
+  const content = useContent();
   return (
     <main className={styles.screen} data-testid="webgl-unavailable">
       <header className={styles.header}>
-        <span className={styles.brand}>{ro.brand}</span>
-        <span className={styles.step}>{ro.configure.step}</span>
+        <span className={styles.brand}>{content.brand}</span>
+        <span className={styles.step}>{content.configure.step}</span>
       </header>
       <div className={styles.body}>
         <div className={styles.panel}>
           <h1 className={styles.title}>
             <span className={styles.mobileOnly}>
-              {titleMobile ?? ro.webglUnavailable.titleMobile}
+              {titleMobile ?? content.webglUnavailable.titleMobile}
             </span>
             <span className={styles.desktopOnly}>
-              {ro.webglUnavailable.titleDesktop}
+              {content.webglUnavailable.titleDesktop}
             </span>
           </h1>
           <p className={styles.text}>
             <span className={styles.mobileOnly}>
-              {ro.webglUnavailable.bodyMobile}
+              {content.webglUnavailable.bodyMobile}
             </span>
             <span className={styles.desktopOnly}>
-              {ro.webglUnavailable.bodyDesktop}
+              {content.webglUnavailable.bodyDesktop}
             </span>
           </p>
           <div className={styles.paths}>
@@ -42,7 +42,7 @@ export function WebGLUnavailable({ titleMobile }: { titleMobile?: string }) {
                 query: { intent: "link" },
               }}
             >
-              {ro.webglUnavailable.emailLink}
+              {content.webglUnavailable.emailLink}
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
@@ -54,13 +54,15 @@ export function WebGLUnavailable({ titleMobile }: { titleMobile?: string }) {
                 query: { intent: "callback" },
               }}
             >
-              {ro.webglUnavailable.contactLink}
+              {content.webglUnavailable.contactLink}
               <span className={styles.arrow} aria-hidden="true">
                 →
               </span>
             </Link>
           </div>
-          <p className={styles.footnote}>{ro.webglUnavailable.noFakePreview}</p>
+          <p className={styles.footnote}>
+            {content.webglUnavailable.noFakePreview}
+          </p>
         </div>
       </div>
     </main>

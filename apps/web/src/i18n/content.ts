@@ -660,6 +660,8 @@ export function resolveContent(translate: ContentTranslator) {
     },
     price: {
       startingPrefix: translate("price.startingPrefix"),
+      amountWithCurrency: (amount: string) =>
+        translate("price.amountWithCurrency", { amount }),
       overflowingTotalWarning: translate("price.overflowingTotalWarning"),
       emptyKitchenPrompt: translate("price.emptyKitchenPrompt"),
     },

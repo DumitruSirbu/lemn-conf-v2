@@ -119,6 +119,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
   },
   price: {
     startingPrefix: "De la",
+    amountWithCurrency: "{amount} MDL",
     overflowingTotalWarning:
       "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
     emptyKitchenPrompt:

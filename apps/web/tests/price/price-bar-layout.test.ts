@@ -111,7 +111,7 @@ describe("the bar is placed beside the scene, never over it", () => {
   it("puts no text of its own on the screen", () => {
     // The owner's 2026-09-03 ruling dropped the separator from the unchanged label. A separator
     // injected by a pseudo-element would survive that edit invisibly — the string would be right in
-    // `ro.ts` and wrong on screen — so the stylesheet is held to declaring no `content` at all.
+    // `ro.json` and wrong on screen — so the stylesheet is held to declaring no `content` at all.
     expect(barDeclarations).not.toMatch(/[^-]content:/);
   });
 

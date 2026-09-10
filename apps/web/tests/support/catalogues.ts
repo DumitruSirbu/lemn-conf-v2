@@ -52,3 +52,45 @@ export function requireLeafAt(messages: Catalogue, key: string): string {
   if (leaf === undefined) throw new Error(`no leaf at ${key}`);
   return leaf;
 }
+
+/**
+ * **Every leaf of a catalogue as `[dotted key, value]`**, so a claim can be made about the whole
+ * tree rather than about the section somebody remembered to look in.
+ *
+ * **An unexpected leaf throws rather than being skipped**, and that is the whole reason this walk is
+ * shared. A fourth private copy had grown in `price/starting-price.adversarial.test.ts` returning
+ * `[]` for a leaf that is neither string nor namespace, which turns *"exactly one leaf carries the
+ * currency"* into *"exactly one of the leaves this walk happens to reach"* — a sweep silently
+ * covering less than its name claims is the failure mode this module was created for.
+ *
+ * Callers that want keys alone map over the pairs; a second walk is how the two come to disagree.
+ */
+export function catalogueLeaves(
+  tree: Catalogue | Readonly<Record<string, unknown>>,
+  prefix = "",
+): readonly (readonly [string, string])[] {
+  return Object.entries(tree).flatMap(([key, value]) => {
+    const path = prefix === "" ? key : `${prefix}.${key}`;
+    if (typeof value === "string") return [[path, value] as const];
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      return catalogueLeaves(value as Readonly<Record<string, unknown>>, path);
+    }
+    throw new Error(`${path} is not a catalogue message or namespace`);
+  });
+}
+
+/**
+ * The Romanian catalogue with `price.amountWithCurrency` overwritten, so the join under test is
+ * authored by the test rather than shipped — the only way to prove a formatter *consults* the leaf
+ * instead of appending a currency of its own.
+ *
+ * `Catalogue` types every leaf as its own authored literal — the shipped join *is* the type — so a
+ * differing one has to be cast in, and the cast is on the tree rather than the leaf.
+ */
+export function catalogueJoining(template: string): Catalogue {
+  const [, romanian] = CATALOGUES[0];
+  return {
+    ...romanian,
+    price: { ...romanian.price, amountWithCurrency: template },
+  } as Catalogue;
+}

@@ -961,8 +961,18 @@ not proceed as though the clause were absent.
 **What "`MDL` stops being a literal suffix" actually means, then.** It means the *join* moves to the
 catalogue, so a translator can move the currency: `formatRoundedAmount`'s template literal
 `` `${amount} ${PRICE_BOOK_CURRENCY}` `` becomes a new leaf `price.amountWithCurrency` =
-*"{amount} MDL"*. `PRICE_BOOK_CURRENCY` stays in the price book, where ADR 0062 puts it, and is not
-duplicated into `messages/`.
+*"{amount} MDL"*. `PRICE_BOOK_CURRENCY` stays in the price book, ~~where ADR 0062 puts it~~, and is
+not duplicated into `messages/`.
+
+> **Citation corrected 2026-09-10**, on 6B-g's logic review. **No ADR rules which module the constant
+> lives in.** ADR 0062 contains no occurrence of *currenc* or *MDL* — its decision 1 governs amounts,
+> tiers, deltas and rules, which a currency code is none of. What makes the currency MDL at all is
+> [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 4. The constant's home in the
+> price book is right and unchanged; only the number cited for it was wrong, and it was wrong in the
+> code as well (`apps/web/src/price/starting-price.ts`), where it is now corrected to ADR 0001.
+> Recorded rather than quietly repointed, because a plausible-looking ADR number is the kind of thing
+> a later reader inherits without checking — this one survived a plan, an implementation and a QA
+> pass before a reviewer opened the file it named.
 
 #### Scope rider, added 2026-09-10 — the `ro` binding is renamed here
 

@@ -31,15 +31,12 @@
 //
 // **Interim, pending owner review** — the marker wave 6G set. If the owner reads *De la* as a
 // cross-tier floor rather than a pre-measurement one, the fix is a copy change to
-// `ro.price.startingPrefix` and `ro.priceBreakdown.disclaimer`, and this comment is where it lands;
+// `price.startingPrefix` and `priceBreakdown.disclaimer`, and this comment is where it lands;
 // no arithmetic here moves either way, which is why the wave does not wait on the answer.
 //
 // Rounding is presentation and lives only here: `packages/configurator-domain/src/pricing/` keeps
 // exact integer minor units and never rounds.
-import {
-  PRICE_BOOK_CURRENCY,
-  type PricedDesign,
-} from "@lemnaria/configurator-domain";
+import { type PricedDesign } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
 
@@ -56,7 +53,25 @@ const DIGITS_PER_GROUP = 3;
 /** The mockups group with a space — *"43 000 MDL"* — and grouping is done here rather than through
  *  `Intl.NumberFormat` on purpose: its output depends on the runtime's locale data, and this figure
  *  goes into a customer-facing document. The same reasoning that keeps the price lines' tie-break a
- *  byte comparison rather than `localeCompare` (wave 6B) applies to the number beside them. */
+ *  byte comparison rather than `localeCompare` (wave 6B) applies to the number beside them.
+ *
+ *  **Measured on this runtime rather than argued, 2026-09-10** (Node 24.19.0, against `143000`), so
+ *  that the next reader does not re-open the question:
+ *
+ *  - `Intl.NumberFormat("ro")` → `"143.000"`, a **period**. `"ro-MD"` is the same, and renders the
+ *    currency as **`"L"`** rather than `MDL`.
+ *  - `Intl.NumberFormat("ru")` → `"143 000"` with **U+00A0**, which is not the shipped byte either.
+ *
+ *  What ships, and what ADR 0003 and ADR 0104 make the specification for this screen, is
+ *  `143 000 MDL` — U+0020, currency after the amount, no decimals. So `Intl` here would not localise
+ *  the figure; it would change it, and an unapproved copy change arriving through a library is still
+ *  an unapproved copy change. **The separator is a product constant, not a locale variable**, and
+ *  ADR 0095 Amendment C narrows `Intl` out of `price/` entirely for that reason. An ICU number
+ *  skeleton cannot help either: it can switch grouping off — which is why the millimetre leaves use
+ *  `::group-off` — but it cannot choose the separator glyph.
+ *
+ *  **What is translatable is the join, not the digits**: `price.amountWithCurrency` owns where the
+ *  currency sits relative to the amount and what it is called. See `formatRoundedAmount`. */
 const THOUSANDS_SEPARATOR = " ";
 
 /** The mockups' own mark for an amount a choice *adds* to the figure rather than being it — frames
@@ -69,10 +84,10 @@ const ADDED_AMOUNT_SIGN = "+";
  *  small, letter-spaced and uppercased by CSS — and a component that had to split a joined string
  *  to do that would be formatting a figure of its own. */
 export interface PriceFigure {
-  /** `ro.price.startingPrefix`, and since the owner's ruling of 2026-09-09 there is no other —
+  /** `price.startingPrefix`, and since the owner's ruling of 2026-09-09 there is no other —
    *  **no surface composes a prefix of its own** and none is offered a choice. */
   readonly label: string;
-  /** The rounded amount and its currency, e.g. `"43 000 MDL"`. */
+  /** The rounded amount joined to its currency by `price.amountWithCurrency`, e.g. `"43 000 MDL"`. */
   readonly amountText: string;
 }
 
@@ -125,7 +140,7 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
     label: input.copy.startingPrefix,
-    amountText: formatRoundedAmount(input.totalMinor),
+    amountText: formatRoundedAmount(input.totalMinor, input.copy),
   };
 }
 
@@ -152,7 +167,7 @@ export function roundUpToThousandMdl(totalMinor: number): number {
  *
  * Rounds through `roundUpToThousandMdl`, the same site the total uses, which is exactly why the
  * lines and the total **need not sum** — see this module's head comment, and the disclaimer in
- * `ro.priceBreakdown.note` that carries it.
+ * `priceBreakdown.note` that carries it.
  */
 export function describeRoundedAmount(amountMinor: number): string {
   return groupThousands(roundUpToThousandMdl(amountMinor));
@@ -163,9 +178,9 @@ export function describeRoundedAmount(amountMinor: number): string {
  * badge is built from.
  *
  * Rounded through `roundUpToThousandMdl` like every other displayed amount, so a tier's delta and
- * the total it moves cannot round by two different rules. The sign lives here rather than in
- * `ro.ts` for the reason the currency does: it is part of the *figure*, and a `+` written into a
- * copy module is somebody authoring arithmetic into a label.
+ * the total it moves cannot round by two different rules. The sign lives here rather than in the
+ * catalogue — where the currency's *name* now does — because it is arithmetic rather than a word,
+ * and a `+` written into a message leaf is somebody authoring arithmetic into a label.
  *
  * **Only a non-negative amount reaches this**, still, and by two rules rather than one since
  * wave 6W (`whole-kitchen-tiers.ts`'s `BelowDefaultTierRule`): a **material** tier cheaper than its
@@ -179,8 +194,32 @@ export function describeAddedAmount(amountMinor: number): string {
   return `${ADDED_AMOUNT_SIGN}${describeRoundedAmount(amountMinor)}`;
 }
 
-function formatRoundedAmount(totalMinor: number): string {
-  return `${describeRoundedAmount(totalMinor)} ${PRICE_BOOK_CURRENCY}`;
+/**
+ * **The join, and the only part of a figure a translator may move.**
+ *
+ * It was `` `${amount} ${PRICE_BOOK_CURRENCY}` `` until wave 6B-g, which is a word order and a
+ * currency name written into a template literal — the one thing about a price that genuinely does
+ * vary by language. `price.amountWithCurrency` owns it now, so *MDL* against *лей*, and the currency
+ * before the amount against after it, are decisions the owner rules at Gate O2 rather than facts
+ * about this file. `PRICE_BOOK_CURRENCY` stays in the price book and is not duplicated into
+ * `messages/`.
+ *
+ * **No ADR rules which module holds that constant**, and this note used to cite ADR 0062 for it,
+ * which contains no mention of a currency at all. What the record does say: ADR 0001 decision 4 puts
+ * the product's prices in MDL, and ADR 0062 decision 1's *one authority, one shape* keeps every
+ * amount, tier, delta and rule inside the book — the currency's name is none of those four. The
+ * constant is in the book because the book is what declares one and `parse-price-book.ts` refuses a
+ * book declaring any other; the placement was right and the citation was not.
+ *
+ * The digits are not translatable and do not pass through the catalogue as a number: the leaf takes
+ * an already-grouped `{amount}` string, so no ICU number skeleton and no CLDR grouping rule can
+ * reach the figure. See `THOUSANDS_SEPARATOR` above for the measurement behind that.
+ */
+function formatRoundedAmount(
+  totalMinor: number,
+  copy: Content["price"],
+): string {
+  return copy.amountWithCurrency(describeRoundedAmount(totalMinor));
 }
 
 /** A price that is not a whole, non-negative count of the smallest unit is a price something has

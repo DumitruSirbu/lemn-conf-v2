@@ -95,7 +95,7 @@
 }
 
 /* The whole-kitchen rules follow every placement row, separated by a rule. **Not a subtotal line**:
- * nothing above it is summed and nothing below it claims to be — see `ro.priceBreakdown.note`. */
+ * nothing above it is summed and nothing below it claims to be — see `priceBreakdown.note`. */
 .wholeKitchen {
   padding-top: 4px;
   border-top: 1px solid var(--line-soft);

@@ -102,8 +102,8 @@ function contentAndOracleFor(
 
 const FUNCTION_FAMILIES = [
   "rejection",
-  // The two descriptor resolvers 6B-f added. They are not `ro.ts` content families — they turn a
-  // domain descriptor into words — but they are public functions on `Content` and are counted here
+  // The two descriptor resolvers 6B-f added. They are not catalogue families — they turn a domain
+  // descriptor into words rather than resolving a leaf of `ro.json` — but they are public functions on `Content` and are counted here
   // so a resolver cannot be added without this list saying so.
   "bodyLabel",
   "bandLabel",
@@ -121,6 +121,7 @@ const FUNCTION_FAMILIES = [
   "panel.offerSize",
   "panel.handleDefaultNote",
   "panel.widthValue",
+  "price.amountWithCurrency",
   "priceBreakdown.placementLabel",
   "priceBreakdown.groupHeading",
   "priceBreakdown.wholeKitchenLabel",
@@ -169,7 +170,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 28 public functions with %s ICU messages",
+    "backs exactly 29 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -221,6 +222,9 @@ describe("the localized content resolver", () => {
       );
       expect(content.panel.widthValue(600)).toBe(
         translate("panel.widthValue", { widthMm: 600 }),
+      );
+      expect(content.price.amountWithCurrency("43 000")).toBe(
+        translate("price.amountWithCurrency", { amount: "43 000" }),
       );
       expect(content.priceBreakdown.placementLabel("body-token", 600)).toBe(
         translate("priceBreakdown.placementLabel", {
