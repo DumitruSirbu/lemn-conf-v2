@@ -132,6 +132,21 @@ PASS.
 
 ## What is open right now
 
+- **Engineering deferral — the `e2e` CI job splits by Playwright project, immediately after M6B
+  closes.** Owner ruling, 2026-09-10: *"do it just after you will finish the M6B milestone"*, and
+  recorded in
+  [ADR 0105](decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md).
+  Run 34407768425 was cancelled at test **161 of 186**, 49.4 minutes into the specs, with **every
+  test that ran passing** — the suite is simply longer than its ceiling (~57 minutes of job against
+  a 50-minute cap). The ceiling is raised to **75** at `4aa3e0a` to carry M6B, which adds a second
+  locale and will grow the suite again; that is the **third** raise (25 → 45 → 50 → 75) and is
+  explicitly the last. The replacement is a matrix over `--project`, splitting `mobile` (28.6 min,
+  120 tests) from `desktop` (~27 min, 66 tests) along the seam `playwright.config.ts` already draws.
+  **`workers` stays at 1** — two cores, three.js compiled on first paint, and one shared Neon
+  database the suite writes to; ADR 0105 rejects that option on the merits rather than deferring it.
+  **Not started, and deliberately not started during M6B**: restructuring the gate that measures a
+  milestone while that milestone is open makes a failure ambiguous between the split and the wave.
+
 - **The configure screen's chrome does not match the design reference, on either shell — owner
   rejection, 2026-09-09.** *"I wanted to be same as in reference, SAME, because this is the design I
   made and approve"*, and *"on mobile same shit, you done what you wanted not what is in reference"*.

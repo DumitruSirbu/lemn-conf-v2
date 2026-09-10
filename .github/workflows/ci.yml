@@ -204,7 +204,10 @@ jobs:
     # is about 54 minutes of specs and ~57 of job. 75 leaves room for the second
     # locale M6B is adding, which puts Russian renderings beside the Romanian.
     #
-    # **The next raise should not happen; split the job instead.** The seam is
+    # **The next raise should not happen; split the job instead.** Ruled by the
+    # owner on 2026-09-10 and recorded in `docs/decisions/0105-the-e2e-job-
+    # splits-by-playwright-project-rather-than-raising-its-ceiling-again.md`,
+    # scheduled for immediately after M6B closes. The seam is
     # already drawn — `playwright.config.ts` declares `mobile` and `desktop` as
     # separate projects and names their spec files apart — so a matrix over
     # `--project` gives two ~30-minute halves for about the same Actions minutes
