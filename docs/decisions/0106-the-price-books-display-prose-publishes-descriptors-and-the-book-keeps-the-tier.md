@@ -115,8 +115,17 @@ both locales; `describeRowAmount` (`apps/web/src/price/price-breakdown-model.ts`
 *inclus* / *включено* from the book's own zero, so nothing a customer reads was lost — the prose was
 duplicating the amount column beside it.
 
-**What is still owed.** The prose sweep described above, in wave **6B-j**. Until it exists, this
-amendment is the only thing standing between a future wave and a fourth such sentence.
+~~**What is still owed.** The prose sweep described above, in wave **6B-j**. Until it exists, this
+amendment is the only thing standing between a future wave and a fourth such sentence.~~
+**Discharged 2026-09-10 at `aff9a2c`.** The sweep is in `apps/web/tests/i18n/price-book-text.test.ts`:
+a per-locale inclusion-word check over `priceBook.*` leaves, with the policy this amendment asked for
+— an exemption table that is **currently empty**, a positive control that feeds it the three trimmed
+sentences so the pattern cannot pass by matching nothing, and an assertion that **every exemption
+carries a reason and names a leaf that exists**. The Romanian pattern is widened one step past this
+amendment's three spellings to reach *inclusiv* and *incluzând*; `include` is deliberately outside it,
+because *"Nu include transport"* is an exclusion. And 6B-j's lint gate does not fire on a book row's
+`name` fallback: its allow-list entry **narrows by syntactic position** rather than exempting the
+file, so a rejection sentence or a label in `sample-price-book.ts` still fails.
 
 ## Amendment B — what shipped, counted (2026-09-10)
 

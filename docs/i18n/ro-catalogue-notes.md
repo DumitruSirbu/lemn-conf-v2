@@ -178,6 +178,17 @@ supplier code at all, so nothing is quoted back.
 
 Whichever way it goes, `ro.json` does not change; only `ru.json`'s treatment of eight keys does.
 
+**Updated 2026-09-10 — the question is now live, and it is item F6 at Gate O2.** Wave 6B-i drafted
+**all eight translated** (`Stejar Bardolino Natur` → `Дуб Бардолино натуральный`,
+`Gri Havanna` → `Серый Гавана`), which is one of the three answers this section lays out and not a
+ruling; it is flagged for the owner in
+[`gate-o2-russian-review.md`](gate-o2-russian-review.md) as F6, with transliterating and keeping the
+manufacturer's Latin name named beside it. If the answer is *keep the Latin name*, the remedy has the
+same shape as *Hettich* and *Blum*: **no key, one spelling in every locale**. And the diacritic blind
+spot the section above opens with is **closed as a gate**, not as a blind spot — wave 6B-j
+(`aff9a2c`) shipped the positional rule that catches diacritic-free Romanian, which is what the
+sentence at *"still the reason 6B-j needs a second rule"* was waiting for.
+
 Deliberately absent, each for a recorded reason:
 
 - ~~**The price book's 6 tier names** (*Standard*, *Hettich*, *Blum*, *PAL melaminat*, *MDF vopsit

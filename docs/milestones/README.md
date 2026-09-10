@@ -61,7 +61,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M5](M5-width.md) | Width as a neighbour boundary move, **and depth as a derived quantity** (rescoped 2026-08-27) | domain + adapter + panel |
 | [M5B](done/M5B-manual-ux-remediation.md) | Manual UX remediation — eleven findings from a hand session, and the column algebra they exposed — **DONE 2026-09-02** (archived) | domain + adapter + panel |
 | [M6](M6-price-and-global-settings.md) | Price bar, breakdown, whole-kitchen settings — 2D, 2E | **mobile-gated** |
-| [M6B](M6B-internationalization.md) | Internationalization — Romanian becomes a source locale instead of a hardcoded one; ten waves (planned 2026-09-06, ADR 0095); closes ADR 0001 decision 5 | app + domain |
+| [M6B](M6B-internationalization.md) | Internationalization — Romanian becomes a source locale instead of a hardcoded one; ~~ten waves~~ **thirteen** (planned 2026-09-06, ADR 0095); closes ADR 0001 decision 5. **Every wave shipped by 2026-09-10 (6B-i `87429ca`, 6B-j `aff9a2c`); blocked on Gate O2 — the owner reads the Russian** | app + domain |
 | [M7](M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor | **mobile-gated** |
 | [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure | **mobile-gated** |
 

@@ -1,5 +1,10 @@
 # M6B — Internationalization: Romanian becomes a source locale instead of a hardcoded one
 
+> **STATUS, 2026-09-10: BLOCKED ON GATE O2 — the owner's Russian review, which no agent may pass.
+> Every wave has shipped and M6B's build scope is complete.** The banner below is the planning
+> history, preserved and superseded; the correction that carries the current state is two paragraphs
+> down.
+>
 > **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-e complete at `8fff684`; two owner
 > catalogue rulings applied at `6ea640f`; ~~6B-f next.~~** **Corrected 2026-09-10: 6B-f is complete
 > at `2301e4f` — the label descriptor shipped, `apps/web/src/content/ro.ts` is deleted, and 31 of the
@@ -13,7 +18,22 @@
 > 26 converted; `src` is untouched and the golden manifest holds 303 hashes, unmoved. The plan's
 > *"96 `expect(x).toBe(ro.k)` tautologies"* was wrong in kind: 97 assertions of that shape exist and
 > **none** is unfalsifiable — struck in place under *Re-planning against the rebased tree* item 8 and
-> in the wave's own section. 6B-i is next.** Runs immediately after M6 and
+> in the wave's own section. ~~6B-i is next.~~**
+>
+> **STATUS CORRECTED 2026-09-10, and this is now the whole of it: every wave of M6B is complete and
+> the milestone is blocked on Gate O2, which is the owner's.** 6B-i shipped at **`87429ca`** — the
+> `RO` chip became a link to the other locale, the pseudo-locale became a consumed test tool, and
+> **all five Russian plural leaves were repaired from Romanian's `one/few/other` to Russian's CLDR
+> categories**, a defect the catalogue-parity gate had been *requiring*. 6B-j shipped at **`aff9a2c`**
+> — three lint rules, a package-boundary test, ADR 0106 Amendment A's prose sweep and the written
+> convention in `docs/best-practices/engineering-conventions.md`, **every rule proved by landing a
+> violation and observing the red**. **No agent may pass Gate O2.** The review aid is
+> [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
+> beside its Romanian source, by namespace — and it carries **two items that are decisions rather
+> than translation checks**: the eight decor names are translated, and `configure.localeSwitch` is new
+> Romanian that has never been through Gate O1. **After Gate O2, the phase's own remaining work is
+> ADR 0105's e2e project split**, deferred by the owner until the milestone finishes. Runs
+> immediately after M6 and
 > before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
 > corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
@@ -26,7 +46,8 @@
 > under *Re-planning against the rebased tree*, and the sections that went stale are struck rather
 > than deleted.
 
-Status: in progress on branch `m6b-internationalization`. The 2026-09-07 owner sequencing ruling
+Status: ~~in progress~~ **blocked on Gate O2, 2026-09-10 — every wave shipped** on branch
+`m6b-internationalization`. The 2026-09-07 owner sequencing ruling
 supersedes the planned dependency order described below; see *Owner sequencing correction*.
 Reference: [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 5;
 [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md);
@@ -405,9 +426,9 @@ sequenced so the mechanical bulk is separable from the decisions.
 | **6B-h1** | ~~Test sweep, domain and adapter: **26 files** carrying Romanian literals, including the `src/` fixture `kitchen-l-design.ts`~~ **Struck 2026-09-10 — the scope collapsed to one line while the wave waited.** 6B-e, 6B-f, 6B-f2 and 6B-g moved this copy as a side effect; the residue is **one literal in one domain test file** and is folded into 6B-h2. See the wave's own section | **Light** (tests only) | 6B-g |
 | **6B-h2** | **DONE 2026-09-10, `9863f33`:** the test sweep — Romanian literals in `apps/web/tests` **104 → 34** outside the copy lock, **33 → 10** files, 26 converted, 6B-h1's one-line residue folded in; and the *"96 tautologies"* purge **did not happen, because there were none to purge** — 97 assertions of that shape, 0 unfalsifiable, settled by mutation | **Light** (tests only, but see below) | ~~6B-h1~~ **6B-g** |
 | **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
-| **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 — **both met, 6B-h2 at `9863f33`** |
-| **Gate O2** | **HARD STOP — the owner checks the Russian.** Not a wave; an owner review, and a real one | — | 6B-i |
-| **6B-j** | The re-drift gate — **two lint rules, a domain boundary gate, and the written convention M7 and M8 author against** | **Medium** (re-tiered 2026-09-10; it was Light) | 6B-i |
+| **6B-i** | **DONE 2026-09-10, `87429ca`:** the second locale — the `RO` chip becomes a **link** to the other locale at the current locale-free path, the pseudo-locale becomes a **consumed** length-stress transform over a real catalogue, and the **five Russian plural leaves gain CLDR `many`** (the parity gate had been requiring Romanian's categories). One new leaf, `configure.localeSwitch`; hashes **303 → 304, one added, none moved** | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 — **both met, 6B-h2 at `9863f33`** |
+| **Gate O2** | **HARD STOP — the owner checks the Russian. OPEN as of 2026-09-10, and it is the only thing between M6B and close.** Not a wave; an owner review, and a real one. Review aid: [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) | — | 6B-i — **met** |
+| **6B-j** | **DONE 2026-09-10, `aff9a2c`:** the re-drift gate — **three lint rules**, a package-boundary test **extending** `pricing-seams.test.ts`'s existing sweep rather than adding a second walker, ADR 0106 Amendment A's inherited prose sweep, and the written convention in `engineering-conventions.md` § *Localised copy*. **Every rule proved by landing a violation and observing the red** | **Medium** (re-tiered 2026-09-10; it was Light) | 6B-i |
 
 6B-b and 6B-c are independent of one another and may run in either order after 6B-a. Everything from
 6B-d down is a chain, because each wave's golden-output check depends on the previous wave's
@@ -1552,7 +1573,72 @@ themselves at **Gate O2**. That is the substantive review. **No agent marks a tr
 and no agent edits Romanian to make a translation easier** — an awkward source sentence is a finding
 reported to the owner, who owns both languages here.
 
+#### Completed 2026-09-10 — `87429ca`
+
+**`/ru` already rendered end to end; what was missing was the way in.** The `RO` chip in the top bar
+was a static `<span>` with a decorative caret — a control that looked like one and did nothing. It is
+now a **link to the other locale at the current locale-free path**.
+
+**A link rather than a popover, for three recorded reasons.** The mockups draw the chip closed in
+every frame and never open one, so a menu would be chrome the reference does not declare — which is
+the ruling [ADR 0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+already made for this screen. With two locales the entire choice is *"the other one"*. And a locale
+here **is** a URL, so an anchor gets focus, keyboard activation and no-JS activation without any of
+the three being invented. `apps/web/src/i18n/use-locale-switch.ts` **throws rather than
+first-matching** when there is no single other locale, and a test pins `routing.locales` at two — so
+a third locale reopens the menu question loudly instead of silently picking one. One new leaf,
+`configure.localeSwitch`, in both catalogues and behind the copy lock.
+
+**The pseudo-locale is a transform over a real catalogue, not a third locale.** It pads by ~40% with
+accented look-alikes and decides what is text by **ICU brace-depth parity**, so an argument spec is
+never mangled. It is never in `routing.locales`, and it is off in production with no opt-in. It is
+**consumed** — by the price-bar and overflow-warning layout tests and by its own suite over all
+**235** leaves — and that is recorded because a pseudo-locale nothing runs is decoration.
+
+##### The defect, and it is the milestone's worst
+
+**All five Russian plural leaves declared Romanian's `one`/`few`/`other`.** Russian CLDR needs
+`many`, so **every Russian count of five or more fell through to `other` and read wrong**.
+
+What makes it worse than an oversight: **the parity gate was requiring it.** It compared branch lists
+between the locales and demanded they match, so a *correct* Russian plural would have **failed** the
+gate. That is a category beyond the four dead gates this milestone has already recorded — not a gate
+that measured nothing, but one that **enforced the defect and would have rejected the fix**. It now
+asserts each locale's own CLDR categories and compares message bodies only for the categories the two
+languages share; the rewritten case and its reasoning are in
+`apps/web/tests/i18n/catalogue-parity.test.ts`. **The repair is purely additive** — each Russian leaf
+gained a `many` branch carrying the exact text `other` was already resolving for those counts — so no
+reachable sentence moved.
+
+##### Verified at the commit
+
+**9,427 tests green** — domain **3,770**, persistence **282**, three-adapter **3,031**, web
+**2,344** — with lint, typecheck and whole-tree `format:check` clean. The golden manifest went
+**303 → 304: one added, none moved**, which is the new leaf and nothing else.
+
+##### A plan figure that measured false, again
+
+The plan says **"219 leaves"**. `ro.json` held **234** before this wave and **235** after. Recorded
+in the same terms as the six false claims before it: a named quantity in this plan is not evidence
+that anyone counted.
+
 ### Gate O2 — the owner checks the Russian. A hard stop.
+
+> **OPEN as of 2026-09-10, and it is the only thing between M6B and close.** 6B-i and 6B-j have both
+> shipped, so **M6B's build scope is complete**; the milestone is blocked here, on the owner, and
+> **no agent may pass this gate**. The review aid is
+> [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — all **235** leaves of
+> `ru.json` beside their Romanian source, grouped by namespace, in the catalogues' own key order.
+> **Two of the six items it flags are decisions rather than translation checks:**
+>
+> - **F6 — the eight decor names are translated** (`Stejar Bardolino Natur` →
+>   `Дуб Бардолино натуральный`). This is a **product question, not a wording one**: they read as the
+>   board manufacturer's own decor names, and a customer holding a supplier sample is matching the
+>   printed text. If they should not be translated, the remedy has the same shape as *Hettich* and
+>   *Blum* under [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+>   decision 1 — **no key, one spelling in every locale**.
+> - **F4 — `configure.localeSwitch` has not been through Gate O1.** Its Romanian was authored by
+>   6B-i, after the gate closed, so it needs an O1 read as well as an O2 one.
 
 **When.** After 6B-i, with `ru.json` complete and every screen rendering end-to-end in Russian.
 
@@ -1705,6 +1791,96 @@ calls, and a convention that seven questions must be answered in. It is not a me
   does not run, and an entry with no reason beside it is indistinguishable from a suppression. The
   per-entry reason is the mitigation and it is a review item, not a formality.
 
+#### Completed 2026-09-10 — `aff9a2c`
+
+**Three lint rules in `eslint.config.mjs`, a package-boundary test, ADR 0106 Amendment A's inherited
+prose sweep, and the written convention in `docs/best-practices/engineering-conventions.md`.** The
+boundary check **extends** `packages/configurator-domain/tests/pricing/pricing-seams.test.ts`'s
+existing `SOURCE_ROOT` sweep rather than adding a second walker, as punch-list item 3 required; the
+prose sweep is `apps/web/tests/i18n/price-book-text.test.ts`, which refuses a `priceBook.*` leaf that
+restates an amount, a delta or an earning rule.
+
+**Every rule was proved by landing a violation and observing the red**, and the rule / violation /
+message table is in the commit body. Recorded here because the *method* is the point: a rule
+described but not falsified would have been this milestone's **eighth** instance of prose outrunning
+code.
+
+##### Two rules exist because a scan was wrong, and both errors have the same shape
+
+Both are a stale plan number corrected with an incomplete new one — the failure this file has now
+recorded at every scale.
+
+- **Regex literals.** A Romanian string lives inside `/incluse? în preț/i`; the scan that "corrected"
+  the plan read only quoted strings and template literals. This was already handed forward as
+  punch-list item 6 at 6B-h2's close, and the third selector, `Literal[regex.pattern=…]`, is what
+  closes it.
+- **Cedillas.** Romanian `ș` and `ț` have **two encodings** — U+0219/U+021B with comma below, and
+  U+015F/U+0163, the *Turkish* cedillas, in legacy text. The character class held only the first, so
+  **19 characters across five files were invisible** and the reported *"33 remaining literals"* was
+  really **54** — 21 file-level and 33 site-level. A rule blind to the cedillas passes a Romanian
+  sentence pasted through a legacy tool, which is the one drift nobody can see by reading.
+
+##### The allow-list carries two shapes, as punch-list item 2 required
+
+**5 file-level entries**, one of them **narrowed by syntactic position** rather than exempted, so
+ADR 0106 decision 2's required `name`/`description` fallbacks stay legal while the rest of
+`sample-price-book.ts` is still swept — plus a **5-entry decorative-glyph table** for the marks a
+component may draw as bare JSX text. **25 site-level entries across 13 files**, whose reasons are
+wave 6B-h's in-place annotations carried over rather than written fresh.
+
+##### Reach recorded honestly, because the next reader will assume a rule's name is its reach
+
+- `regex.pattern` reads the **pattern source**, so a `ș` written as an escape, or a pattern assembled
+  by `new RegExp(x)`, is invisible to it.
+- `JSXText` is **not** a `Literal`, so a diacritic sitting in JSX text is caught only by the
+  positional rule — and therefore only under `apps/web/src`.
+- The domain test's reach is **that package's `src`**; its sibling packages are covered by lint
+  instead.
+- **A stale site-level entry fails `--max-warnings 0` as an unused disable; a stale file-level entry
+  does not.** The two shapes decay differently and only one of them reports it.
+
+##### A scope decision taken against the plan's letter
+
+**Tests are in scope for the diacritic rule**, though punch-list item 1 says *"the two `src` trees"*.
+Wave 6B-h swept the tests, the whole allow-list lives in tests, and this milestone's *Scope* names
+test strings — so a rule guarding only `src` would let literals drift straight back into the place
+just swept.
+
+##### A sequencing deviation, recorded rather than smoothed over
+
+**This wave shipped before Gate O2, not after it.** The wave table places the Gate O2 row between
+6B-i and 6B-j, and this plan's *Risks* say *"Nothing is schedulable through O2"*. The table's own
+**Depends on** column asks 6B-j only for 6B-i, which was met, and this wave changes no wording — so
+the deviation is against the ordering prose rather than against a dependency.
+
+**The authority is the owner's, and it is recorded first because it is the part that matters.** On
+2026-09-10 they directed: *"do everything that you can to finish the milestone scope then i will
+check"*, and *"focus on developing more, then I will focus on testing"*. Building 6B-j ahead of O2 is
+that instruction carried out.
+
+**The engineering argument is the coordinator's own, and it is why the direction was safe rather than
+the permission for it.** Gate O2 reviews Russian **wording**; 6B-j contains none — three lint rules,
+a package-boundary test, a prose sweep and a written convention, not one of which depends on whether
+the Russian is approved. The work is orthogonal to what O2 decides.
+
+**Stated plainly rather than defensively: the plan's *"Nothing is schedulable through O2"* is
+stronger than *"nothing wording-dependent"*, and on its letter this wave departed from it.** The
+owner's instruction is the authority for that departure. **Gate O2 itself remains unpassed and
+untouched — no agent has ruled on any Russian string, and the milestone is still blocked on it.** The
+difference between *a wave that ran early by direction* and *a gate that was bypassed* is the whole
+of this paragraph.
+
+The bounded cost is worth stating:
+the wave's last acceptance criterion asks for `pnpm lint` and `pnpm ci:local` green *"on the tree as
+it stands after 6B-i"* — and they are — but if Gate O2 returns Romanian edits, the allow-list and the
+convention were paid against a tree that then moves.
+
+##### Verified at the commit
+
+**9,439 tests green** — domain **3,776**, persistence **282**, three-adapter **3,031**, web
+**2,350** — with lint, typecheck and whole-tree `format:check` clean. The golden manifest holds
+**304** hashes and is **untouched** by this wave.
+
 ## Acceptance criteria
 
 Falsifiable, and stated as invariants including what must not happen.
@@ -1811,8 +1987,14 @@ Falsifiable, and stated as invariants including what must not happen.
 - **The copy lock is an inline literal table.** `vitest -u` does not make an edited sentence pass.
   Falsify by editing a sentence and running the suite with `-u`; it must still be red.
 - **A key added to `ro.json` with no line in the copy lock fails the lock.**
-- **No test asserts `t(k) === t(k)`.** The 81 tautologies are converted to descriptor assertions, not
-  deleted — the count of assertions over those surfaces does not fall.
+- ~~**No test asserts `t(k) === t(k)`.** The 81 tautologies are converted to descriptor assertions, not
+  deleted — the count of assertions over those surfaces does not fall.~~ **Struck 2026-09-10, at
+  6B-i's close, for the reason 6B-h2 measured and this criterion was never updated with:** there were
+  **97** assertions of that shape and **0** of them unfalsifiable, so *"the 81 tautologies"* names a
+  set that does not exist. What survives of the criterion is the half that is true and was met — **no
+  assertion over those surfaces was deleted to satisfy it** (8 deleted against 7 added, with the
+  replacement chain broken link by link). See 6B-h2's close-out and item 8 of *Re-planning against
+  the rebased tree*.
 - A translation missing a key, or dropping an ICU placeholder the source declares, fails the parity
   gate. Falsify by deleting a key and a `{label}` from `ru.json`.
 
@@ -1931,7 +2113,17 @@ Falsifiable, and stated as invariants including what must not happen.
 - Phase close: `pnpm check`, `pnpm format:check` **whole-tree**, and the Playwright suite.
 - Visual: one mobile and one desktop pass on `/ro/configurator/configure` after 6B-g against the M6
   close-out shots, and **one on `/ru/…` after 6B-i** — the Russian pass is a layout check, not a copy
-  review.
+  review. **The 6B-g pass is recorded in that wave's close-out. There is no `/ru` visual pass for
+  6B-i, and the reason is a stated coverage gap rather than an oversight:** the owner redirected
+  effort mid-milestone — *"focus on developing more, then I will focus on testing"* — so from 6B-i
+  onward the automatic gates were run (typecheck, lint, whole-tree `format:check`, the full suite)
+  and the QA, review and visual agent rounds were dropped. **6B-i and 6B-j shipped verified but not
+  reviewed, by the owner's direction, and the owner intends to test them.**
+  **What that leaves specifically unverified, named so it is the first thing a person tries: the
+  switcher's click-through behaviour in a browser** — that it changes language, keeps the design being
+  edited, and survives a shared `/d/{id}` link. All three are pinned by tests; none has been watched
+  happen. The pseudo-locale being consumed by the price-bar and overflow-warning **layout tests** is a
+  different instrument and not a substitute for looking.
 - 6B-j's gate is verified by **introducing** a Romanian literal in a scratch file and confirming the
   gate fails, then removing it. A gate never run is not a gate.
 - The copy lock is verified by editing a sentence and running the suite **with `-u`**, confirming it
@@ -1965,6 +2157,31 @@ Falsifiable, and stated as invariants including what must not happen.
    plus tier/accessory display names, and they reach customer-visible screens. Numeric rates and
    manufacturer records remain data; displayed prose becomes message descriptors so `/ru/…` does
    not leak Romanian. Existing Romanian moves byte-for-byte and Russian stays unapproved until O2.
+
+## Where the phase stands — 2026-09-10
+
+**Every wave is complete. The build scope of M6B is finished and the milestone is blocked on Gate O2,
+which is the owner's and which no agent may pass.** 6B-a … 6B-j all carry a commit and a close-out
+section above; the wave table is the index.
+
+**What the owner has to do, and it is one thing:** read
+[`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
+beside its Romanian source, by namespace — and rule. Two of its six flagged items are **decisions**
+rather than translation checks: **F6**, whether the eight decor names are translated at all, and
+**F4**, `configure.localeSwitch`, whose Romanian is new this wave and has never been through Gate O1.
+The Russian remains an **unapproved agent draft** until they rule; that has been true since 6B-a and
+it is still true.
+
+**What remains after Gate O2, so it is not discovered later as a surprise:**
+
+- **Whatever the owner's O2 ruling costs.** A Russian change is a value edit. **A Romanian change is
+  an O1-class change** — copy lock updated in the same commit, the golden manifest re-baselined for
+  exactly those keys with the key list in the commit message, and the affected Russian re-translated.
+- **[ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)'s
+  e2e project split**, deferred by the owner *"just after you will finish the M6B milestone"* and
+  **deliberately not started while this milestone was open** — restructuring the gate that measures a
+  milestone during that milestone makes a failure ambiguous between the split and the wave. It is
+  M6B's work, not M7's.
 
 ## What this phase hands on
 

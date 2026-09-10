@@ -425,3 +425,35 @@ manifest went 300 → 303 hashes with none moved. **One thing this leaves for Ga
 not mistaken for a translation gap**: `ru.json` carries the same value as `ro.json`,
 `"{amount} MDL"`. Point 3 above is what makes that the owner's to rule rather than a library's — the
 leaf exists precisely so *MDL* against *лей*, and the currency's position, can be decided at O2.
+
+### Amendment D — a plural's branch list belongs to its own locale, and the parity gate was requiring the defect (2026-09-10)
+
+**Decision 2's layer 4 asks for *"ICU placeholder parity"* and it is correct as written.** What
+shipped alongside it went further: the catalogue-parity gate compared the two locales' **plural
+branch lists** and demanded they match. Romanian counts in `one`/`few`/`other`; **Russian's CLDR
+categories are `one`/`few`/`many`/`other`**. So the gate could only pass on a Russian file that
+declared Romanian's categories — which is exactly the file that shipped.
+
+**The consequence, found by wave 6B-i at `87429ca`:** all five Russian plural leaves carried
+Romanian's three branches, so **every Russian count of five or more fell through to `other` and read
+wrong**. A correct Russian plural would have **failed the gate**. This is a category past the four
+dead gates recorded elsewhere in this milestone: not a gate that measured nothing, but one that
+**enforced the defect and would have rejected its fix**.
+
+**The narrowing.** Layer 4's structural guard has two halves and they are not the same claim:
+
+1. **Placeholder and branch-*body* parity, leaf against leaf** — arguments, number and date formats,
+   `select` branches and exact-value (`=0`, `=1`) branches must correspond, and bodies are compared
+   only for the categories the two languages **share**. Unchanged.
+2. **Category-set correctness, locale against its own CLDR data** — each locale declares exactly its
+   own categories on every plural leaf. **Never against the source locale's.**
+
+Both live in `apps/web/tests/i18n/catalogue-parity.test.ts`. The repair to `ru.json` was purely
+additive — each leaf gained a `many` branch carrying the text `other` was already resolving for those
+counts — so **no reachable sentence moved**, and the golden manifest went 303 → 304 on 6B-i's one new
+leaf alone.
+
+**The general rule, because the next locale will meet it too:** a translation's plural categories are
+a property of its language, not of the file it was translated from. A gate that compares them
+across locales is asserting that all languages count alike, and it will be wrong for Polish, Arabic
+and Welsh in the same way it was wrong for Russian.
