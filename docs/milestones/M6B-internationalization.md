@@ -1,7 +1,9 @@
 # M6B — Internationalization: Romanian becomes a source locale instead of a hardcoded one
 
 > **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-e complete at `8fff684`; two owner
-> catalogue rulings applied at `6ea640f`; 6B-f next.** Runs immediately after M6 and
+> catalogue rulings applied at `6ea640f`; ~~6B-f next.~~** **Corrected 2026-09-10: 6B-f is complete
+> at `2301e4f` — the label descriptor shipped, `apps/web/src/content/ro.ts` is deleted, and 31 of the
+> 300 golden hashes moved on the owner's own rename. 6B-f2 is next.** Runs immediately after M6 and
 > before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
 > corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
@@ -354,7 +356,7 @@ sequenced so the mechanical bulk is separable from the decisions.
 | **6B-c** | **DONE 2026-09-09, `1c8ad46`** (typed-key repair `a7c796a`; Playwright fixture `1a7dd97`): the plain strings leave `ro.ts` and resolve from the active locale | **Light** | 6B-a |
 | **6B-d** | **DONE 2026-09-09, `1fbd780`:** the 17 interpolated entries become ICU; Romanian plurals become CLDR `one/few/other`; *"Pasul 2 din 4"* becomes parameterised | **Full** (grammar; open question 1) | 6B-c |
 | **6B-e** | **DONE 2026-09-10, `8fff684`** (replayed onto `main` with 6B-a…6B-d): the **35** refusal codes across 38 catalogue keys — the domain stops rendering Romanian and `resolveRejection` resolves the descriptor | **Full** (domain algebra) | 6B-d |
-| **6B-f** | The label descriptor: `KIND_LABELS_RO`, `BAND_LABELS_RO`, `EMPTY_SLOT_LABEL_RO`, `UNKNOWN_KIND_LABEL_RO`, the entry labels and `describeBodyLabelAt` leave the domain; **`content/ro.ts` is deleted** | **Full** (reaches priced lines) | 6B-e |
+| **6B-f** | **DONE 2026-09-10, `2301e4f`:** the label descriptor: `KIND_LABELS_RO`, `BAND_LABELS_RO`, `EMPTY_SLOT_LABEL_RO`, `UNKNOWN_KIND_LABEL_RO`, the entry labels and `describeBodyLabelAt` leave the domain; **`content/ro.ts` is deleted** | **Full** (reaches priced lines) | 6B-e |
 | **6B-f2** | **New wave, added 2026-09-10.** The price book's 16 customer-visible leaves and `materials.ts`'s 8 palette names — the two surfaces ADR 0095 Amendment B put in scope and no wave owned | **Full** (ADR 0062's book seam) | 6B-f |
 | **6B-g** | The money seam: `MDL` stops being a literal suffix and the grouping separator becomes a stated ruling rather than an accident | **Full** (money) | 6B-f2 |
 | **6B-h1** | Test sweep, domain and adapter: **26 files** carrying Romanian literals, including the `src/` fixture `kitchen-l-design.ts` | **Light** (tests only) | 6B-g |
@@ -731,10 +733,20 @@ one family at a time"* — **must be empty when this wave closes**.
   weakened to reach it: `renderLegacy` for the `catalog` group is **deleted** rather than repointed
   at `renderCorrected`. A fixture that compares a resolver against itself is layer-3 shape sitting in
   a layer-4 gate, which this plan's own table calls a defect.
-- **`GOLDEN_OUTPUT_SHA256` is byte-unchanged by this wave.** The manifest hashes `renderCorrected`,
+- ~~**`GOLDEN_OUTPUT_SHA256` is byte-unchanged by this wave.** The manifest hashes `renderCorrected`,
   which already resolves from the catalogue. Falsify by running the suite without touching
   `golden-output-hashes.ts`; a wave that needs to edit that file has changed a message value, which
-  is out of scope here.
+  is out of scope here.~~
+
+  **Struck 2026-09-10 — the same false premise as the *"no hash moves"* criterion above, and it is
+  recorded twice because it was written twice.** **31 of the 300 hashes moved.** The manifest does
+  hash `renderCorrected`, but before this wave the label arms of `renderCorrected` took the
+  **domain's** already-rendered string, so resolving them against the catalogue changed the rendered
+  word and moved the hash. The inference the criterion drew from an edit to `golden-output-hashes.ts`
+  — *"a wave that needs to edit that file has changed a message value"* — is therefore false for this
+  wave: the copy lock and both message files are byte-untouched and **no message value moved**. What
+  holds instead is the wave's own opening paragraph — a customer-visible Romanian wording change is
+  **expected** here, on the owner's ruling at `3564c7c`.
 - **`describeBodyLabelAt` returns `withDoors` for exactly the rows declaring `doorCountFollowsWidth`,
   and a flat case for every other row at every offered width.** No `withDoors` wraps a `withDoors`,
   at any width, for any of the 16 entries.
@@ -761,6 +773,92 @@ one family at a time"* — **must be empty when this wave closes**.
 - **`resolveRejection` has 24 label arms and they are edited mechanically.** One missed arm passes a
   `BodyLabel` object into ICU and renders `[object Object]` inside a quoted refusal. The typed
   argument declaration catches it; the criterion above is what proves the declaration was consulted.
+
+#### Completed 2026-09-10 — `2301e4f`
+
+**The last body copy left `packages/configurator-domain`.** The package publishes a `BodyLabel`
+descriptor — an `entry` arm carrying a catalogue entry id, a `bodyKind` arm, and a `withDoors`
+wrapper, **16 entry arms and 13 kind arms** — and `resolveBodyLabel` / `resolveBandLabel` in
+`apps/web/src/i18n/content.ts` resolve it against `messages/ro.json` and `messages/ru.json`.
+**`apps/web/src/content/ro.ts` is deleted.** It was the pre-Gate-O1 module and had diverged from the
+catalogue in **32 leaves** — *corp* against the owner-ruled *dulap*. Three modules that `main`'s
+later waves had written against it were threaded onto the catalogue instead: ADR 0104's settings
+pill, the empty-kitchen prompt, and the three locked-state sentences.
+
+**31 of the 300 golden hashes moved, and every one is a rendered word rather than a key
+restructuring.** The copy lock and both message files are byte-untouched, so each moved hash is the
+owner's Gate O1 ruling at `3564c7c` reaching the screen for the first time. The two criteria that
+said otherwise are struck in place above — the *"no hash moves"* sentence and the
+`GOLDEN_OUTPUT_SHA256` acceptance criterion — and the phase-level criterion is narrowed to *"from
+6B-f2 on"*. `STAGED_LEGACY_DIVERGENCES` is `{}`, so the wave's stated exit condition is met.
+
+**Verified at the commit: 9,323 tests green** — domain **3,752**, persistence **282**, three-adapter
+**3,031**, web **2,258** — with lint, typecheck and whole-tree `pnpm format:check` clean.
+
+##### What this wave found, which is the most reusable thing to come out of it
+
+**Four gates were reporting success while measuring nothing, and not one of them was found by
+running tests.** They are recorded here rather than in a wave report because the shape repeats.
+
+1. **The kind side of label resolution was untested.** `body-label.test.ts` asserted
+   `isKnownKind(kind) === true` and stopped. Pointing `corner_base_x` at `base_cabinet` — the
+   ADR 0025 / §11 row 16 defect, which reads *"Dulap bază"* where *"Dulap bază de colț"* belongs —
+   left **all 2,253 web tests green**.
+2. **`KNOWN_BODY_KINDS` was module-private**, so a 14th member with no catalogue leaf was invisible
+   to every totality test. That is the same shape that let a **35th refusal code render empty**
+   earlier in this milestone.
+3. **A red copy lock silently disarmed the golden manifest.** Both golden tests returned early on
+   `!isRomanianCopyApproved`, so a mutated message value turned one gate red and the other green in
+   the same run.
+4. **`golden-output-fixtures.ts` claimed the SHA manifest *"is the gate that bites, for all three
+   groups"*. It does not.** The catalog group's 98 hashes pin the door-count derivation and the width
+   sets, never the resolver.
+
+**Three of the four were comments asserting a protection that did not exist**, and that is the
+finding to carry forward. In a codebase that deliberately writes long explanatory comments, a comment
+claiming a guard is a specific and repeating hazard: the next reader trusts it and does not write the
+real guard. The durable form of this is one line in
+[`docs/best-practices/engineering-conventions.md`](../best-practices/engineering-conventions.md)
+under *Tests*, added at this wave's close; this section is the worked example behind it.
+
+##### The verification blind spot — neither method alone clears a wave of this kind
+
+**The visual reviewer could confirm the text on screen but not which leaf produced it.** Several
+`catalog.kinds.*` and `catalog.entries.*` leaves are string-identical — both spell *Dulap
+suspendat* — so a resolver pointing at the wrong one of a pair renders correctly. **Only the four
+corner kinds are uniquely attributable** on screen.
+
+**QA's mutation probes cover exactly that blind spot from the other side, and are blind to the
+screen.** A probe proves which leaf a resolver reached and says nothing about whether the surface
+rendered it. The two methods are complements, not alternatives, and a wave that resolves labels must
+be dispatched to both.
+
+##### Deferred out of 6B-f, each with its home
+
+- **`const ro = …` names a locale it is not.** Under `/ru` that binding holds Russian, so the name is
+  **wrong rather than merely ugly**. ~~Roughly **eleven** sites → wave 6B-h.~~ **Corrected and ruled
+  2026-09-10.** The count is **17 sites, 6 of them code**, and the two forms are cited separately
+  because they are found by different greps: **6 bindings across 5 files** —
+  `app/[locale]/configurator/contact/page.tsx:13` (`resolveContent(translate)`, the same misnaming in
+  a different form), `app/configurator/configure/configure-screen.tsx:43`,
+  `panel/editor-panel.tsx:159` **and** `:253`, `components/webgl-unavailable.tsx:12`,
+  `scene/overflow-warning.tsx:39` — plus **11 comment references** to `ro.<namespace>` in
+  `settings/global-settings.module.css:10,160`, `settings/global-settings.tsx:318`,
+  `panel/editor-panel.tsx:174,272`, `price/price-bar.module.css:36`,
+  `price/starting-price.ts:34,72,155`, `price/price-breakdown.module.css:98` and
+  `price/price-breakdown-model.ts:23`. The *"~11"* first recorded here was the reviewer's
+  comment-only figure. **→ wave 6B-g, as a named rider**; the reasoning is in that wave's scope note,
+  and 6B-h1/6B-h2 cannot take it because both are test-only.
+- **`describeBodyName` does not check the resolved target is `insertable`.** **→ the ADR 0062
+  post-M8 dashboard seam**, where it belongs beside ADR 0064 Amendment A's latent risk.
+- **Four clean-code taste findings** — noted, **unscheduled**.
+- **Test-database residue.** `designs` holds roughly **566 rows** from interrupted runs, and each
+  visual-verification run leaks one more, because `deleteDesignsForTests` **correctly** refuses that
+  database under ADR 0006's guard. Wants a sweep; **unscheduled**, and it is a cleanup rather than a
+  defect — the guard doing its job is why the rows accumulate.
+
+**Next.** Start **6B-f2 — the price book's prose and the palette names**. Russian remains an
+unapproved agent draft until Gate O2.
 
 ### 6B-f2 — the price book's prose and the palette names
 
@@ -866,7 +964,19 @@ catalogue, so a translator can move the currency: `formatRoundedAmount`'s templa
 *"{amount} MDL"*. `PRICE_BOOK_CURRENCY` stays in the price book, where ADR 0062 puts it, and is not
 duplicated into `messages/`.
 
-#### Punch list — 4 items
+#### Scope rider, added 2026-09-10 — the `ro` binding is renamed here
+
+**6B-f's deferral lands on this wave rather than on a new one**, ruled 2026-09-10. `const ro = …`
+names a locale it is not: under `/ru` that binding holds Russian, so it is wrong rather than merely
+ugly. **17 sites, 6 of them code**, enumerated in 6B-f's close-out above. Four reasons it rides here:
+6B-h1 and 6B-h2 are **test-only** and cannot take production code; **6 of the 11 comment sites are
+price surfaces this wave opens anyway** — `starting-price.ts` ×3, `price-bar.module.css`,
+`price-breakdown.module.css`, `price-breakdown-model.ts`; the change is mechanical and small, so a
+wave of its own costs more ceremony than work; and **6B-g is already Full tier, so the rider does not
+re-tier it**. It is written into the punch list below rather than left in this paragraph, because
+going invisible is the clean-code reviewer's actual concern.
+
+#### Punch list — ~~4~~ **5** items
 
 1. `price.amountWithCurrency` authored in `ro.json` and `ru.json`, copy-locked, parity-gated;
    `formatRoundedAmount` resolves it. `describeStartingPrice` takes the leaf through the
@@ -876,6 +986,9 @@ duplicated into `messages/`.
 3. The head comment of `starting-price.ts` records the measurement above and the ruling, so the next
    reader does not re-open it.
 4. `apps/web/tests/support/ruled-price-copy.ts` and the price copy lock pick up the new leaf.
+5. **The `ro` binding renamed at all 17 sites** — the 6 code bindings and the 11 `ro.<namespace>`
+   comment references listed in 6B-f's close-out. Both forms; a rename that leaves the comments
+   naming `ro` has left the misnaming in the files a reader reaches for first.
 
 #### Acceptance criteria — the ones that make "pricing did not change" falsifiable
 
@@ -1239,10 +1352,20 @@ Falsifiable, and stated as invariants including what must not happen.
   seeded from the corrected source catalogue"*), and the criterion as written cannot be met by 6B-f,
   because the owner ruled a rename that changes what the product renders. **What replaces it, stated
   so it is stricter rather than weaker:** `GOLDEN_OUTPUT_SHA256` — which hashes `renderCorrected`, the
-  catalogue path — is byte-unchanged by every wave from 6B-f on, and a wave that must edit
-  `golden-output-hashes.ts` has changed a message value and owes the Gate O1 procedure: the changed
-  key list in the commit message, and no blanket re-capture. `STAGED_LEGACY_DIVERGENCES` shrinks
-  monotonically and is empty at 6B-f's close.
+  catalogue path — is byte-unchanged by every wave ~~from 6B-f on~~ **from 6B-f2 on**, and a wave
+  that must edit `golden-output-hashes.ts` has changed a message value and owes the Gate O1
+  procedure: the changed key list in the commit message, and no blanket re-capture.
+  `STAGED_LEGACY_DIVERGENCES` shrinks monotonically and is empty at 6B-f's close.
+
+  **Narrowed 2026-09-10, at 6B-f's close, and this is the second correction to the same paragraph.**
+  6B-f moved **31 of the 300 hashes** — because until this wave the manifest's label arms hashed the
+  **domain's** rendered string rather than a resolved catalogue leaf, so 6B-f is the wave that
+  finally makes the sentence true rather than the first wave it governs. Its own moved hashes carry
+  **no message-value change**: the copy lock and both message files are byte-untouched, so the Gate
+  O1 procedure this criterion attaches to an edit of `golden-output-hashes.ts` did **not** apply, and
+  the wave owes no changed-key list. From 6B-f2 on the criterion reads exactly as written.
+  `STAGED_LEGACY_DIVERGENCES` **is `{}`** at 6B-f's close, read directly from
+  `apps/web/tests/i18n/golden-output.test.ts` — that half of the criterion is met as stated.
 - `configure.overflowWarning` is byte-identical, punctuation included (ADR 0065 decision 7b).
 - **No approved Romanian sentence is reworded, retyped or tidied.** A diff that improves Romanian is
   a defect in this phase — including one made to ease a translation.
@@ -1413,8 +1536,12 @@ Falsifiable, and stated as invariants including what must not happen.
 
 ## Verification
 
-- Per wave: `pnpm ci:local` (all nine gates), and the golden-output harness byte-compared against its
-  M6-close capture. A wave that cannot show the harness green does not go to review.
+- Per wave: `pnpm ci:local` (all nine gates), and the golden-output harness ~~byte-compared against
+  its M6-close capture~~ **green against its checked-in manifest**. A wave that cannot show the
+  harness green does not go to review. **Struck 2026-09-10, the third instance of one false premise
+  in this file:** no M6-close capture was ever taken (ADR 0095 Amendment B), so nothing can be
+  byte-compared against one. The two other instances are struck under *Romanian is unchanged, and
+  provably so* and under 6B-f's acceptance criteria.
 - Phase close: `pnpm check`, `pnpm format:check` **whole-tree**, and the Playwright suite.
 - Visual: one mobile and one desktop pass on `/ro/configurator/configure` after 6B-g against the M6
   close-out shots, and **one on `/ru/…` after 6B-i** — the Russian pass is a layout check, not a copy

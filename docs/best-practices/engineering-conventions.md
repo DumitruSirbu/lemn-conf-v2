@@ -93,3 +93,13 @@ file, not a Claude session's global conventions.
   the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it
   claims to test.
+- **A comment claiming a guard is not a guard.** When a test file, a fixture or a manifest says in
+  prose that it protects something — *"this is the gate that bites"*, *"an unknown key cannot reach
+  the screen"* — that sentence is a claim to be falsified, not a fact to inherit. Break the thing it
+  names and confirm the gate goes red; if it stays green, the comment is the defect and it is more
+  dangerous than a missing test, because the next reader trusts it and does not write the real guard.
+  Three of the four dead gates M6B wave 6B-f found were exactly this shape, and none was found by
+  running the suite — see that wave's close-out in `docs/milestones/M6B-internationalization.md`.
+  The same rule covers the two ways a gate disarms itself quietly: a helper that is module-private is
+  invisible to the totality test that should be sweeping it, and a guard that returns early on some
+  precondition reports success on every run where the precondition is false.
