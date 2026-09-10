@@ -1,9 +1,20 @@
 # M6B — Internationalization: Romanian becomes a source locale instead of a hardcoded one
 
-> **STATUS, 2026-09-10: BLOCKED ON GATE O2 — the owner's Russian review, which no agent may pass.
-> Every wave has shipped and M6B's build scope is complete.** The banner below is the planning
-> history, preserved and superseded; the correction that carries the current state is two paragraphs
-> down.
+> **STATUS, ~~2026-09-10~~ 2026-09-11: BLOCKED ON GATE O2 — the owner's Russian review, which no
+> agent may pass. Every wave has shipped and M6B's build scope is complete.** The banner below is the
+> planning history, preserved and superseded; the correction that carries the current state is two
+> paragraphs down.
+>
+> **Added 2026-09-11.** Since the banner below was written, **the owner reviewed the built product**
+> and gave six rulings — a language dropdown, appliances drawn-not-sold, no greyed offers, the colour
+> reset out of the carousel, a thinner selection highlight and one figure treatment. They are
+> [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md),
+> and the round that followed them is *The owner's review of the built product* below — **it is also
+> the review 6B-i and 6B-j never had**. Two consequences change what the banner says: **ADR 0105's
+> e2e split has shipped** (`b60f298`), so after Gate O2 **only the push remains**, and it needs the
+> owner's word because the rebase rewrote this branch's history. And **five rows of the Gate O2
+> review aid are stale** — including F4's key, which no longer exists — with the corrections tabled
+> under *Where the phase stands*.
 >
 > **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-e complete at `8fff684`; two owner
 > catalogue rulings applied at `6ea640f`; ~~6B-f next.~~** **Corrected 2026-09-10: 6B-f is complete
@@ -1639,6 +1650,12 @@ that anyone counted.
 >   decision 1 — **no key, one spelling in every locale**.
 > - **F4 — `configure.localeSwitch` has not been through Gate O1.** Its Romanian was authored by
 >   6B-i, after the gate closed, so it needs an O1 read as well as an O2 one.
+>
+> **Updated 2026-09-11 — the aid is stale in five rows and the aid cannot be edited by an agent.**
+> F4's key is gone: the language dropdown replaced `configure.localeSwitch` with
+> `configure.localeMenu`, and **F4's substance carries over to the new key**. Four more rows carry
+> pre-edit text because the owner edited the Romanian themselves after the aid was generated. The
+> table of the five, with what ships, is under *Where the phase stands* below.
 
 **When.** After 6B-i, with `ru.json` complete and every screen rendering end-to-end in Russian.
 
@@ -2119,6 +2136,15 @@ Falsifiable, and stated as invariants including what must not happen.
   onward the automatic gates were run (typecheck, lint, whole-tree `format:check`, the full suite)
   and the QA, review and visual agent rounds were dropped. **6B-i and 6B-j shipped verified but not
   reviewed, by the owner's direction, and the owner intends to test them.**
+  **Closed 2026-09-11, and struck rather than deleted because the gap was real for a day:** the
+  owner's review round of 2026-09-10/11 ran QA, logic, clean-code and visual agents over the built
+  product and **is** the round those two waves were owed — it is what found the language menu's Tab
+  guard, `endonymOf`/`flagOf` failing open in `next dev`, and the camera reset. **The `/ru` visual
+  pass this section called missing has now happened**: the evidence at
+  `…/scratchpad/vis-rulings-clean/` includes Russian desktop and mobile captures and a
+  before/after pair across the switch on both shells. **What is still not recorded as watched is the
+  shared-link half** — that a `/d/{id}` link survives a language change — which stays pinned by tests
+  only. And what the owner still intends to do themselves is Gate O2's reading of the Russian.
   **What that leaves specifically unverified, named so it is the first thing a person tries: the
   switcher's click-through behaviour in a browser** — that it changes language, keeps the design being
   edited, and survives a shared `/d/{id}` link. All three are pinned by tests; none has been watched
@@ -2157,12 +2183,142 @@ Falsifiable, and stated as invariants including what must not happen.
    plus tier/accessory display names, and they reach customer-visible screens. Numeric rates and
    manufacturer records remain data; displayed prose becomes message descriptors so `/ru/…` does
    not leak Romanian. Existing Romanian moves byte-for-byte and Russian stays unapproved until O2.
+5. **Does `priceBook`'s oven-tower label have to stop naming appliances?** — **opened 2026-09-11 by
+   the review's logic reviewer, and it is the owner's.** `priceBreakdown.disclaimer` says the estimate
+   excludes *electrocasnice*, and directly beneath it the breakdown prints **Coloană cuptor +
+   microunde 9 000**. The 9 000 is joinery — the tower is cabinetry Lemnaria builds, and ADR 0107
+   decision 2 deliberately leaves its price alone — but **the label names two appliances**, so the
+   two lines read together reproduce the contradiction that ruling was given to remove. **A ruling on
+   the label, not on the pricing.** It does not gate O2; changing the label would be an O1-class
+   change, so answering it in the same sitting is cheaper than answering it later.
 
-## Where the phase stands — 2026-09-10
+## The owner's review of the built product — 2026-09-10 and 2026-09-11
+
+**Every wave had shipped and the milestone was sitting on Gate O2 when the owner drove the running
+configurator themselves**, on both shells and in both locales. This section records what came out of
+that: six rulings, the fixes they produced, and the review round that followed the fixes. **It is
+also the round that covers waves 6B-i and 6B-j**, which shipped verified but not reviewed by the
+owner's own direction — see *Verification* above, where that gap is named.
+
+**The rulings are ADR 0107**
+([`decisions/0107-…`](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)),
+with three of them recorded at the records they change: ADR 0032's *Superseded* section (no greyed
+offers), ADR 0099 Amendment D (the reset leaves the carousel) and ADR 0104 Amendment A (the figure's
+prefix, and the locale caret's precedent). They are not restated here.
+
+**The commits, by subject — six, and the table is all of them.** The hand-off's prose said *seven*
+and listed six; `git log --oneline c242876..HEAD | wc -l` is **6**, and the count was corrected
+rather than the list extended. There is no missing commit.
+
+| commit | subject |
+| --- | --- |
+| `b60f298` | e2e split by Playwright project — **ADR 0105's deferral, shipped** |
+| `378776a` | selection highlight halved |
+| `4ec1218` | the owner's rulings — language dropdown, appliances drawn-not-sold, no greyed offers |
+| `b3129a4` | `devIndicators: false` |
+| `8087d6f` | one figure treatment on both surfaces, prefix regular and amount bold |
+| `4f3c808` | the review round — four figure surfaces, two guards that failed open, a camera that reset |
+
+**Verification, as reported at hand-off:** HEAD `4f3c808`, tree clean, **9,565 tests green**. That
+figure is the coordinator's and is recorded as theirs; no gate was re-run by this pass.
+
+**Visual evidence** lives outside the repository, at
+`…/scratchpad/vis-rulings-clean/` (**19 files**, including the production-mutation diff the round
+was measured against) and `…/scratchpad/vis-rulings/` (**36 files**). Cited, never copied in.
+
+### What the review found — ten items, and three of them were the coordinator's own
+
+~~**The round reported ten; eight are described below.**~~ **All ten are here — items 9 and 10 were
+supplied after the first draft of this section, which recorded their absence rather than guessing at
+them.**
+
+The pattern is the point, and it is the same pattern this milestone has been recording since 6B-f:
+**a guard that names a protection is not the same as a guard that holds it.**
+
+1. **The figure ruling reached two of four surfaces.** The commit that landed it is titled *"one
+   figure treatment on both surfaces"* — and there are four: the price bar, the price breakdown, the
+   editor panel's footer total and the global settings sheet. **The claim was wrong about how many
+   there were**, which is a harder error to catch than a missed edit, because the sentence sounds
+   complete.
+2. **On desktop the prefix rendered larger than the price** — a media-query override the ruling had
+   not reached.
+3. **The test written to catch exactly that drift could not see it.** It used `RegExp.exec` — first
+   match only — so a later media-query override of the same declaration was invisible to it. **A
+   guard written for one defect, blind to that defect.**
+4. **Tab closed the language menu on `keydown` rather than `focusout`, and deleting the guard left
+   510 tests green.** Found by mutation, not by reading.
+5. **Deleting `buildableWidthSpanMm` left all 2,445 web tests green** while two informative sentences
+   silently degraded. Found **independently twice** — by QA deleting the prop and by the logic
+   reviewer reading the type — which is the only reason it can be called a real hole rather than a
+   reviewer's taste.
+6. **`endonymOf` and `flagOf` failed open in `next dev`.** Both are `Record<AppLocale, …>` lookups and
+   `tsc` refuses a missing entry (`TS2741`) — but **the dev server erases types**, so both returned
+   `undefined` and the menu drew a row with a correct href, no flag and no label.
+   `locale-flags.tsx`'s own head comment described that outcome as *"how a language ships unmarked
+   and nobody notices"* while the function beneath it did precisely that. Both throw now, and the
+   throw needed an **unmocked** test, because the scaling test mocks both modules.
+7. **Switching language reset the camera.** `presetId` was `useState` inside `app/[locale]/…`, so the
+   locale segment changing remounted the subtree and re-initialised it: *Perete A* → *Vedere
+   generală*. Everything else survived because the configurator store is a module-scope singleton;
+   the camera was the one piece of state that was not. It has its own store now
+   (`apps/web/src/scene/camera-preset-store.ts`), **deliberately not design state** — never saved,
+   never hydrated, never carried by a shared link, so putting it beside the records would have
+   offered it to `hydrate` and to the save coalescer.
+8. **One reported defect was not one.** The language trigger measures **46 × 25**, which reads as a
+   failed 44 px touch target — but that is the *painted* box, and `getBoundingClientRect` never
+   includes a pseudo-element. ADR 0104 decision 5's hit area was already there and already asserted.
+   Recorded because a retracted finding is evidence about the *instrument*, and the next person to
+   measure that control will get 46 × 25 again.
+9. **A warning repeated in three files overstated itself, and the real exposure was somewhere else.**
+   `price-breakdown-model.ts`, `sample-price-book.ts` and `drawn-but-not-supplied.test.ts` all
+   claimed that a rule written as `amountMinor === 0` would print *nu este inclus* on the **melamine**
+   row. **It cannot**: melamine is a *material* row and reaches `describeRowAmount`, while the
+   appliance path is `describeCabinetRowAmount`. **QA found the true exposure by mutation** — a
+   zero-priced **manufacturer cabinet** renders *nu este inclus* — caught by one case,
+   `price-breakdown.adversarial.test.ts:447`. All three comments now name that case instead, and
+   record that **the shipped kitchen contains no such row**, so the guard is unexercised in
+   production. A warning that names the wrong victim is the same defect class as a gate that measures
+   nothing: it reads as protection and points away from the hole.
+10. **`ci.yml` contradicted the matrix directly above it.** Its `workers` paragraph still said the
+    e2e suite *"writes designs to one shared Neon database, so parallel files would trade determinism
+    for time"* — and under `b60f298`'s `mobile`/`desktop` matrix, two legs now write that database
+    concurrently. **Verified safe independently by the coordinator and by the logic reviewer**: no
+    DDL, no global row count, cleanup is `delete from designs where id = $1` over self-minted ids,
+    and both legs keep `needs: [install, test]`. The paragraph now says so and points at ADR 0105.
+    `workers` itself stays at 1 for the reasons that record gives.
+
+**Three of the ten were the coordinator's own** — items 1, 2 and 3 are one ruling landed
+incompletely and then guarded by a test that could not see the miss. That is written down rather than
+folded into the list, because the milestone's other records name implementers' errors and this one is
+the coordinator's.
+
+### Two process facts, recorded honestly
+
+**The tree-freeze rule was broken twice in one hour, by the coordinator.** Adversarial QA mutates
+production code to falsify claims; a visual verifier reads a running dev server. **They were
+dispatched together**, and then an implementer was dispatched under a verifier that had been *told*
+the tree was frozen. Both costs landed: the verifier caught a QA probe and nearly filed it as a
+defect, and later **nearly retracted a true finding** because it re-measured a fix that had already
+landed in the working tree. It saved itself with `git show HEAD:`.
+
+**The lesson, and it is general:** a visual verifier owns the tree exclusively for the length of its
+run, and a reviewer judges against `git show HEAD:` rather than against the working tree. It is
+written into
+[`best-practices/browser-and-visual-qa.md`](../best-practices/browser-and-visual-qa.md) so it
+outlives this milestone.
+
+**Waves 6B-i and 6B-j shipped verified but not reviewed**, by the owner's direction to focus on
+implementation — *"focus on developing more, then I will focus on testing"*. **This review round is
+what covered them.** The *Verification* section's coverage-gap paragraph is amended in place rather
+than deleted, because the gap was real between 2026-09-10 and this round.
+
+## Where the phase stands — ~~2026-09-10~~ **2026-09-11**
 
 **Every wave is complete. The build scope of M6B is finished and the milestone is blocked on Gate O2,
 which is the owner's and which no agent may pass.** 6B-a … 6B-j all carry a commit and a close-out
-section above; the wave table is the index.
+section above; the wave table is the index. **The owner's review of the built product has since run
+(2026-09-10/11) and is recorded in the section immediately above** — six rulings, ten findings and
+one shipped deferral, all inside a milestone that was already feature-complete.
 
 **What the owner has to do, and it is one thing:** read
 [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
@@ -2172,16 +2328,40 @@ rather than translation checks: **F6**, whether the eight decor names are transl
 The Russian remains an **unapproved agent draft** until they rule; that has been true since 6B-a and
 it is still true.
 
+**Before the owner reads: five rows of the review aid are stale, and the aid is the surface they will
+read from.** `docs/i18n/gate-o2-russian-review.md` is the owner's document and no agent edits it, so
+the corrections live here:
+
+| aid row | what it says | what ships |
+| --- | --- | --- |
+| `configure.localeSwitch` (line 106, flagged **F4**) | *Limba interfeței: română. Comută în rusă* | **The key no longer exists.** The dropdown replaced it with `configure.localeMenu` — *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса: русский. Сменить язык"*. **F4's point carries over unchanged**: this Romanian was authored after Gate O1 closed and still owes an O1 read |
+| `panel.finishFollowsKitchen` (line 174) | *Culoarea bucătăriei* / *Цвет кухни* | **The owner's own edit**, made during the session: *Preia culoarea bucătăriei*, with the Russian *Используй глобальный цвет кухни* **ruled by them personally** |
+| `globalSettings.colourNote` (line 222) | pre-edit Romanian and Russian | **The owner's own edit** in `ro.json`, recorded as approved in the copy lock |
+| `globalSettings.colourWarning` (line 223) | pre-edit Romanian and Russian | **The owner's own edit**, same |
+| `rejection.WIDTH_NOT_SUPPORTED_COLUMN` (line 364) | pre-edit Romanian and Russian | **The owner's own edit**, same |
+
+For those five, `apps/web/src/messages/ro.json` and `ru.json` are the truth and the aid is not. The
+other rows are unaffected.
+
 **What remains after Gate O2, so it is not discovered later as a surprise:**
 
 - **Whatever the owner's O2 ruling costs.** A Russian change is a value edit. **A Romanian change is
   an O1-class change** — copy lock updated in the same commit, the golden manifest re-baselined for
   exactly those keys with the key list in the commit message, and the affected Russian re-translated.
-- **[ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)'s
+- ~~**[ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)'s
   e2e project split**, deferred by the owner *"just after you will finish the M6B milestone"* and
   **deliberately not started while this milestone was open** — restructuring the gate that measures a
   milestone during that milestone makes a failure ambiguous between the split and the wave. It is
-  M6B's work, not M7's.
+  M6B's work, not M7's.~~ **Shipped 2026-09-10 at `b60f298`**, ahead of the gate rather than after
+  it: the `e2e` job is a `mobile` / `desktop` matrix over `--project` and the ceiling came back down
+  to **45 per leg**. ADR 0105 carries the implementation note and an in-place amendment to its
+  decision 2 reasoning. **So the engineering remainder is empty.**
+- **The push, and it needs the owner's word.** The branch history was **rewritten during the
+  rebase**, so `m6b-internationalization` cannot be fast-forwarded — a force-push is the only way it
+  reaches the remote, and no agent may force-push on its own authority. **After Gate O2, this is the
+  only thing left in M6B.**
+- **One question the review left with the owner, and it is copy rather than pricing** — see open
+  question 5 below, and ADR 0107's own *One question this ruling leaves open*.
 
 ## What this phase hands on
 

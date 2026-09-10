@@ -124,3 +124,19 @@ The seam that matters is not always in the phase that discovers it.
   carry their own note, dated, pointing here.
 - This record exists to stop both failure modes: a future session building the dashboard early, and a
   future session being surprised by it.
+
+## What the book row has gained since, so the dashboard inherits it rather than discovering it
+
+Recorded here as an index, not as new decisions — each is ruled in its own record.
+
+- **Display prose is a descriptor, and the book keeps the tier**
+  ([ADR 0106](0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md),
+  M6B wave 6B-f2). `TierIdentity` and `AccessoryRule` carry optional `nameKey`/`descriptionKey`;
+  `name`/`description` stay **required** and stay the fallback, so a dashboard-authored row still
+  renders. Amendment A adds that a keyed text may not restate an amount or a rule.
+- **A row says who supplies the cabinet**
+  ([ADR 0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+  decision 2, 2026-09-10). `CabinetPriceRule.suppliedBy` is optional; absence means the manufacturer
+  builds it, so a new dashboard row is cabinetry until somebody says otherwise. A row declaring
+  `customer` **must** price to nothing and `parsePriceBook` refuses a book that breaks that — which
+  is the rule a dashboard's validation inherits, not a screen-level special case.
