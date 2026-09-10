@@ -191,14 +191,32 @@ jobs:
     #
     # 45 was the first estimate and it was too tight: the next run measured
     # 40.7 minutes of specs and 41m44s of job, three minutes under the ceiling.
-    # 50 restores real headroom. The estimate was low because it averaged the
+    # 50 restored headroom. The estimate was low because it averaged the
     # cancelled run's mobile specs; `settings-strip-containment.desktop` alone
     # takes 7.6 minutes, and Playwright's own summary flags it as the file to
     # parallelise if this ever needs to come back down.
     #
+    # **Raised 50 -> 75 on 2026-09-10, and this is the third raise.** Run
+    # 34407768425 was cancelled at test 161 of 186, 49.4 minutes into the specs,
+    # with every test that ran passing — no hang and no failure, simply a suite
+    # longer than its ceiling. Measured from that log: mobile is 28.6 minutes
+    # over 120 tests, desktop 19.4 over the 41 that finished, so the whole suite
+    # is about 54 minutes of specs and ~57 of job. 75 leaves room for the second
+    # locale M6B is adding, which puts Russian renderings beside the Romanian.
+    #
+    # **The next raise should not happen; split the job instead.** The seam is
+    # already drawn — `playwright.config.ts` declares `mobile` and `desktop` as
+    # separate projects and names their spec files apart — so a matrix over
+    # `--project` gives two ~30-minute halves for about the same Actions minutes
+    # (two builds instead of one) and half the wall-clock. Raising `workers`
+    # instead is the cheaper-looking option and the wrong one here: the runner
+    # has two cores, the scene compiles three.js on first paint, and the suite
+    # writes designs to one shared Neon database, so parallel files would trade
+    # determinism for time on the gate that exists to protect determinism.
+    #
     # Still a ceiling, not a budget: a suite that stops making progress dies
     # here rather than running to the runner's 6-hour limit.
-    timeout-minutes: 50
+    timeout-minutes: 75
     # **`test`, not just `install`** — the two share one Neon database and would
     # otherwise run in parallel. The live persistence suites execute DDL on the
     # shared `designs` table (`drop column if exists revision`, and the same for
