@@ -1,6 +1,8 @@
 # ADR 0105 — The e2e job splits by Playwright project rather than raising its ceiling again
 
-Status: Accepted — **scheduled, not yet implemented.** The owner ruled it runs immediately after M6B closes.
+Status: Accepted — **implemented 2026-09-10**, with decision 2's reasoning amended in place (see the
+strike under *Alternatives*). Decision 1 shipped in `.github/workflows/ci.yml`; the ceiling came down
+75 → 45 per leg.
 Date: 2026-09-10
 Type: Decision (owner ruling)
 Milestone: Engineering — falls between M6B and M7
@@ -56,10 +58,32 @@ independent reasons, any one of which would be enough:
   cores contend for the thing the specs are actually waiting on.
 - `fullyParallel: false` keeps files serial today. Letting files overlap makes **3D timing** the
   variable, on the gate that exists to protect determinism.
-- The suite **writes**, to one shared Neon test database. `ci.yml` already serialises `e2e` behind
-  `test` for exactly this reason, in a comment that names the DDL window that wedges it.
+- ~~The suite **writes**, to one shared Neon test database. `ci.yml` already serialises `e2e` behind
+  `test` for exactly this reason, in a comment that names the DDL window that wedges it.~~
+  **Struck 2026-09-10, on the owner's question at implementation: *"will it be possible to use one db
+  and run in parallel e2e?"*** This reason does not hold, and the conclusion never needed it.
+
+  Measured rather than reasoned, because decision 1 *creates* e2e-to-e2e database concurrency that
+  did not exist when this ADR was written, and that had to be checked before the split shipped:
+  **the e2e suite's database interaction is entirely row-scoped.** It executes no DDL; it asserts no
+  global row count; its cleanup is `delete from designs where id = $1`, one statement per id, over
+  ids that spec itself minted (`tests/e2e/support/minted-designs.ts` →
+  `packages/persistence/src/delete-designs-for-tests.ts`). Two writers inserting and deleting their
+  own uniquely-identified rows do not contend.
+
+  **What the original sentence confused** is worth stating, because the confusion is easy to repeat:
+  the wedge `ci.yml` documents is the **persistence `test` job's DDL** — `drop column if exists
+  revision` and its window before `runMigrations` restores it — not e2e writing designs. That
+  serialisation is real and is preserved: both matrix legs keep `needs: [install, test]`. The
+  database was never what made intra-project parallelism wrong.
 
 Trading determinism for wall-clock on the determinism gate is a bad trade at any price.
+
+**Two reasons, then, not three — and the decision is unchanged.** The cores and the 3D-timing
+arguments each stand alone and neither depends on the database. The amendment matters anyway: a
+rejection resting on three reasons invites someone who disproves one to reopen the whole ruling, and
+someone measuring the database would have disproved exactly the one that was wrong. An argument is
+not stronger for carrying a premise that does not hold.
 
 **3. It runs immediately after M6B closes, not during it** — owner ruling, 2026-09-10: *"do it just
 after you will finish the M6B milestone."*
@@ -68,6 +92,13 @@ M6B is mid-flight and adds a second locale, which puts Russian renderings beside
 grow the suite again. Restructuring the gate that measures a milestone while that milestone is open
 means a failure could be the split or could be the wave, and telling them apart costs more than
 waiting. **75 minutes is sized to carry M6B to its close** and is not expected to carry M7.
+
+> **Discharged 2026-09-10.** It carried M6B exactly as intended. The milestone's build scope closed
+> at `c242876` — all eight waves shipped, the last of them adding a second locale as this decision
+> anticipated — and the split landed immediately after, on the owner's *"continue"*. The condition
+> this decision waited on was that no further wave would change the suite, so a failure could not be
+> read as either the split or a wave; that is now true. **Gate O2 remains open**, but it rules on
+> Russian wording and changes no spec's structure, so it is not what decision 3 was waiting for.
 
 ## Alternatives considered
 

@@ -173,8 +173,21 @@ jobs:
   # unit suites cannot cover that class — the rename was consistent everywhere
   # they look, and no unit test asserts a DOM test id.
   e2e:
-    name: e2e
+    name: e2e (${{ matrix.project }})
     runs-on: ubuntu-latest
+    # **Split by Playwright project, 2026-09-10** — ADR 0105, the owner's ruling that the
+    # fourth raise should not happen. The seam is not invented for CI: `playwright.config.ts`
+    # already declares `mobile` and `desktop` as separate projects with different viewports
+    # and names their spec files apart, so a file's viewport is readable from its name.
+    # Measured on the tree at the split: 21 mobile spec files / 109 tests, 9 desktop / 84.
+    #
+    # `fail-fast: false` because the two halves answer different questions — a mobile
+    # regression should not hide whether desktop is green, and cancelling the other leg to
+    # save minutes would cost a second full run to learn what it was about to tell us.
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [mobile, desktop]
     # Longer than `test` (15): this one produces a production build and drives a
     # real browser through it. On CI `playwright.config.ts` serves `next build &&
     # next start` rather than `next dev`, because dev compiles each route on its
@@ -217,9 +230,17 @@ jobs:
     # writes designs to one shared Neon database, so parallel files would trade
     # determinism for time on the gate that exists to protect determinism.
     #
+    # **The split lands, and the ceiling comes down with it — 75 -> 45 per leg.**
+    # Whole-suite measurements above are kept because they are what justified each raise
+    # and what the split was argued from; they no longer describe one job. From run
+    # 34407768425: mobile 28.6 minutes, desktop 19.4 for the 41 that finished. The tree has
+    # since moved — desktop is 84 tests where that run measured 66 — so 45 is sized on the
+    # slower leg's measured minutes plus the second `next build` this split adds (~1
+    # minute) plus headroom, not on a projection.
+    #
     # Still a ceiling, not a budget: a suite that stops making progress dies
     # here rather than running to the runner's 6-hour limit.
-    timeout-minutes: 75
+    timeout-minutes: 45
     # **`test`, not just `install`** — the two share one Neon database and would
     # otherwise run in parallel. The live persistence suites execute DDL on the
     # shared `designs` table (`drop column if exists revision`, and the same for
@@ -285,8 +306,14 @@ jobs:
         run: pnpm --filter @lemnaria/web exec playwright install --with-deps chromium
       # The config starts its own `next dev` with `reuseExistingServer: false`,
       # so there is no server to stand up here.
-      - name: E2E
-        run: pnpm test:e2e
+      # `playwright test` directly rather than through `pnpm test:e2e`, because that script
+      # is `build:deps && playwright test` and forwarding `--project` through two `pnpm run`
+      # layers is the kind of thing that silently runs the whole suite twice instead of
+      # failing. The two commands are spelled out here so the argument reaches the binary.
+      - name: E2E (${{ matrix.project }})
+        run: |
+          pnpm --filter @lemnaria/web run build:deps
+          pnpm --filter @lemnaria/web exec playwright test --project=${{ matrix.project }}
       # Traces are retained on failure only (playwright.config.ts), so this
       # uploads nothing on a green run and the failing run's trace is the first
       # thing a reader wants.
@@ -301,7 +328,10 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-trace
+          # Per leg: `upload-artifact@v4` **fails** on a duplicate name rather than merging,
+          # so an unsuffixed name would turn a one-leg failure into a two-leg failure and
+          # lose the trace that mattered.
+          name: playwright-trace-${{ matrix.project }}
           path: apps/web/test-results/
           retention-days: 7
           if-no-files-found: ignore
