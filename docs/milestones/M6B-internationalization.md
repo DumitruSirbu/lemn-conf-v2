@@ -3,7 +3,12 @@
 > **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-e complete at `8fff684`; two owner
 > catalogue rulings applied at `6ea640f`; ~~6B-f next.~~** **Corrected 2026-09-10: 6B-f is complete
 > at `2301e4f` — the label descriptor shipped, `apps/web/src/content/ro.ts` is deleted, and 31 of the
-> 300 golden hashes moved on the owner's own rename. 6B-f2 is next.** Runs immediately after M6 and
+> 300 golden hashes moved on the owner's own rename. ~~6B-f2 is next.~~** **Corrected again
+> 2026-09-10, later the same day: 6B-f2 is complete at `edf2fc0` (owner-ruled copy trim `ff8114c`)
+> and 6B-g at `cb66896` — the price book's prose and the palette's names resolve from the catalogue,
+> and the currency join is the leaf `price.amountWithCurrency`. 6B-h1's scope has collapsed to one
+> line in one test file and is folded into 6B-h2, struck in place in its own section below, so
+> 6B-h2 is next.** Runs immediately after M6 and
 > before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
 > corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
@@ -68,9 +73,15 @@ proof that this happens by default.
 ## Why it cannot start early
 
 M6 has five waves open — 6T, 6T2, 6W, 6V, 6X — and 6T is live in
-`packages/configurator-domain/src/pricing/*` and `hardware-mechanisms.ts`. Wave 6B-g reformats every
-money string in the app and wave 6B-f moves catalogue labels out of the domain. **Both read surfaces
+`packages/configurator-domain/src/pricing/*` and `hardware-mechanisms.ts`. ~~Wave 6B-g reformats every
+money string in the app~~ and wave 6B-f moves catalogue labels out of the domain. **Both read surfaces
 6T is still writing.** M6B's first wave may not open until M6 closes.
+
+> **Struck 2026-09-10, at 6B-g's close, and the sentence is kept because the sequencing decision it
+> justified was still correct.** 6B-g **reformatted nothing**: only the join moved, to
+> `price.amountWithCurrency`, and every rendered figure is byte-identical — verified by codepoint.
+> The conflict this paragraph feared was with 6T's writes to `pricing/*`, and that reasoning holds
+> whatever 6B-g turned out to touch.
 
 ## Owner sequencing correction — 2026-09-07
 
@@ -308,6 +319,13 @@ that misroutes an implementer is a failure this repository has recorded before.
    files), **96** tautology-shaped assertions (the plan said 81), and **four** e2e specs carrying
    Romanian (the plan said *"only 2 literals in e2e … the single biggest de-risking fact in the
    phase"*). That claim no longer holds and should not be relied on.
+
+    **Corrected 2026-09-10, and the correction is the more useful half.** The **26** domain/adapter
+    figure decayed to **one file, one line** without anyone sweeping it: 6B-e, 6B-f, 6B-f2 and 6B-g
+    each repointed the tests that named the copy they moved. 6B-h1 is struck and folded into 6B-h2 —
+    the measurement is in 6B-h1's own section. **The web figures (48 / 126 / 96) are re-measured by
+    6B-h2's implementer before starting**, for the same reason: a sweep's scope is a measurement of
+    a tree, and it expires.
 9. **6B-g's instruction, as written, breaks the mockups.** `Intl.NumberFormat("ro")` groups with a
    period on this runtime. Measured, ruled, and recorded in 6B-g; ADR 0095 decision 4 needs a
    narrowing amendment.
@@ -317,7 +335,9 @@ that misroutes an implementer is a failure this repository has recorded before.
 11. **ADR 0095 Amendment B's price-book scope has no owner.** 16 customer-visible leaves in
     `sample-price-book.ts` and 8 in `materials.ts`, with no wave and — for the price book — no
     catalogue keys. `docs/i18n/ro-catalogue-notes.md` still calls them *"deliberately absent"*, which
-    Amendment B superseded four days later. New wave **6B-f2**.
+    Amendment B superseded four days later. New wave **6B-f2** — **shipped 2026-09-10 at `edf2fc0`,
+    as 14 book keys rather than 16, with the palette resolving from `entryId`; see that wave's
+    section.**
 12. **`describeBodyLabelAt` has five consumers, not the four ADR 0033 names.** The fifth is
     `queries/offers.ts`'s refused branch, which returns the **generic** entry label with no door count
     — a distinction ADR 0033's own comment argues for at length and which the descriptor must keep.
@@ -357,10 +377,10 @@ sequenced so the mechanical bulk is separable from the decisions.
 | **6B-d** | **DONE 2026-09-09, `1fbd780`:** the 17 interpolated entries become ICU; Romanian plurals become CLDR `one/few/other`; *"Pasul 2 din 4"* becomes parameterised | **Full** (grammar; open question 1) | 6B-c |
 | **6B-e** | **DONE 2026-09-10, `8fff684`** (replayed onto `main` with 6B-a…6B-d): the **35** refusal codes across 38 catalogue keys — the domain stops rendering Romanian and `resolveRejection` resolves the descriptor | **Full** (domain algebra) | 6B-d |
 | **6B-f** | **DONE 2026-09-10, `2301e4f`:** the label descriptor: `KIND_LABELS_RO`, `BAND_LABELS_RO`, `EMPTY_SLOT_LABEL_RO`, `UNKNOWN_KIND_LABEL_RO`, the entry labels and `describeBodyLabelAt` leave the domain; **`content/ro.ts` is deleted** | **Full** (reaches priced lines) | 6B-e |
-| **6B-f2** | **New wave, added 2026-09-10.** The price book's 16 customer-visible leaves and `materials.ts`'s 8 palette names — the two surfaces ADR 0095 Amendment B put in scope and no wave owned | **Full** (ADR 0062's book seam) | 6B-f |
-| **6B-g** | The money seam: `MDL` stops being a literal suffix and the grouping separator becomes a stated ruling rather than an accident | **Full** (money) | 6B-f2 |
-| **6B-h1** | Test sweep, domain and adapter: **26 files** carrying Romanian literals, including the `src/` fixture `kitchen-l-design.ts` | **Light** (tests only) | 6B-g |
-| **6B-h2** | Test sweep, web: **48 files / 126 literals** and the **96** `expect(x).toBe(ro.k)` tautologies | **Light** (tests only, but see below) | 6B-h1 |
+| **6B-f2** | **DONE 2026-09-10, `edf2fc0`** (owner-ruled copy trim `ff8114c`): the price book's prose becomes **14** keys — 6 `nameKey`, 8 `descriptionKey`, `name`/`description` still required and still the fallback — and `materials.ts`'s palette names resolve from the 8 existing `finish.*` leaves through `content.finishName`, with `PaletteEntry.name` deleted | **Full** (ADR 0062's book seam) | 6B-f |
+| **6B-g** | **DONE 2026-09-10, `cb66896`:** the money seam — the *join* moves to the catalogue as `price.amountWithCurrency` = *"{amount} MDL"*; the ASCII grouping separator stays a product constant and `Intl` is used for nothing, both measured | **Full** (money) | 6B-f2 |
+| **6B-h1** | ~~Test sweep, domain and adapter: **26 files** carrying Romanian literals, including the `src/` fixture `kitchen-l-design.ts`~~ **Struck 2026-09-10 — the scope collapsed to one line while the wave waited.** 6B-e, 6B-f, 6B-f2 and 6B-g moved this copy as a side effect; the residue is **one literal in one domain test file** and is folded into 6B-h2. See the wave's own section | **Light** (tests only) | 6B-g |
+| **6B-h2** | Test sweep, web: **48 files / 126 literals** and the **96** `expect(x).toBe(ro.k)` tautologies, **plus 6B-h1's one-line residue folded in 2026-09-10** | **Light** (tests only, but see below) | ~~6B-h1~~ **6B-g** |
 | **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
 | **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 |
 | **Gate O2** | **HARD STOP — the owner checks the Russian.** Not a wave; an owner review, and a real one | — | 6B-i |
@@ -372,7 +392,10 @@ catalogue being complete.
 
 ~~**6B-h runs during Gate O1, not after it.** It changes no wording, so it is the one piece of work
 that does not idle while the owner reads. Nothing else starts.~~ **Spent — Gate O1 closed 2026-09-07**,
-so there is nothing to schedule through. 6B-h1 and 6B-h2 run in their table order.
+so there is nothing to schedule through. ~~6B-h1 and 6B-h2 run in their table order.~~ **Corrected
+2026-09-10: 6B-h1 is struck and folded into 6B-h2**, whose only remaining predecessor is 6B-g. The
+sentence below about "the *sweep* for what no wave owned" still holds — it is simply smaller than
+planned, because the waves that moved the copy repointed the tests that named it.
 
 **The owner has accepted the size of this phase explicitly** — *"Yeah, it will take more, but it
 should cover everything related to internationalization."* The milestone is not to be trimmed to look
@@ -848,7 +871,9 @@ be dispatched to both.
   `price/starting-price.ts:34,72,155`, `price/price-breakdown.module.css:98` and
   `price/price-breakdown-model.ts:23`. The *"~11"* first recorded here was the reviewer's
   comment-only figure. **→ wave 6B-g, as a named rider**; the reasoning is in that wave's scope note,
-  and 6B-h1/6B-h2 cannot take it because both are test-only.
+  and 6B-h1/6B-h2 cannot take it because both are test-only. **Corrected at 6B-g's close,
+  2026-09-10: the rename landed at ~~17~~ 18 sites — one more than this enumeration lists — and
+  deliberately skipped `tests/support/romanian-content.e2e.ts`; see 6B-g's punch-list item 5.**
 - **`describeBodyName` does not check the resolved target is `insertable`.** **→ the ADR 0062
   post-M8 dashboard seam**, where it belongs beside ADR 0064 Amendment A's latent risk.
 - **Four clean-code taste findings** — noted, **unscheduled**.
@@ -869,10 +894,18 @@ unapproved agent draft until Gate O2.
 > reflect. Measured on the tree: the two documents disagree, Amendment B is later, and Amendment B
 > wins.
 
-**Scope, measured.** 16 leaves in `pricing/sample-price-book.ts` — 6 tier `name`, 6 tier
+**Scope, measured.** ~~16 leaves~~ in `pricing/sample-price-book.ts` — 6 tier `name`, 6 tier
 `description`, 2 accessory `name`, 2 accessory `description` — and 8 palette `name` values in
 `materials.ts`. The palette's 8 catalogue keys **already exist** under `finish.*`; the price book's
-16 have no keys at all and this wave authors them, in `ro.json` **and** `ru.json`, in one commit.
+~~16~~ have no keys at all and this wave authors them, in `ro.json` **and** `ru.json`, in one commit.
+
+> **Corrected at the close, 2026-09-10: the book authored 14 keys, not 16** — 6 `name` and 8
+> `description`, read back from `apps/web/src/messages/ro.json:200-237`. **Hettich and Blum carry no
+> `nameKey`**: they are brand names, and under
+> [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+> decision 1 the key wins when present, so the correct move for a row whose name must not be
+> translated is to author no key and let decision 2's required `name` render. The two tier
+> `description` leaves beside them are keyed as planned.
 
 **The tension this wave has to resolve, and the recommended ruling.** ADR 0062 says *"no amount,
 tier, delta or rule may exist outside the book"* and *"the book is a parameter, not an import"*; a
@@ -882,7 +915,9 @@ wants free text.
 
 **Recommended: the book row carries both, and the key wins when it is present.** `name` stays the
 book's own authored text — the dashboard's field, untouched — and an optional `nameKey` /
-`descriptionKey` names a catalogue leaf. The sample book declares a key on every row; a
+`descriptionKey` names a catalogue leaf. ~~The sample book declares a key on every row~~ — **it
+declares a key on every row but two: *Hettich* and *Blum* are brand names and carry no `nameKey`, so
+the required `name` renders, which is this mechanism saying "do not translate this"** — a
 dashboard-authored book declares none and renders its own text. Nothing leaks Romanian into `/ru/…`
 today, ADR 0062's authority is unmoved, and the dashboard's eventual shape is not pre-empted.
 
@@ -898,14 +933,31 @@ governs. The coordinator records it; the recommendation above is the planner's, 
    `pricing/sample-price-book.ts`.
 3. The two render sites resolve the key when present: `settings/global-settings-model.ts:895` and
    `price/whole-kitchen-tiers.ts:317`, consumed at `settings/global-settings.tsx:1084`.
-4. The palette: `materials.ts`'s `PaletteEntry.name` becomes `nameKey` pointing at the existing
-   `finish.*` leaves; the swatch resolves it. **`supplierCode` is untouched** — it is a manufacturer's
-   printed decor code, it is quoted back on an order, and it is not copy.
+4. The palette: `materials.ts`'s `PaletteEntry.name` becomes ~~`nameKey` pointing at~~ **resolved
+   from `entryId` against** the existing `finish.*` leaves; the swatch resolves it.
+   **`supplierCode` is untouched** — it is a manufacturer's printed decor code, it is quoted back on
+   an order, and it is not copy.
+
+   > **Departed from deliberately, 2026-09-10.** A palette `nameKey` would have been the string
+   > `` `finish.${entryId}` `` verbatim for all eight entries — a second identifier for one fact, and
+   > one a later editor can point at a different leaf than the id says. `content.finishName(entryId)`
+   > resolves it instead, and `PaletteEntry.name` is **deleted** rather than replaced. **Why the book
+   > keeps `name` and the palette does not** is ADR 0106 decision 2's own reason read carefully: the
+   > fallback exists so a book *nobody at Lemnaria authored* still renders, and `PaletteEntryId` is a
+   > closed union behind a zod enum that no dashboard authors — so the requirement does not transfer.
 
 #### Acceptance criteria
 
-- The 24 leaves render identically in `ro` to what ships today, byte for byte. This wave moves
-  strings; it does not reword any.
+- ~~The 24 leaves render identically in `ro` to what ships today, byte for byte. This wave moves
+  strings; it does not reword any.~~
+
+  **Met by `edf2fc0` and then departed from by `ff8114c`, on the owner's own ruling the same day.**
+  Three leaves stated an amount or an earning rule in prose — *"…inclus în preț"* and two *"Inclus…"*
+  clauses — and were trimmed in both locales. The constraint that makes this a rule rather than an
+  edit is
+  [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+  **Amendment A**, which carries the three leaves, why the wave's own digit sweep could not see them,
+  and the enforcement gate it assigns to 6B-j; read it there rather than restated here.
 - **No numeric rate, `perUnitMinor`, or rule id moves into `messages/`.** ADR 0062's authority is
   unchanged. Falsify by grepping `ro.json` for a digit sequence matching any book amount.
 - A book row with **no** key still renders its own `name`. The fallback exists for the dashboard and
@@ -922,6 +974,49 @@ governs. The coordinator records it; the recommendation above is the planner's, 
   *Stejar Bardolino Natur* and *Nuc* contain no Romanian diacritic and are invisible to every grep
   this phase has used to find copy. `docs/i18n/ro-catalogue-notes.md` names this; 6B-j's second lint
   rule is the durable answer, and until then only this wave's own criterion covers them.
+
+#### Completed 2026-09-10 — `edf2fc0`, with the owner-ruled copy trim at `ff8114c`
+
+**The price book's prose and the palette's names now resolve from the catalogue.** `TierIdentity` and
+`AccessoryRule` gained optional `nameKey` / `descriptionKey`; `name` and `description` **stay
+required and stay the fallback**, so a row a dashboard authors after M8 still renders. **14 keys**
+were authored in `ro.json` and `ru.json` in the one commit — the count and the two deliberate
+absences are recorded against the scope paragraph above. The palette's **8** Gate O1 `finish.*`
+leaves, authored long ago and read by nothing until now, are wired through `content.finishName` and
+`PaletteEntry.name` is deleted.
+
+**A third Romanian surface the plan did not name.** Besides the whole-kitchen sheet and ADR 0104's
+pill, `panel/panel-model.ts`'s per-cabinet finish chips also printed the domain's Romanian. It is
+recorded here because the plan's scope note listed two surfaces and a later reader counting them
+would come up short.
+
+##### What QA caught, and it is 6B-f's failure one layer up
+
+**The wave's own tests swept the resolvers in isolation and never touched a surface.** Reverting the
+three call sites put Romanian back on the `/ru` settings sheet, on ADR 0104's pill and in the
+breakdown **while all 2,275 web tests stayed green**. A test that exercises a resolver directly
+cannot fail when production stops calling it.
+
+The replacement reads the described surfaces under a Russian translator, with its expectations taken
+from `ru.json` rather than through the resolver. **Mirroring production's own call is what made the
+first version vacuous**, and asserting against the catalogue rather than against the thing under test
+is what removes that. This is the same shape as the four gates 6B-f found reporting success while
+measuring nothing; it is the third wave in a row to find one.
+
+##### Verified at the commit
+
+**9,374 tests passing** — domain **3,770**, persistence **282**, three-adapter **3,031**, web
+**2,291** — with lint, typecheck and whole-tree `format:check` clean. Unchanged at `ff8114c`: the
+owner's copy trim moved three values and no count.
+
+**The golden manifest did not move, and this is measured rather than assumed.**
+`apps/web/tests/i18n/golden-output-hashes.ts` is byte-identical across the wave — SHA-256
+`7e3a863847264247f92edefdf4db29b4fb3c7c69bbf1ad219964ff9413b92adc`, still **300** hashes. That is the
+expected answer, because the 14 values relocated byte-for-byte and nothing rendered differently.
+**It is recorded as a measurement because this plan has asserted it and been wrong**: 6B-f's own
+criterion said the same thing and 31 hashes moved.
+
+**Next.** Start **6B-g — the money seam**. Russian remains an unapproved agent draft until Gate O2.
 
 ### 6B-g — the money seam
 
@@ -996,9 +1091,15 @@ going invisible is the clean-code reviewer's actual concern.
 3. The head comment of `starting-price.ts` records the measurement above and the ruling, so the next
    reader does not re-open it.
 4. `apps/web/tests/support/ruled-price-copy.ts` and the price copy lock pick up the new leaf.
-5. **The `ro` binding renamed at all 17 sites** — the 6 code bindings and the 11 `ro.<namespace>`
-   comment references listed in 6B-f's close-out. Both forms; a rename that leaves the comments
-   naming `ro` has left the misnaming in the files a reader reaches for first.
+5. **The `ro` binding renamed at all ~~17~~ 18 sites** — the 6 code bindings and the 11
+   `ro.<namespace>` comment references listed in 6B-f's close-out, **plus one more the wave found**.
+   Both forms; a rename that leaves the comments naming `ro` has left the misnaming in the files a
+   reader reaches for first.
+
+   > **`tests/support/romanian-content.e2e.ts` is deliberately skipped**, and skipping it is the
+   > point of the rename rather than an exception to it: that module's `ro` is Romanian-only by
+   > construction, so the name is **already truthful there**. Renaming it would have made the binding
+   > say less than it does.
 
 #### Acceptance criteria — the ones that make "pricing did not change" falsifiable
 
@@ -1027,6 +1128,77 @@ going invisible is the clean-code reviewer's actual concern.
   catalogue messages and not over rendered figures. Mitigated by the extended comment, by the
   no-`Intl`-in-`price/` criterion, and by the codepoint assertion above.
 
+#### Completed 2026-09-10 — `cb66896`
+
+**Only the join moved.** `` `${amount} ${PRICE_BOOK_CURRENCY}` `` became the leaf
+`price.amountWithCurrency` = *"{amount} MDL"*, authored in `ro.json` and `ru.json`. The ASCII
+separator stayed a product constant and `Intl` is used for nothing — the ruling above, and the
+measurement that makes it checkable, are unchanged by anything the wave found. **The golden manifest
+went from 300 hashes to 303: three added, none moved.** A hash that had moved would have meant a
+rendered figure changed, which is the outcome every criterion in this section exists to forbid.
+
+**The `ro` binding was renamed at 18 sites**, one more than 6B-f's enumeration listed, with
+`tests/support/romanian-content.e2e.ts` deliberately left alone; punch-list item 5 above carries why.
+
+##### The hole reviewers found, and why the reasoning that caused it was sound
+
+`RULED_CURRENCY_CODE` in `apps/web/tests/support/ruled-price-copy.ts` **re-spells `"MDL"` rather than
+importing `PRICE_BOOK_CURRENCY`**, and the justification was real: a book-derived regex in the
+**negative** sweep — *no module writes the currency* — would chase a changed value and let a stale
+module literal through. That is correct for the negative sweep. **It had been over-generalised into
+skipping the positive check**, so setting `PRICE_BOOK_CURRENCY` to `"EUR"` compiled, left every test
+green, and rendered `43 000 MDL` for a EUR book.
+
+Both spellings now stand and **the asymmetry is written up beside them** — the negative sweep pins
+the ruled literal, the positive check reads the book — precisely so a later reader does not make the
+two consistent and restore the bug. A test constant that duplicates a production constant is right
+exactly as often as it is asked a question the production constant must not be allowed to answer.
+
+##### Three more gates claiming more than they held, which continues 6B-f's theme
+
+1. **A fourth copy of the catalogue tree-walk had diverged from the two it came from** — it returned
+   `[]` where they `throw`, so *"exactly one leaf carries the currency"* silently skipped array
+   leaves.
+2. **A guard named *"lets no module write the currency"* is line- and quote-scoped**, and misses a
+   JSX text node and a CSS `content` declaration. QA landed both; only pre-existing tests caught
+   them. **The name changed and the regex did not** — the honest name is the fix available here,
+   because widening the scope is a different gate.
+3. **Two files covered one seam with duplicated fixtures.**
+
+##### One citation was wrong in three places
+
+**Nothing rules which module the currency constant lives in.** The correction is recorded in place
+above, against the sentence that carried it; ADR 0001 decision 4 is what makes the currency MDL, and
+ADR 0062 mentions neither the word nor the code. The wrong number had survived a plan, an
+implementation and a QA pass.
+
+##### Verified at the commit
+
+**9,397 tests passing** — domain **3,770**, persistence **282**, three-adapter **3,031**, web
+**2,314** — with lint, typecheck and whole-tree `format:check` clean. The manifest went **300 → 303**
+by adding three fixtures for the new leaf; none moved, and 6B-f2 had left it byte-identical.
+
+##### The visual pass, and the one thing a screenshot could not have proved
+
+Ran on both locales at desktop 1440x900 and mobile 390x844. The price bar reads *de la* +
+`101 000 MDL` on `/ro` and *от* + `101 000 MDL` on `/ru`; the total reads `DE LA 101 000 MDL` /
+`ОТ 101 000 MDL`; 30 breakdown rows carry no currency **by design**, the included rows read *inclus*
+/ *включено*, and the added-amount badges read `+9 000`, `+18 000` and `+7 000` twice. **The currency
+appears exactly twice per page** — no doubling, no `L`, no raw placeholder.
+
+**The separator was verified by codepoint, not by eye.** `101 000 MDL` reads
+`49,48,49,32,48,48,48,32,77,68,76`, so both spaces are **U+0020**, never U+00A0. Across the whole
+breakdown the non-digit tally was **33 × U+0020, 2 currency letters and 1 `+`**, and nothing else —
+identical at both viewports and both locales. **A non-breaking space is exactly what an `Intl` leak
+produces and a screenshot cannot distinguish it**, which is why this wave's visual evidence is a
+codepoint census rather than ten pictures. The 10 captures are scratch evidence and are not committed.
+
+**Declared not verified: the overflow warning.** It is unreachable on the default kitchen, which has
+no free space to widen into, so no rendering of it was seen at either locale. The gap is recorded
+rather than covered by the pass.
+
+**Next.** Start **6B-h2**, which now also carries 6B-h1's residue; see both sections below.
+
 ### 6B-h1 — the test sweep: domain and adapter
 
 > Re-planned 2026-09-10, and **split from 6B-h**, which the pre-rebase plan sized at *"39 literals
@@ -1034,8 +1206,48 @@ going invisible is the clean-code reviewer's actual concern.
 > web files carrying 126 literals**, and **96** tautology-shaped assertions — too large for one
 > implementer under this plan's own five-item rule.
 
-**Scope.** The 26 files under `packages/configurator-domain/tests`, `packages/three-adapter/tests`
-and — the one that is not a test — `packages/configurator-domain/src/fixtures/kitchen-l-design.ts`.
+> **Struck in place 2026-09-10 — this wave's scope collapsed while it waited, and the residue folds
+> into 6B-h2.** The scoping below was written before 6B-f2 and 6B-g existed and measured a tree that
+> 6B-e, 6B-f, 6B-f2 and 6B-g have since swept as a **side effect of moving the copy** — each of those
+> waves repointed the tests that named the literals it moved. Nothing was skipped; the work was done
+> under other headings. The measurement is below, and the original scoping is kept struck rather than
+> deleted so a later reader can see that 26 was true when it was written.
+>
+> **Measured on the tree today** — a diacritic scan that excludes comments, because a plain
+> `git grep -lE '[ăâîșțĂÂÎȘȚ]' -- packages` counts comment lines and overstates the result, exactly
+> as 6B-f's own criterion note above warns:
+>
+> | area | files with a Romanian-diacritic literal outside a comment |
+> | --- | --- |
+> | `packages/configurator-domain/src` | **1** — `pricing/sample-price-book.ts`, 10 lines |
+> | `packages/configurator-domain/tests` | **1** — `tests/commands/minimum-width.test.ts`, 1 line |
+> | `packages/three-adapter/src` and `/tests` | **0** |
+>
+> **And the 10 in `sample-price-book.ts` are not debt.** They are the `name` / `description`
+> fallbacks that
+> [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+> decision 2 **deliberately keeps required**, so a book nobody at Lemnaria authored still renders.
+> Removing them would break that ADR, and a later sweep that treats them as an escape has misread it.
+> 6B-f's amended criterion above already excepts this file by name.
+>
+> **So 6B-h1's real remaining work is one line in one test file** —
+> `packages/configurator-domain/tests/commands/minimum-width.test.ts:271`, `label: "Nișă sintetică"`.
+> It is **folded into 6B-h2**, which is a test sweep in the same tier with the same layer rule, and a
+> wave of its own would cost more ceremony than work. 6B-h2's dependency moves from 6B-h1 to 6B-g in
+> the wave table.
+>
+> **The worked example below is spent, not wrong.**
+> `three-adapter`'s `catalog-bodies.adversarial.test.ts:605-606` no longer holds the literal it
+> quotes; the file's three surviving diacritics are all in comments. Keep the reasoning — the
+> descriptor assertion is the stronger claim — and read the example as history.
+>
+> **Punch-list item 3 is answered: `kitchen-l-design.ts` is clean, and there is no 6B-f escape.** Its
+> two remaining diacritics are both on comment lines 237–238, quoting the pre-6D pantry name to
+> explain why the fixture declares what it declares. That is the *"Romanian inside comments"* case
+> `docs/i18n/ro-catalogue-notes.md` records as deliberate.
+
+~~**Scope.** The 26 files under `packages/configurator-domain/tests`, `packages/three-adapter/tests`
+and — the one that is not a test — `packages/configurator-domain/src/fixtures/kitchen-l-design.ts`.~~
 
 **The `src/` fixture is the interesting one.** It is shipped source, not a test file, so 6B-j's gate
 will reject it and 6B-f's *"no Romanian diacritic in `packages/*/src`"* criterion already does. If
@@ -1068,6 +1280,16 @@ it as a 6B-f escape if it is not**, rather than fixing it quietly here.
 `tests/support/approved-romanian-messages.ts` and `tests/support/ruled-price-copy.ts`, which are the
 copy lock and are **supposed** to hold literals), plus the **96** assertions of the form
 `expect(x).toBe(ro.k)` / `.toEqual(ro.k)` / `.toContain(ro.k)`.
+
+> **Added 2026-09-10 — 6B-h1's residue folds in here.** One line,
+> `packages/configurator-domain/tests/commands/minimum-width.test.ts:271` (`label: "Nișă
+> sintetică"`), which is all that survived of that wave's 26-file scope once 6B-e, 6B-f, 6B-f2 and
+> 6B-g had moved the copy those files asserted on. The reasoning and the measurement are in 6B-h1's
+> struck section above. **It is a `packages/` file, so the layer rule that governs it is 6B-h1's, not
+> this section's**: layer 2 is the only legal layer in `packages/`, and the domain resolves no
+> catalogue. `apps/web/tests` is otherwise re-measured by this wave's implementer before starting —
+> the 48 / 126 / 96 figures predate three waves that touched web tests, and 6B-h1's whole lesson is
+> that a sweep's scope decays while it waits.
 
 #### The rule for deciding, per assertion, which layer it belongs in — this is the whole of the wave's risk
 
@@ -1376,6 +1598,15 @@ Falsifiable, and stated as invariants including what must not happen.
   the wave owes no changed-key list. From 6B-f2 on the criterion reads exactly as written.
   `STAGED_LEGACY_DIVERGENCES` **is `{}`** at 6B-f's close, read directly from
   `apps/web/tests/i18n/golden-output.test.ts` — that half of the criterion is met as stated.
+
+  **Read against 6B-g, 2026-09-10, and it needs one distinction the wording does not draw.** That
+  wave reports the manifest going **300 → 303: three hashes added, none moved.** A wave that authors
+  a new leaf necessarily adds a hash, so *"byte-unchanged"* cannot mean *"the file is untouched"*
+  from 6B-f2 on; what the criterion is actually protecting — **no existing hash moves without a
+  message value moving** — held. The Gate O1 procedure attaches to a **moved** hash, and none moved.
+  **6B-f2 left the file byte-identical** — SHA-256
+  `7e3a863847264247f92edefdf4db29b4fb3c7c69bbf1ad219964ff9413b92adc`, 300 hashes — so the criterion
+  reads exactly as written for the first wave it governs.
 - `configure.overflowWarning` is byte-identical, punctuation included (ADR 0065 decision 7b).
 - **No approved Romanian sentence is reworded, retyped or tidied.** A diff that improves Romanian is
   a defect in this phase — including one made to ease a translation.

@@ -419,3 +419,9 @@ CLDR lookup, so a future locale that groups differently — Indian lakh, say —
 rather than working for free. No planned locale does; both `ro` and `ru` group in threes. That is a
 real limit and it is accepted knowingly, which is the opposite of discovering it after a formatter
 silently rewrote an approved figure.
+
+**Shipped 2026-09-10 at `cb66896`**, exactly as narrowed: only the join moved, and the golden
+manifest went 300 → 303 hashes with none moved. **One thing this leaves for Gate O2, stated so it is
+not mistaken for a translation gap**: `ru.json` carries the same value as `ro.json`,
+`"{amount} MDL"`. Point 3 above is what makes that the owner's to rule rather than a library's — the
+leaf exists precisely so *MDL* against *лей*, and the currency's position, can be decided at O2.

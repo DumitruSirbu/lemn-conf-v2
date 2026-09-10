@@ -142,11 +142,21 @@ judgement call 9 below.
 
 **The surprise in the sweep.** A diacritic grep finds nothing beyond the sources listed above, but
 the palette names in **`materials.ts:194-233` have no diacritics** and are therefore invisible to it.
-Since wave 6R the finish swatches render the material's own declared names, so they are
+~~Since wave 6R the finish swatches render the material's own declared names~~, so they are
 customer-visible copy — and **neither the M6B plan nor ADR 0095 mentions them**, in the in-scope list
 or the out-of-scope one. They are collected, under `finish`, verbatim: a `supplierCode` beside a
 string makes it identifiable, not data, and ADR 0071 decision 4 confirms these names *with the
 owner*, which is the test that matters.
+
+**Superseded 2026-09-10 by wave 6B-f2 (`edf2fc0`) — the names are no longer in `materials.ts`.**
+`PaletteEntry.name` is **deleted**; a swatch resolves its name from the entry's `entryId` against
+these eight `finish.*` leaves, through `content.finishName`. So the leaves collected here, read by
+nothing since Gate O1, are now what the screen shows, and the line/column citations above
+(`materials.ts:194-233`) point at rows that carry `entryId` and `supplierCode` only. **The diacritic
+blind spot the paragraph opens with is unchanged and still the reason 6B-j needs a second rule**:
+*Alb*, *Antracit*, *Stejar Bardolino Natur* and *Nuc* contain no Romanian diacritic wherever they
+live. **`supplierCode` stayed in the domain**, deliberately — it is a printed decor code quoted back
+on an order, not copy.
 
 **The question for the owner — one ruling, not eight.** These names split into two piles, and only
 the owner can say which rule the Russian follows.
@@ -178,13 +188,20 @@ Deliberately absent, each for a recorded reason:
   by the app. The mechanism is
   [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
   — a row keeps `name` and gains an optional `nameKey` — and the work is wave **6B-f2**. Measured on
-  the current tree it is **8 names and 8 descriptions**, not 6 and 6. ADR 0062 decision 1 still
+  the current tree it is ~~**8 names and 8 descriptions**~~, not 6 and 6. ADR 0062 decision 1 still
   holds: what leaves the book is the rendered sentence, never a tier, an amount, a delta or a rule.
+
+  **Shipped 2026-09-10 at `edf2fc0`: 14 keys — 6 names and 8 descriptions.** *Hettich* and *Blum*
+  are brand names and carry **no `nameKey`**, which under ADR 0106 decision 1 is how a row says its
+  name must not be translated. Three descriptions were then trimmed at `ff8114c` on the owner's
+  ruling, because they restated an amount or an earning rule in prose — ADR 0106 **Amendment A**.
 - ~~**`MDL`** and the space thousands separator (`price/starting-price.ts:40`) — wave 6B-g's `Intl`
   work, not a message.~~ **Half superseded by ADR 0095 Amendment C** (2026-09-10): there is no `Intl`
   work — measured, `Intl.NumberFormat("ro")` renders `143.000` where the mockups say `143 000`, and
   `ro-MD` renders the currency as `L`. The separator stays a product constant; **`MDL` becomes a
   message** after all, as `price.amountWithCurrency`, so Gate O2 can rule on what Russian calls it.
+  **Shipped 2026-09-10 at `cb66896`**: `ro.json` and `ru.json` both carry
+  `price.amountWithCurrency` = *"{amount} MDL"*; the separator did not move.
 - **`<html lang="ro">`** (`layout.tsx:22`) — wave 6B-b.
 - **Romanian inside comments**, which quote copy deliberately and reach no customer.
 

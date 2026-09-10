@@ -1,6 +1,7 @@
 # ADR 0106 — The price book's display prose publishes descriptors, and the book still keeps the tier
 
-Status: Accepted — opens M6B wave **6B-f2**
+Status: Accepted — opens M6B wave **6B-f2**, which shipped 2026-09-10 at `edf2fc0` (copy trim
+`ff8114c`); see Amendments A and B
 Date: 2026-09-10
 Type: Decision
 Milestone: M6B — Internationalization
@@ -117,9 +118,31 @@ duplicating the amount column beside it.
 **What is still owed.** The prose sweep described above, in wave **6B-j**. Until it exists, this
 amendment is the only thing standing between a future wave and a fourth such sentence.
 
+## Amendment B — what shipped, counted (2026-09-10)
+
+Recorded at 6B-f2's close-out, against two figures in this record that the wave departed from
+deliberately. **Neither departure changes a decision above**; both are the decisions applied.
+
+**14 keys, not 16.** Read back from `apps/web/src/messages/ro.json:200-237`: **6 `name` and 8
+`description`**. **Hettich and Blum carry no `nameKey`** — they are brand names, and decision 1 says
+the key wins when present, so the correct move for a row whose name must not be translated is to
+author no key and let decision 2's required `name` render. That is this ADR's own mechanism used as
+intended, and it is worth knowing that the mechanism has a second use: **not translating is
+expressible**, without a flag or an exemption list.
+
+**The palette was in the wave after all, and it carries no key.** The Context above says
+`materials.ts`'s palette names "are not in this wave"; M6B's plan put them in it, and they shipped —
+the 8 existing Gate O1 `finish.*` leaves, authored long before and read by nothing, are now resolved
+through `content.finishName` and **`PaletteEntry.name` is deleted**. There is no palette `nameKey`:
+it would have been `` `finish.${entryId}` `` verbatim for all eight, a second identifier for one
+fact. **Decision 2's fallback does not transfer to the palette**, and the reason is the reason
+decision 2 exists: a book row keeps `name` so a book *nobody at Lemnaria authored* still renders,
+while `PaletteEntryId` is a closed union behind a zod enum that no dashboard authors.
+
 ## Consequences
 
-- 16 new leaves in `ro.json` and `ru.json`, in the same commit, per `engineering-conventions.md:61`.
+- ~~16~~ **14** new leaves in `ro.json` and `ru.json` (Amendment B), in the same commit, per
+  `engineering-conventions.md:61`.
   The Russian is an unapproved draft until **Gate O2**, like every other Russian leaf.
 - The Romanian values move **byte-for-byte**, as Amendment B requires. This wave changes no wording;
   it changes where wording lives. Any wording question it surfaces is reported to the owner, not
