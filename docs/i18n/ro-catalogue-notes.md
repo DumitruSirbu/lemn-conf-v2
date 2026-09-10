@@ -170,11 +170,21 @@ Whichever way it goes, `ro.json` does not change; only `ru.json`'s treatment of 
 
 Deliberately absent, each for a recorded reason:
 
-- **The price book's 6 tier names** (*Standard*, *Hettich*, *Blum*, *PAL melaminat*, *MDF vopsit mat*,
-  *Furnir natural*) and its **6 Romanian descriptions** — ADR 0062 and ADR 0095 decision 3 rule both
-  as book data rendered, not copy.
-- **`MDL`** and the space thousands separator (`price/starting-price.ts:40`) — wave 6B-g's `Intl`
-  work, not a message.
+- ~~**The price book's 6 tier names** (*Standard*, *Hettich*, *Blum*, *PAL melaminat*, *MDF vopsit
+  mat*, *Furnir natural*) and its **6 Romanian descriptions** — ADR 0062 and ADR 0095 decision 3 rule
+  both as book data rendered, not copy.~~ **Superseded four days after this was written**, by
+  [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md)
+  **Amendment B** (2026-09-07): displayed names and descriptions publish descriptors and are resolved
+  by the app. The mechanism is
+  [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+  — a row keeps `name` and gains an optional `nameKey` — and the work is wave **6B-f2**. Measured on
+  the current tree it is **8 names and 8 descriptions**, not 6 and 6. ADR 0062 decision 1 still
+  holds: what leaves the book is the rendered sentence, never a tier, an amount, a delta or a rule.
+- ~~**`MDL`** and the space thousands separator (`price/starting-price.ts:40`) — wave 6B-g's `Intl`
+  work, not a message.~~ **Half superseded by ADR 0095 Amendment C** (2026-09-10): there is no `Intl`
+  work — measured, `Intl.NumberFormat("ro")` renders `143.000` where the mockups say `143 000`, and
+  `ro-MD` renders the currency as `L`. The separator stays a product constant; **`MDL` becomes a
+  message** after all, as `price.amountWithCurrency`, so Gate O2 can rule on what Russian calls it.
 - **`<html lang="ro">`** (`layout.tsx:22`) — wave 6B-b.
 - **Romanian inside comments**, which quote copy deliberately and reach no customer.
 

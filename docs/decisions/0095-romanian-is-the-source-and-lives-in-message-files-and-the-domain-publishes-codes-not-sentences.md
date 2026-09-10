@@ -224,11 +224,13 @@ are in:
 - **A shared design link's locale is presentation, never identity.** `/ro/d/<id>` and `/ru/d/<id>`
   load the same design. The locale segment must not reach the persisted document, a save payload, the
   design's `revision`, or any cache key that a design is read by.
-- **`Intl` number and currency formatting**, and the baked-in cases fixed: `MDL` becomes a formatted
-  currency rather than a literal suffix, and *"Pasul 2 din 4"* becomes a parameterised message whose
-  step numbers are arguments. **Formatting is rendering only.** ADR 0001 decision 4's rounding stays
-  in **minor units** in `starting-price.ts` and is not routed through `Intl` — a formatter that
-  rounds is a formatter that changes a price.
+- ~~**`Intl` number and currency formatting**~~, and the baked-in cases fixed: `MDL` becomes a
+  formatted currency rather than a literal suffix, and *"Pasul 2 din 4"* becomes a parameterised
+  message whose step numbers are arguments. **Formatting is rendering only.** ADR 0001 decision 4's
+  rounding stays in **minor units** in `starting-price.ts` and is not routed through `Intl` — a
+  formatter that rounds is a formatter that changes a price.
+  **`Intl` is narrowed out of `price/` entirely by Amendment C** — the baked-in cases are still
+  fixed, by a catalogue leaf rather than by a formatter.
 - **A complete Russian message file and the language switch**, which is what makes decision 5 true
   rather than possible. Confirmed by the owner, 2026-09-06: *"Russian is in scope … this milestone
   should include all the infrastructure, all the logic, for the internationalization. Yeah, it will
@@ -374,3 +376,46 @@ move byte-for-byte and the Russian translations remain unapproved until Gate O2.
   guard whichever sentences someone happened to assert, in no recorded order, while 81 assertions
   beside them are tautologies. One whole-file lock covers every key by construction. **The
   distributed version looks stronger and covers less.**
+
+### Amendment C — `Intl` is not the mechanism for money, because it contradicts the mockups (2026-09-10)
+
+**Decision 4 committed to `Intl` before anyone ran it.** Measured on this repository's runtime,
+against `143000`:
+
+| locale | grouping | currency |
+| --- | --- | --- |
+| `ro` | `"143.000"` — a **period** | `"143.000,00 MDL"` |
+| `ro-MD` | `"143.000"` | `"143.000,00 L"` — not `MDL` |
+| `ru` | `"143 000"` — U+00A0, not U+0020 | `"143 000,00 MDL"` |
+
+What ships and what the mockups draw is **`143 000 MDL`**: an ASCII space, the currency after the
+amount, no decimals. `Intl` disagrees on the separator, on the currency symbol, and — for Russian —
+on the codepoint. `price/starting-price.ts:56` had already recorded the reason in a comment before
+this was measured: *"The mockups group with a space … and grouping is done here rather than through
+`Intl`."*
+
+[ADR 0003](0003-design-reference-supersession.md) and
+[ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+make the mockups the specification for this screen. A formatter that renders `143.000` where the
+approved design says `143 000` is not a localisation improvement; it is an unapproved copy change
+arriving through a library. **The higher ruling wins, and decision 4 is narrowed rather than
+reversed.**
+
+**So, for wave 6B-g:**
+
+1. **No `Intl` identifier anywhere under `apps/web/src/price/`.** Falsifiable by grep, and 6B-g
+   carries it as a criterion.
+2. **The thousands separator stays an ASCII space**, as the product constant it already is.
+   `THOUSANDS_SEPARATOR` does not move.
+3. ***"`MDL` stops being a literal suffix"* is still satisfied, and better than `Intl` would have.**
+   The join becomes a catalogue leaf — `price.amountWithCurrency`, `"{amount} MDL"` — so the
+   currency's name, its position relative to the amount, and whether Russian says *MDL* or *лei*
+   become **translatable decisions the owner rules at Gate O2**, instead of a library's opinion
+   about `ro-MD` that nobody chose and that renders `L`.
+4. ADR 0001 decision 4's rounding is untouched, in minor units, as decision 4 already required.
+
+**What this costs, said plainly:** per-locale digit grouping is now a product constant rather than a
+CLDR lookup, so a future locale that groups differently — Indian lakh, say — would need a decision
+rather than working for free. No planned locale does; both `ro` and `ru` group in threes. That is a
+real limit and it is accepted knowingly, which is the opposite of discovering it after a formatter
+silently rewrote an approved figure.

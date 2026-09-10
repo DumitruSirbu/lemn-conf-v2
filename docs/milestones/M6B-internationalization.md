@@ -1,10 +1,18 @@
 # M6B — Internationalization: Romanian becomes a source locale instead of a hardcoded one
 
-> **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-d complete; 6B-e next.** Runs immediately after M6 and
+> **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-e complete at `8fff684`; two owner
+> catalogue rulings applied at `6ea640f`; 6B-f next.** Runs immediately after M6 and
 > before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
 > corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
 > [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md).
+>
+> **Waves 6B-f, 6B-f2, 6B-g, 6B-h1, 6B-h2 and 6B-j were re-planned on 2026-09-10 against the tree at
+> `6ea640f`**, after the branch was rebased onto a `main` that had moved 134 commits. The sections
+> below are the current instruction; where an earlier paragraph in this file disagrees with them, the
+> later section wins. Every disagreement between the pre-rebase plan and the measured tree is listed
+> under *Re-planning against the rebased tree*, and the sections that went stale are struck rather
+> than deleted.
 
 Status: in progress on branch `m6b-internationalization`. The 2026-09-07 owner sequencing ruling
 supersedes the planned dependency order described below; see *Owner sequencing correction*.
@@ -259,18 +267,81 @@ accept.*
 - **Translations are never pinned by literal.** Pinning a Russian sentence would freeze a translator
   out of their own file. Layer 4 gates them structurally instead.
 
+## Re-planning against the rebased tree — 2026-09-10
+
+Measured on branch `m6b-internationalization` at **`6ea640f`**, after the branch was rebased onto a
+`main` that had moved 134 commits. **Where this plan and the code disagreed, the code is what is
+true**, and every disagreement is listed here rather than silently corrected, because a stale plan
+that misroutes an implementer is a failure this repository has recorded before.
+
+1. **6B-e is done, not next.** The status banner and the wave table said *"6B-e next"*. It shipped at
+   `8fff684` as part of the replay onto `main`. `apps/web/src/i18n/content.ts`'s `resolveRejection`
+   is live, and `RejectionDetail.params` is already the data the catalogue interpolates.
+2. **There are 35 refusal codes and 38 catalogue keys, not 34 and 34.** Wave 6Z's
+   `DEPENDENT_MEMBER_NOT_REBUILDABLE` is present in `content.ts` and in `golden-output.test.ts`'s own
+   `expect(REJECTION_CODES).toHaveLength(35)`. Every *"34 codes"* elsewhere in this file is stale.
+3. **`KIND_LABELS_RO` has 13 entries, not 17.** ADR 0095 and this plan's *ground truth* section both
+   say 17; `docs/i18n/ro-catalogue-notes.md` corrected it to 13 on 2026-09-06 and the code agrees.
+4. **6B-f changes rendered Romanian, and the owner ruled it.** The domain says *Corp*; the collected
+   catalogue says *Dulap*. Not drift — commit `3564c7c`: *"corp becomes dulap … The 11 catalogue
+   labels are renamed on the owner's explicit call."* Two acceptance criteria in this file assumed the
+   opposite and are amended in place, with the strikes left visible.
+5. **The golden harness has no M6-close capture and never had one.** ADR 0095 Amendment B says so;
+   the criterion asserting byte-identity against one is amended above. What the harness actually
+   holds is a `renderCorrected` SHA manifest plus a **seven-entry `STAGED_LEGACY_DIVERGENCES`** table
+   whose own comment names 6B-f as the wave that must empty it. That is a far better exit condition
+   than the criterion it replaces, and it was invisible to the pre-rebase plan.
+6. **The app side of the extraction is already finished.** Every Romanian diacritic literal in
+   `apps/web/src` outside `messages/` and `content/ro.ts` is in a **comment** — nine of them, checked
+   individually. ADR 0104's settings pill, ADR 0099's colour group and M6-AUD-014's empty-kitchen
+   prompt all landed already localised. The pre-rebase worry that the rebase had left new
+   un-keyed surfaces behind is **not borne out**; what it did leave is item 7.
+7. **`content/ro.ts` has two `src` importers and nine test importers**, not the eleven and thirty-three
+   the *ground truth* section counted. `price/price-bar-model.ts` needs only `price.emptyKitchenPrompt`
+   and `store/editability.ts` only three `panel.*` sentences; all four keys are already in both
+   catalogues. The deletion is small and is 6B-f's item 5.
+8. **The test sweep is roughly three times the size the plan recorded**, and it is split into 6B-h1
+   and 6B-h2 for that reason. Measured: **26** domain/adapter files with Romanian literals (the plan
+   said 13 assertions), **48** web test files carrying **126** literals (the plan said 39 across 32
+   files), **96** tautology-shaped assertions (the plan said 81), and **four** e2e specs carrying
+   Romanian (the plan said *"only 2 literals in e2e … the single biggest de-risking fact in the
+   phase"*). That claim no longer holds and should not be relied on.
+9. **6B-g's instruction, as written, breaks the mockups.** `Intl.NumberFormat("ro")` groups with a
+   period on this runtime. Measured, ruled, and recorded in 6B-g; ADR 0095 decision 4 needs a
+   narrowing amendment.
+10. **6B-j's rule, as written, cannot work.** A Romanian-diacritic rule does not see *"Dulap
+    suspendat"*, *Alb* or *Stejar Bardolino Natur*. Verified against a probe file; the wave now lands
+    three checks and is re-tiered to Medium.
+11. **ADR 0095 Amendment B's price-book scope has no owner.** 16 customer-visible leaves in
+    `sample-price-book.ts` and 8 in `materials.ts`, with no wave and — for the price book — no
+    catalogue keys. `docs/i18n/ro-catalogue-notes.md` still calls them *"deliberately absent"*, which
+    Amendment B superseded four days later. New wave **6B-f2**.
+12. **`describeBodyLabelAt` has five consumers, not the four ADR 0033 names.** The fifth is
+    `queries/offers.ts`'s refused branch, which returns the **generic** entry label with no door count
+    — a distinction ADR 0033's own comment argues for at length and which the descriptor must keep.
+    It is also called from `apps/web/tests/i18n/golden-output-fixtures.ts`'s legacy witness, which is
+    how 6B-f meets item 5's exit condition.
+
+**Two things the pre-rebase plan got right and are re-confirmed here**, so nobody re-derives them:
+the four-layer test model, and the rule that the copy lock is an inline literal table and never a
+snapshot. Both hold, both are load-bearing for 6B-h2, and neither is affected by anything above.
+
 ## Waves
 
-Ten waves, sequenced so the mechanical bulk is separable from the decisions.
+~~Ten waves~~ **Thirteen waves as of 2026-09-10** (6B-f2 added; 6B-h split into 6B-h1 and 6B-h2),
+sequenced so the mechanical bulk is separable from the decisions.
 
 **Which are dull and which are risky, said plainly rather than implied by the tier:**
 
-- **Dull:** 6B-c (the 59 plain strings — the largest diff in the phase and the least thought in it)
-  and 6B-j (the lint gate). Both are boring and neither is safe to rush: 6B-c is where a
+- **Dull:** 6B-c (the 59 plain strings — the largest diff in the phase and the least thought in it),
+  ~~and 6B-j (the lint gate)~~. It is boring and it is not safe to rush: 6B-c is where a
   rubber-stamp costs most, because its safety rests entirely on the harness being genuinely
-  byte-comparing.
-- **Risky:** 6B-e (34 refusal codes, eagerly rendered into every command result), 6B-f (labels that
-  reach priced breakdown lines and the ACTUAL badge), and 6B-g (money). These are domain algebra and
+  byte-comparing. **6B-j left this list on 2026-09-10**: a diacritic rule was measured against a
+  probe file and does not see *"Dulap suspendat"*, so the wave lands three checks and an allow-list
+  of judgement calls.
+- **Risky:** 6B-e (**35** refusal codes, eagerly rendered into every command result), 6B-f (labels
+  that reach priced breakdown lines and the ACTUAL badge, and where a **customer-visible rename**
+  lands), 6B-f2 (ADR 0062's book seam) and 6B-g (money). These are domain algebra and
   money, and they are Full for that reason.
 - **Bigger than they look:** 6B-a, because it lands three gates and a dependency and everything after
   it is verified by them; and 6B-b, because routing rewrites the route tree of a live app and there
@@ -282,31 +353,34 @@ Ten waves, sequenced so the mechanical bulk is separable from the decisions.
 | **6B-b** | **DONE 2026-09-09, `d4f39f7`** (routing core `cf16427`; review repairs `d4cedb2`): locale routing, negotiation, `<html lang>`, route metadata, and the shared-link invariant | **Full** (every route) | 6B-a |
 | **6B-c** | **DONE 2026-09-09, `1c8ad46`** (typed-key repair `a7c796a`; Playwright fixture `1a7dd97`): the plain strings leave `ro.ts` and resolve from the active locale | **Light** | 6B-a |
 | **6B-d** | **DONE 2026-09-09, `1fbd780`:** the 17 interpolated entries become ICU; Romanian plurals become CLDR `one/few/other`; *"Pasul 2 din 4"* becomes parameterised | **Full** (grammar; open question 1) | 6B-c |
-| **6B-e** | The 34 refusal codes: the domain stops rendering Romanian | **Full** (domain algebra) | 6B-d |
-| **6B-f** | Catalogue, kind and band labels leave the domain | **Full** (reaches priced lines) | 6B-e |
-| **6B-g** | `Intl` money and number formatting; `MDL` stops being a literal suffix | **Full** (money) | 6B-f |
-| **6B-h** | The test sweep: the last hardcoded strings, the 81 tautologies, the domain fixtures | **Light** (tests only, but see below) | 6B-g |
+| **6B-e** | **DONE 2026-09-10, `8fff684`** (replayed onto `main` with 6B-a…6B-d): the **35** refusal codes across 38 catalogue keys — the domain stops rendering Romanian and `resolveRejection` resolves the descriptor | **Full** (domain algebra) | 6B-d |
+| **6B-f** | The label descriptor: `KIND_LABELS_RO`, `BAND_LABELS_RO`, `EMPTY_SLOT_LABEL_RO`, `UNKNOWN_KIND_LABEL_RO`, the entry labels and `describeBodyLabelAt` leave the domain; **`content/ro.ts` is deleted** | **Full** (reaches priced lines) | 6B-e |
+| **6B-f2** | **New wave, added 2026-09-10.** The price book's 16 customer-visible leaves and `materials.ts`'s 8 palette names — the two surfaces ADR 0095 Amendment B put in scope and no wave owned | **Full** (ADR 0062's book seam) | 6B-f |
+| **6B-g** | The money seam: `MDL` stops being a literal suffix and the grouping separator becomes a stated ruling rather than an accident | **Full** (money) | 6B-f2 |
+| **6B-h1** | Test sweep, domain and adapter: **26 files** carrying Romanian literals, including the `src/` fixture `kitchen-l-design.ts` | **Light** (tests only) | 6B-g |
+| **6B-h2** | Test sweep, web: **48 files / 126 literals** and the **96** `expect(x).toBe(ro.k)` tautologies | **Light** (tests only, but see below) | 6B-h1 |
 | **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
-| **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h |
+| **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 |
 | **Gate O2** | **HARD STOP — the owner checks the Russian.** Not a wave; an owner review, and a real one | — | 6B-i |
-| **6B-j** | The re-drift gate — a lint rule and a CI check — **and the written convention M7 and M8 author against** | **Light** | 6B-i |
+| **6B-j** | The re-drift gate — **two lint rules, a domain boundary gate, and the written convention M7 and M8 author against** | **Medium** (re-tiered 2026-09-10; it was Light) | 6B-i |
 
 6B-b and 6B-c are independent of one another and may run in either order after 6B-a. Everything from
 6B-d down is a chain, because each wave's golden-output check depends on the previous wave's
 catalogue being complete.
 
-**6B-h runs during Gate O1, not after it.** It changes no wording, so it is the one piece of work
-that does not idle while the owner reads. Nothing else starts.
+~~**6B-h runs during Gate O1, not after it.** It changes no wording, so it is the one piece of work
+that does not idle while the owner reads. Nothing else starts.~~ **Spent — Gate O1 closed 2026-09-07**,
+so there is nothing to schedule through. 6B-h1 and 6B-h2 run in their table order.
 
 **The owner has accepted the size of this phase explicitly** — *"Yeah, it will take more, but it
 should cover everything related to internationalization."* The milestone is not to be trimmed to look
 smaller; a wave dropped here is a wave M7 or M8 pays for.
 
 **Tests move with their wave**, not to the end: each wave converts the tests of the code it touches.
-6B-h is the *sweep* for what no wave owned — the domain fixtures, e2e's two literals, and any
-tautology that survived — plus the audit that layers 2 and 3 landed where they belong. It is Light
-because it changes no production code, and it is the wave most likely to need a second round,
-because it is the one that has to judge which layer each converted assertion belongs in.
+6B-h1 and 6B-h2 are the *sweep* for what no wave owned — the domain fixtures, e2e's Romanian, and any
+tautology that survived — plus the audit that layers 2 and 3 landed where they belong. Both are Light
+because they change no production code, and 6B-h2 is the wave most likely to need a second round,
+because it is the one that has to judge which layer each of 222 converted assertions belongs in.
 
 ### 6B-a — the standard, the seam, and the three gates that protect every later wave
 
@@ -486,27 +560,427 @@ become `rejection.<CODE>` keys with their typed `params` as ICU arguments; `pane
 `renderRejection` call sites resolve descriptors instead. 13 domain assertions and the panel's
 rejection tests move to codes.
 
-### 6B-f — the labels
+### 6B-f — the label descriptor, and the death of `content/ro.ts`
 
-`KIND_LABELS_RO`, `BAND_LABELS_RO`, `EMPTY_SLOT_LABEL_RO`, `UNKNOWN_KIND_LABEL_RO` and the
-catalogue's `label:` fields become keys; `describeBodyLabelAt` publishes a descriptor and its
-`ușă`/`uși` becomes an ICU plural. **This reaches the price breakdown line, the ACTUAL badge, the
-panel header and the offer row** — ADR 0033's four named call sites — which is why it is Full and why
-it runs after the refusals rather than beside them.
+> Re-planned 2026-09-10 against the tree at `6ea640f`. The one-paragraph version this replaces said
+> only *"…become keys; `describeBodyLabelAt` publishes a descriptor"* and left the descriptor's shape
+> for the implementer to invent. It is ruled below instead, because four consumers and a refusal
+> parameter depend on the same answer.
 
-### 6B-g — money and the baked-in cases
+**Goal.** `packages/configurator-domain/src` stops publishing a Romanian label of any kind, and
+`apps/web/src/content/ro.ts` is deleted. After this wave the only Romanian in either `src` tree is
+`apps/web/src/messages/*.json`, `materials.ts`'s palette names and the price book's prose (6B-f2),
+and comments.
 
-`Intl.NumberFormat` for grouping and currency; `MDL` stops being a literal suffix in
-`price/starting-price.ts`. ADR 0001 decision 4's round-up-to-the-thousand stays in **minor units**,
-untouched and un-`Intl`-ed.
+#### The ruling: what shape the domain publishes
 
-### 6B-h — the test sweep and the tautology purge
+**`BodyLabel` — a closed discriminated union of four cases, three flat and one wrapper of depth
+exactly one.** Declared beside `describeBodyLabelAt` in `catalog.ts` and exported from the package
+root.
 
-The last hardcoded strings anywhere in the suites, including the domain fixtures; the 81
-`expect(x).toBe(ro.k)` tautologies converted to layer-2 descriptor assertions; e2e's two literals;
-and an audit that every converted assertion sits in the layer it belongs to. **Light because it
-touches no production code, and the wave most likely to need a second round** because the judgement
-in it is per-assertion.
+| Case | Payload | The catalogue leaf that resolves it |
+| --- | --- | --- |
+| `entry` | `buildId` | `catalog.entries.<buildId>` — 16 leaves, all present |
+| `bodyKind` | `bodyKind` | `catalog.kinds.<kind>` — 13 leaves, all present; falls through to `catalog.unknownKind` for a kind the map does not hold |
+| `emptySlot` | — | `catalog.emptySlot` |
+| `withDoors` | `name: BodyLabel`, `doors: number` | `catalog.bodyLabelWithDoors` — `{name}` and `{doors}`, already an ICU plural |
+
+**Why a closed union and not a generic `{ key, params }`.** A generic descriptor would let a refusal
+carry any key in the catalogue, and the whole point of the domain seam is that it cannot author copy.
+Four cases can be switched over exhaustively in one resolver and cannot be widened by accident.
+
+**Why not a bare key string.** `catalog.bodyLabelWithDoors` and
+`catalog.kinds.corner_wall_return_top` both take arguments. A bare key forces the resolver to
+concatenate, which is the domain composing a sentence with an extra step in between.
+
+**`withDoors` never wraps a `withDoors`.** Assert it — it is the boundary a careless
+`describeBodyLabelAt` refactor crosses first, and a doubly-wrapped label renders *"Dulap 2 uși 2
+uși"* rather than throwing.
+
+**Falling back is the resolver's job, not the domain's.** `describeKindLabel` disappears as a
+*string* function; `isKnownKind` stays, unchanged, because §11 row 24 is a structural question about
+the catalogue and not about copy. The domain publishes `{ kind: "bodyKind", bodyKind: record.kind }`
+for **any** kind, known or not, and `resolveBodyLabel` renders `catalog.unknownKind` when the
+catalogue holds no leaf for it. `UNKNOWN_KIND_LABEL_RO` and `describeKindLabel`'s `?? UNKNOWN` branch
+are both deleted.
+
+#### The ruling: how the web layer resolves it, and what happens to a refusal's `{label}`
+
+**`resolveBodyLabel(translate, label): string`** lands in `apps/web/src/i18n/content.ts`, beside
+`resolveRejection`, and has the same shape: an **exhaustive literal-key switch** over the 13 kinds
+and the 16 entries. A template-literal key (`` translate(`catalog.kinds.${kind}`) ``) is **forbidden**
+— next-intl's generated declaration rejects it, and rejecting it is exactly the property ADR 0095
+decision 1 chose the library for. A new catalogue row without a message leaf must be a compile error.
+
+`catalog.kinds.corner_wall_return_top` is *"Dulap de colț {rowWord}"* and is the one kind leaf taking
+an argument: the switch's arm for it passes `rowWord: translate("band.top")`. The generated argument
+types make that arm's shape mandatory rather than remembered — which is why the switch is worth its
+29 arms.
+
+**`RejectionDetail.params.label` and `.memberLabel` change type from `string` to `BodyLabel`, and
+`resolveRejection` resolves the descriptor before interpolating it.**
+
+```
+translate("rejection.NOT_DELETABLE", { label: resolveBodyLabel(translate, detail.params.label) })
+```
+
+**This is forced, not chosen.** ICU cannot reference a sub-message by argument: a message that reads
+`„{label}”` needs a resolved string. So the order is resolve-then-interpolate, the 24 arms of
+`resolveRejection` that pass a `label` gain exactly one function call each, and **not one `rejection.*`
+catalogue leaf moves** — they still declare `{label}` as a plain string argument. That is the whole
+of the change on the app side, and it is why 6B-e's work is preserved rather than reopened.
+
+The eight domain command sites that build `params: { label: describeKindLabel(...) }` —
+`set-appearance.ts` ×3, `remove-placement.ts`, `insert-body.ts`, `insert-fit.ts` ×2,
+`resolve-column-members.ts` — publish a descriptor instead. `resolve-column-members.ts`'s
+`catalog.get(record.buildId)?.label ?? describeKindLabel(record.kind)` becomes the descriptor
+equivalent: `entry` when the catalogue resolves the build id, `bodyKind` when it does not.
+
+#### The ruling: `DisplayEntry.label`, `SelectionMeta.label`, `OfferRow.label`, `bandLabel`
+
+- **`DisplayEntry.label: BodyLabel`.** Its consumer is `CabinetPriceLine.label` →
+  `priceBreakdown.placementLabel` = *"{bodyLabel} {widthMm}"*. The breakdown model resolves it and
+  passes a string, exactly as today.
+- **`SelectionMeta.label: BodyLabel`.** §9's header and the ACTUAL badge resolve it.
+- **`SelectionMeta.bandLabel` is deleted.** `SelectionMeta` already carries `band`, which is the fact
+  the label was derived from, and `panel-model.ts:656` is its only reader. A presentation field
+  derived from a field beside it is a second source; the panel resolves `band.<meta.band>` instead.
+  `describeBandLabel` and `BAND_LABELS_RO` are deleted with it.
+- **`OfferRow.label: BodyLabel`, and it has two shapes, not one.** `describeOfferLabel` returns
+  `withDoors(entry(buildId), doors)` for an **offered** row and the bare `entry(buildId)` for a
+  **refused** one. ADR 0033's reasoning for the difference is unchanged and must survive into the
+  descriptor: a refused row has no width to derive a count from, and stating one is the naming defect
+  ADR 0033 exists to remove.
+
+#### This wave changes rendered Romanian, on the owner's own ruling — and that is the single most important thing to know before starting
+
+The domain says *Corp*; `messages/ro.json` says *Dulap*. The owner ruled the rename at `3564c7c`:
+*"corp becomes dulap … The 11 catalogue labels are renamed on the owner's explicit call, since they
+print on the price breakdown rather than only on screen."* So when this wave lands, the panel header,
+the ACTUAL badge, the offer row and the priced breakdown line all change wording, in Romanian, in
+front of a customer.
+
+**Two acceptance criteria elsewhere in this file are therefore wrong for this wave and are amended
+rather than met:** *"After every wave from 6B-c on, the golden-output harness is byte-identical"* and
+*"No behaviour a customer can observe changes in Romanian."* See *Re-planning against the rebased
+tree*, item 4. What replaces them is precise and stricter: the harness's SHA manifest already hashes
+`renderCorrected` only, so **no hash moves**, and the seven-entry `STAGED_LEGACY_DIVERGENCES` table
+in `golden-output.test.ts` — whose own comment says *"6B-e and 6B-f remove the remaining witnesses
+one family at a time"* — **must be empty when this wave closes**.
+
+#### Punch list — 5 items
+
+1. **The descriptor and its producers.** `BodyLabel` in `catalog.ts`; `describeBodyLabelAt` returns
+   it; `describeKindLabel`, `UNKNOWN_KIND_LABEL_RO`, `BASE_CABINET_LABEL_RO`,
+   `WALL_CABINET_LABEL_RO`, `KIND_LABELS_RO` and the 16 entry `label:` arguments are deleted; the
+   entry label becomes the `buildId` the descriptor already carries. *Files:* `catalog.ts`,
+   `body-kinds.ts`.
+2. **The band label leaves the domain.** `BAND_LABELS_RO` and `describeBandLabel` deleted;
+   `SelectionMeta.bandLabel` deleted; `describe-selection.ts`'s `EMPTY_SLOT_LABEL_RO` becomes the
+   `emptySlot` descriptor. *Files:* `bands.ts`, `queries/describe-selection.ts`,
+   `apps/web/src/panel/panel-model.ts`.
+3. **The refusal parameter becomes a descriptor.** `LabelParams.label` and
+   `ColumnMemberParams.memberLabel` retyped; the eight command sites publish descriptors. *Files:*
+   `commands/rejection.ts`, `commands/set-appearance.ts`, `commands/remove-placement.ts`,
+   `commands/insert-body.ts`, `commands/insert-fit.ts`, `commands/resolve-column-members.ts`.
+4. **`resolveBodyLabel` and the four projections.** The resolver in `i18n/content.ts`;
+   `resolveRejection`'s 24 label arms wrapped; `DisplayEntry.label`, `OfferRow.label` and
+   `SelectionMeta.label` retyped and resolved at their render sites. *Files:* `i18n/content.ts`,
+   `queries/design-projection.ts`, `queries/offers.ts`, `price/price-breakdown-model.ts`,
+   `panel/panel-model.ts`.
+5. **`apps/web/src/content/ro.ts` is deleted**, with its two remaining `src` importers repointed:
+   `price/price-bar-model.ts` (`EMPTY_BAR.prompt` → `input.content.price.emptyKitchenPrompt`) and
+   `store/editability.ts` (three `ro.panel.*` sentences → a `Content["panel"]` argument threaded from
+   its two callers). *Files:* `content/ro.ts`, `price/price-bar-model.ts`, `store/editability.ts`,
+   `settings/global-settings.tsx`, `panel/panel-model.ts`. **The nine test files that import
+   `@/content/ro` are repointed to `tests/support/romanian-content.ts` in this wave** — they are the
+   deletion's blast radius, not 6B-h2's sweep.
+
+#### Acceptance criteria
+
+- **`git grep -n "content/ro" -- apps packages` returns comment lines only.** The module file does
+  not exist.
+- `packages/configurator-domain/src` contains **no identifier ending `_RO`** and no string literal
+  with a Romanian diacritic outside a comment. Falsify by grepping the tree.
+- **`STAGED_LEGACY_DIVERGENCES` in `golden-output.test.ts` is `{}`**, and the divergence test is not
+  weakened to reach it: `renderLegacy` for the `catalog` group is **deleted** rather than repointed
+  at `renderCorrected`. A fixture that compares a resolver against itself is layer-3 shape sitting in
+  a layer-4 gate, which this plan's own table calls a defect.
+- **`GOLDEN_OUTPUT_SHA256` is byte-unchanged by this wave.** The manifest hashes `renderCorrected`,
+  which already resolves from the catalogue. Falsify by running the suite without touching
+  `golden-output-hashes.ts`; a wave that needs to edit that file has changed a message value, which
+  is out of scope here.
+- **`describeBodyLabelAt` returns `withDoors` for exactly the rows declaring `doorCountFollowsWidth`,
+  and a flat case for every other row at every offered width.** No `withDoors` wraps a `withDoors`,
+  at any width, for any of the 16 entries.
+- **A refused offer row's label carries no door count**, and an offered row's does, at both sides of
+  `TWO_DOOR_MIN_WIDTH_M`. This is ADR 0033's rule restated on the descriptor and it is the one
+  behaviour the retyping can silently lose.
+- **`corner_wall_return` and `corner_wall_return_top` still resolve to two different strings** (ADR
+  0066), and the top return's still ends in `band.top`'s word. Falsify by setting `band.top` to a
+  sentinel and confirming the kind label follows it.
+- **The seeded body with no catalogue entry still gets a name.** A `PlacementRecord` whose `buildId`
+  resolves to nothing renders `catalog.unknownKind`, never a key path, never an empty string, and
+  never the raw kind id `base_cabinet` in front of a customer (`rejection.ts`'s own stated fear).
+- Domain, adapter, web and e2e suites green; `pnpm ci:local` clean.
+
+#### Risks
+
+- **The rename is invisible to every gate that is looking at hashes.** The manifest cannot see it,
+  because the manifest was seeded from the corrected catalogue. Only a person reading the panel
+  header will notice *Corp* became *Dulap*, and this section is the record that they should expect to.
+- **Two labels are byte-identical on purpose and two were split because they were identical by
+  accident.** ADR 0033's merge and ADR 0066's split. Six entry leaves equal their kind leaf today
+  (`docs/i18n/ro-catalogue-notes.md` tabulates them); **do not collapse them** — the descriptor keeps
+  entry and kind as two cases precisely so a later reader cannot.
+- **`resolveRejection` has 24 label arms and they are edited mechanically.** One missed arm passes a
+  `BodyLabel` object into ICU and renders `[object Object]` inside a quoted refusal. The typed
+  argument declaration catches it; the criterion above is what proves the declaration was consulted.
+
+### 6B-f2 — the price book's prose and the palette names
+
+> **New wave, added 2026-09-10.** ADR 0095 **Amendment B** put these in scope on 2026-09-07 —
+> *"every displayed name and description becomes a message descriptor resolved by the app"* — and no
+> wave in this plan owned them. `docs/i18n/ro-catalogue-notes.md` still lists the price book's prose
+> as *"deliberately absent"*, which Amendment B superseded and the notes file was never updated to
+> reflect. Measured on the tree: the two documents disagree, Amendment B is later, and Amendment B
+> wins.
+
+**Scope, measured.** 16 leaves in `pricing/sample-price-book.ts` — 6 tier `name`, 6 tier
+`description`, 2 accessory `name`, 2 accessory `description` — and 8 palette `name` values in
+`materials.ts`. The palette's 8 catalogue keys **already exist** under `finish.*`; the price book's
+16 have no keys at all and this wave authors them, in `ro.json` **and** `ru.json`, in one commit.
+
+**The tension this wave has to resolve, and the recommended ruling.** ADR 0062 says *"no amount,
+tier, delta or rule may exist outside the book"* and *"the book is a parameter, not an import"*; a
+future manufacturer dashboard (ADR 0072, ADR 0100) will let a person type a tier's name into it.
+Those two facts pull opposite ways: a translated catalogue wants keys, a dashboard-authored book
+wants free text.
+
+**Recommended: the book row carries both, and the key wins when it is present.** `name` stays the
+book's own authored text — the dashboard's field, untouched — and an optional `nameKey` /
+`descriptionKey` names a catalogue leaf. The sample book declares a key on every row; a
+dashboard-authored book declares none and renders its own text. Nothing leaks Romanian into `/ru/…`
+today, ADR 0062's authority is unmoved, and the dashboard's eventual shape is not pre-empted.
+
+**This needs an ADR before the wave is dispatched.** It changes a book row's shape, which ADR 0062
+governs. The coordinator records it; the recommendation above is the planner's, not a ruling.
+
+#### Punch list — 4 items
+
+1. `priceBook.*` keys authored in `ro.json` and `ru.json`, values moved **byte-for-byte** from
+   `sample-price-book.ts`, and added to the copy lock and the parity gate.
+2. `BookTier` / `BookAccessory` gain the optional key fields; `parse-price-book.ts` accepts and
+   validates them. *Files:* `pricing/price-book.ts`, `pricing/parse-price-book.ts`,
+   `pricing/sample-price-book.ts`.
+3. The two render sites resolve the key when present: `settings/global-settings-model.ts:895` and
+   `price/whole-kitchen-tiers.ts:317`, consumed at `settings/global-settings.tsx:1084`.
+4. The palette: `materials.ts`'s `PaletteEntry.name` becomes `nameKey` pointing at the existing
+   `finish.*` leaves; the swatch resolves it. **`supplierCode` is untouched** — it is a manufacturer's
+   printed decor code, it is quoted back on an order, and it is not copy.
+
+#### Acceptance criteria
+
+- The 24 leaves render identically in `ro` to what ships today, byte for byte. This wave moves
+  strings; it does not reword any.
+- **No numeric rate, `perUnitMinor`, or rule id moves into `messages/`.** ADR 0062's authority is
+  unchanged. Falsify by grepping `ro.json` for a digit sequence matching any book amount.
+- A book row with **no** key still renders its own `name`. The fallback exists for the dashboard and
+  must be exercised by a test, not merely declared.
+- `pricing-seams.test.ts`'s *"no amount, tier, delta or rule exists outside the book"* sweep still
+  passes unmodified.
+- **`/ru/configurator/configure` shows no Romanian tier name, description or palette name.** This is
+  the criterion Amendment B exists for and the one 6B-i's end-to-end Russian check would otherwise
+  fail on.
+
+#### Risk
+
+- **The eight palette names are the one place a diacritic sweep is blind.** *Alb*, *Antracit*,
+  *Stejar Bardolino Natur* and *Nuc* contain no Romanian diacritic and are invisible to every grep
+  this phase has used to find copy. `docs/i18n/ro-catalogue-notes.md` names this; 6B-j's second lint
+  rule is the durable answer, and until then only this wave's own criterion covers them.
+
+### 6B-g — the money seam
+
+> Re-planned 2026-09-10. The paragraph this replaces said *"`Intl.NumberFormat` for grouping and
+> currency"*. **Measured on this runtime, that instruction breaks the mockups**, and the argument
+> against it was already written into the code it would change. The ruling below is the correction.
+
+#### The measurement, so the ruling can be checked rather than trusted
+
+On Node 24.19.0, `Intl.NumberFormat("ro").format(143000)` is **`"143.000"`** — a period. The shipped
+figure, the mockups, and this file's own acceptance criterion are `"143 000"` — an ASCII space.
+`"ro-MD"` is the same, and renders the currency symbol as **`"L"`**, not `"MDL"`. `"ru"` groups with
+**U+00A0**, a non-breaking space, which is not the shipped byte either.
+
+`starting-price.ts`'s head comment already recorded the reason, before any of this was measured:
+*"grouping is done here rather than through `Intl.NumberFormat` on purpose: its output depends on the
+runtime's locale data, and this figure goes into a customer-facing document."* The measurement
+vindicates the comment.
+
+#### The ruling
+
+**The grouping separator is a product constant, not a locale variable, and it stays the ASCII space.**
+An ICU number skeleton can turn grouping off but cannot change the separator glyph, so there is no
+catalogue-side alternative either; the 40 millimetre leaves already in `ro.json` use `::group-off`
+for exactly that reason. `groupThousands` and `THOUSANDS_SEPARATOR` stay where they are, and the
+comment above them is **extended with the measurement**, not deleted.
+
+**What `Intl` is used for is nothing.** Stating it plainly so a later reviewer does not read its
+absence as an oversight: no price figure in this product varies by locale in its digits, its
+grouping, its currency code or its order, so introducing `Intl.NumberFormat` here would add a runtime
+dependency on CLDR data in exchange for changing the product's numbers.
+
+**ADR 0095 decision 4's *"`Intl` number and currency formatting"* clause therefore needs a narrowing
+amendment**, in the same shape as its Amendments A and B. The coordinator records it; this wave does
+not proceed as though the clause were absent.
+
+**What "`MDL` stops being a literal suffix" actually means, then.** It means the *join* moves to the
+catalogue, so a translator can move the currency: `formatRoundedAmount`'s template literal
+`` `${amount} ${PRICE_BOOK_CURRENCY}` `` becomes a new leaf `price.amountWithCurrency` =
+*"{amount} MDL"*. `PRICE_BOOK_CURRENCY` stays in the price book, where ADR 0062 puts it, and is not
+duplicated into `messages/`.
+
+#### Punch list — 4 items
+
+1. `price.amountWithCurrency` authored in `ro.json` and `ru.json`, copy-locked, parity-gated;
+   `formatRoundedAmount` resolves it. `describeStartingPrice` takes the leaf through the
+   `Content["price"]` it already receives.
+2. `describeRoundedAmount` and `describeAddedAmount` are **untouched** — they render an amount with
+   no currency and no locale-varying part.
+3. The head comment of `starting-price.ts` records the measurement above and the ruling, so the next
+   reader does not re-open it.
+4. `apps/web/tests/support/ruled-price-copy.ts` and the price copy lock pick up the new leaf.
+
+#### Acceptance criteria — the ones that make "pricing did not change" falsifiable
+
+- **`roundUpToThousandMdl` is byte-identical in the diff.** Falsify with
+  `git diff -- apps/web/src/price/starting-price.ts` and reading the function: if its body appears in
+  the diff at all, the wave has failed this criterion regardless of what the tests say.
+- **No `Intl` identifier appears anywhere under `apps/web/src/price/`.** Falsify by grep.
+- **A property, over the whole reachable range:** for every integer `totalMinor` in
+  `[0, 10_000_000_000]`, `roundUpToThousandMdl(totalMinor)` is unchanged from HEAD, and
+  `describeRoundedAmount` contains no character outside `[0-9]` and the ASCII space. Use `fast-check`
+  with the integer arbitrary rather than a fixed table — a fixed table is what let the door-count and
+  plural defects survive, and the boundaries that matter (exact multiples of 100 000 minor units,
+  `Number.MAX_SAFE_INTEGER`'s neighbourhood, `0`) are the ones a hand-written table omits.
+- **`assertExactMinorAmount` still refuses `-1`, `1.5`, `NaN` and `Infinity`** with a `RangeError`. A
+  formatter that coerces is a formatter that invents a price.
+- **The seeded kitchen's rendered total is byte-identical to HEAD under `ro`**, and **identical under
+  `ru`**: `"43 000 MDL"` with an ASCII space at U+0020, asserted by codepoint and not by a literal
+  that a stray non-breaking space would silently satisfy.
+- **Changing the locale changes no minor-unit value.** Price the seeded kitchen under both locales
+  and compare `priced.totalMinor` and every `line.amountMinor`.
+
+#### Risk
+
+- **A later wave "modernises" `groupThousands` into `Intl.NumberFormat` and every price in the
+  product changes by one character**, in a way no hash gate catches because the hashes are over
+  catalogue messages and not over rendered figures. Mitigated by the extended comment, by the
+  no-`Intl`-in-`price/` criterion, and by the codepoint assertion above.
+
+### 6B-h1 — the test sweep: domain and adapter
+
+> Re-planned 2026-09-10, and **split from 6B-h**, which the pre-rebase plan sized at *"39 literals
+> across 32 files, 81 tautologies"*. Measured on this tree it is **26 domain/adapter files**, **48
+> web files carrying 126 literals**, and **96** tautology-shaped assertions — too large for one
+> implementer under this plan's own five-item rule.
+
+**Scope.** The 26 files under `packages/configurator-domain/tests`, `packages/three-adapter/tests`
+and — the one that is not a test — `packages/configurator-domain/src/fixtures/kitchen-l-design.ts`.
+
+**The `src/` fixture is the interesting one.** It is shipped source, not a test file, so 6B-j's gate
+will reject it and 6B-f's *"no Romanian diacritic in `packages/*/src`"* criterion already does. If
+6B-f has done its job this file is already clean; **this wave's first act is to check, and to report
+it as a 6B-f escape if it is not**, rather than fixing it quietly here.
+
+#### Punch list — 3 items
+
+1. Every Romanian literal in the 26 files becomes an assertion about a **descriptor**, per the layer
+   rule below. `packages/*` tests never resolve a catalogue: the domain has no catalogue, so a domain
+   test asserting a rendered Romanian string is asserting something the domain no longer produces.
+   **Layer 2 is the only legal layer in `packages/`** and that is what makes this wave mechanical.
+2. `three-adapter`'s `catalog-bodies.adversarial.test.ts:605-606` — `expect(describeBodyLabelAt(entry,
+   400)).toBe("Corp suspendat 1 ușă")` — is the wave's worked example: it becomes an assertion that
+   the descriptor is `withDoors(entry("wall-cabinet"), 1)`, which is a **stronger** claim, because it
+   fails when the door count is right and the entry is wrong.
+3. `kitchen-l-design.ts` checked and reported as above.
+
+#### Acceptance criteria
+
+- `git grep -lE '[ăâîșțĂÂÎȘȚ]' -- packages` returns **comment lines only**, in every package.
+- **No `packages/*` test imports `apps/web`**, `next-intl`, or a message catalogue. The boundary gate
+  already forbids the import direction; this wave must not be the one that reaches for it.
+- The assertion count over the touched suites **does not fall**. A literal deleted rather than
+  converted is the failure mode; count `expect(` per file before and after and record both.
+
+### 6B-h2 — the test sweep: web, and the tautology purge
+
+**Scope.** 48 files under `apps/web/tests` carrying 126 Romanian literals (excluding
+`tests/support/approved-romanian-messages.ts` and `tests/support/ruled-price-copy.ts`, which are the
+copy lock and are **supposed** to hold literals), plus the **96** assertions of the form
+`expect(x).toBe(ro.k)` / `.toEqual(ro.k)` / `.toContain(ro.k)`.
+
+#### The rule for deciding, per assertion, which layer it belongs in — this is the whole of the wave's risk
+
+Ask the questions in this order and stop at the first *yes*. The four layers are defined in *Why
+approved copy is pinned in exactly one place*, above.
+
+1. **Is the expected value a sentence a person approved?** → **Layer 1, the copy lock.** It belongs
+   in `tests/support/approved-romanian-messages.ts` as an inline literal, and **nowhere else**. If it
+   is already covered there, the assertion under review is a duplicate and is deleted, not moved —
+   this is the one case where the assertion count is allowed to fall, and it must be recorded per
+   deletion with the lock line that covers it.
+2. **Is the subject a model function returning data — a `*-model.ts`, a `queries/*`, a store
+   selector?** → **Layer 2, a descriptor assertion.** Assert the `{ key, params }` or the `BodyLabel`
+   the model publishes. This is where **all 96 tautologies go by default**, and it is a strengthening:
+   `toBe(ro.panel.done)` passes for any string, while `toEqual({ kind: "bodyKind", bodyKind:
+   "wall_cabinet" })` fails when the model picks the wrong body.
+3. **Does the assertion read the DOM, a rendered component, or a Playwright page?** → **Layer 3, a
+   resolution assertion**, and it may compare against `ro.<key>` from
+   `tests/support/romanian-content.ts`. **The same-source comparison is the design here, not a
+   defect** — it proves the resolver ran and the right key was requested, and it is not asked to prove
+   the wording. A reviewer flagging one of these has found the design (WORKFLOW:444); a reviewer
+   flagging one in layer 2 or 4 has found a defect.
+4. **Is it about the catalogue's structure rather than any one value** — completeness, placeholder
+   parity, no silent fallback, a hash manifest? → **Layer 4**, and it names no Romanian at all.
+
+**The two tie-breaks that decide the awkward cases:**
+
+- **A model test that reaches for `ro.` at all has probably answered question 2 wrongly.** The
+  exceptions are real but few, and each one owes a one-line comment saying why the descriptor was not
+  assertable.
+- **A component test that asserts a descriptor has answered question 3 wrongly.** It is testing the
+  model through the component, which is where a passing test stops telling you which of the two broke.
+
+#### Punch list — 4 items
+
+1. The 96 tautologies converted, by the rule above. Record the per-file before/after `expect(` count.
+2. The 126 literals in the 48 files converted, by the same rule.
+3. The e2e suites: `cabinet-depth`, `overflow-mark`, `global-colour` and `top-bar` each carry
+   Romanian. E2E is layer 3 and may read `tests/support/romanian-content.e2e.ts`; prefer a test id
+   where the assertion is about presence rather than wording.
+4. **The audit**, which is the wave's actual deliverable and not a formality: a written list, per
+   converted assertion, of the layer chosen. A wave that converts 222 assertions and reports "done"
+   has not been reviewable.
+
+#### Acceptance criteria
+
+- **`git grep -lE '[ăâîșțĂÂÎȘȚ]' -- apps/web/tests` returns exactly the copy-lock support files** and
+  comment lines.
+- **No assertion of the form `expect(t(k)).toBe(t(k))` exists** — the tautology in its final form,
+  where both sides resolve through the catalogue. Layer 3's `expect(screen.getByText(ro.panel.done))`
+  is *not* this shape and is legal.
+- **Editing one sentence in `ro.json` fails exactly one test — the copy lock — and no behaviour
+  test.** Falsify by editing a sentence and running the suites; two failures means a literal survived
+  outside the lock.
+- **`vitest -u` does not make an edited sentence pass.** Falsify by running the suite with `-u` after
+  the edit above; it must stay red.
+- **Total assertion count across `apps/web/tests` does not fall**, except for deletions recorded
+  under rule 1 with their covering lock line.
+
+**Why this wave is most likely to need a second round:** the judgement is per assertion and there are
+222 of them. That is expected and is not a finding against the implementer.
 
 ### The copy chain — four ordered steps, two of them hard stops
 
@@ -642,6 +1116,80 @@ product that does not exist — which is the failure mode this whole phase exist
 **This is the wave that makes the sequencing argument true**: without both halves, M7 and M8 recreate
 the problem.
 
+#### Re-planned 2026-09-10 — one rule is not enough, and the wave is not Light
+
+**The mechanism, verified rather than assumed.** ESLint's built-in `no-restricted-syntax` with an
+esquery regex attribute selector does the job with **no plugin package and no custom rule**, and it
+works on the AST, so **comments are exempt for free** rather than by a fragile exclusion:
+
+```
+{ selector: "Literal[value=/[\\u0103\\u00e2\\u00ee\\u0219\\u021b\\u0102\\u00c2\\u00ce\\u0218\\u021a]/]", message: "…" }
+{ selector: "TemplateElement[value.raw=/[\\u0103\\u00e2\\u00ee\\u0219\\u021b]/]", message: "…" }
+```
+
+Run against a probe file on 2026-09-10 under the repository's own ESLint 9.34.0: it flagged
+`` `Spațiu liber` `` and `"Corp bază"`, and did **not** flag a Romanian comment above them. A
+`git grep`-based gate in `scripts/gates/` — the shape `boundary.sh` uses — was considered and
+**rejected**: it cannot distinguish a comment from a literal, and this codebase's Romanian comments
+quote copy deliberately.
+
+**The same probe found the reason one rule is insufficient.** `"Dulap suspendat"` was **not** flagged:
+it carries no diacritic. Neither do *Frigider*, *Push-to-open*, or the eight palette names — *Alb*,
+*Antracit*, *Stejar*, *Nuc*, *Stejar Bardolino Natur*, *Stejar Halifax Natur*, *Gri Havanna*, *Nuc
+Warmia Maro*. `docs/i18n/ro-catalogue-notes.md` had already named this blind spot for the palette and
+nothing was ever built to close it. **A diacritic rule alone would ship a gate that certifies a file
+containing eight Romanian strings.**
+
+**So the wave lands three checks, not one.**
+
+1. **The diacritic rule**, above. Zero false positives, catches most Romanian, applies to
+   `apps/web/src` outside `src/messages/` and to `packages/*/src`.
+2. **A positional rule that does not depend on the language**, in `apps/web/src` only: no bare string
+   literal may be JSX text, or the value of `aria-label`, `title`, `placeholder` or `alt`. This is
+   what actually enforces *"every customer-visible string is reached by a key"*, and it catches
+   diacritic-free Romanian and any future English alike. False positives get an **explicit
+   allow-list with a recorded reason per entry** — the shape `STAGED_LEGACY_DIVERGENCES` already uses
+   in `golden-output.test.ts`, and never a bare `eslint-disable` with no sentence beside it.
+3. **The domain boundary check**, as a test rather than a lint rule, because it is a claim about a
+   package and not about a line: `packages/*/src` exports **no identifier ending `_RO`** and contains
+   no Romanian diacritic outside a comment. It extends `pricing-seams.test.ts`'s existing
+   `SOURCE_ROOT` sweep rather than inventing a second walker.
+
+**The tier moves from Light to Medium.** Three checks, an allow-list whose entries are judgement
+calls, and a convention that seven questions must be answered in. It is not a mechanical wave.
+
+#### Punch list — 5 items
+
+1. The diacritic rule in `eslint.config.mjs`, scoped by `files`/`ignores` to the two `src` trees, with
+   `src/messages/**` excluded.
+2. The positional rule and its allow-list, `apps/web/src` only.
+3. The domain boundary assertion, extending `packages/configurator-domain/tests/pricing/pricing-seams.test.ts`'s
+   existing source sweep.
+4. The convention appended to `docs/best-practices/engineering-conventions.md`, answering the seven
+   questions listed above — all seven, unchanged.
+5. **Each check demonstrated failing.** Introduce one violation of each of the three, in a scratch
+   file, confirm each is rejected, remove it, and quote the three failures in the wave's evidence. A
+   gate never run is not a gate; three gates of which two were run is worse, because the untested one
+   reads as covered.
+
+#### Acceptance criteria
+
+- **`"Dulap suspendat"` in a new `apps/web/src` component is rejected.** This is the criterion a
+  diacritic-only implementation fails, and it is stated first for that reason.
+- A Romanian **comment** is not rejected, anywhere, in either tree.
+- A Romanian string inside `apps/web/src/messages/*.json` is not rejected.
+- **The written rule and the three checks do not disagree.** Take each rejection the convention
+  describes and confirm a check rejects it; take each allow-list entry and confirm the convention
+  explains why that shape is legal.
+- `pnpm lint` and `pnpm ci:local` are green on the tree as it stands after 6B-i — so the wave's real
+  cost, the allow-list, is paid against a finished product rather than a moving one.
+
+#### Risk
+
+- **The positional rule's allow-list is where this gate decays.** Every entry is a place the rule
+  does not run, and an entry with no reason beside it is indistinguishable from a suppression. The
+  per-entry reason is the mitigation and it is a review item, not a formality.
+
 ## Acceptance criteria
 
 Falsifiable, and stated as invariants including what must not happen.
@@ -659,9 +1207,17 @@ Falsifiable, and stated as invariants including what must not happen.
 
 **Romanian is unchanged, and provably so**
 
-- After every wave from 6B-c on, the golden-output harness is **byte-identical** to its M6-close
+- ~~After every wave from 6B-c on, the golden-output harness is **byte-identical** to its M6-close
   capture: every `ro.ts` string, all 34 `renderRejection` outputs, and `describeBodyLabelAt` over
-  every catalogue entry at every offered width.
+  every catalogue entry at every offered width.~~ **Amended 2026-09-10.** No M6-close capture was ever
+  taken (ADR 0095 Amendment B: *"Gate O1 happened before the harness existed, so the manifest is
+  seeded from the corrected source catalogue"*), and the criterion as written cannot be met by 6B-f,
+  because the owner ruled a rename that changes what the product renders. **What replaces it, stated
+  so it is stricter rather than weaker:** `GOLDEN_OUTPUT_SHA256` — which hashes `renderCorrected`, the
+  catalogue path — is byte-unchanged by every wave from 6B-f on, and a wave that must edit
+  `golden-output-hashes.ts` has changed a message value and owes the Gate O1 procedure: the changed
+  key list in the commit message, and no blanket re-capture. `STAGED_LEGACY_DIVERGENCES` shrinks
+  monotonically and is empty at 6B-f's close.
 - `configure.overflowWarning` is byte-identical, punctuation included (ADR 0065 decision 7b).
 - **No approved Romanian sentence is reworded, retyped or tidied.** A diff that improves Romanian is
   a defect in this phase — including one made to ease a translation.
@@ -766,7 +1322,13 @@ Falsifiable, and stated as invariants including what must not happen.
 
 **What must not happen**
 
-- No behaviour a customer can observe changes in Romanian, on either viewport.
+- ~~No behaviour a customer can observe changes in Romanian, on either viewport.~~ **Amended
+  2026-09-10, for 6B-f only.** The owner ruled *corp → dulap* and the rename of the 11 catalogue
+  labels at `3564c7c`, explicitly because they print on the price breakdown. So 6B-f **does** change
+  what a customer reads, on the panel header, the ACTUAL badge, the offer row and the priced line,
+  and that is the ruling landing rather than a regression. **The criterion holds unamended for every
+  other wave**, and 6B-f owes the visual pass named under *Verification* with the rename called out
+  in its evidence, so a reviewer is comparing against the ruling and not against the old shots.
 - No second content module appears beside `messages/`. A `ru.ts` next to a `ro.json` is the failure
   this phase exists to remove.
 - **No agent marks a Russian string approved**, and no agent edits Romanian to ease a translation.
