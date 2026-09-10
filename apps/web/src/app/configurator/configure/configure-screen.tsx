@@ -10,7 +10,9 @@ import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
+import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { useLocaleSwitch } from "@/i18n/use-locale-switch";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
@@ -41,6 +43,7 @@ export function ConfigureScreen({
   webglUnavailableTitleMobile?: string;
 } = {}) {
   const content = useContent();
+  const localeSwitch = useLocaleSwitch();
   const [support, setSupport] = useState<SupportState>("probing");
   const [presetId, setPresetId] = useState<CameraPresetId>("overview");
   const panel = usePanelView();
@@ -125,16 +128,32 @@ export function ConfigureScreen({
       <div className={styles.settings} ref={topBar.settingsTrackRef}>
         <GlobalSettings visibleCount={topBar.visibleCount} />
       </div>
-      {/* Drawn exactly as the reference draws it and **wired to nothing**. Locale switching is
-          M6B wave 6B-i, gated on the owner's Gate O1; a caret that does nothing is the correct
-          state of this control today, and a control that did something would pre-empt a ruling. */}
+      {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and **wave 6B-i gives it its
+          behaviour**: a link to the one locale it is not (`i18n/use-locale-switch.ts` carries the
+          toggle-not-menu argument and the reference reading behind it).
+
+          **Switching language does not move the customer.** The href is this page's own locale-free
+          path, so `/d/{id}` stays `/d/{id}` and the configure step stays the configure step; and
+          next-intl's `Link` navigates client-side, so the store — a module singleton — is never torn
+          down and the design in it survives the switch whether or not it has been saved yet.
+
+          The two-letter code is the frames' own and is **not** the accessible name: `RO` read aloud
+          names neither the language it is in nor the language it leads to, and the current locale
+          would otherwise be indicated by the chip's colour alone. `configure.localeSwitch` says
+          both, in the language of the page it is on. */}
       <div className={styles.locale}>
-        <span className={styles.localeChip} data-testid="top-bar-locale">
+        <Link
+          href={localeSwitch.pathname}
+          locale={localeSwitch.locale}
+          className={styles.localeChip}
+          aria-label={content.configure.localeSwitch}
+          data-testid="top-bar-locale"
+        >
           <span className={styles.localeCode}>{content.configure.locale}</span>
           <span className={styles.localeCaret} aria-hidden="true">
             ▾
           </span>
-        </span>
+        </Link>
       </div>
       {/* On mobile this is the positioning context for the bottom sheet; on desktop it is the row
           the 420 px rail takes its space from. Which of the two happens is decided entirely in

@@ -9,9 +9,19 @@
 // their palettes.
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
+import {
+  PSEUDO_LOCALE_CLOSING_MARK,
+  PSEUDO_LOCALE_EXPANSION,
+  PSEUDO_LOCALE_OPENING_MARK,
+  pseudoLocalizeCatalogue,
+  stressableLetterCountOf,
+} from "@/i18n/pseudo-locale";
 import { OVERFLOW_WARNING_RESERVED_HEIGHT_PX } from "@/scene/overflow-warning-layout";
+
+import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
 
 const SOURCE_DIRECTORY = resolve(import.meta.dirname, "../../src");
 
@@ -241,5 +251,59 @@ describe("one surface reads the sentence", () => {
     expect(withoutComments(read(SENTENCE_OWNER))).toContain(
       `content.${SENTENCE_KEY}`,
     );
+  });
+});
+
+// **Wave 6B-i's length stress, on the second of the two surfaces the plan names.**
+//
+// The reserve above is sized from *"two lines of 11.5 px / 1.4 text"* of this one sentence, in
+// Romanian, at 390 px. Romanian is the shortest language this product will ship in, so that reserve
+// is the best case and the band's correctness rests entirely on it being a **floor**.
+// `src/i18n/pseudo-locale.ts` is what makes the other case visible before a translator is paid.
+describe("the band under a translation 40 % longer than its Romanian source", () => {
+  /** The transform's opening and closing marks, which belong to no sentence. */
+  const MARK_CHARACTERS = 2;
+  const [, romanian] = CATALOGUES[0];
+  const stressedSentence = contentFor("ro", pseudoLocalizeCatalogue(romanian))
+    .configure.overflowWarning;
+
+  it("is really stressed, so nothing below is a claim about the short sentence", () => {
+    const source = requireLeafAt(romanian, "configure.overflowWarning");
+
+    // The two marks are excluded, so the growth claimed is the sentence's own; and the proportion
+    // is of the letters a translator writes rather than of the whole string, which for a leaf with
+    // arguments in it would be asking the tool to pad an argument name.
+    expect(stressedSentence.length - MARK_CHARACTERS).toBeGreaterThanOrEqual(
+      source.length +
+        Math.ceil(stressableLetterCountOf(source) * PSEUDO_LOCALE_EXPANSION),
+    );
+    // The sentence reaches the surface whole: both marks survive the resolver, so nothing between
+    // the catalogue and the band shortens it. A truncation keeps the opening mark and loses the
+    // closing one, which is what the marks exist for.
+    expect(stressedSentence.startsWith(PSEUDO_LOCALE_OPENING_MARK)).toBe(true);
+    expect(stressedSentence.endsWith(PSEUDO_LOCALE_CLOSING_MARK)).toBe(true);
+  });
+
+  it("declares the reserve as a floor and nothing that would cut the third line", () => {
+    // The floor itself is asserted at the top of this file. What this adds is the other half: a
+    // longer sentence has to be able to *spend* it, so the band may declare no ceiling and no
+    // truncation of its own. `text-overflow` is included because an ellipsis is a cut with a nicer
+    // glyph, and `line-clamp` because it is the same cut counted in lines.
+    for (const ceiling of [
+      "max-height:",
+      "overflow: hidden",
+      "white-space: nowrap",
+      "text-overflow:",
+      "line-clamp:",
+    ]) {
+      expect(warningDeclarations, ceiling).not.toContain(ceiling);
+    }
+    // And the floor is a floor rather than the height: a third line grows the band **upward** over
+    // the kitchen, because `.sceneFooter` pins the stack to the scene's bottom edge and the band
+    // takes no flow height at all (`overflow-warning-layout.ts`).
+    expect(warningDeclarations).toContain(
+      "min-height: var(--overflow-warning-height);",
+    );
+    expect(screenStylesheet).toMatch(/\.sceneFooter \{[^}]*bottom: 0;/s);
   });
 });

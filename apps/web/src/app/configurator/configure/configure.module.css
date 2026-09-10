@@ -219,10 +219,13 @@
   white-space: nowrap;
 }
 
-/* Drawn as the reference draws it and **inert** — see `configure-screen.tsx`. Not a `button`, and
- * that is the point: an element with a control's affordances and no behaviour is worse than the
- * static chip it replaces. M6B wave 6B-i gives it one, after the owner's Gate O1. */
+/* Drawn as the reference draws it, and since wave 6B-i it is the anchor that switches locale — the
+ * frames' own box, with a link's default underline and colour taken back off it so the chip paints
+ * exactly what it painted while it was a span. The focus ring is deliberately the user agent's: this
+ * stylesheet declares none anywhere, and a control that quietly opted out of the browser's would be
+ * the only unfocusable-looking thing in the row. */
 .localeChip {
+  position: relative;
   display: flex;
   flex: 0 0 auto;
   gap: 4px;
@@ -231,6 +234,24 @@
   background: #ece7dd;
   border: 1px solid var(--line);
   border-radius: 8px;
+  text-decoration: none;
+}
+
+/* §10.1's 44 px touch target, taken as an invisible hit area rather than by growing the chip — the
+ * painted box is the frames' 25 px (2A) and 40 px (D2A) and neither may move now that the chip is a
+ * control.
+ *
+ * The percentage resolves against the chip's own padding box, so one declaration serves both shells
+ * and neither carries a literal. **The surplus is vertical only**, which matters twice: the band it
+ * grows into is 50 px on mobile and 76 on desktop so nothing leaves the top bar, and ADR 0082
+ * decision 1's clip predicate reads `scrollWidth` against `clientWidth` — a horizontally overflowing
+ * hit area would report this control as truncated, which is the one gate that must have no false
+ * positives (`.back` above refuses an absolutely positioned target for exactly this reason). */
+.localeChip::after {
+  position: absolute;
+  inset-block: calc((100% - var(--touch-target)) / 2);
+  inset-inline: 0;
+  content: "";
 }
 
 .localeCode {

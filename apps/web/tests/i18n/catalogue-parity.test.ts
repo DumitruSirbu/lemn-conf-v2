@@ -1,64 +1,18 @@
-import {
-  parse,
-  TYPE,
-  type MessageFormatElement,
-} from "@formatjs/icu-messageformat-parser";
+import { parse } from "@formatjs/icu-messageformat-parser";
 import { describe, expect, it } from "vitest";
 
 import ro from "@/messages/ro.json";
 import ru from "@/messages/ru.json";
 
-import { catalogueLeaves } from "../support/catalogues";
-
-function signature(
-  elements: readonly MessageFormatElement[],
-  context = "root",
-): readonly string[] {
-  return elements.flatMap((element) => {
-    if (element.type === TYPE.literal) return [];
-    if (element.type === TYPE.pound) return [`${context}:pound`];
-    if (element.type === TYPE.argument)
-      return [`${context}:argument:${element.value}`];
-    if (element.type === TYPE.number) {
-      return [
-        `${context}:number:${element.value}:${JSON.stringify(element.style ?? null)}`,
-      ];
-    }
-    if (element.type === TYPE.date) {
-      return [
-        `${context}:date:${element.value}:${JSON.stringify(element.style ?? null)}`,
-      ];
-    }
-    if (element.type === TYPE.time) {
-      return [
-        `${context}:time:${element.value}:${JSON.stringify(element.style ?? null)}`,
-      ];
-    }
-    if (element.type === TYPE.tag) {
-      return [
-        `${context}:tag:${element.value}`,
-        ...signature(element.children, `${context}/tag:${element.value}`),
-      ];
-    }
-
-    const kind = element.type === TYPE.select ? "select" : "plural";
-    const branches: string[] = Object.keys(element.options).sort();
-    if (!branches.includes("other"))
-      throw new Error(`${kind}:${element.value} has no other branch`);
-    return [
-      `${context}:${kind}:${element.value}:${element.type === TYPE.plural ? `${String(element.pluralType)}:${String(element.offset)}` : "-"}:${branches.join(",")}`,
-      ...branches.flatMap((branch) => {
-        const option = element.options[branch];
-        if (option === undefined)
-          throw new Error(`Missing parsed branch ${branch}`);
-        return signature(
-          option.value,
-          `${context}/${kind}:${element.value}/${branch}`,
-        );
-      }),
-    ];
-  });
-}
+import { catalogueLeaves, CATALOGUES } from "../support/catalogues";
+import {
+  cldrPluralCategories,
+  isExactValueSwitch,
+  keywordBranchesOf,
+  pluralNodesOf,
+  PLURAL_NODES_PER_CATALOGUE,
+  signature,
+} from "../support/icu-signature";
 
 const EXPECTED_POUND_DIVERGENCES: Readonly<
   Record<
@@ -129,4 +83,26 @@ describe("translation catalogue structural parity", () => {
         .filter((key) => Object.hasOwn(EXPECTED_POUND_DIVERGENCES, key)),
     );
   });
+
+  // Gate O2's structural half, and the one claim the leaf-against-leaf comparison above cannot make:
+  // a category set is right or wrong against its **own** locale's CLDR rules, not against the source
+  // language's. Russian resolves 5 to `many`; a Russian leaf with no `many` renders through `other`,
+  // which in Russian is the fractional form — right for `5 шкафов` only by coincidence.
+  it.each(CATALOGUES)(
+    "declares exactly %s's own CLDR plural categories on every plural leaf",
+    (locale, messages) => {
+      let pluralNodesSeen = 0;
+      for (const [key, message] of catalogueLeaves(messages)) {
+        for (const node of pluralNodesOf(parse(message))) {
+          const branches = Object.keys(node.options).sort();
+          if (isExactValueSwitch(branches)) continue;
+          pluralNodesSeen += 1;
+          expect(keywordBranchesOf(branches), `${locale} ${key}`).toEqual(
+            cldrPluralCategories(locale, node.pluralType),
+          );
+        }
+      }
+      expect(pluralNodesSeen).toBe(PLURAL_NODES_PER_CATALOGUE);
+    },
+  );
 });

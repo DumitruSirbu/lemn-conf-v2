@@ -7,9 +7,27 @@
 // would silently break the gate — positioning the bar over the scene — is refused by name.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+import {
+  KITCHEN_L_BODY_CATALOG,
+  OVERFLOWING_KITCHEN_L_DESIGN,
+  priceDesign,
+  SAMPLE_PRICE_BOOK,
+  SAMPLE_PRICE_BOOK_VERSION,
+} from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { PRICE_BAR_RESERVED_HEIGHT_PX } from "@/price/price-bar-layout";
+import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
+import {
+  PSEUDO_LOCALE_CLOSING_MARK,
+  PSEUDO_LOCALE_EXPANSION,
+  PSEUDO_LOCALE_OPENING_MARK,
+  pseudoLocalizeCatalogue,
+  stressableLetterCountOf,
+} from "@/i18n/pseudo-locale";
+
+import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
 
 const PRICE_DIRECTORY = resolve(import.meta.dirname, "../../src/price");
 const CONFIGURE_DIRECTORY = resolve(
@@ -119,5 +137,82 @@ describe("the bar is placed beside the scene, never over it", () => {
     // The one edit that would break the gate above while leaving every other test green: an
     // absolutely positioned bar sits over the scene, and the scene's box stops being what is left.
     expect(barDeclarations).not.toMatch(/position:\s*(absolute|fixed)/);
+  });
+});
+
+// **Wave 6B-i's length stress, on the first of the two surfaces the plan names.**
+//
+// Romanian is the source and it is a short language; the languages this product will be translated
+// into run 30–50 % longer. `src/i18n/pseudo-locale.ts` makes that visible before a translator has
+// been paid, and the bar is where it shows: the label, the figure and ADR 0065's flagged sentence
+// share one row on a 390 px phone.
+//
+// The stressed catalogue is driven through the **real** model rather than compared as strings, so
+// what is asserted is the sentence the bar would actually be handed.
+describe("the bar under a translation 40 % longer than its Romanian source", () => {
+  /** The transform's opening and closing marks, which belong to no sentence. */
+  const MARK_CHARACTERS = 2;
+  const stressedContent = contentFor(
+    "ro",
+    pseudoLocalizeCatalogue(CATALOGUES[0][1]),
+  );
+  const stressedBar = describePriceBar({
+    content: stressedContent,
+    pricing: priceDesign({
+      design: OVERFLOWING_KITCHEN_L_DESIGN,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      book: SAMPLE_PRICE_BOOK,
+      pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    }),
+  });
+
+  /** The bar in the state that puts the most text in the row: priced, and flagged. */
+  function pricedBar(): PricedBar {
+    if (stressedBar.kind !== "priced")
+      throw new Error(`the fixture priced as ${stressedBar.kind}`);
+    return stressedBar;
+  }
+
+  it("is really stressed, so nothing below is a claim about the short sentence", () => {
+    const source = requireLeafAt(CATALOGUES[0][1], "price.startingPrefix");
+
+    // The two marks are excluded, so the growth claimed is the sentence's own; and the proportion
+    // is of the letters a translator writes rather than of the whole string, which for a leaf with
+    // arguments in it would be asking the tool to pad an argument name.
+    expect(
+      stressedContent.price.startingPrefix.length - MARK_CHARACTERS,
+    ).toBeGreaterThanOrEqual(
+      source.length +
+        Math.ceil(stressableLetterCountOf(source) * PSEUDO_LOCALE_EXPANSION),
+    );
+  });
+
+  it("hands the bar every stressed sentence whole, cutting nothing on the way", () => {
+    // Both marks, on both sentences: a surface that truncated would keep the opening mark and lose
+    // the closing one, which is exactly what the marks are for.
+    for (const sentence of [
+      pricedBar().figure.label,
+      pricedBar().figure.amountText,
+      pricedBar().overflowWarning,
+    ]) {
+      expect(sentence).toContain(PSEUDO_LOCALE_OPENING_MARK);
+      expect(sentence).toContain(PSEUDO_LOCALE_CLOSING_MARK);
+    }
+  });
+
+  it("reserves its band as a floor and declares nothing that would cut the longer line", () => {
+    // The reserve is already asserted to be a `min-height` above. What this adds is the other half:
+    // a longer sentence has to be able to *spend* that floor, so the bar may declare no ceiling and
+    // no truncation. `text-overflow` is included because an ellipsis is a cut with a nicer glyph.
+    expect(barStylesheet).toContain("min-height: var(--price-bar-height);");
+    for (const ceiling of [
+      "max-height:",
+      "overflow: hidden",
+      "white-space: nowrap",
+      "text-overflow:",
+      "line-clamp:",
+    ]) {
+      expect(barDeclarations, ceiling).not.toContain(ceiling);
+    }
   });
 });

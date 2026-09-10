@@ -512,21 +512,54 @@ describe("the step number has one source", () => {
   });
 });
 
-describe("the locale chip is drawn and inert", () => {
-  it("is not a control, and nothing is wired to it", () => {
-    // M6B wave 6B-i owns locale switching and is gated on the owner's Gate O1. An element with a
-    // control's affordances and no behaviour is worse than the static chip it replaces.
-    //
-    // **The chip left the header with ADR 0104 decision 2** — it is a grid item of its own, so
-    // frame D2A can place it after the CTA while frame 2A keeps it in the header row — so the cell
-    // is what is read rather than the header.
+describe("the locale chip is the control that switches locale", () => {
+  /** **The chip left the header with ADR 0104 decision 2** — it is a grid item of its own, so frame
+   *  D2A can place it after the CTA while frame 2A keeps it in the header row — so the cell is what
+   *  is read rather than the header. */
+  function localeCellSource(): string {
     const cell = /styles\.locale}>[\s\S]*?<\/div>/.exec(screenSource)?.[0];
     if (!cell) throw new Error("no locale cell in the screen's source");
+    return cell;
+  }
+
+  it("is a link to the other locale, at the path the customer is already on", () => {
+    // **Wave 6B-i, and it replaces this file's own "drawn and inert" check.** A locale here *is* a
+    // URL, so the control is an anchor rather than a scripted button: it is shareable, it works with
+    // JavaScript off, and the browser gives it the focus ring and the keyboard activation this
+    // stylesheet declares for nothing. The href being the current path is what keeps the switch a
+    // change of language rather than of place — `tests/i18n/locale-switch.test.ts` drives that end.
+    const cell = localeCellSource();
 
     expect(cell).toContain("styles.localeChip");
+    expect(cell).toContain("<Link");
+    expect(cell).toContain("href={localeSwitch.pathname}");
+    expect(cell).toContain("locale={localeSwitch.locale}");
     expect(cell).not.toContain("<button");
     expect(cell).not.toContain("onClick");
     expect(cell).not.toContain('role="button"');
+  });
+
+  it("is named by a sentence rather than by the two letters it draws", () => {
+    // `RO` read aloud names neither the language of the page nor the language the link leads to, and
+    // which of the two the chip shows would otherwise be carried by its colour alone.
+    expect(localeCellSource()).toContain(
+      "aria-label={content.configure.localeSwitch}",
+    );
+  });
+
+  it("keeps the frames' painted box and takes its touch target beside it", () => {
+    // §10.1's 44 px, taken vertically only: the painted chip stays 25 px on mobile and 40 on
+    // desktop, and a horizontally grown hit area would make ADR 0082 decision 1's clip predicate
+    // report this control as truncated.
+    const hitArea = /\.localeChip::after \{([^}]*)\}/.exec(stylesheet)?.[1];
+    if (!hitArea) throw new Error("the chip declares no hit area");
+
+    expect(hitArea).toContain("inset-inline: 0;");
+    expect(hitArea).toContain(
+      "inset-block: calc((100% - var(--touch-target)) / 2);",
+    );
+    expect(localeChipHeight("mobile")).toBe(25);
+    expect(localeChipHeight("desktop")).toBe(40);
   });
 
   it("draws the caret the frames draw, and hides it from a screen reader", () => {

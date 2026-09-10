@@ -12,6 +12,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     stepPill: "{step, number}/{totalSteps, number}",
     title: "Configurare",
     locale: "RO",
+    localeSwitch: "Limba interfeței: română. Comută în rusă",
     back: "Cameră",
     orbitHint: "Atinge un dulap pentru a-l edita · trage pentru a roti",
     cameraGroupLabel: "Vedere cameră",

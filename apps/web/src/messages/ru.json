@@ -9,6 +9,7 @@
     "stepPill": "{step, number}/{totalSteps, number}",
     "title": "Конфигуратор",
     "locale": "RU",
+    "localeSwitch": "Язык интерфейса: русский. Переключить на румынский",
     "back": "Комната",
     "orbitHint": "Коснись шкафа, чтобы изменить его · проведи пальцем, чтобы повернуть",
     "cameraGroupLabel": "Вид комнаты",
@@ -43,8 +44,8 @@
         "many": "типа «колонна»"
       }
     },
-    "countForBody": "{count, plural, one {# шкаф} few {# шкафа} other {# шкафов}} {bandWord} шириной {widthMm, number, ::group-off}",
-    "countForSlot": "В проём {widthMm, number, ::group-off} × {heightMm, number, ::group-off} мм {count, plural, one {помещается # шкаф} few {помещаются # шкафа} other {помещаются # шкафов}}",
+    "countForBody": "{count, plural, one {# шкаф} few {# шкафа} many {# шкафов} other {# шкафов}} {bandWord} шириной {widthMm, number, ::group-off}",
+    "countForSlot": "В проём {widthMm, number, ::group-off} × {heightMm, number, ::group-off} мм {count, plural, one {помещается # шкаф} few {помещаются # шкафа} many {помещаются # шкафов} other {помещаются # шкафов}}",
     "noOffersForBody": "Здесь не помещается ни один другой шкаф {bandWord}. Удали текущий шкаф, чтобы освободить больше места.",
     "noOffersForSlot": "В проём {widthMm, number, ::group-off} × {heightMm, number, ::group-off} мм не помещается ни один шкаф из каталога. Удали соседний шкаф, чтобы освободить больше места.",
     "noOffersTooWide": "Свободное пространство имеет ширину {widthMm, number, ::group-off} мм — это больше ширины самого широкого шкафа в каталоге ({maxWidthMm, number, ::group-off} мм). Ни один шкаф не может занять всё имеющееся свободное пространство. Часть пространства можно оставить пустой или разделить его, добавив рядом ещё один шкаф.",
@@ -122,7 +123,7 @@
   "globalSettings": {
     "open": "Общие настройки",
     "title": "Настройки всей кухни",
-    "appliesTo": "Применяется {bodyCount, plural, one {к # шкафу} few {к # шкафам} other {к # шкафам}} на кухне. Не настраивается отдельно для каждого шкафа.",
+    "appliesTo": "Применяется {bodyCount, plural, one {к # шкафу} few {к # шкафам} many {к # шкафам} other {к # шкафам}} на кухне. Не настраивается отдельно для каждого шкафа.",
     "groupHeadings": {
       "material": "Материал корпуса и фасадов",
       "hardware": "Фурнитура"
@@ -144,7 +145,7 @@
     "cancel": "Отмена",
     "materialResetConfirm": {
       "title": "Выбранные цвета будут потеряны",
-      "body": "Для {chosenCount, plural, one {# шкафа} few {# шкафов} other {# шкафов}} выбраны другие цвета. Для каждого материала доступны свои цвета, а при его изменении устанавливается цвет нового материала по умолчанию.",
+      "body": "Для {chosenCount, plural, one {# шкафа} few {# шкафов} many {# шкафов} other {# шкафов}} выбраны другие цвета. Для каждого материала доступны свои цвета, а при его изменении устанавливается цвет нового материала по умолчанию.",
       "globalBody": "Ты выбрал цвет для всей кухни. Для каждого материала доступны свои цвета, а при его изменении устанавливается цвет нового материала по умолчанию.",
       "confirm": "Сменить материал",
       "back": "Сохранить цвета"
@@ -238,7 +239,7 @@
   "catalog": {
     "emptySlot": "Свободное место",
     "unknownKind": "Шкаф",
-    "bodyLabelWithDoors": "{name} {doors, plural, one {с # дверцей} few {с # дверцами} other {с # дверцами}}",
+    "bodyLabelWithDoors": "{name} {doors, plural, one {с # дверцей} few {с # дверцами} many {с # дверцами} other {с # дверцами}}",
     "kinds": {
       "base_cabinet": "Нижний шкаф",
       "dishwasher_housing": "Ниша для посудомоечной машины",

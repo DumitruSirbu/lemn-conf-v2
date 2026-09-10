@@ -554,6 +554,7 @@ export function resolveContent(translate: ContentTranslator) {
       stepPill: translate("configure.stepPill", { step: 2, totalSteps: 4 }),
       title: translate("configure.title"),
       locale: translate("configure.locale"),
+      localeSwitch: translate("configure.localeSwitch"),
       back: translate("configure.back"),
       backAction: translate("configure.backAction"),
       reviewCta: translate("configure.reviewCta"),

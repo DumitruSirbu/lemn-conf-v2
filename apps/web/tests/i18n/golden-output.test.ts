@@ -168,12 +168,12 @@ describe("golden-output fixture coverage", () => {
   });
 
   it("has one unique stable id for every fixture", () => {
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(105);
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(106);
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
-    expect(GOLDEN_FIXTURES).toHaveLength(303);
+    expect(GOLDEN_FIXTURES).toHaveLength(304);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

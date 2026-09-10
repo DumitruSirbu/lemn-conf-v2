@@ -5,6 +5,10 @@ import { locale as getRootLocale } from "next/root-params";
 
 import type roMessages from "../messages/ro.json";
 
+import {
+  isPseudoLocaleEnabled,
+  pseudoLocalizeCatalogue,
+} from "./pseudo-locale";
 import { routing, type AppLocale } from "./routing";
 
 type AppMessages = typeof roMessages;
@@ -28,9 +32,16 @@ export async function createI18nRequestConfig(
   const locale = explicitLocale ?? (await getRootLocale());
   if (!hasLocale(routing.locales, locale)) notFound();
 
+  const messages = await messageLoaders[locale]();
   return {
     locale,
-    messages: await messageLoaders[locale](),
+    // The length-stress catalogue is a transform over a real locale rather than a locale of its own,
+    // so it changes what `/ro` and `/ru` say and nothing about where they are (`pseudo-locale.ts`).
+    // `isPseudoLocaleEnabled` is `false` in production with no opt-in, so this branch cannot be
+    // reached by a customer.
+    messages: isPseudoLocaleEnabled(process.env)
+      ? pseudoLocalizeCatalogue(messages)
+      : messages,
   };
 }
 

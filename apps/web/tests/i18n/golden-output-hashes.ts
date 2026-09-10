@@ -344,6 +344,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "fff58e0d5274b9323b1d417339767816cc64fdbb2be12d731af5db285f61b75a",
   "content.static.configure.locale":
     "0049aa51a630b7912728071542a064ffa7d385e0d14429bd59310a8347505815",
+  "content.static.configure.localeSwitch":
+    "df62a53218c0f0ecd25ce71cdfbaf809876b307499172f5066ba38b42b21141b",
   "content.static.configure.orbitHint":
     "a5a1d7ed1a50ecf519875a76a7e93fee7f415734480aa8cfa92db9b2e091189d",
   "content.static.configure.overflowWarning":
