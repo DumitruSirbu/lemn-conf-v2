@@ -46,8 +46,8 @@ declare const messages: {
         "many": "coloane"
       }
     },
-    "countForBody": "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
-    "countForSlot": "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+    "countForBody": "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
+    "countForSlot": "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
     "noOffersForBody": "Niciun alt dulap {bandWord} nu încape aici. Șterge dulapul actual, pentru a obține mai mult spațiu.",
     "noOffersForSlot": "Niciun dulap din catalog nu intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm. Șterge un dulap vecin ca să obții mai mult spațiu.",
     "noOffersTooWide": "Spațiul liber are {widthMm, number, ::group-off} mm, mai mult decât cel mai lat dulap din catalog ({maxWidthMm, number, ::group-off} mm). Niciun dulap nu poate ocupa tot spațiul liber existent. O parte din spațiul liber poate rămâne goală, sau îl poți împărți adăugând un alt dulap lângă el.",
@@ -124,7 +124,7 @@ declare const messages: {
   "globalSettings": {
     "open": "Setări globale",
     "title": "Setări pentru toată bucătăria",
-    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează petru fiecare dulap în parte.",
+    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează pentru fiecare dulap în parte.",
     "groupHeadings": {
       "material": "Material corp și fronturi",
       "hardware": "Feronerie"
@@ -202,7 +202,7 @@ declare const messages: {
   "catalog": {
     "emptySlot": "Spațiu liber",
     "unknownKind": "Dulap",
-    "bodyLabelWithDoors": "{name} {doors, plural, one {# ușă} few {# uși} other {# de uși}}",
+    "bodyLabelWithDoors": "{name} {doors, plural, one {# ușă} few {# uși} other {# uși}}",
     "kinds": {
       "base_cabinet": "Dulap bază",
       "dishwasher_housing": "Nișă mașină de spălat vase",

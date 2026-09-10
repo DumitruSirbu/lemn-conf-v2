@@ -288,9 +288,10 @@ describe("the number in the sentence is the number handed in", () => {
     expect(bodyAt(1)).toContain("1 dulap.");
     expect(bodyAt(2)).toContain("2 dulapuri");
     expect(bodyAt(19)).toContain("19 dulapuri");
-    // **The `other` band is missing Romanian's "de"**: `panel.countForBody` writes
-    // `other {# de dulapuri}` and this key writes `other {# dulapuri}`. Raised for the owner
-    // rather than corrected here — the catalogue is approved copy and this file does not author it.
+    // **No "de" in a plural band, at any count** — owner, 2026-09-10. This key was already
+    // written that way; `panel.countForBody` and `catalog.bodyLabelWithDoors` were the two that
+    // carried it, and the ruling removed it there. It supersedes ADR 0086's *"twenty and above
+    // takes «de corpuri»"* and extends the 2026-09-06 zero ruling to the whole `other` band.
     expect(bodyAt(20)).toContain("20 dulapuri");
   });
 });

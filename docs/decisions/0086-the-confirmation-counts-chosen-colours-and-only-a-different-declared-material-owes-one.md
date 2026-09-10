@@ -270,7 +270,10 @@ change, the safe one names what is kept.
 ADR 0081 decision 4's last paragraph; `starting-price.adversarial.test.ts` sweeps a composing
 template's **source body**, so `(n) => n === 1 ? … : …` fails on the `1` in its own condition. It
 reuses `pluraliseBodies`, so a count of twenty and above takes *"de corpuri"* by the rule already
-written.
+written. **Amended 2026-09-10 — the owner ruled *"without «de» on plural"*, so the `other` band now
+takes the bare noun at every count and this sentence no longer describes the shipped copy.** The
+helper's structure is unaffected; only the word it selects changed. See
+`docs/i18n/ro-catalogue-notes.md`.
 
 **Two sweeps, not one, and ADR 0081 names only the first.** Every leaf of `ro.globalSettings` is
 swept for `/\d/` **and** for `SUM_CLAIM_PATTERN` — `total|sum[aăe]|adun|egal|+|=`, case-insensitive

@@ -202,19 +202,19 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.wall-lift.800":
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
   "content.globalSettings.appliesTo.count-0":
-    "defcdfa453c6ca3ccd4403eeb6e44fa0bddde832d3446ebf01e69778e73c1973",
+    "2a9c04de9392c99edbbac0b1949c9d0bbdd3eb9f867419197e83db53a4713f4c",
   "content.globalSettings.appliesTo.count-1":
-    "5620d34d787e66cfc435e3d90cf45d77d6fbcf0b274f668b6a46be0331fff671",
+    "9fd2bb49ef1171c818cbd8040938596d1ae8aa4496035029b05fe5bde76114b8",
   "content.globalSettings.appliesTo.count-100":
-    "0f4dc2974734396dd0106e81cefeccf1ff100efa9badf5925508dff144cee045",
+    "fc2249d911956afed42b6f0362a0f987224e2b8051502a20d3ee400189c05d73",
   "content.globalSettings.appliesTo.count-101":
-    "b056ad9292163cfe253fb23aad7abb2e937a1ee7e0f72f6134dedc4d4300e064",
+    "c95ab1d47b1a7cab2352a13ea4027e1d2fcff79361cb6a749840ccd63f56bc02",
   "content.globalSettings.appliesTo.count-19":
-    "35a188fd1cfdfe0d4f4523af736fa49b9803c2cb15b64c353810843f89fff718",
+    "8bc64c62a35f431fc0931ba8d1ee90cff06e208adc700dd74f355ead2a72f2f9",
   "content.globalSettings.appliesTo.count-2":
-    "f4b35c68e8e2967eaadbfffc3ee26b0d7d3c2c7074accf0139fa2ccdb6701801",
+    "abcbe3a31f5d3661d38527a8201533555867fa19e6c38e5baa2e62b7dd008ff3",
   "content.globalSettings.appliesTo.count-20":
-    "4fe321867e8b3ed4a824025081ae00812dea08c23a6ae3275f93d8bcd102ceb6",
+    "28082585f6db6d7fb99cacb52e34b6174a7bf805b57f2a6a0278446eef39d510",
   "content.globalSettings.applyRefused.material":
     "c71812f8c2c932aa12208871e09a1e692f8b2f4d22d24e105536c882ee6494ad",
   "content.globalSettings.depthOption.600":
@@ -250,7 +250,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.panel.countForBody.count-1":
     "6082a67347860eed7d9a9ef77faaf714912afbba05899e561dd3609c3fa5d0f8",
   "content.panel.countForBody.count-100":
-    "afc86658a0be6424e799bb0d307347b5b8478e696627be71d90a3a5835756eac",
+    "cc141b888656de26bd4cf87431b8754041a259e21399b9bea8e09b07dabbc4f2",
   "content.panel.countForBody.count-101":
     "05b28d5fb4309b5ab4dfa2acecb9dbec16f132f0b9246462052c5d7daa3a1426",
   "content.panel.countForBody.count-19":
@@ -258,7 +258,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.panel.countForBody.count-2":
     "5603e47123a7eb0af8d077113a241759c9a2045681e8cf42c5a28dc2a55ed812",
   "content.panel.countForBody.count-20":
-    "6c1f3ff668246deb744d8c5c37304e8646d8272f58793a65c4a51251d8e9d3db",
+    "19388239fc26731a5e209f7aa5b1de722374197e281781baf8a413a0afc9d6d1",
   "content.panel.countForSlot.count-0":
     "0e17522a5a4fb7a2ad8e9914ac2d300211c7e92dffa0394fa6e3e2e84a0dc5da",
   "content.panel.countForSlot.count-1":
@@ -268,7 +268,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.panel.countForSlot.count-2":
     "5ad6eb8cf5e7afa6ec32c30d2e592d74e290dd2d03df4bc5495387c16e10d40f",
   "content.panel.countForSlot.count-20":
-    "7bf788401111809bb12b721d598d23b8c54ea2e199b5c72f72db49b7a54e6983",
+    "56436812994246271997f1e52182ad64607d6b12428064b4826caecf352a9e11",
   "content.panel.handleDefaultNote.push":
     "b99a3fc0970fda9b8916562374706e389f69a9fa4aa1680d87048bf22c644838",
   "content.panel.handleDefaultNote.steel":

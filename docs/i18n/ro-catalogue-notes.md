@@ -48,9 +48,31 @@ corpuri'"*. Encoded as CLDR `one` / `few` / `other`, which produces it without a
 - `globalSettings.appliesTo` at 0 → *"Se aplică tuturor celor 0 corpuri."*
 
 Everything else is unchanged: 1 → *corp*, 2–19 → *corpuri*, 20 and 100 → *de corpuri*, 101 →
-*corpuri*. Verified by rendering each message through `intl-messageformat` at 0, 1, 2, 19, 20, 100
+*corpuri*. **(The 20/100 form is superseded — see the section below.)** Verified by rendering each message through `intl-messageformat` at 0, 1, 2, 19, 20, 100
 and 101. **Neither of the two false comments at `ro.ts:4-7` and `ro.ts:15-19` was carried across**;
 nothing in this file or this guide claims *"0 de corpuri"*.
+
+## Superseded 2026-09-10 — *"de"* leaves the plural entirely
+
+**Owner ruling, 2026-09-10, on two catalogue defects raised during the M6B rebase:**
+
+1. *"pentru"* — `globalSettings.appliesTo` read *"Nu se setează **petru** fiecare dulap în parte"*.
+   A transcription slip in the collected catalogue; corrected.
+2. ***"without «de» on plural"*** — the `other` band takes the bare noun at **every** count, so
+   twenty reads *"20 dulapuri"* and a hundred *"100 dulapuri"*.
+
+This **supersedes** the row below that says *"20 and 100 → de corpuri"*, and it supersedes
+[ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)'s
+*"a count of twenty and above takes «de corpuri»"*. The 2026-09-06 zero ruling is not reversed — it
+is generalised: what was one value's exception is now the rule for the whole band.
+
+`panel.countForBody`, `panel.countForSlot` and `catalog.bodyLabelWithDoors` carried the *"de"* and
+were changed; `globalSettings.appliesTo` and `globalSettings.materialResetConfirm.body` were already
+written without it. The three CLDR bands stay declared even where `few` and `other` now read the
+same — the band structure is what a later locale and a later reviewer read, and collapsing it would
+hide the ruling rather than record it.
+
+Rendered and verified at 0, 1, 2, 19, 20, 100 and 101.
 
 ## Romanian I would question — for the owner to rule on
 

@@ -680,7 +680,11 @@ Falsifiable, and stated as invariants including what must not happen.
   in code or prose.**
 - For every integer 1–200, the ICU `ro` message selects the same noun form `pluraliseBodies` selects
   at HEAD. Zero is the one deliberate difference and is asserted separately, above.
-- 1 → *"corp"*; 2–19 → *"corpuri"*; 20–99 and 100 → *"de corpuri"*; 101 → *"corpuri"*.
+- ~~1 → *"corp"*; 2–19 → *"corpuri"*; 20–99 and 100 → *"de corpuri"*; 101 → *"corpuri"*.~~
+  **Superseded by the owner, 2026-09-10: *"without «de» on plural"*.** The `other` band takes the
+  bare noun at every count, so 20 and 100 read *"20 dulapuri"* / *"100 dulapuri"*. This generalises
+  the 2026-09-06 zero ruling and supersedes ADR 0086's *"twenty and above takes «de corpuri»"*.
+  The same ruling corrected *"petru"* → *"pentru"* in `globalSettings.appliesTo`.
 - `everyBodyPhrase(1)` still reads *"singurului corp din bucătărie"*, never *"tuturor celor 1 corp"*.
 - `describeBodyLabelAt` reads *"1 ușă"* at a one-door width and *"2 uși"* at a two-door width.
 

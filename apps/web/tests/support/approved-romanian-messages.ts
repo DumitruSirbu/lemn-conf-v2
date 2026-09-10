@@ -49,9 +49,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       },
     },
     countForBody:
-      "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
+      "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
     countForSlot:
-      "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+      "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
     noOffersForBody:
       "Niciun alt dulap {bandWord} nu încape aici. Șterge dulapul actual, pentru a obține mai mult spațiu.",
     noOffersForSlot:
@@ -149,7 +149,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     open: "Setări globale",
     title: "Setări pentru toată bucătăria",
     appliesTo:
-      "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează petru fiecare dulap în parte.",
+      "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează pentru fiecare dulap în parte.",
     groupHeadings: {
       material: "Material corp și fronturi",
       hardware: "Feronerie",
@@ -239,7 +239,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     emptySlot: "Spațiu liber",
     unknownKind: "Dulap",
     bodyLabelWithDoors:
-      "{name} {doors, plural, one {# ușă} few {# uși} other {# de uși}}",
+      "{name} {doors, plural, one {# ușă} few {# uși} other {# uși}}",
     kinds: {
       base_cabinet: "Dulap bază",
       dishwasher_housing: "Nișă mașină de spălat vase",
