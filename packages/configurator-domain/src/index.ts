@@ -248,3 +248,11 @@ export {
   type RoomValidation,
   type URoomInput,
 } from "./room/validate-room.js";
+// The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the
+// corner that fits under its ceiling, and every free run recorded as empty space.
+export {
+  buildLShellDesign,
+  LShellInputError,
+  type LShellDesignInput,
+  type LShellInputRefusal,
+} from "./generation/shell-design.js";
