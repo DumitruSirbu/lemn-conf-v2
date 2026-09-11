@@ -1,6 +1,8 @@
 # M7 — Screen 1: room shape, dimensions, presets, bespoke fallback
 
-> **STATUS: PLANNED.** Depends on M6. Summary: `docs/STATUS.md`.
+> **STATUS: IN PROGRESS.** Depends on M6 (shipped). Summary: `docs/STATUS.md`. **Wave 7A shipped
+> 2026-09-11 at `8df0d49`** on branch `m7-room-and-presets`; its close-out is below, after the 7A
+> close-out ruling. **Next wave: 7D1.**
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1051,6 +1053,46 @@ production read 860, and every fixture room is 2600. The change list sent to the
 6. Must not touch `validateRoomInput`, `DesignRoomSchema`, `design-bounds.ts`, the derivation, or any
    QA assertion.
 
+### 7A close-out — 2026-09-11, `8df0d49`
+
+**What shipped:** `validateRoomInput(input, policy)`, publishing `{ field, code }` issues only.
+`APPROVED_ROOM_POLICY` — the owner-approved literals from the ruling above, L only, wall A
+900–6300, wall B 1000–5100, ceiling 2200–3900 (ADR 0108 Amendment B). `ENGINE_ROOM_LIMITS` —
+derived, unexported; each L wall minimum is the corner's farthest reach over every declared cabinet
+depth (Amendment A). `parseMetresToMillimetres` in `apps/web/src/room/parse-metres.ts`. ESLint
+import boundaries widened to any depth via an anchored regex.
+
+**Verified at the commit by the coordinator:** domain **3934/3934**, web `tests/room` **96/96**,
+whole-workspace `pnpm lint` exit 0, domain typecheck exit 0, whole-tree `pnpm format:check` clean.
+The 7A code commit ran the pre-commit hook (format and lint) normally.
+
+**QA round 1** (Q1.1–Q1.5): Q1.1 (Medium) — the wall-B minimum held only at 600 mm depth, because
+at 700 the corner reaches 1000 mm; a contract gap, ruled as Amendment A above. Q1.2–Q1.5 — weak
+tests (the validator ignoring its own policy, a float-multiplying parser, a drift test blind to
+same-value literals, a depth-read regex keyed to a name list); closed by QA's own tests.
+
+**QA round 2** (Q2.1–Q2.3): Q2.1 — the ESLint pattern matched only `../../`; fixed to match any
+depth. Q2.2 — a ceiling under 2600 mm makes the seeded top row `PLACEMENT_ABOVE_ROOM`; deferred to
+waves 7B/7C/7D, ADR 0109 Amendment B. Q2.3 — informational only, no change.
+
+**Logic review** (R1.1–R1.3): R1.1 — the domain's `../three-adapter` / `../catalog-data` boundary
+patterns had the same depth gap as Q2.1; fixed alongside it. R1.2 — `**/apps/**` over-matched bare
+specifiers; replaced by an anchored regex. R1.3 — the exemption comment now cites QA's type-only-
+import test as the structural guard it relies on. The reviewer also found that 7C's low-ceiling fix
+cannot remove the structural corner `p21` (`canDelete: false`); ADR 0109 Amendment B was corrected
+in place to filter it at instantiation rather than calling `removePlacement` on it.
+
+**Clean-code review:** C1.1 — an `index.ts` comment claimed wiring that does not exist; reworded.
+C1.2 — a nit; both guards were kept as written.
+
+**Deviations — extra files touched beyond the wave's named production set:**
+`demo-room-envelope.test.ts` (a named exemption plus a depth-read check, closing Q1.2–Q1.5's weak
+coverage) and `eslint.config.mjs` (the anchored-regex fixes for Q2.1 and R1.1/R1.2).
+
+**Process note:** rtk's output filter twice falsified a result this wave — it reported an ESLint
+`--stdin` probe as "No issues found" when it had flagged an error, and it reported prettier
+`--check` on docs as passing when it was not. Both were caught only by re-running with `rtk proxy`.
+
 ## Re-plan after the owner's answers — 2026-09-11
 
 ### What the answers settle
@@ -1181,7 +1223,7 @@ table.
 
 | Wave | Goal | Production files (likely) | Depends on | Tier | Visual | Owner |
 | --- | --- | --- | --- | --- | --- | --- |
-| **7A** | Room validation; the approved L policy | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
+| **7A** | Room validation; the approved L policy — **DONE, `8df0d49`** | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
 | **7D1** | Composition shell for the L | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/index.ts` | 7D1 | Full | No | F2, F3 defaults |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
