@@ -11,6 +11,9 @@ import {
   evaluateInsertFit,
   FIT_TOLERANCE_M,
   describeBodyLabelAt,
+  entryLabel,
+  labelWithDoors,
+  type BodyLabel,
   INSERTABLE_BODY_DEFINITIONS,
   MIN_WIDTH_M,
   recordedClearanceM,
@@ -475,9 +478,12 @@ describe("no two catalogue ids build the same body", () => {
  *  It parses the **derived** label now (ADR 0033), not a declared one, which is what makes the sweep
  *  below a check rather than a restatement: the string comes out of the domain's own renderer and
  *  the number it is compared against is counted off a built body. */
-function declaredDoorCount(label: string): number | undefined {
-  const claim = /(\d+)\s+(?:uși|ușă)/u.exec(label);
-  return claim?.[1] === undefined ? undefined : Number(claim[1]);
+/** The count the catalogue claims for this body, read off the descriptor the domain publishes. It
+ *  used to be scraped out of a rendered Romanian label with a regular expression; since 6B-f the
+ *  count is a field, and the sentence it will be rendered into belongs to the app. What is compared
+ *  below is unchanged: a claimed count against doors counted off meshes the real builders made. */
+function declaredDoorCount(label: BodyLabel): number | undefined {
+  return label.kind === "withDoors" ? label.doors : undefined;
 }
 
 describe("a derived label that counts doors, against the doors the builder actually makes", () => {
@@ -514,7 +520,7 @@ describe("a derived label that counts doors, against the doors the builder actua
       const depthMm = definition.nominalDepthMm ?? 400;
       for (const widthMm of definition.sizesMm ?? []) {
         const claimed = declaredDoorCount(
-          describeBodyLabelAt(definition, widthMm),
+          describeBodyLabelAt({ buildId, definition }, widthMm),
         );
         expect([
           buildId,
@@ -595,15 +601,20 @@ describe("a derived label that counts doors, against the doors the builder actua
     ).toBe(1);
   });
 
-  // The label the customer reads, spelled out once. Romanian counts its nouns, and the two forms are
-  // byte-identical to what the two retired entries carried — which is what makes ADR 0033 a merge
-  // rather than a rename.
-  it("names the two forms exactly as the entries it replaced did", () => {
+  // The two forms the merged entry takes, at the two widths the retired pair used to be. The words
+  // they render into are the catalogue's since 6B-f — pinned by the copy lock and by
+  // `apps/web/tests/i18n/body-label.test.ts`; what the domain owes is the count.
+  it("takes the two forms the entries it replaced did", () => {
     const entry = INSERTABLE_ENTRIES.find(([id]) => id === "wall-cabinet");
     if (!entry) throw new Error("no wall-cabinet entry");
+    const body = { buildId: "wall-cabinet", definition: entry[1] };
 
-    expect(describeBodyLabelAt(entry[1], 400)).toBe("Corp suspendat 1 ușă");
-    expect(describeBodyLabelAt(entry[1], 600)).toBe("Corp suspendat 2 uși");
+    expect(describeBodyLabelAt(body, 400)).toEqual(
+      labelWithDoors(entryLabel("wall-cabinet"), 1),
+    );
+    expect(describeBodyLabelAt(body, 600)).toEqual(
+      labelWithDoors(entryLabel("wall-cabinet"), 2),
+    );
   });
 });
 

@@ -153,7 +153,7 @@ describe("a document whose two tiers were both withdrawn", () => {
   });
 });
 
-describe("a tier withdrawn between opening the sheet and pressing Aplică", () => {
+describe("a tier withdrawn between opening the sheet and pressing apply", () => {
   it("is refused by name rather than written or silently dropped", () => {
     // The sheet opened while the book still offered the tier, so pending holds an id that was
     // legitimate when it was chosen. `applyPending` sends the offered list the sheet is rendering
@@ -375,7 +375,7 @@ describe("any sequence of presses on any of these documents", () => {
   propertyTest.prop([anyStartingSettings, anyPressSequence], {
     seed: PROPERTY_SEED,
   })(
-    "leaves the document byte-identical when it ends in Renunță, whatever it opened on",
+    "leaves the document byte-identical when it ends in cancel, whatever it opened on",
     (settings, presses) => {
       const design = designWith(settings);
       const { store, saved } = storeFor(design);
@@ -424,7 +424,7 @@ describe("any sequence of presses on any of these documents", () => {
   propertyTest.prop([anyStartingSettings, anyPressSequence], {
     seed: PROPERTY_SEED,
   })(
-    "would have moved the document had it ended in Aplică on a group it did press, so the sweep is not vacuous",
+    "would have moved the document had it ended in apply on a group it did press, so the sweep is not vacuous",
     (settings, presses) => {
       const design = designWith(settings);
       const { store } = storeFor(design);

@@ -181,6 +181,24 @@ export function pricedFlat(amountMinor: number): PriceFormula {
   });
 }
 
+/** **Who puts this row in the finished kitchen.** A book states it; nothing infers it.
+ *
+ *  `customer` is a row the configurator **draws but the manufacturer does not sell** — the owner's
+ *  ruling of 2026-09-10 about the free-standing fridge and the extractor hood: *"it's drawn, it's
+ *  displayed, but it's not included in the price, and it's not provided by the manufacturer."*
+ *
+ *  **Never inferred from an amount, and that is the whole point of the field.** A `customer` row
+ *  necessarily costs nothing, but so does a genuinely free `manufacturer` row — the melamine
+ *  material tier is zero and *is* included — and the two must not print the same sentence. Reading
+ *  `amountMinor === 0` conflates them, which is exactly the defect this replaces. */
+export const CABINET_SUPPLIERS = ["manufacturer", "customer"] as const;
+
+export type CabinetSupplier = (typeof CABINET_SUPPLIERS)[number];
+
+/** What a rule that says nothing means. Absence is *the manufacturer builds it*, so a new row —
+ *  including a new zero-priced one — is cabinetry until somebody writes down that it is not. */
+export const DEFAULT_CABINET_SUPPLIER: CabinetSupplier = "manufacturer";
+
 /**
  * What one catalogue row costs.
  *
@@ -196,11 +214,34 @@ export interface CabinetPriceRule {
    *  the four corner bodies, which ADR 0021 makes structural and which nothing in §7 builds. */
   readonly buildId: string;
   readonly formula: PriceFormula;
+  /** Optional, and absent means `DEFAULT_CABINET_SUPPLIER`: the overwhelming majority of rows are
+   *  joinery and should not have to say so. A row that declares `customer` must price to nothing —
+   *  `parsePriceBook` refuses a book that charges for something it does not supply, so the claim on
+   *  the screen and the arithmetic under the total cannot disagree. */
+  readonly suppliedBy?: CabinetSupplier | undefined;
 }
 
-/** What every tier states about itself, whatever it is a tier *of*. The name and the one-line
- *  description live here rather than in `content/ro.ts` for ADR 0062's third prohibition: a tier is
- *  book data rendered, never copy in a component that happens to agree with a number. */
+/** A row the configurator draws and the manufacturer does not sell. The two facts — *free* and
+ *  *not ours* — are written by one call so a book cannot state one without the other, which is the
+ *  authoring half of the guarantee `parsePriceBook` enforces for books assembled elsewhere. */
+export function drawnButNotSupplied(): Pick<
+  CabinetPriceRule,
+  "formula" | "suppliedBy"
+> {
+  return { formula: pricedFlat(0), suppliedBy: "customer" };
+}
+
+/**
+ * What every tier states about itself, whatever it is a tier *of*.
+ *
+ * The name and the one-line description live here rather than in the app's message catalogue
+ * (`apps/web/src/messages/ro.json`) for ADR 0062's third prohibition: a tier is book data rendered,
+ * never copy in a component that happens to agree with a number.
+ *
+ * **A tier may also name the catalogue leaf its rendered text is written in** — ADR 0106 decision 1. The
+ * key wins where it is present and the authored text is what renders where it is not, so this
+ * product's own book localises its rows while a book nobody at Lemnaria authored still renders.
+ */
 export interface TierIdentity {
   /** What a selection names. Stable, and not the rule id: one is a choice, the other is a price. */
   readonly tierId: string;
@@ -208,6 +249,16 @@ export interface TierIdentity {
   readonly ruleId: string;
   readonly name: string;
   readonly description: string;
+  /** Optional, and absence is an ordinary row rather than an omission (ADR 0106 decision 2): the
+   *  authored `name` renders as typed.
+   *
+   *  **This product's own book** leaves it absent on a proper noun — *Hettich* and *Blum* are the
+   *  same word in every locale — but that is a fact about the shipped rows, not a rule this
+   *  interface can impose on every book it types, and nothing here enforces it. The guard is across
+   *  the package boundary, where the catalogue is: `apps/web/tests/i18n/price-book-text.test.ts`
+   *  names those two rows and fails if a later wave keys them. */
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
 }
 
 /** A hardware tier, priced **per mechanism** — ADR 0070 decision 1, which replaced the per-handle
@@ -261,6 +312,10 @@ export interface AccessoryRule {
   readonly ruleId: string;
   readonly name: string;
   readonly description: string;
+  /** The catalogue leaf this accessory's name is written in, on the same terms a tier's is — ADR
+   *  0106 decision 1. */
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
   /** Charged per unit — per sink for both of today's two. The **quantity** is a fact about the
    *  design and is never stated here. */
   readonly perUnitMinor: number;

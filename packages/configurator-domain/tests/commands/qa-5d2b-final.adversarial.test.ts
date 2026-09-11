@@ -27,7 +27,6 @@ import {
   OCCURRED_AT,
   resizeTo,
 } from "../support/commands.js";
-import { renderRejection } from "../../src/commands/rejection.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import {
   advance,
@@ -161,17 +160,10 @@ describe("the hood floor", () => {
     expect(refused.length).toBeGreaterThan(0);
     for (const option of refused) {
       if (option.verdict.status !== "refused") continue;
-      const sentence = renderRejection(option.verdict.reason);
-      // Never the hole this finding was about.
-      expect(sentence).not.toContain("doar în  mm");
-      // **And better than the no-width sentence, since 2026-08-30.** The hood is what refuses this
-      // width and the cargo is built at it, so the refusal names the hood and its width rather than
-      // the column's inability — the hood is the one thing the customer could delete to unlock it
-      // (5D2b product-logic review). The no-width sentence remains for a column that agrees on
-      // nothing for reasons other than a hood.
-      expect(sentence).toBe(
-        "„Cargo îngust pentru sticle” nu poate coborî la 200 mm: hota de deasupra are 600 mm.",
-      );
+      expect(option.verdict.reason).toMatchObject({
+        code: "COLUMN_HOOD_FLOOR",
+        params: { requestedMm: 200, hoodWidthMm: 600 },
+      });
     }
   });
 });
@@ -235,10 +227,9 @@ describe("a shrink's strip widens on the next press", () => {
       target: { kind: "void", id: strip.id },
     });
 
-    expect(offers.length).toBeGreaterThan(0);
-    expect(
-      offers.filter((offer) => offer.verdict.status === "offered"),
-    ).toEqual([]);
+    // Since the owner's ruling of 2026-09-10 an unfillable strip publishes **no rows at all**,
+    // where it used to publish a full list of refusals. Same claim: nothing here is insertable.
+    expect(offers).toEqual([]);
   });
 });
 

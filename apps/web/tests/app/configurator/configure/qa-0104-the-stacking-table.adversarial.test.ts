@@ -10,6 +10,10 @@
 //     | the breakdown's popover                   | 6 |
 //     | the settings item, its scrim, its sheet    | 7 |
 //
+// **The locale cell left that first row on 2026-09-10** and the case at the foot of this file is why:
+// the owner ruled its chip a dropdown, and a menu nested in a cell at `2` paints under §9's rail at
+// `4` — the table's own rule, reaching a second surface exactly as it reached the breakdown's.
+//
 // and beside it the rule that makes it a table rather than a list, stated exactly and correctly:
 //
 // > **a `z-index` other than `auto` on a *grid or flex item* establishes a stacking context even
@@ -140,7 +144,7 @@ describe("the premise — every layer the table names still declares a number", 
   it("reads the numbers the head comment's table writes down", () => {
     expect(LAYER).toEqual({
       nav: 2,
-      locale: 2,
+      locale: 6,
       actions: 2,
       priceCell: 5,
       settingsItem: 7,
@@ -240,5 +244,35 @@ describe("the table's fourth row, checked against the table's own rule", () => {
    *  is still a fix and this file still passes. */
   it("leaves no layer between the price cell and the popover's own declaration", () => {
     expect(LAYER.rail).not.toBeGreaterThan(LAYER.priceCell);
+  });
+});
+
+describe("the same rule, reaching the locale cell's new menu", () => {
+  /** The structural fact this section rests on, read off the markup rather than assumed: the list is
+   *  a child of `.locale`, so the cell's context bounds it exactly as the price cell bounds the
+   *  breakdown's popover. */
+  it("mounts the language list inside the locale cell", () => {
+    const menu = read("app/configurator/configure/locale-menu.tsx");
+    const cell = /styles\.locale}[\s\S]*?<\/div>/.exec(menu)?.[0] ?? "";
+
+    expect(cell).toContain("styles.localeList");
+  });
+
+  /** The defect the ruling would otherwise have shipped: at the band's shared `2` the menu drops
+   *  straight over §9's desktop rail at `4` and is painted under it whenever a cabinet is selected —
+   *  a dropdown that opens into nothing. It is the breakdown's finding a second time, caught before
+   *  it landed rather than after. */
+  it("lets the open menu paint above the rail it drops over", () => {
+    expect(
+      LAYER.locale,
+      `the language menu is nested in the locale cell, which declares ${String(LAYER.locale)}, so ` +
+        `it paints at that layer — and §9's rail is at ${String(LAYER.rail)}`,
+    ).toBeGreaterThan(LAYER.rail);
+  });
+
+  /** And it stays under the one surface that must cover everything: the settings sheet is modal on
+   *  both shells, so a menu above its scrim would be operable behind a modal. */
+  it("keeps the menu under the settings sheet's scrim", () => {
+    expect(LAYER.locale).toBeLessThan(LAYER.settingsItem);
   });
 });

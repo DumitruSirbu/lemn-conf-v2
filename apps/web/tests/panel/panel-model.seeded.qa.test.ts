@@ -26,12 +26,12 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { offeredBuildIds } from "../support/offers";
+import { offerBuildIds } from "../support/offers";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 import { widthStepsFor } from "@lemnaria/configurator-domain";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 
 import { REFUSAL } from "../support/selection-meta";
 
@@ -87,6 +87,7 @@ function panelAt(
 ) {
   const meta = describeSelection({ ...world, target });
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: offersFor({
@@ -123,6 +124,7 @@ function panelAt(
       target,
       probe: PROBE,
     }),
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -585,7 +587,7 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
       if (target.kind === "void") sweptSlots += 1;
       else sweptBodies += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offeredBuildIds(
+        offerBuildIds(
           offersFor({
             ...world,
             target,

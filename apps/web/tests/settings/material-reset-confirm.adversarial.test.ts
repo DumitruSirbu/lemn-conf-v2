@@ -29,11 +29,12 @@ import {
   type Design,
   type DisplayGroup,
 } from "@lemnaria/configurator-domain";
+import roMessages from "@/messages/ro.json";
+import { ro as content } from "../support/romanian-content";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 import {
   describeGlobalSettings,
@@ -157,6 +158,7 @@ function viewFor(options: {
     selections: design.settings,
   };
   return describeGlobalSettings({
+    content: content,
     pricing: priceDesign(priceInput),
     offer: offerWholeKitchenTiers(priceInput),
     groups:
@@ -268,7 +270,7 @@ describe("the number in the sentence is the number handed in", () => {
         continue;
       }
       expect(confirm?.body).toBe(
-        ro.globalSettings.materialResetConfirm.body(chosenColourCount),
+        content.globalSettings.materialResetConfirm.body(chosenColourCount),
       );
       spoken.push(confirm?.body ?? "");
     }
@@ -281,12 +283,16 @@ describe("the number in the sentence is the number handed in", () => {
     // Romanian counts in three bands by the last two digits, and the confirmation reuses the rule
     // rather than restating it. One, nineteen and twenty are the two transitions.
     const bodyAt = (count: number): string =>
-      ro.globalSettings.materialResetConfirm.body(count);
+      content.globalSettings.materialResetConfirm.body(count);
 
-    expect(bodyAt(1)).toContain("1 corp.");
-    expect(bodyAt(2)).toContain("2 corpuri");
-    expect(bodyAt(19)).toContain("19 corpuri");
-    expect(bodyAt(20)).toContain("20 de corpuri");
+    expect(bodyAt(1)).toContain("1 dulap.");
+    expect(bodyAt(2)).toContain("2 dulapuri");
+    expect(bodyAt(19)).toContain("19 dulapuri");
+    // **No "de" in a plural band, at any count** — owner, 2026-09-10. This key was already
+    // written that way; `panel.countForBody` and `catalog.bodyLabelWithDoors` were the two that
+    // carried it, and the ruling removed it there. It supersedes ADR 0086's *"twenty and above
+    // takes «de corpuri»"* and extends the 2026-09-06 zero ruling to the whole `other` band.
+    expect(bodyAt(20)).toContain("20 dulapuri");
   });
 });
 
@@ -332,20 +338,21 @@ describe("the sentence cannot see the sheet's own count of cabinets", () => {
 });
 
 describe("the two copy sweeps reach this section and judge it", () => {
-  /** `starting-price.adversarial.test.ts`'s flattening, in the shape that file documents: a string
-   *  is a leaf, and a composing template contributes its **source body** — everything past its first
-   *  arrow — so a claim written into a template is swept as the words it would put on a screen. */
+  /** `starting-price.adversarial.test.ts`'s flattening, over the **catalogue** rather than the
+   *  resolver.
+   *
+   *  The pre-i18n sweep read a template's source body — everything past its first arrow — so a
+   *  claim written into a template was swept as the words it would put on a screen. A resolved
+   *  leaf is a closure over ICU, and its source text is the resolver's rather than the copy's. The
+   *  ICU message *is* the template, so the sweep reads that and keeps judging the authored words:
+   *  a count still arrives as `{chosenCount, plural, …}` and never as a digit. */
   function copyLeaves(section: unknown): string[] {
     if (typeof section === "string") return [section];
-    if (typeof section === "function") {
-      const source = (section as () => string).toString();
-      return [source.slice(source.indexOf("=>") + 2)];
-    }
     if (typeof section !== "object" || section === null) return [];
     return Object.values(section).flatMap(copyLeaves);
   }
 
-  const LEAVES = copyLeaves(ro.globalSettings.materialResetConfirm);
+  const LEAVES = copyLeaves(roMessages.globalSettings.materialResetConfirm);
 
   it("finds all five strings under the section the sweep walks", () => {
     // A gate that walks past a section reports green about nothing, which is this project's own
@@ -356,7 +363,7 @@ describe("the two copy sweeps reach this section and judge it", () => {
     // (`globalBody`), because the per-cabinet one would read "pentru 0 corpuri". The literal is
     // raised here deliberately: a count that moves silently is a sweep that has stopped counting.
     expect(LEAVES).toHaveLength(5);
-    expect(copyLeaves(ro.globalSettings)).toEqual(
+    expect(copyLeaves(roMessages.globalSettings)).toEqual(
       expect.arrayContaining(LEAVES),
     );
   });
@@ -367,20 +374,32 @@ describe("the two copy sweeps reach this section and judge it", () => {
       expect(leaf, leaf).not.toMatch(/\d/);
     }
     // The positive control, so the two assertions above cannot pass by finding nothing to judge:
-    // the natural Romanian phrasing of this very sentence fails on both counts.
+    // the natural Romanian phrasing of this very sentence fails on both counts. **It is a literal on
+    // purpose** — it is a sentence the catalogue must *not* hold, so no leaf can supply it. Wave
+    // 6B-j's allow-list, not a conversion.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a positive control: a sentence the catalogue must not hold, so no leaf can supply it.
     expect("Ai ales alte culori pentru în total 4 corpuri.").toMatch(
       SUM_CLAIM_PATTERN,
     );
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the second axis of the same positive control.
     expect("Ai ales alte culori pentru în total 4 corpuri.").toMatch(/\d/);
   });
 
   it("spells its diacritics with the comma below, in every leaf that has one", () => {
-    // U+0219 and U+021B, never U+015F and U+0163. The positive control is that at least one leaf
-    // carries a comma-below character at all.
-    expect(LEAVES.filter((leaf) => /[șț]/.test(leaf)).length).toBeGreaterThan(
-      0,
-    );
-    for (const leaf of LEAVES) expect(leaf, leaf).not.toMatch(/[şţ]/);
+    // U+0219 and U+021B, never U+015F and U+0163.
+    //
+    // **The positive control is taken from the enclosing section, not from these five leaves.**
+    // Gate O1 rephrased all five out of their comma-below characters — the old *"așa că"* became
+    // *"iar la modificarea lui"* — so a control anchored here would now pass by finding nothing,
+    // which is the exact failure mode this file exists to refuse. `globalSettings` is the smallest
+    // enclosing section that still carries them, and the cedilla ban is asserted across all of it.
+    const enclosing = copyLeaves(roMessages.globalSettings);
+    expect(
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a comma-below character class, not wording.
+      enclosing.filter((leaf) => /[șț]/.test(leaf)).length,
+    ).toBeGreaterThan(0);
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the cedilla character class this file exists to refuse.
+    for (const leaf of enclosing) expect(leaf, leaf).not.toMatch(/[şţ]/);
   });
 });
 
@@ -401,10 +420,13 @@ describe("what the confirm step leaves behind when it replaces the body and foot
         // This block is about the confirmation's copy and its two steps, never about access. Stated
         // rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so
         // a write surface cannot silently default to permitted (M6-AUD-001).
-        editability: describeEditability({
-          canWrite: true,
-          saveStatus: "idle",
-        }),
+        editability: describeEditability(
+          {
+            canWrite: true,
+            saveStatus: "idle",
+          },
+          content.panel,
+        ),
         ...(step === "choosing"
           ? {}
           : {
@@ -437,15 +459,15 @@ describe("what the confirm step leaves behind when it replaces the body and foot
     // step (ADR 0086 decision 6).
     const markup = markupOf("confirm");
     const choosingWords = [
-      ro.globalSettings.title,
-      ro.globalSettings.apply,
-      ro.globalSettings.cancel,
-      ro.globalSettings.materialWarning,
-      ro.globalSettings.depthWarning,
-      ro.globalSettings.depthNote,
-      ro.globalSettings.depthHeading,
-      ro.globalSettings.groupHeadings.material,
-      ro.globalSettings.groupHeadings.hardware,
+      content.globalSettings.title,
+      content.globalSettings.apply,
+      content.globalSettings.cancel,
+      content.globalSettings.materialWarning,
+      content.globalSettings.depthWarning,
+      content.globalSettings.depthNote,
+      content.globalSettings.depthHeading,
+      content.globalSettings.groupHeadings.material,
+      content.globalSettings.groupHeadings.hardware,
       CONFIRM_VIEW.appliesTo,
     ];
 
@@ -459,14 +481,14 @@ describe("what the confirm step leaves behind when it replaces the body and foot
   it("keeps `materialWarning` itself untouched, which is a different string entirely", () => {
     // ADR 0081 decision 5. Pinned by identity so the note beside the material group cannot be
     // quietly rewritten into the confirmation's sentence.
-    expect(ro.globalSettings.materialWarning).not.toContain(
-      ro.globalSettings.materialResetConfirm.title,
+    expect(content.globalSettings.materialWarning).not.toContain(
+      content.globalSettings.materialResetConfirm.title,
     );
     expect(
-      ro.globalSettings.materialResetConfirm.body(
+      content.globalSettings.materialResetConfirm.body(
         CHOSEN_COLOURS_ON_THE_MDF_FIXTURE,
       ),
-    ).not.toContain(ro.globalSettings.materialWarning);
+    ).not.toContain(content.globalSettings.materialWarning);
   });
 });
 

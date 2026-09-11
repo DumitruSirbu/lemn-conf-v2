@@ -48,9 +48,31 @@ corpuri'"*. Encoded as CLDR `one` / `few` / `other`, which produces it without a
 - `globalSettings.appliesTo` at 0 → *"Se aplică tuturor celor 0 corpuri."*
 
 Everything else is unchanged: 1 → *corp*, 2–19 → *corpuri*, 20 and 100 → *de corpuri*, 101 →
-*corpuri*. Verified by rendering each message through `intl-messageformat` at 0, 1, 2, 19, 20, 100
+*corpuri*. **(The 20/100 form is superseded — see the section below.)** Verified by rendering each message through `intl-messageformat` at 0, 1, 2, 19, 20, 100
 and 101. **Neither of the two false comments at `ro.ts:4-7` and `ro.ts:15-19` was carried across**;
 nothing in this file or this guide claims *"0 de corpuri"*.
+
+## Superseded 2026-09-10 — *"de"* leaves the plural entirely
+
+**Owner ruling, 2026-09-10, on two catalogue defects raised during the M6B rebase:**
+
+1. *"pentru"* — `globalSettings.appliesTo` read *"Nu se setează **petru** fiecare dulap în parte"*.
+   A transcription slip in the collected catalogue; corrected.
+2. ***"without «de» on plural"*** — the `other` band takes the bare noun at **every** count, so
+   twenty reads *"20 dulapuri"* and a hundred *"100 dulapuri"*.
+
+This **supersedes** the row below that says *"20 and 100 → de corpuri"*, and it supersedes
+[ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)'s
+*"a count of twenty and above takes «de corpuri»"*. The 2026-09-06 zero ruling is not reversed — it
+is generalised: what was one value's exception is now the rule for the whole band.
+
+`panel.countForBody`, `panel.countForSlot` and `catalog.bodyLabelWithDoors` carried the *"de"* and
+were changed; `globalSettings.appliesTo` and `globalSettings.materialResetConfirm.body` were already
+written without it. The three CLDR bands stay declared even where `few` and `other` now read the
+same — the band structure is what a later locale and a later reviewer read, and collapsing it would
+hide the ruling rather than record it.
+
+Rendered and verified at 0, 1, 2, 19, 20, 100 and 101.
 
 ## Romanian I would question — for the owner to rule on
 
@@ -120,11 +142,21 @@ judgement call 9 below.
 
 **The surprise in the sweep.** A diacritic grep finds nothing beyond the sources listed above, but
 the palette names in **`materials.ts:194-233` have no diacritics** and are therefore invisible to it.
-Since wave 6R the finish swatches render the material's own declared names, so they are
+~~Since wave 6R the finish swatches render the material's own declared names~~, so they are
 customer-visible copy — and **neither the M6B plan nor ADR 0095 mentions them**, in the in-scope list
 or the out-of-scope one. They are collected, under `finish`, verbatim: a `supplierCode` beside a
 string makes it identifiable, not data, and ADR 0071 decision 4 confirms these names *with the
 owner*, which is the test that matters.
+
+**Superseded 2026-09-10 by wave 6B-f2 (`edf2fc0`) — the names are no longer in `materials.ts`.**
+`PaletteEntry.name` is **deleted**; a swatch resolves its name from the entry's `entryId` against
+these eight `finish.*` leaves, through `content.finishName`. So the leaves collected here, read by
+nothing since Gate O1, are now what the screen shows, and the line/column citations above
+(`materials.ts:194-233`) point at rows that carry `entryId` and `supplierCode` only. **The diacritic
+blind spot the paragraph opens with is unchanged and still the reason 6B-j needs a second rule**:
+*Alb*, *Antracit*, *Stejar Bardolino Natur* and *Nuc* contain no Romanian diacritic wherever they
+live. **`supplierCode` stayed in the domain**, deliberately — it is a printed decor code quoted back
+on an order, not copy.
 
 **The question for the owner — one ruling, not eight.** These names split into two piles, and only
 the owner can say which rule the Russian follows.
@@ -146,13 +178,50 @@ supplier code at all, so nothing is quoted back.
 
 Whichever way it goes, `ro.json` does not change; only `ru.json`'s treatment of eight keys does.
 
+**Updated 2026-09-10 — the question is now live, and it is item F6 at Gate O2.** Wave 6B-i drafted
+**all eight translated** (`Stejar Bardolino Natur` → `Дуб Бардолино натуральный`,
+`Gri Havanna` → `Серый Гавана`), which is one of the three answers this section lays out and not a
+ruling; it is flagged for the owner in
+[`gate-o2-russian-review.md`](gate-o2-russian-review.md) as F6, with transliterating and keeping the
+manufacturer's Latin name named beside it. If the answer is *keep the Latin name*, the remedy has the
+same shape as *Hettich* and *Blum*: **no key, one spelling in every locale**. And the diacritic blind
+spot the section above opens with is **closed as a gate**, not as a blind spot — wave 6B-j
+(`aff9a2c`) shipped the positional rule that catches diacritic-free Romanian, which is what the
+sentence at *"still the reason 6B-j needs a second rule"* was waiting for.
+
+**Updated 2026-09-11 — Gate O2 closed, and F6 was left as drafted rather than ruled on.** The owner
+approved the Russian wholesale (*"russian I checked looks ok, if in future I will found something to
+fix I will do this"*) without picking one of the three answers above. **This is not a closed
+question — it is a standing re-open condition.** All eight names ship translated, exactly as 6B-i
+drafted them, and the risk this section names — a customer or supplier matching a decor against a
+printed sample working from the manufacturer's own printed name, not the translated one — is
+unchanged and uncaught by anything automatic. Re-open this section if a supplier ever reads the
+Russian quote.
+
 Deliberately absent, each for a recorded reason:
 
-- **The price book's 6 tier names** (*Standard*, *Hettich*, *Blum*, *PAL melaminat*, *MDF vopsit mat*,
-  *Furnir natural*) and its **6 Romanian descriptions** — ADR 0062 and ADR 0095 decision 3 rule both
-  as book data rendered, not copy.
-- **`MDL`** and the space thousands separator (`price/starting-price.ts:40`) — wave 6B-g's `Intl`
-  work, not a message.
+- ~~**The price book's 6 tier names** (*Standard*, *Hettich*, *Blum*, *PAL melaminat*, *MDF vopsit
+  mat*, *Furnir natural*) and its **6 Romanian descriptions** — ADR 0062 and ADR 0095 decision 3 rule
+  both as book data rendered, not copy.~~ **Superseded four days after this was written**, by
+  [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md)
+  **Amendment B** (2026-09-07): displayed names and descriptions publish descriptors and are resolved
+  by the app. The mechanism is
+  [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+  — a row keeps `name` and gains an optional `nameKey` — and the work is wave **6B-f2**. Measured on
+  the current tree it is ~~**8 names and 8 descriptions**~~, not 6 and 6. ADR 0062 decision 1 still
+  holds: what leaves the book is the rendered sentence, never a tier, an amount, a delta or a rule.
+
+  **Shipped 2026-09-10 at `edf2fc0`: 14 keys — 6 names and 8 descriptions.** *Hettich* and *Blum*
+  are brand names and carry **no `nameKey`**, which under ADR 0106 decision 1 is how a row says its
+  name must not be translated. Three descriptions were then trimmed at `ff8114c` on the owner's
+  ruling, because they restated an amount or an earning rule in prose — ADR 0106 **Amendment A**.
+- ~~**`MDL`** and the space thousands separator (`price/starting-price.ts:40`) — wave 6B-g's `Intl`
+  work, not a message.~~ **Half superseded by ADR 0095 Amendment C** (2026-09-10): there is no `Intl`
+  work — measured, `Intl.NumberFormat("ro")` renders `143.000` where the mockups say `143 000`, and
+  `ro-MD` renders the currency as `L`. The separator stays a product constant; **`MDL` becomes a
+  message** after all, as `price.amountWithCurrency`, so Gate O2 can rule on what Russian calls it.
+  **Shipped 2026-09-10 at `cb66896`**: `ro.json` and `ru.json` both carry
+  `price.amountWithCurrency` = *"{amount} MDL"*; the separator did not move.
 - **`<html lang="ro">`** (`layout.tsx:22`) — wave 6B-b.
 - **Romanian inside comments**, which quote copy deliberately and reach no customer.
 

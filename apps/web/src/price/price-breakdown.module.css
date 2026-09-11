@@ -95,7 +95,7 @@
 }
 
 /* The whole-kitchen rules follow every placement row, separated by a rule. **Not a subtotal line**:
- * nothing above it is summed and nothing below it claims to be — see `ro.priceBreakdown.note`. */
+ * nothing above it is summed and nothing below it claims to be — see `priceBreakdown.note`. */
 .wholeKitchen {
   padding-top: 4px;
   border-top: 1px solid var(--line-soft);
@@ -172,18 +172,25 @@
   border-top: 1px solid var(--line);
 }
 
+/* **Reads as one sentence, matching the price bar** — owner's ruling of 2026-09-10: the sheet's
+ * footer said `DE LA` stacked above the amount in small letter-spaced caps while the bar beside it
+ * said *"de la 86 000 MDL"* on one line, and the same figure was being announced two ways on two
+ * surfaces a customer sees within a tap of each other. This is now `price-bar.module.css`'s
+ * treatment: one baseline-aligned row, the label at the amount's size and weight.
+ *
+ * `text-transform: lowercase` stays on the **label span alone** and must not move up to `.figure`,
+ * for the reason the bar records: one span covering both would take `MDL` down with it. */
 .figure {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 6px;
+  align-items: baseline;
   margin: 0;
 }
 
 .figureLabel {
-  font: 400 10.5px/1 var(--font-ui);
-  letter-spacing: 0.09em;
-  color: var(--ink-faint);
-  text-transform: uppercase;
+  font: 400 21px/1 var(--font-ui);
+  text-transform: lowercase;
 }
 
 .figureAmount {
@@ -312,6 +319,11 @@
     padding: 16px 24px 20px;
   }
 
+  /* **Both spans, never one.** This override predates the owner's 2026-09-10 ruling and was harmless
+   * while the label was 10.5 px; once the label became the amount's equal, an amount alone at 20 px
+   * rendered *"de la"* at 21 over a number at 20 — the prefix larger than the figure it qualifies,
+   * which is the ruling inverted. Whatever size this context takes, the pair takes it together. */
+  .figureLabel,
   .figureAmount {
     font-size: 20px;
   }

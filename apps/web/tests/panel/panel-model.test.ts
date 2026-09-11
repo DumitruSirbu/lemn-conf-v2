@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 
 import {
   cornerReturnMeta,
@@ -12,7 +12,7 @@ import {
   slotMeta,
 } from "../support/selection-meta";
 
-import type { SelectionMeta } from "@lemnaria/configurator-domain";
+import { entryLabel, type SelectionMeta } from "@lemnaria/configurator-domain";
 
 import {
   asWidthChoice,
@@ -34,11 +34,13 @@ function panelFor(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ) {
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: [],
     rejection: null,
     widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -81,8 +83,8 @@ describe("describePanel — when the panel is open at all", () => {
   it("renders §9's header line from the selection's own numbers", () => {
     const panel = openPanelFor(occupiedMeta());
     expect(panel.header).toEqual({
-      label: "Corp bază 2 uși",
-      detail: "Perete A · bază · 600 × 860 mm",
+      label: ro.bodyLabel(occupiedMeta().label),
+      detail: ro.panel.headerMeta("A", ro.bandLabel("base"), 600, 860),
     });
   });
 });
@@ -218,10 +220,13 @@ describe("describePanel — the replace list", () => {
     const occupied = openPanelFor(occupiedMeta(), { offers: offers(1) });
     const slot = openPanelFor(slotMeta(), { offers: offers(1) });
     expect(findSection(occupied.sections, "replace")?.title).toBe(
-      "Înlocuiește",
+      ro.panel.replaceTitleOccupied,
     );
     expect(findSection(slot.sections, "replace")?.title).toBe(
-      "Pune un corp aici",
+      ro.panel.replaceTitleEmpty,
+    );
+    expect(findSection(occupied.sections, "replace")?.title).not.toBe(
+      findSection(slot.sections, "replace")?.title,
     );
   });
 
@@ -238,29 +243,29 @@ describe("describePanel — the replace list", () => {
   it("counts an occupied body's set by band and width, per §9's example", () => {
     const panel = openPanelFor(occupiedMeta(), { offers: offers(5) });
     expect(findSection(panel.sections, "replace")?.countLine).toBe(
-      "5 corpuri bază de 600",
+      ro.panel.countForBody(5, ro.panel.bandWords.base.many, 600),
     );
   });
 
   // The header reads "rând de sus", which is right in a header and ungrammatical mid-sentence.
   // The count line therefore takes the normalised band's own word and agrees it with the count.
   it("words the band for the sentence rather than reusing the header's label", () => {
-    const topRow = occupiedMeta({
-      band: "top",
-      bandLabel: "rând de sus",
-      widthMm: 700,
-    });
+    const topRow = occupiedMeta({ band: "top", widthMm: 700 });
     const lineFor = (count: number) =>
       findSection(
         openPanelFor(topRow, { offers: offers(count) }).sections,
         "replace",
       )?.countLine;
-    expect(lineFor(5)).toBe("5 corpuri suspendate de 700");
-    expect(lineFor(1)).toBe("1 corp suspendat de 700");
-    expect(lineFor(5) ?? "").not.toContain("rând de sus");
+    expect(lineFor(5)).toBe(
+      ro.panel.countForBody(5, ro.panel.bandWords.wall.many, 700),
+    );
+    expect(lineFor(1)).toBe(
+      ro.panel.countForBody(1, ro.panel.bandWords.wall.one, 700),
+    );
+    expect(lineFor(5) ?? "").not.toContain(ro.bandLabel("top"));
     expect(
       findSection(openPanelFor(topRow).sections, "replace")?.emptyLine,
-    ).toContain("corp suspendat");
+    ).toBe(ro.panel.noOffersForBody(ro.panel.bandWords.wall.one));
   });
 
   // Romanian takes "de" from twenty upward. The catalogue cannot reach twenty today, so this is
@@ -271,26 +276,40 @@ describe("describePanel — the replace list", () => {
         openPanelFor(occupiedMeta(), { offers: offers(count) }).sections,
         "replace",
       )?.countLine;
-    expect(lineFor(1)).toContain("1 corp bază");
-    expect(lineFor(19)).toContain("19 corpuri bază");
-    expect(lineFor(20)).toContain("20 de corpuri bază");
-    expect(lineFor(21)).toContain("21 de corpuri bază");
+    expect(lineFor(1)).toBe(
+      ro.panel.countForBody(1, ro.panel.bandWords.base.one, 600),
+    );
+    expect(lineFor(19)).toBe(
+      ro.panel.countForBody(19, ro.panel.bandWords.base.many, 600),
+    );
+    expect(lineFor(20)).toBe(
+      ro.panel.countForBody(20, ro.panel.bandWords.base.many, 600),
+    );
+    expect(lineFor(21)).toBe(
+      ro.panel.countForBody(21, ro.panel.bandWords.base.many, 600),
+    );
   });
 
   it("uses the singular for one offer", () => {
     const panel = openPanelFor(occupiedMeta(), { offers: offers(1) });
     expect(findSection(panel.sections, "replace")?.countLine).toBe(
-      "1 corp bază de 600",
+      ro.panel.countForBody(1, ro.panel.bandWords.base.one, 600),
     );
   });
 
   // §9: a zero-result list shows a sentence saying what to clear, never a bare "0".
   it("replaces the count line with a sentence when nothing fits", () => {
-    for (const meta of [occupiedMeta(), slotMeta()]) {
+    // Which leaf, not which word: the two sentences differ because one selection is a body and the
+    // other a slot, and both say what to clear. Their wording is pinned in the copy lock.
+    const emptyLineFor = [
+      ro.panel.noOffersForBody(ro.panel.bandWords.base.one),
+      ro.panel.noOffersForSlot(700, 860),
+    ];
+    for (const [index, meta] of [occupiedMeta(), slotMeta()].entries()) {
       const section = findSection(openPanelFor(meta).sections, "replace");
       expect(section?.rows).toEqual([]);
       expect(section?.countLine).toBeUndefined();
-      expect(section?.emptyLine ?? "").toMatch(/Șterge/);
+      expect(section?.emptyLine).toBe(emptyLineFor[index]);
       expect(section?.emptyLine ?? "").not.toMatch(/\b0\b/);
     }
   });
@@ -311,13 +330,26 @@ describe("describePanel — the replace list", () => {
 
   it("shows each row the size it would build to in this opening", () => {
     const panel = openPanelFor(slotMeta(), {
-      offers: [
-        offer({ verdict: { status: "offered", widthMm: 700, heightMm: 1850 } }),
-      ],
+      offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
     });
     expect(findSection(panel.sections, "replace")?.rows[0]?.secondaryLine).toBe(
       "700 × 1850 mm",
     );
+  });
+
+  // **The greyed row ADR 0032 required is gone** (owner, 2026-09-10: *"show only what is possible to
+  // insert"*), so what used to be *"a refused offer stays visible, disabled, with the engine's
+  // reason"* is now this: every row the panel renders is enabled and carries its size, because
+  // `offersFor` published only rows the engine planned. The disabled arms that remain are the two
+  // panel-wide ones — read-only, and a probe still attaching — and each has its own test.
+  it("enables every row it renders, since a row it renders is one that can be inserted", () => {
+    const panel = openPanelFor(slotMeta(), {
+      offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
+    });
+    const row = findSection(panel.sections, "replace")?.rows[0];
+
+    expect(row?.isDisabled).toBe(false);
+    expect(row?.secondaryLine).toBe(ro.panel.offerSize(700, 1850));
   });
 
   // "Never offer what cannot be satisfied": until the scene mounts, `insertBody` refuses every
@@ -418,12 +450,12 @@ describe("describePanel — finish and handle chips", () => {
     );
   });
 
-  it("labels each chip with the decor's own declared name", () => {
+  it("labels each chip with the decor's own catalogue name", () => {
     const section = swatchSectionOf(openPanelFor(occupiedMeta()).sections);
 
     expect(section.chips.map((chip) => chip.label)).toEqual(
-      paletteEntriesOf(materialById("material.melamine")).map(
-        (entry) => entry.name,
+      paletteEntriesOf(materialById("material.melamine")).map((entry) =>
+        ro.finishName(entry.entryId),
       ),
     );
   });
@@ -522,7 +554,7 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
           currentMm: 600,
           freeMm: [800],
           blockedMm: [400],
-          label: "Corp suspendat",
+          label: entryLabel("wall-cabinet"),
         }),
       }).sections,
       "width",
@@ -530,7 +562,7 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
     const reasons = new Map(
       asWidthChoice(section).chips.map((chip) => [chip.widthMm, chip.reason]),
     );
-    expect(reasons.get(400)).toContain("Corp suspendat");
+    expect(reasons.get(400)).toContain("Dulap suspendat");
     expect(reasons.get(600)).toBeUndefined();
     expect(reasons.get(800)).toBeUndefined();
   });

@@ -82,15 +82,25 @@ export const SELECTION_OUTLINE_CASING_COLOR = 0x101010;
 /** Screen-space pixels, and honestly so: `LineSegments2` draws each segment as camera-facing
  *  quads, which is why this number has an effect at all. Setting `linewidth` on an ordinary
  *  `LineBasicMaterial` — what the `BoxHelper` used — is silently ignored by ANGLE and by every
- *  desktop OpenGL driver, so the old highlight was always exactly one pixel wide. */
-export const SELECTION_OUTLINE_WIDTH_PX = 4;
+ *  desktop OpenGL driver, so the old highlight was always exactly one pixel wide.
+ *
+ *  **4 -> 2 on the owner's ruling of 2026-09-10**: *"I would prefer for the highlight thinner
+ *  lines, current red lines are too thick."* The casing moved with it — see below — because
+ *  narrowing the core alone would have left a 2 px black rim on either side of a 2 px red core, and
+ *  the highlight would have read as a black outline with a red seam rather than as a red one. */
+export const SELECTION_OUTLINE_WIDTH_PX = 2;
 
-/** The casing's width, and the reason it is `SELECTION_OUTLINE_WIDTH_PX + 4` rather than a ratio:
- *  what has to survive is the **rim**, and a rim is a difference of widths in screen pixels. At 8
- *  against 4 the casing shows 2 px on each side of the core at every camera distance, because
- *  `LineSegments2` sizes its quads in screen space. A ratio would make the rim vanish as the line
- *  narrows, which is exactly the case — a body far from the camera — where it is needed most. */
-export const SELECTION_OUTLINE_CASING_WIDTH_PX = SELECTION_OUTLINE_WIDTH_PX + 4;
+/** The casing's width, and the reason it is a **sum** rather than a ratio: what has to survive is
+ *  the **rim**, and a rim is a difference of widths in screen pixels. At 4 against 2 the casing
+ *  shows 1 px on each side of the core at every camera distance, because `LineSegments2` sizes its
+ *  quads in screen space. A ratio would make the rim vanish as the line narrows, which is exactly
+ *  the case — a body far from the camera — where it is needed most.
+ *
+ *  **The addend narrowed 4 -> 2 with the core**, so the proportion the pair was designed at is
+ *  kept: the casing is twice the core and the rim is half of it. A 1 px rim is the floor — below
+ *  this the casing stops being a rim and becomes an antialiasing artefact, so if the owner asks for
+ *  thinner again, the core is what moves and this addend stays at 2. */
+export const SELECTION_OUTLINE_CASING_WIDTH_PX = SELECTION_OUTLINE_WIDTH_PX + 2;
 
 /** The occluded half of the outline: drawn without depth testing so a selected body standing
  *  behind the worktop, the hood or a neighbouring column still shows which body it is. Thinner and

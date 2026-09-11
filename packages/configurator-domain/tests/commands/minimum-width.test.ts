@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SINK_CHIPS_MM } from "../support/width-model.js";
+import { offeredIds, offerFor } from "../support/offers.js";
 
 import {
   baseFinishedDepthMm,
@@ -23,10 +24,8 @@ import {
   openingFromVoid,
   type InsertFit,
 } from "../../src/commands/insert-fit.js";
-import { renderRejection } from "../../src/commands/rejection.js";
 import { toMetres } from "../../src/millimetres.js";
 import { offersFor, type CatalogOffer } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import { FIT_TOLERANCE_M, type BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import type { KitchenWorld } from "../support/kitchen-world.js";
@@ -125,9 +124,6 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
       code: "WIDTH_TOO_SMALL",
       params: { requiredMm: SINK_MIN_WIDTH_MM, availableMm: 400 },
     });
-    expect(result.reason.message.trim().length).toBeGreaterThan(0);
-    expect(result.reason.message).toContain(String(SINK_MIN_WIDTH_MM));
-    expect(result.reason.message).toContain("400");
   });
 
   // The general floor is untouched: an entry with no `minWidthMm` is still governed by §2's 300 mm,
@@ -149,9 +145,7 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
   it("does not offer the sink base for a 400 mm or a 500 mm opening", () => {
     for (const widthMm of [400, 500]) {
       const world = baseOpeningWorld(widthMm);
-      const offered = offeredRows(
-        offersFor({ ...world, target: baseVoidTarget(world) }),
-      );
+      const offered = offersFor({ ...world, target: baseVoidTarget(world) });
       expect(offered.length, `${String(widthMm)} mm`).toBeGreaterThan(0);
       expect(
         offered.map((offer) => offer.buildId),
@@ -162,9 +156,7 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
 
   it("offers the sink base for a 600 mm opening", () => {
     const world = baseOpeningWorld(600);
-    const offered = offeredRows(
-      offersFor({ ...world, target: baseVoidTarget(world) }),
-    );
+    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
     expect(offered.map((offer) => offer.buildId)).toContain("base-sink");
   });
 
@@ -181,7 +173,7 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
     for (const widthMm of widthsMm) {
       const world = baseOpeningWorld(widthMm);
       const target = baseVoidTarget(world);
-      const offered = offeredRows(offersFor({ ...world, target }));
+      const offered = offersFor({ ...world, target });
       for (const offer of offered) {
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
@@ -272,7 +264,9 @@ const SYNTHETIC_SET_ENTRY = {
   fixedWidth: false,
   heightFlex: false,
   insertable: true,
-  label: "Nișă sintetică",
+  // ASCII on purpose: this entry ships in no catalogue and its label is never rendered or asserted,
+  // so a Romanian one would be the only customer-shaped string in a package that publishes none.
+  label: "Synthetic set entry",
   nominalHeightMm: 860,
   nominalDepthMm: 580,
   occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
@@ -332,18 +326,15 @@ describe("R2.1: a millimetre-set body honours its own minimum width", () => {
     expect(fit.detail.code).toBe("WIDTH_TOO_LARGE");
   });
 
-  // The refusal must name the widths the body can be *built* at, not the ones its row lists: 450
-  // is not a width this entry has, so a sentence offering it would be false. The opening is 480 so
-  // that a leaked 450 cannot be confused with the opening's own millimetres.
-  it("names only the buildable widths in its sentence", () => {
+  // The refusal publishes the governing floor and available opening rather than the raw row list.
+  it("publishes the governing floor and available opening", () => {
     const fit = fitInBaseOpening(SET_WITH_FLOOR, 480);
     expect(fit.ok).toBe(false);
     if (fit.ok) return;
-    const message = renderRejection(fit.detail);
-    expect(message.trim().length).toBeGreaterThan(0);
-    expect(message).toContain("600");
-    expect(message).toContain("480");
-    expect(message).not.toContain("450");
+    expect(fit.detail).toMatchObject({
+      code: "WIDTH_TOO_LARGE",
+      params: { requiredMm: 600, availableMm: 480 },
+    });
   });
 
   it("still selects a listed size at or above the floor", () => {
@@ -363,7 +354,10 @@ describe("R2.1: a millimetre-set body honours its own minimum width", () => {
       code: "WIDTH_TOO_SMALL",
       params: { requiredMm: 500 },
     });
-    expect(renderRejection(fit.detail).trim().length).toBeGreaterThan(0);
+    expect(fit.detail).toMatchObject({
+      code: "WIDTH_TOO_SMALL",
+      params: { requiredMm: 500 },
+    });
   });
 });
 
@@ -408,12 +402,12 @@ describe("R2.1: no shipped entry's width resolution changes", () => {
           kind: "void",
           id: voidAt(world, OPENING_COLUMN, y0).id,
         } as const;
-        for (const offer of offeredRows(offersFor({ ...world, target }))) {
+        for (const offer of offersFor({ ...world, target })) {
           const definition = definitionsByBuildId.get(offer.buildId);
           expect(definition, offer.buildId).toBeDefined();
           if (!definition) continue;
           expect(
-            offer.verdict.widthMm,
+            offer.buildsToWidthMm,
             `${String(openingMm)} mm @ ${String(y0)} -> ${offer.buildId}`,
           ).toBe(widthMmBeforeR2(definition, openingMm));
         }
@@ -497,21 +491,22 @@ describe("§9's width chips are narrowed by the same floor", () => {
   // careless filter would eat.
   it("leaves base-sink's chips stepped from its aperture", () => {
     const world = baseOpeningWorld(800);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
-    const sink = offered.find((offer) => offer.buildId === "base-sink");
-    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
+    const offers = offersFor({ ...world, target: baseVoidTarget(world) });
+
+    expect(offerFor(offers, "base-sink").sizesMm).toEqual(SINK_CHIPS_MM);
   });
 
-  // ADR 0032 decides what a **refused** row's chips mean, and the answer is "the same thing": the
-  // widths this body can be built at are a fact about the entry, not about the opening it was
-  // measured against. They are what "requires more space" means in millimetres, so they are the half
-  // of a disabled row a customer can act on — and narrowing them to what fits here would leave the
-  // row saying nothing at all.
-  it("leaves them there on a row it refuses, unnarrowed", () => {
+  // **ADR 0032's disabled row is gone, so the claim turns over.** That decision said a refused
+  // row keeps its unnarrowed chips, because they are what *"requires more space"* means in
+  // millimetres. The owner ruled on 2026-09-10 that the row itself should not be there — *"show
+  // only what is possible to insert"* — so what this proves now is the absence, and the pairing
+  // with the 800 mm opening above is what stops the absence from being vacuous: the same query
+  // offers `base-sink` the moment its 560 mm floor is met.
+  it("drops a row it refuses, rather than disabling it with its chips still on", () => {
     const world = baseOpeningWorld(400);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
-    const sink = offered.find((offer) => offer.buildId === "base-sink");
-    expect(sink?.verdict.status).toBe("refused");
-    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
+    const offers = offersFor({ ...world, target: baseVoidTarget(world) });
+
+    expect(offers.length).toBeGreaterThan(0);
+    expect(offeredIds(offers)).not.toContain("base-sink");
   });
 });

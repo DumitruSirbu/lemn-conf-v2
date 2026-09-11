@@ -37,6 +37,8 @@ import {
   projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
+  entryLabel,
+  type BodyLabel,
   type CabinetPriceLine,
   type Design,
   type DisplayEntry,
@@ -48,7 +50,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import {
   createConfiguratorStore,
   type ConfiguratorState,
@@ -179,7 +186,11 @@ function availableView(
   pricing: PricingResult,
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({
+    content: ro,
+    pricing,
+    groups,
+  });
   if (view.kind !== "available")
     throw new Error("expected the seeded design to price");
   return view;
@@ -231,7 +242,7 @@ describe("a line's words are the projection's, and the price line's copy of them
   /** One group holding one entry, with its label and width replaced — so the entry and the price
    *  line that matches it disagree about the two values **both** of them carry. */
   function groupsWithOneRelabelledEntry(
-    label: string,
+    label: BodyLabel,
     widthMm: number,
   ): readonly DisplayGroup[] {
     const [first] = SHIPPED_GROUPS;
@@ -252,14 +263,15 @@ describe("a line's words are the projection's, and the price line's copy of them
 
   it("prints the entry's label where the price line disagrees", () => {
     // `CabinetPriceLine.label` is `describeBodyLabelAt`'s answer too, so every shipped assertion
-    // holds whichever of the two the model read. This one does not.
+    // holds whichever of the two the model read. This one does not: the projection is given a
+    // descriptor for a different catalogue row entirely, so the resolved words separate the two.
     const view = availableView(
       pricingForOneEntry(),
-      groupsWithOneRelabelledEntry("Corp inventat de proiecție", 600),
+      groupsWithOneRelabelledEntry(entryLabel("fridge-free"), 600),
     );
 
     expect(view.groups[0]?.rows[0]?.label).toContain(
-      "Corp inventat de proiecție",
+      ro.bodyLabel(entryLabel("fridge-free")),
     );
   });
 
@@ -270,10 +282,12 @@ describe("a line's words are the projection's, and the price line's copy of them
     const line = cabinetLinesOf(pricingForOneEntry())[0];
     const view = availableView(
       pricingForOneEntry(),
-      groupsWithOneRelabelledEntry("Corp bază", 337),
+      groupsWithOneRelabelledEntry(entryLabel("base-cabinet"), 337),
     );
 
-    expect(view.groups[0]?.rows[0]?.label).toBe("Corp bază 337");
+    expect(view.groups[0]?.rows[0]?.label).toBe(
+      `${ro.bodyLabel(entryLabel("base-cabinet"))} 337`,
+    );
     expect(line?.widthMm).not.toBe(337);
   });
 
@@ -283,7 +297,7 @@ describe("a line's words are the projection's, and the price line's copy of them
     // would still pass.
     for (const group of SHIPPED_GROUPS)
       for (const entry of group.entries)
-        expect(entry.label, entry.placementId).not.toContain(
+        expect(ro.bodyLabel(entry.label), entry.placementId).not.toContain(
           String(entry.widthMm),
         );
   });
@@ -296,7 +310,11 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
       const short = SHIPPED_GROUPS.filter((_, other) => other !== index);
 
       expect(() =>
-        describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: short }),
+        describePriceBreakdown({
+          content: ro,
+          pricing: SHIPPED_PRICING,
+          groups: short,
+        }),
       ).toThrow(PriceBreakdownDivergenceError);
     }
   });
@@ -318,7 +336,11 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
         );
 
         expect(() =>
-          describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: short }),
+          describePriceBreakdown({
+            content: ro,
+            pricing: SHIPPED_PRICING,
+            groups: short,
+          }),
         ).toThrow(PriceBreakdownDivergenceError);
       }
     }
@@ -333,6 +355,7 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
       expect(() =>
         describePriceBreakdown({
+          content: ro,
           pricing: withLines(SHIPPED_PRICING, short),
           groups: SHIPPED_GROUPS,
         }),

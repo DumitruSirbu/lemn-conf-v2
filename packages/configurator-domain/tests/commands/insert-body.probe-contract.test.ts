@@ -11,6 +11,8 @@
 // claims to have written.
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import type { BodyMeasurement, BodyProbe } from "../../src/body-probe.js";
 import { DesignSchema } from "../../src/design.js";
 import {
@@ -70,7 +72,9 @@ describe("insertBody — a probe that measured nothing", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.reason.code).toBe("MEASUREMENT_UNUSABLE");
-      expect(result.reason.message.trim().length).toBeGreaterThan(0);
+      expect(result.reason.params).toMatchObject({
+        label: entryLabel("base-3drawer"),
+      });
       expect(result.design).toBe(world.design);
     },
   );

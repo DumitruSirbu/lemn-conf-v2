@@ -26,7 +26,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 import {
   describeGlobalSettings,
@@ -107,6 +112,7 @@ function viewFor(options: {
 }): GlobalSettingsView {
   const { design } = options;
   return describeGlobalSettings({
+    content: ro,
     pricing: priceDesign({
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
@@ -138,10 +144,13 @@ function confirmOf(view: GlobalSettingsView): MaterialResetConfirmView {
 /** These fixtures are about the confirmation and its copy, never about access. Stated rather than
  *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
  *  cannot silently default to permitted (M6-AUD-001). */
-const WRITABLE_ACCESS = describeEditability({
-  canWrite: true,
-  saveStatus: "idle",
-});
+const WRITABLE_ACCESS = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "idle",
+  },
+  ro.panel,
+);
 
 function choosingMarkupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
@@ -329,7 +338,7 @@ describe("the four strings, where the customer meets them", () => {
     expect(markup).toContain(RULED.back);
   });
 
-  it("names an outcome in each action rather than OK and Anulează", () => {
+  it("names an outcome in each action rather than OK and a bare cancel", () => {
     expect([RULED.confirm, RULED.back]).not.toContain("OK");
     expect([RULED.confirm, RULED.back]).not.toContain(ro.globalSettings.cancel);
   });
@@ -339,12 +348,16 @@ describe("the four strings, where the customer meets them", () => {
     // U+0219 (ș) against U+015F (ş), U+021B (ț) against U+0163 (ţ).
     const sentence = RULED.body(CHOSEN_COLOURS_ON_THE_MDF_FIXTURE);
 
-    expect(sentence).toContain("ș");
+    // The three literals in this case are codepoints and one grapheme, asserted as *properties* of
+    // the accepted wording rather than as the wording — wave 6B-j's allow-list, not a conversion.
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: codepoints and one grapheme, asserted as properties of the accepted wording rather than as the wording. */
+    expect(ro.globalSettings.depthWarning).toContain("\u021b");
     expect(sentence).not.toMatch(/[şţ]/);
     expect(RULED.confirm).toContain("ă");
     expect(RULED.confirm).not.toMatch(/[şţ]/);
     expect(RULED.back).not.toMatch(/[şţ]/);
     expect(RULED.title).not.toMatch(/[şţ]/);
+    /* eslint-enable no-restricted-syntax */
   });
 });
 

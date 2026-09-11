@@ -15,9 +15,7 @@ import { evaluateInsertFit } from "../../src/commands/insert-fit.js";
 import { FIT_TOLERANCE_M } from "../../src/void-engine.js";
 import { toMetres } from "../../src/millimetres.js";
 import { recordedClearanceM } from "../../src/occupied-depth.js";
-import { renderRejection } from "../../src/commands/rejection.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import type { Column, InsertOpening } from "../../src/index.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
@@ -67,7 +65,7 @@ describe("§5.3's swap in place hits the same floor", () => {
   it("does not offer the sink base as a swap for a 500 mm body", () => {
     const world = occupiedBaseWorld(500);
 
-    const offered = offeredRows(offersFor({ ...world, target: SWAP_TARGET }));
+    const offered = offersFor({ ...world, target: SWAP_TARGET });
 
     expect(offered.length).toBeGreaterThan(0);
     expect(offered.map((offer) => offer.buildId)).not.toContain("base-sink");
@@ -75,7 +73,7 @@ describe("§5.3's swap in place hits the same floor", () => {
 
   it("offers and performs the swap at 600 mm", () => {
     const world = occupiedBaseWorld(600);
-    const offered = offeredRows(offersFor({ ...world, target: SWAP_TARGET }));
+    const offered = offersFor({ ...world, target: SWAP_TARGET });
 
     expect(offered.map((offer) => offer.buildId)).toContain("base-sink");
     const result = insertInto(world, SWAP_TARGET, "base-sink");
@@ -87,9 +85,7 @@ describe("§5.3's swap in place hits the same floor", () => {
   it("performs every offered swap across 300–800 mm", () => {
     for (let widthMm = 300; widthMm <= 800; widthMm += 20) {
       const world = occupiedBaseWorld(widthMm);
-      for (const offer of offeredRows(
-        offersFor({ ...world, target: SWAP_TARGET }),
-      )) {
+      for (const offer of offersFor({ ...world, target: SWAP_TARGET })) {
         const result = insertInto(world, SWAP_TARGET, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
           true,
@@ -116,7 +112,7 @@ describe("the offer list and the guard agree on every band", () => {
         kind: "void",
         id: voidAt(world, OPENING_COLUMN, level.y0).id,
       } as const;
-      for (const offer of offeredRows(offersFor({ ...world, target }))) {
+      for (const offer of offersFor({ ...world, target })) {
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
           true,
@@ -156,7 +152,7 @@ describe("insertBody accepts a swap the offer list does not show", () => {
   it("swaps a base cabinet for a full-height unit that was never in its list", () => {
     const world = tallColumnWithOnlyABase();
 
-    const offered = offeredRows(offersFor({ ...world, target: SWAP_TARGET }));
+    const offered = offersFor({ ...world, target: SWAP_TARGET });
     const result = insertInto(world, SWAP_TARGET, "tall-pantry");
 
     expect(offered.map((offer) => offer.buildId)).not.toContain("tall-pantry");
@@ -312,17 +308,14 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
     }
   });
 
-  // §9's sentence is rendered verbatim by the panel, so a partially filtered set must not name a
-  // width the body cannot be built at — "se face doar în 400, 450, 600 mm" would be a lie about
-  // 400, and the customer would go looking for an opening that could never take one.
-  it("names only the buildable widths in the refusal it renders", () => {
+  // A partially filtered set must not publish a width the body cannot be built at.
+  it("publishes only the buildable widths in the refusal descriptor", () => {
     const fit = fitOf([400, 450, 600], 450, 300);
 
     expect(fit.ok).toBe(false);
     if (fit.ok) return;
     expect(fit.detail.code).toBe("WIDTH_NOT_SUPPORTED");
     expect(fit.detail.params).toMatchObject({ sizesMm: [450, 600] });
-    expect(renderRejection(fit.detail)).not.toContain("400");
   });
 
   it("leaves an entry that declares no floor with its whole set", () => {

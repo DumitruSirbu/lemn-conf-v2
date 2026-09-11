@@ -1,6 +1,7 @@
-import Link from "next/link";
+"use client";
 
-import { ro } from "@/content/ro";
+import { useContent } from "@/i18n/use-content";
+import { Link } from "@/i18n/navigation";
 
 import styles from "./design-load-error.module.css";
 
@@ -13,7 +14,7 @@ export function DesignLoadError({
 }: {
   reason: DesignLoadFailureReason;
 }) {
-  const copy = ro.designLoadError;
+  const copy = useContent().designLoadError;
   return (
     <main className={styles.screen} data-testid="design-load-error">
       <h1 className={styles.title}>{copy.title}</h1>

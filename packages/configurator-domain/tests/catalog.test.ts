@@ -5,7 +5,6 @@ import {
   baseFinishedDepthMm,
   buildableSizes,
   describeBodyLabelAt,
-  describeKindLabel,
   INSERTABLE_BODY_DEFINITIONS,
   isKnownKind,
   listInsertableBodies,
@@ -52,7 +51,7 @@ describe("the one catalogue, two populations (ADR 0011 Gap A)", () => {
     for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
       const body = toInsertableBody(buildId, definition);
       expect(body, buildId).toBeDefined();
-      expect(body?.label.length, buildId).toBeGreaterThan(0);
+      expect(body?.label, buildId).toEqual({ kind: "entry", buildId });
       expect(body?.sizesMm.length, buildId).toBeGreaterThan(0);
       expect(body?.nominalHeightMm, buildId).toBeGreaterThan(0);
     }
@@ -146,7 +145,6 @@ describe("kind labels", () => {
   // §11 row 24: a fallback set once produced six guaranteed-refused rows for the hob.
   it("reports an unknown kind as unknown", () => {
     expect(isKnownKind("teleporter")).toBe(false);
-    expect(describeKindLabel("teleporter").length).toBeGreaterThan(0);
   });
 });
 
@@ -155,20 +153,17 @@ describe("kind labels", () => {
 // vacated opening and is built with a hob on it — is `hob-base.test.ts` in `@lemnaria/three-adapter`,
 // where the real builders and the real probe are.
 describe("ADR 0027's hob-bearing bases", () => {
-  const HOB_ENTRIES = [
-    ["base-hob-2drawer", "Corp plită și 2 sertare"],
-    ["base-hob-oven", "Corp plită și cuptor"],
-  ] as const;
+  const HOB_ENTRIES = ["base-hob-2drawer", "base-hob-oven"] as const;
 
   it.each(HOB_ENTRIES)(
-    "%s is an insertable 600 mm base carrying its Romanian label",
-    (buildId, label) => {
+    "%s is an insertable 600 mm base named by its own catalogue row",
+    (buildId) => {
       const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
       expect(definition, buildId).toBeDefined();
       if (!definition) return;
       const body = toInsertableBody(buildId, definition);
       expect(body, buildId).toBeDefined();
-      expect(body?.label).toBe(label);
+      expect(body?.label).toEqual({ kind: "entry", buildId });
       expect(body?.band).toBe("base");
       expect(body?.kind).toBe("base_cabinet");
       expect(body?.nominalHeightMm).toBe(860);
@@ -179,9 +174,11 @@ describe("ADR 0027's hob-bearing bases", () => {
     },
   );
 
-  it("gives the two entries different labels, so the picker can tell them apart", () => {
+  // Two rows, so two `catalog.entries.*` leaves and two names in the picker. The words themselves
+  // are the catalogue's since 6B-f and are checked in `apps/web/tests/i18n/body-label.test.ts`.
+  it("gives the two entries different ids, so the picker can tell them apart", () => {
     const [twoDrawer, oven] = HOB_ENTRIES;
-    expect(twoDrawer[1]).not.toBe(oven[1]);
+    expect(twoDrawer).not.toBe(oven);
   });
 });
 
@@ -414,15 +411,20 @@ describe("the name a customer reads flips with the door count", () => {
   };
 
   it.each([
-    [499, "1 ușă", "the last one-door width"],
-    [500, "2 uși", "the flip (ADR 0035 decision 4)"],
-  ])("names a wall cabinet at %i as %s — %s", (widthMm, expected) => {
-    expect(describeBodyLabelAt(hingedRow("wall-cabinet"), widthMm)).toBe(
-      `Corp suspendat ${expected}`,
-    );
-    expect(describeBodyLabelAt(hingedRow("base-cabinet"), widthMm)).toBe(
-      `Corp bază ${expected}`,
-    );
+    [499, 1, "the last one-door width"],
+    [500, 2, "the flip (ADR 0035 decision 4)"],
+  ])("counts a hinged cabinet's doors at %i as %i — %s", (widthMm, doors) => {
+    for (const buildId of ["wall-cabinet", "base-cabinet"])
+      expect([
+        buildId,
+        describeBodyLabelAt(
+          { buildId, definition: hingedRow(buildId) },
+          widthMm,
+        ),
+      ]).toEqual([
+        buildId,
+        { kind: "withDoors", name: { kind: "entry", buildId }, doors },
+      ]);
   });
 });
 

@@ -16,7 +16,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
 import { roundUpToThousandMdl } from "@/price/starting-price";
 
@@ -77,7 +77,7 @@ function withoutTheOverflowingBody(design: Design): Design {
 }
 
 function pricedBarFor(design: Design): PricedBar {
-  const view = describePriceBar({ pricing: priceOf(design) });
+  const view = describePriceBar({ pricing: priceOf(design), content: ro });
   if (view.kind !== "priced") throw new Error("expected a priced bar");
   return view;
 }
@@ -143,13 +143,13 @@ describe("a pricing failure", () => {
   it("renders no figure at all — not a zero, not a stale one, not a dash", () => {
     // `toEqual` on the whole view rather than a field: the criterion is about what is *absent*, so
     // an assertion that only checked a `kind` would pass with a zero sitting beside it.
-    expect(describePriceBar({ pricing: failed })).toEqual({
+    expect(describePriceBar({ pricing: failed, content: ro })).toEqual({
       kind: "unpriced",
     });
   });
 
   it("still renders nothing when an edit has been refused as well", () => {
-    expect(describePriceBar({ pricing: failed })).toEqual({
+    expect(describePriceBar({ pricing: failed, content: ro })).toEqual({
       kind: "unpriced",
     });
   });
@@ -163,15 +163,12 @@ describe("an overflowing design", () => {
     expect(findOverflowingPlacementIds(overflowing)).toEqual([OVERFLOWING_ID]);
   });
 
-  it("shows its total, flagged with the owner's own sentence", () => {
+  it("reaches for `price.overflowingTotalWarning` and no other leaf", () => {
+    // Which leaf the bar reaches for, not what it says: the wording of
+    // `price.overflowingTotalWarning` is pinned once, in the copy lock, and the two spellings this
+    // case used to carry beside it went red for an owner retranslation rather than for a defect.
     const bar = pricedBarFor(overflowing);
 
-    expect(ro.price.overflowingTotalWarning).toBe(
-      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
-    );
-    expect(bar.overflowWarning).toBe(
-      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
-    );
     expect(bar.overflowWarning).toBe(ro.price.overflowingTotalWarning);
   });
 

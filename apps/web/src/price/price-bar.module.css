@@ -30,9 +30,10 @@
  * uppercase *De la* above the amount, and this file drew that on both shells. The owner ruled the
  * desktop form and then extended it: *"and do same on mobile as on desktop"*. **Frame 2A is
  * superseded by its own author**, dated, with the reason that they want the two shells to read the
- * same — this is not a mismatch to be tidied back, and `content/ro.ts` says so beside the string.
+ * same — this is not a mismatch to be tidied back, and `src/messages/ro.json` carries the ruled
+ * string this draws.
  *
- * Two spans rather than one, and the casing is here rather than in the string: `ro.price` holds one
+ * Two spans rather than one, and the casing is here rather than in the string: `price` holds one
  * ruled word, `De la`, written as it is spoken. Lowercasing it in the copy module would be a second
  * spelling of a ruled string, which is the failure that record already carries. A single span with
  * `text-transform: lowercase` would take `MDL` down with it.
@@ -45,8 +46,11 @@
   margin: 0;
 }
 
+/* **Regular, and only the amount is bold** — owner's ruling of 2026-09-10. The prefix is a
+ * qualifier on the figure, not part of it; setting both at 700 made *"de la"* compete with the
+ * number it qualifies. Same size and baseline so the pair still reads as one sentence. */
 .label {
-  font: 700 21px/1 var(--font-ui);
+  font: 400 21px/1 var(--font-ui);
   text-transform: lowercase;
 }
 

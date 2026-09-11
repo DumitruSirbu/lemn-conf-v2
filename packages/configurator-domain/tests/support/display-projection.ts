@@ -5,6 +5,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import type { LabelledBody } from "../../src/catalog.js";
 import type { DisplayGroup } from "../../src/queries/design-projection.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 
@@ -27,4 +28,9 @@ export function definitionOf(buildId: string): BodyDefinition {
   const definition = PROJECTION_CATALOG.get(buildId);
   if (!definition) throw new Error(`fixture has no entry "${buildId}"`);
   return definition;
+}
+
+/** The pair `describeBodyLabelAt` names a body from: the id it is filed under and its row. */
+export function bodyOf(buildId: string): LabelledBody {
+  return { buildId, definition: definitionOf(buildId) };
 }

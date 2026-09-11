@@ -11,7 +11,7 @@
 // say about a colour, and naming the material at a hood would send the customer to the wrong
 // control.
 import { materialOfDesign } from "../design-material.js";
-import { describeKindLabel } from "../catalog.js";
+import { kindLabel } from "../catalog.js";
 import type { CabinetBody, Design, Handle } from "../design.js";
 import { materialOffersFinish, type Finish } from "../materials.js";
 import {
@@ -89,7 +89,7 @@ export function setFinish(
   if (!selected.record.canFinish) {
     return refuse(input.design, {
       code: "FINISH_NOT_SUPPORTED",
-      params: { label: describeKindLabel(selected.record.kind) },
+      params: { label: kindLabel(selected.record.kind) },
     });
   }
   if (!designOffersFinish(input.design, input.finish)) {
@@ -129,7 +129,7 @@ export function clearFinish(
   if (!selected.record.canFinish) {
     return refuse(input.design, {
       code: "FINISH_NOT_SUPPORTED",
-      params: { label: describeKindLabel(selected.record.kind) },
+      params: { label: kindLabel(selected.record.kind) },
     });
   }
   return succeedWith(withoutAFinish(input, selected.record.id), {
@@ -175,7 +175,7 @@ export function setHandle(
   if (!selected.record.canHandle) {
     return refuse(input.design, {
       code: "HANDLE_NOT_SUPPORTED",
-      params: { label: describeKindLabel(selected.record.kind) },
+      params: { label: kindLabel(selected.record.kind) },
     });
   }
   return succeedWith(

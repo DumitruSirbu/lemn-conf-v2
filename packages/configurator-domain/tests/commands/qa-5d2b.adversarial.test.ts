@@ -500,9 +500,7 @@ describe("the strip a shrink creates", () => {
         cabinetDepthMm: after.cabinetDepthMm,
         target: { kind: "void", id: opening.id },
       });
-      expect(
-        offers.filter((offer) => offer.verdict.status === "offered"),
-      ).toEqual([]);
+      expect(offers).toEqual([]);
     }
   });
 

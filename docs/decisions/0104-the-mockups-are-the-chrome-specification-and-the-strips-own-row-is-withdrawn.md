@@ -3,6 +3,7 @@
 Status: Accepted — **supersedes [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)
 decision 2 and amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 decisions 2, 3, 4 and 8.** ADR 0082 decisions 1 (as amended), 5, 6 and 7 stand and are **enforced**.
+**Amendment A (2026-09-10)** records two owner rulings taken against frame D2A itself.
 Date: 2026-09-09 (decisions 3, 8 and 9 rewritten the same day on the owner's second and third rulings)
 Type: Decision (owner ruling) + adjudication
 Milestone: M6 — opens the wave planned in
@@ -517,3 +518,27 @@ in place — ADR 0082 and ADR 0094 — and neither amendment is left to be infer
 - **Four questions go to the owner, none of them blocking**, and they are listed at the head of the
   plan rather than buried in it. The narrow-desktop ladder, the wordmark, ADR 0065's sentence and the
   colour are all **ruled** (2026-09-09) and are decisions here rather than open items.
+
+## Amendment A, 2026-09-10 — two things the owner ruled against this record's own frames, after driving the built screen
+
+Both are owner rulings given in a browser, and both are recorded **here** rather than only in
+[ADR 0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md),
+because decision 1 makes a frame's declaration the target and the next reader of this record would
+otherwise "fix" the implementation back to the frame.
+
+**A1. The price figure's prefix is regular; only the amount is bold.** Frame D2A declares the whole
+string at `700 21px` (`de la {{ priceTotal }} MDL`, quoted in *What the frames declare* above). The
+owner ruled the prefix down to **400** at the same size: it is a qualifier on the figure, not part of
+it, and at 700 *de la* competed with the number it qualifies. **The frame loses this one, by the only
+authority that outranks it.** It applies to **all four** figure surfaces — the price bar, the price
+breakdown, the editor panel's footer total and the global settings sheet — and ADR 0107 decision 6
+names them, because a commit in that session said *"both surfaces"* and reached two.
+
+**A2. The `RO ▾` chip is now a real control, so decision 6's precedent for `Verifică designul` is
+historical.** Decision 6 justified drawing an inert CTA on the precedent of *"a caret that does
+nothing is the correct state of this control today"*. That state ended in M6B: wave 6B-i made the
+chip a link to the other locale, and ADR 0107 decision 1 makes it a **language dropdown** over
+`routing.locales`, with an endonym and a drawn flag per row. **Decision 6's own conclusion is
+unaffected** — `Verifică designul` is still drawn as a `div` and wired to nothing until M8 — but its
+precedent no longer exists on the screen, and a reader looking for the inert caret will not find one.
+The frames still draw the chip closed, which is what it looks like until it is opened.

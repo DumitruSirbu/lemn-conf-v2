@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import { normaliseBand } from "../../src/bands.js";
 import {
   columnDecidesADifferentDepth,
@@ -31,6 +33,7 @@ import { clearBodies, insertInto } from "../support/commands.js";
 import {
   witnessWorld,
   WITNESS_COLUMN_KEY,
+  WITNESS_EQUIVALENT_BUILD_ID,
 } from "../support/dependent-replan-witness.js";
 import {
   advance,
@@ -278,9 +281,17 @@ describe("the insert refuses whole when a dependent body cannot be rebuilt", () 
   it("names both the body the customer asked for and the one above it", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
+    // **6B-e**: the domain publishes a code and its typed params, never a sentence. The two bodies
+    // are still what this case is about, so the assertion moves to the params the catalogue
+    // interpolates rather than weakening to the code alone.
     expect(result.reason.code).toBe("DEPENDENT_MEMBER_NOT_REBUILDABLE");
-    expect(result.reason.message).toContain("Coloană");
-    expect(result.reason.message).toContain("Corp suspendat");
+    if (result.reason.code !== "DEPENDENT_MEMBER_NOT_REBUILDABLE") return;
+    expect(result.reason.params.label).toEqual(entryLabel("tall-pantry"));
+    // The standing body has no name of its own: it is named by the row a rebuild would go through,
+    // which is the witness's deliberately narrow equivalent (ADR 0064, and `describeBodyName`).
+    expect(result.reason.params.memberLabel).toEqual(
+      entryLabel(WITNESS_EQUIVALENT_BUILD_ID),
+    );
   });
 });
 

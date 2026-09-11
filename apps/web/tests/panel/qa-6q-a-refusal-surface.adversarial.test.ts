@@ -28,10 +28,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 import { describePanel, type PanelView } from "@/panel/panel-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { ro } from "../support/romanian-content";
 import { pickerSectionOf, swatchSectionOf } from "../support/panel-sections";
 
 vi.mock("@/price/use-priced-design", () => ({
@@ -92,6 +98,7 @@ function panelFor(
 ): PanelView {
   const state = store.getState();
   return describePanel({
+    content: ro,
     // Read off the held design, exactly as `usePanelView` reads it: a fixture that pinned PAL here
     // would render a decor list over an MDF kitchen and prove nothing about the wave.
     material: materialOfDesign(state.design),
@@ -111,6 +118,7 @@ function panelFor(
     }),
     rejection,
     widthOptions: [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

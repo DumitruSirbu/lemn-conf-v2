@@ -5,6 +5,8 @@
 // executed* below rather than sampled.
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import { openingFromPlacement } from "../../src/commands/insert-fit.js";
 import {
@@ -13,7 +15,6 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
   advance,
@@ -125,12 +126,10 @@ describe("swap in place", () => {
   it("performs a real swap for every row its own offer list contains", () => {
     const world = seeded();
     for (const placementId of ["p0", "p8", "p15"]) {
-      const offers = offeredRows(
-        offersFor({
-          ...world,
-          target: { kind: "placement", id: placementId },
-        }),
-      );
+      const offers = offersFor({
+        ...world,
+        target: { kind: "placement", id: placementId },
+      });
       expect(offers.length, placementId).toBeGreaterThan(0);
       for (const offer of offers) {
         const result = insertInto(
@@ -164,7 +163,7 @@ describe("swap in place", () => {
       ...after,
       target: { kind: "placement", id: result.effect.placementId },
     });
-    expect(meta?.label).toBe("Nișă frigider integrat");
+    expect(meta?.label).toEqual(entryLabel("tall-fridge-housing"));
     expect(meta?.kind).toBe("fridge_housing");
   });
 

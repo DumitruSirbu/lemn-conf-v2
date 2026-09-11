@@ -45,6 +45,7 @@ import {
 } from "@/price/use-priced-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
 import { describeEditability, type Editability } from "@/store/editability";
+import { useContent } from "@/i18n/use-content";
 
 import {
   chooseDepthIn,
@@ -97,6 +98,7 @@ interface GlobalSettingsProps {
 }
 
 export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
+  const content = useContent();
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
   const design = useConfiguratorStore((state) => state.design);
@@ -142,7 +144,10 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
    *  when the sheet opened. */
   const [refusal, setRefusal] = useState<ApplyRefusal | undefined>(undefined);
 
-  const editability = describeEditability({ canWrite, saveStatus });
+  const editability = describeEditability(
+    { canWrite, saveStatus },
+    content.panel,
+  );
 
   const anchorRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -157,6 +162,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
     wouldDiscardTheGlobalFinish(design, pending.materialTierId);
 
   const view = describeGlobalSettings({
+    content,
     pricing,
     offer,
     groups,
@@ -286,7 +292,13 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
       availableHardwareTierIds: offer.hardware.tierIds,
     });
     if (!outcome.committed) {
-      setRefusal({ setting: outcome.setting, message: outcome.reason.message });
+      setRefusal({
+        setting: outcome.setting,
+        // **6B-e**: the engine hands back a code and its params, and the sentence is the active
+        // locale's. ADR 0032 rule 2 still holds — the sheet hands over to the engine's own words
+        // rather than restating the refusal in its own.
+        message: content.rejection(outcome.reason),
+      });
       // Back to the choosing step rather than out of the sheet: the confirm step's *Schimbă
       // materialul* reaches here too, and leaving the customer on a question that has been answered
       // would hide the refusal behind it.
@@ -303,7 +315,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
       ref={anchorRef}
     >
       {/* **Frames D2A / 2A's pill, and it is the trigger** (ADR 0104 decision 2): no frame draws a
-          separate *Setări globale* control, so `ro.globalSettings.open` is this button's accessible
+          separate *Setări globale* control, so `globalSettings.open` is this button's accessible
           name rather than visible text — through `pillNameAllSettings`, which states **every**
           setting whether or not the pill has room to draw it. `+N` is a visual economy and must not
           cost a screen-reader user a setting.
@@ -399,7 +411,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
             editability={editability}
             {...(refusal === undefined
               ? {}
-              : { refusalNote: describeApplyRefusal(refusal) })}
+              : { refusalNote: describeApplyRefusal(refusal, content) })}
             onChoose={chooseTier}
             onChooseDepth={chooseDepth}
             onChooseFinish={chooseFinish}
@@ -905,10 +917,12 @@ function ColourGroupSection({
   readonly editability: Editability;
   readonly onChoose: (finish: Finish) => void;
 }) {
+  const content = useContent();
   const section = describeFinishSection(
     lookUpMaterial(group.materialTierId),
     group.selected,
     editability,
+    content,
   );
   if (section === undefined) return null;
   return (

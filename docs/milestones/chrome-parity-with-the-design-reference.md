@@ -1,6 +1,14 @@
 # Chrome parity with the design reference — screen 2, both shells
 
-Status: **Planned, 2026-09-09.** Not started. Branch `fix/m6-remediation`, base `5c30e92`.
+Status: ~~**Planned, 2026-09-09.** Not started.~~ **This status is stale and is flagged rather than
+corrected, 2026-09-11.** `main` carries `d1f3497` *"fix(chrome): two defects adversarial QA found,
+and the gates that name them"* and `b489f02` *"test(e2e): re-point nine assertions the chrome-parity
+wave made stale"* — so the wave ran, and **nothing in this file records what it shipped, what it
+verified, or what it left open**. The M6B close-out pass that found this could not verify the wave
+(it was scoped to M6B and to documentation), so the close-out is owed by whoever picks this up:
+walk the acceptance criteria below against the tree, mark each met or unmet at the criterion, and
+record the deviations. **Do not read the plan below as instruction without doing that first.**
+Branch `fix/m6-remediation`, base `5c30e92`.
 Ruling: [ADR 0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md).
 Amends: [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 *Amendment B*, [ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)

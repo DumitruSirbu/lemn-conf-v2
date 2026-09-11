@@ -14,6 +14,7 @@ import { SAMPLE_PRICE_BOOK as BARREL_BOOK } from "../../src/index.js";
 import {
   amountForBody,
   PRICE_BOOK_CURRENCY,
+  type AccessoryRule,
   pricedByWidth,
   pricedByWidthAndDoorLeaves,
   pricedByWidthAndHeight,
@@ -135,11 +136,14 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
     // a width. `COEFFICIENTS_BY_SHAPE` is the table this file owns, so a shape added in `price-
     // book.ts` without a line here fails as an unknown shape rather than passing unexamined.
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
-      expect(Object.keys(rule).sort()).toEqual([
-        "buildId",
-        "formula",
-        "ruleId",
-      ]);
+      // `suppliedBy` joins the shape as an **optional** key (owner, 2026-09-10): it says who puts
+      // the row in the kitchen, which is not a coefficient and not a width. Still exhaustive —
+      // a rule declares the three required keys and at most that one.
+      expect(Object.keys(rule).sort()).toEqual(
+        rule.suppliedBy === undefined
+          ? ["buildId", "formula", "ruleId"]
+          : ["buildId", "formula", "ruleId", "suppliedBy"],
+      );
       const coefficients = COEFFICIENTS_BY_SHAPE[rule.formula.shape];
       expect(coefficients).toBeDefined();
       expect(Object.keys(rule.formula).sort()).toEqual(
@@ -291,6 +295,231 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
     expect(carriers.map((file) => path.relative(SOURCE_ROOT, file))).toEqual(
       [],
     );
+  });
+
+  /**
+   * **What a row may publish besides its amounts, said rather than assumed** — ADR 0106 decision 1,
+   * which is the one change to a row's shape this file has ever had to admit.
+   *
+   * The sweep above is unchanged and unweakened: it asks where an *amount* lives, and no amount
+   * moved. What this adds is the other half of the same claim — that what left the book is a
+   * **rendered text and nothing else**. Each row still declares its own `tierId`, its own
+   * `ruleId` and its own amounts as own properties, and the two new fields are catalogue paths
+   * rather than figures.
+   *
+   * Stated as a whole-shape assertion for the reason the cabinet-rule sweep above is one: a row that
+   * quietly grew a field is a failure here rather than a sweep of whatever it happens to hold.
+   */
+  it("lets a row name the leaf its text is written in, and nothing else", () => {
+    const tierFields = ["tierId", "ruleId", "name", "description"];
+    const rows: readonly (readonly [
+      Record<string, unknown>,
+      readonly string[],
+    ])[] = [
+      ...SAMPLE_PRICE_BOOK.hardware.tiers.map(
+        (tier) =>
+          [
+            tier as unknown as Record<string, unknown>,
+            [
+              ...tierFields,
+              "perHingeMinor",
+              "perDrawerMinor",
+              "perPushToOpenMinor",
+            ],
+          ] as const,
+      ),
+      ...SAMPLE_PRICE_BOOK.material.tiers.map(
+        (tier) =>
+          [
+            tier as unknown as Record<string, unknown>,
+            [...tierFields, "wholeKitchenMinor"],
+          ] as const,
+      ),
+      ...Object.values(SAMPLE_PRICE_BOOK.accessories).map(
+        (accessory) =>
+          [
+            accessory as unknown as Record<string, unknown>,
+            ["ruleId", "name", "description", "perUnitMinor"],
+          ] as const,
+      ),
+    ];
+
+    expect(rows).toHaveLength(8);
+    for (const [row, required] of rows) {
+      const declared = Object.keys(row);
+      // Every field the row owed before this wave is still the row's own.
+      expect(declared.sort()).toEqual(expect.arrayContaining([...required]));
+      // And the only two it may have gained are the catalogue-key fields.
+      const permitted = [...required, "nameKey", "descriptionKey"];
+      expect(declared.filter((field) => !permitted.includes(field))).toEqual(
+        [],
+      );
+
+      for (const field of ["nameKey", "descriptionKey"] as const) {
+        const key = row[field];
+        if (key === undefined) continue;
+        // A catalogue path, never a figure and never an id a rule traces to. One anchored pattern
+        // carries the whole claim: its character class admits no digit, so a separate `\d`
+        // falsification could never fire, and a non-string fails `toMatch` on its own.
+        expect(key, field).toMatch(/^priceBook(\.[a-z-]+)+$/);
+      }
+    }
+  });
+});
+
+/** Romanian's five letters in both spellings — the comma-below pair and the Turkish cedillas that
+ *  render almost identically. The lint gate in `eslint.config.mjs` reads the same set. */
+// eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a character class, spelled in characters so a reader can check it against the gate's escaped copy. Escaping it here would hide it from the very rule it mirrors.
+const ROMANIAN_LETTER = /[ăâîșțĂÂÎȘȚşţŞŢ]/;
+
+/** An identifier ending in the suffix this package used to publish its Romanian under —
+ *  `KIND_LABELS_RO`, `BAND_LABELS_RO`, `EMPTY_SLOT_LABEL_RO`. Anchored on a word boundary, so
+ *  `TOP_ROW_Y0_MM` is not a match. */
+const ROMANIAN_SUFFIXED_IDENTIFIER = /\b[A-Za-z_$][\w$]*_RO\b/;
+
+/** A line that is entirely comment, in the only two forms this codebase's formatter produces: a
+ *  line comment, the opening of a block comment, or its continuation.
+ *
+ *  **Deliberately conservative, and this is the direction that matters.** A trailing comment after
+ *  code is *not* recognised, so a Romanian word in one is reported rather than excused — a false red
+ *  a human resolves, never a false green. Nothing that starts with `//`, `/*` or `*` can be code. */
+const WHOLE_LINE_COMMENT = /^\s*(\/\/|\/\*|\*)/;
+
+/** The source lines of a module that are not comments, numbered from one. */
+function codeLinesOf(source: string): readonly (readonly [number, string])[] {
+  return source
+    .split("\n")
+    .map((text, index) => [index + 1, text] as const)
+    .filter(([, text]) => !WHOLE_LINE_COMMENT.test(text));
+}
+
+/**
+ * **The one module in `src/` allowed to hold Romanian, and the ruling that allows it.**
+ *
+ * [ADR 0106](../../../../docs/decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+ * decision 2 keeps a row's `name` and `description` **required** and authored, so a book nobody at
+ * Lemnaria wrote — a manufacturer's, through ADR 0062's post-M8 dashboard — still renders. Those
+ * sentences are not debt and are not owed a key.
+ *
+ * The exemption is checked against the book's own data below rather than taken on trust, so it
+ * covers exactly the ruled fallbacks and not the next sentence somebody adds to the file.
+ */
+const ROMANIAN_BY_RULING = "pricing/sample-price-book.ts";
+
+describe("this package publishes codes and never Romanian", () => {
+  // ADR 0095's boundary, held over the source tree rather than over the exports it happens to
+  // remember. Wave 6B-j's lint rule says the same thing per line and would catch a re-entry sooner;
+  // this says it about the *package*, survives the rule being deleted, and adds the half a lint rule
+  // reads past — that the identifier suffix the Romanian used to travel under is gone too.
+  //
+  // **Its reach is this package's `src/`, not `packages/*/src`.** A test that walked a sibling
+  // package's files would make this one unliftable, which `engineering-conventions.md` forbids;
+  // `three-adapter` and `persistence` are covered by the lint rule over `packages/*/src` instead.
+
+  const sources = sourcesUnder(SOURCE_ROOT).map(
+    (file) => [path.relative(SOURCE_ROOT, file), read(file)] as const,
+  );
+
+  it("walks a source tree rather than an empty one", () => {
+    // Non-vacuity for the three sweeps below, each of which passes trivially on no files.
+    expect(sources.length).toBeGreaterThan(20);
+    expect(sources.map(([name]) => name)).toContain(ROMANIAN_BY_RULING);
+  });
+
+  it("names no identifier after the language it used to publish", () => {
+    const naming = sources
+      .flatMap(([name, source]) =>
+        codeLinesOf(source).map(([line, text]) => [name, line, text] as const),
+      )
+      .filter(([, , text]) => ROMANIAN_SUFFIXED_IDENTIFIER.test(text))
+      .map(([name, line]) => `${name}:${String(line)}`);
+
+    expect(naming).toEqual([]);
+  });
+
+  it("recognises that suffix when it is there, and only that suffix", () => {
+    // The positive control the sweep above cannot supply, now that every `_RO` export is gone: the
+    // three names this package really did publish, against the one constant whose name contains the
+    // same two letters in the middle of a word.
+    for (const gone of [
+      "export const KIND_LABELS_RO = {",
+      "const BAND_LABELS_RO: Readonly<Record<Band, string>> = {",
+      "export { EMPTY_SLOT_LABEL_RO };",
+    ])
+      expect(ROMANIAN_SUFFIXED_IDENTIFIER.test(gone), gone).toBe(true);
+
+    for (const kept of ["const TOP_ROW_Y0_MM = 1_400;", "type Row = 'RO';"])
+      expect(ROMANIAN_SUFFIXED_IDENTIFIER.test(kept), kept).toBe(false);
+  });
+
+  it("carries no Romanian letter in code, outside the one ruled module", () => {
+    const carriers = sources
+      .filter(([name]) => name !== ROMANIAN_BY_RULING)
+      .flatMap(([name, source]) =>
+        codeLinesOf(source)
+          .filter(([, text]) => ROMANIAN_LETTER.test(text))
+          .map(([line]) => `${name}:${String(line)}`),
+      );
+
+    expect(carriers).toEqual([]);
+  });
+
+  it("tells a Romanian comment from a Romanian string", () => {
+    // The claim the sweep above rests on, made falsifiable: this package's comments quote approved
+    // copy constantly and must stay legal, while the same words one line down must not.
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: a five-line source fixture handed to the comment detector, three of whose lines have to be Romanian comments for the claim to mean anything. It is a detector input, not copy, and no catalogue leaf can supply a comment. */
+    const module = [
+      "// Comentariu: „nu poate fi adăugat aici” — the sentence this code refuses.",
+      "/** Blocul de comentarii ține și el diacritice. */",
+      " * și continuarea lui.",
+      'const refusal = "nu poate fi adăugat aici";',
+      "const code = REJECTION_CODES.NOT_INSERTABLE;",
+    ].join("\n");
+    /* eslint-enable no-restricted-syntax */
+
+    expect(
+      codeLinesOf(module)
+        .filter(([, text]) => ROMANIAN_LETTER.test(text))
+        .map(([line]) => line),
+    ).toEqual([4]);
+  });
+
+  it("exempts exactly the fallbacks ADR 0106 decision 2 keeps required", () => {
+    // The exemption tied to its ruling rather than to a filename: every Romanian line in the book is
+    // one of the row texts the book itself publishes. A rejection sentence, a catalogue label or a
+    // fourth kind of prose in the same file matches nothing here and fails.
+    const authored = new Set<string>([
+      ...SAMPLE_PRICE_BOOK.hardware.tiers.flatMap((tier) => [
+        tier.name,
+        tier.description,
+      ]),
+      ...SAMPLE_PRICE_BOOK.material.tiers.flatMap((tier) => [
+        tier.name,
+        tier.description,
+      ]),
+      // `BookAccessories` declares its two rows as named fields rather than an index signature, so
+      // `Object.values` widens to `any[]`. Read off the book all the same, and typed back: a third
+      // accessory must be swept the day it is declared.
+      ...(
+        Object.values(SAMPLE_PRICE_BOOK.accessories) as readonly AccessoryRule[]
+      ).flatMap((accessory) => [accessory.name, accessory.description]),
+    ]);
+    const source = sources.find(([name]) => name === ROMANIAN_BY_RULING)?.[1];
+    if (source === undefined) throw new Error("the ruled module is not there");
+
+    const romanianLines = codeLinesOf(source).filter(([, text]) =>
+      ROMANIAN_LETTER.test(text),
+    );
+
+    expect(romanianLines).toHaveLength(10);
+    for (const [line, text] of romanianLines) {
+      const quoted = /"([^"]*)"/.exec(text)?.[1];
+      expect(quoted, `${ROMANIAN_BY_RULING}:${String(line)}`).toBeDefined();
+      expect(
+        authored.has(quoted ?? ""),
+        `${ROMANIAN_BY_RULING}:${String(line)}`,
+      ).toBe(true);
+    }
   });
 });
 

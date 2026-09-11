@@ -37,6 +37,12 @@ const screenSource = readFileSync(
   resolve(CONFIGURE_DIRECTORY, "configure-screen.tsx"),
   "utf8",
 );
+/** The band's fifth cell, which is a component of its own since the owner's 2026-09-10 dropdown
+ *  ruling: the menu is positioned against the cell, so the two live in one file. */
+const localeMenuSource = readFileSync(
+  resolve(CONFIGURE_DIRECTORY, "locale-menu.tsx"),
+  "utf8",
+);
 const stylesheet = readFileSync(
   resolve(CONFIGURE_DIRECTORY, "configure.module.css"),
   "utf8",
@@ -117,11 +123,16 @@ describe("the declared band models the row the markup actually draws", () => {
       0,
       screenSource.indexOf("styles.stage"),
     );
+    // The locale cell is `<LocaleMenu />`'s own markup rather than the screen's, so its file is read
+    // beside the screen's. The cell is still a grid item of the band and its classes still have to be
+    // accounted for; leaving them out would let this check pass over a cell it stopped seeing.
     return [
       ...new Set(
-        [...beforeTheStage.matchAll(/className=\{styles\.(\w+)\}/g)].map(
-          (match) => match[1] ?? "",
-        ),
+        [
+          ...`${beforeTheStage}${localeMenuSource}`.matchAll(
+            /className=\{styles\.(\w+)\}/g,
+          ),
+        ].map((match) => match[1] ?? ""),
       ),
     ]
       .filter((name) => name !== "screen")
@@ -140,6 +151,9 @@ describe("the declared band models the row the markup actually draws", () => {
       "localeCaret",
       "localeChip",
       "localeCode",
+      // The open menu. It is absolutely positioned, so it takes no flow height in the band — which is
+      // exactly why the height model may leave it out and this list may not.
+      "localeList",
       "nav",
       "settings",
       "stepPill",

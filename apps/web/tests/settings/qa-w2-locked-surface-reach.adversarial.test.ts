@@ -27,13 +27,14 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 import {
   describeGlobalSettings,
@@ -51,14 +52,20 @@ import {
 const SURFACE_ID = "settings";
 
 /** The one locked state that needs no argument about reachability: the load said no. */
-const LOCKED = describeEditability({ canWrite: false, saveStatus: "idle" });
+const LOCKED = describeEditability(
+  { canWrite: false, saveStatus: "idle" },
+  ro.panel,
+);
 
 /** The state a sheet opened writable can arrive in without the customer doing anything: the save of
  *  an earlier edit came back refused while the sheet stood open. */
-const LOCKED_MID_SESSION = describeEditability({
-  canWrite: true,
-  saveStatus: "unauthorized",
-});
+const LOCKED_MID_SESSION = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "unauthorized",
+  },
+  ro.panel,
+);
 
 /** The wave 6Q-c fixture: a material switch that would discard four chosen colours, so the view
  *  publishes a confirmation and the sheet has a second step to reach. */
@@ -72,6 +79,7 @@ function confirmingView(): GlobalSettingsView {
     selections: design.settings,
   };
   return describeGlobalSettings({
+    content: content,
     pricing: priceDesign(priced),
     offer: offerWholeKitchenTiers(priced),
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),

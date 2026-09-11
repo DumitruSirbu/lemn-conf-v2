@@ -26,7 +26,6 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import type { PlacementRecord, VoidRecord } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
@@ -206,16 +205,14 @@ describe("insertBody — the depth an insert into an empty void builds against (
     world: KitchenWorld,
     record: VoidRecord,
   ): string | undefined {
-    return offeredRows(
-      offersFor({
-        records: world.records,
-        voids: world.voids,
-        columns: world.columns,
-        catalog: world.catalog,
-        cabinetDepthMm: world.cabinetDepthMm,
-        target: { kind: "void", id: record.id },
-      }),
-    )[0]?.buildId;
+    return offersFor({
+      records: world.records,
+      voids: world.voids,
+      columns: world.columns,
+      catalog: world.catalog,
+      cabinetDepthMm: world.cabinetDepthMm,
+      target: { kind: "void", id: record.id },
+    })[0]?.buildId;
   }
 
   /** The four voids in this opened kitchen where §7's head-clearance cap bites: every wall-level

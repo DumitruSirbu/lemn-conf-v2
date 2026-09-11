@@ -3,7 +3,7 @@
 //
 // Deletion is final. No undo exists and nothing here retains a prior state "in case": a void may
 // have merged with its neighbours since, so there is no single state to restore (§5.1, §13.1).
-import { describeKindLabel } from "../catalog.js";
+import { kindLabel } from "../catalog.js";
 import type { Design } from "../design.js";
 import { alongWallCoordinate } from "../module-grid.js";
 import {
@@ -45,7 +45,7 @@ function refuseRemoval(
   if (!record.canDelete) {
     return refuse(design, {
       code: "NOT_DELETABLE",
-      params: { label: describeKindLabel(record.kind) },
+      params: { label: kindLabel(record.kind) },
     });
   }
   return undefined;

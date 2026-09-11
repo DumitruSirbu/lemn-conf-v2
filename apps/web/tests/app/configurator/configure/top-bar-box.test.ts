@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../../../support/romanian-content";
 
 const CONFIGURE_DIRECTORY = resolve(
   import.meta.dirname,
@@ -50,8 +50,8 @@ const settingsStylesheet = readFileSync(
   "utf8",
 );
 
-const roSource = readFileSync(
-  resolve(import.meta.dirname, "../../../../src/content/ro.ts"),
+const contentSource = readFileSync(
+  resolve(import.meta.dirname, "../../../../src/i18n/content.ts"),
   "utf8",
 );
 
@@ -477,21 +477,19 @@ describe("the row the refreshed frames replaced", () => {
 });
 
 describe("the step number has one source", () => {
-  it("spells the pill and the sentence from the same two constants", () => {
-    const withoutComments = roSource.replace(/\/\*[\s\S]*?\*\//g, "");
+  it("resolves the pill and the sentence from one pair of step arguments", () => {
+    // The two constants this used to read moved into ICU arguments in 6B-d, and the module that
+    // held them was deleted in 6B-f. The invariant is unchanged and is checked where it now lives:
+    // both catalogue leaves are resolved with the *same* `{ step, totalSteps }`, so the pill and the
+    // caption cannot state two different progressions.
+    const stepArguments = [
+      ...contentSource.matchAll(
+        /translate\("configure\.(?:step|stepPill)", (\{ step: \d+, totalSteps: \d+ \})\)/g,
+      ),
+    ].map(([, values]) => values);
 
-    expect(withoutComments.match(/const CONFIGURE_STEP = \d+;/g)).toHaveLength(
-      1,
-    );
-    expect(
-      withoutComments.match(/const CONFIGURE_STEP_COUNT = \d+;/g),
-    ).toHaveLength(1);
-    expect(withoutComments).toContain(
-      "step: `Pasul ${String(CONFIGURE_STEP)} din ${String(CONFIGURE_STEP_COUNT)}`,",
-    );
-    expect(withoutComments).toContain(
-      "stepPill: `${String(CONFIGURE_STEP)}/${String(CONFIGURE_STEP_COUNT)}`,",
-    );
+    expect(stepArguments).toHaveLength(2);
+    expect(new Set(stepArguments).size).toBe(1);
   });
 
   it("draws the same numbers in both, so the two cannot disagree", () => {
@@ -509,30 +507,111 @@ describe("the step number has one source", () => {
   it("keeps the sentence as the pill's accessible name", () => {
     // The pill draws "2/4", which read aloud is two numbers and a slash. The caption it replaced
     // said "Pasul 2 din 4", and that is what the accessibility tree keeps.
-    expect(screenSource).toContain("aria-label={ro.configure.step}");
-    expect(screenSource).toContain("{ro.configure.stepPill}");
+    expect(screenSource).toContain("aria-label={content.configure.step}");
+    expect(screenSource).toContain("{content.configure.stepPill}");
   });
 });
 
-describe("the locale chip is drawn and inert", () => {
-  it("is not a control, and nothing is wired to it", () => {
-    // M6B wave 6B-i owns locale switching and is gated on the owner's Gate O1. An element with a
-    // control's affordances and no behaviour is worse than the static chip it replaces.
-    //
-    // **The chip left the header with ADR 0104 decision 2** — it is a grid item of its own, so
-    // frame D2A can place it after the CTA while frame 2A keeps it in the header row — so the cell
-    // is what is read rather than the header.
-    const cell = /styles\.locale}>[\s\S]*?<\/div>/.exec(screenSource)?.[0];
-    if (!cell) throw new Error("no locale cell in the screen's source");
+describe("the locale chip is the control that opens the language menu", () => {
+  /** **The cell left the screen with the owner's 2026-09-10 ruling** — the menu is positioned against
+   *  it, so the cell and the popover that fills it are one component — and this is what reads it. */
+  const menuSource = readFileSync(
+    resolve(CONFIGURE_DIRECTORY, "locale-menu.tsx"),
+    "utf8",
+  );
 
-    expect(cell).toContain("styles.localeChip");
-    expect(cell).not.toContain("<button");
-    expect(cell).not.toContain("onClick");
-    expect(cell).not.toContain('role="button"');
+  it("stands in the row as its own grid item and nothing else", () => {
+    // The band is still five cells. What changed is who renders the fifth: `.locale` is a direct
+    // child of `.screen` either way, which is what the two shells' `grid-template-areas` require.
+    expect(screenSource).toContain("<LocaleMenu />");
+    expect(screenSource).not.toContain("styles.locale}");
+    expect(menuSource).toContain("<div className={styles.locale}");
+  });
+
+  it("is a button that opens a list of links, one per configured locale", () => {
+    // **The ruling, and it replaces wave 6B-i's link-shaped toggle.** The trigger *opens* something,
+    // so it is a button and says so; each choice still *is* a URL, so it stays an anchor — shareable,
+    // openable in a new tab, and navigated client-side by next-intl so the store survives the switch.
+    // The list is `menu.choices`, which is `routing.locales`: a third language is a third item with
+    // no edit here — `tests/i18n/locale-menu-scales.dom.test.ts` drives exactly that.
+    expect(menuSource).toContain("styles.localeChip");
+    expect(menuSource).toContain("<button");
+    expect(menuSource).toContain('type="button"');
+    expect(menuSource).toContain('aria-haspopup="true"');
+    expect(menuSource).toContain("aria-expanded={isOpen}");
+    expect(menuSource).toContain("menu.choices.map");
+    expect(menuSource).toContain("href={menu.pathname}");
+    expect(menuSource).toContain("locale={choice.locale}");
+  });
+
+  it("is named by a sentence rather than by the two letters it draws", () => {
+    // `RO` read aloud names neither the language of the page nor what the control does, and which
+    // language is current would otherwise be carried by the chip's colour alone.
+    expect(menuSource).toContain("aria-label={content.configure.localeMenu}");
+  });
+
+  it("hangs the menu off the cell without letting it leave the phone's viewport", () => {
+    // §10.1's picking gate is 390 px and this cell is the last in the row on both shells, so the
+    // list is anchored to the cell's trailing edge and bounded by the paper it stands on.
+    const list = /\.localeList \{([^}]*)\}/.exec(stylesheet)?.[1];
+    if (!list) throw new Error("the menu declares no box");
+
+    expect(list).toContain("position: absolute;");
+    expect(list).toContain("top: 100%;");
+    expect(list).toContain("inset-inline-end: 14px;");
+    expect(list).toContain("max-width: calc(100vw - 28px);");
+  });
+
+  it("gives every choice §10.1's own touch target", () => {
+    // Unlike the chip, no frame fixes this row's box, so the 44 px target simply *is* the row rather
+    // than an invisible overlay beside it.
+    expect(declarationsOf(MOBILE_CSS, "localeOption")).toContain(
+      "min-height: var(--touch-target);",
+    );
+  });
+
+  it("keeps the frames' painted box and takes its touch target beside it", () => {
+    // §10.1's 44 px, taken vertically only: the painted chip stays 25 px on mobile and 40 on
+    // desktop, and a horizontally grown hit area would make ADR 0082 decision 1's clip predicate
+    // report this control as truncated.
+    const hitArea = /\.localeChip::after \{([^}]*)\}/.exec(stylesheet)?.[1];
+    if (!hitArea) throw new Error("the chip declares no hit area");
+
+    expect(hitArea).toContain("inset-inline: 0;");
+    expect(hitArea).toContain(
+      "inset-block: calc((100% - var(--touch-target)) / 2);",
+    );
+    expect(localeChipHeight("mobile")).toBe(25);
+    expect(localeChipHeight("desktop")).toBe(40);
   });
 
   it("draws the caret the frames draw, and hides it from a screen reader", () => {
-    expect(screenSource).toContain("▾");
+    expect(menuSource).toContain("▾");
     expect(declarationsOf(MOBILE_CSS, "localeCaret")).not.toBe("");
+  });
+
+  /** **What the flag replaced, and what it did not.** The owner's 2026-09-10 ruling put a flag on
+   *  every row in place of the dot that used to mark one — so the mark is gone and the state it
+   *  carried had nowhere to go but the two cues that already carried it: `aria-current` for a screen
+   *  reader, weight and colour for everyone else. A flag identifies a language; it cannot say which
+   *  language is current, and this is the check that fails if the weight follows the dot out. */
+  it("still marks the current language once the dot is gone", () => {
+    expect(declarationsOf(MOBILE_CSS, "localeOptionCurrent")).toContain(
+      "font-weight: 700;",
+    );
+    expect(menuSource).toContain('aria-current={choice.isCurrent ? "true"');
+    expect(stylesheet).not.toMatch(/\.localeOption(Current)?::before/);
+  });
+
+  it("sizes the flag beside each name, and gives the white band an edge", () => {
+    // The flags are locale data (`i18n/locale-flags.tsx`) and cannot reach this stylesheet's names,
+    // so the one `svg` a choice contains is selected by element. Russia's top band is white and this
+    // menu stands on `--paper`; a `box-shadow` rather than a border, so the ring cannot move the
+    // endonyms the flags align.
+    const flag = /\.localeOption svg \{([^}]*)\}/.exec(stylesheet)?.[1];
+    if (!flag) throw new Error("the choice's flag declares no box");
+
+    expect(flag).toContain("flex: 0 0 auto;");
+    expect(flag).toMatch(/box-shadow: 0 0 0 1px/);
   });
 });

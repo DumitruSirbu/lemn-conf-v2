@@ -2,11 +2,9 @@
 // formatted correctly". The last block below is the half that makes it falsifiable repository-wide:
 // a module that reaches for a priced amount and rounds it itself fails the moment it is written.
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { readdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import {
   describeStartingPrice,
   roundUpToThousandMdl,
@@ -19,7 +17,7 @@ const ROUNDING_STEP_MDL = 1000;
 const BANI_PER_ROUNDING_STEP = BANI_PER_MDL * ROUNDING_STEP_MDL;
 
 function amountTextFor(totalMinor: number): string {
-  return describeStartingPrice({ totalMinor }).amountText;
+  return describeStartingPrice({ totalMinor, copy: ro.price }).amountText;
 }
 
 describe("the De la prefix", () => {
@@ -28,7 +26,9 @@ describe("the De la prefix", () => {
     // literal sits beside it so the coupling is loud. A composed assertion alone would hold for any
     // wording — which is the defect wave 6A4 shipped and this criterion exists to stop.
     expect(ro.price.startingPrefix).toBe("De la");
-    expect(describeStartingPrice({ totalMinor: 4_300_000 })).toEqual({
+    expect(
+      describeStartingPrice({ totalMinor: 4_300_000, copy: ro.price }),
+    ).toEqual({
       label: "De la",
       amountText: "43 000 MDL",
     });
@@ -39,13 +39,17 @@ describe("the De la prefix", () => {
     // were about is gone: a figure standing under a refused edit was labelled *"De la neschimbat"*
     // (frames D2C and 2C), and the owner removed it on 2026-09-09 — §9's refusal banner already
     // says the edit was refused. What is asserted now is that the removal is total: no `ro.price`
-    // string carries the word, and the formatter offers no choice of prefix to make.
+    // leaf carries the word — the joins rendered as well as the sentences read — and the formatter
+    // offers no choice of prefix to make.
+    // Rendered rather than read, because since wave 6B-g `price` holds a *join* as well as
+    // sentences: `amountWithCurrency` is a function, and skipping it would leave one price leaf
+    // this sweep never looks at.
     const remaining = Object.entries(ro.price).filter(([, value]) =>
-      value.includes("neschimbat"),
+      (typeof value === "string" ? value : value("0")).includes("neschimbat"),
     );
 
     expect(remaining).toEqual([]);
-    expect(describeStartingPrice({ totalMinor: 1 }).label).toBe(
+    expect(describeStartingPrice({ totalMinor: 1, copy: ro.price }).label).toBe(
       ro.price.startingPrefix,
     );
   });
@@ -108,53 +112,4 @@ describe("the rounding rule, swept", () => {
       );
     },
   );
-});
-
-// **The structural half of "one function" lives next door.** This file kept two guards of its own —
-// a closed list of the modules naming `totalMinor`/`amountMinor`, and a line-scoped ban on
-// arithmetic in them. Adversarial QA wrote live mutants past both: a rounding site split over two
-// lines inside an already-allowed module (`const exactAmount = priced.totalMinor;` then the
-// arithmetic on the next line, naming no amount), and a module re-formatting `figure.amountText`,
-// which names no amount at all. Both left this file fully green.
-//
-// They are **replaced, not supplemented**, by `starting-price.adversarial.test.ts`'s closed set:
-// nine identifiers wide, and `Math.ceil|floor|round|trunc` plus the step constant refused outright
-// in every module but the formatter, wherever in the module they are written. Two guards over one
-// rule is how the weaker one ends up being the one somebody trusts.
-//
-// What stays here is the part that guard does not cover: the ruled prefix is one literal, in the
-// one copy module.
-describe("the ruled prefix exists once, where copy lives", () => {
-  const SOURCE_ROOT = resolve(import.meta.dirname, "../../src");
-
-  /** Crude but sufficient for a guard: it can only ever make the search *less* likely to fire, and
-   *  a comment quoting the string is exactly what would otherwise produce a false positive. */
-  function withoutComments(source: string): string {
-    return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  }
-
-  function listSourceFiles(directory: string, prefix = ""): string[] {
-    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-      const path = `${prefix}${entry.name}`;
-      if (entry.isDirectory())
-        return listSourceFiles(resolve(directory, entry.name), `${path}/`);
-      return /\.tsx?$/.test(entry.name) ? [path] : [];
-    });
-  }
-
-  const sourceByPath = new Map(
-    listSourceFiles(SOURCE_ROOT).map((path) => [
-      path,
-      withoutComments(readFileSync(resolve(SOURCE_ROOT, path), "utf8")),
-    ]),
-  );
-
-  it("is a single literal in the copy module, and nowhere else", () => {
-    const namesThePrefix = [...sourceByPath]
-      .filter(([, source]) => source.includes('"De la'))
-      .map(([path]) => path)
-      .sort();
-
-    expect(namesThePrefix).toEqual(["content/ro.ts"]);
-  });
 });

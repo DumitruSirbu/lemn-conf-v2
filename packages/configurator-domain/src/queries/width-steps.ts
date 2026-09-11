@@ -37,7 +37,7 @@ export interface WidthStepsInput {
  *
  *  Neither can be `current`: a step is ±50 mm from where the body stands, so it never asks about the
  *  width it is already at. `WidthOption` is reused rather than restated so the panel renders a step's
- *  refusal through the very `renderRejection` a chip's goes through. */
+ *  refusal through the same localized resolver a chip's goes through. */
 export interface WidthSteps {
   /** The selected **body's** width, not the column extent's. ADR 0035 decision 6 squares a mixed
    *  column up, so a 450 under a 600 has an extent of 600 while the stepper on the 450 offers 400

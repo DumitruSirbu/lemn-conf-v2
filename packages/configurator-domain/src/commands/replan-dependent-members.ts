@@ -17,7 +17,7 @@
 // one code path for §5.2 and §5.3, and re-planning a body the customer did not select is neither.
 import { normaliseBand } from "../bands.js";
 import { depthFollowsSetting } from "../cabinet-depth-rule.js";
-import type { InsertableBody } from "../catalog.js";
+import type { BodyLabel, InsertableBody } from "../catalog.js";
 import { cabinetDepthMmOf } from "../design.js";
 import type { DesignPlacement } from "../design.js";
 import {
@@ -58,7 +58,7 @@ export interface DependentReplanInput extends RebuildInput {
    *  never re-planned by this module. */
   readonly placedId: string;
   /** The body the customer asked to insert, named beside the dependent one in the refusal. */
-  readonly placedLabel: string;
+  readonly placedLabel: BodyLabel;
 }
 
 /** The placements to write, in document order, or the one refusal that stops the whole insert.

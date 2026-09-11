@@ -25,7 +25,6 @@ import {
   KITCHEN_L_DESIGN,
   MATERIALS,
   materialById,
-  PALETTE_ENTRIES,
   SAMPLE_PRICE_BOOK,
   type Design,
   type WholeKitchenSelections,
@@ -34,7 +33,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import {
   createConfiguratorStore,
   type ConfiguratorState,
@@ -144,14 +148,15 @@ function everySettingSpokenOn(design: Design): readonly string[] {
   const colour =
     finish.kind === "free-colour"
       ? ro.globalSettings.pillColourValue(finish.value)
-      : (PALETTE_ENTRIES.find((entry) => entry.entryId === finish.entryId)
-          ?.name ?? finish.entryId);
+      : ro.finishName(finish.entryId);
   return [
-    ro.globalSettings.pillMaterial(materialTier.name),
+    ro.globalSettings.pillMaterial(
+      ro.bookText(materialTier.name, materialTier.nameKey),
+    ),
     colour,
     ro.globalSettings.pillHardware(
       ro.priceBreakdown.wholeKitchenCategories.hardware,
-      hardwareTier.name,
+      ro.bookText(hardwareTier.name, hardwareTier.nameKey),
     ),
     ro.globalSettings.pillDepth(
       design.settings?.cabinetDepthMm ??

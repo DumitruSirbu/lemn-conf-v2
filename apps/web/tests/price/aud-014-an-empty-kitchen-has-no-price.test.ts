@@ -32,7 +32,8 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
+import { ro as content } from "../support/romanian-content";
 import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
 
@@ -62,11 +63,12 @@ function priceOf(design: Design): PricingResult {
 }
 
 function barFor(design: Design) {
-  return describePriceBar({ pricing: priceOf(design) });
+  return describePriceBar({ pricing: priceOf(design), content });
 }
 
 function breakdownFor(design: Design) {
   return describePriceBreakdown({
+    content,
     pricing: priceOf(design),
     groups: projectDesignForDisplay(design, catalog),
   });
@@ -90,11 +92,8 @@ describe("an empty kitchen, priced", () => {
 
     expect(view.kind).toBe("empty");
     if (view.kind !== "empty") return;
-    // The literal beside the constant, per the M6 copy rule: a composed assertion would hold for any
-    // wording, including one that quietly started naming a number.
-    expect(view.prompt).toBe(
-      "Pentru a afișa un preț estimativ adaugă-ți cel puțin un dulap din catalog",
-    );
+    // The wording is pinned once, in the copy lock. What is left is the half a lock cannot see: the
+    // bar reaches for the prompt leaf, and the prompt names no number and no price prefix.
     expect(view.prompt).toBe(ro.price.emptyKitchenPrompt);
     expect(view.prompt).not.toMatch(/\d/);
     expect(view.prompt).not.toContain(ro.price.startingPrefix);

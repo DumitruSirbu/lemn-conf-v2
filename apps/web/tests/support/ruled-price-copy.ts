@@ -1,4 +1,7 @@
-// **The only owner-ruled price sentences a sum-word check is not allowed to judge, and why.**
+// **The ruled facts about price copy that a pattern cannot derive, and why each one is ruled.**
+//
+// Two of them, both by identity: the sentences a sum-word check is not allowed to judge, and — since
+// wave 6B-g — the one leaf that is allowed to name the currency.
 //
 // One list, read by every guard that needs one, so the rule has a single exception set rather than a
 // copy per file that can drift. It lives here rather than inside `starting-price.adversarial.test.ts`
@@ -11,27 +14,18 @@
 // sum word to assert the exact opposite:
 //
 // - *"suma finală se stabilește după măsurare"* — no sum here is final.
-// - *"Toate sumele sunt prețuri de pornire, rotunjite în sus"* — every amount was rounded up on its
-//   own, which is *why* they do not add up.
-//
 // A keyword pattern cannot draw that distinction and a human has to record it.
 //
 // **Excluded by identity, never by pattern and never by section.** Any other use of *suma*, *sume*,
 // *sumele*, *total*, *adun*, *egal*, `+` or `=` in price copy still fails, including inside the
-// breakdown's own section. And because the exclusion is an exact string, re-wording either sentence
+// breakdown's own section. And because the exclusion is an exact string, re-wording the sentence
 // stops it matching, the sweep judges it again, and the pin below says which line to update — which
 // is precisely when changed owner copy should make somebody look.
 //
-// **The second entry exists because the pattern was broadened to `sum[aăe]` on 2026-09-03.** Until
-// then the footnote passed *by accident*: the pattern was `sum[aă]` and *sumele* inflects past it,
-// so the guard was silent about that sentence because it was not looking rather than because
-// anybody had decided it was allowed. Two documented exceptions over a pattern that catches the
-// inflection beat one exception over a pattern with a hole in it.
-
-/** Frame 2D's disclaimer and frame 2D's rounding footnote, verbatim. */
+/** Gate O1's accepted disclaimer, verbatim. The accepted footnote contains no sum-family word and
+ * therefore needs no exception. */
 export const RULED_TO_CONTAIN_A_SUM_WORD = [
-  "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
-  "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
+  "Prețul afișat este estimativ. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
 ];
 
 /**
@@ -58,3 +52,38 @@ export const SUM_CLAIM_PATTERN = new RegExp(
   `${SUM_CLAIM_WORDS.source}|\\+|=`,
   "i",
 );
+
+/**
+ * **The one message leaf a currency code is ruled to appear in**, and the only place in the product
+ * a currency and an amount are joined.
+ *
+ * Until wave 6B-g the join was a template literal in `price/starting-price.ts` —
+ * `` `${amount} ${PRICE_BOOK_CURRENCY}` `` — which wrote a word order and a currency name into
+ * TypeScript. ADR 0095 Amendment C moved it here instead of reaching for `Intl.NumberFormat`, whose
+ * measured output (`"143.000"` under `ro`, `"L"` under `ro-MD`) contradicts the mockups.
+ *
+ * **Recorded by identity in this shared module rather than inside a test**, for the reason the sum
+ * list above is: the guards that assert "the currency is not written into a module" and "the
+ * currency *is* in the catalogue" are two halves of one rule, and a second spelling of the key is
+ * how one half comes to be asserted about a leaf the other half no longer names.
+ */
+export const RULED_TO_CARRY_THE_CURRENCY = "price.amountWithCurrency";
+
+/**
+ * `PRICE_BOOK_CURRENCY`'s value, re-spelled here rather than imported: a guard that asked the price
+ * book what the currency is would agree with it by construction, including after somebody changed
+ * it. The constant itself lives in the price book — see `price/starting-price.ts`'s note on where
+ * that home comes from.
+ *
+ * **The two spellings differ on purpose, and a sweep that unified them would be a regression.**
+ *
+ * - The **negative** sweep — *"no module writes the currency into a string of its own"* — reads this
+ *   literal. Derived from the book it would chase a changed value: set the book to `EUR` and a
+ *   module still holding `"MDL"` stops being looked for.
+ * - The **positive** case — *"the ruled leaf is spelled with the currency the book declares"* —
+ *   imports `PRICE_BOOK_CURRENCY` instead, and has to. It is the only thing in the product coupling
+ *   the catalogue's word to the book's; asserted against this literal it would prove nothing, and a
+ *   `EUR` book would go on rendering `43 000 MDL` with every price test green. Both cases live in
+ *   `tests/price/starting-price.adversarial.test.ts`, adjacent, for that reason.
+ */
+export const RULED_CURRENCY_CODE = "MDL";

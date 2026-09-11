@@ -625,7 +625,7 @@ function everyWallBInsertOf(
       catalog,
       target,
       cabinetDepthMm,
-    }).filter((offer) => offer.verdict.status === "offered");
+    });
 
     for (const offer of offers) {
       const inserted = insertBody({
@@ -648,10 +648,7 @@ function everyWallBInsertOf(
         trail,
         buildId: offer.buildId,
         heightMm: added.body.heightMm,
-        offeredHeightMm:
-          offer.verdict.status === "offered"
-            ? offer.verdict.heightMm
-            : undefined,
+        offeredHeightMm: offer.buildsToHeightMm,
       });
     }
   }

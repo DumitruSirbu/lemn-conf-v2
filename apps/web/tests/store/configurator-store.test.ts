@@ -15,7 +15,7 @@ import {
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
 
-import { ro } from "../../src/content/ro";
+import { ro } from "../support/romanian-content";
 
 import { occupiedMeta, offers } from "../support/selection-meta";
 import { PAL_KITCHEN } from "../support/panel-material";
@@ -36,11 +36,13 @@ function createSeededStore() {
  *  is a fixture: which body is selected has nothing to do with who may write. */
 function panelFrom(state: ConfiguratorState): OpenPanel {
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta: occupiedMeta(),
     offers: offers(3),
     rejection: null,
     widthOptions: [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,

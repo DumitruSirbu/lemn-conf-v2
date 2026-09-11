@@ -30,6 +30,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 const harness = vi.hoisted(() => ({
   answer: [] as readonly string[],
   cleanups: [] as (() => void)[],
@@ -144,7 +149,7 @@ vi.mock("@lemnaria/three-adapter", async () => {
 
 const { KitchenStage } = await import("../../src/scene/kitchen-stage");
 const { OverflowWarning } = await import("../../src/scene/overflow-warning");
-const { ro } = await import("../../src/content/ro");
+const { ro } = await import("../support/romanian-content");
 
 const OVERVIEW_VIEW = {
   kind: "fixed",

@@ -1,15 +1,10 @@
-// Every refusal the four commands can actually produce, swept for the same three properties.
-//
-// `rejection.test.ts` proves the message table is total over the code union, but it calls
-// `renderRejection` directly — it never asks whether a command can reach the code, nor what the
-// command does to the design on the way out. This file drives each code out of a real command and
-// asserts the whole refusal contract:
+// Every refusal the commands can actually produce, swept through the locale-free domain boundary.
 //
 //   1. the design that comes back is the **exact original object** (`toBe`, not `toEqual` — a
 //      structural copy passes `toEqual` and is still a defect, because a store applying results
 //      unconditionally would replace state with an equal-but-different object);
 //   2. the code is the stable one the panel switches on;
-//   3. the sentence is non-empty Romanian, with no placeholder leaking into the copy.
+//   3. typed params cross intact, with no rendered message added by the domain.
 import { describe, expect, it } from "vitest";
 
 import { CHOOSES_ITS_OWN_COLOUR } from "../../src/body-finish-rule.js";
@@ -61,8 +56,6 @@ import {
 } from "../support/dependent-replan-witness.js";
 import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
-const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
-const PLACEHOLDER_LEAKS = ["undefined", "null", "NaN", "Infinity", "[object"];
 const FRIDGE_COLUMN = "B|2.45";
 /** What a caller's book offers, opaque to the domain (ADR 0062 seam 1). Both whole-kitchen refusals
  *  are reached by asking for a tier that is not on it. */
@@ -628,18 +621,14 @@ describe("every refusal a command can produce", () => {
   );
 
   it.each(rows)(
-    "%s carries that code and a Romanian sentence",
+    "%s carries that code and locale-free params",
     (code, sweep) => {
       const result = sweep.run();
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.reason.code).toBe(code);
-      expect(result.reason.message.trim().length).toBeGreaterThan(0);
-      expect(result.reason.message).toMatch(ROMANIAN_LETTERS);
-      expect(result.reason.message.endsWith(".")).toBe(true);
-      for (const leak of PLACEHOLDER_LEAKS) {
-        expect(result.reason.message).not.toContain(leak);
-      }
+      expect(result.reason.params).toBeTypeOf("object");
+      expect(result.reason).not.toHaveProperty("message");
     },
   );
 

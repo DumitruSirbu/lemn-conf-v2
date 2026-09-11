@@ -188,9 +188,13 @@ describe("what a failure may never do to the line's shape", () => {
     expect(reason).not.toContain("‬");
   });
 
+  // The Romanian is the test's subject, not copy: the log must carry a locale's own letters through
+  // unchanged, beside the bidirectional overrides it strips above.
   it("keeps ordinary non-ASCII text, which is not a forgery risk", () => {
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the Romanian is the test's subject rather than copy: a locale's own letters must survive the log unchanged.
     emitFailure(new Error("bucătărie: coloană inexistentă"));
 
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the same subject, asserted: the logged reason is the sentence that went in.
     expect(loggedLine(errorSpy).reason).toBe("bucătărie: coloană inexistentă");
   });
 

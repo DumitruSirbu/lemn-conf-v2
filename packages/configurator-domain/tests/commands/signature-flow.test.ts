@@ -232,6 +232,6 @@ describe("the rejection sweep", () => {
     expect(result).not.toHaveProperty("effect");
     if (result.ok) return;
     expect(result.reason.code.length).toBeGreaterThan(0);
-    expect(result.reason.message.length).toBeGreaterThan(0);
+    expect(result.reason).not.toHaveProperty("message");
   });
 });

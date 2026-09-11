@@ -32,7 +32,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import {
   describePriceBreakdown,
@@ -56,7 +56,11 @@ function breakdownOf(
   pricing: PricingResult,
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({
+    content: ro,
+    pricing,
+    groups,
+  });
   if (view.kind !== "available")
     throw new Error("the design was expected to price");
   return view;
@@ -206,7 +210,7 @@ describe("a line kind with no category word is not rendered with a hole in it", 
     );
   });
 
-  /** The `accessory` kind itself was such a line before `ro.ts` gained its word, and this states
+  /** The `accessory` kind itself was such a line before the catalogue gained its word, and this states
    *  what it now reads as — the word is the book-independent half of the pair the membership test
    *  keys on. */
   it("has a word for every kind the section is meant to list", () => {

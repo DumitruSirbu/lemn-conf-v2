@@ -48,6 +48,7 @@ import {
   type Column,
   type Design,
 } from "@lemnaria/configurator-domain";
+import { ro } from "../support/romanian-content";
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type WidthStepperSection } from "@/panel/panel-model";
@@ -111,6 +112,7 @@ function stepperAt(kitchen: Kitchen, id: string): WidthStepperSection {
     catalog: CATALOG,
   };
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
@@ -124,6 +126,7 @@ function stepperAt(kitchen: Kitchen, id: string): WidthStepperSection {
     widthRanges:
       columnWidthChoices({ design: kitchen.design, catalog: CATALOG, target })
         ?.widthRangesMm ?? [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

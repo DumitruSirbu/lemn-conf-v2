@@ -600,7 +600,7 @@ Conclusions reached in the design session. The rejected ones matter most: each w
 | **Corners are structural** | No replace, no delete, never a width donor. A sink-in-corner request is a custom product, not a loosened rule. |
 | **Top row ships push-to-open** | Overhead doors read cleaner without hardware; handles exist but hidden so the choice stays available. |
 | **1000 mm dropped** | Two doors top out at 800; nobody specifies a 1000 mm cabinet. |
-| **Disable, don't warn** | Any size or body that cannot be satisfied is greyed and unclickable, with the reason and an unlock action. A refusal reaching the user means a list offered something it shouldn't. |
+| **Disable, don't warn** | Any size ~~or body~~ that cannot be satisfied is greyed and unclickable, with the reason and an unlock action. A refusal reaching the user means a list offered something it shouldn't. **Half superseded 2026-09-10 by the owner's ruling in [ADR 0032](../decisions/0032-an-entry-that-does-not-fit-is-shown-disabled-with-its-reason.md)'s *Superseded* section ([ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md) decision 3):** a **body** the engine cannot satisfy is **removed from the offer list**, not greyed — *"it's hard to understand why on base cabinet I see hood"*. **Sizes still disable** (ADR 0035's bounded stepper, ADR 0049's fixed-width section); the change is to the list of entries, and the reason a customer no longer sees is the cost the owner weighed and accepted. |
 
 ### 13.2 Rejected
 

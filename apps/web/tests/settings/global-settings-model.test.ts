@@ -3,9 +3,9 @@
 // The rendered half is here for `price-breakdown-model.test.ts`'s reason: *"a zero reads inclus"* is
 // a claim about what is on the page, and a value assertion cannot see a `0` rendered beside it.
 //
-// **Every Romanian string this wave added is pinned by a literal below.** They are drafted from the
-// mockups' own frames and have not been through the owner, so the pins are what makes a change to
-// any of them a deliberate act rather than a diff nobody reads.
+// **Every string this wave added is read from its own catalogue leaf below, never spelled here.**
+// The wording is pinned once, in `tests/support/approved-romanian-messages.ts`; what these pin is
+// which leaf each field asks for, which is the half a copy lock cannot see.
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -19,13 +19,12 @@ import {
   type DisplayGroup,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { swatchOf } from "@lemnaria/three-adapter";
-
-import { ro } from "@/content/ro";
 
 import { describeRoundedAmount } from "@/price/starting-price";
 import {
@@ -71,6 +70,7 @@ function inputFor(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): DescribeGlobalSettingsInput {
   return {
+    content: overrides.content ?? content,
     pricing: pricingOf(KITCHEN_L_DESIGN),
     offer: offerOf(KITCHEN_L_DESIGN),
     groups: SHIPPED_GROUPS,
@@ -109,10 +109,13 @@ function firstEntries(bodyCount: number): readonly DisplayGroup[] {
 /** These fixtures are about tiers, deltas and copy, never about access. Stated rather than
  *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
  *  cannot silently default to permitted (M6-AUD-001). */
-const WRITABLE_ACCESS = describeEditability({
-  canWrite: true,
-  saveStatus: "idle",
-});
+const WRITABLE_ACCESS = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "idle",
+  },
+  content.panel,
+);
 
 function markupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
@@ -134,7 +137,7 @@ describe("what the sheet says it applies to", () => {
     // columns and the voids derived from a column map are space rather than bodies, and the
     // projection is the one answer to which of the two a thing is.
     expect(settingsView({ groups: firstEntries(2) }).appliesTo).toBe(
-      "Se aplică tuturor celor 2 corpuri. Nu se setează pe fiecare corp în parte.",
+      content.globalSettings.appliesTo(2),
     );
   });
 
@@ -148,26 +151,24 @@ describe("what the sheet says it applies to", () => {
   });
 
   it("stays grammatical at one body, where the mockup's own wording is not", () => {
-    // *"tuturor celor 1 corp"* is not Romanian, so the singular is its own form rather than the
+    // *"tuturor celor 1 dulap"* is not Romanian, so the singular is its own form rather than the
     // drawn sentence with a one substituted into it.
     expect(settingsView({ groups: firstEntries(1) }).appliesTo).toBe(
-      "Se aplică singurului corp din bucătărie. Nu se setează pe fiecare corp în parte.",
+      content.globalSettings.appliesTo(1),
     );
   });
 
-  it("stays grammatical at none, and at the count where Romanian takes de", () => {
+  it("uses the locale resolver for an empty kitchen", () => {
     expect(settingsView({ groups: [] }).appliesTo).toBe(
-      "Se aplică tuturor celor 0 de corpuri. Nu se setează pe fiecare corp în parte.",
-    );
-    expect(ro.globalSettings.appliesTo(20)).toBe(
-      "Se aplică tuturor celor 20 de corpuri. Nu se setează pe fiecare corp în parte.",
+      content.globalSettings.appliesTo(0),
     );
   });
 
   it("says it is not set per cabinet, which is half the criterion", () => {
-    expect(settingsView().appliesTo).toContain(
-      "Nu se setează pe fiecare corp în parte",
-    );
+    const perCabinetClause = content.globalSettings.appliesTo(2).split(". ")[1];
+    if (perCabinetClause === undefined)
+      throw new Error("the applies-to message has no per-cabinet clause");
+    expect(settingsView().appliesTo).toContain(perCabinetClause);
   });
 });
 
@@ -272,7 +273,7 @@ describe("the two selections, which are not the same selection", () => {
       "PAL melaminat",
       "Alb",
       "Feronerie Standard",
-      "Adâncime 600",
+      content.globalSettings.pillDepth(600),
     ]);
     expect(view.pill.settings.map((setting) => setting.key)).toEqual([
       "material",
@@ -293,7 +294,9 @@ describe("the two selections, which are not the same selection", () => {
 
     expect(colour).toEqual({ key: "colour", label: "Alb" });
     expect(hardware?.label.startsWith("Feronerie ")).toBe(true);
-    expect(depth?.label.startsWith("Adâncime ")).toBe(true);
+    // Read from the leaf rather than spelled: `pillDepth` is `Adâncime {n}`, and that the word
+    // stands in front of the number is pinned once, in the copy lock.
+    expect(depth?.label).toBe(content.globalSettings.pillDepth(600));
   });
 
   it("draws a free colour as a swatch and no text at all, and still counts it as shown", () => {
@@ -353,14 +356,19 @@ describe("the two selections, which are not the same selection", () => {
     for (const setting of view.pill.settings) {
       expect(view.pill.accessibleName).toContain(setting.label);
     }
-    expect(view.pill.accessibleName).toContain("Setări globale");
+    expect(view.pill.accessibleName).toContain(content.globalSettings.open);
   });
 
   it("counts what it does not show, and never draws a bare counter", () => {
     const view = settingsView();
 
     expect(describePillRung(view.pill, 4)).toEqual({
-      labels: ["PAL melaminat", "Alb", "Feronerie Standard", "Adâncime 600"],
+      labels: [
+        "PAL melaminat",
+        "Alb",
+        "Feronerie Standard",
+        content.globalSettings.pillDepth(600),
+      ],
     });
     expect(describePillRung(view.pill, 2).counter).toBe("+2");
     // The floor holds even against a caller that asks for nothing to be named.
@@ -375,27 +383,27 @@ describe("the two selections, which are not the same selection", () => {
 });
 
 describe("the ruled words, and the one deliberately absent", () => {
-  it("pins every string this wave drafted", () => {
+  it("reads every string this wave drafted from its own leaf", () => {
     const view = settingsView();
 
-    // The control's own name is still the ruled string; since ADR 0104 decision 2 it is the pill's
-    // accessible name rather than visible text, because no frame draws a text trigger.
-    expect(view.pill.accessibleName.startsWith("Setări globale")).toBe(true);
-    expect(view.title).toBe("Setări pentru toată bucătăria");
-    expect(view.warning).toBe(
-      "Schimbarea materialului recalculează întreaga estimare.",
-    );
-    expect(view.applyLabel).toBe("Aplică");
-    expect(view.cancelLabel).toBe("Renunță");
+    // The control's own name is still `globalSettings.open`; since ADR 0104 decision 2 it is the
+    // pill's accessible name rather than visible text, because no frame draws a text trigger.
+    expect(
+      view.pill.accessibleName.startsWith(content.globalSettings.open),
+    ).toBe(true);
+    expect(view.title).toBe(content.globalSettings.title);
+    expect(view.warning).toBe(content.globalSettings.materialWarning);
+    expect(view.applyLabel).toBe(content.globalSettings.apply);
+    expect(view.cancelLabel).toBe(content.globalSettings.cancel);
     expect(view.groups.map((group) => group.heading)).toEqual([
-      "Material corp și fronturi",
-      "Feronerie",
+      content.globalSettings.groupHeadings.material,
+      content.globalSettings.groupHeadings.hardware,
     ]);
     expect(view.groups.map((group) => group.anchor)).toEqual([
-      "Față de materialul inclus",
-      "Față de feroneria inclusă",
+      content.globalSettings.groupAnchors.material,
+      content.globalSettings.groupAnchors.hardware,
     ]);
-    expect(ro.globalSettings.tierDelta("+9 000")).toBe("de la +9 000");
+    expect(content.globalSettings.tierDelta("+9 000")).toBe("de la +9 000");
   });
 
   it("omits the sentence about limiting per-cabinet finishes entirely, rather than showing it", () => {
@@ -412,8 +420,8 @@ describe("the ruled words, and the one deliberately absent", () => {
     // anchor is a property of a group, and the two could later differ.
     const markup = markupOf(settingsView());
 
-    expect(markup).toContain("Față de materialul inclus");
-    expect(markup).toContain("Față de feroneria inclusă");
+    expect(markup).toContain(content.globalSettings.groupAnchors.material);
+    expect(markup).toContain(content.globalSettings.groupAnchors.hardware);
     expect(
       [...markup.matchAll(/data-testid="global-settings-anchor"/g)].length,
     ).toBe(2);
@@ -422,17 +430,18 @@ describe("the ruled words, and the one deliberately absent", () => {
   it("carries comma-below diacritics in the anchor lines, not the cedillas that render identically", () => {
     // `ț` U+021B, never `ţ` U+0163 — the same check `starting-price.adversarial.test.ts` keeps on
     // the owner's own sentence, applied to the two strings this wave drafted with a t-comma in them.
-    for (const anchor of Object.values(ro.globalSettings.groupAnchors)) {
+    for (const anchor of Object.values(content.globalSettings.groupAnchors)) {
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: codepoints rather than wording — the comma-below spelling of the two drafted anchor lines.
       expect(anchor, anchor).toContain("Fa\u021B\u0103");
       expect(anchor, anchor).not.toMatch(/[\u0163\u015F]/);
     }
   });
 
   it("spells its de la with the same two words the figure above it does", () => {
-    expect(ro.globalSettings.tierDelta("+1 000").startsWith("de la")).toBe(
+    expect(content.globalSettings.tierDelta("+1 000").startsWith("de la")).toBe(
       true,
     );
-    expect(ro.price.startingPrefix.toLowerCase()).toBe("de la");
+    expect(content.price.startingPrefix.toLowerCase()).toBe("de la");
   });
 });
 
@@ -465,7 +474,7 @@ describe("the surface itself", () => {
       throw new Error("the seeded design was expected to price");
 
     expect(markupOf(view)).toContain(view.figure.amountText);
-    expect(view.figure.label).toBe(ro.price.startingPrefix);
+    expect(view.figure.label).toBe(content.price.startingPrefix);
   });
 
   it("calls the total what every other surface calls it, since there is one name left", () => {
@@ -474,15 +483,15 @@ describe("the surface itself", () => {
     // too because it covers the bar that said it. There is one label now, so what was a rule three
     // surfaces had to share is a string one module composes — and the sheet cannot disagree with the
     // bar about a choice neither of them makes.
-    expect(settingsView().figure?.label).toBe(ro.price.startingPrefix);
+    expect(settingsView().figure?.label).toBe(content.price.startingPrefix);
     expect(settingsView().figure?.label).not.toContain("neschimbat");
   });
 
   it("carries both actions on both shells", () => {
     const markup = markupOf(settingsView());
 
-    expect(markup).toContain("Aplică");
-    expect(markup).toContain("Renunță");
+    expect(markup).toContain(content.globalSettings.apply);
+    expect(markup).toContain(content.globalSettings.cancel);
   });
 });
 
@@ -502,6 +511,7 @@ describe("a stored tier the book no longer offers", () => {
 
   function withdrawnView(): GlobalSettingsView {
     return describeGlobalSettings({
+      content: content,
       pricing: pricingOf(withdrawn),
       offer: offerOf(withdrawn),
       groups: projectDesignForDisplay(withdrawn, KITCHEN_L_BODY_CATALOG),
@@ -560,9 +570,8 @@ describe("a stored tier the book no longer offers", () => {
     for (const group of view.groups)
       for (const option of group.options)
         expect(option.deltaText, option.tierId).toBeUndefined();
-    // On the badge, not in the page: the book's own tier *descriptions* legitimately say *inclus*
-    // ("Materialul standard al bucătăriei, inclus în preț"), and refusing the word outright would
-    // be a claim about copy this surface does not author.
+    // On the badge, not in the page: this surface renders the book's own tier *descriptions*, and
+    // refusing the word *inclus* outright would be a claim about copy it does not author.
     expect(markup).not.toContain('data-testid="global-settings-delta"');
     expect(markup).not.toContain('data-testid="global-settings-figure"');
     expect(markup).not.toContain('data-testid="global-settings-anchor"');

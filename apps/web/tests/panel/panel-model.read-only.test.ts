@@ -18,7 +18,7 @@ import {
   type PanelSection,
 } from "@/panel/panel-model";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 
 import {
   occupiedMeta,
@@ -49,11 +49,13 @@ function openPanel(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ): OpenPanel {
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: offers(3),
     rejection: null,
     widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -170,7 +172,12 @@ describe("the notice says which of the two situations this is", () => {
     // be true of all three. "Only the creating browser can edit" is true of the third and false of
     // the first two — the creating browser is read-only there too. ADR 0019 decision 8's emailed
     // edit link is M8 and unbuilt, so there is no route to offer.
+    //
+    // **The two literals are deliberate and load-bearing** — a *negative* claim about the source
+    // wording, which no catalogue read can express. Wave 6B-j's allow-list, not a conversion.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording, which no catalogue read can express — see the note above.
     expect(ro.panel.readOnlyNotice).not.toContain("browserul în care");
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the second half of the same negative claim.
     expect(ro.panel.readOnlyNotice).not.toContain("a fost creată");
   });
 
@@ -204,7 +211,7 @@ describe("the notice says which of the two situations this is", () => {
     // the selection that no access answer can alter.
     const panel = openPanel(occupiedMeta(), { canWrite: "checking" });
 
-    expect(panel.header.label).toBe(occupiedMeta().label);
+    expect(panel.header.label).toBe(ro.bodyLabel(occupiedMeta().label));
     expect(panel.sections).not.toHaveLength(0);
   });
 
@@ -325,6 +332,10 @@ describe("the notice says which of the two situations this is", () => {
     expect(notice?.message).toBe(ro.panel.saveFailedNotice);
     // The advice form is the imperative "reîncarcă pagina"; the copy's own "nu reîncărca pagina"
     // is the negative imperative and does not match it. This pins that no reload is *offered*.
+    //
+    // **The literal is deliberate and load-bearing** — a *negative* claim about the source wording,
+    // which no catalogue read can express. Wave 6B-j's allow-list, not a conversion.
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording: no reload is offered — see the note above.
     expect(ro.panel.saveFailedNotice).not.toContain("reîncarcă pagina");
   });
 
@@ -370,6 +381,24 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     );
 
     expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.readOnlyReason);
+  });
+
+  // The domain refusal this used to race against no longer reaches a row at all (owner,
+  // 2026-09-10: an entry the engine refuses is absent, not disabled). What read-only still has to
+  // beat is the row's **size line**, which is what an enabled row would otherwise be showing.
+  it("puts read-only ahead of the size an offered row would otherwise show", () => {
+    const replace = findSection(
+      readOnlyPanel(occupiedMeta(), {
+        offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
+      }),
+      "replace",
+    );
+
+    expect(replace.rows[0]?.isDisabled).toBe(true);
+    expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.readOnlyReason);
+    expect(replace.rows[0]?.secondaryLine).not.toBe(
+      ro.panel.offerSize(700, 1850),
+    );
   });
 
   it("disables every finish chip and gives each one its reason", () => {
@@ -465,7 +494,7 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     }
   });
 
-  it("disables Șterge corpul without pretending the body cannot be deleted", () => {
+  it("disables the remove control without pretending the body cannot be deleted", () => {
     const footer = readOnlyPanel().footer;
 
     // `canDelete` is about the body, `isRemoveDisabled` about this browser. Hiding the control
@@ -476,7 +505,7 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     expect(footer.removeDisabledReason).toBe(ro.panel.readOnlyReason);
   });
 
-  it("still hides Șterge corpul on a body that has no delete at all", () => {
+  it("still hides the remove control on a body that has no delete at all", () => {
     const footer = readOnlyPanel(occupiedMeta({ canDelete: false })).footer;
 
     expect(footer.canDelete).toBe(false);
@@ -521,11 +550,13 @@ describe("read-only withholds nothing from the customer's eyes", () => {
   it("leaves the closed panel closed — a read-only browser with nothing selected sees no panel", () => {
     expect(
       describePanel({
+        content: ro,
         material: PAL_KITCHEN,
         meta: undefined,
         offers: [],
         rejection: null,
         widthOptions: [],
+        buildableWidthSpanMm: undefined,
         isBodyProbeAttached: true,
         canWrite: false,
         saveStatus: "unauthorized",

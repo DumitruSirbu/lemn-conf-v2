@@ -17,11 +17,17 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import {
   createConfiguratorStore,
@@ -121,6 +127,7 @@ function openSheetMarkupFor(access: {
   readonly saveStatus: SaveStatus;
 }): string {
   const view = describeGlobalSettings({
+    content: content,
     pricing: priceDesign({
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
@@ -144,7 +151,7 @@ function openSheetMarkupFor(access: {
     createElement(GlobalSettingsSurface, {
       id: "settings",
       view,
-      editability: describeEditability(access),
+      editability: describeEditability(access, ro.panel),
       onChoose: () => undefined,
       onChooseDepth: () => undefined,
       onCancel: () => undefined,
@@ -319,14 +326,15 @@ describe("the sheet itself, if a locked browser reaches it", () => {
 describe("the four states this sweep calls locked", () => {
   it("are exactly the ones the shared rule locks, so the sweep is not testing its own list", () => {
     for (const access of EVERY_LOCKED_ACCESS) {
-      const editability = describeEditability(access);
+      const editability = describeEditability(access, ro.panel);
       const label = `${String(access.canWrite)} / ${access.saveStatus}`;
 
       expect(editability.isReadOnly, label).toBe(true);
       expect(editability.disabledReason, label).toBe(access.reason);
     }
     expect(
-      describeEditability({ canWrite: true, saveStatus: "idle" }).isReadOnly,
+      describeEditability({ canWrite: true, saveStatus: "idle" }, ro.panel)
+        .isReadOnly,
     ).toBe(false);
   });
 });

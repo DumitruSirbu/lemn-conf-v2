@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ro } from "../../src/content/ro";
+import { ro } from "../support/romanian-content.e2e";
 import { readSelection } from "./support/panel";
 import { tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
@@ -16,7 +16,7 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  *
  * So it is produced the way the visual verification produced it on the price bar: the **real**
  * element is injected at runtime — the shipped class from the shipped stylesheet, the owner's
- * ruled sentence from `ro.ts` — and what must not break is measured. Nothing here asserts that the
+ * ruled sentence from `src/messages/ro.json` — and what must not break is measured. Nothing here asserts that the
  * warning renders; `price-bar-states.adversarial.test.ts` does that. This asserts that the sheet
  * survives it.
  *

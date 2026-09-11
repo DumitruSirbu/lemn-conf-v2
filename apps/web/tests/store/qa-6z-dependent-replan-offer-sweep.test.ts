@@ -78,9 +78,7 @@ function offeredBuildIds(store: Store): readonly string[] {
     catalog: state.catalog,
     target: state.selection ?? { kind: "void", id: "" },
     cabinetDepthMm: cabinetDepthMmOf(state.design),
-  })
-    .filter((offer) => offer.verdict.status === "offered")
-    .map((offer) => offer.buildId);
+  }).map((offer) => offer.buildId);
 }
 
 interface SweptInsert {

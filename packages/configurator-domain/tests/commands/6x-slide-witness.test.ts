@@ -802,11 +802,10 @@ describe("item 3's design is not reachable from today's seed", () => {
     }).find((offer) => offer.buildId === "base-dishwasher");
 
     // §7 offers it, and the offer's own answer for what it would build to is the worktop line.
-    expect(offered?.verdict).toStrictEqual({
-      status: "offered",
-      widthMm: 600,
-      heightMm: BASE_BODY_HEIGHT_MM,
-    });
+    expect([offered?.buildsToWidthMm, offered?.buildsToHeightMm]).toEqual([
+      600,
+      BASE_BODY_HEIGHT_MM,
+    ]);
 
     const inserted = insertBody({
       design,

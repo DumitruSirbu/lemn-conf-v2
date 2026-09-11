@@ -6,7 +6,12 @@
 // a failure renders *no* figure — not a zero, not a stale one, not a dash that reads as free), and
 // the flagged-total warning is owner-ruled copy belonging to the surface that renders it
 // (ADR 0065 decision 7b). A domain module inventing either would be inventing product copy.
-import type { PriceBookCurrency, PriceBookStatus } from "./price-book.js";
+import type { BodyLabel } from "../catalog.js";
+import type {
+  CabinetSupplier,
+  PriceBookCurrency,
+  PriceBookStatus,
+} from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
  *  whole-kitchen rules §12 permits a line to trace to instead; `accessory` traces to neither — it is
@@ -41,16 +46,28 @@ export interface CabinetPriceLine extends PriceLineCommon {
    *  one, and the body's own id where it has none. Published so a line names both the body the
    *  customer owns and the row it was priced as. */
   readonly pricedAsBuildId: string;
-  readonly label: string;
+  readonly label: BodyLabel;
   readonly widthMm: number;
+  /** **Who supplies this body** — the book's own declaration, defaulted once here and never
+   *  re-derived (`DEFAULT_CABINET_SUPPLIER`). Always present, so a surface reads a fact instead of
+   *  interpreting an absence.
+   *
+   *  A `customer` line is drawn in the scene, listed in the breakdown, and adds nothing to the
+   *  total. Published **beside** `amountMinor` rather than inferred from it: a manufacturer row can
+   *  be free too, and telling a customer their fridge is *included* is the defect this closes. */
+  readonly suppliedBy: CabinetSupplier;
 }
 
-/** A whole-kitchen tier, priced once after every placement line. */
+/** A whole-kitchen tier, priced once after every placement line. Carries the tier's own key beside
+ *  its authored name (ADR 0106 decision 1) so the breakdown resolves the same words the settings
+ *  sheet does — the line publishes the descriptor and resolves nothing. */
 export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly kind: "hardware" | "material";
   readonly tierId: string;
   readonly name: string;
   readonly description: string;
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
 }
 
 /** **An extra the design earns rather than chooses** — ADR 0070 decision 4's two sink extras, and
@@ -70,6 +87,8 @@ export interface AccessoryPriceLine extends PriceLineCommon {
   readonly accessoryId: string;
   readonly name: string;
   readonly description: string;
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
 }
 
 export type PriceLine =

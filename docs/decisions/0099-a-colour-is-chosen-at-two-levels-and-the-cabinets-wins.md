@@ -1,6 +1,7 @@
 # ADR 0099 — A colour is chosen at two levels, the cabinet's wins, and a global change can never overwrite one
 
-Status: Accepted
+Status: Accepted — **Amendments A, B, C and D**; D (2026-09-10) moves decision 8's control out of the
+colour carousel on the owner's ruling and leaves the decision itself unchanged
 Date: 2026-09-07
 Type: Decision
 Milestone: M6 — closes owner manual-feedback item 6
@@ -560,3 +561,35 @@ A **browser pass**. Every claim here is measured off the built object; none of i
 frame. This joins Amendment B7's own outstanding line. It owes one judgement beyond the hexes: that
 C3's default-state repaint — carcass grey to door white, on every kitchen — reads as the fix the
 owner asked for on a design where no colour was ever chosen.
+
+**Discharged in part, 2026-09-10/11**: the owner drove the built product themselves and ruled on what
+they saw — see Amendment D. That pass produced the ruling below rather than a sign-off on C3's
+repaint, so the judgement C6 asks for is still owed.
+
+## Amendment D, 2026-09-10 — decision 8's control leaves the carousel, because a scroll position is a one-way door too
+
+**Owner ruling, made in a browser, and it is decision 8's own reasoning applied to placement.**
+
+The *follow the kitchen's colour* control shipped as one more chip inside the horizontally scrolling
+colour row, on the argument that it is a choice among the choices. **It is not a colour, it is a
+reset**, and a reset that can scroll out of sight turns the way back out of an override into
+something a customer has to hunt for. Decision 8 exists so that the first tap on a swatch does not
+pin a cabinet out of the global default for ever; a control that is present but off-screen satisfies
+that on paper and not in front of a customer. **The one-way door came back as a scroll position.**
+
+The control now sits on its **own full-width row directly under the colour control** — fixed,
+centred, always where it was left — and carries `.followRow` rather than `.swatch`, so a later change
+to swatch styling cannot drag it back into looking like a colour
+(`apps/web/src/panel/editor-panel.tsx`, `FollowTheKitchenButton`).
+
+**Decision 8 itself is unchanged**: the control still writes nothing and deletes the key. What is
+amended is where it is drawn, and the amendment is here rather than only in the component because the
+next reader to tidy the colour row will otherwise reach for exactly the arrangement the owner
+rejected. The full set of that session's rulings is
+[ADR 0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md);
+this is its decision 4.
+
+**The Romanian moved with it, and it is the owner's own wording**: `panel.finishFollowsKitchen` is
+now *"Preia culoarea bucătăriei"*, edited by the owner in `ro.json` during the same session, with the
+Russian — *"Используй глобальный цвет кухни"* — ruled by them personally. Neither may be reworded by
+an agent.

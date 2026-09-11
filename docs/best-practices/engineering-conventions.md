@@ -63,6 +63,106 @@ file, not a Claude session's global conventions.
 - Design visible flows mobile-first or verify their small-viewport behaviour explicitly. Do not
   rely on hover-only controls for required interaction.
 
+### Localised copy — what to do when you need a new string
+
+The bullet above says *what*; this says *how*, for this codebase, as milestone M6B shipped it. Read
+it before adding a sentence, a label, a placeholder or an error message. It is not advice — each
+point below names the check that fails when it is broken, except **point 2's namespace shape, which
+no machine checks**: that one is a review item.
+
+**1. There is exactly one legal place for a customer-visible string: `apps/web/src/messages/ro.json`,
+with its translation in `ru.json`.** Not a component, not a `content/*.ts` module, not a domain
+constant, not a default parameter, not a test fixture. `apps/web/src/i18n/content.ts` is the only
+module that turns a key into a sentence, and `next-intl` is the only thing that reads the files.
+**Romanian is the source language**; every other locale is a translation of it, and a Romanian
+sentence a person approved is never re-authored to make a translation easier — that is a finding to
+report, not an edit to make.
+
+**2. A key is `namespace.leafName`, and a namespace mirrors a surface rather than a component tree.**
+The shipped namespaces are `brand`, `meta`, `configure`, `panel`, `price`, `priceBreakdown`,
+`globalSettings`, `webglUnavailable`, `designLoadError`, `contactPlaceholder`, `band`, `finish`,
+`priceBook`, `catalog` and `rejection` — a customer can point at almost every one of them. A string
+that moves from one component into another keeps its key when the customer still reads it in the
+same place; a string that moves to a different screen changes namespace. Leaf names are `camelCase`
+and name the string's **job**, not its words: `configure.overflowWarning`, never
+`configure.dulapurileMarcate`. Add a namespace for a new surface (M7's room screen wants one); do not
+nest a fourth level to mirror a folder.
+
+**3. Interpolation and plurals are ICU, and a Romanian plural is CLDR's `one` / `few` / `other`.**
+
+```
+"countForBody": "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} {bandWord} …"
+```
+
+Never branch a plural in TypeScript, and never add a `=0` arm because zero feels like a special case.
+**The worked example, which is why this is a rule rather than a preference:** Romanian CLDR puts
+**0 in `few`**, so the message above renders *"0 dulapuri"* — and that is what the owner ruled on
+2026-09-06. The hand-written helper it replaced carried a comment claiming zero took the *"de"* form,
+and a `=0` arm written from that comment would have shipped *"0 de dulapuri"*. A second owner ruling
+on 2026-09-10 (*"without «de» on plural"*) put the bare noun in `other` too, so 20 and 100 read
+*"20 dulapuri"*. Both rulings are properties of the CLDR arms, which is exactly why they survive:
+there is no branch left to get wrong. Numbers are `{n, number, ::group-off}` where the mockups show
+no group separator; money is joined by `price.amountWithCurrency` and by nothing else.
+
+**4. A new key lands in `ro.json` *and* `ru.json` in the same commit.** This is the bullet above's
+*"add every required locale at the same time"*, and it is checked: `tests/i18n/catalogue-parity.test.ts`
+fails on a key present in one catalogue and missing from the other, and on mismatched ICU
+placeholders between them. The Russian is a drafted translation awaiting owner sign-off — draft it,
+never mark it approved.
+
+**5. The copy lock is an inline literal table, and never a snapshot.**
+`apps/web/tests/support/approved-romanian-messages.ts` holds the approved Romanian wording as a
+literal object; `tests/i18n/romanian-copy-lock.test.ts` compares the catalogue against it. A new
+approved sentence is added there by hand, in the same commit as the key. **Do not reach for a
+snapshot file**: a snapshot updates itself under `-u` and records what the code does, whereas the
+point of the lock is to record what a person agreed to, so that changing a sentence is a deliberate
+two-file edit somebody has to look at. Separately, `tests/i18n/golden-output-hashes.ts` pins a
+key-to-SHA-256 manifest of rendered output; a wave that moves a hash has changed a rendered value and
+owes the changed-key list in its commit message.
+
+**6. What the lint gate rejects**, so this page and the gate cannot disagree. `eslint.config.mjs`
+fails the build on:
+
+- a **Romanian letter** — `ă â î ș ț`, and the Turkish cedillas `ş ţ` that render like them — inside
+  a string literal, a template literal or a **regex literal**, anywhere in `apps/web/src`,
+  `apps/web/tests`, `packages/*/src` or `packages/*/tests`. `apps/web/src/messages/**` is where it
+  belongs and is excluded. A Romanian **comment** is never rejected: the rules read the syntax tree,
+  and this codebase's comments quote approved copy on purpose.
+- **bare text rendered as JSX**, and a bare string given to `aria-label`, `title`, `placeholder` or
+  `alt`, in `apps/web/src`. This is the half that does not depend on the language: *"Dulap
+  suspendat"*, *Frigider* and every palette name carry no diacritic, and a diacritic rule alone would
+  certify a file full of them.
+
+Two allow-lists sit beside those rules, both in `eslint.config.mjs`, and **every entry carries the
+reason it is legal** — a decorative glyph a locale does not translate, a file whose literals are the
+subject rather than the copy. A test that must name Romanian — a *negative* claim about the wording, a
+codepoint, a golden hash input — records its reason at the site, in an
+`// eslint-disable-next-line no-restricted-syntax -- …` directive, or in a
+`/* eslint-disable … -- … */` … `/* eslint-enable … */` pair where several adjacent lines share one
+reason. A bare disable with no sentence beside it is not an exemption; it is a suppression, and it is
+a review failure.
+
+**7. A model publishes a descriptor; the render layer resolves it — and that decides which of four
+layers your test belongs in.** A `*-model.ts`, a domain query or a store selector returns
+`{ key, params }` or a `BodyLabel`, never a sentence; `content.ts` resolves it at the edge.
+`packages/configurator-domain` therefore imports no i18n library, takes no locale, and publishes no
+Romanian. Ask these in order and stop at the first *yes*:
+
+1. **Is the expected value a sentence a person approved?** → the copy lock, as an inline literal, and
+   nowhere else.
+2. **Is the subject a model function returning data?** → assert the **descriptor** it publishes.
+   This is the default, and it is stronger than the alternative: `toBe(ro.panel.done)` passes for any
+   string the model returns, while `toEqual({ kind: "bodyKind", bodyKind: "wall_cabinet" })` fails
+   when the model picks the wrong body.
+3. **Does it read the DOM, a rendered component, or a Playwright page?** → a resolution assertion,
+   and it may compare against `ro.<key>`. The same-source comparison is the design here: it proves
+   the resolver ran and the right key was asked for, and it is not asked to prove the wording.
+4. **Is it about the catalogue's structure** — completeness, placeholder parity, no silent fallback,
+   a hash manifest? → it names no Romanian at all.
+
+A model test that reaches for `ro.` has probably answered question 2 wrongly, and owes a one-line
+comment saying why the descriptor would not do.
+
 ## Tests
 
 - One logical behaviour per test, named after the failure it detects.
@@ -93,3 +193,13 @@ file, not a Claude session's global conventions.
   the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it
   claims to test.
+- **A comment claiming a guard is not a guard.** When a test file, a fixture or a manifest says in
+  prose that it protects something — *"this is the gate that bites"*, *"an unknown key cannot reach
+  the screen"* — that sentence is a claim to be falsified, not a fact to inherit. Break the thing it
+  names and confirm the gate goes red; if it stays green, the comment is the defect and it is more
+  dangerous than a missing test, because the next reader trusts it and does not write the real guard.
+  Three of the four dead gates M6B wave 6B-f found were exactly this shape, and none was found by
+  running the suite — see that wave's close-out in `docs/milestones/M6B-internationalization.md`.
+  The same rule covers the two ways a gate disarms itself quietly: a helper that is module-private is
+  invisible to the totality test that should be sweeping it, and a guard that returns early on some
+  precondition reports success on every run where the precondition is false.

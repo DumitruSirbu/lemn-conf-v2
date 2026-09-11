@@ -34,9 +34,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 import { PRICE_BAR_RESERVED_HEIGHT_PX } from "@/price/price-bar-layout";
 import { describePriceBar } from "@/price/price-bar-model";
 import { describeStartingPrice } from "@/price/starting-price";
+import { ro } from "../support/romanian-content";
 import {
   createConfiguratorStore,
   type ConfiguratorState,
@@ -122,6 +128,7 @@ describe("the optional pricing seam, wired end to end", () => {
     expect(view.footer.price).toEqual(
       describeStartingPrice({
         totalMinor: priced.priced.totalMinor,
+        copy: ro.price,
       }),
     );
   });
@@ -134,6 +141,7 @@ describe("the optional pricing seam, wired end to end", () => {
 
     const panel = readFromHook(usePanelView);
     const bar = describePriceBar({
+      content: ro,
       pricing: readFromHook(usePricedDesign),
     });
     if (panel.kind !== "open" || bar.kind !== "priced")
@@ -261,6 +269,7 @@ describe("no total is persisted, and no component computes one", () => {
       KITCHEN_L_DESIGN,
     ].map((design) => {
       const view = describePriceBar({
+        content: ro,
         pricing: priceOf(design),
       });
       if (view.kind !== "priced") throw new Error("expected a priced bar");

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   COLUMN_SLOT_MIN_HEIGHT_M,
   deriveSlotBand,
-  describeBandLabel,
   FLOOR_SLOT_MAX_Y0_M,
   isBandAccepted,
   isPushOpenByDefault,
@@ -68,11 +67,5 @@ describe("isPushOpenByDefault", () => {
   it("switches at the top-row module line, not below it", () => {
     expect(isPushOpenByDefault(TOP_ROW_Y0_M)).toBe(true);
     expect(isPushOpenByDefault(TOP_ROW_Y0_M - 0.001)).toBe(false);
-  });
-});
-
-describe("describeBandLabel", () => {
-  it("keeps the top row distinguishable from the wall row it normalises to", () => {
-    expect(describeBandLabel("top")).not.toBe(describeBandLabel("wall"));
   });
 });

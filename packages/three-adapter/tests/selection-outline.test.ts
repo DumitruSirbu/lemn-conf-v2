@@ -251,10 +251,19 @@ describe("buildSelectionOutline", () => {
     });
 
     // `LineSegments2` sizes its quads in **screen** pixels, so this difference is the rim in
-    // pixels and it does not shrink with the body's distance from the camera. Two on each side.
+    // pixels and it does not shrink with the body's distance from the camera. One on each side
+    // since the owner's 2026-09-10 ruling halved the highlight; it was two.
+    //
+    // **1 is the floor and this case is where that is enforced.** Below one pixel the casing stops
+    // being a rim and becomes an antialiasing artefact — a dark fringe the renderer looks like it
+    // produced rather than a line the app drew, which is the whole failure
+    // `SELECTION_OUTLINE_CASING_COLOR` exists to avoid. If the highlight is asked to go thinner
+    // again, the core narrows and this stays at 1; a request that would drive it below is a
+    // request to drop the casing, which is a different decision and needs its own reason.
     const rimPx =
       (casingLine.material.linewidth - visibleLine.material.linewidth) / 2;
-    expect(rimPx).toBe(2);
+    expect(rimPx).toBe(1);
+    expect(rimPx).toBeGreaterThanOrEqual(1);
     expect(casingLine.material.linewidth).toBe(
       SELECTION_OUTLINE_CASING_WIDTH_PX,
     );

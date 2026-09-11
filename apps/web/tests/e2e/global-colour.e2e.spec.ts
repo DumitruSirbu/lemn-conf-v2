@@ -244,7 +244,7 @@ test("leaves a cabinet's own colour untouched when the kitchen's colour changes"
   expect(after.overridingFinishes).toBe(1);
 });
 
-test("re-derives the offered colours from the pending material, before Aplică", async ({
+test("re-derives the offered colours from the pending material, before apply", async ({
   page,
 }) => {
   const designId = await mintDesignWearing(page, undefined);
@@ -267,7 +267,7 @@ test("re-derives the offered colours from the pending material, before Aplică",
   await expect(globalSwatch(page, "veneer.nuc")).toBeVisible();
 });
 
-test("Renunță after choosing a colour writes nothing at all", async ({
+test("cancelling after choosing a colour writes nothing at all", async ({
   page,
 }) => {
   const designId = await mintDesignWearing(page, undefined);

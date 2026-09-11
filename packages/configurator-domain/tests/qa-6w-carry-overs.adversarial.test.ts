@@ -18,6 +18,8 @@
 // motivates the fix reaches a different rule two operands along.
 import { describe, expect, it } from "vitest";
 
+import { kindLabel } from "../src/catalog.js";
+
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -155,7 +157,7 @@ describe("the price and the scene reach one answer for a row the port typed loos
     return {
       placementId: "p-under-test",
       buildId: "under-test",
-      label: "under test",
+      label: kindLabel("under_test"),
       wall: "A",
       band: "wall",
       rawBand: "wall",

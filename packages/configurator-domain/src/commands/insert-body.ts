@@ -14,7 +14,7 @@
 import { measurableSeatOf } from "../seat-rule.js";
 import type { BodyProbe, BodyMeasurement } from "../body-probe.js";
 import {
-  describeKindLabel,
+  kindLabel,
   toInsertableBody,
   type InsertableBody,
 } from "../catalog.js";
@@ -157,7 +157,7 @@ function resolveInsertableBody(
   if (!body) {
     return unresolved({
       code: "NOT_INSERTABLE",
-      params: { label: describeKindLabel(definition.kind) },
+      params: { label: kindLabel(definition.kind) },
     });
   }
   return { ok: true, value: body };

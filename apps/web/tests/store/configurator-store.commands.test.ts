@@ -236,8 +236,10 @@ describe("insert", () => {
     store.getState().insert("base-3drawer");
 
     expectUnchanged(before, snapshotOf(store.getState()));
-    expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
-    expect(store.getState().lastRejection?.message).toMatch(/[ăâîșț]/);
+    expect(store.getState().lastRejection).toEqual({
+      code: "BODY_PROBE_UNAVAILABLE",
+      params: {},
+    });
   });
 
   it("refuses again once the scene detaches its probe on unmount", () => {
@@ -524,7 +526,7 @@ describe("a refused command", () => {
 
       expectUnchanged(before, snapshotOf(store.getState()));
       expect(store.getState().lastRejection?.code).toBe(code);
-      expect(store.getState().lastRejection?.message).toBeTruthy();
+      expect(store.getState().lastRejection).not.toHaveProperty("message");
       expect(onDesignChanged).not.toHaveBeenCalled();
     });
   }

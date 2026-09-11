@@ -178,8 +178,8 @@ describe("a fixedWidth body that resolves no set at all still renders no section
  *  `resolveResizableBody` refuses for **two** reasons, and only one of them is `fixedWidth`. The
  *  other is `resolveRebuildBody` answering `undefined`, which happens whenever `toInsertableBody`
  *  refuses the resolved row — and that is a wider condition than `resolveBuildableSizes` answering
- *  empty. `resolveBuildableSizes` reads `sizesMm` alone; `toInsertableBody` also requires `label`,
- *  `widthFlex` and `nominalHeightMm`. A row that lists widths but is missing one of those three
+ *  empty. `resolveBuildableSizes` reads `sizesMm` alone; `toInsertableBody` also requires
+ *  `widthFlex` and `nominalHeightMm`. A row that lists widths but is missing one of those two
  *  resolves a non-empty set **and** no rebuildable body, so it reaches the new arm and is published
  *  as a cabinet made at one width — on a body whose `fixedWidth` is `false`.
  *
@@ -188,8 +188,16 @@ describe("a fixedWidth body that resolves no set at all still renders no section
  *  `catalog.test.ts` guards the shipped rows, so nothing reachable in the app produces it — but
  *  `columnWidthChoices` takes a `BodyCatalog` and this is what it does with one. */
 describe("an unfinished catalogue row is missing data, not a fixed-width cabinet", () => {
+  // **The fields `toInsertableBody` requires that `resolveBuildableSizes` does not read** — the
+  // whole condition, not a sample of it. There were three until 6B-f deleted `label` from the
+  // catalogue row.
+  //
+  // **The lost third has no successor, and that is a statement rather than an omission.**
+  // `sizesMm` is `toInsertableBody`'s remaining requirement and cannot stand in here: removing it
+  // empties `resolveBuildableSizes`, which is the premise the assertion below asserts is non-empty,
+  // so the case would pass for the wrong reason. The requirement genuinely shrank from three fields
+  // to two, and this sweep is exhaustive over what remains.
   const unfinished: readonly (readonly [string, BodyCatalog])[] = [
-    ["label", catalogWithout("base-sink", "label")],
     ["widthFlex", catalogWithout("base-sink", "widthFlex")],
     ["nominalHeightMm", catalogWithout("base-sink", "nominalHeightMm")],
   ];
@@ -225,8 +233,9 @@ describe("an unfinished catalogue row is missing data, not a fixed-width cabinet
  *  survives here. The refusal's `cause` is asserted beside the empty section, because "no section"
  *  alone would also pass if the arm were skipped for the wrong reason. */
 describe("a row that is fixed-width and unfinished at once is missing data", () => {
+  // The fields `toInsertableBody` requires that `resolveBuildableSizes` does not read, so the body
+  // stays fixed-width *and* becomes unresolvable at once — which is the entire point of the case.
   const brokenFields: readonly (keyof BodyDefinition)[] = [
-    "label",
     "widthFlex",
     "nominalHeightMm",
   ];
@@ -252,7 +261,7 @@ describe("a row that is fixed-width and unfinished at once is missing data", () 
   // And the refusal itself says which fact fired, rather than leaving a reader of the detail to
   // guess from a flag that is true in both cases.
   it("publishes the unresolvable cause, not the fixed one, when both hold", () => {
-    const catalog = catalogWithout(HOB_BASE_CATALOG_ID, "label");
+    const catalog = catalogWithout(HOB_BASE_CATALOG_ID, "widthFlex");
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
     const record = world.records.find((candidate) => candidate.id === "p2");
     if (!record) throw new Error("no p2");
@@ -341,10 +350,7 @@ describe("every fixed-width row in the catalogue, placed on its own", () => {
       // from the record's flag. Pinned here because it is what allows this chip to be shown at all.
       expect(only.verdict.reason).toEqual({
         code: "NOT_RESIZABLE",
-        params: {
-          label: KITCHEN_L_BODY_CATALOG.get(buildId)?.label,
-          cause: "fixed",
-        },
+        params: { label: { kind: "entry", buildId }, cause: "fixed" },
       });
     },
   );

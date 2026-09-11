@@ -27,6 +27,7 @@ import {
   type Design,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
+import { ro } from "../support/romanian-content";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -76,6 +77,7 @@ function offerOf(design: Design): WholeKitchenTierOffer {
 function displayedTierIn(design: Design, key: WholeKitchenGroupKey): string {
   const opening = resolveOpeningChoice(design.settings ?? {}, offerOf(design));
   const view = describeGlobalSettings({
+    content: ro,
     pricing: pricingOf(design),
     offer: offerOf(design),
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),

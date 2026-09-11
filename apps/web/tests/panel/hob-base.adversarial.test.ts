@@ -26,6 +26,7 @@ import { describe, expect, it } from "vitest";
 import { listCabinetDrawingFilenames } from "@/panel/cabinet-thumbnails";
 import { describePanel, type ReplaceSection } from "@/panel/panel-model";
 
+import { ro } from "../support/romanian-content";
 import { noWidthIsFree } from "../support/width-options";
 import { PAL_KITCHEN } from "../support/panel-material";
 
@@ -64,6 +65,7 @@ function replaceSectionAt(
 ): ReplaceSection {
   const meta = describeSelection({ ...world, target });
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: offersFor({
@@ -72,6 +74,7 @@ function replaceSectionAt(
     }),
     rejection: null,
     widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -157,7 +160,7 @@ describe("the two hob rows are distinguishable in the picker", () => {
     }
   });
 
-  it("names them in Romanian, saying which appliance is under the hob", () => {
+  it("names each from its own catalogue entry, never from the shared hob kind", () => {
     const { world, opening } = clearedHobColumn();
     const labels = new Map(
       replaceSectionAt(world, { kind: "void", id: opening.id }).rows.map(
@@ -165,8 +168,17 @@ describe("the two hob rows are distinguishable in the picker", () => {
       ),
     );
 
-    expect(labels.get("base-hob-2drawer")).toBe("Corp plită și 2 sertare");
-    expect(labels.get("base-hob-oven")).toBe("Corp plită și cuptor");
+    // Resolved per `buildId`, which is the claim: the two share a `bodyKind` and would collapse to
+    // one word if the row named the kind. The sentences themselves are pinned in the copy lock.
+    expect(labels.get("base-hob-2drawer")).toBe(
+      ro.bodyLabel({ kind: "entry", buildId: "base-hob-2drawer" }),
+    );
+    expect(labels.get("base-hob-oven")).toBe(
+      ro.bodyLabel({ kind: "entry", buildId: "base-hob-oven" }),
+    );
+    expect(labels.get("base-hob-2drawer")).not.toBe(
+      labels.get("base-hob-oven"),
+    );
   });
 });
 
@@ -209,6 +221,7 @@ describe("the panel over the shipped hob cabinet", () => {
   it("renders a finish section but no handle section over the oven variant, and both over the drawer one", () => {
     const sectionKindsOn = (buildId: string) => {
       const panel = describePanel({
+        content: ro,
         material: PAL_KITCHEN,
         meta: describeSelection({
           ...worldFrom(withHobCabinetBuiltAs(buildId)),
@@ -217,6 +230,7 @@ describe("the panel over the shipped hob cabinet", () => {
         offers: [],
         rejection: null,
         widthOptions: [],
+        buildableWidthSpanMm: undefined,
         isBodyProbeAttached: true,
         canWrite: true,
         saveStatus: "idle",

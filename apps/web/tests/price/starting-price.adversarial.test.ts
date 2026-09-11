@@ -19,6 +19,7 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  PRICE_BOOK_CURRENCY,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
@@ -27,9 +28,21 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
+import roMessages from "../../src/messages/ro.json";
+import {
+  authoredLiterals,
+  authoredLiteralsIn,
+} from "../support/icu-authored-literals";
 
 import {
+  CATALOGUES,
+  catalogueLeaves,
+  requireLeafAt,
+} from "../support/catalogues";
+import {
+  RULED_CURRENCY_CODE,
+  RULED_TO_CARRY_THE_CURRENCY,
   RULED_TO_CONTAIN_A_SUM_WORD,
   SUM_CLAIM_PATTERN,
 } from "../support/ruled-price-copy";
@@ -50,7 +63,7 @@ const ROUNDING_STEP_MDL = 1000;
 const BANI_PER_STEP = BANI_PER_MDL * ROUNDING_STEP_MDL;
 
 function amountTextFor(totalMinor: number): string {
-  return describeStartingPrice({ totalMinor }).amountText;
+  return describeStartingPrice({ totalMinor, copy: ro.price }).amountText;
 }
 
 const SEEDED = priceDesign({
@@ -79,45 +92,13 @@ const DEFAULT_PUSH_RATE_MINOR = (() => {
   return tier.perPushToOpenMinor;
 })();
 
-/**
- * **Every string the price surfaces state**, from every section of `ro` that carries price copy —
- * `price` (the bar, §9's footer, the flagged total) and `priceBreakdown` (frames 2D / D2D).
- *
- * Flattened rather than read with `Object.values`, and both halves of that matter. A section is a
- * nested object now — `priceBreakdown` groups its band words and its category words — so a flat
- * read would hand `toMatch` an object and fail for the wrong reason, and would leave the leaves
- * underneath it never swept at all. **The shape of the data must not decide the shape of the rule.**
- *
- * A composing template contributes its **body**: the parameter list and the arrow are stripped, so
- * `` (wall, band) => `Perete ${wall} · ${band}` `` is swept as the words it would put on a screen.
- * Without that, a claim written into a template — `` `Total: ${amount}` `` — would sit in price copy
- * unswept, and `=>` alone would trip the `=` the sweep refuses.
- */
+/** Every authored literal in the three catalogue sections that carry price copy. ICU arguments and
+ * pound signs are deliberately absent: they are runtime data, not amounts authored into copy. */
 const EVERY_PRICE_STRING = [
-  ...priceCopyLeaves(ro.price),
-  ...priceCopyLeaves(ro.priceBreakdown),
-  // Wave 6G's settings sheet, swept here rather than exempted: it carries a *delta* badge, which is
-  // price copy by every rule this block enforces. Its `appliesTo` and `tierDelta` templates
-  // contribute their bodies like any other, so a digit or an equality claim written into either is
-  // refused the same way one in the breakdown's own templates would be.
-  ...priceCopyLeaves(ro.globalSettings),
+  ...authoredLiteralsIn(roMessages.price),
+  ...authoredLiteralsIn(roMessages.priceBreakdown),
+  ...authoredLiteralsIn(roMessages.globalSettings),
 ];
-
-/** Every leaf string under a copy section, with a composing template contributing its body. */
-function priceCopyLeaves(section: unknown): string[] {
-  if (typeof section === "string") return [section];
-  if (typeof section === "function")
-    return [templateBodyOf(section as (...args: never[]) => string)];
-  if (typeof section !== "object" || section === null) return [];
-  return Object.values(section).flatMap(priceCopyLeaves);
-}
-
-/** An arrow function's body as source text — everything past its first `=>`. Typed on the shape a
- *  copy template has, rather than on `Function`: a section composes strings from what a surface
- *  hands it, and nothing else belongs here. */
-function templateBodyOf(composer: (...args: never[]) => string): string {
-  return String(composer).replace(/^[^=]*=>/, "");
-}
 
 describe("the boundaries around a thousand", () => {
   it("never charges a further thousand for an amount already on the step", () => {
@@ -201,8 +182,14 @@ describe("the catalogue's own totals, priced and shown", () => {
     // kitchen holds one sink under one wall cabinet, so it earns one cover and one rack. That term
     // *is* a literal, because it is the owner's own flat *"Sink extras 600"* column being
     // reconciled against — the same standing the hinge and drawer literals have.
+    //
+    // **And down 1 490 000 on 2026-09-10**, when the owner ruled that the two appliance rows are
+    // drawn and not sold: the seeded `hood-600` billed 290 000 and the seeded `fridge-free-700`
+    // billed 1 200 000, and neither is the manufacturer's to charge for. The housings around them —
+    // `tall-oven-tower`, `tall-fridge-housing` — are joinery and did not move, which is why the
+    // cabinetry term drops by exactly those two lines.
     expect(SEEDED.priced.totalMinor).toBe(
-      9_427_500 +
+      7_937_500 +
         450_240 +
         SINK_EXTRAS_MINOR +
         SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR,
@@ -363,6 +350,40 @@ describe("rounded lines and a rounded total, and what the copy says about them",
     );
   });
 
+  it("sweeps authored literals inside every ICU branch", () => {
+    const appliesToLiterals = authoredLiterals(
+      roMessages.globalSettings.appliesTo,
+    );
+
+    expect(appliesToLiterals.length).toBeGreaterThan(3);
+    expect(appliesToLiterals.every((literal) => !/\d/.test(literal))).toBe(
+      true,
+    );
+    expect(
+      appliesToLiterals.every((literal) => !SUM_CLAIM_PATTERN.test(literal)),
+    ).toBe(true);
+  });
+
+  it("kills digit and sum-claim mutations authored inside ICU branches", () => {
+    const taggedIcuMutant = "<strong>Total 3 items</strong>";
+    const taggedLiterals = authoredLiteralsIn({ tagged: taggedIcuMutant });
+    const mutantLiterals = [
+      ...authoredLiteralsIn({
+        plural:
+          "{count, plural, one {Total 1 item} few {2 items} other {# items}}",
+      }),
+      ...taggedLiterals,
+    ];
+
+    expect(mutantLiterals.some((literal) => /\d/.test(literal))).toBe(true);
+    expect(
+      mutantLiterals.some((literal) => SUM_CLAIM_PATTERN.test(literal)),
+    ).toBe(true);
+    expect(taggedLiterals).toEqual(["Total 3 items"]);
+    expect(taggedLiterals[0]).toMatch(/\d/);
+    expect(taggedLiterals[0]).toMatch(SUM_CLAIM_PATTERN);
+  });
+
   it("is a gap no string in the price sections claims to close", () => {
     // Every price string in the application, not one section and not one label: the criterion is
     // that *no surface* claims the two sum, and a claim added to a fourth label would be as wrong
@@ -374,14 +395,10 @@ describe("rounded lines and a rounded total, and what the copy says about them",
     }
   });
 
-  it("still holds both excluded sentences to the exact wording that was ruled", () => {
-    // The exceptions are by identity, so neither can widen: re-word either sentence and it stops
-    // being this string, the sweep above judges it again, and this assertion says which line to
-    // update. Asserting each is still *in* the swept set is the other half — an exception nothing
-    // reaches is an exception nobody notices has gone stale.
-    expect([ro.priceBreakdown.disclaimer, ro.priceBreakdown.note]).toEqual(
-      RULED_TO_CONTAIN_A_SUM_WORD,
-    );
+  it("holds the one excluded sentence to the exact wording accepted at Gate O1", () => {
+    // The exception is by identity, so re-wording it makes the sweep judge it again. The accepted
+    // footnote contains no sum-family word and therefore needs no exception.
+    expect([ro.priceBreakdown.disclaimer]).toEqual(RULED_TO_CONTAIN_A_SUM_WORD);
     for (const ruled of RULED_TO_CONTAIN_A_SUM_WORD)
       expect(EVERY_PRICE_STRING, ruled).toContain(ruled);
   });
@@ -396,47 +413,28 @@ describe("rounded lines and a rounded total, and what the copy says about them",
   });
 });
 
-describe("the owner's flagged-total sentence, against the decision that ruled it", () => {
-  const ADR_0065 = resolve(
-    import.meta.dirname,
-    "../../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md",
-  );
-
-  /** Decision 7b's block quote, which is where the owner's phrasing was recorded. Read from the
-   *  decision rather than restated, because a literal in a test proves only that the test and the
-   *  code agree — not that either agrees with what was ruled. */
-  function ruledFlaggedTotal(): string {
-    const ruled = /^> \*\*(Prețul[^*\n]+)\*\*$/m.exec(
-      readFileSync(ADR_0065, "utf8"),
-    );
-    if (!ruled)
-      throw new Error(
-        "ADR 0065 decision 7b no longer carries the flagged total as a bolded block quote",
-      );
-    return ruled[1] ?? "";
-  }
-
-  it("is byte-identical to ADR 0065 decision 7b, diacritics and punctuation included", () => {
-    expect(ro.price.overflowingTotalWarning).toBe(ruledFlaggedTotal());
-  });
-
+// **The wording itself is not asserted here.** `price.overflowingTotalWarning` is pinned byte for
+// byte by the copy lock (`tests/support/approved-romanian-messages.ts`), and the two `toBe` spellings
+// this block used to carry were a second copy of it — a place an owner retranslation goes red for a
+// reason that is not a defect. What is left below are *properties* of the accepted leaf that a byte
+// comparison reports as an unreadable diff: the codepoints, the closing period, and the ruled noun.
+describe("the flagged-total sentence accepted at Gate O1", () => {
   it("carries comma-below diacritics, not the cedillas that render identically", () => {
     // The one difference a reviewer cannot see: U+0219/U+021B (Romanian ș/ț) against U+015F/U+0163
     // (Turkish ş/ţ). A copy-paste through a legacy tool silently swaps them, and every visual check
     // and every `toBe` written from that paste would still pass.
     const warning = ro.price.overflowingTotalWarning;
 
+    /* eslint-disable no-restricted-syntax -- 6B-j allow-list: codepoints rather than wording — U+0219/U+021B against U+015F/U+0163, the one difference a reviewer cannot see. */
     expect(warning).toContain("\u0219");
     expect(warning).toContain("\u021b");
     expect(warning).toContain("\u0103");
     expect(warning).not.toContain("\u015f");
     expect(warning).not.toContain("\u0163");
+    /* eslint-enable no-restricted-syntax */
   });
 
-  it("is untidied — no closing period, and no wording the wave harmonised on its own", () => {
-    expect(ro.price.overflowingTotalWarning).toBe(
-      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
-    );
+  it("keeps the accepted noun and has no added closing period", () => {
     expect(ro.price.overflowingTotalWarning.endsWith(".")).toBe(false);
     expect(ro.price.overflowingTotalWarning).toContain("dulapuri");
     expect(ro.price.overflowingTotalWarning).not.toContain("corpuri");
@@ -460,10 +458,15 @@ describe("the one prefix a figure carries, and the one the owner removed", () =>
    * **ADR 0024's third frame-2C requirement was closed by that label and is left unmet again.**
    */
   it("has no second prefix left anywhere in the price copy", () => {
-    for (const [key, value] of Object.entries(ro.price)) {
+    // Swept over the **catalogue** section rather than resolved content: since wave 6B-g one price
+    // leaf resolves to a function, and a sweep that skipped non-strings would quietly stop covering
+    // it. Every leaf here is authored copy and every one is a string.
+    for (const [key, value] of Object.entries(roMessages.price)) {
       expect(value, key).not.toContain("neschimbat");
     }
-    expect(Object.keys(ro.price)).not.toContain("startingPrefixUnchanged");
+    expect(Object.keys(roMessages.price)).not.toContain(
+      "startingPrefixUnchanged",
+    );
   });
 
   it("offers no surface a choice of prefix to compose", () => {
@@ -490,7 +493,7 @@ describe("the one prefix a figure carries, and the one the owner removed", () =>
 
   it("keeps the ruled word single, with the casing in the stylesheet and not in a second string", () => {
     // **The price line is drawn inline and lowercase on both shells** (owner, 2026-09-09), which is
-    // frame D2A's form. A lowercase copy of the word in `ro.ts` would be the second spelling of a
+    // frame D2A's form. A lowercase copy of the word in `ro.json` would be the second spelling of a
     // ruled string that the withdrawn label already cost this project once; the transform is the
     // stylesheet's, and it changes case rather than words.
     const bar = readFileSync(
@@ -506,7 +509,7 @@ describe("the one prefix a figure carries, and the one the owner removed", () =>
   it("cannot have a separator put back by a stylesheet on either surface that renders it", () => {
     // The shipped layout gate holds `price-bar.module.css` to declaring no `content`. The same label
     // renders in §9's footer from `editor-panel.module.css`, and a `::after { content: " ·" }` there
-    // would be right in `ro.ts` and wrong on screen — the exact failure the bar's rule guards.
+    // would be right in `ro.json` and wrong on screen — the exact failure the bar's rule guards.
     //
     // **What is refused is a `content` that says something**, not the property. Frame D2A's three
     // 28 px dividers are `::before` pseudo-elements on the top bar's cells and each declares
@@ -619,14 +622,112 @@ describe("only these modules may go near a price, and only one of them may round
     }
   });
 
-  it("keeps the currency, and therefore the composed figure, inside the formatter", () => {
-    const namesTheCurrency = [...sourceByPath]
+  /** `messages/ro.d.json.ts` is `ro.json` restated as a type — next-intl generates it and a
+   *  freshness gate keeps it equal to the catalogue. It is not a module and cannot write anything;
+   *  sweeping it would be asking the catalogue whether the catalogue holds the currency, which the
+   *  last case below asks directly. */
+  const THE_GENERATED_DECLARATION = "messages/ro.d.json.ts";
+
+  function modulesByPath(): ReadonlyMap<string, string> {
+    const modules = new Map(sourceByPath);
+    expect(modules.delete(THE_GENERATED_DECLARATION)).toBe(true);
+    return modules;
+  }
+
+  it("refuses the price-book currency import, and the currency inside a single-line string literal", () => {
+    // **Wave 6B-g moved the goalpost and this assertion with it.** The rule used to be that only the
+    // formatter could name the currency, because the formatter held the template literal
+    // `` `${amount} ${PRICE_BOOK_CURRENCY}` ``. ADR 0095 Amendment C moved that join into
+    // `price.amountWithCurrency`, so a `"MDL"` written into a module again would be a second,
+    // untranslatable spelling of a figure the catalogue owns.
+    //
+    // The pattern is line-scoped on purpose. Left to span newlines, `[^"'`]*` reaches from any
+    // string literal in a file down to the next identifier containing `MDL` —
+    // `MINOR_UNITS_PER_MDL` — and this module would go on passing for a reason unrelated to the
+    // claim. It did, before the rewrite: the assertion held on an import path's closing quote.
+    //
+    // **Two known holes, recorded rather than closed**, because closing either needs a wider pattern
+    // and the narrowing above is what makes this one mean anything. The name says exactly what is
+    // swept, and these are the two ways a currency reaches a customer without passing it:
+    //
+    //   1. **A bare JSX text node** — `{row.amountText} MDL` — which is inside no quotes at all.
+    //   2. **A stylesheet** — `content: " MDL"` — which is in no `.ts`/`.tsx` file, and
+    //      `listSourceFiles` collects only those.
+    //
+    // Both were written into the tree during wave 6B-g's adversarial pass and this guard stayed
+    // green for both; other, already-shipped tests are what failed on them — the rendered-figure
+    // assertions in `amount-with-currency-seam.test.ts` for the first, and the `content:`
+    // declaration guards over the price stylesheets for the second. Recorded here in the shape
+    // `scene/overflow-warning-layout.test.ts` records its own destructured-read hole.
+    const writesTheCurrency = [...modulesByPath()]
       .filter(([, source]) =>
-        /PRICE_BOOK_CURRENCY|["'`][^"'`]*MDL/.test(source),
+        new RegExp(
+          `PRICE_BOOK_CURRENCY|["'\`][^"'\`\\n]*${RULED_CURRENCY_CODE}`,
+        ).test(source),
       )
       .map(([path]) => path)
       .sort();
 
-    expect(namesTheCurrency).toEqual([THE_FORMATTER]);
+    expect(writesTheCurrency).toEqual([]);
+  });
+
+  it("keeps the join with the currency inside the formatter, and nowhere else", () => {
+    // The other half of the moved goalpost: exactly one module may resolve the leaf that joins an
+    // amount to a currency. A second surface reading it would be composing a figure of its own,
+    // which is what "one function formats them" has meant since wave 6C.
+    const leafKey = RULED_TO_CARRY_THE_CURRENCY.split(".").at(-1) ?? "";
+    expect(leafKey).not.toBe("");
+
+    const resolvesTheJoin = [...modulesByPath()]
+      .filter(([, source]) => source.includes(leafKey))
+      .map(([path]) => path)
+      .sort();
+
+    expect(resolvesTheJoin).toEqual([THE_FORMATTER, "i18n/content.ts"].sort());
+  });
+
+  it("reaches for no Intl formatter anywhere under price/", () => {
+    // ADR 0095 Amendment C, made falsifiable. **Comments are stripped and that is the point**: the
+    // formatter's head comment names `Intl.NumberFormat` four times, on purpose — it records the
+    // measured output (`"143.000"` under `ro`, `"L"` under `ro-MD`, U+00A0 under `ru`) so the next
+    // reader does not re-open the question. A grep over raw source would fail on the very comment
+    // the ruling asked for. What is refused is the *identifier*, in code.
+    const priceModules = [...modulesByPath()].filter(([path]) =>
+      path.startsWith("price/"),
+    );
+
+    expect(priceModules.length).toBeGreaterThan(5);
+    for (const [path, source] of priceModules) {
+      expect(source, path).not.toMatch(/\bIntl\b/);
+    }
+  });
+
+  it("puts the currency in exactly one catalogue leaf, in both shipped locales", () => {
+    // Where it went, asserted rather than assumed: a rule that says "not in a module" and never says
+    // "in the catalogue" is satisfied by deleting the currency from the product altogether.
+    for (const [locale, messages] of CATALOGUES) {
+      const carryTheCurrency = catalogueLeaves(messages)
+        .filter(([, value]) => value.includes(RULED_CURRENCY_CODE))
+        .map(([key]) => key);
+
+      expect(carryTheCurrency, locale).toEqual([RULED_TO_CARRY_THE_CURRENCY]);
+    }
+  });
+
+  it("spells that leaf with the currency the price book declares, in both shipped locales", () => {
+    // **The one assertion that couples the catalogue to the book**, and the reason it imports
+    // `PRICE_BOOK_CURRENCY` where the sweep above deliberately does not. Every other case in this
+    // file is satisfied by a book that says `EUR` and two catalogues that say *MDL*: the figure
+    // would render `43 000 MDL` over a EUR price and nothing in the product would notice.
+    //
+    // The asymmetry is deliberate — the sweep re-spells the code so a changed book cannot make a
+    // stale module literal pass, this one imports it so a changed book cannot leave a stale
+    // catalogue leaf behind. See `tests/support/ruled-price-copy.ts` for the whole reason.
+    for (const [locale, messages] of CATALOGUES) {
+      expect(
+        requireLeafAt(messages, RULED_TO_CARRY_THE_CURRENCY),
+        locale,
+      ).toContain(PRICE_BOOK_CURRENCY);
+    }
   });
 });

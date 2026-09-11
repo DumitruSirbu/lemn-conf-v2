@@ -7,7 +7,7 @@
  * uncommitted state. `global-settings.tsx`'s head comment carries the reason. */
 /* **The pill, and it is also the trigger** (ADR 0104 decision 2). Frames D2E and 2E draw the same
  * control open and shut, so there is no separate *Setări globale* button in any frame: the strip and
- * its text trigger are withdrawn, and `ro.globalSettings.open` is the pill's accessible name rather
+ * its text trigger are withdrawn, and `globalSettings.open` is the pill's accessible name rather
  * than visible text.
  *
  * This element is the pill's positioning context and nothing else. It carries `min-width: 0` for
@@ -157,7 +157,7 @@
 }
 
 /* Frame 2A `:490`: `+2`, in the accent, tabular so the number does not shift the pill as it changes.
- * **Derived, never a literal** — see `ro.globalSettings.pillCount`. */
+ * **Derived, never a literal** — see `globalSettings.pillCount`. */
 .counter {
   flex: 0 0 auto;
   font: 700 10px/1 var(--font-ui);
@@ -454,18 +454,32 @@
   opacity: 0.5;
 }
 
+/* **Reads as one sentence, matching the price bar** — the owner's ruling of 2026-09-10, carried
+ * here on 2026-09-11. `describeStartingPrice` feeds **four** surfaces, not the two the ruling was
+ * first applied to, and the ruling is about the figure rather than about which sheet draws it: this
+ * footer said `DE LA` stacked above the amount in small letter-spaced caps while the bar the
+ * customer opened the sheet from said *"de la 86 000 MDL"* on one line.
+ *
+ * The shared size is the amount's own 19 px rather than the bar's 21: what the ruling fixes is that
+ * the two spans agree, and this footer shares its row with `Renunță` and `Aplică` on a 390 px phone.
+ * The pair moves **together** in every media context — see the desktop block's
+ * `.figureLabel, .figureAmount`, and `price-bar-layout.test.ts`, which resolves each context and
+ * requires the two sizes to match.
+ *
+ * `text-transform: lowercase` stays on the **label span alone** and must not move up to `.figure`,
+ * for the reason `price-bar.module.css` records: one span covering both would take `MDL` down with
+ * it. */
 .figure {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 6px;
+  align-items: baseline;
   margin: 0;
 }
 
 .figureLabel {
-  font: 400 10.5px/1 var(--font-ui);
-  letter-spacing: 0.09em;
-  color: var(--ink-faint);
-  text-transform: uppercase;
+  font: 400 19px/1 var(--font-ui);
+  text-transform: lowercase;
 }
 
 .figureAmount {
@@ -707,6 +721,9 @@
     padding: 16px 26px 20px;
   }
 
+  /* Both spans, never one: the label at 19 px over an amount at 20 is the same figure announced two
+   * ways again, one media query down. */
+  .figureLabel,
   .figureAmount {
     font-size: 20px;
   }

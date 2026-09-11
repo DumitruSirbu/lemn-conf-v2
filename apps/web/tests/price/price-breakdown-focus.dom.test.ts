@@ -21,7 +21,12 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
 
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { useConfiguratorStore } from "@/store/configurator-store";

@@ -28,19 +28,6 @@ const NORMALISED_BANDS: Readonly<Record<Band, NormalisedBand>> = {
   column: "column",
 };
 
-const BAND_LABELS_RO: Readonly<Record<Band, string>> = {
-  base: "bază",
-  wall: "suspendat",
-  top: "rând de sus",
-  column: "coloană",
-};
-
-/** §9's header line renders `Perete X · band · W × H mm` from this. Uses the *raw* band, so a
- *  seeded top-row cabinet still reads as the top row even though the gate treats it as `wall`. */
-export function describeBandLabel(band: Band): string {
-  return BAND_LABELS_RO[band];
-}
-
 export function normaliseBand(band: Band): NormalisedBand {
   return NORMALISED_BANDS[band];
 }

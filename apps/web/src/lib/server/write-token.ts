@@ -60,11 +60,11 @@ export function setWriteTokenCookie(
  *
  * **The only reader that ever holds the credential is `NextRequest.cookies` inside
  * `/api/designs/{id}`.** `setWriteTokenCookie` scopes the cookie `Path=/api/designs/{id}`, so the
- * browser attaches it to that one route and to nothing else: a request for `/d/{id}`, for any other
+ * browser attaches it to that one route and to nothing else: a request for `/[locale]/d/{id}`, for any other
  * page, or for any other API route carries no write-token cookie at all. A `cookies()` store from a
  * server component satisfies this interface structurally and will therefore compile, but it can only
  * ever answer "no credential" — for every visitor, the design's own author included. That is why
- * `app/d/[id]/page.tsx` refuses to answer write access and defers to a client probe against the API
+ * `app/[locale]/d/[id]/page.tsx` refuses to answer write access and defers to a client probe against the API
  * route. Do not read this from outside `/api/designs/{id}`; the answer is not a lookup that missed,
  * it is a question that route cannot be asked.
  */

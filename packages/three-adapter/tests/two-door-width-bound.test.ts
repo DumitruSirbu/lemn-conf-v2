@@ -32,6 +32,8 @@ import {
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { entryLabel, labelWithDoors } from "@lemnaria/configurator-domain";
+
 import { buildCatalogBody } from "../src/catalog-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { createBodyProbe } from "../src/measure-built-body.js";
@@ -321,11 +323,10 @@ describe("so the 300 mm opening gets a one-door, correctly named — backlog 13"
       target: { kind: "void", id: opening.id },
     }).find((offer) => offer.buildId === WALL_CABINET_BUILD_ID);
 
-    expect(row?.verdict).toMatchObject({
-      status: "offered",
-      widthMm: NARROW_WIDTH_MM,
-    });
-    expect(row?.label).toBe("Corp suspendat 1 ușă");
+    expect(row?.buildsToWidthMm).toBe(NARROW_WIDTH_MM);
+    expect(row?.label).toEqual(
+      labelWithDoors(entryLabel(WALL_CABINET_BUILD_ID), 1),
+    );
     expect(doorFrontsAt(NARROW_WIDTH_MM)).toBe(1);
 
     // One entry, one id, two names — and the name that reaches the customer is the one the builder
@@ -338,7 +339,9 @@ describe("so the 300 mm opening gets a one-door, correctly named — backlog 13"
       cabinetDepthMm: cabinetDepthMmOf(design),
       target: { kind: "placement", id: "p8" },
     }).find((offer) => offer.buildId === WALL_CABINET_BUILD_ID);
-    expect(seededWide?.label).toBe("Corp suspendat 2 uși");
+    expect(seededWide?.label).toEqual(
+      labelWithDoors(entryLabel(WALL_CABINET_BUILD_ID), 2),
+    );
     expect(doorFrontsAt(TWO_DOOR_WIDTH_MM)).toBe(2);
   });
 

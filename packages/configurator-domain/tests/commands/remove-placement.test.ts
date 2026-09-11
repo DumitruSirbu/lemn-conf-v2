@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { kindLabel } from "../../src/catalog.js";
+
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import type { Design } from "../../src/design.js";
 import {
@@ -81,7 +83,7 @@ describe("removePlacement — §5.1's closed refusal list", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("NOT_DELETABLE");
-    expect(result.reason.message).toContain("structura");
+    expect(result.reason.params).toEqual({ label: kindLabel("base_cabinet") });
   });
 
   it("refuses a timestamp it would otherwise copy into updatedAt", () => {

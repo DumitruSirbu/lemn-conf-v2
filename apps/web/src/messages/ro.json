@@ -9,7 +9,8 @@
     "stepPill": "{step, number}/{totalSteps, number}",
     "title": "Configurare",
     "locale": "RO",
-    "back": "‹ Cameră",
+    "localeMenu": "Limba interfeței: română. Schimbă limba",
+    "back": "Cameră",
     "orbitHint": "Atinge un dulap pentru a-l edita · trage pentru a roti",
     "cameraGroupLabel": "Vedere cameră",
     "cameraPresets": {
@@ -18,7 +19,9 @@
       "wallB": "Perete B"
     },
     "loading": "Se încarcă modelul 3D…",
-    "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."
+    "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
+    "backAction": "Înapoi",
+    "reviewCta": "Verifică designul"
   },
   "panel": {
     "close": "Închide panoul",
@@ -41,8 +44,8 @@
         "many": "coloane"
       }
     },
-    "countForBody": "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
-    "countForSlot": "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+    "countForBody": "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
+    "countForSlot": "{count, plural, one {# dulap} few {# dulapuri} other {# dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
     "noOffersForBody": "Niciun alt dulap {bandWord} nu încape aici. Șterge dulapul actual, pentru a obține mai mult spațiu.",
     "noOffersForSlot": "Niciun dulap din catalog nu intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm. Șterge un dulap vecin ca să obții mai mult spațiu.",
     "noOffersTooWide": "Spațiul liber are {widthMm, number, ::group-off} mm, mai mult decât cel mai lat dulap din catalog ({maxWidthMm, number, ::group-off} mm). Niciun dulap nu poate ocupa tot spațiul liber existent. O parte din spațiul liber poate rămâne goală, sau îl poți împărți adăugând un alt dulap lângă el.",
@@ -88,15 +91,17 @@
     "structuralTitle": "Dulap structural",
     "structuralReasons": {
       "corner": "Dulapul din colț nu poate fi înlocuit, șters sau redimensionat. Alege un dulap de lângă el."
-    }
+    },
+    "finishFollowsKitchen": "Preia culoarea bucătăriei"
   },
   "price": {
     "startingPrefix": "De la",
-    "startingPrefixUnchanged": "De la",
-    "overflowingTotalWarning": "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări"
+    "amountWithCurrency": "{amount} MDL",
+    "overflowingTotalWarning": "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
+    "emptyKitchenPrompt": "Pentru a afișa un preț estimativ adaugă-ți cel puțin un dulap din catalog"
   },
   "priceBreakdown": {
-    "title": "De ce acest preț",
+    "title": "De ce acest preț?",
     "disclaimer": "Prețul afișat este estimativ. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
     "note": "Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.",
     "close": "Închide",
@@ -109,15 +114,17 @@
     },
     "wholeKitchenLabel": "{categoryWord} · {tierName}",
     "wholeKitchenCategories": {
+      "accessory": "Accesorii",
       "hardware": "Feronerie",
       "material": "Material"
     },
-    "included": "inclus"
+    "included": "inclus",
+    "notIncluded": "nu este inclus"
   },
   "globalSettings": {
     "open": "Setări globale",
     "title": "Setări pentru toată bucătăria",
-    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează petru fiecare dulap în parte.",
+    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează pentru fiecare dulap în parte.",
     "groupHeadings": {
       "material": "Material corp și fronturi",
       "hardware": "Feronerie"
@@ -133,8 +140,8 @@
     "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     "depthNote": "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
     "colourHeading": "Culoarea bucătăriei",
-    "colourNote": "Culoarea nu schimbă prețul bucătăriei. Dulapurile cu o culoare aleasă rămân neschimbate.",
-    "colourWarning": "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei devine cea implicită a materialului nou.",
+    "colourNote": "Culoarea nu schimbă prețul bucătăriei. Dulapurile cu o culoare individuală la modificarea culorii pentru întreagă bucătărie își păstrează culoarea.",
+    "colourWarning": "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei preia culoarea implicită a materialului nou.",
     "apply": "Aplică",
     "cancel": "Renunță",
     "materialResetConfirm": {
@@ -143,7 +150,14 @@
       "globalBody": "Ai ales o culoare pentru toată bucătăria. Fiecare material are propriile culori disponibile, iar la modificarea lui e setată culoarea implicită a materialului nou.",
       "confirm": "Schimbă materialul",
       "back": "Păstrează culorile"
-    }
+    },
+    "applyRefused": "Nu am putut aplica „{settingName}”: {reason} Nimic nu a fost schimbat.",
+    "pillMaterial": "{tierName}",
+    "pillColourValue": "{colourValue}",
+    "pillHardware": "{categoryWord} {tierName}",
+    "pillDepth": "Adâncime {cabinetDepthMm, number, ::group-off}",
+    "pillNameAllSettings": "{openLabel}: {settings}",
+    "pillNameJoin": ", "
   },
   "webglUnavailable": {
     "titleMobile": "Dispozitivul acesta nu poate afișa 3D",
@@ -185,10 +199,48 @@
       "nuc": "Nuc"
     }
   },
+  "priceBook": {
+    "hardware": {
+      "standard": {
+        "name": "Standard",
+        "description": "Balamale și glisiere fără amortizare, închidere simplă."
+      },
+      "soft-close": {
+        "description": "Balamale și glisiere cu amortizare, de la Hettich."
+      },
+      "premium": {
+        "description": "Balamale și glisiere cu amortizare, de la Blum."
+      }
+    },
+    "material": {
+      "melamine": {
+        "name": "PAL melaminat",
+        "description": "Materialul standard al bucătăriei."
+      },
+      "painted-mdf": {
+        "name": "MDF vopsit mat",
+        "description": "Fronturi din MDF vopsit mat, pentru toată bucătăria."
+      },
+      "veneer": {
+        "name": "Furnir natural",
+        "description": "Fronturi furniruite natural, pentru toată bucătăria."
+      }
+    },
+    "accessory": {
+      "sink-protective-cover": {
+        "name": "Protecție de aluminiu pentru corpul spălătorului",
+        "description": "Montată în corpul spălătorului, împotriva umidității și a scurgerilor."
+      },
+      "dish-drying-rack": {
+        "name": "Uscător de vase",
+        "description": "Montat în corpul suspendat de deasupra spălătorului."
+      }
+    }
+  },
   "catalog": {
     "emptySlot": "Spațiu liber",
     "unknownKind": "Dulap",
-    "bodyLabelWithDoors": "{name} {doors, plural, one {# ușă} few {# uși} other {# de uși}}",
+    "bodyLabelWithDoors": "{name} {doors, plural, one {# ușă} few {# uși} other {# uși}}",
     "kinds": {
       "base_cabinet": "Dulap bază",
       "dishwasher_housing": "Nișă mașină de spălat vase",
@@ -238,7 +290,7 @@
     "WIDTH_TOO_SMALL": "„{label}” are nevoie de cel puțin {requiredMm, number, ::group-off} mm lățime, iar spațiul liber are doar {availableMm, number, ::group-off} mm.",
     "WIDTH_TOO_SMALL_UNKNOWN_FLOOR": "„{label}” nu poate fi adăugat: lățimea minimă din catalog nu este o valoare validă.",
     "WIDTH_NOT_SUPPORTED_NO_WIDTH": "„{label}” nu poate fi construit la nicio lățime pe care o acceptă și dulapurile de deasupra.",
-    "WIDTH_NOT_SUPPORTED_COLUMN": "„{label}” este într-o coloană care se face {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
+    "WIDTH_NOT_SUPPORTED_COLUMN": "„{label}” este într-o coloană care suportă o lățime {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
     "WIDTH_NOT_SUPPORTED_BODY": "„{label}” se face {widthsMadeClause}, iar spațiul liber are {availableMm, number, ::group-off} mm.",
     "OPENING_TOO_SHORT": "Spațiul liber are doar {availableMm, number, ::group-off} mm înălțime; sub {minimumMm, number, ::group-off} mm nu se poate încadra un dulap.",
     "HEIGHT_EXCEEDS_LEVEL": "„{label}” are {requiredMm, number, ::group-off} mm înălțime și nu încape pe acest nivel de {availableMm, number, ::group-off} mm. Doar coloanele pot depăși un nivel.",
@@ -262,12 +314,13 @@
     "UNKNOWN_HARDWARE_TIER": "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
     "UNKNOWN_CABINET_DEPTH": "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.",
     "parts": {
-      "emptySpaceSide": "{side, select, right {în dreapta} other {în stânga}} {reason, select, absent {nu este spațiu liber} too_narrow {spațiul liber este insuficient} opens_a_gap {s-ar obține un spațiu liber peste alte dulapuri} other {dulapul nu se încadrează în acestă coloană}}",
+      "emptySpaceSide": "{sideReason, selectordinal, =0 {în dreapta nu este spațiu liber} =1 {în dreapta spațiul liber este insuficient} =2 {în dreapta s-ar obține un spațiu liber peste alte dulapuri} =3 {în dreapta dulapul nu se încadrează în acestă coloană} =4 {în stânga nu este spațiu liber} =5 {în stânga spațiul liber este insuficient} =6 {în stânga s-ar obține un spațiu liber peste alte dulapuri} other {în stânga dulapul nu se încadrează în acestă coloană}}",
       "sidesJoin": ", iar ",
       "widthsMadeBetween": "între {minMm, number, ::group-off} și {maxMm, number, ::group-off} mm",
       "widthsMadeAt": "la {minMm, number, ::group-off} mm",
       "widthsMadeList": "doar în {sizes} mm",
       "widthsJoin": " sau "
-    }
+    },
+    "DEPENDENT_MEMBER_NOT_REBUILDABLE": "„{label}” nu poate fi adăugat aici: „{memberLabel}”, care stă deasupra, nu poate fi reconstruit la adâncimea coloanei."
   }
 }

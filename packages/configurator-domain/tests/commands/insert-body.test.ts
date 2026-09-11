@@ -7,7 +7,6 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
@@ -37,8 +36,10 @@ describe("insert — the band gate (§11 rows 3, 4)", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("BAND_MISMATCH");
-    expect(result.reason.message).toContain("soclu");
+    expect(result.reason).toMatchObject({
+      code: "BAND_MISMATCH",
+      params: { bodyBand: "wall", slotBand: "base" },
+    });
   });
 
   it("row 4: refuses a base cabinet from the top slot", () => {
@@ -88,8 +89,6 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
       requiredMm: 600,
       availableMm: 300,
     });
-    expect(result.reason.message).toContain("600");
-    expect(result.reason.message).toContain("300");
   });
 
   // ADR 0048: 300 is below the pantry's own 400 mm floor, so row 5's refusal survives the row
@@ -108,8 +107,6 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
       widthRangesMm: [{ minMm: 400, maxMm: 800 }],
       availableMm: 300,
     });
-    expect(result.reason.message).toContain("400");
-    expect(result.reason.message).toContain("300");
   });
 
   // Row 6 needs both halves: never offering it is the correct behaviour, refusing it is the safety
@@ -117,7 +114,7 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
   it("row 6: never offers the hood for a 400 mm top slot", () => {
     const world = clearBodies(seeded(), ["p18"]);
     const target = voidTarget(world, "A|2.00", 2.2);
-    const offered = offeredRows(offersFor({ ...world, target })).map(
+    const offered = offersFor({ ...world, target }).map(
       (offer) => offer.buildId,
     );
     expect(offered).not.toContain("hood");
@@ -129,8 +126,10 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
     const result = insertInto(world, voidTarget(world, "A|2.00", 2.2), "hood");
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("HEIGHT_EXCEEDS_LEVEL");
-    expect(result.reason.message.length).toBeGreaterThan(0);
+    expect(result.reason).toMatchObject({
+      code: "HEIGHT_EXCEEDS_LEVEL",
+      params: { requiredMm: 700, availableMm: 400 },
+    });
   });
 
   // Row 7: the sink base once measured 1220 mm because of its faucet and was refused from an

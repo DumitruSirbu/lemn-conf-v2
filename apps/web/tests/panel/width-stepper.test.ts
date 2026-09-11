@@ -19,12 +19,13 @@ import {
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
+  entryLabel,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
   recomputeVoids,
-  renderRejection,
   resolveCatalogEquivalent,
+  type BodyLabel,
   resolveWidthRangesMm,
   setWidth,
   toInsertableBody,
@@ -36,7 +37,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePanel, type WidthSection } from "@/panel/panel-model";
 import { widthStepsFor, WIDTH_STEP_MM } from "@lemnaria/configurator-domain";
 
@@ -86,6 +87,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
     probe: PROBE,
   };
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
@@ -102,6 +104,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
         catalog: world.catalog,
         target,
       })?.widthRangesMm ?? [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite,
     saveStatus: "idle",
@@ -272,6 +275,7 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
       probe: PROBE,
     };
     const panel = describePanel({
+      content: ro,
       material: PAL_KITCHEN,
       meta: describeSelection({ ...world, target }),
       offers: offersFor({
@@ -282,6 +286,7 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
       rejection: null,
       widthOptions: widthOptionsFor(engineInput),
       widthSteps: widthStepsFor(engineInput),
+      buildableWidthSpanMm: undefined,
       isBodyProbeAttached: true,
       canWrite: true,
       saveStatus: "idle",
@@ -378,12 +383,12 @@ describe("every stepper the shipped kitchen renders", () => {
           !result.ok,
         ]);
         // §13.1: greyed and unclickable **with the reason**, and the sentence is the engine's own
-        // through `renderRejection` — never copy authored in the panel (ADR 0032 rule 2). A button
+        // through the localized content boundary — never copy authored in the panel (ADR 0032 rule 2). A button
         // that works carries none, because a reason beside a control that works is noise.
         expect([record.id, step.direction, step.reason]).toEqual([
           record.id,
           step.direction,
-          result.ok ? undefined : renderRejection(result.reason),
+          result.ok ? undefined : ro.rejection(result.reason),
         ]);
         buttons += 1;
         if (!step.isDisabled) enabled += 1;
@@ -502,10 +507,10 @@ describe("a fixed-width body shows the one width it is made at", () => {
           chip.isDisabled,
         ]),
       ).toEqual([[record.widthMm, "active", true]]);
-      // The sentence is the engine's own, rendered through the very `renderRejection` a blocked
+      // The descriptor is the engine's own, rendered through the same content resolver a blocked
       // chip's reason goes through — never copy authored in the panel (ADR 0032 rule 2).
       expect(section.chips[0]?.reason).toBe(
-        renderRejection({
+        ro.rejection({
           code: "NOT_RESIZABLE",
           params: { label: describeWidthLabelOf(world, id), cause: "fixed" },
         }),
@@ -520,7 +525,10 @@ describe("a fixed-width body shows the one width it is made at", () => {
     if (section?.control !== "choice") throw new Error("expected chips");
     expect([section.chips[0]?.widthMm, section.chips[0]?.reason]).toEqual([
       600,
-      "„Corp plită și 2 sertare” nu își poate schimba lățimea.",
+      ro.rejection({
+        code: "NOT_RESIZABLE",
+        params: { label: entryLabel("base-hob-2drawer"), cause: "fixed" },
+      }),
     ]);
   });
 
@@ -566,7 +574,7 @@ describe("a fixed-width body shows the one width it is made at", () => {
 
 /** The label the engine's refusal names, read from the catalogue the same way `resolveResizableBody`
  *  reads it — the entry the row declares it is an instance of, never the seeded row's own id. */
-function describeWidthLabelOf(world: World, id: string): string {
+function describeWidthLabelOf(world: World, id: string): BodyLabel {
   const record = world.records.find((candidate) => candidate.id === id);
   if (!record) throw new Error(`no record ${id}`);
   const equivalent = resolveCatalogEquivalent(world.catalog, record.buildId);

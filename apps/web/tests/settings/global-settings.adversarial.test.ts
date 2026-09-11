@@ -47,9 +47,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
+import roMessages from "../../src/messages/ro.json";
+import { authoredLiteralsIn } from "../support/icu-authored-literals";
+import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
 import {
   describeAddedAmount,
   describeRoundedAmount,
@@ -74,6 +82,29 @@ const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
 const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
   (tier) => tier.tierId,
 );
+
+const GLOBAL_SETTINGS_AUTHORED_LITERALS = authoredLiteralsIn(
+  roMessages.globalSettings,
+);
+
+describe("the global-settings ICU literal sweep", () => {
+  it("reaches a substantial catalogue surface before applying negative rules", () => {
+    expect(GLOBAL_SETTINGS_AUTHORED_LITERALS.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it("detects digits and sum claims nested inside ICU branches", () => {
+    const mutantLiterals = authoredLiteralsIn({
+      plural: "{count, plural, one {Total 7 items} other {# items}}",
+      select: "{kind, select, safe {plain words} other {sum=8}}",
+    });
+
+    expect(mutantLiterals.length).toBeGreaterThanOrEqual(4);
+    expect(mutantLiterals.some((literal) => /\d/.test(literal))).toBe(true);
+    expect(
+      mutantLiterals.some((literal) => SUM_CLAIM_PATTERN.test(literal)),
+    ).toBe(true);
+  });
+});
 
 /** Every whole-kitchen state a design can be in, including the one that names nothing. `undefined`
  *  is a member and not an omission: a fresh design carries no `settings` key at all, and that is the
@@ -221,6 +252,7 @@ function viewOf(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): GlobalSettingsView {
   const view = describeGlobalSettings({
+    content: ro,
     pricing: pricingOf(design),
     offer: offerOf(design),
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
@@ -244,10 +276,13 @@ function groupNamed(
 /** These fixtures are about deltas, badges and copy, never about access. Stated rather than
  *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
  *  cannot silently default to permitted (M6-AUD-001). */
-const WRITABLE_ACCESS = describeEditability({
-  canWrite: true,
-  saveStatus: "idle",
-});
+const WRITABLE_ACCESS = describeEditability(
+  {
+    canWrite: true,
+    saveStatus: "idle",
+  },
+  ro.panel,
+);
 
 function markupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
@@ -527,21 +562,10 @@ describe("the sign, the step and the separator live in one module and no other",
   });
 
   it("keeps the sign out of the copy module, where a plus is a claim rather than a figure", () => {
-    for (const copy of everyLeafUnder(ro.globalSettings))
+    for (const copy of GLOBAL_SETTINGS_AUTHORED_LITERALS)
       expect(copy, copy).not.toContain("+");
   });
 });
-
-/** Every leaf string in a copy section, a composing template contributing its body — the sweep
- *  `starting-price.adversarial.test.ts` performs, restated over one section so this file's own
- *  assertions do not depend on that file's ordering. */
-function everyLeafUnder(section: unknown): string[] {
-  if (typeof section === "string") return [section];
-  if (typeof section === "function")
-    return [String(section as () => string).replace(/^[^=]*=>/, "")];
-  if (typeof section !== "object" || section === null) return [];
-  return Object.values(section).flatMap(everyLeafUnder);
-}
 
 describe("the two words on the badge cannot drift from the two above the figure", () => {
   propertyTest.prop([fc.string()])(
@@ -565,25 +589,8 @@ describe("the two words on the badge cannot drift from the two above the figure"
     expect(markupOf(viewOf(KITCHEN_L_DESIGN))).toContain(">de la +9 000<");
   });
 
-  it("pins the count phrase at every band Romanian counts in, including the two the catalogue can reach", () => {
-    // The singular is a separate sentence, so it is a separate pin; the *de* band starts at 0 and at
-    // 20 and stops at 101, and a rule written for a catalogue that has never reached twenty is a
-    // rule nothing else would notice going wrong.
-    const applied = (bodyCount: number): string =>
-      ro.globalSettings.appliesTo(bodyCount);
-
-    expect(applied(0)).toBe(
-      "Se aplică tuturor celor 0 de corpuri. Nu se setează pe fiecare corp în parte.",
-    );
-    expect(applied(1)).toBe(
-      "Se aplică singurului corp din bucătărie. Nu se setează pe fiecare corp în parte.",
-    );
-    expect(applied(2)).toContain("tuturor celor 2 corpuri");
-    expect(applied(19)).toContain("tuturor celor 19 corpuri");
-    expect(applied(20)).toContain("tuturor celor 20 de corpuri");
-    expect(applied(21)).toContain("tuturor celor 21 de corpuri");
-    expect(applied(101)).toContain("tuturor celor 101 corpuri");
-  });
+  // Exact Romanian CLDR boundaries and Gate O1 wording belong to
+  // `tests/i18n/content.test.ts`; the population-to-resolved-message seam is swept below.
 });
 
 describe("how many bodies, and which part of the document says so", () => {
@@ -599,7 +606,7 @@ describe("how many bodies, and which part of the document says so", () => {
   function statedCount(view: GlobalSettingsView): number {
     const stated = /celor (\d+) /.exec(view.appliesTo);
     if (stated) return Number(stated[1]);
-    if (view.appliesTo.includes("singurului corp")) return 1;
+    if (view.appliesTo === ro.globalSettings.appliesTo(1)) return 1;
     throw new Error(`no count is stated in "${view.appliesTo}"`);
   }
 
@@ -740,9 +747,7 @@ describe("how many bodies, and which part of the document says so", () => {
   it("renders the empty kitchen's own sentence on the page, not only in the model", () => {
     const empty: Design = { ...KITCHEN_L_DESIGN, placements: [] };
 
-    expect(markupOf(viewOf(empty))).toContain(
-      "Se aplică tuturor celor 0 de corpuri. Nu se setează pe fiecare corp în parte.",
-    );
+    expect(markupOf(viewOf(empty))).toContain(ro.globalSettings.appliesTo(0));
   });
 
   it("renders the single body's own sentence on the page, where the drawn wording is ungrammatical", () => {
@@ -758,7 +763,7 @@ describe("how many bodies, and which part of the document says so", () => {
 
     const markup = markupOf(viewOf(KITCHEN_L_DESIGN, { groups: oneBody }));
 
-    expect(markup).toContain("Se aplică singurului corp din bucătărie.");
+    expect(markup).toContain(ro.globalSettings.appliesTo(1));
     expect(markup).not.toContain("tuturor celor 1");
   });
 });
@@ -767,7 +772,7 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
   const CLAUSE_WORDS = /finisaj|per corp|limit/i;
 
   it("is in neither the copy nor the page", () => {
-    for (const copy of everyLeafUnder(ro.globalSettings))
+    for (const copy of GLOBAL_SETTINGS_AUTHORED_LITERALS)
       expect(copy, copy).not.toMatch(CLAUSE_WORDS);
     expect(markupOf(viewOf(KITCHEN_L_DESIGN))).not.toMatch(/finisaj/i);
   });
@@ -798,10 +803,16 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
     // The guard's own falsifiability. A clause behind `display: none` or `aria-hidden` is still in
     // the markup, so the shipped predicate refuses it rather than being satisfied by it — asserted
     // by running that predicate over exactly those two shapes.
+    //
+    // **The three literals are deliberate and cannot be read from the catalogue**: wave 6F's clause
+    // was *removed* from it, so there is no leaf to name. A probe for an absent sentence has to
+    // spell it. Wave 6B-j's allow-list, not a conversion.
     const hidden = [
+      /* eslint-disable no-restricted-syntax -- 6B-j allow-list: markup probes for a clause wave 6F removed from the catalogue, so there is no leaf to name. */
       '<p style="display:none">și poate limita unele finisaje per corp</p>',
       '<p aria-hidden="true">și poate limita unele finisaje per corp</p>',
       '<p hidden="">și poate limita unele finisaje per corp</p>',
+      /* eslint-enable no-restricted-syntax */
     ];
 
     for (const markup of hidden) expect(markup).toMatch(/finisaj/i);

@@ -42,7 +42,7 @@ export function HydrateAndConfigure({
  *
  * It is a second request, and it is not avoidable from the server: the write credential is a
  * cookie scoped `Path=/api/designs/{id}` (ADR 0019 decision 1, `write-token.ts`), so the request
- * that rendered `/d/{id}` never carried it and `cookies()` there would answer "no credential" for
+ * that rendered `/[locale]/d/{id}` never carried it and `cookies()` there would answer "no credential" for
  * everyone — the design's own author included. `GET /api/designs/{id}` is the one path the browser
  * does send it to, and it answers `canWrite` beside the design at no extra round trip *of its own*.
  *

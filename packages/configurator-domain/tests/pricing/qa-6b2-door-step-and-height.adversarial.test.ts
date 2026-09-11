@@ -679,10 +679,36 @@ describe("every body a customer can stand in a design has a price", () => {
     expect(failure.placementId).toBe("solo");
   });
 
-  it("prices every seeded placement in the shipped kitchen with a positive amount", () => {
-    for (const line of cabinetLinesOf(priceOrFail())) {
-      expect(Number.isSafeInteger(line.amountMinor)).toBe(true);
-      expect(line.amountMinor).toBeGreaterThan(0);
+  it("prices every seeded cabinetry placement in the shipped kitchen with a positive amount", () => {
+    // A silently-zero body under-quotes the customer and looks like a cabinet that was included.
+    //
+    // **Narrowed, not relaxed, by the owner's ruling of 2026-09-10** — *"it's drawn, it's displayed,
+    // but it's not included in the price, and it's not provided by the manufacturer"* — which put
+    // the hood and the free-standing fridge at nothing. Their zero is an answer rather than a
+    // missing price, and the breakdown prints *nu este inclus* over them instead of *inclus*.
+    //
+    // **The exception keys on the book's `suppliedBy` declaration and never on the amount.** A
+    // cabinetry row that reaches zero is still exactly the defect above, and it still fails here;
+    // written as `amountMinor === 0` this test would have excused it.
+    const lines = cabinetLinesOf(priceOrFail());
+    const cabinetry = lines.filter((line) => line.suppliedBy !== "customer");
+    const notSupplied = lines.filter((line) => line.suppliedBy === "customer");
+
+    for (const line of cabinetry) {
+      expect(Number.isSafeInteger(line.amountMinor), line.placementId).toBe(
+        true,
+      );
+      expect(line.amountMinor, line.placementId).toBeGreaterThan(0);
+    }
+
+    // The exception is neither vacuous nor a hole: the seeded kitchen holds both appliances, and
+    // both bill nothing, so nothing was excused that the customer is being charged for.
+    expect(notSupplied.map((line) => line.pricedAsBuildId).sort()).toEqual([
+      "fridge-free",
+      "hood",
+    ]);
+    for (const line of notSupplied) {
+      expect(line.amountMinor, line.placementId).toBe(0);
     }
   });
 });

@@ -1,6 +1,8 @@
 # ADR 0032 — An entry that does not fit is shown disabled with its reason, not removed
 
-Status: Accepted
+Status: **Superseded by the owner's ruling of 2026-09-10 — see *Superseded* below.** An entry the
+engine cannot satisfy is now **removed from the list**, not shown disabled. Read that section before
+implementing anything from the Decision below, which is retained as the record of what was tried.
 Date: 2026-08-27
 Type: Decision
 Milestone: M5 — before wave 5D
@@ -34,7 +36,58 @@ The owner's diagnosis, 2026-08-27, and it is deliberately not about any one entr
 minimum didn't fit the existing space, grey it out and write that it requires more space… instead of
 dealing with each particular cabinet."*
 
-## Decision
+## Superseded — the greyed rows are removed, 2026-09-10
+
+**Do not re-implement disabled-with-reason. It shipped, the owner used it, and it was rejected on
+what it did to a customer.**
+
+The owner's words, on seeing a floor opening offer a wall cabinet, a lift, an open shelf and a hood,
+each greyed with the same sentence about having no plinth and no worktop:
+
+> *"Don't need to show any greyed out cabinets, it's hard to understand why on base cabinet I see
+> hood as user is like WTF is this. Show only what is possible to insert."*
+
+**Both decisions were in it, and an earlier draft of this section blamed decision 5 alone — corrected
+here on 6B's logic review, because a supersession that misstates its own cause teaches the wrong
+lesson.**
+
+Decision 5 said band stays a filter — *"a wall cabinet is not disabled for a floor opening, it is not
+a candidate at all"* — and for a **swap in place** it holds: `isInOfferedBand` compares against the
+replaced body's band. For a **void** it returns `true` unconditionally, so an empty slot admits the
+whole catalogue, which is how a hood reached a floor opening.
+
+**That admission is deliberate and stays.** §5.2's *"a column body goes anywhere"* needs a full-height
+body reachable from a base slot, and a void has no band of its own to compare against — there is no
+`replaced.band`. So the exclusion cannot come from the band filter at the void, and does not: what
+keeps a hood out is `evaluateInsertFit`'s own refusal, now that a refused verdict is dropped rather
+than displayed. **Decision 5 is not "unimplemented"; it is inapplicable where a void is concerned,
+and the fit gate does the work instead.**
+
+**And decision 5 alone would not have satisfied the owner.** A 450 mm base void would still have
+shown a two-door greyed with *"a two-door needs 600 mm"* — same band, genuinely refused, exactly the
+row decision 1 was written to display. *"Don't need to show any greyed out cabinets"* bans that too.
+**So decision 1 had to be reversed, and it is.** The greyed row is gone in every case, not only the
+wrong-band ones.
+
+**What the reversal costs, stated so nobody rediscovers it as a surprise.** This ADR's Context
+argues that silently dropping an entry means *"nobody could discover that a bottle cargo exists or
+that a two-door needs 600 mm"*. That cost is now paid: a customer who wants a two-door at 450 mm
+sees no two-door and is told nothing. **The owner weighed this and ruled anyway**, and the reasoning
+is worth keeping: a hood in a floor slot is a *category error*, not a near miss, and no sentence
+rescues it. Discoverability is a real need, but a list of things you cannot have is the wrong
+instrument for it — it teaches the catalogue by showing failures, and a customer reads a failure as
+the product being broken rather than as a lesson.
+
+**If discoverability is wanted later, it needs its own instrument** — a catalogue browser, a
+"what fits here?" affordance, or width guidance on the stepper — and not a return of refused rows to
+the offer list. **A future wave proposing to show unavailable entries in the replace list is
+contradicting an owner ruling made against shipped behaviour, not reopening an undecided question.**
+
+The decision below is kept unstruck because its parts 2, 3 and 4 outlived it: the engine still
+computes one `RejectionDetail` through one guard, the rule is still abstract, and Backlog 13 stayed
+closed. Only the *display* of a refusal in the offer list is reversed.
+
+## Decision — as accepted 2026-08-27, and now superseded above
 
 **An entry the engine cannot satisfy is shown in the list, disabled, with the reason — not removed.**
 

@@ -18,7 +18,8 @@
 // characterised is how the two surfaces came to disagree in the first place.
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
+import { ro as content } from "../support/romanian-content";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describePanel } from "@/panel/panel-model";
 import type { WriteAccess } from "@/store/configurator-store";
@@ -86,11 +87,13 @@ function wasDisabledReasonBeforeW2(canWrite: WriteAccess): string {
 function openPanelAt(access: Access) {
   const meta = occupiedMeta();
   const view = describePanel({
+    content,
     material: PAL_KITCHEN,
     meta,
     offers: offers(3),
     rejection: null,
     widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: access.canWrite,
     saveStatus: access.saveStatus,
@@ -104,7 +107,8 @@ describe("the predicate that moved out of panel-model.ts", () => {
   it("answers what it answered before the move, at every pair of the whole product", () => {
     const disagreements = everyAccessPair().filter(
       (access) =>
-        describeEditability(access).isReadOnly !== wasReadOnlyBeforeW2(access),
+        describeEditability(access, ro.panel).isReadOnly !==
+        wasReadOnlyBeforeW2(access),
     );
 
     expect(disagreements.map(labelFor)).toEqual([]);
@@ -113,7 +117,7 @@ describe("the predicate that moved out of panel-model.ts", () => {
   it("gives the sentence it gave before the move, at every pair of the whole product", () => {
     const disagreements = everyAccessPair().filter(
       (access) =>
-        describeEditability(access).disabledReason !==
+        describeEditability(access, ro.panel).disabledReason !==
         wasDisabledReasonBeforeW2(access.canWrite),
     );
 
@@ -147,9 +151,10 @@ describe("the pairs the panel cannot reach but a shared rule can be asked about"
 
   it("locks on every one of them, so the shared rule fails closed outside §9's reachable set", () => {
     for (const access of UNREACHABLE_FOR_THE_PANEL)
-      expect(describeEditability(access).isReadOnly, labelFor(access)).toBe(
-        true,
-      );
+      expect(
+        describeEditability(access, ro.panel).isReadOnly,
+        labelFor(access),
+      ).toBe(true);
   });
 
   it("reports the access probe's own sentence, never the refused save's, when both are true", () => {
@@ -158,14 +163,19 @@ describe("the pairs the panel cannot reach but a shared rule can be asked about"
     // pre-move behaviour, kept: the second surface must not be told a save was refused for a design
     // whose access nobody has answered for yet. Pinned so a later change to it is a decision.
     expect(
-      describeEditability({ canWrite: "checking", saveStatus: "unauthorized" })
-        .disabledReason,
+      describeEditability(
+        { canWrite: "checking", saveStatus: "unauthorized" },
+        ro.panel,
+      ).disabledReason,
     ).toBe(ro.panel.accessCheckingReason);
     expect(
-      describeEditability({
-        canWrite: "check-failed",
-        saveStatus: "unauthorized",
-      }).disabledReason,
+      describeEditability(
+        {
+          canWrite: "check-failed",
+          saveStatus: "unauthorized",
+        },
+        ro.panel,
+      ).disabledReason,
     ).toBe(ro.panel.accessUncheckableReason);
   });
 });
@@ -180,7 +190,7 @@ describe("§9's panel, after the rule left it", () => {
     const byAnswer = new Map<string, { label: string; body: string }[]>();
     for (const access of everyAccessPair()) {
       const body = withoutKey(openPanelAt(access), "notice");
-      const answer = JSON.stringify(describeEditability(access));
+      const answer = JSON.stringify(describeEditability(access, ro.panel));
       byAnswer.set(answer, [
         ...(byAnswer.get(answer) ?? []),
         { label: labelFor(access), body: JSON.stringify(body) },
@@ -202,7 +212,7 @@ describe("§9's panel, after the rule left it", () => {
 
   it("carries the reason onto the remove action exactly where the rule says it is locked", () => {
     for (const access of everyAccessPair()) {
-      const shared = describeEditability(access);
+      const shared = describeEditability(access, ro.panel);
       const { footer } = openPanelAt(access);
 
       expect(footer.isRemoveDisabled, labelFor(access)).toBe(shared.isReadOnly);

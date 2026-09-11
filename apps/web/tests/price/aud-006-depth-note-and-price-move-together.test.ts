@@ -35,7 +35,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -175,13 +175,27 @@ describe("depth does not reach an amount, and the sentence that says so", () => 
     );
   });
 
-  it("tells the customer exactly that, in the words shipped beside the control", () => {
-    // The literal sits beside the constant on purpose (the M6 copy rule): a composed assertion
-    // would hold for any wording, including a sentence that has quietly started promising a
-    // depth-dependent price. When ADR 0100's coefficient ships, this line and the equality above
-    // fail together — which is the coupling decision 5 asks for.
-    expect(ro.globalSettings.depthNote).toBe(
-      "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+  it("keeps the deferral's note free of a figure, and distinct from the warning that has one", () => {
+    // **Read this case for what it does not claim.** The two assertions below carry exactly two
+    // claims about `globalSettings.depthNote` — that it states *no figure of its own*, and that it
+    // is not the *other* global-settings warning, the one that does tell the customer the estimate
+    // moves. They read the leaf directly and say nothing about which control ships it or what the
+    // price does.
+    //
+    // Decision 5's coupling is pinned, in three places that together make either half of a
+    // half-move red:
+    //   1. *the price is genuinely unmoved by depth* — this file's own "charges the same total,
+    //      line for line, at 700 as at 600", which goes red the day a coefficient ships;
+    //   2. *this leaf is the note the control ships* — `tests/settings/cabinet-depth-control.test.ts`
+    //      reads `depthGroup.note` off the settings view and fails if it reaches for another leaf;
+    //   3. *the leaf's wording* — the copy lock, byte for byte, which is where a re-approval of the
+    //      sentence has to be recorded.
+    // A byte pin on (3) used to live here as a spelled-out literal, under the M6 copy rule, and went
+    // stale against the since-deleted `src/content/ro.ts` without anything noticing. Its removal
+    // cost no coverage: the lock states (3) for every leaf, and the literal never stated (2) either.
+    expect(ro.globalSettings.depthNote).not.toMatch(/\d/);
+    expect(ro.globalSettings.depthNote).not.toBe(
+      ro.globalSettings.materialWarning,
     );
   });
 });

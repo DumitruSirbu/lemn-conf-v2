@@ -310,13 +310,14 @@
   cursor: pointer;
 }
 
-/* §13.1's "disable, don't warn" for the two chip families: a control this browser cannot apply is
- * shown, dimmed and unclickable, rather than hidden — hiding it would say the body has no finish or
- * no handle, which is a different and false statement. `.widthChip` is deliberately absent: every
+/* §13.1's "disable, don't warn" for the pressable families in this section: a control this browser
+ * cannot apply is shown, dimmed and unclickable, rather than hidden — hiding it would say the body
+ * has no finish or no handle, which is a different and false statement. `.widthChip` is deliberately absent: every
  * width chip is already disabled in M4, and dimming them all would grey out the ACTIVE one too —
  * its three states carry their own styling. */
 .chip:disabled,
 .swatch:disabled,
+.followRow:disabled,
 .remove:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -492,6 +493,49 @@
   color: var(--ink);
 }
 
+/* ADR 0099 decision 8's way back to the kitchen's colour, **on its own full-width row under the
+   colour control** (owner ruling, 2026-09-10). It used to be a chip inside `.chipRow`, which put a
+   reset behind a horizontal scroll — the one-way door that decision exists to prevent, arriving as
+   a scroll position instead of as a missing control.
+
+   It is a separate class rather than a stretched `.swatch` ON PURPOSE: this is not a colour, and
+   the two must be free to drift apart. Hence the dashed border and muted label — a swatch is a
+   sample of a thing you are buying, this is the button that stops choosing. `--chip-height` is the
+   same token every touch target in this file takes, so §10.1's 44 px floor holds on mobile and the
+   row grows to 52 px on the desktop rail without a branch. */
+.followRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--chip-height);
+  padding: 9px 14px;
+  font: inherit;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+/* Standing when the cabinet has chosen nothing. Solid rather than dashed, because at that moment it
+   is not an offer to reset but a statement of what the cabinet is wearing. */
+.followRow[aria-pressed="true"] {
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+}
+
+.followRowLabel {
+  font: 700 12px/1.2 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.followRow[aria-pressed="true"] .followRowLabel {
+  color: var(--accent-strong);
+}
+
 /* §13.1: the reason travels with the greyed control. Small and faint **on a chip row**, where it
  * repeats across every chip and the note above has already said it once in full. */
 .chipReason {
@@ -521,19 +565,29 @@
   border-top: 1px solid var(--line);
 }
 
-/* Frame 2B's footer figure: the label above, the amount below, at the far left of the row. */
+/* Frame 2B's footer figure, at the far left of the row — and since 2026-09-11 **one baseline row
+ * rather than a stack**, which is the owner's 2026-09-10 ruling reaching the fourth of the four
+ * surfaces `describeStartingPrice` feeds. It matters most here: on mobile §9's sheet covers the
+ * price bar, so this is the only total on screen, and it was announcing the same figure a second
+ * way — `DE LA` in small letter-spaced caps above the amount.
+ *
+ * 19 px on both spans, the amount's own size kept and the label raised to meet it. Weight separates
+ * the prefix from the figure and size joins them, so the label's uppercase, its letter-spacing and
+ * its `--ink-faint` went out with the stack.
+ *
+ * `text-transform: lowercase` stays on the **label span alone** and must not move up to
+ * `.footerPrice`: one span covering both would take `MDL` down with it. */
 .footerPrice {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 6px;
+  align-items: baseline;
   margin: 0 auto 0 0;
 }
 
 .footerPriceLabel {
-  font: 400 10.5px/1 var(--font-ui);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  font: 400 19px/1 var(--font-ui);
+  text-transform: lowercase;
 }
 
 .footerPriceAmount {

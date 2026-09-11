@@ -19,9 +19,14 @@ import {
   type DisplayGroup,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import {
@@ -64,6 +69,7 @@ function settingsView(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): GlobalSettingsView {
   return describeGlobalSettings({
+    content: ro,
     pricing: pricingOf(KITCHEN_L_DESIGN),
     offer: offerOf(KITCHEN_L_DESIGN),
     groups: SHIPPED_GROUPS,

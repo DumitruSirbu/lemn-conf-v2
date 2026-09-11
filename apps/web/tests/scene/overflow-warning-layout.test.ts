@@ -9,9 +9,19 @@
 // their palettes.
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
+import {
+  PSEUDO_LOCALE_CLOSING_MARK,
+  PSEUDO_LOCALE_EXPANSION,
+  PSEUDO_LOCALE_OPENING_MARK,
+  pseudoLocalizeCatalogue,
+  stressableLetterCountOf,
+} from "@/i18n/pseudo-locale";
 import { OVERFLOW_WARNING_RESERVED_HEIGHT_PX } from "@/scene/overflow-warning-layout";
+
+import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
 
 const SOURCE_DIRECTORY = resolve(import.meta.dirname, "../../src");
 
@@ -144,8 +154,8 @@ describe("the warning is an overlay on the scene, taking none of its height", ()
   });
 
   it("puts no text of its own on the screen", () => {
-    // The owner's ruled sentence is in `ro.ts`. A word injected by a pseudo-element would survive an
-    // edit to that constant invisibly — right in the content module and wrong on screen.
+    // The owner's ruled sentence is in `ro.json`. A word injected by a pseudo-element would survive
+    // an edit to that leaf invisibly — right in the catalogue and wrong on screen.
     expect(warningDeclarations).not.toMatch(/[^-]content:/);
   });
 });
@@ -184,13 +194,14 @@ describe("the warning never wears the refusal's colours", () => {
  *  identifier flags five files that are doing exactly what they should. The dotted form names the
  *  content key and nothing else.
  *
- *  It does not catch a destructured read (`const { overflowWarning } = ro.configure`). Recorded as a
+ *  It does not catch a destructured read (`const { overflowWarning } = content.configure`). Recorded
+ *  as a
  *  known hole rather than closed, because the only way to close it is the bare identifier above. */
 const SENTENCE_KEY = "configure.overflowWarning";
 
-/** The only module permitted to read the constant, relative to `src/`. */
+/** The only surface permitted to render the message, plus the locale resolver that supplies it. */
 const SENTENCE_OWNER = "scene/overflow-warning.tsx";
-const SENTENCE_ALLOWED = [SENTENCE_OWNER];
+const SENTENCE_ALLOWED = [SENTENCE_OWNER, "i18n/content.ts"];
 
 /** Every `.ts`/`.tsx` module under `src/`, so a surface added later is swept the day it lands. */
 function sourceModulePaths(): string[] {
@@ -220,10 +231,11 @@ describe("one surface reads the sentence", () => {
   });
 
   it("is named by the scene warning and by no other module under src/", () => {
-    // The bare identifier, so a destructured read (`const { overflowWarning } = ro.configure`) is
-    // caught as well as a dotted one. Comments are stripped first for the reason the declaration
-    // guard above strips them: this file, and `ro.ts`, name in prose exactly what they forbid in
-    // code, and a cross-reference in a doc comment is not a second surface rendering the sentence.
+    // The bare identifier, so a destructured read (`const { overflowWarning } = content.configure`)
+    // is caught as well as a dotted one. Comments are stripped first for the reason the declaration
+    // guard above strips them: this file, and any module discussing the rule, name in prose exactly
+    // what they forbid in code, and a cross-reference in a doc comment is not a second surface
+    // rendering the sentence.
     const trespassers = sourceModulePaths().filter(
       (path) =>
         !SENTENCE_ALLOWED.includes(path) &&
@@ -234,8 +246,64 @@ describe("one surface reads the sentence", () => {
   });
 
   it("is earned by the one allowed module, so the entry is not dead weight", () => {
+    // `content`, not `ro`: wave 6B-g renamed the binding at all six sites, because under `/ru` it
+    // holds Russian and a binding that names the wrong locale is wrong rather than merely ugly.
     expect(withoutComments(read(SENTENCE_OWNER))).toContain(
-      `ro.${SENTENCE_KEY}`,
+      `content.${SENTENCE_KEY}`,
     );
+  });
+});
+
+// **Wave 6B-i's length stress, on the second of the two surfaces the plan names.**
+//
+// The reserve above is sized from *"two lines of 11.5 px / 1.4 text"* of this one sentence, in
+// Romanian, at 390 px. Romanian is the shortest language this product will ship in, so that reserve
+// is the best case and the band's correctness rests entirely on it being a **floor**.
+// `src/i18n/pseudo-locale.ts` is what makes the other case visible before a translator is paid.
+describe("the band under a translation 40 % longer than its Romanian source", () => {
+  /** The transform's opening and closing marks, which belong to no sentence. */
+  const MARK_CHARACTERS = 2;
+  const [, romanian] = CATALOGUES[0];
+  const stressedSentence = contentFor("ro", pseudoLocalizeCatalogue(romanian))
+    .configure.overflowWarning;
+
+  it("is really stressed, so nothing below is a claim about the short sentence", () => {
+    const source = requireLeafAt(romanian, "configure.overflowWarning");
+
+    // The two marks are excluded, so the growth claimed is the sentence's own; and the proportion
+    // is of the letters a translator writes rather than of the whole string, which for a leaf with
+    // arguments in it would be asking the tool to pad an argument name.
+    expect(stressedSentence.length - MARK_CHARACTERS).toBeGreaterThanOrEqual(
+      source.length +
+        Math.ceil(stressableLetterCountOf(source) * PSEUDO_LOCALE_EXPANSION),
+    );
+    // The sentence reaches the surface whole: both marks survive the resolver, so nothing between
+    // the catalogue and the band shortens it. A truncation keeps the opening mark and loses the
+    // closing one, which is what the marks exist for.
+    expect(stressedSentence.startsWith(PSEUDO_LOCALE_OPENING_MARK)).toBe(true);
+    expect(stressedSentence.endsWith(PSEUDO_LOCALE_CLOSING_MARK)).toBe(true);
+  });
+
+  it("declares the reserve as a floor and nothing that would cut the third line", () => {
+    // The floor itself is asserted at the top of this file. What this adds is the other half: a
+    // longer sentence has to be able to *spend* it, so the band may declare no ceiling and no
+    // truncation of its own. `text-overflow` is included because an ellipsis is a cut with a nicer
+    // glyph, and `line-clamp` because it is the same cut counted in lines.
+    for (const ceiling of [
+      "max-height:",
+      "overflow: hidden",
+      "white-space: nowrap",
+      "text-overflow:",
+      "line-clamp:",
+    ]) {
+      expect(warningDeclarations, ceiling).not.toContain(ceiling);
+    }
+    // And the floor is a floor rather than the height: a third line grows the band **upward** over
+    // the kitchen, because `.sceneFooter` pins the stack to the scene's bottom edge and the band
+    // takes no flow height at all (`overflow-warning-layout.ts`).
+    expect(warningDeclarations).toContain(
+      "min-height: var(--overflow-warning-height);",
+    );
+    expect(screenStylesheet).toMatch(/\.sceneFooter \{[^}]*bottom: 0;/s);
   });
 });

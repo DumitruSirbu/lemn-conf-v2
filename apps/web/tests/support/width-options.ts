@@ -10,14 +10,17 @@
 // rule: no rule lives here. The rule that a chip is free **iff** the command succeeds is proved
 // where the command actually runs — `packages/configurator-domain/tests/queries/width-options.test.ts`
 // for the domain half, and the browser suite for the whole path.
-import type { WidthOption } from "@lemnaria/configurator-domain";
+import {
+  kindLabel,
+  type BodyLabel,
+  type WidthOption,
+} from "@lemnaria/configurator-domain";
 
 import type { WidthChoiceSection, WidthSection } from "@/panel/panel-model";
 
-/** The refusal a blocked chip carries in these fixtures. A real code with a real sentence, chosen
- *  because it takes one parameter: the panel renders whatever `renderRejection` returns and no test
- *  here should depend on which refusal it was. */
-function refusedBecauseNotResizable(label: string): WidthOption["verdict"] {
+/** The refusal a blocked chip carries in these fixtures. A real descriptor whose selected message
+ *  takes one parameter, so no test here should depend on which refusal it was. */
+function refusedBecauseNotResizable(label: BodyLabel): WidthOption["verdict"] {
   return {
     status: "refused",
     // `cause` is required since 5B5's logic review, and `unresolvable` is the honest value for a
@@ -34,13 +37,15 @@ export interface WidthOptionRow {
   /** Widths the command refused. §9's `blocked` chips, each carrying the engine's sentence. */
   readonly blockedMm?: readonly number[];
   /** The body named in the refusals, where a test reads the sentence back. */
-  readonly label?: string;
+  readonly label?: BodyLabel;
 }
 
 /** One judged chip row, ascending — the order `columnWidthCandidatesMm` publishes and the order the
  *  panel must preserve. */
 export function widthOptionRow(row: WidthOptionRow): WidthOption[] {
-  const label = row.label ?? "Corp";
+  // A kind the catalogue does not name, so it resolves to `catalog.unknownKind` — the generic word,
+  // which is what a fixture that is not about the name should say.
+  const label = row.label ?? kindLabel("unnamed_fixture_body");
   const options: WidthOption[] = [
     { widthMm: row.currentMm, verdict: { status: "current" } },
     ...(row.freeMm ?? []).map(

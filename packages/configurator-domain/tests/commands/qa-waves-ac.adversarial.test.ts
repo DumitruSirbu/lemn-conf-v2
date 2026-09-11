@@ -21,7 +21,6 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { offered as offeredRows } from "../support/offers.js";
 import {
   derivePlacementRecords,
   MIN_WIDTH_M,
@@ -213,7 +212,6 @@ function baseEntry(minWidthMm: number | undefined): BodyDefinition {
   const floorMm = minWidthMm ?? PROBE_DEFAULT_FLOOR_MM;
   return {
     ...template,
-    label: "Probă",
     widthRangesMm: [{ minMm: floorMm, maxMm: PROBE_CEILING_MM }],
     ...(minWidthMm === undefined ? {} : { minWidthMm }),
   };
@@ -294,7 +292,7 @@ describe("declared floors that are not widths at all", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("WIDTH_TOO_SMALL");
-    expect(result.reason.message).not.toContain("NaN");
+    expect(result.reason.params).not.toHaveProperty("requiredMm");
   });
 
   it("rejects a non-integer declaration, or applies it consistently", () => {
@@ -385,12 +383,12 @@ describe("a sub-300 mm width is reached only by naming a row that declares one",
 
     for (const target of targets) {
       const declaringDown = new Set(entriesDeclaringDown());
-      for (const offer of offeredRows(offersFor({ ...world, target }))) {
+      for (const offer of offersFor({ ...world, target })) {
         offersSeen += 1;
         if (declaringDown.has(offer.buildId)) continue;
-        if (offer.verdict.widthMm < GENERAL_MIN_WIDTH_MM) {
+        if (offer.buildsToWidthMm < GENERAL_MIN_WIDTH_MM) {
           offending.push(
-            `${target.id} → ${offer.buildId} @ ${String(offer.verdict.widthMm)}`,
+            `${target.id} → ${offer.buildId} @ ${String(offer.buildsToWidthMm)}`,
           );
         }
         if (offer.sizesMm.some((size) => size < GENERAL_MIN_WIDTH_MM)) {

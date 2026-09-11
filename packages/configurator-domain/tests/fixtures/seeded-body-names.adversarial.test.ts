@@ -5,11 +5,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   describeBodyLabelAt,
-  describeKindLabel,
   deriveDoorCount,
+  entryLabel,
+  kindLabel,
+  labelWithDoors,
   INSERTABLE_BODY_DEFINITIONS,
   resolveBuildableSizes,
   TWO_DOOR_MIN_WIDTH_MM,
+  type BodyLabel,
+  type LabelledBody,
 } from "../../src/catalog.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -32,7 +36,14 @@ function definitionOf(buildId: string): BodyDefinition {
   return definition;
 }
 
-function labelOf(world: KitchenWorld, placementId: string): string | undefined {
+function bodyOf(buildId: string): LabelledBody {
+  return { buildId, definition: definitionOf(buildId) };
+}
+
+function labelOf(
+  world: KitchenWorld,
+  placementId: string,
+): BodyLabel | undefined {
   return describeSelection({
     records: world.records,
     voids: world.voids,
@@ -45,7 +56,8 @@ function labelsOf(world: KitchenWorld): ReadonlyMap<string, string> {
   return new Map(
     world.design.placements.map((placement) => [
       placement.id,
-      labelOf(world, placement.id) ?? "<no selection>",
+      // Serialised so a map comparison fails on a readable diff rather than on object identity.
+      JSON.stringify(labelOf(world, placement.id) ?? "<no selection>"),
     ]),
   );
 }
@@ -217,14 +229,14 @@ describe("6A2 adversarial: the name is a function of width, swept rather than sa
     // the two definitions are indistinguishable to `describeBodyLabelAt`, not that they match at the
     // one width the fixture happens to seat the body at.
     for (const placement of seededPlacementsWithEquivalent) {
-      const seeded = definitionOf(placement.body.buildId);
-      const equivalent = definitionOf(seeded.catalogEquivalentId ?? "");
+      const seeded = bodyOf(placement.body.buildId);
+      const equivalent = bodyOf(seeded.definition.catalogEquivalentId ?? "");
 
       const disagreements = [];
       for (let widthMm = 100; widthMm <= 1200; widthMm += 1) {
         const seededLabel = describeBodyLabelAt(seeded, widthMm);
         const equivalentLabel = describeBodyLabelAt(equivalent, widthMm);
-        if (seededLabel !== equivalentLabel) {
+        if (JSON.stringify(seededLabel) !== JSON.stringify(equivalentLabel)) {
           disagreements.push([widthMm, seededLabel, equivalentLabel]);
         }
       }
@@ -238,7 +250,7 @@ describe("6A2 adversarial: the name is a function of width, swept rather than sa
   it("flips a wall row's door suffix at the 500 mm boundary and nowhere else", () => {
     // ADR 0033: the suffix tracks width. A seeded row that carries a *frozen* suffix — a hand-copied
     // "2 uși" in the label — would pass a same-width round trip and fail here.
-    const seeded = definitionOf(wallCabinetPlacements[0]?.body.buildId ?? "");
+    const seeded = bodyOf(wallCabinetPlacements[0]?.body.buildId ?? "");
 
     for (const widthMm of [
       TWO_DOOR_MIN_WIDTH_MM - 1,
@@ -248,10 +260,12 @@ describe("6A2 adversarial: the name is a function of width, swept rather than sa
       600,
       800,
     ]) {
-      const doors = deriveDoorCount(widthMm);
       expect([widthMm, describeBodyLabelAt(seeded, widthMm)]).toEqual([
         widthMm,
-        `${describeKindLabel(seeded.kind)} ${String(doors)} ${doors === 1 ? "ușă" : "uși"}`,
+        labelWithDoors(
+          entryLabel(WALL_CABINET_EQUIVALENT_ID),
+          deriveDoorCount(widthMm),
+        ),
       ]);
     }
   });
@@ -272,25 +286,24 @@ describe("6A2 adversarial: the name is a function of width, swept rather than sa
       expect([placement.id, labelOf(world, placement.id)]).toEqual([
         placement.id,
         describeBodyLabelAt(
-          definitionOf(placement.body.buildId),
+          bodyOf(placement.body.buildId),
           placement.body.widthMm,
         ),
       ]);
-      expect([
+      expect([placement.id, labelOf(world, placement.id)]).toEqual([
         placement.id,
-        labelOf(world, placement.id)?.endsWith("1 ușă"),
-      ]).toEqual([placement.id, true]);
+        labelWithDoors(entryLabel(WALL_CABINET_EQUIVALENT_ID), 1),
+      ]);
     }
   });
 });
 
 describe("6A2 adversarial: what the derivation is, and what it must not have acquired", () => {
-  it("carries the same label and door-count flag its catalogue entry carries", () => {
-    // Checked against `INSERTABLE_BODY_DEFINITIONS` — the same list `describeBodyLabelAt` sees for
-    // the equivalent — so a seeded row whose two fields drifted from the entry they were read off
-    // fails here. Value equality is all this can say: the two definition graphs are separate
-    // objects, since `buildSeededBodyDefinitions` and `buildKitchenLBodyCatalog` each call
-    // `buildInsertableBodyDefinitions`. The guard against a hand-copied string is the width sweep.
+  it("names itself by an entry that exists, with its door-count flag", () => {
+    // Checked against `INSERTABLE_BODY_DEFINITIONS` — the same list `describeBodyName` resolves the
+    // pointer through — so a seeded row pointing at a row that is not there, or whose flag drifted
+    // from the entry it was read off, fails here. Since 6B-f there is no name to copy: the pointer
+    // *is* the name, which is why the pointer's target must exist.
     const insertableById = new Map(INSERTABLE_BODY_DEFINITIONS);
 
     for (const placement of seededPlacementsWithEquivalent) {
@@ -302,9 +315,12 @@ describe("6A2 adversarial: what the derivation is, and what it must not have acq
         equivalentId,
         false,
       ]);
-      expect([placement.body.buildId, seeded.label]).toEqual([
+      expect([
         placement.body.buildId,
-        equivalent?.label,
+        describeBodyLabelAt(bodyOf(placement.body.buildId), 600),
+      ]).toEqual([
+        placement.body.buildId,
+        describeBodyLabelAt(bodyOf(equivalentId), 600),
       ]);
       expect([placement.body.buildId, seeded.doorCountFollowsWidth]).toEqual([
         placement.body.buildId,
@@ -326,12 +342,11 @@ describe("6A2 adversarial: what the derivation is, and what it must not have acq
       expect([
         buildId,
         corner.catalogEquivalentId,
-        corner.label,
         corner.doorCountFollowsWidth,
-      ]).toEqual([buildId, undefined, undefined, undefined]);
-      expect([buildId, describeBodyLabelAt(corner, 570)]).toEqual([
+      ]).toEqual([buildId, undefined, undefined]);
+      expect([buildId, describeBodyLabelAt(bodyOf(buildId), 570)]).toEqual([
         buildId,
-        describeKindLabel(corner.kind),
+        kindLabel(corner.kind),
       ]);
     }
   });
@@ -387,12 +402,12 @@ describe("6A2 adversarial: the seeded rows no placement in the fixture stands on
 
   it("gives every seeded row its equivalent's name, placed or not, at every width", () => {
     for (const [buildId, seeded] of seededRows) {
-      const equivalent = definitionOf(seeded.catalogEquivalentId ?? "");
+      const equivalent = bodyOf(seeded.catalogEquivalentId ?? "");
       const disagreements = [];
       for (let widthMm = 100; widthMm <= 1200; widthMm += 1) {
         if (
-          describeBodyLabelAt(seeded, widthMm) !==
-          describeBodyLabelAt(equivalent, widthMm)
+          JSON.stringify(describeBodyLabelAt(bodyOf(buildId), widthMm)) !==
+          JSON.stringify(describeBodyLabelAt(equivalent, widthMm))
         ) {
           disagreements.push(widthMm);
         }
@@ -446,6 +461,6 @@ describe("6A2 adversarial: the derivation's failure modes", () => {
     const fresh = await import("../../src/fixtures/kitchen-l-design.js");
 
     const pantry = fresh.KITCHEN_L_BODY_CATALOG.get("tall-pantry-600");
-    expect(pantry?.label).toBe(definitionOf("tall-pantry").label);
+    expect(pantry?.catalogEquivalentId).toBe("tall-pantry");
   });
 });

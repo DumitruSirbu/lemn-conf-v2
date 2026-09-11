@@ -1,52 +1,39 @@
-// ADR 0032: `offersFor` publishes every band-appropriate entry with a verdict, so a test asking
-// "what may the customer actually choose here?" has to say so rather than reading the list's length.
+// **`offersFor` publishes only what can actually be inserted**, on the owner's ruling of
+// 2026-09-10 that reversed ADR 0032. So "an offer" and "an offered row" are one thing again, and the
+// helpers that told them apart — `offered`, `refused`, `isRefused`, `verdictOf` — are gone rather
+// than kept as wrappers around a list that no longer has two halves.
 //
-// These helpers exist so that turnover is visible: a test written before ADR 0032 meant *offered*
-// wherever it said *offer*, and one written after has to pick a side. A bare `offers.map(...)` now
-// means "every row, whatever its verdict", which is a different claim and usually not the one.
-import type { CatalogOffer, OfferVerdict } from "../../src/queries/offers.js";
-
-export type OfferedOffer = CatalogOffer & {
-  readonly verdict: Extract<OfferVerdict, { status: "offered" }>;
-};
-
-export type RefusedOffer = CatalogOffer & {
-  readonly verdict: Extract<OfferVerdict, { status: "refused" }>;
-};
-
-export function isOffered(offer: CatalogOffer): offer is OfferedOffer {
-  return offer.verdict.status === "offered";
-}
-
-export function isRefused(offer: CatalogOffer): offer is RefusedOffer {
-  return offer.verdict.status === "refused";
-}
-
-/** The rows a customer may actually pick — exactly the list `offersFor` returned before ADR 0032. */
-export function offered(offers: readonly CatalogOffer[]): OfferedOffer[] {
-  return offers.filter(isOffered);
-}
-
-export function refused(offers: readonly CatalogOffer[]): RefusedOffer[] {
-  return offers.filter(isRefused);
-}
+// What is left is the pair a test needs to make the *negative* claim the reversal turned into the
+// interesting one: a wall body is **not** in a base list, a too-wide entry is **not** offered. A
+// bare `offers.some(...)` says that too; naming it keeps the claim readable and keeps the failure
+// message useful, which is why `offerFor` throws with the whole list rather than returning
+// `undefined` for a caller to assert on.
+import type { CatalogOffer } from "../../src/queries/offers.js";
 
 export function offeredIds(offers: readonly CatalogOffer[]): string[] {
-  return offered(offers).map((offer) => offer.buildId);
+  return offers.map((offer) => offer.buildId);
 }
 
-/** One entry's verdict by name, so a test can assert the reason and not merely the absence. */
-export function verdictOf(
+export function isOffered(
   offers: readonly CatalogOffer[],
   buildId: string,
-): OfferVerdict {
+): boolean {
+  return offers.some((offer) => offer.buildId === buildId);
+}
+
+/** One entry by name, so a test can assert what it would build to and not merely that it is there.
+ *  Throws naming the whole list, because "the list did not hold it" is the diagnosis. */
+export function offerFor(
+  offers: readonly CatalogOffer[],
+  buildId: string,
+): CatalogOffer {
   const found = offers.find((offer) => offer.buildId === buildId);
   if (!found) {
     throw new Error(
-      `${buildId} is not in the list at all; it has ${offers
-        .map((offer) => offer.buildId)
-        .join(", ")}`,
+      `${buildId} is not in the list at all; it has ${offeredIds(offers).join(
+        ", ",
+      )}`,
     );
   }
-  return found.verdict;
+  return found;
 }

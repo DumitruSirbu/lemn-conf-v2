@@ -22,11 +22,33 @@ import {
   OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   type Design,
 } from "@lemnaria/configurator-domain";
+import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+// The top bar's locale menu needs a locale and a path. The provider below supplies the first — a
+// `Link` reads it whether or not anything is rendered around it — but the second comes from
+// `usePathname`, which answers `null` outside a router however the render is wrapped. So the hook is
+// given the path this screen actually stands on and is otherwise the real one, endonyms and all;
+// `tests/i18n/locale-menu.dom.test.ts` is where it is driven.
+vi.mock("@/i18n/use-locale-menu", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/i18n/use-locale-menu")>();
+  return {
+    ...original,
+    useLocaleMenu: () =>
+      original.describeLocaleMenu("ro", "/configurator/configure"),
+  };
+});
+
+import { ro } from "../support/romanian-content";
+import roMessages from "../../src/messages/ro.json";
 
 const store = vi.hoisted(() => ({
   design: undefined as Design | undefined,
@@ -65,7 +87,14 @@ const { ConfigureScreen } = await import(
 );
 
 function renderScreen(): string {
-  return renderToStaticMarkup(createElement(ConfigureScreen));
+  return renderToStaticMarkup(
+    createElement(NextIntlClientProvider, {
+      children: createElement(ConfigureScreen),
+      locale: "ro",
+      messages: roMessages,
+      timeZone: "Europe/Chisinau",
+    }),
+  );
 }
 
 beforeEach(() => {

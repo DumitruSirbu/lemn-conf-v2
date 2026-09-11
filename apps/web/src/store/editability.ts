@@ -10,10 +10,9 @@
 // It decides what the interface **offers** and nothing about what the server **authorises**:
 // `canWrite` stays advisory, ADR 0019 decision 1's write token is still the only thing a write is
 // allowed on, and no write path reads this module.
+import type { Content } from "@/i18n/content";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import type { WriteAccess } from "@/store/configurator-store";
-
-import { ro } from "@/content/ro";
 
 /** The two store fields the answer is a function of, named as an object so a caller cannot pass
  *  them in the wrong order — they are both about "may I write" and neither is a boolean. */
@@ -32,10 +31,13 @@ export interface Editability {
   readonly disabledReason: string;
 }
 
-export function describeEditability(access: WriteAccessState): Editability {
+export function describeEditability(
+  access: WriteAccessState,
+  panel: Content["panel"],
+): Editability {
   return {
     isReadOnly: isReadOnly(access),
-    disabledReason: describeDisabledReason(access.canWrite),
+    disabledReason: describeDisabledReason(access.canWrite, panel),
   };
 }
 
@@ -64,12 +66,16 @@ function isReadOnly(access: WriteAccessState): boolean {
  *  must not share a sentence: "Doar vizualizare" states a permission the page has been told about,
  *  and saying it while the probe is still in flight would be a claim nothing has answered.
  *
- *  The sentences stay under `ro.panel` where §9 first needed them. They are one vocabulary rather
- *  than the panel's own — moving them would leave the panel's tests naming a section that no longer
- *  describes who reads it, and a copy under a second key is exactly the drift this module exists to
- *  end. */
-function describeDisabledReason(canWrite: WriteAccess): string {
-  if (canWrite === "checking") return ro.panel.accessCheckingReason;
-  if (canWrite === "check-failed") return ro.panel.accessUncheckableReason;
-  return ro.panel.readOnlyReason;
+ *  The sentences stay under the catalogue's `panel` group where §9 first needed them. They are one
+ *  vocabulary rather than the panel's own — moving them would leave the panel's tests naming a
+ *  section that no longer describes who reads it, and a copy under a second key is exactly the drift
+ *  this module exists to end. The group is **passed in** rather than imported, because since 6B-f
+ *  the only source of a Romanian sentence is the active locale's catalogue. */
+function describeDisabledReason(
+  canWrite: WriteAccess,
+  panel: Content["panel"],
+): string {
+  if (canWrite === "checking") return panel.accessCheckingReason;
+  if (canWrite === "check-failed") return panel.accessUncheckableReason;
+  return panel.readOnlyReason;
 }

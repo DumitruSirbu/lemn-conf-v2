@@ -8,9 +8,12 @@ import {
   recomputeVoids,
 } from "../../src/void-engine.js";
 import {
+  catalogEquivalentNamer,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  UnknownCatalogEquivalentError,
 } from "../../src/fixtures/kitchen-l-design.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 
 describe("KITCHEN_L_DESIGN", () => {
   it("is a valid Design", () => {
@@ -21,6 +24,26 @@ describe("KITCHEN_L_DESIGN", () => {
     for (const placement of KITCHEN_L_DESIGN.placements) {
       expect(KITCHEN_L_BODY_CATALOG.has(placement.body.buildId)).toBe(true);
     }
+  });
+
+  // **The runtime half of the same guard, and since 6B-f it is load-bearing.** The check above reads
+  // the pointers as data; this one exercises the throw that fires when one of them names nothing.
+  // It mattered less when the seeded row carried a copy of its equivalent's name: a withdrawn entry
+  // cost a width set. It now costs the *name* too — `describeBodyName` resolves the pointer live —
+  // so what this refusal prevents is a body renamed silently at load. Reached through the namer
+  // because every seeded pointer in the fixture is a literal.
+  it("refuses at load when a pointer names no insertable entry", () => {
+    const nameFor = catalogEquivalentNamer(WORKTOP_DEPTH_MM);
+
+    expect(() => nameFor("no-such-entry")).toThrow(
+      UnknownCatalogEquivalentError,
+    );
+    // Non-vacuity: the same namer answers for a pointer the catalogue does hold, so the throw above
+    // is about the missing entry and not about the namer refusing everything.
+    expect(nameFor("wall-cabinet")).toMatchObject({
+      catalogEquivalentId: "wall-cabinet",
+      doorCountFollowsWidth: true,
+    });
   });
 
   // FINDING R2.2. `catalogEquivalentId` is the declared pointer §9's ACTUAL badge reads. A typo in

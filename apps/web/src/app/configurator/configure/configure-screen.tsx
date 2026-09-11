@@ -1,6 +1,6 @@
 "use client";
 
-import { CAMERA_PRESETS, type CameraPresetId } from "@lemnaria/three-adapter";
+import { CAMERA_PRESETS } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
@@ -10,29 +10,45 @@ import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
-import { ro } from "@/content/ro";
+import { useContent } from "@/i18n/use-content";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
+import { useCameraPreset } from "@/scene/camera-preset-store";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
 
 import styles from "./configure.module.css";
+import { LocaleMenu } from "./locale-menu";
 import { SelectionDebug } from "./selection-debug";
 import { useTopBarFit } from "./use-top-bar-fit";
 
 // The canvas never renders on the server, and its bundle is only fetched on the step that needs 3D.
 const KitchenCanvas = dynamic(() => import("@/scene/kitchen-canvas"), {
   ssr: false,
-  loading: () => <div className={styles.loading}>{ro.configure.loading}</div>,
+  loading: ConfigureLoading,
 });
+
+function ConfigureLoading() {
+  const content = useContent();
+  return <div className={styles.loading}>{content.configure.loading}</div>;
+}
 
 type SupportState = "probing" | "supported" | "unsupported";
 
-export function ConfigureScreen() {
+export function ConfigureScreen({
+  webglUnavailableTitleMobile,
+}: {
+  webglUnavailableTitleMobile?: string;
+} = {}) {
+  const content = useContent();
   const [support, setSupport] = useState<SupportState>("probing");
-  const [presetId, setPresetId] = useState<CameraPresetId>("overview");
+  // Module-scope, not `useState`: a language switch changes the `[locale]` segment and remounts this
+  // subtree, and the camera was the one thing on the screen that did not survive it. See
+  // `scene/camera-preset-store.ts`.
+  const presetId = useCameraPreset((state) => state.presetId);
+  const standAt = useCameraPreset((state) => state.standAt);
   const panel = usePanelView();
   // The top bar's one measurement and the two decisions taken from it — how many settings the pill
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
@@ -47,7 +63,15 @@ export function ConfigureScreen() {
     [presetId],
   );
 
-  if (support === "unsupported") return <WebGLUnavailable />;
+  if (support === "unsupported") {
+    return (
+      <WebGLUnavailable
+        {...(webglUnavailableTitleMobile === undefined
+          ? {}
+          : { titleMobile: webglUnavailableTitleMobile })}
+      />
+    );
+  }
 
   return (
     <main
@@ -70,15 +94,15 @@ export function ConfigureScreen() {
         <span
           className={styles.back}
           role="img"
-          aria-label={ro.configure.back}
+          aria-label={content.configure.back}
           data-testid="top-bar-back"
         >
           ‹
         </span>
-        <span className={styles.wordmark}>{ro.brand}</span>
-        {/* The step, twice over and from one source (`content/ro.ts`): the pill the frames draw, and
-            — as its accessible name — the sentence the caption it replaced said. "2/4" read aloud is
-            two numbers and a slash, which announces less than the surface used to.
+        <span className={styles.wordmark}>{content.brand}</span>
+        {/* The step, twice over and from one source (`src/messages/ro.json`): the pill the frames
+            draw, and — as its accessible name — the sentence the caption it replaced said. "2/4"
+            read aloud is two numbers and a slash, which announces less than the surface used to.
 
             `role="img"` over a visually hidden span, because a hidden span is a clipped one: the
             900 px containment gate reads every span in this row and fails any whose text is cut, and
@@ -87,13 +111,13 @@ export function ConfigureScreen() {
         <span
           className={styles.stepPill}
           role="img"
-          aria-label={ro.configure.step}
+          aria-label={content.configure.step}
           data-testid="top-bar-step"
         >
-          {ro.configure.stepPill}
+          {content.configure.stepPill}
         </span>
         <span className={styles.title} data-testid="top-bar-title">
-          {ro.configure.title}
+          {content.configure.title}
         </span>
       </header>
       {/* Frames D2A / 2A's settings pill, which is **also the trigger** for the sheet it names
@@ -107,31 +131,31 @@ export function ConfigureScreen() {
       <div className={styles.settings} ref={topBar.settingsTrackRef}>
         <GlobalSettings visibleCount={topBar.visibleCount} />
       </div>
-      {/* Drawn exactly as the reference draws it and **wired to nothing**. Locale switching is
-          M6B wave 6B-i, gated on the owner's Gate O1; a caret that does nothing is the correct
-          state of this control today, and a control that did something would pre-empt a ruling. */}
-      <div className={styles.locale}>
-        <span className={styles.localeChip} data-testid="top-bar-locale">
-          <span className={styles.localeCode}>{ro.configure.locale}</span>
-          <span className={styles.localeCaret} aria-hidden="true">
-            ▾
-          </span>
-        </span>
-      </div>
+      {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and the owner's 2026-09-10
+          ruling gives the caret its meaning: it opens a menu of every locale `routing.locales`
+          declares. The cell itself is the component's, because the popover is positioned against it
+          — `locale-menu.tsx`, and `i18n/use-locale-menu.ts` for what the ruling supersedes.
+
+          **Switching language does not move the customer**, which is the one property the menu keeps
+          from the toggle it replaced: every choice's href is this page's own locale-free path, so
+          `/d/{id}` stays `/d/{id}` and the configure step stays the configure step; and next-intl's
+          `Link` navigates client-side, so the store — a module singleton — is never torn down and
+          the design in it survives the switch whether or not it has been saved yet. */}
+      <LocaleMenu />
       {/* On mobile this is the positioning context for the bottom sheet; on desktop it is the row
           the 420 px rail takes its space from. Which of the two happens is decided entirely in
           CSS — see `editor-panel.module.css`. */}
       <div className={styles.stage}>
         <div className={styles.viewport}>
           {support === "probing" ? (
-            <div className={styles.loading}>{ro.configure.loading}</div>
+            <div className={styles.loading}>{content.configure.loading}</div>
           ) : (
             <KitchenCanvas view={view} />
           )}
           <div
             className={styles.presets}
             role="group"
-            aria-label={ro.configure.cameraGroupLabel}
+            aria-label={content.configure.cameraGroupLabel}
           >
             {CAMERA_PRESETS.map((preset) => (
               <button
@@ -140,10 +164,10 @@ export function ConfigureScreen() {
                 className={styles.preset}
                 aria-pressed={preset.id === presetId}
                 onClick={() => {
-                  setPresetId(preset.id);
+                  standAt(preset.id);
                 }}
               >
-                {ro.configure.cameraPresets[preset.id]}
+                {content.configure.cameraPresets[preset.id]}
               </button>
             ))}
           </div>
@@ -162,7 +186,7 @@ export function ConfigureScreen() {
                 hidden" cannot answer differently on a state one of them has not considered. */}
             {panel.kind === "open" ? null : (
               <p className={styles.hint} data-testid="scene-hint">
-                <span>{ro.configure.orbitHint}</span>
+                <span>{content.configure.orbitHint}</span>
               </p>
             )}
             <FlaggedTotalWarning />
@@ -192,10 +216,10 @@ export function ConfigureScreen() {
           worse than static text. */}
       <div className={styles.actions}>
         <span className={styles.backAction} data-testid="bottom-bar-back">
-          {ro.configure.backAction}
+          {content.configure.backAction}
         </span>
         <span className={styles.reviewCta} data-testid="review-cta">
-          {ro.configure.reviewCta}
+          {content.configure.reviewCta}
         </span>
       </div>
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
@@ -203,7 +227,7 @@ export function ConfigureScreen() {
           measurement that would put it back. */}
       <div className={styles.measure} aria-hidden="true">
         <span className={styles.wordmark} ref={topBar.wordmarkProbeRef}>
-          {ro.brand}
+          {content.brand}
         </span>
       </div>
       <SettingsPillMeasurement

@@ -10,18 +10,19 @@
 // enabled if and only if the step it offers succeeds.* It is asserted by actually walking, one press
 // at a time, through every width the shipped kitchen can reach.
 import {
+  buildableWidthSpanMm,
   cabinetDepthMmOf,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
+  entryLabel,
   insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
   recomputeVoids,
   removePlacement,
-  renderRejection,
   setWidth,
   toMillimetres,
   widthOptionsFor,
@@ -31,7 +32,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import {
   describePanel,
   type ReplaceSection,
@@ -88,6 +89,7 @@ function panelAt(world: World, target: CommandTarget) {
     probe: PROBE,
   };
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
@@ -95,6 +97,7 @@ function panelAt(world: World, target: CommandTarget) {
       target,
       cabinetDepthMm: cabinetDepthMmOf(world.design),
     }),
+    buildableWidthSpanMm: buildableWidthSpanMm(world.catalog),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),
@@ -249,6 +252,26 @@ function walkToFloor(id: string): WidthStepperSection {
   throw new Error(`${id} never reached a floor`);
 }
 
+/** ADR 0035's column bound, spoken as a bound: the one sentence three of the four floors and the
+ *  ceiling all produce, so only what varies between them is written at each call. */
+function columnBoundReason(bound: {
+  readonly label: ReturnType<typeof entryLabel>;
+  readonly minMm: number;
+  readonly maxMm: number;
+  readonly availableMm: number;
+}): string {
+  return ro.rejection({
+    code: "WIDTH_NOT_SUPPORTED",
+    params: {
+      label: bound.label,
+      sizesMm: [],
+      widthRangesMm: [{ minMm: bound.minMm, maxMm: bound.maxMm }],
+      boundScope: "column",
+      availableMm: bound.availableMm,
+    },
+  });
+}
+
 describe("the four floors and the one ceiling, each said in the engine's own words", () => {
   // **§7's 800 mm ceiling**, which ADR 0035 decision 2 made the bound every cabinetry row carries
   // and decision 5 confirmed for the hood as well ("for hood there should not be any >800 mm width
@@ -262,16 +285,33 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     const wider = section.steps[1];
     expect(wider.widthMm).toBe(850);
     expect(wider.isDisabled).toBe(true);
+    // **`boundScope: "column"`, since 2026-08-30.** This pin was the clearest statement of 5D2c
+    // product-logic B1: 560 is the *sink's* floor from this column, and a wall cabinet is built
+    // 200-800 — so under the body's name the sentence was false about the very cabinet it named. It
+    // now attributes the bound to the column that owns it, and asserting the descriptor rather than
+    // the sentence is what fails when the scope goes back to `"body"` under identical wording.
     expect(wider.reason).toBe(
-      // **"este într-o coloană care", since 2026-08-30.** This pin was the clearest statement of
-      // 5D2c product-logic B1: 560 is the *sink's* floor from this column, and a wall cabinet is
-      // built 200-800 — so under the body's name the sentence was false about the very cabinet it
-      // named. It now attributes the bound to the column that owns it.
-      "„Corp suspendat” este într-o coloană care se face între 560 și 800 mm, iar acum are 800 mm.",
+      columnBoundReason({
+        label: entryLabel("wall-cabinet"),
+        minMm: 560,
+        maxMm: 800,
+        availableMm: 800,
+      }),
     );
-    // The half that was the blocker: a bound is spoken as a bound. "doar în 600 sau 650 sau …"
+    // The half that was the blocker: a bound is spoken as a bound. Built as the sentence the *list*
+    // clause would have produced from the same code, label and available width — the list form
     // denies every width between the chips, which is materially false of a cabinetry row.
-    expect(wider.reason).not.toContain("doar în");
+    expect(wider.reason).not.toBe(
+      ro.rejection({
+        code: "WIDTH_NOT_SUPPORTED",
+        params: {
+          label: entryLabel("wall-cabinet"),
+          sizesMm: [560, 800],
+          boundScope: "column",
+          availableMm: 800,
+        },
+      }),
+    );
   });
 
   // **The entry's own floor** (ADR 0017): the sink's 560 mm aperture bounds `A|1.30` from below, and
@@ -279,7 +319,14 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
   it("names the sink's own 560 mm aperture on the `−50` that reaches it", () => {
     const section = walkToFloor("p11");
     expect(section.valueLabel).toBe("600 mm");
-    expect(section.steps[0].reason).toContain("între 560 și 800 mm");
+    expect(section.steps[0].reason).toBe(
+      columnBoundReason({
+        label: entryLabel("wall-cabinet"),
+        minMm: 560,
+        maxMm: 800,
+        availableMm: 600,
+      }),
+    );
   });
 
   // **§2's default floor**, which governs every entry that declares none of its own. `p4`'s
@@ -289,7 +336,12 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     const section = walkToFloor("p4");
     expect(section.valueLabel).toBe("300 mm");
     expect(section.steps[0].reason).toBe(
-      "„Corp bază 3 sertare” este într-o coloană care se face între 300 și 800 mm, iar acum are 300 mm.",
+      columnBoundReason({
+        label: entryLabel("base-3drawer"),
+        minMm: 300,
+        maxMm: 800,
+        availableMm: 300,
+      }),
     );
   });
 
@@ -347,7 +399,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
   // The reason is the engine's own sentence rather than a re-wording, asserted against the refusal
   // `setWidth` actually produced (ADR 0032 rule 2). A panel that paraphrased a refusal would read
   // plausibly and fail here.
-  it("renders every refusal through the one renderRejection", () => {
+  it("renders every refusal through the one localized resolver", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     let refusals = 0;
     for (const record of world.records) {
@@ -367,7 +419,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
         expect([record.id, step.direction, step.reason]).toEqual([
           record.id,
           step.direction,
-          renderRejection(result.reason),
+          ro.rejection(result.reason),
         ]);
         refusals += 1;
       }
@@ -377,20 +429,19 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
 });
 
 // -------------------------------------------------------------------------------------------
-// The two sentences wave 5D2c owes an opening no cabinet fits.
+// Openings no cabinet fits still expose the catalogue, with every candidate refused in place.
 // -------------------------------------------------------------------------------------------
 
-describe("an opening no cabinet fits says so, and does not ask for a delete", () => {
-  // **ADR 0035 decision 7 created this state and this wave has to speak to it.** One press of `−50`
-  // vacates a 50 mm strip, and until the next press absorbs it that strip is a selectable opening
-  // `offersFor` answers with nothing offered. §9's "say what to clear" is wrong advice there: the
-  // neighbours are what the strip was taken from, and clearing one gives a *wider* opening, not a
-  // usable one at 50 mm.
+describe("an opening no cabinet fits says so in one sentence, with no rows", () => {
+  // ADR 0035 decision 7 creates this state: one press of `−50` vacates a selectable 50 mm strip.
   //
-  // Suppressing the strip was tried in this milestone and reverted — a horizontal floor on void
-  // emission also hides the 190–199 mm openings the bottle-cargo refusals are observed in — so the
-  // honest answer is copy, and this is it.
-  it("tells the customer a strip narrower than any cabinet may be left", () => {
+  // **ADR 0032 required the catalogue entries to stay visible carrying the engine's refusal; the
+  // owner reversed that on 2026-09-10** — *"show only what is possible to insert"* — so the strip
+  // now renders no rows at all. What has to survive is that the panel is not an empty box: §9's
+  // zero-result sentence takes over, and it is the **informative** arm, naming the narrowest width
+  // the catalogue is made at. That bound comes from `buildableWidthSpanMm` now that no row is left
+  // to carry a `widthRangesMm`, which is the seam this test is really standing on.
+  it("names the narrowest cabinet for a strip narrower than any of them", () => {
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p4");
     if (!section) throw new Error("no stepper on p4");
     const shrunk = press(SEEDED_KITCHEN, "p4", section.steps[0].widthMm);
@@ -401,20 +452,20 @@ describe("an opening no cabinet fits says so, and does not ask for a delete", ()
     if (!strip) throw new Error("the shrink opened no 50 mm strip");
 
     const replace = replaceAt(world, { kind: "void", id: strip.id });
+    const span = buildableWidthSpanMm(world.catalog);
+
     expect(replace.rows).toEqual([]);
+    expect(replace.countLine).toBeUndefined();
     expect(replace.emptyLine).toBe(
-      "Deschiderea are 50 mm, mai puțin decât cel mai îngust corp din catalog (200 mm). Spațiul poate rămâne gol; se închide pe măsură ce lărgești corpul de lângă el.",
+      ro.panel.noOffersTooNarrow(50, span?.minMm ?? -1),
     );
-    // The trap this copy exists to avoid, pinned as an anti-assertion: §9's ordinary sentence tells
-    // the customer to delete a neighbour, which here makes the opening wider rather than fillable.
-    expect(replace.emptyLine).not.toContain("Șterge");
   });
 
   // **ADR 0037's own paragraph, and the owner's answer to it: "ok to have empty space left."** An
   // opening over §7's 800 mm ceiling fits no cabinet at all, and §9's zero-result rule inverts —
   // clearing a neighbour makes it wider. The shipped kitchen holds no column that wide, so this is a
   // synthetic 950 mm one, the width 5D2a's QA measured as reachable.
-  it("tells the customer a span wider than 800 mm may be left, and never says to clear more", () => {
+  it("names the widest cabinet for a span wider than every one of them", () => {
     const design: Design = {
       room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
       presetId: null,
@@ -450,11 +501,15 @@ describe("an opening no cabinet fits says so, and does not ask for a delete", ()
     if (!opening) throw new Error("no 950 mm opening");
 
     const replace = replaceAt(world, { kind: "void", id: opening.id });
+    const span = buildableWidthSpanMm(world.catalog);
+
     expect(replace.rows).toEqual([]);
+    expect(replace.countLine).toBeUndefined();
+    // ADR 0037's inversion, and the owner's *"ok to have empty space left"*: the sentence names the
+    // widest cabinet there is rather than asking for a delete that would widen the opening further.
     expect(replace.emptyLine).toBe(
-      "Deschiderea are 950 mm, mai mult decât cel mai lat corp din catalog (800 mm). Niciun corp nu o umple singur, iar ștergerea unui vecin ar lărgi-o și mai mult. Spațiul poate rămâne gol, sau îl poți împărți punând la loc un corp lângă el.",
+      ro.panel.noOffersTooWide(950, span?.maxMm ?? -1),
     );
-    expect(replace.emptyLine).not.toContain("Șterge un corp vecin");
   });
 });
 
@@ -468,9 +523,15 @@ describe("§9's width copy describes the control that is actually there", () => 
   // thirteen widths while denying one the cabinet is built at. Neither was pinned. This is the pin,
   // and it is about the *claim* rather than the wording — a copy edit should not fail it, a
   // reintroduced disclaimer must.
+  // **The three patterns below are deliberate Romanian literals and are load-bearing.** They are
+  // *negative* claims about the source wording — a reintroduced disclaimer must fail here — and a
+  // catalogue read cannot express "this sentence is not in the catalogue". They belong on wave
+  // 6B-j's allow-list rather than in a conversion.
   it("never tells the customer the feature is unavailable", () => {
     for (const note of [ro.panel.widthStepNote, ro.panel.widthChoiceNote]) {
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording: a reintroduced unavailability disclaimer must fail here.
       expect(note).not.toMatch(/nu este (încă )?disponibil/i);
+      // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: the second negative claim of the same pin.
       expect(note).not.toMatch(/în această versiune/i);
     }
   });
@@ -479,9 +540,17 @@ describe("§9's width copy describes the control that is actually there", () => 
   // of most cabinetry and false as a universal: ADR 0026's bottle cargo reaches 200, ADR 0017's sink
   // column floors at 600, and since 5D2b a hood floors its column at its own width. The floor now
   // lives on the disabled `−50`, which states the one that applies to *this* column.
+  // **The `/spațiului liber/i` below is on 6B-j's allow-list for a different reason than the
+  // negatives above.** It is a *positive* substring claim, so "a catalogue read cannot express it"
+  // does not apply — reading the leaf back would express it, and would be a tautology that passes
+  // whatever the sentence says. What it is instead is a claim that the note keeps naming the free
+  // space as the source of the width, which is the half of the clause 5D got wrong; matched
+  // case-insensitively on the one noun phrase the claim cannot lose, so a rewording around it is
+  // not a false red.
   it("states the step and where the width comes from, without claiming a universal floor", () => {
     expect(ro.panel.widthStepNote).toContain("50");
-    expect(ro.panel.widthStepNote).toMatch(/spațiul liber/i);
+    // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a positive claim that the note keeps naming the free space, matched on the one noun phrase it cannot lose — the note above records why it is not a tautology.
+    expect(ro.panel.widthStepNote).toMatch(/spațiului liber/i);
     expect(ro.panel.widthStepNote).not.toContain("300");
   });
 
@@ -493,7 +562,7 @@ describe("§9's width copy describes the control that is actually there", () => 
   });
 
   // The note the customer reads is the one the model publishes, asserted through real sections of
-  // both kinds — a note changed in `ro.ts` and not wired here would otherwise stay invisible.
+  // both kinds — a note changed in `ro.json` and not wired here would otherwise stay invisible.
   it("is the note each rendered control actually carries", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     const stepper = stepperAt(world, "p0");
@@ -515,9 +584,19 @@ describe("§9's width copy describes the control that is actually there", () => 
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p0");
     if (!section) throw new Error("no stepper on p0");
     expect(section.steps.map((step) => [step.label, step.ariaLabel])).toEqual([
-      ["−50 mm", "Micșorează lățimea cu 50 mm"],
-      ["+50 mm", "Mărește lățimea cu 50 mm"],
+      [
+        ro.panel.widthStepLabels.narrower,
+        ro.panel.widthStepAriaLabels.narrower,
+      ],
+      [ro.panel.widthStepLabels.wider, ro.panel.widthStepAriaLabels.wider],
     ]);
+    // Not vacuous: the two buttons must not have swapped, and the face must not be the name.
+    expect(ro.panel.widthStepLabels.narrower).not.toBe(
+      ro.panel.widthStepLabels.wider,
+    );
+    expect(ro.panel.widthStepAriaLabels.narrower).not.toBe(
+      ro.panel.widthStepLabels.narrower,
+    );
   });
 });
 

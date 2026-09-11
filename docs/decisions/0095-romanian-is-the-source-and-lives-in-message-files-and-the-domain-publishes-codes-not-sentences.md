@@ -197,10 +197,12 @@ key whose message lives in `ro.json` — and tests still match on codes, not pro
 **where the sentence is written**, not whether one exists. The failure the M3 rule guarded against is
 additionally now a **compile error**: a code with no key does not typecheck.
 
-The price book's six Romanian `description` values are **data, not UI copy**, and are ruled out of
-the message catalogue: they are owner-supplied commercial content on a record heading for the
-manufacturer price dashboard. M6B ships the seam that lets them be locale-keyed and leaves them
-Romanian-only. See the phase plan's open question 4.
+~~The price book's six Romanian `description` values are data, not UI copy, and stay
+Romanian-only.~~ **Narrowed by Amendment B:** the current tree has eight descriptions plus
+tier/accessory display names, and this prose reaches customer-visible screens. Numeric rates and
+manufacturer records remain locale-free data, while displayed names and descriptions publish
+message descriptors and are resolved by the app. Existing Romanian values move byte-for-byte;
+Russian remains an unapproved draft until Gate O2.
 
 ### 4. M6B implements i18n, not a file extraction — and ADR 0001 decision 5 closes with it
 
@@ -222,11 +224,13 @@ are in:
 - **A shared design link's locale is presentation, never identity.** `/ro/d/<id>` and `/ru/d/<id>`
   load the same design. The locale segment must not reach the persisted document, a save payload, the
   design's `revision`, or any cache key that a design is read by.
-- **`Intl` number and currency formatting**, and the baked-in cases fixed: `MDL` becomes a formatted
-  currency rather than a literal suffix, and *"Pasul 2 din 4"* becomes a parameterised message whose
-  step numbers are arguments. **Formatting is rendering only.** ADR 0001 decision 4's rounding stays
-  in **minor units** in `starting-price.ts` and is not routed through `Intl` — a formatter that
-  rounds is a formatter that changes a price.
+- ~~**`Intl` number and currency formatting**~~, and the baked-in cases fixed: `MDL` becomes a
+  formatted currency rather than a literal suffix, and *"Pasul 2 din 4"* becomes a parameterised
+  message whose step numbers are arguments. **Formatting is rendering only.** ADR 0001 decision 4's
+  rounding stays in **minor units** in `starting-price.ts` and is not routed through `Intl` — a
+  formatter that rounds is a formatter that changes a price.
+  **`Intl` is narrowed out of `price/` entirely by Amendment C** — the baked-in cases are still
+  fixed, by a catalogue leaf rather than by a formatter.
 - **A complete Russian message file and the language switch**, which is what makes decision 5 true
   rather than possible. Confirmed by the owner, 2026-09-06: *"Russian is in scope … this milestone
   should include all the infrastructure, all the logic, for the internationalization. Yeah, it will
@@ -262,6 +266,44 @@ owner, who holds both languages, decides whether the Russian bends or the Romani
 Deferring routing and `Intl` was considered and rejected on its own merits as well as by the ruling:
 it would defeat the phase's sequencing rationale, since M7 and M8 add two whole screens of copy and
 cannot author keys natively into a product that has no locale.
+
+### Amendment A — Gate O1 closes and translation moves first (2026-09-07)
+
+The owner completed the Romanian review with a 13-line edit set in
+`apps/web/src/messages/ro.json`, closing Gate O1. Semantic JSON comparison measures 12 changed leaf
+values; the thirteenth line was a byte-identical value with trailing whitespace. The semantic values are owner-authored input and are the
+only source for the Russian draft; an agent must not normalise, reinterpret or silently undo them.
+
+The owner then explicitly directed: translate that corrected catalogue into Russian next, and
+continue through the milestone afterward. This newer sequencing ruling supersedes the phase plan's
+original dependency order and its earlier wait for M6's formal close. It splits execution of 6B-i,
+not its acceptance gate: the complete `ru.json` is drafted first; 6B-a through 6B-h then land; 6B-i
+finishes the switcher, pseudo-locale and end-to-end Russian rendering and receives its Full-tier QA
+and review as one wave. Gate O2 remains the next hard owner stop, and Russian remains explicitly
+unapproved until that review.
+
+### Amendment B — implementation audit corrections (2026-09-07)
+
+Three implementation facts refine this decision without changing its intent.
+
+First, Next 16 already routes all dynamic requests through `apps/web/src/proxy.ts`, where the CSP
+nonce and enforcing request header are created. Locale negotiation extends that one proxy and must
+preserve its security headers on redirects, rewrites and pass-through responses. The phase does not
+add `middleware.ts` or a second proxy.
+
+Second, the golden-output harness stores a key-to-SHA-256 manifest rather than a second corpus of
+Romanian literals. The whole-file inline copy lock remains the single wording authority; hashes
+detect behavioural output drift without contradicting the owner's rule that no other test embeds
+customer copy. Gate O1 happened before the harness existed, so the manifest is seeded from the
+corrected source catalogue and the 12 semantic owner changes are recorded. No M6-close recapture is
+claimed.
+
+Third, decision 3's commercial-data exemption is narrowed. The implementation audit found eight
+Romanian price-book descriptions and tier/accessory display names that reach the settings and price
+breakdown screens. Keeping that prose Romanian-only contradicts the accepted end-to-end Russian
+criterion. Numeric rates and manufacturer records remain locale-free data, while every displayed
+name and description becomes a message descriptor resolved by the app. Existing Romanian values
+move byte-for-byte and the Russian translations remain unapproved until Gate O2.
 
 ## Consequences
 
@@ -334,3 +376,84 @@ cannot author keys natively into a product that has no locale.
   guard whichever sentences someone happened to assert, in no recorded order, while 81 assertions
   beside them are tautologies. One whole-file lock covers every key by construction. **The
   distributed version looks stronger and covers less.**
+
+### Amendment C — `Intl` is not the mechanism for money, because it contradicts the mockups (2026-09-10)
+
+**Decision 4 committed to `Intl` before anyone ran it.** Measured on this repository's runtime,
+against `143000`:
+
+| locale | grouping | currency |
+| --- | --- | --- |
+| `ro` | `"143.000"` — a **period** | `"143.000,00 MDL"` |
+| `ro-MD` | `"143.000"` | `"143.000,00 L"` — not `MDL` |
+| `ru` | `"143 000"` — U+00A0, not U+0020 | `"143 000,00 MDL"` |
+
+What ships and what the mockups draw is **`143 000 MDL`**: an ASCII space, the currency after the
+amount, no decimals. `Intl` disagrees on the separator, on the currency symbol, and — for Russian —
+on the codepoint. `price/starting-price.ts:56` had already recorded the reason in a comment before
+this was measured: *"The mockups group with a space … and grouping is done here rather than through
+`Intl`."*
+
+[ADR 0003](0003-design-reference-supersession.md) and
+[ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+make the mockups the specification for this screen. A formatter that renders `143.000` where the
+approved design says `143 000` is not a localisation improvement; it is an unapproved copy change
+arriving through a library. **The higher ruling wins, and decision 4 is narrowed rather than
+reversed.**
+
+**So, for wave 6B-g:**
+
+1. **No `Intl` identifier anywhere under `apps/web/src/price/`.** Falsifiable by grep, and 6B-g
+   carries it as a criterion.
+2. **The thousands separator stays an ASCII space**, as the product constant it already is.
+   `THOUSANDS_SEPARATOR` does not move.
+3. ***"`MDL` stops being a literal suffix"* is still satisfied, and better than `Intl` would have.**
+   The join becomes a catalogue leaf — `price.amountWithCurrency`, `"{amount} MDL"` — so the
+   currency's name, its position relative to the amount, and whether Russian says *MDL* or *лei*
+   become **translatable decisions the owner rules at Gate O2**, instead of a library's opinion
+   about `ro-MD` that nobody chose and that renders `L`.
+4. ADR 0001 decision 4's rounding is untouched, in minor units, as decision 4 already required.
+
+**What this costs, said plainly:** per-locale digit grouping is now a product constant rather than a
+CLDR lookup, so a future locale that groups differently — Indian lakh, say — would need a decision
+rather than working for free. No planned locale does; both `ro` and `ru` group in threes. That is a
+real limit and it is accepted knowingly, which is the opposite of discovering it after a formatter
+silently rewrote an approved figure.
+
+**Shipped 2026-09-10 at `cb66896`**, exactly as narrowed: only the join moved, and the golden
+manifest went 300 → 303 hashes with none moved. **One thing this leaves for Gate O2, stated so it is
+not mistaken for a translation gap**: `ru.json` carries the same value as `ro.json`,
+`"{amount} MDL"`. Point 3 above is what makes that the owner's to rule rather than a library's — the
+leaf exists precisely so *MDL* against *лей*, and the currency's position, can be decided at O2.
+
+### Amendment D — a plural's branch list belongs to its own locale, and the parity gate was requiring the defect (2026-09-10)
+
+**Decision 2's layer 4 asks for *"ICU placeholder parity"* and it is correct as written.** What
+shipped alongside it went further: the catalogue-parity gate compared the two locales' **plural
+branch lists** and demanded they match. Romanian counts in `one`/`few`/`other`; **Russian's CLDR
+categories are `one`/`few`/`many`/`other`**. So the gate could only pass on a Russian file that
+declared Romanian's categories — which is exactly the file that shipped.
+
+**The consequence, found by wave 6B-i at `87429ca`:** all five Russian plural leaves carried
+Romanian's three branches, so **every Russian count of five or more fell through to `other` and read
+wrong**. A correct Russian plural would have **failed the gate**. This is a category past the four
+dead gates recorded elsewhere in this milestone: not a gate that measured nothing, but one that
+**enforced the defect and would have rejected its fix**.
+
+**The narrowing.** Layer 4's structural guard has two halves and they are not the same claim:
+
+1. **Placeholder and branch-*body* parity, leaf against leaf** — arguments, number and date formats,
+   `select` branches and exact-value (`=0`, `=1`) branches must correspond, and bodies are compared
+   only for the categories the two languages **share**. Unchanged.
+2. **Category-set correctness, locale against its own CLDR data** — each locale declares exactly its
+   own categories on every plural leaf. **Never against the source locale's.**
+
+Both live in `apps/web/tests/i18n/catalogue-parity.test.ts`. The repair to `ru.json` was purely
+additive — each leaf gained a `many` branch carrying the text `other` was already resolving for those
+counts — so **no reachable sentence moved**, and the golden manifest went 303 → 304 on 6B-i's one new
+leaf alone.
+
+**The general rule, because the next locale will meet it too:** a translation's plural categories are
+a property of its language, not of the file it was translated from. A gate that compares them
+across locales is asserting that all languages count alike, and it will be wrong for Polish, Arabic
+and Welsh in the same way it was wrong for Russian.

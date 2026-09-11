@@ -32,6 +32,7 @@ import {
   countCabinetsWearingAChosenFinish,
   type Design,
 } from "@lemnaria/configurator-domain";
+import { ro } from "../support/romanian-content";
 import { describe, expect, it } from "vitest";
 
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
@@ -74,6 +75,7 @@ function displayedDepthOf(design: Design): number {
   };
   const offer = offerWholeKitchenTiers(priced);
   const view = describeGlobalSettings({
+    content: ro,
     pricing: priceDesign(priced),
     offer,
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),

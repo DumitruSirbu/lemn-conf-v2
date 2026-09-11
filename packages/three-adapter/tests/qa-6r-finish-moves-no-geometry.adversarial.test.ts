@@ -42,7 +42,7 @@ beforeAll(() => {
  *  no table row exists, and the wave that added it is this one. */
 const EVERY_FINISH: readonly (readonly [string, Finish])[] = [
   ...PALETTE_ENTRIES.map(
-    (entry) => [entry.name, paletteFinish(entry.entryId)] as const,
+    (entry) => [entry.entryId, paletteFinish(entry.entryId)] as const,
   ),
   ["a picked free colour", freeColourFinish("#b8c4a1")] as const,
 ];

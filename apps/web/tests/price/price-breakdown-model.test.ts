@@ -27,7 +27,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
+import { RULED_CURRENCY_CODE } from "../support/ruled-price-copy";
 import {
   describePriceBreakdown,
   PriceBreakdownDivergenceError,
@@ -58,7 +59,11 @@ function shippedBreakdown(
   pricing: PricingResult = SHIPPED_PRICING,
   groups: readonly DisplayGroup[] = SHIPPED_GROUPS,
 ): AvailableBreakdown {
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({
+    content: ro,
+    pricing,
+    groups,
+  });
   if (view.kind !== "available")
     throw new Error("the seeded design was expected to price");
   return view;
@@ -93,6 +98,18 @@ function renderedRows(view: AvailableBreakdown): {
   ].map((match) => ({ label: match[1] ?? "", amount: match[2] ?? "" }));
 }
 
+/** The seeded placements the book says the manufacturer does not supply — the hood and the
+ *  free-standing fridge — read off the priced lines rather than named here, so the expectation
+ *  follows the book instead of a list somebody kept up to date by hand. */
+function customerSuppliedPlacementIds(): readonly string[] {
+  if (!SHIPPED_PRICING.ok) return [];
+  return SHIPPED_PRICING.priced.lines.flatMap((line) =>
+    line.kind === "cabinet" && line.suppliedBy === "customer"
+      ? [line.placementId]
+      : [],
+  );
+}
+
 describe("the rows are wave 6A's groups, rendered", () => {
   it("names every placement the projection holds, and no other", () => {
     const view = shippedBreakdown();
@@ -117,21 +134,30 @@ describe("the rows are wave 6A's groups, rendered", () => {
     ).toEqual(
       SHIPPED_GROUPS.flatMap((group) =>
         group.entries.map((entry) =>
-          ro.priceBreakdown.placementLabel(entry.label, entry.widthMm),
+          ro.priceBreakdown.placementLabel(
+            ro.bodyLabel(entry.label),
+            entry.widthMm,
+          ),
         ),
       ),
     );
   });
 
-  it("names a body and its width, in frame 2D's own words", () => {
-    // The literal the composition above cannot fail on. This row is byte-identical to the one the
-    // frame draws — the mockup's other names predate ADR 0033's merge and the catalogue's since,
-    // but this body was never renamed, so the frame and the shipped label are the same string.
+  it("carries a row for the dishwasher housing at 600, named through the catalogue", () => {
+    // Frame 2D draws this row for the dishwasher housing at 600. The composition above cannot fail
+    // on which *entry* is named, so this one names it — through the catalogue, because under a
+    // second locale the same row is the same entry and a different sentence. Its wording is pinned
+    // once, in the copy lock.
     const labels = shippedBreakdown().groups.flatMap((group) =>
       group.rows.map((row) => row.label),
     );
 
-    expect(labels).toContain("Nișă mașină de spălat vase 600");
+    expect(labels).toContain(
+      ro.priceBreakdown.placementLabel(
+        ro.bodyLabel({ kind: "entry", buildId: "base-dishwasher" }),
+        600,
+      ),
+    );
   });
 
   it("heads each group with its wall and its band, from the group itself", () => {
@@ -145,8 +171,11 @@ describe("the rows are wave 6A's groups, rendered", () => {
         ),
       ),
     );
-    // The literal the composition above cannot fail on: frame 2D's own first heading.
-    expect(view.groups[0]?.heading).toBe("Perete A · bază");
+    // The composition above cannot fail on which wall or band the first group carries; this names
+    // both, read from the catalogue so a retranslation is not a false red.
+    expect(view.groups[0]?.heading).toBe(
+      ro.priceBreakdown.groupHeading("A", ro.priceBreakdown.bandHeadings.base),
+    );
   });
 
   // **Superseded by M6-AUD-014's ruling** (owner, 2026-09-09). This case used to assert that a
@@ -156,6 +185,7 @@ describe("the rows are wave 6A's groups, rendered", () => {
   // answer. The bar carries the owner's prompt instead.
   it("offers no breakdown at all for a design of nothing but empty space", () => {
     const view = describePriceBreakdown({
+      content: ro,
       pricing: withLines(SHIPPED_PRICING, []),
       groups: [],
     });
@@ -165,6 +195,7 @@ describe("the rows are wave 6A's groups, rendered", () => {
     // about the empty kitchen and not about this helper.
     expect(
       describePriceBreakdown({
+        content: ro,
         pricing: SHIPPED_PRICING,
         groups: SHIPPED_GROUPS,
       }).kind,
@@ -177,7 +208,11 @@ describe("deleting the projection call breaks the surface rather than shortening
     // This is the criterion, stated as the thing that goes wrong without the projection: every
     // cabinet line is still there, in the right order, with the right label — and there is no list.
     expect(() =>
-      describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: [] }),
+      describePriceBreakdown({
+        content: ro,
+        pricing: SHIPPED_PRICING,
+        groups: [],
+      }),
     ).toThrow(PriceBreakdownDivergenceError);
   });
 
@@ -188,6 +223,7 @@ describe("deleting the projection call breaks the surface rather than shortening
 
     expect(() =>
       describePriceBreakdown({
+        content: ro,
         pricing: withLines(SHIPPED_PRICING, cabinetLines),
         groups: SHIPPED_GROUPS,
       }),
@@ -199,7 +235,11 @@ describe("deleting the projection call breaks the surface rather than shortening
     const firstPlacementId = SHIPPED_GROUPS[0]?.entries[0]?.placementId ?? "";
 
     expect(() =>
-      describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: [] }),
+      describePriceBreakdown({
+        content: ro,
+        pricing: SHIPPED_PRICING,
+        groups: [],
+      }),
     ).toThrow(firstPlacementId);
   });
 });
@@ -219,12 +259,20 @@ describe("the whole-kitchen section, which is data", () => {
    *  accessory rows arrived at wave 6T2 with no change to this surface beyond a category word — the
    *  seeded kitchen holds a sink under a wall cabinet, so it earns both extras. */
   it("renders the tiers and accessories the book produced, named from the book", () => {
+    const { wholeKitchenCategories, wholeKitchenLabel } = ro.priceBreakdown;
+
     expect(shippedBreakdown().wholeKitchenRows.map((row) => row.label)).toEqual(
       [
-        "Feronerie · Standard",
-        "Material · PAL melaminat",
-        "Accesorii · Protecție de aluminiu pentru corpul spălătorului",
-        "Accesorii · Uscător de vase",
+        wholeKitchenLabel(wholeKitchenCategories.hardware, "Standard"),
+        wholeKitchenLabel(wholeKitchenCategories.material, "PAL melaminat"),
+        wholeKitchenLabel(
+          wholeKitchenCategories.accessory,
+          ro.bookText("", "priceBook.accessory.sink-protective-cover.name"),
+        ),
+        wholeKitchenLabel(
+          wholeKitchenCategories.accessory,
+          ro.bookText("", "priceBook.accessory.dish-drying-rack.name"),
+        ),
       ],
     );
   });
@@ -265,7 +313,7 @@ describe("the whole-kitchen section, which is data", () => {
       kind: "hardware",
       ruleId: "rule.hardware.invented",
       tierId: "hardware.invented",
-      name: "Feronerie inventată",
+      name: "An invented tier",
       description: "A tier no book holds, standing in for one added later.",
       quantity: 1,
       unitAmountMinor: 700_000,
@@ -281,7 +329,10 @@ describe("the whole-kitchen section, which is data", () => {
       ),
     ).toEqual({
       key: "line.hardware.invented",
-      label: "Feronerie · Feronerie inventată",
+      label: ro.priceBreakdown.wholeKitchenLabel(
+        ro.priceBreakdown.wholeKitchenCategories.hardware,
+        "An invented tier",
+      ),
       amountText: "7 000",
     });
   });
@@ -294,6 +345,44 @@ describe("what an amount reads as", () => {
 
     expect(material?.amount).toBe("inclus");
     expect(rows.map((row) => row.amount)).not.toContain("0");
+  });
+
+  it("reads nu este inclus on a body the manufacturer does not supply", () => {
+    // The owner's ruling of 2026-09-10: the hood and the free-standing fridge are drawn and
+    // displayed, and are not part of the price. *"inclus"* over a fridge told the customer Lemnaria
+    // was giving them one.
+    //
+    // The expected population is read off the **priced lines'** own `suppliedBy`, so this fails if
+    // the surface prints the sentence over the wrong body as loudly as if it printed none.
+    const notSuppliedKeys = customerSuppliedPlacementIds();
+    const rowsByKey = new Map(
+      shippedBreakdown()
+        .groups.flatMap((group) => group.rows)
+        .map((row) => [row.key, row.amountText]),
+    );
+
+    expect(notSuppliedKeys.length).toBe(2);
+    for (const key of notSuppliedKeys)
+      expect(rowsByKey.get(key), key).toBe(ro.priceBreakdown.notIncluded);
+  });
+
+  it("keeps every other zero at inclus, so the two zeros never print the same word", () => {
+    // **The defect this pairing exists to catch.** An experiment that keyed the wording off
+    // `amount === 0` put *"nu este inclus"* on the melamine row, which is free and genuinely is
+    // included. Nothing but a declared appliance may carry the new sentence.
+    const notSuppliedKeys = new Set(customerSuppliedPlacementIds());
+    const rows = shippedBreakdown().groups.flatMap((group) => group.rows);
+    const included = renderedRows(shippedBreakdown()).filter(
+      (row) => row.amount === ro.priceBreakdown.included,
+    );
+
+    expect(ro.priceBreakdown.included).not.toBe(ro.priceBreakdown.notIncluded);
+    // Not vacuous: the material tier is free, so at least one row genuinely reads *inclus*.
+    expect(included.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      if (notSuppliedKeys.has(row.key)) continue;
+      expect(row.amountText, row.key).not.toBe(ro.priceBreakdown.notIncluded);
+    }
   });
 
   it("rounds a line up to the thousand, through the one rounding site", () => {
@@ -314,8 +403,18 @@ describe("what an amount reads as", () => {
   it("prints no currency on a line — the surface states it once, on the figure", () => {
     const rows = renderedRows(shippedBreakdown());
 
-    for (const row of rows) expect(row.amount, row.label).not.toContain("MDL");
-    expect(shippedBreakdown().figure.amountText).toContain("MDL");
+    // The negative half reads the ruled literal on purpose — see `ruled-price-copy.ts`: derived
+    // from the book it would chase a changed currency and stop looking for the old one. The
+    // positive half is built from the leaf that owns the join since wave 6B-g.
+    const currencyTheLeafCarries = ro.price.amountWithCurrency("").trim();
+
+    for (const row of rows)
+      expect(row.amount, row.label).not.toContain(RULED_CURRENCY_CODE);
+    // Not vacuous: a leaf that dropped the currency would satisfy `toContain("")`.
+    expect(currencyTheLeafCarries).not.toBe("");
+    expect(shippedBreakdown().figure.amountText).toContain(
+      currencyTheLeafCarries,
+    );
   });
 });
 
@@ -324,9 +423,13 @@ describe("the figure at the foot of the sheet", () => {
     const view = shippedBreakdown();
 
     expect(view.figure.label).toBe(ro.price.startingPrefix);
+    // Built from `price.amountWithCurrency`, the leaf that owns the join since wave 6B-g. That the
+    // leaf is genuinely consulted rather than mirrored is proved in `amount-with-currency-seam`.
     expect(view.figure.amountText).toBe(
       SHIPPED_PRICING.ok
-        ? `${describeRoundedAmount(SHIPPED_PRICING.priced.totalMinor)} MDL`
+        ? ro.price.amountWithCurrency(
+            describeRoundedAmount(SHIPPED_PRICING.priced.totalMinor),
+          )
         : "",
     );
   });
@@ -358,7 +461,11 @@ describe("a pricing failure", () => {
     });
 
     expect(
-      describePriceBreakdown({ pricing: failed, groups: SHIPPED_GROUPS }),
+      describePriceBreakdown({
+        content: ro,
+        pricing: failed,
+        groups: SHIPPED_GROUPS,
+      }),
     ).toEqual({ kind: "unavailable" });
   });
 });

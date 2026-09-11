@@ -135,11 +135,40 @@ at exactly the seam where `resolveBuildableSizes` already resolves the same poin
 row's relationship to its equivalent is expressed once and used for two purposes rather than
 restated.
 
-**What this is still not.** `describeBodyLabelAt` is untouched and its signature is unchanged;
+**What this is still not.** ~~`describeBodyLabelAt` is untouched and its signature is unchanged;
 nothing resolves `catalogEquivalentId` inside it. The rejected alternative above — resolving the
 label in the label function — stays rejected, and this remains fixture data rather than the mechanism
-change the owner framed it as not being. The invariant test is still present and still derives both
+change the owner framed it as not being.~~ The invariant test is still present and still derives both
 sides.
+
+> **Amendment A — 2026-09-10, superseded by M6B wave 6B-f.** The struck paragraph no longer describes
+> the tree. `describeBodyName` (`packages/configurator-domain/src/catalog.ts:1239-1241`) now reads
+> `definition.catalogEquivalentId` and returns `entryLabel(catalogEquivalentId)` — **the alternative
+> this ADR rejected is what shipped.**
+>
+> It shipped because the reason for the rejection stopped applying. The objection was that resolving
+> in the label function put *two copies of one string* where one belonged. Under
+> [ADR 0095](0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md)
+> the label function no longer returns a string at all: it returns a `BodyLabel` descriptor, and the
+> pointer **is** the name. There is no second copy to keep in step, so the cost the rejection was
+> paying to avoid no longer exists.
+>
+> **What survives unchanged is this ADR's actual invariant** — a body is called the same thing before
+> and after a §5.4 resize migrates its `buildId` — and it survives by a different mechanism, now
+> asserted rather than arranged. `catalogEquivalentNamer` (`fixtures/kitchen-l-design.ts:276-286`)
+> still runs, but its only remaining job is copying `doorCountFollowsWidth` from the pointed-at entry
+> onto the seeded row, which is what keeps a body's **name** and its **door count** sourced from one
+> entry.
+>
+> **The latent risk that split leaves**, recorded here because this is where a reader will look:
+> `describeBodyLabelAt` reads `doorCountFollowsWidth` off the *literal row* while the name follows the
+> *pointer*. The namer keeps them in step, so nothing in the shipped catalogue can contradict itself.
+> A catalogue **not** built by the namer can: a row declaring `doorCountFollowsWidth` while pointing
+> at `base-3drawer` renders *"…3 sertare 2 uși"* — a drawer unit claiming doors, which is ADR 0033's
+> own defect class. That is unreachable today and becomes reachable exactly when
+> [ADR 0062](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)'s
+> manufacturer dashboard lets someone author rows after M8. **It is that work's to guard, and it is
+> named here so the guard is not discovered by a customer.**
 
 **The corner rows are untouched and that is asserted, not assumed.** `base-corner-x-900`,
 `base-corner-return-320`, `wall-corner-return-570` and `wall-corner-return-570-top` carry no pointer,

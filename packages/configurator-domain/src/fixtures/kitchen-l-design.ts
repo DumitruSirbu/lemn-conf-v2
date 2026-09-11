@@ -232,23 +232,24 @@ const STRUCTURAL_CORNER: Pick<
  *  a stale pointer is now a wrong width set as well as a wrong badge. Both fail loudly against the
  *  guard test rather than quietly, which is the whole reason the relationship is declared. */
 
-/** ADR 0064: the pointer, **and the name the pointed-at entry carries**, so a body is called the
- *  same thing before and after a §5.4 resize migrates its `buildId` through that entry
+/** ADR 0064: the pointer, **and the door count the pointed-at entry derives**, so a body is called
+ *  the same thing before and after a §5.4 resize migrates its `buildId` through that entry
  *  (`resolve-column-members.ts`). Before this, the seeded pantry read *"Coloană"* until its first
  *  resize and *"Coloană cămară 2 uși"* after, and 6D puts that name in a priced document.
  *
- *  **Two fields, not one.** `describeBodyLabelAt` appends the door count only for a definition that
- *  declares `doorCountFollowsWidth`, and eight seeded rows point at `wall-cabinet`, whose `label` is
- *  the same *Corp suspendat* the kind table already returns for them — copying the label alone would
- *  leave the whole rename intact for them in the suffix.
+ *  **The name itself is no longer copied**, since 6B-f: `describeBodyName` reads the pointer and
+ *  publishes `entryLabel(catalogEquivalentId)`, so there is one authority for the name and nothing
+ *  to keep in step. `doorCountFollowsWidth` still travels, because it is a fact about how the
+ *  pointed-at row is built rather than a name, and `describeBodyLabelAt` wraps the count only for a
+ *  definition that declares it.
  *
- *  Both are **read off the equivalent** rather than written out beside it: one name in two places is
- *  the drift ADR 0028 exists to close, and this is the same relationship `resolveBuildableSizes`
- *  already resolves through. A pointer at no entry throws here, at load, rather than silently
- *  reverting the row to its generic kind name. */
+ *  It is **read off the equivalent** rather than written out beside it: one declaration in two
+ *  places is the drift ADR 0028 exists to close, and this is the same relationship
+ *  `resolveBuildableSizes` already resolves through. A pointer at no entry throws here, at load,
+ *  rather than silently reverting the row to its generic kind name. */
 type CatalogEquivalentName = Pick<
   BodyDefinition,
-  "catalogEquivalentId" | "label" | "doorCountFollowsWidth"
+  "catalogEquivalentId" | "doorCountFollowsWidth"
 >;
 
 /** The namer, bound to **the depth this catalogue is being built at**.
@@ -256,11 +257,17 @@ type CatalogEquivalentName = Pick<
  *  It resolves against `buildInsertableBodyDefinitions(cabinetDepthMm)` and deliberately not against
  *  `INSERTABLE_BODY_DEFINITIONS`, the materialisation at the shipped depth: a catalogue built at
  *  700 that resolved half of itself at 600 would be quietly half-built, and it would stay invisible
- *  because `label` and `doorCountFollowsWidth` happen to be depth-independent in every §7 row today.
- *  That coincidence is asserted rather than relied on — `seeded-body-names.test.ts` checks that both
- *  fields are identical for every seeded row at both declared depths — so if a name ever does become
- *  depth-dependent, a test says so instead of a pinned lookup deciding silently. */
-function catalogEquivalentNamer(
+ *  because `doorCountFollowsWidth` happens to be depth-independent in every §7 row today. That
+ *  coincidence is asserted rather than relied on — `seeded-body-names.test.ts` checks that the field
+ *  is identical for every seeded row at both declared depths — so if a name ever does become
+ *  depth-dependent, a test says so instead of a pinned lookup deciding silently.
+ *
+ *  **Exported for the guard below rather than for a caller.** `UnknownCatalogEquivalentError` is
+ *  the only thing standing between a seeded row pointing at a withdrawn §7 entry and that row being
+ *  silently renamed — and since 6B-f the pointer *is* the name, so the guard became load-bearing.
+ *  Every seeded pointer in this file is a literal, so the throw is unreachable from outside without
+ *  this seam, and an unreachable guard is one nobody can prove still fires. */
+export function catalogEquivalentNamer(
   cabinetDepthMm: number,
 ): (catalogEquivalentId: string) => CatalogEquivalentName {
   const insertableById = new Map(
@@ -273,7 +280,6 @@ function catalogEquivalentNamer(
     }
     return {
       catalogEquivalentId,
-      ...(equivalent.label === undefined ? {} : { label: equivalent.label }),
       ...(equivalent.doorCountFollowsWidth === undefined
         ? {}
         : { doorCountFollowsWidth: equivalent.doorCountFollowsWidth }),
@@ -283,7 +289,7 @@ function catalogEquivalentNamer(
 
 /** A seeded row points at a §7 entry that is not in the catalogue — a stale pointer, which is also a
  *  wrong width set (`resolveBuildableSizes`) and not only a wrong name. */
-class UnknownCatalogEquivalentError extends Error {
+export class UnknownCatalogEquivalentError extends Error {
   constructor(readonly catalogEquivalentId: string) {
     super(
       `Seeded body's catalogEquivalentId "${catalogEquivalentId}" names no catalogue entry`,

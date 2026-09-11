@@ -58,6 +58,7 @@ import { boundedFailureReason } from "../failure-text.js";
 
 import {
   ACCESSORY_IDS,
+  CABINET_SUPPLIERS,
   listRuleIds,
   PRICE_BOOK_CURRENCY,
   PRICE_BOOK_STATUSES,
@@ -97,6 +98,12 @@ const MAX_BOOK_NAME_LENGTH = 80;
 /** The longest a tier's or an accessory's one-line description may be. The longest the sample ships
  *  is 90 characters. */
 const MAX_BOOK_DESCRIPTION_LENGTH = 240;
+
+/** The longest catalogue key a row may name for one of its rendered fields (ADR 0106 decision 1).
+ *  A key is a dotted path rather than prose — the longest the sample ships is 53 characters — and
+ *  it is bounded for `MAX_IDENTIFIER_LENGTH`'s reason: an unbounded one is a free multiplier on
+ *  every refusal message it reaches. */
+const MAX_TEXT_KEY_LENGTH = 80;
 
 /** The widest shape's term count: a base, a width term, a height term and a door-leaf term —
  *  `amountForBody`'s `linear-in-width-height-and-door-leaves`, and the shape a fifth axis would
@@ -283,8 +290,58 @@ function refuseUnreadableCabinetRule(
   return (
     refuseUnusableIdentifier(ruleId, "ruleId") ??
     refuseUnusableIdentifier(readDeclared(declared, "buildId"), "buildId") ??
-    refuseUnreadableFormula(readDeclared(declared, "formula"), ruleId)
+    refuseUnusableSupplier(readDeclared(declared, "suppliedBy"), ruleId) ??
+    refuseUnreadableFormula(readDeclared(declared, "formula"), ruleId) ??
+    refuseChargedCustomerSuppliedRule(declared, ruleId)
   );
+}
+
+/** **Who supplies a row decides what the customer is told about its zero**, so an unrecognised
+ *  answer is refused rather than read as the default. A book that means *the customer brings this
+ *  one* and spells it `"CUSTOMER"` would otherwise silently print *inclus* over a fridge, which is
+ *  the exact sentence the field exists to stop. Absent is not an answer and is not a fault:
+ *  `priceOnePlacement` defaults it to `DEFAULT_CABINET_SUPPLIER`. */
+function refuseUnusableSupplier(
+  declared: unknown,
+  ruleId: unknown,
+): PricingFailure | undefined {
+  if (declared === undefined) return undefined;
+  if (
+    typeof declared === "string" &&
+    (CABINET_SUPPLIERS as readonly string[]).includes(declared)
+  )
+    return undefined;
+  return invalidBook(
+    `The rule "${asText(ruleId)}" declares "suppliedBy" as ${describeDeclared(declared)}. ` +
+      `It is one of: ${CABINET_SUPPLIERS.join(", ")}`,
+  );
+}
+
+/** **A row the manufacturer does not supply may not carry a price**, because the total under the
+ *  breakdown would then hold an amount for something the same screen says is not included. Every
+ *  coefficient of such a rule must be zero — swept by kind, like the magnitude check above, so a
+ *  shape this build has never heard of is covered too rather than only the three it knows. */
+function refuseChargedCustomerSuppliedRule(
+  declared: Record<string, unknown>,
+  ruleId: unknown,
+): PricingFailure | undefined {
+  if (readDeclared(declared, "suppliedBy") !== "customer") return undefined;
+  const formula = readDeclared(declared, "formula");
+  if (!isRecord(formula)) return undefined;
+
+  const named = `rule "${asText(ruleId)}"`;
+  const fields = enumerableFieldsOf(formula);
+  if (fields === undefined)
+    return invalidBook(`The ${named} could not be enumerated for its amounts`);
+  for (const field of fields) {
+    const read = readDeclared(formula, field);
+    if (typeof read === "number" && read !== 0)
+      return invalidBook(
+        `The ${named} is supplied by the customer and may not be charged for, ` +
+          `but it declares "${field}" as ${String(read)}`,
+      );
+  }
+  return undefined;
 }
 
 /** A formula's amounts, held to a magnitude the arithmetic can hold.
@@ -414,7 +471,12 @@ function refuseUnreadableAccessoryRule(
 
 /** The words a tier or an accessory renders. Bounded because they are **book data rendered**
  *  (ADR 0062's third prohibition) rather than copy a component holds, so their length is the book
- *  author's choice and not the surface's. */
+ *  author's choice and not the surface's.
+ *
+ *  **Both words stay required whether or not the row names a catalogue key** — ADR 0106 decision 2.
+ *  A key is how this product's own book localises its rows; the authored word is how a book nobody
+ *  at Lemnaria wrote still renders, so a row offering only a key would be a row a substituted book
+ *  cannot produce. */
 function refuseUnreadableWords(
   declared: Record<string, unknown>,
   named: string,
@@ -427,8 +489,40 @@ function refuseUnreadableWords(
     refuseUnusableText(readDeclared(declared, "description"), {
       named: `${named} description`,
       maxLength: MAX_BOOK_DESCRIPTION_LENGTH,
-    })
+    }) ??
+    refuseUnusableTextKey(declared, named, "nameKey") ??
+    refuseUnusableTextKey(declared, named, "descriptionKey")
   );
+}
+
+/**
+ * The catalogue leaf a row names for one of its two rendered fields, where it names one at all.
+ *
+ * **Absence is the common case and never a fault** (ADR 0106 decision 2): a dashboard-authored row
+ * types a name rather than minting a key, so `undefined` here is a book rendering its own words.
+ * What is refused is a key that is *declared* and unusable — a number, an object, an empty string,
+ * or one long enough to be an amplifier in every refusal message it reaches.
+ *
+ * **Which leaf a key resolves to is not this module's question.** A book comes from outside
+ * TypeScript through ADR 0062's seam and the catalogue lives in the app, so a key naming no leaf is
+ * caught where the leaves are — the app falls back to the authored word, and the totality sweep over
+ * the shipped book is what proves the shipped keys all land.
+ */
+function refuseUnusableTextKey(
+  declared: Record<string, unknown>,
+  named: string,
+  field: "nameKey" | "descriptionKey",
+): PricingFailure | undefined {
+  const key = readDeclared(declared, field);
+  if (key === undefined) return undefined;
+  if (key === "")
+    return invalidBook(
+      `The ${named} declares an empty "${field}", which names no catalogue leaf`,
+    );
+  return refuseUnusableText(key, {
+    named: `${named} ${field}`,
+    maxLength: MAX_TEXT_KEY_LENGTH,
+  });
 }
 
 /**

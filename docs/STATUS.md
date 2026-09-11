@@ -3,7 +3,37 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
-Last updated: 2026-09-07. **Currently in progress: M6**, ~~now on branch
+> ## Gate O2 is CLOSED — approved by the owner, 2026-09-11
+>
+> In the owner's words: *"russian I checked looks ok, if in future I will found something to fix I
+> will do this."* **All 235 leaves of `apps/web/src/messages/ru.json` are approved as drafted.**
+> [`docs/i18n/gate-o2-russian-review.md`](i18n/gate-o2-russian-review.md) carries the closure banner
+> and is the record; it is not restated here.
+>
+> **Two of the aid's flagged items were product questions, not wording, and were put to the owner
+> separately — both left as drafted, and one is a standing re-open condition rather than a closed
+> item.** **F4** (`configure.localeMenu`, whose Romanian never went through Gate O1) stands as
+> shipped. **F6** (the eight translated decor names) is **not closed** — a customer or supplier
+> matching a decor against a printed sample works from the manufacturer's own name, and nothing
+> automatic catches a mismatch in the Russian. Re-open F6 if a supplier ever reads the Russian quote.
+>
+> **A seventh owner ruling closed a question the review round raised**, now
+> [ADR 0107](decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+> Decision 7: a cabinet named for an appliance names the *niche*, not the appliance.
+> `cabinet.tall-oven-tower` and `cabinet.tall-fridge-housing` are joinery and keep their prices;
+> `cabinet.hood` and `cabinet.fridge-free` are the appliance alone and are zeroed. *"Coloană cuptor +
+> microunde"* beside the appliances-excluded disclaimer is **not** a contradiction and the label
+> stands, unchanged. No string moved and no code changed — the price book already encoded it.
+>
+> **e2e ran to completion on this branch for the first time, 2026-09-11: 189 passed, 2 failed, 2
+> skipped, 5.5 minutes**, across the `mobile` and `desktop` Playwright projects. Both failures were
+> this milestone's own rulings meeting gates calibrated to geometry those rulings replaced, and both
+> are fixed and re-verified passing at `cec60b7` — see the M6B row below for what each was.
+>
+> **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
+> rebase rewrote the branch's history, so it can only be force-pushed.
+
+Last updated: 2026-09-11. **Currently in progress: M6**, ~~now on branch
 `wave/6r-control-shapes-and-strip-row`~~ ~~**now on branch `wave/6t-finish`**~~ **back on `main` at
 `bdef351` — every M6 wave branch is merged**. ~~**Five M6 waves
 remain: 6T, 6T2, 6W, 6V, 6X**~~ ~~**Corrected later the same day: six remain — 6T, 6T-a, 6T2, 6W, 6V,
@@ -12,9 +42,55 @@ end of the day: none remain. All seven of the last M6 waves are merged to `main`
 at `857a29e`; **6T2** at `825ba43`; **6X and 6X-a** at `9f5a4f6`; **6V** at `c7c9743`; with two fixes
 after, `88f06ba` (6V's two false criterion sentences) and `bdef351` (6X-a's unmeetable criterion).
 **No open wave is not the same as a closed milestone**: what M6 still owes before it can be called
-closed is listed in the M6 row below and under *What to do next*. **The next phase is M6B —
-Internationalization**, and its **Gate O1 is in progress**: the owner is reviewing
-`apps/web/src/messages/ro.json` now.
+closed is listed in the M6 row below and under *What to do next*. **M6B — Internationalization is
+now in progress on `m6b-internationalization`. Gate O1 closed on 2026-09-07 with the owner's 13-line
+Romanian edit set (12 changed values and one whitespace-only line); the owner directed the corrected catalogue to be translated next and the
+remaining milestone waves to follow. Russian is an unapproved agent draft until Gate O2.** **M6B
+wave 6B-a is complete at `924d3c6` (implementation checkpoint `06da284`); its cross-wave i18n
+gates and server/client `webglUnavailable` witness are green. 6B-b is complete at `d4f39f7`
+(routing core `cf16427`; review repairs `d4cedb2`). 6B-c is complete at `1c8ad46` (typed-key repair
+`a7c796a`; Playwright fixture `1a7dd97`). 6B-d is complete at `1fbd780`; ~~6B-e is next.~~**
+**Corrected 2026-09-10: both are done. 6B-e is complete at `8fff684` and 6B-f at `2301e4f`** — the
+last body copy has left `packages/configurator-domain`, which now publishes a `BodyLabel`
+descriptor, and **`apps/web/src/content/ro.ts` is deleted**. ~~**6B-f2 is next.**~~ **Corrected again
+2026-09-10, later the same day: 6B-f2 is complete at `edf2fc0` (owner-ruled copy trim `ff8114c`) and
+6B-g at `cb66896`. 6B-h1's 26-file scope has collapsed to one line in one test file and is folded
+into 6B-h2, struck in place in the milestone; ~~6B-h2 is next.~~** **Corrected once more 2026-09-10:
+6B-h2 — the test sweep — is complete at `9863f33`, and ~~6B-i is next~~.**
+**FINAL CORRECTION 2026-09-10, and it is the one to read: `6B-i` is complete at `87429ca` and
+`6B-j` at `aff9a2c` — both on branch `m6b-internationalization`, and whether that branch has
+reached `main` is not recorded here, because nothing this pass read says so — so *every M6B wave
+has shipped and M6B's build scope is complete*. The
+milestone is now blocked on **Gate O2 — the owner reads the Russian — which is the owner's and which
+no agent may pass.** What the owner has to do is one thing, and it is the first bullet under *What is
+open right now*.**
+**AND ONE MORE, 2026-09-11 — the owner reviewed the built product, and it changes three things in
+this file.** Six rulings came out of that review and are
+[ADR 0107](decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md):
+a **language dropdown** built for N locales because English is coming; **appliances are drawn, not
+sold** (the breakdown was charging 12 000 for a free-standing fridge under a disclaimer that excludes
+appliances); **no greyed offers** (ADR 0032 superseded); the colour **reset leaves the carousel**; a
+**thinner selection highlight**; and **one figure treatment**, prefix regular and only the amount
+bold. What changes here: **(1) ADR 0105's e2e split has shipped** at `b60f298`, so the second bullet
+under *What is open right now* is spent and **after Gate O2 nothing remains but the push** — which
+needs the owner's word, because the rebase rewrote this branch's history. **(2) The review round that
+followed the rulings is the QA/review/visual round 6B-i and 6B-j never had**, so the coverage gap
+recorded below is closed. **(3) Five rows of the Gate O2 review aid are stale**, one of them the F4
+key itself; the corrections are in the first bullet under *What is open right now* and tabled in the
+milestone. Romanian literals in
+`apps/web/tests` went **104 → ~~34~~ 33** outside the copy lock, ~~**33 → 10** files~~ **33 → 8
+files** on a re-scan that counts regex literals, 26 converted; `src` is
+untouched and the golden manifest holds **303** hashes, unmoved. **The plan's *"96
+`expect(x).toBe(ro.k)` tautologies"* was wrong in kind rather than in degree** — 97 assertions of
+that shape exist and **none is unfalsifiable** — and acting on it would have deleted 97 working
+assertions; see the M6B row below.
+**AND ONE MORE, 2026-09-11 — Gate O2 closed.** The owner approved all 235 leaves of `ru.json` as
+drafted; F6 (the decor names) is a standing re-open condition and F4 (`configure.localeMenu`) stands
+as shipped. See the banner at the top of this file. A seventh owner ruling, ADR 0107 Decision 7,
+settled the oven-tower-label question with no code change. e2e ran to completion for the first time
+on this branch: **189 passed, 2 failed, 2 skipped, 5.5 minutes**; both failures were this milestone's
+own rulings meeting stale gates, fixed and re-verified at `cec60b7`. **Only the force-push remains,
+and the owner has explicitly authorised it.**
 [ADR 0092](decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
 **Amendment C** opened a new wave **6T-a — one push-to-open predicate** on the owner's ruling that
 push-to-open is a manufacturer cost and must be priced. ~~see *What to do next*, which also records
@@ -46,6 +122,53 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 
 ## Where the project stands
 
+**M6B sequencing correction, 2026-09-07.** The long M6B table entry below preserves the planning
+history, but its statements that Gate O1 is running and code waits for M6's formal close are
+superseded. Gate O1 is closed with the owner's 13-line edit set in `messages/ro.json` (12 semantic
+value changes and one whitespace-only line). Translation of
+that corrected catalogue runs first; 6B-a through 6B-h and the rest of 6B-i follow; ~~Gate O2 then
+stops the phase before 6B-j and close-out~~. See ADR 0095 Amendment A and the milestone's *Owner
+sequencing correction*.
+
+**Sequencing deviation, recorded 2026-09-10 rather than smoothed over: 6B-j shipped before Gate O2,
+not after it.** The sentence struck above, the wave table's row order and the milestone's own *Risks*
+(*"Nothing is schedulable through O2"*) all place the gate ahead of 6B-j; the wave landed at
+`aff9a2c` with the gate still open. The wave table's own **Depends on** column asks only for 6B-i,
+which was met, and 6B-j changes no wording — so the deviation is against the ordering prose rather
+than against a dependency.
+
+**The authority is the owner's**, 2026-09-10: *"do everything that you can to finish the milestone
+scope then i will check"*, and *"focus on developing more, then I will focus on testing"*. Building
+6B-j ahead of O2 is that instruction carried out. **The engineering argument is the coordinator's
+own and it is why the direction was safe, not the permission for it**: Gate O2 reviews Russian
+*wording* and 6B-j contains none — three lint rules, a package-boundary test, a prose sweep and a
+written convention, none of which depends on whether the Russian is approved. **Said plainly rather
+than defensively:** the plan's sentence is stronger than *"nothing wording-dependent"*, and on its
+letter this departed from it. **Gate O2 itself remains unpassed and untouched — no agent has ruled on
+any Russian string and the milestone is still blocked on it.** A wave that ran early by direction is
+not a gate that was bypassed, and this record must not read as the second.
+
+What it costs is bounded and worth stating: 6B-j's acceptance criterion asks
+for `pnpm lint` and `pnpm ci:local` green *"on the tree as it stands after 6B-i"*, and it is — but if
+Gate O2 returns Romanian edits, the allow-list and the convention were paid against a tree that then
+moves.
+
+**A second, related gap, and it is a coverage gap by the same direction rather than an oversight:
+6B-i and 6B-j shipped verified but not reviewed.** ~~It is open.~~ **Closed 2026-09-11, and left
+standing rather than deleted because it was real for a day:** the owner's review round of
+2026-09-10/11 ran adversarial QA, logic review, clean-code review and a visual pass over the built
+product, and that round **is** the coverage these two waves were owed — it is what found the language
+menu's Tab guard closing on `keydown`, `endonymOf`/`flagOf` failing open under `next dev`, and the
+camera resetting on a language switch. The `/ru` visual pass named below as missing has happened; the
+one thing still pinned by tests alone is that a shared `/d/{id}` link survives a language change.
+From 6B-i onward the automatic gates were run —
+typecheck, lint, whole-tree `format:check`, the full suite — and the **QA, review and visual agent
+rounds were dropped**, on the owner's *"focus on developing more, then I will focus on testing"*. The
+owner intends to test them. **What that leaves specifically unverified is worth naming, because it is
+the first thing a person should try: the language switcher's click-through in a browser** — that it
+changes language, keeps the design being edited, and survives a shared `/d/{id}` link. All three are
+pinned by tests; none has been watched happen. There is **no `/ru` visual pass** for 6B-i.
+
 | Phase | Status | Read |
 | --- | --- | --- |
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
@@ -56,7 +179,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
 | M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-06: 24 of 38, wave 6U closed~~ **corrected again 2026-09-06: 27 of 38, waves 6J-c, 6J-d and 6N-0 closed** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). **6U closed 2026-09-06, `38d5cad`** — ADR 0087's hob-seat fix (the front clearance is now derived, not a literal); ADR 0087 carries a 2026-09-06 amendment recording the hob's own 510 mm geometric floor, found by 6U's QA and unreachable today because `requireDeclaredCabinetDepthMm` refuses below 520. **6J-c, 6J-d and 6N-0 closed 2026-09-06** — `2bdd923` (6J-c), `cf53e8e` (6J-d + 6N-0), `b4d93c7` (6J-d's D1 fix), merged to `main` at `e7eba07`; see *What to do next* below for what these waves cost. ~~Open: 6K-i (ADR 0079's finding, unadjudicated), 6N-a, 6R, 6T.~~ **Corrected 2026-09-06: 6K-i, 6N-a, 6R and the new 6R-b are all DONE — see the recount at the end of this cell. Open: 6T, 6T2, 6W, 6V, 6X.** **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
 (CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling. **Corrected again 2026-09-06: 31 of 44 wave-table rows are DONE, counted directly — and the denominator moved as well as the numerator.** The table is **44 rows**, not the 38 counted 2026-09-05: six were added since by ADRs 0090–0094 (6J-d, 6R-b, 6T2, 6W, 6V, 6X), each citing its own record in the row. The four closing this pass, all on branch `wave/6r-control-shapes-and-strip-row`: **6R and 6R-b** (`aa6ad9e`, one commit — three control shapes, six decors, the adapter's total finish table, and ADR 0094's own full-width settings row on desktop), **6K-i** (`deb237f`) and **6N-a** (`7ad15e1`), the last two implemented in agent worktrees a day earlier and merged here, with four review findings closed at `1116ae9` (all test-strength, no production change). Arithmetic, so it can be checked rather than trusted: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + 5 open (6T, 6T2, 6W, 6V, 6X) = 44. **Two of those rows were materially wrong in this file until this pass** — 6K-i was called *"genuinely unstarted — no commit, no plan section"* when it had both, and 6N-a was listed as simply open when it was finished; see *What to do next* for the cause. **Corrected again 2026-09-06, later the same day: the wave table is 45 rows, not 44, and six waves are open, not five.** ADR 0092 **Amendment C** opened **6T-a — one push-to-open predicate** (tier Full, gated on 6T), counted directly in the milestone file's table at rows 6T-a and its neighbours. The parts of the arithmetic are otherwise unmoved: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **6** open (6T, **6T-a**, 6T2, 6W, 6V, 6X) = **45**. ~~**6T itself is neither DONE nor open**: it is implemented, adversarially QA'd and reviewed on branch `wave/6t-finish`, and that branch has not reached `main` — recorded as **implemented-and-unmerged**, which is the state this file's own *Keeping this file honest* rule requires for a commit that exists outside `main`~~ **Corrected 2026-09-07: 34 of 45 rows are DONE, and the denominator did not move.** The three closing this pass are **6T** (`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a** (`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA `ca35b96`), all on branch **`wave/6t-finish`**, gated together at `ca35b96` and **ready to merge rather than merged** — the three reach `main` as one merge per ADR 0092 decision 12, so until that merge they remain **implemented-and-unmerged** under this file's own rule. Arithmetic, so it can be checked rather than trusted: 34 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **3** open (**6T2, 6V, 6X**) = 45. Their close-outs — what shipped, the verification actually performed, the two owner inputs they promoted and 6W's unmet criterion 4 — are in `milestones/M6-price-and-global-settings.md`'s own sections for the three waves; read them there. **Corrected again 2026-09-07, at the end of the day: 38 of 46 rows are DONE, no row is open, and the denominator moved by one — ADR 0093 Amendment A §6 added the 6X-a row after the 45 was counted.** The four closing this pass, each merged to `main` in its own merge: **6T2** (`825ba43`), **6X and 6X-a** (`9f5a4f6`), **6V** (`c7c9743`); and 6T, 6T-a and 6W stopped being implemented-and-unmerged at `857a29e`. Arithmetic, so it can be checked rather than trusted: 38 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **0** open = 46. **M6 is not therefore closed, and the difference is the point of this row:** three things are outstanding — **6V's CI runner artefact** (its last criterion asks for runner evidence and every figure on record is a local run), **six open owner inputs** (below, under *What to do next*), and **6W's criterion 4**, met in code under an architect's interim and not with the owner's words. Each wave's close-out in `milestones/M6-price-and-global-settings.md` carries what shipped and the verification actually performed; read them there rather than through this cell | Yes — `milestones/M6-*.md`, and ADRs 0055–0094 |
-| M6B — Internationalization (Romanian is the source, other locales are translations) | ~~**Planned — runs immediately after M6 and before M7**~~ **Next, and started at its first owner stop: Gate O1 is in progress 2026-09-07 — the owner is reviewing `apps/web/src/messages/ro.json`.** The gate is a hard stop by design: nothing translates until the owner's corrected Romanian exists, so O1 running is the phase running. (owner ruling, 2026-09-06). ~~No milestone document yet~~ **Planned 2026-09-06: [`milestones/M6B-internationalization.md`](milestones/M6B-internationalization.md), ten waves (6B-a … 6B-j) plus **two hard owner stops — Gate O1 (the owner corrects the collected Romanian) and Gate O2 (the owner checks the Russian)** — which pin the copy path to an ordered chain: extract, owner corrects, agent translates **from the corrected Romanian**, owner checks. Agent-led translation is owner-authorised (*"you can lead the translation"* — they read Russian and review it themselves), so there is no translator dependency and no empty Russian slot; M8's launch gate keeps a backstop re-sign, but **O2 is the real review**. With [ADR 0095](decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md) carrying its rulings.** **Two owner rulings, 2026-09-06, widened it after the first plan and are both in it:** *"need to add in code also the internalization, meaning implementing i18n"* — so routing, negotiation, `Intl` formatting and a complete `ru.json` are in, and **ADR 0001 decision 5 closes with M6B rather than staying owed**, leaving only the owner's sign-off on the drafted Russian wording as a review line on M8's launch gate; and *"every hardcoded string even in tests should be replaced"* — so no test carries a Romanian literal, and wave 6D's pinning rule moves into **one whole-file copy lock** that must be an inline literal table and **never `toMatchSnapshot`**, because `vitest -u` would let the one guard on approved copy rubber-stamp its own replacement. **Two further owner rulings, same day:** *"one is plural, it's needed to be used instead of '0 de corpuri' => '0 corpuri'"* — **CLDR wins on the zero-count plural**, and the fix is three parts, since `apps/web/src/content/ro.ts:4-7` and `:15-19` assert the wrong rule as settled fact (*"is the truth about an empty kitchen"*) and are what would restore it; and *"next milestones will require to implement all the strings … in the same way"* — so M6B extends **`docs/best-practices/engineering-conventions.md`** with the rule M7 and M8 author against, landing with the lint gate rather than buried in a plan that goes stale at phase close. The scope it is drawn from is `docs/BACKLOG.md` entry 53, *"Russian is a supported locale — decided on day one, no milestone owns it"*. The driver is [ADR 0001](decisions/0001-initial-product-and-stack.md) decision 5 — *"Launch with Romanian as the default locale and Russian as a supported locale"* — **Accepted 2026-08-20, never superseded, and owned by no milestone until this row**. Named M6B on M5B's precedent for a phase inserted between two numbered ones. ~~**It cannot start until M6 closes**: wave 6B-g reformats every money string and 6B-f moves catalogue labels out of the domain, both reading surfaces M6's open 6T is still writing.~~ **Refined 2026-09-07: that constraint binds the *code* waves and not the owner gate, and its stated cause is discharged — 6T, 6T-a, 6T2 and 6W are all on `main`, so the money and catalogue-label surfaces have stopped moving. Gate O1 is running now; 6B-g and 6B-f still wait on M6 being called closed.** **Two things the planning pass found that entry 53 did not have**: the phase is *not* confined to `apps/web/src/content/ro.ts` — `packages/configurator-domain/src` renders customer-facing Romanian too (`commands/rejection.ts`, **34 refusal codes** and ~40 sentences, eagerly rendered into every command result at `commands/command-result.ts:198`; `catalog.ts`'s 17-entry `KIND_LABELS_RO` and its `ușă`/`uși` door count; `bands.ts`; `queries/describe-selection.ts`) — and of the test assertions at stake, **81 are `expect(x).toBe(ro.some.key)` tautologies that protect no copy at all**, against 39 real Romanian literal pins in 32 files. **One live divergence is on record and needs an owner copy call**: an empty kitchen reads *"0 de corpuri"* today, while CLDR's `ro` plural rule selects `few` at zero and would read *"0 corpuri"* — the plan's open question 1, which blocks no wave | Yes, when starting — `milestones/M6B-internationalization.md`, then ADR 0095 and ADR 0001 |
+| M6B — Internationalization (Romanian is the source, other locales are translations) | ~~**BLOCKED ON GATE O2, 2026-09-10 — every wave has shipped, the build scope is complete, and the milestone is waiting on the owner's Russian review. No agent may pass that gate.**~~ **GATE O2 CLOSED, 2026-09-11 — the owner approved all 235 leaves of `ru.json` as drafted** (*"russian I checked looks ok, if in future I will found something to fix I will do this."*); F6 (the eight translated decor names) is a standing re-open condition rather than a closed item, and F4 (`configure.localeMenu`) stands as shipped; **only the push remains, and the owner has explicitly authorised it. Read the first bullet under *What is open right now*.** **The owner reviewed the built product on 2026-09-10/11 and gave six rulings — [ADR 0107](decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md), with three of them recorded at the records they change ([ADR 0032](decisions/0032-an-entry-that-does-not-fit-is-shown-disabled-with-its-reason.md)'s *Superseded*, ADR 0099 Amendment D, ADR 0104 Amendment A).** The round that followed found **ten items, all ten described** in the milestone's *The owner's review of the built product*, and **three were the coordinator's own**: the figure ruling reached **two of four** surfaces under a commit titled *"both surfaces"*, the desktop prefix rendered larger than the price, and **the test written to catch that drift used `RegExp.exec` — first match only — so a media-query override was invisible to it**. Two guards failed open and both were found by **mutation rather than by reading**: Tab closing the language menu on `keydown` instead of `focusout` left **510** tests green, and deleting `buildableWidthSpanMm` left all **2,445** web tests green while two informative sentences silently degraded — the second found **independently** by QA and by the logic reviewer. `endonymOf`/`flagOf` **failed open in `next dev`** — correct under `tsc` (`TS2741`), but the dev server erases types, so both returned `undefined` and drew a menu row with a right href, no flag and no label, which is verbatim what `locale-flags.tsx`'s own comment says it exists to prevent. Switching language **reset the camera**, because `presetId` was `useState` under `app/[locale]/…` and the segment change remounts the subtree; it has its own store now, deliberately not design state. **One reported defect was not one**: the language trigger measures 46 × 25, but that is the painted box and `getBoundingClientRect` never includes a pseudo-element — the 44 px hit area was already there and already asserted. Two more of the ten are documentation contradicting code: a warning repeated in **three** files claimed a zero-amount rule would mark the **melamine** row *nu este inclus* — it cannot, that row reaches `describeRowAmount` — while the real exposure, a zero-priced **manufacturer cabinet**, was found by mutation and is held by one case (`price-breakdown.adversarial.test.ts:447`) and by no row the shipped kitchen contains; and `ci.yml`'s `workers` paragraph still argued against parallelism *"one shared Neon database"* directly under the matrix that now runs two legs against it — **verified safe twice, independently** (no DDL, no global row count, cleanup by self-minted id), and the file now says so. **Process, recorded rather than smoothed:** the coordinator broke the tree-freeze rule twice in one hour, and the lesson — a visual verifier owns the tree exclusively, and a reviewer judges against `git show HEAD:` — is written into `best-practices/browser-and-visual-qa.md`. Verification at hand-off: HEAD `4f3c808`, tree clean, **9,565 tests green** (the coordinator's figure, not re-run by the documentation pass). **~~In progress~~ — Gate O1 closed; 6B-a DONE 2026-09-08 at `924d3c6` (implementation checkpoint `06da284`); 6B-b DONE 2026-09-09 at `d4f39f7` (routing core `cf16427`; review repairs `d4cedb2`); 6B-c DONE 2026-09-09 at `1c8ad46` (typed-key repair `a7c796a`; Playwright fixture `1a7dd97`); 6B-d DONE 2026-09-09 at `1fbd780`; ~~6B-e is next.~~** **Corrected 2026-09-10: 6B-e DONE at `8fff684` and 6B-f DONE at `2301e4f`; 6B-f2 is next — see the end of this cell.** next-intl 4.14.2 and parser 3.5.17 passed the compatibility gate behind a typed request/routing seam; a `webglUnavailable` namespace renders through both server and client paths. The copy-lock, catalogue-parity and golden-output gates are in place. The golden corpus has **282 fixtures: 95 static, 49 functions/17 families, 40 rejection/34 codes/37 keys, 98 catalogue/16 entries.** QA Q1.1 (P1) fixed the generated declaration false positive; post-fix logic (**3/3**) and clean-code (**P1**) re-review resolved their findings, and security review passed. Final `pnpm ci:local` evidence is recorded in 6B-a's milestone section: all gates green, including domain 3316, web 1702 passed/4 skipped, E2E 111 passed/1 skipped (112 total), Next build 6/6 static pages, and boundary/lockfile/SCA PASS. The initial sandboxed attempt was blocked only by bind `EPERM` and audit DNS; the unrestricted full run passed. 6B-b local evidence closed at **58 focused unit tests across 7 files**, coordinator production-mode Playwright **7/7** plus exact production nonce **1/1**, and green web typecheck/build/lint/pre-commit; independent QA before fixes recorded **55 passed** and browser **7/7**, and final logic, clean-code and security reviews were **PASS**. Its fixes removed private redirect overrides, added shared-design identity and strict case-variant CSP-404 regressions, corrected the SSG nonce environment assertion, clarified scene-shot development/production behavior, and cleaned up the WebGL helper, React element guard and route comments. No 6B-b CI or push evidence is claimed. 6B-c resolves all **94 static leaves** from the active locale. 6B-d moves `configure.step` and all **17 interpolated families** to typed ICU resolution through the active locale, deletes the legacy `content/ro` module, applies the owner-ruled Romanian CLDR zero form, and adds a shared ICU-AST authored-literal guard. Its initial QA and review findings were all repaired; final QA recorded web **1,760 passed / 4 skipped**, and final logic and quality review passed. Final unrestricted `pnpm ci:local` passed with domain **3,316**, persistence **122 passed / 86 skipped**, adapter **2,853**, web **1,760 passed / 4 skipped**, E2E **117 passed / 1 skipped**, Next build **9/9**, and format/lint/typecheck/boundary/lockfile/production SCA PASS. The approved Romanian and drafted Russian catalogues, generated declaration, copy lock and **282** golden hashes remained unchanged. Russian remains an unapproved agent draft until Gate O2. **6B-e DONE 2026-09-10 at `8fff684`**, replayed onto `main` with 6B-a…6B-d: the **35** refusal codes across 38 catalogue keys, with `resolveRejection` resolving the descriptor. **6B-f DONE 2026-09-10 at `2301e4f`** — the label descriptor. `packages/configurator-domain` publishes a `BodyLabel` (an `entry` arm carrying a catalogue entry id, a `bodyKind` arm, a `withDoors` wrapper — **16 entry arms, 13 kind arms**) and `resolveBodyLabel` / `resolveBandLabel` in `apps/web/src/i18n/content.ts` resolve it against `messages/ro.json` and `ru.json`; **`apps/web/src/content/ro.ts` is deleted**, the pre-Gate-O1 module that had diverged from the catalogue in **32 leaves** (*corp* against the owner-ruled *dulap*). **31 of the 300 golden hashes moved**, every one a rendered word rather than a key restructuring: the copy lock and both message files are byte-untouched, so each moved hash is the owner's Gate O1 ruling at `3564c7c` reaching the screen for the first time — the wave's *"no hash moves"* criterion was false and is struck in the milestone file. Verified at the commit: **9,323 tests green** (domain **3,752**, persistence **282**, three-adapter **3,031**, web **2,258**), with lint, typecheck and whole-tree `format:check` clean. The **282** golden figure above is 6B-a's corpus count and is superseded: the manifest holds **300** hashes as of `2301e4f`, read directly from `apps/web/tests/i18n/golden-output-hashes.ts`. **What the wave found is the reusable part and it is recorded in the milestone file, not here**: four gates were reporting success while measuring nothing, three of them behind comments asserting a protection that did not exist, and none was found by running tests. Russian remains an unapproved agent draft until Gate O2. **6B-f2 DONE 2026-09-10 at `edf2fc0`, with the owner-ruled copy trim at `ff8114c`** — the price book's prose and the palette's names. `TierIdentity` and `AccessoryRule` gained optional `nameKey`/`descriptionKey`; `name`/`description` **stay required and stay the fallback**, so a dashboard-authored row still renders. **14 keys, not the planned 16: 6 name and 8 description** — *Hettich* and *Blum* carry **no `nameKey`**, because they are brand names and [ADR 0106](decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md) decision 1's *"the key wins when present"* makes authoring no key the correct way to say a name must not be translated. The palette's **8** Gate O1 `finish.*` leaves, authored long ago and read by nothing, are now wired through `content.finishName` and **`PaletteEntry.name` is deleted**; there is no palette `nameKey`, because it would have been `finish.${entryId}` verbatim for all eight — a second identifier for one fact — and decision 2's fallback does not transfer to a closed union no dashboard authors. A **third** Romanian surface the plan did not name was found and fixed: `panel/panel-model.ts`'s per-cabinet finish chips. **What its QA caught is 6B-f's failure one layer up**: the wave's own tests swept the resolvers in isolation and never touched a surface, so reverting the three call sites put Romanian back on the `/ru` settings sheet, on ADR 0104's pill and in the breakdown **while all 2,275 web tests stayed green**; the replacement reads described surfaces under a Russian translator with expectations taken from `ru.json` rather than through the resolver. `ff8114c` trimmed three leaves that stated an amount or an earning rule in prose; **ADR 0106 Amendment A** carries the ruling, the three leaves and the enforcement gate it assigns to 6B-j — read it there. **6B-g DONE 2026-09-10 at `cb66896`** — the money seam, and **its title is misleading**: *"MDL stops being a literal suffix"* does not mean *use `Intl`*. Measured on this runtime, `Intl.NumberFormat("ro")` renders 143000 as `"143.000"`, `"ro-MD"` renders the currency as `"L"`, and `"ru"` groups with U+00A0 — all three contradict the shipped figure and the mockups. Only the **join** moved: `` `${amount} ${PRICE_BOOK_CURRENCY}` `` became `price.amountWithCurrency` = *"{amount} MDL"*, and the ASCII separator stays a product constant. The wave reports **300 golden hashes became 303 — added, none moved**, and the `ro` binding renamed at **18** sites (the plan said 17), deliberately skipping `tests/support/romanian-content.e2e.ts`, whose `ro` is Romanian-only by construction and therefore already truthful. **The hole reviewers found:** `RULED_CURRENCY_CODE` re-spells `"MDL"` rather than importing it — sound for the *negative* sweep, where a book-derived regex would chase a changed value and let a stale module literal through, but it had been over-generalised into skipping the *positive* check, so setting `PRICE_BOOK_CURRENCY` to `"EUR"` compiled, left every test green and rendered `43 000 MDL` for a EUR book. Both spellings now stand with the asymmetry written up, so a later reader does not make them consistent and restore the bug. **Three more gates claimed more than they held**, continuing 6B-f's theme: a fourth copy of the catalogue tree-walk had diverged from the two it came from (returning `[]` where they `throw`, so *"exactly one leaf carries the currency"* silently skipped array leaves); a guard named *"lets no module write the currency"* is line- and quote-scoped and misses a JSX text node and a CSS `content` declaration, so the **name** changed and the regex did not; and two files covered one seam with duplicated fixtures. **A citation was wrong in three places and is corrected**: nothing rules which module the currency constant lives in — ADR 0062 mentions neither the word nor the code, and [ADR 0001](decisions/0001-initial-product-and-stack.md) decision 4 is what makes the currency MDL. **Verified on the committed tree: 6B-f2 at `edf2fc0` (and unchanged at `ff8114c`) 9,374 passing** — domain 3,770, persistence 282, three-adapter 3,031, web 2,291 — **and 6B-g at `cb66896` 9,397 passing** — domain 3,770, persistence 282, three-adapter 3,031, web 2,314; lint, typecheck and whole-tree `format:check` clean at both. **6B-f2 left `golden-output-hashes.ts` byte-identical** (SHA-256 `7e3a863…b92adc`, still 300), measured rather than assumed, because 6B-f's plan asserted the same thing and was wrong by 31; 6B-g then added three fixtures for the new leaf and moved none. **The visual pass ran on both locales at 1440x900 and 390x844**, and its load-bearing evidence is a **codepoint census, not a screenshot**: `101 000 MDL` reads `49,48,49,32,48,48,48,32,77,68,76`, so both spaces are U+0020 and never U+00A0 — which is exactly what an `Intl` leak would produce and what no picture can distinguish. The currency appears exactly twice per page, no `L`, no raw placeholder; 30 breakdown rows carry no currency by design and the included rows read *inclus* / *включено*. **Declared not verified: the overflow warning**, unreachable on the default kitchen, which has no free space to widen into. **6B-h1 is struck and folded into 6B-h2, 2026-09-10** — the plan's *"26 files carrying Romanian literals"* was measured before 6B-f2 and 6B-g existed, and those waves plus 6B-e and 6B-f swept it as a side effect of moving the copy. Measured today, excluding comments: `configurator-domain/src` **1** file (`pricing/sample-price-book.ts`, 10 lines), `configurator-domain/tests` **1** file (`tests/commands/minimum-width.test.ts`, 1 line), `three-adapter` src and tests **0**. The 10 in the price book are **not debt** — they are the `name`/`description` fallbacks ADR 0106 decision 2 deliberately keeps required, and removing them would break the ADR. So 6B-h1's residue is one line, folded into 6B-h2, whose own 48/126/96 web figures are re-measured before that wave starts for the same reason. Russian remains an unapproved agent draft until Gate O2. **6B-h2 DONE 2026-09-10 at `9863f33`** — the test sweep. Romanian literals in `apps/web/tests` went **104 → 34** outside the copy lock, across **33 → 10** files, with **26 converted**; `apps/web/src` is untouched and the golden manifest holds **303** hashes, **unmoved**. Verified at the commit: **9,395 tests green** — domain **3,770**, persistence **282**, three-adapter **3,031**, web **2,312** — with lint, typecheck and whole-tree `format:check` clean. **The finding that matters most is a plan claim that was wrong in kind, not in degree.** The plan sent this wave to purge **96 `expect(x).toBe(ro.k)` tautologies**; measured, there are **97 assertions of that shape and none of them unfalsifiable** — **0** genuinely unfalsifiable, **49** weak but real (they pin the key, not the wording) and **48** discriminating through a `not.`, a parameterised key or a state-driven key selection. Settled **by mutation rather than by reading**: `content.panel.done` → `.remove` turns a test red, and repointing `configure.overflowWarning` → `configure.loading` turns **seven tests across five files** red. **Acting on the plan's word would have deleted 97 working assertions.** It is struck in place at the milestone's *Re-planning against the rebased tree* item 8, and it is **the sixth false claim recorded against this milestone's plan — the only one where the number held and the characterisation did not**. **The test-side `ro` rename has zero scope**, checked rather than assumed: every test binding is built from `ro.json` with `locale: "ro"` hardcoded, so none can hold a non-Romanian catalogue and the name is true where it stands; 6B-g's argument does not carry over. **8 assertions deleted, 7 added, two `it` blocks removed**, and QA verified no coverage was lost by walking the chain that replaces each deleted pin — production value = resolver leaf (`content.test.ts`, both locales, **not** behind the lock) → resolver leaf = `ro.json` leaf (the golden divergence check) → `ro.json` = the approved corpus (the copy lock) — **breaking each link in turn to confirm it fires**. **The copy lock is now the sole independent gate on Romanian wording**, and that is load-bearing enough to state plainly: the golden manifest sits **behind** `expectApprovedRomanianCopy`, so a reworded leaf trips the lock and the manifest never runs — a deliberateness checkpoint *downstream of approval*, not a second detector. Probed: the lock catches a changed value, a whitespace-only edit, an added key and a removed key; it does **not** catch a reordering, **which is correct**, because nothing renders from key order. **A comment that was false before this wave touched it**: `aud-006` claimed its case pinned that the note the depth control ships is *this* leaf — it never did, since mutating the model's leaf leaves that case green and fails `cabinet-depth-control.test.ts` instead. Rewritten to lead with what the case does **not** claim and to name the three places ADR 0100 decision 5's copy/coefficient coupling actually lives. **Two entries struck from 6B-j's allow-list before that wave inherits them**: a positive substring claim justified as though it were a negative one, and a metrics fixture that is not copy at all. **And 6B-j inherits a named requirement that came from this wave's own error: its lint rule must scan regex literals.** One of the 17 retained literals is Romanian inside a regex — `hardware-tier-reconciliation.test.ts`'s `/incluse? în preț/i` — and it was missed because this wave's tree scan read only `"…"` and `` `…` ``, which is how the plan's stale *"26 files"* came to be "corrected" to an equally wrong **2**. Whether 6B-j's two probed selectors already reach a regex literal is **unmeasured**; that wave's punch list now carries it as item 6. **What remains unswept, measured per file rather than left as a count**: ~~34 literals across 10 files, 17 of them deliberate~~ **33 literal lines across 8 files — 21 of them inside three whole-file exemptions** (`price/price-breakdown-copy.test.ts` 15, `i18n/golden-output-fixtures.ts` 4, `support/ruled-price-copy.ts` 2) **and 12 per-line annotations** across four test files plus the `top-bar` e2e metrics fixture. The re-scan counts regex literals, which is the whole of the 34-versus-33 difference, and the implementer's *"17 deliberate"* counted annotated **sites** and no whole-file exemption at all — the two figures were never meant to reconcile. **So the acceptance criterion's deviation is smaller than a bare count suggests: 21 of the 33 are structurally exempt rather than unswept.** **6B-j's allow-list must therefore support both shapes** — file-level and line-level — or fifteen bare `eslint-disable` comments land in the copy test alone. **6B-i DONE 2026-09-10 at `87429ca`** — the second locale. `/ru` already rendered end to end; what was missing was **the way in**. The `RO` chip was a static `<span>` with a decorative caret — a control that looked like one and did nothing — and it is now a **link to the other locale at the current locale-free path**. A link rather than a popover for three reasons, all recorded in the wave's section: the mockups draw the chip **closed in every frame** and never open one, so a menu would be chrome the reference does not declare; with two locales the entire choice is *"the other one"*; and a locale here **is** a URL, so an anchor gets focus, keyboard and no-JS activation without inventing any of the three. `use-locale-switch.ts` **throws rather than first-matching** when there is no single other locale, and a test pins `routing.locales` at two, so a third locale reopens the menu question loudly instead of silently picking one. One new leaf, `configure.localeSwitch`, in both catalogues and copy-locked. **The pseudo-locale is a transform over a real catalogue, not a third locale**: ~40% padding with accented look-alikes, deciding what is text by **ICU brace-depth parity** so an argument spec is never mangled; never in `routing.locales`, off in production with no opt-in, and **consumed** — by the price-bar and overflow-warning layout tests and by its own suite over all **235** leaves, which is recorded because a pseudo-locale nothing runs is decoration. **The defect this wave found is the milestone's worst.** All **five** Russian plural leaves declared Romanian's `one`/`few`/`other`; Russian CLDR needs **`many`**, so **every Russian count of five or more fell through to `other` and read wrong**. What makes it worse than an oversight: **the parity gate was requiring it** — it compared branch lists between locales and demanded they match, so **correct Russian would have failed the gate**. That is a category beyond the four dead gates already recorded against this milestone: not a gate that measured nothing, but one that **enforced the defect and would have rejected the fix**. It now asserts each locale's own CLDR categories and compares bodies only for the categories the two languages share; ADR 0095 **Amendment D** records the narrowing. The repair is **purely additive**, so no reachable sentence moved. Manifest **303 → 304, one added, none moved**. Verified at the commit: **9,427 tests green** — domain **3,770**, persistence **282**, three-adapter **3,031**, web **2,344** — lint, typecheck and whole-tree `format:check` clean. **A plan figure that measured false, again**: the plan says *"219 leaves"*; `ro.json` held **234** before this wave and **235** after. **6B-j DONE 2026-09-10 at `aff9a2c`** — the re-drift gate: **three lint rules**, a package-boundary test **extending** `pricing-seams.test.ts`'s existing sweep rather than adding a second walker, ADR 0106 Amendment A's inherited prose sweep, and the written convention in `docs/best-practices/engineering-conventions.md`. **Every rule was proved by landing a violation and observing the red** — the rule / violation / message table is in the commit body — and that is recorded because a rule described but not falsified would have been this milestone's **eighth** instance of prose outrunning code. **Two of the rules exist because a scan was wrong, and both errors have the same shape**: a stale plan number corrected with an incomplete new one. **Regex literals** — a Romanian string lives inside `/incluse? în preț/i` and the scan read only quoted strings and template literals. **Cedillas** — Romanian ș and ț have **two encodings**, U+0219/U+021B with comma below and U+015F/U+0163, the *Turkish* cedillas, in legacy text; the character class held only the first, so **19 characters across five files were invisible and the reported "33 remaining literals" was really 54** (21 file-level + 33 site-level). **The allow-list carries two shapes**: **5 file-level** entries, one of them **narrowed by syntactic position** rather than exempted so ADR 0106 decision 2's required fallbacks stay legal while the rest of the price book is still swept, plus a **5-entry decorative-glyph table**; and **25 site-level** entries across **13** files, whose reasons are wave 6B-h's in-place annotations carried over rather than written fresh. **Reach is recorded honestly, because the next reader will assume a rule's name is its reach**: `regex.pattern` reads the pattern *source*, so a `ș` written as an escape or a `new RegExp(x)` is invisible; `JSXText` is **not** a `Literal`, so a diacritic in JSX text is caught only by the positional rule and therefore only under `apps/web/src`; the domain test's reach is that package's `src`, with its siblings covered by lint; and **a stale site-level entry fails `--max-warnings 0` as an unused disable while a stale file-level entry does not**. **One scope decision against the plan's letter**: tests are in scope for the diacritic rule though the punch list says *"the two `src` trees"* — wave 6B-h swept the tests, the whole allow-list lives in tests, and M6B's Scope names test strings, so a rule guarding only `src` would let literals drift back into the place just swept. Verified at the commit: **9,439 tests green** — domain **3,776**, persistence **282**, three-adapter **3,031**, web **2,350** — lint, typecheck and whole-tree `format:check` clean, with the manifest at **304** and untouched. ~~**So M6B's build scope is complete and the milestone is blocked on Gate O2, which is the owner's.**~~ **Corrected 2026-09-11: M6B's build scope is complete and Gate O2 is closed. A seventh owner ruling ([ADR 0107](decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md) Decision 7) settled the oven-tower label as no contradiction, no code change. e2e ran to completion for the first time: 189 passed, 2 failed, 2 skipped, 5.5 minutes; both failures were this milestone's own rulings meeting stale gates, fixed and re-verified at `cec60b7`. Only the force-push remains, now explicitly authorised by the owner.** | Yes — `milestones/M6B-internationalization.md`, then ADR 0095 and ADR 0001 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -119,6 +242,109 @@ PASS.
 
 ## What is open right now
 
+- ~~**THE OWNER'S TURN — Gate O2: read the Russian. This is the only thing between M6B and its close,
+  and no agent may pass it.**~~ **CLOSED 2026-09-11 — the owner approved all 235 leaves as drafted.**
+  In the owner's words: *"russian I checked looks ok, if in future I will found something to fix I
+  will do this."* Every M6B wave has shipped (6B-i at `87429ca`, 6B-j at `aff9a2c`), the owner's
+  review round has shipped its fixes (`4f3c808`), and **ADR 0105's e2e split has shipped**
+  (`b60f298`) — so the milestone's **build scope is complete** and **after the gate the only thing
+  left in M6B is the push**, now explicitly authorised.
+  - **What was open:** [`docs/i18n/gate-o2-russian-review.md`](i18n/gate-o2-russian-review.md) — all
+    **235** leaves of `ru.json` beside the Romanian they were translated from, grouped by namespace,
+    in the catalogues' own key order. The file now carries its own closure banner; it is not
+    restated here.
+  - **Five of its rows are still stale against the message files — the closure banner does not
+    correct the table rows.** `apps/web/src/messages/ro.json` and `ru.json` are the truth for these
+    five; the aid is the owner's document and no agent edits it. **`configure.localeSwitch`** — the
+    key no longer exists; the shipped leaf is **`configure.localeMenu`**,
+    *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса: русский. Сменить язык"*,
+    confirmed present in both message files at key `localeMenu`. **`panel.finishFollowsKitchen`**,
+    **`globalSettings.colourNote`**, **`globalSettings.colourWarning`** and
+    **`rejection.WIDTH_NOT_SUPPORTED_COLUMN`** — carry the pre-edit Romanian and Russian; the owner
+    edited those four leaves themselves during the session (and ruled the Russian
+    `panel.finishFollowsKitchen` personally). All five are approved as-shipped, not as the aid shows
+    them.
+  - **Two of the six flagged items were product questions rather than translation checks, put to the
+    owner separately, and both were left as drafted:**
+    - **F6 — the eight decor names are translated**, e.g. `Stejar Bardolino Natur` →
+      `Дуб Бардолино натуральный`. **This is not closed — it is a standing re-open condition.** A
+      customer or supplier matching a decor against a printed sample works from the manufacturer's
+      own printed name, and nothing automatic catches a mismatch in the Russian. **Re-open F6 if a
+      supplier ever reads the Russian quote.**
+    - **F4 — `configure.localeMenu` has never been through Gate O1.** Left as drafted; stands as
+      shipped.
+  - **A seventh owner ruling closed the question the review raised about the oven-tower label —
+    [ADR 0107](decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+    Decision 7, 2026-09-11.** `priceBreakdown.disclaimer` excludes *electrocasnice*; the breakdown
+    prints **Coloană cuptor + microunde 9 000** beneath it. The owner's words: *"the cabinets
+    represent the niche where this appliances are installed, and yes appliances are not included in
+    price but the niche is."* A cabinet named for an appliance names the **niche**, not the
+    appliance: `cabinet.tall-oven-tower` (900 000) and `cabinet.tall-fridge-housing` (700 000) are
+    joinery and keep their prices; `cabinet.hood` and `cabinet.fridge-free` are the appliance alone
+    and are zeroed via `drawnButNotSupplied()`. **No contradiction, the label stands, no string moves
+    and no code changes** — the price book already encoded it.
+  - **What a ruling still costs, for any future change:** a Russian change is a value edit and
+    touches nothing else. **A Romanian change is an O1-class change** — copy lock updated in the same
+    commit, the golden manifest re-baselined for exactly those keys with the key list in the commit
+    message, and the affected Russian re-translated.
+  - ~~**Two waves are verified but not reviewed, by the owner's own direction** (*"focus on developing
+    more, then I will focus on testing"*): 6B-i and 6B-j ran the automatic gates and no QA, review or
+    visual round.~~ **Closed 2026-09-11 — the owner's review round covered both**, and it found real
+    defects in exactly that surface (the menu's Tab guard, `endonymOf`/`flagOf` failing open under
+    `next dev`, the camera reset). **The one thing still pinned by tests and never watched happen is
+    the shared link**: that a `/d/{id}` link survives a language change. The switcher itself has now
+    been driven in a browser in both locales and on both shells.
+  - **e2e ran to completion on this branch for the first time, 2026-09-11: 189 passed, 2 failed, 2
+    skipped, 5.5 minutes**, across Playwright projects `mobile` and `desktop`. Both failures were
+    this milestone's own rulings meeting gates calibrated to geometry those rulings replaced, both
+    fixed at `cec60b7` and both re-verified passing individually:
+    - `editor-panel.e2e.spec.ts` swept `[data-testid^="finish-"]` page-wide; ADR 0107 Decision 4
+      deliberately places the follow-the-kitchen reset **outside** `colour-options`, so the sweep
+      read that row as a wrapped chip. Now scoped to the carousel's declared container
+      (`apps/web/tests/e2e/editor-panel.e2e.spec.ts:291-301`).
+    - `MIN_CASING_PIXELS` went 900 → **300**, confirmed at
+      `apps/web/tests/e2e/pixel-counter-witness.adversarial.desktop.e2e.spec.ts:99`. **A
+      re-measurement, not a lowered bar**: the old floor was half of 1 923 measured 2026-09-07; ADR
+      0107 Decision 5 halved the highlight, the casing is a sum
+      (`SELECTION_OUTLINE_WIDTH_PX + 2`), so the visible near-black rim went 2 px → 1 px, and the
+      count is now a deterministic **616** (measured twice, per the file's own doc comment at line
+      86). The count fell **3.1x rather than 2x** because anti-aliasing at a 1 px rim blends the edge
+      toward the front colour; **the rim is now at its resolution floor** — a further thinning has no
+      pixels left to give.
+  - ~~**After Gate O2, M6B still owes one thing**: ADR 0105's e2e project split, the next bullet.~~
+    **After Gate O2, M6B owes nothing but the push, and the owner has now explicitly authorised it.**
+    The e2e split shipped at `b60f298`. The rebase rewrote `m6b-internationalization`'s history, so
+    it cannot be fast-forwarded and a force-push is the only route.
+  - **Environment note for future e2e runs, not a product finding:** the first two e2e attempts of
+    this session ran **zero tests**, because a peer session kept a `pnpm --filter @lemnaria/web dev`
+    running in the same directory, and Next 16 refuses a second `next dev` there regardless of
+    port — `E2E_PORT` (default 4320, per `apps/web/playwright.config.ts:17`) does not sidestep a
+    blocker on `:3000`. It presents as a green-looking, test-free exit rather than a bind error, and
+    cost two full cycles; see `docs/best-practices/ci-and-local-gates.md`.
+
+- **~~Engineering deferral —~~ SHIPPED 2026-09-10 at `b60f298`: the `e2e` CI job splits by Playwright
+  project.** ~~**As of 2026-09-10 this is the milestone's only remaining engineering work, and it waits
+  on Gate O2 rather than on any wave.**~~ **It did not wait**: the split landed during the owner's
+  review round, and with it **the ceiling came back down from 75 to 45 per leg**. ADR 0105 carries
+  the implementation note and an in-place amendment to its decision 2 reasoning. **No CI run of the
+  split legs is claimed here**, because none was reported to this pass. The paragraph below is kept
+  as the record of why it was done. Owner ruling, 2026-09-10: *"do it just after you will finish the M6B milestone"*, and
+  recorded in
+  [ADR 0105](decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md).
+  Run 34407768425 was cancelled at test **161 of 186**, 49.4 minutes into the specs, with **every
+  test that ran passing** — the suite is simply longer than its ceiling (~57 minutes of job against
+  a 50-minute cap). The ceiling is raised to **75** at `4aa3e0a` to carry M6B, which adds a second
+  locale and will grow the suite again; that is the **third** raise (25 → 45 → 50 → 75) and is
+  explicitly the last. The replacement is a matrix over `--project`, splitting `mobile` (28.6 min,
+  120 tests) from `desktop` (~27 min, 66 tests) along the seam `playwright.config.ts` already draws.
+  **`workers` stays at 1** — two cores, three.js compiled on first paint, and one shared Neon
+  database the suite writes to; ADR 0105 rejects that option on the merits rather than deferring it.
+  ~~**Not started, and deliberately not started during M6B**: restructuring the gate that measures a
+  milestone while that milestone is open makes a failure ambiguous between the split and the wave.~~
+  **Superseded by what happened: it shipped while M6B was still open, on the gate rather than on a
+  wave.** The argument above was about not confusing a wave's failure with the split's; every wave
+  had already shipped when it landed, so there was no wave left for it to be ambiguous with.
+
 - **The configure screen's chrome does not match the design reference, on either shell — owner
   rejection, 2026-09-09.** *"I wanted to be same as in reference, SAME, because this is the design I
   made and approve"*, and *"on mobile same shit, you done what you wanted not what is in reference"*.
@@ -130,7 +356,15 @@ PASS.
   decisions 2, 3, 4 and 8 and ADR 0094 decision 2 are amended **in place**, struck rather than
   deleted. The plan is
   [`milestones/chrome-parity-with-the-design-reference.md`](milestones/chrome-parity-with-the-design-reference.md)
-  — **not started**, and **no owner question blocks it**; the four it carries all have defaults.
+  — ~~**not started**~~ **and this word is almost certainly stale, flagged 2026-09-11 rather than
+  corrected, because this pass could not verify it.** `main`'s log carries `d1f3497` *"fix(chrome):
+  two defects adversarial QA found, and the gates that name them"* and `b489f02` *"test(e2e):
+  re-point nine assertions the chrome-parity wave made stale"*, which is not the shape of an
+  unstarted wave. **What the wave shipped, what it verified and what it left open is not recorded
+  anywhere this pass read** — the milestone plan still reads as a plan. The next session to touch
+  this bullet should close the wave out against its own acceptance criteria rather than trusting
+  either this sentence or these two commit subjects. **No owner question blocks it**; the four it
+  carries all have defaults.
   **Four owner rulings of 2026-09-09 are in the record**, each with what it was chosen over.
   (1) *Narrowing is a ladder*: all labels whole with D2A's `│`; then as many whole labels as fit plus
   `+N`; then one whole label; then one **ellipsised** — so the swatch, one label and the counter are
@@ -547,11 +781,26 @@ re-plans a body that is already standing.**
   own defect arriving through the depth command instead of the resize. **It is not 6Z's**, and 6Z
   carries a criterion that the hood's `fixedWidth` stays `true`.
 
+~~**Current M6B next: 6B-e — move the 34 refusal codes to typed ICU descriptors and stop the domain
+from rendering Romanian.** 6B-d closed 2026-09-09 at `1fbd780`; all 17 interpolated families and
+`configure.step` now resolve through the active locale, and Romanian zero follows the owner's CLDR
+ruling.~~ **Stale, and struck 2026-09-10: this paragraph was six waves behind the tree.** 6B-e
+through 6B-j have all shipped — the last two at `87429ca` and `aff9a2c` — so **there is no next M6B
+wave.** ~~The milestone's build scope is complete and it is **blocked on Gate O2**, the owner's
+Russian review; see the first bullet under *What is open right now* for what that asks and what it
+costs. Russian remains an unapproved agent draft until Gate O2.~~ **Updated 2026-09-11:** the owner's
+review of the built product has since run and shipped its fixes at `4f3c808`
+([ADR 0107](decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)),
+ADR 0105's e2e split shipped at `b60f298`, **and Gate O2 is now closed — the owner approved all 235
+leaves of the Russian as drafted.** After Gate O2 the milestone's only remaining item is the push,
+which the owner has now explicitly authorised.
 
 **Next: M6, ~~now on branch `wave/6r-control-shapes-and-strip-row`~~** (that is the branch 6R, 6R-b,
 6K-i and 6N-a landed on, 2026-09-06) — ~~**work moved the same day to `wave/6t-finish`, which carries 6T
 and is where 6T-a is being implemented now**~~ **superseded 2026-09-07: every M6 wave branch is merged
-and work is on `main` at `bdef351`; the next phase is M6B, whose Gate O1 is running now**. Read
+and work is on `main` at `bdef351`; superseded 2026-09-07: M6B is now in progress on
+`m6b-internationalization`, Gate O1 is closed, and the corrected catalogue is being translated under
+the owner's newer sequencing ruling**. Read
 `milestones/M6-price-and-global-settings.md`, ~~now a 25-wave breakdown (6P–6T added 2026-09-04 on
 ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ ~~now a 36-row wave table,
 counted directly 2026-09-05~~ ~~now a 38-row wave table, counted directly 2026-09-05~~ ~~**now a 44-row
@@ -794,10 +1043,14 @@ that criterion was written for.
 
 **What M6 still owes before it can be called closed.** Three things, and none of them is a wave:
 **6V's CI runner artefact**; **6W's criterion 4**, met in code under an architect's interim and not
-with the owner's words; and the **six open owner inputs** below. **M6B — Internationalization is the
-next phase, and its Gate O1 is in progress** — the owner is reviewing `apps/web/src/messages/ro.json`
-now. The gate is a hard owner stop by design: nothing is translated until the corrected Romanian
-exists.
+with the owner's words; and the **six open owner inputs** below. **M6B — Internationalization is in
+progress on its milestone branch. Gate O1 closed on 2026-09-07 with the owner's 13-line Romanian
+edit set (12 changed values and one whitespace-only line); ~~6B-a through 6B-d are complete, and 6B-e
+is next.~~ **Corrected 2026-09-10: every wave from 6B-a to 6B-j is complete, the last two at
+`87429ca` and `aff9a2c`, and the build scope is finished.** ~~Gate O2 is still the hard stop — it is
+now the *only* one — and no agent may call the Russian approved.~~ **Corrected 2026-09-11: Gate O2 is
+closed — the owner approved all 235 leaves. Only the force-push remains, now explicitly authorised.
+See the banner at the top of this file.**
 
 **Open owner inputs carried out of M6, all unresolved.**
 

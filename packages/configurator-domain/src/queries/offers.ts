@@ -1,23 +1,31 @@
-// `DEVELOPMENT-SPEC.md` §9's replace list: what a customer may actually put in this opening, and —
-// ADR 0032 — what they cannot, with the engine's own reason attached.
+// `DEVELOPMENT-SPEC.md` §9's replace list: **what a customer may actually put in this opening, and
+// nothing else.**
 //
-// "Never offer what cannot be satisfied. Disabled-with-reason beats warn-after-click. Every
-// remaining refusal is a bug in a list, not a feature." That is why every entry is measured by the
-// *same* pre-probe evaluation `insertBody` runs — the hood is neither offered for nor accepted into
-// a 400 mm top slot (§11 row 6), and both halves come from one function rather than two agreements.
+// "Never offer what cannot be satisfied." Every entry is measured by the *same* pre-probe evaluation
+// `insertBody` runs — the hood is neither offered for nor accepted into a 400 mm top slot (§11
+// row 6), and both halves come from one function rather than two agreements.
 //
-// ADR 0032 reads the second sentence of that rule as the one the first was always serving:
-// **disabled-with-reason**, not removed. This list used to run `evaluateInsertFit` and drop what
-// failed, discarding a `RejectionDetail` that already said why — silent, and the reason nobody could
-// discover that a bottle cargo exists or that a two-door needs 600 mm. Every band-appropriate entry
-// now appears, carrying a verdict. Nothing became insertable: `insertBody`'s guards are untouched
-// and a refused verdict is the refusal the command would give, published before the tap instead of
-// after it.
+// **This reverses ADR 0032, on the owner's ruling of 2026-09-10.** That decision read the rule's
+// second sentence — *"disabled-with-reason beats warn-after-click"* — as the one the first was
+// serving, and published every band-appropriate entry with a verdict so that nothing failed
+// silently: *"nobody could discover that a bottle cargo exists or that a two-door needs 600 mm."*
+// What that produced in a **void** is the case the owner judged, because `isInOfferedBand` admits
+// the whole catalogue there: a floor opening offered wall cabinets, a lift, an open shelf and a
+// hood, each greyed with the same generic sentence about having no plinth. *"Don't need to show any
+// greyed out cabinets … on base cabinet I see hood as user is like WTF is this. Show only what is
+// possible to insert."*
+//
+// So a refused entry is now **absent**, and it is absent from the type as well as from the list:
+// `CatalogOffer` carries the width and height its body would build to, and there is no shape in
+// which an offer has no plan. Nothing became insertable — `insertBody`'s guards are untouched and
+// the same evaluation still decides — and what a customer can discover instead is the width span
+// §9's empty sentence names (`buildableWidthSpanMm`).
 import { normaliseBand } from "../bands.js";
 import {
   buildableSizes,
   describeBodyLabelAt,
   isKnownKind,
+  type BodyLabel,
   listInsertableBodies,
   resolveCatalogEquivalent,
   resolveWidthRangesMm,
@@ -30,7 +38,6 @@ import {
   resolveInsertOpening,
   type ResolvedOpening,
 } from "../commands/insert-fit.js";
-import type { RejectionDetail } from "../commands/rejection.js";
 import type {
   Band,
   BodyCatalog,
@@ -40,33 +47,19 @@ import type {
   WidthRangeMm,
 } from "../void-engine.js";
 
-/** ADR 0032: what the engine answered about one entry in one opening.
+/** What the engine planned for one entry in one opening, or nothing where it refused.
  *
- *  A **discriminated union rather than a flag plus optional numbers**, because the two verdicts
- *  carry disjoint facts and neither is meaningful under the other: an offered entry has a width and
- *  a height it would build to, and a refused one has no plan at all — `evaluateInsertFit` stopped
- *  before there was one. A `widthMm` on a refused row would be a number nobody computed, and the
- *  panel would have to guess whether to believe it.
- *
- *  `reason` is the `RejectionDetail` the engine already produced, carried whole and not re-derived:
- *  its code, its params and the sentence `rejection.ts` renders from them are one fact with one
- *  author (ADR 0032 rule 2). A renderer therefore needs nothing from this list but the list —
- *  no second evaluation, no re-reading of the catalogue, no vocabulary of its own.
- *
- *  "refused" rather than "disabled": the engine refuses, and a surface renders a refusal however it
- *  renders one. ADR 0032's disabled row is that rendering, not this word. */
-export type OfferVerdict =
-  | {
-      readonly status: "offered";
-      /** What this body would build to in this opening — the numbers §9's count line reads. */
-      readonly widthMm: number;
-      readonly heightMm: number;
-    }
-  | { readonly status: "refused"; readonly reason: RejectionDetail };
+ *  **Module-private, and that is the reversal of ADR 0032 expressed in the type.** A refusal is a
+ *  reason to leave an entry out of the list, and it is no longer a thing the list can carry: it
+ *  exists between `evaluateInsertFit` and the filter below, and it does not outlive `offersFor`. */
+interface InsertionPlan {
+  readonly widthMm: number;
+  readonly heightMm: number;
+}
 
 export interface CatalogOffer {
   readonly buildId: string;
-  readonly label: string;
+  readonly label: BodyLabel;
   readonly kind: string;
   readonly band: Band;
   /** **The modular widths a customer picks from** — this entry's chips, narrowed by the floor that
@@ -95,7 +88,14 @@ export interface CatalogOffer {
   readonly widthRangesMm: readonly WidthRangeMm[];
   /** §9: the current row is badged ACTUAL rather than hidden. */
   readonly isCurrent: boolean;
-  readonly verdict: OfferVerdict;
+  /** **What this body would be built to in this opening** — the numbers §9's row line reads, and
+   *  the width ADR 0033's label and the thumbnail are both picked at.
+   *
+   *  Required, because every entry in this list is one the engine planned. Where these were a
+   *  `verdict` union (ADR 0032) a renderer had to ask which arm it held before it could read a
+   *  number; the question has one answer now, so it is not asked. */
+  readonly buildsToWidthMm: number;
+  readonly buildsToHeightMm: number;
 }
 
 export interface OffersInput {
@@ -116,16 +116,23 @@ export interface OffersInput {
   readonly cabinetDepthMm: number;
 }
 
-/** The offer list for a selection, in catalogue order, every band-appropriate entry present.
+/** The offer list for a selection, in catalogue order, **every entry insertable**.
  *
- *  Empty is still a real answer, and it now means only the two things it should: §11 row 24's
- *  unknown kind, which renders no replace section at all rather than a fallback set, and a target
- *  that does not resolve. It no longer means "nothing fitted" — that answer is now a list of refused
- *  verdicts, which is the whole of ADR 0032.
+ *  Empty is a real answer and now means three things rather than two: §11 row 24's unknown kind,
+ *  which renders no replace section at all rather than a fallback set; a target that does not
+ *  resolve; and — since the owner's ruling of 2026-09-10 — an opening nothing fits. §9's empty
+ *  sentence is what the panel renders for the third, and `buildableWidthSpanMm` is what makes it
+ *  the informative one rather than a bare *"nothing fits"*.
  *
- *  **Band stays a filter** (ADR 0032 rule 5). A wall cabinet is not disabled for a floor opening, it
- *  is not a candidate; showing every entry everywhere is noise, not information. Disablement is for
- *  an entry that would fit given more space. */
+ *  **Band stays a filter, and it is no longer the only one.** A wall cabinet was never a candidate
+ *  for a floor opening; now neither is one that would not fit.
+ *
+ *  §5.2's *"a column body goes anywhere"* is untouched **for a void**, which is the case that
+ *  sentence is about: `isInOfferedBand` admits every band into an empty opening, and what decides
+ *  whether a full-height row appears in a base slot is the same `evaluateInsertFit` the command
+ *  runs. A **swap** is the other case and always was — there the filter compares against the band of
+ *  the body being replaced, so a `column` row is not offered in place of an occupied `base`
+ *  cabinet. */
 export function offersFor(input: OffersInput): CatalogOffer[] {
   const resolved = resolveInsertOpening(input);
   if (!resolved.ok) return [];
@@ -134,60 +141,83 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
   const currentBuildId = resolveCurrentCatalogId(input.catalog, resolved.value);
   return listInsertableBodies(input.catalog)
     .filter((body) => isInOfferedBand(body.band, resolved.value))
-    .map((body) => {
-      const verdict = judge(body, resolved.value, input.cabinetDepthMm);
-      return {
-        buildId: body.buildId,
-        label: describeOfferLabel(body, verdict),
-        kind: body.kind,
-        band: body.band,
-        // ADR 0017: the chips are the widths this body can be *built* at, not the widths its
-        // catalogue row lists. Rendering a chip the guard would refuse is the same
-        // "offered then refused" failure ADR 0017 closes, arriving one layer up.
-        sizesMm: buildableSizes(body.minWidthMm, body.sizesMm),
-        widthRangesMm: resolveWidthRangesMm(body),
-        isCurrent: currentBuildId === body.buildId,
-        verdict,
-      };
+    .flatMap((body) => {
+      const plan = planFor(body, resolved.value, input.cabinetDepthMm);
+      if (plan === undefined) return [];
+      return [
+        {
+          buildId: body.buildId,
+          // ADR 0033: the row's name, with the door count derived from the width this body would
+          // actually be built at here — so one `wall-cabinet` entry reads *Corp suspendat 1 ușă* in
+          // a 400 mm opening and *2 uși* in a 600 mm one. There is no longer a second arm for a row
+          // with no width, because there is no longer a row with no width.
+          label: describeBodyLabelAt(
+            { buildId: body.buildId, definition: body.definition },
+            plan.widthMm,
+          ),
+          kind: body.kind,
+          band: body.band,
+          // ADR 0017: the chips are the widths this body can be *built* at, not the widths its
+          // catalogue row lists. Rendering a chip the guard would refuse is the same
+          // "offered then refused" failure ADR 0017 closes, arriving one layer up.
+          sizesMm: buildableSizes(body.minWidthMm, body.sizesMm),
+          widthRangesMm: resolveWidthRangesMm(body),
+          isCurrent: currentBuildId === body.buildId,
+          buildsToWidthMm: plan.widthMm,
+          buildsToHeightMm: plan.heightMm,
+        },
+      ];
     });
 }
 
-/** ADR 0033: the row's name, with the door count where there is a width to derive it from.
+/**
+ * **The narrowest and widest widths anything in the catalogue can be built at.**
  *
- *  An **offered** row has one — the width this body would actually be built at in this opening — so
- *  a single `wall-cabinet` entry reads *Corp suspendat 1 ușă* in a 400 mm opening and
- *  *Corp suspendat 2 uși* in a 600 mm one, which is the merge doing its job in the place the
- *  customer sees it.
+ * §9's empty sentence used to read these off the offer list itself, which held every
+ * band-appropriate entry whether or not it fitted (ADR 0032). With refused entries gone, an opening
+ * nothing fits produces an empty list — and *"the widest cabinet in the catalogue is 800 mm"* is
+ * exactly the fact a customer needs at that moment, so it is published here instead of vanishing
+ * with the rows that used to carry it.
  *
- *  A **refused** row has none. `evaluateInsertFit` stopped before it chose a width, and stating a
- *  door count for a cabinet that cannot be built here would be the naming defect ADR 0033 exists to
- *  remove, reintroduced one row down. It shows the entry's generic name — which, with the count
- *  gone, is exactly what the customer is being told they cannot have yet. */
-function describeOfferLabel(
-  body: InsertableBody,
-  verdict: OfferVerdict,
-): string {
-  if (verdict.status !== "offered") return body.label;
-  return describeBodyLabelAt(body.definition, verdict.widthMm);
+ * Read from the catalogue's own `widthRangesMm` and never written down: a constant beside these two
+ * numbers is the two-values-agreeing-by-luck defect ADR 0028 is about. `undefined` when no entry
+ * declares a range at all, which leaves §9's original sentence in place rather than inventing a
+ * bound from nothing.
+ */
+export function buildableWidthSpanMm(
+  catalog: BodyCatalog,
+): WidthRangeMm | undefined {
+  const ranges = listInsertableBodies(catalog).flatMap((body) =>
+    resolveWidthRangesMm(body),
+  );
+  if (ranges.length === 0) return undefined;
+  return {
+    minMm: Math.min(...ranges.map((range) => range.minMm)),
+    maxMm: Math.max(...ranges.map((range) => range.maxMm)),
+  };
 }
 
 /** One entry against one opening, by the **same** evaluation `insertBody` runs — which is what makes
- *  a refused verdict the refusal the command would actually give, rather than a second opinion that
- *  can drift from it. */
-function judge(
+ *  an absent row a row the command would have refused, rather than a second opinion that can drift
+ *  from it.
+ *
+ *  `undefined` is the refusal, and the `RejectionDetail` behind it is deliberately dropped: since
+ *  the owner's ruling of 2026-09-10 no surface renders one from this list, and carrying a reason
+ *  nobody reads is how a list grows a field that outlives its purpose. The reason a customer sees
+ *  after a tap is still the command's own. */
+function planFor(
   body: InsertableBody,
   resolved: ResolvedOpening,
   cabinetDepthMm: number,
-): OfferVerdict {
+): InsertionPlan | undefined {
   const fit = evaluateInsertFit({
     body,
     opening: resolved.opening,
     column: resolved.column,
     cabinetDepthMm,
   });
-  if (!fit.ok) return { status: "refused", reason: fit.detail };
+  if (!fit.ok) return undefined;
   return {
-    status: "offered",
     widthMm: toMillimetres(fit.plan.widthM),
     heightMm: toMillimetres(fit.plan.heightM),
   };

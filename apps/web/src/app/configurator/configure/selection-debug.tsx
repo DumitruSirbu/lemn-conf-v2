@@ -81,7 +81,7 @@ function SelectionDebugReadout() {
       data-save-status={saveStatus}
       data-design-id={designId ?? ""}
       data-probe={isBodyProbeAttached ? "on" : "off"}
-      // The refusal's stable **code**, never its rendered Romanian sentence: the sentence is §9's
+      // The refusal's stable **code**, never its localized sentence: the sentence is §9's
       // banner copy and is asserted where it renders, in the panel.
       data-rejection={lastRejection?.code ?? ""}
       // Wave 6E's whole-kitchen container, and the timestamp a successful command moves. Both are

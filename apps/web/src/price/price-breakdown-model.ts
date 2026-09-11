@@ -20,7 +20,7 @@
 // rather than trusting the projection.
 //
 // **Rounded lines and a rounded total need not sum.** Both round through `roundUpToThousandMdl`,
-// the one site, and on the shipped design the difference exceeds a whole step. `ro.priceBreakdown`'s
+// the one site, and on the shipped design the difference exceeds a whole step. `priceBreakdown`'s
 // disclaimer and note are what carry that; nothing here adds a subtotal, an equality claim, or a
 // row labelled *total*.
 import type {
@@ -32,7 +32,7 @@ import type {
   WholeKitchenPriceLine,
 } from "@lemnaria/configurator-domain";
 
-import { ro } from "@/content/ro";
+import type { Content } from "@/i18n/content";
 
 import {
   describeFlaggedTotalWarning,
@@ -48,7 +48,9 @@ import {
 export interface BreakdownRow {
   readonly key: string;
   readonly label: string;
-  /** Already rounded and grouped. *"inclus"* where the amount is zero — see `describeRowAmount`. */
+  /** Already rounded and grouped. *"inclus"* where the amount is zero, and *"nu este inclus"* on a
+   *  body the manufacturer does not supply — `describeRowAmount` and `describeCabinetRowAmount`,
+   *  which is where the difference between those two zeros is decided. */
   readonly amountText: string;
 }
 
@@ -93,6 +95,7 @@ export interface AvailableBreakdown {
 export type PriceBreakdownView = UnavailableBreakdown | AvailableBreakdown;
 
 export interface DescribePriceBreakdownInput {
+  readonly content: Content;
   /** The current design priced, as `usePricedDesign` derived it this render. */
   readonly pricing: PricingResult;
   /** `projectDesignForDisplay`'s answer for the same design, **verbatim**. The only source of which
@@ -126,14 +129,6 @@ const UNAVAILABLE_BREAKDOWN: UnavailableBreakdown = { kind: "unavailable" };
  *  name the book states, and an amount that traces to no placement row. */
 type UnplacedPriceLine = WholeKitchenPriceLine | AccessoryPriceLine;
 
-/** The category words, keyed by the kind of line the book produced. */
-const UNPLACED_CATEGORIES: Readonly<Record<UnplacedPriceLine["kind"], string>> =
-  ro.priceBreakdown.wholeKitchenCategories;
-
-/** The heading word for a group, keyed by the **normalised** band the projection grouped on. */
-const BAND_HEADINGS: Readonly<Record<DisplayGroup["band"], string>> =
-  ro.priceBreakdown.bandHeadings;
-
 export function describePriceBreakdown(
   input: DescribePriceBreakdownInput,
 ): PriceBreakdownView {
@@ -153,23 +148,33 @@ export function describePriceBreakdown(
   // every line went missing at once.
   if (holdsNoCabinets(priced) && input.groups.length === 0)
     return UNAVAILABLE_BREAKDOWN;
-  const amountByPlacement = indexCabinetAmounts(priced.lines);
+  const lineByPlacement = indexCabinetLines(priced.lines);
   const groups = input.groups.map((group) =>
-    toBreakdownGroup(group, amountByPlacement),
+    toBreakdownGroup(group, lineByPlacement, input.content),
   );
-  assertEveryPricedBodyIsPlaced(input.groups, amountByPlacement);
+  assertEveryPricedBodyIsPlaced(input.groups, lineByPlacement);
 
-  const warning = describeFlaggedTotalWarning(priced);
+  const warning = describeFlaggedTotalWarning(priced, input.content.price);
   return {
     kind: "available",
-    title: ro.priceBreakdown.title,
-    disclaimer: ro.priceBreakdown.disclaimer,
+    title: input.content.priceBreakdown.title,
+    disclaimer: input.content.priceBreakdown.disclaimer,
     groups,
-    wholeKitchenRows: priced.lines.filter(isUnplacedLine).map(toUnplacedRow),
-    note: ro.priceBreakdown.note,
-    figure: describeStartingPrice({ totalMinor: priced.totalMinor }),
+    wholeKitchenRows: priced.lines
+      .filter((line) =>
+        isUnplacedLine(
+          line,
+          input.content.priceBreakdown.wholeKitchenCategories,
+        ),
+      )
+      .map((line) => toUnplacedRow(line, input.content)),
+    note: input.content.priceBreakdown.note,
+    figure: describeStartingPrice({
+      totalMinor: priced.totalMinor,
+      copy: input.content.price,
+    }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
-    closeLabel: ro.priceBreakdown.close,
+    closeLabel: input.content.priceBreakdown.close,
   };
 }
 
@@ -179,32 +184,43 @@ export function describePriceBreakdown(
  *  dimension. */
 function toBreakdownGroup(
   group: DisplayGroup,
-  amountByPlacement: ReadonlyMap<string, number>,
+  lineByPlacement: ReadonlyMap<string, CabinetPriceLine>,
+  content: Content,
 ): BreakdownGroup {
   return {
     key: `${group.wall}-${group.band}`,
-    heading: ro.priceBreakdown.groupHeading(
+    heading: content.priceBreakdown.groupHeading(
       group.wall,
-      BAND_HEADINGS[group.band],
+      content.priceBreakdown.bandHeadings[group.band],
     ),
     rows: group.entries.map((entry) => ({
       key: entry.placementId,
-      label: ro.priceBreakdown.placementLabel(entry.label, entry.widthMm),
-      amountText: describeRowAmount(
-        amountFor(entry.placementId, amountByPlacement),
+      label: content.priceBreakdown.placementLabel(
+        content.bodyLabel(entry.label),
+        entry.widthMm,
+      ),
+      amountText: describeCabinetRowAmount(
+        cabinetLineFor(entry.placementId, lineByPlacement),
+        content,
       ),
     })),
   };
 }
 
-function toUnplacedRow(line: UnplacedPriceLine): BreakdownRow {
+function toUnplacedRow(
+  line: UnplacedPriceLine,
+  content: Content,
+): BreakdownRow {
   return {
     key: line.lineId,
-    label: ro.priceBreakdown.wholeKitchenLabel(
-      UNPLACED_CATEGORIES[line.kind],
-      line.name,
+    label: content.priceBreakdown.wholeKitchenLabel(
+      content.priceBreakdown.wholeKitchenCategories[line.kind],
+      // The book's row names the catalogue leaf its own words live in (ADR 0106 decision 1), so the
+      // sheet and this row say the same tier in the same language. A book row naming no leaf — the
+      // manufacturer-entered one ADR 0106 decision 2 keeps `name` required for — prints its own.
+      content.bookText(line.name, line.nameKey),
     ),
-    amountText: describeRowAmount(line.amountMinor),
+    amountText: describeRowAmount(line.amountMinor, content),
   };
 }
 
@@ -214,29 +230,58 @@ function toUnplacedRow(line: UnplacedPriceLine): BreakdownRow {
  * is upward, so only a line that is genuinely free can get here, and `0` beside a body is the same
  * number-that-is-not-a-price the tier rule exists to keep off the screen.
  */
-function describeRowAmount(amountMinor: number): string {
-  if (amountMinor === 0) return ro.priceBreakdown.included;
+function describeRowAmount(amountMinor: number, content: Content): string {
+  if (amountMinor === 0) return content.priceBreakdown.included;
   return describeRoundedAmount(amountMinor);
 }
 
-function indexCabinetAmounts(
+/**
+ * What one **body** row prints, and the one place the two kinds of zero are told apart — the owner's
+ * ruling of 2026-09-10: a free-standing fridge *"is drawn, it's displayed, but it's not included in
+ * the price, and it's not provided by the manufacturer."*
+ *
+ * **Keyed on the declaration and never on the amount.** `suppliedBy` is a fact the price book states
+ * and `priceOnePlacement` carries onto the line. A rule written as `amountMinor === 0` would print
+ * *nu este inclus* over **a manufacturer cabinet that happens to cost nothing** — a body Lemnaria
+ * does build and does supply, told the customer it will not be supplying. That is the whole of the
+ * exposure, and it is measured rather than argued: `price-breakdown.adversarial.test.ts` zeroes a
+ * shipped placement row and requires *inclus* ("reads inclus for a placement row that prices at
+ * zero, not only for a tier").
+ *
+ * **Not the melamine row**, which this comment named until 2026-09-11. PAL melaminat is zero and
+ * genuinely included, but it is a *material* row: it reaches `describeRowAmount` above without ever
+ * passing through this function, so no rule written here could have reached it.
+ *
+ * The shipped kitchen contains no zero-priced manufacturer cabinet, so the guard is unexercised in
+ * production and that one adversarial case is the only thing holding it.
+ */
+function describeCabinetRowAmount(
+  line: CabinetPriceLine,
+  content: Content,
+): string {
+  if (line.suppliedBy === "customer") return content.priceBreakdown.notIncluded;
+  return describeRowAmount(line.amountMinor, content);
+}
+
+/** The whole line rather than its amount alone: a body row prints from **two** facts the query
+ *  published — what it costs, and who supplies it — and re-deriving either here would be a second
+ *  authority for it. */
+function indexCabinetLines(
   lines: readonly PriceLine[],
-): ReadonlyMap<string, number> {
+): ReadonlyMap<string, CabinetPriceLine> {
   return new Map(
-    lines
-      .filter(isCabinetLine)
-      .map((line) => [line.placementId, line.amountMinor]),
+    lines.filter(isCabinetLine).map((line) => [line.placementId, line]),
   );
 }
 
-function amountFor(
+function cabinetLineFor(
   placementId: string,
-  amountByPlacement: ReadonlyMap<string, number>,
-): number {
-  const amountMinor = amountByPlacement.get(placementId);
-  if (amountMinor === undefined)
+  lineByPlacement: ReadonlyMap<string, CabinetPriceLine>,
+): CabinetPriceLine {
+  const line = lineByPlacement.get(placementId);
+  if (line === undefined)
     throw new PriceBreakdownDivergenceError([placementId]);
-  return amountMinor;
+  return line;
 }
 
 /** The other direction, and the one that makes the projection load-bearing: a body pricing placed
@@ -244,12 +289,12 @@ function amountFor(
  *  would still contain it. */
 function assertEveryPricedBodyIsPlaced(
   groups: readonly DisplayGroup[],
-  amountByPlacement: ReadonlyMap<string, number>,
+  lineByPlacement: ReadonlyMap<string, CabinetPriceLine>,
 ): void {
   const placed = new Set(
     groups.flatMap((group) => group.entries.map((entry) => entry.placementId)),
   );
-  const unplaced = [...amountByPlacement.keys()].filter(
+  const unplaced = [...lineByPlacement.keys()].filter(
     (placementId) => !placed.has(placementId),
   );
   if (unplaced.length > 0) throw new PriceBreakdownDivergenceError(unplaced);
@@ -271,6 +316,9 @@ function isCabinetLine(line: PriceLine): line is CabinetPriceLine {
  * rather than selected and rendered with a hole in its label. Adding a kind to `UnplacedPriceLine`
  * without also giving it a word is a **compile** error, because the record is keyed on that union.
  */
-function isUnplacedLine(line: PriceLine): line is UnplacedPriceLine {
-  return Object.hasOwn(UNPLACED_CATEGORIES, line.kind);
+function isUnplacedLine(
+  line: PriceLine,
+  categories: Readonly<Record<UnplacedPriceLine["kind"], string>>,
+): line is UnplacedPriceLine {
+  return Object.hasOwn(categories, line.kind);
 }

@@ -18,6 +18,8 @@
 // otherwise satisfy most of the assertions below.
 import { describe, expect, it } from "vitest";
 
+import { entryLabel } from "../../src/catalog.js";
+
 import {
   buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
@@ -413,7 +415,6 @@ describe("the set follows the declaration, not any inference from the body", () 
     const catalog = catalogPlus({
       "qa-wall-twin": {
         ...entry("wall-cabinet"),
-        label: "Geamăn",
         sizesMm: [550, 650],
       },
     });
@@ -429,17 +430,52 @@ describe("the set follows the declaration, not any inference from the body", () 
     ).toEqual([550, 650]);
   });
 
-  // The label the panel renders comes from the seeded row, so a repointing changes the set and
-  // nothing else the customer reads. Pinned so a later "resolve the whole definition" shortcut
-  // cannot start renaming bodies — §6.3's fridge-housing-labelled-as-a-pantry defect.
-  it("moves the set without moving the label the header renders", () => {
+  // **The pointer is the name, since 6B-f.** It always was ADR 0064's rule — `catalogEquivalentNamer`
+  // copied the equivalent's label onto the seeded row at build time — and the copy is now gone, so
+  // the name is resolved through the same live pointer the width set is. A repointing therefore
+  // moves both, which is the honest answer for a row that declares it would be *rebuilt* through
+  // that entry: name and price already travel together (`resolvePricingRow`).
+  //
+  // §6.3's fridge-housing-labelled-as-a-pantry defect is untouched by this. That was identity
+  // **inferred** from geometry; this is identity declared by the row itself, which is what ADR 0022
+  // put in its place.
+  //
+  // The `kind` assertion below is **not** the safety net for that. `kind` cannot move for any
+  // reason: `describe-selection.ts` publishes `kind: record.kind`, and the record took
+  // `definition.kind` off the literal row at build time (`void-engine.ts`), so no pointer is ever
+  // consulted. It pins the narrower thing it can pin — that the name travelling through the pointer
+  // does not drag the kind along with it, keeping §11 row 24's structural question answered by the
+  // row's own declaration — and it witnesses nothing about how the label resolved.
+  it("moves the set and the name together, and the kind not at all", () => {
     const catalog = catalogWith({
       "base-drawer3-600": { catalogEquivalentId: "base-dishwasher" },
     });
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
     expect(metaFor(world, "p4").sizesMm).toEqual([450, 600]);
-    expect(metaFor(world, "p4").label).toBe(metaFor(seeded(), "p4").label);
+    expect(metaFor(world, "p4").label).toEqual(entryLabel("base-dishwasher"));
+    expect(metaFor(seeded(), "p4").label).toEqual(entryLabel("base-3drawer"));
     expect(metaFor(world, "p4").kind).toBe("base_cabinet");
+  });
+
+  // **The name follows the pointer; the door count does not.** `describeBodyLabelAt` reads
+  // `doorCountFollowsWidth` off the **literal row** (`body.definition`) while `describeBodyName`
+  // resolves the name through `catalogEquivalentId`. That split is correct — the count is a fact
+  // about how *this* body is built, and a seeded three-drawer base does not grow doors by being
+  // renamed — but nothing asserted it, and the shipped fixture cannot show it: `catalogEquivalentNamer`
+  // copies `doorCountFollowsWidth` from the pointed-at entry onto the seeded row, so both sides
+  // read one entry and agree by construction.
+  //
+  // Repointing past the namer is what separates them. `wall-cabinet` declares
+  // `doorCountFollowsWidth: true`; seeded `base-drawer3-600` declares none. A "resolve the whole
+  // definition and label from that" shortcut would answer `labelWithDoors(entryLabel("wall-cabinet"), 2)`
+  // here, and that is the failure this pins.
+  it("takes the name from the pointer and the door count from the literal row", () => {
+    const widened = catalogWith({
+      "base-drawer3-600": { catalogEquivalentId: "wall-cabinet" },
+    });
+    expect(metaFor(createWorld(KITCHEN_L_DESIGN, widened), "p4").label).toEqual(
+      entryLabel("wall-cabinet"),
+    );
   });
 });
 

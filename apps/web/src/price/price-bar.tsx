@@ -2,6 +2,8 @@
 
 import type { CSSProperties } from "react";
 
+import { useContent } from "@/i18n/use-content";
+
 import { PRICE_BAR_RESERVED_HEIGHT_PX } from "./price-bar-layout";
 import { describePriceBar } from "./price-bar-model";
 import styles from "./price-bar.module.css";
@@ -25,8 +27,9 @@ const PRICE_BAR_METRICS = {
  * `describeStartingPrice`'s — no component rounds, formats or prefixes a price.
  */
 export function PriceBar() {
+  const content = useContent();
   const pricing = usePricedDesign();
-  const view = describePriceBar({ pricing });
+  const view = describePriceBar({ pricing, content });
 
   // A pricing failure renders no figure: not a zero, not a stale one, not a dash that reads as free.
   if (view.kind === "unpriced") return null;

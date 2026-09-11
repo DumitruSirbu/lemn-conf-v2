@@ -23,14 +23,19 @@ import {
   type Finish,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import fc from "fast-check";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -64,8 +69,14 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
   (tier) => tier.tierId,
 );
 
-const WRITABLE = describeEditability({ canWrite: true, saveStatus: "idle" });
-const LOCKED = describeEditability({ canWrite: false, saveStatus: "idle" });
+const WRITABLE = describeEditability(
+  { canWrite: true, saveStatus: "idle" },
+  content.panel,
+);
+const LOCKED = describeEditability(
+  { canWrite: false, saveStatus: "idle" },
+  content.panel,
+);
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
@@ -92,6 +103,7 @@ function viewOf(
   pending: WholeKitchenChoice,
 ): GlobalSettingsView {
   return describeGlobalSettings({
+    content: content,
     pricing: pricingOf(design),
     offer: offerOf(design),
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
@@ -170,11 +182,15 @@ describe("acceptance 1 — the colour group renders after material, from the mat
   it("renders material, its note, colour, hardware and depth in that order", () => {
     const markup = markupOf(viewOf(KITCHEN_L_DESIGN, {}), WRITABLE);
 
-    const material = markup.indexOf(ro.globalSettings.groupHeadings.material);
+    const material = markup.indexOf(
+      content.globalSettings.groupHeadings.material,
+    );
     const note = markup.indexOf('data-testid="global-settings-warning"');
-    const colour = markup.indexOf(ro.globalSettings.colourHeading);
-    const hardware = markup.indexOf(ro.globalSettings.groupHeadings.hardware);
-    const depth = markup.indexOf(ro.globalSettings.depthHeading);
+    const colour = markup.indexOf(content.globalSettings.colourHeading);
+    const hardware = markup.indexOf(
+      content.globalSettings.groupHeadings.hardware,
+    );
+    const depth = markup.indexOf(content.globalSettings.depthHeading);
 
     expect(material).toBeGreaterThan(-1);
     expect(note).toBeGreaterThan(material);
@@ -193,11 +209,15 @@ describe("acceptance 1 — the colour group renders after material, from the mat
       WRITABLE,
     );
 
-    const material = markup.indexOf(ro.globalSettings.groupHeadings.material);
+    const material = markup.indexOf(
+      content.globalSettings.groupHeadings.material,
+    );
     const note = markup.indexOf('data-testid="global-settings-warning"');
-    const hardware = markup.indexOf(ro.globalSettings.groupHeadings.hardware);
+    const hardware = markup.indexOf(
+      content.globalSettings.groupHeadings.hardware,
+    );
 
-    expect(markup).not.toContain(ro.globalSettings.colourHeading);
+    expect(markup).not.toContain(content.globalSettings.colourHeading);
     expect(note).toBeGreaterThan(material);
     expect(hardware).toBeGreaterThan(note);
   });
@@ -249,6 +269,7 @@ describe("acceptance 1 — the colour group renders after material, from the mat
     // The confirm step replaces the body wholesale, so its one write action carries the same guard —
     // asserted here because this wave adds a fourth group to the press that button commits.
     const view = describeGlobalSettings({
+      content: content,
       pricing: pricingOf(KITCHEN_L_DESIGN),
       offer: offerOf(KITCHEN_L_DESIGN),
       groups: projectDesignForDisplay(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
@@ -279,7 +300,9 @@ describe("acceptance 1 — the colour group renders after material, from the mat
     );
 
     expect(markup).toContain(confirm.body);
-    expect(markup).toContain(ro.globalSettings.materialResetConfirm.globalBody);
+    expect(markup).toContain(
+      content.globalSettings.materialResetConfirm.globalBody,
+    );
     expect(markup).toMatch(
       /data-testid="global-settings-confirm"[^>]*disabled=""/,
     );
@@ -436,7 +459,7 @@ describe("acceptance 6 — a document written before this wave", () => {
     );
   });
 
-  it("opens the sheet on no colour at all, so an untouched Aplică writes none", () => {
+  it("opens the sheet on no colour at all, so an untouched apply writes none", () => {
     const opening = resolveOpeningChoice(
       KITCHEN_L_DESIGN.settings ?? {},
       offerOf(KITCHEN_L_DESIGN),
@@ -482,7 +505,7 @@ describe("ADR 0099 decision 4 — a material change drops a colour it does not o
   });
 });
 
-describe("acceptance 7 — Renunță writes nothing, over any sequence of presses", () => {
+describe("acceptance 7 — cancel writes nothing, over any sequence of presses", () => {
   /** Every press the choosing step offers, as the model runs it. */
   type Press =
     | { readonly kind: "material"; readonly tierId: string }

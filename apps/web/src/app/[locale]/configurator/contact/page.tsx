@@ -1,13 +1,16 @@
-import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-import { ro } from "@/content/ro";
+import { resolveContent } from "@/i18n/content";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Placeholder destination for the two continuation paths on the WebGL-unavailable exit. The real
  * contact step is a later milestone; this exists so those paths lead somewhere honest instead of
  * a 404.
  */
-export default function ContactPage() {
+export default async function ContactPage() {
+  const translate = await getTranslations();
+  const content = resolveContent(translate);
   return (
     <main
       style={{
@@ -18,7 +21,7 @@ export default function ContactPage() {
       }}
     >
       <h1 style={{ margin: 0, font: "700 22px/1.25 var(--font-ui)" }}>
-        {ro.contactPlaceholder.title}
+        {content.contactPlaceholder.title}
       </h1>
       <p
         style={{
@@ -27,13 +30,13 @@ export default function ContactPage() {
           color: "var(--ink-muted)",
         }}
       >
-        {ro.contactPlaceholder.body}
+        {content.contactPlaceholder.body}
       </p>
       <Link
         href="/configurator/configure"
         style={{ font: "700 14px/1 var(--font-ui)", color: "var(--accent)" }}
       >
-        {ro.contactPlaceholder.back}
+        {content.contactPlaceholder.back}
       </Link>
     </main>
   );

@@ -12,7 +12,8 @@
 // later rather than a refactor.
 //
 // **And it is the only place a price may live** (ADR 0062's third prohibition): no amount, tier,
-// delta or rule may exist in `catalog.ts`, in `content/ro.ts`, or in a component. The 2E sheet's
+// delta or rule may exist in `catalog.ts`, in the app's message catalogue
+// (`apps/web/src/messages/ro.json`), or in a component. The 2E sheet's
 // *"de la +9 000"* is this data rendered, never copy that happens to agree with a number.
 //
 // **The tier names and descriptions below are provisional sample content, not owner-ruled copy.**
@@ -20,6 +21,7 @@
 // under: a string nobody has ruled is not pinned by writing one and asserting it — it is raised. No
 // test in this wave pins their wording, and a wave that renders them owes the owner the question.
 import {
+  drawnButNotSupplied,
   pricedByWidth,
   pricedByWidthAndDoorLeaves,
   pricedByWidthAndHeight,
@@ -160,13 +162,21 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
       perHeightMillimetreMinor: 50,
     }),
   },
+  // **An appliance, not joinery — drawn and not sold, on the owner's ruling of 2026-09-10.** The
+  // extractor hood is bought by the customer, and `priceBreakdown.disclaimer` has always said the
+  // estimate excludes *bytovaya tekhnika*; charging for it contradicted the sentence printed above
+  // the line. What Lemnaria builds around a hood — a `wall-cabinet` above it, a chimney surround —
+  // is a different row and still priced.
+  //
+  // `drawnButNotSupplied` and not a bare `pricedFlat(0)`: the breakdown prints *nu este inclus*
+  // beside this row and *inclus* beside a **manufacturer cabinet** that is equally free, and it can
+  // only tell the two apart because this one says which of them it is. The melamine tier this note
+  // used to name is free too, but it is a material row and never reaches the cabinet path — see
+  // `describeCabinetRowAmount`.
   {
     ruleId: "cabinet.hood",
     buildId: "hood",
-    formula: pricedByWidth({
-      baseMinor: 200_000,
-      perWidthMillimetreMinor: 150,
-    }),
+    ...drawnButNotSupplied(),
   },
   // ADR 0048's resizable column: **two** stacked bands of leaves, so the threshold at 500 mm takes
   // it from two doors to four and the price steps twice. The count comes from
@@ -190,10 +200,15 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
     buildId: "tall-fridge-housing",
     formula: pricedFlat(700_000),
   },
+  // **The appliance itself, and no carpentry whatsoever — nothing to charge for.** Same ruling: a
+  // free-standing fridge is furniture the customer supplies, occupying a gap in the run. It was
+  // 1 200 000 and read as *12 000* on the breakdown, which is the line that exposed the
+  // contradiction. `tall-fridge-housing` — the built niche an *integrated* fridge sits in — is
+  // joinery and keeps its price; the two are different products and only one of them is ours.
   {
     ruleId: "cabinet.fridge-free",
     buildId: "fridge-free",
-    formula: pricedFlat(1_200_000),
+    ...drawnButNotSupplied(),
   },
   // The four bodies with no §7 equivalent — the corners, which ADR 0021 makes structural and which
   // §13.1 is explicit a customer never chooses. Having no equivalent is the correct answer for them
@@ -261,7 +276,9 @@ const DRAFTED_PUSH_TO_OPEN_MINOR = {
  *
  * **Their names and descriptions are not owner-ruled**, and ship as drafted placeholders under the
  * standing direction of 2026-09-04 — draft strings that carry their meaning now, and the manufacturer
- * dashboard makes copy editable later. Nothing pins their wording.
+ * dashboard makes copy editable later. Nothing pins their wording. Both now also name a catalogue
+ * leaf (ADR 0106 decision 1), which relocated those drafts without rewording them: the key is what a
+ * `/ru` customer reads and the authored string beside it is what any other book would render.
  *
  * **The rack is priced and never drawn** (ADR 0070 decision 4): no builder has a part for it, at any
  * width and any depth, and `sink-declaration.parity.test.ts` asserts that from the adapter side.
@@ -271,14 +288,17 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
     ruleId: "accessory.sink-protective-cover",
     name: "Protecție de aluminiu pentru corpul spălătorului",
     description:
-      "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna.",
+      "Montată în corpul spălătorului, împotriva umidității și a scurgerilor.",
+    nameKey: "priceBook.accessory.sink-protective-cover.name",
+    descriptionKey: "priceBook.accessory.sink-protective-cover.description",
     perUnitMinor: 20_000,
   },
   dishDryingRack: {
     ruleId: "accessory.dish-drying-rack",
     name: "Uscător de vase",
-    description:
-      "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat.",
+    description: "Montat în corpul suspendat de deasupra spălătorului.",
+    nameKey: "priceBook.accessory.dish-drying-rack.name",
+    descriptionKey: "priceBook.accessory.dish-drying-rack.description",
     perUnitMinor: 40_000,
   },
 };
@@ -304,6 +324,11 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
  * price bar would render no figure at all.
  *
  * A line at zero is still not the same thing as a rule that is missing, in either group.
+ *
+ * **Every row that renders an ordinary word names the catalogue leaf it is written in** (ADR 0106
+ * decision 1), so a `/ru` customer reads the settings sheet in Russian. The two brand rows name no
+ * `nameKey` on purpose — see the Hettich row — and the amounts, the ids and the rules stay here,
+ * which is ADR 0062 decision 1 satisfied literally: what left is rendered text.
  */
 export const SAMPLE_PRICE_BOOK: PriceBook = {
   version: SAMPLE_PRICE_BOOK_VERSION,
@@ -329,6 +354,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         // longer says *incluse în preț*: this tier's mechanisms are now billed, and a description
         // asserting the opposite of the book's own numbers is worse than one pending review.
         description: "Balamale și glisiere fără amortizare, închidere simplă.",
+        nameKey: "priceBook.hardware.standard.name",
+        descriptionKey: "priceBook.hardware.standard.description",
         perHingeMinor: 1_760,
         perDrawerMinor: 64_000,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.standard,
@@ -336,8 +363,14 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
       {
         tierId: "hardware.soft-close",
         ruleId: "hardware.soft-close",
+        // **No `nameKey`, and that is the ruling rather than an omission.** *Hettich* is a proper
+        // noun and a translated one would be a defect, so ADR 0106's "the key wins when present"
+        // localises this row correctly by the row naming no key at all: `name` renders as typed, in
+        // every locale. The **description** is a Romanian sentence that happens to contain a brand,
+        // and it is keyed like any other.
         name: "Hettich",
         description: "Balamale și glisiere cu amortizare, de la Hettich.",
+        descriptionKey: "priceBook.hardware.soft-close.description",
         perHingeMinor: 8_500,
         // **Understated, and staying that way.** ADR 0070's Hettich drawer figure is a
         // **runners-only** product line while Standard's and Blum's are complete boxes — box sides
@@ -351,8 +384,10 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
       {
         tierId: "hardware.premium",
         ruleId: "hardware.premium",
+        // No `nameKey`, for the reason the Hettich row above states.
         name: "Blum",
         description: "Balamale și glisiere cu amortizare, de la Blum.",
+        descriptionKey: "priceBook.hardware.premium.description",
         perHingeMinor: 7_500,
         perDrawerMinor: 83_700,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.blum,
@@ -366,7 +401,9 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         tierId: "material.melamine",
         ruleId: "material.melamine",
         name: "PAL melaminat",
-        description: "Materialul standard al bucătăriei, inclus în preț.",
+        description: "Materialul standard al bucătăriei.",
+        nameKey: "priceBook.material.melamine.name",
+        descriptionKey: "priceBook.material.melamine.description",
         wholeKitchenMinor: 0,
       },
       {
@@ -374,6 +411,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         ruleId: "material.painted-mdf",
         name: "MDF vopsit mat",
         description: "Fronturi din MDF vopsit mat, pentru toată bucătăria.",
+        nameKey: "priceBook.material.painted-mdf.name",
+        descriptionKey: "priceBook.material.painted-mdf.description",
         wholeKitchenMinor: 900_000,
       },
       {
@@ -381,6 +420,8 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         ruleId: "material.veneer",
         name: "Furnir natural",
         description: "Fronturi furniruite natural, pentru toată bucătăria.",
+        nameKey: "priceBook.material.veneer.name",
+        descriptionKey: "priceBook.material.veneer.description",
         wholeKitchenMinor: 1_800_000,
       },
     ],

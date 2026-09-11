@@ -12,6 +12,7 @@ import {
   acceptsWidthMm,
   deriveDoorCount,
   describeBodyLabelAt,
+  describeBodyName,
   resolveWidthRangesMm,
   toInsertableBody,
 } from "../../src/catalog.js";
@@ -90,30 +91,41 @@ describe("criterion 1: the pantry's door count follows its width, at the bound's
 });
 
 describe("criterion 2: the offer label counts the doors, from `describeBodyLabelAt` alone", () => {
+  const pantry = { buildId: PANTRY_ID, definition: definitionOf(PANTRY_ID) };
+
   it.each([
-    [400, "Coloană cămară 1 ușă"],
-    [499, "Coloană cămară 1 ușă"],
-    [500, "Coloană cămară 2 uși"],
-    [600, "Coloană cămară 2 uși"],
-    [800, "Coloană cămară 2 uși"],
-  ])("names a %s mm pantry %s", (widthMm, label) => {
-    expect(describeBodyLabelAt(definitionOf(PANTRY_ID), widthMm)).toBe(label);
+    [400, 1],
+    [499, 1],
+    [500, 2],
+    [600, 2],
+    [800, 2],
+  ])("counts a %s mm pantry's doors as %i", (widthMm, doors) => {
+    expect(describeBodyLabelAt(pantry, widthMm)).toEqual({
+      kind: "withDoors",
+      name: { kind: "entry", buildId: PANTRY_ID },
+      doors,
+    });
   });
 
   // ADR 0033's mechanism, not a second copy of it: the count in the name is the same function the
-  // builder is handed. A row that appended a literal would pass the table above and fail here.
-  it("appends exactly what `deriveDoorCount` answers, over the whole bound", () => {
+  // builder is handed. A row that wrapped a literal would pass the table above and fail here.
+  it("wraps exactly what `deriveDoorCount` answers, over the whole bound", () => {
     for (const widthMm of definitionOf(PANTRY_ID).sizesMm ?? []) {
-      const doors = deriveDoorCount(widthMm);
-      expect(describeBodyLabelAt(definitionOf(PANTRY_ID), widthMm)).toContain(
-        `${String(doors)} `,
-      );
+      const label = describeBodyLabelAt(pantry, widthMm);
+      expect([widthMm, label]).toEqual([
+        widthMm,
+        expect.objectContaining({ doors: deriveDoorCount(widthMm) }),
+      ]);
     }
   });
 
-  // The generic name is what a body with no settled width is called, and the row still has one.
+  // The generic name is what a body with no settled width is called, and it is the entry itself —
+  // one wrap deep, never two (`labelWithDoors` refuses the second).
   it("names the row itself without a count", () => {
-    expect(definitionOf(PANTRY_ID).label).toBe("Coloană cămară");
+    expect(describeBodyName(pantry)).toEqual({
+      kind: "entry",
+      buildId: PANTRY_ID,
+    });
   });
 });
 

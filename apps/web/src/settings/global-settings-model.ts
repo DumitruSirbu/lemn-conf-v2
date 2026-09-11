@@ -19,7 +19,6 @@ import {
   lookUpMaterial,
   materialOffersFinish,
   MIN_CABINET_DEPTH_MM,
-  PALETTE_ENTRIES,
   type DisplayGroup,
   type Finish,
   type MaterialLookup,
@@ -28,7 +27,7 @@ import {
 
 import { swatchOf } from "@lemnaria/three-adapter";
 
-import { ro } from "@/content/ro";
+import type { Content } from "@/i18n/content";
 import type { WholeKitchenSetting } from "@/store/whole-kitchen-apply";
 import {
   describeAddedAmount,
@@ -106,7 +105,7 @@ export interface DepthGroupView {
   readonly options: readonly DepthOption[];
   /** Why this group shows no price. Stated so its absence does not read as a line that is missing. */
   readonly note: string;
-  /** What changing it does, in words unlike the material warning's — see `ro.globalSettings`. */
+  /** What changing it does, in words unlike the material warning's — see `globalSettings` in the catalogue. */
   readonly warning: string;
 }
 
@@ -197,7 +196,7 @@ export interface SettingsPillSwatch {
  * Frames D2A / 2A's one control: what the kitchen carries, readable with the sheet shut.
  *
  * **The labels are not the breakdown's**, and the frame is what says so. The shipped chips composed
- * `ro.priceBreakdown.wholeKitchenLabel` — *"Material · PAL melaminat"* — and D2A draws none of that:
+ * `priceBreakdown.wholeKitchenLabel` — *"Material · PAL melaminat"* — and D2A draws none of that:
  * the material bare, the others a category word and a value with no separator. Under ADR 0104
  * decision 1 the frame wins. Only the *words* are shared with the breakdown, so a tier cannot come
  * to be spelled two ways.
@@ -288,6 +287,8 @@ export interface WholeKitchenChoice {
 }
 
 export interface DescribeGlobalSettingsInput {
+  /** The active locale's copy. Every leaf this sheet renders comes from here. */
+  readonly content: Content;
   readonly pricing: PricingResult;
   readonly offer: WholeKitchenTierOffer;
   /** `projectDesignForDisplay`'s answer, and **the only source of the body count**: a void and an
@@ -333,8 +334,11 @@ interface PendingColourLoss {
  *  twice is how two spellings come back (the withdrawn *"De la neschimbat"* records that). **The composition
  *  around it is no longer shared**: the breakdown prints *"Feronerie · Hettich"* and frame D2A draws
  *  *"Feronerie Hettich"*, so the pill composes its own (ADR 0104 decision 1) out of these words. */
-const CHIP_CATEGORIES: Readonly<Record<WholeKitchenGroupKey, string>> =
-  ro.priceBreakdown.wholeKitchenCategories;
+function chipCategories(
+  content: Content,
+): Readonly<Record<WholeKitchenGroupKey, string>> {
+  return content.priceBreakdown.wholeKitchenCategories;
+}
 
 export function describeGlobalSettings(
   input: DescribeGlobalSettingsInput,
@@ -351,23 +355,40 @@ export function describeGlobalSettings(
       appliedMaterialTierId: input.applied.materialTierId,
       pendingMaterialTierId: input.pending.materialTierId,
     },
+    input.content,
   );
-  const colourGroup = toColourGroupView(input.pending);
+  const colourGroup = toColourGroupView(input.pending, input.content);
   return {
-    pill: describeSettingsPill({ offer: input.offer, applied: input.applied }),
-    title: ro.globalSettings.title,
-    appliesTo: ro.globalSettings.appliesTo(countBodies(input.groups)),
+    pill: describeSettingsPill({
+      offer: input.offer,
+      applied: input.applied,
+      content: input.content,
+    }),
+    title: input.content.globalSettings.title,
+    appliesTo: input.content.globalSettings.appliesTo(
+      countBodies(input.groups),
+    ),
     groups: [
-      toGroupView("material", material, input.pending.materialTierId),
-      toGroupView("hardware", hardware, input.pending.hardwareTierId),
+      toGroupView(
+        "material",
+        material,
+        input.pending.materialTierId,
+        input.content,
+      ),
+      toGroupView(
+        "hardware",
+        hardware,
+        input.pending.hardwareTierId,
+        input.content,
+      ),
     ],
-    depthGroup: toDepthGroupView(input.pending.cabinetDepthMm),
+    depthGroup: toDepthGroupView(input.pending.cabinetDepthMm, input.content),
     ...(colourGroup === undefined ? {} : { colourGroup }),
-    warning: ro.globalSettings.materialWarning,
+    warning: input.content.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
     ...(overflowWarning === undefined ? {} : { overflowWarning }),
-    applyLabel: ro.globalSettings.apply,
-    cancelLabel: ro.globalSettings.cancel,
+    applyLabel: input.content.globalSettings.apply,
+    cancelLabel: input.content.globalSettings.cancel,
     ...(materialResetConfirm === undefined ? {} : { materialResetConfirm }),
   };
 }
@@ -513,19 +534,26 @@ export interface ApplyRefusal {
 
 /** The heading each setting is known by on this sheet, so a refusal names the control the customer
  *  is looking at rather than a field name. */
-const SETTING_HEADINGS: Readonly<Record<WholeKitchenSetting, string>> = {
-  material: ro.globalSettings.groupHeadings.material,
-  finish: ro.globalSettings.colourHeading,
-  hardware: ro.globalSettings.groupHeadings.hardware,
-  cabinetDepth: ro.globalSettings.depthHeading,
-};
+function settingHeadings(
+  content: Content,
+): Readonly<Record<WholeKitchenSetting, string>> {
+  return {
+    material: content.globalSettings.groupHeadings.material,
+    finish: content.globalSettings.colourHeading,
+    hardware: content.globalSettings.groupHeadings.hardware,
+    cabinetDepth: content.globalSettings.depthHeading,
+  };
+}
 
 /** **What a refused press says**, and it says *nothing was applied* on purpose: the press is one
  *  commit now, so a customer who reads this has lost none of their other choices and the sheet is
  *  still open on them. */
-export function describeApplyRefusal(refusal: ApplyRefusal): string {
-  return ro.globalSettings.applyRefused(
-    SETTING_HEADINGS[refusal.setting],
+export function describeApplyRefusal(
+  refusal: ApplyRefusal,
+  content: Content,
+): string {
+  return content.globalSettings.applyRefused(
+    settingHeadings(content)[refusal.setting],
     refusal.message,
   );
 }
@@ -553,6 +581,7 @@ export function describeApplyRefusal(refusal: ApplyRefusal): string {
 function toMaterialResetConfirm(
   loss: PendingColourLoss,
   change: PendingMaterialChange,
+  content: Content,
 ): MaterialResetConfirmView | undefined {
   if (loss.chosenColourCount === 0 && !loss.globalFinishWouldBeLost) {
     return undefined;
@@ -572,10 +601,10 @@ function toMaterialResetConfirm(
     return undefined;
   }
   return {
-    title: ro.globalSettings.materialResetConfirm.title,
-    body: describeColourLoss(loss),
-    confirmLabel: ro.globalSettings.materialResetConfirm.confirm,
-    backLabel: ro.globalSettings.materialResetConfirm.back,
+    title: content.globalSettings.materialResetConfirm.title,
+    body: describeColourLoss(loss, content),
+    confirmLabel: content.globalSettings.materialResetConfirm.confirm,
+    backLabel: content.globalSettings.materialResetConfirm.back,
   };
 }
 
@@ -586,11 +615,13 @@ function toMaterialResetConfirm(
  *  dulapuri"* is the bare number ADR 0001 decision 4 keeps off the screen, and it would say the
  *  wrong thing about the right press. Where both losses are true the cabinets' sentence is shown —
  *  it names the larger loss, and the kitchen's own colour goes with it either way. */
-function describeColourLoss(loss: PendingColourLoss): string {
+function describeColourLoss(loss: PendingColourLoss, content: Content): string {
   if (loss.chosenColourCount > 0) {
-    return ro.globalSettings.materialResetConfirm.body(loss.chosenColourCount);
+    return content.globalSettings.materialResetConfirm.body(
+      loss.chosenColourCount,
+    );
   }
-  return ro.globalSettings.materialResetConfirm.globalBody;
+  return content.globalSettings.materialResetConfirm.globalBody;
 }
 
 /**
@@ -604,16 +635,17 @@ function describeColourLoss(loss: PendingColourLoss): string {
  */
 function toColourGroupView(
   pending: WholeKitchenChoice,
+  content: Content,
 ): ColourGroupView | undefined {
   const materialTierId = pending.materialTierId ?? DEFAULT_MATERIAL_ID;
   const lookup = lookUpMaterial(materialTierId);
   if (lookup.kind === "undeclared") return undefined;
   return {
-    heading: ro.globalSettings.colourHeading,
+    heading: content.globalSettings.colourHeading,
     materialTierId,
     selected: pending.finish ?? lookup.material.defaultFinish,
-    note: ro.globalSettings.colourNote,
-    warning: ro.globalSettings.colourWarning,
+    note: content.globalSettings.colourNote,
+    warning: content.globalSettings.colourWarning,
   };
 }
 
@@ -630,21 +662,24 @@ function offeredCabinetDepthsMm(): readonly number[] {
   );
 }
 
-function toDepthGroupView(pendingDepthMm: number | undefined): DepthGroupView {
+function toDepthGroupView(
+  pendingDepthMm: number | undefined,
+  content: Content,
+): DepthGroupView {
   const offered = offeredCabinetDepthsMm();
   const selected = offered.includes(pendingDepthMm ?? Number.NaN)
     ? pendingDepthMm
     : DEFAULT_CABINET_DEPTH_MM;
   return {
-    heading: ro.globalSettings.depthHeading,
+    heading: content.globalSettings.depthHeading,
     shape: offered.length === 2 ? "toggle" : "list",
     options: offered.map((cabinetDepthMm) => ({
       cabinetDepthMm,
-      label: ro.globalSettings.depthOption(cabinetDepthMm),
+      label: content.globalSettings.depthOption(cabinetDepthMm),
       isSelected: cabinetDepthMm === selected,
     })),
-    note: ro.globalSettings.depthNote,
-    warning: ro.globalSettings.depthWarning,
+    note: content.globalSettings.depthNote,
+    warning: content.globalSettings.depthWarning,
   };
 }
 
@@ -654,14 +689,17 @@ function describeFigure(
   input: DescribeGlobalSettingsInput,
 ): PriceFigure | undefined {
   if (!input.pricing.ok) return undefined;
-  return describeStartingPrice({ totalMinor: input.pricing.priced.totalMinor });
+  return describeStartingPrice({
+    totalMinor: input.pricing.priced.totalMinor,
+    copy: input.content.price,
+  });
 }
 
 function describeOverflow(
   input: DescribeGlobalSettingsInput,
 ): string | undefined {
   if (!input.pricing.ok) return undefined;
-  return describeFlaggedTotalWarning(input.pricing.priced);
+  return describeFlaggedTotalWarning(input.pricing.priced, input.content.price);
 }
 
 /** What the pill needs and nothing else: the book's offer and **what the design carries**. The
@@ -670,6 +708,7 @@ function describeOverflow(
 export interface DescribeSettingsPillInput {
   readonly offer: WholeKitchenTierOffer;
   readonly applied: WholeKitchenChoice;
+  readonly content: Content;
 }
 
 /**
@@ -690,21 +729,27 @@ export function describeSettingsPill(
   const settings = [
     {
       key: "material" as const,
-      label: ro.globalSettings.pillMaterial(
-        selectedTierIn(input.offer.material, input.applied.materialTierId).name,
+      label: input.content.globalSettings.pillMaterial(
+        resolvedTierName(
+          selectedTierIn(input.offer.material, input.applied.materialTierId),
+          input.content,
+        ),
       ),
     },
-    ...colourEntryOf(input.applied),
+    ...colourEntryOf(input.applied, input.content),
     {
       key: "hardware" as const,
-      label: ro.globalSettings.pillHardware(
-        CHIP_CATEGORIES.hardware,
-        selectedTierIn(input.offer.hardware, input.applied.hardwareTierId).name,
+      label: input.content.globalSettings.pillHardware(
+        chipCategories(input.content).hardware,
+        resolvedTierName(
+          selectedTierIn(input.offer.hardware, input.applied.hardwareTierId),
+          input.content,
+        ),
       ),
     },
     {
       key: "depth" as const,
-      label: ro.globalSettings.pillDepth(
+      label: input.content.globalSettings.pillDepth(
         input.applied.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,
       ),
     },
@@ -714,11 +759,13 @@ export function describeSettingsPill(
     settings,
     ...(swatch === undefined ? {} : { swatch }),
     // **Every setting, whole, including the one that draws no text.** A colour with no name is a
-    // swatch on screen and a name here — `ro.globalSettings.pillColourName`'s fallback — because the
+    // swatch on screen and a name here — `spokenColourOf`'s fallback — because the
     // count is a visual economy and a swatch is not something a screen reader can read.
-    accessibleName: ro.globalSettings.pillNameAllSettings(
+    accessibleName: input.content.globalSettings.pillNameAllSettings(
       settings.map((setting) =>
-        setting.label === "" ? spokenColourOf(input.applied) : setting.label,
+        setting.label === ""
+          ? spokenColourOf(input.applied, input.content)
+          : setting.label,
       ),
     ),
   };
@@ -732,7 +779,7 @@ export function describeSettingsPill(
  * which four is a secret.
  */
 /** Frame 2A `:492` draws the counter as `+2`. **The mark lives here rather than in the copy module**:
- *  a `+` written into `ro.*` is arithmetic authored into a label, which is the same rule
+ *  a `+` written into the catalogue is arithmetic authored into a label, which is the same rule
  *  `starting-price.ts`'s `ADDED_AMOUNT_SIGN` carries for the delta's sign. It is a mark and a digit
  *  and it carries no Romanian. */
 const HIDDEN_SETTINGS_MARK = "+";
@@ -786,10 +833,11 @@ export function describePillRung(
  */
 function colourEntryOf(
   applied: WholeKitchenChoice,
+  content: Content,
 ): readonly SettingsPillEntry[] {
   const finish = appliedFinishOf(applied);
   if (finish === undefined) return [];
-  return [{ key: "colour", label: nameOfFinish(finish) }];
+  return [{ key: "colour", label: nameOfFinish(finish, content) }];
 }
 
 /** What the pill's one swatch wears. Absent only where the applied material is undeclared, which is
@@ -809,50 +857,48 @@ function appliedFinishOf(applied: WholeKitchenChoice): Finish | undefined {
   return applied.finish ?? lookup.material.defaultFinish;
 }
 
-/** A palette entry's declared name — looked up across **every** material's palette rather than the
- *  applied one's, so a document carrying an entry from a material it has since left is still named
- *  rather than shown an id. **A free colour returns nothing**: it has no name, and the pill draws it
- *  rather than writing it. */
-function nameOfFinish(finish: Finish): string {
+/** A palette entry's name, resolved from the entry id through the catalogue — so a document carrying
+ *  an entry from a material it has since left is still named, and a `/ru` customer reads the pill in
+ *  Russian rather than in the palette's Romanian. **A free colour returns nothing**: it has no name,
+ *  and the pill draws it rather than writing it. */
+function nameOfFinish(finish: Finish, content: Content): string {
   if (finish.kind === "free-colour") return "";
-  return (
-    PALETTE_ENTRIES.find((entry) => entry.entryId === finish.entryId)?.name ??
-    finish.entryId
-  );
+  return content.finishName(finish.entryId);
 }
 
 /** What a screen reader is told about a colour the pill only draws. The visible pill shows a swatch;
  *  a name has to be said, and for a free colour the only fact there is is the value itself. */
-function spokenColourOf(applied: WholeKitchenChoice): string {
+function spokenColourOf(applied: WholeKitchenChoice, content: Content): string {
   const finish = appliedFinishOf(applied);
   if (finish === undefined) return "";
   return finish.kind === "free-colour"
-    ? ro.globalSettings.pillColourValue(finish.value)
-    : nameOfFinish(finish);
+    ? content.globalSettings.pillColourValue(finish.value)
+    : nameOfFinish(finish, content);
 }
 
 function toGroupView(
   key: WholeKitchenGroupKey,
   group: OfferedTierGroup,
   pendingTierId: string | undefined,
+  content: Content,
 ): TierGroupView {
   const selected = selectedTierIn(group, pendingTierId);
   return {
     key,
-    heading: ro.globalSettings.groupHeadings[key],
+    heading: content.globalSettings.groupHeadings[key],
     // Stated exactly when there is an amount for it to be about: a heading that named an anchor
     // above a list stating no amounts would be a sentence about arithmetic nobody can see.
     ...(group.tiers.some((tier) => tier.deltaMinor !== undefined)
-      ? { anchor: ro.globalSettings.groupAnchors[key] }
+      ? { anchor: content.globalSettings.groupAnchors[key] }
       : {}),
     tierIds: group.tierIds,
     options: group.tiers.map((tier) => ({
       tierId: tier.tierId,
-      name: tier.name,
-      description: tier.description,
+      name: resolvedTierName(tier, content),
+      description: content.bookText(tier.description, tier.descriptionKey),
       ...(tier.deltaMinor === undefined
         ? {}
-        : { deltaText: describeDelta(tier.deltaMinor) }),
+        : { deltaText: describeDelta(tier.deltaMinor, content) }),
       isSelected: tier.tierId === selected.tierId,
     })),
   };
@@ -880,6 +926,14 @@ function selectedTierIn(
   return fallback;
 }
 
+/** What a tier is called on screen: the catalogue leaf its book row names, or the row's own authored
+ *  name where it names none — ADR 0106 decision 1, resolved here because this is where the content
+ *  is. The sheet's radios and the pill's segment go through this one function, so a tier cannot come
+ *  to be spelled two ways on the same screen. */
+function resolvedTierName(tier: OfferedTier, content: Content): string {
+  return content.bookText(tier.name, tier.nameKey);
+}
+
 /**
  * What one tier's badge prints.
  *
@@ -888,9 +942,9 @@ function selectedTierIn(
  * the number-that-is-not-a-price the ruled word exists to keep off the screen. Rounding is upward,
  * so only a tier that genuinely adds nothing can reach zero here.
  */
-function describeDelta(deltaMinor: number): string {
-  if (deltaMinor === 0) return ro.priceBreakdown.included;
-  return ro.globalSettings.tierDelta(describeAddedAmount(deltaMinor));
+function describeDelta(deltaMinor: number, content: Content): string {
+  if (deltaMinor === 0) return content.priceBreakdown.included;
+  return content.globalSettings.tierDelta(describeAddedAmount(deltaMinor));
 }
 
 /** The bodies the customer can see, which is what a whole-kitchen setting applies to. */

@@ -41,6 +41,7 @@ import {
   ACCESSORY_IDS,
   accessoryRuleOf,
   amountForBody,
+  DEFAULT_CABINET_SUPPLIER,
   exactAmountOfTerms,
   usableCoefficientOf,
   type AccessoryId,
@@ -282,6 +283,10 @@ function priceOnePlacement(
       // a second authority for the name of a body, which is what wave 6A exists to prevent.
       label: entry.label,
       widthMm: entry.widthMm,
+      // The one place the book's optional declaration becomes a fact every reader can rely on
+      // (ADR 0062 seam 1: absence is an ordinary declaration, not an omission). Defaulted here and
+      // nowhere else, so no surface has to know what a missing `suppliedBy` means.
+      suppliedBy: rule.suppliedBy ?? DEFAULT_CABINET_SUPPLIER,
       quantity: 1,
       unitAmountMinor: amountMinor,
       amountMinor,
@@ -697,6 +702,7 @@ function wholeKitchenLine(line: {
       tierId: line.tier.tierId,
       name: line.tier.name,
       description: line.tier.description,
+      ...textKeysOf(line.tier),
       quantity: WHOLE_KITCHEN_QUANTITY,
       unitAmountMinor: line.unitAmountMinor,
       amountMinor: WHOLE_KITCHEN_QUANTITY * line.unitAmountMinor,
@@ -789,6 +795,7 @@ function accessoryLine(billed: {
       accessoryId: billed.accessoryId,
       name: rule.name,
       description: rule.description,
+      ...textKeysOf(rule),
       quantity: billed.quantity,
       unitAmountMinor: unitAmountMinor.value,
       amountMinor,
@@ -799,6 +806,24 @@ function accessoryLine(billed: {
 /** The smallest quantity that is a line. Below it there is nothing to bill, and the line is omitted
  *  rather than published at nothing. */
 const ONE_ACCESSORY = 1;
+
+/** The catalogue leaves a book row names for its rendered text (ADR 0106 decision 1), carried
+ *  onto the line that prices it.
+ *
+ *  **Absent rather than present-and-`undefined`** where the row names none, so a line's own shape
+ *  says which of the two resolution paths it takes and a row that names no key is indistinguishable
+ *  from the dashboard-authored row ADR 0106 decision 2 keeps `name` required for. */
+function textKeysOf(row: {
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
+}): { readonly nameKey?: string; readonly descriptionKey?: string } {
+  return {
+    ...(row.nameKey === undefined ? {} : { nameKey: row.nameKey }),
+    ...(row.descriptionKey === undefined
+      ? {}
+      : { descriptionKey: row.descriptionKey }),
+  };
+}
 
 /**
  * `usableCoefficientOf` **throws** for a tier or accessory amount that is not an exact count of
