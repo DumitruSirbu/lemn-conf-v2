@@ -206,6 +206,23 @@ const romanianLiteralAllowanceBlocks = ROMANIAN_LITERAL_FILE_ALLOWANCES.map(
   }),
 );
 
+// **A relative import that climbs out of its package into another workspace directory**, at any
+// depth of `../`. A `regex` pattern rather than a `group` glob, because the glob can only be wrong one
+// of two ways: anchored at one depth (`../../apps/*`), it never matches a module under `src/**`, which
+// sits deeper; unanchored (`**/apps/**`), it also matches a bare specifier that merely has an `apps`
+// or `packages` segment, such as `next/dist/compiled/packages/x`. Anchored at the start, so only a
+// path beginning `./` or `../` can match. `directories` is a regex alternation.
+function relativeClimbInto(directories) {
+  return `^(?:\\./)?(?:\\.\\./)+(?:${directories})(?:/|$)`;
+}
+
+const DOMAIN_IMPORT_BOUNDARY =
+  "The configurator domain must remain independent of React, Next.js, Three.js, UI, adapter, and catalog-data implementations.";
+const ADAPTER_IMPORT_BOUNDARY =
+  "The three-adapter must stay free of React, Next.js and the application shell; it consumes scene contracts and returns Three.js objects.";
+const WEB_IMPORT_BOUNDARY =
+  "Import workspace packages through their public entry point; design-source is reference material, not a runtime dependency.";
+
 export default tseslint.config(
   {
     ignores: [
@@ -279,15 +296,14 @@ export default tseslint.config(
                 "@lemnaria/catalog-data/*",
                 "@lemnaria/web",
                 "@lemnaria/web/*",
-                "../../apps/*",
-                "../../apps/**",
-                "../three-adapter",
-                "../three-adapter/*",
-                "../catalog-data",
-                "../catalog-data/*",
               ],
-              message:
-                "The configurator domain must remain independent of React, Next.js, Three.js, UI, adapter, and catalog-data implementations.",
+              message: DOMAIN_IMPORT_BOUNDARY,
+            },
+            {
+              regex: relativeClimbInto(
+                "apps|(?:packages/)?(?:three-adapter|catalog-data)",
+              ),
+              message: DOMAIN_IMPORT_BOUNDARY,
             },
           ],
         },
@@ -314,11 +330,12 @@ export default tseslint.config(
                 "@react-three/*",
                 "@lemnaria/web",
                 "@lemnaria/web/*",
-                "../../apps/*",
-                "../../apps/**",
               ],
-              message:
-                "The three-adapter must stay free of React, Next.js and the application shell; it consumes scene contracts and returns Three.js objects.",
+              message: ADAPTER_IMPORT_BOUNDARY,
+            },
+            {
+              regex: relativeClimbInto("apps"),
+              message: ADAPTER_IMPORT_BOUNDARY,
             },
           ],
         },
@@ -336,12 +353,13 @@ export default tseslint.config(
               group: [
                 "@lemnaria/three-adapter/*",
                 "@lemnaria/configurator-domain/*",
-                "../../packages/*",
-                "../../packages/**",
                 "**/design-source/**",
               ],
-              message:
-                "Import workspace packages through their public entry point; design-source is reference material, not a runtime dependency.",
+              message: WEB_IMPORT_BOUNDARY,
+            },
+            {
+              regex: relativeClimbInto("packages"),
+              message: WEB_IMPORT_BOUNDARY,
             },
           ],
         },

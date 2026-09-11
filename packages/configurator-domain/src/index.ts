@@ -221,3 +221,30 @@ export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";
 export * from "./migrate-design.js";
+// The room a customer types, judged against policy data (ADR 0108). The policy is a parameter of
+// the validator and not an import of it; the owner-approved one is exported for `apps/web`'s
+// composition root to hand in — the price book's shape (ADR 0062 seam 1). The engine's own limits
+// are deliberately not exported (Amendment B): they are what the approved policy is guarded
+// against, never a policy a surface may run on.
+export { APPROVED_ROOM_POLICY } from "./room/approved-room-policy.js";
+export type {
+  BuildableShapes,
+  LWallBounds,
+  MillimetreBounds,
+  RoomPolicy,
+  RoomPolicyApproval,
+} from "./room/room-policy.js";
+export {
+  validateRoomInput,
+  type CornerDirection,
+  type EnteredMillimetres,
+  type LinearRoomInput,
+  type LRoomInput,
+  type RoomField,
+  type RoomInput,
+  type RoomIssue,
+  type RoomIssueCode,
+  type RoomShape,
+  type RoomValidation,
+  type URoomInput,
+} from "./room/validate-room.js";
