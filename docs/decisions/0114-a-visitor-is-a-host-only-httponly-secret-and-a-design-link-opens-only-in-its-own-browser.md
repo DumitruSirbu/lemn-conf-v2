@@ -1,8 +1,6 @@
 # ADR 0114 — A returning visitor is recognised by a host-only, HttpOnly secret, and a design's link opens only in the browser that owns it
 
-Status: Accepted for the visitor cookie (owner requirement, 2026-09-11). **Proposed for read-gating**
-(decision 5), which changes ADR 0002 and ADR 0019 decision 1 and waits on the owner's answer to the
-M7 plan's follow-up **F5**. Supersedes ADR 0111 Amendment A2's pointer design.
+Status: ~~Accepted for the visitor cookie (owner requirement, 2026-09-11). **Proposed for read-gating** (decision 5), which changes ADR 0002 and ADR 0019 decision 1 and waits on the owner's answer to the M7 plan's follow-up **F5**. Supersedes ADR 0111 Amendment A2's pointer design.~~ ~~**Accepted in full, 2026-09-11 — the owner answered F5 "Only its own browser" (Amendment A).**~~ **Accepted in full, 2026-09-11 — the owner revised F5 the same day to "Own browser + private share link" (Amendment B, which supersedes Amendment A).** Supersedes ADR 0111 Amendment A2's pointer design; supersedes the open read of ADR 0002 and ADR 0019 decision 1. **Amendment C, 2026-09-11** — the share link is made short (12 base62 characters, ~71 bits) on the owner's later statement; how a browser becomes authorised to *edit* is being re-decided by the owner (PIN or customer profiles) and is not yet recorded. **Amendment D, 2026-09-11** — the editing half is settled by [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md): customer profiles in M8 replace the PIN; in M7 the owning browser's cookie alone authorises reading and editing.
 Date: 2026-09-11
 Type: Decision (owner requirement + engineering)
 Milestone: M7 — waves 7E3a and 7E3b (architect's re-plan, `docs/milestones/M7-room-and-presets.md`)
@@ -147,3 +145,134 @@ still show the design read-only.
 | [0111](0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md) Amendment A2 | A pointer cookie holding the design id. | **Superseded** by decision 1. A1, A3–A6 stand. |
 | [0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md) | The author credential is separate. | **Confirmed** (decision 6). |
 | [0020](0020-a-migration-file-is-not-an-applied-migration.md), [0042](0042-the-database-records-which-migrations-it-ran.md), [0096](0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md) | Migration rules. | **Followed** (decision 3). |
+
+## Amendment A — 2026-09-11: the owner answered F5 — SUPERSEDED THE SAME DAY by Amendment B
+
+> **The owner revisited F5 the same day and chose a different option** — see Amendment B. The text
+> below is struck, not deleted, because it was recorded as the owner's answer for a few hours.
+
+
+~~The option chosen, verbatim: **"Only its own browser"**. Decision 5 is **accepted**: a design's link~~
+~~opens only in the browser holding the owning visitor cookie, and sharing comes later as an explicit~~
+~~share action. The cookie's and the design's lifetime stays **30 days after the last change** (decision~~
+~~1's table; ADR 0019 decision 7). ADR 0002 and ADR 0019 decision 1 carry dated supersession notes, and~~
+~~M7 wave 7E3b — which implements decision 5 — is unblocked.~~
+
+## Amendment B — 2026-09-11: the owner's revised F5 — the owner's browser, plus a private, revocable share link
+
+**The option chosen, verbatim** (owner, 2026-09-11, replacing Amendment A's answer the same day):
+
+> **"Own browser + private share link"**: *"Normal link opens only in the owner's browser; a separate
+> 'share' button creates a second read-only link the customer can send (e.g. to the manufacturer or
+> family) and revoke later."*
+
+**B1. Decision 5 stands for `/d/{id}`.** Reads require the owning visitor cookie; anyone else — a
+missing cookie, a foreign cookie, a nonexistent id — gets the byte-identical *"not available in this
+browser"* response. What Amendment A deferred to *"later"* is now part of M7: the share link.
+
+**B2. The share link is a second credential, read-only, and nothing else.**
+
+| Property | Decision | Why |
+| --- | --- | --- |
+| What it carries | Its own 256-bit random token (`node:crypto`), base64url; **never the design id** | A leaked share link reveals nothing about the design's own link, and revoking it touches nothing else. |
+| What is stored | Only the token's hash, in a new `design_share_links` table (design id, token hash, created, revoked), by a numbered migration under ADR 0020/0042/0096, with the same hash-shape check as the write token | A database read does not yield working links. |
+| How many | **One active link per design** at a time, enforced by a partial unique index over rows not revoked | The owner's words are *"a second read-only link"*, singular. One link is one thing to revoke; the table admits several later by dropping the index, with no data migration. |
+| Revocation | **Immediate**: every share read checks, in the same query, that the row is not revoked | *"revoke later"* means the next request fails, not the next deploy or cache expiry. |
+| Re-issue | **Yes** — "share" again mints a **new** token; a revoked token never works again, and issuing a new link revokes any active one | The customer who sent a link to the wrong person must be able to cut it off and send a fresh one. |
+| Lifetime | **The design's**: the row is deleted with its design (FK cascade) when retention removes it, 30 days after the last change (ADR 0019 decision 7). Viewing through a share link does **not** refresh retention. | A share link cannot keep a design alive; only its owner's saves do. No second clock. |
+| URL | `/[locale]/s/{token}` — a customer route through `proxy.ts`'s allow-list, CSP nonce included | The locale is presentation (ADR 0095 decision 4); the token is the only identifier in the path. |
+| Headers | `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` (and the robots meta), `Cache-Control: private, no-store` | The token lives in the path, so no request from the page may carry it onward; no search engine or shared cache may keep it. |
+| Shown once | The owner sees the new link once, when created, with a copy action; the server cannot show it again, having only the hash | *"Stores only the token's hash"* rules out redisplay; re-issue is the recovery. |
+
+**B3. What a share link grants: a read-only view, and nothing that leads to editing.** The share page
+renders the design in the editor's **existing read-only mode** — the 3D scene, the panel read-only, the
+price — which is the surface ADR 0019 decision 1 built for link holders and which 7E3b would otherwise
+retire. It shows no control that edits, saves, re-depths or opens Step 1. It **never** mints a design,
+**never** sets or reads the visitor cookie or a write token, **never** runs the write-access probe, and
+never reveals the design id — not in the page, its payload or any API response it calls. The design is
+served to it through a share-scoped read (`GET` by token), not through `/api/designs/{id}`.
+
+**B4. Only the owner creates or revokes.** `POST` and `DELETE /api/designs/{id}/share` sit under the
+write token's own path, so the browser sends the per-design token to them and nothing else does. Both
+require that token and the owning visitor cookie. No customer can mint a share link for someone else's
+design, and the preset-author credential (ADR 0112) is not involved.
+
+**B5. Rate limits: nothing pulled forward from M8.** Guessing a 256-bit token is not an attack; a
+wrong token costs one indexed hash lookup, the same class as today's `/d/{random}`. Creation is behind
+the write token, so it adds no unauthenticated write. M8's limiter and WAF scope gain `/s/*` and the
+share endpoints.
+
+**B6. A share link is not a way back in.** It is read-only by construction, so it cannot restore a
+customer's editing after cookie loss; M8's e-mailed link, which re-binds both cookies, remains that
+path. Recommending otherwise would turn a link meant for the manufacturer or family into an edit
+credential.
+
+**B7. M8 inherits two corrections.** Its success screen's promise that the design *"can be reopened"*
+must say *in this browser, or through the link we e-mail you*; and its manufacturer hand-off is an
+immutable snapshot (`ARCHITECTURE_PROPOSAL.md` §9), which does not depend on a share link — if the
+submission should include one, M8 creates it through B4's endpoint.
+
+**Copy.** The share control and page add wording no mockup draws; it is drafted and recorded under
+[ADR 0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)'s
+ruling for M7's new wording, which the owner may adjust later. No frame draws the control either, so
+its placement is the wave's, verified at 390 × 844 against ADR 0104's top-bar rules.
+
+## Amendment C — 2026-09-11: the share link is short; the editing credential is being re-decided
+
+**The owner restated F5 later the same day**, verbatim:
+
+> *"For editing we should request a password or pin code, but for sharing we need to generate a short
+> link that will offer only read only configuration without any passowrds."*
+
+**Only the sharing half is recorded here.** The editing half — a PIN, or customer profiles with an
+e-mail and password, which the owner has since proposed — is being settled with the owner and is
+**deliberately not designed in this record yet**. Until it is, Amendment B's premise that the owning
+browser's cookie alone authorises editing is **under revision**, and wave 7E3b (gating `/d/{id}`) is
+on hold. Nothing else in Amendment B is withdrawn.
+
+**C1. "Short" is 12 base62 characters — about 71 bits — and it is short enough to need no rate
+limiter.** 62^12 ≈ 3.2 × 10^21, i.e. 12 × log2(62) ≈ 71.4 bits. The guessing budget is what decides it,
+worked at deliberately generous attacker figures — a million live share links and a thousand guesses a
+second sustained, far beyond what the platform's edge would pass:
+
+| Length | Entropy | Expected time to hit *any* live link (10^6 links, 10^3 guesses/s) |
+| --- | --- | --- |
+| 10 | ≈ 59.5 bits | ≈ 8.4 × 10^17 / 10^9 ≈ 8.4 × 10^8 s ≈ **27 years** — too thin without a limiter |
+| **12** | **≈ 71.4 bits** | ≈ 3.2 × 10^21 / 10^9 ≈ 3.2 × 10^12 s ≈ **100,000 years** |
+| 16 | ≈ 95 bits | beyond any meaning; the link stops being short |
+
+So Amendment B2's 256-bit token is **replaced by a 12-character base62 token** from `node:crypto`
+(rejection-sampled, so every character is uniform — a modulo reduction would bias it). **No ADR 0019
+M8 control is pulled forward for share-token guessing**; M8's limiter and WAF scope still include
+`/s/*`, as defence in depth. The hash stays SHA-256 of the token: a slow hash buys nothing against a
+71-bit random secret, whose preimage is out of reach at any speed.
+
+**C2. The link handed out is `https://{host}/s/{token}`, without a locale.** The proxy's existing
+negotiation (ADR 0095 decision 4: the unprefixed path redirects by cookie, then `Accept-Language`)
+sends each *recipient* to `/{locale}/s/{token}` in their own language, and the link stays short. The
+page itself remains `/[locale]/s/[token]` behind `proxy.ts`'s allow-list.
+
+**C3. What stands from Amendment B, unchanged:** read-only, **no password**; only the hash stored;
+one active link per design; immediate revocation; re-issue mints a new token and kills the old; the
+link lives and dies with its design and never refreshes retention; `Referrer-Policy: no-referrer`,
+`noindex, nofollow`, `private, no-store`; the existing read-only editor view; never a write, never
+the design id, never either cookie. **Amended:** B4's *"requires that token and the owning visitor
+cookie"* becomes *"requires whatever authorises editing the design"* — today the write token and the
+visitor cookie, and whatever the owner's pending decision adds.
+
+## Amendment D — 2026-09-11: the editing credential is settled — a profile, in M8
+
+The owner replaced the PIN with a customer profile (e-mail and password) and placed it in M8
+([ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)). For M7 that settles what Amendment C left open: **the owning browser's visitor
+cookie alone authorises reading and editing `/d/{id}`**, and creating or revoking a share link
+requires the write token plus that cookie. Amendments B and C stand in full; 7E3b comes off hold.
+
+**Corrected in place by this amendment:** where this record says the way back after cookie loss is
+*"M8's e-mailed link"* (*What the visitor sees when the cookie is gone*, decision 7's consequence, B6
+and B7), read **M8's customer profile**, into which anonymous designs are claimed at sign-up. ADR 0019
+decision 8's e-mailed edit link is superseded by ADR 0115; whether it survives beside profiles is
+M8's to decide.
+
+**The owner's clarification, verbatim: *"short link only to share"*.** Consistent with Amendment C:
+the 12-character token is the share link's alone. A design's own address `/d/{id}` keeps its existing
+`nanoid` identifier and is not shortened. Nothing in this record said otherwise.

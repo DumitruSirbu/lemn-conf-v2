@@ -1,6 +1,6 @@
 # ADR 0019 — Security baseline: write authorisation, layered throttling, and retention
 
-Status: Accepted
+Status: Accepted (**decision 1's open read is superseded 2026-09-11 by the owner's F5 ruling; its write half stands — [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)**; **decision 8 and Alternatives 1–2 superseded 2026-09-11 by the owner's profile ruling — [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)**)
 Date: 2026-08-25
 Type: Decision
 Milestone: M3 Wave 3C (write authorisation, throttling) and M8 (contact form, recovery)
@@ -372,3 +372,30 @@ prunes on a 30-day delay while the flood continues, and the WAF rule is per-regi
 construction (decision 2) and was never a hard cap.
 
 A plan or a runbook is not a runtime control. Neither is this record.
+
+## Supersession note — 2026-09-11: decision 1's read half
+
+The owner answered the M7 plan's follow-up F5 on 2026-09-11 with **"Only its own browser"**.
+**Superseded:** decision 1's *"`GET /d/{id}` and `GET /api/designs/{id}` stay open to anyone holding
+the link. Sharing keeps costing nothing."* Reads now require the browser holding the design's owning
+visitor cookie ([ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+decision 5), and a read-only share becomes a later, explicit action. **Unchanged:** the per-design,
+path-scoped write token and everything about writes; decisions 2–11, including decision 7's 30-day
+retention, which the owner kept as the visitor cookie's lifetime too. Implemented by M7 wave 7E3b;
+until it lands the code still answers reads to any link holder.
+
+**Revised the same day, 2026-09-11.** The owner replaced *"Only its own browser"* with **"Own browser +
+private share link"**. Decision 1's open read stays superseded for `/d/{id}`; the read-only view it
+created for link holders **survives behind a separate, revocable share token** that grants no write
+and never carries the design id or either cookie ([ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+Amendment B; M7 wave 7E3c, ahead of 7E3b).
+
+## Supersession note — 2026-09-11: decision 8 — accounts with passwords, in M8
+
+The owner ruled on 2026-09-11 (**"Profile replaces PIN"**, then **"In M8, with e-mail"**) that
+cross-device editing is a **customer profile with e-mail and password**, built in M8
+([ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)). **Superseded:** decision 8 (*"Cross-device editing uses an emailed link, never a
+password"*) and the rejection of Alternatives 1 (a password) and 2 (accounts). **Not dismissed:** the
+reasons Alternative 1 gave — password reuse, hashing and never-logging duties, the reset path — are now
+M8's obligations, recorded in `docs/milestones/M8-review-contact-success.md`, *Customer profiles*.
+Decisions 1 (write half), 2–7 and 9–11 stand.

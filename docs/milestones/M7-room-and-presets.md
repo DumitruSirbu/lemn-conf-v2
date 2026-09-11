@@ -185,23 +185,28 @@ screen is built, the way you did Gate O1?
 ### Follow-up questions — 2026-09-11
 
 ~~Four, all short. **Only F1 blocks a wave** (7J); the rest have defaults the build runs on.~~
-**Six, all short (F5 and F6 added later the same day). F1 blocks wave 7J and F5 blocks wave 7E3b;**
-the rest have defaults the build runs on.
+~~**Six, all short (F5 and F6 added later the same day). F1 blocks wave 7J and F5 blocks wave 7E3b;**
+the rest have defaults the build runs on.~~ **All answered 2026-09-11** — the owner picked the
+recommended option on each, through a structured prompt; the option labels are quoted verbatim
+below. **Nothing in M7 is blocked on the owner any more.** F7 was asked afterwards by the coordinator.
 
 - **F1 — Straight kitchen wall length.** Accept a straight wall from **1200 mm** to **6300 mm**?
   1200 is a sink plus a hob, the minimum kitchen you ruled; 6300 is the most a design can store.
-  *Blocks wave 7J.*
+  ~~*Blocks wave 7J.*~~ **Answered 2026-09-11: "Yes, 1200–6300 mm"** — 7J is unblocked (ADR 0108
+  Amendment D).
 - **F2 — Upper cabinets in a composed kitchen.** Should the app put upper cabinets above the base run
-  (same widths) and a hood over the hob? *Recommended:* yes. *Until you answer:* base row only.
+  (same widths) and a hood over the hob? *Recommended:* yes. ~~*Until you answer:* base row only.~~
+  **Answered 2026-09-11: "Yes, uppers + hood"** (ADR 0110 Amendment C).
 - **F3 — What goes first on a short wall.** The ideal row is fridge, sink, preparation cabinet, hob.
   When it does not all fit, drop the fridge first and then the preparation cabinet — keeping the sink
-  and the hob? *Recommended:* yes (the mockup's own example drops the fridge). *Until you answer:*
-  exactly that.
+  and the hob? *Recommended:* yes (the mockup's own example drops the fridge). ~~*Until you answer:*
+  exactly that.~~ **Answered 2026-09-11: "Fridge first, then prep"** (ADR 0110 Amendment C).
 - **F4 — Adapting a preset to a smaller or larger room.** A preset shown for a room up to 600 mm
   smaller loses cabinets from the free end of each wall until it fits (never the sink, the hob or the
   corner), and any bare stretch of 600 mm or more — in a smaller or a larger room — gets a 600 mm
-  storage cabinet, so at most 599 mm is ever left empty. Is that what you meant? *Until you answer:*
-  exactly that.
+  storage cabinet, so at most 599 mm is ever left empty. Is that what you meant? ~~*Until you answer:*
+  exactly that.~~ **Answered 2026-09-11: "Yes, drop from free ends"** (ADR 0109 Amendment D); F7
+  bounds the 599 on wall B.
 - **F5 — Who can open a design's link.** Today anyone who has a design's link can open it read-only.
   You asked that nobody can open a configuration by accident or as a hacker. Should a design's link
   open **only in the browser that created it** — so a link that leaks through history, a screenshot
@@ -211,7 +216,25 @@ the rest have defaults the build runs on.
   them; the browser cookie is already secure either way (ADR 0114). **Blocks wave 7E3b.** *Related,
   and only if you want to change it:* the browser remembers a visitor for 30 days after their last
   change, because an untouched design is deleted after 30 days (ADR 0019); remembering visitors
-  longer means keeping designs longer too.
+  longer means keeping designs longer too. ~~**Answered 2026-09-11: "Only its own browser"** — the
+  30-day lifetime stands; ADR 0114 decision 5 is accepted (its Amendment A), ADR 0002 and ADR 0019
+  decision 1 carry dated supersession notes, and 7E3b is unblocked.~~ **Superseded the same day: the
+  owner revisited F5 and chose "Own browser + private share link"** — *"Normal link opens only in the
+  owner's browser; a separate 'share' button creates a second read-only link the customer can send
+  (e.g. to the manufacturer or family) and revoke later."* ADR 0114 Amendment B designs it (one
+  revocable, hash-stored, read-only token per design at `/[locale]/s/{token}`); the 30-day lifetime
+  stands; ADR 0002 and ADR 0019 decision 1 carry revised dated notes. New wave **7E3c** builds the share
+  link, and 7E3b follows it. **Restated later the same day** — *"For editing we should request a
+  password or pin code, but for sharing we need to generate a short link that will offer only read
+  only configuration without any passowrds."* — **the sharing half is recorded** (ADR 0114 Amendment C:
+  a 12-character base62 link, ~71 bits, no password); ~~**the editing half is pending**: the owner is
+  choosing between a PIN and customer profiles (e-mail and password, with a small dashboard). 7E3b is
+  on hold until that answer.~~ **Settled the same day ([ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)):** three PIN answers
+  (*"Only on a new browser"*, *"6-digit PIN + lockout"*, *"Reset by e-mail, from M8"*) were given and
+  then superseded by **"Profile replaces PIN"** and **"In M8, with e-mail"** — customer profiles
+  (e-mail + password, a dashboard, a modal after the first configuration) are built in **M8**. **M7
+  ships the owning-browser cookie and the short share link, and no PIN work.** Clarified: *"short link
+  only to share"* — `/d/{id}` keeps its identifier. 7E3b is off hold.
 - **F6 — The second wall when one wall is only 900 mm.** You said *"the second wall should have at
   1500 mm ideally 2000 mm"*. Measured, the corner takes the first 900 mm of the second wall (1000 mm
   with the deeper 700 mm cabinets), so **1500 mm holds a sink or a hob, not both, and 2000 mm still
@@ -219,7 +242,14 @@ the rest have defaults the build runs on.
   the standard 600 mm cabinets). Which do you want: (a) the room must hold a sink and a hob, so the
   second wall is at least 2160 mm when the first is 900 mm *[recommended — it keeps your "minimum sink
   and hob"]*; or (b) keep 1500 mm and accept a kitchen with only a sink or only a hob in such rooms?
-  *Until you answer:* (a).
+  ~~*Until you answer:* (a).~~ **Answered 2026-09-11: "Must hold sink + hob"** — option (a), now an
+  owner ruling rather than an interim (ADR 0108 Amendment D).
+- **F7 — Keep wall B's 100 mm reserve?** *(Asked by the coordinator after the 7D1-P adjudication.)*
+  Composed kitchens keep the last 100 mm of wall B free so that a later switch to 700 mm cabinets
+  marks nothing, at the cost of wall B's bare end reaching up to 699 mm at the 600 mm depth — above
+  Q2's 599 mm. **Answered 2026-09-11: "Keep the 100 mm reserve"** — the owner confirms ADR 0110
+  Amendment B3 and ADR 0109 Amendment C, and the reserve is a stated exception to the 599 mm rule on
+  wall B (ADR 0110 Amendment C).
 
 **Not asked, because it is already decided:** what gives when a deeper cabinet (700 mm) will not fit
 a narrower wall. [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
@@ -1225,7 +1255,7 @@ table.
 | --- | --- | --- | --- | --- | --- | --- |
 | **7A** | Room validation; the approved L policy — **DONE, `8df0d49`** | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
 | **7D1** | Composition shell for the L | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
-| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/index.ts` | 7D1 | Full | No | F2, F3 defaults |
+| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
@@ -1234,18 +1264,19 @@ table.
 | **7P2** | Authoring gate, save endpoint, editor button | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
 | **7G** | Thumbnail captured at save, stored, served | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts` | 7P2 | Full + security (upload) | Capture | — |
 | **7B** | Preset matching: ±600 window, fit, availability, one evaluation | *carried* files; revised criteria below | 7A | Full | No | — |
-| **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | F4 default |
-| **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | **F6** default (a) |
+| **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
+| **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
 | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
 | **7E4** | e2e and tooling off `/configurator/configure` | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs` | — | Light (tests; CI is the verdict) | No | — |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
-| **7E3b** | A design opens only in its owning browser; the read-only share view retired | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a | **Full + security** | Light | **F5 blocks** |
+| **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
+| **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room | *carried* | 7E2 | Full | **Yes** + desktop | — |
 | **7I** | Mirrored right-hand L; a mirror that works on one group | *carried*, plus the per-group primitive | 7H | Full | **Yes** | answered (Q6) |
-| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts`, `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | **F1 blocks** |
-| **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a (and 7E3b if F5 is *yes*) | Light (tests) | **Yes — the phase gate** | — |
+| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked |
+| **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
 
@@ -1253,7 +1284,27 @@ table.
 is the critical path, because matching is useless until the library has presets: **7A → 7D1 → 7D2 →
 7E1 → 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G**, then 7B → 7C → 7F2 → 7F3 for matching, ~~with 7E4 → 7E3, 7H,
 7I and 7J fitted in where the tree is free~~ **then 7A2 once 7D2 exists, with 7E4 → 7E3a (→ 7E3b on
-F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11). The four domain waves share `src/index.ts`; run them one
+F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **and again the same day:
+7E4 → 7E3a → 7E3c → 7E3b** — the share path lands before the open read closes).
+
+**The 7E3 split, confirmed against F5's final answer (ADR 0115) — three waves, not two.**
+- **7E3a — cookie and resume.** Needed under every answer the owner gave; nothing reads a design by
+  owner until the cookie and the visitor hash exist.
+- **7E3c — the short share link, before 7E3b.** It is the only read path a non-owner will have, so it
+  must exist before the open read closes: the three read-only e2e specs move to `/s/{token}` instead of
+  being deleted, and no state in between has the read-only view gone.
+- **7E3b — gating `/d/{id}` to the owning cookie.** Last, because it is the change that takes the open
+  read away.
+- **Not merged, although coupled:** 7E3c alone is a migration, a repository, two endpoints, a page and
+  a control; adding 7E3b's route and API changes would pass `docs/WORKFLOW.md`'s five-file limit and
+  put two security surfaces in one review. Instead the **same security reviewer is kept across the
+  three** (*Review continuity*), so the read path and its gate are judged by one agent with the whole
+  picture.
+- **Security review on each; adversarial QA emphasis:** cookie fixation and tossing (7E3a — the
+  `__Host-` prefix); share-token guessing and enumeration through response differences (7E3c); timing
+  and byte-identity of *"not available"* across a wrong id, a foreign cookie and a missing cookie
+  (7E3b); CSRF on the share create/revoke endpoints (7E3c); a share view reaching any write, any cookie
+  or the design id (7E3c); revocation racing a read (7E3c). The four domain waves share `src/index.ts`; run them one
 after another.
 
 **Next dispatchable wave after 7A: 7D1** — its punch list follows the revised criteria.
@@ -1296,7 +1347,8 @@ with *recipe* meaning a library row or a fixture)
    `removePlacement` refuses as `NOT_DELETABLE`) is **not instantiated**, by the 7D1 shell's own
    selection rule; both are declared as a dropped row; then every recorded extent — `emptyColumns`
    and `columnExtents`, the corner's own column included — is capped at the room height by the
-   **one** helper the 7D1 shell also uses. A test asserts `removePlacement` is never called on a
+   **one** shared helper, ~~which the 7D1 shell also uses~~ **written in this wave** (Adjudication 7D1-P:
+   the shell needs no cap). A test asserts `removePlacement` is never called on a
    structural piece. *Property* over heights
    2200–2599: no body and no recorded extent rises above the room, the design has zero findings, and
    the sink and the hob are untouched. Consistent with *"a listed preset always applies"*: the listed
@@ -1310,12 +1362,23 @@ with *recipe* meaning a library row or a fixture)
 8. A room that cannot hold a sink and a hob returns *minimum not met* and no design; *property*: every
    design returned contains both.
 9. The leftover rule: no bare run end of 600 mm or more in any returned design (*property*), and the
-   remainder is an empty column the published openings include.
-10. F3's default drop order — storage, then the fridge, then the preparation cabinet — holds on a
-    sweep of short walls; the sink and the hob are never dropped.
+   remainder is an empty column the published openings include. **Owner-ruled exception (F7,
+   2026-09-11):** on wall B, measured at the shell's depth, the bare end may reach 599 mm **plus the
+   depth reserve** (`alongWallShiftMm` to the deepest declared depth — 699 today); after
+   `setCabinetDepth` to the deepest depth it is at most 599 again.
+10. ~~F3's default drop order~~ **F3's ruled drop order ("Fridge first, then prep", 2026-09-11)** —
+    storage, then the fridge, then the preparation cabinet — holds on a sweep of short walls; the sink
+    and the hob are never dropped.
+12. **Upper cabinets and the hood (F2, "Yes, uppers + hood", 2026-09-11):** above every body of the
+    base run the composed kitchen places a `wall-cabinet` of the same width, and over the hob a `hood`
+    of the hob's width instead, all through `insertBody` into the wall-band openings — never above the
+    fridge (a column) and never in the top row. *Property:* every base body of a returned design has
+    exactly one wall-band body above it with the same along-wall extent, the one above the hob is a
+    hood, and the log lists the uppers after their bases. An upper that cannot be placed is logged as
+    *not placed* and removes nothing below it.
 11. **Low ceilings**: the property in criterion 1 includes heights 2200–2599, and no generated body
-    rises above the room — the shell's cap means a top-row body is never offered there. **If F2 adds
-    upper cabinets and a hood**, they stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
+    rises above the room — the shell's cap means a top-row body is never offered there. ~~**If F2 adds
+    upper cabinets and a hood**~~ **The upper cabinets and hood F2 added** stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
     under every approved ceiling (≥ 2200); the top row (2200–2600) is never part of a composed kitchen
     and is offered to the customer only where the room is 2600 or higher.
 
@@ -1327,7 +1390,8 @@ below (ADR 0114)**; the struck criteria assumed a cookie holding the design id.
 - ~~3. The pointer holds nothing but an id; no route authorises a read or a write from it; a request carrying a pointer but no write token cannot save.~~
 - ~~4. Must not: the locale reaches the pointer; the pointer is readable from script; the design id appears in a log line it did not already appear in.~~
 
-**7A2 — the coupled room rule** (ADR 0108 Amendment C; dispatched after 7D2)
+**7A2 — the coupled room rule** (ADR 0108 Amendments C and D — **owner-ruled 2026-09-11, F6 "Must
+hold sink + hob"**; dispatched after 7D2)
 
 1. `validateRoomInput` gains one code, `ROOM_TOO_SMALL_FOR_KITCHEN`, on a room-level field, with no
    number; the per-field codes are unchanged and are reported first, so a room with a bad wall never
@@ -1340,8 +1404,10 @@ below (ADR 0114)**; the struck criteria assumed a cookie holding the design id.
    generator that disagree on any sampled room.
 4. Boundary rows from Amendment C's table: with wall A at 900, wall B 2159 fails and 2160 passes;
    with wall B at 1000, wall A 2059 fails and 2060 passes; wall B 1560 with wall A 1500 passes.
-5. If F6 is answered (b), only the policy's data changes — the rule becomes *either fits* — and the
-   property is rerun.
+5. ~~If F6 is answered (b), only the policy's data changes — the rule becomes *either fits* — and the
+   property is rerun.~~ **F6 was answered (a).** The rule's data enters `APPROVED_ROOM_POLICY` as
+   owner-approved, guarded by the same test pattern as 7A: each approved figure at or above the
+   engine's derived one. **The linear bounds do not enter here** — they arrive with 7J (see 7J).
 
 **7E3a — visitor identity and resume** (security reviewer dispatched; ADR 0114 decisions 1–4, 6, 7)
 
@@ -1364,16 +1430,44 @@ below (ADR 0114)**; the struck criteria assumed a cookie holding the design id.
 6. Local development and Playwright keep the cookie on `http://localhost` (measured in the wave, not
    assumed).
 
-**7E3b — a design opens only in its owning browser** (blocked on F5; security reviewer dispatched;
-ADR 0114 decision 5)
+**7E3c — the private share link** (F5 revised, *"Own browser + private share link"*, 2026-09-11;
+**security reviewer dispatched**; ADR 0114 Amendment B; lands before 7E3b)
+
+1. The token is ~~256 random bits~~ **12 base62 characters (~71 bits, ADR 0114 Amendment C),
+   rejection-sampled** from `node:crypto`; only its hash is stored; the link handed out is the
+   unprefixed `/s/{token}`, which the proxy redirects to the recipient's locale; the migration runs
+   through the ledger with the hash-shape check, and its schema is read back. A partial unique index
+   allows one active link per design.
+2. `POST /api/designs/{id}/share` creates a link only with the design's write token **and** the owning
+   visitor cookie (the whole of *"what authorises editing"* in M7 — ADR 0115), returns the link once, and revokes any active one; `DELETE` revokes. Without both
+   credentials, both answer as a missing design does.
+3. `/[locale]/s/{token}` renders the design in the existing read-only mode with `Referrer-Policy:
+   no-referrer`, `noindex, nofollow` and `Cache-Control: private, no-store`. Its HTML, its payload and
+   every response it triggers contain **no design id, no visitor cookie and no write token**; it sets
+   no cookie, mints nothing and runs no write-access probe.
+4. **Revocation is immediate:** the request after a `DELETE` gets the *"not available"* response,
+   byte-identical to an unknown token's; a re-issued link works and the revoked one never does again.
+5. A share view offers no edit, save, depth, Step 1 or "Verifică designul" control, and a crafted write
+   through it is refused.
+6. When retention deletes the design, its share row goes with it; a share read never refreshes the
+   design's retention clock.
+7. The three read-only e2e specs (`read-only-panel`, `read-only-global-settings`,
+   `shared-design-locale-identity`) are **re-pointed at `/s/{token}`** rather than deleted.
+
+**7E3b — a design opens only in its owning browser** (~~blocked on F5~~ **unblocked: F5 "Only its own
+browser", 2026-09-11**; security reviewer dispatched; ADR 0114 decision 5 and Amendment A) — **F5 was
+revised the same day (Amendment B): 7E3b now lands after 7E3c**
 
 1. `/[locale]/d/{id}` and `GET /api/designs/{id}` serve the design only when the row's visitor hash
    equals the request's, compared in constant time.
 2. A mismatch, a missing cookie and a nonexistent id produce **byte-identical** responses — the same
    page, and the same 404 body from the API — so neither existence nor ownership is confirmed.
-3. The three read-only e2e specs are rewritten to assert the refusal; the write-access probe and
-   `canWrite` keep working for the owner.
-4. Dated amendments land in ADR 0002 and ADR 0019 decision 1 in the same wave.
+3. ~~The three read-only e2e specs are rewritten to assert the refusal;~~ **A new spec asserts the
+   refusal on `/d/{id}` for a foreign or missing cookie; the three read-only specs already moved to
+   `/s/{token}` in 7E3c;** the write-access probe and `canWrite` keep working for the owner.
+4. ~~Dated amendments land in ADR 0002 and ADR 0019 decision 1 in the same wave.~~ **Recorded at the
+   ruling, 2026-09-11** — both records carry a dated supersession note naming this wave as the one that
+   implements it; the wave's close-out adds the commit hash to both notes.
 
 **7E4 — e2e and tooling off the retired route** (lands before 7E3a)
 
@@ -1417,7 +1511,11 @@ image, never a broken one.
 scene, with correct face winding either way — captured, not only asserted — because M7B mirrors the
 corner assembly on its own.
 
-**7J — straight kitchens**: F1's bounds in the approved policy; a shell with no corner; composition
+**7J — straight kitchens** (**unblocked: F1 "Yes, 1200–6300 mm", 2026-09-11**): **this wave adds
+`linear: { wallA: { minMm: 1200, maxMm: 6300 } }` to `APPROVED_ROOM_POLICY`**, together with the
+engine's derived linear limits it is guarded against — not 7A2, because a shape's bounds in the
+approved policy are what make `validateRoomInput` accept it, and linear must not validate before the
+wave that can build it lands. Then: a shell with no corner; composition
 on wall A under every 7D2 property; the 1C/D1C suggestion to switch to a straight kitchen appears; what
 `depthMm` means for a one-wall room is decided and recorded in the wave.
 
@@ -1430,6 +1528,11 @@ wall marked red.
 never shows an editor; no customer journey can reach the save-as-preset control.
 
 ## Wave 7D1 — dispatchable punch list
+
+> **Amended 2026-09-11 by [*Adjudication 7D1-P*](#adjudication-7d1-p--2026-09-11-the-implementers-seven-premises),
+> below, which is the binding version.** Item 2's construction (a) is withdrawn; criteria 3 and 5 are
+> restated; wall B is planned against the deepest declared depth; the height cap moves to 7C. Read
+> the adjudication before the items.
 
 **Tier: Full.** No visual surface. **Owner answers needed: none.** Dispatch after 7A commits.
 **ADRs to check intent against first, and to stop and report on if they disagree:**
@@ -1497,6 +1600,68 @@ Amendments A and B.
 
 **Tests expected:** `packages/configurator-domain/tests/generation/shell-design.test.ts` and
 `tests/generation/shell-design.property.test.ts`.
+
+### Adjudication 7D1-P — 2026-09-11: the implementer's seven premises
+
+The 7D1 implementer read the code before writing anything and found seven premises of this punch list
+that the code does not bear out. Ruled here; the durable parts are
+[ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+Amendment B, [ADR 0109](../decisions/0109-a-preset-is-a-recipe-document-and-is-listed-only-if-the-product-would-never-mark-it.md)
+Amendment C and a note on [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).
+
+| # | Finding | Ruling |
+| --- | --- | --- |
+| P1 | `removePlacement` records nothing; freed space survives only through the web store's fall-through, so (a) would restate that order in the domain. | **Accepted as a finding; construction (a) is withdrawn** (ADR 0110 B1). The shell uses no `removePlacement`. Keep the implementer's canonicalisation step: `deriveRecordedColumns` → `projectFrozenMap` → `withFrozenMap`. |
+| P2 | Clipping to a shorter wall collides with ADR 0090 B: a clipped column crossing a key boundary is unprojectable; proposal: re-key. | **Refused as unnecessary; the principle is ruled** (ADR 0110 B4, note on 0090). Nothing is clipped: each free run is **tiled to its planned end** with `splitEmptySpanAtCap`, each piece keyed from its own centre. 0090 B does not govern authoring a new document for a fixed room, and `clipEmptyColumnsAtWallEnd` is never applied to a recorded face in composition. |
+| P3 | Whole-mm centres need even-width pieces from a whole-mm edge; an odd span loses 1 mm. | **Accepted.** Coverage is exact to the planned end when the span is even and to the planned end − 1 when odd; **the lost millimetre is at the far end**, and the tests assert exactly that — the same give `widestOnTheGrid` already makes. |
+| P4 | Criterion 5's field-for-field witness cannot hold. | **Amended.** (i) Accepted: per wall and band, the union of the shell's recorded intervals equals the planned free runs. (ii) The command-path replay (`clearBodies` / `advance`, then `projectFrozenMap`) is kept as the independent witness but asserted as **containment**, not equality: for the reference room, every interval the replay records lies inside the shell's union, and every shell interval outside the replay's lies between the reference run's end and the planned end. Boundaries and depth sources differ by design (P6) and are not compared. |
+| P5 | Criterion 3's wording. | (i) **Accepted:** the 800 mm ceiling is asserted on `emptyColumns` only; the corner-x extent is 900 by its member (ADR 0052 governs empty columns). (ii) **Accepted:** a band is a `LEVELS` interval intersected with each entry's `[y0, top]`. (iii) **Amended:** a run's start is the far edge of the reference's structural pieces **on that wall in that band over the full assembly** — a ceiling-excluded piece (`p21`) still reserves its footprint — so wall B's top band starts at 900, not 0, and the `p21` zone stays unrecorded. Wall A's wall and top bands start at 0; its base band at 900. |
+| P6 | Extension pieces copy the run's last column, inheriting `fridge-free-700` on wall B. | **Refused.** It records a false provenance (ADR 0073, 0102): a depth explained by a fridge that never stood there, pinned at 742 so it would not follow the setting (ADR 0080). **Every tile takes a neutral declared source** — `base-cabinet` for floor tiles, `wall-cabinet` for wall-only tiles, the bodies composition fills them with — with its depth read through `occupiedDepthOfEntryM` at the shell's cabinet depth. No new depth arithmetic. Corner columns keep their own declared sources and seats (ADR 0077); no tile stands over a full-height member, so ADR 0101's lift does not arise. Base and full-height builders ignore the column depth anyway (`resolveDepthM`), so a sink inserted later is built at the kitchen's depth either way. |
+| P7 | Timestamps; invalid input. | **Accepted.** `createdAt = updatedAt = occurredAt`; an invalid `occurredAt` or a non-L room throws a named error — the builder sits behind the validator and a bad input there is a programming error. |
+| Obs. | At 700, space flush to wall B's end slides 100 mm past the wall and is marked; a composed kitchen or preset could then be pushed past too. | **It does conflict with the owner's point 3 in spirit**, and ADR 0083 decision 1 is the owner's own precedent (the demo clears its run at both depths). **Ruled: a proposal fits at every declared depth.** Each wall-B run's planned end is the wall's length **minus the chain shift to the deepest declared depth** (`alongWallShiftMm`, 100 mm on the base chain today), so the shell, anything composed into it and any adapted preset still fits after a depth change (ADR 0110 B3, ADR 0109 C). |
+
+**What 7D1 now builds** (items 1, 3 and 4 stand; item 2 and criteria 3 and 5 as restated):
+
+- Corner columns: `deriveRecordedColumns` over the kept structural placements only.
+- Free runs, tiled with `splitEmptySpanAtCap` and keyed from their own centres: wall A base band
+  `[900, A]` as full-height floor tiles; wall A wall-and-top band `[0, 900]` as wall-only tiles from
+  `LEVELS[1]`'s start; wall B all bands `[900, B − shift]` as full-height floor tiles, where `shift` is
+  `alongWallShiftMm` from the shell's depth to the deepest declared depth. Tops at
+  `min(room height, LEVELS' top)`. Sources and depths per P6.
+- **No height cap in 7D1** (ADR 0110 B5): nothing in the shell can exceed the room. The shared cap
+  helper is written in 7C.
+
+**Criteria added or restated:**
+
+- **3 (restated):** P5 (i)–(iii) and P3 — per wall and band, the recorded union equals the planned run
+  to the millimetre, or to planned end − 1 on an odd span; no `emptyColumns` entry wider than 800.
+- **5 (restated):** P4 (i) and (ii).
+- **8 (new):** every tile's `depthFromBuildId` is `base-cabinet` or `wall-cabinet`, and its `depthMm`
+  equals `occupiedDepthOfEntryM` for that entry at the shell's depth — no tile records a source the
+  reference placed there.
+- **9 (new):** after `setCabinetDepth` to every declared depth, the shell reports **no**
+  `EMPTY_COLUMN_PAST_WALL_END` and no `COLUMN_EXTENT_PAST_WALL_END` on wall B; with the reserve
+  deliberately removed in a test, the same run reports them — proving the reserve is what holds it.
+- **10 (new):** no `removePlacement` call and no `clipEmptyColumnsAtWallEnd` call anywhere in
+  `src/generation/` (grep in the test).
+
+**Addendum — 2026-09-11, on the implementer's measured evidence** (scratch runs against the domain
+`dist/` at `c9f43ea`; nothing in the tree edited). The evidence confirms P1 and P2 as findings, and
+the prototype of the *proposed* pipeline gave zero findings over 2004 rooms — which proves the
+proposals are internally consistent, not that they are right against the records. **No ruling
+moves.** Two points made explicit:
+
+- **P6, answered as asked: yes, the shell's recorded depths are normalised.** The removal path left
+  the freed columns carrying their former bodies' sources — `d638` from the oven tower, `d600` from a
+  pinned deep top, `d742` from `fridge-free-700` — which is ADR 0073 working correctly *for a
+  customer's delete* and wrong for a fresh composition, where none of those bodies ever stood. Under
+  the ruling every free-run tile records `base-cabinet` (floor) or `wall-cabinet` (wall-only) with its
+  depth from `occupiedDepthOfEntryM` at the shell's cabinet depth — the carcass-based depth the
+  bodies composition places there would give the column. Only the corner's own columns keep their
+  reference sources, because those pieces are really there.
+- **The height-cap helper waits for 7C.** The shell has no caller for it (ADR 0110 B5), and a module
+  with no caller is dead code in 7D1's diff. Keep it out of 7D1's commit and bring it in with 7C's
+  first call; set it aside by moving the file, not by any `git` discard.
 
 ## Verification
 

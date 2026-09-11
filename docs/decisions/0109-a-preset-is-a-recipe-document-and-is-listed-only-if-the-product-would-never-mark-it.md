@@ -1,6 +1,6 @@
 # ADR 0109 — A preset is a recipe document, and it is listed only if the product would never mark it
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q4: the library is owner-authored data and starts empty; a preset matches within ±600 mm per wall and is adapted by removing cabinets from the free ends, never by narrowing; decision 8's threshold is retired; **Amendment B, 2026-09-11** — a ceiling under a preset's tallest body drops the rows above it as a declared adaptation)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q4: the library is owner-authored data and starts empty; a preset matches within ±600 mm per wall and is adapted by removing cabinets from the free ends, never by narrowing; decision 8's threshold is retired; **Amendment B, 2026-09-11** — a ceiling under a preset's tallest body drops the rows above it as a declared adaptation; **Amendment C, 2026-09-11** — a proposal must fit at every declared depth, amending decision 5; **Amendment D, 2026-09-11** — the owner confirmed the edge adaptation (F4) and the every-depth fit with its wall-B reserve (F7))
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7B and 7C (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -231,3 +231,29 @@ edits only (ADR 0069 decision 6).
 **Generation meets no such case**: its shell caps recorded space at `min(room height, 2600)`, so a top
 row is never offered below 2600 (ADR 0110 decision 1).
 
+## Amendment C — 2026-09-11: a proposal fits at every declared depth
+
+~~Decision 5's *"A recipe is evaluated at its own declared depth"*~~, as the whole rule, is
+**amended**: a preset is evaluated at its declared depth **and must also fit at every other declared
+depth**. A customer's later depth change is still their own edit (ADR 0069 decision 6), but a
+proposal the product's own second setting would push past its wall is not one the owner's point 3 —
+*"this should always fit the existing walls, including demo"* — permits, and the owner held the demo
+to exactly this (ADR 0083 decision 1). Concretely: wave 7B checks it probe-free, through the
+production chain reader — every wall-B placement's extent at each declared depth
+(`alongWallPositionAtMm`) ends at or before the wall — and wave 7C also takes the adapted design
+through `setCabinetDepth` to every declared depth and requires zero findings. Composition gets the
+same guarantee by construction (ADR 0110 Amendment B3). Nothing gives at a depth change; the product
+simply stops proposing a kitchen that a depth change would push past its wall.
+
+## Amendment D — 2026-09-11: the owner's answers to F4 and F7
+
+**F4**, option chosen verbatim: **"Yes, drop from free ends"**. Amendment A3's reading is the owner's
+rule, no longer the architect's: a preset in a smaller room loses whole cabinets from each wall's free
+end — never the sink, the hob or the corner — any bare stretch of 600 mm or more gets a 600 mm storage
+cabinet, and the card states the change.
+
+**F7**, option chosen verbatim: **"Keep the 100 mm reserve"**. Amendment C is **owner-confirmed**: an
+adapted preset, like a composed kitchen, must still fit after a change to the deepest declared depth,
+so on wall B its planned end is the wall's length less the chain shift. **The stated exception to A3's
+599 mm:** on wall B, measured at the preset's own depth, the bare end may reach 599 mm plus that shift
+(699 today); at the deepest depth it is at most 599 again.

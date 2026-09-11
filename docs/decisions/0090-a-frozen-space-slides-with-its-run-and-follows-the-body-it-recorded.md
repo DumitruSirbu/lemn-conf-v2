@@ -812,3 +812,15 @@ a column already holding a `base-formula` one, and the two shipped `wall-map` en
 `STRUCTURAL_CORNER`. Enforcing it means either a new refusal code (load seam, ADR 0052/ADR 0084) or a
 catalogue-level sweep, and choosing between those is a decision this record does not make. Recorded as
 `docs/BACKLOG.md` entry 51.
+
+## Note — 2026-09-11: Amendment B does not govern authoring a new document for its room
+
+Asked by M7 wave 7D1, whose composition shell is a new document written for a fixed room. **Amendment
+B's rule is unchanged and does not reach it**: the rule protects a customer's *recorded* space from a
+pass derived from the room, because a reversible setting could otherwise shorten that space for good.
+A shell has no customer space and a room that never changes (ADR 0083 decision 2) — the *"always past
+the end"* input this record already distinguishes. The shell does not use `clipEmptyColumnsAtWallEnd`
+on its recorded face at all; it tiles each free run to its planned end
+([ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+Amendment B).
+

@@ -3,7 +3,7 @@
 Status: Accepted (**Amendment A, 2026-09-11** — the L wall minima hold the corner at every declared
 cabinet depth, so wall B's is 1000, not 900; **Amendment B, 2026-09-11** — the owner approved the L
 bounds: wall A 900–6300, wall B 1000–5100, ceiling 2200–3900, held as product data inside the
-engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end)
+engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6))
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — wave 7A (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -361,3 +361,18 @@ fit any. The question goes back to the owner (milestone follow-up F6).
 **Linear, later (wave 7J):** the same rule on one run — at least 1160 with a 560 sink, 1200 at standard
 widths, which is why F1 proposes 1200. **U (M7B):** the same rule across three runs, with two corners.
 
+## Amendment D — 2026-09-11: the owner's answers to F1 and F6
+
+**F1**, option chosen verbatim: **"Yes, 1200–6300 mm"**. A straight kitchen's wall is approved at
+1200–6300 mm — 1200 being a 600 mm sink and a 600 mm hob, the owner's minimum kitchen (the engine's own
+floor, with the sink at its 560 mm floor, is 1160, so the approved value sits inside it); 6300 is the
+storage bound. It enters `APPROVED_ROOM_POLICY` **in wave 7J, not 7A2**: a shape's bounds in the
+approved policy are what make `validateRoomInput` accept it (Amendment B, B2), and a straight room must
+not validate before the wave that can build it lands. The same guard applies — approved values inside
+the engine's derived linear limits.
+
+**F6**, option chosen verbatim: **"Must hold sink + hob"**. Amendment C's rule is **owner-ruled, not
+interim**: when one wall is 900 mm, the other must be at least 2160 mm, and in general the two free runs
+must hold a sink and a hob in the owner's order (`ROOM_TOO_SMALL_FOR_KITCHEN`). Its figures enter
+`APPROVED_ROOM_POLICY` as owner-approved data in wave 7A2, guarded against the engine's derived
+figures as in Amendment B.
