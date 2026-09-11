@@ -1,6 +1,6 @@
 # ADR 0109 — A preset is a recipe document, and it is listed only if the product would never mark it
 
-Status: Accepted
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q4: the library is owner-authored data and starts empty; a preset matches within ±600 mm per wall and is adapted by removing cabinets from the free ends, never by narrowing; decision 8's threshold is retired; **Amendment B, 2026-09-11** — a ceiling under a preset's tallest body drops the rows above it as a declared adaptation)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7B and 7C (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -131,3 +131,103 @@ is recorded as empty space the customer can fill (wave 7C).
 | [0067](0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md) | Leftover wall is the normal case; no metric may penalise it. | **Followed** by decisions 3 and 7. |
 | [0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md) decision 3 | An entry the engine cannot satisfy is removed from its list, not greyed. | **Consistent**: frames 1E/D1E already show only presets that fit (*"Restul nu se afișează deloc"*). |
 | [0028](0028-wall-depth-is-derived-from-the-worktop.md) | Two numbers must not agree by luck. | **Why the reference recipe is derived from the fixture** (decision 2). |
+
+## Amendment A — 2026-09-11: the owner's answers to Q2 and Q4
+
+**The rulings, verbatim** (owner, 2026-09-11):
+
+> *"2. if you mean how much empty space can remain if is not possible to fit ideally all cabinets I
+> will say maximum 599, why? because this is the default with of majority of cabinets. In that
+> empoty space you have limited options like cabinet with one door 599-350, bottle cargo 300 and that
+> all. So we can be more permissive and try to fix exactly what fits and let the edges empty for user
+> to play with resizez or insettion of another cabinets. WHat should be in that empoty space? the
+> posibility to insert a cabinet and it should look like a empty column exact like after you remove
+> the cabinets"*
+
+> *"4. [...] c) you start to generate a preset (we don't have now presets) d) I make adjustments and
+> save the preset e) later if I insert nearly similar walls confioguration and width +- 600 mm, you
+> show me the preset so I am able to choose it"* (in full in [ADR 0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md))
+
+**A1. The library is owner-authored data and starts empty** ([ADR 0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md)).
+~~Decision 2's *"M7's one real recipe is the reference kitchen"*~~ — **amended**: the reference kitchen
+stays a fixture the evaluator is tested against, and is **not** published as a preset. Recipes are no
+longer modules handed in by a composition root; they are rows read from the library. Decisions 1, 3,
+4, 5 and 6 stand unchanged; decision 3's zero-findings rule now applies **after** adaptation.
+
+**A2. A preset matches a room when the shape is the same and every wall is within ±600 mm of the
+length the preset was saved in, inclusive.** Once wave 7I lands, a left-corner preset also serves a
+right-corner room: the domain is canonical and the mirror is presentation, so corner direction is not
+a match criterion.
+
+**A3. A matched preset is adapted by the owner's own rule — fit exactly what fits, leave the edges
+empty.**
+
+1. **A wall shorter than the preset's run loses whole columns from that run's free end** — the end
+   away from the corner (a straight wall's far end) — until the run fits. Never a structural body,
+   never the sink, never the hob. If the run still does not fit, the preset is not shown.
+2. **Then the leftover rule, shared with generation** ([ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+   Amendment A): any bare run end of 600 mm or more receives 600 mm storage bases until less than
+   600 mm remains; what remains — at most 599 mm — is recorded as an empty column the customer can
+   insert into, the same kind of space a removed cabinet leaves (ADR 0044, 0053).
+3. **The card declares every change** — cabinets removed and storage added, per wall. Never silent
+   (`ARCHITECTURE_PROPOSAL.md` §4.4, *"automatic adjustments are named and declared"*).
+4. **The result is held to decision 3** — zero findings of either severity — **and to the minimum
+   kitchen** (a sink and a hob, owner Q3). A preset that cannot keep both is not shown.
+
+Part 2's *"fill with 600 mm storage"* is the architect's reading of *"maximum 599 ... because this is
+the default width of majority of cabinets"* and is put to the owner to confirm (milestone follow-up
+F4); the build proceeds on it.
+
+**A4. Order among shown presets** ~~(decision 7)~~ — **amended**: presets needing no change first,
+then those with fewer cabinets removed, then the library's own order, newest first. Still no score
+over the remainder and no distance metric (ADR 0067); the ±600 window is a filter, not a ranking.
+
+**A5. Decision 8 is retired.** The owner did not rule a narrowing adjustment; they replaced it with
+A3. The *"≤ 30 cm"* threshold and the idea of narrowing a preset's cabinets are withdrawn, and so is
+the plan's wave-7C narrowing arm. The mockup's *"Ajustată −20 cm ca să intre pe peretele B"* becomes a
+declaration of what A3 changed, with its wording drafted under [ADR 0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md).
+
+**A6. Why this does not reopen the owner's point 3.** ±600 is a match window, not a fit rule: a preset
+larger than the room is **adapted until it fits or not shown**, so nothing proposed ever passes its
+wall.
+
+## Amendment B — 2026-09-11: a ceiling below a preset's tallest body
+
+**Found by wave 7A's QA as a forward risk (Q2.2).** The approved ceiling minimum is 2200 (ADR 0108
+Amendment B), and the reference kitchen's top row stands 2200–2600: `KITCHEN_L_DESIGN` in a room of
+2200 or 2599 gives ten `PLACEMENT_ABOVE_ROOM` refusals, and at 2600 none. Any preset with a top row
+meets the same thing in every room under 2600.
+
+**Ruling: the rows above the ceiling are dropped as a declared adaptation — not a refusal of the whole
+preset.** It is the owner's Q2 rule applied vertically — *"fit exactly what fits and let the edges
+empty"* — and it keeps the owner's library useful in the common 2.4–2.5 m rooms. Concretely, in wave
+7C: ~~every body whose top is above the room height is removed through `removePlacement`, the recorded
+space it leaves is capped at the room height by one helper that the composition shell (wave 7D1) uses
+as well — so no recorded extent rises above the room —~~ **corrected the same day, below** — and the
+card declares the removed row.
+
+> **Correction — 2026-09-11, found by wave 7A's logic review.** `removePlacement` cannot remove every
+> such body: the top-row corner return `p21` (`wall-corner-return-570-top`, 2200–2600) is structural
+> with `canDelete: false`, so the command refuses it as `NOT_DELETABLE`
+> (`commands/remove-placement.ts:41-50`) — correctly, since a customer must never delete a corner
+> (ADR 0021). The reviewer's run of a corner-only design at 900 × 1000 × 2200 reports
+> `PLACEMENT_ABOVE_ROOM` on `p21` and `COLUMN_EXTENT_ABOVE_ROOM` on the corner's 1500–2600 recorded
+> space, at both depths. **The corrected rule has two arms:** (1) a **non-structural** body above the
+> ceiling is removed through `removePlacement`, as before; (2) a **structural** piece above the
+> ceiling is **not instantiated** — the same selection rule the composition shell uses (ADR 0110
+> decision 1: only the corner pieces whose top fits under the ceiling), applied when the preset is
+> instantiated for the room, never as a command. Then **every** recorded extent — `emptyColumns` and
+> `columnExtents` alike, the corner's own column included — is capped at the room height by the one
+> shared helper. Nothing else in this amendment changes. The
+sink and the hob are base bodies and are never affected. Decision 4 still holds — the list and the
+application are one evaluation — so a preset listed with a dropped row applies with exactly that row
+dropped.
+
+*Rejected:* hiding every preset with a top row from rooms under 2600 — correct under decision 3, but it
+empties the library for most real rooms, and refusing where the owner's rule says adapt is the less
+faithful reading. *Rejected:* keeping the top row and letting it be marked — marks are for customers'
+edits only (ADR 0069 decision 6).
+
+**Generation meets no such case**: its shell caps recorded space at `min(room height, 2600)`, so a top
+row is never offered below 2600 (ADR 0110 decision 1).
+

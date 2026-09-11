@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -106,3 +106,54 @@ runs on the server, which has no kit.
 | [0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md), [0067](0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md), [0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md) decision 6 | Never propose an overflow; leftover wall is normal. | **Decision 5.** |
 | [0103](0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md) | An insert re-plans bodies standing in the column it touched. | **Inherited**, not re-implemented. |
 | [0019](0019-security-baseline-writes-throttling-retention.md) 2026-08-31 correction | `POST /api/designs` takes no request data; SEC-001 stays deferred and gated. | **Unchanged**: generation is client-side and needs no body on `POST`. |
+
+## Amendment A — 2026-09-11: the owner's answers to Q2 and Q3
+
+**The ruling on Q3, verbatim** (owner, 2026-09-11):
+
+> *"3. fridge position is not mandatory on a specific wall but form left to right should be fridge,
+> sink, and hub, this is a regular order on cooking, take something from fridge, wash, then process
+> on worktop, thats why ideal between sink and hub to be a cabinet to have that preparation surface
+> and after you cook on hub or oven unde the hub... but a kitchen minimum should have sink and hub"*
+
+Q2's ruling is quoted in full at [ADR 0109](0109-a-preset-is-a-recipe-document-and-is-listed-only-if-the-product-would-never-mark-it.md)
+Amendment A.
+
+**A1. The layout order replaces decision 3's interim list.** Along the run, left to right as seen from
+inside the room: **fridge → sink → preparation cabinet → hob with the oven under it**, then storage.
+On a left-corner L the run reads from wall B's free end toward the corner and then along wall A from
+the corner outward — which is the reference kitchen's own order (fridge on wall B; sink, then hob, on
+wall A). The fridge is not tied to a wall: it stands wherever the order puts it. The interim data
+is: fridge `fridge-free` 700 (as in the reference), sink `base-sink` 600, preparation `base-cabinet`
+600, hob `base-hob-oven` 600, storage `base-cabinet` 600. All of it is data.
+
+**A2. The minimum kitchen is a sink and a hob.** If generation cannot place both, it returns
+*minimum not met* and **no design**; Step 1 goes back to the dimensions sub-state with a room-level
+reason that carries no number. This is the second Step 1 refusal [ADR 0108](0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md)
+Amendment B anticipated: the owner-approved bounds admit rooms (a 900 × 1000 L, for one) that cannot
+hold a kitchen, and the bounds stand.
+
+**A3. What is dropped first on a short wall** — proposed, put to the owner as follow-up F3: storage
+first, then the fridge (as frame 1F's own example drops it), then the preparation cabinet; the sink
+and the hob never.
+
+**A4. The leftover rule, shared with presets.** After the items are placed, every bare run end of
+600 mm or more receives 600 mm storage bases until less than 600 mm remains; the remainder, at most
+599 mm, stays as the recorded empty column `insertBody`'s split already leaves (ADR 0046). The 599 mm
+cap binds **what the product proposes** — a generated kitchen or an adapted preset — and not a
+customer's own edits, which may leave any gap (ADR 0043, 0067).
+
+**A5. Upper cabinets and the hood are not yet ruled** (Q3(b) was not answered). The interim stays
+base row only; the proposal — upper cabinets above the base run at the same widths, a hood over the
+hob — is put to the owner as follow-up F2. It is a data change either way.
+
+**A6. A correction the owner's answer exposed.** The M7 plan's owner question Q2(d) said *"stretches
+under 300 mm stay invisible, as today"*, and its wave-7C criterion 3 said a remainder under 300 mm
+*"publishes no opening (ADR 0015)"*. **Both were false.** [ADR 0015](0015-min-span-is-exclusive.md)'s
+`MIN_SPAN_M` is a **vertical** threshold — a free span shorter than 300 mm in *height* is no opening
+— and says nothing about width; since [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md)
+an empty column of any width is legal and publishes its openings (backlog 25 records a 100 mm one
+rendered at the frame edge). So the owner's *"empty column exact like after you remove the cabinets"*
+is what the engine already does, and the space accepts what fits it: `base-cabinet` builds 200–800,
+one door up to 600 (ADR 0030, 0033), `base-bottle-cargo` 200 and 300 (ADR 0026). Both false sentences
+are struck in the milestone.

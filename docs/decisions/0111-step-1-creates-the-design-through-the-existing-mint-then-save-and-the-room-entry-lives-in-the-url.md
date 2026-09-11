@@ -1,6 +1,6 @@
 # ADR 0111 — Step 1 creates the design through the existing mint-then-save, hands the customer its link only once it is written, and keeps the room entry in the URL
 
-Status: Accepted (items marked *interim* follow the owner's pending answer to the M7 plan's Q7)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answer to Q7 supersedes decision 7's interim: the editor is only ever shown at `/d/{id}`, and a per-visitor cookie brings a returning visitor back to their design; its A2 pointer design is superseded by ADR 0114)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7E1 and 7E2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -114,3 +114,53 @@ direction — an optional field whose absence is a valid unchanged state, ADR 00
 | [0041](0041-the-browser-security-policy-is-versioned-and-the-csp-only-reports.md) | Every customer route carries the nonce'd CSP. | **Followed** (decision 4). |
 | [0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md) decision 5b, [0085](0085-a-normalisations-guard-asks-what-the-normalisation-changes.md) | The 3600 × 2400 correction is keyed at version ≤ 2 because no room control existed. | **Consistent**; wave 7E2 proves a customer's 3600 × 2400 round-trips unchanged. |
 | [0095](0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md) decision 4 | A shared link's locale is presentation, never identity. | **Followed**: the room query and `/d/{id}` carry no locale into the document. |
+
+## Amendment A — 2026-09-11: the owner's answer to Q7 — the editor lives only at the design's own link
+
+**The ruling, verbatim** (owner, 2026-09-11):
+
+> *"7. Yes I need custom link for each user (save uuid related to potential user in session /
+> cookies), on reopening detect he uuid from browser and load its previous configuration. Current
+> screen should bot be displayed with current URL, only with custom user uuid"*
+
+**A1. Decisions 1–6 and 8 stand; decision 5 is confirmed by the owner's *"Yes"*.** Decision 7's
+interim is **superseded**:
+
+- ~~the demo stays at `/configurator/configure` exactly as today~~ — **the editor is shown only at
+  `/[locale]/d/{id}`.** `/configurator/configure` and `/` render no editor: each resolves on the
+  server to the visitor's own design (A2) or, failing that, to Step 1.
+- ~~a demo design's first successful save replaces the URL with `/d/{id}`~~ — moot: no editor is
+  reachable without an id.
+- *Design identifiers stay `nanoid()`* — **confirmed**; the owner's *"uuid"* names the design's
+  identifier, and Q7(d)'s question was answered *"Yes"*.
+
+> **A2 is superseded the same day by [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)**,
+> on the owner's security requirement: the cookie holds a random secret, not the design id, under a
+> `__Host-` name; the design is linked to it by a hash on its row. The text below is struck, not
+> deleted.
+
+~~**A2. A per-visitor pointer cookie remembers the visitor's design.**~~
+
+- ~~One cookie, holding **only a design id**: `HttpOnly`, `Secure` outside local development, `SameSite=Lax`, `Path=/`, with the write token's 30-day lifetime (`write-token.ts:18`).~~
+- ~~**Set or refreshed only by responses that set or refresh that design's write token** — the mint and every successful save — so it only ever names a design this browser may edit. Opening someone else's shared link never moves it.~~
+- ~~**It is not a credential.** Reading a design needs only its id (ADR 0019 decision 1); writing still needs the per-design token, which the pointer neither holds nor implies. No route authorises anything on the pointer's say-so.~~
+- ~~**A pointer whose design does not load** — deleted, invalid, never written — is cleared and the visitor lands on Step 1. Never an error page.~~
+- ~~**Locale-free**: it names a design, not a language (ADR 0095 decision 4).~~
+
+**A3. The demo stops being a customer surface; the seeded kitchen stays everywhere else.** It is still
+what `POST /api/designs` mints, the scene `/internal/scene-shot` renders for the M1 fidelity gate, and
+the fixture most tests stand on. The e2e suite's 34 `goto("/configurator/configure")` calls move to a
+fixture that mints the seeded design through the API and opens its `/d/{id}`; the Playwright
+web-server readiness URL (`apps/web/playwright.config.ts:93`) and `capture-fidelity.mjs`'s readiness
+probe (`:66`) stop naming the retired route. That migration lands **before** the redirect does, so
+the suite never goes red in between.
+
+**A4. The two routes become dynamic** (they read a cookie). That also removes two of the prerendered
+pages `security-headers.ts` names as a blocker to enforcing the CSP — a side effect worth noting, not
+a goal.
+
+**A5. Residual risk, accepted and put to the security reviewer:** on a shared device the next person
+to open the site resumes the previous visitor's design with edit rights. That is already true of the
+write-token cookie today; the cross-device path remains M8's emailed edit link (ADR 0019 decision 8).
+
+**A6. Backlog 29 closes and backlog 30 is answered** — the owner's 2026-09-02 proposal, now ruled.

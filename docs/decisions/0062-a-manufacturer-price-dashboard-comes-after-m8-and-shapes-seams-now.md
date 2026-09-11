@@ -140,3 +140,13 @@ Recorded here as an index, not as new decisions — each is ruled in its own rec
   builds it, so a new dashboard row is cabinetry until somebody says otherwise. A row declaring
   `customer` **must** price to nothing and `parsePriceBook` refuses a book that breaks that — which
   is the rule a dashboard's validation inherits, not a screen-level special case.
+
+## Amendment — 2026-09-11: an owner-directed exception for the preset library
+
+The owner asked on 2026-09-11 for an owner-only **"save as preset"** tool in M7 — a button, an
+authentication step, a write endpoint, a table and a feature flag, the five things *Decision* rules
+out *"for the dashboard"* in M6–M8. The preset tool is not the price dashboard, and nothing here moves
+the dashboard, which still comes after M8. The exception, its gate and its security review are
+[ADR 0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md), whose gate is
+shaped so the dashboard can later absorb it rather than run beside it.
+

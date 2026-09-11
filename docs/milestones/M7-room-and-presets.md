@@ -8,6 +8,19 @@
 > *Where the code stands*, the *Decision-record sweep*, the *Wave plan* and the dispatchable **7A**
 > punch list. Engineering decisions are ADRs 0108–0111. **Wave 7A can be dispatched now; no owner
 > answer blocks it.**
+>
+> **Re-planned 2026-09-11, the same day, on the owner's answers to all eight questions.** Every
+> question below is marked answered with the owner's words. The consequences are ADR 0108 Amendment B
+> (approved bounds), ADR 0109 Amendment A (library, ±600, edge adaptation), ADR 0110 Amendment A
+> (fridge → sink → preparation → hob, minimum sink + hob, ≤ 599 mm empty), ADR 0111 Amendment A (the
+> editor only at `/d/{id}`, a returning-visitor cookie), **ADR 0112** (the owner-authored preset
+> library behind a server-side gate), **ADR 0113** (Step 1 copy approved as drafted) and — on two
+> later owner statements the same day — **ADR 0114** (the visitor cookie's security design; read-gating
+> pending F5) and **ADR 0108 Amendment C** (the room must hold a sink and a hob; the owner's 1500 / 2000
+> measured and put back as F6). **Read
+> [*Re-plan after the owner's answers*](#re-plan-after-the-owners-answers--2026-09-11) for the
+> current wave table**; the earlier wave plan is kept, marked superseded, for its criteria that carry
+> over. **Proposed: U-shaped rooms split into a milestone of their own, M7B.**
 
 Status: planned. Depends on M6.
 Reference: mockup frames 1A, 1B, 1C, 1D, 1E, 1F and D1A–D1F; `DEVELOPMENT-SPEC.md` §10, §13.3 q4/q5;
@@ -22,14 +35,21 @@ unapproved in the code, and the wave table says which wave, if any, waits for wh
 **Q1 — Room size limits.** What are the shortest and the longest wall the product should accept, and
 the lowest and the highest ceiling?
 
-- *Recommended:* shortest wall **900 mm** on either wall of an L-shaped room — the corner cabinet alone
-  reaches 900 mm along both walls, so a shorter wall cannot hold it. Longest **6300 mm** for the back
+- *Recommended:* ~~shortest wall **900 mm** on either wall of an L-shaped room — the corner cabinet alone
+  reaches 900 mm along both walls, so a shorter wall cannot hold it.~~ **Corrected 2026-09-11 (ADR 0108
+  Amendment A):** shortest back wall (A) **900 mm** and shortest side wall (B) **1000 mm** — the corner
+  cabinet reaches 900 mm along the back wall, and along the side wall 900 mm with the standard 600 mm
+  cabinets but 1000 mm with the deeper 700 mm ones, so a shorter wall cannot hold the corner at every
+  depth the customer can choose. Longest **6300 mm** for the back
   wall (A) and **5100 mm** for the side wall (B) — the most a saved design can hold today; longer is
   possible, as a deliberate storage change. Lowest ceiling **2200 mm** — the upper-cabinet row ends
   there, so any lower and a kitchen has no upper cabinets (below 2600 mm the top row is simply left
   out). Highest ceiling **3900 mm**; the cabinets stop at 2600 mm whatever the ceiling.
-- *Until you answer:* the screen uses the engine's own limits — walls 900 to 6300 / 5100, ceiling
-  860 to 3900 — marked unapproved in the code (ADR 0108). No wave waits; M7 cannot close on them.
+- *Until you answer:* the screen uses the engine's own limits — ~~walls 900 to 6300 / 5100~~ **back
+  wall 900 to 6300, side wall 1000 to 5100** (corrected 2026-09-11), ceiling 860 to 3900 — marked
+  unapproved in the code (ADR 0108). No wave waits; M7 cannot close on them.
+- **Answered 2026-09-11:** *"1. Yes looks like good boundaries"* — the L bounds are approved as
+  recommended: wall A 900–6300, wall B 1000–5100, ceiling 2200–3900 (ADR 0108 Amendment B).
 
 **Q2 — Presets that fit "after an adjustment"** (frames 1E/D1E: *"Ajustată −20 cm ca să intre pe
 peretele B"*).
@@ -43,10 +63,22 @@ peretele B"*).
   by the smallest adjustment, otherwise your own order — **never ranked by how much of the wall they
   fill**, because leftover wall is the normal case (ADR 0067).
 - (d) When a preset leaves a long stretch of bare wall (say 1.5 m in a large room), should that
-  stretch become empty space the customer can fill in the editor? *Recommended:* yes; stretches under
-  300 mm stay invisible, as today.
+  stretch become empty space the customer can fill in the editor? *Recommended:* yes~~; stretches under
+  300 mm stay invisible, as today~~. **Struck 2026-09-11 — false.** ADR 0015's 300 mm is a
+  *vertical* threshold; an empty column of any width publishes its openings (ADR 0043). See ADR 0110
+  Amendment A6.
 - *Until you answer:* a preset is listed only if it fits unchanged, ordered as in (c), and a leftover
   stretch is bare wall. **Blocks wave 7C only.**
+- **Answered 2026-09-11:** *"2. if you mean how much empty space can remain if is not possible to fit
+  ideally all cabinets I will say maximum 599, why? because this is the default with of majority of
+  cabinets. In that empoty space you have limited options like cabinet with one door 599-350, bottle
+  cargo 300 and that all. So we can be more permissive and try to fix exactly what fits and let the
+  edges empty for user to play with resizez or insettion of another cabinets. WHat should be in that
+  empoty space? the posibility to insert a cabinet and it should look like a empty column exact like
+  after you remove the cabinets"* — no narrowing adjustment: presets and generated kitchens **fit
+  exactly what fits**, leave **at most 599 mm** bare per run, and that space is an ordinary empty
+  column (ADR 0109 Amendment A, ADR 0110 Amendment A). (a) and (b) are retired; (c) is kept as
+  amended; (d) is *yes*.
 
 **Q3 — The kitchen the app composes when no preset fits** (frames 1F/D1F).
 
@@ -63,6 +95,14 @@ peretele B"*).
   than given a kitchen without them? *Recommended:* yes — it is the same number as Q1's shortest wall.
 - *Until you answer:* the app composes from the four-item list in (a), base row only, marked
   unapproved (ADR 0110). No wave waits; the answer changes data.
+- **Answered 2026-09-11:** *"3. fridge position is not mandatory on a specific wall but form left to
+  right should be fridge, sink, and hub, this is a regular order on cooking, take something from
+  fridge, wash, then process on worktop, thats why ideal between sink and hub to be a cabinet to have
+  that preparation surface and after you cook on hub or oven unde the hub... but a kitchen minimum
+  should have sink and hub"* — the order is fridge → sink → preparation cabinet → hob with the oven
+  under it; the fridge is not tied to a wall; the minimum kitchen is a sink and a hob (ADR 0110
+  Amendment A). (b) upper cabinets and hood, and the drop order on a short wall, were not answered —
+  follow-ups F2 and F3.
 
 **Q4 — Which presets should exist?** The mockups' four (*Ozun clasic*, *Nistru compact*, *Codru
 insulă*, *Buștean deschis*) with their counts and prices are illustrations: nothing defines them, and
@@ -72,6 +112,15 @@ insulă*, *Buștean deschis*) with their counts and prices are illustrations: no
   presets as a list of cabinets per wall plus a material, a colour and a name; each is added as data,
   with no code. With one preset, most rooms will get a composed kitchen instead.
 - Blocks no wave; it decides how useful the preset list is to a real customer.
+- **Answered 2026-09-11 — and it is a new feature:** *"4. Here is a important question, I would like
+  to have a temporary button displayed that by clicking it will save the generated preset and
+  adjusted after by me as a preset. In this way I will prepare a library of presets and after we will
+  hide that button but will keep the functionality to be reactivated later on demand. So the process
+  will be : a) I choose configuration, liniar, 2 walls, b) 3 walls, I set the wals width and c) you
+  start to generate a preset (we don't have now presets) d) I make adjustments and save the preset e)
+  later if I insert nearly similar walls confioguration and width +- 600 mm, you show me the preset so
+  I am able to choose it"* — an owner-authored library saved from the editor behind a server-side
+  gate (ADR 0112); it starts empty; a preset matches within ±600 mm per wall (ADR 0109 Amendment A).
 
 **Q5 — Straight (linear) and U-shaped rooms.** The plan refuses both, but the mockups themselves offer
 *"alege o formă liniară"* as the fix for a too-short wall (1C, and D1C's *"Treci la formă liniară pe
@@ -82,6 +131,11 @@ peretele A"*) and show a straight 2.00 m room being composed (1F/D1F).
 - *If no:* the *"choose a linear shape"* suggestion is removed from the too-short-wall message.
 - *Until you answer:* both are refused, and the message does not suggest a linear shape. **Blocks
   wave 7J** and the final wording of 1C/D1C.
+- **Answered 2026-09-11:** *"5. Hmm no, need to do also the U shaped - this can be a hard milstone
+  maybe multiple but at this stage we should support at the end all kitchen shapes (exluding
+  island)"* — all three shapes are in scope, islands out. Linear is built in M7 (wave 7J); **U is
+  proposed as its own milestone, M7B** (see the re-plan). The 1C/D1C suggestion to switch to a linear
+  shape stands, because linear becomes buildable.
 
 **Q6 — "Încotro merge cotul? — La dreapta."** When a customer chooses a corner on the right, should
 their 3D kitchen be the **mirror image** of the left-hand one — the same cabinets, the long run still
@@ -91,6 +145,9 @@ on the back wall, the corner moved to the right?
   left corner, which shows the customer a room they do not have.
 - *Until you answer:* the toggle mirrors the 2D plan only and the editor draws a left corner — a named
   interim. **Blocks wave 7I.**
+- **Answered 2026-09-11:** *"6. Yes mirror, plus this mirroring especially of corner cabinet will help
+  in building the U shape kitchens"* — 7I is unblocked, and its mirror capability is built so M7B can
+  mirror the corner assembly on its own to make a U's right-hand corner.
 
 **Q7 — Where a customer starts, and the demo.**
 
@@ -104,6 +161,12 @@ on the back wall, the corner moved to the right?
 - (d) Design links keep today's unguessable kind rather than a time-ordered one. *Recommended:*
   confirm.
 - *Until you answer:* exactly the recommendations (ADR 0111). Blocks nothing.
+- **Answered 2026-09-11:** *"7. Yes I need custom link for each user (save uuid related to potential
+  user in session / cookies), on reopening detect he uuid from browser and load its previous
+  configuration. Current screen should bot be displayed with current URL, only with custom user
+  uuid"* — (a), (c) and (d) confirmed; **(b) is overturned**: the demo is not reachable as a screen,
+  the editor is shown only at `/d/{id}`, and a per-visitor cookie brings a returning visitor back to
+  their design (ADR 0111 Amendment A).
 
 **Q8 — New wording.** Step 1 adds new Romanian sentences. Do you want to review them once, when the
 screen is built, the way you did Gate O1?
@@ -113,6 +176,48 @@ screen is built, the way you did Gate O1?
   composed-kitchen step labels). The Russian is drafted after your Romanian edits and you check it
   last, as at Gate O2.
 - Blocks M7's close, not any wave.
+- **Answered 2026-09-11:** *"8. Mark as approved at the moment, as I said I will adjust when I will
+  decide later"* — Gate M7-C is withdrawn; each new Romanian leaf enters the copy lock in the wave that
+  adds it, and the Russian draft is approved by the same ruling (ADR 0113).
+
+### Follow-up questions — 2026-09-11
+
+~~Four, all short. **Only F1 blocks a wave** (7J); the rest have defaults the build runs on.~~
+**Six, all short (F5 and F6 added later the same day). F1 blocks wave 7J and F5 blocks wave 7E3b;**
+the rest have defaults the build runs on.
+
+- **F1 — Straight kitchen wall length.** Accept a straight wall from **1200 mm** to **6300 mm**?
+  1200 is a sink plus a hob, the minimum kitchen you ruled; 6300 is the most a design can store.
+  *Blocks wave 7J.*
+- **F2 — Upper cabinets in a composed kitchen.** Should the app put upper cabinets above the base run
+  (same widths) and a hood over the hob? *Recommended:* yes. *Until you answer:* base row only.
+- **F3 — What goes first on a short wall.** The ideal row is fridge, sink, preparation cabinet, hob.
+  When it does not all fit, drop the fridge first and then the preparation cabinet — keeping the sink
+  and the hob? *Recommended:* yes (the mockup's own example drops the fridge). *Until you answer:*
+  exactly that.
+- **F4 — Adapting a preset to a smaller or larger room.** A preset shown for a room up to 600 mm
+  smaller loses cabinets from the free end of each wall until it fits (never the sink, the hob or the
+  corner), and any bare stretch of 600 mm or more — in a smaller or a larger room — gets a 600 mm
+  storage cabinet, so at most 599 mm is ever left empty. Is that what you meant? *Until you answer:*
+  exactly that.
+- **F5 — Who can open a design's link.** Today anyone who has a design's link can open it read-only.
+  You asked that nobody can open a configuration by accident or as a hacker. Should a design's link
+  open **only in the browser that created it** — so a link that leaks through history, a screenshot
+  or a forwarded message shows nothing — with sharing added later as an explicit "share" button?
+  *Recommended:* yes. *The cost:* a customer who clears their browser or changes device cannot reopen
+  their design until M8's e-mailed link. *Until you answer:* links stay readable by anyone who has
+  them; the browser cookie is already secure either way (ADR 0114). **Blocks wave 7E3b.** *Related,
+  and only if you want to change it:* the browser remembers a visitor for 30 days after their last
+  change, because an untouched design is deleted after 30 days (ADR 0019); remembering visitors
+  longer means keeping designs longer too.
+- **F6 — The second wall when one wall is only 900 mm.** You said *"the second wall should have at
+  1500 mm ideally 2000 mm"*. Measured, the corner takes the first 900 mm of the second wall (1000 mm
+  with the deeper 700 mm cabinets), so **1500 mm holds a sink or a hob, not both, and 2000 mm still
+  cannot hold both** — a sink and a hob need the second wall to be at least **2160 mm** (2060 mm with
+  the standard 600 mm cabinets). Which do you want: (a) the room must hold a sink and a hob, so the
+  second wall is at least 2160 mm when the first is 900 mm *[recommended — it keeps your "minimum sink
+  and hob"]*; or (b) keep 1500 mm and accept a kitchen with only a sink or only a hob in such rooms?
+  *Until you answer:* (a).
 
 **Not asked, because it is already decided:** what gives when a deeper cabinet (700 mm) will not fit
 a narrower wall. [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
@@ -143,8 +248,16 @@ The customer meets this screen first, but it is a form over an evaluator; the ed
 In: `/configurator/room` and its six states; the room schema and its validation; preset evaluation
 and application; bespoke generation.
 
-Out: the editor (M1–M6); linear and U-shape **layout** logic, which stays out of scope until product
-supplies a recipe and per-wall band data.
+Out: the editor (M1–M6); ~~linear and U-shape **layout** logic, which stays out of scope until product
+supplies a recipe and per-wall band data.~~
+
+> **Scope changed 2026-09-11 by the owner's answers.** **In**, added: straight (linear) kitchens
+> through generation (Q5); the mirrored, right-hand L (Q6); an owner-only preset library saved from the
+> editor behind a server-side gate (Q4, ADR 0112); a returning visitor resuming their own design, with
+> the editor shown only at `/d/{id}` (Q7, ADR 0111 Amendment A). **Proposed out, into M7B:** U-shaped
+> rooms — in scope for the product (*"we should support at the end all kitchen shapes (exluding
+> island)"*), split into their own milestone for the reasons in the re-plan. **Still out:** islands;
+> the editor's own behaviour beyond what these items touch.
 
 ## Security note — the firewall goes up after this phase
 
@@ -524,6 +637,14 @@ original plan contradicted a later record — the depth hand-over (ADR 0065) and
 
 ## Wave plan — 2026-09-11
 
+> **SUPERSEDED the same day by [*Re-plan after the owner's answers*](#re-plan-after-the-owners-answers--2026-09-11),
+> which holds the current wave table.** Kept because most of its criteria carry over unchanged and
+> the re-plan cites them by wave rather than restating them. What changed in this section, marked in
+> place below: 7C's narrowing arm is retired and its criterion 3 was false; 7E1 criterion 4 and 7E2
+> criterion 5 assumed the demo route stays; 7F2's *"no message suggests the linear shape"* no longer
+> holds once linear is buildable; 7G's build-time thumbnails became a capture at save; Gate M7-C is
+> withdrawn. The re-plan lists exactly which criteria carry over.
+
 Domain first, then routing and persistence, then the six sub-states, then 3D, then the gates. Each
 wave is ≤ 5 must-fix items and about five production files, paired tests not counted; where the two
 message catalogues push a UI wave past five, the dispatch says so. Tiers follow `docs/WORKFLOW.md`.
@@ -611,8 +732,10 @@ when Q2 is answered.
 2. An adjusted card carries `{ wall, deltaMm }` and the adjusted design passes the same zero-findings
    rule. *Property:* adjusted ⇒ `0 < −deltaMm ≤ threshold`; an exact fit is never reported as
    adjusted; an adjustment is never applied without being reported.
-3. If Q2(d) is *yes*: a remainder of 300 mm or more is recorded as empty columns split at 800 mm, the
-   design still has zero findings, and a remainder under 300 mm publishes no opening (ADR 0015).
+3. ~~If Q2(d) is *yes*: a remainder of 300 mm or more is recorded as empty columns split at 800 mm, the
+   design still has zero findings, and a remainder under 300 mm publishes no opening (ADR 0015).~~
+   **Struck 2026-09-11 — the last clause was false** (ADR 0015 is a vertical threshold; ADR 0110
+   Amendment A6), and the whole 7C section is superseded by the re-plan's 7C.
 
 **7D1 — the generation shell** ([ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md))
 
@@ -652,8 +775,9 @@ when Q2 is answered.
    string never throws and never reaches the domain unparsed; an invalid or missing value lands on the
    earliest sub-state that needs it, with that field marked.
 3. The query carries shape, walls, height and direction only — never a placement, a price or a design.
-4. `/` redirects to `/[locale]/configurator/room` (interim, Q7); `/configurator/configure` is
-   unchanged and all 34 e2e navigations to it stay green.
+4. `/` redirects to `/[locale]/configurator/room` (interim, Q7); ~~`/configurator/configure` is
+   unchanged and all 34 e2e navigations to it stay green.~~ **Superseded 2026-09-11 (Q7):** the route
+   stays unchanged *in 7E1 only*; waves 7E3 and 7E4 retire it.
 
 **7E2 — creating the design** (security reviewer dispatched)
 
@@ -667,8 +791,9 @@ when Q2 is answered.
 4. **Adversarial:** a customer's 3600 × 2400 room survives save and reload unchanged (ADR 0069
    decision 5b, ADR 0085).
 5. `‹ Cameră` and `Înapoi` lead to `/configurator/room` with the design's room filled in; the design
-   stays reachable at its link. The load-error start-over leads to Step 1. A demo design's first
-   successful save replaces the URL with `/d/{id}` without a reload (interim, Q7).
+   stays reachable at its link. The load-error start-over leads to Step 1. ~~A demo design's first
+   successful save replaces the URL with `/d/{id}` without a reload (interim, Q7).~~ **Superseded
+   2026-09-11 (Q7):** no editor is reachable without an id; the pointer cookie is wave 7E3's.
 6. Must not: `POST /api/designs` reads a body — a body sent to it is ignored, asserted; the write-token
    cookie's path and flags change; the locale reaches the document, a save payload or a revision.
 
@@ -686,7 +811,8 @@ tree while it does (`docs/best-practices/browser-and-visual-qa.md`).
 - **7F2:** the reason sits beside its field (`aria-describedby`), the plan marks the offending wall
   red, *"Presetele apar după ce toate valorile sunt valide."* is shown. *Property over every issue
   code, both locales:* the resolved message contains **no digit and no code**. The U refusal names no
-  internal reason. Until Q5, no message suggests the linear shape.
+  internal reason. ~~Until Q5, no message suggests the linear shape.~~ **Superseded 2026-09-11 (Q5):**
+  the suggestion is shown once wave 7J makes linear buildable, and not before.
 - **7F3:** the skeleton count is a constant of the layout and is identical for rooms with 0, 1 and 3
   fitting presets. The header's counts are an ICU plural. A card shows counts by band through
   `normaliseBand`, the finish summary through the existing finish and material resolvers, and its
@@ -700,7 +826,9 @@ tree while it does (`docs/best-practices/browser-and-visual-qa.md`).
   lease is released even if the customer leaves mid-composition (ledger). The composition's duration
   on the verifier's device is **reported**, not assumed.
 
-**7G — thumbnails.** Every recipe has exactly one thumbnail, rendered from its own instantiated design
+**7G — thumbnails.** ~~Every recipe has exactly one thumbnail, rendered from its own instantiated design
+by `/internal/scene-shot`~~ **Superseded 2026-09-11 (ADR 0112 decision 6): captured at save** — the rest
+of this paragraph describes the retired build-time rig: every recipe has exactly one thumbnail, rendered from its own instantiated design
 by `/internal/scene-shot` (still opt-in in production, SEC-003's bounds unchanged); a manifest records
 each recipe's fingerprint and a test fails when a recipe changes without a re-capture. Must not:
 anything imported from `design-source/`.
@@ -761,7 +889,10 @@ decision 2 (the room is never a function of depth).
    per-shape, per-wall minimum and maximum; height minimum and maximum; `approval`) and
    `INTERIM_ROOM_POLICY` with `approval: "interim-unapproved"`. Every bound is **derived at module load,
    never written as a literal**: the L wall minima from the far along-wall edge of the reference
-   kitchen's structural corner placements on each wall (900 on both today); the maxima from
+   kitchen's structural corner placements on each wall ~~(900 on both today)~~ **— the largest over
+   every depth in `declaredCabinetDepthsMm()`, each wall-B piece positioned by
+   `alongWallPositionAtMm` from the fixture's own depth: wall A 900, wall B 1000 (corrected
+   2026-09-11, ADR 0108 Amendment A; see *Adjudication Q1.1* below)**; the maxima from
    `MAX_ROOM_WIDTH_MM` / `MAX_ROOM_DEPTH_MM`; the height minimum from `LEVELS[0]`'s top; the height
    maximum from `MAX_ROOM_HEIGHT_MM`. Buildable shapes: L only. Watch for an import cycle —
    `module-grid.ts`'s head comment records one that failed silently.
@@ -805,6 +936,10 @@ decision 2 (the room is never a function of depth).
    any bound differs from the constant it is derived from, so hand-editing one to a chosen number turns
    it red; every maximum is at or below the wire bound for its axis; the seeded kitchen's own room
    (`KITCHEN_L_DESIGN.room`) validates under the interim policy.
+   **Added 2026-09-11 (Adjudication Q1.1):** each L wall minimum **equals** — not merely *is at least*
+   — the largest far edge of that wall's structural corner pieces in `setCabinetDepth`'s actual
+   output at each declared depth; and a room at exactly the minima, taken to every declared depth,
+   reports no overflowing placement.
 8. **Parser table:** `3,60` → 3600; `3,6` → 3600; `3.60` → 3600; `" 2,605 "` → 2605; `3` → 3000;
    `0,45` → 450; `4,1` → 4100; `3,6000` → 3600; `3,6005` → `notWholeMillimetres`; `3 600`, `3.600,5`, `3e3`, `-3`,
    `+3`, `abc` → `notANumber`; `0` and `0,000` → `notPositive`; `""` and `"  "` → `empty`.
@@ -823,6 +958,503 @@ tests/room`, then the package's `typecheck` and `lint`; `pnpm --filter @lemnaria
 build` before the web test (web resolves the domain from `dist/`); `cd apps/web && pnpm exec vitest
 run tests/room`; whole-tree `pnpm format:check` last. QA should prove the interim-drift test (criterion
 7) fails by editing one bound, and restore.
+
+### Adjudication Q1.1 — 2026-09-11: the wall minima were derived at one depth
+
+**Finding (QA, Medium):** `INTERIM_ROOM_POLICY`'s wall minima come from `KITCHEN_L_DESIGN` at its only
+depth, 600. At 700 wall B's structural corner stands further out, so a 900 × 900 L validates, accepts
+`setCabinetDepth(700)`, and is then marked on three structural bodies no cabinet edit can clear. Held
+red by `packages/configurator-domain/tests/room/validate-room.adversarial.test.ts` (*"at a 700 mm
+cabinet depth, wall B's minimum reaches its structural corner's far edge"*, `expected 900 ≥ 1000`).
+
+**Classification: contract gap.** The implementation follows punch-list item 1 and ADR 0108 decision
+6 exactly; the contract's derivation did not match the contract's own stated reason. Not a
+test-fidelity problem: the test measures a state a customer reaches through the product's own
+commands.
+
+**Measured by the architect** (scratch run of `setCabinetDepth` over `KITCHEN_L_DESIGN` with the fake
+probe, at both declared depths): **wall A's corner does not move** — `p25` is 0–900 at 600 and at 700,
+because wall A is anchored at the corner. **Wall B's does**: `p26` 580–900 → **680–1000**, `p9` and
+`p21` 330–900 → 400–970. QA's figures are confirmed.
+
+**Ruling — [ADR 0108](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md)
+Amendment A:** each L wall minimum is the largest far edge of that wall's structural corner pieces
+over **every** declared cabinet depth — **wall A 900, wall B 1000**. Owner question Q1's figures are
+corrected above to match. `validateRoomInput` still reads no depth; the depth enters only the
+module-load derivation of the constant.
+
+**The implementer's change list (the tree is otherwise frozen):**
+
+1. **`packages/configurator-domain/src/room/room-policy.ts`** — `farthestCornerEdgeMm(wall)` becomes
+   the maximum, over every `depth` in `declaredCabinetDepthsMm()` (`worktop-depth.ts`), of
+   `alongWallPositionAtMm({ placement, catalog: KITCHEN_L_BODY_CATALOG, fromCabinetDepthMm:
+   cabinetDepthMmOf(KITCHEN_L_DESIGN), toCabinetDepthMm: depth }) + placement.body.widthMm / 2`, over
+   the wall's structural corner placements. `alongWallPositionAtMm` (`along-wall-chain-shift.ts:121`)
+   is the reader `setCabinetDepth` itself positions bodies with (`commands/set-cabinet-depth.ts:473`)
+   and returns a wall-A coordinate unchanged, so no wall branch is written. Structural-ness keeps being
+   read from `KITCHEN_L_BODY_CATALOG`: corner pieces are structural at every depth. **No numeric
+   literal** — QA's literal-scan test still applies — and **no call to `setCabinetDepth`**, which
+   needs a probe the domain does not have. Keep the empty-list throw; add one if
+   `declaredCabinetDepthsMm()` is empty. Re-run QA's *first module loaded* test: the new imports
+   (`along-wall-chain-shift.ts`, `worktop-depth.ts`, `design.ts`'s `cabinetDepthMmOf`) must not close a
+   cycle through `room/`.
+2. **The header comment on `INTERIM_ROOM_POLICY` and `farthestCornerEdgeMm`** — say the minimum holds
+   the corner at every declared depth, and cite Amendment A.
+3. **`packages/configurator-domain/tests/room/room-policy.test.ts`** (the implementer's paired test;
+   QA's adversarial file is not edited) — replace any expectation computed from `KITCHEN_L_DESIGN` at
+   its single depth with an **independent** re-derivation: run `setCabinetDepth` (with
+   `createFakeProbeFactory()` from `tests/support/fake-probe.ts`) on `KITCHEN_L_DESIGN` at each
+   declared depth, take the largest structural-corner far edge per wall from the **command's output**,
+   and assert the policy minimum **equals** it (`toBe`, not `toBeGreaterThanOrEqual`). The command and
+   the policy share the chain reader, so state in the test what it does *not* prove: that the reader
+   matches built geometry, which `three-adapter/tests/room-composition.parity.test.ts` holds at both
+   depths.
+4. **Add the boundary pair**, same file: a design holding only `KITCHEN_L_DESIGN`'s structural corner
+   placements, in a room at exactly the interim minima (A 900, B 1000, height from the policy's range
+   at or above the corner's top), taken through `setCabinetDepth` to every declared depth, reports
+   `findOverflowingPlacementIds(...) = []` at each; the same with wall B one millimetre shorter reports
+   the wall-B corner pieces at 700. If `setCabinetDepth` refuses the corner-only design for a reason
+   unrelated to this finding, **stop and report** rather than work around it.
+5. **Expected result:** QA's four-case `it.each` goes green (A at 600/700: 900 ≥ 900; B: 1000 ≥ 900,
+   1000 ≥ 1000) with no edit to QA's file; every existing boundary property keeps passing because it
+   reads the bounds off the policy. Rebuild the domain `dist/` before any web test reads it.
+
+**QA's secondary point.** A mutation deriving wall B's minimum from wall A's corner survived because
+both were 900. After the fix they are 900 and 1000, so that mutation yields 900 for wall B and QA's
+wall-B-at-700 case fails on it. The **reverse** mutation (wall A from wall B's corner → 1000) would
+still satisfy QA's `≥` cases; item 3's equality assertion is what kills it — QA should apply both
+mutations after the fix and confirm each goes red.
+
+### 7A close-out ruling — 2026-09-11: the owner approved the L bounds (ADR 0108 Amendment B)
+
+The owner answered Q1 — *"1. Yes looks like good boundaries"* — so 7A commits with the approved policy,
+not the interim one. **Approved bounds are named literals of product data** in
+`src/room/approved-room-policy.ts` (`APPROVED_ROOM_POLICY`, `approval: "owner-approved"`: wall A
+900–6300, wall B 1000–5100, ceiling 2200–3900, L only). **The engine's limits stay derived** and are
+renamed `ENGINE_ROOM_LIMITS` in `room-policy.ts`, no longer exported from the package. A guard test
+holds every approved bound inside the engine's, and a pin test holds the six numbers to Amendment B's
+table. Why literals: the owner approved numbers, and a derived bound would move under a later
+engineering change without the owner — ADR 0108 Amendment B, decision B1. Linear and U stay refused
+until their waves (B2). The ceiling minimum moves 860 → 2200 for the product only; nothing in
+production read 860, and every fixture room is 2600. The change list sent to the coordinator:
+
+1. New `approved-room-policy.ts` (named constants, the owner's words and Amendment B cited, type-only
+   imports).
+2. Rename `INTERIM_ROOM_POLICY` → `ENGINE_ROOM_LIMITS`; derivation and approval value unchanged; test
+   references renamed mechanically, no assertion changed.
+3. `src/index.ts` exports `APPROVED_ROOM_POLICY` and stops exporting the engine object.
+4. New `tests/room/approved-room-policy.test.ts`: approval; shapes ⊆ the engine's; approved min ≥
+   engine min, approved max ≤ engine max, min < max, per field; the literal pin; the seeded and
+   narrowed fixture rooms validate; the guard proved to fire by a temporary edit, then restored.
+5. The boundary property also runs on `APPROVED_ROOM_POLICY` (2199 / 2200 / 3901; B 999 / 1000;
+   A 899).
+6. Must not touch `validateRoomInput`, `DesignRoomSchema`, `design-bounds.ts`, the derivation, or any
+   QA assertion.
+
+## Re-plan after the owner's answers — 2026-09-11
+
+### What the answers settle
+
+| Question | Owner's ruling (quoted in full above, at each question) | Record | What it changes |
+| --- | --- | --- | --- |
+| Q1 bounds | *"Yes looks like good boundaries"* | ADR 0108 Amendment B | 7A commits with approved literals; linear and U bounds come with their waves (F1). |
+| Q2 leftover | *"maximum 599 ... fix exactly what fits and let the edges empty ... it should look like a empty column"* | ADR 0109 A, ADR 0110 A | No narrowing; ≤ 599 mm bare per run; the space is an ordinary empty column. |
+| Q3 generation | *"fridge, sink, and hub ... a cabinet to have that preparation surface ... a kitchen minimum should have sink and hub"* | ADR 0110 A | Layout order, minimum kitchen, a second Step 1 refusal. Uppers (F2) and drop order (F3) open. |
+| Q4 presets | *"a temporary button ... I will prepare a library of presets ... +- 600 mm, you show me the preset"* | ADR 0112, ADR 0109 A | A new feature: owner-authored library behind a server gate; ±600 matching; adaptation from the edges (F4). |
+| Q5 shapes | *"need to do also the U shaped ... all kitchen shapes (exluding island)"* | this re-plan | Linear in M7 (7J); U proposed as M7B. |
+| Q6 mirror | *"Yes mirror, plus this mirroring especially of corner cabinet will help in building the U shape"* | ADR 0108 decision 5 stands; 7I | 7I unblocked; its mirror works on one group so M7B can mirror the corner alone. |
+| Q7 visitor | *"custom link for each user ... on reopening ... load its previous configuration ... only with custom user uuid"* | ADR 0111 A | Editor only at `/d/{id}`; pointer cookie; demo route retired; e2e migration first. |
+| Q8 copy | *"Mark as approved at the moment"* | ADR 0113 | Gate M7-C withdrawn; leaves enter the lock in their own wave; Russian approved by the same ruling. |
+
+### Scope, and a proposed split: M7 and M7B
+
+**Proposed:** M7 keeps Step 1 for the **L** (left and mirrored right) and for **straight** kitchens,
+composition, the owner's **preset library** and its matching, the **returning visitor**, and the 3D
+room following the entered room. **U-shaped rooms become M7B**, planned in their own file when M7's
+domain waves have landed. Order: **M7 → M7B → M8**. Nothing ships before every milestone is done, so
+the split costs no release.
+
+Why, measured in the tree:
+
+1. **U changes the stored document and everything keyed on two walls.** A third wall reaches
+   `DesignWallSchema` and `DesignRoomShapeSchema` (`design.ts:48-52`), the wall transforms
+   (`room-transforms.ts:34-49`), the column key and along-wall helpers (`module-grid.ts:67-94`),
+   `wallLengthMm` (`queries/overflowing-placements.ts:45-50`), the validator's across-wall bound and
+   corner-overlap check (`validate-design.ts`, `findCornerOverlaps` at `:916`), the corner chain's
+   `WALL_THE_CORNER_IS_TAKEN_FROM = "B"` (`along-wall-chain-shift.ts:48`), the storage bounds that are
+   derived from two wall runs (`design-bounds.ts:57-60, 107`, hence `MAX_PLACEMENTS` and
+   `MAX_DESIGN_BYTES`), the shell and cameras, the price breakdown's wall grouping, and M8's review.
+   That is a cross-cutting change through M2–M6 code, and it earns its own plan, sweep and review.
+2. **U is built from M7's parts**: the mirror (7I), the shell and composition (7D1/7D2), the Step 1
+   screens, and the approved-policy mechanism. Planning it before they exist would plan against
+   guesses.
+3. **Its bounds need the owner**, and the question is only answerable once the shape exists on
+   screen.
+4. **M8 after M7B**, because M8's review groups by wall → band → order; doing M8 first would rework it
+   for wall C.
+
+*Alternative, kept one milestone:* rejected — well over twenty waves with a stored-schema change in
+the middle, and a milestone that cannot close for a long time is how its wave table goes stale
+(`docs/WORKFLOW.md`, *The scribe runs after the commit*).
+
+**What U means for stored documents** — recorded now so M7 does not paint M7B into a corner:
+
+- Widening `DesignWallSchema` to `A | B | C` and adding `"U"` plus an optional third wall length is
+  **additive**: every stored document stays valid, so no migration arm is owed for old documents
+  (ADR 0053's argument). The hazard runs backward — a document using wall C is unreadable by an older
+  build — which is the same no-rollback note `DesignSettingsSchema.finish` already carries.
+- The storage bounds grow with a third wall run, which moves the write seam's byte cap on purpose.
+- **The right-hand L that 7I builds is a mirrored left L** (`room.cornerDirection`, optional, absent =
+  left). M7B decides whether it stays that or is re-expressed as walls A + C; if the latter, stored
+  right-hand documents need a version-keyed migration arm (ADR 0055's precedent). Either way it is a
+  pre-launch change: the first stored schema is M8's decision (ADR 0111 decision 8; ADR 0038).
+- **§13.3 q4, answered for U:** `LEVELS` are manufacturing heights and stay constants for every wall.
+  What becomes per-wall data is each wall's transform, its length, and which wall a corner takes its
+  reach from.
+
+### The leftover rule (Q2), reconciled
+
+**The rule:** whatever the product *proposes* — a composed kitchen or an adapted preset — leaves **at
+most 599 mm** of bare wall at the end of any run. A bare stretch of 600 mm or more receives 600 mm
+storage bases; the remainder stays an ordinary empty column, placed by the same commands a customer
+uses, so it looks and behaves *"exact like after you remove the cabinets"*.
+
+| Record | Reconciliation |
+| --- | --- |
+| [0015](../decisions/0015-min-span-is-exclusive.md) | **No conflict.** Its 300 mm is a *vertical* span threshold. This plan said otherwise twice; both sentences are struck (ADR 0110 Amendment A6). |
+| [0043](../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md), [0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md), [0053](../decisions/0053-the-design-document-records-the-whole-frozen-map.md) | Empty space of any width is legal and recorded — which is what the owner asked the leftover to be. The 599 cap binds proposals, not customers' own edits. |
+| [0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md), [0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md) | `insertBody`'s split already records the remainder; a ≤ 599 mm column is under the 800 mm ceiling. |
+| [0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md) | Leftover is still normal and still never reported. The cap does not report a remainder; it decides, at proposal time, that 600 mm or more holds a cabinet. |
+| Owner's sizes | *"one door 599-350, bottle cargo 300"* — the catalogue builds `base-cabinet` 200–800 with one door up to 600 (ADR 0030, 0033) and `base-bottle-cargo` 200/300 (ADR 0026), so the space accepts at least what the owner named. |
+
+### Generation (Q3) — ADR 0110 Amendment A
+
+Left to right as seen from inside the room — on a left-corner L, from wall B's free end toward the
+corner, then along wall A — **fridge → sink → preparation cabinet → hob with the oven under it**, then
+storage, then the leftover rule. The fridge stands wherever that order puts it. **A room that cannot
+hold a sink and a hob** gets no kitchen: generation returns *minimum not met*, and Step 1 goes back to
+the dimensions with a room-level reason that carries no number. The approved bounds admit such rooms
+(a 900 × 1000 L), and they stand (ADR 0108 Amendment B). Drop order (F3) and upper cabinets (F2) run
+on their defaults.
+
+### The preset library (Q4) — ADR 0112, ADR 0109 Amendment A
+
+The owner generates a kitchen, adjusts it in the editor and saves it; customers later see it when
+their room is the same shape and every wall is within ±600 mm of the room it was saved in. **The fit
+invariant still binds**: a preset larger than the room loses whole columns from the free end of each
+run until it fits, never the sink, the hob or the corner, and then takes the leftover rule; one that
+cannot is not shown. Every change is declared on the card. The library lives in a new `presets` table;
+authoring is behind a **feature flag and an owner secret, both checked on the server**, and a save
+snapshots the stored design by id. **Full tier with a security reviewer** for the table, the gate and
+the save endpoint.
+
+### The returning visitor (Q7) — ADR 0111 Amendment A, ADR 0114
+
+~~A per-visitor cookie holds the id of the design this browser may edit;~~ **Superseded the same day
+by the owner's security requirement** — *"no JavaScript script will be able to read these values ...
+nobody will be able to open it accidentally or like a hacker. So maximum attention for this."* — and
+designed in [ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md):
+one `__Host-lemnaria_visitor` cookie holding a **256-bit random secret, never the design id** —
+`HttpOnly`, `Secure`, `SameSite=Lax`, host-only, `Path=/`, 30 days sliding — whose hash is stored on
+each design the browser mints. No script reads or writes it and nothing mirrors it. The write token is
+**not** the identity: it is scoped to `/api/designs/{id}` and never reaches `/`. `/` and
+`/configurator/configure` resolve on the server to the visitor's latest design's `/d/{id}`, or to
+Step 1. The editor is never rendered anywhere else. The e2e suite and two tooling probes move off the
+retired route **before** it redirects.
+
+**The tension ADR 0114 surfaces:** a URL leaks, and today a design link is a read capability for
+whoever holds it. Recommended — reads require the owning browser, sharing becomes an explicit later
+action — changes ADR 0002 and ADR 0019 decision 1 and is put to the owner as **F5**; it is wave 7E3b
+and waits on the answer. The preset-author credential stays separate: the visitor cookie grants
+nothing on the save endpoint. Nothing is pulled forward from M8's abuse controls; M8's limiter and WAF
+scope gain `/` and `/d/*`. **Both waves are Full tier with a security reviewer.**
+
+### Copy (Q8) — ADR 0113
+
+No end gate. Each wave that adds a Romanian leaf adds it to the copy lock and the golden manifest in
+the same commit, citing ADR 0113; its Russian draft is approved by the same ruling.
+
+### Revised wave table
+
+Criteria marked *carried* are the earlier plan's, above, unchanged; everything else is below this
+table.
+
+| Wave | Goal | Production files (likely) | Depends on | Tier | Visual | Owner |
+| --- | --- | --- | --- | --- | --- | --- |
+| **7A** | Room validation; the approved L policy | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
+| **7D1** | Composition shell for the L | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
+| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/index.ts` | 7D1 | Full | No | F2, F3 defaults |
+| **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
+| **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
+| **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
+| **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
+| **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
+| **7P2** | Authoring gate, save endpoint, editor button | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
+| **7G** | Thumbnail captured at save, stored, served | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts` | 7P2 | Full + security (upload) | Capture | — |
+| **7B** | Preset matching: ±600 window, fit, availability, one evaluation | *carried* files; revised criteria below | 7A | Full | No | — |
+| **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | F4 default |
+| **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | **F6** default (a) |
+| **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
+| **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
+| **7E4** | e2e and tooling off `/configurator/configure` | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs` | — | Light (tests; CI is the verdict) | No | — |
+| ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
+| **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
+| **7E3b** | A design opens only in its owning browser; the read-only share view retired | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a | **Full + security** | Light | **F5 blocks** |
+| **7H** | The 3D room follows the entered room | *carried* | 7E2 | Full | **Yes** + desktop | — |
+| **7I** | Mirrored right-hand L; a mirror that works on one group | *carried*, plus the per-group primitive | 7H | Full | **Yes** | answered (Q6) |
+| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts`, `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | **F1 blocks** |
+| **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a (and 7E3b if F5 is *yes*) | Light (tests) | **Yes — the phase gate** | — |
+| **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
+| ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
+
+**Recommended order, and why.** The owner's own process — *choose the room, generate, adjust, save* —
+is the critical path, because matching is useless until the library has presets: **7A → 7D1 → 7D2 →
+7E1 → 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G**, then 7B → 7C → 7F2 → 7F3 for matching, ~~with 7E4 → 7E3, 7H,
+7I and 7J fitted in where the tree is free~~ **then 7A2 once 7D2 exists, with 7E4 → 7E3a (→ 7E3b on
+F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11). The four domain waves share `src/index.ts`; run them one
+after another.
+
+**Next dispatchable wave after 7A: 7D1** — its punch list follows the revised criteria.
+
+### Revised criteria for new and changed waves
+
+**7B — preset matching** (replaces the earlier 7B criteria 2 and 4; 1, 3, 5, 6, 7 and 8 carry, read
+with *recipe* meaning a library row or a fixture)
+
+1. *Property* — the window: a preset is a candidate **if and only if** the shapes are equal and every
+   wall differs from the length the preset was saved in by at most 600 mm; 600 is in, 601 is out, in
+   both directions. Corner direction is not read.
+2. A candidate is shown **unchanged** when its instantiated design has zero findings, every body is
+   available and a sink and a hob are present; *property* with at least 100 samples in each arm.
+3. Order: no change needed first, then fewer cabinets removed, then the library's order, newest
+   first; deterministic; no expression reads the remainder.
+4. The reference kitchen is a test fixture here and is not published (ADR 0109 A1).
+5. **A ceiling below a preset's tallest body** (QA's forward risk Q2.2): for every room height in
+   2200–2599, a preset with any body whose top is above the room is **never shown unchanged**; at
+   2600 the reference fixture is shown unchanged in its own room. The boundary pair 2599 / 2600 is
+   asserted explicitly.
+
+**7C — adaptation** (supersedes the earlier 7C)
+
+1. A run longer than its wall loses **whole columns from its free end** — through `removePlacement`,
+   so the freed space is exactly what a customer's delete leaves — and stops as soon as it fits. Never
+   a structural body, the sink or the hob; if either would have to go, the preset is not shown.
+2. Then the leftover rule, **the one implementation 7D2 also calls**, fills bare run ends of 600 mm
+   or more with 600 mm storage through `insertBody`.
+3. *Property* over rooms inside the window: every shown preset has zero findings, a sink and a hob,
+   and no bare run end of 600 mm or more; replaying its declared changes on the saved design with
+   `removePlacement` and `insertBody` reproduces it exactly.
+4. The card's declaration lists every removed and added cabinet per wall; a preset adapted without a
+   declaration cannot be built (the evaluation type carries the list).
+5. **Below a low ceiling** (ADR 0109 Amendment B): ~~every body whose top is above the room height is
+   removed through `removePlacement` and declared as a dropped row; the recorded space it leaves is
+   capped at the room height by the **one** helper the 7D1 shell also uses.~~ **Corrected 2026-09-11
+   (7A logic review; ADR 0109 Amendment B's correction):** a **non-structural** body above the
+   ceiling is removed through `removePlacement`; a **structural** corner piece above it (`p21`, which
+   `removePlacement` refuses as `NOT_DELETABLE`) is **not instantiated**, by the 7D1 shell's own
+   selection rule; both are declared as a dropped row; then every recorded extent — `emptyColumns`
+   and `columnExtents`, the corner's own column included — is capped at the room height by the
+   **one** helper the 7D1 shell also uses. A test asserts `removePlacement` is never called on a
+   structural piece. *Property* over heights
+   2200–2599: no body and no recorded extent rises above the room, the design has zero findings, and
+   the sink and the hob are untouched. Consistent with *"a listed preset always applies"*: the listed
+   evaluation already carries the dropped row, and application writes exactly it.
+
+**7D2 — composition** (criteria 1–6 of the earlier 7D2 carry; add)
+
+7. The placed items read fridge → sink → preparation → hob-with-oven along the run, left to right as
+   seen from inside the room; *property*: for every generated design, the along-run order of the
+   placed items is a subsequence of that list.
+8. A room that cannot hold a sink and a hob returns *minimum not met* and no design; *property*: every
+   design returned contains both.
+9. The leftover rule: no bare run end of 600 mm or more in any returned design (*property*), and the
+   remainder is an empty column the published openings include.
+10. F3's default drop order — storage, then the fridge, then the preparation cabinet — holds on a
+    sweep of short walls; the sink and the hob are never dropped.
+11. **Low ceilings**: the property in criterion 1 includes heights 2200–2599, and no generated body
+    rises above the room — the shell's cap means a top-row body is never offered there. **If F2 adds
+    upper cabinets and a hood**, they stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
+    under every approved ceiling (≥ 2200); the top row (2200–2600) is never part of a composed kitchen
+    and is offered to the customer only where the room is 2600 or higher.
+
+~~**7E3 — the returning visitor** (security reviewer dispatched)~~ — **superseded by 7E3a and 7E3b
+below (ADR 0114)**; the struck criteria assumed a cookie holding the design id.
+
+- ~~1. The mint response and every successful save set or refresh the pointer — `HttpOnly`, `Secure` outside development, `SameSite=Lax`, `Path=/`, 30 days — naming that design. Viewing another design's `/d/{id}` never sets or moves it.~~
+- ~~2. `/` and `/configurator/configure`, in both locales: a pointer whose design loads → 307 to `/[locale]/d/{id}`; no pointer → Step 1; a pointer whose design does not load → the pointer is cleared and the visitor lands on Step 1, never an error page. No response from either route contains the editor.~~
+- ~~3. The pointer holds nothing but an id; no route authorises a read or a write from it; a request carrying a pointer but no write token cannot save.~~
+- ~~4. Must not: the locale reaches the pointer; the pointer is readable from script; the design id appears in a log line it did not already appear in.~~
+
+**7A2 — the coupled room rule** (ADR 0108 Amendment C; dispatched after 7D2)
+
+1. `validateRoomInput` gains one code, `ROOM_TOO_SMALL_FOR_KITCHEN`, on a room-level field, with no
+   number; the per-field codes are unchanged and are reported first, so a room with a bad wall never
+   also reports the coupled rule.
+2. The widths it uses — the sink's floor, the hob's width and each wall's corner reach at every
+   declared depth — come in through the policy, derived in the engine's limits from the catalogue and
+   Amendment A's corner edges; the validator still imports types only.
+3. *Property* over the approved L range, at least 100 samples in each arm: the rule passes **if and
+   only if** `generateKitchen` places a sink and a hob in that room. Must not: a validator and a
+   generator that disagree on any sampled room.
+4. Boundary rows from Amendment C's table: with wall A at 900, wall B 2159 fails and 2160 passes;
+   with wall B at 1000, wall A 2059 fails and 2060 passes; wall B 1560 with wall A 1500 passes.
+5. If F6 is answered (b), only the policy's data changes — the rule becomes *either fits* — and the
+   property is rerun.
+
+**7E3a — visitor identity and resume** (security reviewer dispatched; ADR 0114 decisions 1–4, 6, 7)
+
+1. The only visitor cookie is `__Host-lemnaria_visitor`, set only in `Set-Cookie` by the mint and
+   refreshed only by a successful save, with exactly `HttpOnly; Secure; SameSite=Lax; Path=/`, no
+   `Domain`, 30-day `Max-Age`. Its value is 256 random bits from `node:crypto`; only its hash reaches
+   the database, and neither appears in any log line.
+2. **No script can read it and nothing mirrors it:** a browser test reads `document.cookie` on every
+   Step 1 and editor page and never finds it; no source file under `apps/web/src` touches
+   `localStorage`, `sessionStorage` or `document.cookie` for it (grep).
+3. The migration adds a nullable visitor-hash column with a shape check and an index, runs through
+   the ledger, and its schema is read back; the mint stores the hash in the same insert;
+   `POST /api/designs` still reads no body.
+4. `/` and `/configurator/configure`, both locales: a cookie matching a design → 307 to the visitor's
+   most recently updated design; no cookie → Step 1; a cookie matching nothing → cleared on that
+   response, Step 1, never an error page. **No response from either route contains the editor.**
+5. Opening another design's `/d/{id}` never sets or changes the visitor cookie; a request carrying a
+   visitor cookie but no write token cannot save; a valid visitor cookie and write token without the
+   author cookie cannot save a preset.
+6. Local development and Playwright keep the cookie on `http://localhost` (measured in the wave, not
+   assumed).
+
+**7E3b — a design opens only in its owning browser** (blocked on F5; security reviewer dispatched;
+ADR 0114 decision 5)
+
+1. `/[locale]/d/{id}` and `GET /api/designs/{id}` serve the design only when the row's visitor hash
+   equals the request's, compared in constant time.
+2. A mismatch, a missing cookie and a nonexistent id produce **byte-identical** responses — the same
+   page, and the same 404 body from the API — so neither existence nor ownership is confirmed.
+3. The three read-only e2e specs are rewritten to assert the refusal; the write-access probe and
+   `canWrite` keep working for the owner.
+4. Dated amendments land in ADR 0002 and ADR 0019 decision 1 in the same wave.
+
+**7E4 — e2e and tooling off the retired route** (lands before 7E3a)
+
+1. A Playwright fixture mints the seeded design through `POST /api/designs` and opens its `/d/{id}`;
+   every spec that navigated to `/configurator/configure` uses it.
+2. After the wave, no spec, config or script names `/configurator/configure` except 7E3a's own
+   redirect spec (grep). The fixture's mint also sets the visitor cookie once 7E3a lands, so the
+   minted design stays readable under 7E3b.
+3. Both Playwright projects pass on the runner — a local run is not the verdict for runner timing.
+
+**7P1 — the preset store** (security reviewer dispatched)
+
+1. The migration is the next number, runs through the ledger, and the test database's schema is read
+   back after it (ADR 0020, 0042); the application role holds `SELECT, INSERT` on `presets` and
+   nothing more, proved by a live privilege test like ADR 0008's.
+2. `PresetRecordSchema` is strict; its snapshot parses as `CurrentDesignSchema`; the repository reads
+   published presets by shape and writes one row.
+3. The scheduled export includes the presets table, and its restore path is exercised.
+4. Must not: an agent applies the migration to a deployed database; a customer-reachable route writes
+   to the table.
+
+**7P2 — authoring** (security reviewer dispatched)
+
+1. Flag off: both authoring routes answer 404 to every method, and the server-rendered editor carries
+   no save control.
+2. Flag on, no author cookie: no save control; a save is refused, indistinguishably from flag off.
+3. A wrong secret gets the same response shape as a disabled feature; a right one sets an `HttpOnly`,
+   `Secure`, `SameSite=Strict`, expiring cookie that is not the secret and is verified on the server
+   in constant time. The secret travels only in a request body and appears in no log.
+4. A save accepts a design id and optional names and nothing else; the server loads that design
+   through the repository and snapshots it. A snapshot with any finding, or without a sink and a hob,
+   is refused with a code.
+5. Turning the flag off after presets exist leaves them published and hides only authoring.
+
+**7G — the thumbnail**: captured from the owner's scene at one fixed camera when saving; the server
+accepts only an image of a declared type, under a stated byte and pixel cap; it is served read-only
+with its content type, `nosniff` and cache headers; a preset without one renders its card without an
+image, never a broken one.
+
+**7I — the mirror** (carried, plus): the mirror primitive applies to one group as well as the whole
+scene, with correct face winding either way — captured, not only asserted — because M7B mirrors the
+corner assembly on its own.
+
+**7J — straight kitchens**: F1's bounds in the approved policy; a shell with no corner; composition
+on wall A under every 7D2 property; the 1C/D1C suggestion to switch to a straight kitchen appears; what
+`depthMm` means for a one-wall room is decided and recorded in the wave.
+
+**7F2 (add):** *minimum not met* is shown at 1C with a room-level reason, no digit and no code, and no
+wall marked red.
+
+**7F3 (add):** the list reads the library (7P1); a card shows every declared change per wall.
+
+**7K (add):** a returning visitor opening `/` lands on their design; opening `/configurator/configure`
+never shows an editor; no customer journey can reach the save-as-preset control.
+
+## Wave 7D1 — dispatchable punch list
+
+**Tier: Full.** No visual surface. **Owner answers needed: none.** Dispatch after 7A commits.
+**ADRs to check intent against first, and to stop and report on if they disagree:**
+[0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+(and Amendment A), [0021](../decisions/0021-corner-returns-are-structural-in-data.md),
+[0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md),
+[0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md),
+[0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md),
+[0053](../decisions/0053-the-design-document-records-the-whole-frozen-map.md),
+[0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md),
+[0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md),
+[0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+Amendment B, [0108](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md)
+Amendments A and B.
+
+**Must-fix items (4):**
+
+1. **`packages/configurator-domain/src/generation/shell-design.ts`** — `buildLShellDesign({ room,
+   occurredAt })`, returning a `Design` at the reference kitchen's cabinet depth with the entered
+   room, the reference kitchen's settings, `presetId: null`, and **only** the structural corner
+   placements of `KITCHEN_L_DESIGN` whose top is at or under the room height — selected by the
+   catalogue's `structuralReason`, never copied as literals. **A corner piece above the ceiling is
+   excluded by this selection, never through `removePlacement`**, which refuses a structural body as
+   `NOT_DELETABLE` (`commands/remove-placement.ts:41-50`) — under construction (a), filter the
+   structural pieces first and remove only non-structural ones (7A logic review, 2026-09-11).
+2. **Recorded empty space** for every free stretch of each wall, in each band, from that band's
+   corner far edge (0 where the band has no structural piece on that wall) to the wall's length. Two
+   constructions are acceptable, and the wave picks one and says why in the module head: (a) remove
+   every non-structural placement of the reference design through `removePlacement`, then fit the
+   recorded map to the room — clip past a shorter wall's end, extend to a longer wall's end split by
+   `splitEmptySpanAtCap`; or (b) tile directly with `splitEmptySpanAtCap`, with depths and
+   `depthFromBuildId` as the removal would record them. **No frozen-map arithmetic a command already
+   owns may be re-implemented.**
+   **Added 2026-09-11 (ADR 0109 Amendment B):** capping recorded space at `min(room height, 2600)` is
+   written **once**, as a small helper beside `clip-empty-columns-at-wall-end.ts`, because wave 7C
+   needs the same cap when it drops a preset's rows above a low ceiling. **The cap applies to every
+   recorded extent — `emptyColumns` and `columnExtents` alike, including the corner's own column**
+   (whose recorded span reaches 1500–2600 in the reference kitchen and reports
+   `COLUMN_EXTENT_ABOVE_ROOM` below 2600 if left uncapped).
+3. **The shell is a design the engine can insert into**: `deriveColumns` and `recomputeVoids` over it
+   publish the openings `insertBody` targets.
+4. **`src/index.ts`** — export the builder and its input type.
+
+**Acceptance criteria:**
+
+1. *Property* over `APPROVED_ROOM_POLICY`'s L range (walls on a 1 mm grid, height 2200–3900, at least
+   200 runs): the shell has **zero** `validateDesignForCatalog` findings of either severity,
+   including `RECORDED_SPAN_OVERLAPS_CORNER_BODY`.
+2. The corner pieces are exactly the structural ones whose top is at or under the height: at 2599
+   the top-row wall-B return is absent and at 2600 it is present. **At 2200 and at 2599 — the shell
+   as built, and again after `setCabinetDepth` to every other declared depth — it reports neither `PLACEMENT_ABOVE_ROOM` nor `COLUMN_EXTENT_ABOVE_ROOM`
+   / `EMPTY_COLUMN_ABOVE_ROOM`** — the 7A logic reviewer's failing case, asserted by name.
+3. *Property* — coverage: on each wall, in each band, the recorded space covers exactly
+   `[that band's corner far edge, wall length]` with no gap and no overlap; no recorded column is
+   wider than 800 mm or rises above `min(room height, 2600)`.
+4. For every wall whose free base run is at least 600 mm, a `base-sink` 600 inserts into its first
+   base opening with the fake probe; no published opening passes a wall's end.
+5. **Two sources made to agree:** if construction (b) is chosen, the shell for the reference room
+   equals, field for field, the reference design with every non-structural placement removed through
+   `removePlacement` — the command is the witness for the tiling. If (a) is chosen, a direct tiling of
+   the reference room is the witness for the command path.
+6. Deterministic: the same input gives a byte-identical shell.
+7. **Must not:** place any non-structural body; read a probe; import a price book; change
+   `removePlacement`, the void engine or the validator.
+
+**Tests expected:** `packages/configurator-domain/tests/generation/shell-design.test.ts` and
+`tests/generation/shell-design.property.test.ts`.
 
 ## Verification
 
