@@ -748,6 +748,14 @@ policy, so every per-endpoint limit is application code.
 >   added two new, possibly incomplete files (`three-adapter/tests/qa-7d1b-panel-wall-end-veto.adversarial.test.ts`,
 >   `apps/web/tests/scene/qa-7d1b-stage-room.adversarial.test.ts`), included in the WIP commit.
 >   **The WIP commit was made with `--no-verify`; its lint state was not observed.**
+> - **Correction, same session — the WIP commit `f61c361` captured a QA mutant** (`shell-design.ts:197`
+>   re-subtracting 19 mm on wall A): the coordinator committed while QA's mutation runner had it
+>   applied, breaking the tree freeze. Fixed by the very next commit, which restores the working
+>   tree's correct line. **After that fix QA reports 7D1b green:** domain 4082, three-adapter 3037,
+>   web 2587, typecheck/lint/format clean in all three. QA rewrote its two B3a tests against the veto
+>   (so "2 failed" above is superseded), confirmed the seeded kitchen's panel is unchanged at 3.510
+>   across every customer command sequence, and added adapter and stage tests (findings Q4.1–Q4.3).
+>   **What 7D1b still owes: the review pair and the visual verifier**, then close-out and push.
 > - **Not pushed.** `origin/m7-room-and-presets` is at `c9f43ea`; local commits after it (docs,
 >   7D1 `f5b4cd9`, its close-out, the 7D1b WIP) must not be pushed until `pnpm ci:local` is green —
 >   the pre-push hook will refuse while the two QA tests are red.

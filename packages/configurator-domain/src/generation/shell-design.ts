@@ -194,7 +194,7 @@ function freeRunTiles(wall: DesignWall, room: DesignRoom): EmptyColumn[] {
     }),
     ...tilesOver(runs.floor, {
       startMm: floorStartMm,
-      endMm: plannedEndMm(runs.floor, room) - (wall === "A" ? 19 : 0),
+      endMm: plannedEndMm(runs.floor, room),
     }),
   ];
 }
