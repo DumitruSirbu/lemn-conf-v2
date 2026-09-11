@@ -240,11 +240,10 @@ describe("buildLShellDesign over the approved L range", () => {
     );
   });
 
-  // **The arm this does not assert, and why:** where wall A has no base opening a base cabinet can
-  // take, the panel closes the structural corner base itself, so in a 900–918 mm wall A its outer face
-  // stands past the wall before anything is composed. Only wave 7D1b's veto fixes that band (ADR 0045
-  // Amendment A), so it is counted here and asserted, as expected to fail, in the block below.
-  it("keeps the run-end panel inside wall A once every wall-A base opening holds a base cabinet (ADR 0110 B3a)", () => {
+  // Both arms are asserted since wave 7D1b: whether a base cabinet closes the run or the corner base
+  // does, a panel whose outer face would pass wall A's end is not drawn (ADR 0045 Amendment A). The
+  // corner-alone arm is rare over this range, so the band below sweeps it width by width.
+  it("never draws the run-end panel past wall A, once every wall-A base opening holds a base cabinet (ADR 0045 Amendment A)", () => {
     const arms = armTally<
       "a base cabinet closes the run" | "the corner alone"
     >();
@@ -259,12 +258,10 @@ describe("buildLShellDesign over the approved L range", () => {
             ? "a base cabinet closes the run"
             : "the corner alone",
         );
-        if (!isClosedByACabinet) return;
 
         const outerFaceMm = runEndPanelOuterFaceMm(filled);
 
-        expect(outerFaceMm).toBeDefined();
-        expect(outerFaceMm ?? Infinity).toBeLessThanOrEqual(room.widthMm);
+        expect(outerFaceMm ?? room.widthMm).toBeLessThanOrEqual(room.widthMm);
       }),
       { numRuns: RUNS },
     );
@@ -286,16 +283,13 @@ describe("buildLShellDesign over the approved L range", () => {
   });
 });
 
-// **Expected to fail until wave 7D1b, which owns the flip** (ADR 0045 Amendment A; milestone,
-// Adjudication 7D1-Q2). With wall A from 900 to 918 mm there is no floor run a base cabinet can take,
-// so the run-end panel closes the structural corner base itself and its outer face lands at the
-// corner's far edge plus the panel's footprint — past the wall. The owner ruled that a panel whose
-// outer face would pass wall A's end is not drawn; 7D1b puts that veto in `runEndPanelSeatM`, every
-// case below then passes, the `it.fails` marker goes red, and that wave flips each one to `it`.
-//
-// **`it.fails` passes on any throw**, so the premise beside the cases proves their bodies reach the
-// assertion: every room in the band builds with no finding, and filling wall A places nothing.
-describe("the run-end panel when the corner alone closes wall A's run — flips in 7D1b", () => {
+// **Flipped from `it.fails` by wave 7D1b** (ADR 0045 Amendment A; milestone, Adjudication 7D1-Q2).
+// With wall A from 900 to 918 mm there is no floor run a base cabinet can take, so the run-end panel
+// would close the structural corner base itself, its outer face at the corner's far edge plus the
+// panel's footprint — past the wall. `runEndPanelSeatM`'s wall-end veto now hides it. Before the flip
+// every case failed, and the veto's arrival turned all nineteen `it.fails` markers red, which is how
+// the band proved it clears itself. The premise still shows each body reaches its assertion.
+describe("the run-end panel when the corner alone closes wall A's run (ADR 0045 Amendment A)", () => {
   const widthsMm = cornerAloneWallAWidthsMm();
 
   it("sweeps every wall A from the approved minimum to the last width the corner's panel passes (premise)", () => {
@@ -314,20 +308,17 @@ describe("the run-end panel when the corner alone closes wall A's run — flips 
   });
 
   for (const widthMm of widthsMm) {
-    it.fails(
-      `keeps the run-end panel inside wall A when the corner alone closes the run (${String(widthMm)}) — flips in 7D1b`,
-      () => {
-        const room = cornerAloneRoom(widthMm);
+    it(`keeps the run-end panel inside wall A when the corner alone closes the run (${String(widthMm)})`, () => {
+      const room = cornerAloneRoom(widthMm);
 
-        const outerFaceMm = runEndPanelOuterFaceMm(
-          withWallABaseRunFilled(shellIn(room)),
-        );
+      const outerFaceMm = runEndPanelOuterFaceMm(
+        withWallABaseRunFilled(shellIn(room)),
+      );
 
-        expect(outerFaceMm === undefined || outerFaceMm <= room.widthMm).toBe(
-          true,
-        );
-      },
-    );
+      expect(outerFaceMm === undefined || outerFaceMm <= room.widthMm).toBe(
+        true,
+      );
+    });
   }
 });
 

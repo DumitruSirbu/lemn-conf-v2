@@ -1,5 +1,6 @@
 import {
   runEndPanelSeatM,
+  type DesignRoom,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import type { Group, Object3D } from "three";
@@ -51,6 +52,9 @@ export interface RunEndPanelInput {
   /** The `solids` group: the shell plus every mounted customer body. */
   readonly solidsRoot: Object3D;
   readonly records: readonly PlacementRecord[];
+  /** The room the records stand in: the domain's wall-end veto reads wall A's length from it (ADR 0045
+   *  Amendment A). Passed through, never read here. */
+  readonly room: DesignRoom;
 }
 
 /** ADR 0045: the run-end panel closes the **last base cabinet on screen**, not the run's nominal
@@ -79,7 +83,7 @@ export function syncRunEndPanel(input: RunEndPanelInput): void {
   const panel = findRunEndPanel(input.solidsRoot);
   if (!panel) return;
 
-  const seatM = runEndPanelSeatM(input.records);
+  const seatM = runEndPanelSeatM(input.records, input.room);
   panel.visible = seatM !== undefined;
   panel.position.x = seatM ?? RUN_END_PANEL_SEEDED_X_M;
 }

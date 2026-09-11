@@ -13,6 +13,9 @@
  *  it creates no record, removes none, and knows nothing about meshes. `RUN_END_PANEL_SEEDED_X_M`
  *  stays in the adapter too; it is a parking position for a hidden object and an M1 parity literal,
  *  not a product fact. */
+import type { DesignRoom } from "./design.js";
+import { toMetres } from "./millimetres.js";
+import { wallLengthMm } from "./queries/overflowing-placements.js";
 import type { PlacementRecord } from "./void-engine.js";
 
 /** The panel's own slab, in metres: the reference room's `TH` door/panel thickness, and a
@@ -86,17 +89,30 @@ const PANEL_HALF_THICKNESS_M = RUN_END_PANEL_THICKNESS_M / 2;
  *
  *  Only the seat is contested, never the run: a column is where a base run *ends*, not a member of
  *  it, and a base-height end panel finishes nothing against a 2200 mm body. So the run's end is
- *  still read from base placements alone, and every other wall-A body can only veto. */
+ *  still read from base placements alone, and every other wall-A body can only veto.
+ *
+ *  **The second veto is the wall's own end** (ADR 0045 Amendment A, owner: *"No panel when run hits
+ *  wall"*): a panel whose outer face would pass wall A's end is not drawn — a fitter closes that gap
+ *  with a filler strip. Equality fits, as everywhere else (ADR 0083 decision 3), so a run ending
+ *  exactly the panel's gap and slab short of the wall keeps it. `room` is required rather than
+ *  optional: a call without it would be a veto that silently never fires. */
 export function runEndPanelSeatM(
   records: readonly PlacementRecord[],
+  room: DesignRoom,
 ): number | undefined {
   const runEndM = baseRunRightEdgeM(records);
   if (runEndM === undefined) return undefined;
 
   const seatM = runEndM + RUN_END_PANEL_EDGE_OFFSET_M;
-  return records.some((record) => blocksSeat(record, seatM))
-    ? undefined
-    : seatM;
+  if (records.some((record) => blocksSeat(record, seatM))) return undefined;
+  return passesWallAEnd(seatM, room) ? undefined : seatM;
+}
+
+/** Whether the panel's outer face stands past wall A's end. The tolerance is M1's float-artefact
+ *  allowance, so an outer face that lands on the wall's end as 3.5600000000000005 still fits. */
+function passesWallAEnd(seatM: number, room: DesignRoom): boolean {
+  const outerFaceM = seatM + PANEL_HALF_THICKNESS_M;
+  return outerFaceM > toMetres(wallLengthMm("A", room)) + TOUCHING_TOLERANCE_M;
 }
 
 /** The right edge of the right-most wall-A base placement, or `undefined` when the wall carries

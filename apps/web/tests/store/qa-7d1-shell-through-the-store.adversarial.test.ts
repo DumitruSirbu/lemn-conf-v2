@@ -6,6 +6,7 @@
 // **next**: a loaded shell's first commands re-project its frozen map through the funnel, an insert
 // splits a tile, a depth change slides wall B — and wave 7D2 composes through exactly this path.
 import {
+  APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   buildLShellDesign,
   canonicalSerializeDesign,
@@ -14,6 +15,7 @@ import {
   deriveSlotBand,
   fatalDesignValidationIssues,
   KITCHEN_L_DESIGN,
+  MAX_ROOM_WIDTH_MM,
   migrateDesign,
   offersFor,
   RUN_END_PANEL_GAP_M,
@@ -459,10 +461,23 @@ describe("the seeded kitchen: no command a customer has reaches wall A's finishe
   }
 
   function panelOuterFaceMm(store: Store): number | undefined {
-    const seatM = runEndPanelSeatM(store.getState().records);
+    const seatM = runEndPanelSeatM(
+      store.getState().records,
+      store.getState().design.room,
+    );
     return seatM === undefined
       ? undefined
       : Math.round((seatM + RUN_END_PANEL_THICKNESS_M / 2) * 1000);
+  }
+
+  /** The panel as the rule stood before wave 7D1b: the column veto alone, because the wall-end veto
+   *  never fires in a wall A longer than any document can store. */
+  function panelBeforeTheWallEndVeto(store: Store): number | undefined {
+    const { records, design } = store.getState();
+    return runEndPanelSeatM(records, {
+      ...design.room,
+      widthMm: MAX_ROOM_WIDTH_MM * 2,
+    });
   }
 
   function expectFinishedEndClear(store: Store, where: string): void {
@@ -473,6 +488,13 @@ describe("the seeded kitchen: no command a customer has reaches wall A's finishe
     expect(panelOuterFaceMm(store) ?? 0, where).toBeLessThanOrEqual(
       SEEDED_WALL_A_MM,
     );
+    // Wave 7D1b's claim for the seeded kitchen: no visible change. The veto only fires within the
+    // footprint of the wall, which the line above shows no command reaches, so the panel must be
+    // exactly where — and exactly as shown or hidden as — the pre-veto rule put it.
+    expect(
+      runEndPanelSeatM(store.getState().records, store.getState().design.room),
+      `${where}: the panel moved or changed visibility against the pre-7D1b rule`,
+    ).toBe(panelBeforeTheWallEndVeto(store));
   }
 
   function wallABaseIds(store: Store): string[] {
@@ -610,5 +632,112 @@ describe("the seeded kitchen: no command a customer has reaches wall A's finishe
     );
 
     expect(applied).toBeGreaterThan(300);
+  });
+});
+
+// Wave 7D1b (ADR 0045 Amendment A): the shell's wall-A floor run reaches the wall again, and the panel
+// is not drawn where a run comes within its gap and slab of it. Through the store — the path a
+// customer's and wave 7D2's inserts take — the panel must be drawn **exactly when** the footprint is
+// free, and then inside the wall: never past it, and never missing while there is room for it.
+describe("the shell filled through the store, then partly emptied: the panel follows the wall-end veto", () => {
+  const FOOTPRINT_MM = Math.round(
+    (RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M) * 1000,
+  );
+
+  function wallABaseRunEndMm(store: Store): number {
+    return Math.max(
+      ...store
+        .getState()
+        .records.filter(
+          (record) => record.wall === "A" && record.band === "base",
+        )
+        .map((record) =>
+          Math.round((record.frame.x + record.frame.w / 2) * 1000),
+        ),
+    );
+  }
+
+  function panelVerdict(store: Store, room: DesignRoom): string | undefined {
+    const seatM = runEndPanelSeatM(
+      store.getState().records,
+      store.getState().design.room,
+    );
+    const freeMm = wallLengthMm("A", room) - wallABaseRunEndMm(store);
+    const outerFaceMm =
+      seatM === undefined
+        ? undefined
+        : Math.round((seatM + RUN_END_PANEL_THICKNESS_M / 2) * 1000);
+    if ((outerFaceMm !== undefined) !== freeMm >= FOOTPRINT_MM) {
+      return `${String(freeMm)} mm free, panel ${String(outerFaceMm)}`;
+    }
+    if (outerFaceMm !== undefined && outerFaceMm > wallLengthMm("A", room)) {
+      return `panel past the wall at ${String(outerFaceMm)}`;
+    }
+    return undefined;
+  }
+
+  function removeTheLastWallABase(store: Store): boolean {
+    const last = store
+      .getState()
+      .records.filter(
+        (record) =>
+          record.wall === "A" && record.band === "base" && record.canDelete,
+      )
+      .sort((left, right) => right.frame.x - left.frame.x)[0];
+    if (!last) return false;
+    store.getState().select({ kind: "placement", id: last.id });
+    store.getState().remove();
+    return store.getState().lastRejection === null;
+  }
+
+  it("draws the panel exactly when the footprint is free, never past the wall, over the approved range", () => {
+    const l = APPROVED_ROOM_POLICY.buildableShapes.L;
+    if (!l) throw new Error("the approved policy builds no L");
+    const arms = new Map<string, number>();
+    const tally = (arm: string) => arms.set(arm, (arms.get(arm) ?? 0) + 1);
+    const room = fc.record({
+      shape: fc.constant("L" as const),
+      widthMm: fc.integer({ min: l.wallA.minMm, max: l.wallA.maxMm }),
+      depthMm: fc.integer({ min: l.wallB.minMm, max: l.wallB.maxMm }),
+      heightMm: fc.integer({
+        min: APPROVED_ROOM_POLICY.heightBounds.minMm,
+        max: APPROVED_ROOM_POLICY.heightBounds.maxMm,
+      }),
+    });
+    const edges = [900, 918, 919, 920, 1718, 1719, 1720, 1721, 3560, 6300].map(
+      (widthMm): [DesignRoom] => [
+        { shape: "L", widthMm, depthMm: 2000, heightMm: 2600 },
+      ],
+    );
+
+    fc.assert(
+      fc.property(room, (candidate: DesignRoom) => {
+        const store = createStore(loadedShellIn(candidate));
+        fillBand(store, { wall: "A", band: "base" }, "base-cabinet");
+        const filled = panelVerdict(store, candidate);
+        tally(
+          wallLengthMm("A", candidate) - wallABaseRunEndMm(store) >=
+            FOOTPRINT_MM
+            ? "filled, room for the panel"
+            : "filled, run within the footprint",
+        );
+        expect(filled, `${JSON.stringify(candidate)} filled`).toBeUndefined();
+
+        if (removeTheLastWallABase(store)) {
+          tally("emptied back by one cabinet");
+          expect(
+            panelVerdict(store, candidate),
+            `${JSON.stringify(candidate)} emptied by one`,
+          ).toBeUndefined();
+        }
+      }),
+      { numRuns: 60 + edges.length, examples: edges },
+    );
+
+    expect([...arms.keys()].sort()).toStrictEqual([
+      "emptied back by one cabinet",
+      "filled, room for the panel",
+      "filled, run within the footprint",
+    ]);
   });
 });

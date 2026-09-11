@@ -21,6 +21,7 @@ import {
   RUN_END_PANEL_THICKNESS_M,
   runEndPanelSeatM,
 } from "../src/run-end-panel.js";
+import type { DesignRoom } from "../src/design.js";
 import {
   derivePlacementRecords,
   type PlacementRecord,
@@ -30,6 +31,9 @@ const SEEDED_RECORDS = derivePlacementRecords(
   KITCHEN_L_DESIGN,
   KITCHEN_L_BODY_CATALOG,
 );
+
+/** The room those records stand in: every run this file builds ends at or inside the seeded one's. */
+const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
 
 /** `p4` — `base-drawer3-600` at 3200 — is the right-most wall-A base placement, so it is the
  *  cabinet the panel closes. */
@@ -45,7 +49,7 @@ function requireRecord(id: string): PlacementRecord {
 }
 
 function requireSeatM(records: readonly PlacementRecord[]): number {
-  const seatM = runEndPanelSeatM(records);
+  const seatM = runEndPanelSeatM(records, SEEDED_ROOM);
   if (seatM === undefined) throw new Error("expected a visible panel");
   return seatM;
 }
@@ -119,7 +123,7 @@ describe("ADR 0045's veto, both halves", () => {
   it("hides the panel rather than burying it in a full-height column's side", () => {
     const withColumn = [...SEEDED_RECORDS, bodyRightOfTheRun("column", 0, 2.2)];
 
-    expect(runEndPanelSeatM(withColumn)).toBeUndefined();
+    expect(runEndPanelSeatM(withColumn, SEEDED_ROOM)).toBeUndefined();
   });
 
   /** The vertical half on its own. A wall cabinet shares the along-wall line but hangs at 1500 mm,
@@ -161,13 +165,121 @@ describe("ADR 0045's veto, both halves", () => {
       column,
     ];
 
-    expect(runEndPanelSeatM([...SEEDED_RECORDS, column])).toBeUndefined();
+    expect(
+      runEndPanelSeatM([...SEEDED_RECORDS, column], SEEDED_ROOM),
+    ).toBeUndefined();
     expect(requireSeatM(shortened)).toBeCloseTo(3.41, 9);
   });
 
   it("hides the panel when wall A carries no base run at all", () => {
-    expect(runEndPanelSeatM(withoutWallABases(SEEDED_RECORDS))).toBeUndefined();
+    expect(
+      runEndPanelSeatM(withoutWallABases(SEEDED_RECORDS), SEEDED_ROOM),
+    ).toBeUndefined();
   });
+});
+
+describe("ADR 0045 Amendment A: no panel where the run reaches wall A's end", () => {
+  /** The panel's gap and slab, written out: a run ending this far short of the wall keeps it. */
+  const FOOTPRINT_MM = 19;
+  const SEEDED_RUN_END_MM = Math.round(RUN_END_M * 1000);
+
+  function roomEndingAt(wallAMm: number): DesignRoom {
+    return { ...SEEDED_ROOM, widthMm: wallAMm };
+  }
+
+  it("keeps the seeded seat byte for byte, visible, at M1's parity number", () => {
+    const seatM = runEndPanelSeatM(SEEDED_RECORDS, SEEDED_ROOM);
+
+    expect(seatM).toBe(shippedSeatM(SEEDED_RECORDS));
+    expect(seatM).toBeCloseTo(3.51, 9);
+  });
+
+  it("keeps the panel for a run ending exactly its footprint short of the wall", () => {
+    const room = roomEndingAt(SEEDED_RUN_END_MM + FOOTPRINT_MM);
+
+    expect(runEndPanelSeatM(SEEDED_RECORDS, room)).toBe(
+      shippedSeatM(SEEDED_RECORDS),
+    );
+  });
+
+  it("hides the panel for a run ending one millimetre closer than that", () => {
+    const room = roomEndingAt(SEEDED_RUN_END_MM + FOOTPRINT_MM - 1);
+
+    expect(runEndPanelSeatM(SEEDED_RECORDS, room)).toBeUndefined();
+  });
+
+  it("hides the panel for a run flush with the wall's end", () => {
+    const room = roomEndingAt(SEEDED_RUN_END_MM);
+
+    expect(runEndPanelSeatM(SEEDED_RECORDS, room)).toBeUndefined();
+  });
+
+  /** A lone base cabinet as `derivePlacementRecords` frames one: centre and width in metres, from
+   *  whole millimetres. About one run end in ten then lands a few ULPs past the wall at exact
+   *  equality (0.176 as 0.17600000000000002 at a 150 mm cabinet centred on 82), which is what the
+   *  rule's float allowance is for — measured over 422 979 run ends on the approved wall. */
+  const LONE_BASE = fc
+    .tuple(
+      fc.integer({ min: 0, max: 5900 }),
+      fc.integer({ min: 75, max: 400 }).map((half) => half * 2),
+    )
+    .map(([leftEdgeMm, widthMm]) => ({ leftEdgeMm, widthMm }));
+
+  function loneBase(leftEdgeMm: number, widthMm: number): PlacementRecord {
+    return {
+      ...RIGHT_MOST_BASE,
+      id: "lone-base",
+      widthMm,
+      frame: {
+        ...RIGHT_MOST_BASE.frame,
+        x: (leftEdgeMm + widthMm / 2) / 1000,
+        w: widthMm / 1000,
+      },
+    };
+  }
+
+  propertyTest.prop([LONE_BASE], { numRuns: 300 })(
+    "keeps the panel for any whole-millimetre run ending exactly its footprint short, float noise included",
+    ({ leftEdgeMm, widthMm }: { leftEdgeMm: number; widthMm: number }) => {
+      const records = [loneBase(leftEdgeMm, widthMm)];
+      const runEndMm = leftEdgeMm + widthMm;
+
+      expect(
+        runEndPanelSeatM(records, roomEndingAt(runEndMm + FOOTPRINT_MM)),
+      ).toBe(shippedSeatM(records));
+      expect(
+        runEndPanelSeatM(records, roomEndingAt(runEndMm + FOOTPRINT_MM - 1)),
+      ).toBeUndefined();
+    },
+  );
+
+  it("keeps the panel at the measured noisy case", () => {
+    const records = [loneBase(7, 150)];
+
+    expect(runEndPanelSeatM(records, roomEndingAt(176))).toBe(
+      shippedSeatM(records),
+    );
+  });
+
+  /** Equality is decided in metres, so it is swept at every whole-millimetre run end the seeded
+   *  cabinet can be narrowed to: a comparison that let float noise decide would part here. */
+  propertyTest.prop([fc.integer({ min: 0, max: 590 })], { numRuns: 200 })(
+    "keeps the panel at the footprint and hides it a millimetre inside, at every run end",
+    (narrowedByMm: number) => {
+      const records = replaceRecord(
+        SEEDED_RECORDS,
+        narrowedFromTheRight(RIGHT_MOST_BASE, narrowedByMm),
+      );
+      const runEndMm = SEEDED_RUN_END_MM - narrowedByMm;
+
+      expect(
+        runEndPanelSeatM(records, roomEndingAt(runEndMm + FOOTPRINT_MM)),
+      ).toBe(shippedSeatM(records));
+      expect(
+        runEndPanelSeatM(records, roomEndingAt(runEndMm + FOOTPRINT_MM - 1)),
+      ).toBeUndefined();
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -369,14 +481,18 @@ describe("the domain rule against the numbers the adapter shipped", () => {
     ({ build }) => {
       const records = build();
 
-      expect(runEndPanelSeatM(records)).toBe(shippedSeatM(records));
+      expect(runEndPanelSeatM(records, SEEDED_ROOM)).toBe(
+        shippedSeatM(records),
+      );
     },
   );
 
   /** The sweep is only evidence if it actually contains both answers. A probe list that had
    *  drifted into all-visible or all-hidden would agree with anything. */
   it("sweeps both answers rather than one of them", () => {
-    const answers = SEAT_PROBES.map((probe) => runEndPanelSeatM(probe.build()));
+    const answers = SEAT_PROBES.map((probe) =>
+      runEndPanelSeatM(probe.build(), SEEDED_ROOM),
+    );
 
     expect(answers.filter((seat) => seat === undefined).length).toBeGreaterThan(
       1,
@@ -400,7 +516,9 @@ describe("ADR 0045's anti-invariant: the seat is a pure function of the records"
   propertyTest.prop([SHUFFLED_SEEDED])(
     "reads the same seat however the records are ordered",
     (records: readonly PlacementRecord[]) => {
-      expect(runEndPanelSeatM(records)).toBe(runEndPanelSeatM(SEEDED_RECORDS));
+      expect(runEndPanelSeatM(records, SEEDED_ROOM)).toBe(
+        runEndPanelSeatM(SEEDED_RECORDS, SEEDED_ROOM),
+      );
     },
   );
 
@@ -418,13 +536,15 @@ describe("ADR 0045's anti-invariant: the seat is a pure function of the records"
         deletedInto = deletedInto.filter(
           (candidate) => candidate.id !== record.id,
         );
-        seatsAlongTheWay.push(runEndPanelSeatM(deletedInto));
+        seatsAlongTheWay.push(runEndPanelSeatM(deletedInto, SEEDED_ROOM));
       }
 
       expect(deletedInto.map((record) => record.id)).toEqual(
         surviving.map((record) => record.id),
       );
-      expect(runEndPanelSeatM(deletedInto)).toBe(runEndPanelSeatM(surviving));
+      expect(runEndPanelSeatM(deletedInto, SEEDED_ROOM)).toBe(
+        runEndPanelSeatM(surviving, SEEDED_ROOM),
+      );
       // The history is computed rather than discarded, so a rule that memoised across calls would
       // have had somewhere to hide it.
       expect(seatsAlongTheWay.length).toBe(

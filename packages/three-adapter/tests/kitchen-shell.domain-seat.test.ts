@@ -57,7 +57,7 @@ function panelAfterSync(records: readonly PlacementRecord[]): THREE.Object3D {
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
   return required(
     shell.children.find((child) => child.name === RUN_END_PANEL_NAME),
     "run-end panel",
@@ -112,7 +112,7 @@ const SCENES: readonly {
 
 describe("the panel's seat on screen is the domain's answer", () => {
   it.each(SCENES)("seats the mesh on $label", ({ records }) => {
-    const seatM = runEndPanelSeatM(records);
+    const seatM = runEndPanelSeatM(records, KITCHEN_L_DESIGN.room);
 
     const panel = panelAfterSync(records);
 
@@ -125,7 +125,8 @@ describe("the panel's seat on screen is the domain's answer", () => {
   /** The sweep is only evidence if it contains a hidden panel and a visible one. */
   it("covers both the shown and the vetoed panel", () => {
     const visibility = SCENES.map(
-      ({ records }) => runEndPanelSeatM(records) !== undefined,
+      ({ records }) =>
+        runEndPanelSeatM(records, KITCHEN_L_DESIGN.room) !== undefined,
     );
 
     expect(visibility.filter(Boolean).length).toBeGreaterThan(1);

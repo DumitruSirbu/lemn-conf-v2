@@ -159,18 +159,15 @@ export function wallBReserveMm(): number {
   return Math.max(0, ...shiftsMm);
 }
 
-/** The run-end panel's gap and slab, from `run-end-panel.ts`'s own constants: what wall A's floor run
- *  leaves so the finished end still stands inside the wall (ADR 0110 B3a). */
+/** The run-end panel's gap and slab, from `run-end-panel.ts`'s own constants: how far short of wall A's
+ *  end a run must stop for its finished end to be drawn (ADR 0045 Amendment A). */
 export const RUN_END_PANEL_FOOTPRINT_MM = toMillimetres(
   RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M,
 );
 
-/** Where a wall's floor run must stop: wall A short of its finished end, wall B short of its slide.
- *  Wall A's run over the corner base stops at the corner's far edge, before either matters. */
+/** Where a wall's floor run must stop: wall A at its own end, wall B short of its slide. */
 export function plannedEndMm(room: DesignRoom, wall: DesignWall): number {
-  const shortfallMm =
-    wall === "B" ? wallBReserveMm() : RUN_END_PANEL_FOOTPRINT_MM;
-  return wallLengthMm(wall, room) - shortfallMm;
+  return wallLengthMm(wall, room) - (wall === "B" ? wallBReserveMm() : 0);
 }
 
 /** The last millimetre a run of whole-millimetre centres can reach from `startMm` (P3). */
@@ -371,7 +368,10 @@ function sameInterval(left: IntervalMm, right: IntervalMm): boolean {
 /** Where the run-end panel's outer face stands along wall A, in millimetres, or none when no panel
  *  is shown — `runEndPanelSeatM` plus half the slab. */
 export function runEndPanelOuterFaceMm(design: Design): number | undefined {
-  const seatM = runEndPanelSeatM(derivePlacementRecords(design, SHELL_CATALOG));
+  const seatM = runEndPanelSeatM(
+    derivePlacementRecords(design, SHELL_CATALOG),
+    design.room,
+  );
   return seatM === undefined
     ? undefined
     : toMillimetres(seatM + RUN_END_PANEL_THICKNESS_M / 2);

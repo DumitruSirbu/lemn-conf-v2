@@ -18,6 +18,7 @@
 // to read.
 import {
   freeColourFinish,
+  KITCHEN_L_DESIGN,
   LEGACY_ENUM_FINISHES,
   NO_FRONT_ASSEMBLY_MM,
   paletteFinish,
@@ -101,7 +102,7 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
 }
 
 function sync(records: readonly PlacementRecord[]): void {
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
 }
 
 function mounted(placementId: string): THREE.Object3D {

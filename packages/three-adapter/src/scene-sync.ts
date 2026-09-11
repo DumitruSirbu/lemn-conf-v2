@@ -11,6 +11,7 @@ import {
   isPushToOpen,
   toMetres,
   toMillimetres,
+  type DesignRoom,
   type PlacementRecord,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
@@ -46,6 +47,9 @@ export interface SolidSyncInput {
    *  touched, so decomposition stays this function's caller's business. */
   readonly solidsRoot: THREE.Object3D;
   readonly records: readonly PlacementRecord[];
+  /** The room the records stand in, handed to the run-end panel's sync for the domain's wall-end
+   *  veto (ADR 0045 Amendment A). Required: without it that veto could not fire. */
+  readonly room: DesignRoom;
 }
 
 export interface VoidSyncInput {
@@ -77,7 +81,11 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   // ADR 0045: the shell's run-end panel closes whatever base run is on screen, so it is re-derived
   // here — the one place that already sees both the mounted scene and the current records — rather
   // than at build, where its seat was baked and stayed put through every resize and delete.
-  syncRunEndPanel({ solidsRoot: input.solidsRoot, records: input.records });
+  syncRunEndPanel({
+    solidsRoot: input.solidsRoot,
+    records: input.records,
+    room: input.room,
+  });
 }
 
 /** Replaces the whole void set whenever anything about it changed, and does nothing when nothing

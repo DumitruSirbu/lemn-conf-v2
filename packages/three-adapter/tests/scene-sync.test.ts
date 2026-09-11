@@ -111,7 +111,7 @@ function makeVoidRecord(id: string, y0: number): VoidRecord {
 }
 
 function sync(records: readonly PlacementRecord[]): void {
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
 }
 
 function mounted(placementId: string): THREE.Object3D | undefined {

@@ -103,7 +103,12 @@ function mountThrough(
 ): MountedScene {
   const mounted = mountShell();
   for (const records of recordSets) {
-    syncSolidBodies({ kit, solidsRoot: mounted.solidsRoot, records });
+    syncSolidBodies({
+      kit,
+      solidsRoot: mounted.solidsRoot,
+      records,
+      room: KITCHEN_L_DESIGN.room,
+    });
   }
   return mounted;
 }

@@ -134,6 +134,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const invalidate = useThree((state) => state.invalidate);
 
   const records = useConfiguratorStore((state) => state.records);
+  // The room object itself: no command rewrites it, so this re-renders only when the room changes.
+  // The run-end panel's wall-end veto reads wall A's length from it (ADR 0045 Amendment A).
+  const designRoom = useConfiguratorStore((state) => state.design.room);
   const voids = useConfiguratorStore((state) => state.voids);
   const selection = useConfiguratorStore((state) => state.selection);
   const select = useConfiguratorStore((state) => state.select);
@@ -209,11 +212,16 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // — rebuilding it would discard its applied finish and re-run its wall seating. The finish is
   // re-applied over the fronts *after* the sync, since a body mounted this pass has none yet.
   useEffect(() => {
-    syncSolidBodies({ kit: stage.kit, solidsRoot: stage.solidsRoot, records });
+    syncSolidBodies({
+      kit: stage.kit,
+      solidsRoot: stage.solidsRoot,
+      records,
+      room: designRoom,
+    });
     syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids });
     if (finish) applyFinish(collectFronts(stage.room), stage.kit.M, finish);
     invalidate();
-  }, [stage, records, voids, finish, invalidate]);
+  }, [stage, records, designRoom, voids, finish, invalidate]);
 
   // ADR 0011 Gap B: `insert` measures the body it is about to place, and the probe needs a `Kit`
   // and the mounted room — neither of which exists until this component runs. The store therefore

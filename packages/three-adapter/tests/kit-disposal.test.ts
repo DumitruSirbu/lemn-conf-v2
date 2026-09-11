@@ -139,7 +139,12 @@ function mountStage(kit: Kit): MountedStage {
   room.name = "kitchen_l_shape";
   room.add(solidsRoot, voidsRoot);
 
-  syncSolidBodies({ kit, solidsRoot, records: SEEDED_RECORDS });
+  syncSolidBodies({
+    kit,
+    solidsRoot,
+    records: SEEDED_RECORDS,
+    room: KITCHEN_L_DESIGN.room,
+  });
   syncVoidMeshes({ voidsRoot, voids: [MOUNTED_VOID] });
 
   return {

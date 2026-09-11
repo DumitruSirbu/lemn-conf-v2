@@ -58,7 +58,7 @@ function mountScene(records: readonly PlacementRecord[]): MountedScene {
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
   return { shell, solidsRoot };
 }
 
@@ -298,6 +298,47 @@ describe("a body standing where the panel would", () => {
   });
 });
 
+// ADR 0045 Amendment A, through the one path the app has: the room reaches the domain's veto only
+// because `syncSolidBodies` hands it on, so a sync that dropped it would draw these panels.
+describe("a run that reaches wall A's end", () => {
+  /** The seeded run ends at 3500; the panel's gap and slab take 19 mm past it. */
+  const SEEDED_RUN_END_MM = 3500;
+  const FOOTPRINT_MM = 19;
+
+  function syncedInWallA(wallAMm: number): MountedScene {
+    const mounted = mountScene(SEEDED_RECORDS);
+    syncSolidBodies({
+      kit,
+      solidsRoot: mounted.solidsRoot,
+      records: SEEDED_RECORDS,
+      room: { ...KITCHEN_L_DESIGN.room, widthMm: wallAMm },
+    });
+    return mounted;
+  }
+
+  it("keeps the panel where the wall leaves exactly its footprint", () => {
+    const mounted = syncedInWallA(SEEDED_RUN_END_MM + FOOTPRINT_MM);
+
+    expect(panelOf(mounted).visible).toBe(true);
+    expect(panelOf(mounted).position.x).toBeCloseTo(
+      RUN_END_PANEL_SEEDED_X_M,
+      9,
+    );
+  });
+
+  it("hides the panel where the wall leaves a millimetre less", () => {
+    const mounted = syncedInWallA(SEEDED_RUN_END_MM + FOOTPRINT_MM - 1);
+
+    expect(panelOf(mounted).visible).toBe(false);
+  });
+
+  it("hides the panel where the run is flush with the wall", () => {
+    const mounted = syncedInWallA(SEEDED_RUN_END_MM);
+
+    expect(panelOf(mounted).visible).toBe(false);
+  });
+});
+
 describe("ADR 0045's anti-invariant: one document, one picture", () => {
   const emptiedRecords = SEEDED_RECORDS.filter(
     (record) => !(record.wall === "A" && record.band === "base"),
@@ -313,6 +354,7 @@ describe("ADR 0045's anti-invariant: one document, one picture", () => {
       kit,
       solidsRoot: mutated.solidsRoot,
       records: emptiedRecords,
+      room: KITCHEN_L_DESIGN.room,
     });
 
     expect(describeStructure(mutated.solidsRoot)).toEqual(
@@ -344,12 +386,14 @@ describe("ADR 0045's anti-invariant: one document, one picture", () => {
       kit,
       solidsRoot: mutated.solidsRoot,
       records: shrunkBy100,
+      room: KITCHEN_L_DESIGN.room,
     });
     const seatAfterResizeM = panelOf(mutated).position.x;
     syncSolidBodies({
       kit,
       solidsRoot: mutated.solidsRoot,
       records: emptiedRecords,
+      room: KITCHEN_L_DESIGN.room,
     });
 
     expect(seatAfterResizeM, "the resize must move the seat first").toBeCloseTo(
@@ -374,6 +418,7 @@ describe("ADR 0045's anti-invariant: one document, one picture", () => {
       kit,
       solidsRoot: mounted.solidsRoot,
       records: emptiedRecords,
+      room: KITCHEN_L_DESIGN.room,
     });
 
     const taggedIds: string[] = [];

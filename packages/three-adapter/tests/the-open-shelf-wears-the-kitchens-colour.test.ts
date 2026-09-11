@@ -103,6 +103,7 @@ function drawn(materialTierId: string, finish?: Finish): void {
     kit,
     solidsRoot,
     records: derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG),
+    room: design.room,
   });
 }
 

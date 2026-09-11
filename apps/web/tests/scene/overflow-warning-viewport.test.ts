@@ -176,6 +176,7 @@ beforeAll(() => {
     kit,
     solidsRoot,
     records: derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    room: KITCHEN_L_DESIGN.room,
   });
 });
 

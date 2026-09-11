@@ -510,20 +510,16 @@ describe("buildLShellDesign — the corner (criterion 2)", () => {
 });
 
 describe("buildLShellDesign — the free runs (criteria 3 and 8)", () => {
-  it("tiles the reference room's runs from the corner's far edge, wall A short of its finished end and wall B short by the reserve", () => {
+  it("tiles the reference room's runs from the corner's far edge, wall A to its end and wall B short by the reserve", () => {
     const shell = shellIn(REFERENCE_ROOM);
     const baseBand = bandNamed(REFERENCE_ROOM.heightMm, "base");
     const wallBand = bandNamed(REFERENCE_ROOM.heightMm, "wall");
-    const wallAFloorEndMm = reachableEndMm(
-      900,
-      REFERENCE_ROOM.widthMm - RUN_END_PANEL_FOOTPRINT_MM,
-    );
 
     expect(unionOf(emptyIntervalsIn(shell, "A", baseBand))).toStrictEqual([
-      { startMm: 900, endMm: wallAFloorEndMm },
+      { startMm: 900, endMm: REFERENCE_ROOM.widthMm },
     ]);
     expect(unionOf(emptyIntervalsIn(shell, "A", wallBand))).toStrictEqual([
-      { startMm: 0, endMm: wallAFloorEndMm },
+      { startMm: 0, endMm: REFERENCE_ROOM.widthMm },
     ]);
     expect(unionOf(emptyIntervalsIn(shell, "B", baseBand))).toStrictEqual([
       { startMm: 900, endMm: REFERENCE_ROOM.depthMm - WALL_B_RESERVE_TODAY_MM },
@@ -534,12 +530,12 @@ describe("buildLShellDesign — the free runs (criteria 3 and 8)", () => {
     expect(wallBReserveMm()).toBe(WALL_B_RESERVE_TODAY_MM);
   });
 
-  it("leaves wall A exactly the run-end panel's gap and slab", () => {
+  it("measures the run-end panel's footprint as its gap and slab", () => {
     expect(RUN_END_PANEL_FOOTPRINT_MM).toBe(RUN_END_PANEL_FOOTPRINT_TODAY_MM);
   });
 
   it("gives up the last millimetre of an odd span, at the far end", () => {
-    const room = REFERENCE_ROOM;
+    const room: DesignRoom = { ...REFERENCE_ROOM, widthMm: 3561 };
     const plannedEndOfWallAMm = plannedEndMm(room, "A");
     const shell = shellIn(room);
 
@@ -631,14 +627,28 @@ describe("buildLShellDesign — the engine can insert into it (criterion 4)", ()
   });
 });
 
-describe("buildLShellDesign — the finished end of a filled wall-A run (ADR 0110 B3a)", () => {
-  it("keeps the run-end panel inside wall A once every wall-A base opening holds a base cabinet", () => {
+describe("buildLShellDesign — the finished end of a filled wall-A run (ADR 0045 Amendment A)", () => {
+  it("draws no run-end panel once every wall-A base opening holds a base cabinet and the run reaches the wall", () => {
     const filled = withWallABaseRunFilled(shellIn(REFERENCE_ROOM));
 
     const outerFaceMm = runEndPanelOuterFaceMm(filled);
 
-    expect(outerFaceMm).toBeDefined();
-    expect(outerFaceMm ?? Infinity).toBeLessThanOrEqual(REFERENCE_ROOM.widthMm);
+    expect(outerFaceMm).toBeUndefined();
+  });
+
+  it("draws the panel again once the last cabinet stops exactly the panel's footprint short of the wall", () => {
+    const filled = withWallABaseRunFilled(shellIn(REFERENCE_ROOM));
+    const roomWithTheFootprintFree: DesignRoom = {
+      ...REFERENCE_ROOM,
+      widthMm: REFERENCE_ROOM.widthMm + RUN_END_PANEL_FOOTPRINT_MM,
+    };
+
+    const outerFaceMm = runEndPanelOuterFaceMm({
+      ...filled,
+      room: roomWithTheFootprintFree,
+    });
+
+    expect(outerFaceMm).toBe(roomWithTheFootprintFree.widthMm);
   });
 
   it("fills wall A's floor run to its planned end, so the panel is tested where it binds", () => {

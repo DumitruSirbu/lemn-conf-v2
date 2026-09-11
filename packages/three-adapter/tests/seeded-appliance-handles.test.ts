@@ -69,7 +69,7 @@ function mount(design: Design): void {
     design,
     KITCHEN_L_BODY_CATALOG,
   );
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: design.room });
 }
 
 function mountedBodyOf(placementId: string): THREE.Object3D {

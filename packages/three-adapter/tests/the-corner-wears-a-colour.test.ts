@@ -175,6 +175,7 @@ function drawn(design: Design): void {
     kit,
     solidsRoot,
     records: derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG),
+    room: design.room,
   });
 }
 

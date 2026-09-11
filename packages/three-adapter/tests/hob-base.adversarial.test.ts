@@ -60,7 +60,7 @@ describe("§11 row 15 on the shipped design: clicking the hob selects its cabine
   beforeEach(() => {
     solidsRoot = new THREE.Group();
     records = derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
-    syncSolidBodies({ kit, solidsRoot, records });
+    syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
   });
 
   // The load-bearing half. If the hob were mounted as a sibling of the cabinet — or not parented at
@@ -126,6 +126,7 @@ describe("the composite carries exactly one hob", () => {
       kit,
       solidsRoot,
       records: derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      room: KITCHEN_L_DESIGN.room,
     });
 
     const hobs = findMeshes(solidsRoot, HOB_MESH_NAME);
@@ -156,7 +157,12 @@ describe("the adapter is the only layer that tells the two hob bases apart", () 
   it("rebuilds the mounted body when the customer swaps between them", () => {
     const solidsRoot = new THREE.Group();
     const drawers = hobRecord("base-hob-2drawer");
-    syncSolidBodies({ kit, solidsRoot, records: [drawers] });
+    syncSolidBodies({
+      kit,
+      solidsRoot,
+      records: [drawers],
+      room: KITCHEN_L_DESIGN.room,
+    });
 
     expect(findMeshes(solidsRoot, OVEN_MESH_NAME)).toHaveLength(0);
 
@@ -164,6 +170,7 @@ describe("the adapter is the only layer that tells the two hob bases apart", () 
       kit,
       solidsRoot,
       records: [{ ...drawers, buildId: "base-hob-oven" }],
+      room: KITCHEN_L_DESIGN.room,
     });
 
     expect(findMeshes(solidsRoot, OVEN_MESH_NAME).length).toBeGreaterThan(0);
@@ -173,11 +180,17 @@ describe("the adapter is the only layer that tells the two hob bases apart", () 
   it("swaps back again, losing the oven and keeping the hob", () => {
     const solidsRoot = new THREE.Group();
     const oven = hobRecord("base-hob-oven");
-    syncSolidBodies({ kit, solidsRoot, records: [oven] });
+    syncSolidBodies({
+      kit,
+      solidsRoot,
+      records: [oven],
+      room: KITCHEN_L_DESIGN.room,
+    });
     syncSolidBodies({
       kit,
       solidsRoot,
       records: [{ ...oven, buildId: "base-hob-2drawer" }],
+      room: KITCHEN_L_DESIGN.room,
     });
 
     expect(findMeshes(solidsRoot, OVEN_MESH_NAME)).toHaveLength(0);

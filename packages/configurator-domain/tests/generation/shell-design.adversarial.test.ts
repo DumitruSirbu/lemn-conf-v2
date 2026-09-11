@@ -605,6 +605,7 @@ describe("buildLShellDesign — the finished end of a filled wall-A run (ADR 008
   function panelOuterFaceMm(design: Design): number | undefined {
     const seatM = runEndPanelSeatM(
       derivePlacementRecords(design, catalogAt(SHELL_CABINET_DEPTH_MM)),
+      design.room,
     );
     return seatM === undefined
       ? undefined
@@ -628,13 +629,11 @@ describe("buildLShellDesign — the finished end of a filled wall-A run (ADR 008
       });
   }
 
-  // Round 1's Q1.1, green since Adjudication 7D1-Q1: ADR 0083 decision 5 makes the finished end part
-  // of wall A's occupied width, and ADR 0110 B3a stops wall A's floor run short by the panel's gap and
-  // slab, so a base cabinet in the last opening leaves the panel's outer face at or before the wall's
-  // end. No validator code covers the panel, which is why this is measured here. Stated over the
-  // outcome, not a mechanism: 7D1b replaces the reserve with a veto in `runEndPanelSeatM`, and either
-  // keeps these green. Wall A 900–918, where the corner base alone closes the run, is the implementer's
-  // `it.fails` band and 7D1b's to flip; these fill an opening, so they never reach it.
+  // Round 1's Q1.1: ADR 0083 decision 5 makes the finished end part of wall A's occupied width, so a
+  // base cabinet in the last opening must never leave the panel's outer face past the wall's end.
+  // Green under ADR 0110 B3a's reserve and, since 7D1b, under ADR 0045 Amendment A's veto in
+  // `runEndPanelSeatM` — which is why these read the outcome and not the mechanism. That the veto does
+  // not hide a panel with room for it is held by the every-wall-A sweep further down.
   it("keeps the run-end panel inside wall A in the reference room, whichever opening a base cabinet fills", () => {
     const room = { ...KITCHEN_L_DESIGN.room };
 
@@ -777,10 +776,10 @@ describe("buildLShellDesign — what src/generation/ does not do, by any route (
 
 // ───────────────────────────── QA round 2 (Adjudications 7D1-Q1 and 7D1-Q2) ─────────────────────────────
 
-describe("buildLShellDesign — wall A's finished-end reserve, every wall A from 900 to 2000 (ADR 0110 B3a)", () => {
+describe("buildLShellDesign — wall A's floor run and the wall-end panel veto, every wall A from 900 to 2000 (ADR 0045 Amendment A)", () => {
   const FIRST_WALL_A_MM = approvedL().wallA.minMm;
   const LAST_SWEPT_WALL_A_MM = 2000;
-  /** The panel's gap and slab, from `run-end-panel.ts` rather than the builder's constant. */
+  /** The panel's gap and slab, from `run-end-panel.ts`: a run must stop this far short for it. */
   const FOOTPRINT_MM = toMillimetres(
     RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M,
   );
@@ -796,17 +795,25 @@ describe("buildLShellDesign — wall A's finished-end reserve, every wall A from
     }),
   );
 
-  /** The last millimetre the floor run reaches: the footprint off the wall, then P3's parity. */
+  /** The last millimetre the floor run reaches: the wall's own end, then P3's parity. */
   function expectedFloorEndMm(wallAMm: number): number {
-    const plannedEndMm = wallAMm - FOOTPRINT_MM;
-    return plannedEndMm - ((plannedEndMm - CORNER_FAR_EDGE_MM) % 2);
+    return wallAMm - ((wallAMm - CORNER_FAR_EDGE_MM) % 2);
   }
 
   function segmentOf(startMm: number, endMm: number) {
     return endMm > startMm ? [{ startMm, endMm }] : [];
   }
 
-  it("records the floor band from the corner to the footprint, odd spans one short, and the wall band over the corner untouched", () => {
+  /** The right edge of wall A's right-most base body — what the panel closes. */
+  function wallABaseRunEndMm(design: Design): number {
+    return Math.max(
+      ...design.placements
+        .filter((placement) => placement.wall === "A" && placement.y0Mm === 0)
+        .map((placement) => placement.alongMm + placement.body.widthMm / 2),
+    );
+  }
+
+  it("records the floor band from the corner to the wall's end, odd spans one short, and the wall band over the corner untouched", () => {
     const parities = new Set<number>();
 
     for (const room of sweptRooms) {
@@ -814,7 +821,7 @@ describe("buildLShellDesign — wall A's finished-end reserve, every wall A from
       const [base, wall] = bandsUnder(room.heightMm);
       if (!base || !wall) throw new Error("the grid has no base or wall band");
       const floorEndMm = expectedFloorEndMm(room.widthMm);
-      const spanMm = room.widthMm - FOOTPRINT_MM - CORNER_FAR_EDGE_MM;
+      const spanMm = room.widthMm - CORNER_FAR_EDGE_MM;
       if (spanMm > 0) parities.add(spanMm % 2);
 
       expect(
@@ -835,52 +842,166 @@ describe("buildLShellDesign — wall A's finished-end reserve, every wall A from
     expect([...parities].sort()).toStrictEqual([0, 1]);
   });
 
-  it("lets a base cabinet close the run exactly at the footprint: the panel lands on the wall's end or one millimetre short, never past", () => {
+  // Both directions of the veto, on every run the shell lets a base cabinet close — each wall-A base
+  // opening filled on its own — and on the bare shell, where the corner base closes the run: the
+  // panel is drawn **exactly when** the footprint is free, and then stands inside the wall.
+  it("draws the panel exactly when the footprint is free and never past the wall, whichever run closes wall A", () => {
     const outcomes = new Map<string, number>();
+    const wrong: string[] = [];
+    const tally = (outcome: string) =>
+      outcomes.set(outcome, (outcomes.get(outcome) ?? 0) + 1);
 
     for (const room of sweptRooms) {
       const shell = shellIn(room);
       const faces = facesAt(shell, SHELL_CABINET_DEPTH_MM);
-      const last = faces.voids
-        .filter(
-          (opening) =>
-            opening.wall === "A" && deriveSlotBand(opening) === "base",
-        )
-        .sort(
-          (left, right) =>
-            openingIntervalOf(right).endMm - openingIntervalOf(left).endMm,
-        )[0];
-      const result = last
-        ? insertInto(shell, faces, {
-            openingId: last.id,
-            buildId: NEUTRAL_SOURCE_BY_FLOOR.floor,
-          })
-        : undefined;
-      if (!result?.ok) {
-        outcomes.set(
-          "no cabinet fits",
-          (outcomes.get("no cabinet fits") ?? 0) + 1,
+      const closings = [
+        shell,
+        ...faces.voids
+          .filter(
+            (opening) =>
+              opening.wall === "A" && deriveSlotBand(opening) === "base",
+          )
+          .flatMap((opening) => {
+            const result = insertInto(shell, faces, {
+              openingId: opening.id,
+              buildId: NEUTRAL_SOURCE_BY_FLOOR.floor,
+            });
+            return result.ok ? [result.design] : [];
+          }),
+      ];
+      for (const closed of closings) {
+        const freeMm = room.widthMm - wallABaseRunEndMm(closed);
+        const seatM = runEndPanelSeatM(
+          derivePlacementRecords(closed, faces.catalog),
+          room,
         );
-        continue;
+        const outerFaceMm =
+          seatM === undefined
+            ? undefined
+            : toMillimetres(seatM + RUN_END_PANEL_THICKNESS_M / 2);
+        const isDrawn = outerFaceMm !== undefined;
+        tally(
+          freeMm === 0
+            ? "flush, hidden"
+            : freeMm < FOOTPRINT_MM
+              ? "inside the footprint, hidden"
+              : freeMm === FOOTPRINT_MM
+                ? "exactly the footprint free, drawn"
+                : "more than the footprint free, drawn",
+        );
+        if (
+          isDrawn !== freeMm >= FOOTPRINT_MM ||
+          (outerFaceMm ?? 0) > room.widthMm
+        ) {
+          wrong.push(
+            `A ${String(room.widthMm)}, ${String(freeMm)} free: ${String(outerFaceMm)}`,
+          );
+        }
       }
-      const seatM = runEndPanelSeatM(
-        derivePlacementRecords(result.design, faces.catalog),
-      );
-      if (seatM === undefined)
-        throw new Error(`no panel at A ${String(room.widthMm)}`);
-      const shortfallMm =
-        room.widthMm - toMillimetres(seatM + RUN_END_PANEL_THICKNESS_M / 2);
-      outcomes.set(
-        `short by ${String(shortfallMm)}`,
-        (outcomes.get(`short by ${String(shortfallMm)}`) ?? 0) + 1,
-      );
     }
 
+    expect(wrong.slice(0, 3)).toStrictEqual([]);
     expect([...outcomes.keys()].sort()).toStrictEqual([
-      "no cabinet fits",
-      "short by 0",
-      "short by 1",
+      "exactly the footprint free, drawn",
+      "flush, hidden",
+      "inside the footprint, hidden",
+      "more than the footprint free, drawn",
     ]);
+  });
+});
+
+describe("runEndPanelSeatM's wall-end veto at every whole-millimetre run end (ADR 0045 Amendment A)", () => {
+  const FOOTPRINT_MM = toMillimetres(
+    RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M,
+  );
+  /** The veto's float allowance, read back off the rule rather than restated: the largest overshoot
+   *  in metres it still treats as touching — about a thousandth of a millimetre. */
+  const ALLOWANCE_BOUND_MM = 0.001;
+  const LONGEST_WALL_A_MM = approvedL().wallA.maxMm;
+  const BASE_WIDTHS_MM = [150, 200, 598, 600, 800];
+
+  /** The records of a design holding one base cabinet ending at `runEndMm` — framed by the product's
+   *  own derivation, so the float path is the one every real run takes. */
+  function recordsEndingAt(runEndMm: number, widthMm: number) {
+    return derivePlacementRecords(
+      {
+        ...KITCHEN_L_DESIGN,
+        placements: [
+          {
+            id: "b",
+            wall: "A",
+            alongMm: runEndMm - widthMm / 2,
+            y0Mm: 0,
+            body: { buildId: "base-cabinet", widthMm, heightMm: 860 },
+          },
+        ],
+      },
+      catalogAt(SHELL_CABINET_DEPTH_MM),
+    );
+  }
+
+  function wallA(widthMm: number): DesignRoom {
+    return { ...KITCHEN_L_DESIGN.room, widthMm };
+  }
+
+  it("draws at exactly the footprint and hides at one millimetre less, flush, and past, for every run end and width", () => {
+    const wrong: string[] = [];
+    let largestOvershootMm = 0;
+    let checked = 0;
+
+    for (const widthMm of BASE_WIDTHS_MM) {
+      for (
+        let runEndMm = widthMm;
+        runEndMm + FOOTPRINT_MM <= LONGEST_WALL_A_MM;
+        runEndMm += 1
+      ) {
+        const records = recordsEndingAt(runEndMm, widthMm);
+        const atFootprint = runEndPanelSeatM(
+          records,
+          wallA(runEndMm + FOOTPRINT_MM),
+        );
+        if (atFootprint === undefined) {
+          wrong.push(
+            `${String(widthMm)} ending ${String(runEndMm)}: hidden at the footprint`,
+          );
+        } else {
+          const overshootMm =
+            (atFootprint + RUN_END_PANEL_THICKNESS_M / 2) * 1000 -
+            (runEndMm + FOOTPRINT_MM);
+          largestOvershootMm = Math.max(largestOvershootMm, overshootMm);
+        }
+        for (const freeMm of [FOOTPRINT_MM - 1, 1, 0]) {
+          if (
+            runEndPanelSeatM(records, wallA(runEndMm + freeMm)) !== undefined
+          ) {
+            wrong.push(
+              `${String(widthMm)} ending ${String(runEndMm)}: drawn with ${String(freeMm)} free`,
+            );
+          }
+        }
+        if (
+          runEndMm - 1 > 0 &&
+          runEndPanelSeatM(records, wallA(runEndMm - 1)) !== undefined
+        ) {
+          wrong.push(
+            `${String(widthMm)} ending ${String(runEndMm)}: drawn past the wall`,
+          );
+        }
+        checked += 1;
+      }
+    }
+
+    expect(wrong.slice(0, 3)).toStrictEqual([]);
+    expect(checked).toBeGreaterThan(25_000);
+    expect(largestOvershootMm).toBeLessThan(ALLOWANCE_BOUND_MM);
+  });
+
+  it("hides a panel half a millimetre past the wall and draws one half a millimetre inside it", () => {
+    const oddWidthMm = 599;
+    const records = recordsEndingAt(3500.5, oddWidthMm);
+
+    expect(runEndPanelSeatM(records, wallA(3519))).toBeUndefined();
+    expect(runEndPanelSeatM(records, wallA(3520))).toBeCloseTo(3.5105, 9);
   });
 });
 
@@ -1017,6 +1138,7 @@ describe("the it.fails band 900–918 reaches its assertion (Adjudication 7D1-Q2
       expect(() =>
         runEndPanelSeatM(
           derivePlacementRecords(filled, catalogAt(SHELL_CABINET_DEPTH_MM)),
+          room,
         ),
       ).not.toThrow();
       computed += 1;

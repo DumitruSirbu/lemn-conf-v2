@@ -55,7 +55,7 @@ function mountFirstScene(records: readonly PlacementRecord[]): MountedScene {
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
   return { shell, solidsRoot };
 }
 

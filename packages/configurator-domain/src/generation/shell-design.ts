@@ -20,9 +20,9 @@
 //
 // **Wall B's runs end short of the wall** by the corner's chain shift to the deepest declared depth
 // (Amendment B3, ADR 0109 Amendment C): a deeper corner slides wall B's whole run, and a proposal
-// must still fit after the customer changes the depth. **Wall A's floor run ends short too**, by the
-// run-end panel's footprint (Amendment B3a): the finished end is part of wall A's occupied width
-// (ADR 0083 decision 5), so a base cabinet filling the last opening must leave the panel inside it.
+// must still fit after the customer changes the depth. **Wall A's floor run reaches the wall's end**:
+// the run-end panel is not drawn where a run comes within its gap and slab of the wall (ADR 0045
+// Amendment A), so nothing composed can push it past the wall, and B3a's reserve went with that veto.
 //
 // **An odd span gives up its last millimetre.** A document holds whole-millimetre centres, so from a
 // whole-millimetre edge every piece is even; the millimetre an odd span cannot carry is left at the
@@ -56,10 +56,6 @@ import { occupiedDepthOfEntryM } from "../occupied-depth.js";
 import { wallLengthMm } from "../queries/overflowing-placements.js";
 import { ENGINE_ROOM_LIMITS } from "../room/room-policy.js";
 import { validateRoomInput } from "../room/validate-room.js";
-import {
-  RUN_END_PANEL_GAP_M,
-  RUN_END_PANEL_THICKNESS_M,
-} from "../run-end-panel.js";
 import { splitEmptySpanAtCap } from "../split-empty-span.js";
 import {
   deriveRecordedColumns,
@@ -120,17 +116,6 @@ const WALL_ROW_FLOOR_MM = wholeMillimetresOf(
 const MODULE_GRID_TOP_MM = wholeMillimetresOf(
   Math.max(...LEVELS.map(([, topM]) => topM)),
   "LEVELS' top",
-);
-
-/** The wall whose base run the run-end panel closes (ADR 0045; `runEndPanelSeatM` reads wall A's
- *  base placements only). Wall B carries no finished end (ADR 0083 decision 5). */
-const WALL_THE_RUN_END_PANEL_CLOSES: DesignWall = "A";
-
-/** What the finished end adds past the last base cabinet — its air gap and its slab — which ADR 0083
- *  decision 5 counts in wall A's occupied width (ADR 0110 B3a). */
-const RUN_END_PANEL_FOOTPRINT_MM = wholeMillimetresOf(
-  RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M,
-  "the run-end panel's footprint",
 );
 
 /** The shell for `input.room`: the corner that fits under its ceiling and every free run recorded,
@@ -209,7 +194,7 @@ function freeRunTiles(wall: DesignWall, room: DesignRoom): EmptyColumn[] {
     }),
     ...tilesOver(runs.floor, {
       startMm: floorStartMm,
-      endMm: plannedEndMm(runs.floor, room) - finishedEndMm(wall),
+      endMm: plannedEndMm(runs.floor, room) - (wall === "A" ? 19 : 0),
     }),
   ];
 }
@@ -230,14 +215,6 @@ function tileRunsOn(
       source: WALL_ONLY_TILE_SOURCE,
     },
   };
-}
-
-/** ADR 0110 B3a: the floor run leaves room for the panel that closes it, so a base cabinet filling
- *  the last opening still has its finished end inside the wall. */
-function finishedEndMm(wall: DesignWall): number {
-  return wall === WALL_THE_RUN_END_PANEL_CLOSES
-    ? RUN_END_PANEL_FOOTPRINT_MM
-    : 0;
 }
 
 /** A floor run starts past every structural piece on its wall, whatever row the piece stands in. */
