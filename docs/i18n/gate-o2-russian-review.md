@@ -21,9 +21,16 @@ column as the sentence they were meant to be.
 > four were Russian-wording questions and all four stand as written.
 >
 > **Two flags were product questions rather than translation ones, and they were put to the owner
-> separately before this approval was recorded: F4** (`configure.localeSwitch`, whose Romanian had
-> never been through Gate O1) and **F6** (the eight translated decor names). Both were left as
-> drafted. F6 in particular is a live product risk rather than a closed one — a customer or a
+> separately before this approval was recorded: F4** and **F6** (the eight translated decor names).
+> Both were left as drafted.
+>
+> **F4 names a key that no longer exists, and the row below it is stale.** F4 was written against
+> `configure.localeSwitch`, 6B-i's accessible name for the *link* to the other locale. ADR 0107
+> decision 1 replaced that link with a dropdown built for N locales, and the key with
+> **`configure.localeMenu`** — *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса:
+> русский. Сменить язык"*. The table below still shows the retired sentence. What the owner approved
+> is **the key that ships**, `configure.localeMenu`, read in the running product; the stale row is
+> recorded under *Consequences* in ADR 0107 and is one of the five listed there. F6 in particular is a live product risk rather than a closed one — a customer or a
 > supplier matching a decor against a printed sample works from the manufacturer's own name, and
 > those names are now translated in Russian. **Re-open F6 if a supplier ever reads the Russian
 > quote**; nothing automatic will catch it, as `docs/i18n/ro-catalogue-notes.md` already records.

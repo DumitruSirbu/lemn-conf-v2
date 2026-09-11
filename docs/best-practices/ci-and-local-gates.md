@@ -126,6 +126,15 @@ the application database), and a Playwright browser — `pnpm --filter @lemnaria
 install chromium` if it complains about one. A gate that silently passes when it cannot run is the
 thing this gate exists to replace.
 
+**A third failure mode is not loud, and it cost the M6B close-out two full runs (2026-09-11): a
+second `next dev` in the same directory.** Next 16 refuses to start a second dev server against a
+directory that already has one running, **regardless of port** — `E2E_PORT` only changes which port
+Playwright's own server binds to, and does not sidestep a peer session's `pnpm --filter
+@lemnaria/web dev` already running on `:3000` in the same checkout. The run reports **zero tests**
+rather than a bind error, which looks like a green exit at a glance and is easy to mistake for
+"nothing to test" instead of "the server that should have booted never did." Check for another `next
+dev` in the same directory before trusting a zero-test e2e run.
+
 The `boundary` and `lockfile:single-source` gates are the **same shell scripts** the workflow
 invokes (`scripts/gates/`), not reimplementations. That is deliberate: a local gate that has drifted
 from the remote one is worse than no local gate, because it reports a pass that means nothing.

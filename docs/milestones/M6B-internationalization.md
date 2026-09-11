@@ -1,9 +1,13 @@
 # M6B — Internationalization: Romanian becomes a source locale instead of a hardcoded one
 
-> **STATUS, ~~2026-09-10~~ 2026-09-11: BLOCKED ON GATE O2 — the owner's Russian review, which no
-> agent may pass. Every wave has shipped and M6B's build scope is complete.** The banner below is the
-> planning history, preserved and superseded; the correction that carries the current state is two
-> paragraphs down.
+> **STATUS, ~~2026-09-10~~ ~~2026-09-11: BLOCKED ON GATE O2 — the owner's Russian review, which no
+> agent may pass.~~ CORRECTED 2026-09-11: GATE O2 IS CLOSED — the owner approved all 235 leaves of
+> `ru.json` as drafted.** In the owner's words: *"russian I checked looks ok, if in future I will
+> found something to fix I will do this."* Every wave has shipped, M6B's build scope is complete, and
+> **only the push remains** — see *Where the phase stands* for what that closure carries (F6 stays
+> open as a product risk, a seventh owner ruling is now ADR 0107 Decision 7, and e2e ran to
+> completion for the first time on this branch). The banner below is planning history, preserved and
+> superseded.
 >
 > **Added 2026-09-11.** Since the banner below was written, **the owner reviewed the built product**
 > and gave six rulings — a language dropdown, appliances drawn-not-sold, no greyed offers, the colour
@@ -11,10 +15,11 @@
 > [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md),
 > and the round that followed them is *The owner's review of the built product* below — **it is also
 > the review 6B-i and 6B-j never had**. Two consequences change what the banner says: **ADR 0105's
-> e2e split has shipped** (`b60f298`), so after Gate O2 **only the push remains**, and it needs the
-> owner's word because the rebase rewrote this branch's history. And **five rows of the Gate O2
-> review aid are stale** — including F4's key, which no longer exists — with the corrections tabled
-> under *Where the phase stands*.
+> e2e split has shipped** (`b60f298`), so after Gate O2 **only the push remains**, and it needed the
+> owner's word because the rebase rewrote this branch's history — **which the owner has now given.**
+> And **five rows of the Gate O2 review aid are stale** — including F4's key, which no longer exists
+> — with the corrections tabled under *Where the phase stands*, and still stale as of the gate's
+> closure.
 >
 > **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-e complete at `8fff684`; two owner
 > catalogue rulings applied at `6ea640f`; ~~6B-f next.~~** **Corrected 2026-09-10: 6B-f is complete
@@ -57,7 +62,8 @@
 > under *Re-planning against the rebased tree*, and the sections that went stale are struck rather
 > than deleted.
 
-Status: ~~in progress~~ **blocked on Gate O2, 2026-09-10 — every wave shipped** on branch
+Status: ~~in progress~~ ~~blocked on Gate O2, 2026-09-10 — every wave shipped~~ **Gate O2 closed,
+2026-09-11 — every wave shipped, the Russian is approved copy, only the push remains** on branch
 `m6b-internationalization`. The 2026-09-07 owner sequencing ruling
 supersedes the planned dependency order described below; see *Owner sequencing correction*.
 Reference: [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 5;
@@ -438,7 +444,7 @@ sequenced so the mechanical bulk is separable from the decisions.
 | **6B-h2** | **DONE 2026-09-10, `9863f33`:** the test sweep — Romanian literals in `apps/web/tests` **104 → 34** outside the copy lock, **33 → 10** files, 26 converted, 6B-h1's one-line residue folded in; and the *"96 tautologies"* purge **did not happen, because there were none to purge** — 97 assertions of that shape, 0 unfalsifiable, settled by mutation | **Light** (tests only, but see below) | ~~6B-h1~~ **6B-g** |
 | **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
 | **6B-i** | **DONE 2026-09-10, `87429ca`:** the second locale — the `RO` chip becomes a **link** to the other locale at the current locale-free path, the pseudo-locale becomes a **consumed** length-stress transform over a real catalogue, and the **five Russian plural leaves gain CLDR `many`** (the parity gate had been requiring Romanian's categories). One new leaf, `configure.localeSwitch`; hashes **303 → 304, one added, none moved** | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 — **both met, 6B-h2 at `9863f33`** |
-| **Gate O2** | **HARD STOP — the owner checks the Russian. OPEN as of 2026-09-10, and it is the only thing between M6B and close.** Not a wave; an owner review, and a real one. Review aid: [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) | — | 6B-i — **met** |
+| **Gate O2** | ~~**HARD STOP — the owner checks the Russian. OPEN as of 2026-09-10, and it is the only thing between M6B and close.**~~ **CLOSED 2026-09-11 — the owner approved all 235 leaves as drafted.** Not a wave; an owner review, and a real one. Review aid: [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) | — | 6B-i — **met** |
 | **6B-j** | **DONE 2026-09-10, `aff9a2c`:** the re-drift gate — **three lint rules**, a package-boundary test **extending** `pricing-seams.test.ts`'s existing sweep rather than adding a second walker, ADR 0106 Amendment A's inherited prose sweep, and the written convention in `engineering-conventions.md` § *Localised copy*. **Every rule proved by landing a violation and observing the red** | **Medium** (re-tiered 2026-09-10; it was Light) | 6B-i |
 
 6B-b and 6B-c are independent of one another and may run in either order after 6B-a. Everything from
@@ -2183,14 +2189,19 @@ Falsifiable, and stated as invariants including what must not happen.
    plus tier/accessory display names, and they reach customer-visible screens. Numeric rates and
    manufacturer records remain data; displayed prose becomes message descriptors so `/ru/…` does
    not leak Romanian. Existing Romanian moves byte-for-byte and Russian stays unapproved until O2.
-5. **Does `priceBook`'s oven-tower label have to stop naming appliances?** — **opened 2026-09-11 by
-   the review's logic reviewer, and it is the owner's.** `priceBreakdown.disclaimer` says the estimate
+5. **~~Does `priceBook`'s oven-tower label have to stop naming appliances?~~ Closed by the owner,
+   2026-09-11 — [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+   Decision 7.** Opened by the review's logic reviewer: `priceBreakdown.disclaimer` says the estimate
    excludes *electrocasnice*, and directly beneath it the breakdown prints **Coloană cuptor +
-   microunde 9 000**. The 9 000 is joinery — the tower is cabinetry Lemnaria builds, and ADR 0107
-   decision 2 deliberately leaves its price alone — but **the label names two appliances**, so the
-   two lines read together reproduce the contradiction that ruling was given to remove. **A ruling on
-   the label, not on the pricing.** It does not gate O2; changing the label would be an O1-class
-   change, so answering it in the same sitting is cheaper than answering it later.
+   microunde 9 000** — so the two lines read together appeared to reproduce the contradiction
+   decision 2 was ruled to remove. **The owner ruled there is no contradiction, and the label
+   stands.** In the owner's words: *"the cabinets represent the niche where this appliances are
+   installed, and yes appliances are not included in price but the niche is."* A cabinet named for an
+   appliance names the **joinery built around it**, not the appliance: `cabinet.tall-oven-tower`
+   (900 000) and `cabinet.tall-fridge-housing` (700 000) are carpentry Lemnaria manufactures and keep
+   their prices; `cabinet.hood` and `cabinet.fridge-free` are the appliance alone and decision 2
+   zeroes them through `drawnButNotSupplied()`. **No string moves, no code changes** — the price book
+   already encoded it; the ruling is recorded so the label is not "corrected" by a later wave.
 
 ## The owner's review of the built product — 2026-09-10 and 2026-09-11
 
@@ -2312,40 +2323,75 @@ implementation — *"focus on developing more, then I will focus on testing"*. *
 what covered them.** The *Verification* section's coverage-gap paragraph is amended in place rather
 than deleted, because the gap was real between 2026-09-10 and this round.
 
-## Where the phase stands — ~~2026-09-10~~ **2026-09-11**
+## Where the phase stands — ~~2026-09-10~~ ~~2026-09-11~~ **2026-09-11, later the same day**
 
-**Every wave is complete. The build scope of M6B is finished and the milestone is blocked on Gate O2,
-which is the owner's and which no agent may pass.** 6B-a … 6B-j all carry a commit and a close-out
-section above; the wave table is the index. **The owner's review of the built product has since run
-(2026-09-10/11) and is recorded in the section immediately above** — six rulings, ten findings and
-one shipped deferral, all inside a milestone that was already feature-complete.
+~~**Every wave is complete. The build scope of M6B is finished and the milestone is blocked on Gate
+O2, which is the owner's and which no agent may pass.**~~ **Gate O2 is closed.** In the owner's
+words: *"russian I checked looks ok, if in future I will found something to fix I will do this."*
+**All 235 leaves of `apps/web/src/messages/ru.json` are approved as drafted.** 6B-a … 6B-j all carry
+a commit and a close-out section above; the wave table is the index. **The owner's review of the
+built product ran 2026-09-10/11 and is recorded in the section immediately above** — six rulings, ten
+findings and one shipped deferral, all inside a milestone that was already feature-complete. **A
+seventh ruling followed on 2026-09-11**, closing an open question the review's logic reviewer raised
+about the oven-tower label — see *ADR 0107 Decision 7* below and open question 5.
 
-**What the owner has to do, and it is one thing:** read
+**What the owner did:** read
 [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
-beside its Romanian source, by namespace — and rule. Two of its six flagged items are **decisions**
-rather than translation checks: **F6**, whether the eight decor names are translated at all, and
-**F4**, `configure.localeSwitch`, whose Romanian is new this wave and has never been through Gate O1.
-The Russian remains an **unapproved agent draft** until they rule; that has been true since 6B-a and
-it is still true.
+beside its Romanian source, by namespace — and ruled. Of its six flagged items, **F1, F2, F3 and F5**
+(Russian-wording questions) all stand as written. The remaining two were **product questions rather
+than translation checks**, put to the owner separately, and both were also left as drafted:
+**F6** (whether the eight decor names should be translated at all) **is not closed** — it is a
+standing re-open condition, because a customer or supplier matching a decor against a printed sample
+works from the manufacturer's own printed name and nothing automatic catches a Russian mismatch.
+**F4** (`configure.localeMenu`, new Romanian that had never been through Gate O1) stands as shipped.
+**The Russian is approved copy, not a draft, as of 2026-09-11.**
 
-**Before the owner reads: five rows of the review aid are stale, and the aid is the surface they will
-read from.** `docs/i18n/gate-o2-russian-review.md` is the owner's document and no agent edits it, so
-the corrections live here:
+**Five rows of the review aid were stale when the owner read it, and are still stale now that it
+carries its own closure banner — the banner does not correct the table rows.** They were checked
+again against `apps/web/src/messages/ro.json` and `ru.json` directly rather than assumed unchanged:
 
 | aid row | what it says | what ships |
 | --- | --- | --- |
-| `configure.localeSwitch` (line 106, flagged **F4**) | *Limba interfeței: română. Comută în rusă* | **The key no longer exists.** The dropdown replaced it with `configure.localeMenu` — *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса: русский. Сменить язык"*. **F4's point carries over unchanged**: this Romanian was authored after Gate O1 closed and still owes an O1 read |
-| `panel.finishFollowsKitchen` (line 174) | *Culoarea bucătăriei* / *Цвет кухни* | **The owner's own edit**, made during the session: *Preia culoarea bucătăriei*, with the Russian *Используй глобальный цвет кухни* **ruled by them personally** |
-| `globalSettings.colourNote` (line 222) | pre-edit Romanian and Russian | **The owner's own edit** in `ro.json`, recorded as approved in the copy lock |
-| `globalSettings.colourWarning` (line 223) | pre-edit Romanian and Russian | **The owner's own edit**, same |
-| `rejection.WIDTH_NOT_SUPPORTED_COLUMN` (line 364) | pre-edit Romanian and Russian | **The owner's own edit**, same |
+| `configure.localeSwitch` (line 127, flagged **F4**) | *Limba interfeței: română. Comută în rusă* | **The key no longer exists.** The dropdown replaced it with `configure.localeMenu` — *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса: русский. Сменить язык"*, confirmed present in both message files at key `localeMenu`. **F4's point carries over unchanged**: this Romanian was authored after Gate O1 closed |
+| `panel.finishFollowsKitchen` (line 195) | *Culoarea bucătăriei* / *Цвет кухни* | **The owner's own edit**, made during the session: *Preia culoarea bucătăriei*, with the Russian *Используй глобальный цвет кухни* **ruled by them personally** |
+| `globalSettings.colourNote` (line 243) | pre-edit Romanian and Russian | **The owner's own edit** in `ro.json`, recorded as approved in the copy lock |
+| `globalSettings.colourWarning` (line 244) | pre-edit Romanian and Russian | **The owner's own edit**, same |
+| `rejection.WIDTH_NOT_SUPPORTED_COLUMN` (line 400) | pre-edit Romanian and Russian | **The owner's own edit**, same |
 
-For those five, `apps/web/src/messages/ro.json` and `ru.json` are the truth and the aid is not. The
-other rows are unaffected.
+For those five, `apps/web/src/messages/ro.json` and `ru.json` are the truth and the aid is not — and
+all five are approved as they ship, per the owner's blanket ruling. The other rows are unaffected.
 
-**What remains after Gate O2, so it is not discovered later as a surprise:**
+**e2e ran to completion on this branch for the first time, 2026-09-11: 189 passed, 2 failed, 2
+skipped, 5.5 minutes**, across Playwright projects `mobile` and `desktop`. Both failures were this
+milestone's own rulings meeting gates calibrated to the geometry those rulings replaced; both are
+fixed at `cec60b7` and both re-verified passing individually:
 
-- **Whatever the owner's O2 ruling costs.** A Russian change is a value edit. **A Romanian change is
+- `editor-panel.e2e.spec.ts` swept `[data-testid^="finish-"]` page-wide; ADR 0107 Decision 4
+  deliberately places the follow-the-kitchen reset **outside** `colour-options`, so the sweep read
+  that row as a wrapped chip. Now scoped to the carousel's declared container
+  (`apps/web/tests/e2e/editor-panel.e2e.spec.ts:291-301`), asserting the ruling it tripped over
+  rather than assuming it.
+- `MIN_CASING_PIXELS` went 900 → **300**
+  (`apps/web/tests/e2e/pixel-counter-witness.adversarial.desktop.e2e.spec.ts:99`). **This is a
+  re-measurement, not a lowered bar**: the old floor was half of 1 923 measured 2026-09-07; ADR 0107
+  Decision 5 halved the highlight, and the casing is a sum — `SELECTION_OUTLINE_WIDTH_PX + 2` — so
+  the visible near-black rim went 2 px → 1 px. The count is now a deterministic **616** (measured
+  twice, per the file's own doc comment at line 86), the floor re-derived on the file's own
+  documented rule of half the measurement. The count fell **3.1x rather than 2x**, because
+  anti-aliasing at a 1 px rim blends the edge toward the front colour and a blended sample leaves the
+  tolerance ball; **the rim is now at its resolution floor** — a further thinning has no pixels left
+  to give.
+
+**Environment note, not a product finding:** the first two e2e attempts of the session ran **zero
+tests**, because a peer session kept `pnpm --filter @lemnaria/web dev` running in the same directory,
+and Next 16 refuses a second `next dev` there **regardless of port** — `E2E_PORT` (default 4320,
+`apps/web/playwright.config.ts:17`) does not sidestep a blocker on `:3000`, since the guard is
+per-directory rather than per-port. It presents as a green-looking, test-free exit and cost two full
+cycles; recorded in `docs/best-practices/ci-and-local-gates.md`.
+
+**What remains, so it is not discovered later as a surprise:**
+
+- **What a future ruling would cost.** A Russian change is a value edit. **A Romanian change is
   an O1-class change** — copy lock updated in the same commit, the golden manifest re-baselined for
   exactly those keys with the key list in the commit message, and the affected Russian re-translated.
 - ~~**[ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)'s
@@ -2356,12 +2402,13 @@ other rows are unaffected.
   it: the `e2e` job is a `mobile` / `desktop` matrix over `--project` and the ceiling came back down
   to **45 per leg**. ADR 0105 carries the implementation note and an in-place amendment to its
   decision 2 reasoning. **So the engineering remainder is empty.**
-- **The push, and it needs the owner's word.** The branch history was **rewritten during the
-  rebase**, so `m6b-internationalization` cannot be fast-forwarded — a force-push is the only way it
-  reaches the remote, and no agent may force-push on its own authority. **After Gate O2, this is the
-  only thing left in M6B.**
-- **One question the review left with the owner, and it is copy rather than pricing** — see open
-  question 5 below, and ADR 0107's own *One question this ruling leaves open*.
+- **The push — the only thing left in M6B, and the owner has now explicitly authorised it.** The
+  branch history was **rewritten during the rebase**, so `m6b-internationalization` cannot be
+  fast-forwarded; a force-push is the only way it reaches the remote.
+- ~~**One question the review left with the owner, and it is copy rather than pricing** — see open
+  question 5 below, and ADR 0107's own *One question this ruling leaves open*.~~ **Closed 2026-09-11
+  — ADR 0107 Decision 7.** The oven-tower label is not a contradiction: a cabinet named for an
+  appliance names the joinery built around it, not the appliance. See open question 5 below.
 
 ## What this phase hands on
 

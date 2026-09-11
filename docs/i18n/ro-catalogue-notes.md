@@ -189,6 +189,15 @@ spot the section above opens with is **closed as a gate**, not as a blind spot �
 (`aff9a2c`) shipped the positional rule that catches diacritic-free Romanian, which is what the
 sentence at *"still the reason 6B-j needs a second rule"* was waiting for.
 
+**Updated 2026-09-11 — Gate O2 closed, and F6 was left as drafted rather than ruled on.** The owner
+approved the Russian wholesale (*"russian I checked looks ok, if in future I will found something to
+fix I will do this"*) without picking one of the three answers above. **This is not a closed
+question — it is a standing re-open condition.** All eight names ship translated, exactly as 6B-i
+drafted them, and the risk this section names — a customer or supplier matching a decor against a
+printed sample working from the manufacturer's own printed name, not the translated one — is
+unchanged and uncaught by anything automatic. Re-open this section if a supplier ever reads the
+Russian quote.
+
 Deliberately absent, each for a recorded reason:
 
 - ~~**The price book's 6 tier names** (*Standard*, *Hettich*, *Blum*, *PAL melaminat*, *MDF vopsit
