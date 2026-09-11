@@ -4,8 +4,8 @@
 > 2026-09-11 at `8df0d49`**, ~~next wave 7D1~~ **wave 7D1 shipped at `f5b4cd9`** — both on branch
 > `m7-room-and-presets`; their close-outs are below. F1–F7 are all answered and M7B is confirmed by
 > the owner. **Wave 7D1b is DONE in implementation commits `f61c361` + `85091cc`; next wave: 7D2.**
-> The branch-wide `pnpm ci:local` passed on the frozen tree; the documentation close-out commit and
-> push remain the coordinator's post-documentation steps.
+> The branch-wide `pnpm ci:local` passed on the frozen tree; close-out commit `1e96104` and every
+> local M7 commit through it are pushed to `origin/m7-room-and-presets`.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1927,8 +1927,8 @@ Format, lint and typecheck passed. Domain **4082/4082**, persistence **282/282**
 **3037/3037** and web **2587/2587** passed; Playwright reported **191 passed + 2 expected skipped
 (193 total)**. Build, boundary, lockfile and SCA passed, with **no known vulnerabilities**.
 
-**Still pending at this documentation instant:** the coordinator reviews this documentation diff,
-commits these close-out documents and pushes. The documentation commit hash does not yet exist.
+**Close-out and push:** documentation committed at `1e96104`. The pre-push `pnpm ci:local` passed
+in full again, then `origin/m7-room-and-presets` advanced from `c9f43ea` through `1e96104`.
 
 ## Verification
 
