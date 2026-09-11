@@ -3,7 +3,9 @@
 > **STATUS: IN PROGRESS.** Depends on M6 (shipped). Summary: `docs/STATUS.md`. **Wave 7A shipped
 > 2026-09-11 at `8df0d49`**, ~~next wave 7D1~~ **wave 7D1 shipped at `f5b4cd9`** — both on branch
 > `m7-room-and-presets`; their close-outs are below. F1–F7 are all answered and M7B is confirmed by
-> the owner. **Next wave: 7D1b.**
+> the owner. **Wave 7D1b is DONE in implementation commits `f61c361` + `85091cc`; next wave: 7D2.**
+> The branch-wide `pnpm ci:local` passed on the frozen tree; the documentation close-out commit and
+> push remain the coordinator's post-documentation steps.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1260,7 +1262,7 @@ table.
 | --- | --- | --- | --- | --- | --- | --- |
 | **7A** | Room validation; the approved L policy — **DONE, `8df0d49`** | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
 | **7D1** | Composition shell for the L — **DONE, `f5b4cd9`** | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
-| **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
+| **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; **the row plan and the shell tiled at its boundaries (R1.1)** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
@@ -1313,9 +1315,9 @@ F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **a
   or the design id (7E3c); revocation racing a read (7E3c). The four domain waves share `src/index.ts`; run them one
 after another.
 
-~~**Next dispatchable wave after 7A: 7D1**~~ — **7D1 shipped at `f5b4cd9`. Next dispatchable wave:
-7D1b** (the run-end panel veto, backlog 64 / ADR 0045 Amendment A) — its punch list follows the
-revised criteria.
+~~**Next dispatchable wave after 7A: 7D1**~~ — ~~**7D1 shipped at `f5b4cd9`; 7D1b was next.**~~
+**7D1b is DONE in `f61c361` + `85091cc`. Next dispatchable wave: 7D2**, whose criteria 9–14 and
+ADR 0110 Amendments A–D are the live contract below.
 
 ### Revised criteria for new and changed waves
 
@@ -1880,6 +1882,53 @@ C1.4 noted only, no change.
 **Deviations from the punch list:** the seven premise corrections above (7D1-P), and the owner's two
 adjudications reached mid-wave (7D1-Q1 on the reserve and the corner-hood finding, 7D1-Q2 on the
 run-end-panel ruling that opened wave 7D1b) rather than being settled before dispatch.
+
+### 7D1b close-out — 2026-09-11, `f61c361` + `85091cc`
+
+**What shipped:** ADR 0045 Amendment A's run-end-panel veto now hides the panel when its outer face
+would pass wall A's end; equality, including floating-point noise within the existing touching
+tolerance, keeps it. The earlier column veto still runs first. `room` is threaded through the domain,
+three-adapter and `KitchenStage`; the adapter contains no duplicate policy. ADR 0110 B3a's 19 mm
+wall-A shell reserve is removed, so the shell again uses the full wall-A run. Nothing under pricing
+depends on the panel, and no pricing surface changed.
+
+**Commit correction, preserved rather than smoothed over:** `f61c361` is the WIP implementation
+commit and was made with `--no-verify`. It captured `shell-design.ts` while QA's mutation runner had
+temporarily restored the 19 mm subtraction. `85091cc` immediately restores the intended full-wall
+line. The green evidence below is from `85091cc`, not from the transient mutant in the WIP commit.
+
+**Adversarial QA at `85091cc`:** domain **4082**, three-adapter **3037**, web **2587**; typecheck,
+lint and whole-tree format clean. The earlier two red B3a tests were rewritten against the veto and
+are superseded by this pass. QA findings Q4.1–Q4.3 are embodied in tests. The seeded panel remained
+visible at seat **3.510** across the tested customer command sequences. Approximately 26 other test
+files changed only by adding the required `room` argument.
+
+**Full-tier review:** logic review of `a5c1e0e..85091cc` found no defect. It checked the veto's
+boundary, equality and tolerance; the existing column veto; shell-reserve removal; room threading;
+the seeded invariant; the tests; and the absence of a pricing dependency. Clean-code review finding
+**R1.1 (Low)** notes that the new 236-line dependency-aware `KitchenStage` test duplicates mock
+harnesses. It is **not a defect and is not changed in this wave**: that test intentionally models
+dependency-aware rerenders that the existing always-run effect test cannot. Consolidating every
+`KitchenStage` harness would be a cross-wave refactor. Re-open R1.1 only when a second
+dependency-sensitive `KitchenStage` test is added or these mocks next change.
+
+**Visual verification:** passed at exact **390 × 844** and **1440 × 900**, on
+`/configurator/configure` redirecting to `/ro/configurator/configure`. The seeded panel was visibly
+present at wall A's end; presets and orbit worked; there was no application exception, `pageerror` or
+failed request. The verifier's build passed. The numeric 3.510 was **not** browser-derived because no
+scene debug hook exists; the adapter test establishes it. No strict pixel-identity baseline existed,
+so this is an observed presence and interaction pass, not a pixel-diff claim. The inspected evidence
+was transient at `/tmp/lemnaria-7d1b-visual-85091cc/report.json`. Non-blocking diagnostics:
+`THREE.Clock` deprecation, `ambient-light-sensor` permissions-policy, report-only CSP, expected WebGL
+`readPixels` stall and favicon 404.
+
+**Final local gate, coordinator-run on the frozen tree, 2026-09-11:** `pnpm ci:local` exited **0**.
+Format, lint and typecheck passed. Domain **4082/4082**, persistence **282/282**, three-adapter
+**3037/3037** and web **2587/2587** passed; Playwright reported **191 passed + 2 expected skipped
+(193 total)**. Build, boundary, lockfile and SCA passed, with **no known vulnerabilities**.
+
+**Still pending at this documentation instant:** the coordinator reviews this documentation diff,
+commits these close-out documents and pushes. The documentation commit hash does not yet exist.
 
 ## Verification
 

@@ -1345,21 +1345,6 @@ then marks. Dropping it from the offer would be a new rule — "an entry that wo
 offered" — for the owner. **Composition never produces it**: M7 wave 7D2 places nothing over wall A's
 corner zone (milestone, *Adjudication 7D1-Q1*).
 
-## 64. The run-end panel is not checked against the end of wall A — ~~RECORDED 2026-09-11, LATENT, NO OWNER~~ **RULED 2026-09-11 (ADR 0045 Amendment A, "No panel when run hits wall"), AWAITING WAVE 7D1b**
-
-Found by M7 wave 7D1's QA (finding Q1.1). `runEndPanelSeatM` (`run-end-panel.ts:90-100`) seats the
-finished end 19 mm past the last wall-A base cabinet and vetoes it only for a body in its way; nothing
-checks it against wall A's end, and no validator code covers it. **Nothing the product produces
-reaches it** after ADR 0110 Amendment B3a: the shell's recorded space on wall A stops short by the
-panel's footprint, and the seeded kitchen's run ends 60 mm before its wall with no recorded space
-beyond. A stored document written through `PUT` with recorded space to the wall's end can: a base
-cabinet there draws the panel past the wall.
-
-**What deciding it would cost — and it is a product question.** When a customer's own run genuinely
-reaches the wall, a real kitchen needs no finished end there (the wall closes the run, and the fitter
-uses a filler strip). So the likely answer is a veto at the wall's end, not a mark — but that changes
-what the scene shows and is the owner's to rule.
-
 ## 65. An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm — RECORDED 2026-09-11, PRE-EXISTING, NOT REACHABLE, NO OWNER
 
 Found by M7 wave 7D1's QA, round 3 (finding Q3.1, Low), and pre-existing rather than introduced by the

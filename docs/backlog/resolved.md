@@ -1539,3 +1539,32 @@ decision 2's question a third time** — which map does a map-publishing command
 the reconciliation. It touches `setWidth` and `insertBody` rather than the depth track, so it is its
 own wave and not 6J-d's.
 
+## 64. The run-end panel is not checked against the end of wall A — CLOSED 2026-09-11 BY M7 WAVE 7D1b
+
+**Closed in `f61c361` + corrective commit `85091cc`.** `runEndPanelSeatM(records, room)` now hides
+the panel when its outer face would pass wall A's end and keeps it at equality, including the existing
+touching tolerance; the earlier column veto remains. The room is threaded through the adapter and
+`KitchenStage`, and ADR 0110 B3a's compensating 19 mm wall-A reserve is removed in the same wave.
+QA at `85091cc` reported domain **4082**, three-adapter **3037**, web **2587**, with typecheck, lint
+and whole-tree format clean. Full-tier logic review found no defect, and exact 390 × 844 and
+1440 × 900 visual verification kept the seeded panel visibly present. The adapter test, rather than
+the browser pass, establishes its unchanged seat at **3.510**. The coordinator's final frozen-tree
+`pnpm ci:local` run exited **0**: format/lint/typecheck, all four package suites, Playwright, build,
+boundary, lockfile and SCA passed, with no known vulnerabilities.
+
+Original entry follows unedited.
+
+## 64. The run-end panel is not checked against the end of wall A — ~~RECORDED 2026-09-11, LATENT, NO OWNER~~ **RULED 2026-09-11 (ADR 0045 Amendment A, "No panel when run hits wall"), AWAITING WAVE 7D1b**
+
+Found by M7 wave 7D1's QA (finding Q1.1). `runEndPanelSeatM` (`run-end-panel.ts:90-100`) seats the
+finished end 19 mm past the last wall-A base cabinet and vetoes it only for a body in its way; nothing
+checks it against wall A's end, and no validator code covers it. **Nothing the product produces
+reaches it** after ADR 0110 Amendment B3a: the shell's recorded space on wall A stops short by the
+panel's footprint, and the seeded kitchen's run ends 60 mm before its wall with no recorded space
+beyond. A stored document written through `PUT` with recorded space to the wall's end can: a base
+cabinet there draws the panel past the wall.
+
+**What deciding it would cost — and it is a product question.** When a customer's own run genuinely
+reaches the wall, a real kitchen needs no finished end there (the wall closes the run, and the fitter
+uses a filler strip). So the likely answer is a veto at the wall's end, not a mark — but that changes
+what the scene shows and is the owner's to rule.
