@@ -253,15 +253,14 @@ PASS.
     **235** leaves of `ru.json` beside the Romanian they were translated from, grouped by namespace,
     in the catalogues' own key order. The file now carries its own closure banner; it is not
     restated here.
-  - **Five of its rows are still stale against the message files, checked again after the closure
-    banner was added — the banner does not correct the table rows.** `apps/web/src/messages/ro.json`
-    and `ru.json` are the truth for these five; the aid is the owner's document and no agent edits
-    it. **`configure.localeSwitch`** (aid line 127) — the key no longer exists; the shipped leaf is
-    **`configure.localeMenu`**, *"Limba interfeței: română. Schimbă limba"* /
-    *"Язык интерфейса: русский. Сменить язык"*, confirmed present in both message files at key
-    `localeMenu`. **Lines 195, 243, 244 and 400** — `panel.finishFollowsKitchen`,
-    `globalSettings.colourNote`, `globalSettings.colourWarning` and
-    `rejection.WIDTH_NOT_SUPPORTED_COLUMN` — carry the pre-edit Romanian and Russian; the owner
+  - **Five of its rows are still stale against the message files — the closure banner does not
+    correct the table rows.** `apps/web/src/messages/ro.json` and `ru.json` are the truth for these
+    five; the aid is the owner's document and no agent edits it. **`configure.localeSwitch`** — the
+    key no longer exists; the shipped leaf is **`configure.localeMenu`**,
+    *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса: русский. Сменить язык"*,
+    confirmed present in both message files at key `localeMenu`. **`panel.finishFollowsKitchen`**,
+    **`globalSettings.colourNote`**, **`globalSettings.colourWarning`** and
+    **`rejection.WIDTH_NOT_SUPPORTED_COLUMN`** — carry the pre-edit Romanian and Russian; the owner
     edited those four leaves themselves during the session (and ruled the Russian
     `panel.finishFollowsKitchen` personally). All five are approved as-shipped, not as the aid shows
     them.

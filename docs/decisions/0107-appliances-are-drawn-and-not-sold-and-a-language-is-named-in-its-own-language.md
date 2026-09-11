@@ -187,12 +187,20 @@ string moves.
 ## Consequences
 
 - **The Gate O2 review aid is stale in five rows**, and it is the owner's own review surface.
-  `docs/i18n/gate-o2-russian-review.md` line 106 lists `configure.localeSwitch` with a sentence that
-  no longer exists — the shipped leaf is `configure.localeMenu` — and lines 174, 222, 223 and 364
-  carry the pre-edit Romanian **and** Russian for the four leaves the owner changed during the
-  session. Read against `apps/web/src/messages/ro.json` and `ru.json`, not against the aid, for
-  those five. The file is the owner's aid and no agent edits it; the staleness is recorded in
-  `docs/STATUS.md` and in the milestone instead.
+  `docs/i18n/gate-o2-russian-review.md` lists **`configure.localeSwitch`** with a sentence that no
+  longer exists — the shipped leaf is `configure.localeMenu` — and carries the pre-edit Romanian
+  **and** Russian for the four leaves the owner changed during the session:
+  **`panel.finishFollowsKitchen`**, **`globalSettings.colourNote`**,
+  **`globalSettings.colourWarning`** and **`rejection.WIDTH_NOT_SUPPORTED_COLUMN`**. Read against
+  `apps/web/src/messages/ro.json` and `ru.json`, not against the aid, for those five. The file is
+  the owner's aid and no agent edits it; the staleness is recorded in `docs/STATUS.md` and in the
+  milestone instead.
+
+  **Cited by key and not by line, deliberately.** These rows were first recorded as aid lines 106,
+  174, 222, 223 and 364; two later commits inserted 28 lines above them and every one of those
+  numbers went wrong — 106 came to land mid-sentence inside F6, and 174 came to name
+  `panel.accessCheckingReason`. A key survives an insertion and a line number does not, so nothing
+  in this repository should cite that file by line again.
 - **`configure.localeMenu` still owes a Gate O1 read**, for the reason F4 gave for the key it
   replaces: its Romanian was authored after the gate closed.
 - **A book row now carries who supplies the cabinet**, and the price dashboard inherits it as an

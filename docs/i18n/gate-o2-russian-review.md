@@ -30,10 +30,12 @@ column as the sentence they were meant to be.
 > **`configure.localeMenu`** — *"Limba interfeței: română. Schimbă limba"* / *"Язык интерфейса:
 > русский. Сменить язык"*. The table below still shows the retired sentence. What the owner approved
 > is **the key that ships**, `configure.localeMenu`, read in the running product; the stale row is
-> recorded under *Consequences* in ADR 0107 and is one of the five listed there. F6 in particular is a live product risk rather than a closed one — a customer or a
-> supplier matching a decor against a printed sample works from the manufacturer's own name, and
-> those names are now translated in Russian. **Re-open F6 if a supplier ever reads the Russian
-> quote**; nothing automatic will catch it, as `docs/i18n/ro-catalogue-notes.md` already records.
+> recorded under *Consequences* in ADR 0107 and is one of the five listed there.
+>
+> **F6 is a live product risk rather than a closed one.** A customer or a supplier matching a decor
+> against a printed sample works from the manufacturer's own name, and those names are now
+> translated in Russian. **Re-open F6 if a supplier ever reads the Russian quote**; nothing
+> automatic will catch it, as `docs/i18n/ro-catalogue-notes.md` already records.
 >
 > The wording below is now **approved copy, not a draft**. Changing a Russian value remains a value
 > edit; changing a Romanian one remains O1-class, on the terms in *How to record a change*.

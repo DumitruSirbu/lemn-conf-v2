@@ -169,7 +169,18 @@ const VACATED_FRIDGE_PATCH: PixelRect = {
  * | the vacated fridge opening selected      |          0 |                6 026 |
  *
  * Against the pre-ruling readings of 10 722 and 6 213, each lost about 3 % to the 21 px of canvas
- * height the taller top bar took. Both remain more than three times `MIN_CHANGED_PIXELS`.
+ * height the taller top bar took. ~~Both remain more than three times `MIN_CHANGED_PIXELS`.~~
+ *
+ * **Struck 2026-09-11, and the whole table above it is now stale in the same way.** Every figure
+ * here was measured with the 8 px outline. ADR 0107 decision 5 halved it at `378776a`, and a void
+ * outline draws from the same constants, so the two depth-tested passes halved their footprint
+ * while the 2 px occluded pass did not. The body case keeps a wide margin; the void's 6 026 does
+ * not, and "more than three times" is very likely false for it today.
+ *
+ * **The floor is left where it is, deliberately.** It is a floor against negative cases that
+ * measure 0, so it still turns red if the highlight is deleted — the discrimination is intact and
+ * only the margin shrank. Moving a threshold on a geometric estimate is how a gate stops measuring
+ * anything, so the table is marked stale rather than re-derived: **re-measure it, then decide.**
  *
  * **The positive counts did not collapse; they roughly tripled.** The retired counter read 3 603
  * and 1 691 on the same two states in the same run (3 962 and 1 759 in the 2026-09-06 table, before

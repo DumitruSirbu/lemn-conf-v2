@@ -93,9 +93,18 @@ const CASING = {
  *  (3.1x, not 2x) because at a 1 px rim anti-aliasing blends most of the edge toward the front's own
  *  colour, and a blended sample leaves the tolerance ball. **The rim is now at its resolution floor**:
  *  it still reaches the framebuffer, deterministically and at 616 px on two consecutive runs, but a
- *  further thinning has no pixels left to give. That is the reason `selection-outline.ts` adds a
- *  constant rather than scaling by a ratio, and the reason this floor is re-measured rather than
- *  lowered until it passes. */
+ *  further thinning has no pixels left to give.
+ *
+ *  **The sum form did not protect the rim here, and this comment should not be read as claiming it
+ *  did.** `SELECTION_OUTLINE_CASING_WIDTH_PX` adds a constant rather than scaling by a ratio so that
+ *  the rim survives a change to the core — but `378776a` moved the addend too, 4 → 2, so the rim
+ *  halved with everything else. `selection-outline.ts` states the intended discipline: if the owner
+ *  asks for thinner again, **the core is what moves and the addend stays at 2**. Under that
+ *  discipline the rim holds; it was departed from once, and this floor is the consequence.
+ *
+ *  The floor is re-measured rather than lowered until it passes. It still discriminates by a wide
+ *  margin: the casing pass is the only near-black source in the patch, and the control below
+ *  measures ≤ 10 on the same document — 30x below this floor — so deleting the pass still fails. */
 const MIN_CASING_PIXELS = 300;
 const MAX_ABSENT_CASING_PIXELS = 10;
 

@@ -288,7 +288,14 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
   // §10: chips scroll horizontally rather than wrapping or shrinking below the touch target. One
   // line, and a container that scrolls — asserted as the rule rather than as today's overflow,
   // which depends on how many finishes the catalogue happens to carry.
-  const finishRow = page.getByTestId("colour-options");
+  // **`decor-list` is named because `colour-options` is not always the carousel.** The same testid
+  // carries `.woodPair` for the veneer tier, which has no `overflow-x` and is not meant to scroll,
+  // so an unscoped selector would assert something false by design the day a veneer kitchen is
+  // seeded. That premise used to be implicit in the old ancestor-of-a-swatch lookup; naming the
+  // control states it.
+  const finishRow = page.locator(
+    '[data-finish-control="decor-list"] [data-testid="colour-options"]',
+  );
   expect(
     await finishRow.evaluate((element) => getComputedStyle(element).overflowX),
   ).toBe("auto");
