@@ -1360,6 +1360,24 @@ reaches the wall, a real kitchen needs no finished end there (the wall closes th
 uses a filler strip). So the likely answer is a veto at the wall's end, not a mark — but that changes
 what the scene shows and is the owner's to rule.
 
+## 65. An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm — RECORDED 2026-09-11, PRE-EXISTING, NOT REACHABLE, NO OWNER
+
+Found by M7 wave 7D1's QA, round 3 (finding Q3.1, Low), and pre-existing rather than introduced by the
+wave. `insert-fit.ts:636/675` lets a body stand up to `FIT_TOLERANCE_M` (12 mm) above the room while
+`validate-design.ts`'s check is strict, with no matching tolerance. In an **engine-limit** shell — one
+built at the engine's own bounds rather than the owner-approved ones — at a room height in
+**2188–2199 mm**, a 2200 mm column body fits by the insert's tolerance and then reads
+`PLACEMENT_ABOVE_ROOM` from the validator.
+
+**Not reachable by a customer today.** `APPROVED_ROOM_POLICY`'s ceiling starts at **2200 mm** (ADR
+0108 Amendment B), so no approved room falls in the 2188–2199 band; only a shell built directly against
+`ENGINE_ROOM_LIMITS` (860 mm floor) can reach it, and nothing in M7 does that yet.
+
+**What deciding it would cost.** Either the insert's `FIT_TOLERANCE_M` and the validator's strict check
+converge on one tolerance, or the gap is left as a known asymmetry documented at both sites. Worth
+revisiting if a later wave (linear kitchens, M7B) ever builds a shell at the engine's own limits rather
+than the approved ones.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command

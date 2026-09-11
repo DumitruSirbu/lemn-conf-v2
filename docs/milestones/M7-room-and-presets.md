@@ -1,8 +1,9 @@
 # M7 — Screen 1: room shape, dimensions, presets, bespoke fallback
 
 > **STATUS: IN PROGRESS.** Depends on M6 (shipped). Summary: `docs/STATUS.md`. **Wave 7A shipped
-> 2026-09-11 at `8df0d49`** on branch `m7-room-and-presets`; its close-out is below, after the 7A
-> close-out ruling. **Next wave: 7D1.**
+> 2026-09-11 at `8df0d49`**, ~~next wave 7D1~~ **wave 7D1 shipped at `f5b4cd9`** — both on branch
+> `m7-room-and-presets`; their close-outs are below. F1–F7 are all answered and M7B is confirmed by
+> the owner. **Next wave: 7D1b.**
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1258,7 +1259,7 @@ table.
 | Wave | Goal | Production files (likely) | Depends on | Tier | Visual | Owner |
 | --- | --- | --- | --- | --- | --- | --- |
 | **7A** | Room validation; the approved L policy — **DONE, `8df0d49`** | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
-| **7D1** | Composition shell for the L | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
+| **7D1** | Composition shell for the L — **DONE, `f5b4cd9`** | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; **the row plan and the shell tiled at its boundaries (R1.1)** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
@@ -1312,7 +1313,9 @@ F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **a
   or the design id (7E3c); revocation racing a read (7E3c). The four domain waves share `src/index.ts`; run them one
 after another.
 
-**Next dispatchable wave after 7A: 7D1** — its punch list follows the revised criteria.
+~~**Next dispatchable wave after 7A: 7D1**~~ — **7D1 shipped at `f5b4cd9`. Next dispatchable wave:
+7D1b** (the run-end panel veto, backlog 64 / ADR 0045 Amendment A) — its punch list follows the
+revised criteria.
 
 ### Revised criteria for new and changed waves
 
@@ -1831,6 +1834,52 @@ verifier at 390 × 844; depends on 7D1):
    veto, or anything under `pricing/`.
 
 **Q1.5** is revised by the coordinator (refuse, not copy) — recorded at its line above.
+
+### 7D1 close-out — 2026-09-11, `f5b4cd9`
+
+**What shipped:** `buildLShellDesign`, the generation shell. Structural corner pieces are kept if
+they fit under the ceiling. Each free run is tiled at 800 mm from its own centre: wall A's floor run
+`[900, A − 19]` (the run-end panel reserve, B3a — removed again in 7D1b); wall A's wall-and-top band
+`[0, 900]`; wall B's run `[900, B − 100]` (the 700 mm depth reserve, ADR 0109 Amendment C / owner
+F7). `base-cabinet` and `wall-cabinet` are the neutral depth sources. No `removePlacement` and no
+clip. Refusals fire in order: `ROOM_NOT_A_DESIGN_ROOM`, `ROOM_NOT_L`, `ROOM_OUTSIDE_ENGINE_LIMITS`,
+invalid timestamp; a zero-height run records nothing. The wall A 900–918 mm band is 19 `it.fails`
+cases, owned by wave 7D1b.
+
+**Verified at the commit by the coordinator:** domain **4072/4072**, the web QA store file **23/23**,
+domain typecheck clean, whole-tree `format:check` clean. The pre-commit hook (format +
+whole-workspace lint) ran normally on `f5b4cd9`; the docs commits `f3808ea` and `9654526` used
+`--no-verify`.
+
+**Premises (7D1-P, P1–P7):** the implementer found seven punch-list premises that did not match the
+code, before writing anything. The architect withdrew construction (a) — removing bodies from the
+reference kitchen — in favour of tiling. Inherited appliance depths were refused (P6).
+
+**QA round 1:** Q1.1 (Medium) — the run-end panel landed 19 mm past wall A; a contract gap, fixed by
+the reserve. Q1.2 — guard evasions, closed by QA's own tests. Q1.3 — a corner hood is offered and
+then marked; pre-existing, now backlog entry 63 and 7D2 criterion 14. Q1.4 — a stale mutation log.
+Q1.5 — the room was copied as given; now refused.
+
+**QA round 2:** confirmed a customer cannot push the panel past the wall in today's seeded kitchen,
+across hundreds of command sequences. Q2.1 (Low) — `it.fails` premise honesty, closed by QA's own
+test.
+
+**QA round 3:** green. Q3.1 (Low, pre-existing) — `insert-fit.ts:636/675` lets a body stand up to
+`FIT_TOLERANCE_M` (12 mm) above the room while the validator is strict, so in engine-limit shells at
+heights 2188–2199 a 2200 mm column body yields `PLACEMENT_ABOVE_ROOM`. Not reachable by a customer —
+approved heights start at 2200. Recorded as backlog entry 65.
+
+**Logic review:** R1.1 — the contract claim in ADR 0110 Amendment D2 was false (it implied a 400 mm
+gap between the preparation cabinet and the hob); revised as Amendment D, plan widths first. R1.2 —
+rooms outside the engine limits are now refused; heights 860–1500 were fixed by the zero-height
+guard. R1.3 — stale QA comments and seams, fixed by QA. R1.4 — literal depth anchors 620/720/330/400.
+
+**Clean-code review:** C1.1 a rename; C1.2 helpers moved into test support; C1.3 a function split;
+C1.4 noted only, no change.
+
+**Deviations from the punch list:** the seven premise corrections above (7D1-P), and the owner's two
+adjudications reached mid-wave (7D1-Q1 on the reserve and the corner-hood finding, 7D1-Q2 on the
+run-end-panel ruling that opened wave 7D1b) rather than being settled before dispatch.
 
 ## Verification
 

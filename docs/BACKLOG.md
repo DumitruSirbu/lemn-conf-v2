@@ -88,8 +88,14 @@ status corrections, in one of these two files:
 | 55 | The global settings actions are absent on a first visit and present after a reload | open.md |
 | 56 | An emptied column over a full-height member can lose 269 mm of depth after a depth round trip | open.md — ruled 2026-09-08 (ADR 0102), awaiting wave 6Y |
 | 57 | A depth change hands the hood a width control it is declared not to have | open.md — recorded 2026-09-08 (ADR 0103 decision 12), pre-existing, no owner |
+| 58 | `THREE.Clock` is deprecated and React Three Fiber still constructs one | open.md — diagnosed 2026-09-08, third-party, nothing to fix here |
+| 59 | `setCabinetDepth` slides every wall-B column and has no key-collision guard | open.md — recorded 2026-09-08, latent, not scheduled |
+| 60 | A colour leaves the structural corner base white, and nothing tells the customer why | open.md — ruled and shipped 2026-09-09 in two waves; the ADR 0099 amendment is still owed |
+| 61 | The open shelf sits on the handle line where the owner ruled it onto the door line | open.md — ruled 2026-09-09, deferred to its own wave |
+| 62 | The narrower stacking fix on desktop — delete a number instead of adding one | open.md — waiting on a z-index audit across 900–1920 px, not taken on the last day of M6 |
 | 63 | A hood is offered over wall A's corner, accepted, and then marked | open.md — recorded 2026-09-11 (M7 7D1 QA Q1.3), pre-existing, no owner |
 | 64 | The run-end panel is not checked against the end of wall A | open.md — **ruled 2026-09-11 (ADR 0045 Amendment A: no panel when the run hits the wall), awaiting M7 wave 7D1b** |
+| 65 | An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm | open.md — recorded 2026-09-11 (M7 7D1 QA Q3.1), pre-existing, not reachable by an approved room, no owner |
 
 ## 2026-09-06 audit note
 
