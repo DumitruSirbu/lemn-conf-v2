@@ -83,10 +83,20 @@ const CASING = {
   tolerance: CASING_TOLERANCE,
 } as const;
 
-/** Measured 2026-09-07 at 1440 x 900: 1 923 near-black pixels in the sink patch with the sink
+/** Re-measured 2026-09-11 at 1440 x 900: **616** near-black pixels in the sink patch with the sink
  *  cabinet selected on a kitchen painted `#ff2d2d`, and **0** with a different body selected. The
- *  floor is half the measurement; the ceiling is the same slack every other absence here uses. */
-const MIN_CASING_PIXELS = 900;
+ *  floor is half the measurement; the ceiling is the same slack every other absence here uses.
+ *
+ *  **Why it moved from 1 923.** ADR 0107 decision 5 halved the highlight on the owner's ruling, and
+ *  the casing is a *sum* — `SELECTION_OUTLINE_WIDTH_PX + 2` — so the near-black rim visible either
+ *  side of the core went from 2 px to 1 px. The count fell by more than the half that implies
+ *  (3.1x, not 2x) because at a 1 px rim anti-aliasing blends most of the edge toward the front's own
+ *  colour, and a blended sample leaves the tolerance ball. **The rim is now at its resolution floor**:
+ *  it still reaches the framebuffer, deterministically and at 616 px on two consecutive runs, but a
+ *  further thinning has no pixels left to give. That is the reason `selection-outline.ts` adds a
+ *  constant rather than scaling by a ratio, and the reason this floor is re-measured rather than
+ *  lowered until it passes. */
+const MIN_CASING_PIXELS = 300;
 const MAX_ABSENT_CASING_PIXELS = 10;
 
 /** `overflow-mark.e2e.spec.ts`'s own slack for an absence, reused so the two files agree on what

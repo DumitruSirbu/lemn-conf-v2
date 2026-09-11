@@ -159,18 +159,30 @@ figure), the price breakdown (`price/price-breakdown.module.css`), the editor pa
 - **Not a re-opening of the chrome parity plan.** Decisions 5 and 6 are adjustments to what that
   work produced, ruled by the owner against a running browser.
 
-## One question this ruling leaves open, and it is the owner's
+## Decision 7 — a cabinet named for an appliance is the niche, and the niche is sold
 
-**`priceBreakdown.disclaimer` says the estimate excludes *electrocasnice*, and directly beneath it
-the breakdown prints *Coloană cuptor + microunde* at 9 000 MDL.** The 9 000 is joinery — the tower is
-cabinetry Lemnaria builds and decision 2 does not touch its price — but **the label names two
-appliances**, so a customer reading the two lines together sees the same contradiction decision 2 was
-ruled to remove. Raised by the logic reviewer, 2026-09-11.
+**Raised as an open question by the logic reviewer, 2026-09-11; ruled by the owner the same day.**
 
-**What is asked is a ruling on the label, not on the pricing.** Changing it is an O1-class change:
-the copy lock updated in the same commit, the golden manifest re-baselined for exactly that key with
-the key list in the commit message, and the Russian re-translated. It is carried in `docs/STATUS.md`
-beside the Gate O2 items so it is answered in the same sitting, and it does not block the gate.
+The question was this. `priceBreakdown.disclaimer` says the estimate excludes *electrocasnice*, and
+directly beneath it the breakdown prints *Coloană cuptor + microunde* at 9 000 MDL — so a customer
+reading the two lines together appeared to see the contradiction decision 2 was ruled to remove.
+
+**The owner ruled there is no contradiction, and the label stands.** In the owner's words: *"the
+cabinets represent the niche where this appliances are installed, and yes appliances are not included
+in price but the niche is."*
+
+So a cabinet that carries an appliance's name **names the joinery built around it, not the appliance**.
+`cabinet.tall-oven-tower` (900 000) and `cabinet.tall-fridge-housing` (700 000) are carpentry
+Lemnaria manufactures and they keep their prices; `cabinet.hood` and `cabinet.fridge-free` are the
+appliance and nothing else, and decision 2 zeroes them through `drawnButNotSupplied()`. The two
+groups are different products and only one of them is Lemnaria's.
+
+**Nothing in the tree changes.** This ruling was checked against `sample-price-book.ts` on the day it
+was made and the code already encoded it — including the comment beside `cabinet.fridge-free`, which
+already reasoned that *"`tall-fridge-housing` — the built niche an integrated fridge sits in — is
+joinery and keeps its price"*. The ruling is recorded so the label is not "corrected" by a later wave
+reading the disclaimer beside it and inferring a defect. **It is not an O1-class change**, because no
+string moves.
 
 ## Consequences
 

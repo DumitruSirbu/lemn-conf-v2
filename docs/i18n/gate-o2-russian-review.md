@@ -10,10 +10,31 @@ syntax, not the plural categories, not the switcher's mechanics — those are en
 gated by tests. Read the right-hand column as sentences a customer will see, against the left-hand
 column as the sentence they were meant to be.
 
-**The Russian is an unapproved agent draft until you rule.** No agent has marked it approved, and no
-agent has edited the Romanian to make a translation easier. Where the Romanian turned out not to
-translate cleanly, it is flagged below rather than changed — you own both languages and decide
-which of the two bends.
+> ## Gate O2 is CLOSED — approved by the owner, 2026-09-11
+>
+> In the owner's words: *"russian I checked looks ok, if in future I will found something to fix I
+> will do this."*
+>
+> **The 235 leaves are approved as drafted.** That approval carries **F1** (the `other` branch names
+> only fractions), **F2** (`globalSettings.appliesTo` phrased differently in the two languages),
+> **F3** (`panel.countForSlot` reordered) and **F5** (the eleven deliberately identical leaves) — all
+> four were Russian-wording questions and all four stand as written.
+>
+> **Two flags were product questions rather than translation ones, and they were put to the owner
+> separately before this approval was recorded: F4** (`configure.localeSwitch`, whose Romanian had
+> never been through Gate O1) and **F6** (the eight translated decor names). Both were left as
+> drafted. F6 in particular is a live product risk rather than a closed one — a customer or a
+> supplier matching a decor against a printed sample works from the manufacturer's own name, and
+> those names are now translated in Russian. **Re-open F6 if a supplier ever reads the Russian
+> quote**; nothing automatic will catch it, as `docs/i18n/ro-catalogue-notes.md` already records.
+>
+> The wording below is now **approved copy, not a draft**. Changing a Russian value remains a value
+> edit; changing a Romanian one remains O1-class, on the terms in *How to record a change*.
+
+**How this file read while the gate was open.** No agent marked the Russian approved, and no agent
+edited the Romanian to make a translation easier. Where the Romanian turned out not to translate
+cleanly, it is flagged below rather than changed — the owner owns both languages and decided which
+of the two bends.
 
 **How to record a change.** Say the key and the new sentence. A Russian change is a value edit and
 touches nothing else. **A Romanian change is an O1-class change**: the copy lock is updated in the

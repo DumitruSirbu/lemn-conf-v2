@@ -288,13 +288,15 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
   // §10: chips scroll horizontally rather than wrapping or shrinking below the touch target. One
   // line, and a container that scrolls — asserted as the rule rather than as today's overflow,
   // which depends on how many finishes the catalogue happens to carry.
-  const finishRow = page
-    .getByTestId("finish-pal.alb")
-    .locator("xpath=ancestor::div[1]");
+  const finishRow = page.getByTestId("colour-options");
   expect(
     await finishRow.evaluate((element) => getComputedStyle(element).overflowX),
   ).toBe("auto");
-  const chipTops = await page
+  // Scoped to the carousel's own container rather than to every `finish-` testid on the sheet: the
+  // way back out of an override is deliberately **outside** `colour-options` (owner ruling,
+  // 2026-09-10), so a page-wide sweep reads its row as a wrapped chip and fails on the layout it
+  // was asked for.
+  const chipTops = await finishRow
     .locator('[data-testid^="finish-"]')
     .evaluateAll((elements) =>
       elements.map((element) =>
@@ -302,6 +304,16 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
       ),
     );
   expect(new Set(chipTops).size).toBe(1);
+
+  // The same ruling, asserted rather than assumed: the reset sits on its own row beneath the
+  // carousel and spans it, so it cannot scroll out of sight with the colours.
+  const followRow = page.getByTestId("finish-follow-kitchen");
+  const carouselBox = await boxOf(finishRow);
+  const followBox = await boxOf(followRow);
+  expect(followBox.y).toBeGreaterThanOrEqual(
+    carouselBox.y + carouselBox.height,
+  );
+  expect(followBox.width).toBeCloseTo(carouselBox.width, 0);
 });
 
 /**
