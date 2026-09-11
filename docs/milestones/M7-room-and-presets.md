@@ -22,7 +22,9 @@
 > measured and put back as F6). **Read
 > [*Re-plan after the owner's answers*](#re-plan-after-the-owners-answers--2026-09-11) for the
 > current wave table**; the earlier wave plan is kept, marked superseded, for its criteria that carry
-> over. **Proposed: U-shaped rooms split into a milestone of their own, M7B.**
+> over. ~~**Proposed: U-shaped rooms split into a milestone of their own, M7B.**~~ **M7B is confirmed
+> by the owner, 2026-09-11: *"Yeah let make separate"*** — U-shaped kitchens are their own milestone
+> between M7 and M8.
 
 Status: planned. Depends on M6.
 Reference: mockup frames 1A, 1B, 1C, 1D, 1E, 1F and D1A–D1F; `DEVELOPMENT-SPEC.md` §10, §13.3 q4/q5;
@@ -1138,9 +1140,11 @@ coverage) and `eslint.config.mjs` (the anchored-regex fixes for Q2.1 and R1.1/R1
 | Q7 visitor | *"custom link for each user ... on reopening ... load its previous configuration ... only with custom user uuid"* | ADR 0111 A | Editor only at `/d/{id}`; pointer cookie; demo route retired; e2e migration first. |
 | Q8 copy | *"Mark as approved at the moment"* | ADR 0113 | Gate M7-C withdrawn; leaves enter the lock in their own wave; Russian approved by the same ruling. |
 
-### Scope, and a proposed split: M7 and M7B
+### Scope, and a ~~proposed~~ **confirmed** split: M7 and M7B
 
-**Proposed:** M7 keeps Step 1 for the **L** (left and mirrored right) and for **straight** kitchens,
+> **Confirmed by the owner, 2026-09-11:** *"Yeah let make separate"*.
+
+~~**Proposed:**~~ **Confirmed:** M7 keeps Step 1 for the **L** (left and mirrored right) and for **straight** kitchens,
 composition, the owner's **preset library** and its matching, the **returning visitor**, and the 3D
 room following the entered room. **U-shaped rooms become M7B**, planned in their own file when M7's
 domain waves have landed. Order: **M7 → M7B → M8**. Nothing ships before every milestone is done, so
@@ -1255,7 +1259,8 @@ table.
 | --- | --- | --- | --- | --- | --- | --- |
 | **7A** | Room validation; the approved L policy — **DONE, `8df0d49`** | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
 | **7D1** | Composition shell for the L | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
-| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
+| **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
+| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; **the row plan and the shell tiled at its boundaries (R1.1)** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
@@ -1326,6 +1331,13 @@ with *recipe* meaning a library row or a fixture)
    2200–2599, a preset with any body whose top is above the room is **never shown unchanged**; at
    2600 the reference fixture is shown unchanged in its own room. The boundary pair 2599 / 2600 is
    asserted explicitly.
+6. ~~**The finished end fits (Adjudication 7D1-Q1):** a preset is shown only if its run-end panel's
+   outer face — `runEndPanelSeatM` plus half the panel's thickness — is at or before wall A's end; the
+   zero-findings rule cannot see the panel. 7C's adaptation plans wall A's floor run to
+   `A − panel footprint`, as the shell does.~~ **Superseded 2026-09-11 by ADR 0045 Amendment A** (no
+   panel when the run hits the wall): once 7D1b lands, a panel that would pass the wall is not drawn,
+   so there is nothing to check and no reserve to plan. Kept as the witness instead: a preset whose run
+   ends within 19 mm of wall A's end is shown, and its view has no finished end.
 
 **7C — adaptation** (supersedes the earlier 7C)
 
@@ -1369,6 +1381,11 @@ with *recipe* meaning a library row or a fixture)
 10. ~~F3's default drop order~~ **F3's ruled drop order ("Fridge first, then prep", 2026-09-11)** —
     storage, then the fridge, then the preparation cabinet — holds on a sweep of short walls; the sink
     and the hob are never dropped.
+11. **Low ceilings**: the property in criterion 1 includes heights 2200–2599, and no generated body
+    rises above the room — the shell's cap means a top-row body is never offered there. ~~**If F2 adds
+    upper cabinets and a hood**~~ **The upper cabinets and hood F2 added** stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
+    under every approved ceiling (≥ 2200); the top row (2200–2600) is never part of a composed kitchen
+    and is offered to the customer only where the room is 2600 or higher.
 12. **Upper cabinets and the hood (F2, "Yes, uppers + hood", 2026-09-11):** above every body of the
     base run the composed kitchen places a `wall-cabinet` of the same width, and over the hob a `hood`
     of the hob's width instead, all through `insertBody` into the wall-band openings — never above the
@@ -1376,11 +1393,44 @@ with *recipe* meaning a library row or a fixture)
     exactly one wall-band body above it with the same along-wall extent, the one above the hob is a
     hood, and the log lists the uppers after their bases. An upper that cannot be placed is logged as
     *not placed* and removes nothing below it.
-11. **Low ceilings**: the property in criterion 1 includes heights 2200–2599, and no generated body
-    rises above the room — the shell's cap means a top-row body is never offered there. ~~**If F2 adds
-    upper cabinets and a hood**~~ **The upper cabinets and hood F2 added** stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
-    under every approved ceiling (≥ 2200); the top row (2200–2600) is never part of a composed kitchen
-    and is offered to the customer only where the room is 2600 or higher.
+~~13. **Widths come from insert, then `setWidth` (ADR 0110 Amendment D) — added 2026-09-11 on the 7D1~~
+    ~~implementer's finding** that a `'fit'` body fills its opening and the shell's first openings are~~
+    ~~800 wide. Each `'fit'` base (sink, preparation, storage) is inserted into the first opening from~~
+    ~~the corner and then stepped to its target width with `setWidth`; fixed bodies (hob 600, fridge~~
+    ~~700) are inserted as they are. Targets: **sink 600, preparation 600, hob-with-oven 600, fridge~~
+    ~~`fridge-free` 700, storage 600**; uppers and hood take their column's width. On wall B the items~~
+    ~~are inserted in **reverse** reading order, so everything packs against the corner and the leftover~~
+    ~~gathers at each wall's free end.~~
+    - ~~*Property:* every returned design's composed bodies have exactly their target widths; between two~~
+    ~~composed bodies on one wall there is **no** recorded empty column (the leftover is only at the~~
+    ~~free end); the log records each `setWidth` beside its insert, and the replay of criterion 2 runs~~
+    ~~both commands.~~
+    - ~~**Stop and report, do not compensate,** if on either wall an insert's remainder or a shrink's~~
+    ~~freed width lands between two composed bodies — the seating (`seatAlongColumn`) and funding~~
+    ~~(`EMPTY_SPACE_ORDER`) conventions are along-wall, and wall B reads against its along direction.~~
+    - ~~Bases first, then their widths, then uppers — an upper over a column that already holds its base~~
+    ~~is centred and takes the column's width, so it needs no resize.~~
+13. **(revised 2026-09-11, 7D1 logic review R1.1 — ADR 0110 Amendment D, revised) Plan the row, tile
+    at its boundaries, insert each body into its own column.**
+    - The generator first plans each wall's row as widths — owner's order, F3 drop order, minimum
+      kitchen, D3 widths (sink 600, preparation 600, hob-with-oven 600, `fridge-free` 700, storage 600),
+      leftover rule, wall B's reserve — as pure arithmetic that writes no placement.
+    - `buildLShellDesign` takes that plan and tiles each free run at exactly its boundaries (one column
+      per planned body, then the leftover split at 800); with no plan it tiles 800-first as 7D1 ships.
+    - Each body goes into its own column with `insertBody`; `setWidth` is used **only** for a `'fit'`
+      body in a wall's last column when ADR 0046's merge joined it with a leftover of 200 mm or less.
+    - *Property* over the approved L range (and linear, once 7J lands): **no recorded empty column
+      stands between two composed bodies on a wall** — the reviewer's reference-room case (sink
+      `[900,1500]`, preparation `[1500,2100]`, hob `[2100,2700]`) is asserted by name; every composed
+      body has exactly its planned width and position; the leftover is only at each wall's free end.
+    - *Replay:* the plan, the shell and the log's `insertBody` / `setWidth` calls, run through the
+      store's own funnel between commands (the reviewer's script at
+      `scratchpad/r7d1/compose.mjs` is the model), reproduce the returned design exactly.
+    - Bases first, then the one possible free-end `setWidth`, then uppers — an upper over a column that
+      holds its base is centred there and takes the column's width.
+14. **Nothing composed over wall A's corner (Adjudication 7D1-Q1):** no wall cabinet and no hood in the
+    wall band over `[0, 900]` on wall A; the zone stays an empty column. *Property:* no returned design
+    carries `RECORDED_SPAN_OVERLAPS_CORNER_BODY`.
 
 ~~**7E3 — the returning visitor** (security reviewer dispatched)~~ — **superseded by 7E3a and 7E3b
 below (ADR 0114)**; the struck criteria assumed a cookie holding the design id.
@@ -1624,7 +1674,9 @@ Amendment C and a note on [ADR 0090](../decisions/0090-a-frozen-space-slides-wit
 
 - Corner columns: `deriveRecordedColumns` over the kept structural placements only.
 - Free runs, tiled with `splitEmptySpanAtCap` and keyed from their own centres: wall A base band
-  `[900, A]` as full-height floor tiles; wall A wall-and-top band `[0, 900]` as wall-only tiles from
+  ~~`[900, A]`~~ **`[900, A − panel]`**, where *panel* is the run-end panel's footprint
+  (`RUN_END_PANEL_THICKNESS_M + RUN_END_PANEL_GAP_M`, 19 mm; **amended 2026-09-11, Adjudication
+  7D1-Q1; removed again by 7D1b, Adjudication 7D1-Q2**), as full-height floor tiles; wall A wall-and-top band `[0, 900]` as wall-only tiles from
   `LEVELS[1]`'s start; wall B all bands `[900, B − shift]` as full-height floor tiles, where `shift` is
   `alongWallShiftMm` from the shell's depth to the deepest declared depth. Tops at
   `min(room height, LEVELS' top)`. Sources and depths per P6.
@@ -1662,6 +1714,123 @@ moves.** Two points made explicit:
 - **The height-cap helper waits for 7C.** The shell has no caller for it (ADR 0110 B5), and a module
   with no caller is dead code in 7D1's diff. Keep it out of 7D1's commit and bring it in with 7C's
   first call; set it aside by moving the file, not by any `git` discard.
+
+### Adjudication 7D1-Q1 — 2026-09-11: QA round 1's findings
+
+**Q1.1 (Medium) — the run-end panel lands 19 mm past wall A. Classification: contract gap**, in ADR
+0110 Amendment B2 (the architect's), which planned wall A's floor run to the wall's end without
+counting the finished end ADR 0083 decision 5 makes part of wall A's occupied width. The implementation
+followed B2; QA's two tests measure a real outcome. **Ruling: option 1** — wall A's floor run stops short
+by the panel's footprint, derived from `run-end-panel.ts`'s constants (ADR 0110 B3a). **Option 2 is not
+taken:** vetoing the panel at the wall's end would hide a declared product element (ADR 0045) to make a
+proposal fit, and a validator mark would mark something the product itself proposed — both against the
+owner's point 3. **Is option 1 mandatory for the shell whatever the editor does? Yes** — the shell is a
+proposal, and a proposal fits its walls, finished end included.
+
+**Can a customer reach it today? Not in the shipped kitchen, by any command found reading the code.**
+Recorded space on wall A comes only from bodies' own extents there, and the reference run ends at 3500:
+`setWidth` needs an adjacent empty column to fund a growth (ADR 0031) and there is none past 3500; an
+insert fills only a recorded opening. **M7's shell was the first producer of recorded space flush to
+wall A's end**, which is why the finding is new. What remains reachable is a stored document written
+through `PUT` with recorded space to the wall's end — a crafted one, drawn with the panel past the
+wall, which no validator reads; recorded as backlog 64, not fixed here. QA should confirm the
+"unreachable" reading by trying the widen-to-the-end path on the seeded kitchen.
+
+**Q1.3 (Low, pre-existing) — a hood offered over wall A's corner is accepted and then marked
+`RECORDED_SPAN_OVERLAPS_CORNER_BODY`. Both:** a 7D2 criterion (below) guarantees composition never
+causes it, and the customer-facing offer goes to **backlog 63** — whether the offer list should drop an
+entry the engine would accept and then mark is a product question, since ADR 0107 decision 3 removes
+only entries the engine *refuses*.
+
+~~**Q1.5 (Info) — accepted.** The builder copies exactly the four `DesignRoom` fields; an input carrying
+an extra key yields a document `DesignSchema` accepts.~~ **Q1.5 — revised by the coordinator,
+2026-09-11 (option b, refuse rather than copy):** building the room object in `shell-design.ts` trips the
+room-writer guard (`demo-room-envelope.test.ts`), and validate-room's exemption argument — *it imports
+types only* — does not carry over. So the builder **throws `LShellInputError`** with a new refusal code
+when `DesignRoomSchema.safeParse(input.room)` fails (it is a strict object), and otherwise passes the room
+through. No guard change, no literal, and no document `DesignSchema` would refuse is ever produced.
+
+**The implementer's change list (the code is frozen until dispatched):**
+
+1. **`src/generation/shell-design.ts`, `plannedEndMm`** — wall A's floor run ends at
+   `wallLengthMm("A") − panelFootprintMm`, with `panelFootprintMm` computed from
+   `RUN_END_PANEL_THICKNESS_M + RUN_END_PANEL_GAP_M` (imported, converted through the whole-millimetre
+   reader, never a literal); wall A's wall-only run over the corner and all of wall B are unchanged.
+2. ~~**The room** — build `{ shape, widthMm, depthMm, heightMm }` explicitly from the input (Q1.5).~~
+   **The room (Q1.5, revised):** refuse an input room that `DesignRoomSchema` rejects with a named
+   `LShellInputError`; pass a valid one through untouched.
+3. **The implementer's criterion-3 and criterion-5 tests** move their expected wall-A floor interval
+   from `[900, A]` to `[900, A − panelFootprint]`, the footprint read from the same constants. **This is
+   an anchor change this adjudication orders, not a weakened assertion**: no tolerance widens, no case is
+   dropped, and the P3 parity rule applies to the new end unchanged.
+4. **New test:** in the reference room and across the approved range, after filling every wall-A floor
+   opening with a `base-cabinet`, `runEndPanelSeatM` plus half the panel's thickness is at or before
+   wall A's end. QA's two adversarial tests stay as written and must turn green. **Amended 2026-09-11
+   (Adjudication 7D1-Q2):** for wall A from 900 to 918 mm the bare shell's corner base alone puts the
+   panel past the wall, which only 7D1b's veto fixes — so that band is an **`it.fails`** case in 7D1,
+   named for 7D1b, at 900 and 918 at least, and 7D1b flips it.
+5. ~~**New test (Q1.5):** a room input with an extra key produces a shell `DesignSchema` parses.~~
+   **New test (Q1.5, revised):** a room input with an extra key throws `LShellInputError` with its code,
+   and produces no document.
+6. **Must not:** touch `run-end-panel.ts` or its veto; add a validator code; move wall B's reserve.
+
+**Criteria added elsewhere by this adjudication:**
+- **7D2 (criterion 14):** composition places nothing in the wall band over wall A's corner zone
+  (`[0, 900]`) — no wall cabinet, no hood. F2's *"same widths"* cannot be honoured over a 900 mm corner
+  base (the widest wall cabinet is 800), so the zone is left as an empty column the customer can fill;
+  and the hood stands only over the hob, which is never in the corner. *Property:* no returned design
+  carries a `RECORDED_SPAN_OVERLAPS_CORNER_BODY` finding.
+- ~~**7B / 7C:** a preset fits only if, after adaptation, its run-end panel's outer face is at or before
+  wall A's end — the zero-findings rule cannot see the panel, so it is checked explicitly.~~
+  **Superseded by Adjudication 7D1-Q2 below.**
+
+### Adjudication 7D1-Q2 — 2026-09-11: the owner's panel ruling, and where it lands
+
+**The ruling** — owner, option chosen verbatim: **"No panel when run hits wall"**; recorded as
+[ADR 0045](../decisions/0045-the-run-end-panel-follows-the-run-it-closes.md) Amendment A, closing
+backlog 64. The panel is hidden when its outer face (`run end + 19 mm`) would pass wall A's end, and
+drawn when it lands on or before it. Wall A's minimum stays 900.
+
+**Where the veto lands: `runEndPanelSeatM`, in a new small wave 7D1b — not folded into 7D1.** The
+seat function is the one place the panel's vetoes live (ADR 0083 decision 5), so the new veto goes
+there and gains wall A's length; the adapter only threads the room through to it, and pricing is
+untouched because **the panel carries no price line** — no module under `pricing/` or
+`apps/web/src/price/` reads it, so a hidden panel changes no figure and no breakdown row. **Why its own
+wave:** 7D1 is a pure-domain wave already through QA; the veto changes what the editor draws for every
+customer, the demo included, through the adapter and the stage, so it wants its own visual
+verification and its own review rather than a late fold into a diff whose QA has run.
+
+**B3a's wall-A reserve goes, in 7D1b, together with the veto.** It existed only so a composed run
+could never push the panel past the wall; with the veto that cannot happen, and the reserve would cost
+19 mm of every wall A for nothing — against the owner's *"fit exactly what fits"*. It must leave in the
+**same** wave as the veto arrives: removing it first would reopen Q1.1. Until then 7D1 commits green
+with the reserve, and the one band the reserve cannot help (wall A 900–918, where the corner base alone
+reaches the wall) is an `it.fails` case naming 7D1b.
+
+**The seeded kitchen and the M1 gate are untouched:** its run ends at 3500 on a 3560 wall, 60 mm
+clear of the 19 mm the veto reads, so the panel stays at 3.510 and visible; the fidelity capture renders
+the seeded design and does not move.
+
+**7D1b — the panel veto** (Full tier: a rule change the editor draws for every customer; visual
+verifier at 390 × 844; depends on 7D1):
+
+1. **`packages/configurator-domain/src/run-end-panel.ts`** — `runEndPanelSeatM(records, room)`: after the
+   existing column veto, return `undefined` when `seat + RUN_END_PANEL_THICKNESS_M / 2` exceeds
+   `wallLengthMm("A", room)` in metres; equality keeps the panel. No new constant.
+2. **`packages/three-adapter/src/kitchen-shell.ts`, `scene-sync.ts`** — `syncRunEndPanel` and
+   `SolidSyncInput` gain the room and pass it through; no rule in the adapter.
+3. **`apps/web/src/scene/kitchen-stage.tsx`** — hands the design's room to the solid sync.
+4. **`packages/configurator-domain/src/generation/shell-design.ts`** — remove B3a's wall-A reserve: wall
+   A's floor run ends at the wall again; the criterion-3/5 tests' wall-A interval returns to
+   `[900, A]` (an anchor change this adjudication orders).
+5. **Tests:** the 7D1 `it.fails` band (900–918) flips to passing; a run ending exactly 19 mm short keeps
+   its panel, 18 mm short hides it, flush hides it; the seeded kitchen's seat and visibility are
+   byte-identical to before; QA's two panel tests stay green; `run-end-panel.test.ts` and
+   `qa-6n-a-run-end-panel.adversarial.test.ts` keep every existing case.
+6. **Must not:** change the panel's existence in the shell manifest, its thickness or gap, the column
+   veto, or anything under `pricing/`.
+
+**Q1.5** is revised by the coordinator (refuse, not copy) — recorded at its line above.
 
 ## Verification
 

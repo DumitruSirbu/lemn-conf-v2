@@ -1330,6 +1330,36 @@ exactly those three meshes and renders identically with and without a kitchen co
 edited by either wave.
 
 
+## 63. A hood is offered over wall A's corner, accepted, and then marked — RECORDED 2026-09-11, PRE-EXISTING, NO OWNER
+
+Found by M7 wave 7D1's QA (finding Q1.3) and reproduced on the seeded kitchen: clear `p8` and `p15`
+(the wall and top cabinets over the corner base), and the wall-band opening over wall A's corner offers
+`hood`. The insert is accepted, and the design then carries `RECORDED_SPAN_OVERLAPS_CORNER_BODY`,
+because the hood's depth reaches past wall B's corner return (which starts at 330 mm along wall B).
+That code is a **mark** by the owner's ruling of 2026-09-09 (`validate-design.ts`, severity table), so
+the design saves and loads.
+
+**What deciding it would cost.** [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+decision 3 removes from the offer list only an entry the engine *refuses*; this one it accepts and
+then marks. Dropping it from the offer would be a new rule — "an entry that would be marked is not
+offered" — for the owner. **Composition never produces it**: M7 wave 7D2 places nothing over wall A's
+corner zone (milestone, *Adjudication 7D1-Q1*).
+
+## 64. The run-end panel is not checked against the end of wall A — ~~RECORDED 2026-09-11, LATENT, NO OWNER~~ **RULED 2026-09-11 (ADR 0045 Amendment A, "No panel when run hits wall"), AWAITING WAVE 7D1b**
+
+Found by M7 wave 7D1's QA (finding Q1.1). `runEndPanelSeatM` (`run-end-panel.ts:90-100`) seats the
+finished end 19 mm past the last wall-A base cabinet and vetoes it only for a body in its way; nothing
+checks it against wall A's end, and no validator code covers it. **Nothing the product produces
+reaches it** after ADR 0110 Amendment B3a: the shell's recorded space on wall A stops short by the
+panel's footprint, and the seeded kitchen's run ends 60 mm before its wall with no recorded space
+beyond. A stored document written through `PUT` with recorded space to the wall's end can: a base
+cabinet there draws the panel past the wall.
+
+**What deciding it would cost — and it is a product question.** When a customer's own run genuinely
+reaches the wall, a real kitchen needs no finished end there (the wall closes the run, and the fitter
+uses a filler strip). So the likely answer is a veto at the wall's end, not a mark — but that changes
+what the scene shows and is the owner's to rule.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command

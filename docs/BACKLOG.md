@@ -88,6 +88,8 @@ status corrections, in one of these two files:
 | 55 | The global settings actions are absent on a first visit and present after a reload | open.md |
 | 56 | An emptied column over a full-height member can lose 269 mm of depth after a depth round trip | open.md — ruled 2026-09-08 (ADR 0102), awaiting wave 6Y |
 | 57 | A depth change hands the hood a width control it is declared not to have | open.md — recorded 2026-09-08 (ADR 0103 decision 12), pre-existing, no owner |
+| 63 | A hood is offered over wall A's corner, accepted, and then marked | open.md — recorded 2026-09-11 (M7 7D1 QA Q1.3), pre-existing, no owner |
+| 64 | The run-end panel is not checked against the end of wall A | open.md — **ruled 2026-09-11 (ADR 0045 Amendment A: no panel when the run hits the wall), awaiting M7 wave 7D1b** |
 
 ## 2026-09-06 audit note
 

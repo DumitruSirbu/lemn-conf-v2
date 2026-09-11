@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule))
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -210,6 +210,26 @@ ADR 0109 decision 5 (that record's Amendment C). At 600 the reserve counts as ba
 599 mm leftover rule, and it agrees with ADR 0108 Amendment C, whose wall-B free run is already
 `B − 1000`.
 
+> **B3a is superseded the same day by the owner's ruling on the panel itself** (ADR 0045 Amendment A,
+> *"No panel when run hits wall"*): with the veto, a run flush to the wall simply has no panel, so the
+> reserve below is removed in wave 7D1b, together with the veto that makes removing it safe. Struck,
+> not deleted.
+
+~~**B3a. Wall A's floor run ends short of the wall by the run-end panel's footprint — added
+2026-09-11, 7D1 QA finding Q1.1 (a contract gap in B2, not an implementation defect).** B2 planned wall~~
+~~A's floor run to the wall's own end, and ADR 0083 decision 5 counts the finished end panel as part of~~
+~~wall A's occupied width: a base cabinet filling the last opening built flush to the wall, and the~~
+~~panel then stood 19 mm past it (measured by QA: outer face at 3579 on a 3560 wall; the same across the~~
+~~range). **Wall A's floor run's planned end is the wall's length less the panel's footprint** —~~
+~~`RUN_END_PANEL_THICKNESS_M + RUN_END_PANEL_GAP_M` from `run-end-panel.ts`, 19 mm today, read from those~~
+~~constants and never written as a number. Floor tiles are full-height, so the last 19 mm of wall A stay~~
+~~unrecorded at every height. Wall B carries no finished end (ADR 0083 decision 5) and keeps B3's reserve~~
+~~only. **Why the proposal must leave the room rather than the panel give way:** the owner's point 3 —~~
+~~everything proposed must fit its walls — covers the finished end, which is a declared product element~~
+~~(ADR 0045), and hiding it at the wall's end would change what is proposed in order to make it fit.~~
+~~Whether a *customer's own* run reaching the wall should drop its panel is a separate product question~~
+~~and is left open (backlog 64).~~
+
 **B4. [ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
 Amendment B is untouched.** Its rule — a pass that derives its answer from the room may bound what is
 published and may not rewrite what is recorded — protects a customer's recorded space from a
@@ -242,3 +262,102 @@ shift to the deepest declared depth, so a later change to 700 mm marks nothing. 
 exception to Amendment A4's 599 mm rule:** on wall B, at the shell's depth, the bare end may reach
 599 mm plus that shift (699 today); after the change to the deepest depth it is at most 599 again.
 Walls other than B are held to 599 without exception.
+
+## Amendment D — 2026-09-11: how a composed kitchen reaches its widths — insert, then `setWidth`, packed against the corner
+
+**Found by the 7D1 implementer.** Amendment A1's *"sink `base-sink` 600"* cannot come out of
+`insertBody` alone: `base-sink` is `widthFlex: 'fit'`, so it takes its opening's width, and the shell's
+tiling (Amendment B2, 800 mm first from the corner) makes the first opening on wall A — and on wall B
+once its free run reaches 1700 — 800 wide. The same holds for the preparation and storage cabinets
+(`base-cabinet`, also `'fit'`). The shell is wave 7D1's and frozen in its QA; the rule belongs to 7D2.
+
+**D1. Option taken: insert, then `setWidth` to the target, both through the command path — not a
+different tiling.** A different tiling would bake one kitchen's widths into the shell every other
+consumer (the store, presets, the customer's own inserts) shares; the command path already does the
+job, and it is what a customer would do by hand — insert into the space, then step the width down
+(ADR 0035's bounded stepper; ADR 0031's funding). No privileged path, and the replay criterion covers
+both commands.
+
+**D2. The mechanics are deterministic, and they pack everything against the corner.** Measured in the
+code and recorded in backlog 26: `insertBody` seats a body at its column's **left** edge — the lower
+along-wall coordinate, the corner side — so an insert's remainder always lands on the far side
+(`seatAlongColumn`, `insert-fit.ts:740`; ADR 0046's owner ruling). A shrink vacates to the **right**
+first (`EMPTY_SPACE_ORDER` and `VACATED_SPACE_SIDE`, `plan-width-funding.ts:42, :148`), handing the
+freed width to the neighbouring empty column on the far side, which ADR 0052's 800 mm ceiling then
+splits. So: **on each wall the composed bodies are packed from the corner outward, and the leftover
+gathers at the wall's free end** — exactly the owner's *"let the edges empty"*. On wall A that is the
+reading order itself; on wall B, whose reading order runs from the free end *toward* the corner, the
+wall-B items are inserted in **reverse** reading order, so the order read along the room is still
+fridge → sink → preparation → hob. **Bases first, then their widths, then the uppers:** an upper
+inserted over a column that already holds its base is centred in that column (`seatAlongColumn`'s
+first branch) and, being `'fit'`, takes the column's width — so uppers and the hood match their bases
+with no `setWidth` of their own.
+
+**D3. The widths, and why each** (data, not code):
+
+| Item | Entry | Width | Reason |
+| --- | --- | --- | --- |
+| Sink | `base-sink` | **600** | Frame 1F's *"Spălător · 600"*; the owner's *"600 ... the default width of majority of cabinets"* (Q2). |
+| Preparation | `base-cabinet` | **600** | The same default; the owner asks for a preparation *surface*, not a width, and 600 is the one the owner named as the norm. |
+| Hob with oven under | `base-hob-oven` | **600** | The catalogue builds it at 600 only; frame 1F's *"Plită și cuptor · 600"*; the owner's *"oven unde the hub"*. |
+| Fridge | `fridge-free` | **700** | The reference kitchen's fridge. **Not** `tall-fridge-housing` (600): ADR 0107 decision 7 makes the housing joinery that keeps its price, so choosing it would add a priced tall cabinet to every composed kitchen the owner never asked for; `fridge-free` is drawn and not sold (ADR 0107 decision 2), so the estimate stays honest. **Owner-confirmed 2026-09-11:** *"lets have default freestanding (is more visible that exists)"* — a freestanding fridge shows the customer plainly that a fridge is there. |
+| Storage fill | `base-cabinet` | **600** | ADR 0109 A3 / the leftover rule's own figure. |
+| Uppers | `wall-cabinet` | the column's width | F2: *"same widths"* — follows from D2. |
+| Hood | `hood` | the hob column's width (600) | F2; the hood is `'fit'`, 600–800. |
+
+**D4. What the wave must verify, not assume.** That the far side is the free-end side on **both**
+walls — `"right"` in the funding code and the left-edge seating are along-wall conventions, and wall
+B's reading direction is the reverse of its along-wall direction. If on either wall a remainder or a
+freed width lands between two composed bodies, the wave **stops and reports**; it does not compensate
+with extra commands, because an interior gap produced by a rule nobody decided is a finding, not a
+layout.
+
+### Amendment D, revised — 2026-09-11: plan the row, then tile the shell at its boundaries (7D1 logic review R1.1)
+
+**D2's central claim is false, and a reviewer showed it in the reference room.** Replaying composition
+against the domain `dist/` with the store's own funnel between commands, on wall A from the corner:
+the sink goes into `[900, 1700]` and is stepped to 600; the freed 200 mm joins the next tile and ADR
+0052's ceiling splits it back to `[1500, 2300]` + `[2300, 2500]`; the preparation cabinet goes into
+`[1500, 2300]` and is stepped to 600, leaving `[2100, 2500]`, 400 mm; and the hob (a fixed 600) does not
+fit a 400 mm opening, so it lands at `[2500, 3100]`. **A 400 mm empty column stands between the
+preparation cabinet and the hob** — against the owner's order (sink, preparation, hob, adjacent) and
+against *"let the edges empty"*. **The cause is structural, not an ordering accident:** 400 + 800
+exceeds the merge ceiling (ADR 0046, ADR 0052), so the seam the 800-first tiling left at 2500 never
+re-joins, and every 800-capped tiling has such seams wherever a composed width does not land on them.
+
+**Ruling: composition plans each wall's row as widths first, and the shell is tiled at exactly those
+boundaries; every body is then placed by `insertBody` into its own column.**
+
+1. **The plan is arithmetic over declared widths only**: the owner's order (Amendment A1), the drop
+   order (Amendment C, F3), the minimum kitchen, the D3 widths, the leftover rule and wall B's reserve
+   (B3, F7). It decides which items stand on which wall and where; it writes no placement.
+2. **The shell is tiled at the plan's boundaries**: one empty column per planned body, at exactly its
+   width, then the leftover split at the ceiling. Every composed width is between 600 and 800, so no two
+   planned columns can merge (any adjacent pair is at least 1200 mm, over the 800 ceiling) and none
+   exceeds the ceiling. The 7D1 builder gains an optional plan argument; without one it tiles 800-first
+   as it does today.
+3. **Each body is inserted into its own column.** A `'fit'` body takes exactly its planned width; a fixed
+   body fits exactly. No remainder is produced inside the row, so no interior empty column can arise.
+4. **`setWidth` survives in one place only: the free end.** ADR 0046's merge joins the last planned
+   column with a leftover of 200 mm or less (600 + 200 ≤ 800). A `'fit'` body inserted there comes out
+   wider than planned and is stepped back to its width; the freed width is vacated to the right
+   (`VACATED_SPACE_SIDE`, `plan-width-funding.ts:148`), which at a wall's free end is the free end. A
+   fixed body there leaves its remainder on the same side by its seating. Either way the leftover ends
+   where the owner wants it.
+5. **D1's reason for rejecting a different tiling is withdrawn.** It read *"a different tiling would
+   bake one kitchen's widths into the shell every other consumer shares"* — but the shell is
+   composition's private intermediate: presets are instantiated from their own documents, and the store
+   only ever receives the composed design. ~~*"not a different tiling"*~~ — a planned tiling is the
+   ruling.
+
+**Options refused, and why.** *Re-splitting the whole contiguous empty run on every shrink* (the
+reviewer's option a) or *funding from the far neighbour*: both change `setWidth` for every customer —
+ADR 0031's funding and ADR 0046/0052's split and merge — and move the keys of empty columns nobody
+touched (ADR 0053), to serve composition. *Allowing gaps and logging them* (option b): against the
+owner's order and the 599 mm rule. *A different insertion order*: cannot remove seams the tiling fixed
+in advance. *Narrow-first splitting through commands*: the only command that splits an empty column is
+an insert, and a delete's freed space is recorded only by the store's frozen-map fall-through, which the
+domain cannot call (7D1-P, P1).
+
+**What stands:** every body by `insertBody`, the shell's structural corner and depth sources (B2), wall
+B's reserve (B3), no clip on a recorded face (B4), D3's widths and the owner's order.
