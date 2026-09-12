@@ -1988,8 +1988,13 @@ passed; format, lint and typecheck were clean. The first sandboxed attempt faile
 policy blocked Neon and is not green evidence. The wave table marks 7D2 visual **No**, so no visual
 verification was run.
 
-**Close-out state:** implementation is committed at `4133cdc`. Documentation, the required final
-`pnpm ci:local` and the push are recorded separately when they complete.
+**Final gate and push:** implementation is `4133cdc`; documentation close-out is `2126d52`. The
+first final `pnpm ci:local` attempt is preserved as a failure: one live-Neon backup/restore case hit
+its 30-second timeout, so persistence was 281/282 while every later gate completed green. The
+complete rerun passed domain **4,136**, persistence **282**, three-adapter **3,059**, web **2,588**,
+Playwright **191 passed + 2 expected skipped (193 total)**, build, boundaries, lockfile and SCA. The
+pre-push hook then passed that full gate set again and advanced `origin/m7-room-and-presets` from
+`4fa463f` through `2126d52`.
 
 ## Verification
 
