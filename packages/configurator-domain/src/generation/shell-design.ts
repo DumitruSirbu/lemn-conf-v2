@@ -70,6 +70,13 @@ export interface LShellDesignInput {
   /** A room `validateRoomInput` accepted; the shell passes it through untouched. */
   readonly room: DesignRoom;
   readonly occurredAt: string;
+  /** Composition's private row plan (ADR 0110 Amendment D, revised). Omit it to retain the 7D1
+   *  800-first shell exactly. Widths are ordered from the corner toward each wall's free end. */
+  readonly compositionPlan?: LShellCompositionPlan;
+}
+
+export interface LShellCompositionPlan {
+  readonly floorWidthsMm: Readonly<Record<DesignWall, readonly number[]>>;
 }
 
 /** Why the builder refused its input — a code, never a sentence (ADR 0095 decision 3). */
@@ -131,7 +138,7 @@ export function buildLShellDesign(input: LShellDesignInput): Design {
     updatedAt: input.occurredAt,
   };
   const tiles = DesignWallSchema.options.flatMap((wall) =>
-    freeRunTiles(wall, input.room),
+    freeRunTiles(wall, input.room, input.compositionPlan),
   );
   return canonicalised(withFrozenMap(corner, { emptyColumns: tiles }));
 }
@@ -184,7 +191,11 @@ function cornerPiecesUnder(ceilingMm: number): DesignPlacement[] {
 
 /** One wall's free runs: the floor run from the corner's far edge to the planned end, and — where
  *  nothing structural stands above the corner's base, as on wall A — the wall-only run over it. */
-function freeRunTiles(wall: DesignWall, room: DesignRoom): EmptyColumn[] {
+function freeRunTiles(
+  wall: DesignWall,
+  room: DesignRoom,
+  compositionPlan: LShellCompositionPlan | undefined,
+): EmptyColumn[] {
   const runs = tileRunsOn(wall, room);
   const floorStartMm = floorRunStartMm(wall);
   return [
@@ -192,10 +203,51 @@ function freeRunTiles(wall: DesignWall, room: DesignRoom): EmptyColumn[] {
       startMm: wallRowStartMm(wall),
       endMm: Math.min(floorStartMm, plannedEndMm(runs.wallOnly, room)),
     }),
-    ...tilesOver(runs.floor, {
-      startMm: floorStartMm,
-      endMm: plannedEndMm(runs.floor, room),
-    }),
+    ...(compositionPlan === undefined
+      ? tilesOver(runs.floor, {
+          startMm: floorStartMm,
+          endMm: plannedEndMm(runs.floor, room),
+        })
+      : plannedFloorTiles(
+          runs.floor,
+          {
+            startMm: floorStartMm,
+            endMm: plannedEndMm(runs.floor, room),
+          },
+          compositionPlan.floorWidthsMm[wall],
+        )),
+  ];
+}
+
+/** One tile per composed body, then the ordinary 800-capped leftover. `deriveColumns` may merge a
+ *  final 600 mm fit-body tile with a remainder of at most 200 mm; generation is the sole caller
+ *  allowed to step that body back to its planned width (ADR 0110 revised D4). */
+function plannedFloorTiles(
+  run: TileRun,
+  span: AlongWallSpan,
+  widthsMm: readonly number[],
+): EmptyColumn[] {
+  if (widthsMm.some((widthMm) => !Number.isInteger(widthMm) || widthMm <= 0)) {
+    throw new Error(
+      "buildLShellDesign: planned widths must be positive whole millimetres",
+    );
+  }
+  const plannedWidthMm = widthsMm.reduce((sum, widthMm) => sum + widthMm, 0);
+  if (plannedWidthMm > span.endMm - span.startMm) {
+    throw new Error(
+      "buildLShellDesign: composition plan exceeds its floor run",
+    );
+  }
+
+  let cursorMm = span.startMm;
+  const planned = widthsMm.map((widthMm) => {
+    const tile = tileOver(run, cursorMm, cursorMm + widthMm);
+    cursorMm += widthMm;
+    return tile;
+  });
+  return [
+    ...planned,
+    ...tilesOver(run, { startMm: cursorMm, endMm: span.endMm }),
   ];
 }
 
@@ -264,6 +316,33 @@ function plannedEndMm(run: TileRun, room: DesignRoom): number {
   return wallLengthMm(run.wall, room) - slideReserveMm(run);
 }
 
+/** The two floor runs composition is allowed to plan, from the same private arithmetic the shell
+ *  itself uses. Exporting the result prevents the planner from restating either corner reach or B's
+ *  dynamic deepest-depth reserve. */
+export function lShellFloorRuns(room: DesignRoom): Readonly<
+  Record<
+    DesignWall,
+    {
+      readonly wall: DesignWall;
+      readonly startMm: number;
+      readonly endMm: number;
+    }
+  >
+> {
+  return {
+    A: { wall: "A", ...floorRunSpan("A", room) },
+    B: { wall: "B", ...floorRunSpan("B", room) },
+  };
+}
+
+function floorRunSpan(wall: DesignWall, room: DesignRoom): AlongWallSpan {
+  const run = tileRunsOn(wall, room).floor;
+  return {
+    startMm: floorRunStartMm(wall),
+    endMm: plannedEndMm(run, room),
+  };
+}
+
 /** Wall A is anchored at the corner and never slides; wall B slides by the chain the run's source
  *  declares, read through the production reader `setCabinetDepth` itself uses. */
 function slideReserveMm(run: TileRun): number {
@@ -291,16 +370,25 @@ function tilesOver(run: TileRun, span: AlongWallSpan): EmptyColumn[] {
   // (`EMPTY_COLUMN_INVERTED`).
   if (lengthMm <= 0 || run.topMm <= run.y0Mm) return [];
   const reachMm = span.endMm - (lengthMm % 2);
-  const depthMm = tileDepthMm(run.source);
-  return splitEmptySpanAtCap(span.startMm, reachMm).map((piece) => ({
+  return splitEmptySpanAtCap(span.startMm, reachMm).map((piece) =>
+    tileOver(
+      run,
+      piece.centreMm - piece.widthMm / 2,
+      piece.centreMm + piece.widthMm / 2,
+    ),
+  );
+}
+
+function tileOver(run: TileRun, startMm: number, endMm: number): EmptyColumn {
+  return {
     wall: run.wall,
-    alongMm: piece.centreMm,
-    widthMm: piece.widthMm,
+    alongMm: (startMm + endMm) / 2,
+    widthMm: endMm - startMm,
     y0Mm: run.y0Mm,
     topMm: run.topMm,
-    depthMm,
+    depthMm: tileDepthMm(run.source),
     depthFromBuildId: run.source,
-  }));
+  };
 }
 
 /** The source's own declared clearance at the shell's depth — the existing reader, no new rule. */

@@ -252,7 +252,13 @@ export {
 // corner that fits under its ceiling, and every free run recorded as empty space.
 export {
   buildLShellDesign,
+  lShellFloorRuns,
   LShellInputError,
+  type LShellCompositionPlan,
   type LShellDesignInput,
   type LShellInputRefusal,
 } from "./generation/shell-design.js";
+export * from "./generation/leftover-rule.js";
+export * from "./generation/generation-priorities.js";
+export * from "./generation/generate-kitchen.js";
+export * from "./commands/reconcile-command-result.js";

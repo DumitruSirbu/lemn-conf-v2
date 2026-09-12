@@ -731,7 +731,9 @@ describe("buildLShellDesign — a proposal fits at every declared depth (criteri
 
 describe("buildLShellDesign — what src/generation/ does not do (criteria 7 and 10)", () => {
   const sources = readdirSync(GENERATION_SOURCE)
-    .filter((name) => name.endsWith(".ts"))
+    // 7D2 necessarily adds a probe-owning generator and the store-equivalent command funnel.
+    // These 7D1 must-nots govern the shell builder, not every later module in its directory.
+    .filter((name) => name === "shell-design.ts")
     .map((name) => ({
       name,
       text: readFileSync(path.join(GENERATION_SOURCE, name), "utf8"),

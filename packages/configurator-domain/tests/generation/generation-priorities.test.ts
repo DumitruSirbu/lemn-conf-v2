@@ -1,0 +1,215 @@
+import { fc } from "@fast-check/vitest";
+import { describe, expect, it } from "vitest";
+
+import {
+  APPROVED_ROOM_POLICY,
+  GENERATION_PRIORITIES,
+  KITCHEN_L_DESIGN,
+  lShellFloorRuns,
+  MAX_GENERATED_LEFTOVER_MM,
+  planKitchenComposition,
+  planLeftover,
+  type DesignRoom,
+} from "../../src/index.js";
+
+describe("planKitchenComposition", () => {
+  it("plans the reference room at the owner-ruled boundaries", () => {
+    const room = KITCHEN_L_DESIGN.room;
+    const plan = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+
+    expect(plan.minimumMet).toBe(true);
+    expect(
+      plan.bases
+        .filter((body) => ["sink", "preparation", "hob"].includes(body.role))
+        .map(({ role, wall, startMm, endMm }) => ({
+          role,
+          wall,
+          startMm,
+          endMm,
+        })),
+    ).toEqual([
+      { role: "sink", wall: "A", startMm: 900, endMm: 1500 },
+      { role: "preparation", wall: "A", startMm: 1500, endMm: 2100 },
+      { role: "hob", wall: "A", startMm: 2100, endMm: 2700 },
+    ]);
+    expect(plan.remainderMm).toEqual({ A: 260, B: 20 });
+  });
+
+  it("declares the ruled order and widths as data", () => {
+    expect(GENERATION_PRIORITIES).toEqual([
+      { role: "fridge", buildId: "fridge-free", widthMm: 700, required: false },
+      { role: "sink", buildId: "base-sink", widthMm: 600, required: true },
+      {
+        role: "preparation",
+        buildId: "base-cabinet",
+        widthMm: 600,
+        required: false,
+      },
+      { role: "hob", buildId: "base-hob-oven", widthMm: 600, required: true },
+    ]);
+  });
+
+  it("lets the first optional core yield while preserving the minimum pair", () => {
+    const room: DesignRoom = {
+      shape: "L",
+      widthMm: 2100,
+      depthMm: 1600,
+      heightMm: 2200,
+    };
+    const plan = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+
+    expect(plan.dropped).toEqual(["fridge"]);
+    expect(
+      plan.bases
+        .filter((body) => body.role !== "storage")
+        .map((body) => body.role)
+        .sort(),
+    ).toEqual(["hob", "preparation", "sink"]);
+  });
+
+  it.each([
+    {
+      depthMm: 1599,
+      dropped: ["fridge"],
+      storageIntervals: [],
+      remainderMm: 599,
+    },
+    {
+      depthMm: 1600,
+      dropped: ["fridge"],
+      storageIntervals: [[900, 1500]],
+      remainderMm: 0,
+    },
+    {
+      depthMm: 1699,
+      dropped: ["fridge"],
+      storageIntervals: [[900, 1500]],
+      remainderMm: 99,
+    },
+    {
+      depthMm: 1700,
+      dropped: [],
+      storageIntervals: [],
+      remainderMm: 0,
+    },
+  ] as const)(
+    "recomputes wall-B storage after the final core choice at depth $depthMm",
+    ({ depthMm, dropped, storageIntervals, remainderMm }) => {
+      const room: DesignRoom = {
+        shape: "L",
+        widthMm: 2700,
+        depthMm,
+        heightMm: 2200,
+      };
+      const plan = planKitchenComposition({
+        room,
+        runs: lShellFloorRuns(room),
+      });
+
+      expect(plan.dropped).toEqual(dropped);
+      expect(
+        plan.bases
+          .filter((base) => base.wall === "B" && base.role === "storage")
+          .map((base) => [base.startMm, base.endMm]),
+      ).toEqual(storageIntervals);
+      expect(plan.remainderMm.B).toBe(remainderMm);
+    },
+  );
+
+  it("returns minimum-not-met arithmetic when sink and hob cannot both stand", () => {
+    const room: DesignRoom = {
+      shape: "L",
+      widthMm: 900,
+      depthMm: 2000,
+      heightMm: 2200,
+    };
+    const plan = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+
+    expect(plan.minimumMet).toBe(false);
+    expect(plan.bases).toEqual([]);
+  });
+
+  it("always leaves less than one storage module", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 10_000 }), (freeEndMm) => {
+        const result = planLeftover(freeEndMm);
+        expect(result.remainderMm).toBeLessThanOrEqual(
+          MAX_GENERATED_LEFTOVER_MM,
+        );
+        expect(result.storageCount * 600 + result.remainderMm).toBe(freeEndMm);
+      }),
+    );
+  });
+
+  it("plans every approved room deterministically with bounded leftovers or no minimum", () => {
+    const l = APPROVED_ROOM_POLICY.buildableShapes.L;
+    if (!l) throw new Error("approved policy has no L");
+    fc.assert(
+      fc.property(
+        fc.record({
+          shape: fc.constant("L" as const),
+          widthMm: fc.integer({ min: l.wallA.minMm, max: l.wallA.maxMm }),
+          depthMm: fc.integer({ min: l.wallB.minMm, max: l.wallB.maxMm }),
+          heightMm: fc.integer({
+            min: APPROVED_ROOM_POLICY.heightBounds.minMm,
+            max: APPROVED_ROOM_POLICY.heightBounds.maxMm,
+          }),
+        }),
+        (room) => {
+          const first = planKitchenComposition({
+            room,
+            runs: lShellFloorRuns(room),
+          });
+          const second = planKitchenComposition({
+            room,
+            runs: lShellFloorRuns(room),
+          });
+          expect(second).toEqual(first);
+          if (!first.minimumMet) return;
+          expect(first.remainderMm.A).toBeLessThanOrEqual(
+            MAX_GENERATED_LEFTOVER_MM,
+          );
+          expect(first.remainderMm.B).toBeLessThanOrEqual(
+            MAX_GENERATED_LEFTOVER_MM,
+          );
+          expect(first.dropped).not.toContain("sink");
+          expect(first.dropped).not.toContain("hob");
+        },
+      ),
+      { numRuns: 200 },
+    );
+  });
+
+  it("applies floor and modulo storage arithmetic after whichever core roles remain", () => {
+    const l = APPROVED_ROOM_POLICY.buildableShapes.L;
+    if (!l) throw new Error("approved policy has no L");
+    fc.assert(
+      fc.property(
+        fc.record({
+          shape: fc.constant("L" as const),
+          widthMm: fc.integer({ min: l.wallA.minMm, max: l.wallA.maxMm }),
+          depthMm: fc.integer({ min: l.wallB.minMm, max: l.wallB.maxMm }),
+          heightMm: fc.constant(2200),
+        }),
+        (room) => {
+          const runs = lShellFloorRuns(room);
+          const plan = planKitchenComposition({ room, runs });
+          if (!plan.minimumMet) return;
+          for (const wall of ["A", "B"] as const) {
+            const bases = plan.bases.filter((base) => base.wall === wall);
+            const coreWidthMm = bases
+              .filter((base) => base.role !== "storage")
+              .reduce((sum, base) => sum + base.widthMm, 0);
+            const finalLeftoverMm =
+              runs[wall].endMm - runs[wall].startMm - coreWidthMm;
+            expect(
+              bases.filter((base) => base.role === "storage"),
+            ).toHaveLength(Math.floor(finalLeftoverMm / 600));
+            expect(plan.remainderMm[wall]).toBe(finalLeftoverMm % 600);
+          }
+        },
+      ),
+      { numRuns: 200 },
+    );
+  });
+});

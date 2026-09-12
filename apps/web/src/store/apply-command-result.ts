@@ -6,26 +6,16 @@
 // invariants that are easiest to break here — frozen columns and a selection that never dangles —
 // become testable without zustand.
 //
-// No product rule lives here. Every guard is in the domain command that produced the result; this
-// module only re-derives what the design implies and decides which existing thing is selected.
+// No product rule lives here. Every guard and the ADR-sensitive reconciliation live in the domain;
+// this adapter decides which existing thing is selected and shapes the store update.
 import {
-  withCurrentFullHeightMembers,
-  clipEmptyColumnsAtWallEnd,
-  clipEmptyColumnsToFreeGround,
-  derivePlacementRecords,
-  mergeAdjacentEmptyColumns,
-  splitOversizedEmptyColumns,
   findVacatedVoid,
-  projectFrozenMap,
-  recomputeVoids,
-  withFrozenMap,
+  reconcileSuccessfulCommandResult,
   type BodyCatalog,
   type Column,
-  type ColumnExtent,
   type CommandEffect,
   type CommandResult,
   type Design,
-  type DesignRoom,
   type PlacementRecord,
   type RejectionReason,
   type VoidRecord,
@@ -104,14 +94,11 @@ export function applyCommandResult(
     return { applied: false, state: { lastRejection: result.reason } };
   }
 
-  const records = derivePlacementRecords(result.design, input.catalog);
-  const { recorded, published } = resolveColumns({
-    effect: result.effect,
-    frozen: input.columns,
-    records,
-    room: result.design.room,
+  const reconciled = reconcileSuccessfulCommandResult({
+    result,
+    catalog: input.catalog,
+    previousRecordedColumns: input.columns,
   });
-  const voids = recomputeVoids(records, published);
   return {
     applied: true,
     state: {
@@ -123,165 +110,20 @@ export function applyCommandResult(
       // the customer left, and a recorded extent the wall no longer covers is *marked* rather than
       // shortened — the same treatment ADR 0065 gives a placement the same slide pushes past the
       // same wall.
-      design: withFrozenMap(result.design, projectFrozenMap(recorded, records)),
-      records,
-      columns: published,
-      recordedColumns: recorded,
-      voids,
+      design: reconciled.design,
+      records: reconciled.records,
+      columns: reconciled.columns,
+      recordedColumns: reconciled.recordedColumns,
+      voids: reconciled.voids,
       selection: resolveSelection(
         result.effect,
-        records,
-        voids,
+        reconciled.records,
+        reconciled.voids,
         input.selection,
       ),
       lastRejection: null,
     },
   };
-}
-
-/** ADR 0044 and ADR 0053's projection, written onto the design that is about to be held and saved.
- *  It is the store's job for every command except the three that publish their own map, and it is
- *  written from `columns` and never re-derived from `result.design` — the design most commands
- *  return still carries the previous state's arrays, and the whole reason this runs is that the map,
- *  not the document, is what the command just moved.
- *
- *  `withFrozenMap` itself moved to the domain in wave 6J-d: `setCabinetDepth` now writes the same
- *  projection onto its own result (ADR 0090 decision 1), and "delete the key when its half is empty"
- *  spelled twice is how one of the two comes to serialise `[]`. Running it again over an identical
- *  map is the same author answering again, not a second one.
- */
-
-/** ADR 0031, ADR 0046 and ADR 0090: a resize, an **insert** and a **depth change** are the three
- *  commands that move a frozen extent, so they are the three whose own answer replaces the map
- *  passed in. Every other command leaves the extents alone and gets `hasFullHeightUnder` re-answered
- *  over them (ADR 0011 Gap D).
- *
- *  **The merge wraps the whole return value, not one branch.** ADR 0046 part 2 runs after every
- *  command, and the run that makes a merge possible usually arrives on the `body_inserted` arm: a
- *  400 mm body split off a 200 mm remainder, and that remainder is what meets the cleared column
- *  beside it. Merge only the non-effect branch and the freshly split column never meets its
- *  neighbour, with every domain test still green — which is why this seam is asserted at the store.
- *
- *  `withCurrentFullHeightMembers` runs over the merged map even on the arms whose map arrived
- *  current. That is the same author answering again rather than a second one: a merge rewrites the
- *  extents the question is asked of, and the funnel is what keeps the answer a fact about now.
- *
- *  The insert joined them on 2026-09-01: a body narrower than its column splits that column into an
- *  occupied half and an empty remainder, under two keys the one it replaced did not hold. Without
- *  this arm the effect's map is discarded, the map still carries the original wide column, and the
- *  level closes exactly as it did before the split existed — with every domain test still green,
- *  which is why this seam is asserted at the store.
- *
- *  The resized map arrives already current — `moveFrozenColumns` ends in the same
- *  `withCurrentFullHeightMembers` — so re-applying it here would be a second author for two fields.
- *  The reason the command owns this and the store does not is in `BodyResizedEffect`: *which* keys
- *  may change is a rule about the move, and a store that re-derived globally would make §10's delete
- *  produce no openings at all.
- *
- *  `voids` are recomputed against **this** map, not the one passed in. A resize moves the boundary
- *  between two columns, and an opening derived from the pre-move extents would be drawn where
- *  nothing is free any more. */
-function resolveColumns(input: PublishedColumnsInput): ResolvedColumns {
-  const { records, room } = input;
-  const published = publishedColumns(input);
-  // ADR 0037's merge ran here until 2026-08-30 and was withdrawn because §4 had no horizontal half.
-  // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
-  // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
-  // `widthFlex: 'fit'` refusal — see `merge-empty-columns.ts`.
-  //
-  // **Clip, then split, then merge — every command, in that order.** The clip is the owner's ruling
-  // on ADR 0069's open question: a member-less column may never reach past the end of its own wall,
-  // so it is held to `wallLengthMm` before anything else runs. **Clipping first is provably safe for
-  // the split that follows it**, because a clip can only ever shrink a column's width — the far edge
-  // moves in to the wall's own end and the near edge never moves — so the split can never see a
-  // *wider* column for having run after the clip than it would have seen before. Running the split
-  // first would risk publishing a column already cut to 800 mm that still reached past the wall,
-  // which is exactly the state the clip exists to make unreachable.
-  //
-  // **Split before merge, and both after every command** (ADR 0052). The two are duals — one cuts
-  // what exceeds the ceiling, the other joins what fits under it — and splitting first is what keeps
-  // the answer tidy: a cleared 900 mm column beside a 50 mm strip becomes 800 + 150 rather than
-  // 800 + 100 + 50. Neither can undo the other, so the pair is a fixpoint: no merged run exceeds the
-  // ceiling, and no piece a split produces does.
-  //
-  // The split is here rather than in each command as **defence in depth, and it is reachable from no
-  // document the loader accepts** — corrected 2026-09-02 after adversarial QA measured it.
-  //
-  // The first version of this comment said the delete was a producer with no command to put it in.
-  // It is not: `deriveColumns` takes a column's width as `Math.min` over its members' frames, the
-  // widest deletable body a document may carry is 800 mm (`base-corner-x-900` is `canDelete: false`),
-  // and both seams already hold a *stored* entry to the ceiling. So clearing a column cannot leave
-  // one wider than the cap, and QA confirmed removing this call leaves both suites green but for a
-  // test written against a hand-built map.
-  //
-  // It stays anyway, and the reason is the DOM-001 lesson rather than a known caller: the two
-  // commands that cut their own spans do so by a direction only they know, and this is the one place
-  // that sees every map on its way to being published. A guard here is the difference between a
-  // future producer being a bug and being an unsaveable — or, since the clip, an unofferable —
-  // document.
-  //
-  // **The free-ground clip joins them, between the two** (ADR 0090 decision 4b). A member-less
-  // column standing on ground a placement occupies is dropped whole, and it earns its place in the
-  // funnel by the same argument the wall-end clip does: a pass that only ever removes cannot hand
-  // the split more work than it already had.
-  //
-  // **It is a guard with no reachable population, and that is the amended state of the rule.** The
-  // first version of this comment said its population was decision 4a's legacy tail — an extent with
-  // no recorded source, left on its own coordinate while the run slid out from under it. ADR 0090's
-  // Amendment A overturned 4a: a sourceless extent now slides on the chain `FOLLOWS_CABINET_DEPTH`
-  // declares, so it lands beside its neighbours rather than under them and there is nothing here to
-  // drop. What the guard keeps is the structural statement — no published map places free space on
-  // occupied ground — for a producer that does not yet exist, which is the same stance
-  // `splitOversizedEmptyColumns` is documented as taking two paragraphs up. That it drops nothing is
-  // asserted, and so is the fact that it still can.
-  //
-  // **And the funnel has two faces, differing by exactly one stage** (ADR 0090 Amendment B). The
-  // wall-end cap derives its answer from the **room**, so it may bound what the map publishes and
-  // may not rewrite what the document records; every other stage derives from the placements or
-  // from a declared ceiling and is in both. Written as two pipelines rather than as a reordering:
-  // ADR 0052 caps the merge at 800 mm, so a pair the cap narrows below that ceiling merges where the
-  // same pair uncapped declines, and moving the stage would change a published answer.
-  const funnelled = (columns: ReadonlyMap<string, ColumnExtent>) =>
-    withCurrentFullHeightMembers(
-      mergeAdjacentEmptyColumns(
-        splitOversizedEmptyColumns(
-          clipEmptyColumnsToFreeGround(columns, records),
-          records,
-        ),
-        records,
-      ),
-      records,
-    );
-  return {
-    recorded: funnelled(published),
-    published: funnelled(clipEmptyColumnsAtWallEnd(published, records, room)),
-  };
-}
-
-/** The two faces of one map: what is offered and drawn, and what is written back to the document. */
-interface ResolvedColumns {
-  readonly recorded: ReadonlyMap<string, Column>;
-  readonly published: ReadonlyMap<string, Column>;
-}
-
-interface PublishedColumnsInput {
-  readonly effect: CommandEffect;
-  readonly frozen: ReadonlyMap<string, Column>;
-  readonly records: readonly PlacementRecord[];
-  readonly room: DesignRoom;
-}
-
-/** Which map goes on to be clipped, split, merged and published — the three commands that move an
- *  extent, and the fall-through for everything else. */
-function publishedColumns(
-  input: PublishedColumnsInput,
-): ReadonlyMap<string, Column> {
-  const { effect } = input;
-  if (effect.type === "body_resized" || effect.type === "body_inserted") {
-    return effect.columns;
-  }
-  if (effect.type === "cabinet_depth_set") return effect.columns;
-  return input.frozen;
 }
 
 /** **The depth command's own map, and no arm of this module's own** — ADR 0090 decision 5.
@@ -293,7 +135,8 @@ function publishedColumns(
  *  natively and none of which this module is given. Repairing that here would also have put a product
  *  rule in a file whose head comment says none lives here.
  *
- *  What this module keeps is the funnel, the void recompute and the selection.
+ *  The domain-owned reconciliation now keeps that funnel and void recompute shared with generation;
+ *  this adapter keeps the selection.
  */
 
 /** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:

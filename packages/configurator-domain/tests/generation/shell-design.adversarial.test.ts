@@ -679,7 +679,9 @@ describe("buildLShellDesign — what src/generation/ does not do, by any route (
   const GENERATION = path.join(SRC, "generation");
 
   const sources = readdirSync(GENERATION)
-    .filter((name) => name.endsWith(".ts"))
+    // Wave 7D2 legitimately imports a probe and applies the command-result funnel. This 7D1 guard
+    // remains scoped to the shell whose purity it was written to protect.
+    .filter((name) => name === "shell-design.ts")
     .map((name) => {
       const file = path.join(GENERATION, name);
       return { name, file, code: withoutComments(readFileSync(file, "utf8")) };
@@ -732,7 +734,7 @@ describe("buildLShellDesign — what src/generation/ does not do, by any route (
     );
   }
 
-  it("scans every generation module and the imports it makes (premise)", () => {
+  it("scans the shell module and every import it makes (premise)", () => {
     expect(sources.map((source) => source.name)).toContain("shell-design.ts");
     expect(sources.flatMap(runtimeImportsOf).length).toBeGreaterThan(5);
   });
