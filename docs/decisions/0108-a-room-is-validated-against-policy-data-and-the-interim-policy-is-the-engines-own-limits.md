@@ -3,7 +3,7 @@
 Status: Accepted (**Amendment A, 2026-09-11** — the L wall minima hold the corner at every declared
 cabinet depth, so wall B's is 1000, not 900; **Amendment B, 2026-09-11** — the owner approved the L
 bounds: wall A 900–6300, wall B 1000–5100, ceiling 2200–3900, held as product data inside the
-engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6))
+engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — wave 7A (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -376,3 +376,41 @@ interim**: when one wall is 900 mm, the other must be at least 2160 mm, and in g
 must hold a sink and a hob in the owner's order (`ROOM_TOO_SMALL_FOR_KITCHEN`). Its figures enter
 `APPROVED_ROOM_POLICY` as owner-approved data in wave 7A2, guarded against the engine's derived
 figures as in Amendment B.
+
+## Amendment E — 2026-09-12: 7A2 validates the generator's 600 mm sink, not the catalogue floor
+
+**Found by wave 7D2 adversarial QA, finding Q1.1, and classified as a contract gap.** Amendments C
+and D derived the future coupled-room predicate from `base-sink`'s **560 mm manually buildable
+catalogue floor**. Wave 7D2 implements the separately recorded generated target in
+[ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+Amendment D3: sink **600**, hob **600**. Criterion 7A2.3 already requires validation and generation
+to agree, so the 560-based numbers could not satisfy their own authority.
+
+**Ruling.** Preserve the owner's semantic decision verbatim — **"Must hold sink + hob"** — and
+supersede only Amendments C/D's derived 1160/2160 figures for generated kitchens. With
+`freeA = wallA - 900` and `freeB = wallB - 1000`, an L room passes when:
+
+- `freeA >= 1200`, or
+- `freeB >= 1200`, or
+- `freeB >= 600 && freeA >= 600`.
+
+The exact boundaries are therefore:
+
+| Fixed run | Refuses | Accepts |
+| --- | ---: | ---: |
+| wall A = 900 | wall B = 2199 | wall B = 2200 |
+| wall B = 1000 | wall A = 2099 | wall A = 2100 |
+| wall A = 1500 | wall B = 1599 | wall B = 1600 |
+
+In particular, **900 × 2160 refuses**. A manually edited design may still contain a 560 mm sink;
+this amendment does not narrow the catalogue, `resolveWidthRangesMm`, insertion, resizing or stored
+design validity. It changes only the generated-kitchen acceptance data that wave 7A2 adds.
+
+**Options refused.** Keeping 1160 because the catalogue permits it would make the validator accept
+a room where the real generator cannot meet the ruled minimum. Shrinking generation's sink to 560
+would overturn ADR 0110 D3 and the shipped 7D2 layout without an owner ruling. Special-casing
+900 × 2160 would preserve one stale example while leaving the general property false.
+
+**Verification owed by 7A2.** Assert all three boundary pairs above and a property over the approved
+L range: the coupled rule passes if and only if `generateKitchen` returns a design containing both a
+sink and a hob.

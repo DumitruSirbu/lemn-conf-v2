@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -361,3 +361,32 @@ domain cannot call (7D1-P, P1).
 
 **What stands:** every body by `insertBody`, the shell's structural corner and depth sources (B2), wall
 B's reserve (B3), no clip on a recorded face (B4), D3's widths and the owner's order.
+
+## Clarification — 2026-09-12: storage yields during core selection and returns on final remainders
+
+**Raised by wave 7D2 logic review R1.1.** Amendment C says the drop order is storage, fridge,
+preparation. Amendment A4 separately requires storage to fill every remainder of at least 600 mm.
+Read as one irreversible list, those sentences would suppress storage after any core role was
+dropped; read as independent stages, they produce the shipped planner. This clarification makes the
+two-stage rule explicit and changes no owner decision.
+
+1. **Select the surviving core first.** Candidate storage yields before the fridge, and the fridge
+   yields before preparation. Sink and hob never yield. This stage chooses the core roles and the
+   wall cut.
+2. **Then recompute storage from the final per-wall remainders.** After the core and cut are fixed,
+   Amendment A4 fills each final remainder with 600 mm storage while at least 600 mm remains. There
+   is no persistent “storage was dropped” flag.
+3. **The log's `dropped` list names omitted core roles only.** Storage fill is derived from the final
+   remainder, so a candidate storage unit displaced while selecting the core is not a permanent
+   omission.
+
+Boundary witness: at wall A **2700** and wall B **1699**, the fridge yields; sink, preparation and
+hob occupy wall A; one 600 mm storage cabinet occupies wall B; the planned wall-B remainder is 99 mm
+(199 mm physical including the 100 mm depth reserve). Suppressing the refill would leave 799 mm of
+physical bare wall and violate F7's 699 mm shallow-depth cap. The 1599/1600 and 1699/1700 wall-B
+pairs hold respectively the storage-fit and core-selection transitions.
+
+**Options refused.** A permanent no-storage flag contradicts Amendment A4 and the leftover rule.
+Dropping a core role before candidate storage contradicts F3. Treating storage as a core role would
+put it in `dropped` and make the result depend on an optional candidate count rather than the final
+geometry.

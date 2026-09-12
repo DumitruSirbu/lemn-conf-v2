@@ -1263,7 +1263,7 @@ table.
 | **7A** | Room validation; the approved L policy — **DONE, `8df0d49`** | as above, plus `src/room/approved-room-policy.ts` | — | Full | No | answered (Q1) |
 | **7D1** | Composition shell for the L — **DONE, `f5b4cd9`** | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
-| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; **the row plan and the shell tiled at its boundaries (R1.1)** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
+| **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
@@ -1316,8 +1316,10 @@ F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **a
 after another.
 
 ~~**Next dispatchable wave after 7A: 7D1**~~ — ~~**7D1 shipped at `f5b4cd9`; 7D1b was next.**~~
-**7D1b is DONE in `f61c361` + `85091cc`. Next dispatchable wave: 7D2**, whose criteria 9–14 and
-ADR 0110 Amendments A–D are the live contract below.
+~~**7D1b is DONE in `f61c361` + `85091cc`. Next dispatchable wave: 7D2**, whose criteria 9–14 and
+ADR 0110 Amendments A–D are the live contract below.~~ **Corrected 2026-09-12: 7D2 is DONE at
+`4133cdc`; next dispatchable wave: 7A2.** Its corrected contract is ADR 0108 Amendment E and the
+criteria below.
 
 ### Revised criteria for new and changed waves
 
@@ -1385,7 +1387,15 @@ with *recipe* meaning a library row or a fixture)
    `setCabinetDepth` to the deepest depth it is at most 599 again.
 10. ~~F3's default drop order~~ **F3's ruled drop order ("Fridge first, then prep", 2026-09-11)** —
     storage, then the fridge, then the preparation cabinet — holds on a sweep of short walls; the sink
-    and the hob are never dropped.
+    and the hob are never dropped. **Clarified 2026-09-12 after logic review R1.1:** this is a
+    two-stage rule. Candidate storage yields while choosing the surviving core and wall cut; after
+    that choice, ADR 0110 A4 recomputes mandatory 600 mm storage on every final per-wall remainder
+    of at least 600 mm. There is no persistent no-storage flag, and `dropped` lists omitted core
+    roles only. The wall-A 2700 sweep pins wall B at **1599 / 1600 / 1699 / 1700**: 1599 has no
+    600 mm final storage fit; 1600 crosses that fit boundary; 1699 keeps the fridge dropped and
+    refills one wall-B storage unit, leaving 99 mm planned (199 mm physical with the reserve); 1700
+    crosses the next core-selection boundary. Every result still obeys the shallow wall-B 699 mm
+    physical-empty cap.
 11. **Low ceilings**: the property in criterion 1 includes heights 2200–2599, and no generated body
     rises above the room — the shell's cap means a top-row body is never offered there. ~~**If F2 adds
     upper cabinets and a hood**~~ **The upper cabinets and hood F2 added** stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
@@ -1418,8 +1428,10 @@ with *recipe* meaning a library row or a fixture)
 13. **(revised 2026-09-11, 7D1 logic review R1.1 — ADR 0110 Amendment D, revised) Plan the row, tile
     at its boundaries, insert each body into its own column.**
     - The generator first plans each wall's row as widths — owner's order, F3 drop order, minimum
-      kitchen, D3 widths (sink 600, preparation 600, hob-with-oven 600, `fridge-free` 700, storage 600),
-      leftover rule, wall B's reserve — as pure arithmetic that writes no placement.
+      kitchen and D3 widths (sink 600, preparation 600, hob-with-oven 600, `fridge-free` 700) — as
+      pure arithmetic that writes no placement. It chooses the surviving core and wall cut first,
+      then refills each final per-wall remainder with 600 mm storage under A4, and finally applies the
+      leftover rule and wall B's reserve (ADR 0110's 2026-09-12 clarification).
     - `buildLShellDesign` takes that plan and tiles each free run at exactly its boundaries (one column
       per planned body, then the leftover split at 800); with no plan it tiles 800-first as 7D1 ships.
     - Each body goes into its own column with `insertBody`; `setWidth` is used **only** for a `'fit'`
@@ -1445,20 +1457,24 @@ below (ADR 0114)**; the struck criteria assumed a cookie holding the design id.
 - ~~3. The pointer holds nothing but an id; no route authorises a read or a write from it; a request carrying a pointer but no write token cannot save.~~
 - ~~4. Must not: the locale reaches the pointer; the pointer is readable from script; the design id appears in a log line it did not already appear in.~~
 
-**7A2 — the coupled room rule** (ADR 0108 Amendments C and D — **owner-ruled 2026-09-11, F6 "Must
-hold sink + hob"**; dispatched after 7D2)
+**7A2 — the coupled room rule** (ADR 0108 Amendments C–E — **owner-ruled 2026-09-11, F6 "Must
+hold sink + hob"**; Amendment E corrects the generated widths; dispatched after 7D2)
 
 1. `validateRoomInput` gains one code, `ROOM_TOO_SMALL_FOR_KITCHEN`, on a room-level field, with no
    number; the per-field codes are unchanged and are reported first, so a room with a bad wall never
    also reports the coupled rule.
-2. The widths it uses — the sink's floor, the hob's width and each wall's corner reach at every
-   declared depth — come in through the policy, derived in the engine's limits from the catalogue and
-   Amendment A's corner edges; the validator still imports types only.
+2. The widths it uses — the generated sink target **600**, generated hob target **600**, and each
+   wall's corner reach at every declared depth — come in through the policy, derived from the same
+   composition data and Amendment A's corner edges; the validator still imports types only. The
+   catalogue's **560 mm manual sink floor remains legal** and is not this rule's input.
 3. *Property* over the approved L range, at least 100 samples in each arm: the rule passes **if and
    only if** `generateKitchen` places a sink and a hob in that room. Must not: a validator and a
    generator that disagree on any sampled room.
-4. Boundary rows from Amendment C's table: with wall A at 900, wall B 2159 fails and 2160 passes;
-   with wall B at 1000, wall A 2059 fails and 2060 passes; wall B 1560 with wall A 1500 passes.
+4. **Corrected by ADR 0108 Amendment E:** 7A2 uses the generated 600 mm sink plus 600 mm hob, not
+   the catalogue's 560 mm manually buildable sink floor. Boundary rows: with wall A at 900, wall B
+   2199 fails and 2200 passes; with wall B at 1000, wall A 2099 fails and 2100 passes; with wall A at
+   1500, wall B 1599 fails and 1600 passes. In particular, 900 × 2160 refuses. Manual 560 mm sinks
+   remain legal.
 5. ~~If F6 is answered (b), only the policy's data changes — the rule becomes *either fits* — and the
    property is rerun.~~ **F6 was answered (a).** The rule's data enters `APPROVED_ROOM_POLICY` as
    owner-approved, guarded by the same test pattern as 7A: each approved figure at or above the
@@ -1929,6 +1945,51 @@ Format, lint and typecheck passed. Domain **4082/4082**, persistence **282/282**
 
 **Close-out and push:** documentation committed at `1e96104`. The pre-push `pnpm ci:local` passed
 in full again, then `origin/m7-room-and-presets` advanced from `c9f43ea` through `1e96104`.
+
+### 7D2 close-out — 2026-09-12, `4133cdc`
+
+**What shipped:** generation now starts with a pure arithmetic row plan in the owner's
+fridge-free 700 → sink 600 → preparation 600 → hob-with-oven 600 order, applies F3's core-drop
+order, chooses the wall cut, then recomputes 600 mm storage on each final remainder. The shell is
+tiled at those exact boundaries and every body is placed through `insertBody`; `setWidth` is used
+only where a free-end fit column merged with at most 200 mm of remainder. The wall-B depth reserve
+is retained. Bases precede resizes and wall-band uppers; the hood replaces the upper over the hob,
+and nothing is composed above the fridge, corner or in the top row. A failed minimum returns no
+design. Generation and replay borrow one probe lease apiece and replay exactly.
+
+The successful-command reconciliation now belongs to the domain and is shared by generation,
+replay and the web store. `GenerationLog.occurredAt` makes replay self-contained. Real-Three parity
+includes actual worktop intersections at both 600 and 700 mm depths. The no-plan 7D1 shell path is
+unchanged.
+
+**Adversarial QA:** the first round added **44 independent tests** — **33 domain** and **11
+real-Three** — and ran the full domain suite at **4,131** and adapter suite at **3,054**. The final
+round passed domain **4,136**, adapter **3,059** and web **2,588**, restored exact production
+fingerprints and left no mutant active. Across both rounds, nine mutation classes were caught:
+replay-step omission, resize suppression, wrong sink build, an extra probe lease, moved-column stage
+omission in shared reconciliation, clipping-order reversal, a fresh replay timestamp, a 2 mm
+worktop widening, and storage suppression. The wall-A 2700 / wall-B 1599, 1600, 1699 and 1700
+boundaries are asserted explicitly.
+
+**Full-tier review:** logic review initially raised ambiguous criterion-10 storage wording and
+missing worktop intersections. Clean-code review found the domain/web reconciliation funnel
+duplicated and replay dependent on a caller timestamp. The implementation and contract were
+repaired as described above. Architecture adjudicated storage as two stages — core selection, then
+A4 final-remainder refill — without a new owner decision; ADR 0110's 2026-09-12 clarification records
+it. QA finding Q1.1 identified the future 7A2 contract gap: its 560 mm catalogue-floor sink did not
+match 7D2's 600 mm generated target. ADR 0108 Amendment E preserves legal manual 560 mm sinks and
+corrects only the generated-room predicate. The same reviewers re-ran their reviews: logic reported
+“matches intent — no remaining actionable logic findings”; clean-code reported no actionable
+defect.
+
+**Coordinator verification on the frozen `4133cdc` tree:** `pnpm check` exited **0** with live
+database access. Domain **4,136**, persistence **282**, three-adapter **3,059** and web **2,588**
+passed; format, lint and typecheck were clean. The first sandboxed attempt failed when its network
+policy blocked Neon and is not green evidence. The wave table marks 7D2 visual **No**, so no visual
+verification was run.
+
+**Close-out state:** implementation is committed at `4133cdc`. Documentation, the required final
+`pnpm ci:local` and the push are recorded separately when they complete.
 
 ## Verification
 
