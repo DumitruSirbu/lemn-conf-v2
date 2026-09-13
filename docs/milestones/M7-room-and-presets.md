@@ -7,8 +7,9 @@
 > The branch-wide `pnpm ci:local` passed on the frozen tree; close-out commit `1e96104` and every
 > local M7 commit through it are pushed to `origin/m7-room-and-presets`.
 > **Updated 2026-09-12: wave 7D2 is DONE at `4133cdc`, closed at `2126d52`. Updated 2026-09-13:
-> wave 7A2 is DONE at local commit `f97d621`; next wave: 7E1.** The 7A2 code commit is not yet
-> claimed pushed; its close-out and gate remain with the coordinator.
+> wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`; next wave: 7E1.** Final `pnpm ci:local` and
+> the pre-push rerun passed in full; every M7 commit through `6cde5ef` is pushed to
+> `origin/m7-room-and-presets`.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1323,8 +1324,8 @@ after another.
 ~~**Next dispatchable wave after 7A: 7D1**~~ — ~~**7D1 shipped at `f5b4cd9`; 7D1b was next.**~~
 ~~**7D1b is DONE in `f61c361` + `85091cc`. Next dispatchable wave: 7D2**, whose criteria 9–14 and
 ADR 0110 Amendments A–D are the live contract below.~~ ~~**Corrected 2026-09-12: 7D2 is DONE at
-`4133cdc`; next dispatchable wave: 7A2.**~~ **Corrected 2026-09-13: 7A2 is DONE at local commit
-`f97d621`; next dispatchable wave: 7E1.** 7A2's shipped contract is ADR 0108 Amendment E and the
+`4133cdc`; next dispatchable wave: 7A2.**~~ **Corrected 2026-09-13: 7A2 is DONE at `f97d621`,
+closed at `6cde5ef`; next dispatchable wave: 7E1.** 7A2's shipped contract is ADR 0108 Amendment E and the
 criteria below.
 
 ### Revised criteria for new and changed waves
@@ -2048,8 +2049,14 @@ errors and stopped. After repair, a sandboxed rerun passed format, lint, typeche
 72 skipped**; it is not green evidence. The complete elevated `pnpm check` exited **0**: format,
 lint and typecheck passed; domain **4,196**, persistence **282**, three-adapter **3,059** and web
 **2,588** passed. The pre-commit hook formatted the staged files without changing them and reran
-lint green. Implementation is local commit `f97d621`; no `pnpm ci:local` or push is claimed by this
-close-out.
+lint green. Implementation is `f97d621`; documentation close-out is `6cde5ef`.
+
+**Final gate and push:** coordinator-run `pnpm ci:local` exited **0** on the frozen tree. Format,
+lint and typecheck passed; domain **4,196**, persistence **282**, three-adapter **3,059** and web
+**2,588** passed; Playwright reported **191 passed + 2 expected skipped (193 total)**. Build,
+boundaries, lockfile and SCA passed, with no known vulnerabilities. The pre-push hook passed the
+same full gate set again, then advanced `origin/m7-room-and-presets` from `43bf2dc` through
+`6cde5ef`.
 
 ## Verification
 
