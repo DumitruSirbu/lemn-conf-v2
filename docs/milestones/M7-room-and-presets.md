@@ -7,10 +7,9 @@
 > The branch-wide `pnpm ci:local` passed on the frozen tree; close-out commit `1e96104` and every
 > local M7 commit through it are pushed to `origin/m7-room-and-presets`.
 > **Updated 2026-09-12: wave 7D2 is DONE at `4133cdc`, closed at `2126d52`. Updated 2026-09-13:
-> wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`. Wave 7E1 is DONE at `57f1e94`; next wave:
-> 7E2.** 7E1's documentation close-out commit, final `pnpm ci:local` and push are still owed. Final
-> 7A2 `pnpm ci:local` and
-> the pre-push rerun passed in full; every M7 commit through `6cde5ef` is pushed to
+> wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`. Wave 7E1 is DONE at `57f1e94`, closed at
+> `160983d`; next wave: 7E2.** Final `pnpm ci:local` and the pre-push rerun passed in full; every M7
+> commit through `160983d` is pushed to
 > `origin/m7-room-and-presets`.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
@@ -2098,9 +2097,10 @@ sandboxed `pnpm check` was intentionally terminated after persistence network ti
 first sandboxed Playwright attempt failed to bind with `EPERM`; neither is recorded as green
 evidence.
 
-Implementation is `57f1e94`. This documentation close-out is prepared but not yet committed, and
-the final `pnpm ci:local` plus push are still owed; the last confirmed remote commit remains
-`72fbb2d`. Next wave: **7E2**.
+Implementation is `57f1e94`; documentation close-out is `160983d`. The final `pnpm ci:local` and
+the pre-push rerun both passed all gates: format, lint, typecheck, unit tests, **191 Playwright
+passes with 2 expected skips**, build, boundaries, lockfile and SCA. Every M7 commit through
+`160983d` is pushed to `origin/m7-room-and-presets`. Next wave: **7E2**.
 
 ## Verification
 

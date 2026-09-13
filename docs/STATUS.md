@@ -53,9 +53,10 @@ validation and generation agree across the approved L range, and the odd-millime
 found during the wave is corrected under ADR 0110 without changing its 200 mm usable-remainder
 rule. The branch-wide `pnpm ci:local` and the pre-push rerun both passed in full; every M7 commit
 through `6cde5ef` is pushed to `origin/m7-room-and-presets`. **Updated again 2026-09-13: wave 7E1
-is DONE at `57f1e94`; 7E2 is next.** The exact localized room route, its URL-state boundary, the
-proxy allow-list and `/` → Step 1 now exist. The documentation close-out commit, final
-`pnpm ci:local` and push are still owed, so `origin` remains at `72fbb2d`.
+is DONE at `57f1e94`, closed at `160983d`; 7E2 is next.** The exact localized room route, its
+URL-state boundary, the proxy allow-list and `/` → Step 1 now exist. The final `pnpm ci:local` and
+the pre-push rerun both passed in full; every M7 commit through `160983d` is pushed to
+`origin/m7-room-and-presets`.
 ~~Currently in progress: M6~~, ~~now on branch
 `wave/6r-control-shapes-and-strip-row`~~ ~~**now on branch `wave/6t-finish`**~~ **back on `main` at
 `bdef351` — every M6 wave branch is merged**. ~~**Five M6 waves
@@ -746,9 +747,9 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-13. M7 wave 7E1 is DONE at `57f1e94`; 7E2 is next.** The code commit is
-> local and immutable. This documentation close-out is not committed yet; final `pnpm ci:local` and
-> the push are still owed, so the last confirmed remote commit is `72fbb2d`.
+> **RESUME HERE — 2026-09-13. M7 wave 7E1 is DONE at `57f1e94`, closed at `160983d`; 7E2 is next.**
+> The final `pnpm ci:local` and the pre-push rerun both passed in full; every M7 commit through
+> `160983d` is pushed to `origin/m7-room-and-presets`.
 >
 > - **What shipped:** four production files add a pure `room-url-state` parser/serialiser, the exact
 >   localized `/configurator/room` server route, the proxy allow-list entry and the localized root
