@@ -229,6 +229,7 @@ export * from "./migrate-design.js";
 export { APPROVED_ROOM_POLICY } from "./room/approved-room-policy.js";
 export type {
   BuildableShapes,
+  LMinimumKitchen,
   LWallBounds,
   MillimetreBounds,
   RoomPolicy,

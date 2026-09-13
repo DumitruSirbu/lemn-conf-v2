@@ -1073,7 +1073,7 @@ describe("buildLShellDesign — the room it refuses (Q1.5, revised: refuse rathe
     expect((thrown as Error).message).not.toContain("<script>");
   });
 
-  it("builds every room validateRoomInput accepts under the approved policy, whichever corner the customer chose", () => {
+  it("builds every room inside the approved field bounds, including coupled-policy refusals", () => {
     const l = approvedL();
 
     fc.assert(
@@ -1087,10 +1087,20 @@ describe("buildLShellDesign — the room it refuses (Q1.5, revised: refuse rathe
             { shape: "L", wallAMm, wallBMm, heightMm, cornerDirection },
             APPROVED_ROOM_POLICY,
           );
-          if (!validation.ok)
-            throw new Error(JSON.stringify(validation.issues));
+          if (!validation.ok) {
+            expect(validation.issues).toEqual([
+              { code: "ROOM_TOO_SMALL_FOR_KITCHEN", field: "shape" },
+            ]);
+          }
 
-          expect(refusalFor(validation.room)).toBe("built");
+          expect(
+            refusalFor({
+              shape: "L",
+              widthMm: wallAMm,
+              depthMm: wallBMm,
+              heightMm,
+            }),
+          ).toBe("built");
         },
       ),
       {

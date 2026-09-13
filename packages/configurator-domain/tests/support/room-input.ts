@@ -71,16 +71,23 @@ export function engineLWallBounds(): LWallBounds {
   return lWallBoundsOf(ENGINE_ROOM_LIMITS);
 }
 
-/** An L `policy` accepts, every field at its minimum — read off the policy, so no example room is
- *  written down as a number. */
+/** An L `policy` accepts, using wall A for the generated minimum only when the policy requires it. */
 export function validLInput(
   overrides: Partial<LRoomInput> = {},
   policy: RoomPolicy = ENGINE_ROOM_LIMITS,
 ): LRoomInput {
   const walls = lWallBoundsOf(policy);
+  const minimum = walls.minimumKitchen;
   return {
     shape: "L",
-    wallAMm: walls.wallA.minMm,
+    wallAMm: minimum.isRequired
+      ? Math.max(
+          walls.wallA.minMm,
+          minimum.cornerReachMm.wallA +
+            minimum.sinkWidthMm +
+            minimum.hobWidthMm,
+        )
+      : walls.wallA.minMm,
     wallBMm: walls.wallB.minMm,
     heightMm: policy.heightBounds.minMm,
     cornerDirection: "left",
@@ -93,7 +100,30 @@ export function lInputWithField(
   { key, valueMm }: LFieldValue,
   policy: RoomPolicy = ENGINE_ROOM_LIMITS,
 ): LRoomInput {
-  return { ...validLInput({}, policy), [key]: valueMm };
+  const walls = lWallBoundsOf(policy);
+  const minimum = walls.minimumKitchen;
+  const companion = !minimum.isRequired
+    ? {}
+    : key === "wallAMm"
+      ? {
+          wallBMm: Math.max(
+            walls.wallB.minMm,
+            minimum.cornerReachMm.wallB +
+              minimum.sinkWidthMm +
+              minimum.hobWidthMm,
+          ),
+        }
+      : key === "wallBMm"
+        ? {
+            wallAMm: Math.max(
+              walls.wallA.minMm,
+              minimum.cornerReachMm.wallA +
+                minimum.sinkWidthMm +
+                minimum.hobWidthMm,
+            ),
+          }
+        : {};
+  return { ...validLInput({}, policy), ...companion, [key]: valueMm };
 }
 
 /** A stored room as the input a customer would type for it: wall A is its width and wall B its

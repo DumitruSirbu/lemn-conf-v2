@@ -72,7 +72,7 @@ describe("planKitchenComposition", () => {
       depthMm: 1599,
       dropped: ["fridge"],
       storageIntervals: [],
-      remainderMm: 599,
+      remainderMm: 598,
     },
     {
       depthMm: 1600,
@@ -84,7 +84,7 @@ describe("planKitchenComposition", () => {
       depthMm: 1699,
       dropped: ["fridge"],
       storageIntervals: [[900, 1500]],
-      remainderMm: 99,
+      remainderMm: 98,
     },
     {
       depthMm: 1700,

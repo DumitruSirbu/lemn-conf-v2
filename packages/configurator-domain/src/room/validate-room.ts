@@ -46,6 +46,7 @@ export type RoomField = "shape" | "wallA" | "wallB" | "wallC" | "height";
 
 export type RoomIssueCode =
   | "SHAPE_NOT_BUILDABLE"
+  | "ROOM_TOO_SMALL_FOR_KITCHEN"
   | "VALUE_MISSING"
   | "VALUE_NOT_WHOLE_MILLIMETRES"
   | "WALL_TOO_SHORT"
@@ -110,19 +111,46 @@ function validateLRoom(input: LRoomInput, bounds: LRoomBounds): RoomValidation {
     wallRule("wallB", bounds.walls.wallB),
   );
   const height = judgeField(input.heightMm, heightRule(bounds.height));
-  if (wallA.ok && wallB.ok && height.ok) {
-    // ADR 0108 decision 8: `wallLengthMm`'s mapping, so the fit gate reads back the walls entered.
+  if (!wallA.ok || !wallB.ok || !height.ok) {
+    return { ok: false, issues: [wallA, wallB, height].flatMap(issuesOf) };
+  }
+  if (
+    bounds.walls.minimumKitchen.isRequired &&
+    !holdsMinimumKitchen(wallA.valueMm, wallB.valueMm, bounds.walls)
+  ) {
     return {
-      ok: true,
-      room: {
-        shape: "L",
-        widthMm: wallA.valueMm,
-        depthMm: wallB.valueMm,
-        heightMm: height.valueMm,
-      },
+      ok: false,
+      issues: [{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }],
     };
   }
-  return { ok: false, issues: [wallA, wallB, height].flatMap(issuesOf) };
+  // ADR 0108 decision 8: `wallLengthMm`'s mapping, so the fit gate reads back the walls entered.
+  return {
+    ok: true,
+    room: {
+      shape: "L",
+      widthMm: wallA.valueMm,
+      depthMm: wallB.valueMm,
+      heightMm: height.valueMm,
+    },
+  };
+}
+
+/** ADR 0108 Amendments C–E. Wall B is the reading-order prefix: if the required bodies split,
+ *  the sink stands on B and the hob on A. The policy owns every dimension used here. */
+function holdsMinimumKitchen(
+  wallAMm: number,
+  wallBMm: number,
+  policy: LWallBounds,
+): boolean {
+  const { sinkWidthMm, hobWidthMm, cornerReachMm } = policy.minimumKitchen;
+  const freeA = wallAMm - cornerReachMm.wallA;
+  const freeB = wallBMm - cornerReachMm.wallB;
+  const bothWidthMm = sinkWidthMm + hobWidthMm;
+  return (
+    freeA >= bothWidthMm ||
+    freeB >= bothWidthMm ||
+    (freeB >= sinkWidthMm && freeA >= hobWidthMm)
+  );
 }
 
 function wallRule(

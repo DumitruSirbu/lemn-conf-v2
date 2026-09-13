@@ -38,7 +38,7 @@ describe("APPROVED_ROOM_POLICY — the owner's ruling", () => {
     expect(APPROVED_ROOM_POLICY.approval).toBe("owner-approved");
   });
 
-  it("holds exactly the six values ADR 0108 Amendment B's table records", () => {
+  it("holds exactly the six room bounds ADR 0108 Amendment B records", () => {
     const walls = lWallBoundsOf(APPROVED_ROOM_POLICY);
 
     expect({
@@ -49,6 +49,15 @@ describe("APPROVED_ROOM_POLICY — the owner's ruling", () => {
       wallA: { minMm: 900, maxMm: 6300 },
       wallB: { minMm: 1000, maxMm: 5100 },
       height: { minMm: 2200, maxMm: 3900 },
+    });
+  });
+
+  it("pins Amendment E's generated sink, hob, and two corner reaches", () => {
+    expect(lWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen).toStrictEqual({
+      isRequired: true,
+      sinkWidthMm: 600,
+      hobWidthMm: 600,
+      cornerReachMm: { wallA: 900, wallB: 1000 },
     });
   });
 });
@@ -75,6 +84,20 @@ describe("APPROVED_ROOM_POLICY — held inside the engine's limits", () => {
       expect(approved.minMm).toBeLessThan(approved.maxMm);
     },
   );
+
+  it("keeps every approved generated-minimum figure at or above the engine's derivation", () => {
+    const approved = lWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen;
+    const engine = lWallBoundsOf(ENGINE_ROOM_LIMITS).minimumKitchen;
+
+    expect(approved.sinkWidthMm).toBeGreaterThanOrEqual(engine.sinkWidthMm);
+    expect(approved.hobWidthMm).toBeGreaterThanOrEqual(engine.hobWidthMm);
+    expect(approved.cornerReachMm.wallA).toBeGreaterThanOrEqual(
+      engine.cornerReachMm.wallA,
+    );
+    expect(approved.cornerReachMm.wallB).toBeGreaterThanOrEqual(
+      engine.cornerReachMm.wallB,
+    );
+  });
 });
 
 describe("APPROVED_ROOM_POLICY — the fixture rooms are rooms it accepts", () => {

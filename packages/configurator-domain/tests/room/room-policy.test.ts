@@ -15,6 +15,7 @@ import {
   buildKitchenLBodyCatalog,
   declaredCabinetDepthsMm,
   findOverflowingPlacementIds,
+  GENERATION_PRIORITIES,
   KITCHEN_L_DESIGN,
   LEVELS,
   MAX_ROOM_DEPTH_MM,
@@ -123,6 +124,32 @@ describe("ENGINE_ROOM_LIMITS — every bound is the constant it is derived from"
 
   it("wall B's maximum is the deepest room a design can store", () => {
     expect(engineLWallBounds().wallB.maxMm).toBe(MAX_ROOM_DEPTH_MM);
+  });
+
+  it.each(["sink", "hob"] as const)(
+    "takes the generated %s width from the required composition priority",
+    (role) => {
+      const priority = GENERATION_PRIORITIES.find(
+        (candidate) => candidate.role === role,
+      );
+      const minimum = engineLWallBounds().minimumKitchen;
+
+      expect(priority?.required).toBe(true);
+      expect(minimum[`${role}WidthMm`]).toBe(priority?.widthMm);
+    },
+  );
+
+  it("uses the same derived corner reaches for the bounds and the minimum kitchen", () => {
+    const walls = engineLWallBounds();
+
+    expect(walls.minimumKitchen.cornerReachMm).toStrictEqual({
+      wallA: walls.wallA.minMm,
+      wallB: walls.wallB.minMm,
+    });
+  });
+
+  it("keeps the derived minimum informational in the engine envelope", () => {
+    expect(engineLWallBounds().minimumKitchen.isRequired).toBe(false);
   });
 
   it("the height minimum is the top of the base row, below which no cabinet stands", () => {

@@ -197,23 +197,17 @@ function freeRunTiles(
   compositionPlan: LShellCompositionPlan | undefined,
 ): EmptyColumn[] {
   const runs = tileRunsOn(wall, room);
-  const floorStartMm = floorRunStartMm(wall);
+  const floorSpan = floorRunSpan(wall, room);
   return [
     ...tilesOver(runs.wallOnly, {
       startMm: wallRowStartMm(wall),
-      endMm: Math.min(floorStartMm, plannedEndMm(runs.wallOnly, room)),
+      endMm: Math.min(floorSpan.startMm, plannedEndMm(runs.wallOnly, room)),
     }),
     ...(compositionPlan === undefined
-      ? tilesOver(runs.floor, {
-          startMm: floorStartMm,
-          endMm: plannedEndMm(runs.floor, room),
-        })
+      ? tilesOver(runs.floor, floorSpan)
       : plannedFloorTiles(
           runs.floor,
-          {
-            startMm: floorStartMm,
-            endMm: plannedEndMm(runs.floor, room),
-          },
+          floorSpan,
           compositionPlan.floorWidthsMm[wall],
         )),
   ];
@@ -337,9 +331,13 @@ export function lShellFloorRuns(room: DesignRoom): Readonly<
 
 function floorRunSpan(wall: DesignWall, room: DesignRoom): AlongWallSpan {
   const run = tileRunsOn(wall, room).floor;
-  return {
+  const physicalSpan = {
     startMm: floorRunStartMm(wall),
     endMm: plannedEndMm(run, room),
+  };
+  return {
+    ...physicalSpan,
+    endMm: wholeMillimetreReachableEndMm(physicalSpan),
   };
 }
 
@@ -369,7 +367,7 @@ function tilesOver(run: TileRun, span: AlongWallSpan): EmptyColumn[] {
   // row's floor — has nothing to record, and a tile with its floor at its top is a refusal
   // (`EMPTY_COLUMN_INVERTED`).
   if (lengthMm <= 0 || run.topMm <= run.y0Mm) return [];
-  const reachMm = span.endMm - (lengthMm % 2);
+  const reachMm = wholeMillimetreReachableEndMm(span);
   return splitEmptySpanAtCap(span.startMm, reachMm).map((piece) =>
     tileOver(
       run,
@@ -377,6 +375,14 @@ function tilesOver(run: TileRun, span: AlongWallSpan): EmptyColumn[] {
       piece.centreMm + piece.widthMm / 2,
     ),
   );
+}
+
+/** From a whole-millimetre edge every recorded piece needs an even width to retain a whole-
+ *  millimetre centre. An odd span therefore gives up its far-end millimetre (7D1-P P3). This is the
+ *  shared reach used both by the shell and by the composition planner's exported floor runs. */
+function wholeMillimetreReachableEndMm(span: AlongWallSpan): number {
+  const lengthMm = span.endMm - span.startMm;
+  return lengthMm > 0 ? span.endMm - (lengthMm % 2) : span.endMm;
 }
 
 function tileOver(run: TileRun, startMm: number, endMm: number): EmptyColumn {

@@ -24,6 +24,10 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../fixtures/kitchen-l-design.js";
+import {
+  GENERATION_PRIORITIES,
+  type GenerationCoreRole,
+} from "../generation/generation-priorities.js";
 import { toExactMillimetres } from "../millimetres.js";
 import { LEVELS } from "../module-grid.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
@@ -39,6 +43,21 @@ export interface MillimetreBounds {
 export interface LWallBounds {
   readonly wallA: MillimetreBounds;
   readonly wallB: MillimetreBounds;
+  /** The generated sink and hob, and the structural corner they must clear (ADR 0108 C–E).
+   *  These are distinct from the catalogue's manually buildable width ranges. */
+  readonly minimumKitchen: LMinimumKitchen;
+}
+
+export interface LMinimumKitchen {
+  /** `ENGINE_ROOM_LIMITS` carries the derived figures as a guard source but remains only the shell's
+   *  geometric envelope. The owner-approved product policy requires the coupled rule. */
+  readonly isRequired: boolean;
+  readonly sinkWidthMm: number;
+  readonly hobWidthMm: number;
+  readonly cornerReachMm: {
+    readonly wallA: number;
+    readonly wallB: number;
+  };
 }
 
 /** A shape is buildable exactly when its walls' bounds are stated here, so a buildable shape cannot
@@ -69,10 +88,35 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
     L: {
       wallA: { minMm: farthestCornerEdgeMm("A"), maxMm: MAX_ROOM_WIDTH_MM },
       wallB: { minMm: farthestCornerEdgeMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
+      minimumKitchen: {
+        isRequired: false,
+        sinkWidthMm: generatedRequiredWidthMm("sink"),
+        hobWidthMm: generatedRequiredWidthMm("hob"),
+        cornerReachMm: {
+          wallA: farthestCornerEdgeMm("A"),
+          wallB: farthestCornerEdgeMm("B"),
+        },
+      },
     },
   },
   heightBounds: { minMm: baseRowTopMm(), maxMm: MAX_ROOM_HEIGHT_MM },
 };
+
+/** The same declared generated width `planKitchenComposition` consumes. The required marker is
+ *  checked too: a role removed from the generated minimum must not remain a room prerequisite. */
+function generatedRequiredWidthMm(
+  role: Extract<GenerationCoreRole, "sink" | "hob">,
+): number {
+  const priority = GENERATION_PRIORITIES.find(
+    (candidate) => candidate.role === role,
+  );
+  if (!priority?.required) {
+    throw new Error(
+      `ENGINE_ROOM_LIMITS: generation declares no required ${role} width for the minimum kitchen`,
+    );
+  }
+  return priority.widthMm;
+}
 
 /** The farthest along-wall edge the reference kitchen's structural corner reaches on `wall`, **at any
  *  declared cabinet depth**. The L has exactly one corner assembly and it is structural (ADR 0021),

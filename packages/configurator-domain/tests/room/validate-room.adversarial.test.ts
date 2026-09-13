@@ -61,6 +61,7 @@ const ROOM_FIELDS: readonly RoomField[] = [
 
 const ROOM_ISSUE_CODES: readonly RoomIssueCode[] = [
   "SHAPE_NOT_BUILDABLE",
+  "ROOM_TOO_SMALL_FOR_KITCHEN",
   "VALUE_MISSING",
   "VALUE_NOT_WHOLE_MILLIMETRES",
   "WALL_TOO_SHORT",
@@ -68,6 +69,15 @@ const ROOM_ISSUE_CODES: readonly RoomIssueCode[] = [
   "HEIGHT_TOO_LOW",
   "HEIGHT_TOO_HIGH",
 ];
+
+/** Keeps wave 7A's arbitrary-policy tests focused on independent field bounds. The 7A2 suites use
+ *  the engine and approved generated-kitchen policies, whose dimensions are independently guarded. */
+const PERMISSIVE_MINIMUM_KITCHEN = {
+  isRequired: false,
+  sinkWidthMm: 1,
+  hobWidthMm: 1,
+  cornerReachMm: { wallA: 0, wallB: 0 },
+} as const;
 
 const SHAPE_ALONE: RoomValidation = {
   ok: false,
@@ -83,6 +93,7 @@ const NARROWER_OWNER_POLICY: RoomPolicy = {
     L: {
       wallA: { minMm: 1200, maxMm: 4000 },
       wallB: { minMm: 1100, maxMm: 3000 },
+      minimumKitchen: PERMISSIVE_MINIMUM_KITCHEN,
     },
   },
   heightBounds: { minMm: 2100, maxMm: 2900 },
@@ -95,6 +106,7 @@ const WIDER_OWNER_POLICY: RoomPolicy = {
     L: {
       wallA: { minMm: 300, maxMm: 6300 },
       wallB: { minMm: 300, maxMm: 5100 },
+      minimumKitchen: PERMISSIVE_MINIMUM_KITCHEN,
     },
   },
   heightBounds: { minMm: 500, maxMm: 3900 },
@@ -162,14 +174,30 @@ function lFieldBoundsOf(policy: RoomPolicy): readonly MillimetreBounds[] {
   return [walls.wallA, walls.wallB, policy.heightBounds];
 }
 
-/** An L at `policy`'s minimum on every field. **Read off the policy rather than written down**, so a
- *  moved bound moves the input with it: Amendment A lifted the engine's wall B floor from 900 to 1000,
- *  and every `lInput(900, 900, 860)` in this file became a room the engine refuses. */
+/** An L at `policy`'s field minima, unless its product rule also requires the generated minimum. */
 function lInputAtMinimaOf(policy: RoomPolicy): LRoomInput {
-  const [wallA, wallB, height] = lFieldBoundsOf(policy).map(
-    ({ minMm }) => minMm,
-  );
-  return lInput(wallA, wallB, height);
+  const room = roomAtMinimaOf(policy);
+  return lInput(room.widthMm, room.depthMm, room.heightMm);
+}
+
+/** The room `lInputAtMinimaOf(policy)` maps onto: wall A is its width, wall B its depth (ADR 0108
+ *  decision 8). Deriving it from numeric policy data keeps the expected room statically numeric. */
+function roomAtMinimaOf(policy: RoomPolicy): DesignRoom {
+  const walls = lWalls(policy);
+  const minimum = walls.minimumKitchen;
+  return {
+    shape: "L",
+    widthMm: minimum.isRequired
+      ? Math.max(
+          walls.wallA.minMm,
+          minimum.cornerReachMm.wallA +
+            minimum.sinkWidthMm +
+            minimum.hobWidthMm,
+        )
+      : walls.wallA.minMm,
+    depthMm: walls.wallB.minMm,
+    heightMm: policy.heightBounds.minMm,
+  };
 }
 
 /** An L one millimetre past `policy`'s maximum on every field. */
@@ -178,18 +206,6 @@ function lInputPastMaximaOf(policy: RoomPolicy): LRoomInput {
     ({ maxMm }) => maxMm + 1,
   );
   return lInput(wallA, wallB, height);
-}
-
-/** The room `lInputAtMinimaOf(policy)` maps onto: wall A is the width, wall B the depth (ADR 0108
- *  decision 8). */
-function roomAtMinimaOf(policy: RoomPolicy): DesignRoom {
-  const walls = lWalls(policy);
-  return {
-    shape: "L",
-    widthMm: walls.wallA.minMm,
-    depthMm: walls.wallB.minMm,
-    heightMm: policy.heightBounds.minMm,
-  };
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -289,6 +305,7 @@ const legalLPolicy: fc.Arbitrary<RoomPolicy> = fc.record({
     L: fc.record({
       wallA: legalBounds(MAX_ROOM_WIDTH_MM),
       wallB: legalBounds(MAX_ROOM_DEPTH_MM),
+      minimumKitchen: fc.constant(PERMISSIVE_MINIMUM_KITCHEN),
     }),
   }),
   heightBounds: legalBounds(MAX_ROOM_HEIGHT_MM),
@@ -413,6 +430,7 @@ describe("validateRoomInput reads the policy it is handed, not the engine's cons
         L: {
           wallA: { minMm: 1000, maxMm: 2000 },
           wallB: { minMm: 3000, maxMm: 4000 },
+          minimumKitchen: PERMISSIVE_MINIMUM_KITCHEN,
         },
       },
       heightBounds: { minMm: 2000, maxMm: 3000 },
@@ -685,7 +703,11 @@ describe("validateRoomInput never rounds, at the edges of floating point", () =>
     const floorOfOne: RoomPolicy = {
       approval: "owner-approved",
       buildableShapes: {
-        L: { wallA: { minMm: 1, maxMm: 10 }, wallB: { minMm: 1, maxMm: 10 } },
+        L: {
+          wallA: { minMm: 1, maxMm: 10 },
+          wallB: { minMm: 1, maxMm: 10 },
+          minimumKitchen: PERMISSIVE_MINIMUM_KITCHEN,
+        },
       },
       heightBounds: { minMm: 1, maxMm: 10 },
     };

@@ -19,6 +19,14 @@ const APPROVED_L_WALL_A_MAX_MM = 6300;
 const APPROVED_L_WALL_B_MIN_MM = 1000;
 const APPROVED_L_WALL_B_MAX_MM = 5100;
 
+/** ADR 0108 Amendment E: the generated kitchen uses 600 mm for both required bodies, and each free
+ *  run begins beyond the corner's farthest reach over all offered cabinet depths. Literals are
+ *  intentional owner-approved product data; the engine guard lives in the paired policy test. */
+const APPROVED_GENERATED_SINK_WIDTH_MM = 600;
+const APPROVED_GENERATED_HOB_WIDTH_MM = 600;
+const APPROVED_L_CORNER_REACH_WALL_A_MM = 900;
+const APPROVED_L_CORNER_REACH_WALL_B_MM = 1000;
+
 /** The ceiling: from the top of the wall-cabinet row — below it a kitchen has no upper cabinets — to
  *  the tallest room a design can store. A product choice that coincides with a module line, which is
  *  why it is not read off `LEVELS`. */
@@ -36,6 +44,15 @@ export const APPROVED_ROOM_POLICY: RoomPolicy = {
       wallB: {
         minMm: APPROVED_L_WALL_B_MIN_MM,
         maxMm: APPROVED_L_WALL_B_MAX_MM,
+      },
+      minimumKitchen: {
+        isRequired: true,
+        sinkWidthMm: APPROVED_GENERATED_SINK_WIDTH_MM,
+        hobWidthMm: APPROVED_GENERATED_HOB_WIDTH_MM,
+        cornerReachMm: {
+          wallA: APPROVED_L_CORNER_REACH_WALL_A_MM,
+          wallB: APPROVED_L_CORNER_REACH_WALL_B_MM,
+        },
       },
     },
   },

@@ -11,6 +11,7 @@ import {
   findOverflowingPlacementIds,
   generateKitchen,
   KITCHEN_L_DESIGN,
+  lShellFloorRuns,
   replayGenerationLog,
   setCabinetDepth,
   toInsertableBody,
@@ -208,6 +209,91 @@ describe("generateKitchen", () => {
         "placed",
       );
     }
+  });
+
+  it("plans wall A to its reachable odd-span end before allowing the final storage resize", () => {
+    const room: DesignRoom = {
+      shape: "L",
+      widthMm: 3501,
+      depthMm: 1700,
+      heightMm: 2200,
+    };
+    const result = generate(room);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(lShellFloorRuns(room).A).toMatchObject({
+      startMm: 900,
+      endMm: 3500,
+    });
+    expect(result.log.plan.remainderMm.A).toBe(200);
+    const storage = result.log.plan.bases.find(
+      (base) => base.id === "storage:A:0",
+    );
+    expect(storage).toMatchObject({
+      role: "storage",
+      widthMm: 600,
+      wall: "A",
+      startMm: 2700,
+      endMm: 3300,
+    });
+    const resizes = result.log.commands.filter(
+      (command) => command.type === "set_width",
+    );
+    expect(resizes).toHaveLength(1);
+    expect(resizes[0]?.widthMm).toBe(600);
+    expect(
+      result.log.steps.find((step) => step.id === storage?.id)?.commands,
+    ).toContainEqual(resizes[0]);
+    expect(interiorFloorGaps(result.design)).toEqual([]);
+    expect(findOverflowingPlacementIds(result.design)).toEqual([]);
+    expect(
+      replayGenerationLog({
+        log: result.log,
+        probeAt: createFakeProbeFactory(),
+      }),
+    ).toStrictEqual(result.design);
+  });
+
+  it("applies the same reachable-end derivation after wall B's even 100 mm reserve", () => {
+    const room: DesignRoom = {
+      shape: "L",
+      widthMm: 2100,
+      depthMm: 1801,
+      heightMm: 2200,
+    };
+    const result = generate(room);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(lShellFloorRuns(room).B).toMatchObject({
+      startMm: 900,
+      endMm: 1700,
+    });
+    expect(result.log.plan.remainderMm.B).toBe(200);
+    const sink = result.log.plan.bases.find((base) => base.id === "sink");
+    expect(sink).toMatchObject({
+      widthMm: 600,
+      wall: "B",
+      startMm: 900,
+      endMm: 1500,
+    });
+    const resizes = result.log.commands.filter(
+      (command) => command.type === "set_width",
+    );
+    expect(resizes).toHaveLength(1);
+    expect(resizes[0]?.widthMm).toBe(600);
+    expect(
+      result.log.steps.find((step) => step.id === sink?.id)?.commands,
+    ).toContainEqual(resizes[0]);
+    expect(interiorFloorGaps(result.design)).toEqual([]);
+    expect(findOverflowingPlacementIds(result.design)).toEqual([]);
+    expect(
+      replayGenerationLog({
+        log: result.log,
+        probeAt: createFakeProbeFactory(),
+      }),
+    ).toStrictEqual(result.design);
   });
 
   it("keeps wall B's shallow reserve and spends it at the deepest depth", () => {
