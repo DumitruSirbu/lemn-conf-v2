@@ -12,6 +12,5 @@ export default async function HomePage({
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
 
-  // The room step arrives in a later milestone; until then the configurator opens on the scene.
-  return redirect({ href: "/configurator/configure", locale });
+  return redirect({ href: "/configurator/room", locale });
 }

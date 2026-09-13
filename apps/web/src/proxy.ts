@@ -57,9 +57,9 @@ function hasCaseVariantLocalePrefix(pathname: string): boolean {
 }
 
 /**
- * Only the four customer route families participate in locale routing. In particular, a supported
- * locale prefix in front of `/api` or `/internal` does not turn that invalid URL into a customer
- * route, and an unsupported first segment remains an ordinary Next.js 404 candidate.
+ * Only the customer route families below participate in locale routing. The configurator family is
+ * an exact allow-list: `configure`, `contact`, and `room`; a nested room path is not a customer
+ * route. A locale in front of `/api` or `/internal` remains an ordinary Next.js 404 candidate.
  */
 function isCustomerPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
@@ -71,7 +71,9 @@ function isCustomerPath(pathname: string): boolean {
   if (
     routeSegments.length === 2 &&
     routeSegments[0] === "configurator" &&
-    (routeSegments[1] === "configure" || routeSegments[1] === "contact")
+    (routeSegments[1] === "configure" ||
+      routeSegments[1] === "contact" ||
+      routeSegments[1] === "room")
   )
     return true;
 

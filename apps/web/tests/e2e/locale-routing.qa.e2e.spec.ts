@@ -118,18 +118,19 @@ test("both localized documents expose locale metadata and the environment's nonc
   expect(runtimeErrors).toEqual([]);
 });
 
-test("localized roots and all four customer route families are real runtime routes", async ({
+test("localized roots and all five customer entrypoints are real runtime routes", async ({
   request,
 }) => {
   for (const locale of ["ro", "ru"] as const) {
     const root = await request.get(`/${locale}`, { maxRedirects: 0 });
     expect(root.status()).toBe(307);
-    expect(root.headers().location).toBe(`/${locale}/configurator/configure`);
+    expect(root.headers().location).toBe(`/${locale}/configurator/room`);
     assertCsp(root);
 
     for (const path of [
       "/configurator/configure",
       "/configurator/contact",
+      "/configurator/room",
       "/d/qa-route-does-not-exist",
     ]) {
       const response = await request.get(`/${locale}${path}`, {
@@ -149,6 +150,8 @@ test("invalid locale shapes and prefixed tooling are 404 while unprefixed toolin
     "/en/configurator/configure",
     "/RO/configurator/configure",
     "/ro/configurator/configure/extra",
+    "/ro/configurator/room/x",
+    "/ru/configurator/room/x",
     "/ro/api/designs",
     "/ru/internal/scene-shot",
   ]) {

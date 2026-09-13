@@ -16,7 +16,7 @@ describe("localized home redirect", () => {
 
       expect(localizedRedirect).toHaveBeenCalledOnce();
       expect(localizedRedirect).toHaveBeenCalledWith({
-        href: "/configurator/configure",
+        href: "/configurator/room",
         locale,
       });
     },

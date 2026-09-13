@@ -17,17 +17,19 @@ vi.mock("next-intl/server", () => ({ getTranslations }));
 const appDirectory = new URL("../../src/app/", import.meta.url);
 
 describe("localized route tree", () => {
-  it("owns only the four customer entrypoint families beneath [locale]", () => {
+  it("owns only the five customer entrypoints beneath [locale]", () => {
     const localizedEntrypoints = [
       "[locale]/page.tsx",
       "[locale]/configurator/configure/page.tsx",
       "[locale]/configurator/contact/page.tsx",
+      "[locale]/configurator/room/page.tsx",
       "[locale]/d/[id]/page.tsx",
     ];
     const legacyEntrypoints = [
       "page.tsx",
       "configurator/configure/page.tsx",
       "configurator/contact/page.tsx",
+      "configurator/room/page.tsx",
       "d/[id]/page.tsx",
     ];
 
