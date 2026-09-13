@@ -7,7 +7,9 @@
 > The branch-wide `pnpm ci:local` passed on the frozen tree; close-out commit `1e96104` and every
 > local M7 commit through it are pushed to `origin/m7-room-and-presets`.
 > **Updated 2026-09-12: wave 7D2 is DONE at `4133cdc`, closed at `2126d52`. Updated 2026-09-13:
-> wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`; next wave: 7E1.** Final `pnpm ci:local` and
+> wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`. Wave 7E1 is DONE at `57f1e94`; next wave:
+> 7E2.** 7E1's documentation close-out commit, final `pnpm ci:local` and push are still owed. Final
+> 7A2 `pnpm ci:local` and
 > the pre-push rerun passed in full; every M7 commit through `6cde5ef` is pushed to
 > `origin/m7-room-and-presets`.
 >
@@ -698,7 +700,7 @@ Branch: waves land on `m7-room-and-presets`.
 | **7C** | Declared adjustment within the threshold; a preset's long remainder recorded as empty space | `src/presets/adjust-recipe.ts`, `src/presets/evaluate-preset.ts`, `src/presets/preset-recipe.ts`, `src/room/room-policy.ts` | 7B, 7D1 | **Full** | No | **blocked on Q2** |
 | **7D1** | Generation shell: the structural corner plus recorded empty space fitted to the room | `src/generation/shell-design.ts`, `src/index.ts` | 7B | **Full** | No | none |
 | **7D2** | Priority insertion through `insertBody`; the step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/index.ts` (+ a real-probe parity test in `three-adapter/tests`) | 7D1 | **Full** | No | none (interim priorities; Q3 is data) |
-| **7E1** | `/configurator/room` route, URL state, proxy allow-list, `/` → Step 1 | `apps/web/src/proxy.ts`, `app/[locale]/configurator/room/page.tsx`, `src/room/room-url-state.ts`, `app/[locale]/page.tsx` | 7A | **Full** (every route) | Unstyled only | Q7 interim |
+| **7E1** | `/configurator/room` route, URL state, proxy allow-list, `/` → Step 1 — **DONE, `57f1e94`** | `apps/web/src/proxy.ts`, `app/[locale]/configurator/room/page.tsx`, `src/room/room-url-state.ts`, `app/[locale]/page.tsx` | 7A | **Full** (every route) | Unstyled only | Q7 interim |
 | **7E2** | Create the design (mint, then an awaited `PUT`), `/d/{id}` only after the write, editor back links, start-over, demo URL after first save | `src/room/create-design.ts`, `app/configurator/configure/configure-screen.tsx`, `app/d/[id]/design-load-error.tsx`, `src/store/configurator-store.ts` | 7B, 7E1 | **Full + security** | Light check | Q7 interim |
 | **7F1** | 1A shape cards; 1B fields, corner toggle, live 2D plan | `src/room/room-screen.tsx`, `shape-picker.tsx`, `dimensions-form.tsx`, `plan-preview.tsx`, `room.module.css` (+ `messages/ro.json`, `ru.json`) | 7A, 7E1 | Light | **Yes** | Q8 at close |
 | **7F2** | 1C validation state, shape refusal, the wall marked red | `dimensions-form.tsx`, `plan-preview.tsx`, `src/room/room-issue-copy.ts` (+ messages) | 7F1 | Light | **Yes** | Q5 interim |
@@ -1268,7 +1270,7 @@ table.
 | **7D1** | Composition shell for the L — **DONE, `f5b4cd9`** | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
-| **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 | *carried* | 7A | Full | Unstyled | — |
+| **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
 | **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
@@ -1325,7 +1327,8 @@ after another.
 ~~**7D1b is DONE in `f61c361` + `85091cc`. Next dispatchable wave: 7D2**, whose criteria 9–14 and
 ADR 0110 Amendments A–D are the live contract below.~~ ~~**Corrected 2026-09-12: 7D2 is DONE at
 `4133cdc`; next dispatchable wave: 7A2.**~~ **Corrected 2026-09-13: 7A2 is DONE at `f97d621`,
-closed at `6cde5ef`; next dispatchable wave: 7E1.** 7A2's shipped contract is ADR 0108 Amendment E and the
+closed at `6cde5ef`; next dispatchable wave: 7E1.** **Corrected again 2026-09-13: 7E1 is DONE at
+`57f1e94`; next dispatchable wave: 7E2.** 7A2's shipped contract is ADR 0108 Amendment E and the
 criteria below.
 
 ### Revised criteria for new and changed waves
@@ -2057,6 +2060,47 @@ lint and typecheck passed; domain **4,196**, persistence **282**, three-adapter 
 boundaries, lockfile and SCA passed, with no known vulnerabilities. The pre-push hook passed the
 same full gate set again, then advanced `origin/m7-room-and-presets` from `43bf2dc` through
 `6cde5ef`.
+
+### 7E1 close-out — 2026-09-13, `57f1e94`
+
+**What shipped:** `/ro/configurator/room` and `/ru/configurator/room` are exact localized customer
+routes under the existing CSP/nonce proxy. The root redirects through one locale-aware href to Step
+1. A pure `room-url-state` boundary accepts Next's raw query shape, rejects repeated or malformed
+values before the domain, converts canonical metre text to whole millimetres through the existing
+integer-only parser, and then hands a typed `RoomInput` to `validateRoomInput` with
+`APPROVED_ROOM_POLICY`. Missing or invalid input resolves to the earliest truthful 1A/1B/1C state
+with its fields marked; a valid L reaches 1D with the domain's `DesignRoom`. Serialisation emits only
+the chosen shape's walls, height and direction, and no unknown input key survives it. The localized
+page is deliberately an unstyled semantic placeholder for 7F1.
+
+Scope held to **four production and six test files, 953 insertions and 10 deletions**. The configure
+page, editor, its existing e2e navigations, Playwright readiness URL and fidelity capture remain
+unchanged. That is the 7E1-only staging required by ADR 0111 Amendment A: 7E4 first moves the suite
+and tooling, then 7E3a retires the customer demo route while adding server-side visitor resume.
+
+**Adversarial QA:** the final focused suite passed **122/122**. The round-trip property ran **500
+cases per arm**, **2,500 total**, across linear, L-left, L-right, U-left and U-right. QA killed and
+restored **9/9 meaningful mutation classes** and reported no Q findings. QA was cut off while one deliberate page
+mutation was present; the coordinator identified and restored that exact residue before rerunning
+the focused tests and static gates, so no mutation entered the code commit.
+
+**Full-tier review, unstyled-only:** logic L1.1 found that the runtime e2e route matrix had not yet
+asserted the new exact room route and its nested-route 404; logic L1.2 found a probabilistic
+branch-coverage hole. Both were test-only findings, both were repaired, and logic re-review passed.
+Clean-code review reported no findings. The visual column is **Unstyled**, so no visual pass ran.
+The wave changes no authentication, persistence, customer data, write endpoint or dependency, so no
+security pass ran.
+
+**Coordinator verification:** the complete elevated `pnpm check` exited **0**: format, lint and
+typecheck passed; domain **4,196**, persistence **282**, three-adapter **3,059** and web **2,667**
+passed. Focused locale-routing Playwright passed **4/4** on the rerun outside the sandbox. The first
+sandboxed `pnpm check` was intentionally terminated after persistence network timeouts, and the
+first sandboxed Playwright attempt failed to bind with `EPERM`; neither is recorded as green
+evidence.
+
+Implementation is `57f1e94`. This documentation close-out is prepared but not yet committed, and
+the final `pnpm ci:local` plus push are still owed; the last confirmed remote commit remains
+`72fbb2d`. Next wave: **7E2**.
 
 ## Verification
 

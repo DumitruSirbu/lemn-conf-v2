@@ -52,7 +52,10 @@ hob. Close-out is `2126d52`; every M7 commit through it is pushed to
 validation and generation agree across the approved L range, and the odd-millimetre shell defect
 found during the wave is corrected under ADR 0110 without changing its 200 mm usable-remainder
 rule. The branch-wide `pnpm ci:local` and the pre-push rerun both passed in full; every M7 commit
-through `6cde5ef` is pushed to `origin/m7-room-and-presets`.
+through `6cde5ef` is pushed to `origin/m7-room-and-presets`. **Updated again 2026-09-13: wave 7E1
+is DONE at `57f1e94`; 7E2 is next.** The exact localized room route, its URL-state boundary, the
+proxy allow-list and `/` → Step 1 now exist. The documentation close-out commit, final
+`pnpm ci:local` and push are still owed, so `origin` remains at `72fbb2d`.
 ~~Currently in progress: M6~~, ~~now on branch
 `wave/6r-control-shapes-and-strip-row`~~ ~~**now on branch `wave/6t-finish`**~~ **back on `main` at
 `bdef351` — every M6 wave branch is merged**. ~~**Five M6 waves
@@ -743,45 +746,36 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-13. M7 wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`; 7E1 is next.** The
-> coupled room rule now shares the generated minimum-kitchen data and agrees with composition across
-> the approved L range. Final `pnpm ci:local` and the pre-push rerun passed in full; every M7 commit
-> through `6cde5ef` is pushed to `origin/m7-room-and-presets`.
+> **RESUME HERE — 2026-09-13. M7 wave 7E1 is DONE at `57f1e94`; 7E2 is next.** The code commit is
+> local and immutable. This documentation close-out is not committed yet; final `pnpm ci:local` and
+> the push are still owed, so the last confirmed remote commit is `72fbb2d`.
 >
-> - **What shipped:** `APPROVED_ROOM_POLICY.minimumKitchen` carries the owner-approved generated
->   sink 600 / hob 600 / corner A900 / B1000 figures with the gate enabled. `ENGINE_ROOM_LIMITS`
->   derives the same data from generation priorities and corner reach, but keeps the gate disabled
->   because it describes the shell envelope, not the product rule. `validateRoomInput` emits exactly
->   `{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }` only after every field passes. The
->   B→A order permits both bodies on A, both on B, or sink on B and hob on A. `LMinimumKitchen` is
->   publicly exported, and a manually edited 560 mm sink remains legal.
-> - **Boundaries:** ADR 0108 Amendment E is now executable product data: A=900 has B2199 refuse /
->   B2200 accept; B=1000 has A2099 refuse / A2100 accept; A=1500 has B1599 refuse / B1600 accept.
->   The 900 × 2160 room refuses.
-> - **Implementation finding I1.1, adjudicated as a pre-existing 7D2 defect:** a
->   3501 × 1700 × 2200 room passed validation but generation threw because a 201 mm physical
->   remainder was compared where the usable grid remainder was 200 mm. The shared
->   `wholeMillimetreReachableEndMm` now supplies shell tiling and `lShellFloorRuns`; exact wall-A and
->   mirrored wall-B regressions hold the unchanged 200 mm rule with no `<= 201` exception. ADR 0110's
->   dated correction also fixes its witness: B=1699 leaves 98 mm planned, plus 1 unrecordable mm and
->   the 100 mm reserve = 199 mm physical; B=1599 has 598 mm planned, not 599.
-> - **QA and Full-tier review:** the first QA dispatch was invalidated when implementer cleanup moved
->   the tree; QA restarted from the new frozen baseline. It added **37 tests in two files**, passed
->   **409/409** focused and domain **4,196/4,196 across 190 files**, killed and restored **10 mutation
->   classes**, and swept **287 odd/even generated rooms** with production fingerprints restored and
->   no production findings. Logic and clean-code review ran in parallel after QA. Clean findings
->   R1.1/R1.2 (public type export and unsafe test-helper casts) and a QA TS2339 narrowing issue were
->   fixed. Coordinator lint then found optional-chain style and QA-test lint issues; after repair the
->   same reviewers reported R3 clean. Logic's only R1.1 was the ADR 0110 witness disagreement now
->   corrected in documentation. No visual or security review applied.
-> - **Coordinator verification:** the first `pnpm check` stopped on seven lint errors. After fixes, a
->   sandboxed rerun passed format, lint, typecheck and domain **4,196**, then failed only because the
->   sandbox blocked Neon (**14 failed, 196 passed, 72 skipped** persistence); it is not green
->   evidence. The complete elevated run exited **0**: format, lint and typecheck passed; domain
->   **4,196**, persistence **282**, adapter **3,059** and web **2,588** passed. The pre-commit hook
->   formatted staged files unchanged and reran lint green. 7A2's visual column is **No**.
-> - **Next: 7E1**, the `/configurator/room` route, URL state, proxy allow-list and `/` → Step 1.
->   Then continue: 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G → 7B → 7C →
+> - **What shipped:** four production files add a pure `room-url-state` parser/serialiser, the exact
+>   localized `/configurator/room` server route, the proxy allow-list entry and the localized root
+>   redirect. The query carries only shape-specific walls, height and direction. Raw, missing,
+>   repeated and malformed values resolve to the earliest truthful 1A/1B/1C state with fields
+>   marked; only parsed millimetres and a validated direction reach the domain. A valid room reaches
+>   1D, and canonical metre text round-trips without floating-point conversion. The route is an
+>   intentionally unstyled placeholder for 7F1.
+> - **Scope held:** four production and six test files, **953 insertions / 10 deletions**.
+>   `/configurator/configure`, the editor navigations, Playwright readiness URL and fidelity tooling
+>   remain unchanged for the ordered 7E4 → 7E3a migration required by ADR 0111 Amendment A.
+> - **Adversarial QA:** **122/122 focused tests** passed. Linear, L-left, L-right, U-left and U-right
+>   each ran **500 property cases**, **2,500 total**. QA killed and restored **9/9 meaningful mutation
+>   classes** and reported no Q findings.
+> - **Full-tier review:** logic L1.1 found that runtime e2e coverage had not yet asserted the new
+>   exact route and nested-route 404, and L1.2 found probabilistic branch coverage; both were
+>   repaired in tests and the logic re-review passed. Clean-code review reported no findings. The
+>   wave is unstyled-only, so no visual pass ran; it changed no auth, persistence or public write
+>   surface, so no security pass ran.
+> - **Coordinator verification:** elevated `pnpm check` exited **0**: domain **4,196**, persistence
+>   **282**, three-adapter **3,059** and web **2,667** passed, with format, lint and typecheck green.
+>   Focused locale-routing Playwright passed **4/4** after rerunning outside the sandbox. The earlier
+>   sandboxed `pnpm check` was intentionally terminated after persistence network timeouts, and the
+>   first sandboxed Playwright attempt failed to bind with `EPERM`; neither is green evidence.
+> - **Next: 7E2**, design creation through the existing mint then awaited `PUT`, navigation only
+>   after the write, and the editor/back/start-over links. Then continue: 7F1 → 7F4 → 7P1 → 7P2 →
+>   7G → 7B → 7C →
 >   7F2 → 7F3 → 7E4 → 7E3a → 7E3c → 7E3b → 7H → 7I → 7J → 7K → 7L.
 > - **Draft PR not opened:** the local `gh` token lacks `createPullRequest`; the owner opens it at
 >   `https://github.com/DumitruSirbu/lemn-conf-v2/pull/new/m7-room-and-presets` or widens the token.
@@ -789,7 +783,8 @@ policy, so every per-endpoint limit is application code.
 ~~**2026-09-11 — M7's next wave is 7D1**~~ ~~**Corrected the same day: 7D1 shipped at `f5b4cd9` and
 7D1b was next.**~~ ~~**Corrected again: 7D1b is DONE in `f61c361` + `85091cc`; M7's next wave is
 7D2.**~~ ~~**Corrected 2026-09-12: 7D2 is DONE at `4133cdc`; M7's next wave is 7A2.**~~ **Corrected
-2026-09-13: 7A2 is DONE at `f97d621`, closed at `6cde5ef`; M7's next wave is 7E1.** Wave 7A shipped
+2026-09-13: 7A2 is DONE at `f97d621`, closed at `6cde5ef`.** **Corrected again 2026-09-13: 7E1 is
+DONE at `57f1e94`; M7's next wave is 7E2.** Wave 7A shipped
 at `8df0d49`; the close-outs, revised criteria and full wave table are in
 `milestones/M7-room-and-presets.md`. The domain waves share `src/index.ts`; dispatch them one after
 another per the tree-freeze rule.
