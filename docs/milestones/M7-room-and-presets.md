@@ -6,6 +6,9 @@
 > the owner. **Wave 7D1b is DONE in implementation commits `f61c361` + `85091cc`; next wave: 7D2.**
 > The branch-wide `pnpm ci:local` passed on the frozen tree; close-out commit `1e96104` and every
 > local M7 commit through it are pushed to `origin/m7-room-and-presets`.
+> **Updated 2026-09-12: wave 7D2 is DONE at `4133cdc`, closed at `2126d52`. Updated 2026-09-13:
+> wave 7A2 is DONE at local commit `f97d621`; next wave: 7E1.** The 7A2 code commit is not yet
+> claimed pushed; its close-out and gate remain with the coordinator.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1273,7 +1276,7 @@ table.
 | **7G** | Thumbnail captured at save, stored, served | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts` | 7P2 | Full + security (upload) | Capture | — |
 | **7B** | Preset matching: ±600 window, fit, availability, one evaluation | *carried* files; revised criteria below | 7A | Full | No | — |
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
-| **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
+| **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
 | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
 | **7E4** | e2e and tooling off `/configurator/configure` | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs` | — | Light (tests; CI is the verdict) | No | — |
@@ -1291,9 +1294,11 @@ table.
 **Recommended order, and why.** The owner's own process — *choose the room, generate, adjust, save* —
 is the critical path, because matching is useless until the library has presets: **7A → 7D1 → 7D2 →
 7E1 → 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G**, then 7B → 7C → 7F2 → 7F3 for matching, ~~with 7E4 → 7E3, 7H,
-7I and 7J fitted in where the tree is free~~ **then 7A2 once 7D2 exists, with 7E4 → 7E3a (→ 7E3b on
+7I and 7J fitted in where the tree is free~~ ~~**then 7A2 once 7D2 exists, with 7E4 → 7E3a (→ 7E3b on
 F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **and again the same day:
-7E4 → 7E3a → 7E3c → 7E3b** — the share path lands before the open read closes).
+7E4 → 7E3a → 7E3c → 7E3b** — the share path lands before the open read closes).~~ **Corrected
+2026-09-13 after 7A2 closed: 7E1 → 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G → 7B → 7C → 7F2 → 7F3 →
+7E4 → 7E3a → 7E3c → 7E3b → 7H → 7I → 7J → 7K → 7L.**
 
 **The 7E3 split, confirmed against F5's final answer (ADR 0115) — three waves, not two.**
 - **7E3a — cookie and resume.** Needed under every answer the owner gave; nothing reads a design by
@@ -1317,8 +1322,9 @@ after another.
 
 ~~**Next dispatchable wave after 7A: 7D1**~~ — ~~**7D1 shipped at `f5b4cd9`; 7D1b was next.**~~
 ~~**7D1b is DONE in `f61c361` + `85091cc`. Next dispatchable wave: 7D2**, whose criteria 9–14 and
-ADR 0110 Amendments A–D are the live contract below.~~ **Corrected 2026-09-12: 7D2 is DONE at
-`4133cdc`; next dispatchable wave: 7A2.** Its corrected contract is ADR 0108 Amendment E and the
+ADR 0110 Amendments A–D are the live contract below.~~ ~~**Corrected 2026-09-12: 7D2 is DONE at
+`4133cdc`; next dispatchable wave: 7A2.**~~ **Corrected 2026-09-13: 7A2 is DONE at local commit
+`f97d621`; next dispatchable wave: 7E1.** 7A2's shipped contract is ADR 0108 Amendment E and the
 criteria below.
 
 ### Revised criteria for new and changed waves
@@ -1393,9 +1399,11 @@ with *recipe* meaning a library row or a fixture)
     of at least 600 mm. There is no persistent no-storage flag, and `dropped` lists omitted core
     roles only. The wall-A 2700 sweep pins wall B at **1599 / 1600 / 1699 / 1700**: 1599 has no
     600 mm final storage fit; 1600 crosses that fit boundary; 1699 keeps the fridge dropped and
-    refills one wall-B storage unit, leaving 99 mm planned (199 mm physical with the reserve); 1700
-    crosses the next core-selection boundary. Every result still obeys the shallow wall-B 699 mm
-    physical-empty cap.
+    refills one wall-B storage unit, ~~leaving 99 mm planned~~ **corrected 2026-09-13: leaving 98 mm
+    planned, plus 1 unrecordable millimetre and the 100 mm reserve = 199 mm physical**; 1700 crosses
+    the next core-selection boundary. At 1599 the corresponding planned remainder is 598 mm, not
+    599. Every result still obeys the shallow wall-B 699 mm physical-empty cap; the product boundary
+    and 200 mm usable-remainder rule are unchanged.
 11. **Low ceilings**: the property in criterion 1 includes heights 2200–2599, and no generated body
     rises above the room — the shell's cap means a top-row body is never offered there. ~~**If F2 adds
     upper cabinets and a hood**~~ **The upper cabinets and hood F2 added** stand in the wall band (1500–2200 mm, `LEVELS[1]`), which fits
@@ -1995,6 +2003,53 @@ complete rerun passed domain **4,136**, persistence **282**, three-adapter **3,0
 Playwright **191 passed + 2 expected skipped (193 total)**, build, boundaries, lockfile and SCA. The
 pre-push hook then passed that full gate set again and advanced `origin/m7-room-and-presets` from
 `4fa463f` through `2126d52`.
+
+### 7A2 close-out — 2026-09-13, `f97d621`
+
+**What shipped:** `APPROVED_ROOM_POLICY` now carries an owner-approved `minimumKitchen` with a
+600 mm generated sink, 600 mm hob and the L corner's 900 mm wall-A / 1000 mm wall-B reaches; its gate
+is enabled. `ENGINE_ROOM_LIMITS` derives the same figures from generation priorities and corner
+reach, while its gate remains informational and disabled because the engine object describes the
+shell envelope rather than the product rule. `validateRoomInput` evaluates the coupled predicate
+only after every field passes and then emits exactly
+`{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }`. In B→A order the minimum can place both
+bodies on A, both on B, or the sink on B and hob on A. The public package exports
+`LMinimumKitchen`. Manual insertion and resizing still permit the catalogue's 560 mm sink floor.
+
+The exact ADR 0108 Amendment E boundaries ship: A=900 has B2199 refuse / B2200 accept; B=1000 has
+A2099 refuse / A2100 accept; A=1500 has B1599 refuse / B1600 accept. A 900 × 2160 room refuses.
+
+**Implementation finding I1.1, adjudicated without a new owner decision:** the implementer's
+property found that 3501 × 1700 × 2200 passed validation but generation threw. A 201 mm physical
+remainder had been compared where the usable whole-millimetre grid remainder was 200 mm. This is a
+pre-existing 7D2 defect under ADR 0110's odd-span rule and revised Amendment D, not part of the new
+room policy. `wholeMillimetreReachableEndMm` now supplies both shell tiling and `lShellFloorRuns`;
+exact wall-A and mirrored wall-B regressions hold the existing 200 mm rule with no `<= 201`
+exception. ADR 0110's 2026-09-13 correction records the related witness arithmetic: B=1699 has
+98 mm planned, plus 1 unrecordable millimetre and the 100 mm reserve = 199 mm physical; B=1599 has
+598 mm planned, not 599. The product cap and transition boundaries do not move.
+
+**Adversarial QA:** the initial dispatch was invalidated because implementer cleanup moved the tree;
+QA restarted from the new frozen baseline. It added **37 tests in two files**, passed **409/409**
+focused cases and the full domain suite at **4,196/4,196 across 190 files**, killed and restored
+**10 mutation classes**, and ran a **287-case odd/even generation sweep**. Production fingerprints
+were restored and QA reported no production findings.
+
+**Full-tier review, no visual or security pass:** logic and clean-code review ran in parallel after
+QA. Clean-code R1.1/R1.2 produced a public type export and removed unsafe test-helper casts; QA's
+TS2339 test narrowing was also repaired. The second round was clean. Coordinator lint then exposed
+an optional-chain style issue and QA-test lint errors; after those fixes the same reviewers ran R3
+and both reported clean. Logic R1.1 was the documentation disagreement in ADR 0110's odd-span
+witness, corrected here and in that record. The wave-table visual column is **No**.
+
+**Coordinator verification on the frozen tree:** the first `pnpm check` attempt caught seven lint
+errors and stopped. After repair, a sandboxed rerun passed format, lint, typecheck and domain
+**4,196**, then failed only because the sandbox blocked Neon: persistence **14 failed, 196 passed,
+72 skipped**; it is not green evidence. The complete elevated `pnpm check` exited **0**: format,
+lint and typecheck passed; domain **4,196**, persistence **282**, three-adapter **3,059** and web
+**2,588** passed. The pre-commit hook formatted the staged files without changing them and reran
+lint green. Implementation is local commit `f97d621`; no `pnpm ci:local` or push is claimed by this
+close-out.
 
 ## Verification
 

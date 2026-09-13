@@ -411,6 +411,20 @@ a room where the real generator cannot meet the ruled minimum. Shrinking generat
 would overturn ADR 0110 D3 and the shipped 7D2 layout without an owner ruling. Special-casing
 900 × 2160 would preserve one stale example while leaving the general property false.
 
-**Verification owed by 7A2.** Assert all three boundary pairs above and a property over the approved
-L range: the coupled rule passes if and only if `generateKitchen` returns a design containing both a
-sink and a hob.
+~~**Verification owed by 7A2.** Assert all three boundary pairs above and a property over the
+approved L range: the coupled rule passes if and only if `generateKitchen` returns a design
+containing both a sink and a hob.~~
+
+## Implementation record — 2026-09-13: wave 7A2 shipped the coupled rule at `f97d621`
+
+Amendment E is implemented as policy data. `APPROVED_ROOM_POLICY.minimumKitchen` carries the
+owner-approved 600 mm sink, 600 mm hob and 900 / 1000 mm corner reaches with the gate enabled.
+`ENGINE_ROOM_LIMITS` derives the same figures from generation priorities and corner geometry but
+keeps the gate informational and disabled for the shell envelope. `validateRoomInput` applies the
+coupled rule only after every field passes and then emits exactly
+`{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }`. `LMinimumKitchen` is part of the public
+domain API.
+
+The three exact boundary pairs above, the 900 × 2160 refusal and the generated-kitchen equivalence
+property all pass. The property follows the B→A order from Amendment C: both bodies on A, both on B,
+or sink on B and hob on A. The catalogue's 560 mm manual sink floor remains legal.
