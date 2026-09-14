@@ -27,6 +27,20 @@
 > taking frame 1B's two scales literally. **R5 was corrected on a measurement the same day** and the
 > locale-menu extraction is deferred to its own wave; 7F1 imports the component where it stands.
 > **No owner question on 7F1 is open.**
+> **Updated again 2026-09-14: 7F1's visual gate found two defects the suite could not — D4 (Back loses
+> a typed room) and D5 (a traversal renders 1A under a 1B URL) — ruled on as R9 and planned as
+> [*Wave 7F1-D45*](#wave-7f1-d45--dispatchable-punch-list-back-keeps-the-room-the-customer-typed):
+> three slices, five amended criteria and four new ones. R9 is upheld against the Next 16.3.4 docs in
+> this repository and against the production build output; `roomEntryKey` is deleted rather than
+> repaired, and `router.bfcacheId` is rejected on the documentation's own words. **Q-D45-1 to Q-D45-4
+> are answered the same day** — its own wave row, the traversal e2e lands here rather than at 7K,
+> `URL_SETTLE_MS` is 400 ms, and the fallback stays deliberately undecided as the escape hatch. **The
+> departure path was corrected by the coordinator before dispatch** — a deliberate navigation
+> **flushes** the pending write and leaves once it has landed; cancelling, or dispatching the
+> `replace` and the `push` in one tick, each silently restores D4. **Q-D45-5 is answered too** — the
+> 1B *Continuă* keeps its `<button>`, and it does nothing because **step 2 does not exist yet**, not
+> because of R9; the *Departures* bullet carries the amendment and the visual gate carries it as a
+> must-not-file. **No question on this wave is the owner's.**
 > **Updated once more 2026-09-14 at `b18b38e`: 7H is planned ahead of its turn, at the owner's
 > request** — read [*Wave 7H — dispatchable punch list*](#wave-7h--dispatchable-punch-list), which is
 > the binding version of the 7H bullet in the earlier criteria section. 16 criteria, six slices, and
@@ -2995,6 +3009,19 @@ records them as findings and no implementer "fixes" them back:
   pushes the canonical query), so the rule does not reach it, and a `div` here would be the opposite
   error: a thing that acts as a control while announcing itself as text.
 
+  > **Amended 2026-09-14 (Q-D45-5, coordinator's ruling): the `<button>` stays, and the reason above
+  > is only half of it.** ***Continuă* at 1B does nothing observable, and it is waiting for a
+  > destination rather than broken by a navigation mechanism.** `continueToPresets` pushes the same
+  > route (`room-screen.tsx:215`), `DimensionsStep` branches on no sub-state at all — 1B, 1C and 1D
+  > render the same chips, plan, form and footer, and `state.substate` reaches only `page.tsx`'s
+  > `data-` attributes — and the CTA is enabled only once every field parses, at which point the
+  > canonical query *is* the URL. **Step 2 is 7F4's**, and the router declines to mint an entry for a
+  > push to the URL already showing (`app-router.js:59-61`). **The affordance is still correct**: the
+  > element is load-bearing the moment 7F4 lands, and a `div` would have to be undone that same wave.
+  > **For the visual verifier: this tap is expected to do nothing, and it must not be filed as a
+  > defect.** *(Wave 7F1-D45 changes nothing here — see its departure section for the measurement that
+  > the push was already being demoted before R9.)*
+
 **R5 — ~~the locale menu is extracted~~ → the extraction is deferred to its own wave; 7F1 imports it
 where it stands. Corrected 2026-09-14 on a measurement, and the correction is the part worth reading.**
 
@@ -5866,3 +5893,559 @@ together**, and the visual verifier owns the tree while it captures (`docs/best-
 2. **The 600 mm identity is the wave's spine.** If the corner cannot be reproduced byte-for-byte at the
    shipped depth, the derivation in 7D6 is wrong and this wave stops rather than re-baselining.
 3. **The hob half of §13.3 q6 will look adjacent and cheap.** It is neither in scope nor measured here.
+
+## Wave 7F1-D45 — dispatchable punch list: Back keeps the room the customer typed
+
+**Tier: Light** (one screen, a settled contract, no new copy): adversarial QA, then **one** combined
+reviewer. **Visual: yes** — the 390 × 844 gate is re-run over 1A and 1B in both locales, and it gains
+one check it never had (the caret, below). **Owner answers needed: none.** **Planned 2026-09-14 by the
+architect, against Next 16.3.4's own docs in `apps/web/node_modules/next/dist/docs/` and against the
+production build output in `apps/web/.next`.**
+
+**Goal.** Close wave 7F1's two open visual-gate defects — **D4** (browser Back loses a typed room) and
+**D5** (a traversal renders 1A under a 1B URL) — by making the client the single authority on what
+room the customer is looking at, under the coordinator's ruling **R9**. Read R9 first; this plan
+implements it and does not re-open it.
+
+**Not in scope, named so an implementer does not drift:** ruling **R5**'s locale-menu extraction
+(deferred, and the reason is at `room-screen.tsx:27-39`); 1C's reasons (7F2); any change to
+`room-url-state.ts`'s parser, `parse-metres.ts` or `approved-room-policy.ts`; the desktop line (7L).
+
+### R9 is upheld, and here is what the documentation actually says
+
+Every quote below was read in this repository at `apps/web/node_modules/next/dist/docs/` today.
+**Where a claim is mine rather than the documentation's, it says so.**
+
+- **The coordinator's note checks out.** `01-app/02-guides/upgrading/version-15.md:525` reads, exactly:
+  *"When navigating between pages via `<Link>` or `useRouter`, page segments are no longer reused from
+  the Client Cache. **However, they are still reused during browser backward and forward navigation**
+  and for shared layouts."* The line number is unmoved and the glossary repeats it at
+  `01-app/04-glossary.md:47`. **So D5's read side is documented behaviour and R9's conclusion — that no
+  design may leave the server's parse authoritative after a traversal — follows from the docs, not from
+  an inference.**
+- **`useSearchParams` is the sanctioned reader of the live query, for exactly this reason.**
+  `use-search-params.md:74` (Good to know): it *"is **not supported** in Server Components **to prevent
+  stale values during partial rendering**"*. The hook exists because the server value can be stale.
+- **R9's prerendering caveat is now measured rather than assumed.** `use-search-params.md:82` warns
+  that on a prerendered route the hook forces client rendering to the nearest `Suspense` boundary.
+  `page.md:119` states that `searchParams` is a Request-time API and *"using it will opt the page into
+  dynamic rendering at request time"*. **The build agrees:** in `apps/web/.next` (production build,
+  2026-09-14) `/[locale]/configurator/configure` and `/contact` appear in `prerender-manifest.json`
+  with `.html`/`.rsc` artefacts, while `[locale]/configurator/room` has **`page.js` and nothing else**
+  and appears in no prerender manifest. The route is dynamic; the warning does not bite. **Criterion 17
+  below is what keeps it that way**, because the mechanism that makes it dynamic is about to change.
+- **`router.replace(href, { scroll: false })` is the documented call** (`use-router.md:45` for the
+  signature, `:118-136` for `scroll`), and next-intl 4.14.2's wrapper forwards `Partial<NavigateOptions>`
+  unchanged (`node_modules/next-intl/dist/types/navigation/react-client/createNavigation.d.ts`), so
+  `router.replace({ pathname, query }, { scroll: false })` typechecks against the repository's own
+  `@/i18n/navigation`.
+
+**One thing R9 does not name, and it is the premise the whole write side rests on.** `use-router.md:50`
+says `router.bfcacheId` *"changes when the surrounding segment is **freshly created** by a push or
+replace navigation, and **stays the same** for back/forward navigations, `router.refresh()`, and
+**search-param- or hash-only navigations**"*. Our debounced write is a search-param-only navigation, so
+**the documentation states the segment is not freshly created by it** — from which state preservation,
+and therefore the caret, ought to follow. **But the docs never state it for a repository without
+`cacheComponents`**, and this one does not enable it (`apps/web/next.config.ts`);
+`preserving-ui-state.md:13-15` is explicit that its guarantees assume Cache Components and that before
+them *"preserving page-level state across navigations required workarounds"*. **That is a gap between
+two documented facts, and no test in this repository can close it.** Slice A therefore carries a
+production-build measurement as a gate, and if it comes back red the write side stops there.
+
+**And one tempting wrong answer, killed in writing so nobody finds it later.** `router.bfcacheId` looks
+like the ready-made fix for the remount key and it is not: by the sentence above it **stays the same**
+for search-param-only navigations **and** for back/forward — which is every navigation Step 1 makes,
+including *Continuă*'s push. As a key it would never move, so it would prevent the remount and never
+re-seed the draft. The docs also mark it *"a last resort, like when migrating an existing codebase"*
+(`use-router.md:180`) and say to prefer deriving a key from your data. **Rejected on the doc's own
+words, not on taste.**
+
+### The design: one convergence loop, in one module
+
+The draft and the URL are two representations of one room, and the screen's whole job is to make them
+agree. **Three values, and every rule below is stated over them:**
+
+- **`liveText`** — the query the client actually holds, `useSearchParams().toString()`. After a
+  traversal this is the entry's own query; after our own write it is what we wrote.
+- **`draftText`** — `canonicalRoomQuery(draft).toString()`, unchanged from what 7F1 shipped: the
+  shape, every field that already reads as a length, the direction for the shapes that carry one, and
+  nothing else. **No raw draft text ever reaches it, so a half-typed *"3,"* still cannot come back from
+  a reload as a value the customer never entered.**
+- **`lastSeenText`** — a piece of component state holding the `liveText` the screen has already
+  reconciled against. It is what tells *the URL changed* apart from *the draft changed*, which a
+  comparison of the first two values alone cannot do.
+
+**The reconciliation rule, stated to be implemented.** During render, in React's documented
+adjust-state-when-props-change form (a `setState` during render on this component, not an effect —
+an effect would paint the stale room first):
+
+1. If `liveText === lastSeenText`, do nothing. **This is the typing path**, and it is why a keystroke
+   can never re-seed the draft: typing moves `draftText` and leaves `liveText` alone.
+2. Otherwise the URL changed. Set `lastSeenText` to `liveText`, and then:
+   - if `liveText === draftText`, **this is our own write echoing back** — keep the draft exactly as it
+     is, caret, half-typed text and all;
+   - else **the customer is in a different room** — re-seed the draft with
+     `roomDraftFromQuery(shape, liveQuery, locale)`.
+
+**The write rule.** One effect, keyed on `[liveText, draftText]`. If they are equal it schedules
+nothing. Otherwise it starts a `URL_SETTLE_MS` timer whose callback is
+`router.replace({ pathname, query }, { scroll: false })` with `canonicalRoomQuery(draft)`'s entries,
+and its cleanup clears the timer.
+
+**Six invariants fall out of those two rules, and each is an acceptance criterion below.**
+
+- **I1 — echo immunity.** After our write lands, `liveText === draftText`, so the render rule keeps the
+  draft and the effect schedules nothing. The loop settles in exactly one write.
+- **I2 — a navigation beats a pending write.** Any change to `liveText` runs the effect's cleanup
+  before the new effect, so a timer started for the old entry is cleared. **No `router.replace` can
+  carry a query the customer has already navigated away from.**
+- **I3 — typing never re-seeds.** By rule 1.
+- **I4 — the loop has a fixed point.** For every query `q`,
+  `canonical(draftFrom(canonical(draftFrom(q)))) === canonical(draftFrom(q))`. This is what forbids a
+  replace loop, and it rests on criterion 8's existing round-trip property
+  (`parse(format(mm)) === mm`). **It is a property test, not a reasoning step.**
+- **I5 — a deliberate navigation flushes the pending write and leaves only once it has landed. It
+  never cancels one.** ~~Cancel the timer, then push.~~ **Corrected 2026-09-14 by the coordinator,
+  before dispatch, and the correction is the part worth reading.** Cancelling reintroduces D4 through
+  the very mechanism added to prevent it: a customer who types the last digit and taps *Continuă*
+  100 ms later leaves a 1B entry that never received the last 400 ms of typing, and browser Back from
+  the next screen lands on a truncated room. **It fires on the fast, confident path rather than a rare
+  one.** The full rule and its evidence are the next section; both buttons take it, for the reason
+  the coordinator gave — *Înapoi* **pushes** 1A as a new entry (`room-screen.tsx:243-245`), so 1B
+  stays behind as a back-target exactly as it does after *Continuă*. **Cancel is only correct when the
+  entry is going away, and neither button makes that true.**
+- **I6 — 1A writes nothing.** No shape in the query means `ShapeStep`, which has no sync at all. A
+  screen that rewrote the address bar here would erase the link the customer arrived on.
+
+**Three boundaries the rule has to be right about, named because each is where it would be got wrong.**
+
+- **A repeated key is still not a value.** `useSearchParams().get()` returns the **first** of
+  `?wallA=3.56&wallA=4.2`, which would silently overturn a contract 7F1 shipped and tested
+  (`qa-7f1-url-seam.adversarial.test.ts:274-283`) while leaving every other test green. The live query
+  is therefore built by a single exported `queryFromSearchParams`, over `getAll`, preserving a repeated
+  key as an array — the same *exported rather than copied* rule that `singleValue`, `requiredFieldsFor`
+  and `isCornerDirection` already live under, and for the same reason.
+- **Arriving at a non-canonical URL rewrites the entry once.** An unknown key, a different key order or
+  an absent `direction` all make `draftText !== liveText` on arrival, so exactly one canonicalising
+  `router.replace` fires after the settle. That *is* criterion 18's *"the first sync writes
+  `direction=left`"*, now performed by the router. **Must not:** a push — it would give the customer a
+  Back that leads to the same screen minus one key.
+- **One residue, accepted and bounded.** A Back landing on a URL that happens to equal the current
+  `draftText` is read as an echo, so unparsed text the customer typed into a field (*"3,"*) stays in
+  that field. The room shown and the URL still agree; only a character that was never a value survives.
+  **Do not add a second discriminator to chase it** — every candidate re-seeds on an echo somewhere,
+  which is the defect that matters.
+
+### The departure path — flush, then leave, and never in one tick
+
+**The documentation is silent**: neither `use-router.md` nor the linking guide says anything about two
+navigations dispatched in the same tick. **The installed implementation is not silent, and it refuses
+the obvious design.** Read at `apps/web/node_modules/next/dist/client/`, version 16.3.4:
+
+- **A second navigation discards the first before it commits.** `app-router-instance.js:146-160`: when
+  a navigation is dispatched while one is pending, *"Navigations (including back/forward) take
+  priority over any pending actions. **Mark the pending action as discarded (so the state is never
+  applied)** and start the navigation action immediately."* `runAction`'s `handleResult` (`:82-90`)
+  returns before `actionQueue.state = nextState` for a discarded action.
+- **The history write only happens when the state commits.** `app-router.js:44-68` writes
+  `history.pushState` / `history.replaceState` inside an effect keyed on `appRouterState`. A discarded
+  action never reaches it.
+
+> **So `router.replace(canonical)` followed synchronously by `router.push(next)` loses the replace
+> entirely — the flush never reaches history, and it fails silently.** This is source-verified rather
+> than documented, which is weaker evidence than a doc quote and stronger than an inference; **criterion
+> 23 makes it falsifiable on CI rather than argued.** And because `runAction` awaits an RSC round trip,
+> no fixed delay fixes it — a sleep would be guessing at a network, which this plan will not do.
+
+**The rule, therefore: arm a departure, flush at once, and push when the flush is observed.** The loop
+already computes the signal — an echo is a committed write.
+
+1. On *Continuă* or *Înapoi*, if `draftText === liveText` there is nothing pending and the entry is
+   already correct: **navigate immediately.** This is the ordinary case.
+2. Otherwise: clear the timer, call `router.replace(canonical, { scroll: false })` **now** rather than
+   on the settle — the customer is leaving — and record a departure holding **the destination as a
+   value** (*the presets step* or *the shape step*, not a closure over the draft) **and the exact text
+   flushed**.
+3. When the reconciliation next observes `liveText === departure.flushedText`, the flush has committed:
+   dispatch the push and disarm. **Any other change to `liveText` disarms without pushing** — that is a
+   traversal overtaking the departure, and a customer who has gone Back does not want the push.
+
+**Why this does not become a dead button.** If the flush's request fails, Next falls back to a hard
+navigation to the same URL (`pushRef.mpaNavigation`), so the room is still in the URL and nothing is
+lost; the tap looks like it did nothing and a second one works. The other way to strand a departure —
+a URL that comes back different from what we asked for — is exactly what criterion 21's idempotence
+property forbids. **That property is now load-bearing in two places, which is why it is risk 1's
+guard and not a nicety.**
+
+**Two consequences that must be written down before an implementer meets them as surprises.**
+
+- **A push whose target equals the current URL creates no history entry.** `app-router.js:59-61`:
+  `pushState` is used only if `createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl`,
+  otherwise the router **replaces** — *"This mirrors the browser behavior for normal navigation"* — and
+  `createHrefFromUrl` is `pathname + search + hash` (`router-reducer/create-href-from-url.js:11`).
+  **So *Continuă* at 1B produces no entry and no visible change** — and **the reason is that step 2
+  does not exist yet, not the mechanism** (coordinator, 2026-09-14, correcting this plan's first
+  framing; the full reading is at Q-D45-5). It is not broken and it must not be "fixed".
+  **One correction of my own, in the other direction, because the record should not carry it wrong:**
+  the push was **already** demoted before R9, so R9 removes no evidence of the tap at all. The
+  demotion compares against `window.location.href`, and the shipped
+  `useCanonicalQueryInTheAddressBar` wrote exactly that — Next's patched `replaceState` forwards to
+  `originalReplaceState` (`app-router.js:268-282`), so `location.href` already held the canonical
+  query when the tap arrived, and the CTA is only enabled once every field parses. *(Source-verified.)*
+- **Which entry D4's Back came from, settled 2026-09-14 rather than left hanging.** The finding above
+  briefly contradicted R9's narrative trace, which had a third entry minted by a second *Continuă*.
+  **The coordinator went back to the gate's own measurement rather than reasoning further from the
+  trace, and the trace was what was wrong:** ***Înapoi*** mints that entry. `router.push({ pathname })`
+  (`room-screen.tsx:243-245`) targets the bare path with **no query at all**, so it is never demoted.
+  **The flow that produced D4 is:** 1A (entry 1) → *Continuă* pushes `?shape=L` (entry 2) → typing
+  rewrites entry 2's address bar with `replaceState` → ***Înapoi*** pushes the bare pathname (entry 3)
+  → **Back** → entry 2, restored from Next's own record, lengths gone. **Same defect, same cause, same
+  fix** — and `history.length` constant across the traversals, exactly as the measurement records.
+- **Criterion 23 uses *Înapoi* for two reasons now, and the second is the better one.** It avoids a
+  vacuous pass, and **it is the exact gesture that produced the original measurement** — a probe that
+  reproduces the reported defect step for step, not merely its class.
+
+**An unexplained observation in the gate's own log, recorded so it is not rediscovered as an
+argument.** *(Coordinator, 2026-09-14, from the measurement at the R9 section above; named as
+unexplained on purpose.)* The URL D4's Back landed on — `?shape=L&direction=left` — **is not the pushed
+URL**, whatever the verifier's note calls it: `continueToLengths` pushes `{ shape }` alone
+(`room-screen.tsx:158`), and `direction=left` was written by the **first debounced sync**, a
+`replaceState`. **So at least one `replaceState`-written key survived the traversal while the later
+ones did not.** There are several candidate mechanisms and no evidence separating them, so none is
+named here and **no slice is spent on it**: the fix is insensitive to it, because going through the
+router makes Next's record authoritative whatever partial behaviour the native call has.
+**Why it is written down at all:** a future reader will find that `replaceState` *"partly works"* and
+argue for softening criterion 9's ban. **Partial survival is not a reason to weaken it — it is a
+reason to keep it.** A write path that persists some keys and silently drops others is worse than one
+that reliably persists none, because nothing at the call site can be reasoned about.
+
+**One limit that is irreducible, stated rather than smoothed over.** The buttons can flush; **the
+browser's own Back cannot be flushed for**. Once popstate fires the outgoing entry can no longer be
+written, and a restore discards a pending action by the same rule quoted above. **So up to
+`URL_SETTLE_MS` of typing can fail to reach an entry the customer leaves by a Back gesture rather than
+by a button.** The only lever is the constant, which is Q-D45-3's answer and is worth revisiting
+against a real customer. **Flush-on-blur was evaluated and is not recommended:** it shrinks the window
+without closing it — the commit is still asynchronous and a traversal still discards it — at the cost
+of a second write path.
+
+### Trap 1 — `roomEntryKey` is deleted, not repaired
+
+**R9 destroys its premise and nothing rebuilds it.** Its doc comment (`room-screen.tsx:303-312`) says
+the key is safe because *"the query the page hands over changes on a navigation and on nothing else"*.
+Under a debounced `router.replace` the live query changes on every write, so a query-derived key moves
+while the customer is typing, the form remounts, and — worse than the caret — the re-seed drops any
+field whose text does not yet parse, clearing *"3,"* out from under them 400 ms after they stopped.
+
+**The key is not needed once the rule above exists.** Everything the key bought is bought again, and
+more precisely, by the reconciliation: a different room re-seeds the draft, an echo does not, and the
+fields are controlled inputs, so a re-seed updates them without a remount. Keeping a remount as well
+would only add the one failure the rule is built to avoid.
+
+**Evaluated against the two alternatives the coordinator named**, and the recommendation is the rule,
+not a key:
+
+- **A ref holding the last URL written.** Behaviourally near-identical — it is `lastSeenText` under
+  another name — but it must be written during render to be read on the same render, and a ref written
+  during render is the pattern React documents against. Held in state it is the same rule, so this is
+  the same recommendation with a worse mechanism. *(Inference: mine.)*
+- **A navigation-identity key not derived from the query.** In this version that means
+  `router.bfcacheId`, and the doc quote above disqualifies it: it does not change on the navigations
+  Step 1 makes. *(The disqualifying sentence is the documentation's; the conclusion is mine.)*
+
+**The escaping goes with the key, and the test that justified it stays.** The `|` escaping at
+`room-screen.tsx:315-323` is load-bearing *for a joined key* and for nothing else; comparing parsed
+query text has no separator to borrow. `room-screen.dom.test.ts:419-443` is therefore **kept and
+re-aimed**, not deleted: two queries differing only in where a `|` falls are two different rooms and
+the second must show its own 3,56. Its comment gains the reason the escaping is gone, so a later reader
+does not reinstate a guard against a collision the design can no longer have.
+
+### Trap 2 — what the tests assert instead
+
+**The mechanism is asserted in more places than criterion 11's spy.** Both DOM suites read the customer's
+URL off `window.location.search`, which only worked because the component wrote it. Under R9 the
+component asks a router, so **the harness has to close the loop the router closes**: the `next/navigation`
+mock gains `useSearchParams`, and its `replace` double applies the href to the mocked search params
+(and to `window.location`, so `addressBar()` keeps meaning *the URL the customer now has*) and
+re-renders. A double that records the call without applying it would let every address-bar assertion in
+both files pass over a screen that never updates — so **one test asserts the double itself**: after a
+`replace`, `useSearchParams` returns the new query. **Criterion 22 needs one more thing from it — an
+echo it can withhold**, so that *"the push has not fired yet"* and *"the push fires once the flush
+comes back"* are two separate, ordered assertions rather than one that cannot tell them apart.
+
+**Named changes, file by file. Each keeps catching a regression; none merely stops failing.**
+
+- **`tests/room/room-url-round-trip.dom.test.ts:324-336`** — *"asks the router for nothing while the
+  customer types"* asserts `browser.replace` was **never** called, which R9 makes exactly backwards.
+  It becomes **two** tests: *"asks the router for nothing on the keystroke itself"* (after `type`, before
+  the settle: no `push`, no `replace`, **and the plan has already redrawn** — criterion 11's two arms in
+  one test so they cannot drift apart), and *"writes once, after typing stops"* (two keystrokes, then
+  the settle: `toHaveBeenCalledTimes(1)`, with `{ scroll: false }` and the canonical query). **The count
+  is the load-bearing half** — a per-keystroke replace also ends on the right URL.
+- **Its comment at `:325-327`**, which records R2's rationale, is rewritten to R9's and cites
+  `use-router.md:50` rather than the linking guide.
+- **Every `addressBar()` assertion in both suites** (`room-url-round-trip.dom.test.ts:259, 270, 279,
+  291, 304, 355, 374, 404` and `qa-7f1-url-seam.adversarial.test.ts:249, 269, 282, 300, 312, 323, 332,
+  368, 491`) gains a `settle()` — fake timers advanced inside `act` — before it. The assertions
+  themselves do not change, because what they claim about the URL is unchanged.
+- **`qa-7f1-url-seam.adversarial.test.ts:241-257`**, the fixed-point test, becomes the **loop-freedom**
+  property: for an arriving query, after one settle `replace` has been called **at most once**, and a
+  second settle calls it **zero** more times. **This is the assertion I would not let anyone drop**; it
+  is the only guard on risk 1.
+- **`qa-7f1-url-seam.adversarial.test.ts:335-345`** — *"writes nothing at all into the address bar while
+  no shape is chosen"* becomes *"asks the router for nothing while no shape is chosen"* (I6). The
+  address-bar form stops being meaningful once the component is not the writer.
+- **`room-screen.dom.test.ts:164-187`** — `render()` stops passing `state` and `query` and sets the
+  mocked search params instead. **`:451`**'s shell assertion changes from
+  `"<RoomScreen state={state} query={query} />"` to `"<RoomScreen />"`, and gains a must-not that is the
+  real content of criterion 17 now: the route source contains **no** `parseRoomUrlState`.
+- **The four frozen files stay unedited** — `tests/room/room-url-state.test.ts`,
+  `qa-7e2-room-href.adversarial.test.ts`, `parse-metres.test.ts`,
+  `parse-metres.adversarial.test.ts`. **That is the check that this fix changes no parser behaviour**,
+  and the wave's standing rule applies: if a change appears to require touching one of them, stop and
+  report rather than edit.
+- **New, and the only place either defect is falsifiable:**
+  `apps/web/tests/e2e/room-traversal.qa.e2e.spec.ts`. Each assertion names the defect it would have
+  caught — after Back, `location.href` still carries `wallA` (D4), and `data-room-substate` reads `1B`
+  and not `1A` (D5).
+
+**R2's caret concern survives the mechanism change and is verified by the visual gate, explicitly.**
+The debounce moves the risk rather than removing it: the round trip now happens while the customer is
+looking at a filled field rather than between two digits. **The 390 × 844 pass must, in a production
+build: focus *Perete A*, type a full value, wait past the settle interval without touching anything,
+and confirm the caret is still in that field, the value is unchanged, and the page has not scrolled.**
+That last one is what `{ scroll: false }` is for and nothing else checks it.
+
+### Acceptance criteria as they now read
+
+Numbering continues 7F1's. **9, 11, 17 and 18 are amended in place; 19 is restated; 20–23 are new.**
+
+9. **The URL is the room's only store.** After any edit the query holds exactly the canonical keys for
+   the chosen shape and nothing else; **a reload restores every field byte-identically, and a browser
+   Back restores the room that entry held** (ADR 0111 decision 3's *"Back restores it, a reload keeps
+   it"*, both halves). **Must not:** a `localStorage`, `sessionStorage`, cookie or store write anywhere
+   under `apps/web/src/room`; an unknown key surviving into the query; **a `window.history.pushState`
+   or `replaceState` under `apps/web/src/room`** — that is D4's own mechanism and it is now banned by
+   the lint block rather than by a promise. **[component]** + **[lint]** + **[e2e]**
+11. **The plan redraws on every keystroke, locally** — unchanged, with one addition: the redraw is
+    asserted **in the same test as the navigation spy**, so *"no call on the keystroke"* and *"the plan
+    moved anyway"* cannot drift into two files that agree separately and disagree together.
+17. **The page stays a server shell, and the route stays dynamic.** `page.tsx` renders one client
+    component, declares no copy key, field, style or `"use client"`, **parses nothing**, and keeps the
+    route out of the prerender manifest by an intention-revealing request-time call — `await
+    connection()` from `next/server` (`connection.md`), which replaces today's `await searchParams`
+    now that nothing consumes it. **Must not:** `parseRoomUrlState` in the route; a prop carrying the
+    server's parse into the screen (D5 is unrepresentable only if the value is absent, not merely
+    unused); a route that a build leaves prerendered — **verify in `next build`'s output, not by
+    reading the source**. **[component]** + **[build]** + review
+18. **`direction` is written for every shape that carries the toggle, and its absence keeps its
+    meaning** — the three layers of ruling R6 stand exactly as written. **What changes is only who
+    writes it:** the first sync is the debounced `router.replace`, which **rewrites the current entry**.
+    **Must not:** a push for the first sync. **[component]** for the draft and the sync, **[unit]** for
+    the parser.
+19. **The URL is written by a debounced `router.replace`, and the live sub-state is the client's** (R9).
+    Three arms, separately asserted: **no navigation call fires on a keystroke**; **exactly one fires
+    after the settle interval**, carrying the canonical query and `{ scroll: false }`; and **after
+    mount every rendered sub-state is derived from `useSearchParams()`**, including
+    `data-room-substate` and `data-marked-fields`, so a cached payload restored on Back self-corrects
+    instead of being believed. **Must not:** a navigation per keystroke; the server's parse as an
+    authority after the first paint. **[component]** for all three; **[e2e]** owns the traversal.
+20. **Re-seed on a different room; never on our own echo.** Rules 1 and 2 above, asserted as
+    behaviour: typing does not re-seed (I3); a `replace` echoing back leaves the draft and any
+    unparsed field text untouched (I1); a live query the draft did not write re-seeds every field,
+    the shape and the direction (the rule's reason for existing). **Must not:** a `key` on the
+    dimensions step derived from the query's contents — it would remount the form on our own write.
+    **[unit]** on the pure reconciliation, **[component]** for the three behaviours.
+21. **The loop settles, and it settles once.** For any arriving query — canonical, non-canonical,
+    hostile or empty — at most one `router.replace` fires, and a second settle interval fires none.
+    Stated as the property behind it: `canonical ∘ draftFrom` is idempotent over every query the
+    parser accepts, at least 500 cases. **Must not:** a design that needs a render count to stay
+    bounded by luck. **[property]** + **[component]**
+22. **A deliberate navigation flushes first and leaves second.** With a write pending, tapping
+    *Continuă* or *Înapoi* issues **a `replace` immediately** — not on the settle — and the `push`
+    **only after that `replace` has been observed coming back**, so the entry being left behind is
+    correct before it becomes a back-target (I5). Four arms: no `push` fires in the same tick as the
+    flush; the `push` fires once the flush echoes; a traversal arriving first **disarms** the
+    departure and no `push` fires at all; and with nothing pending the navigation is immediate, with
+    no `replace`. **Must not:** cancelling the timer and pushing (it re-creates D4 on the fast path);
+    `replace` and `push` dispatched in one tick (the first is discarded before it writes history —
+    `app-router-instance.js:146-160`); a fixed delay between them. **[component]** with fake timers
+    and a router double that only echoes when told to.
+23. **The traversal, in a production build.** `next build` + `next start`: open 1A, choose **L**,
+    *Continuă* (entry 2), type wall A, wall B and the height, let the URL settle, tap ***Înapoi***
+    (entry 3, 1A), then **Back** — the fields hold what was typed, `location.href` carries every
+    length (D4), and the screen reads `data-room-substate="1B"` and not `1A` (D5). Then **Forward**,
+    then **Back** again: both hold. `history.length` grows by **zero** while typing, and by one per
+    navigation **whose URL differs from the current one** — a push to the URL already showing creates
+    no entry (`app-router.js:59-61`), which is why *Continuă* at 1B is not the probe here.
+    **This is the original repro, step for step:** *Înapoi* pushing the bare pathname is the gesture
+    that minted the entry D4's Back came from, so this spec reproduces the reported defect rather than
+    its class.
+    **A second case, and it is the one the flush exists for:** type the last digit and tap *Înapoi*
+    **inside** the settle interval, then Back — the fields still hold the last digit (I5).
+    **Must not:** asserting this in a dev build only — D4 and D5 were both found in a production one;
+    a fixed `waitForTimeout` standing in for the flush, rather than waiting on the URL. **[e2e]**, and
+    **CI is the verdict**: a green local run of this spec proves nothing about the runner.
+
+### Punch list — three slices, dispatched one at a time, in this order
+
+**Slice A — the loop.** Production: **new** `src/room/room-query-sync.ts` — `queryFromSearchParams`,
+the pure `reconcileRoomDraft`, `URL_SETTLE_MS` (**400 ms**, one named constant carrying its reason),
+and `canonicalRoomQuery` / `roomDraftFromQuery` moved verbatim out of `room-screen.tsx`;
+`src/room/room-screen.tsx` — delete `roomEntryKey` and `useCanonicalQueryInTheAddressBar`, adopt the
+hook, and route *Continuă* and *Înapoi* through it so the **departure** — flush, observe, then push
+(I5) — lives with the timer that makes it necessary rather than at two call sites;
+`eslint.config.mjs` — a named `ROOM_HISTORY_WRITE_SELECTORS` added to the room block, **re-declaring
+the full list exactly as ruling R1 requires**, because that block replaces rather than merges.
+Tests: **new** `tests/room/room-query-sync.test.ts` (no DOM: the reconciliation table and criterion
+21's property); the harness and assertion changes listed above in `room-url-round-trip.dom.test.ts`
+and `qa-7f1-url-seam.adversarial.test.ts`; a fourth probe in
+`tests/lint/room-example-dimensions.test.ts` asserting `window.history.replaceState(…)` errors under
+`src/room/` **and** that the three existing gates still error there. **Done when** criteria 9, 11, 18,
+19's first two arms, 20, 21 and 22 hold — **and the measurement below is green.**
+
+> **The gate inside slice A, and it is a stop-and-report.** In `next build` + `next start`: type into
+> *Perete A*, wait past the settle, and confirm (i) the caret is still in the field and nothing typed
+> during the settle was lost, (ii) `history.length` did not grow, (iii) Back returns the full typed
+> query in `location.href`; then (iv) type a last digit and tap *Înapoi* **inside** the settle window,
+> and confirm Back finds that digit. **(i) is the premise the documentation does not state for a
+> repository without `cacheComponents`; (iv) is the departure path, whose refusal of the same-tick
+> design is read off the installed source rather than a doc** — measuring it here rather than waiting
+> for slice C is the point of putting it in the slice that builds it. If (i) fails, R9's write side is
+> unsound as built and the implementer stops — the fallback is the coordinator's to rule on, not the
+> implementer's to improvise.
+
+**Slice B — the stale authority is removed.** Production: `src/room/room-screen.tsx` — `<main
+data-room-substate data-marked-fields>` moves in and is derived from the live query;
+`RoomScreenProps` loses `state` and `query` and keeps only `policy`, which criterion 3's fabricated
+policy still needs. `app/[locale]/configurator/room/page.tsx` — `await connection()`, `notFound()` for
+a bad locale, `<RoomScreen />`, nothing else. Tests: `room-screen.dom.test.ts`'s harness and its
+criterion 17 assertions. **Done when** criteria 17 and 19's third arm hold and the traversal shows
+`data-room-substate` self-correcting. *Second on purpose:* slice A carries all the risk and deserves
+its own review; this slice is what makes D5 unrepresentable rather than merely absent.
+
+**Slice C — the traversal gate and the record.** Tests only:
+`apps/web/tests/e2e/room-traversal.qa.e2e.spec.ts` (criterion 23), plus the comment sweep —
+`room-screen.tsx:14-17` and `:263-275` and `page.tsx:21-28` all still describe `replaceState` and R2's
+mechanism and must describe R9's. **Done when** the spec passes on CI and each assertion names the
+defect it would have caught.
+
+**Then the visual gate**, 390 × 844, 1A and 1B, both locales: criteria 14 and 15 re-run unchanged,
+plus the caret check spelled out above. The tree is frozen while it runs.
+
+> **Two must-not-files for the gate's brief, so a correct screen is not reported as a broken one.**
+> **(1) Tapping *Continuă* at 1B does nothing, and that is expected** — the destination is 7F4's
+> (Q-D45-5). **(2) The URL changes about 400 ms after typing stops, not as the digits land** — that is
+> `URL_SETTLE_MS`, and a URL that lags the field by a beat is the mechanism working. **What *is* a
+> finding:** a caret that leaves the field, a value that changes on its own, a page that scrolls when
+> the URL settles, or a URL that never catches up at all.
+
+### Must not change — a change to any of these is a finding, not a repair
+
+- The four frozen test files, and `room-url-state.ts`'s behaviour. **This fix adds no parser rule**; it
+  only calls the parser from a second place.
+- `room/approved-room-policy.ts`, `room/validate-room.ts`, `room/parse-metres.ts`,
+  `room/create-design.ts`, `src/proxy.ts`, and anything under `src/app/configurator/configure/` —
+  ruling R5 stands deferred and its reason is at `room-screen.tsx:27-39`.
+- The existing `no-restricted-syntax` block at `eslint.config.mjs:391-407`, and the room block's
+  **full** re-declaration of both existing selector lists. Dropping a spread while adding one is the
+  exact failure R1's probe test exists to catch.
+- `staleTimes`, `cacheComponents` or any other caching switch in `next.config.ts`. **There is no switch
+  that turns off back/forward segment reuse** (R9), so reaching for one is a sign the read side has
+  been misunderstood.
+
+### Risks, ranked, with the reason for the rank visible
+
+1. **A replace loop** — render writes, write re-renders, re-render writes. Ranked first because it is
+   the only failure that gets *worse* with traffic (a request per settle interval, per customer,
+   forever), because no existing test would notice, and because it is invisible in development where
+   one machine's requests look free. **Guard:** the pure `reconcileRoomDraft`, criterion 21's
+   idempotence property, and the at-most-once component assertion. This is the criterion to check
+   first in review.
+2. **The departure path built as *cancel then push*, or as *replace and push in one tick*.** Ranked
+   second because **both silently restore D4** on the fastest, most confident customer path — type the
+   last digit, tap on — and because both look obviously correct: the first loses the last 400 ms of
+   typing from the entry left behind, and the second has its `replace` discarded before it writes
+   history (`app-router-instance.js:146-160`), leaving no trace at all. **Guard:** I5's three steps,
+   criterion 22's four arms, and criterion 23's second case, which is the one a customer would hit.
+3. **Client state or the caret not surviving the replace.** Ranked third rather than first only because
+   the documentation points the right way (`use-router.md:50`) and because it fails **loudly** —
+   a cleared field is not a subtle defect. **Guard:** slice A's production measurement, before slice B
+   is dispatched; then the visual gate's caret check.
+4. **`useSearchParams().get()` collapsing a repeated key**, silently overturning a shipped contract
+   while every other test stays green. Ranked fourth because the blast radius is one adversarial case,
+   and high within that because *silent* is the whole problem. **Guard:** one exported
+   `queryFromSearchParams` over `getAll`, and the existing repeated-key test re-run through it.
+5. **The e2e is the only proof, and only CI can give the verdict.** Ranked here because it is a
+   certainty rather than a risk: a green local run of criterion 23 says nothing about runner timing.
+   **Guard:** it is stated in the criterion, so nobody closes the wave on a laptop.
+6. **A test double that records without applying.** Ranked sixth because it is caught by one assertion
+   and because a reviewer reading the harness will see it; ranked at all because if it slips, *both*
+   DOM suites go green over a screen that never updates.
+7. **Scope creep into 7F2 and 7K.** 1C is now reachable by typing (R2's recorded consequence), and an
+   implementer in this file will be one line from adding a validation message. It is 7F2's, with 7F2's
+   criteria and frame 1C's copy.
+### One accepted limit — accepted by the coordinator 2026-09-14, and it is not a risk
+
+**A browser Back *gesture* taken within `URL_SETTLE_MS` of the last keystroke leaves that keystroke
+out of the entry being left.** The buttons flush (I5); the gesture cannot be flushed for, because the
+outgoing entry is unwritable once popstate has fired and a restore discards a pending action by the
+rule quoted in the departure section. **Flush-on-blur is rejected** — a second write path that shrinks
+a window without closing it doubles the surface and buys nothing.
+
+**Two things belong in the record with it, so it is not rediscovered as a defect and — worse — used to
+argue for reverting the fix that improved it.**
+
+- **It is bounded by exactly one constant.** At most `URL_SETTLE_MS` of typing, only on a gesture, and
+  **never on a reload** (a reload reads the entry's URL, which the settle has already written, and
+  ADR 0111 decision 3's *reload* half holds in production today). The only lever is Q-D45-3's number.
+- **It is not a regression; it is strictly better than what 7F1 ships today.** Today the gesture loses
+  **the whole room** — that is D4, measured in a production build — and after this wave it loses at
+  most the tail typed in the last 400 ms. **Anyone reading this limit is reading an improvement with
+  its remaining edge stated, not a new defect.**
+
+### Questions that are the coordinator's, not mine — Q-D45-1 to Q-D45-5 answered 2026-09-14
+
+- **Q-D45-1 — own wave row, or 7F1 slices 6–8? → *Its own row*, `7F1-D45`, depending on 7F1.**
+  *(Coordinator, 2026-09-14, taking the recommendation and its reason.)* 7F1's five slices are
+  shipped, QA'd and reviewed; folding this back in would make *"7F1 is DONE"* mean two different
+  things depending on when it was read. **7F1 closes on what it actually verified, with its two open
+  defects named and pointed at this row.**
+- **Q-D45-2 — criterion 23's e2e here, or at 7K? → *Here*.** *(Coordinator, 2026-09-14.)* Without it
+  the wave would close on a verifier's screenshots, and **both defects already survived a review and a
+  QA pass** — *"a defect that has evaded the suite once has earned a permanent test"*. 7K inherits the
+  spec rather than writing it.
+- **Q-D45-3 — `URL_SETTLE_MS` → *400 ms*, as proposed.** *(Coordinator, 2026-09-14: the reasoning is
+  sound and it is better revisited against a real customer than tuned now against an imagined one.)*
+  It is longer than a fast typist's gap between digits (~150–250 ms), so a value is written once
+  rather than three times, and short enough that a customer who stops to look and then reloads still
+  has their room. **One named constant carrying that reason, never a literal.** Risk 8's bound is
+  stated in terms of it.
+- **Q-D45-4 — the fallback if slice A's measurement is red → *deliberately not pre-decided*.**
+  *(Coordinator, 2026-09-14: a fallback chosen now would be chosen against a failure nobody has
+  seen.)* Every candidate breaks something recorded — hoisting the draft to a layout crosses the route
+  boundary criterion 17 draws, an external store is refused by ADR 0111 decision 3, and writing only on
+  blur loses a room to a mid-field reload, the option R2 rejected and R9 upheld the rejection of. **The
+  implementer stops and reports with the measurement in hand; the coordinator rules then.** This
+  question stays open on purpose: it is the escape hatch, and that is its whole job.
+- **Q-D45-5 — *(raised by the departure design)* — is a CTA whose push produces no entry and no
+  visible change still "wired", for ADR 0104 decision 6's purposes? → *Yes; the `<button>` stays, and
+  the recorded reason is corrected.*** *(Coordinator, 2026-09-14, checking the screen rather than
+  taking my framing — and the correction is worth more than the answer.)* **I attributed the dead tap
+  to R9 and that is secondary at best.** ***Continuă* at 1B was already a no-op once every field
+  parses:** it pushes the same route (`room-screen.tsx:215`), `DimensionsStep` branches on no
+  sub-state — 1B, 1C and 1D render the same screen and `state.substate` reaches only `page.tsx`'s
+  `data-` attributes — and the CTA is enabled only when the canonical query is already the URL.
+  **The button does nothing because step 2 does not exist yet, and that destination is 7F4's.**
+  The amendment is recorded at the *Departures from frames 1A and 1B* bullet, citing ADR 0104
+  decision 6 and the absent destination, with R9 subordinate.
+  **The correction matters for two readers**, which is why it is written twice: **the visual
+  verifier**, for whom *"this tap is expected to do nothing"* is now an explicit **must-not-file**
+  in the gate's brief below; and **7F4's implementer**, who needs to know the button is waiting for a
+  destination rather than broken by a navigation mechanism — under my framing they would have gone
+  looking for a mechanism to fix.
+  **And one correction back, source-verified, so the record is not half-wrong in the other
+  direction:** *"before, the push at least minted a history entry"* does not hold either — the
+  demotion reads `window.location.href`, which the shipped `replaceState` sync had already set to the
+  canonical query (`app-router.js:268-282` forwards to `originalReplaceState`). The tap minted nothing
+  before R9 and mints nothing after. **R9 changes this CTA not at all**, which makes *waiting for a
+  destination* the whole of the explanation rather than most of it.
