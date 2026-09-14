@@ -6314,6 +6314,45 @@ and `qa-7f1-url-seam.adversarial.test.ts`; a fourth probe in
 > unsound as built and the implementer stops — the fallback is the coordinator's to rule on, not the
 > implementer's to improvise.
 
+#### The gate was run on 2026-09-14 against slice A at `74c5b39`, and **all five checks passed**
+
+`next build` + `next start --port 4320`, Next 16.3.4 (Turbopack), Playwright 1.62.1 against chromium
+at **390 × 844 / hasTouch / isMobile** with real keyboard events, RO locale. **The route table printed
+`ƒ /[locale]/configurator/room` — dynamic, server-rendered on demand, not prerendered**, which is
+criterion 17's build-output check and the reason `useSearchParams` does not bail out to CSR.
+
+| Check | Verdict | Measured |
+|---|---|---|
+| (i) caret and value | **PASS** | `activeElement` stays `room-length-wallA`; `selectionStart/End` **4 / 4**, unchanged from immediately after the last keystroke; value `3,56` character for character; **`scrollY` 0 before and 0 after**, which is the only check `{ scroll: false }` has. Typing *across* the boundary (`4`, 500 ms pause, `,25`) yields `4,25` with nothing dropped or reordered. Re-run at 30 / 90 / 200 ms keystroke delays **and** a pathological case with a full settle between every character: identical each time. Not a flake. |
+| (ii) `history.length` | **PASS** | **3 before typing, 3 after** all three fields filled and settled. |
+| (iii) Back returns the room | **PASS** | `?shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left`; fields `3,56 / 4,25 / 2,70`; `data-room-substate="1D"`. **This is D4's original repro, and it is closed.** |
+| (iv) departure flush | **PASS — the digit is kept** | Digit typed at +6 ms, the *Înapoi* tap returning at +29 ms. Back gives `height=2.75` and the field reads `2,75`. |
+| (v) neither button dead | **PASS** | *Continuă* at 1B: enabled, no visible effect, URL, history and substate unchanged, one same-URL RSC fetch — expected per Q-D45-5. *Înapoi*: lands at 1A on every one of four taps. |
+
+**No React warning of any kind** — no state-during-render warning, no update loop, no page error. The
+only console output is two environmental lines present on every page. **Four room-route requests to
+fill three fields**, one per settled value: the debounce holds and nothing approaches one per
+keystroke.
+
+> **A correction worth keeping, because the coordinator got it wrong and the plan did not.** The
+> coordinator's brief to the verifier said (iv) should **lose** the digit. It does not, and gate (iv)
+> above never asked it to. Typing and *then* tapping inside the settle is the flush path working: by
+> the time `departTo` runs, the keystroke is already in `canonicalText`, so the flush carries it. The
+> loss recorded at `URL_SETTLE_MS` is **the other order** — a character typed *after* the tap, while
+> the flush is in flight — plus the Back **gesture**, which cannot be flushed for at all. Two
+> different windows, and only the second pair is lossy.
+
+**One cosmetic observation, pre-empted so the visual gate does not file it.** A height typed `2,7`
+comes back from a traversal rendered **`2,70`** while the URL still says `height=2.7`. That is
+`roomDraftFromQuery`'s canonical two-decimal notation applied on a genuine re-seed — the room and the
+URL agree, and nothing drifted on its own. It is **not** the must-not-file list's *"a value that
+changes on its own"*.
+
+**Not exercised, stated rather than implied:** the RU locale, the `linear` and `U` shapes, real
+hardware touch (the run used synthesised touch at the pinned viewport), and a Back **gesture**
+mid-settle. The first three belong to the wave's closing visual gate; the fourth is the accepted
+limit and stays unexercised by design.
+
 **Slice B — the stale authority is removed.** Production: `src/room/room-screen.tsx` — `<main
 data-room-substate data-marked-fields>` moves in and is derived from the live query;
 `RoomScreenProps` loses `state` and `query` and keeps only `policy`, which criterion 3's fabricated
