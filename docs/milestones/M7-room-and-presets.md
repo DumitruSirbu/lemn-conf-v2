@@ -14,6 +14,15 @@
 > **Updated 2026-09-14: wave 7E2 is DONE at `470e5c9`, closed at `8434e76`; next wave: 7F1.** Final
 > `pnpm ci:local` and the pre-push rerun both passed in full; `41181d8..8434e76` is pushed to
 > `origin/m7-room-and-presets`, local and origin both at `8434e76`.
+> **Updated again 2026-09-14 at `095d417`: 7F1 is planned and dispatchable** — read
+> [*Wave 7F1 — dispatchable punch list*](#wave-7f1--dispatchable-punch-list), which is the binding
+> version of the 7F1 bullet in the earlier criteria section. 18 criteria, five slices dispatched one at
+> a time, and **seven rulings (R1–R7) taken the same day** on questions the architect raised: the
+> constant ban's mechanism, the URL updating while the customer types, the three shape cards, the plan's
+> isotropic scale, the locale-menu extraction, `direction` in the URL, and the step pill's key. Two of
+> them place obligations on **7F2 and 7F3**, recorded on those waves' rows. **F8** — whether M7 draws a
+> U card no customer can continue from, given that U is M7B — is open to the owner and runs on its
+> ruled default meanwhile.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -201,7 +210,9 @@ screen is built, the way you did Gate O1?
 ~~**Six, all short (F5 and F6 added later the same day). F1 blocks wave 7J and F5 blocks wave 7E3b;**
 the rest have defaults the build runs on.~~ **All answered 2026-09-11** — the owner picked the
 recommended option on each, through a structured prompt; the option labels are quoted verbatim
-below. **Nothing in M7 is blocked on the owner any more.** F7 was asked afterwards by the coordinator.
+below. **Nothing in M7 is blocked on the owner any more.** F7 was asked afterwards by the coordinator,
+and **F8 by the architect on 2026-09-14 while planning 7F1** — also non-blocking, and it runs on its
+recommended default until answered.
 
 - **F1 — Straight kitchen wall length.** Accept a straight wall from **1200 mm** to **6300 mm**?
   1200 is a sink plus a hob, the minimum kitchen you ruled; 6300 is the most a design can store.
@@ -263,6 +274,29 @@ below. **Nothing in M7 is blocked on the owner any more.** F7 was asked afterwar
   Q2's 599 mm. **Answered 2026-09-11: "Keep the 100 mm reserve"** — the owner confirms ADR 0110
   Amendment B3 and ADR 0109 Amendment C, and the reserve is a stated exception to the 599 mm rule on
   wall B (ADR 0110 Amendment C).
+
+- **F8 — Does Step 1 draw a **U** card during M7?** *(Asked by the architect while planning wave 7F1,
+  2026-09-14; re-posed the same day once the coordinator checked why each shape is refused. Non-blocking
+  — the build runs on its interim answer.)* Frame 1A draws three cards — *Liniară*, *În formă de L*,
+  *În formă de U* — and today only the L can be continued from. **But the two refused cards are not
+  alike, and only one of them is a real question:**
+
+  | card | why it is refused today | when it becomes live |
+  | --- | --- | --- |
+  | *Liniară* | **You have already approved it** — F1, verbatim: *"Yes, 1200–6300 mm"* (1200 mm being a 600 mm sink plus a 600 mm hob, your own minimum kitchen). Those numbers deliberately do not enter `APPROVED_ROOM_POLICY` until the wave that can build the shape, so a straight room cannot validate before it can be composed (ADR 0108 Amendment D, Amendment B decision B2) | **wave 7J, inside M7** |
+  | *În formă de U* | **Never put to you.** No bounds exist, none has been proposed, and your answer to Q5 made U its own milestone | **M7B** |
+
+  So *Liniară* is a card whose product answer already exists and whose wave lands this milestone; the
+  policy table simply has not caught up yet. **The live question is U alone:** during M7, should Step 1
+  draw a *În formă de U* card that cannot be continued from for a whole milestone, or show it only once
+  M7B gives it dimensions? *Recommended: draw it*, on ADR 0104 decision 1 — the frames are the
+  specification, and ADR 0108 Amendment B decision B2 makes U **refused**, not hidden.
+
+  **The build runs on "draw all three" meanwhile** — the coordinator ruled it for wave 7F1 on
+  2026-09-14 (ruling R3), also on the rule that nothing ships mid-milestone, so no disabled card reaches
+  a customer before wave 7F2 explains it. **That is a build decision, not your answer.** Changing it
+  later costs one card and no rework: criterion 4 derives each shape's fields from the shape itself, so
+  carrying U costs nothing and removing it costs nothing.
 
 **Not asked, because it is already decided:** what gives when a deeper cabinet (700 mm) will not fit
 a narrower wall. [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
@@ -853,6 +887,12 @@ tree while it does (`docs/best-practices/browser-and-visual-qa.md`).
   **only** for L and U. The plan redraws on every keystroke and mirrors with the toggle. Must not: a
   3600, 2400 or 2600 constant anywhere under `apps/web/src/room` (the mockup's example is an example);
   a touch target under 44 px; horizontal overflow at 390 px.
+  **Expanded 2026-09-14 into [*Wave 7F1 — dispatchable punch list*](#wave-7f1--dispatchable-punch-list),
+  which is the binding version:** these become 17 numbered criteria, each naming whether a unit test, a
+  component test, a property, the visual gate or a lint rule proves it. Three things that paragraph
+  leaves implicit are settled there — the 7E2 back-link round-trip becomes criterion 7, the constant ban
+  gets an AST mechanism and a gate on the gate (criterion 16), and the metre↔millimetre and comma↔dot
+  conversions are placed at the form boundary rather than in the domain.
 - **7F2:** the reason sits beside its field (`aria-describedby`), the plan marks the offending wall
   red, *"Presetele apar după ce toate valorile sunt valide."* is shown. *Property over every issue
   code, both locales:* the resolved message contains **no digit and no code**. The U refusal names no
@@ -1274,7 +1314,7 @@ table.
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
-| **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
+| **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | — (one product question on the U card, non-blocking) |
 | **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
@@ -1283,7 +1323,9 @@ table.
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
 | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
+| ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
+| ↳ | **Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more | | | | | |
 | **7E4** | e2e and tooling off `/configurator/configure` | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs` | — | Light (tests; CI is the verdict) | No | — |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
@@ -1604,6 +1646,21 @@ approved policy are what make `validateRoomInput` accept it, and linear must not
 wave that can build it lands. Then: a shell with no corner; composition
 on wall A under every 7D2 property; the 1C/D1C suggestion to switch to a straight kitchen appears; what
 `depthMm` means for a one-wall room is decided and recorded in the wave.
+
+**7F2 (add, 2026-09-14, from wave 7F1's rulings R2 and R3 — read them before starting):**
+
+- **1C is a live state reached by typing**, not only by arriving at a stale or hostile link. 7F1 syncs
+  the URL on every edit (`history.replaceState`), so a value that leaves the policy's range resolves to
+  1C while the customer is still in the field: 7F2's reasons must appear **and clear** as they type,
+  not only on a commit.
+- **7F2 owes the refusal sentence for a shape that is not buildable.** 7F1 ships all three cards with
+  *Continuă* disabled on `linear` and `U` and **no sentence saying why** — a deliberate, asserted state
+  (7F1 criterion 3), not an oversight. 7F2 is where the customer is told. The U refusal still names no
+  internal reason, and no message suggests the linear shape until 7J makes it buildable.
+
+**7F3 (add, 2026-09-14, from wave 7F1's ruling R2):** ***Continuă* at 1B is 7F3's destination.** 7F1
+leaves it pushing the canonical query and nothing more, which is the seam 7F3 takes over; there is no
+wave in between in which it is a control with a control's affordances and no behaviour.
 
 **7F2 (add):** *minimum not met* is shown at 1C with a room-level reason, no digit and no code, and no
 wall marked red.
@@ -2202,6 +2259,453 @@ totals from the green run: e2e **191 passed, 2 skipped** (5.4 minutes); unit/int
 `origin/m7-room-and-presets`; local and origin are both at `8434e76`.
 
 Implementation is `470e5c9`; documentation close-out is `8434e76`. Next wave: **7F1**.
+
+## Wave 7F1 — dispatchable punch list
+
+**Tier: Light** (UI assembly against a settled contract): adversarial QA, then **one** combined
+reviewer. **Visual: Yes** — the 390 × 844 mobile gate applies
+(`docs/best-practices/browser-and-visual-qa.md`). **Owner answers needed: none.** Seven questions the
+architect raised were **ruled by the coordinator on 2026-09-14** and are recorded as R1–R7 below; one
+of them is also open to the owner as F8 and runs on its ruled default meanwhile. **ADRs to check intent
+against before starting, and to stop and report on if they disagree:**
+[0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+decisions 1, 5 and 6 (the frames are the chrome specification; the 44 px mechanism; a control with a
+control's affordances and no behaviour),
+[0111](../decisions/0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md)
+decision 3 (the room entry lives in the query string; Back restores it and a reload keeps it),
+[0108](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md)
+decisions 3 and 4 and Amendment B decision B2 (no bound and no code reaches a surface; the
+conversion happens once at the form boundary; linear and U stay refused),
+[0113](../decisions/0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)
+(the lock and the golden manifest move in the commit that adds the leaf),
+[0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md)
+decisions 2 and 3, [0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
+decisions 1, 2 and 8 (nothing leaves the viewport; horizontal scrolling refused; 44 px).
+
+**Goal.** Give `/[locale]/configurator/room` its real chrome and its real controls for sub-states
+**1A** and **1B**. This is the wave in which a stored room becomes *visible* to the customer, which
+is what closes the half of 7E2's criterion 5 that no field existed to verify.
+
+**Not in scope, named so an implementer does not drift:** 1C's reasons beside their fields and the
+red wall (7F2); 1D/1E (7F3); 1F and any call into `createDesignCreationAttempt` (7F4); the desktop
+line (7L); making linear buildable (7J) or U buildable (M7B); the mirrored *kitchen* (7I — 7F1
+mirrors a drawing, never a design).
+
+### Ground truth, measured at `095d417`
+
+- `app/[locale]/configurator/room/page.tsx` renders `<main data-room-substate data-marked-fields>`
+  with a bare `<section>` and **zero** input, select or textarea elements.
+- `src/room/room-url-state.ts:76-119` resolves the query into 1A/1B/1C/1D with `markedFields`;
+  `serialiseRoomInput` (`:122`) emits only the shape's canonical keys; `roomHrefFromDesignRoom`
+  (`:144`) emits `?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left`. `requiredFieldsFor`
+  (`:181`) and `metresText` (`:254`) are **private**, and 7F1 needs both.
+- `src/room/parse-metres.ts` accepts **either** a decimal comma or a point, returns whole
+  millimetres, and refuses rather than rounds. Its head comment is ADR 0108 decision 4 written into
+  the code. It is settled; 7F1 does not touch it.
+- `room/approved-room-policy.ts` states **`buildableShapes.L` only**, and `validateRoomInput`
+  (`validate-room.ts:71-86`) refuses every non-L shape with one `SHAPE_NOT_BUILDABLE`. **Exactly one
+  of the three cards can be continued from today**, and that is ADR 0108 Amendment B decision B2.
+- Frames **1A** (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:48-99`) and **1B**
+  (`:101-187`). 1B's order down the screen: shape chips → plan preview card → corner toggle → the
+  length fields → the footer (`Înapoi` + `Continuă`). 1A's CTA is drawn inactive, 1B's active. The
+  mockup's `.num` (`:16`) is `font-variant-numeric: tabular-nums`.
+- `configure.step` and `configure.stepPill` already exist in `ro.json` **and in the copy lock**, so
+  the room's pill needs no new leaf — it renders the same two keys at `step: 1`.
+- `--touch-target: 44px` exists (`app/globals.css:22`).
+- `LocaleMenu` renders `configure.module.css`'s `.locale`, which carries `grid-area: locale`
+  (`:167-171`) and a desktop override (`:706`): it is positioned **by the configure screen's grid**
+  and cannot be reused untouched.
+- `apps/web/vitest.config.ts` includes only `tests/**/*.test.ts` — **no `.tsx`**. Component tests are
+  `*.dom.test.ts` with a `// @vitest-environment happy-dom` docblock, `createElement` + `createRoot`
+  + `act`, no testing-library; `tests/i18n/locale-menu.dom.test.ts` is the model. `fast-check` 4.9.0
+  is already a dependency.
+- **`3600`, `2400` and `2600` appear under `apps/web/src` today only inside comments**
+  (`room/parse-metres.ts:37`, `configure/selection-debug.tsx:18`). That one fact decides the ban's
+  mechanism — see below.
+
+### Module boundaries
+
+**The domain owns whether a shape is buildable, and nothing else this wave.** `room/room-policy.ts`
+gains one pure predicate, `isShapeBuildable(shape, policy): boolean`, exported from `src/index.ts`.
+It exists so no component ever writes `shape === "L"`: when linear becomes buildable in 7J the card
+enables with **no edit under `apps/web/src/room`**, and criterion 3's adversarial arm proves it. It
+returns a boolean and **no bound**, which is ADR 0108 decision 3 held exactly.
+
+**The metre↔millimetre and comma↔dot conversions are presentation and stay in `apps/web/src/room`.**
+ADR 0108 decision 4 already ruled the conversion happens once at the form boundary; a decimal comma
+is a locale rule and the domain is locale-free (ADR 0095 decision 3); and the domain never sees a
+metre — `validateRoomInput` takes `EnteredMillimetres`, so a metre formatter in the domain would have
+no caller. **One new module owns both directions**, `src/room/metres-text.ts`:
+
+- `metresTextForUrl(mm)` — **moved verbatim** from `room-url-state.ts:254`'s private `metresText`.
+  Locale-free, always a dot: the URL is a wire form, not a reading surface.
+- `formatMetresForDisplay(mm, locale)` — the customer's form, with the separator **derived** from
+  `Intl.NumberFormat(locale).formatToParts(1.1)`. Never a `","` literal and never a
+  `.replace(".", ",")`; `ro` and `ru` both happen to give a comma and neither is hardcoded.
+- Both work on the digit string. Neither multiplies or divides by 1000 as a float —
+  `parse-metres.ts:2-4` already records why.
+
+**Everything else is presentation.** The draft being typed, the sub-state shown while typing, the
+plan's geometry and the URL sync live under `apps/web/src/room`. Nothing there may import from
+`packages/persistence`, and nothing may write to `localStorage`, `sessionStorage`, a cookie or a
+store — the URL is the room's only store (ADR 0111 decision 3). The page stays a server shell.
+
+### Acceptance criteria
+
+Each names what proves it: **[unit]** a plain vitest, **[component]** a `.dom.test.ts`, **[property]**
+a `fast-check` sweep, **[visual]** the 390 × 844 gate, **[lint]** a rule run by `pnpm lint`.
+
+1. **The top bar is in every sub-state.** For each of the four URLs resolving to 1A, 1B, 1C and 1D the
+   screen carries the wordmark, a step pill rendering `configure.stepPill` at `step: 1,
+   totalSteps: 4` (*1/4*) whose **accessible name** is `configure.step` at the same arguments (*"Pasul
+   1 din 4"*), the title, and the locale menu. **Must not:** a literal `"1/4"` or a pill composed from
+   `"1"` and `"4"` in the component — the numbers are ICU arguments, so a locale change re-renders
+   them. **[component]** for the four states and the accessible name; **[visual]** for the drawing.
+2. **Three cards, never a dropdown.** 1A renders exactly three shape choices with 2D plan glyphs.
+   **Must not:** any `select`, `option`, `datalist` or `role="combobox"` under `apps/web/src/room` —
+   asserted as a count of zero over the rendered tree in **every** sub-state, not only 1A.
+   **[component]**
+3. ***Continuă* is disabled with no card chosen and with a refused shape.** Nothing chosen: disabled.
+   `linear` or `U` chosen: disabled. `L` chosen: enabled. **Adversarial, and this is the real claim:**
+   rendered against a *fabricated* policy whose `buildableShapes` names a second shape, that shape's
+   CTA **enables with no edit to the component** — which proves it asks `isShapeBuildable` rather than
+   spelling `L`. **[component]**
+4. **One field per wall of the chosen shape, plus the height.** For each shape the rendered field-name
+   set equals `requiredFieldsFor(shape)` — the **same function the URL parser uses**, exported rather
+   than copied, so a wall added to a shape there makes the form grow with no edit to the form. This is
+   also why U's third field costs nothing and must **not** be a hand-written branch. **[property]** over
+   `RoomShape`.
+5. **Every length field is a text field with a decimal keypad.** `type="text"`,
+   `inputmode="decimal"`, a real `<label for>` bound to the input id, the unit *m* drawn inside the
+   field box, and `font-variant-numeric: tabular-nums` on the value. **Must not:** `type="number"` (it
+   refuses a comma on several locales, adds spinners, and `valueAsNumber` is a float), a `step`
+   attribute, or a `pattern` re-implementing `parse-metres.ts`. **[component]** for the attributes,
+   **[visual]** for the tabular alignment.
+6. **The corner toggle exists only for L and U.** Present for `L` and `U`; for `linear` the element
+   **count is zero** — absent from the tree, not hidden by CSS. **[component]** over the three shapes.
+7. **A stored room lands in the fields to the millimetre — 7E2's criterion 5, finally checkable.** For
+   a `DesignRoom` sampled across the approved policy's ranges, rendering at
+   `roomHrefFromDesignRoom(room)` puts each wall and the height into its own field such that
+   `parseMetresToMillimetres(field.value).mm` equals the stored millimetres **exactly**, and the
+   direction toggle reads `left`. The editor's own back-link case
+   (`?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left` → `3,56` / `2,92` / `2,60`) is asserted
+   by name beside the property. At least 500 cases. **[property]** + **[component]**
+8. **The customer sees a decimal comma and the URL keeps a dot.** For every whole-millimetre length in
+   the policy range and every locale in `routing.locales`:
+   `parseMetresToMillimetres(formatMetresForDisplay(mm, locale)).mm === mm`, and `metresTextForUrl(mm)`
+   contains no comma. **Must not:** a `","` literal or a `.replace(".", ",")` in the formatter.
+   **[property]** + **[unit]**
+9. **The URL is the room's only store.** After any edit the query holds exactly the canonical keys for
+   the chosen shape — `serialiseRoomInput`'s own output — and nothing else; reloading it restores every
+   field byte-identically. **Must not:** a `localStorage`, `sessionStorage`, cookie or store write
+   anywhere under `apps/web/src/room`; an unknown key surviving into the query. **[component]**
+10. **`markedFields` on arrival is not an error paint.** Arriving at `?shape=L` with no lengths renders
+    empty fields with **no** `aria-invalid`, no error class, no message and no red — even though the
+    parser marks all four fields, because at 1B *marked* means *still to be filled*, not *wrong*. The
+    same holds for `direction` when the query omits it. **[component]**
+11. **The plan redraws on every keystroke, locally.** One digit typed into *Perete A* changes the
+    plan's wall-A geometry in the same tick, with **no `router.push`/`router.replace` call and no
+    server round trip** — asserted by spying on the navigation mock. The plan is a **pure function** of
+    `(wallA, wallB, wallC, height, direction, box)`: identical inputs give a byte-identical drawing.
+    **[component]** for the keystroke, **[property]** for the purity.
+12. **One isotropic scale for both axes.** For any two walls in the policy range `drawnA / drawnB`
+    equals `wallA / wallB` to within half a device pixel; the drawing never leaves the preview box at
+    either extreme of the range; and the drawn **wall thickness is a drawing constant that does not
+    scale with the room**. **Must not:** an axis-independent normalisation (it would draw a 6,0 × 1,0 m
+    room as a square), a wall drawn at a fixed length, or a scale read off the frame's example pixels.
+    **Anchor:** the corner is the drawing's origin, wall A runs right along the top and wall B down the
+    side — the domain's own corner at (0, 0, 0) with wall A on the z = 0 plane and wall B on x = 0
+    (`room-transforms.ts`, named in 7H). **Structural dependency: none** — the plan reads the draft's
+    lengths and direction and nothing else: no cabinet, no placement, no catalogue, and no depth
+    (ADR 0083 decision 2). **[property]** on the pure model, **[visual]** for the drawing.
+13. **Mirroring reflects the drawing and nothing else.** With `direction: "right"` the plan is the
+    reflection of the `"left"` plan about the preview box's vertical centre line. **Must not:** swapping
+    `wallA` and `wallB`; changing a field label (*Perete A* stays the horizontal wall); changing any
+    serialised value — the query after a toggle is identical apart from `direction`. **[property]** for
+    `reflect(plan(left)) === plan(right)`, **[component]** for the query.
+14. **Every touch target is at least 44 px.** For each interactive element under `apps/web/src/room`,
+    `document.elementFromPoint` at the four corners of its 44 px box returns that element or its own
+    descendant — ADR 0104 decision 5's mechanism, because `getBoundingClientRect` would measure the
+    painted box. **Must not:** a `min-height: 44px` on a box the frame draws shorter; the expansion is a
+    pseudo-element taking no layout space. **[visual]**
+15. **No horizontal overflow at 390 px**, at 1A and 1B, in **both** locales — `ru` is the longer one and
+    is the case that matters. **Must not:** `overflow-x: auto` or `scroll` anywhere under
+    `apps/web/src/room` (ADR 0082 decision 2's refusal, kept). **[visual]**
+16. **No `3600`, `2400` or `2600` numeric literal under `apps/web/src/room`**, enforced by ESLint, with
+    the enforcement itself tested. **[lint]** + **[unit]** — see the next section.
+17. **The page stays a server shell.** `app/[locale]/configurator/room/page.tsx` parses the query and
+    renders one client component; it declares no copy key, no field, no style and no `"use client"`.
+    **[component]** + review.
+18. **`direction` is written for every shape that carries the toggle, and its absence keeps its
+    meaning** (ruling R6). Three layers, asserted separately because confusing them is the whole risk:
+    arriving at `?shape=L` with no `direction` shows the toggle at **left** and the first sync writes
+    `direction=left`; the **parser is unchanged** — an absent `direction` still marks the field and
+    resolves to 1B, never silently to left; and a *stored* room's absent direction still means left
+    (ADR 0053, 7E2's deferral to 7I). This criterion exists so **7I cannot move any of the three
+    unnoticed**. **[component]** for the draft and the sync, **[unit]** for the parser, and the frozen
+    `room-url-state.test.ts:304` is itself the guard on the middle layer.
+
+### The no-magic-constant gate, and the trap in it
+
+**A `git grep` gate would be red on arrival.** `3600` is already under `apps/web/src/room`, inside a
+comment explaining the parser (`parse-metres.ts:37`, *"so `3,6000` is 3600"*). A text gate would
+either fail on landing or need an exclusion that hollows it out. An **AST** rule reads the literal and
+ignores the comment, which is the right reading: quoting the frame's example in prose is fine,
+building against it is not. `eslint.config.mjs:12` already records this argument for the Romanian gate.
+
+**The trap: flat config *replaces* a rule's options, it does not merge them.**
+`eslint.config.mjs:391-407` already sets `no-restricted-syntax` over `apps/web/src/**/*.{ts,tsx}` with
+`ROMANIAN_LITERAL_SELECTORS` + `UNKEYED_JSX_TEXT_SELECTORS`, and its own comment (`:394-396`) warns
+that a second block naming the same rule over the same files *"would silently disarm the first"*. A new
+block scoped to `apps/web/src/room/**` would do exactly that — **on the directory about to gain more
+new JSX text than any other in this milestone** — so both existing gates would go dark precisely where
+they are most needed, and every test would stay green.
+
+**So the mechanism is three things, and the third is the one that must not be dropped as "extra":**
+
+1. A named `ROOM_EXAMPLE_DIMENSION_SELECTORS` in `eslint.config.mjs`: `Literal[value=3600]`,
+   `[value=2400]`, `[value=2600]`, each with a message naming this wave's rule and the reason — *the
+   mockup's example is an example*.
+2. One new block, `files: ["apps/web/src/room/**/*.{ts,tsx}"]`, placed **after** the existing block and
+   declaring the **full** list: `...ROMANIAN_LITERAL_SELECTORS, ...UNKEYED_JSX_TEXT_SELECTORS,
+   ...ROOM_EXAMPLE_DIMENSION_SELECTORS`, citing `:391-396` by line.
+3. **A gate on the gate**, `apps/web/tests/lint/room-example-dimensions.test.ts`: run ESLint's own
+   `lintText` against the repository config at a `filePath` under `apps/web/src/room/` and assert three
+   things — `const wallA = 3600;` errors; a bare Romanian string literal **still** errors; unkeyed JSX
+   text **still** errors. The last two are what catch a future editor dropping a spread from the room
+   block. If running ESLint inside vitest measures slow, the fallback is to export the selector arrays
+   and assert the room block's list is a superset — weaker, and only on a measurement.
+
+**Scope, stated honestly:** the rule reads `.ts`/`.tsx` under `apps/web/src/room`. It does not read
+`room.module.css`, and it does not read `app/[locale]/configurator/room/page.tsx` — which is why
+criterion 17 keeps that file a shell and every component under `src/room`, so the ban covers the whole
+surface rather than most of it.
+
+### The copy obligation (ADR 0113)
+
+Every leaf is **frame wording used as written** unless marked *drafted*. `ro.json`, the copy lock, the
+golden fixtures and hashes, and the Russian draft move in the **same commit**, whose message names the
+added keys and cites ADR 0113 decision 2.
+
+From frame 1A (`:48-99`): `room.title` *"Cameră"*; `room.shapeQuestion` *"Ce formă are camera?"*;
+`room.shapeLead` *"Alege conturul pereților pe care va sta bucătăria."*; `room.shapes.linear.name`
+*"Liniară"* / `.detail` *"Un singur perete"*; `room.shapes.L.name` *"În formă de L"* / `.detail` *"Doi
+pereți, un colț"*; `room.shapes.U.name` *"În formă de U"* / `.detail` *"Trei pereți"*;
+`room.dimensionsLater` *"Dimensiunile se cer după ce alegi forma."*; `room.continue` *"Continuă"*.
+
+From frame 1B (`:101-187`): `room.shapes.linear.short` *"Liniară"*, `room.shapes.L.short` *"În L"*,
+`room.shapes.U.short` *"În U"*; `room.planCaption` *"Plan de sus · previzualizare"*;
+`room.planWallLabel` *"{wall} · {metres} m"* (the frame draws *"A · 3,60 m"*; the wall letter and the
+already-formatted metres are ICU arguments); `room.cornerQuestion` *"Încotro merge cotul?"*;
+`room.cornerHint` *"nu se deduce din lățimi"*; `room.cornerLeft` *"La stânga"*; `room.cornerRight` *"La
+dreapta"*; `room.wallLabel.wallA` *"Perete A"*; `room.wallLabel.wallB` *"Perete B"*;
+`room.heightLabel` *"Înălțimea camerei"*; `room.unitMetres` *"m"*; `room.back` *"Înapoi"*.
+
+**Exactly one leaf is drafted rather than quoted:** `room.wallLabel.wallC` — *"Perete C"*. No frame
+draws a U's third wall. It follows the pattern the frames establish and that
+`configure.cameraPresets.wallA` already uses, and it says nothing the domain has not published
+(ADR 0113 decision 5).
+
+**Three leaves are deliberately *not* added, and each absence is a decision:**
+
+- **The step pill** reuses the already-approved `configure.step` / `configure.stepPill` at `step: 1`.
+  Duplicating them under `room.*` would pin one approved sentence in the lock twice.
+- **The two group labels.** The visible *"Ce formă are camera?"* and *"Încotro merge cotul?"* label
+  their radiogroups through `aria-labelledby`. No invented accessible name.
+- **The plan's alternative text.** The SVG is `aria-hidden="true"` with its wall labels as real text
+  nodes beside it, so a screen reader reads the measurements rather than a drafted description of a
+  picture.
+
+**Russian:** `ru.json` gains the same key set, drafted, approved by ADR 0113 decision 3; it is never
+pinned by literal (ADR 0095 decision 2, layer 4), so its status is recorded here and in the close-out
+with no code consequence. **Golden manifest:** fixtures are added for the new keys and **no existing
+hash moves** — a moved existing hash is a defect in this wave, not a re-baseline.
+
+### Files
+
+**New, under `apps/web/src/room/`:** `metres-text.ts`, `room-draft.ts`, `plan-preview-model.ts`,
+`room-screen.tsx`, `shape-picker.tsx`, `dimensions-form.tsx`, `plan-preview.tsx`, `room.module.css`.
+
+**Modified:** `app/[locale]/configurator/room/page.tsx`; `src/room/room-url-state.ts` (export
+`requiredFieldsFor`, import the moved `metresTextForUrl` — **no behaviour change**);
+`configurator-domain/src/room/room-policy.ts` and `src/index.ts`; `eslint.config.mjs`;
+`src/messages/ro.json` and `ru.json`; `tests/support/approved-romanian-messages.ts`;
+`tests/i18n/golden-output-fixtures.ts` and `golden-output-hashes.ts`. Plus the locale-menu extraction
+ruled at R5: `src/chrome/locale-menu.tsx` (**moved** from
+`app/configurator/configure/locale-menu.tsx`, gaining a `className` prop) and **one import line** in
+`app/configurator/configure/configure-screen.tsx` — which is the only existing file the extraction
+touches. **Its behaviour must not change:** `configure.module.css` keeps every rule it has, the
+component keeps every class it renders, and `tests/i18n/locale-menu.dom.test.ts`,
+`locale-menu-scales.dom.test.ts` and the top-bar e2e gates pass unchanged. A moved hash, a changed
+class or an edited locale-menu test is a finding.
+
+**This exceeds the wave table's five-file guess**, which listed only the four components and the
+stylesheet. The three extra production modules exist so criteria 8, 11, 12 and 13 are provable without
+a DOM, and that is why the wave is split into five slices with a mini-review between them rather than
+dispatched as one (`docs/WORKFLOW.md:159-173`).
+
+**Must NOT change — a change to any of these is a finding, not a repair:**
+
+- `room/approved-room-policy.ts` — **no bound moves this wave.** A bound edited to make a field or a
+  plan behave is exactly the defect ADR 0108 Amendment B decision B1 exists to make visible.
+- `room/validate-room.ts` — no new field, no new issue code, no new rule. 7F2, 7J and M7B touch it.
+- `room/parse-metres.ts` — settled at 7E1.
+- `room/create-design.ts` — 7F3 and 7F4 wire it (7E2 close-out, *Honest limits* 1).
+- `src/proxy.ts` — the route is already a customer path (ADR 0111 decision 4, shipped in 7E1).
+- Anything under `packages/three-adapter`, `apps/web/src/scene` or `apps/web/src/store`.
+- **Four test files must pass with not one line edited**, and this is the guard on the
+  `room-url-state.ts` edit: `tests/room/room-url-state.test.ts`, `qa-7e2-room-href.adversarial.test.ts`,
+  `parse-metres.test.ts`, `parse-metres.adversarial.test.ts`. **If a change to `room-url-state.ts`
+  appears to require touching one of them, that is the signal the change is wrong: stop and report,
+  rather than editing the test** (coordinator, 2026-09-14). Ruling R6's correction is what this rule
+  already caught once.
+- Existing entries in `tests/i18n/golden-output-hashes.ts`.
+- `configure.module.css`'s rules — under the *move*, the file keeps every rule it has and only the
+  component's location changes.
+
+### Punch list — five slices, dispatched one at a time, in this order
+
+**Slice 1 — the conversions and the shape predicate.** No UI. Production: `room/metres-text.ts` (new);
+`room/room-url-state.ts` (two exports, no behaviour change); `room-policy.ts` + `src/index.ts`. Tests:
+`tests/room/metres-text.test.ts` with criterion 8's property; a domain test for `isShapeBuildable`
+pinning *L only, today*. **Done when** criteria 8 and half of 4 hold and the four frozen test files
+pass unedited.
+
+**Slice 2 — the copy, the lint gate, and the gate on the gate.** No UI. Production:
+`src/messages/ro.json`, `ru.json`. Config: `eslint.config.mjs`. Tests: the copy lock, the golden
+fixtures and hashes, `tests/lint/room-example-dimensions.test.ts`. **Done when** criterion 16 holds,
+the lock is green, no existing golden hash moved, and the commit message names the keys and cites
+ADR 0113. *Second on purpose:* every later slice reaches for a key, and the lint block must be armed
+**before** the room directory grows the JSX it is meant to police.
+
+**Slice 3 — the plan's geometry, as a value.** No DOM. Production: `room/plan-preview-model.ts`,
+`room/room-draft.ts`. Tests: properties for isotropic scale, containment, constant wall thickness,
+mirroring and purity. **Done when** criteria 12, 13's property arm and 11's purity arm hold.
+
+**Slice 4 — 1A: the top bar, the three cards, *Continuă*.** Production: `room/room-screen.tsx`,
+`room/shape-picker.tsx`, `room/room.module.css`, `app/[locale]/configurator/room/page.tsx`, and the
+locale-menu resolution. Tests: `tests/room/room-screen.dom.test.ts`. **Done when** criteria 1, 2, 3 and
+17 hold.
+
+**Slice 5 — 1B: the fields, the corner toggle, the live plan, the URL sync.** Production:
+`room/dimensions-form.tsx`, `room/plan-preview.tsx`, `room/room-screen.tsx` (edit), `room.module.css`
+(edit). Tests: `tests/room/dimensions-form.dom.test.ts`, `tests/room/room-url-round-trip.dom.test.ts`.
+**Done when** criteria 4, 5, 6, 7, 9, 10, 11 and 13's query arm hold.
+
+**Then the visual gate** at 390 × 844 over 1A and 1B in both locales: criteria 14, 15, and the drawing
+of 1, 5 and 12. The tree is frozen while it runs.
+
+### Risks
+
+1. **The URL sync re-runs the server component and steals the caret.** A `router.replace` per keystroke
+   re-renders the server tree and can drop focus mid-word. The mitigation is
+   `window.history.replaceState`, which the implementer **verifies against
+   `apps/web/node_modules/next/dist/docs/`** before building on it (`apps/web/AGENTS.md`), not against
+   training data. Criterion 11's navigation spy catches the wrong mechanism.
+2. **An anisotropic plan is an easy accident** — filling both axes of the preview box is what the
+   frame's example pixels look like, and it is a lie about the room. Criterion 12's ratio property is
+   the guard, and it is written on the model so CSS cannot satisfy it.
+3. **The flat-config disarm**, named above. Without the gate on the gate this wave has a promise and
+   not a mechanism.
+4. **A wallC field nobody can reach.** U is M7B. The third field is covered only by criterion 4's
+   property and never by the visual gate — a stated limit of this wave, to be recorded in the close-out
+   rather than smoothed over.
+5. **`ru` is longer than `ro`**, and a visual gate run in one locale proves half of criterion 15.
+6. **Scope creep into 7F2.** A validation reason typed beside a field is 7F2's, and its copy is frame
+   1C's. An implementer who "just adds the message" ships 7F2's surface without 7F2's criteria.
+
+### Seven rulings — 2026-09-14, and what each rests on
+
+Every one was raised by the architect as an open question and **ruled by the coordinator on
+2026-09-14**, after independently verifying the three load-bearing facts in R1, R3 and R6 against the
+tree. They are recorded with their basis so the next reader sees *why* rather than re-litigating.
+
+**R1 — the constant ban is AST-based, re-declares the full selector list, and carries a gate on its
+own gate.** *Basis:* `eslint.config.mjs:394-396` already records that flat config **replaces** a
+rule's options and that *"a second block naming `no-restricted-syntax` over the same files would
+silently disarm the first — that is the shape of gate this milestone produced four of"*; and `3600` is
+already under `apps/web/src/room` in a comment (`parse-metres.ts:37`), so a grep gate would be red on
+arrival. **The probe test is the part that matters and is not optional**: it is what catches a future
+editor dropping a spread from the room block, which no other test in the repository would notice.
+
+**R2 — the URL updates while the customer types, by `history.replaceState`**, and *Continuă* pushes
+the canonical query. *Basis:* ADR 0111 decision 3, read directly — *"Back restores it, a reload keeps
+it, and the sub-state is derived from it: no valid room gives 1A/1B/1C"*. A half-entered room
+surviving a reload follows necessarily, and a URL written only on *Continuă* would lose it.
+
+**Two consequences that belong to the next two waves, not to this one.** They are repeated at 7F2's
+and 7F3's criteria so neither wave discovers them:
+
+- **1C becomes a live state reached by typing**, not only by arriving at a stale or hostile link. It is
+  what the customer sees while a value is out of range, so 7F2's reasons appear and clear as they type.
+- **_Continuă_ at 1B has no destination until 7F3 lists presets.** In 7F1 it pushes the canonical query
+  — a real effect, and the seam 7F3 takes over. It is never drawn as a control with a control's
+  affordances and no behaviour, which `configure.module.css` and ADR 0104 decision 6 both refuse.
+
+**R3 — all three cards ship, and the refusal stays silent until 7F2.** *Basis, two grounds.* Frame 1A
+draws three, and ADR 0108 Amendment B decision B2 rules that linear and U stay **refused**, not
+hidden — hiding them would overturn a recorded ruling to cover a transient gap. And nothing ships
+mid-milestone (owner rule, 2026-08-27), so a silent dead end between 7F1 and 7F2 never reaches a
+customer and is not worth blurring a wave boundary or pulling 7F2's copy forward. **Two requirements
+follow:** criterion 3 **asserts** the disabled *Continuă* on a refused shape, so the dead end is
+deliberate and tested rather than incidental; and **7F2 owes the refusal sentence**, recorded on its
+own row, naming 7F1 as the wave that shipped the silent state. 7F1 still must **not** hand-write a U
+branch — criterion 4 derives the field set from `requiredFieldsFor`, which already knows U, so the
+shape costs nothing to carry and nothing to remove.
+
+> **The two refused cards are not alike, and the criteria must not treat them as one thing**
+> (coordinator, 2026-09-14). ***Liniară* is already owner-approved** at 1200–6300 mm — F1 verbatim,
+> *"Yes, 1200–6300 mm"* — and is refused today only because ADR 0108 Amendment D holds those numbers
+> out of `APPROVED_ROOM_POLICY` until **wave 7J, inside this milestone**, so that a straight room
+> cannot validate before it can be composed. ***U* has never been put to the owner at all** and is
+> **M7B**. Criterion 3 is therefore written against `isShapeBuildable` and **never against the letter
+> `L`**: when 7J adds the linear bounds, the *Liniară* card must begin continuing **with no edit under
+> `apps/web/src/room`**, and criterion 3's adversarial arm is what proves it will. Only the U card's
+> presence is an open product question (F8).
+
+**R4 — one isotropic scale, recorded as a decision rather than left implicit.** *Basis:* frame 1B draws
+wall A at 250 px for 3,60 m and wall B at 50 px for 2,40 m — two different scales — so its pixels are
+an illustration of one example room, not a declared scaling rule, and ADR 0104 decision 1's authority
+runs over chrome while the plan glyph is content. Leaving the frame's example pixels as an implied
+contract is what this ruling exists to prevent. Criterion 12 is the enforcement.
+
+**R5 — the locale menu is extracted.** *Basis:* `configure.module.css:167-171` gives `.locale`
+`grid-area: locale`, with a desktop override at `:706` — it is positioned **by the configure screen's
+grid**, which is a genuine coupling and not a reuse opportunity. The component moves to
+`apps/web/src/chrome/locale-menu.tsx` and takes a `className` for its positioning cell; its stylesheet
+stays where it is, so the editor carries **zero CSS risk**. **Its behaviour must not change**, and the
+existing locale-menu tests and the top-bar e2e gates are what prove that. Lifting the `.locale*` rules
+into their own module is the right end state and is a later chore, not this Light wave's.
+
+**R6 — `direction` is written into the URL for every shape that carries the toggle, and a missing
+`direction` keeps its existing meaning.** *Basis:* the control is visible with a default position, so
+the URL should say what the customer sees; a silent default is the worse of the two.
+
+> **One correction to the ruling's premise, verified in the tree rather than assumed.** The ruling was
+> given as *"the parser must keep accepting a missing `direction` as left"*. The parser does not do
+> that today and never has: `room-url-state.ts:90-96` puts `direction` in `markedFields` when it is
+> absent, and `tests/room/room-url-state.test.ts:304` asserts exactly that for an L. Nothing relies on
+> the other reading either — `roomHrefFromDesignRoom` always **emits** `direction=left` (`:157`), so no
+> link it produces omits the key. **Making the parser default to left would change 7E1's shipped
+> contract and require editing a frozen test, which the rule below forbids.** So the ruling is recorded
+> in the form that is true, in three layers that must not be confused:
+>
+> - **The stored document:** an absent corner direction means left — ADR 0053's argument, and 7E2's
+>   recorded deferral to 7I (`room-url-state.ts:139-143`). **Unchanged.**
+> - **The URL parser:** an absent `direction` marks the field and resolves to 1B. **Unchanged**, and
+>   criterion 18 pins it so 7I cannot move it unnoticed.
+> - **The form's draft:** when the URL omits `direction`, the toggle shows **left** — frame 1B draws
+>   *La stânga* pre-selected — and 7F1's first sync writes `direction=left` into the URL. That marked
+>   field is **not** painted as an error (criterion 10).
+
+**R7 — the step pill reuses `configure.step` and `configure.stepPill`.** *Basis:* duplicating an
+owner-approved sentence into a second lock entry is how two copies drift apart, and this repository
+already carries that scar. The cost is a key namespace that no longer matches its screen; a `chrome.*`
+rename would touch the editor and is not this wave's.
+
+**Scope is approved as planned rather than as the wave table guessed it:** the three extra production
+modules and the five slices stand, because *provable without a DOM* is a sound reason to add a module,
+and the table's row has been corrected.
 
 ## Verification
 
