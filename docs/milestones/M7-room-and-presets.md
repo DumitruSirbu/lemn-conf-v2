@@ -67,9 +67,15 @@
 > is a whole-list *pending* rather than per-row progress, because `generateKitchen` is one synchronous
 > call (R12). ***Minimum not met* needs no new screen**: 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already
 > resolves such a room to 1C before generation runs, and the sentence there is 7F2's.
-> **Three questions are not the architect's:** Q7F4-1 (the owner's — the dropped-roles wording, which
-> ADR 0110 Amendment F itself asks to be confirmed), Q7F4-2 (the split) and Q7F4-3 (confirming R11 and
-> R12 against the owner's F8 *"use the design that was proposed"*).
+> **Three questions were not the architect's, and all three are answered the same day at `f0f3ae9`:**
+> **Q7F4-2 — the split is approved**, 7F4a closed and reviewed on its own before 7F4b is dispatched;
+> **Q7F4-3 — R11 and R12 are upheld and ruled by the coordinator rather than deferred to the owner**,
+> because the owner's F8 answer pointed at a frame and not at a paragraph, with the overturned clauses
+> **struck in place** at the 7F4 bullet so a reader who finds the prose alone sees what lost; and
+> **Q7F4-1 — the dropped-roles wording is with the owner**, the drafted interim ships marked
+> unapproved, and it blocks no slice because the answer is a message-file edit. **The wave table's
+> 7F4 row is corrected too:** it omitted `src/room/room-screen.tsx`, which must change because the
+> frames put *Cameră* on 1A–1C and *Preset* on 1D–1F.
 > **Updated once more 2026-09-14 at `b18b38e`: 7H is planned ahead of its turn, at the owner's
 > request** — read [*Wave 7H — dispatchable punch list*](#wave-7h--dispatchable-punch-list), which is
 > the binding version of the 7H bullet in the earlier criteria section. 16 criteria, six slices, and
@@ -820,7 +826,7 @@ Branch: waves land on `m7-room-and-presets`.
 | **7F1** | 1A shape cards; 1B fields, corner toggle, live 2D plan | `src/room/room-screen.tsx`, `shape-picker.tsx`, `dimensions-form.tsx`, `plan-preview.tsx`, `room.module.css` (+ `messages/ro.json`, `ru.json`) | 7A, 7E1 | Light | **Yes** | Q8 at close |
 | **7F2** | 1C validation state, shape refusal, the wall marked red | `dimensions-form.tsx`, `plan-preview.tsx`, `src/room/room-issue-copy.ts` (+ messages) | 7F1 | Light | **Yes** | Q5 interim |
 | **7F3** | 1D skeletons; 1E list and cards — counts by band, finish summary, starting price, **Folosește** | `src/room/preset-list.tsx`, `preset-card.tsx`, `preset-card-model.ts`, `room.module.css` (+ messages) | 7B, 7E2, 7F1 | Light | **Yes** | — |
-| **7F4** | 1F composition steps, struck *nu încape*, straight into the editor | `src/room/generation-steps.tsx`, `generation-model.ts`, `use-generation.ts`, `room.module.css` (+ messages) | 7D2, 7E2, 7F1 | **Full** (kit lifetime) | **Yes** | — |
+| **7F4** | 1F composition steps, struck *nu încape*, straight into the editor | `src/room/generation-steps.tsx`, `generation-model.ts`, `use-generation.ts`, `room.module.css` (+ messages) — **corrected 2026-09-14: `src/room/room-screen.tsx` is missing from this list and must change**, because the frames put *Cameră* on 1A–1C and *Preset* on 1D–1F and `RoomTopBar` hardcodes `room.title`. A file list that is wrong is worse than one that is absent | 7D2, 7E2, 7F1 | **Full** (kit lifetime) | **Yes** | — |
 | **7G** | Preset thumbnails from the recipe; in-repo rig; recipe fingerprints | `app/internal/scene-shot/shot-request.ts`, `scene-shot.tsx`, `apps/web/scripts/capture-preset-thumbnails.mjs`, `src/room/preset-thumbnails.ts` (+ `public/presets/*.png`) | 7B, 7F3 | Light | Capture | Q4 (which recipes) |
 | **7H** | The 3D room follows the design's room: shell planes and camera framing | `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/stage.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `apps/web/src/scene/scene-view.ts` | 7E2 | **Full** (3D, fidelity gate) | **Yes**, and desktop | — |
 | **7I** | Corner to the right: the mirrored kitchen. **Owes 7E2's deferral**: `room-url-state.ts`'s `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` (correct today, ADR 0111 decision 8 — absent means left) and must gain the optional field | `configurator-domain/src/design.ts` (optional `room.cornerDirection`), the adapter's scene root, `plan-preview.tsx`, `stage.ts`, `apps/web/src/room/room-url-state.ts` | 7H | **Full** | **Yes** | **blocked on Q6** |
@@ -984,11 +990,24 @@ tree while it does (`docs/best-practices/browser-and-visual-qa.md`).
   card's (asserted in 7K). A missing thumbnail paints nothing, never a broken image. Must not: a
   confirm screen, a card the evaluator did not list, or a card for a room the list was not computed
   for.
-- **7F4:** the steps render in the log's order with the frames' three states; *nu încape* items are
-  struck through and absent from the design that opens. *Property at the model:* for every valid room
+- **7F4:** ~~the steps render in the log's order with the frames' three states; *nu încape* items are
+  struck through~~ **and** absent from the design that opens. *Property at the model:* for every valid room
   either at least one preset is listed or generation runs — no *"no results"* state exists. The kit
   lease is released even if the customer leaves mid-composition (ledger). The composition's duration
   on the verifier's device is **reported**, not assumed.
+  **Expanded 2026-09-14 into [*Wave 7F4 — dispatchable punch list*](#wave-7f4--dispatchable-punch-list-the-composition-runs-and-the-kitchen-it-makes-is-the-one-that-opens),
+  which is the binding version, and the struck clauses above are struck by rulings R11 and R12 —
+  ruled by the coordinator 2026-09-14, not deferred to the owner.** They are struck **in place rather
+  than rewritten**, so a reader who finds this paragraph alone sees what lost and why. **R11:** a
+  6300 × 4700 room logs 4 core + 8 storage + ~11 upper steps, while frame 1F draws **four** rows, one
+  of them the aggregate *Depozitare · restul peretelui* — so the rows are one per
+  `GENERATION_PRIORITIES` role plus one storage row, **resolved from** the log rather than mirroring
+  it. *"In the log's order"* was written before anyone had read the log's shape. **R12:**
+  `generateKitchen` is **one synchronous call**, so the frame's middle state is a whole-list *pending*
+  and never per-row progress — a paced reveal would be **animating a fiction**. The surviving clause,
+  *absent from the design that opens*, is criterion 31. The owner's F8 answer — *"use the design that
+  was proposed"* — points at the frame, which is what these rulings follow; the prose is a description
+  of it and lost to it.
 
 **7G — thumbnails.** ~~Every recipe has exactly one thumbnail, rendered from its own instantiated design
 by `/internal/scene-shot`~~ **Superseded 2026-09-11 (ADR 0112 decision 6): captured at save** — the rest
@@ -1418,7 +1437,10 @@ table.
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan — **DONE, `5d2ff54`** (five slices), with the visual gate's D1–D3 fixed at `852df10`; **its D4 and D5 are closed by 7F1-D45, not here** | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
 | **7F1-D45** | Back keeps the room the customer typed: the debounced `router.replace`, the client-derived sub-state, the departure flush and the traversal e2e (R9) — **DONE, `8437c95`**, review fold `6682d8e` | `room/room-query-sync.ts` (new), `room/room-screen.tsx`, `app/[locale]/configurator/room/page.tsx`, `eslint.config.mjs` (+ `tests/e2e/room-traversal.qa.e2e.spec.ts`) | 7F1 | Light | **Yes** | none |
-| **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
+| ~~**7F4**~~ | ~~1F composition steps into the editor~~ — **split 2026-09-14 into 7F4a and 7F4b (Q7F4-2, coordinator)**, because the two halves fail differently and different instruments catch them | | | | | |
+| **7F4a** | The composition runs and is drawn: 1F's rows, the borrowed kit, the measured cost | `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` (+ messages) | 7D2, 7F1 | **Full** (kit lifetime) | **Yes** | Q7F4-1 interim |
+| **7F4b** | The hand-off into the editor: one attempt, one row, navigation after the write | `src/room/use-generation.ts`, `generation-steps.tsx`, `room.module.css` (+ `tests/e2e`) | **7F4a**, 7E2 | **Full** | **Yes** (short) | — |
+| ↳ | ***Minimum not met* → 1C needs no new screen** (carried from the struck row, answered 2026-09-14): 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already resolves such a room to 1C **before** generation runs, and the sentence there is **7F2's**. The generator's own refusal arm is unreachable from 1D and is asserted so, not drawn for (R16) | | | | | |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button. **This wave is the project's freeze point**: the owner's *"a critical moment will be when I will start to save presets"*. From here the corner's reach, the wall minima and `ROOM_TOO_SMALL_FOR_KITCHEN` are load-bearing on stored data — **geometry that wants re-deriving (7D6, 7D7) lands before this, not after** | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
 | **7G** | Thumbnail captured at save, stored, served | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts` | 7P2 | Full + security (upload) | Capture | — |
@@ -1449,7 +1471,8 @@ is the critical path, because matching is useless until the library has presets:
 F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **and again the same day:
 7E4 → 7E3a → 7E3c → 7E3b** — the share path lands before the open read closes).~~ **Corrected
 2026-09-13 after 7A2 closed: 7E1 → 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G → 7B → 7C → 7F2 → 7F3 →
-7E4 → 7E3a → 7E3c → 7E3b → 7H → 7I → 7J → 7K → 7L.**
+7E4 → 7E3a → 7E3c → 7E3b → 7H → 7I → 7J → 7K → 7L.** **Corrected again 2026-09-14: 7F4 is two waves
+— `… → 7F1 → 7F4a → 7F4b → 7P1 → …` (Q7F4-2).**
 
 **The 7E3 split, confirmed against F5's final answer (ADR 0115) — three waves, not two.**
 - **7E3a — cookie and resume.** Needed under every answer the owner gave; nothing reads a design by
@@ -6891,6 +6914,12 @@ body**, which is ADR 0019's 2026-08-31 correction and ADR 0110's own decision-re
 **7F4 must not touch that route.** A generated design reaches the database through the `PUT`, exactly
 as an applied preset will.
 
+> **Recorded because the way it was misread is the useful part** *(coordinator, 2026-09-14, correcting
+> their own dispatch brief)*: the hardcoded fixture was carried forward as a worry from a fact
+> recorded weeks earlier, *"without re-reading what it meant"*. The fact was true and its consequence
+> was not. **A fact about a file is not a fact about the behaviour** — the route's line is unchanged
+> since M2 and what changed around it is 7E2's awaited `PUT`.
+
 ### Ground truth, measured at `e8027f5`
 
 Each fact is a file and a line, because four of them contradict something a reader would reasonably
@@ -6974,14 +7003,14 @@ if it happens anyway. **This does not overturn the row** — *minimum not met �
 upstream of generation rather than by a new screen state.
 
 **3. Does this wave run the generator, or only stage the hand-off.** It runs it. See *Read this
-before anything else*. **Recommendation: split the wave** (Q7F4-2) — **7F4a** runs the composition and
-draws it, **7F4b** hands off to the editor. The two halves fail differently and are caught by
-different instruments: 7F4a's failures are a bundle, a frozen main thread and a leaked kit, all
-measurable in a browser; 7F4b's failure is **a duplicate row in the database**, which only a component
-test with a stubbed fetch catches — and that is precisely the gap 7E2's close-out says *"a
-factory-level test cannot substitute"* for. The cost is one extra Full-tier cycle and one extra visual
-gate; the alternative is one wave of nine must-fix items, which `docs/WORKFLOW.md`'s scope rule
-refuses at five.
+before anything else*. ~~**Recommendation: split the wave**~~ **Split — approved by the coordinator
+2026-09-14 (Q7F4-2)** — **7F4a** runs the composition and draws it, **7F4b** hands off to the editor.
+The two halves fail differently and are caught by different instruments: 7F4a's failures are a bundle,
+a frozen main thread and a leaked kit, all measurable in a browser; 7F4b's failure is **a duplicate
+row in the database**, which only a component test with a stubbed fetch catches — and that is
+precisely the gap 7E2's close-out says *"a factory-level test cannot substitute"* for. The cost is one
+extra Full-tier cycle and one extra visual gate; the alternative is one wave of nine must-fix items,
+which `docs/WORKFLOW.md`'s scope rule refuses at five.
 
 ### Rulings — R10 to R18, 2026-09-14
 
@@ -7184,10 +7213,12 @@ surface. Each criterion names its proof: **[unit]**, **[property]** (`fast-check
 34. **The real probe agrees with the validator where it matters most.** Against the **real** adapter
     kit, `generateKitchen` returns `ok` for each of ADR 0108 Amendment E's accepted boundary rooms —
     **900 × 2200, 1000 × 2100, 1500 × 1600**, plus their +1 mm neighbours — closing the gap that
-    `minimum-kitchen.test.ts`'s fake-probe agreement property leaves open (G5). **Must not:** a new
-    exception in the domain to make this pass — a disagreement here is a **stop and report**, and it is
-    ADR 0110's to settle, not this wave's. **[unit]** in `packages/three-adapter/tests` (tests only;
-    the package's production code is in the must-not-change set).
+    `minimum-kitchen.test.ts`'s fake-probe agreement property leaves open (G5). **A disagreement here
+    is ADR 0110's to settle, not a number to nudge** — the implementer **stops and reports**, and the
+    coordinator rules. **Must not:** a constant adjusted, a boundary moved or an exception added in the
+    domain to make this go green; a failure absorbed as a tolerance. **[unit]** in
+    `packages/three-adapter/tests` (tests only; the package's production code is in the
+    must-not-change set).
 35. **A refusal or a throw is a dead end the customer can leave, and nothing was written.** With
     `generateKitchen` stubbed to return `ok: false` and, separately, to throw: the screen shows the
     failure state, *Înapoi* still returns to the fields with the draft intact, the lease ledger is
@@ -7281,6 +7312,11 @@ instruction is binding on this wave.** The draft to put to the owner, one leaf a
   stop-and-report:** criterion 38's measurement, taken in a production build **before slice 3 is
   dispatched**. If the median exceeds one second the implementer stops; whether to accept it, to move
   the work, or to change the screen is the coordinator's to rule, not the implementer's to improvise.
+  > **In the slice, not only in the rulings: `reactStrictMode: true`** (`apps/web/next.config.ts:9`).
+  > A run started from a `useEffect` **double-fires in development** — two kits, and in 7F4b two
+  > design rows — and nothing currently red would catch the second, because it is a *different*
+  > attempt and 7E2's one-row guarantee is per-attempt by design. **The run starts from the tap
+  > handler** (R15), and criterion 27's spy is what proves it.
 - **Slice 3 — the screen.** `generation-steps.tsx`, `room-screen.tsx`, `room.module.css`, both
   catalogues, the golden and lock re-baseline. **Done when** criteria 24, 25, 26, 29, 36 hold.
 - **Then the visual gate**, 390 × 844, both locales, on a **production build**, with the tree frozen.
@@ -7335,20 +7371,28 @@ instruction is binding on this wave.** The draft to put to the owner, one leaf a
    forbids the second. Ranked last because it costs a review round rather than a defect — but it is the
    most likely of the seven to actually occur.
 
-### Questions that are not mine
+### Questions that are not mine — all three answered 2026-09-14, at `f0f3ae9`
 
 - **Q7F4-1 — the owner's.** The dropped-roles sentence's wording, per ADR 0110 Amendment F's own
-  instruction to confirm it. Draft above. **Interim:** ship the draft, marked in the code as
-  unapproved, so the wave is not blocked.
-- **Q7F4-2 — the coordinator's.** Split into 7F4a and 7F4b? **Recommended: yes**, for the reasons in
-  *the three questions*, answer 3. If the answer is no, the single wave has nine must-fix items and
-  `docs/WORKFLOW.md`'s dispatch limit is exceeded deliberately and on the record.
-- **Q7F4-3 — the coordinator's, possibly the owner's.** R11 and R12 overturn two clauses of a written
-  criterion — *"the steps render in the log's order"* and *"the frames' three states"* — against the
-  frame and against what `generateKitchen` can actually report. The owner's F8 answer was *"use the
-  design that was proposed"*, so if either reading is thought to be the owner's, **ask before the
-  slice**. My position is that the frame is the design that was proposed, and the prose is a
-  description of it written before anyone had read the log's shape.
+  instruction to confirm it. Draft above. **Put to the owner 2026-09-14; the interim stands and the
+  wave is not blocked** *(coordinator)*: ship the draft marked unapproved in the code. **If the answer
+  changes it, that is a message-file edit — the cheapest kind of change to absorb late**, which is why
+  it does not gate a slice.
+- **Q7F4-2 — the coordinator's. → *Split: 7F4a, then 7F4b.*** *(Coordinator, 2026-09-14, taking the
+  recommendation and its reason.)* **The halves fail differently and different instruments catch
+  them:** a bundle, a frozen main thread and a leaked kit are browser-measurable; **a duplicate design
+  row is not**, and only a component test with a stubbed fetch sees it — the gap 7E2's close-out
+  already named. A single wave would have hidden it behind nine must-fix items and a dispatch limit
+  exceeded *"deliberately"*. **7F4a is closed and reviewed on its own before 7F4b is dispatched.**
+- **Q7F4-3 — raised as possibly the owner's. → *Both upheld, and ruled by the coordinator rather than
+  deferred.*** *(Coordinator, 2026-09-14.)* **The frame is the design that was proposed** — the owner's
+  F8 answer pointed at a frame, not at a paragraph. **R11:** four rows and an aggregate against a log
+  of twenty-three steps *"is not a close call"*, and the prose *"in the log's order"* was written
+  before anyone had read the log's shape. **R12:** one synchronous call means there is no sequence to
+  be in the middle of, and a per-row progress UI would be **animating a fiction** — *"that it also
+  deletes my trap 2 is a consequence, not the reason."* **Recorded by striking the clauses in place**
+  at the 7F4 bullet above, never by rewriting them, so a later reader who finds the prose alone sees
+  what lost and why.
 
 ### Verification
 
