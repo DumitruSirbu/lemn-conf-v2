@@ -412,6 +412,65 @@ does not move. Their corrected arithmetic is: at B=1599 the usable/planned span 
 than the physical 599; at B=1699 it is 698 mm, so after one 600 mm storage body the planned
 remainder is 98 mm, with 1 unrecordable millimetre and the 100 mm reserve making 199 mm physical.
 
+## Clarification — 2026-09-14: the generator does not insert corner bodies because the shell authors them
+
+**Written because two true facts were connected into a false conclusion and reported to the owner as a
+missing feature.** Nothing here changes a decision; decision 1 and Amendment B1 already say it. It is
+recorded as prose a later reader will hit, because the misreading is an easy one and it has happened.
+
+**The two true facts.** (i) The four corner rows — `base-corner-x-900`, `base-corner-return-320` and
+the two wall returns — are **not insertable**: they are seeded, they declare no catalogue equivalent
+because §13.1 rules a corner may not be swapped, `toInsertableBody` returns `undefined` for them and
+`insertBody` answers `NOT_INSERTABLE`. (ii) Both composed runs **stop short of the corner**, starting
+at 900 mm rather than at 0.
+
+**The false conclusion drawn from them** was that a generated kitchen has no corner cabinet and passes
+its worktop over roughly 600 × 600 mm of dead space.
+
+**What is actually true, measured from `buildLShellDesign` across the approved policy — at
+900 × 1000 × 2200, 3300 × 1700 × 2200, 3600 × 2920 × 2600 and 6300 × 5100 × 2600:** every shell holds
+its corner assembly, and fact (ii) is the *evidence* for it — `floorRunStartMm` is defined as the
+farthest along-wall edge of the structural pieces on that wall, so **a run starting at 900 is a run
+starting where the corner cabinet ends.**
+
+> **The sentence that prevents the repeat: the generator does not insert corner bodies because the
+> shell authors them. That is the design, not a gap.**
+
+**Two consequences worth stating in the same place.**
+
+- **"Make the corner placeable" means "make it correctly sized", never "route it through
+  `insertBody`".** A corner body spans **two walls**; the void and column model is **per wall**
+  (`deriveColumnKeyAt`, `alongWallPosition`), and `findCornerOverlaps` exists to police exactly that
+  case. Making a corner insertable would mean teaching the engine a two-wall footprint — far larger
+  than making its size derived, and nothing any owner ruling asks for. Wave **7D6** derives the size
+  and explicitly does not do this.
+- **In the smallest rooms the corner is the first thing placed and the only thing that fits.** At
+  900 × 1000 both runs are **zero length** and generation returns *minimum not met*. The honest
+  sentence is therefore *"what there is no space for is the sink and the hob, after the corner has
+  taken its 900 mm"* — never *"there is no space for a corner cabinet"*.
+
+**And a standing caution for any wave that touches the corner's size:** `farthestCornerEdgeMm` is the
+root of **two** owner-facing numbers today — the approved wall minima (ADR 0108 Amendment B, approved
+by the owner personally) and 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN`. **Of the two directions, the one
+without an alarm is the dangerous one:** a reach that *grows* past an approved bound turns the guard
+test red, which is what the guard is for; a reach that *shrinks* fails nothing and silently refuses
+rooms the product could build.
+
+**~~A third number — the validity of every stored design~~ — struck 2026-09-14 on the owner's
+ruling:** *"there are no existing saved kitchens at the moment… until we'll not implement all the
+milestones, and I will not explicitly mention that we move it to production, we are pretty safe to not
+worry about existing kitchens."* Nothing is stored and nothing is in production, so
+[ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s marked-not-moved consequence
+**cannot reach a customer**, and it must not be used to argue for caution. **Re-deriving this geometry
+today costs no migration and no compatibility window.**
+
+**It becomes a third number again at wave 7P2** — the owner's own *"a critical moment will be when I
+will start to save presets"*. Presets are the first durable artefact the product will hold, so from
+that wave the reach is load-bearing on stored data. **Treat it as a deadline: geometry that wants
+re-deriving is re-derived before 7P2, not after.** Their ordering beyond that point: M8's review /
+contact / share page, customer profiles, then a milestone for deployment, production readiness and a
+security audit. The wave plans are `docs/milestones/M7-room-and-presets.md`, *Wave 7D6* and *7D7*.
+
 ## Amendment E — 2026-09-14: a tall unit stands at the free end of wall A, and the hob's oven follows it
 
 **Status: drafted for wave 7D3 as its slice S0. Held 2026-09-14 on two questions the owner's

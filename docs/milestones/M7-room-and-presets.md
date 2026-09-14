@@ -1366,13 +1366,15 @@ table.
 | **7D1** | Composition shell for the L — **DONE, `f5b4cd9`** | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
-| **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12 |
+| **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
+| **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
+| **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Ordering: its fidelity baseline is taken *after* 7H lands, never before. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders (+ fidelity and parity coverage) | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths | — |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
 | **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
-| **7P2** | Authoring gate, save endpoint, editor button | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
+| **7P2** | Authoring gate, save endpoint, editor button. **This wave is the project's freeze point**: the owner's *"a critical moment will be when I will start to save presets"*. From here the corner's reach, the wall minima and `ROOM_TOO_SMALL_FOR_KITCHEN` are load-bearing on stored data — **geometry that wants re-deriving (7D6, 7D7) lands before this, not after** | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
 | **7G** | Thumbnail captured at save, stored, served | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts` | 7P2 | Full + security (upload) | Capture | — |
 | **7B** | Preset matching: ±600 window, fit, availability, one evaluation | *carried* files; revised criteria below | 7A | Full | No | — |
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
@@ -1386,7 +1388,7 @@ table.
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
-| **7H** | The 3D room follows the entered room | *carried* | 7E2 | Full | **Yes** + desktop | — |
+| **7H** | The 3D room follows the entered room. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** | *carried* | 7E2 | Full | **Yes** + desktop | — |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
@@ -5551,3 +5553,316 @@ The scratch probes that produced G1–G3, G9, G10, G15, G17 and the witness tabl
 against the package's built `dist/generation/`; an implementer who disagrees with a measured figure
 **re-measures it and reports, rather than adjusting the plan**. **G15 and G17 are the two figures most
 likely to be mistaken for targets** — they are consequences of the rules, and nothing asserts either.
+
+## Wave 7D6 — dispatchable punch list: the corner's reach is derived from the cabinet depth
+
+**Tier: Full.** No visual surface *(7D7 carries the 3D half)*. **Owner answers needed to dispatch:
+none — but the wave may raise one, and it is the most consequential in M7's domain work:** if the
+derived reach differs from today's, an **owner-approved room bound moves**. See *The three
+owner-facing numbers*. **Depends on nothing unbuilt**; 7D1 and 7D2 are shipped and this wave changes
+how one of their inputs is derived, not what it means.
+
+**What the owner asked for**, 2026-09-14: *"use the corner cabinets that we have now"* and *"update
+the generator to generate corner cabinets with the correct shape and size."* **No new body** — the
+four shipped corner rows stay, and their dimensions stop being literals.
+
+**ADRs to check intent against first, and to stop and report on if they disagree:**
+[0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+decision 1 and Amendment B (the shell authors the corner), and its 2026-09-14 *Clarification*;
+[0021](../decisions/0021-corner-returns-are-structural-in-data.md) (corners are structural in data);
+[0108](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md)
+Amendments A, B and D (**the wall minima are derived from the corner and were approved by the owner
+personally**); [0089](../decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md)
+and [0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+(the along-wall chain, which is what slides the corner today);
+[0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) (**a body past its
+wall is marked, not moved** — read it for what a *grown* reach does to a generated kitchen at
+development time; ~~the stored-design consequence~~ is struck, there being no stored designs);
+`docs/design/DEVELOPMENT-SPEC.md` **§13.1** *Corners are structural* and **§13.3 open question 6**.
+
+### Read this before anything else: what is and is not missing
+
+**The generator already places corner cabinets in every kitchen it composes, including the smallest
+room the policy admits.** Measured directly from `buildLShellDesign`, at 900 × 1000 × 2200 through
+6300 × 5100 × 2600: `base-corner-x-900` on wall A, `base-corner-return-320` on wall B,
+`wall-corner-return-570` at the wall row, and `wall-corner-return-570-top` where the ceiling reaches
+2600. Both runs start at **900 mm — the corner assembly's own far edge** — so **composition already
+starts from the corner and fits what remains between it and each wall's end**, which is the owner's
+rule 2, shipped in 7D1.
+
+**The true-but-misleading fact that must not be reconnected wrongly.** The four corner rows are **not
+insertable** — `toInsertableBody` returns `undefined` for a seeded row and `insertBody` answers
+`NOT_INSERTABLE`. That is true, and it does **not** mean the corner is absent. **The generator does not
+insert corner bodies because the shell authors them; that is the design, not a gap**
+(ADR 0110 decision 1, Amendment B1, and its 2026-09-14 *Clarification*). Reading the first fact as
+*"the corner is empty"* once produced a report to the owner that the product omits corner cabinets.
+
+**So "make the corner placeable" means "make it correctly sized", never "route it through
+`insertBody`".** A corner body spans **two walls**; the void and column model is **per wall**
+(`deriveColumnKeyAt`, `alongWallPosition`), and `findCornerOverlaps` exists to police exactly that.
+Making a corner insertable is a far larger change than making it derived, **nothing in the owner's
+instruction asks for it, and this wave must not do it.**
+
+**Wave 7D4's Q-D6 is a different question** and does not overlap: that asks whether a **blind corner
+cabinet** — a new body, for the space *behind* the assembly — should exist, and it is blocked on the
+post-beta body deferral. This wave adds no body.
+
+### Ground truth, measured at `8d73385`
+
+| # | Measured | Consequence |
+| --- | --- | --- |
+| K1 | **Every corner width is a literal that does not follow the cabinet depth.** `base-corner-x-900` is 900, `base-corner-return-320` is 320, both wall returns 570 — **identical at 600 mm and at 700 mm**. What moves with the depth is the **position**, through the along-wall chain. | This is the whole of *"correct shape and size"*. The corner does not resize with the kitchen it belongs to; it slides. |
+| K2 | **At 600 mm all four pieces land flush: far edge exactly 900 on both walls.** | Today's runs start at 900/900, and **every 7D3 and 7D4 measurement was taken against that origin.** |
+| K3 | **At 700 mm they no longer agree: the base row reaches 1000 while the wall row reaches 970 — a 30 mm disagreement between rows**, produced by two chains sliding fixed widths rather than by either width being re-derived. | **The concrete motivating defect.** It is a fidelity defect at the deeper declared depth, not a missing cabinet, and it is what the owner's instruction actually names. |
+| K4 | The shell validates clean at 600 mm in every room sampled — zero `validateDesignForCatalog` findings at 900 × 1000, 3600 × 2920 and 6300 × 5100. | **Nothing is broken today at the shipped depth.** This wave is correctness at the *other* depth, and derivation in place of literals. |
+| K5 | **Run origins are on the grid and stay there.** 900 on both walls: `% 50 = 0`, `% 100 = 0`. The 570 mm return's non-grid width **never reaches the run origin**, because a run reads the **assembly's far edge**, not any single piece's width. | A worry worth having had, and it does not bite: neither ADR 0052's 800 mm merge cap nor 7D3's ≤ 200 mm absorb window is affected. At 700 mm the wall row's origin would be 970 — off the 50 mm grid — but **generation never sees it**: the shell is built at 600 and a depth change is a later customer edit. |
+| K6 | §13.1's *"Corners are structural"* rationale is **"No replace, no delete, never a width donor. A sink-in-corner request is a custom product, not a loosened rule."** | It governs **customer editing**, says nothing about who authors a corner, and **is untouched by this wave**. Nothing needs loosening. |
+| K7 | §13.3 open question 6: *"Hob and corner widths are still fixed in geometry; parameterising them is the remaining builder work."* | **The spec already carries this as its own open question.** It is `three-adapter` work and it is **wave 7D7**, not this one. |
+
+### Pre-flight — a gate on wave 7D3's dispatch, and the cheapest thing in this plan
+
+**Before 7D3 is dispatched, derive the corner's along-wall reach at 600 mm depth and assert it equals
+900 mm.** One measurement, one assertion.
+
+- **900 is the owner-approved reference, not a coincidence**: it is the reference kitchen's own corner,
+  and ADR 0108 Amendment B's approved wall-A minimum of 900 is derived from it.
+- **If it reproduces 900**, 7D3 dispatches unchanged and 7D6 is a pure refactor at the shipped depth.
+- **If it does not**, 7D3's *rules* all survive but its **threshold table dies**: 3300 / 3900 / 4500,
+  the 3299 boundary and the absorb-window population were all measured from a 900 origin and shift by
+  the delta. Re-measuring is hours, not a re-plan — **but it must happen before 7D3's criteria are
+  written, not after they fail.**
+- **7D4 is unaffected either way.** It measures leftover from the run origin, whatever that origin is.
+
+### The three owner-facing numbers the reach is the root of
+
+**The corner's reach is not a local geometry constant.** `farthestCornerEdgeMm` feeds
+`ENGINE_ROOM_LIMITS`, and from there:
+
+1. **The wall minima** — wall A ≥ 900, wall B ≥ 1000 — which the owner **approved personally** under
+   Q1 (*"Yes looks like good boundaries"*, ADR 0108 Amendment B).
+2. **7A2's `ROOM_TOO_SMALL_FOR_KITCHEN`**, derived from the reach plus the sink and hob widths: it
+   decides which rooms Step 1 refuses outright.
+3. ~~**Stored-design validity** — every saved design was written against today's reach.~~ **Struck
+   2026-09-14: there are no saved designs.** It becomes true again at wave 7P2 — see *the freeze
+   point* below. **Two numbers, not three, until then.**
+
+**The asymmetry, and it is the heart of this wave's risk:**
+
+| direction | what happens | who notices |
+| --- | --- | --- |
+| **Reach grows** | The engine minimum passes the approved bound. `room-policy.ts`'s own contract fires: *"an engineering change that moves a limit past an approved bound turns a test red instead of silently moving what a customer may enter."* | **Loudly — a guard test.** But the fix is not an engineering choice: **Q1 goes back to the owner**, because they approved 900/1000 themselves. |
+| **Reach shrinks** | The approved bound stays, now stricter than the engine needs. **Nothing fails.** The product silently refuses rooms it could build. | **Nobody. This is the direction that needs a criterion written for it** (criterion 4), because nothing catches it today. |
+
+**~~The stored-design consequence~~ — VOIDED by the owner, 2026-09-14, and struck rather than left as
+a hypothetical.** It read: a grown reach pushes the corner past a short wall, ADR 0065 marks rather
+than moves it, and a customer reopens a saved kitchen to find it red. **It cannot happen.** The owner:
+*"there are no existing saved kitchens at the moment… until we'll not implement all the milestones,
+and I will not explicitly mention that we move it to production, we are pretty safe to not worry about
+existing kitchens."* **Nothing is stored, nothing is in production, and nothing will be until every
+milestone is implemented and the owner says so explicitly.** A risk that cannot fire is noise that
+makes the real one harder to see, so it is struck here rather than carried.
+
+**What that makes materially easier, stated plainly because the plan otherwise implies a delicacy that
+no longer applies: 7D6 may re-derive the corner freely.** No migration, no compatibility window, no
+frozen bounds, no stored geometry to honour. **Re-deriving a number the owner approved still needs
+their ruling — but it is a conversation, not a data problem.**
+
+**The freeze point is real, and it is not far away.** The owner names it: *"a critical moment will be
+when I will start to save presets."* **Presets are the first durable artefact this product will hold**
+— authored by the owner, matched against a customer's walls, and outliving the wave that wrote them.
+**From the moment preset authoring ships (wave 7P2), the corner's reach, the wall minima and
+`ROOM_TOO_SMALL_FOR_KITCHEN` become load-bearing on stored data and stop being freely re-derivable.**
+So this is a **deadline, not a caveat: geometry that wants re-deriving is re-derived before 7P2, not
+after.** The owner's own ordering after that point, recorded so the preset waves can see it: M8's
+review / contact / share page, then customer profiles, then a further milestone for deployment,
+production readiness and a security audit.
+
+### Rulings
+
+**J1 — what "correct shape and size" resolves to: a function of the cabinet depth and the two wall
+directions, and of nothing else.** A corner cabinet's size does **not** depend on the room — there is
+**one correct corner per declared depth**. So the wave replaces four literals with one derivation and
+changes no behaviour at 600 mm, where the derivation must reproduce the reference kitchen.
+
+**J2 — the corner is authored by the shell, and stays so.** No corner body becomes insertable, no
+catalogue row is added, `toInsertableBody` is untouched, and the per-wall column model is not taught
+about two-wall footprints. **Must-not, not merely out of scope.**
+
+**J3 — the wall row and the base row must agree at every declared depth.** K3's 30 mm disagreement is
+the defect. The two rows' reaches are derived from the same depth, so they cannot drift apart.
+
+**J4 — no approved bound moves silently, in either direction.** Criterion 4 asserts the approved
+minima and the derived reach **agree**, rather than only that the approved ones are not lower.
+
+### Module boundaries
+
+- **The derivation is one pure function with one caller apiece.** It answers *"how far does the corner
+  assembly reach along wall W at cabinet depth D?"* and is read by `ENGINE_ROOM_LIMITS`
+  (`farthestCornerEdgeMm`) and by the shell's `floorRunStartMm` / `wallRowStartMm`. **Two readers, one
+  authority** — today both re-derive it from the fixture's placements.
+- **The fixture keeps its placements**; what changes is that their along-wall widths come from the
+  derivation rather than from stored literals.
+- **`along-wall-chain-shift.ts` is read, not rewritten.** The chain is how a corner *slides*; this wave
+  is about how it is *sized*. If the derivation makes part of the slide redundant, **report it — do not
+  remove it in this wave.**
+- **Nothing under `packages/three-adapter` is touched.** The builders are 7D7's.
+
+### Files, and the must-not-change set
+
+**May change:** `packages/configurator-domain/src/room/room-policy.ts`;
+`src/generation/shell-design.ts` (the two run-start helpers only);
+`src/fixtures/kitchen-l-design.ts` (the corner placements' widths);
+a new pure module for the derivation; `src/index.ts` (exports only); the paired tests, plus the guard
+test that holds `APPROVED_ROOM_POLICY` against `ENGINE_ROOM_LIMITS`.
+
+**Must not change:** `src/catalog.ts` — **no row gains or loses insertability**; `src/commands/**`;
+`src/void-engine.ts`; `src/module-grid.ts`; `src/validate-design.ts`;
+`src/room/approved-room-policy.ts` — **the owner's literals are not edited by this wave; if the
+derivation disagrees with them, the wave stops and reports**; `src/generation/generate-kitchen.ts`,
+`generation-priorities.ts`, `leftover-rule.ts`, `tall-end-rule.ts` — **7D3's and 7D4's files**;
+anything under `packages/three-adapter` or `apps/web`.
+
+### Acceptance criteria
+
+1. *(unit, the pre-flight)* **The derived reach at 600 mm is 900 mm on wall A and 900 mm on wall B**,
+   equal to the reference kitchen's own corner, asserted as a literal so a change is visible as a
+   failing number. **Must not:** a test that compares the derivation only against itself.
+2. *(unit, boundary — the motivating defect)* **At 700 mm the base row and the wall row reach the same
+   figure on wall B.** K3's 1000-versus-970 disagreement is gone, and the test names both rows.
+   **Must not:** the two rows agreeing at 600 and drifting at 700.
+3. *(property, over both declared depths and every room in the approved policy)* The shell reports
+   **zero** `validateDesignForCatalog` findings and no overflowing placement, **at each declared depth
+   and after `setCabinetDepth` between them** — the invariant 7D1 criteria 2 and 9 already hold, now
+   re-run against the derivation.
+4. *(unit — the criterion nothing has today, J4)* **The approved minima and the derived reach agree.**
+   `APPROVED_ROOM_POLICY`'s wall-A and wall-B minima **equal** the derived reach at the depth that
+   maximises it, not merely *"are not below"* it. **Must not:** a guard that passes when the derivation
+   shrinks — that is the silent direction, and this criterion exists for it alone.
+5. *(unit)* **No insertability changes.** The count of insertable rows is **16**, unchanged, and no
+   row whose `structuralReason` is `"corner"` is among them. **Must not:** a corner row gaining a
+   catalogue equivalent.
+6. *(unit)* **Run origins stay on the grid at the shipped depth** (K5): 900 on both walls,
+   `% 50 === 0`. **Must not:** a derivation that lands a run origin off the 50 mm grid at 600 mm.
+7. *(unit, boundary)* The smallest approved room, **900 × 1000 × 2200**, still holds its corner
+   assembly and still returns *minimum not met* from `generateKitchen`. **Must not:** the smallest room
+   changing its answer as a side effect.
+8. *(unit)* **7D3's origin is unmoved**, asserted here rather than in 7D3: `lShellFloorRuns` returns
+   `A.startMm === 900` and `B.startMm === 900` at 600 mm for the rooms 7D3's threshold table names
+   (3300 × 1700, 3900 × 1700, 4500 × 1700, 4000 × 3000). **Must not:** this wave moving a number 7D3
+   measured, without 7D3's table being re-measured in the same commit.
+9. *(unit)* **Determinism:** the same room and depth give a byte-identical shell.
+10. *(lint / grep in a test)* **No corner width survives as a literal** under `src/generation/` or
+    `src/room/`: `900`, `320` and `570` do not appear as corner dimensions outside the fixture and the
+    derivation. **Must not:** a constant "kept in sync" with the derivation — that is the second
+    authority [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
+    forbids.
+
+### Slices, in dependency order — dispatched one at a time
+
+- **S1 — the pre-flight, alone.** Derive the reach, assert 900/900 at 600 mm, and **report the number
+  before writing anything else.** If it is not 900, stop: the coordinator decides whether 7D3's table
+  is re-measured first. **This slice exists so the expensive discovery happens in an hour.**
+- **S2 — the derivation and its two readers**, with criteria 1–3 and 5–9. Behaviour at 600 mm is
+  byte-identical; the only visible change is at 700 mm.
+- **S3 — the agreement guard** (criterion 4) and the literal sweep (criterion 10). Separate because it
+  is the criterion most likely to turn red for a legitimate reason, and its failure is a **report to
+  the owner**, not a fix.
+
+### Risks
+
+1. **The silent shrink — now the wave's principal risk, and the only one with no natural alarm.**
+   Nothing today fails when the derivation is more conservative than the approved bound; the product
+   then quietly refuses rooms it could build, and no test says so. **It was previously the second item
+   here because the stored-design risk stood above it; that risk is struck, and this one moves up.**
+   Criterion 4 is the only thing standing in front of it and **must be written as an equality**, not as
+   *"not below"*.
+2. **An approved bound moved without the owner.** `approved-room-policy.ts` is in the must-not-change
+   set for this reason. **If the derivation and the owner's literals disagree, the wave stops and
+   reports** — the number is theirs, not the implementer's. **This is the loud direction and the guard
+   already catches it**, which is precisely why item 1 outranks it.
+3. ~~**The stored-design consequence.**~~ **Struck 2026-09-14 — there are no stored designs, and
+   nothing is in production until every milestone is implemented and the owner says so.** Kept as a
+   struck line rather than deleted, because it **returns at wave 7P2** when the owner begins saving
+   presets, and a later reader who finds it missing may re-derive it as new.
+4. **7D3's table quietly invalidated.** Criterion 8 pins the origin this wave must not move; the
+   pre-flight is what makes the risk cheap.
+5. **Removing chain-shift code that looks redundant.** The along-wall chain has readers beyond this
+   wave (the depth command, the frozen map). Report, do not delete.
+6. **Reading "placeable" literally.** J2 is a must-not for this reason; the whole per-wall column model
+   would otherwise be in scope.
+7. **Leaving this wave until after 7P2.** The freeze point above is a real deadline: once the owner
+   begins saving presets, the corner's reach is load-bearing on stored data and risk 3 stops being
+   struck. **The cheapest moment to re-derive this geometry is now.**
+
+### Owner question — raised only if the derivation moves a number
+
+- **Q-K1 — if the derived reach differs from 900 / 1000, may the approved wall minima move?** Not asked
+  unless the pre-flight or criterion 4 turns red. **It is a conversation, not a data problem:** nothing
+  is stored and nothing is in production, so there is no migration behind it and no compatibility
+  window to hold open. ~~Put it with the stored-design sentence about a customer reopening a saved
+  kitchen~~ — **struck, and it must not be used to argue for caution here.** **Recommendation if it
+  arises:** take the owner's ruling on the bound before any code lands, and **ask it before 7P2**,
+  while the answer is still free.
+
+## Wave 7D7 — dispatchable punch list: the corner builders take their size as a parameter
+
+**Tier: Full, 3D — the `lemnaria-3d-reference` skill applies.** **Visual: yes.** **Depends on 7D6**
+(the domain must know the correct size before a builder can be asked to draw it) **and on 7H, for
+ordering rather than for content — see the baseline constraint.**
+
+**This is `DEVELOPMENT-SPEC.md` §13.3 open question 6 being closed:** *"Hob and corner widths are still
+fixed in geometry; parameterising them is the remaining builder work."* The spec has carried it as an
+open question since before M7; the owner's *"correct shape and size"* is what makes it due. **Scope
+here is the corner only** — the hob half of that sentence stays open and is not this wave's.
+
+**Anchor, scaling rule and structural dependencies**, per `docs/best-practices/product-invariants.md`:
+
+- **Anchor:** the corner at (0, 0, 0), where wall A's plane (z = 0, fronts +Z) meets wall B's
+  (x = 0, fronts +X) — `packages/configurator-domain/src/room-transforms.ts:29-49`. **The anchor does
+  not move**: the corner assembly grows away from it along each wall, never through it.
+- **Scaling rule:** each corner piece's **along-wall length** becomes a function of the cabinet depth
+  (7D6's derivation). **Its depth already follows the setting and must keep doing so unchanged.**
+  Nothing else scales — not the door leaves' thickness, not the handles, not the chamfers, not the
+  plinth height.
+- **Structural dependencies:** the worktop runs continuously through the corner (7D3's field evidence,
+  in all eight of the owner's built kitchens) and must still do so at every depth; the run-end panel
+  follows the records and not the corner (ADR 0045); the wall corner return's relation to the base
+  corner is **measured before it is changed**, because K3's 30 mm disagreement is exactly that relation
+  going wrong.
+
+### The ordering constraint — put on both waves' rows deliberately
+
+**7D7 lands on the builder the M1 fidelity gate diffs, so a re-baseline is likely, and 7D7's baseline
+must be taken *after* 7H lands — never before.** 7H argues it needs no re-baseline because its change
+sits *downstream* of that builder; 7D7 changes the builder itself. Running them in the other order, or
+concurrently, produces a baseline that silently contains half of 7H. **The two must not be in flight
+together**, and the visual verifier owns the tree while it captures (`docs/best-practices/browser-and-visual-qa.md`).
+
+### Acceptance criteria
+
+1. *(fidelity)* At the reference room and 600 mm depth, **every corner mesh is byte-identical to
+   today's** — the parameterisation reproduces the shipped corner exactly at the shipped depth. **A
+   re-baseline at 600 mm is a failure, not a step.**
+2. *(parity, real probe)* At **each** declared depth, the corner assembly's built extent equals 7D6's
+   derived reach on both walls, within `room-composition.parity.test.ts`'s shared-face tolerance.
+   **Must not:** a builder that agrees with the domain at 600 and drifts at 700 — K3's defect, in the
+   other layer.
+3. *(parity)* **The base row and the wall row meet at the same along-wall figure** at every declared
+   depth, and the worktop is continuous through the corner. **Must not:** a visible seam or a
+   30 mm step at 700 mm.
+4. *(visual, 390 × 844 and desktop)* The corner is captured at **both** declared depths and judged
+   against the owner's photographs for a continuous worktop. **Must not:** a capture taken inside the
+   watched root — it resets the dev server and fakes a defect.
+5. *(unit)* No corner dimension is a literal in the adapter: each comes from the domain's derivation
+   through the existing body definition. **Must not:** a builder constant "kept in sync".
+6. **Must not:** touch `kitchen-shell.ts`, `stage.ts` or the scene wiring — **7H's files**; re-baseline
+   anything at 600 mm; or change the hob's parameterisation, which is §13.3 q6's other half and is not
+   in scope.
+
+### Risks
+
+1. **A re-baseline taken before 7H lands** bakes half of 7H into the corner's reference images. The
+   ordering constraint above is the whole mitigation, and it is on both waves' rows.
+2. **The 600 mm identity is the wave's spine.** If the corner cannot be reproduced byte-for-byte at the
+   shipped depth, the derivation in 7D6 is wrong and this wave stops rather than re-baselining.
+3. **The hob half of §13.3 q6 will look adjacent and cheap.** It is neither in scope nor measured here.
