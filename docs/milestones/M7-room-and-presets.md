@@ -3868,6 +3868,215 @@ false.**
    is not dispatchable while 7F1 is in flight, and its file set is exactly what 7F1's must-not list
    fences off — so the two never collide, and never overlap in time either.
 
+### 7H addendum — re-measured at `bf6901b`, 2026-09-15: what still holds, three facts the plan does not have, two questions
+
+**The punch list above stands and is not re-planned.** It was written at `b18b38e`; eleven commits
+have landed since, and **none of them touched the code this wave changes** —
+`git log b18b38e..HEAD -- packages/three-adapter/src apps/web/src/scene packages/configurator-domain/src`
+is empty. Every citation was re-checked rather than carried over: `kitchen-parts.ts:2156-2158` still
+declares `RW = 4.2, RD = 3.4, WH = 2.6` and builds the floor and both planes from them at the
+−0.3 m offsets; `stage.ts:199` still exports the three preset literals; `kitchen-shell.ts:32-33`
+still takes a `Kit` and no room and still gets its five children from
+`kit.builders["kitchen-l"]()`; `design-bounds.ts:11-20` still restates the shell's three numbers as
+*"the room shell the scene actually builds"* and derives `MAX_ROOM_*` from them at 1.5×;
+`approved-room-policy.ts:15-34` still gives 900–6300 / 1000–5100 / 2200–3900; `stage.test.ts:23`
+still hardcodes `CEILING_ROW_TOP_M = 2.6` and `:136` the bare literal `2.6`.
+**Criteria 1–16, slices 1–6 and rulings Q7H-1 to Q7H-5 are dispatchable as written.** Nothing below
+overturns any of them; it adds.
+
+**Ordering, restated plainly because it is the one thing two waves share.** **7D7's fidelity
+baseline is taken *after* 7H lands, never before, and the two are never in flight together.** 7D7
+parameterises the corner builders *inside* `kitchen-parts.ts` — the file the M1 gate diffs and the
+file this wave must not touch — so a baseline taken before 7H would be re-taken, and a baseline
+taken during it would be taken against a moving shell. The chain is 7D6 → 7D7, both before 7P2.
+
+**The mockups do not settle the camera, and neither does the spec.** Checked rather than assumed:
+both mockup files draw the scene area as a live canvas with no framing to read off (the only 3D
+artwork in them is the *"Browserul acesta nu poate afișa 3D"* refusal illustration), and
+`DEVELOPMENT-SPEC.md` §6.4 gives one sentence — *"all must frame floor to ceiling"* — plus the three
+literal vectors for the **seeded** room. **Q7H-3 is therefore the only framing rule in force**, and
+it is a ruling rather than a reading. No further owner answer is owed on it.
+
+#### One correction to the module boundary's arithmetic
+
+*Module boundaries* says three call sites depend on the zero-argument `builders["kitchen-l"]()` form.
+**There are now four.** 7F4a (`bf6901b`) added `apps/web/src/room/use-generation.ts:178`, the
+transient lease that borrows a kit to run one `generateKitchen`. **The boundary is unaffected** —
+`kitchen-parts.ts` is untouched either way and `Builders`' `() => Group` signature does not move —
+but an implementer auditing the three named sites will find a fourth and must not read it as a
+discovery. It is also a second reason `apps/web/src/room/**` stays on the must-not list: 7F4b is in
+flight there.
+
+#### Fact A — the shell's five geometries are unowned and uncached, and that decides the mechanism
+
+**The plan says what the shell must become and not how it is built to size, and the tree makes that
+choice for us.** Measured:
+
+- `plainBox` (`kitchen-parts.ts:681-693`) calls `new THREE.BoxGeometry(w, h, d)` directly. It does
+  **not** go through `geoCache` and its result is **not** added to `owned.geometries` — only
+  `chamferBox` memoises and registers (`:640-663`, and the comment at `:621-625` says the cache is
+  what makes a buffer shared). The floor (`:2160`) and `backsplash_wall_a` (`:2417`) are `plainBox`
+  calls; `wall_back` (`:2172`) and `wall_left` (`:2177`) are inline `new THREE.PlaneGeometry`.
+- So **all four shell geometries are private to their mesh and owned by nobody.** Nothing else in the
+  scene renders from them, and `disposeKitAndStage` frees them only by walking `stage.room` and
+  finding them **still attached** (`kit-disposal.ts:58-66`).
+
+**Two consequences, and they are the implementation's shape.**
+
+1. **Rebuild the geometry; do not scale the mesh.** Replacing a private, unshared geometry is safe
+   here in a way it would not be for anything `chamferBox` hands out. A per-axis `scale` would
+   otherwise be tempting — it preserves the floor's 40 mm slab and the backsplash's 14 mm, which is
+   what the plan's scaling rule is protecting — but it compounds with fact B below (a scaled mesh
+   stretches its UVs exactly as a resized one does, so it fixes nothing), and it leaves every
+   downstream world-space measurement in criteria 4, 7, 10, 12 and 13 reading through a non-unit
+   transform. **Inference, marked as mine:** the plan's ban on *"a uniform scale to the shell group"*
+   is about the group; this extends it to the meshes, for a different and additional reason.
+2. **The replaced geometry is disposed at the moment of replacement, or slice 2 leaks.** An orphaned
+   geometry is not attached to `stage.room` when the teardown walks it, and it is not in
+   `owned.geometries` for the kit teardown to find, so **nothing frees it** — one leaked buffer per
+   shell build, and the shell is rebuilt on every depth change (ADR 0074 decision 1). This is
+   criterion 18.
+
+#### Fact B — the floor and the backsplash are tiled at a fixed repeat, and one texture is shared with bodies (Q7H-6)
+
+**Not in the plan, and it is a visible-product problem rather than a code one.** Measured:
+
+- `floorTex.repeat.set(4, 4)` and `tileTex.repeat.set(6, 1)` (`kitchen-parts.ts:607-608`), with
+  `wrapS = wrapT = RepeatWrapping` (`:461`). Both are **kit-owned shared textures**, registered in
+  `owned.textures` at `:614-616`.
+- `BoxGeometry` and `PlaneGeometry` UVs run 0→1 per face **regardless of the face's size**. So the
+  repeat is a count over the whole face, not a density in metres: today 4 × 4 planks across a
+  4.2 × 3.4 m floor, and 6 tiles across a 3.5 m backsplash.
+- **Therefore the moment the shell follows the room, plank size and tile size become a function of
+  the room.** At the policy minimum (wall A 900) the floor still draws 4 planks across 0.9 m — about
+  **4.7× too small**; at wall A 6300 they are about **1.5× too large**. A floorboard and a wall tile
+  are manufactured sizes. This is the same species of error as scaling a cabinet body, and the
+  `lemnaria-3d-reference` skill's texture guidance and `product-invariants.md`'s *"a bought appliance
+  … has fixed real-world dimensions"* both point the same way.
+- **And the obvious fix is wrong twice.** Mutating `floorTex.repeat` / `tileTex.repeat` mutates a
+  **kit-owned shared** texture, and `M.tile` is used by two customer bodies as well as the shell —
+  the counter builder's `backsplash` (`:1582-1590`) and the open shelf's `back_panel`
+  (`:1866-1876`). Retiling the shell's backsplash would retile those bodies, which is a change to a
+  body's appearance that this wave's scaling rule forbids and that **no criterion in the plan
+  currently catches**: criterion 4 asserts world **transforms**, and a texture is not a transform.
+
+**No prior ADR rules on this.** Swept `docs/decisions/` for texture, repeat, tiling and plank —
+every hit is ADR 0110's *column* tiling, a different subject. So this is new ground, not an overturn.
+
+**Q7H-6 — OPEN. Does plank and tile size stay constant in world space as the room changes?**
+
+- **Recommendation: yes — constant density, per-mesh.** The shell clones `floorTex` for its floor
+  and `tileTex` for its backsplash, sets each clone's `repeat` from the drawn extent so one plank and
+  one tile keep today's seeded world size, and **registers the clones in the kit's owned textures**
+  so the teardown frees them. The seeded room then looks as it does today because the density is
+  calibrated from it; every other room gets the same floor rather than a scaled photograph of it.
+- **Refused: leave the repeat alone.** Cheapest, and it ships a floor whose plank width is a function
+  of the customer's wall length — the defect this wave exists to stop, arriving through the material
+  instead of the geometry.
+- **Refused: mutate the shared textures in place.** Changes two bodies' appearance (above), and makes
+  the shell's build order load-bearing on every body built after it.
+- **Whose question it is.** I read it as **the coordinator's**: it is a correctness claim about the
+  drawn room, of the same kind Q7H-2 settled, and the recommendation preserves the seeded appearance
+  rather than proposing a new one. **It becomes the owner's only if the answer is anything but
+  "constant density"**, because then the customer is being shown a floor that is not a floor.
+- **It gates slice 2, not slice 1.** Slice 1's characterisation test should land with the repeat and
+  material identity recorded either way — see the amendment to criterion 2 below.
+
+#### Fact C — the height ruling exists, it is about cabinets, and here is what it means for the shell
+
+**Found, as asked.** The owner, 2026-09-14, quoted in full at ADR 0110 **E11** and carried into wave
+7D3's ruling **D8**: *"in majority of the cases, it's still the ceiling. But this ceiling, in majority
+of the cases, is different. So somewhere is two thousand five hundred, somewhere is three thousand
+millimetres height. And in this case, let's stick to what we have now. Get some feedback. And after
+that, we can make them higher."*
+
+**It rules on the cabinets, not on the shell, and it does not change one line of the plan above.**
+`LEVELS` stay fixed, composition still places nothing in the 2200–2600 top row, and 7H adds no
+criterion for it. **But three things follow that this wave must carry, and two of them are traps.**
+
+1. **The wall planes' height follows `heightMm` anyway.** D8 freezes the *cabinet* bands; the drawn
+   room is what the customer entered. Criterion 1 is unaffected.
+2. **So the bare strip above the uppers grows with the room, and it is D8's deferral seen in 3D.**
+   At 2600 there is none; at 3000 there is roughly 400 mm of empty wall above the top row; at the
+   3900 policy maximum, roughly 1300 mm. **A reviewer or visual verifier who reports it is citing a
+   defect that is a recorded owner decision.** It goes in the visual brief beside risk 5's warning
+   about the seeded picture, in the same words: *this is D8, ruled 2026-09-14, and the fix when it
+   comes is taller uppers, not a composed top row.*
+3. **It is independent corroboration for Q7H-3, and it makes 2500–3000 the range that matters.**
+   Framing floor-to-ceiling at a 3000 mm room already spends a seventh of the frame on empty wall;
+   the presets frame the kitchen, which is what Q7H-3 ruled. **One number to keep honest:** the
+   policy maximum **3900 is not a product claim** — it is `SCENE_SHELL_HEIGHT_MM × 1.5`, the wire
+   bound `design-bounds.ts:22-40` invented as slack, adopted into `approved-room-policy.ts`. It
+   stays in criterion 7's sampling because it is the approved bound, **but a framing rule must not be
+   tuned for 3900 at the cost of 2500–3000**, which is where the owner says the customers are.
+
+#### Criteria 17 to 20, continuing the scheme above
+
+17. **Plank and tile size are constant in world space across the policy box.** For every sampled
+    room, the world-space size of one floor plank and one backsplash tile is within a stated epsilon
+    of its size at the seeded room. **Must not:** mutate a kit-owned texture in place; leave the
+    repeat a literal; let `M.tile`'s appearance on the counter `backsplash` or the shelf `back_panel`
+    change at any room. *(Conditional on Q7H-6; if Q7H-6 is answered any other way, this criterion is
+    replaced by one pinning the chosen answer, with the two rejected ones named in the test's own
+    comment — the shape criterion 14 already uses.)* **[property]** + **[unit]**
+18. **The shell allocates nothing it does not free.** Building the shell N times for N different
+    rooms leaves no geometry and no texture unreferenced and undisposed. Proved the way
+    `kit-disposal.test.ts` already proves it for the 27 discarded bodies — spy on `dispose`, count.
+    **Why it is a criterion and not a review note:** the four shell geometries are outside
+    `geoCache` and outside `owned.geometries` (fact A), so **no existing teardown path frees a
+    replaced one**, and a leak here is invisible to every other criterion in this wave.
+    **[unit]**
+19. **The shell's own resources stay private to the shell.** No geometry and no material the shell
+    replaces or clones is one a customer body renders from, at any sampled room. This is fact B's
+    trap stated as an assertion rather than a warning: it is what turns *"we retiled the backsplash
+    and the open shelf changed"* from a visual-pass finding into a red unit test.
+    **[unit]** + **[review]**
+20. **The desktop pass is judged, and the projection properties stay mobile.** The wave's row owes a
+    1440 × 900 pass; criteria 10, 11 and 12 stay at 390 × 789 / 390 × 844 and are **not** duplicated
+    at desktop. **The reason, and it is an inference of mine from the code rather than a record:**
+    `PerspectiveCamera`'s `fov` is **vertical** and is one constant, `CAMERA_FIELD_OF_VIEW_DEGREES`
+    (`kitchen-canvas.tsx:43`), with `aspect` widening the frustum **horizontally**. So at a fixed
+    preset, desktop frames the *same* vertical world extent over *more* pixels (900 > 789) and a
+    *wider* horizontal extent — **weaker than mobile on criterion 10 and weaker on criterion 12**.
+    Desktop's obligation is therefore the human pass: proportion, the corner seam, the wall-to-floor
+    seam, and the bare strip of fact C at a tall room. **If the coordinator wants desktop pinned
+    numerically anyway, say so — it is cheap, it is just not load-bearing.**
+
+**Two amendments to criteria already written**, both because fact B is invisible to them as they
+stand:
+
+- **Criterion 2** additionally records, per shell child, the **material name and the `map`'s
+  `repeat`** — not only name, transform, geometry parameters and material name. Without the repeat,
+  the one test in the repository that watches the shell cannot see the change Q7H-6 rules on.
+- **Criterion 4**'s *must not* gains **"or any change to a body's material, its `map`, or that
+  map's `repeat`"**. Criterion 4 asserts world transforms; a shared-texture mutation moves nothing
+  and changes two bodies, and that is exactly the gap fact B found.
+
+#### Risks 9 and 10, ranked with the reason for the rank visible
+
+9. **Fact B ranks second only to risk 1, and for the same reason.** It is a change with **no gate
+   watching it**: the M1 parity gate never calls `buildKitchenShell` (risk 1), criterion 2 as
+   originally written records transforms and not textures, and criterion 4 records transforms too.
+   A shell that silently retiles the floor and two customer bodies would pass every criterion 1–16 —
+   and the visual pass would catch it only at the seeded room, which is the one room where the
+   density is unchanged. **The amendments to criteria 2 and 4 are the whole mitigation.**
+10. **Fact A's leak ranks below it because a leak degrades and a wrong floor ships.** One stranded
+    buffer per shell build is real but bounded — the shell rebuilds on a depth change, not on a
+    keystroke — and criterion 18 catches it with an instrument the repository already has. It is
+    ranked at all because the **absence** of ownership is counter-intuitive: an implementer who reads
+    `kit-disposal.ts` will find a careful ownership story and reasonably assume the shell is inside
+    it. It is not.
+
+#### What is owner's, what is the coordinator's, what is mine
+
+- **Owner's: nothing new.** Q7H-1 is answered, D8 is found and needs no re-asking.
+- **The coordinator's: Q7H-6** (constant tiling density — recommendation above; gates slice 2, not
+  slice 1) and **the criterion 20 question** (whether desktop is pinned numerically or judged).
+- **Mine, and marked as inference rather than record:** the rebuild-don't-scale mechanism (fact A.1),
+  the desktop-is-weaker argument (criterion 20), and the reading that D8 leaves the shell's height
+  free (fact C.1). Each is derived from code cited above, and each is stated so it can be falsified
+  by reading the same lines.
+
 ## Wave 7D3 — dispatchable punch list: tall units at the run ends and the oven rule
 
 **Tier: Full.** No visual surface — `generateKitchen` still has no production caller; 7F4 wires it.
