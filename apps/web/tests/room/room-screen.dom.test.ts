@@ -172,8 +172,8 @@ function render(
   const state = parseRoomUrlState(query);
   const props: RoomScreenProps =
     options.policy === undefined
-      ? { state }
-      : { state, policy: options.policy };
+      ? { state, query }
+      : { state, query, policy: options.policy };
   act(() => {
     root.render(
       createElement(NextIntlClientProvider, {
@@ -410,7 +410,13 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
 
 describe("the route stays a server shell (criterion 17)", () => {
   it("resolves the query and renders one client component, and declares nothing else", () => {
-    expect(ROOM_PAGE_SOURCE).toContain("<RoomScreen state={state} />");
+    // Slice 5 gave the screen the query beside the state: the sub-states record which fields are
+    // still to be filled but not the lengths that already read, and 1B's fields have to show what
+    // the URL holds. The claim criterion 17 makes is unchanged — one client component, and no copy
+    // key, field, style or `"use client"` in the route.
+    expect(ROOM_PAGE_SOURCE).toContain(
+      "<RoomScreen state={state} query={query} />",
+    );
     expect(ROOM_PAGE_SOURCE).not.toMatch(/^\s*["']use client["'];/m);
     expect(ROOM_PAGE_SOURCE).not.toMatch(
       /module\.css|useTranslations|useContent|useState/,

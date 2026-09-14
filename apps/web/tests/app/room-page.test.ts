@@ -56,7 +56,11 @@ describe("localized room route placeholder", () => {
   it("stays a server-only route that awaits both Next inputs", () => {
     expect(roomPageSource).not.toMatch(/^\s*["']use client["'];/m);
     expect(roomPageSource).toMatch(/const \{ locale \} = await params;/);
-    expect(roomPageSource).toMatch(/parseRoomUrlState\(await searchParams\)/);
+    // M7 wave 7F1 slice 5 named the awaited query, because the screen is handed it beside the state
+    // it was parsed into — 1B's fields have to show the lengths the URL already holds, which the
+    // sub-states do not carry. Both inputs are still awaited here and nowhere else.
+    expect(roomPageSource).toMatch(/const query = await searchParams;/);
+    expect(roomPageSource).toMatch(/parseRoomUrlState\(query\)/);
     expect(roomPageSource).not.toMatch(
       /useConfiguratorStore|zustand|localStorage|sessionStorage|indexedDB|\bwindow\b|\bdocument\b|fetch\(|persistence/i,
     );

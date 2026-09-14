@@ -1,11 +1,10 @@
 /**
- * **Step 1's screen, drawn as frame 1A draws it**
- * (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:48-99`). Every figure below is the
- * frame's own. Where wave 7F1 departs from the frames it says so by name — see *Departures from
- * frames 1A and 1B* in `docs/milestones/M7-room-and-presets.md` — and the one departure it declares
- * is the plan preview's scale, which this file does not yet draw. Nothing here departs silently.
- *
- * 1B's fields, the corner toggle and the plan preview are slice 5's and are not in this file yet.
+ * **Step 1's screen, drawn as frames 1A and 1B draw it**
+ * (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:48-99` and `:101-187`). Every figure
+ * below is the frame's own. Where wave 7F1 departs from the frames it says so by name — see
+ * *Departures from frames 1A and 1B* in `docs/milestones/M7-room-and-presets.md` — and the one
+ * departure it declares is the plan preview's **scale**, which is arithmetic this file never does.
+ * Nothing here departs silently.
  */
 
 .screen {
@@ -227,4 +226,286 @@
   background: #ece7dd;
   border: 1px solid var(--line);
   cursor: default;
+}
+
+/* ── Sub-state 1B (frame `:114-186`) ──────────────────────────────────────────────────────────── */
+
+/* The frame's own column (`:114`). `overflow: hidden` rather than a scroller: ADR 0082 decision 2
+ * refuses `overflow-x: auto|scroll`, and the frame clips too. */
+.dimensionsBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+  overflow: hidden;
+}
+
+/* The three shapes again, compressed (`:116-131`). The chip is 71 px tall, so the 44 px target is
+ * the painted box and no expansion is declared (ADR 0104 decision 5). */
+.shapeChips {
+  display: flex;
+  gap: 10px;
+}
+
+.shapeChip {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+/* Stretched over the chip for `.shapeControl`'s reason: a clipped one-pixel input would make
+ * `elementFromPoint` answer with the label around it, which is an ancestor and not the control. */
+.shapeChipControl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.shapeChip:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* The chosen chip, `:123`. The 2 px border replaces the 1 px one out of the padding, so choosing a
+ * chip does not move the row. */
+.shapeChip:has(.shapeChipControl:checked) {
+  padding: 10px 7px;
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+}
+
+.shapeChipName {
+  font: 400 12px/1 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.shapeChip:has(.shapeChipControl:checked) .shapeChipName {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.planCaption {
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/**
+ * The frame's box (`:134`), and the coordinate space the plan is drawn in: `plan-preview.tsx` hands
+ * the model a box of exactly these pixels, so a wall's rectangle and the label beside it are placed
+ * in the units they are painted in. Its height comes from that one constant rather than from a
+ * figure repeated here.
+ *
+ * `overflow: hidden` is the frame's own, and it is what makes a narrower viewport clip the drawing
+ * instead of widening the document — the refusal ADR 0082 decision 2 states.
+ */
+.planBox {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.planDrawing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}
+
+.planWallLabel {
+  position: absolute;
+  font: 700 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.corner {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cornerHeading {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.cornerQuestion {
+  font: 700 12.5px/1 var(--font-ui);
+}
+
+.cornerHint {
+  font: 400 11px/1 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.cornerChoices {
+  display: flex;
+  gap: 10px;
+}
+
+.cornerChoice {
+  position: relative;
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 11px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/**
+ * **The control is the 44 px target, and the chip stays the 42 px the frame draws** (criterion 14,
+ * ADR 0104 decision 5). The surplus is taken by the absolutely positioned input growing one pixel
+ * past its chip on each side rather than by a `min-height` on the painted box, so it costs no
+ * layout — and it is the *input* that grows, because `elementFromPoint` at the corners of a 44 px
+ * box must answer with the control itself and a pseudo-element on the label around it would answer
+ * with an ancestor. A pseudo-element on the input is not an option either: `input` is a replaced
+ * element and renders none.
+ *
+ * **The surplus is vertical only**, which is the same care `configure.module.css:259-274` takes:
+ * a horizontally overflowing target would make ADR 0082 decision 1's clip predicate read this row
+ * as truncated.
+ */
+.cornerControl {
+  position: absolute;
+  inset-block: calc((100% - var(--touch-target)) / 2);
+  inset-inline: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.cornerChoice:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.cornerChoice:has(.cornerControl:checked) {
+  padding: 7px 10px;
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+}
+
+.cornerGlyph {
+  flex: 0 0 auto;
+}
+
+.cornerName {
+  font: 700 12.5px/1.25 var(--font-ui);
+  min-width: 0;
+}
+
+.cornerChoice:has(.cornerControl:checked) .cornerName {
+  color: var(--accent-strong);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font: 700 12.5px/1 var(--font-ui);
+}
+
+/* The frame draws a 54 px box holding the value and its unit (`:167`). The box is the frame's; the
+ * control inside it is the text field the frame is depicting — the wave's recorded non-departure. */
+.fieldBox {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  height: 54px;
+  padding: 0 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* `tabular-nums` is the mockups' own `.num` class (`:16`): a proportional `1` would shift the digits
+ * as the customer types and the three fields would stop lining up. */
+.fieldValue {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  font: 700 20px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+}
+
+.fieldUnit {
+  flex: 0 0 auto;
+  font: 400 13px/1 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+/* The frame's two-control footer (`:180-185`). `Înapoi` is 96 px wide and `Continuă` takes the rest. */
+.dimensionsFooter {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.back {
+  display: flex;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.dimensionsFooter .cta {
+  flex: 1;
 }
