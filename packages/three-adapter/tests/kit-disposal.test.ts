@@ -23,7 +23,11 @@ import { applyFinish, collectFronts } from "../src/finishes.js";
  *  lifetime under test, not its colour — and *Salvie* is the one it has used since M4, reached by
  *  the free colour wave 6P mapped it to. */
 const SAGE = freeColourFinish("#8d9a84");
-import { disposeKitAndStage, type KitStage } from "../src/kit-disposal.js";
+import {
+  disposeKit,
+  disposeKitAndStage,
+  type KitStage,
+} from "../src/kit-disposal.js";
 import { kitOwnedResources } from "../src/kit-ownership.js";
 import { buildKitchenShell } from "../src/kitchen-shell.js";
 import { kitMaterialList, makeKit, type Kit } from "../src/kitchen-parts.js";
@@ -347,6 +351,38 @@ describe("a kit released by its stage's teardown", () => {
 
     disposeKitAndStage(stage);
     disposeKitAndStage(stage);
+
+    expectDisposedOnce(spies);
+  });
+});
+
+describe("disposeKit, handed a kit whose room was never built", () => {
+  it("frees everything makeKit allocated and marks the kit released", () => {
+    const kit = newKit();
+    // The geometry cache of a kit that has built nothing is empty, so what a roomless kit is holding
+    // is its materials and the canvas textures they baked — which is the memory the defect this
+    // covers stranded on a low-end phone.
+    const materials = kitMaterialList(kit.M);
+    const textures = materials.flatMap((material) => texturesOf(material));
+    const spies = spyOnDisposals([...materials, ...textures]);
+
+    // A `BodyProbeFactory` allocates the kit first and builds its room second (M7 wave 7F4a), so a
+    // builder that throws leaves this exact state: a fully baked kit and no room at all. Without
+    // this arm there was no call that could free it.
+    disposeKit(kit);
+
+    expect(materials.length).toBeGreaterThan(5);
+    expect(textures.length).toBeGreaterThan(0);
+    expectDisposedOnce(spies);
+    expect(kitOwnedResources(kit.M).isReleased).toBe(true);
+  });
+
+  it("still frees the room's own resources when it is given one", () => {
+    const kit = newKit();
+    const room = kit.builders["kitchen-l"]();
+    const spies = spyOnDisposals(reachableResources(room));
+
+    disposeKit(kit, room);
 
     expectDisposedOnce(spies);
   });
