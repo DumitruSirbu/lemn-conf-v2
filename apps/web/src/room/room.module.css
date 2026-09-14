@@ -1,0 +1,230 @@
+/**
+ * **Step 1's screen, drawn as frame 1A draws it**
+ * (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:48-99`). Every figure below is the
+ * frame's own. Where wave 7F1 departs from the frames it says so by name — see *Departures from
+ * frames 1A and 1B* in `docs/milestones/M7-room-and-presets.md` — and the one departure it declares
+ * is the plan preview's scale, which this file does not yet draw. Nothing here departs silently.
+ *
+ * 1B's fields, the corner toggle and the plan preview are slice 5's and are not in this file yet.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--paper);
+}
+
+/**
+ * **The band's rule is drawn by the cells rather than by the bar**, which is
+ * `configure.module.css`'s own mechanism and its head comment carries the argument. It is load
+ * bearing here for one concrete reason: until ruling R5 lands, the locale cell **is** that
+ * stylesheet's `.locale` — wave 7F1 renders the editor's `LocaleMenu` where it stands
+ * (`room-screen.tsx`'s import comment records why R5 was deferred) — and `.locale` draws
+ * `border-bottom` itself, so a rule on the bar as well would paint a second line under the chip.
+ *
+ * Two things follow, and both are the deferral's conditions rather than taste. `configure.module.css`
+ * keeps **every** rule it has: nothing here reaches into it, and the coupling is paid for entirely on
+ * this side. And `.locale`'s `grid-area: locale` is inert in the flex row below, because no grid here
+ * names that area — which is what lets the cell be borrowed without its positioning coming too.
+ *
+ * The frame's `padding: 11px 14px` is split across the row's outer cells, so the rule underneath
+ * runs the whole width while the contents keep the frame's inset, and the 9 px the frame puts
+ * between the title and the chip is the locale cell's own left padding.
+ */
+.topBar {
+  display: flex;
+  align-items: stretch;
+}
+
+.topBarCell {
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 0 11px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.wordmark {
+  flex: 0 0 auto;
+  font: 700 12px/1 var(--font-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* The step, as the frame draws it. `tabular-nums` is the mockups' own `.num` class: the numerator
+ * changes with the step and a proportional `1` would move the slash. */
+.stepPill {
+  flex: 0 0 auto;
+  padding: 5px 6px;
+  font: 700 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--paper);
+  background: var(--accent);
+  border-radius: 5px;
+}
+
+/* `min-width: 0` is what makes the ellipsis possible: a flex item's automatic minimum size is its
+ * min-content width, so without it a long title grows the row and pushes the locale chip off a
+ * 390 px screen (ADR 0082 decision 1, one level down). */
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 700 15px/1 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 18px;
+  overflow: hidden;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.question {
+  margin: 0;
+  font: 700 24px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+.lead {
+  margin: 0;
+  font: 400 13.5px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.shapes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Frame 1A `:70`: the card is `min-height: 88px`, which is the 44 px target twice over — no
+ * expansion is needed and none is declared (ADR 0104 decision 5). `position: relative` is the
+ * control's positioning context; see `.shapeControl`. */
+.shapeCard {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  min-height: 88px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+/**
+ * **The radio fills its card rather than hiding in a corner of it.** A clipped one-pixel input is
+ * the usual way to hide a native control, and it would fail criterion 14: `elementFromPoint` at the
+ * corners of the input's 44 px box would answer with the label *around* it, which is an ancestor and
+ * not "that element or its own descendant". Stretched over the card the control **is** the target it
+ * looks like, and the card's own box is what the customer's thumb lands on.
+ *
+ * It keeps its focus ring through `.shapeCard:focus-within` below, so nothing opts out of the
+ * browser's focus indicator.
+ */
+.shapeControl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.shapeCard:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* The chosen card, in the frame's own language for a chosen thing: frame 1B's selected shape chip
+ * (`:123`) is `#ece7dd` behind a 2 px accent border with its label at 700 on `--accent-strong`. The
+ * border replaces the 1 px one rather than adding to it, so the row does not move when a card is
+ * chosen. */
+.shapeCard:has(.shapeControl:checked) {
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+  padding: 17px;
+}
+
+.shapeCard:has(.shapeControl:checked) .shapeName {
+  color: var(--accent-strong);
+}
+
+.shapeGlyph {
+  flex: 0 0 auto;
+}
+
+.shapeText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shapeName {
+  font: 700 16px/1.2 var(--font-ui);
+}
+
+.shapeDetail {
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.note {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.footer {
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+/**
+ * Frame 1A draws the inactive CTA (`:94`) and frame 1B the active one (`:183`), and this is both.
+ * It is a real `<button>` where the frames draw a `<div>`: ADR 0104 decision 6 asks for a `div` on a
+ * control **wired to nothing**, and this one is wired — it pushes the canonical query. A `div` here
+ * would be the opposite error, a thing that acts as a control while announcing itself as text.
+ *
+ * 52 px is the frame's height and is already past the 44 px target.
+ */
+.cta {
+  display: flex;
+  width: 100%;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  font: 700 15px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.cta:disabled {
+  color: #a89c8e;
+  background: #ece7dd;
+  border: 1px solid var(--line);
+  cursor: default;
+}
