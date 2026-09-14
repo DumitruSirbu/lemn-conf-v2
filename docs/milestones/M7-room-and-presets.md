@@ -54,6 +54,22 @@
 > from the log rather than from an exit code. **CI is still the verdict for the runner's timing.** The
 > closing gate also found **one defect that is not this wave's** — the U chip drawing the L plan while
 > `wallC` is empty, 7F1-shipped behaviour, recorded against **7F2**. Next wave: **7F4**.
+> **Updated once more 2026-09-14 at `e8027f5`: 7F4 is planned** — read
+> [*Wave 7F4 — dispatchable punch list*](#wave-7f4--dispatchable-punch-list-the-composition-runs-and-the-kitchen-it-makes-is-the-one-that-opens),
+> which is the binding version of the 7F4 bullet in the earlier criteria section and of the 7F4 row in
+> the revised wave table. **7F4 is where the generation algorithm gets its first production caller** —
+> foreseen by ADR 0110 decision 6 and by the row's *Full (kit lifetime)* tier, not discovered here —
+> so Step 1 must now build a Three.js kit in the browser. **Recommended: split into 7F4a (the
+> composition runs and is drawn) and 7F4b (the hand-off into the editor)**, because the two halves
+> fail differently: a bundle and a frozen main thread against **a duplicate design row**. Nine rulings
+> (**R10–R18**) and 21 criteria (**24–44**); **two clauses of the earlier 7F4 bullet are overturned**
+> — the list is the frame's five rows rather than the log's twenty (R11), and the frame's third state
+> is a whole-list *pending* rather than per-row progress, because `generateKitchen` is one synchronous
+> call (R12). ***Minimum not met* needs no new screen**: 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already
+> resolves such a room to 1C before generation runs, and the sentence there is 7F2's.
+> **Three questions are not the architect's:** Q7F4-1 (the owner's — the dropped-roles wording, which
+> ADR 0110 Amendment F itself asks to be confirmed), Q7F4-2 (the split) and Q7F4-3 (confirming R11 and
+> R12 against the owner's F8 *"use the design that was proposed"*).
 > **Updated once more 2026-09-14 at `b18b38e`: 7H is planned ahead of its turn, at the owner's
 > request** — read [*Wave 7H — dispatchable punch list*](#wave-7h--dispatchable-punch-list), which is
 > the binding version of the 7H bullet in the earlier criteria section. 16 criteria, six slices, and
@@ -6834,3 +6850,511 @@ argue for reverting the fix that improved it.**
   canonical query (`app-router.js:268-282` forwards to `originalReplaceState`). The tap minted nothing
   before R9 and mints nothing after. **R9 changes this CTA not at all**, which makes *waiting for a
   destination* the whole of the explanation rather than most of it.
+
+## Wave 7F4 — dispatchable punch list: the composition runs, and the kitchen it makes is the one that opens
+
+> **Planned 2026-09-14 by the architect, on branch `m7-room-and-presets` at `e8027f5`.** This is the
+> binding version of the **7F4** bullet in *Acceptance criteria per wave* and of the 7F4 row in the
+> revised wave table; where this section and those disagree, this section is later and says why.
+> **Two clauses of the earlier 7F4 bullet are overturned here, deliberately and with reasons**
+> (R11, R12), and **one sentence of frame 1F is refused as customer copy** (R18). **Three questions
+> are not mine** — Q7F4-1 (the owner's, the warning's wording), Q7F4-2 (the coordinator's, the split)
+> and Q7F4-3 (the coordinator's, confirming R11/R12 against the owner's *"use the design that was
+> proposed"*).
+
+### Read this before anything else: what this wave actually is
+
+**7F4 is the wave in which the generation algorithm gets its first production caller.** That is not
+an implication of the row — it is the row, read against the tree:
+
+- `generateKitchen` is exported from the domain's public index (`packages/configurator-domain/src/index.ts:267`)
+  and is called from **no file under `apps/web/src`**. Its only callers are tests.
+- It needs a `BodyProbeFactory`, which needs a **Three.js kit**. The web has exactly one place that
+  builds one — `apps/web/src/scene/kitchen-stage.tsx:65-89`, inside a `dynamic(..., { ssr: false })`
+  canvas — and Step 1 has no scene. **ADR 0110 decision 6 already decided this**: *"It runs in the
+  browser at Step 1 with a borrowed probe… Nothing runs on the server, which has no kit."*
+- The wave table's tier column has said **Full (kit lifetime)** since 2026-09-11 for this reason, and
+  ADR 0110's Consequences say *"Step 1 builds a Three.js kit when it generates. Its cost on a phone is
+  measured in wave 7F4."*
+
+So the answer to the question the coordinator most wanted answered is **yes, loudly** — and it was
+foreseen rather than discovered. What is *not* in the row, and is this plan's news, is that the
+customer's **first** screen must now pull a Three.js bundle in order to finish, which is a bundle
+decision (R15) and a measurement gate (criterion 33), not a wiring detail.
+
+**One worry the coordinator raised is not real, and is worth closing so no slice is spent on it.**
+`POST /api/designs` hardcoding `KITCHEN_L_DESIGN` (`apps/web/src/app/api/designs/route.ts:40`) is the
+**mint seed**, not the saved document: `createDesignCreationAttempt` mints with `id: null` and then
+**awaits a `PUT` of the real design** before navigating (`src/room/create-design.ts:55-79`, 7E2
+criterion 1 asserts the read-back deep-equals). The seed exists so the route takes **no request
+body**, which is ADR 0019's 2026-08-31 correction and ADR 0110's own decision-record sweep row.
+**7F4 must not touch that route.** A generated design reaches the database through the `PUT`, exactly
+as an applied preset will.
+
+### Ground truth, measured at `e8027f5`
+
+Each fact is a file and a line, because four of them contradict something a reader would reasonably
+assume from the prose.
+
+- **G1 — the URL has four sub-states and *1D is simply "the room is valid"***
+  (`apps/web/src/room/room-url-state.ts:50-71, 99-119`). There is no 1E and no 1F in
+  `RoomUrlState`, and there is nowhere in the query for one: `canonicalRoomQuery`
+  (`room-query-sync.ts:384-399`) writes the shape, the parsed lengths and the direction and
+  **nothing else**, and any other key makes `draftText !== liveText`, which the settle then strips
+  with a `router.replace`. **A composition step cannot be put in the URL without fighting the
+  convergence loop for it.**
+- **G2 — the screen does not branch on the sub-state at all today.** `RoomScreen` branches on
+  *"is there a shape in the URL"* (`room-screen.tsx:102-106`), so 1B, 1C and 1D render the identical
+  `DimensionsStep`. Q-D45-5 already recorded this; it is repeated because it is the seam 7F4 opens.
+- **G3 — *Continuă* at 1B calls `departTo("presets")`** (`room-screen.tsx:244-246`), which flushes the
+  pending write and, when the flush echoes, pushes `{ pathname, query }` — **the URL already showing**,
+  so Next demotes the push to a replace and no history entry is minted
+  (`app-router.js:59-61`). The tap is not broken and the mechanism is not the reason it is invisible.
+- **G4 — the generated design is directly savable.** `buildLShellDesign` sets `presetId: null` and
+  `createdAt`/`updatedAt` from `occurredAt` (`generation/shell-design.ts:134-138`), so
+  `generateKitchen(...).design` satisfies `DesignSchema` and is what 7E2's attempt writes. `presetId:
+  null` is 7E2 criterion 3's *"or `null` for a generated kitchen"*, already true by construction.
+- **G5 — the refusal arm is unreachable from a URL the screen can be at.** `validateRoomInput` emits
+  `ROOM_TOO_SMALL_FOR_KITCHEN` (7A2), and
+  `packages/configurator-domain/tests/room/minimum-kitchen.test.ts:161-215` asserts
+  `validation.ok === generated.ok` over the **whole approved L rectangle**, ≥ 100 samples per logical
+  arm plus a full-rectangle sweep. A room that resolves to 1D therefore generates. **The honest limit,
+  and it is this wave's to close:** that property runs against `createFakeProbeFactory()`. 7F4 runs
+  the **real** probe, and fit is judged on the **measured carcass**
+  (`body-probe.ts:22-33`), so agreement between validator and generator is proven for a probe the
+  product does not use. See criterion 34 and risk 3.
+- **G6 — the log is richer than the frame.** `GenerationStep` covers the four core roles **plus**
+  `storage`, `upper` and `hood` (`generate-kitchen.ts:65-81`), and a 6300 × 4700 room produces four
+  core steps, eight storage steps and about eleven uppers. **Frame 1F draws four rows.**
+- **G7 — widths come off the plan, not the step.** `GenerationStep` carries a `buildId` and no width;
+  `plan.bases[].widthMm` carries it (`generation-priorities.ts:35-43`), and `plan` is on the log
+  (`generate-kitchen.ts:86`). `GENERATION_PRIORITIES` carries the declared width for each core role
+  (`:15-25`), which is what a **pending** row can show before any log exists.
+- **G8 — `plan.dropped` is core roles only** (`generation-priorities.ts:50`, ADR 0110's 2026-09-12
+  clarification point 3). A storage slot that was never planned is **not** in `dropped`.
+- **G9 — the kit needs a 2D canvas and no WebGL.** `makeKit` falls back to
+  `document.createElement("canvas")` for its textures (`packages/three-adapter/src/kitchen-parts.ts:406-408`);
+  `packages/three-adapter/tests/generated-kitchen.parity.test.ts:40-48` is the exact
+  `BodyProbeFactory` shape the web needs, headless canvas aside. **No renderer, no `<canvas>` in the
+  document, no WebGL context.** A Web Worker is *not* an option: the kit reaches for `document`.
+- **G10 — `reactStrictMode: true`** (`apps/web/next.config.ts:9`). An effect that generates runs
+  **twice** in development, which in 7F4b means two kits, two designs and two rows.
+- **G11 — the frames change the top bar's title.** 1A/1B/1C draw **Cameră**, 1D/1E/1F draw **Preset**
+  (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:58, 111, 199, 261, 311, 414`). The step
+  pill stays *1/4* in all six. `RoomTopBar` hardcodes `room.title`
+  (`room-screen.tsx:133-135`), so 7F4 touches `room-screen.tsx` — **a file the wave-table row does not
+  list**.
+- **G12 — the room group in the golden manifest is built from `ro.json`'s own subtree**
+  (`apps/web/tests/i18n/golden-output-fixtures.ts:565-587`), so every leaf 7F4 adds arrives hashed on
+  its own; **an ICU leaf without an entry in `ROOM_RENDER_ARGUMENTS` throws** rather than passing
+  unwatched.
+
+### The three questions the coordinator asked, answered
+
+**1. What *"struck nu încape"* refers to, and what replaced it.** Nothing in that row is struck
+through — there is no `~~` in it. *"struck *nu încape*"* is the row's description of the **not-placed
+rows**: frame 1F's last row, *Frigider — nu încape*, an item struck from the composition. The
+sentence that expands it is the 7F4 bullet at *Acceptance criteria per wave*: *"the steps render in
+the log's order with the frames' three states; nu încape items are struck through and absent from
+the design that opens."* What replaced the row is the **revised** table's row — *"1F composition
+steps into the editor | carried, plus minimum not met → 1C"* — which carries that bullet forward
+unchanged and adds one item. **Two clauses of the carried bullet are wrong against the frame and the
+engine, and R10–R12 below overturn them.**
+
+**2. Where *minimum not met* goes.** It goes to **1C, before generation ever runs**, and it is
+already wired: `validateRoomInput` refuses the room with `ROOM_TOO_SMALL_FOR_KITCHEN` (7A2, ADR 0108
+Amendment E) and `parseRoomUrlState` resolves such a URL to substate `1C`
+(`room-url-state.ts:100-108`). The **sentence** the customer reads there is **7F2's**, recorded at
+*"7F2 (add): minimum not met is shown at 1C with a room-level reason, no digit and no code, and no
+wall marked red"* — and 7F2 lands **after** 7F4 in the recommended order, so for the length of this
+wave a too-small room sits at 1C with its field marked and no prose. That is 7F1 criterion 3's
+already-asserted silence, not a regression. **The generator's own `MINIMUM_NOT_MET` arm is therefore
+unreachable from the screen** (G5), and 7F4's obligation against it is R16: prove it, and fail safely
+if it happens anyway. **This does not overturn the row** — *minimum not met → 1C* is satisfied
+upstream of generation rather than by a new screen state.
+
+**3. Does this wave run the generator, or only stage the hand-off.** It runs it. See *Read this
+before anything else*. **Recommendation: split the wave** (Q7F4-2) — **7F4a** runs the composition and
+draws it, **7F4b** hands off to the editor. The two halves fail differently and are caught by
+different instruments: 7F4a's failures are a bundle, a frozen main thread and a leaked kit, all
+measurable in a browser; 7F4b's failure is **a duplicate row in the database**, which only a component
+test with a stubbed fetch catches — and that is precisely the gap 7E2's close-out says *"a
+factory-level test cannot substitute"* for. The cost is one extra Full-tier cycle and one extra visual
+gate; the alternative is one wave of nine must-fix items, which `docs/WORKFLOW.md`'s scope rule
+refuses at five.
+
+### Rulings — R10 to R18, 2026-09-14
+
+Numbering continues 7F1's R1–R7 and 7F1-D45's R8–R9.
+
+**R10 — *nu încape* is drawn the way frame 1F draws it, and `text-decoration: line-through` is not
+that.** The frame's dropped row is a **dashed** border, a muted background, a `−` glyph in a grey
+disc, grey text and the trailing label *nu încape* (`…Mobil.dc.html:448-452`). No strikethrough
+anywhere. ADR 0104 decision 1 makes the mockups the chrome specification, and the owner's F8 answer
+is *"use the design that was proposed"*; the earlier bullet's word *"struck through"* describes the
+item being struck from the **composition**, and a reader took it for a text decoration. **The frame
+governs.** *Must not:* a line-through; a row removed from the list instead of shown.
+
+**R11 — the list is the frame's five rows, not the log's twenty.** One row per
+`GENERATION_PRIORITIES` entry, in the domain's own order, plus **one aggregate row for storage**.
+**No row for an `upper` and none for a `hood`.** Reasons, in order of weight: the frame draws four
+rows and one of them is *Depozitare · restul peretelui* — an aggregate, not eight cabinets (G6); the
+section's own heading is *Ce așezăm, în ordinea priorității*, and uppers are not in
+`GENERATION_PRIORITIES`; a 390 px transient screen cannot hold twenty rows without scrolling past the
+footer; and the row set stays **constant as 7D3, 7D4 and 7D5 land**, because those waves change what
+storage *is* and not that storage happened. **This overturns *"the steps render in the log's
+order"* as a literal instruction** — the *rows* render in priority order, each **resolved from** the
+log's steps. *Must not:* one row per storage cabinet; a row for an upper or a hood; a row for a role
+`GENERATION_PRIORITIES` does not carry.
+
+**R12 — the frame's third state is real, and it is a whole-list *pending*, never per-row progress.**
+`generateKitchen` is **one synchronous call** that returns the finished log; there is no step-by-step
+signal to render and there will not be one in this wave. So: on entering composition every row is
+drawn **pending** (the frame's spinner and *se calculează*) from `GENERATION_PRIORITIES`' declared
+widths, and they all resolve together when the log arrives. **Nothing animates, nothing is sequenced,
+and no timer paces a computation that has already finished.** *Why this matters beyond honesty:* a
+staged reveal would immediately raise *"what does Back do mid-sequence"* and *"what does the URL say
+during it"* — the coordinator's trap 2 — and the answer is that there is no sequence to be in the
+middle of. *Must not:* a per-row delay; a progress bar; a row that changes state without the log
+changing.
+
+**R13 — composition is a client sub-state over the same URL, and it is not addressable.** No new
+query key, no new path segment, no history entry. Three independent reasons, any one sufficient:
+a new key is stripped by the settle (G1); a new path segment 404s under the proxy allow-list and
+breaks 7E1 criterion 1's *"`/ro/configurator/room/x` still 404s"*; and **an addressable composition
+URL means a reload re-runs generation and mints a second design**, which is the exact defect
+`createDesignCreationAttempt`'s doc comment exists to prevent. R9 already put the live sub-state in
+the client's hands; this is the same rule one step further on. *Must not:* `?step=`, `/room/compose`,
+a `pushState`, or any persistence of *"the customer was composing"*.
+
+**R14 — the composition body is rendered *inside* the dimensions step, over the same draft and the
+same sync; `room-query-sync.ts` is not touched and `RoomDestination` gains no member.** If entering
+composition unmounted `DimensionsStep`, the convergence loop would unmount with a departure armed and
+a flush in flight, and *Înapoi* out of 1F would have to re-seed the form from whatever the URL
+happened to hold. Keeping the hook mounted makes *Înapoi* out of 1F a **pure state clear**: the draft
+is still in memory, caret residue and all, and nothing re-seeds. The screen's composition state lives
+in `RoomScreen` (so the top bar can read it for G11's title) and is passed down; `DimensionsStep`
+renders either the form body or the steps body and **never unmounts**. *Must not:* a `key` that
+remounts the dimensions step on entering or leaving composition; a fifth `RoomDestination`; any edit
+to the reconciliation — **the no-second-discriminator block quote applies unchanged**, and this wave
+is the *amplifier* that quote already names, because the departure's push is about to matter.
+
+**R15 — generation starts from the event handler, and the adapter is imported dynamically.**
+`reactStrictMode: true` (G10) double-invokes effects in development, so an effect that generates
+would build two kits and, in 7F4b, mint two rows — with nothing red to catch it, because the second
+mint is a *different* attempt and 7E2's guarantee is per-attempt by design. The handler runs once per
+tap. And `@lemnaria/three-adapter` reaches the room route **only** through
+`await import("@lemnaria/three-adapter")` inside that handler's continuation, so the customer's first
+screen does not carry Three.js. *Must not:* a top-level adapter import anywhere under
+`apps/web/src/room`; a `useEffect` that starts a run; a run started by a URL change.
+
+**R16 — the generator's refusal is a failure, not a sub-state.** `MINIMUM_NOT_MET` is unreachable
+from 1D (G5) and 7F4 asserts that rather than drawing a screen for it. If it is returned anyway, the
+screen shows the same *composition could not be completed* state a throw produces: **no mint, no
+navigation, no crash**, and *Înapoi* still works. The customer-facing sentence for a room too small
+stays 7F2's, at 1C, where a customer can actually act on it.
+
+**R17 — *(7F4b)* the attempt is a field of the run's state, constructed once in the transition that
+stores the design.** Not a `useDesignCreationAttempt(design)` hook: a hook keyed on the design
+re-creates the attempt whenever that identity changes, which is the per-tap mint the doc comment
+warns about wearing a hook's clothes. 7E2's carry-forward (c) said *"consider"*; this is the
+consideration, and the answer is no. **The deliberate selection is the *Continuă* tap**; its state is
+the composition run; the attempt is created exactly where the design first exists and is reused by
+every retry. *Must not:* an attempt constructed in a click handler, in a render, or in a `useMemo`
+over the design.
+
+**R18 — frame 1F's last sentence is a note to the mockup's reader and does not ship.** The paragraph
+reads *"Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu încape
+este scos și marcat, nu înghesuit. **Pragurile exacte sunt decizie de produs nefinalizată.**"* The
+first two sentences are customer copy and describe ADR 0110 A1/A3 accurately. The third announces an
+unfinished product decision — **which has since been taken** (ADR 0110 Amendment A, the owner's
+2026-09-11 ruling) — and telling a customer that a threshold is undecided is not copy. *Must not:*
+shipping it; silently dropping the whole paragraph with it.
+
+### Module boundaries
+
+| Module | Owns | Must not |
+| --- | --- | --- |
+| `src/room/generation-model.ts` | **Pure.** The row model: `GENERATION_PRIORITIES` + one storage row → rows with `pending` / `placed` / `not_placed`, each carrying a role, a width or *the rest of the wall*, and nothing else. Folds a `GenerationLog` onto that row set. Also the dropped-roles list for the warning. | Import React, next-intl, `three`, or the adapter. Resolve a sentence — it publishes roles and codes (ADR 0095 decision 3). Read a `Design`. |
+| `src/room/use-generation.ts` | The run: the dynamic adapter import, the probe factory (a transient kit, `createBodyProbeLease`, disposal), the one `generateKitchen` call, the state machine and its failure arms. **7F4b adds the hand-off.** | Render. Start itself from an effect (R15). Hold a probe past `lease.use`. Write to the URL, a store, a cookie or web storage. |
+| `src/room/generation-steps.tsx` | Frame 1F's body: heading, room summary, the notice, the row list, the rule paragraph, the footer's two controls. | Own any state the model can derive. Spell a role's label at a call site. Import the adapter. |
+| `src/room/room-screen.tsx` *(edit)* | Holding the composition state, the top bar's title per G11, and passing both down. | Unmount `DimensionsStep` (R14). Branch on anything the URL does not say **except** this one client flag. |
+| `src/room/room.module.css` *(edit)* | 1F's layout. | Touch a class the form or the plan uses. |
+| `src/messages/{ro,ru}.json` *(edit)* | The new `room.*` leaves. | A sentence built by concatenation; a digit baked into a sentence rather than passed as an ICU argument. |
+
+**Where the seam for 7F3 is, stated so it is not discovered by rewriting.** `use-generation` is
+entered by **one exported function call**. 7F3 inserts 1D/1E in front of it and calls the same
+function when its list is empty or when the customer asks to generate; it does not reach inside the
+run. Nothing in 7F4 may assume *Continuă* is the only caller.
+
+### Files, and the must-not-change set
+
+**7F4a production:** `src/room/generation-model.ts` (new), `src/room/use-generation.ts` (new),
+`src/room/generation-steps.tsx` (new), `src/room/room-screen.tsx` (edit),
+`src/room/room.module.css` (edit), `src/messages/ro.json` + `ru.json` (edit). **Five modules plus the
+two catalogues** — at `docs/WORKFLOW.md`'s limit, and the catalogues are the documented UI-wave
+exception.
+
+**7F4b production:** `src/room/use-generation.ts` (edit), `src/room/generation-steps.tsx` (edit,
+the footer's states), `src/room/room.module.css` (edit). Tests do the rest.
+
+**Must not change — a change to any of these is a finding, not a repair:**
+
+- `src/room/create-design.ts`. 7F4b **calls** it and does not edit it; its per-attempt mint identity
+  is the contract, not an obstacle.
+- `src/room/room-query-sync.ts`, `room-url-state.ts`, `room-draft.ts`, `plan-preview*`,
+  `dimensions-form.tsx`, `shape-picker.tsx` (R14). The U-chip-draws-the-L-plan defect is **7F2's** and
+  is not to be fixed here.
+- `app/api/designs/route.ts` and anything under `apps/web/src/app/configurator/configure/` — R5 stays
+  deferred.
+- `packages/configurator-domain/**` and `packages/three-adapter/**`. **If a row cannot be built
+  without a new domain export, stop and report**; a UI wave that edits the generator has stopped being
+  this wave.
+- `eslint.config.mjs`'s room block, except to **add** a selector — and if one is added, the full lists
+  are re-declared, as ruling R1 requires.
+
+### Acceptance criteria
+
+Numbering continues the room screen's: 7F1 shipped 1–19 and 7F1-D45 added 20–23, and those criteria
+are live against the same screen, so restarting at 1 would give this file two *criterion 3*s for one
+surface. Each criterion names its proof: **[unit]**, **[property]** (`fast-check`), **[component]**
+(DOM), **[build]** (`next build` output), **[visual]** (390 × 844), **[e2e]** (**CI is the verdict**),
+**[measure]** (reported, not asserted), **[review]**. Every criterion says what must not happen.
+
+**7F4a — the composition runs and is drawn**
+
+24. **Tapping *Continuă* at 1B enters composition, and composition is nowhere in the URL.** The tap
+    still flushes through `departTo` exactly as it does today; the screen additionally enters the run.
+    After it: the query is byte-identical to the canonical room, `history.length` is unchanged, and a
+    **reload returns the customer to the form** with every field intact and no run in progress.
+    **Must not:** a new query key; a new path segment; a `pushState`; any storage of *"was composing"*
+    (R13). **[component]** + **[visual]** + **[review]**
+25. **The top bar changes title and nothing else.** *Cameră* → *Preset* on entering, back on leaving;
+    the step pill still resolves `configure.step` / `configure.stepPill` at `{ step: 1, totalSteps: 4 }`
+    and the locale menu is still there (M7 criterion 1, ruling R7). **Must not:** a second title leaf
+    under `room.*` that could drift from `room.title`; a pill that changes; a bare string as an
+    accessible name. **[component]** + **[visual]**
+26. **The body is replaced, not hidden, and 1F's own *Înapoi* returns to the fields.** In composition
+    the chips, the plan preview and the length fields are **absent from the DOM**; *Înapoi* restores
+    them with **the draft exactly as it was**, including text that never parsed as a length, because
+    the sync never unmounted (R14). **Must not:** `display: none` over the form; a re-seed from the
+    URL on the way back; `departTo` called for this transition. **[component]**
+    > **This is not in tension with 7F2's *"must not remove a control 7F1 shipped"*.** That rule is
+    > about **1C**, which is the same editing state with reasons added. 1F is a different step of the
+    > screen — the frames even change the title for it — and replacing the body is what the frame
+    > draws.
+27. **Generation is called exactly once per entry into composition, from the event handler.** A spy on
+    `generateKitchen` sees **one** call per tap, with the room the URL holds; re-rendering the screen,
+    settling the URL, or changing the locale calls it **zero** further times. **Must not:** a call from
+    `useEffect` (React StrictMode double-invokes it — G10); a call on mount; a call per keystroke.
+    **[component]** + **[review]**
+28. **The kit is borrowed through a lease and released on every path, including a throw.** A ledger
+    like `tests/support/fake-probe.ts`'s records one allocation and one release per run, for: a normal
+    run, a run whose `generateKitchen` throws, a run the customer leaves mid-flight, and two runs in
+    succession. **Must not:** a kit created outside `createBodyProbeLease`; a probe referenced after
+    `use` returns; a kit cached between runs (ADR 0074 decision 3, ADR 0076). **[component]** +
+    **[unit]**
+29. **Every row is pending first, and they all resolve together** (R12). Before the log exists the
+    list holds one row per `GENERATION_PRIORITIES` entry plus the storage row, each pending, each
+    showing the declared width (storage shows *the rest of the wall*, never a number). The pending
+    frame is **painted before** the blocking call — asserted in the browser, not argued. **Must not:**
+    a row appearing or disappearing when the log lands; a per-row timer; an empty screen during the
+    run. **[component]** + **[visual]**
+30. **The resolved rows are a total function of the log, over every role the domain can name.**
+    *Property* over `GenerationBaseRole | "upper" | "hood"` and over every
+    `RejectionReason | GenerationPlanningReason` code: the model returns a row set and a label for
+    every input and **throws for none**, and a role added to `GENERATION_PRIORITIES` without a
+    catalogue leaf **fails a test** rather than rendering a key. This is what stops 7D5's `dishwasher`
+    reaching the seam with no meaning. **Must not:** a `switch` with a silent default; a raw code or a
+    build id rendered to the customer. **[property]** + **[unit]**
+31. **A *nu încape* row is drawn as the frame draws it and is absent from the design.** Dashed border,
+    muted background, `−` glyph, grey text, trailing *nu încape* (R10) — and, asserted against the
+    same log: every `not_placed` step's build id appears in **no** placement of the design that is
+    handed on. **Must not:** `text-decoration: line-through`; a dropped row omitted from the list; a
+    per-reason explanation. **[component]** + **[unit]** + **[visual]**
+32. **The storage row is one row and tells the truth about zero.** It is *placed* when any storage
+    step placed, and drawn *nu încape* when none did — the 900 × 2200 case the owner ruled on.
+    **Must not:** one row per storage cabinet; a count; a storage row that disappears when nothing was
+    placed. **[unit]** + **[component]**
+33. **The room route does not carry Three.js.** `next build`'s route table still prints
+    `ƒ /[locale]/configurator/room`, and its **First Load JS is reported before and after** and grows
+    by **under 20 kB** — the adapter and `three` are reachable only through a dynamic import taken in
+    the handler (R15). **Must not:** a top-level `@lemnaria/three-adapter` or `three` import under
+    `apps/web/src/room`; a prerendered room route. **[build]** + **[review]**
+34. **The real probe agrees with the validator where it matters most.** Against the **real** adapter
+    kit, `generateKitchen` returns `ok` for each of ADR 0108 Amendment E's accepted boundary rooms —
+    **900 × 2200, 1000 × 2100, 1500 × 1600**, plus their +1 mm neighbours — closing the gap that
+    `minimum-kitchen.test.ts`'s fake-probe agreement property leaves open (G5). **Must not:** a new
+    exception in the domain to make this pass — a disagreement here is a **stop and report**, and it is
+    ADR 0110's to settle, not this wave's. **[unit]** in `packages/three-adapter/tests` (tests only;
+    the package's production code is in the must-not-change set).
+35. **A refusal or a throw is a dead end the customer can leave, and nothing was written.** With
+    `generateKitchen` stubbed to return `ok: false` and, separately, to throw: the screen shows the
+    failure state, *Înapoi* still returns to the fields with the draft intact, the lease ledger is
+    balanced, and **no navigation happens**. (7F4b adds: and no `POST` is issued.) **Must not:** a
+    crash boundary; a blank screen; a room-level reason invented here — that sentence is 7F2's, at 1C
+    (R16). **[component]**
+36. **Copy: every new leaf lands in both catalogues, in the lock and in the golden manifest.** Each
+    new `room.*` leaf exists in `ro.json` **and** `ru.json`; every ICU leaf has an entry in
+    `ROOM_RENDER_ARGUMENTS`, or `golden-output-fixtures.ts` throws (G12); `GOLDEN_OUTPUT_SHA256` and
+    `romanian-copy-lock.test.ts` are re-baselined **in the same commit**, citing ADR 0113. **Must
+    not:** a width or a metre count concatenated into a sentence; a Romanian string outside the
+    catalogue; a Russian leaf left to a later wave. **[unit]**
+37. **The mobile gate, re-run.** 44 px minimum touch targets across 1F's controls, no horizontal
+    overflow at 390 px, in **both** locales — criteria 14 and 15 applied to the new surface. **Must
+    not:** a footer the list scrolls under; a row that wraps into the spinner. **[visual]**
+38. **The composition's cost is measured and reported, not assumed.** On the verifier's device, at
+    390 × 844 in a **production build**: the dynamic import's transfer size, and the wall-clock from
+    tap to resolved rows, for a small room and for 6300 × 5100. **Reported.** **A median above one
+    second is a stop-and-report**, not a fix improvised in the slice. **[measure]**
+
+**7F4b — the hand-off**
+
+39. **One composition is one design row, however many renders and taps occur.** Through the rendered
+    screen with a stubbed `fetch`: a complete run issues **exactly one** `POST /api/designs`; a retry
+    after a failed `PUT` issues **none**; re-rendering issues none. This is 7E2's carry-forward (b),
+    and a factory-level test does not discharge it. **Must not:** an attempt built in a handler, a
+    render or a `useMemo` (R17). **[component]**
+40. **Navigation happens only after the `PUT` resolves, and only to the design just written.** The
+    router is called once, with `/d/{id}` for the `id` the mint returned, after the write — never
+    before, never twice. **Must not:** a navigation on the mint's 201; a navigation while the write
+    is in flight. **[component]**
+41. **A failed hand-off keeps the customer where they are, with a way forward.** A failed mint, a
+    failed `PUT` and a synchronous repository throw each leave the screen in 1F with the composed rows
+    still shown and a retry control; the retry **reuses the same attempt**, so a retry after a failed
+    `PUT` writes to the already-minted row. **Must not:** a second mint; a silent failure; a retry
+    that re-runs generation. **[component]**
+42. **Leaving disarms the hand-off.** If the customer taps *Înapoi*, or the screen unmounts, while the
+    write is in flight, the write may still land — **but no navigation follows it**. The customer stays
+    where they went. **Must not:** a router call from a closure that outlived the run; cancelling the
+    write and leaving a half-written row. **[component]**
+43. **The editor opens on the generated kitchen.** The document read back through
+    `GET /api/designs/{id}` **deep-equals** `generateKitchen(...).design` — 7E2's criterion 1 re-asserted
+    on a **genuinely generated** document rather than a fixture-derived one, which is 7E2's
+    carry-forward (d) — with `presetId: null` and `room` equal to the room the customer typed, to the
+    millimetre. **Must not:** a locale, a price or a placement id in the URL; the seed fixture
+    surviving into the stored document. **[component]** + **[e2e]**
+44. **The journey, once, end to end.** `/ro/configurator/room` → choose **L** → type a room → *Continuă*
+    → 1F → the editor at `/ro/d/{id}` showing that kitchen; then *‹ Cameră* returns to Step 1 with the
+    room filled in (7E2 criterion 5, now with fields to fill). **CI is the verdict** — a green local
+    run proves nothing about the runner. 7K inherits this spec rather than rewriting it. **[e2e]**
+
+### The copy 7F4a adds
+
+Romanian is the source (ADR 0095, ADR 0113). Drafted from frame 1F; **the Russian is drafted by the
+same rule and approved by ADR 0113**. Keys under `room.compose.*`:
+
+| Key | Romanian, as drafted | Source |
+| --- | --- | --- |
+| `room.compose.title` | *Preset* | frame's top bar (G11) |
+| `room.compose.heading` | *Ți-o construim pe a ta* | frame 1F |
+| `room.compose.roomSummary` | ICU over the shape's `short` label, the walls and the height | frame 1F, `În L · 3,60 × 2,40 m · h 2,60 m` |
+| `room.compose.noPresetNotice` | *Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.* | frame 1F |
+| `room.compose.stepsLabel` | *Ce așezăm, în ordinea priorității* | frame 1F |
+| `room.compose.role.{fridge,sink,preparation,hob,storage}` | *Frigider*, *Spălător*, *Blat de lucru*, *Plită și cuptor*, *Depozitare* | frame 1F; `preparation` is not drawn and is drafted |
+| `room.compose.rowWidth` | ICU, `{millimetres}` | frame's `· 600` |
+| `room.compose.storageExtent` | *restul peretelui* | frame 1F |
+| `room.compose.status.{pending,placed,notPlaced}` | *se calculează*, *așezat*, *nu încape* | frame 1F |
+| `room.compose.rule` | the paragraph's **first two sentences only** (R18) | frame 1F |
+| `room.compose.busy` | *Se compune…* | frame 1F's footer |
+| `room.compose.dropped` | **owed to the owner — Q7F4-1** | ADR 0110 Amendment F |
+| `room.compose.failed` / `room.compose.retry` | not drawn in any frame — drafted, and named as drafted | criteria 35, 41 |
+
+**The dropped-roles message is the one piece of copy no frame supplies**, and the ruling that created
+it says so: *"the wave that builds it should confirm the wording with the owner"*, and *"do not
+over-build this… one message naming the dropped roles, in the state the screen already has, reading
+`plan.dropped` as it stands. No new sub-state, no per-role explanation, no recovery flow."* **That
+instruction is binding on this wave.** The draft to put to the owner, one leaf and one conditional:
+*"Camera nu a lăsat loc pentru: {roluri}. Restul bucătăriei e compus pe măsura ei."*
+
+### Slices, dispatched one at a time
+
+**7F4a**
+
+- **Slice 1 — the model.** `generation-model.ts` and its tests only. No React, no adapter. **Done
+  when** criteria 30, 31 (the *absent from the design* half) and 32 hold, and the pending row set is
+  produced from `GENERATION_PRIORITIES` with no log at all. *First because everything else asserts
+  against it, and because it is the only part that can be proven without a browser.*
+- **Slice 2 — the run.** `use-generation.ts`: the dynamic import, the probe factory copied in shape
+  from `generated-kitchen.parity.test.ts:40-48`, the lease, the one call, the state machine and its
+  failure arms. **Done when** criteria 27, 28, 33 and 35 hold. **Gate inside this slice, and it is a
+  stop-and-report:** criterion 38's measurement, taken in a production build **before slice 3 is
+  dispatched**. If the median exceeds one second the implementer stops; whether to accept it, to move
+  the work, or to change the screen is the coordinator's to rule, not the implementer's to improvise.
+- **Slice 3 — the screen.** `generation-steps.tsx`, `room-screen.tsx`, `room.module.css`, both
+  catalogues, the golden and lock re-baseline. **Done when** criteria 24, 25, 26, 29, 36 hold.
+- **Then the visual gate**, 390 × 844, both locales, on a **production build**, with the tree frozen.
+
+> **Three must-not-files for the gate's brief, so a correct screen is not filed as a broken one.**
+> **(1) In 7F4a the primary control never resolves** — it stays disabled reading *Se compune…* after
+> the rows have settled, because the destination is 7F4b's. **(2) The list does not animate**; every
+> row resolves in the same frame (R12). **(3) Selecting the **U** chip with `wallC` empty draws the
+> **L** plan** — 7F1-shipped, **7F2's**. *What **is** a finding:* a frozen screen with no pending rows
+> painted, a row that changes state on its own, horizontal overflow at 390, a touch target under
+> 44 px, or a browser console error from the adapter import.
+
+**7F4b**
+
+- **Slice 4 — the hand-off.** The attempt as a field of the run's state (R17), the navigation, the
+  failure and retry states, the departure disarm. **Done when** criteria 39–43 hold.
+- **Slice 5 — the journey.** Tests only: criterion 44's e2e. **Done when** it passes **on CI**.
+- **Then a short visual pass** on the resolved footer and the retry state.
+
+### Risks, ranked, with the reason for the rank visible
+
+1. **A second design row per composition.** Ranked first because it is the only failure here that
+   **writes to the database**, it is invisible locally, and the shape that produces it is the obvious
+   one to write — `createDesignCreationAttempt` inside a handler or a `useMemo` over the design mints
+   and navigates per call, and every existing test would stay green (7E2's close-out says so in
+   terms). Guard: R17, criterion 39, and 7F4b being its own reviewed wave.
+2. **A frozen phone.** `generateKitchen` is synchronous and runs on the main thread after building a
+   Three.js kit; the pending rows must have painted before it starts or the customer sees a stopped
+   screen. Ranked second because it is certain to *happen* — the only question is for how long — and
+   because **no local intuition substitutes for the measurement** (criterion 38, and it is a slice
+   gate rather than a closing check for exactly that reason).
+3. **The real probe disagrees with the validator.** The validator-generator agreement property runs on
+   a **fake** probe (G5), fit is judged on the **measured** carcass, and the real adapter is what this
+   wave introduces. Ranked third rather than first because `generated-kitchen.parity.test.ts` already
+   generates sample rooms with the real probe and would have caught a gross disagreement — but it
+   samples comfortable rooms, and the disagreement, if any, lives at the minimum boundary. Criterion 34
+   is aimed exactly there. **A failure here is ADR 0110's to settle, not a number to nudge.**
+4. **Three.js in the room route's first load.** Ranked fourth because it is loud once measured and
+   silent until then: a static import compiles, tests pass, and the customer's first screen quietly
+   gains ~600 kB. Guard: R15 and criterion 33's before/after figures.
+5. **A leaked kit.** Each kit owns buffers, materials and canvas textures; a run that throws between
+   `makeKit` and `disposeKit` leaks one, and a customer who retries leaks one per attempt. Ranked here
+   rather than higher because `createBodyProbeLease`'s `finally` makes the correct shape the easy one —
+   the risk is a factory written without it. Guard: criterion 28's ledger.
+6. **The departure's push meeting a real destination.** 7F1-D45's block quote names this wave as the
+   *amplifier* of its one trigger: while *Continuă*'s push was a no-op, a discarded navigation cost
+   nothing. Ranked sixth, not lower, because the failure reads as flakiness — a second tap works.
+   Guard: R14 (touch nothing in the loop) and criterion 24's assertion that the query and
+   `history.length` are unchanged.
+7. **Scope creep into 7F3 and 7F2.** A composition screen invites a *"no presets yet"* list, a
+   per-reason explanation and a recovery flow; the owner's ruling forbids the third by name and R11
+   forbids the second. Ranked last because it costs a review round rather than a defect — but it is the
+   most likely of the seven to actually occur.
+
+### Questions that are not mine
+
+- **Q7F4-1 — the owner's.** The dropped-roles sentence's wording, per ADR 0110 Amendment F's own
+  instruction to confirm it. Draft above. **Interim:** ship the draft, marked in the code as
+  unapproved, so the wave is not blocked.
+- **Q7F4-2 — the coordinator's.** Split into 7F4a and 7F4b? **Recommended: yes**, for the reasons in
+  *the three questions*, answer 3. If the answer is no, the single wave has nine must-fix items and
+  `docs/WORKFLOW.md`'s dispatch limit is exceeded deliberately and on the record.
+- **Q7F4-3 — the coordinator's, possibly the owner's.** R11 and R12 overturn two clauses of a written
+  criterion — *"the steps render in the log's order"* and *"the frames' three states"* — against the
+  frame and against what `generateKitchen` can actually report. The owner's F8 answer was *"use the
+  design that was proposed"*, so if either reading is thought to be the owner's, **ask before the
+  slice**. My position is that the frame is the design that was proposed, and the prose is a
+  description of it written before anyone had read the log's shape.
+
+### Verification
+
+Per-package `vitest` for `apps/web` (and, for criterion 34, `three-adapter`'s **tests** only),
+`typecheck`, `lint` and a whole-tree `pnpm format:check` at each wave's end. `next build` for
+criteria 33's route table and First Load JS. A 390 × 844 visual gate in **both** locales against a
+production build, with the tree frozen. 7F4b adds e2e, and **CI is its verdict** — `scripts/local-ci.sh`
+never sets `CI`, so every local e2e runs against `next dev` (7F1-D45's close-out records this in full).
+**The composition duration is reported, never rounded and never assumed.**
