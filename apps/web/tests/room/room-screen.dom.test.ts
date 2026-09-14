@@ -210,6 +210,14 @@ function shapeControl(shape: RoomShape): HTMLInputElement {
   return control;
 }
 
+function lengthField(field: string): HTMLInputElement {
+  const control = elementAt(`room-length-${field}`);
+  if (!(control instanceof HTMLInputElement)) {
+    throw new Error(`the ${field} field is not an input`);
+  }
+  return control;
+}
+
 function choose(shape: RoomShape): void {
   act(() => {
     shapeControl(shape).click();
@@ -405,6 +413,32 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
 
     expect(continueButton().type).toBe("button");
     expect(continueButton().textContent).toBe(roMessages.room.continue);
+  });
+});
+
+describe("each room in the URL is entered afresh", () => {
+  it("re-seeds the form when two queries differ only in where a separator falls", () => {
+    // `roomEntryKey` joins the query's values, and **unescaped** these two both spell `L|3.56|a|b||`:
+    // React would keep one component across the navigation and the first room's empty draft would
+    // stand over the second room's 3,56. No length parses with a `|` in it today, so this is here to
+    // hold the escaping for waves 7J and M7B, each of which adds a key to that join.
+    const separatorInsideWallA: RoomSearchParams = {
+      shape: "L",
+      wallA: "3.56|a",
+      wallB: "b",
+    };
+    const separatorInsideWallB: RoomSearchParams = {
+      shape: "L",
+      wallA: "3.56",
+      wallB: "a|b",
+    };
+
+    render(separatorInsideWallA);
+    expect(lengthField("wallA").value).toBe("");
+
+    render(separatorInsideWallB);
+
+    expect(lengthField("wallA").value).toBe("3,56");
   });
 });
 

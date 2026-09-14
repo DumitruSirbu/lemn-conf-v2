@@ -311,7 +311,15 @@ function canonicalRoomQuery(draft: RoomDraft): URLSearchParams {
  */
 function roomEntryKey(shape: RoomShape, query: RoomSearchParams): string {
   const roomKeys = ["shape", ...requiredFieldsFor(shape), "direction"];
-  return roomKeys.map((key) => singleValueIn(query[key]) ?? "").join("|");
+  // Each value is escaped **before** the join, so a value that itself contains the separator cannot
+  // borrow a neighbour's: unescaped, `wallA=3.56|a&wallB=b` and `wallA=3.56&wallB=a|b` both spell
+  // `L|3.56|a|b||`, and navigating between those two different rooms would reuse the component and
+  // leave the first one's draft standing. No length parses with a `|` in it today, but wave 7J and
+  // M7B each add a key to this list, and a key joined from raw values is a collision waiting on a
+  // schema change. Do not simplify this away.
+  return roomKeys
+    .map((key) => encodeURIComponent(singleValueIn(query[key]) ?? ""))
+    .join("|");
 }
 
 /** The draft a URL arrives as: every field the shape asks for that the query already answers, shown
