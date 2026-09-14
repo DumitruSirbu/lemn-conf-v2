@@ -6150,6 +6150,36 @@ and its cleanup clears the timer.
   **Do not add a second discriminator to chase it** — every candidate re-seeds on an echo somewhere,
   which is the defect that matters.
 
+  > **This prohibition is load-bearing for the departure path, not only for the residue above, and
+  > the sentence before this one understated it** (found in review, 2026-09-14, after QA had swept
+  > the same code and not found it). The re-seed is what makes `draftText === liveText` hold in the
+  > commit where a flush echo lands, which is the *only* reason the write effect declines to arm a
+  > timer after a departure push has been dispatched. **There is exactly one guard and it is I4.**
+  >
+  > **Trigger condition, stated so it can be checked rather than remembered:** *any edit that lets
+  > the write effect see `liveText !== draftText` in the same commit as a departure push.* Concretely,
+  > any rule that keeps a moved draft instead of re-seeding on a non-echo URL change — which is
+  > exactly the "second discriminator" forbidden above.
+  >
+  > **The failure it produces, and note that *Înapoi* has no second guard today:** the customer types
+  > a character after tapping *Înapoi*; the flush echoes; the push to the bare pathname is dispatched;
+  > the write effect arms a 400 ms timer for the stray character; the push's RSC round trip exceeds
+  > 400 ms; the `replace` fires and discards the pending navigation
+  > (`app-router-instance.js:148-150`). ***Înapoi* silently does nothing** and the URL gains the
+  > character. A second tap works — so it reads as flakiness rather than as a rule that was relaxed.
+  >
+  > **Guaranteed, not incidental.** Where no keystroke followed the tap the equality is the echo
+  > branch's own test condition and is tautological. Where one did, the draft is re-seeded and the
+  > equality *is* I4 / criterion 21 — `canonical ∘ draftFrom` idempotent — property-tested at
+  > `room-query-sync.test.ts:217-269`. So the record should say this rests on **I4**, not on "the
+  > queries this screen can currently produce".
+  >
+  > **Secondary trigger, and this one is caught:** breaking idempotence itself — a new length field,
+  > a locale with a different decimal separator, a more lenient parser — fails criterion 21's
+  > property test, *provided the property is extended over the new surface*. Wave 7F4 giving
+  > `"presets"` a destination that is not the current pathname is an amplifier of the first trigger,
+  > not a cause; it deserves a pointer here and does not change the guard.
+
 ### The departure path — flush, then leave, and never in one tick
 
 **The documentation is silent**: neither `use-router.md` nor the linking guide says anything about two
