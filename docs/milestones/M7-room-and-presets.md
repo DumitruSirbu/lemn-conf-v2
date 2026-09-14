@@ -20,9 +20,9 @@
 > a time, and **seven rulings (R1–R7) taken the same day** on questions the architect raised: the
 > constant ban's mechanism, the URL updating while the customer types, the three shape cards, the plan's
 > isotropic scale, the locale-menu extraction, `direction` in the URL, and the step pill's key. Two of
-> them place obligations on **7F2 and 7F3**, recorded on those waves' rows. **F8** — whether M7 draws a
-> U card no customer can continue from, given that U is M7B — is open to the owner and runs on its
-> ruled default meanwhile.
+> them place obligations on **7F2 and 7F3**, recorded on those waves' rows. **F8 is answered by the
+> owner the same day** — all three shape cards are drawn as the design shows them, the U card drawn and
+> inert until M7B, which makes R3 the owner's ruling rather than a build decision.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -211,8 +211,7 @@ screen is built, the way you did Gate O1?
 the rest have defaults the build runs on.~~ **All answered 2026-09-11** — the owner picked the
 recommended option on each, through a structured prompt; the option labels are quoted verbatim
 below. **Nothing in M7 is blocked on the owner any more.** F7 was asked afterwards by the coordinator,
-and **F8 by the architect on 2026-09-14 while planning 7F1** — also non-blocking, and it runs on its
-recommended default until answered.
+and **F8 by the architect on 2026-09-14 while planning 7F1** — **answered by the owner the same day**.
 
 - **F1 — Straight kitchen wall length.** Accept a straight wall from **1200 mm** to **6300 mm**?
   1200 is a sink plus a hob, the minimum kitchen you ruled; 6300 is the most a design can store.
@@ -276,27 +275,39 @@ recommended default until answered.
   wall B (ADR 0110 Amendment C).
 
 - **F8 — Does Step 1 draw a **U** card during M7?** *(Asked by the architect while planning wave 7F1,
-  2026-09-14; re-posed the same day once the coordinator checked why each shape is refused. Non-blocking
-  — the build runs on its interim answer.)* Frame 1A draws three cards — *Liniară*, *În formă de L*,
-  *În formă de U* — and today only the L can be continued from. **But the two refused cards are not
-  alike, and only one of them is a real question:**
+  2026-09-14; re-posed the same day once the coordinator checked why each shape is refused.)*
+  **Answered by the owner, 2026-09-14: draw all three, exactly as the design shows them.** Their words,
+  verbatim:
+
+  > *"I understand that u shape will not be radiant clicking on its specific icon will not do anything,
+  > but I don't say issue to to draw liking design. There is already design. Use the the design that was
+  > proposed and implement the the logic. Remains only after these waves to weight the special milestone
+  > for the u shape."*
+
+  Read as a ruling: **all three cards are drawn as the reference draws them; the U card is drawn and
+  inert, and its inertness is accepted knowingly rather than treated as a defect; the design is not
+  departed from; and U's own milestone comes after these waves.** This closes F8 as option (a) and
+  confirms ADR 0104 decision 1 for screen 1 — the frames are the specification here as they are for
+  screen 2.
+
+  Frame 1A draws three cards — *Liniară*, *În formă de L*, *În formă de U* — and today only the L can be
+  continued from. **The description below stays, because it is still why each card behaves as it does —
+  but neither is a pending decision any more:**
 
   | card | why it is refused today | when it becomes live |
   | --- | --- | --- |
   | *Liniară* | **You have already approved it** — F1, verbatim: *"Yes, 1200–6300 mm"* (1200 mm being a 600 mm sink plus a 600 mm hob, your own minimum kitchen). Those numbers deliberately do not enter `APPROVED_ROOM_POLICY` until the wave that can build the shape, so a straight room cannot validate before it can be composed (ADR 0108 Amendment D, Amendment B decision B2) | **wave 7J, inside M7** |
   | *În formă de U* | **Never put to you.** No bounds exist, none has been proposed, and your answer to Q5 made U its own milestone | **M7B** |
 
-  So *Liniară* is a card whose product answer already exists and whose wave lands this milestone; the
-  policy table simply has not caught up yet. **The live question is U alone:** during M7, should Step 1
-  draw a *În formă de U* card that cannot be continued from for a whole milestone, or show it only once
-  M7B gives it dimensions? *Recommended: draw it*, on ADR 0104 decision 1 — the frames are the
-  specification, and ADR 0108 Amendment B decision B2 makes U **refused**, not hidden.
+  So *Liniară* is a card whose product answer already exists and whose wave lands **inside this
+  milestone**; the policy table simply has not caught up yet. *În formă de U* stays drawn and inert
+  until M7B — which is what the owner ruled, in those terms, having been told the card would do nothing.
 
-  **The build runs on "draw all three" meanwhile** — the coordinator ruled it for wave 7F1 on
-  2026-09-14 (ruling R3), also on the rule that nothing ships mid-milestone, so no disabled card reaches
-  a customer before wave 7F2 explains it. **That is a build decision, not your answer.** Changing it
-  later costs one card and no rework: criterion 4 derives each shape's fields from the shape itself, so
-  carrying U costs nothing and removing it costs nothing.
+  **What the ruling makes load-bearing.** With all three cards permanently drawn, `isShapeBuildable` is
+  the only thing standing between a drawn card and a working one. So wave **7J must be able to make the
+  *Liniară* card start continuing by adding the approved bounds to `APPROVED_ROOM_POLICY` alone, with no
+  edit under `apps/web/src/room`** — and wave 7F1's criterion 3 carries the adversarial arm that proves
+  it will. That is now the contract between the two waves, not an implementation detail of either.
 
 **Not asked, because it is already decided:** what gives when a deeper cabinet (700 mm) will not fit
 a narrower wall. [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
@@ -1314,7 +1325,7 @@ table.
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
-| **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | — (one product question on the U card, non-blocking) |
+| **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
 | **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
@@ -1657,6 +1668,19 @@ on wall A under every 7D2 property; the 1C/D1C suggestion to switch to a straigh
   *Continuă* disabled on `linear` and `U` and **no sentence saying why** — a deliberate, asserted state
   (7F1 criterion 3), not an oversight. 7F2 is where the customer is told. The U refusal still names no
   internal reason, and no message suggests the linear shape until 7J makes it buildable.
+- **Must not: remove a control 7F1 shipped, because frame 1C does not draw it.** The shape chips and the
+  corner toggle **survive into 1C** and are asserted present there. 1C *adds* the reasons beside their
+  fields and the red wall, and removes nothing.
+
+  **Why the frame's silence is not a ruling**, since the owner's F8 instruction is *"use the design that
+  was proposed"* and a literal reading points the other way: frame 1B (`:117-131, 141-156`) draws the
+  chips row and the corner toggle; frame 1C (`:205-213`) goes straight from the plan preview to the
+  fields and draws neither. **A static mockup omitting a control is not an instruction to remove it** —
+  1C exists to show what an error looks like, and its author drew the part that differs. Taking the
+  omission literally would delete working controls and call it fidelity, stranding a customer at 1C with
+  no way back to the shape they chose or the corner they set. ADR 0104 decision 1 already draws this
+  line: *"A frame is silent about behaviour it does not draw"* — silence is not a deletion, and a frame
+  cannot remove something another frame of the same screen declares.
 
 **7F3 (add, 2026-09-14, from wave 7F1's ruling R2):** ***Continuă* at 1B is 7F3's destination.** 7F1
 leaves it pushing the canonical query and nothing more, which is the seam 7F3 takes over; there is no
@@ -2264,10 +2288,11 @@ Implementation is `470e5c9`; documentation close-out is `8434e76`. Next wave: **
 
 **Tier: Light** (UI assembly against a settled contract): adversarial QA, then **one** combined
 reviewer. **Visual: Yes** — the 390 × 844 mobile gate applies
-(`docs/best-practices/browser-and-visual-qa.md`). **Owner answers needed: none.** Seven questions the
-architect raised were **ruled by the coordinator on 2026-09-14** and are recorded as R1–R7 below; one
-of them is also open to the owner as F8 and runs on its ruled default meanwhile. **ADRs to check intent
-against before starting, and to stop and report on if they disagree:**
+(`docs/best-practices/browser-and-visual-qa.md`). **Owner answers needed: none — F8 is answered.**
+Seven questions the architect raised are recorded as **R1–R7** below, ruled by the coordinator on
+2026-09-14; **R3 is the owner's own ruling of the same day** (F8: draw all three cards as the design
+shows them). **ADRs to check intent against before starting, and to stop and report on if they
+disagree:**
 [0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
 decisions 1, 5 and 6 (the frames are the chrome specification; the 44 px mechanism; a control with a
 control's affordances and no behaviour),
@@ -2642,16 +2667,24 @@ and 7F3's criteria so neither wave discovers them:
   — a real effect, and the seam 7F3 takes over. It is never drawn as a control with a control's
   affordances and no behaviour, which `configure.module.css` and ADR 0104 decision 6 both refuse.
 
-**R3 — all three cards ship, and the refusal stays silent until 7F2.** *Basis, two grounds.* Frame 1A
-draws three, and ADR 0108 Amendment B decision B2 rules that linear and U stay **refused**, not
-hidden — hiding them would overturn a recorded ruling to cover a transient gap. And nothing ships
-mid-milestone (owner rule, 2026-08-27), so a silent dead end between 7F1 and 7F2 never reaches a
-customer and is not worth blurring a wave boundary or pulling 7F2's copy forward. **Two requirements
-follow:** criterion 3 **asserts** the disabled *Continuă* on a refused shape, so the dead end is
-deliberate and tested rather than incidental; and **7F2 owes the refusal sentence**, recorded on its
-own row, naming 7F1 as the wave that shipped the silent state. 7F1 still must **not** hand-write a U
-branch — criterion 4 derives the field set from `requiredFieldsFor`, which already knows U, so the
-shape costs nothing to carry and nothing to remove.
+**R3 — all three cards ship, and the refusal stays silent until 7F2.** **Ruled by the owner,
+2026-09-14** (F8), having been told plainly that the U card would do nothing when tapped:
+
+> *"…I don't say issue to to draw liking design. There is already design. Use the the design that was
+> proposed and implement the the logic. Remains only after these waves to weight the special milestone
+> for the u shape."*
+
+*The grounds it confirms:* frame 1A draws three, ADR 0108 Amendment B decision B2 rules that linear and
+U stay **refused** and not hidden, and nothing ships mid-milestone (owner rule, 2026-08-27), so a silent
+dead end between 7F1 and 7F2 never reaches a customer. **Two requirements follow:** criterion 3
+**asserts** the disabled *Continuă* on a refused shape, so the dead end is deliberate and tested rather
+than incidental; and **7F2 owes the refusal sentence**, recorded on its own row, naming 7F1 as the wave
+that shipped the silent state. 7F1 still must **not** hand-write a U branch — criterion 4 derives the
+field set from `requiredFieldsFor`, which already knows U, so the shape costs nothing to carry.
+
+***"Use the design that was proposed"* is also an instruction against improvisation on the visible
+surface**, and it binds every 7F-wave implementer: where this plan departs from frame 1A or 1B it says
+so by name, and nothing else may depart silently. The departures are listed at R4.
 
 > **The two refused cards are not alike, and the criteria must not treat them as one thing**
 > (coordinator, 2026-09-14). ***Liniară* is already owner-approved** at 1200–6300 mm — F1 verbatim,
@@ -2659,15 +2692,43 @@ shape costs nothing to carry and nothing to remove.
 > out of `APPROVED_ROOM_POLICY` until **wave 7J, inside this milestone**, so that a straight room
 > cannot validate before it can be composed. ***U* has never been put to the owner at all** and is
 > **M7B**. Criterion 3 is therefore written against `isShapeBuildable` and **never against the letter
-> `L`**: when 7J adds the linear bounds, the *Liniară* card must begin continuing **with no edit under
-> `apps/web/src/room`**, and criterion 3's adversarial arm is what proves it will. Only the U card's
-> presence is an open product question (F8).
+> `L`**.
+>
+> **Since F8 was answered this is the contract between two waves, not a stylistic preference.** All
+> three cards are now permanently drawn, so `isShapeBuildable` is the only thing standing between a
+> drawn card and a working one: **wave 7J must make the *Liniară* card start continuing by adding the
+> approved bounds to `APPROVED_ROOM_POLICY` alone, with no edit under `apps/web/src/room`**, and
+> criterion 3's adversarial arm is what proves 7F1 left it able to.
 
 **R4 — one isotropic scale, recorded as a decision rather than left implicit.** *Basis:* frame 1B draws
 wall A at 250 px for 3,60 m and wall B at 50 px for 2,40 m — two different scales — so its pixels are
 an illustration of one example room, not a declared scaling rule, and ADR 0104 decision 1's authority
 runs over chrome while the plan glyph is content. Leaving the frame's example pixels as an implied
 contract is what this ruling exists to prevent. Criterion 12 is the enforcement.
+
+#### Departures from frames 1A and 1B, and the two things that only look like one
+
+The owner's F8 ruling says *"use the design that was proposed"*. **This plan departs from the frames in
+exactly one place, and it is listed here so it reaches the close-out rather than passing as though the
+frame said it.** Anything else that differs from frame 1A or 1B is a defect in the implementation.
+
+- **The departure: the plan preview's scale** (criterion 12). The frame draws the two walls at two
+  different scales; this plan draws one isotropic scale, so a 6,0 × 1,0 m room is not drawn as a
+  square. **The visual verifier reports this against the frame explicitly, and the close-out names it**,
+  so the owner sees a departure they did not rule on and can overturn it in a word. Everything else
+  about the preview card — its box, its uppercase caption, its wall labels — follows the frame.
+
+**Two things that differ from the frame's markup and are *not* departures**, named so no reviewer
+records them as findings and no implementer "fixes" them back:
+
+- **The length fields are real `<input>` elements** (criterion 5), where the frame draws a
+  `<span class="num">` inside a styled box. A static mockup cannot draw a text field; the box, its
+  height, its inline *m* and its tabular numerals are all the frame's, and the input is the control the
+  frame is depicting.
+- ***Continuă* is a real `<button>`**, where the frame draws a `<div>`. ADR 0104 decision 6 requires a
+  `div` for a control **wired to nothing** — `Verifică designul`'s case. *Continuă* is wired (R2: it
+  pushes the canonical query), so the rule does not reach it, and a `div` here would be the opposite
+  error: a thing that acts as a control while announcing itself as text.
 
 **R5 — the locale menu is extracted.** *Basis:* `configure.module.css:167-171` gives `.locale`
 `grid-area: locale`, with a desktop override at `:706` — it is positioned **by the configure screen's
