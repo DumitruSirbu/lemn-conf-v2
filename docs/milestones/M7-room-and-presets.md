@@ -41,6 +41,17 @@
 > 1B *Continuă* keeps its `<button>`, and it does nothing because **step 2 does not exist yet**, not
 > because of R9; the *Departures* bullet carries the amendment and the visual gate carries it as a
 > must-not-file. **No question on this wave is the owner's.**
+> **Updated once more 2026-09-14: both waves are DONE. 7F1 is DONE at `5d2ff54`** (five slices, with
+> the visual gate's D1–D3 fixed at `852df10`), **and 7F1-D45 is DONE at `8437c95`** (review fold
+> `6682d8e`), **which is where D4 and D5 are closed.** 7F1 closes on what it actually verified and
+> names D4/D5 as 7F1-D45's — two waves, two records, and the close-outs are below. Verification on
+> 7F1-D45: 203 test files / 3,034 tests, typecheck, lint and whole-tree `format:check` green; a
+> production-build gate whose five checks all passed; adversarial QA with 19 deliberate breaks, 18 of
+> which reddened a test; one combined review, no blocker; and a closing 390 × 844 visual gate in both
+> locales with zero defects, which re-confirmed D4 and D5 closed in production. **`pnpm ci:local` is
+> in flight and its result is not yet known — it is not claimed here.** The new traversal e2e passed
+> locally against `next dev`; **CI runs it against a production build and CI is the verdict.** Next
+> wave: **7F4**.
 > **Updated once more 2026-09-14 at `b18b38e`: 7H is planned ahead of its turn, at the owner's
 > request** — read [*Wave 7H — dispatchable punch list*](#wave-7h--dispatchable-punch-list), which is
 > the binding version of the 7H bullet in the earlier criteria section. 16 criteria, six slices, and
@@ -58,8 +69,10 @@
 > too and `CAMERA_PRESETS` is kept as evidence of where the framing began rather than as an assertion
 > about where it must land. **Every slice is now ungated.** **ADR
 > 0117 is owed for Q7H-1 and Q7H-3 and is deliberately held** until the owner's product framing is
-> understood well enough to write one accurate record instead of a narrow one. **7H is not
-> dispatchable until 7F1 has landed**, because its anchor is 7F1's criterion 12.
+> understood well enough to write one accurate record instead of a narrow one. ~~**7H is not
+> dispatchable until 7F1 has landed**, because its anchor is 7F1's criterion 12.~~ **That gate is met
+> as of 2026-09-14: 7F1 is DONE at `5d2ff54` and 7F1-D45 at `8437c95`.** The recommended order still
+> puts 7F4 next; 7H is no longer blocked by this dependency.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1385,7 +1398,8 @@ table.
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Ordering: its fidelity baseline is taken *after* 7H lands, never before. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders (+ fidelity and parity coverage) | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths | — |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
-| **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
+| **7F1** | 1A shape cards; 1B fields, toggle, live plan — **DONE, `5d2ff54`** (five slices), with the visual gate's D1–D3 fixed at `852df10`; **its D4 and D5 are closed by 7F1-D45, not here** | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
+| **7F1-D45** | Back keeps the room the customer typed: the debounced `router.replace`, the client-derived sub-state, the departure flush and the traversal e2e (R9) — **DONE, `8437c95`**, review fold `6682d8e` | `room/room-query-sync.ts` (new), `room/room-screen.tsx`, `app/[locale]/configurator/room/page.tsx`, `eslint.config.mjs` (+ `tests/e2e/room-traversal.qa.e2e.spec.ts`) | 7F1 | Light | **Yes** | none |
 | **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button. **This wave is the project's freeze point**: the owner's *"a critical moment will be when I will start to save presets"*. From here the corner's reach, the wall minima and `ROOM_TOO_SMALL_FOR_KITCHEN` are load-bearing on stored data — **geometry that wants re-deriving (7D6, 7D7) lands before this, not after** | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
@@ -1444,9 +1458,10 @@ after another.
 ADR 0110 Amendments A–D are the live contract below.~~ ~~**Corrected 2026-09-12: 7D2 is DONE at
 `4133cdc`; next dispatchable wave: 7A2.**~~ **Corrected 2026-09-13: 7A2 is DONE at `f97d621`,
 closed at `6cde5ef`; next dispatchable wave: 7E1.** **Corrected again 2026-09-13: 7E1 is DONE at
-`57f1e94`; next dispatchable wave: 7E2.** **Corrected again 2026-09-14: 7E2 is DONE at `470e5c9`;
-next dispatchable wave: 7F1.** 7A2's shipped contract is ADR 0108 Amendment E and the
-criteria below.
+`57f1e94`; next dispatchable wave: 7E2.** ~~**Corrected again 2026-09-14: 7E2 is DONE at `470e5c9`;
+next dispatchable wave: 7F1.**~~ **Corrected once more 2026-09-14: 7F1 is DONE at `5d2ff54` and its
+follow-on 7F1-D45 at `8437c95`; next dispatchable wave: 7F4.** 7A2's shipped contract is ADR 0108
+Amendment E and the criteria below.
 
 ### Revised criteria for new and changed waves
 
@@ -1731,6 +1746,15 @@ on wall A under every 7D2 property; the 1C/D1C suggestion to switch to a straigh
   *Continuă* disabled on `linear` and `U` and **no sentence saying why** — a deliberate, asserted state
   (7F1 criterion 3), not an oversight. 7F2 is where the customer is told. The U refusal still names no
   internal reason, and no message suggests the linear shape until 7J makes it buildable.
+- **A defect 7F1-D45's closing visual gate found and did not fix, because it is not that wave's:
+  selecting the U chip while `wallC` is empty leaves the plan preview drawing the L plan.** Found
+  2026-09-14 at `6682d8e`, in a production build at 390 × 844. **It is 7F1-shipped behaviour, not a
+  regression**, and the reasoning is a diff rather than an argument: 7F1-D45's source diff is exactly
+  three files — `app/[locale]/configurator/room/page.tsx`, `src/room/room-query-sync.ts` and
+  `src/room/room-screen.tsx` — while `plan-preview.tsx` and `dimensions-form.tsx` are **untouched**.
+  The surface is 7F2's, which owns what an incomplete room shows, so this is where the implementer
+  meets it. It is recorded here rather than in `docs/backlog/open.md` because that file is for items
+  with no owner and no phase, and this one has both.
 - **Must not: remove a control 7F1 shipped, because frame 1C does not draw it.** The shape chips and the
   corner toggle **survive into 1C** and are asserted present there. 1C *adds* the reasons beside their
   fields and the red wall, and removes nothing.
@@ -2346,6 +2370,150 @@ totals from the green run: e2e **191 passed, 2 skipped** (5.4 minutes); unit/int
 `origin/m7-room-and-presets`; local and origin are both at `8434e76`.
 
 Implementation is `470e5c9`; documentation close-out is `8434e76`. Next wave: **7F1**.
+
+### 7F1 close-out — 2026-09-14, `5d2ff54` + `852df10`
+
+**This wave closes on what it actually verified, and two of the five defects its visual gate found are
+closed by a different wave.** D4 and D5 are named here and their evidence lives in the 7F1-D45
+close-out below. Two waves, two records; they are deliberately not blurred into one.
+
+**What shipped — Step 1's room screen, in the five planned slices**, each its own commit:
+
+| Commit | Slice |
+| --- | --- |
+| `0ee5ca6` | slice 1 — metre conversions and the shape predicate |
+| `b18b38e` | slice 2 — Step 1 copy, and the constant ban with a gate on the gate |
+| `b4521dd` | slice 3 — the plan's geometry as a value |
+| `8d73385` | slice 4 — sub-state 1A: the top bar, three shape cards, *Continuă* |
+| `5d2ff54` | slice 5 — sub-state 1B: fields, corner toggle, live plan, URL sync |
+
+Then, in order: **`91fe900`** — adversarial QA, whose commit subject records **81 tests** and the
+constant ban's own guard; **`8c05a74`** — query values escaped in the remount key, a QA finding;
+**`1d5bc08`** — the combined review's **two taste findings** folded; **`852df10`** — **three
+plan-preview defects found by the visual gate**, fixed.
+
+**The visual gate at 390 × 844 filed five defects, and that is why this wave did not close the day it
+shipped.** D1–D3 were plan-preview defects and are fixed at `852df10` — the defect detail is in that
+commit rather than restated here. **D4** (browser Back loses a typed room) and **D5** (a traversal
+renders 1A under a 1B URL) were **ruled and not fixed**: the ruling is **R9** in this wave's punch list
+above, taken on a `next build` + `next start` measurement with `history.length` constant across every
+traversal. R9 struck R2's `history.replaceState` mechanism while leaving R2's *outcome* — the URL
+carries the room as it is typed — standing.
+
+**So 7F1's own verification ended with D4 and D5 open.** Both are fixed by **wave 7F1-D45**, whose
+close-out below carries the production-build gate, the traversal e2e and the closing visual gate that
+re-confirmed them closed. Nothing in this section claims that verification.
+
+**Owner input:** F8 (all three shape cards drawn as the design shows them, the U card inert until M7B)
+and R4 (one isotropic scale for the plan preview) are the owner's; R1, R2, R5, R6, R7 and R9 are the
+coordinator's. All are recorded with their basis in *Seven rulings* above, and **no owner question on
+7F1 was left open**.
+
+**Limits and departures carried out of this wave, recorded rather than smoothed over:**
+
+1. **The one departure from frames 1A and 1B is the plan preview's isotropic scale** (criterion 12,
+   owner-ruled R4). The frame draws the two walls at two different scales; the screen draws one. It is
+   named here because a reviewer comparing the screen against frame 1B will see it, and a ruled
+   departure belongs in the record rather than normalised into looking like the frame.
+2. **`wallC` is covered by criterion 4's property and by no visual evidence.** U is M7B, so the third
+   field was never exercised at the gate. This is risk 4's stated limit, recorded as that risk required.
+3. **The locale menu is imported across routes from `src/app/configurator/configure/`**, knowingly and
+   with a comment at the import naming R5's own wave as its removal. R5's re-estimate — five bindings,
+   two of them ADR 0104 structural guards on the top bar's grid — is written up above so that wave is
+   not costed cheaply a second time.
+4. ***Continuă* at 1B does nothing observable, and it is waiting for a destination rather than broken**
+   (Q-D45-5). Step 2 is 7F4's. The `<button>` stays.
+
+**Carry-forwards are recorded at the waves that owe them, not repeated here:** 7F2 (the refusal
+sentence and 1C as a live state), 7F3 (*Continuă*'s destination), 7J (widening `BuildableShapes`,
+`ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` together, changing nothing under
+`apps/web/src/room`).
+
+Implementation is `5d2ff54`, with the visual-gate fixes at `852df10`. **D4 and D5 close at
+`8437c95`/`6682d8e` under wave 7F1-D45.** Next wave after 7F1-D45: **7F4**.
+
+### 7F1-D45 close-out — 2026-09-14, `8437c95` + `6682d8e`
+
+**What shipped — D4 and D5 closed by making the client the single authority on the room the customer
+is looking at**, under ruling R9. Commits in order:
+
+| Commit | What |
+| --- | --- |
+| `461b739` | the wave plan |
+| `74c5b39` | **slice A** — the convergence loop: new `src/room/room-query-sync.ts` (`queryFromSearchParams` over `getAll`, the pure `reconcileRoomDraft`, `URL_SETTLE_MS` = **400 ms** as one named constant, and `canonicalRoomQuery` / `roomDraftFromQuery` moved verbatim out of `room-screen.tsx`); `roomEntryKey` and `useCanonicalQueryInTheAddressBar` deleted; the departure path — flush, observe the echo, then push; `ROOM_HISTORY_WRITE_SELECTORS` added to `eslint.config.mjs`'s room block with the full list re-declared, as R1 requires |
+| `8187a80` | slice A's production gate measured — **all five checks green**, tabled in the wave section above |
+| `8437c95` | **slices B and C** — the server's parse removed (`await connection()`, `<RoomScreen />`, `data-room-substate` and `data-marked-fields` derived from the live query) and the traversal e2e added |
+| `0c0f1da` | adversarial QA — **45 tests** — committed together with two owner rulings that belong to the generation waves, not to this one |
+| `0e4e092` | the no-second-discriminator guard recorded as *Înapoi*'s only guard |
+| `6682d8e` | the review's **two legibility findings** folded |
+
+**Verification actually performed, as measured and not rounded up:**
+
+- **The suite: 203 test files, 3,034 tests, 0 failed.**
+- **Typecheck, lint and whole-tree `pnpm format:check` green.**
+- **A production-build measurement gate on slice A, before slice B was dispatched** — `next build` +
+  `next start`, Playwright against chromium at 390 × 844 / hasTouch / isMobile with real keyboard
+  events. **All five checks passed:** the caret and value survive the settle, `history.length` does not
+  grow while typing, Back returns the full typed room (**D4's original repro, closed**), the departure
+  flush keeps a digit typed inside the settle window, and neither button is dead. The full table, with
+  the measured values, is in the wave section above and is not restated here. The route table printed
+  `ƒ /[locale]/configurator/room`, which is criterion 17's build-output check.
+- **Adversarial QA with 19 deliberate breaks, of which 18 reddened a test.** The nineteenth did not.
+- **One combined logic + clean-code review, no blocker**; its two legibility findings are folded at
+  `6682d8e`, and a third finding it made is recorded as a rule rather than a repair — see *Înapoi*'s
+  guard below.
+- **A closing visual gate at 390 × 844 in both locales, with zero defects filed**, which also
+  re-confirmed D4 and D5 closed in a production build.
+- **`pnpm ci:local` — PASSED.** The script's own verdict line: `LOCAL CI PASSED — all gates green,
+  safe to push`. **193 e2e tests in 5.7 minutes** against a production build, including the new
+  `room-traversal.qa.e2e.spec.ts`. Read from the log rather than taken from an exit code — a gate
+  piped through `tail` once reported the pipe's status while the run itself had failed.
+
+**The new e2e, `dev` versus CI, stated honestly.** `apps/web/tests/e2e/room-traversal.qa.e2e.spec.ts`
+**passed locally against `next dev`**. Criterion 23 asks for a production build, and **CI runs the
+suite against one — CI is the verdict**; a green local run against a dev server proves nothing about
+the runner. What *was* measured in a production build is slice A's five-check gate and the closing
+visual gate, both above; the spec's own production run is CI's.
+
+**Three things that must survive into the record.**
+
+1. ***Înapoi*'s only guard is the no-second-discriminator rule.** It is not a cosmetic-residue rule. It
+   is what makes `draftText === liveText` hold in the commit where a flush echo lands, and so it is the
+   only thing stopping the write effect arming a timer after a departure push has been dispatched —
+   which would discard the pending navigation and make *Înapoi* silently do nothing, reading as
+   flakiness because a second tap works. **There is exactly one guard and it rests on I4 / criterion
+   21**, property-tested at `room-query-sync.test.ts:217-269`, not on "the queries this screen can
+   currently produce". The full statement — trigger condition, failure mode and secondary trigger — is
+   the block quote under *One residue, accepted and bounded* in the wave section above; **read it there
+   rather than through this paragraph.** It was found in **review**, after QA had swept the same code
+   and not found it.
+2. **Three claims the wave rested on without stating them, all found after the code was written and
+   green**, by QA or by review rather than by the implementer:
+   - **Next's discard semantics carry the two-tap case** — the behaviour read off
+     `app-router-instance.js:146-160` is load-bearing for what happens when a second navigation arrives
+     while one is pending, and the wave depended on it before it was written down.
+   - **`liveQueryNamesARoom` is tautological after slice B.** Once the server's parse is gone it can no
+     longer be false, so it asserts nothing about the state it appears to guard.
+   - **The suppression rule costs more than its comment claimed.**
+   Each is recorded because an unstated premise that happens to hold is not the same as a verified one,
+   and the next reader needs to know which of the three they are relying on.
+3. **One accepted limit, with the baseline it must be read against.** A browser Back **gesture** taken
+   within `URL_SETTLE_MS` of a keystroke leaves that keystroke out of the entry being left; the buttons
+   flush (I5), the gesture cannot be flushed for. It is **bounded by exactly one constant** (400 ms),
+   **never happens on a reload**, and is **strictly better than what 7F1 shipped** — where that same
+   gesture lost **the whole room**, which is D4, measured in a production build. **The baseline is
+   stated so a later reader does not read an improvement with its remaining edge named as a new
+   regression** and argue for reverting the fix that produced it. Flush-on-blur was evaluated and
+   rejected: a second write path that shrinks the window without closing it.
+
+**Two record corrections this wave made to its own plan, kept because they change what a reader should
+believe:** the departure path is *flush then leave*, never *cancel then push* and never both
+navigations in one tick — either silently restores D4 on the fastest customer path; and *Continuă*'s
+push was **already** demoted to a replace before R9, so R9 removes no evidence of that tap at all
+(Q-D45-5).
+
+Implementation is `74c5b39` + `8437c95`, with the review fold at `6682d8e`. **7F1's D4 and D5 are
+closed here.** Next wave: **7F4**.
 
 ## Wave 7F1 — dispatchable punch list
 
