@@ -12,6 +12,12 @@
 // `wallB` on a straight room, a length past `Number.MAX_SAFE_INTEGER`, a fraction of a millimetre.
 // None of them may crash the screen, put a value in a field the customer never entered, or leave a
 // key in the URL that `serialiseRoomInput` would not have written.
+//
+// **Under ruling R9 the screen asks a router instead of writing the address bar itself**, so the
+// harness closes the loop the router closes: `useSearchParams` is mocked beside the router and the
+// `replace` double applies the href it is handed to both, then re-renders. Every address-bar claim
+// is therefore read after a `settle()` — the URL lags the field by `URL_SETTLE_MS`, and that is the
+// debounce working rather than a defect.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -23,12 +29,13 @@ import {
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { NextIntlClientProvider } from "next-intl";
-import { act, createElement } from "react";
+import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const browser = vi.hoisted(() => ({
   pathname: "/ro/configurator/room",
+  search: "",
   push: vi.fn(),
   replace: vi.fn(),
 }));
@@ -36,6 +43,7 @@ const browser = vi.hoisted(() => ({
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => browser.pathname,
+  useSearchParams: () => new URLSearchParams(browser.search),
   useRouter: () => ({
     push: browser.push,
     replace: browser.replace,
@@ -47,6 +55,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 
 import { parseMetresToMillimetres } from "@/room/parse-metres";
+import { URL_SETTLE_MS } from "@/room/room-query-sync";
 import { RoomScreen, type RoomScreenProps } from "@/room/room-screen";
 import {
   parseRoomUrlState,
@@ -117,20 +126,51 @@ function queryOf(search: string): RoomSearchParams {
   );
 }
 
+/** The props the page last handed over. A URL change re-renders the screen with **these**: the
+ *  browser hands the client another entry's query, not another server render, and a harness that
+ *  re-parsed here would hide the stale-authority defects this wave closes. */
+let screenProps: RoomScreenProps;
+
 function render(search: string, policy?: RoomPolicy): void {
   const query = queryOf(search);
   const state = parseRoomUrlState(query);
-  const props: RoomScreenProps =
+  screenProps =
     policy === undefined ? { state, query } : { state, query, policy };
+  arriveAt(search);
+}
+
+/** The URL the customer now has: the live query `useSearchParams` reads and the address bar every
+ *  assertion is taken off, set together, and then the re-render the router would cause. */
+function arriveAt(search: string): void {
+  browser.search = new URLSearchParams(search).toString();
+  window.history.replaceState(
+    null,
+    "",
+    browser.search === ""
+      ? browser.pathname
+      : `${browser.pathname}?${browser.search}`,
+  );
   act(() => {
-    root.render(
-      createElement(NextIntlClientProvider, {
-        children: createElement(RoomScreen, props),
-        locale: "ro",
-        messages: roMessages,
-        timeZone: "Europe/Chisinau",
-      }),
-    );
+    root.render(theScreen());
+  });
+}
+
+/** A new element every time: handing `root.render` the element it already holds is a bailout, and a
+ *  bailout would make the router double look as though it worked over a screen that never re-read
+ *  the query. */
+function theScreen(): ReactElement {
+  return createElement(NextIntlClientProvider, {
+    children: createElement(RoomScreen, screenProps),
+    locale: "ro",
+    messages: roMessages,
+    timeZone: "Europe/Chisinau",
+  });
+}
+
+/** The typing stopping. Nothing this screen writes reaches the URL before it. */
+function settle(): void {
+  act(() => {
+    vi.advanceTimersByTime(URL_SETTLE_MS);
   });
 }
 
@@ -210,8 +250,16 @@ function millimetresInTheUrl(
 }
 
 beforeEach(() => {
+  // Only the two timer functions the debounce uses are faked, so advancing the settle interval
+  // cannot be mistaken for React's own scheduling making progress.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   browser.push.mockClear();
   browser.replace.mockClear();
+  browser.replace.mockImplementation((href: string) => {
+    const questionMark = href.indexOf("?");
+    arriveAt(questionMark === -1 ? "" : href.slice(questionMark + 1));
+  });
+  browser.search = "";
   window.history.replaceState(null, "", "/ro/configurator/room");
   container = document.createElement("div");
   document.body.append(container);
@@ -223,6 +271,7 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.useRealTimers();
 });
 
 describe("the query and the fields never disagree about the room (criteria 7 and 9)", () => {
@@ -238,21 +287,50 @@ describe("the query and the fields never disagree about the room (criteria 7 and
     );
   });
 
-  it("writes a query that rendering again reproduces exactly", () => {
-    // The URL is the room's only store, so the store has to be a **fixed point**: what the screen
-    // writes on the first sync is what it writes on the second. A formatter that gained or lost a
-    // decimal on the way through the field would drift the query a digit per reload.
+  it("settles in at most one write, and asks for none on the settle after that", () => {
+    // **Criterion 21, and the only guard on the wave's first-ranked risk.** A replace loop — render
+    // writes, write re-renders, re-render writes — is the one failure here that gets *worse* with
+    // traffic: a request per settle interval, per customer, forever, and invisible in development
+    // where one machine's requests look free. The fixed point behind it is
+    // `room-query-sync.test.ts`'s idempotence property; this is the same claim read off the screen,
+    // where a render that rewrote the query would show up as a second call.
+    //
+    // **Do not weaken this to "the URL ends up right".** A screen that writes the same query every
+    // 400 ms ends up right too.
     fc.assert(
       fc.property(ANY_APPROVED_L_ROOM, (room: DesignRoom) => {
+        browser.replace.mockClear();
         const href = roomHrefFromDesignRoom(room);
+
         render(href.slice(href.indexOf("?")));
-        const firstSync = addressBar();
+        settle();
+        const afterTheFirstSettle = browser.replace.mock.calls.length;
+        settle();
 
-        render(firstSync);
-
-        expect(addressBar()).toBe(firstSync);
+        expect(afterTheFirstSettle).toBeLessThanOrEqual(1);
+        expect(browser.replace.mock.calls.length).toBe(afterTheFirstSettle);
+        expect(addressBar()).toBe(href.slice(href.indexOf("?")));
       }),
       { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it("settles in at most one write from a query that is not canonical to begin with", () => {
+    // The arriving-URL half: an absent `direction` and an unknown key both make the first render
+    // disagree with the URL, so exactly **one** canonicalising write follows — a `replace`, never a
+    // push, because a push would give the customer a Back that leads to the same screen minus one
+    // key.
+    render("?utm_source=newsletter&shape=L&wallA=3.56&wallB=2.92&height=2.6");
+
+    settle();
+    const afterTheFirstSettle = browser.replace.mock.calls.length;
+    settle();
+
+    expect(afterTheFirstSettle).toBe(1);
+    expect(browser.replace.mock.calls.length).toBe(1);
+    expect(browser.push).not.toHaveBeenCalled();
+    expect(addressBar()).toBe(
+      "?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left",
     );
   });
 
@@ -260,6 +338,7 @@ describe("the query and the fields never disagree about the room (criteria 7 and
     // Criterion 7's formatting edge, read off the screen rather than off the formatter: 3060 mm must
     // show as 3,06. Drawn as 3,60 it parses back as a room 540 mm wider than the one that was stored.
     render("?shape=L&wallA=3.06&wallB=2.92&height=2.6&direction=left");
+    settle();
 
     expect(fieldFor("wallA").value).toBe("3,06");
     expect(parseMetresToMillimetres(fieldFor("wallA").value)).toEqual({
@@ -275,7 +354,11 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
     // `?wallA=3.56&wallA=4.2` is two answers to one question. The parser refuses to pick one, and
     // the form must refuse the same way: a field showing 3,56 here would be the screen choosing a
     // room the customer never entered.
+    // It is also the boundary `useSearchParams().get()` would silently cross: it answers with the
+    // **first** of the two, so the live query is read through `getAll` (`queryFromSearchParams`) and
+    // a repeated key stays an array all the way to `singleValue`.
     render("?shape=L&wallA=3.56&wallA=4.2&height=2.6&direction=left");
+    settle();
 
     expect(fieldFor("wallA").value).toBe("");
     expect(fieldFor("wallA").getAttribute("aria-invalid")).toBeNull();
@@ -295,6 +378,7 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
       render(
         `?shape=L&wallA=${encodeURIComponent(value)}&wallB=2.92&height=2.6&direction=left`,
       );
+      settle();
 
       expect(fieldFor("wallA").value).toBe("");
       expect(new URLSearchParams(addressBar()).has("wallA")).toBe(false);
@@ -307,6 +391,7 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
     // A contradiction, not a value: a straight room has no corner to point anywhere. The toggle is
     // absent from the tree (criterion 6) and the key is absent from the query (criterion 9).
     render("?shape=linear&wallA=3.56&height=2.6&direction=right");
+    settle();
 
     expect(countOf("room-corner")).toBe(0);
     expect([...new URLSearchParams(addressBar()).keys()]).toEqual([
@@ -318,6 +403,7 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
 
   it("drops a wall a shape does not have", () => {
     render("?shape=linear&wallA=3.56&wallB=2.92&wallC=2&height=2.6");
+    settle();
 
     expect(countOf("room-length-wallB")).toBe(0);
     expect(new URLSearchParams(addressBar()).has("wallB")).toBe(false);
@@ -327,20 +413,25 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
     // R6's draft layer, under a value rather than under an absence: `direction=sideways` is not a
     // direction, so the draft starts where frame 1B draws it and the first sync says so.
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=sideways");
+    settle();
 
     expect(cornerControl("left").checked).toBe(true);
     expect(new URLSearchParams(addressBar()).get("direction")).toBe("left");
   });
 
-  it("writes nothing at all into the address bar while no shape is chosen", () => {
-    // 1A is the one sub-state with no sync: until *Continuă* there is no room to store, and a screen
-    // that rewrote the address bar here would erase a link the customer arrived on before they had
-    // done anything.
-    window.history.replaceState(null, "", "/ro/configurator/room?shape=bogus");
-
+  it("asks the router for nothing at all while no shape is chosen", () => {
+    // **I6.** 1A is the one sub-state with no sync: until *Continuă* there is no room to store, and
+    // a screen that rewrote the URL here would erase the link the customer arrived on before they
+    // had done anything. The claim is made against the router rather than the address bar, because
+    // under ruling R9 the component is no longer the writer — reading `window.location` here would
+    // pass over a screen that had asked for a navigation and simply not been given one yet.
     render("?shape=bogus");
 
+    settle();
+
     expect(elementAt("room-shapes")).toBeInstanceOf(HTMLElement);
+    expect(browser.replace).not.toHaveBeenCalled();
+    expect(browser.push).not.toHaveBeenCalled();
     expect(addressBar()).toBe("?shape=bogus");
   });
 });
@@ -363,6 +454,7 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
     render(
       "?shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",
     );
+    settle();
 
     expect(fieldFor("wallC").value).toBe("2,18");
     expect([...new URLSearchParams(addressBar()).keys()]).toEqual([
@@ -436,6 +528,7 @@ describe("direction is written for every shape that carries the toggle (criterio
       expect(parseRoomUrlState({ shape }).substate).toBe("1B");
 
       render(`?shape=${shape}`);
+      settle();
 
       expect(cornerControl("left").checked).toBe(true);
       expect(new URLSearchParams(addressBar()).get("direction")).toBe("left");
@@ -470,7 +563,11 @@ describe("direction is written for every shape that carries the toggle (criterio
 });
 
 describe("what the CTA pushes is what serialiseRoomInput would write (criterion 9)", () => {
-  it("pushes the canonical query after a shape change and a retype", () => {
+  it("flushes the retype into the entry it leaves, then pushes the same query", () => {
+    // **I5, end to end.** The tap comes *inside* the settle interval, so there is a write pending:
+    // the departure flushes it at once — not on the settle — and the push follows only once that
+    // flush has been observed coming back. Cancelling the timer instead would leave the entry
+    // behind holding 2,92, which is defect D4 on the fastest customer path.
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     type("wallB", "2,4");
 
@@ -485,6 +582,10 @@ describe("what the CTA pushes is what serialiseRoomInput would write (criterion 
       heightMm: 2600,
       cornerDirection: "left",
     }).toString();
+    expect(browser.replace).toHaveBeenCalledWith(
+      `/ro/configurator/room?${canonical}`,
+      { scroll: false },
+    );
     expect(browser.push).toHaveBeenCalledWith(
       `/ro/configurator/room?${canonical}`,
     );

@@ -21,8 +21,8 @@ import {
   type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
-import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useId, useState } from "react";
 
 // **A temporary cross-route coupling, and it is the coupling ruling R5 exists to delete.** A second
 // screen reaching into the editor's route folder for a shared control is the wrong end state; R5
@@ -41,37 +41,30 @@ import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { usePathname, useRouter } from "@/i18n/navigation";
 
 import { DimensionsForm } from "./dimensions-form";
-import { metresTextForUrl } from "./metres-text";
 import { PLAN_BOX, PlanPreview } from "./plan-preview";
 import { derivePlanPreview } from "./plan-preview-model";
+import { roomShapeInQuery, useRoomQuerySync } from "./room-query-sync";
 import styles from "./room.module.css";
 import {
-  carriesCornerDirection,
-  createRoomDraft,
   missingLengthFields,
   withCornerDirection,
   withEnteredText,
   withRoomShape,
-  withStoredLength,
   type RoomDraft,
-  type RoomLengthField,
 } from "./room-draft";
-import { parseMetresToMillimetres } from "./parse-metres";
-import {
-  isCornerDirection,
-  requiredFieldsFor,
-  singleValue,
-  type RoomSearchParams,
-  type RoomUrlState,
-} from "./room-url-state";
+import type { RoomSearchParams, RoomUrlState } from "./room-url-state";
 import { ShapeChips, ShapePicker } from "./shape-picker";
 
 export interface RoomScreenProps {
+  /** The route's own parse, and **nothing reads it any more** (ruling R9): after a browser Back the
+   *  server's parse describes the entry Next restored rather than the room the customer is looking
+   *  at. Wave 7F1-D45's slice B removes this prop and the route's parse with it; until then the
+   *  route's contract is left exactly as it was. */
   readonly state: RoomUrlState;
-  /** The query the page parsed `state` out of. The sub-states carry which fields are still to be
-   *  filled but not the lengths that already read (`room-url-state.ts:95-97`), and 1B's fields have
-   *  to show what the URL already holds — so the form hydrates from the query the page already had
-   *  rather than from a second parse or a stored copy. */
+  /** The query the page was rendered for — still what the shape branch below is taken from. Inside
+   *  the dimensions step the **live** query is the authority (`room-query-sync.ts`), which is what
+   *  makes a room restored on Back self-correct instead of being believed; slice B moves this
+   *  branch onto the live query as well. */
   readonly query: RoomSearchParams;
   /** The policy the cards are offered against. Defaulted rather than threaded through the page, so
    *  the route stays the shell criterion 17 requires; a test hands in another one to prove the CTA
@@ -84,11 +77,10 @@ export interface RoomScreenProps {
 const STEP_ONE_OF_FOUR = { step: 1, totalSteps: 4 } as const;
 
 export function RoomScreen({
-  state,
   query,
   policy = APPROVED_ROOM_POLICY,
 }: RoomScreenProps) {
-  const shapeInTheUrl = shapeAlreadyInTheUrl(state);
+  const shapeInTheUrl = roomShapeInQuery(query);
 
   return (
     <div className={styles.screen}>
@@ -96,12 +88,7 @@ export function RoomScreen({
       {shapeInTheUrl === undefined ? (
         <ShapeStep policy={policy} />
       ) : (
-        <DimensionsStep
-          key={roomEntryKey(shapeInTheUrl, query)}
-          shape={shapeInTheUrl}
-          query={query}
-          policy={policy}
-        />
+        <DimensionsStep shape={shapeInTheUrl} policy={policy} />
       )}
     </div>
   );
@@ -191,29 +178,16 @@ function ShapeStep({ policy }: { readonly policy: RoomPolicy }) {
 
 interface DimensionsStepProps {
   readonly shape: RoomShape;
-  readonly query: RoomSearchParams;
   readonly policy: RoomPolicy;
 }
 
 /**
  * Sub-states 1B onward: the chips, the live plan, the corner toggle and the length fields, over a
- * draft this component owns and a URL it rewrites as the customer types.
+ * draft this component owns and a URL the sync keeps in step with it (ruling R9).
  */
-function DimensionsStep({ shape, query, policy }: DimensionsStepProps) {
+function DimensionsStep({ shape, policy }: DimensionsStepProps) {
   const translate = useTranslations();
-  const router = useRouter();
-  const pathname = usePathname();
-  const locale = useLocale();
-  const [draft, setDraft] = useState<RoomDraft>(() =>
-    roomDraftFromQuery(shape, query, locale),
-  );
-
-  const canonicalQuery = canonicalRoomQuery(draft);
-  useCanonicalQueryInTheAddressBar(canonicalQuery.toString());
-
-  function continueToPresets(): void {
-    router.push({ pathname, query: Object.fromEntries(canonicalQuery) });
-  }
+  const { draft, setDraft, departTo } = useRoomQuerySync(shape);
 
   return (
     <>
@@ -241,7 +215,7 @@ function DimensionsStep({ shape, query, policy }: DimensionsStepProps) {
           className={styles.back}
           data-testid="room-back"
           onClick={() => {
-            router.push({ pathname });
+            departTo("shapes");
           }}
         >
           {translate("room.back")}
@@ -251,105 +225,15 @@ function DimensionsStep({ shape, query, policy }: DimensionsStepProps) {
           className={styles.cta}
           disabled={!canContinueFrom(draft, policy)}
           data-testid="room-continue"
-          onClick={continueToPresets}
+          onClick={() => {
+            departTo("presets");
+          }}
         >
           {translate("room.continue")}
         </button>
       </div>
     </>
   );
-}
-
-/**
- * **Ruling R2's mechanism, verified against `next/dist/docs/01-app/01-getting-started/
- * 04-linking-and-navigating.md:343-398` rather than from memory.** `window.history.replaceState`
- * updates the address bar and syncs the router **without a server round trip and without a history
- * entry**, so the query follows the caret while the customer types and *Continuă* is still the only
- * thing that pushes. `router.replace` would re-run the page for every keystroke and can take the
- * caret with it — criterion 11's navigation spy is what catches the wrong mechanism.
- */
-function useCanonicalQueryInTheAddressBar(canonicalQuery: string): void {
-  useEffect(() => {
-    window.history.replaceState(null, "", `?${canonicalQuery}`);
-  }, [canonicalQuery]);
-}
-
-/**
- * **The URL is the room's only store** (criterion 9): the shape, every field that already reads as a
- * length, and the corner direction for the shapes that turn one — in `serialiseRoomInput`'s own key
- * order, with `metresTextForUrl`'s own wire form, and nothing else.
- *
- * **A field that does not yet parse is simply absent.** That is the 1B-with-a-marked-field state
- * `parseRoomUrlState` already produces, so no raw draft text ever reaches the query and a half-typed
- * *"3,"* cannot come back from a reload as a value the customer never entered.
- */
-function canonicalRoomQuery(draft: RoomDraft): URLSearchParams {
-  const params = new URLSearchParams();
-  params.set("shape", draft.shape);
-  for (const field of requiredFieldsFor(draft.shape)) {
-    const millimetres = draft.lengths[field].millimetres;
-    if (millimetres !== undefined) {
-      params.set(field, metresTextForUrl(millimetres));
-    }
-  }
-  if (carriesCornerDirection(draft.shape)) {
-    // Ruling R6's third layer: the toggle is visible with a position, so the URL says what the
-    // customer sees. The parser's reading of an *absent* `direction` is untouched by this.
-    params.set("direction", draft.cornerDirection);
-  }
-  return params;
-}
-
-/**
- * **What makes a render a *different* room to enter, and so a new form.** The draft is seeded from
- * the query once, when the step mounts: re-seeding it on every render would fight the caret, and
- * never re-seeding it would leave 1A's empty draft standing after *Continuă* navigates.
- *
- * The query the page hands over changes on a **navigation** and on nothing else — `replaceState`
- * rewrites the address bar without re-running the page — so this key moves exactly when a push, a
- * reload or the browser's Back gives the customer another room, which is ADR 0111 decision 3's
- * *"Back restores it, a reload keeps it"*. Tapping a chip or typing a digit leaves it alone.
- */
-function roomEntryKey(shape: RoomShape, query: RoomSearchParams): string {
-  const roomKeys = ["shape", ...requiredFieldsFor(shape), "direction"];
-  // Each value is escaped **before** the join, so a value that itself contains the separator cannot
-  // borrow a neighbour's: unescaped, `wallA=3.56|a&wallB=b` and `wallA=3.56&wallB=a|b` both spell
-  // `L|3.56|a|b||`, and navigating between those two different rooms would reuse the component and
-  // leave the first one's draft standing. No length parses with a `|` in it today, but wave 7J and
-  // M7B each add a key to this list, and a key joined from raw values is a collision waiting on a
-  // schema change. Do not simplify this away.
-  return roomKeys
-    .map((key) => encodeURIComponent(singleValue(query[key]) ?? ""))
-    .join("|");
-}
-
-/** The draft a URL arrives as: every field the shape asks for that the query already answers, shown
- *  in the customer's own notation, and the corner the query names or frame 1B's pre-selected left. */
-function roomDraftFromQuery(
-  shape: RoomShape,
-  query: RoomSearchParams,
-  locale: string,
-): RoomDraft {
-  const withLengths = requiredFieldsFor(shape).reduce(
-    (draft, field) => withLengthFromQuery(draft, field, query[field], locale),
-    createRoomDraft(shape),
-  );
-  const direction = singleValue(query.direction);
-  return isCornerDirection(direction)
-    ? withCornerDirection(withLengths, direction)
-    : withLengths;
-}
-
-function withLengthFromQuery(
-  draft: RoomDraft,
-  field: RoomLengthField,
-  value: RoomSearchParams[string],
-  locale: string,
-): RoomDraft {
-  const parsed = parseMetresToMillimetres(singleValue(value) ?? "");
-  return parsed.ok
-    ? withStoredLength(draft, { field, millimetres: parsed.mm, locale })
-    : draft;
 }
 
 /** *Continuă* leads on once the shape can be built and every field the shape asks for reads as a
@@ -360,12 +244,4 @@ function canContinueFrom(draft: RoomDraft, policy: RoomPolicy): boolean {
     isShapeBuildable(draft.shape, policy) &&
     missingLengthFields(draft).length === 0
   );
-}
-
-/** The shape the query already names, so a customer who goes back from the lengths finds the card
- *  they chose still chosen. 1A is the one sub-state that names none. */
-function shapeAlreadyInTheUrl(state: RoomUrlState): RoomShape | undefined {
-  if (state.substate === "1A") return undefined;
-  if (state.substate === "1B") return state.shape;
-  return state.input.shape;
 }

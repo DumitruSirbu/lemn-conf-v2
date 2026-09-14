@@ -28,15 +28,19 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/** The address bar and the router, as the two things a test render cannot supply for itself. */
+/** The address bar, the live query and the router, as the three things a test render cannot supply
+ *  for itself. `search` is what `useSearchParams` reads: under ruling R9 the screen derives the room
+ *  from the query the browser holds, not from the one the page was rendered for. */
 const browser = vi.hoisted(() => ({
   pathname: "/ro/configurator/room",
+  search: "",
   push: vi.fn(),
 }));
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => browser.pathname,
+  useSearchParams: () => new URLSearchParams(browser.search),
   useRouter: () => ({
     push: browser.push,
     replace: vi.fn(),
@@ -174,6 +178,7 @@ function render(
     options.policy === undefined
       ? { state, query }
       : { state, query, policy: options.policy };
+  browser.search = searchOf(query);
   act(() => {
     root.render(
       createElement(NextIntlClientProvider, {
@@ -184,6 +189,19 @@ function render(
       }),
     );
   });
+}
+
+/** The same query as a search string, so the live query and the page's props describe one URL. A
+ *  repeated key stays repeated: collapsing it here would ask the screen a different question from
+ *  the one the fixture spells. */
+function searchOf(query: RoomSearchParams): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    for (const single of typeof value === "string" ? [value] : (value ?? [])) {
+      params.append(key, single);
+    }
+  }
+  return params.toString();
 }
 
 function elementAt(testId: string): HTMLElement {
@@ -418,10 +436,17 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
 
 describe("each room in the URL is entered afresh", () => {
   it("re-seeds the form when two queries differ only in where a separator falls", () => {
-    // `roomEntryKey` joins the query's values, and **unescaped** these two both spell `L|3.56|a|b||`:
-    // React would keep one component across the navigation and the first room's empty draft would
-    // stand over the second room's 3,56. No length parses with a `|` in it today, so this is here to
-    // hold the escaping for waves 7J and M7B, each of which adds a key to that join.
+    // **Kept, and re-aimed** (wave 7F1-D45). These two queries are two different rooms and the
+    // second must show its own 3,56 — that claim is unchanged. What is gone is the mechanism it used
+    // to protect: `roomEntryKey` joined the query's values with a `|` and escaped each one first,
+    // because unescaped these two both spell `L|3.56|a|b||` and React would have kept one component
+    // across the navigation with the first room's empty draft standing.
+    //
+    // Ruling R9 deleted that key — under a debounced `router.replace` a query-derived key moves
+    // while the customer is typing, remounting the form and clearing any field whose text does not
+    // yet parse. The re-seed is now the reconciliation's (`room-query-sync.ts`), which compares
+    // whole query **text** and so has no separator to borrow and no collision to guard against.
+    // **Do not reinstate an escaping for a collision the design can no longer have.**
     const separatorInsideWallA: RoomSearchParams = {
       shape: "L",
       wallA: "3.56|a",

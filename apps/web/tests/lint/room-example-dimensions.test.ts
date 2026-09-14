@@ -7,6 +7,9 @@
 // are what fails if a later editor drops a spread from that block while adding to it, which would
 // otherwise go dark silently over the directory holding the most new JSX text in this milestone.
 //
+// **Wave 7F1-D45 added a fourth gate and, with it, a fourth way for that to happen** — the ban on
+// `window.history.pushState`/`replaceState`, which is defect D4's own mechanism (criterion 9).
+//
 // Every probe is linted through the repository's own config at a path under `apps/web/src/room/`,
 // so this reads the shipped rule rather than a copy of it.
 import { fileURLToPath } from "node:url";
@@ -37,6 +40,13 @@ const UNKEYED_JSX_PROBE =
 const COMMENTED_DIMENSION_PROBE =
   "// 3,6000 m is 3600 mm, so the parser returns whole millimetres.\nexport const parsed = true;\n";
 
+/** The call wave 7F1-D45 deleted from the room screen, written exactly as it stood there. It is the
+ *  mechanism behind defect D4: the address bar changes and Next's record of the entry does not. */
+const HISTORY_WRITE_PROBE =
+  "export function sync(query: string): void {\n" +
+  '  window.history.replaceState(null, "", `?${query}`);\n' +
+  "}\n";
+
 function restrictedSyntaxMessagesIn(results: readonly ESLint.LintResult[]) {
   return results
     .flatMap((result) => result.messages)
@@ -49,6 +59,7 @@ describe("the room directory's no-restricted-syntax block", () => {
   let romanianLiteral: readonly string[] = [];
   let unkeyedJsxText: readonly string[] = [];
   let commentedDimension: readonly string[] = [];
+  let historyWrite: readonly string[] = [];
 
   beforeAll(async () => {
     // `allowDefaultProject` is the one override, and it buys the probes a parser rather than a
@@ -76,6 +87,7 @@ describe("the room directory's no-restricted-syntax block", () => {
     romanianLiteral = await lintProbe(ROMANIAN_LITERAL_PROBE);
     unkeyedJsxText = await lintProbe(UNKEYED_JSX_PROBE);
     commentedDimension = await lintProbe(COMMENTED_DIMENSION_PROBE);
+    historyWrite = await lintProbe(HISTORY_WRITE_PROBE);
   }, 120_000);
 
   it("errors on a drawn example dimension written as a number", () => {
@@ -92,6 +104,12 @@ describe("the room directory's no-restricted-syntax block", () => {
   it("still errors on text rendered as bare JSX", () => {
     expect(unkeyedJsxText).toHaveLength(1);
     expect(unkeyedJsxText[0]).toContain("Bare text rendered as JSX");
+  });
+
+  it("errors on a native history write, which is defect D4's own mechanism", () => {
+    expect(historyWrite).toHaveLength(1);
+    expect(historyWrite[0]).toContain("M7 criterion 9");
+    expect(historyWrite[0]).toContain("router.replace");
   });
 
   it("leaves the same figure alone inside a comment", () => {

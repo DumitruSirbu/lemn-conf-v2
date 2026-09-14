@@ -153,6 +153,35 @@ const ROOM_EXAMPLE_DIMENSION_SELECTORS = ROOM_EXAMPLE_DIMENSIONS.map(
   }),
 );
 
+/** **`window.history` is not a way to write the room's URL** — M7 wave 7F1-D45, criterion 9.
+ *
+ *  `history.replaceState` updates the address bar and the client hooks, and Next's own record of the
+ *  history entry does **not** follow it — so on a browser Back the router restores the URL it
+ *  recorded and the room the customer typed is gone. That is defect D4, measured in a production
+ *  build, and ruling R9 replaces the call with a debounced `router.replace`. The ban is a rule rather
+ *  than a promise because the native call is the obvious thing to reach for, it looks like it works,
+ *  and it fails one traversal later.
+ *
+ *  **Partial survival is not a reason to soften this.** The gate's log shows at least one
+ *  `replaceState`-written key surviving a traversal while the later ones did not. A write path that
+ *  persists some keys and silently drops others is worse than one that reliably persists none,
+ *  because nothing at the call site can be reasoned about.
+ *
+ *  The selector reads the member expression rather than the text, so prose naming the call — this
+ *  comment, and `room-query-sync.ts`'s — is exempt for free. */
+const ROOM_HISTORY_WRITE_SELECTORS = [
+  {
+    selector:
+      "MemberExpression[property.name=/^(pushState|replaceState)$/]" +
+      ":matches([object.name='history'], [object.property.name='history'])",
+    message:
+      "window.history.pushState/replaceState does not update Next's record of the history entry, " +
+      "so a browser Back restores the URL the router recorded and the typed room is lost (defect " +
+      "D4). Write the query through a debounced router.replace — see src/room/room-query-sync.ts " +
+      "(M7 criterion 9, ruling R9).",
+  },
+];
+
 /** **The allow-list's file-level shape, and every entry's reason.**
  *
  *  The second shape is at the site: `// eslint-disable-next-line no-restricted-syntax -- …`, with the
@@ -441,8 +470,11 @@ export default tseslint.config(
     // covers, and flat config replaces a rule's options rather than merging them — so spelling only
     // the new selectors here would disarm both of that block's gates for exactly this directory,
     // the one M7 grows the most new JSX text in. Its comment says so; this is that warning obeyed.
-    // The three lists therefore travel together, and
-    // `apps/web/tests/lint/room-example-dimensions.test.ts` asserts all three still fire.
+    // The four lists therefore travel together, and
+    // `apps/web/tests/lint/room-example-dimensions.test.ts` asserts all four still fire.
+    //
+    // **Adding to this block means re-declaring every list already in it.** Wave 7F1-D45 added the
+    // fourth; dropping a spread while adding one is the exact failure that test exists to catch.
     name: "7F1: the room screen builds against no drawn example dimension",
     files: ["apps/web/src/room/**/*.{ts,tsx}"],
     rules: {
@@ -451,6 +483,7 @@ export default tseslint.config(
         ...ROMANIAN_LITERAL_SELECTORS,
         ...UNKEYED_JSX_TEXT_SELECTORS,
         ...ROOM_EXAMPLE_DIMENSION_SELECTORS,
+        ...ROOM_HISTORY_WRITE_SELECTORS,
       ],
     },
   },
