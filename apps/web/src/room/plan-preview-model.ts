@@ -16,6 +16,12 @@
 // An inverted plan stays self-consistent — every test either side would still pass — while the
 // drawing silently mirrors against the 3D room it produces, which only a customer comparing the two
 // would ever see.
+//
+// **The labels are placed here too, and that is the point.** A label is placed against the *other*
+// walls — the lane no bar is painted in, the side of a bar that has the room for it — and a renderer
+// holding one rectangle at a time cannot see any of that. What this module never decides is how wide
+// a label comes out: it places an anchor and states which way the text grows from it, and the
+// browser measures the type.
 import type { CornerDirection } from "@lemnaria/configurator-domain";
 
 import type { RoomDraft, RoomLengthField } from "./room-draft";
@@ -23,7 +29,9 @@ import { requiredFieldsFor } from "./room-url-state";
 
 export type PlanWallId = "A" | "B" | "C";
 
-/** The preview box the drawing is fitted into, in CSS pixels. */
+/** The preview box the drawing is fitted into, in CSS pixels. **The pixels that are painted in**, not
+ *  the box that is painted: a border is spent out of an element's own width under `border-box`, so
+ *  the caller hands over what is left inside it (`plan-preview.tsx`). */
 export interface PlanBox {
   readonly widthPx: number;
   readonly heightPx: number;
@@ -34,6 +42,19 @@ export interface PlanPointPx {
   readonly yPx: number;
 }
 
+/** Which of a label's own edges its anchor names. The model places a point and says which way the
+ *  text grows from it, and **never a width**: how wide *"A · 3,60 m"* comes out is a font's, a
+ *  locale's and a translation's to decide, and this module measures no text. */
+export type PlanLabelAlignment = "centred" | "leftAligned" | "rightAligned";
+
+/** Where a wall's length is written, in the same pixels the wall is drawn in. */
+export interface PlanWallLabelPx {
+  readonly xPx: number;
+  /** The top of the line the label is written on; the line is `PLAN_LABEL_LINE_PX` tall. */
+  readonly topPx: number;
+  readonly alignment: PlanLabelAlignment;
+}
+
 export interface PlanWallRect {
   readonly wall: PlanWallId;
   /** The wall's true length, so the label beside the drawing reads the room and not the pixels. */
@@ -42,6 +63,10 @@ export interface PlanWallRect {
   readonly yPx: number;
   readonly widthPx: number;
   readonly heightPx: number;
+  /** Where that length is written. Placement is decided here rather than beside the paint, because
+   *  it is decided **against the other bars** — a label the renderer placed on its own would have
+   *  only one wall's rectangle to go on. */
+  readonly labelPx: PlanWallLabelPx;
 }
 
 export interface DrawnPlanPreview {
@@ -70,6 +95,32 @@ export type PlanPreview = DrawnPlanPreview | EmptyPlanPreview;
  *  (ADR 0083 decision 2), so the thickness is only what makes a wall readable. */
 export const PLAN_WALL_THICKNESS_PX = 12;
 
+/** The line a wall's label is written on. `plan-preview.tsx` publishes it to `.planWallLabel`'s
+ *  `font`, so the lane reserved for a label below and the type actually set in it are one number and
+ *  cannot disagree — the frame's own `700 11px/1` (`:137-138`), unchanged. */
+export const PLAN_LABEL_LINE_PX = 11;
+
+/** How far a label stands off the wall it names, so the two are read together without touching. */
+export const PLAN_LABEL_GAP_PX = 5;
+
+/**
+ * **The lane kept clear above the drawing, and the reason a label cannot be overprinted.** Frame 1B
+ * writes wall A's label above wall A (`:137`, over the bar at `:135`) and this is that placement made
+ * structural: the lane comes off the box *before* the scale is taken, so no bar is ever painted in it
+ * — whatever the room measures, and however wide the text turns out to be.
+ *
+ * A label written *under* wall A instead shares the band the walls running down the screen occupy,
+ * and no anchor can save it there: at 2,50 x 5,00 m the label is wider than wall A is long, so wall
+ * B's bar ran through *"A · 2,50 m"* for its full height.
+ */
+export const PLAN_LABEL_LANE_PX = PLAN_LABEL_LINE_PX + PLAN_LABEL_GAP_PX;
+
+/** The shortest box the plan can be drawn in: the lane above the drawing, the wall's own thickness,
+ *  and the line the label beside the deepest wall is written on. Below it either the drawing or a
+ *  label would leave the box, and the caller is handing over a box it has not sized. */
+export const PLAN_MINIMUM_BOX_HEIGHT_PX =
+  PLAN_LABEL_LANE_PX + PLAN_WALL_THICKNESS_PX + PLAN_LABEL_LINE_PX;
+
 /** `left` is the drawn convention, with the corner at the origin the world puts it at; `right` is
  *  that same drawing reflected, and nothing else (criterion 13).
  *
@@ -84,6 +135,10 @@ const MIRRORED_CORNER_DIRECTION: CornerDirection = "right";
 
 /** The walls a plan can draw, each with the field that gives it its length. The height is a field
  *  and not a wall: this is the view from above. */
+/** The wall the anchor sends along +X, which on a view from above is the one that runs across the
+ *  screen. Every other wall a plan draws runs down it. */
+const WALL_ACROSS_THE_SCREEN: PlanWallId = "A";
+
 const DRAWABLE_WALLS: readonly {
   readonly wall: PlanWallId;
   readonly field: RoomLengthField;
@@ -98,6 +153,10 @@ interface DrawableLength {
   readonly millimetres: number;
 }
 
+/** A wall's bar before its label is placed: the side a label goes on is read off the bars around it,
+ *  so the drawing is laid out once and then labelled once. */
+type PlanWallBar = Omit<PlanWallRect, "labelPx">;
+
 interface PlanLayout {
   readonly scalePxPerMm: number;
   readonly originPx: PlanPointPx;
@@ -107,7 +166,7 @@ interface PlanLayout {
 /** The plan, from the draft's lengths and its corner direction and from nothing else: no cabinet, no
  *  placement, no catalogue and no depth. Identical arguments give an identical drawing. */
 export function derivePlanPreview(draft: RoomDraft, box: PlanBox): PlanPreview {
-  assertBoxCanHoldAWall(box);
+  assertBoxCanHoldTheDrawing(box);
 
   const lengths = drawableLengthsIn(draft);
   if (lengths.length === 0) return { kind: "empty", boxPx: box };
@@ -140,13 +199,15 @@ function drawFromTheCorner(
   lengths: readonly DrawableLength[],
   box: PlanBox,
 ): DrawnPlanPreview {
-  const scalePxPerMm = isotropicScalePxPerMm(lengths, box);
+  const regionPx = drawingRegionPx(box);
+  const scalePxPerMm = isotropicScalePxPerMm(lengths, regionPx);
   const contentPx = contentExtentPx(lengths, scalePxPerMm);
   const layout: PlanLayout = {
     scalePxPerMm,
     contentPx,
-    originPx: centredOriginPx(contentPx, box),
+    originPx: belowTheLabelLane(centredOriginPx(contentPx, regionPx)),
   };
+  const bars = lengths.map((length) => placeWall(length, layout));
 
   return {
     kind: "drawn",
@@ -154,35 +215,51 @@ function drawFromTheCorner(
     scalePxPerMm,
     contentPx,
     cornerPx: layout.originPx,
-    walls: lengths.map((length) => placeWall(length, layout)),
+    walls: bars.map((bar) => ({ ...bar, labelPx: labelFor(bar, bars, box) })),
   };
+}
+
+/** What the label lane leaves of the box. The drawing is fitted into this and never into the whole
+ *  box, which is the whole mechanism that keeps the lane clear. */
+function drawingRegionPx(box: PlanBox): PlanBox {
+  return {
+    widthPx: box.widthPx,
+    heightPx: box.heightPx - PLAN_LABEL_LANE_PX,
+  };
+}
+
+function belowTheLabelLane(originPx: PlanPointPx): PlanPointPx {
+  return { xPx: originPx.xPx, yPx: originPx.yPx + PLAN_LABEL_LANE_PX };
 }
 
 /**
  * **One isotropic scale for both axes** (criterion 12), and this wave's single deliberate departure
  * from frames 1A and 1B (ruling R4): the frame draws wall A at 250 px for 3,60 m and wall B at 50 px
  * for 2,40 m — two scales — which would draw a 6,0 x 1,0 m room as a square. The scale is the
- * largest that leaves the whole room inside the box on both axes, and it is arithmetic nowhere else
- * in this module: if the frame's literal proportions are ruled for instead, this function is the only
- * thing that moves.
+ * largest that leaves the whole room inside the **region** on both axes, and it is arithmetic
+ * nowhere else in this module: if the frame's literal proportions are ruled for instead, this
+ * function is the only thing that moves.
+ *
+ * It is handed the drawing region rather than the box, so the label lane is already off it. Taking
+ * the lane off here instead would put a second subtraction beside the scale.
  */
 function isotropicScalePxPerMm(
   lengths: readonly DrawableLength[],
-  box: PlanBox,
+  regionPx: PlanBox,
 ): number {
   const limitsPxPerMm: number[] = [];
   const alongXMm = millimetresOf(lengths, "A");
   const alongZMm = deepestWallMm(lengths);
 
-  if (alongXMm > 0) limitsPxPerMm.push(box.widthPx / alongXMm);
-  if (alongZMm > 0) limitsPxPerMm.push(usableDepthPx(box) / alongZMm);
+  if (alongXMm > 0) limitsPxPerMm.push(regionPx.widthPx / alongXMm);
+  if (alongZMm > 0) limitsPxPerMm.push(usableDepthPx(regionPx) / alongZMm);
   return Math.min(...limitsPxPerMm);
 }
 
 /** Wall A's own thickness is spent before a single millimetre of depth is drawn, because the walls
- *  running down the screen start below it — so it comes off the box before the scale is taken. */
-function usableDepthPx(box: PlanBox): number {
-  return box.heightPx - PLAN_WALL_THICKNESS_PX;
+ *  running down the screen start below it — so it comes off the region before the scale is taken. */
+function usableDepthPx(regionPx: PlanBox): number {
+  return regionPx.heightPx - PLAN_WALL_THICKNESS_PX;
 }
 
 function contentExtentPx(
@@ -198,17 +275,18 @@ function contentExtentPx(
   };
 }
 
-/** The drawing sits in the middle of the box, so the mirror line is also the drawing's own centre and
- *  a toggled corner moves the walls without moving the room across the card. */
-function centredOriginPx(content: PlanBox, box: PlanBox): PlanPointPx {
+/** The drawing sits in the middle of the region, so the mirror line is also the drawing's own centre
+ *  and a toggled corner moves the walls without moving the room across the card. */
+function centredOriginPx(content: PlanBox, regionPx: PlanBox): PlanPointPx {
   return {
-    xPx: (box.widthPx - content.widthPx) / 2,
-    yPx: (box.heightPx - content.heightPx) / 2,
+    xPx: (regionPx.widthPx - content.widthPx) / 2,
+    yPx: (regionPx.heightPx - content.heightPx) / 2,
   };
 }
 
-function placeWall(length: DrawableLength, layout: PlanLayout): PlanWallRect {
-  if (length.wall === "A") return placeBackWall(length, layout);
+function placeWall(length: DrawableLength, layout: PlanLayout): PlanWallBar {
+  if (length.wall === WALL_ACROSS_THE_SCREEN)
+    return placeBackWall(length, layout);
   if (length.wall === "B") return placeLeftWall(length, layout);
   return placeFarWall(length, layout);
 }
@@ -217,7 +295,7 @@ function placeWall(length: DrawableLength, layout: PlanLayout): PlanWallRect {
 function placeBackWall(
   length: DrawableLength,
   layout: PlanLayout,
-): PlanWallRect {
+): PlanWallBar {
   return {
     wall: length.wall,
     lengthMm: length.millimetres,
@@ -232,7 +310,7 @@ function placeBackWall(
 function placeLeftWall(
   length: DrawableLength,
   layout: PlanLayout,
-): PlanWallRect {
+): PlanWallBar {
   return {
     wall: length.wall,
     lengthMm: length.millimetres,
@@ -244,10 +322,7 @@ function placeLeftWall(
 }
 
 /** A U's third wall closes the room at the far end of wall A, running down beside it. */
-function placeFarWall(
-  length: DrawableLength,
-  layout: PlanLayout,
-): PlanWallRect {
+function placeFarWall(length: DrawableLength, layout: PlanLayout): PlanWallBar {
   return {
     wall: length.wall,
     lengthMm: length.millimetres,
@@ -263,9 +338,136 @@ function belowTheBackWallPx(layout: PlanLayout): number {
   return layout.originPx.yPx + PLAN_WALL_THICKNESS_PX;
 }
 
-function reflectWall(wall: PlanWallRect, box: PlanBox): PlanWallRect {
-  return { ...wall, xPx: reflectedXPx(wall.xPx + wall.widthPx, box) };
+/** Where a wall's length is written: above the drawing for a wall that runs across the screen, beside
+ *  its own bar for one that runs down it. Which of the two a wall is comes from the rectangle it was
+ *  drawn as and never from its letter — the letters' directions are stated once, in the anchor. */
+function labelFor(
+  bar: PlanWallBar,
+  bars: readonly PlanWallBar[],
+  box: PlanBox,
+): PlanWallLabelPx {
+  return runsAcrossTheScreen(bar)
+    ? aboveTheWall(bar)
+    : besideTheWall(bar, bars, box);
 }
+
+/** Frame 1B's own placement (`:135` and `:137`): centred over the wall, in the lane nothing is ever
+ *  painted in. The drawing is centred in the box, so this anchor is the box's own middle and the
+ *  text grows symmetrically out of it. */
+function aboveTheWall(bar: PlanWallBar): PlanWallLabelPx {
+  return {
+    xPx: bar.xPx + bar.widthPx / 2,
+    topPx: bar.yPx - PLAN_LABEL_LANE_PX,
+    alignment: "centred",
+  };
+}
+
+/**
+ * Beside the bar, at its middle, on **whichever side of it has the more room** — the room's inside
+ * where the drawing leaves space there (frame 1B `:138`), the box's own margin where it does not.
+ *
+ * Choosing the side is the fix for a label written into pixels that do not exist: a U's far wall
+ * stands at the drawing's right edge, so "always to the right of the bar" put *"C · 1,20 m"* past the
+ * box and the customer saw three walls and two labels. The obstructions counted are only the bars
+ * that actually cross the line the label is written on, so a wall stopping short of it is not read
+ * as one.
+ */
+function besideTheWall(
+  bar: PlanWallBar,
+  bars: readonly PlanWallBar[],
+  box: PlanBox,
+): PlanWallLabelPx {
+  const topPx = bar.yPx + bar.heightPx / 2 - PLAN_LABEL_LINE_PX / 2;
+  const crossing = bars.filter((other) => crossesTheLine(other, topPx));
+  const towardsTheRight =
+    freeToTheRightPx(bar, crossing, box) >= freeToTheLeftPx(bar, crossing);
+
+  return {
+    xPx: insideTheBoxPx(anchorBesidePx(bar, towardsTheRight), box),
+    topPx,
+    alignment: towardsTheRight ? "leftAligned" : "rightAligned",
+  };
+}
+
+function anchorBesidePx(bar: PlanWallBar, towardsTheRight: boolean): number {
+  return towardsTheRight
+    ? rightEdgePx(bar) + PLAN_LABEL_GAP_PX
+    : bar.xPx - PLAN_LABEL_GAP_PX;
+}
+
+function freeToTheLeftPx(
+  bar: PlanWallBar,
+  crossing: readonly PlanWallBar[],
+): number {
+  const edgesPx = crossing
+    .filter((other) => rightEdgePx(other) <= bar.xPx)
+    .map(rightEdgePx);
+  return bar.xPx - Math.max(0, ...edgesPx);
+}
+
+function freeToTheRightPx(
+  bar: PlanWallBar,
+  crossing: readonly PlanWallBar[],
+  box: PlanBox,
+): number {
+  const edgesPx = crossing
+    .filter((other) => other.xPx >= rightEdgePx(bar))
+    .map((other) => other.xPx);
+  return Math.min(box.widthPx, ...edgesPx) - rightEdgePx(bar);
+}
+
+/** A bar stands between a label and the room only where it crosses the line the label is on. */
+function crossesTheLine(bar: PlanWallBar, topPx: number): boolean {
+  return bar.yPx < topPx + PLAN_LABEL_LINE_PX && bottomEdgePx(bar) > topPx;
+}
+
+/** A box too narrow to stand a label beside a wall keeps the anchor rather than putting it outside:
+ *  a cramped label can still be read and a clipped one cannot. */
+function insideTheBoxPx(xPx: number, box: PlanBox): number {
+  return Math.min(Math.max(xPx, 0), box.widthPx);
+}
+
+/** Wall A leaves the corner along +X and is the one wall a plan draws across the screen; B and C
+ *  leave it along +Z and run down it. The letter decides this *here*, where `placeWall` lays the bars
+ *  out from the same constant — reading it back off the rectangle instead is ambiguous exactly where
+ *  it matters, because a wall drawn shorter than a wall is thick is a bar taller than it is wide. */
+function runsAcrossTheScreen(bar: PlanWallBar): boolean {
+  return bar.wall === WALL_ACROSS_THE_SCREEN;
+}
+
+function rightEdgePx(bar: PlanWallBar): number {
+  return bar.xPx + bar.widthPx;
+}
+
+function bottomEdgePx(bar: PlanWallBar): number {
+  return bar.yPx + bar.heightPx;
+}
+
+function reflectWall(wall: PlanWallRect, box: PlanBox): PlanWallRect {
+  return {
+    ...wall,
+    xPx: reflectedXPx(rightEdgePx(wall), box),
+    labelPx: reflectLabel(wall.labelPx, box),
+  };
+}
+
+/** A label reflects with its wall: the anchor crosses the mirror line and the text grows the other
+ *  way, which is what keeps a mirrored plan a reflection rather than a second layout. */
+function reflectLabel(label: PlanWallLabelPx, box: PlanBox): PlanWallLabelPx {
+  return {
+    ...label,
+    xPx: reflectedXPx(label.xPx, box),
+    alignment: REFLECTED_ALIGNMENT[label.alignment],
+  };
+}
+
+const REFLECTED_ALIGNMENT: Readonly<
+  Record<PlanLabelAlignment, PlanLabelAlignment>
+> = {
+  centred: "centred",
+  leftAligned: "rightAligned",
+  rightAligned: "leftAligned",
+};
 
 /** The mirror line is the box's vertical centre, so a point at `x` lands at `boxWidth - x` and a
  *  rectangle's left edge is the reflection of its right one. */
@@ -299,15 +501,15 @@ function deepestWallMm(lengths: readonly DrawableLength[]): number {
   return Math.max(millimetresOf(lengths, "B"), millimetresOf(lengths, "C"));
 }
 
-function assertBoxCanHoldAWall(box: PlanBox): void {
-  const fitsAWall =
+function assertBoxCanHoldTheDrawing(box: PlanBox): void {
+  const fits =
     Number.isFinite(box.widthPx) &&
     Number.isFinite(box.heightPx) &&
     box.widthPx >= PLAN_WALL_THICKNESS_PX &&
-    box.heightPx > PLAN_WALL_THICKNESS_PX;
-  if (!fitsAWall) {
+    box.heightPx >= PLAN_MINIMUM_BOX_HEIGHT_PX;
+  if (!fits) {
     throw new RangeError(
-      `derivePlanPreview: a preview box of ${String(box.widthPx)} x ${String(box.heightPx)} px cannot hold a wall ${String(PLAN_WALL_THICKNESS_PX)} px thick`,
+      `derivePlanPreview: a preview box of ${String(box.widthPx)} x ${String(box.heightPx)} px cannot hold a wall ${String(PLAN_WALL_THICKNESS_PX)} px thick and the lanes its labels are written in`,
     );
   }
 }

@@ -8,12 +8,15 @@
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
+  type CornerDirection,
   type MillimetreBounds,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
+  PLAN_LABEL_LINE_PX,
+  PLAN_MINIMUM_BOX_HEIGHT_PX,
   PLAN_WALL_THICKNESS_PX,
   derivePlanPreview,
   reflectPlanPreview,
@@ -21,6 +24,7 @@ import {
   type PlanBox,
   type PlanPreview,
   type PlanWallId,
+  type PlanWallLabelPx,
   type PlanWallRect,
 } from "@/room/plan-preview-model";
 import {
@@ -39,10 +43,26 @@ const A_PRODUCT_LOCALE = "ro";
  *  below the half device pixel criterion 12 allows, and well above a double's rounding. */
 const FLOAT_TOLERANCE_PX = 1e-9;
 
-/** Roughly the preview box frame 1B draws inside its card: 390 px less the screen's and the card's
- *  padding, at the frame's 104 px height. The box is an argument, so this is an example and not a
- *  contract — the swept boxes below are what the containment claim actually rests on. */
-const FRAME_PREVIEW_BOX: PlanBox = { widthPx: 320, heightPx: 104 };
+/** The preview box frame 1B draws inside its card, **as it is painted in**: 390 px less the screen's
+ *  and the card's padding at the frame's 104 px height, less the hairline border that is spent out of
+ *  both under `border-box`. `plan-preview.tsx` works the same two pixels off each axis before it
+ *  hands the box over, and `plan-preview.dom.test.ts` pins that it does. The box is an argument, so
+ *  this is the shipped example — the swept boxes below are what the containment claim rests on. */
+const FRAME_PREVIEW_BOX: PlanBox = { widthPx: 318, heightPx: 102 };
+
+/** The widest a wall label was measured at in the browser: *"C · 1,20 m"* came out 51,4 px at the
+ *  screen's own bold 11 px, and 60 leaves the Russian catalogue and a wider digit room. It is an
+ *  observation about type rather than a layout input — the model measures no text and is handed none
+ *  — and it lives here so that a drawing which stops leaving room for a label fails before a
+ *  customer meets one. */
+const WIDEST_WALL_LABEL_PX = 60;
+
+interface RectPx {
+  readonly leftPx: number;
+  readonly topPx: number;
+  readonly rightPx: number;
+  readonly bottomPx: number;
+}
 
 interface ApprovedRoomMm {
   readonly wallAMm: number;
@@ -69,12 +89,13 @@ function everyApprovedLRoom(): fc.Arbitrary<ApprovedRoomMm> {
   });
 }
 
-/** Every box a card could hand the plan, down to one that barely holds a wall: the degenerate end is
- *  where an unguarded scale turns negative and the drawing leaves the box. */
+/** Every box a card could hand the plan, down to the smallest one it accepts — a wall's thickness and
+ *  the lanes its labels are written in. The degenerate end is where an unguarded scale turns negative
+ *  and the drawing leaves the box. */
 function everyPreviewBox(): fc.Arbitrary<PlanBox> {
   return fc.record({
     widthPx: fc.integer({ min: PLAN_WALL_THICKNESS_PX, max: 600 }),
-    heightPx: fc.integer({ min: PLAN_WALL_THICKNESS_PX + 1, max: 400 }),
+    heightPx: fc.integer({ min: PLAN_MINIMUM_BOX_HEIGHT_PX, max: 400 }),
   });
 }
 
@@ -86,6 +107,34 @@ function smallestApprovedRoom(): ApprovedRoomMm {
 function largestApprovedRoom(): ApprovedRoomMm {
   const walls = approvedLWalls();
   return { wallAMm: walls.wallA.maxMm, wallBMm: walls.wallB.maxMm };
+}
+
+/** The four corners of the approved rectangle. Each is an axis running out first — the widest room
+ *  pins the drawing to the box's left and right edges, the deepest to its top and bottom — and a
+ *  label's placement is decided against exactly those edges. */
+const EXTREME_ROOMS: readonly ApprovedRoomMm[] = [
+  smallestApprovedRoom(),
+  largestApprovedRoom(),
+  {
+    wallAMm: approvedLWalls().wallA.maxMm,
+    wallBMm: approvedLWalls().wallB.minMm,
+  },
+  {
+    wallAMm: approvedLWalls().wallA.minMm,
+    wallBMm: approvedLWalls().wallB.maxMm,
+  },
+];
+
+/** Both corners, because half the customers see the mirrored drawing and a label reflects with the
+ *  wall it names. */
+const EVERY_CORNER = ["left", "right"] as const;
+
+function turned(draft: RoomDraft, direction: CornerDirection): RoomDraft {
+  return withCornerDirection(draft, direction);
+}
+
+function describeRoom(room: ApprovedRoomMm): string {
+  return `${String(room.wallAMm)} x ${String(room.wallBMm)} mm`;
 }
 
 function draftWith(
@@ -137,6 +186,70 @@ function wall(plan: DrawnPlanPreview, wallId: PlanWallId): PlanWallRect {
 
 function wallIdsIn(plan: PlanPreview): readonly PlanWallId[] {
   return plan.kind === "drawn" ? plan.walls.map((drawn) => drawn.wall) : [];
+}
+
+function barRectPx(bar: PlanWallRect): RectPx {
+  return {
+    leftPx: bar.xPx,
+    topPx: bar.yPx,
+    rightPx: bar.xPx + bar.widthPx,
+    bottomPx: bar.yPx + bar.heightPx,
+  };
+}
+
+/** The label as the browser paints it: the anchor the model placed, the widest text the catalogue can
+ *  write on that line, and the direction the model said the text grows in. The width is supplied
+ *  here because the model is handed none — which is exactly why a test has to do this arithmetic for
+ *  a placement claim to mean anything. */
+function labelRectPx(label: PlanWallLabelPx): RectPx {
+  const leftPx = {
+    centred: label.xPx - WIDEST_WALL_LABEL_PX / 2,
+    leftAligned: label.xPx,
+    rightAligned: label.xPx - WIDEST_WALL_LABEL_PX,
+  }[label.alignment];
+
+  return {
+    leftPx,
+    topPx: label.topPx,
+    rightPx: leftPx + WIDEST_WALL_LABEL_PX,
+    bottomPx: label.topPx + PLAN_LABEL_LINE_PX,
+  };
+}
+
+function overlaps(one: RectPx, other: RectPx): boolean {
+  return (
+    one.leftPx < other.rightPx &&
+    other.leftPx < one.rightPx &&
+    one.topPx < other.bottomPx &&
+    other.topPx < one.bottomPx
+  );
+}
+
+function isInside(rect: RectPx, box: PlanBox): boolean {
+  return (
+    rect.leftPx >= -FLOAT_TOLERANCE_PX &&
+    rect.topPx >= -FLOAT_TOLERANCE_PX &&
+    rect.rightPx <= box.widthPx + FLOAT_TOLERANCE_PX &&
+    rect.bottomPx <= box.heightPx + FLOAT_TOLERANCE_PX
+  );
+}
+
+/** Every label of a plan against every bar of it, named by both so a failure says which pair. */
+function labelsOverBarsIn(plan: DrawnPlanPreview): readonly string[] {
+  return plan.walls.flatMap((labelled) =>
+    plan.walls
+      .filter((bar) => overlaps(labelRectPx(labelled.labelPx), barRectPx(bar)))
+      .map((bar) => `${labelled.wall}'s label over wall ${bar.wall}`),
+  );
+}
+
+function labelsOutsideTheBoxIn(
+  plan: DrawnPlanPreview,
+  box: PlanBox,
+): readonly string[] {
+  return plan.walls
+    .filter((labelled) => !isInside(labelRectPx(labelled.labelPx), box))
+    .map((labelled) => `${labelled.wall}'s label`);
 }
 
 describe("derivePlanPreview — one isotropic scale for both axes", () => {
@@ -221,6 +334,144 @@ describe("derivePlanPreview — the drawing never leaves the box", () => {
     );
     expect(plan.contentPx.heightPx).toBeLessThanOrEqual(
       FRAME_PREVIEW_BOX.heightPx + FLOAT_TOLERANCE_PX,
+    );
+  });
+});
+
+// **The defect these were written for**: the model placed no label at all, and the renderer put wall
+// A's under wall A — inside the band the walls running down the screen occupy. At 2,50 x 5,00 m the
+// label is wider than wall A is long, so wall B's bar printed through *"A · 2,50 m"* over the whole
+// height of the text, in an ordinary kitchen. A sweep cannot find that by drawing harder: it is
+// found by asserting where the label went, against the bars, in the pixels it is painted in.
+describe("derivePlanPreview — no bar is ever painted over a label", () => {
+  it("keeps wall A's label clear of wall B's bar in a 2,50 x 5,00 m kitchen", () => {
+    const plan = drawnPlan(
+      lDraftFor({ wallAMm: 2500, wallBMm: 5000 }),
+      FRAME_PREVIEW_BOX,
+    );
+
+    expect(labelsOverBarsIn(plan)).toEqual([]);
+  });
+
+  it("keeps every label clear of every bar, for any approved L room", () => {
+    fc.assert(
+      fc.property(everyApprovedLRoom(), (room) => {
+        expect(
+          labelsOverBarsIn(drawnPlan(lDraftFor(room), FRAME_PREVIEW_BOX)),
+        ).toEqual([]);
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it.each(EVERY_CORNER)(
+    "keeps every label clear of every bar in a %s-turning U",
+    (direction) => {
+      for (const room of EXTREME_ROOMS) {
+        const plan = drawnPlan(
+          turned(uDraftFor(room), direction),
+          FRAME_PREVIEW_BOX,
+        );
+
+        expect(labelsOverBarsIn(plan), describeRoom(room)).toEqual([]);
+      }
+    },
+  );
+
+  // The lane is the guarantee, and it holds in any box for any room: a label written above the
+  // drawing is written where the layout paints nothing, so no text width can make it collide.
+  it("writes an across-the-screen wall's label above every bar, in any box", () => {
+    fc.assert(
+      fc.property(everyApprovedLRoom(), everyPreviewBox(), (room, box) => {
+        const plan = drawnPlan(lDraftFor(room), box);
+        const bottomOfTheLabelPx =
+          wall(plan, "A").labelPx.topPx + PLAN_LABEL_LINE_PX;
+
+        expect(wall(plan, "A").labelPx.topPx).toBeGreaterThanOrEqual(
+          -FLOAT_TOLERANCE_PX,
+        );
+        for (const bar of plan.walls) {
+          expect(bottomOfTheLabelPx).toBeLessThanOrEqual(
+            bar.yPx + FLOAT_TOLERANCE_PX,
+          );
+        }
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+});
+
+// **The defect these were written for**: a wall that runs down the screen was labelled to the right
+// of its bar whatever stood there. A U's far wall *is* the drawing's right edge, so at
+// 6,30 x 1,20 x 1,20 m wall C's label resolved to x 325 → 376 in a box 318 wide: three walls drawn,
+// two labels visible. U is not continuable yet, but the side a label goes on is the same logic for
+// every wall that runs down the screen.
+describe("derivePlanPreview — no label is ever written off the box", () => {
+  it("turns a U's far-wall label into the room rather than off the right edge", () => {
+    const plan = drawnPlan(
+      uDraftFor({
+        wallAMm: approvedLWalls().wallA.maxMm,
+        wallBMm: approvedLWalls().wallB.minMm,
+      }),
+      FRAME_PREVIEW_BOX,
+    );
+
+    expect(wall(plan, "C").labelPx.alignment).toBe("rightAligned");
+    expect(labelsOutsideTheBoxIn(plan, FRAME_PREVIEW_BOX)).toEqual([]);
+  });
+
+  it("keeps every label inside the box, for any approved L room", () => {
+    fc.assert(
+      fc.property(everyApprovedLRoom(), (room) => {
+        expect(
+          labelsOutsideTheBoxIn(
+            drawnPlan(lDraftFor(room), FRAME_PREVIEW_BOX),
+            FRAME_PREVIEW_BOX,
+          ),
+        ).toEqual([]);
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it.each(EVERY_CORNER)(
+    "keeps every label inside the box in a %s-turning U",
+    (direction) => {
+      for (const room of EXTREME_ROOMS) {
+        const plan = drawnPlan(
+          turned(uDraftFor(room), direction),
+          FRAME_PREVIEW_BOX,
+        );
+
+        expect(
+          labelsOutsideTheBoxIn(plan, FRAME_PREVIEW_BOX),
+          describeRoom(room),
+        ).toEqual([]);
+      }
+    },
+  );
+
+  // A box smaller than the frame's cannot hold the widest label beside a wall, so what is claimed
+  // there is the weaker thing that still matters: the line a label is written on is in the box.
+  it("writes every label on a line inside the box, in any box", () => {
+    fc.assert(
+      fc.property(everyApprovedLRoom(), everyPreviewBox(), (room, box) => {
+        for (const labelled of drawnPlan(lDraftFor(room), box).walls) {
+          expect(labelled.labelPx.xPx).toBeGreaterThanOrEqual(
+            -FLOAT_TOLERANCE_PX,
+          );
+          expect(labelled.labelPx.xPx).toBeLessThanOrEqual(
+            box.widthPx + FLOAT_TOLERANCE_PX,
+          );
+          expect(labelled.labelPx.topPx).toBeGreaterThanOrEqual(
+            -FLOAT_TOLERANCE_PX,
+          );
+          expect(
+            labelled.labelPx.topPx + PLAN_LABEL_LINE_PX,
+          ).toBeLessThanOrEqual(box.heightPx + FLOAT_TOLERANCE_PX);
+        }
+      }),
+      { numRuns: SWEEP_RUNS },
     );
   });
 });

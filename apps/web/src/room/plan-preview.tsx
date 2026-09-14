@@ -16,8 +16,11 @@ import type { CSSProperties } from "react";
 
 import { formatMetresForDisplay } from "./metres-text";
 import {
+  PLAN_LABEL_LINE_PX,
   type PlanBox,
+  type PlanLabelAlignment,
   type PlanPreview as PlanPreviewModel,
+  type PlanWallLabelPx,
   type PlanWallRect,
 } from "./plan-preview-model";
 import styles from "./room.module.css";
@@ -26,14 +29,33 @@ export interface PlanPreviewProps {
   readonly plan: PlanPreviewModel;
 }
 
-/** Frame 1B's own box (`:134`): 104 px tall, and as wide as the card leaves it on a 390 px screen —
- *  the body's 18 px insets and the card's 16 px padding and 1 px border, taken off 390. The box is
- *  the *model's* box too, so the drawing is laid out in the pixels it is painted in and the card
- *  clips rather than scrolls, exactly as the frame does. */
-export const PLAN_BOX: PlanBox = { widthPx: 320, heightPx: 104 };
+/** Frame 1B's own box as it is *painted* (`:134`): 104 px tall, and as wide as the card leaves it on
+ *  a 390 px screen — the body's 18 px insets and the card's 16 px padding and 1 px border, taken off
+ *  390. */
+const PAINTED_PLAN_BOX: PlanBox = { widthPx: 320, heightPx: 104 };
 
-/** How far a label stands off the wall it names, so the two are read together without touching. */
-const LABEL_OFFSET_PX = 5;
+/** The hairline `.planBox` draws. It is **published to the stylesheet** as `--plan-box-border`
+ *  instead of being written there, so the line the customer sees and the pixels it costs the drawing
+ *  are one number. They were two: `globals.css:53-55` puts every element in `border-box`, so a
+ *  border stated only in CSS is spent out of the box's own 320 x 104 — and a drawing laid out in all
+ *  of them ran 2 px under the border in every room. */
+const PLAN_BOX_BORDER_PX = 1;
+
+/** The border is drawn at both ends of each axis. */
+const PLAN_BOX_BORDER_SPEND_PX = PLAN_BOX_BORDER_PX * 2;
+
+/** **What the border leaves: the pixels the drawing is actually painted in**, and so the box the
+ *  model is handed. Both the SVG and the labels are positioned against the padding box, which is
+ *  this one — measure the drawing against the painted box instead and every extreme clips. */
+export const PLAN_BOX: PlanBox = insideTheBorder(PAINTED_PLAN_BOX);
+
+/** The two figures the stylesheet cannot import: the border already taken off `PLAN_BOX`, and the
+ *  line height the model reserves a label lane for. Published rather than repeated in CSS — the same
+ *  hop `price-bar.tsx:12-18` takes, and for the same reason. */
+const PLAN_BOX_METRICS = {
+  "--plan-box-border": `${String(PLAN_BOX_BORDER_PX)}px`,
+  "--plan-label-line": `${String(PLAN_LABEL_LINE_PX)}px`,
+} as CSSProperties;
 
 export function PlanPreview({ plan }: PlanPreviewProps) {
   const translate = useTranslations();
@@ -45,7 +67,11 @@ export function PlanPreview({ plan }: PlanPreviewProps) {
       </span>
       <div
         className={styles.planBox}
-        style={{ height: `${String(plan.boxPx.heightPx)}px` }}
+        data-testid="room-plan-box"
+        style={{
+          ...PLAN_BOX_METRICS,
+          height: `${String(paintedHeightPx(plan.boxPx))}px`,
+        }}
       >
         <PlanDrawing plan={plan} />
         {plan.kind === "drawn"
@@ -94,7 +120,7 @@ function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
   return (
     <span
       className={styles.planWallLabel}
-      style={labelPositionFor(wall)}
+      style={labelPositionFor(wall.labelPx)}
       data-testid={`room-plan-label-${wall.wall}`}
     >
       {translate("room.planWallLabel", {
@@ -105,29 +131,36 @@ function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
   );
 }
 
-/** Where a label sits against the rectangle it names — presentation only, and deliberately not a
- *  second reading of the room: a wall that runs across the screen is labelled under its middle, one
- *  that runs down it is labelled beside its middle. Which of the two a wall is comes from the rect
- *  the model handed over, never from the wall's letter. */
-function labelPositionFor(wall: PlanWallRect): CSSProperties {
-  if (runsAcrossTheScreen(wall)) {
-    return {
-      left: `${String(wall.xPx + wall.widthPx / 2)}px`,
-      top: `${String(wall.yPx + wall.heightPx + LABEL_OFFSET_PX)}px`,
-      transform: "translateX(-50%)",
-    };
-  }
+/** The label's own box, hung off the anchor the model placed. **Nothing here decides where a label
+ *  goes**: which side of its wall it stands on, and the lane it stands clear in, are decided against
+ *  the whole drawing — and a second decision taken here, over one rectangle, is how a label comes to
+ *  sit on the bar the model placed it clear of. */
+function labelPositionFor(label: PlanWallLabelPx): CSSProperties {
   return {
-    left: `${String(wall.xPx + wall.widthPx + LABEL_OFFSET_PX)}px`,
-    top: `${String(wall.yPx + wall.heightPx / 2)}px`,
-    transform: "translateY(-50%)",
+    left: `${String(label.xPx)}px`,
+    top: `${String(label.topPx)}px`,
+    transform: TEXT_HUNG_OFF_THE_ANCHOR[label.alignment],
   };
 }
 
-/** A wall is drawn as a bar one drawing-thickness deep, so the axis it is *long* on is the axis it
- *  runs along. Read off the rectangle rather than off the wall's letter: the letters' directions are
- *  the model's to state, and a second statement of them here is the disagreement criterion 12's
- *  anchor exists to prevent. */
-function runsAcrossTheScreen(wall: PlanWallRect): boolean {
-  return wall.widthPx > wall.heightPx;
+/** `left` places the label's left edge, so a label whose text must *end* at its anchor is pulled back
+ *  by its own width and a centred one by half of it. This is the one part of the placement the model
+ *  cannot do, because only the browser knows how wide the text came out. */
+const TEXT_HUNG_OFF_THE_ANCHOR: Readonly<Record<PlanLabelAlignment, string>> = {
+  centred: "translateX(-50%)",
+  leftAligned: "none",
+  rightAligned: "translateX(-100%)",
+};
+
+function insideTheBorder(box: PlanBox): PlanBox {
+  return {
+    widthPx: box.widthPx - PLAN_BOX_BORDER_SPEND_PX,
+    heightPx: box.heightPx - PLAN_BOX_BORDER_SPEND_PX,
+  };
+}
+
+/** The element is painted around the box the model was handed: the inverse of `insideTheBorder`, so
+ *  the two can never be sized from different figures. */
+function paintedHeightPx(box: PlanBox): number {
+  return box.heightPx + PLAN_BOX_BORDER_SPEND_PX;
 }

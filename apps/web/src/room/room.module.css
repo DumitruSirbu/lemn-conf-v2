@@ -317,9 +317,14 @@
 
 /**
  * The frame's box (`:134`), and the coordinate space the plan is drawn in: `plan-preview.tsx` hands
- * the model a box of exactly these pixels, so a wall's rectangle and the label beside it are placed
+ * the model the pixels *inside* this border, so a wall's rectangle and the label beside it are placed
  * in the units they are painted in. Its height comes from that one constant rather than from a
  * figure repeated here.
+ *
+ * **The border's width is published by `plan-preview.tsx`, not written here.** Every element is
+ * `border-box` (`globals.css:53-55`), so this line is spent out of the box's own width and height:
+ * stated here it would be a second figure, and a drawing laid out against the first one runs under
+ * it. One number, declared where the box the model is handed is worked out.
  *
  * `overflow: hidden` is the frame's own, and it is what makes a narrower viewport clip the drawing
  * instead of widening the document — the refusal ADR 0082 decision 2 states.
@@ -327,7 +332,7 @@
 .planBox {
   position: relative;
   background: var(--paper);
-  border: 1px solid var(--line-soft);
+  border: var(--plan-box-border) solid var(--line-soft);
   border-radius: 9px;
   overflow: hidden;
 }
@@ -339,9 +344,12 @@
   display: block;
 }
 
+/* The frame's label type (`:137-138`), at the frame's own size. `--plan-label-line` is published by
+ * `plan-preview.tsx` from the line height the model keeps a lane clear for: set here as a figure of
+ * its own, a change to it would shrink or overflow that lane silently. */
 .planWallLabel {
   position: absolute;
-  font: 700 11px/1 var(--font-ui);
+  font: 700 var(--plan-label-line) / 1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   color: var(--ink-muted);
   white-space: nowrap;
