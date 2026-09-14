@@ -11,8 +11,9 @@
 > `160983d`.** Final `pnpm ci:local` and the pre-push rerun passed in full; every M7
 > commit through `160983d` is pushed to
 > `origin/m7-room-and-presets`.
-> **Updated 2026-09-14: wave 7E2 is DONE at `470e5c9`; next wave: 7F1.** `pnpm ci:local` had not
-> been run at close-out time — it is not claimed here and is recorded separately when it lands.
+> **Updated 2026-09-14: wave 7E2 is DONE at `470e5c9`, closed at `8434e76`; next wave: 7F1.** Final
+> `pnpm ci:local` and the pre-push rerun both passed in full; `41181d8..8434e76` is pushed to
+> `origin/m7-room-and-presets`, local and origin both at `8434e76`.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -2151,9 +2152,19 @@ environment variable and no API route.
 horizontal overflow on the editor, the room route or the error page.
 
 **Coordinator verification, as measured — none of it rounded up:** whole-tree `pnpm format:check`
-clean; `git diff --check` clean; typecheck and lint clean. **`pnpm ci:local` had not been run at the
-time of this close-out** — it is not claimed here, and is recorded separately when it lands, as with
-7E1's push.
+clean; `git diff --check` clean; typecheck and lint clean. ~~**`pnpm ci:local` had not been run at
+the time of this close-out** — it is not claimed here, and is recorded separately when it lands, as
+with 7E1's push.~~ **Recorded 2026-09-14, separately, once it landed — see the push paragraph below.**
+
+**An unexplained transient, recorded rather than softened.** The first `pnpm ci:local` run for this
+wave reported `LOCAL CI FAILED: e2e`. It did not reproduce: an e2e run alone immediately afterwards
+was **191 passed, 2 skipped, 0 failed**, and a full `ci:local` re-run was green on every gate, as was
+the pre-push rerun — three consecutive green runs against the identical commit. **The cause is
+unknown and was not diagnosed**, because the first run was piped through `tail -60`, which discarded
+the e2e output before it reached the log. Port 4320 was confirmed free before the re-run. This is not
+called a flaky test or resolved on retry — a failure occurred, was never explained, and the evidence
+was lost. If e2e fails once and then passes on this branch again, this is the precedent to check
+first.
 
 **Honest limits, recorded rather than smoothed over:**
 
@@ -2184,8 +2195,13 @@ visitor hash and the `__Host-` cookie at the route without changing this client'
 **Carry-forwards against 7I, 7F3, 7F4 and 7K** are recorded at each wave's own row or criteria above,
 not repeated here.
 
-Implementation is `470e5c9`. `pnpm ci:local` has not yet run; this close-out is markdown-only and
-makes no push claim. Next wave: **7F1**.
+**Final gate and push, recorded 2026-09-14:** `pnpm ci:local` passed in full, and the pre-push rerun
+passed in full — format, lint, typecheck, test, e2e, build, boundary, lockfile and SCA all PASS. Test
+totals from the green run: e2e **191 passed, 2 skipped** (5.4 minutes); unit/integration **4,196,
+282, 3,059 and 2,704** tests across their suites, all passing. `41181d8..8434e76` is pushed to
+`origin/m7-room-and-presets`; local and origin are both at `8434e76`.
+
+Implementation is `470e5c9`; documentation close-out is `8434e76`. Next wave: **7F1**.
 
 ## Verification
 
