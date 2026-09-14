@@ -10,7 +10,9 @@ import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
+import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { roomHrefFromDesignRoom } from "@/room/room-url-state";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
@@ -18,6 +20,7 @@ import { widestCounterFor } from "@/settings/global-settings-model";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
+import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
 import { LocaleMenu } from "./locale-menu";
@@ -43,6 +46,8 @@ export function ConfigureScreen({
   webglUnavailableTitleMobile?: string;
 } = {}) {
   const content = useContent();
+  const room = useConfiguratorStore((state) => state.design.room);
+  const roomHref = roomHrefFromDesignRoom(room);
   const [support, setSupport] = useState<SupportState>("probing");
   // Module-scope, not `useState`: a language switch changes the `[locale]` segment and remounts this
   // subtree, and the camera was the one thing on the screen that did not survive it. See
@@ -88,17 +93,16 @@ export function ConfigureScreen({
           the back control there, frame D2A the wordmark. Both are rendered and
           `configure.module.css` hides one. */}
       <header className={styles.nav}>
-        {/* Frame 2A `:483` draws the glyph alone. The word is the control's **accessible name** —
-            `role="img"` over the ruled string, the pattern the step pill below already uses, because
-            a `‹` read aloud is not a name. */}
-        <span
+        {/* Frame 2A `:483` draws the glyph alone. The word is the link's accessible name, because a
+            `‹` read aloud is not a destination. */}
+        <Link
           className={styles.back}
-          role="img"
           aria-label={content.configure.back}
           data-testid="top-bar-back"
+          href={roomHref}
         >
-          ‹
-        </span>
+          <span aria-hidden="true">‹</span>
+        </Link>
         <span className={styles.wordmark}>{content.brand}</span>
         {/* The step, twice over and from one source (`src/messages/ro.json`): the pill the frames
             draw, and — as its accessible name — the sentence the caption it replaced said. "2/4"
@@ -209,15 +213,16 @@ export function ConfigureScreen({
           <PriceBreakdown />
         </div>
       </div>
-      {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. **Both are drawn and
-          wired to nothing** (ADR 0104 decision 6): they lead to M8's review step, which is not built
-          and has no route. Not buttons, no `role`, no `tabindex` — the frames use non-interactive
-          elements in both files, and an element with a control's affordances and no behaviour is
-          worse than static text. */}
+      {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. The room back link is
+          live in M7; the review CTA remains inert until M8 because no review route exists. */}
       <div className={styles.actions}>
-        <span className={styles.backAction} data-testid="bottom-bar-back">
+        <Link
+          className={styles.backAction}
+          data-testid="bottom-bar-back"
+          href={roomHref}
+        >
           {content.configure.backAction}
-        </span>
+        </Link>
         <span className={styles.reviewCta} data-testid="review-cta">
           {content.configure.reviewCta}
         </span>

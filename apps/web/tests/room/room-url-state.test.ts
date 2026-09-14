@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseRoomUrlState,
+  roomHrefFromDesignRoom,
   serialiseRoomInput,
   type ParsedRoomInput,
   type RoomSearchParams,
@@ -182,6 +183,79 @@ describe("room URL state round-trip", () => {
       ["height", "2.5"],
       ["direction", "left"],
     ]);
+  });
+});
+
+describe("roomHrefFromDesignRoom", () => {
+  it("reopens a stored L room with its effective left direction", () => {
+    const href = roomHrefFromDesignRoom({
+      shape: "L",
+      widthMm: 3600,
+      depthMm: 2400,
+      heightMm: 2600,
+    });
+
+    expect(href).toBe(
+      "/configurator/room?shape=L&wallA=3.6&wallB=2.4&height=2.6&direction=left",
+    );
+  });
+
+  it("emits only canonical linear fields", () => {
+    const href = roomHrefFromDesignRoom({
+      shape: "linear",
+      widthMm: 3600,
+      depthMm: 9999,
+      heightMm: 2400,
+    });
+
+    expect(href).toBe("/configurator/room?shape=linear&wallA=3.6&height=2.4");
+    expect(href).not.toContain("wallB");
+    expect(href).not.toContain("direction");
+  });
+
+  it("round-trips the 3600 by 2400 customer room exactly", () => {
+    const href = roomHrefFromDesignRoom({
+      shape: "L",
+      widthMm: 3600,
+      depthMm: 2400,
+      heightMm: 2500,
+    });
+    const query = new URL(href, "https://lemnaria.test").searchParams;
+
+    expect(parseRoomUrlState(asNextSearchParams(query))).toMatchObject({
+      substate: "1D",
+      room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2500 },
+    });
+  });
+
+  it("omits document, locale, and revision state", () => {
+    const query = new URL(
+      roomHrefFromDesignRoom({
+        shape: "L",
+        widthMm: 3600,
+        depthMm: 2400,
+        heightMm: 2500,
+      }),
+      "https://lemnaria.test",
+    ).searchParams;
+
+    expect([...query.keys()]).toEqual([
+      "shape",
+      "wallA",
+      "wallB",
+      "height",
+      "direction",
+    ]);
+    for (const forbidden of [
+      "presetId",
+      "id",
+      "locale",
+      "revision",
+      "configuration",
+      "design",
+    ]) {
+      expect(query.has(forbidden)).toBe(false);
+    }
   });
 });
 

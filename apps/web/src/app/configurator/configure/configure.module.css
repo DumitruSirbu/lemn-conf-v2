@@ -172,8 +172,8 @@
   padding: 11px 14px 11px 9px;
 }
 
-/* Frame 2A `:483`: a bare `‹`, `700 17px/1`, in a 22 px column. **The word left the control with
- * this wave** — the frames draw the glyph alone, and `configure.back` is now its accessible name
+/* Frame 2A `:483`: a bare `‹`, `700 17px/1`, in a 22 px column. The frames draw the glyph alone,
+ * and `configure.back` is its accessible name
  * rather than its visible text, exactly as the step pill's sentence is.
  *
  * **The 44 px target is taken without changing what the row lays out** (ADR 0082 decision 8, kept;
@@ -200,6 +200,7 @@
   margin-inline: calc((var(--back-column) - var(--touch-target)) / 2);
   font: 700 var(--back-line) / 1 var(--font-ui);
   color: var(--accent);
+  text-decoration: none;
 }
 
 .wordmark {
@@ -386,6 +387,7 @@
   height: 52px;
   font: 700 14px/1 var(--font-ui);
   color: var(--ink-muted);
+  text-decoration: none;
   border: 1px solid var(--line);
   border-radius: 12px;
 }

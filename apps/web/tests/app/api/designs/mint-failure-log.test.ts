@@ -200,4 +200,30 @@ describe("POST /api/designs, when the driver answers", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
   });
+
+  it("ignores a hostile request body and still mints the seed", async () => {
+    const fake = new MintingRepository();
+    repository.current = fake;
+    const hostile = new Request("https://lemnaria.test/api/designs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...KITCHEN_L_DESIGN,
+        presetId: "attacker-selected-recipe",
+        room: {
+          ...KITCHEN_L_DESIGN.room,
+          widthMm: 999_999,
+        },
+      }),
+    });
+
+    const response = await (
+      POST as unknown as (request: Request) => Promise<Response>
+    )(hostile);
+
+    expect(response.status).toBe(201);
+    expect(fake.minted).toEqual(KITCHEN_L_DESIGN);
+    expect(fake.minted?.presetId).toBe(KITCHEN_L_DESIGN.presetId);
+    expect(fake.minted?.room).toEqual(KITCHEN_L_DESIGN.room);
+  });
 });

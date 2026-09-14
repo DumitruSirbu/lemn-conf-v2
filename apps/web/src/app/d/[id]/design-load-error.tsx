@@ -21,7 +21,7 @@ export function DesignLoadError({
       <p className={styles.text}>
         {reason === "not-found" ? copy.bodyNotFound : copy.bodyInvalid}
       </p>
-      <Link className={styles.startOver} href="/configurator/configure">
+      <Link className={styles.startOver} href="/configurator/room">
         {copy.startOver}
       </Link>
     </main>

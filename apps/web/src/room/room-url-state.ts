@@ -136,6 +136,30 @@ export function serialiseRoomInput(input: ParsedRoomInput): URLSearchParams {
   return params;
 }
 
+/**
+ * Reopens Step 1 from a stored room without carrying document or presentation state in the URL.
+ * A stored L room has no corner direction yet, so its effective direction is left; wave 7I owns
+ * persisting and serialising a customer's right-turning choice.
+ */
+export function roomHrefFromDesignRoom(room: DesignRoom): string {
+  const input: ParsedRoomInput =
+    room.shape === "linear"
+      ? {
+          shape: "linear",
+          wallAMm: room.widthMm,
+          heightMm: room.heightMm,
+        }
+      : {
+          shape: "L",
+          wallAMm: room.widthMm,
+          wallBMm: room.depthMm,
+          heightMm: room.heightMm,
+          cornerDirection: "left",
+        };
+
+  return `/configurator/room?${serialiseRoomInput(input).toString()}`;
+}
+
 function invalidShape(): RoomUrlState {
   return { substate: "1A", markedFields: ["shape"] };
 }

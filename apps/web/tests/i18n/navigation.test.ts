@@ -53,7 +53,7 @@ describe("locale-aware customer navigation", () => {
       );
 
       expect(contact).toContain(`href="/${locale}/configurator/configure"`);
-      expect(loadError).toContain(`href="/${locale}/configurator/configure"`);
+      expect(loadError).toContain(`href="/${locale}/configurator/room"`);
     },
   );
 });
