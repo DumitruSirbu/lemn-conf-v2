@@ -28,6 +28,7 @@
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
+  type DesignRoom,
   type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
@@ -35,7 +36,7 @@ import { useTranslations } from "next-intl";
 // `useSearchParams` is read from `next/navigation` rather than from `@/i18n/navigation`: next-intl
 // wraps the navigations that need a locale prefix, and a query is the same query in both locales.
 import { useSearchParams } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 // **A temporary cross-route coupling, and it is the coupling ruling R5 exists to delete.** A second
 // screen reaching into the editor's route folder for a shared control is the wrong end state; R5
@@ -54,13 +55,17 @@ import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { usePathname, useRouter } from "@/i18n/navigation";
 
 import { DimensionsForm } from "./dimensions-form";
+import { GenerationSteps } from "./generation-steps";
 import { PLAN_BOX, PlanPreview } from "./plan-preview";
 import { derivePlanPreview } from "./plan-preview-model";
 import {
+  canonicalRoomQuery,
+  queryEntriesOf,
   queryFromSearchParams,
   roomShapeInState,
   useRoomQuerySync,
 } from "./room-query-sync";
+import { useGeneration, type GenerationRun } from "./use-generation";
 import styles from "./room.module.css";
 import {
   missingLengthFields,
@@ -87,6 +92,25 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   const liveQuery = queryFromSearchParams(useSearchParams());
   const liveState = parseRoomUrlState(liveQuery);
   const shapeInTheUrl = roomShapeInState(liveState);
+  // **The composition lives here so the top bar can read it** (wave 7F4 ruling R14, ground truth
+  // G11): frames 1A–1C title the screen *Cameră* and 1D–1F title it *Preset*, and the bar is drawn
+  // above the branch. It is **client state and not a URL sub-state** (R13) — a new query key is
+  // stripped by the settle, a new path segment 404s under the proxy allow-list, and an addressable
+  // composition URL would re-run generation on every reload and mint a second design.
+  const run = useGeneration();
+  const { leave } = run;
+  // The one client flag this screen branches on, and the reason the title and the body cannot
+  // disagree about which sub-state is drawn: both read this single expression.
+  const isComposing = shapeInTheUrl !== undefined && run.state.phase !== "idle";
+
+  // **Leaving the room behind leaves its composition behind.** Composition mints no history entry,
+  // so a browser Back out of 1F lands at 1A — and a Forward would otherwise return to a screen
+  // drawing a kitchen composed for a room the URL no longer names. This ends a run the customer has
+  // already walked away from; it **starts** none (R15), and under StrictMode the second invocation
+  // clears an already-clear run.
+  useEffect(() => {
+    if (shapeInTheUrl === undefined) leave();
+  }, [shapeInTheUrl, leave]);
 
   return (
     // The two markers the traversal gate and the visual pass read the screen's sub-state off. They
@@ -98,17 +122,19 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
       data-room-substate={liveState.substate}
       data-marked-fields={liveState.markedFields.join(",")}
     >
-      <RoomTopBar />
+      <RoomTopBar isComposing={isComposing} />
       {shapeInTheUrl === undefined ? (
         <ShapeStep policy={policy} />
       ) : (
-        <DimensionsStep seedShape={shapeInTheUrl} policy={policy} />
+        <DimensionsStep seedShape={shapeInTheUrl} policy={policy} run={run} />
       )}
     </main>
   );
 }
 
-function RoomTopBar() {
+/** The bar is drawn in every sub-state and **only its title changes** in composition (criterion 25):
+ *  the pill still resolves the approved step leaves at `step: 1` and the locale menu is untouched. */
+function RoomTopBar({ isComposing }: { readonly isComposing: boolean }) {
   const translate = useTranslations();
 
   return (
@@ -131,7 +157,7 @@ function RoomTopBar() {
           {translate("configure.stepPill", STEP_ONE_OF_FOUR)}
         </span>
         <span className={styles.title} data-testid="top-bar-title">
-          {translate("room.title")}
+          {translate(isComposing ? "room.compose.title" : "room.title")}
         </span>
       </header>
       <LocaleMenu />
@@ -195,15 +221,46 @@ interface DimensionsStepProps {
    *  naming another shape re-seeds through the sync rather than through this prop. */
   readonly seedShape: RoomShape;
   readonly policy: RoomPolicy;
+  readonly run: GenerationRun;
 }
 
 /**
  * Sub-states 1B onward: the chips, the live plan, the corner toggle and the length fields, over a
  * draft this component owns and a URL the sync keeps in step with it (ruling R9).
+ *
+ * **1F is drawn from inside here, and this component never unmounts for it** (wave 7F4 ruling R14).
+ * If entering composition unmounted the dimensions step, the convergence loop would unmount with a
+ * departure armed and a flush in flight, and *Înapoi* out of 1F would have to re-seed the form from
+ * whatever the URL happened to hold. Keeping `useRoomQuerySync` mounted above the branch makes
+ * leaving 1F a **pure state clear**: the draft is still in memory, caret residue and all, and nothing
+ * re-seeds. `room-query-sync.ts` is untouched by this wave and `RoomDestination` gains no member —
+ * the no-second-discriminator rule applies unchanged, and this is the wave that rule names as its
+ * amplifier, because *Continuă*'s push now has a destination that matters.
  */
-function DimensionsStep({ seedShape, policy }: DimensionsStepProps) {
+function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
   const translate = useTranslations();
   const { draft, setDraft, departTo } = useRoomQuerySync(seedShape);
+
+  /**
+   * **The one place generation is started from, and it is an event handler** (ruling R15).
+   *
+   * `reactStrictMode: true` double-invokes effects in development, so an effect that generated would
+   * build two kits and — once wave 7F4b hands off — mint two design rows, with every existing test
+   * green. A tap runs this once.
+   *
+   * The departure still flushes exactly as it did before this wave (criterion 24): the query the
+   * customer leaves behind is written first, and the push that follows lands on the URL already
+   * showing. Composition is added **beside** that, not in place of it.
+   */
+  function continueFromLengths(): void {
+    departTo("presets");
+    const room = roomInDraft(draft);
+    if (room !== undefined) run.compose(room);
+  }
+
+  if (run.state.phase !== "idle") {
+    return <GenerationSteps run={run.state} onBack={run.leave} />;
+  }
 
   return (
     <>
@@ -241,9 +298,7 @@ function DimensionsStep({ seedShape, policy }: DimensionsStepProps) {
           className={styles.cta}
           disabled={!canContinueFrom(draft, policy)}
           data-testid="room-continue"
-          onClick={() => {
-            departTo("presets");
-          }}
+          onClick={continueFromLengths}
         >
           {translate("room.continue")}
         </button>
@@ -260,4 +315,28 @@ function canContinueFrom(draft: RoomDraft, policy: RoomPolicy): boolean {
     isShapeBuildable(draft.shape, policy) &&
     missingLengthFields(draft).length === 0
   );
+}
+
+/**
+ * **The room a composition runs for: the draft's, read through the parser the URL is read with.**
+ *
+ * The draft is put into its canonical query and that query is parsed, so this asks the *same*
+ * question of the same authority the address bar is answered by — a room reaches sub-state 1D here
+ * exactly when it would reach it from a URL, with no second reading of what a valid room is.
+ *
+ * **Why the draft and not `useSearchParams`, which is what the screen branches on everywhere else.**
+ * The URL trails the draft by the settle interval, so within 400 ms of a keystroke the query is a
+ * room the customer has already moved past — or, at 1B, no room at all — while `departTo` is at that
+ * moment flushing the draft to the address bar. Generating from the live query there would compose
+ * the previous room, or silently compose nothing and leave *Continuă* dead for those 400 ms. This is
+ * the query the URL is about to hold, which is the one the customer asked for.
+ *
+ * `undefined` for a room the domain refuses: that is sub-state 1C, the tap is the departure alone,
+ * and the sentence the customer reads there is wave 7F2's (ruling R16).
+ */
+function roomInDraft(draft: RoomDraft): DesignRoom | undefined {
+  const state = parseRoomUrlState(
+    queryEntriesOf(canonicalRoomQuery(draft).toString()),
+  );
+  return state.substate === "1D" ? state.room : undefined;
 }

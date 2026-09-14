@@ -517,3 +517,268 @@
 .dimensionsFooter .cta {
   flex: 1;
 }
+
+/* ── Sub-state 1F, the composition (frame `:404-461`) ─────────────────────────────────────────── */
+
+/**
+ * **This block adds classes and edits none**, which is wave 7F4a's boundary on this file: the form's
+ * and the plan's rules are 7F1's and stay byte-identical. `.back` is *reused* by 1F's footer rather
+ * than re-declared — it is the same 96 x 52 control the frame draws in both footers, and a second
+ * copy of it is two places to change one button.
+ *
+ * Every figure is frame 1F's own. Two values are deliberately **not** the frame's, and both are
+ * already-ruled overrides rather than departures: the quiet text is `--ink-faint`, which the owner
+ * darkened from the mockups' `#7d7a72` for WCAG AA on 2026-09-03, and the surfaces are the tokens
+ * the frame's hexes are the source of.
+ */
+.composeBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+  overflow: hidden;
+}
+
+.composeIntro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The frame's 22 px (`:418`), a size below 1A's question, because 1F is a transient the customer
+ * reads once rather than a screen they act on. */
+.composeHeading {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+.composeSummary {
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* The frame's amber band (`:421`). Its three hexes are the frame's own and belong to this one
+ * surface — nothing else in the application draws a *this is taking a moment* notice — so they are
+ * literals here rather than four new global tokens with one user each. */
+.composeNotice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 13px;
+  background: #f7ecdc;
+  border: 1px solid #e6cfa8;
+  border-radius: 11px;
+}
+
+.composeNoticeText {
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: #7c4a0c;
+}
+
+/**
+ * The same band, carrying the sentence a run that did not finish leaves behind (criterion 35).
+ *
+ * **No frame draws this state**, so the treatment is drafted like its copy: the amber of *this is
+ * taking a moment* is dropped for the application's own quiet surface, and nothing turns red.
+ * Nothing was written, nothing navigated, and *Înapoi* still works — a dead end is not an error the
+ * customer caused, and a room that is too small has its own sentence at 1C (ruling R16).
+ */
+.composeNoticeFailed {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.composeNoticeFailed .composeNoticeText {
+  color: var(--ink);
+}
+
+.composeSpinner {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #e6cfa8;
+  border-top-color: #b45309;
+  border-radius: 50%;
+  animation: composeTurn 1s linear infinite;
+}
+
+.composeSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.composeStepsLabel {
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.composeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.composeRow {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 12px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+/**
+ * **The row an item was struck from the composition in** (wave 7F4 ruling R10).
+ *
+ * A dashed border, a muted background, a grey glyph and grey text — the frame's own drawing
+ * (`:448-452`), and **not** `text-decoration: line-through`. The earlier criterion's word *"struck"*
+ * describes the item being struck from the *composition*; a reader took it for a text decoration and
+ * the frame draws none. The row stays in the list: a customer who cannot see why their fridge is
+ * missing has been told less, not more.
+ */
+.composeRowDropped {
+  background: var(--paper);
+  border: 1px dashed var(--line);
+}
+
+/* `min-width: 0` for `.title`'s reason one level down: without it the flex item's automatic minimum
+ * is its min-content width, and the longest Russian role name would widen the row past 390 px. */
+.composeRowName {
+  flex: 1;
+  min-width: 0;
+  font: 400 13px/1.35 var(--font-ui);
+}
+
+.composeRowDropped .composeRowName,
+.composeRowDropped .composeRowStatus {
+  color: var(--ink-faint);
+}
+
+.composeRowStatus {
+  flex: 0 0 auto;
+  font: 400 11.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/**
+ * **The mark is drawn by the stylesheet, and the word beside it is the meaning.**
+ *
+ * `✓` and `−` are decoration: the status a row is in is announced by `room.compose.status.*` in the
+ * span next to this one, so the glyph is `aria-hidden` and carries no information of its own. Drawing
+ * it as generated content keeps a mark no locale translates out of the JSX the copy gate reads.
+ */
+.composeRowGlyph {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  font: 700 12px/22px var(--font-ui);
+  text-align: center;
+  border-radius: 50%;
+}
+
+.composeRowPlaced .composeRowGlyph {
+  color: var(--paper);
+  background: #2d5016;
+}
+
+.composeRowPlaced .composeRowGlyph::before {
+  content: "✓";
+}
+
+.composeRowPending .composeRowGlyph {
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: composeTurn 1s linear infinite;
+}
+
+.composeRowDropped .composeRowGlyph {
+  font-size: 13px;
+  color: #8d8377;
+  background: #ece7dd;
+}
+
+.composeRowDropped .composeRowGlyph::before {
+  content: "−";
+}
+
+.composeRule {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-faint);
+  text-wrap: pretty;
+}
+
+/* The dropped-roles sentence, in the state the screen already has and with no per-role explanation
+ * and no recovery flow — ADR 0110 Amendment F's own instruction. */
+.composeDropped {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.composeFooter {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+/**
+ * **The primary control, drawn as the frame draws it and wired to nothing** (`:458-460`).
+ *
+ * A `<div>` rather than a `<button>`, which is ADR 0104 decision 6's rule for a control with no
+ * destination: in 7F4a there is none — the hand-off to the editor is wave 7F4b's — and a `<button>`
+ * here would announce an action nothing performs. 52 px is the frame's height and is already past the
+ * 44 px target.
+ */
+.composeCta {
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  font: 700 15px/1 var(--font-ui);
+  color: #a89c8e;
+  background: #ece7dd;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.composeCtaSpinner {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: #a89c8e;
+  border-radius: 50%;
+  animation: composeTurn 1s linear infinite;
+}
+
+@keyframes composeTurn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* A composition the customer cannot stop watching is still a composition; a spinner they asked not
+ * to see is not information. The rows resolve in one frame either way (ruling R12), so nothing is
+ * lost by standing still. */
+@media (prefers-reduced-motion: reduce) {
+  .composeSpinner,
+  .composeCtaSpinner,
+  .composeRowPending .composeRowGlyph {
+    animation: none;
+  }
+}

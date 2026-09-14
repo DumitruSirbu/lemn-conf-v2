@@ -59,7 +59,33 @@
     "heightLabel": "Înălțimea camerei",
     "unitMetres": "m",
     "back": "Înapoi",
-    "continue": "Continuă"
+    "continue": "Continuă",
+    "compose": {
+      "title": "Preset",
+      "heading": "Ți-o construim pe a ta",
+      "roomSummary": "{shape} · {wallA} × {wallB} m · h {height} m",
+      "noPresetNotice": "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
+      "stepsLabel": "Ce așezăm, în ordinea priorității",
+      "role": {
+        "fridge": "Frigider",
+        "sink": "Spălător",
+        "preparation": "Blat de lucru",
+        "hob": "Plită și cuptor",
+        "storage": "Depozitare"
+      },
+      "rowLabel": "{role} · {extent}",
+      "rowWidth": "{millimetres, number, ::group-off}",
+      "storageExtent": "restul peretelui",
+      "status": {
+        "pending": "se calculează",
+        "placed": "așezat",
+        "notPlaced": "nu încape"
+      },
+      "rule": "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu încape este scos și marcat, nu înghesuit.",
+      "busy": "Se compune…",
+      "dropped": "Camera nu a lăsat loc pentru: {roles}. Restul bucătăriei e compus pe măsura ei.",
+      "failed": "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou."
+    }
   },
   "panel": {
     "close": "Închide panoul",

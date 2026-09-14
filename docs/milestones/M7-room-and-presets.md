@@ -7180,10 +7180,25 @@ surface. Each criterion names its proof: **[unit]**, **[property]** (`fast-check
     > screen — the frames even change the title for it — and replacing the body is what the frame
     > draws.
 27. **Generation is called exactly once per entry into composition, from the event handler.** A spy on
-    `generateKitchen` sees **one** call per tap, with the room the URL holds; re-rendering the screen,
-    settling the URL, or changing the locale calls it **zero** further times. **Must not:** a call from
-    `useEffect` (React StrictMode double-invokes it — G10); a call on mount; a call per keystroke.
-    **[component]** + **[review]**
+    `generateKitchen` sees **one** call per tap, with ~~the room the URL holds~~ **the room the draft
+    holds**; re-rendering the screen, settling the URL, or changing the locale calls it **zero** further
+    times. **Must not:** a call from `useEffect` (a **mount** effect is double-invoked under React
+    StrictMode — G10, and see slice 2's corrected table for the shape StrictMode does *not* catch); a
+    call on mount; a call per keystroke. **[component]** + **[review]**
+
+    > **Amended 2026-09-14 during 7F4a, on the implementer's finding.** *"The room the URL holds"* was
+    > wrong and would have shipped a dead button. **The URL trails the draft by up to `URL_SETTLE_MS`
+    > (400 ms)**, so within that window the live query holds the *previous* room or — at 1B, which is
+    > the ordinary way to arrive, because you type the last field and tap — **no room at all**. A
+    > URL-derived room would therefore return `undefined` and compose nothing, leaving *Continuă* dead
+    > for 400 ms after the last keystroke on the most common path. **That is 7F1-D45's dead-CTA defect
+    > arriving through a different door**, in the wave immediately after the one that fixed it.
+    >
+    > **The draft is not a second authority.** *Continuă*'s enabled-ness is already a draft question
+    > (`canContinueFrom(draft, policy)`), and at the moment of the tap `departTo` is flushing that same
+    > draft to the address bar — so the draft is the query the URL is about to hold, one round trip
+    > early. Ruling R9 is untouched: the client remains the sole authority on live sub-state, and
+    > nothing here reads a second copy of the URL.
 28. **The kit is borrowed through a lease and released on every path, including a throw.** A ledger
     like `tests/support/fake-probe.ts`'s records one allocation and one release per run, for: a normal
     run, a run whose `generateKitchen` throws, a run the customer leaves mid-flight, and two runs in
@@ -7320,10 +7335,24 @@ instruction is binding on this wave.** The draft to put to the owner, one leaf a
   dispatched**. If the median exceeds one second the implementer stops; whether to accept it, to move
   the work, or to change the screen is the coordinator's to rule, not the implementer's to improvise.
   > **In the slice, not only in the rulings: `reactStrictMode: true`** (`apps/web/next.config.ts:9`).
-  > A run started from a `useEffect` **double-fires in development** — two kits, and in 7F4b two
-  > design rows — and nothing currently red would catch the second, because it is a *different*
+  > A run started from a **mount** `useEffect` **double-fires in development** — two kits, and in 7F4b
+  > two design rows — and nothing currently red would catch the second, because it is a *different*
   > attempt and 7E2's one-row guarantee is per-attempt by design. **The run starts from the tap
   > handler** (R15), and criterion 27's spy is what proves it.
+  >
+  > **Corrected 2026-09-14 by 7F4a's implementer, who falsified the guard rather than trusting it.**
+  > The word **mount** above was added, and it matters. R15's *rule* refuses two shapes of
+  > effect-started run, but the reason as first written is true of only one of them:
+  >
+  > | Shape | Double-fires under StrictMode? | What actually catches it |
+  > |---|---|---|
+  > | An effect that generates **on mount** | **Yes** | Eleven tests, loudly — composition starts with no tap and the bar reads *Preset* on arrival |
+  > | An effect keyed on **a tap flag** | **No** — React re-runs effects at *mount* only, so an effect whose first run is an update fires once either way | *"balances the ledger over two runs in succession"* — a dep that does not change cannot fire a second run, so the **second** tap composes nothing |
+  >
+  > **So a later reader must not use "StrictMode would catch it" to judge whether some other
+  > effect-started run is safe.** For the tap-flag shape it would not, and the guard that does catch
+  > it is a different test entirely. The measurement is recorded at the test site so the next person
+  > inherits the finding rather than the claim.
 - **Slice 3 — the screen.** `generation-steps.tsx`, `room-screen.tsx`, `room.module.css`, both
   catalogues, the golden and lock re-baseline. **Done when** criteria 24, 25, 26, 29, 36 hold.
 - **Then the visual gate**, 390 × 844, both locales, on a **production build**, with the tree frozen.

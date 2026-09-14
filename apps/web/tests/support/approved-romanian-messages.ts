@@ -67,6 +67,53 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     unitMetres: "m",
     back: "Înapoi",
     continue: "Continuă",
+    // Sub-state 1F, wave 7F4a. Frame 1F's wording used as written, with four drafted leaves called
+    // out because no frame supplies them:
+    //
+    //   - `role.preparation` — the frame draws three rows and a dropped fridge, and never the
+    //     worktop priority `GENERATION_PRIORITIES` carries.
+    //   - `rowLabel` — the structural leaf that joins a role to its extent. `room.planWallLabel`'s
+    //     own shape, and for its reason: the separator belongs to the locale, not to a component
+    //     putting two spans side by side.
+    //   - `failed` — no frame draws a composition that did not finish. It says the composition did
+    //     not complete and **nothing about the room**: a room-level reason is 7F2's sentence, shown
+    //     at 1C where the customer can act on it (wave 7F4 ruling R16).
+    //   - `dropped` — **awaiting the owner, question Q7F4-1.** ADR 0110 Amendment F created this
+    //     message and instructed the wave that builds it to confirm the wording; this is the plan's
+    //     draft, shipped so the wave is not blocked, and it is the one leaf here nobody has approved.
+    //
+    // Frame 1F's last sentence — *"Pragurile exacte sunt decizie de produs nefinalizată"* — is
+    // deliberately **not** here (ruling R18): it announces an unfinished product decision that has
+    // since been taken, and telling a customer a threshold is undecided is not copy.
+    compose: {
+      title: "Preset",
+      heading: "Ți-o construim pe a ta",
+      roomSummary: "{shape} · {wallA} × {wallB} m · h {height} m",
+      noPresetNotice:
+        "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
+      stepsLabel: "Ce așezăm, în ordinea priorității",
+      role: {
+        fridge: "Frigider",
+        sink: "Spălător",
+        preparation: "Blat de lucru",
+        hob: "Plită și cuptor",
+        storage: "Depozitare",
+      },
+      rowLabel: "{role} · {extent}",
+      rowWidth: "{millimetres, number, ::group-off}",
+      storageExtent: "restul peretelui",
+      status: {
+        pending: "se calculează",
+        placed: "așezat",
+        notPlaced: "nu încape",
+      },
+      rule: "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu încape este scos și marcat, nu înghesuit.",
+      busy: "Se compune…",
+      dropped:
+        "Camera nu a lăsat loc pentru: {roles}. Restul bucătăriei e compus pe măsura ei.",
+      failed:
+        "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
+    },
   },
   panel: {
     close: "Închide panoul",

@@ -544,13 +544,31 @@ export const CONTENT_FIXTURES: readonly GoldenFixture[] = [
 
 /** **Step 1's leaves, and the arguments each ICU one is rendered with.**
  *
- *  `room.planWallLabel` is the wave's only ICU leaf here: the frame draws *"A · 3,60 m"*, and both
+ *  `room.planWallLabel` was wave 7F1's only ICU leaf here: the frame draws *"A · 3,60 m"*, and both
  *  the wall letter and the already-formatted metres arrive as arguments — the formatter owns the
- *  separator (M7 criterion 8), so the fixture passes a formatted string and never a number. */
+ *  separator (M7 criterion 8), so the fixture passes a formatted string and never a number.
+ *
+ *  Wave 7F4a's four are sub-state 1F's, and they keep that rule: a length reaches
+ *  `room.compose.roomSummary` already written in the customer's own notation, and the only raw number
+ *  in the group is `room.compose.rowWidth`'s millimetres, which is a body's declared width and is
+ *  formatted by ICU itself.
+ *
+ *  **The argument *values* here are neutral tokens rather than the words the screen passes.** They
+ *  are hash inputs: what the manifest pins is the sentence around them, and a Romanian role name
+ *  spelled here would pin this file to the role catalogue as well as to the message. */
 const ROOM_RENDER_ARGUMENTS: Readonly<
   Record<string, Readonly<Record<string, string | number>>>
 > = {
   "room.planWallLabel": { wall: "A", metres: "3,60" },
+  "room.compose.roomSummary": {
+    shape: "L",
+    wallA: "3,60",
+    wallB: "2,40",
+    height: "2,60",
+  },
+  "room.compose.rowLabel": { role: "Sink", extent: "600" },
+  "room.compose.rowWidth": { millimetres: 600 },
+  "room.compose.dropped": { roles: "Fridge" },
 };
 
 /**

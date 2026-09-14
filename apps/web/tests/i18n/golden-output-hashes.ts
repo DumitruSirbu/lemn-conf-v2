@@ -10,6 +10,12 @@
  * and the one `priceBreakdown.placementLabel` fixture built from one now read *Dulap* where the
  * domain said *Corp*. That is the owner's rename at `3564c7c` reaching the refusal sentences, which
  * had been the last surface still saying the old word.
+ *
+ * **Grown, never rebaselined, by wave 7F4a** (ADR 0113 decision 2). Twenty `room.compose.*` entries
+ * are added for sub-state 1F's copy and **no existing hash moved**, which is the shape a copy-adding
+ * wave owes: a moved hash would mean an approved sentence changed, and none did. The new leaves
+ * arrive hashed because `ROOM_FIXTURES` is built from `ro.json`'s own `room` subtree rather than
+ * from a hand-listed set.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -627,6 +633,46 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   // does not do.
   "room.back":
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
+  "room.compose.busy":
+    "241c8d13d3518b3c04ad55b494606e9881603d46959fedbbd3551955bcc48e6b",
+  "room.compose.dropped":
+    "6e004cd9059c80827f8b78c2dbb3b445010ce5c8cc1a1151252956124fa0ff56",
+  "room.compose.failed":
+    "316e6aa5b4b22f9d0e800976cff039b40656ba294a987587d99174d6f14e40ee",
+  "room.compose.heading":
+    "33c0c8a4c64822a0b5c87f68a299d4594477b4212cb8cdecc2d5ea8b12ca64a2",
+  "room.compose.noPresetNotice":
+    "feac196b98380da021c1e927c609160ff0643754fb66b1eda93860532c596ed7",
+  "room.compose.role.fridge":
+    "47759269b7057594ed4fd329b9bcde97d9f43c5b6d22bc39590e269421680a41",
+  "room.compose.role.hob":
+    "29199b0f413a7abff06b47a3115e0af885456bef3442d0f64bab03763a493d57",
+  "room.compose.role.preparation":
+    "a9a9a7ff3f216a699805275160057cdb3b2b8dde942712240a7efc8f1f8a64ef",
+  "room.compose.role.sink":
+    "4cc69b547ca47a397f305d7eb2ab063699f361eca1a3621bf066cda3a4795ba8",
+  "room.compose.role.storage":
+    "cb18c899f3227071b5f242aacd6f90a6c56afc0744daa32771a6946d4c5844b7",
+  "room.compose.roomSummary":
+    "5ccc144058c31e3bebda4b596109497edc51db67506b4059e9179d258f4592d2",
+  "room.compose.rowLabel":
+    "4d23f6e72dbf5825d76c75e692b6f3771038943e7899c38c93cb9a9040bc8d32",
+  "room.compose.rowWidth":
+    "284b7e6d788f363f910f7beb1910473e23ce9d6c871f1ce0f31f22a982d48ad4",
+  "room.compose.rule":
+    "cbd6ab0e6aebd73cadd6e5d4ebbc3c1ce11a5a32e10e4ffa02f35e1d9881a818",
+  "room.compose.status.notPlaced":
+    "5a60ea131e5819ea277433e6fe0e7d60d153093b64a3b114af9d7f00b402aff2",
+  "room.compose.status.pending":
+    "1aadbf0b4f291714f5f2437447231809bd99051f8f90228fa97702cbce6e0749",
+  "room.compose.status.placed":
+    "faaa9c02e2f32a9e95930022885600852c9e8c27cfe1b63a2f4c391e5c76e449",
+  "room.compose.stepsLabel":
+    "a57e78f2d69eb42fb73c6226bb0b8eb33d343700974da3140d69909a17e8647c",
+  "room.compose.storageExtent":
+    "d4ad0b77e156fdc4e1109eb7a61c66e64a1517d5feaf306cf844f99cd4aaecb0",
+  "room.compose.title":
+    "7252e7ce008587e1180459d95c2536df954971d6c51e6ac753518a6fe15da563",
   "room.continue":
     "5fc4497d148a38a8edd26e8536196fc907abc9394274fd067fa54f5d457755c9",
   "room.cornerHint":

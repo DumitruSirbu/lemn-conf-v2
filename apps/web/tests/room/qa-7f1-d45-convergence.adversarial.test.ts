@@ -792,9 +792,31 @@ describe("hostile arrivals the screen must survive without writing twice", () =>
 // The departure, as a sequence
 // ---------------------------------------------------------------------------------------------
 
-const A_ROOM_MISSING_WALL_A = "shape=L&wallB=2.92&height=2.6&direction=left";
+/**
+ * **The height is 2,10 m so the completed draft is one the validator refuses** (amended by wave
+ * 7F4a). The screen stays at sub-state **1B** throughout this block — the echoes are withheld, so
+ * `wallA` never reaches the URL — and what the height changes is the **draft**: filled in, it
+ * describes a room below the approved 2 200 mm ceiling.
+ *
+ * Every field still reads as a length, so *Continuă* is enabled and the departure machine below is
+ * driven exactly as it was. What the refusal buys is that **no composition starts**.
+ *
+ * **Why that is needed, and it is a finding rather than a detail.** From 7F4a on, tapping *Continuă*
+ * on a draft the domain *accepts* replaces the form with sub-state 1F in the same commit — so every
+ * sequence here, all of which **lead with *Continuă***, lost the second tap they depend on: there is
+ * no *Continuă* and no *Înapoi* left to tap, and no field to type into. The gestures are unperformable
+ * rather than merely untested, and this fixture drives the same machine where they can still be
+ * performed.
+ *
+ * **The mirror image is reachable and is covered elsewhere.** A sequence *led* by *Înapoi* still has a
+ * form to tap in, and the second tap may be a *Continuă* that arms a departure **and** starts a run.
+ * That interaction did not exist before this wave; it is pinned in
+ * `tests/room/room-composition.dom.test.ts` under *"a departure in flight, with a composition beside
+ * it"*. `room-query-sync.ts` itself is untouched by 7F4a.
+ */
+const A_ROOM_MISSING_WALL_A = "shape=L&wallB=2.92&height=2.1&direction=left";
 const THE_FLUSHED_ROOM =
-  "/ro/configurator/room?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left";
+  "/ro/configurator/room?shape=L&wallA=3.56&wallB=2.92&height=2.1&direction=left";
 
 describe("the departure state machine, over sequences rather than single taps", () => {
   it("pushes exactly once when the customer taps twice before the flush lands", () => {
@@ -850,7 +872,7 @@ describe("the departure state machine, over sequences rather than single taps", 
 
     expect(browser.push).toHaveBeenCalledTimes(1);
     expect(browser.push).toHaveBeenCalledWith(
-      "/ro/configurator/room?shape=L&wallA=3.567&wallB=2.92&height=2.6&direction=left",
+      "/ro/configurator/room?shape=L&wallA=3.567&wallB=2.92&height=2.1&direction=left",
     );
   });
 
@@ -918,7 +940,7 @@ describe("the departure state machine, over sequences rather than single taps", 
     type("wallA", "3,56");
     click("room-continue");
 
-    arriveAt("shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
+    arriveAt("shape=L&wallA=3.56&wallB=2.92&height=2.1&direction=left");
 
     expect(browser.push).toHaveBeenCalledTimes(1);
     expect(browser.push).toHaveBeenCalledWith(THE_FLUSHED_ROOM);

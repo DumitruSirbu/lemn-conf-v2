@@ -79,6 +79,14 @@ const THE_BACK_LINK =
   "?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left";
 const THE_BACK_LINK_FIELDS = { wallA: "3,56", wallB: "2,92", height: "2,60" };
 
+/** The same room with a ceiling below the approved 2 200 mm minimum, so the **completed draft** is
+ *  one the domain refuses: every field reads as a length and *Continuă* is enabled, and no
+ *  composition starts. (The screen itself stays at 1B — the echo is withheld, so `wallA` never
+ *  reaches the URL.) Used by the one test whose gesture needs a field to still be there after the
+ *  tap — see its own note. */
+const A_REFUSED_ROOM_MISSING_WALL_A =
+  "shape=L&wallB=2.92&height=2.1&direction=left";
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -585,7 +593,13 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     // flight, and the character typed in that window is lost from both the URL and the field. **A
     // stray character beats a primary button that did nothing**, and on a phone the tap blurs the
     // field first, so the input this costs is rarer than the one it fixes.
-    render("?shape=L&wallB=2.92&height=2.6&direction=left");
+    //
+    // **The room's ceiling is 2,10 m on purpose** (amended by wave 7F4a). The approved minimum is
+    // 2 200 mm, so the completed draft is one the domain refuses: *Continuă* is enabled and departs
+    // exactly as before, and no composition starts. From 7F4a on, tapping *Continuă* on a draft the
+    // domain *accepts* replaces the form with sub-state 1F in the same commit — and then there is no
+    // field left to type the late keystroke into, which is the gesture this test is about.
+    render(`?${A_REFUSED_ROOM_MISSING_WALL_A}`);
     withholdTheEcho();
     type("wallA", "3,56");
     click("room-continue");
@@ -599,7 +613,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
 
     expect(browser.push).toHaveBeenCalledTimes(1);
     expect(browser.push).toHaveBeenCalledWith(
-      `/ro/configurator/room${THE_BACK_LINK}`,
+      "/ro/configurator/room?shape=L&wallA=3.56&wallB=2.92&height=2.1&direction=left",
     );
     expect(fieldFor("wallA").value).toBe("3,56");
   });
