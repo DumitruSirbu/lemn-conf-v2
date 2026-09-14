@@ -1,39 +1,32 @@
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 
 import { routing } from "@/i18n/routing";
 import { RoomScreen } from "@/room/room-screen";
-import {
-  parseRoomUrlState,
-  type RoomSearchParams,
-} from "@/room/room-url-state";
 
 export default async function RoomPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<RoomSearchParams>;
 }) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
 
-  // The route stays a shell (M7 criterion 17): it resolves the query and renders one client
-  // component. No copy key, no field, no style and no `"use client"` — which is what keeps the whole
-  // of Step 1's surface under `src/room`, where the wave's lint gates read it.
+  // The route is a shell and nothing else (M7 criterion 17): one client component, no copy key, no
+  // field, no style, no `"use client"` — which is what keeps the whole of Step 1's surface under
+  // `src/room`, where the wave's lint gates read it.
   //
-  // The query travels beside the state it was parsed into, because the sub-states record which
-  // fields are still to be filled but not the lengths that already read, and 1B's fields have to
-  // show what the URL already holds. Reading it twice on the client — or carrying a second copy
-  // anywhere — is what this prop exists instead of.
-  const query = await searchParams;
-  const state = parseRoomUrlState(query);
-  return (
-    <main
-      data-room-substate={state.substate}
-      data-marked-fields={state.markedFields.join(",")}
-    >
-      <RoomScreen state={state} query={query} />
-    </main>
-  );
+  // **It parses nothing, on purpose** (ruling R9). Next reuses a page segment on a back/forward
+  // navigation, so a parse made here and handed down would describe the entry the customer left
+  // rather than the one they are looking at; the screen reads `useSearchParams` instead, and D5 is
+  // unrepresentable because there is no second reading of the URL to believe.
+  //
+  // `connection()` is what keeps the route out of the prerender manifest now that no request-time
+  // input is consumed here (`next/dist/docs/01-app/03-api-reference/04-functions/connection.md`).
+  // It replaces an `await searchParams` whose only remaining job was that side effect — a read
+  // nobody used, which the next reader would have deleted as dead and silently made the route
+  // static. `next build`'s route table is the check, not this comment.
+  await connection();
+  return <RoomScreen />;
 }

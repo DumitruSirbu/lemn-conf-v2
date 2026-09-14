@@ -173,11 +173,10 @@ function render(
   // The policy is *omitted* rather than passed as `undefined` when a test does not fabricate one, so
   // the ordinary renders here go through the component's own default — the approved policy — exactly
   // as the route does.
-  const state = parseRoomUrlState(query);
   const props: RoomScreenProps =
-    options.policy === undefined
-      ? { state, query }
-      : { state, query, policy: options.policy };
+    options.policy === undefined ? {} : { policy: options.policy };
+  // **The query is handed over as the browser's and nowhere else** (ruling R9): the screen takes no
+  // parse from the route, so setting the live query is the whole of putting it in a sub-state.
   browser.search = searchOf(query);
   act(() => {
     root.render(
@@ -202,6 +201,16 @@ function searchOf(query: RoomSearchParams): string {
     }
   }
   return params.toString();
+}
+
+/** The screen's own element, which is where the sub-state markers live under ruling R9 — the route
+ *  draws no wrapper of its own any more. */
+function screenElement(): HTMLElement {
+  const main = container.querySelector("main");
+  if (!(main instanceof HTMLElement)) {
+    throw new Error("the screen draws no main element");
+  }
+  return main;
 }
 
 function elementAt(testId: string): HTMLElement {
@@ -467,18 +476,60 @@ describe("each room in the URL is entered afresh", () => {
   });
 });
 
+describe("the sub-state the screen marks is the live query's (criterion 19)", () => {
+  it.each(EVERY_SUBSTATE)(
+    "marks %s and its fields from the query the browser holds",
+    (substate) => {
+      const query = QUERY_FOR[substate];
+      const state = parseRoomUrlState(query);
+      expect(state.substate).toBe(substate);
+
+      render(query);
+
+      expect(screenElement().getAttribute("data-room-substate")).toBe(substate);
+      expect(screenElement().getAttribute("data-marked-fields")).toBe(
+        state.markedFields.join(","),
+      );
+    },
+  );
+
+  it("re-derives the sub-state when the browser hands over another entry's query", () => {
+    // **Defect D5, and the assertion that would have caught it.** Next reuses a page segment on a
+    // back/forward navigation, so the screen is re-rendered against a query it was not mounted for
+    // and no new server parse arrives with it. The second render here is that navigation: nothing
+    // but the live query changes, and the marker has to follow it rather than keep the reading the
+    // screen first mounted with.
+    render(QUERY_FOR["1B"]);
+    expect(screenElement().getAttribute("data-room-substate")).toBe("1B");
+
+    render(QUERY_FOR["1D"]);
+
+    expect(screenElement().getAttribute("data-room-substate")).toBe("1D");
+    expect(screenElement().getAttribute("data-marked-fields")).toBe("");
+    expect(lengthField("wallA").value).toBe("3,60");
+  });
+});
+
 describe("the route stays a server shell (criterion 17)", () => {
-  it("resolves the query and renders one client component, and declares nothing else", () => {
-    // Slice 5 gave the screen the query beside the state: the sub-states record which fields are
-    // still to be filled but not the lengths that already read, and 1B's fields have to show what
-    // the URL holds. The claim criterion 17 makes is unchanged — one client component, and no copy
-    // key, field, style or `"use client"` in the route.
-    expect(ROOM_PAGE_SOURCE).toContain(
-      "<RoomScreen state={state} query={query} />",
-    );
-    expect(ROOM_PAGE_SOURCE).not.toMatch(/^\s*["']use client["'];/m);
-    expect(ROOM_PAGE_SOURCE).not.toMatch(
-      /module\.css|useTranslations|useContent|useState/,
-    );
+  it("renders one client component and hands it nothing, and declares nothing else", () => {
+    // **The must-not is the content of this criterion now** (ruling R9): D5 is unrepresentable only
+    // if the server's parse is *absent*, not merely unused. A route that parsed the query and
+    // dropped the result would pass every other assertion here and would be one edit away from
+    // handing it over again.
+    // The must-nots read the route's **code**: its comment records what `await searchParams` used
+    // to be doing there and why it went, which is the sentence a reader arriving at `connection()`
+    // needs, and a must-not that forbade naming the thing it forbids would delete it.
+    const code = codeOf(ROOM_PAGE_SOURCE);
+
+    expect(code).toContain("<RoomScreen />");
+    expect(code).not.toMatch(/parseRoomUrlState/);
+    expect(code).not.toMatch(/searchParams/);
+    // `connection()` is what holds the route out of the prerender manifest now that nothing here
+    // reads a request-time input. `next build`'s route table is the real check (criterion 17 says
+    // to verify it there); this only guards the call against being deleted as dead code.
+    expect(code).toContain("await connection();");
+    expect(code).toMatch(/from "next\/server"/);
+    expect(code).not.toMatch(/^\s*["']use client["'];/m);
+    expect(code).not.toMatch(/module\.css|useTranslations|useContent|useState/);
   });
 });

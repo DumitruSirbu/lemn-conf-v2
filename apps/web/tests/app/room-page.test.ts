@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 
 import { isValidElement } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+/** `connection()` reads Next's request store and throws without one, so a direct call to the route
+ *  needs the request it declares it is waiting for. Mocked to resolve: what the call is *for* — the
+ *  route staying out of the prerender manifest — is measured in `next build`'s route table, which
+ *  is what criterion 17 asks for and what no unit test can stand in for. */
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: vi.fn(() => Promise.resolve()),
+}));
+
+import { RoomScreen } from "@/room/room-screen";
 
 import RoomPage from "../../src/app/[locale]/configurator/room/page";
 
@@ -25,43 +36,53 @@ const fidelityCaptureSource = readFileSync(
   "utf8",
 );
 
+/** A module's code with its prose stripped out, so a must-not about a call can be written without
+ *  also forbidding the comment that explains why the call is there. */
+function codeOf(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 describe("localized room route placeholder", () => {
   it.each(["ro", "ru"] as const)(
-    "exposes the resolved substate and marked fields for %s",
+    "renders the room screen and hands it nothing for %s",
     async (locale) => {
-      const page = await RoomPage({
-        params: Promise.resolve({ locale }),
-        searchParams: Promise.resolve({ shape: "L" }),
-      });
+      const page = await RoomPage({ params: Promise.resolve({ locale }) });
       if (!isValidElement(page))
         throw new Error("Room route returned no element");
 
-      expect(page.type).toBe("main");
-      expect(page.props).toMatchObject({
-        "data-room-substate": "1B",
-        "data-marked-fields": "wallA,wallB,height,direction",
-      });
+      // **Ruling R9's whole point, asserted as a value rather than as prose.** The route used to
+      // wrap the screen in a `<main>` carrying its own parse of the query; Next reuses a page
+      // segment on a back/forward navigation, so that parse described the entry the customer left
+      // (defect D5). The markers moved onto the screen, which derives them from `useSearchParams`,
+      // and the route has no reading of the URL left to disagree with.
+      expect(page.type).toBe(RoomScreen);
+      expect(page.props).toEqual({});
     },
   );
 
-  it("refuses an unsupported locale instead of rendering a room state", async () => {
+  it("refuses an unsupported locale before it waits for a request", async () => {
     await expect(
-      RoomPage({
-        params: Promise.resolve({ locale: "en" }),
-        searchParams: Promise.resolve({}),
-      }),
+      RoomPage({ params: Promise.resolve({ locale: "en" }) }),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 
-  it("stays a server-only route that awaits both Next inputs", () => {
-    expect(roomPageSource).not.toMatch(/^\s*["']use client["'];/m);
-    expect(roomPageSource).toMatch(/const \{ locale \} = await params;/);
-    // M7 wave 7F1 slice 5 named the awaited query, because the screen is handed it beside the state
-    // it was parsed into — 1B's fields have to show the lengths the URL already holds, which the
-    // sub-states do not carry. Both inputs are still awaited here and nowhere else.
-    expect(roomPageSource).toMatch(/const query = await searchParams;/);
-    expect(roomPageSource).toMatch(/parseRoomUrlState\(query\)/);
-    expect(roomPageSource).not.toMatch(
+  it("stays a server-only shell that awaits the params and a connection, and parses nothing", () => {
+    // The route's **code**, with its prose stripped: the comment there records what `await
+    // searchParams` was doing and why it went, which is what a reader arriving at `connection()`
+    // needs, and a must-not reading the whole file would forbid the explanation along with the call.
+    const code = codeOf(roomPageSource);
+
+    expect(code).not.toMatch(/^\s*["']use client["'];/m);
+    expect(code).toMatch(/const \{ locale \} = await params;/);
+    // `await connection()` replaced `await searchParams` (criterion 17): nothing here consumes the
+    // query any more, and a route whose only request-time API had been deleted as an unused read
+    // would quietly become prerendered. The build's route table is the verdict on that; this only
+    // keeps the call from being removed as dead code.
+    expect(code).toMatch(/await connection\(\);/);
+    expect(code).toMatch(/import \{ connection \} from "next\/server";/);
+    expect(code).not.toMatch(/searchParams/);
+    expect(code).not.toMatch(/parseRoomUrlState/);
+    expect(code).not.toMatch(
       /useConfiguratorStore|zustand|localStorage|sessionStorage|indexedDB|\bwindow\b|\bdocument\b|fetch\(|persistence/i,
     );
   });

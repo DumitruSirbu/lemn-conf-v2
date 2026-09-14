@@ -82,11 +82,11 @@ const THE_BACK_LINK_FIELDS = { wallA: "3,56", wallB: "2,92", height: "2,60" };
 let container: HTMLDivElement;
 let root: Root;
 
-/** The props the page last handed over. A URL change re-renders the screen with **these**, rather
- *  than with a fresh parse: a browser does not hand the client a new server render in the middle of
- *  an entry, and a harness that did would hide every stale-authority defect this wave exists to
- *  close. */
-let screenProps: RoomScreenProps;
+/** What the route hands the screen: **nothing but its optional policy** (ruling R9). A browser does
+ *  not hand the client a new server render in the middle of an entry, and the props that used to
+ *  carry one are gone — so a URL change re-renders the screen against the live query alone, which
+ *  is the only reading of the URL left. */
+const screenProps: RoomScreenProps = {};
 
 /** Whether the `replace` double echoes the write straight back into the live query. Criterion 22
  *  needs *"the push has not fired yet"* and *"the push fires once the flush comes back"* as two
@@ -127,10 +127,9 @@ function queryOf(search: string): RoomSearchParams {
   );
 }
 
-/** A fresh arrival: the page's own parse, and the browser's URL, set together. */
+/** A fresh arrival. The route hands the screen nothing (ruling R9), so the browser's URL is the
+ *  whole of it. */
 function render(search: string): void {
-  const query = queryOf(search);
-  screenProps = { state: parseRoomUrlState(query), query };
   arriveAt(search);
 }
 

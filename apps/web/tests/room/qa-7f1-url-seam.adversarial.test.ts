@@ -62,7 +62,6 @@ import {
   requiredFieldsFor,
   roomHrefFromDesignRoom,
   serialiseRoomInput,
-  type RoomSearchParams,
 } from "@/room/room-url-state";
 
 import roMessages from "../../src/messages/ro.json";
@@ -114,28 +113,14 @@ const ANY_APPROVED_L_ROOM = fc.record({
   }),
 });
 
-/** A query as the page hands it over: a repeated key stays an array, because that is what
- *  `parseRoomUrlState` reads and a collapsed one would be a different question. */
-function queryOf(search: string): RoomSearchParams {
-  const params = new URLSearchParams(search);
-  return Object.fromEntries(
-    [...new Set(params.keys())].map((key) => {
-      const values = params.getAll(key);
-      return [key, values.length === 1 ? values[0] : values];
-    }),
-  );
-}
-
-/** The props the page last handed over. A URL change re-renders the screen with **these**: the
- *  browser hands the client another entry's query, not another server render, and a harness that
- *  re-parsed here would hide the stale-authority defects this wave closes. */
+/** What the route hands the screen: **nothing but its optional policy** (ruling R9). The browser
+ *  hands the client another entry's query, not another server render, and the props that used to
+ *  carry the server's parse are gone — so there is no second reading of the URL for a stale one to
+ *  hide in. */
 let screenProps: RoomScreenProps;
 
 function render(search: string, policy?: RoomPolicy): void {
-  const query = queryOf(search);
-  const state = parseRoomUrlState(query);
-  screenProps =
-    policy === undefined ? { state, query } : { state, query, policy };
+  screenProps = policy === undefined ? {} : { policy };
   arriveAt(search);
 }
 

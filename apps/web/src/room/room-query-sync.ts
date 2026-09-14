@@ -46,6 +46,7 @@ import {
   requiredFieldsFor,
   singleValue,
   type RoomSearchParams,
+  type RoomUrlState,
 } from "./room-url-state";
 
 /**
@@ -193,9 +194,9 @@ function useRoomDeparture({
   // **I6 — the shape step writes nothing.** No shape in the live query means the customer is at
   // 1A, whatever this component was last mounted for: *Înapoi* pushes the bare pathname and lands
   // exactly there, and a screen that then rewrote the address bar would undo the navigation the
-  // customer just made. Slice B makes the screen's own branch derive from the live query too, at
-  // which point this step also unmounts — but an invariant resting on a tree shape returns the
-  // moment the tree changes.
+  // customer just made. The screen's own branch now derives from the live query too, so the
+  // dimensions step genuinely unmounts at 1A — **and this guard stays**, because an invariant that
+  // rests on a tree shape comes back the moment the tree changes.
   const liveQueryNamesARoom = roomShapeInQuery(liveQuery) !== undefined;
 
   useEffect(() => {
@@ -411,7 +412,13 @@ export function roomDraftFromQuery(
 export function roomShapeInQuery(
   query: RoomSearchParams,
 ): RoomShape | undefined {
-  const state = parseRoomUrlState(query);
+  return roomShapeInState(parseRoomUrlState(query));
+}
+
+/** The same question of a parse already in hand. The screen marks the sub-state and branches on the
+ *  shape from one `parseRoomUrlState`, so the marker and the step it draws cannot describe two
+ *  different readings of one URL. */
+export function roomShapeInState(state: RoomUrlState): RoomShape | undefined {
   if (state.substate === "1A") return undefined;
   if (state.substate === "1B") return state.shape;
   return state.input.shape;
