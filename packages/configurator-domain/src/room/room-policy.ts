@@ -31,6 +31,8 @@ import {
 import { toExactMillimetres } from "../millimetres.js";
 import { LEVELS } from "../module-grid.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
+// Type-only, so it is erased and adds no edge to the module graph the head comment guards.
+import type { RoomShape } from "./validate-room.js";
 
 /** Whole millimetres, inclusive at both ends. */
 export interface MillimetreBounds {
@@ -75,6 +77,20 @@ export interface RoomPolicy {
   readonly approval: RoomPolicyApproval;
   readonly buildableShapes: BuildableShapes;
   readonly heightBounds: MillimetreBounds;
+}
+
+/** Whether `policy` states bounds for `shape`: a boolean and **no bound**, which is the only thing
+ *  ADR 0108 decision 3 lets a surface learn about a shape it offers. It reads the policy's data
+ *  rather than naming a shape, so a shape starts being offered by gaining its bounds in
+ *  `APPROVED_ROOM_POLICY` and by no edit to any caller — which is how wave 7J turns the straight
+ *  kitchen on without touching a component. */
+export function isShapeBuildable(
+  shape: RoomShape,
+  policy: RoomPolicy,
+): boolean {
+  const statedShapes: Readonly<Partial<Record<RoomShape, unknown>>> =
+    policy.buildableShapes;
+  return statedShapes[shape] !== undefined;
 }
 
 /** **Not a product bound — none of these is** (ADR 0108 decision 6, Amendment B). The minima are what

@@ -9,6 +9,7 @@ import {
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 
+import { metresTextForUrl } from "./metres-text";
 import { parseMetresToMillimetres } from "./parse-metres";
 
 /** Next.js' page-level query shape. Arrays are repeated values and are never silently collapsed. */
@@ -122,14 +123,14 @@ export function parseRoomUrlState(
 export function serialiseRoomInput(input: ParsedRoomInput): URLSearchParams {
   const params = new URLSearchParams();
   params.set("shape", input.shape);
-  params.set("wallA", metresText(input.wallAMm));
+  params.set("wallA", metresTextForUrl(input.wallAMm));
   if (input.shape !== "linear") {
-    params.set("wallB", metresText(input.wallBMm));
+    params.set("wallB", metresTextForUrl(input.wallBMm));
   }
   if (input.shape === "U") {
-    params.set("wallC", metresText(input.wallCMm));
+    params.set("wallC", metresTextForUrl(input.wallCMm));
   }
-  params.set("height", metresText(input.heightMm));
+  params.set("height", metresTextForUrl(input.heightMm));
   if (input.shape !== "linear") {
     params.set("direction", input.cornerDirection);
   }
@@ -178,7 +179,10 @@ function isCornerDirection(
   return value !== undefined && CORNER_DIRECTIONS.has(value as CornerDirection);
 }
 
-function requiredFieldsFor(
+/** The length fields a shape is entered with, in the order the URL and the form both read them.
+ *  Exported rather than copied: a wall added to a shape here grows the query and the form together,
+ *  so the two cannot disagree about what a shape is made of. */
+export function requiredFieldsFor(
   shape: RoomShape,
 ): readonly ("wallA" | "wallB" | "wallC" | "height")[] {
   if (shape === "linear") return ["wallA", "height"];
@@ -249,12 +253,4 @@ function requireDirection(
     throw new Error("Room URL state constructed before direction was parsed");
   }
   return direction;
-}
-
-function metresText(millimetres: number): string {
-  const wholeMetres = Math.floor(millimetres / 1000);
-  const remainder = millimetres % 1000;
-  if (remainder === 0) return String(wholeMetres);
-  const decimals = String(remainder).padStart(3, "0").replace(/0+$/, "");
-  return `${String(wholeMetres)}.${decimals}`;
 }

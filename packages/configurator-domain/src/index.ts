@@ -227,6 +227,9 @@ export * from "./migrate-design.js";
 // are deliberately not exported (Amendment B): they are what the approved policy is guarded
 // against, never a policy a surface may run on.
 export { APPROVED_ROOM_POLICY } from "./room/approved-room-policy.js";
+// The one question a surface asks about a shape it offers. Exported beside the policy's types so a
+// card reads the policy instead of spelling a shape's letter; `ENGINE_ROOM_LIMITS` stays unexported.
+export { isShapeBuildable } from "./room/room-policy.js";
 export type {
   BuildableShapes,
   LMinimumKitchen,
