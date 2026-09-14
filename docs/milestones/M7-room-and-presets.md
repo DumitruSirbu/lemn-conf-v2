@@ -48,10 +48,12 @@
 > 7F1-D45: 203 test files / 3,034 tests, typecheck, lint and whole-tree `format:check` green; a
 > production-build gate whose five checks all passed; adversarial QA with 19 deliberate breaks, 18 of
 > which reddened a test; one combined review, no blocker; and a closing 390 × 844 visual gate in both
-> locales with zero defects, which re-confirmed D4 and D5 closed in production. **`pnpm ci:local` is
-> in flight and its result is not yet known — it is not claimed here.** The new traversal e2e passed
-> locally against `next dev`; **CI runs it against a production build and CI is the verdict.** Next
-> wave: **7F4**.
+> locales with zero defects, which re-confirmed D4 and D5 closed in production. **`pnpm ci:local`
+> PASSED** — the script's own verdict line, `LOCAL CI PASSED — all gates green, safe to push`, with
+> **193 e2e tests in 5.7 minutes** against a production build, the new traversal spec among them; read
+> from the log rather than from an exit code. **CI is still the verdict for the runner's timing.** The
+> closing gate also found **one defect that is not this wave's** — the U chip drawing the L plan while
+> `wallC` is empty, 7F1-shipped behaviour, recorded against **7F2**. Next wave: **7F4**.
 > **Updated once more 2026-09-14 at `b18b38e`: 7H is planned ahead of its turn, at the owner's
 > request** — read [*Wave 7H — dispatchable punch list*](#wave-7h--dispatchable-punch-list), which is
 > the binding version of the 7H bullet in the earlier criteria section. 16 criteria, six slices, and
@@ -2462,18 +2464,50 @@ is looking at**, under ruling R9. Commits in order:
 - **One combined logic + clean-code review, no blocker**; its two legibility findings are folded at
   `6682d8e`, and a third finding it made is recorded as a rule rather than a repair — see *Înapoi*'s
   guard below.
-- **A closing visual gate at 390 × 844 in both locales, with zero defects filed**, which also
-  re-confirmed D4 and D5 closed in a production build.
+- **A closing visual gate at 390 × 844 in both locales, with zero defects filed.** Criterion 14 —
+  **44 px targets across 16 elements**, over both sub-states. Criterion 15 — **no horizontal overflow
+  at 390**, in both locales, across **five layout states**. The new caret check passed in **both**
+  locales. It re-confirmed **D4 and D5 closed in a production build**, and confirmed that a
+  **non-canonical arrival canonicalises in exactly one write with a `history.length` delta of 0** —
+  risk 1's replace loop, measured rather than argued.
 - **`pnpm ci:local` — PASSED.** The script's own verdict line: `LOCAL CI PASSED — all gates green,
   safe to push`. **193 e2e tests in 5.7 minutes** against a production build, including the new
   `room-traversal.qa.e2e.spec.ts`. Read from the log rather than taken from an exit code — a gate
   piped through `tail` once reported the pipe's status while the run itself had failed.
 
 **The new e2e, `dev` versus CI, stated honestly.** `apps/web/tests/e2e/room-traversal.qa.e2e.spec.ts`
-**passed locally against `next dev`**. Criterion 23 asks for a production build, and **CI runs the
-suite against one — CI is the verdict**; a green local run against a dev server proves nothing about
-the runner. What *was* measured in a production build is slice A's five-check gate and the closing
-visual gate, both above; the spec's own production run is CI's.
+**passed locally against `next dev`** while it was being written — which criterion 23 explicitly
+refuses as sufficient, because D4 and D5 were both found in a production build. **It ran against
+`next dev` inside `ci:local` too, and criterion 23's production requirement is therefore NOT met by
+any local run.** `playwright.config.ts:15` gates the server on `process.env.CI !== undefined`;
+`scripts/local-ci.sh` calls `pnpm test:e2e` without setting `CI`, so every one of that run's 193 e2e
+tests used `next dev`. **CI is the only run that satisfies criterion 23**, and the push reruns the
+gate.
+
+> **This paragraph briefly claimed the opposite and was corrected before the commit landed.** The
+> claim — that `ci:local` satisfied criterion 23 — is the kind that is *plausible from the gate's
+> name*: a script called `ci:local` reads as though it reproduces CI, and its own banner says *"safe
+> to push"*. It does not reproduce the one thing this criterion asks for. The check that settled it
+> was two greps and `printenv CI`, not a re-reading of the prose.
+>
+> **What does hold locally in a production build** is separate and stronger evidence for the same two
+> defects: slice A's five-check measurement gate and the closing visual gate, both above, each built
+> and served with `next build` + `next start` and each re-confirming D4 and D5 closed. The e2e's
+> value is that it will **keep** them closed on the runner; it is not what proved them closed.
+
+**One defect the closing gate found that this wave does not fix, recorded where the wave that owns it
+will meet it.** *Selecting the **U** chip while `wallC` is empty leaves the plan preview drawing the
+**L** plan.* It is **7F1-shipped behaviour and not a regression**, settled by the diff rather than by
+argument: this wave's source diff is exactly `app/[locale]/configurator/room/page.tsx`,
+`src/room/room-query-sync.ts` and `src/room/room-screen.tsx`, and `plan-preview.tsx` and
+`dimensions-form.tsx` are untouched. The surface is **7F2's**, and the entry is on 7F2's list of
+additions above — not in `docs/backlog/open.md`, which is for items with no owner and no phase.
+
+**Two observations that are not defects**, recorded so they are not filed as ones later: *Continuă*
+stays disabled on `linear` and `U` even when every field is filled, because only `L` carries bounds in
+`APPROVED_ROOM_POLICY` — that is criterion 3's asserted state, with the refusal sentence owed by 7F2;
+and the browser's default focus ring is blue against the brown palette, which this wave did not change
+and did not introduce.
 
 **Three things that must survive into the record.**
 
