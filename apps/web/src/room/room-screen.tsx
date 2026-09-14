@@ -102,7 +102,7 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
       {shapeInTheUrl === undefined ? (
         <ShapeStep policy={policy} />
       ) : (
-        <DimensionsStep shape={shapeInTheUrl} policy={policy} />
+        <DimensionsStep seedShape={shapeInTheUrl} policy={policy} />
       )}
     </main>
   );
@@ -191,7 +191,9 @@ function ShapeStep({ policy }: { readonly policy: RoomPolicy }) {
 }
 
 interface DimensionsStepProps {
-  readonly shape: RoomShape;
+  /** The first draft's shape and nothing more: the chips below read `draft.shape`, and a later URL
+   *  naming another shape re-seeds through the sync rather than through this prop. */
+  readonly seedShape: RoomShape;
   readonly policy: RoomPolicy;
 }
 
@@ -199,9 +201,9 @@ interface DimensionsStepProps {
  * Sub-states 1B onward: the chips, the live plan, the corner toggle and the length fields, over a
  * draft this component owns and a URL the sync keeps in step with it (ruling R9).
  */
-function DimensionsStep({ shape, policy }: DimensionsStepProps) {
+function DimensionsStep({ seedShape, policy }: DimensionsStepProps) {
   const translate = useTranslations();
-  const { draft, setDraft, departTo } = useRoomQuerySync(shape);
+  const { draft, setDraft, departTo } = useRoomQuerySync(seedShape);
 
   return (
     <>

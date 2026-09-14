@@ -85,28 +85,34 @@ export interface RoomQuerySync {
   readonly departTo: (destination: RoomDestination) => void;
 }
 
-/** The draft the customer is editing, kept in step with the URL the browser actually holds. */
-export function useRoomQuerySync(shape: RoomShape): RoomQuerySync {
+/**
+ * The draft the customer is editing, kept in step with the URL the browser actually holds.
+ *
+ * `seedShape` is **only** the shape the first draft is built with. Every later re-seeding reads the
+ * shape out of the live query inside `reconcileRoomDraft`, so passing a different one after mount
+ * changes nothing. It is a parameter rather than a read of the live query here because the caller
+ * has already proved a shape is there by rendering this step at all, and asking again would force
+ * an `undefined` branch that no URL can reach.
+ */
+export function useRoomQuerySync(seedShape: RoomShape): RoomQuerySync {
   const searchParams = useSearchParams();
   const liveQuery = queryFromSearchParams(searchParams);
   const liveText = searchParams.toString();
 
   const { draft, setDraft } = useReconciledRoomDraft({
-    shape,
+    seedShape,
     liveQuery,
     liveText,
   });
-  const departTo = useRoomDeparture({
-    liveQuery,
-    liveText,
-    canonicalText: canonicalRoomQuery(draft).toString(),
-  });
+  const draftText = canonicalRoomQuery(draft).toString();
+  const departTo = useRoomDeparture({ liveQuery, liveText, draftText });
 
   return { draft, setDraft, departTo };
 }
 
 interface ReconciliationInputs {
-  readonly shape: RoomShape;
+  /** Read once, in the lazy initialiser below, and inert on every render after it. */
+  readonly seedShape: RoomShape;
   readonly liveQuery: RoomSearchParams;
   readonly liveText: string;
 }
@@ -123,13 +129,13 @@ interface ReconciledRoomDraft {
  * one.
  */
 function useReconciledRoomDraft({
-  shape,
+  seedShape,
   liveQuery,
   liveText,
 }: ReconciliationInputs): ReconciledRoomDraft {
   const locale = useLocale();
   const [draft, setDraft] = useState<RoomDraft>(() =>
-    roomDraftFromQuery(shape, liveQuery, locale),
+    roomDraftFromQuery(seedShape, liveQuery, locale),
   );
   const [lastSeenText, setLastSeenText] = useState(liveText);
 
@@ -151,7 +157,8 @@ function useReconciledRoomDraft({
 interface DepartureInputs {
   readonly liveQuery: RoomSearchParams;
   readonly liveText: string;
-  readonly canonicalText: string;
+  /** `canonicalRoomQuery(draft).toString()` — the draft as the URL would carry it, never raw text. */
+  readonly draftText: string;
 }
 
 /** A navigation waiting on its own flush: where the customer asked to go, and the exact text that
@@ -183,7 +190,7 @@ interface ArmedDeparture {
 function useRoomDeparture({
   liveQuery,
   liveText,
-  canonicalText,
+  draftText,
 }: DepartureInputs): (destination: RoomDestination) => void {
   const navigation = useRoomNavigation();
   const latestNavigation = useRef(navigation);
@@ -231,10 +238,10 @@ function useRoomDeparture({
     // not need to be: a departure is armed from an event handler, and the next render after it is
     // the one this guard has to catch.
     if (armedDeparture.current !== undefined) return;
-    if (!liveQueryNamesARoom || liveText === canonicalText) return;
+    if (!liveQueryNamesARoom || liveText === draftText) return;
     const timer = setTimeout(() => {
       settleTimer.current = undefined;
-      latestNavigation.current.replaceWith(canonicalText);
+      latestNavigation.current.replaceWith(draftText);
     }, URL_SETTLE_MS);
     settleTimer.current = timer;
     // **I2 — a navigation beats a pending write.** Any change to `liveText` runs this cleanup
@@ -244,11 +251,11 @@ function useRoomDeparture({
       clearTimeout(timer);
       settleTimer.current = undefined;
     };
-  }, [liveQueryNamesARoom, liveText, canonicalText]);
+  }, [liveQueryNamesARoom, liveText, draftText]);
 
   return function departTo(destination: RoomDestination): void {
-    if (!liveQueryNamesARoom || liveText === canonicalText) {
-      navigation.pushTo(destination, canonicalText);
+    if (!liveQueryNamesARoom || liveText === draftText) {
+      navigation.pushTo(destination, draftText);
       return;
     }
     // Flush **now** rather than on the settle — the customer is leaving — and leave only once it
@@ -257,8 +264,8 @@ function useRoomDeparture({
     // when the state commits (`next/dist/client/components/app-router-instance.js:146-160`).
     clearTimeout(settleTimer.current);
     settleTimer.current = undefined;
-    navigation.replaceWith(canonicalText);
-    armedDeparture.current = { destination, flushedText: canonicalText };
+    navigation.replaceWith(draftText);
+    armedDeparture.current = { destination, flushedText: draftText };
   };
 }
 
@@ -316,7 +323,8 @@ export function reconcileRoomDraft({
   locale,
 }: RoomReconciliationInputs): RoomReconciliation {
   if (liveText === lastSeenText) return { draft, lastSeenText };
-  if (liveText === canonicalRoomQuery(draft).toString()) {
+  const draftText = canonicalRoomQuery(draft).toString();
+  if (liveText === draftText) {
     return { draft, lastSeenText: liveText };
   }
   // A query naming no shape names no room either, so the draft keeps the shape it has and loses
