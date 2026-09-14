@@ -5,6 +5,13 @@ Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7B and 7C (architect's plan, `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-09-14 — why the library exists at all:**
+[ADR 0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
+rules the division of labour between generation and presets — generation produces a correct, cheap
+baseline, and the owner's taste enters through presets. It is the authority on **which** decisions
+belong to a preset rather than to a generator rule; this record stays the authority on **what** a
+preset is. Waves 7B and 7C read it before deciding anything an adaptation drops.
+
 ## Context
 
 Frames 1E/D1E list *"Bucătării care încap"*: only presets that fit, each with its own **Folosește**,

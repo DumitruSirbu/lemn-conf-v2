@@ -5893,9 +5893,16 @@ Amendment F.** Reasons, with the counter-argument stated:
   fork:** the new record is the authority, and **Amendment F carries one line naming it**, so
   composition's own record still leads a reader to the rule that bounds it. The same line belongs in
   ADR 0109.
-- **Recommendation: a new ADR (next free number), with pointers from ADR 0110 Amendment F and
+- ~~**Recommendation: a new ADR (next free number), with pointers from ADR 0110 Amendment F and
   ADR 0109.** **Not written** — the coordinator asked to be told before an ADR file is touched, and
-  this is the telling.
+  this is the telling.~~
+- **WRITTEN 2026-09-14 as [ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)**
+  — *Generation produces a correct, cheap baseline, and the owner's taste enters through presets*. It
+  is the authority; this section is the draft it was written from, and **where the two differ the ADR
+  is binding**. ADR 0109 carries its pointer; **ADR 0110's Amendment F must carry the same line when
+  7D4's slice S0 writes it** — that amendment does not exist yet, which is why the obligation is
+  recorded here and in 0117's consequences rather than written into 0110 by someone who is not
+  authoring 7D4's rulings.
 
 **No 7D4 criterion changes on the strength of this.** Everything already settled stays settled; the
 principle explains the settlements rather than reopening them.
