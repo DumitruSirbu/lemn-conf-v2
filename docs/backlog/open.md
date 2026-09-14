@@ -26,6 +26,42 @@ recorded elsewhere" appendix closes the file, for items whose full record lives 
 
 ## Ruled or scheduled, awaiting a wave
 
+## 66. The catalogue has three full-height rows and no broom / utility unit — DEFERRED TO AFTER BETA, 2026-09-14
+
+> **Ruled by the owner, 2026-09-14**, while settling wave 7D3's tall-unit composition: *"add pantry and
+> other cabinets let for later, adding new cabinets will be like after having the beta testing… lets
+> focus now on building algorithm"*. Recorded at
+> [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+> Amendment E, **E12.4**. **Not part of wave 7D3, not planned, and gated on beta feedback** — it has no
+> wave and must not be given one before the owner has run the built product.
+
+**What is true in the code.** `buildInsertableBodyDefinitions` (`packages/configurator-domain/src/catalog.ts`)
+declares exactly three full-height rows: `tall-oven-tower` (fixed 600, an oven and a microwave),
+`tall-fridge-housing` (fixed 600, the niche for an integrated fridge) and `tall-pantry` (`'fit'`
+400–800, two tiers of door leaves, ADR 0048). `fridge-free` is full height in the drawn sense but is a
+free-standing appliance, priced at zero under ADR 0107, and is not a column.
+
+**The gap, against the ordinary industry taxonomy.** The notable absence is a **broom / utility
+unit** — a full-height cupboard with **one tall internal space** rather than shelves, for an ironing
+board, a vacuum cleaner or a broom. The pantry cannot stand in for it: its two door tiers imply a
+mid-height carcass division, so a customer who wants one tall void has nothing to choose. Behind that,
+in rough order of how often they are offered: a **pull-out larder** (full-height wire or solid
+pull-out), an **internal-drawer larder** (drawers behind full-height doors) and a **compact / midi
+housing** for a single built-in oven or a microwave at eye level in a shorter column.
+
+**Why it matters now.** Wave 7D3 composes a **block of up to three full-height columns** at a run's
+free end (ADR 0110 E2, E12). Its door columns are `tall-pantry` because that is the only door column
+the catalogue has — so **every generated three-column block is an oven tower plus two identical
+pantries**. A broom unit is the first body that would make a generated block look like the owner's own
+photographs rather than like a repetition, and the same argument applies to backlog entry 2's
+long-storage-run question and to wave **7D4**.
+
+**What deciding it would cost.** Each new row is a `catalog.ts` entry, a builder in
+`packages/three-adapter`, a price rule, a `kind` leaf in both message catalogues (ADR 0095), and the
+fidelity and parity coverage every body carries. The composition side is cheap by comparison: ADR 0110
+E12.1 already says *"any number of door columns"*, so a new door column enters the block as **data**
+with no rule change. **The expensive half is the body; the cheap half is using it.**
+
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
 > **STILL OPEN, and now half planned.** ~~The re-split half now has its mechanism: [ADR 0037](../decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
