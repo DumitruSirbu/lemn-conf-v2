@@ -622,4 +622,59 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6013427f303715ac1cd4a7a42779c8803e3f1c700d1cdc0e509edc87920dfc84",
   "rejection.width-unchanged":
     "29dbd133f142f0e3c48d4080dc7b115c9349eb0f8124d6f00465c37b6f548c75",
+  // M7 wave 7F1: Step 1's 26 leaves, added with the copy they pin (ADR 0113 decision 2). Nothing
+  // above this line moved — a moved hash here would mean a shipped string changed, which this wave
+  // does not do.
+  "room.back":
+    "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
+  "room.continue":
+    "5fc4497d148a38a8edd26e8536196fc907abc9394274fd067fa54f5d457755c9",
+  "room.cornerHint":
+    "bd5a2c4d03bb1b66072c20e300c0329e90c91fd11a03014c01db1e803001a3c1",
+  "room.cornerLeft":
+    "86dcbf5c87dc08b9ef49f2b0de4e96b2ccb572727795df8ddbde7bbd63d83e62",
+  "room.cornerQuestion":
+    "498eb900296c7dfda503e3451c1e9f25f642d0b75b6f2df378e898bcccf3b435",
+  "room.cornerRight":
+    "22ac05eb611df45e116bcbec6a8d48544680d714dd7b7f5343a2ea2794d141d1",
+  "room.dimensionsLater":
+    "1b00450091831491e1b4128640374d6a2a3ac0ad3e84ebc083e6b5a5310803f1",
+  "room.heightLabel":
+    "ff63771df164dbfdaf4e10f822bac40675197de9117bce6a26d7ae15afd8312c",
+  "room.planCaption":
+    "8dc37f456be3e5385df4820512a22970029bfccee43021d3e4d6d190c5dba4f5",
+  "room.planWallLabel":
+    "dade5b47ac28e92b98ad73ef0ffe5263be140b1960f054c1539036405e1b1ca1",
+  "room.shapeLead":
+    "4f30d5a158a82f441223af41a0a888c31f0ab0b47164b083f04fb7a16b8a87ee",
+  "room.shapeQuestion":
+    "88c85dac054b1bfef5587343154d205bd6a2400cce0635469e58c153039cd06a",
+  "room.shapes.L.detail":
+    "1dc3b5342f95611dca2bbf0d27ddf0d3b8f2b05a24c208d4c88b7a59ef16e284",
+  "room.shapes.L.name":
+    "e8c1b7c652b78671b20b12103391a6bc57dbba201df8b84857e2b024cfa78180",
+  "room.shapes.L.short":
+    "55dec6e9ea140c3315d27216f4666fbd72908dec0ab344499aefcbdcd44e7af1",
+  "room.shapes.U.detail":
+    "5333657fa5bbd81aebd848ff037cf01a63a76be92096d7b65453cddfc1542cd9",
+  "room.shapes.U.name":
+    "311c3de6c0a039ba6f720ab4e1824b8744616f1cee458042de72b79fdd4620b1",
+  "room.shapes.U.short":
+    "829f5c03174b4fd8b2fa5c300888623cb96d24bf72c57ce41e219dc053f32c6a",
+  "room.shapes.linear.detail":
+    "0bd2afe77a8ac5c486aa19f09b032dd73373e5c781ddb05a8bdea876cd17aac5",
+  "room.shapes.linear.name":
+    "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
+  "room.shapes.linear.short":
+    "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
+  "room.title":
+    "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
+  "room.unitMetres":
+    "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a",
+  "room.wallLabel.wallA":
+    "093642fdd3ae144d6efee42eefcf43c9154528c47e2d692700ef8ff3481de870",
+  "room.wallLabel.wallB":
+    "0fe4c619c2a80b68bc95fd2d2c66e91880ebbf887c4213cceaff0a2209277f97",
+  "room.wallLabel.wallC":
+    "3c9eb93e9ab7686ae3bb2a8b146948e745a027877479fdca591dc25c758047d3",
 };

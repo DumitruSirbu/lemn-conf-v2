@@ -49,9 +49,10 @@ import {
 
 import { resolveContent } from "../../src/i18n/content";
 import correctedRomanian from "../../src/messages/ro.json";
+import { catalogueLeaves } from "../support/catalogues";
 import { ro as romanianContent } from "../support/romanian-content";
 
-export type GoldenFixtureGroup = "content" | "rejection" | "catalog";
+export type GoldenFixtureGroup = "content" | "rejection" | "catalog" | "room";
 
 export interface GoldenFixture {
   readonly id: string;
@@ -541,6 +542,52 @@ export const CONTENT_FIXTURES: readonly GoldenFixture[] = [
   ...FUNCTION_CONTENT_FIXTURES,
 ];
 
+/** **Step 1's leaves, and the arguments each ICU one is rendered with.**
+ *
+ *  `room.planWallLabel` is the wave's only ICU leaf here: the frame draws *"A · 3,60 m"*, and both
+ *  the wall letter and the already-formatted metres arrive as arguments — the formatter owns the
+ *  separator (M7 criterion 8), so the fixture passes a formatted string and never a number. */
+const ROOM_RENDER_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "room.planWallLabel": { wall: "A", metres: "3,60" },
+};
+
+/**
+ * **M7 Step 1's copy, hashed straight from the catalogue (ADR 0113 decision 2).**
+ *
+ * A fourth group rather than rows in `content`, for the reason the head comment gives: these leaves
+ * are not on `Content` — the room screen reads `room.*` through next-intl — so the static walk
+ * cannot see them, and there is **no second author** to compare against. Declaring a `renderLegacy`
+ * here would be a fixture comparing a resolver to itself, which is the shape this file refuses.
+ * `GOLDEN_OUTPUT_SHA256` is this group's gate, exactly as it is the rejection group's.
+ *
+ * Built from `ro.json`'s own `room` subtree rather than from a hand-listed set, so a leaf added by a
+ * later 7F slice arrives hashed instead of arriving unwatched.
+ */
+export const ROOM_FIXTURES: readonly GoldenFixture[] = catalogueLeaves(
+  correctedRomanian.room,
+).map(([path, message]) => {
+  const sourceKey = `room.${path}`;
+  return {
+    id: sourceKey,
+    group: "room" as const,
+    sourceKey,
+    renderCorrected: () => {
+      const values = ROOM_RENDER_ARGUMENTS[sourceKey];
+      if (values !== undefined) return translateRuntime(sourceKey, values);
+      if (message.includes("{")) {
+        throw new Error(
+          `Room message ${sourceKey} is ICU without an explicit rendered fixture`,
+        );
+      }
+      return translateRuntime(sourceKey);
+    },
+  };
+});
+
+export const ROOM_RENDER_ARGUMENT_PATHS = Object.keys(ROOM_RENDER_ARGUMENTS);
+
 type RejectionMessageKey = Exclude<
   keyof typeof correctedRomanian.rejection,
   "parts"
@@ -881,6 +928,7 @@ export const CATALOGUE_FIXTURES: readonly GoldenFixture[] =
 
 export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...CONTENT_FIXTURES,
+  ...ROOM_FIXTURES,
   ...REJECTION_FIXTURES,
   ...CATALOGUE_FIXTURES,
 ];

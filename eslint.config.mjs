@@ -124,6 +124,35 @@ const UNKEYED_JSX_TEXT_SELECTORS = [
   },
 ];
 
+/** **The mockup's example room, banned as a number under `apps/web/src/room`** — M7 criterion 16.
+ *
+ *  Frame 1B draws a 3,60 × 2,40 m room 2,60 m high. Those three figures are that drawing's example,
+ *  not the product's rule: a room's bounds are `room/approved-room-policy.ts`'s to state, and the
+ *  plan's scale is derived from the lengths the customer typed. A module that spells one of them has
+ *  taken a measurement off a picture, which is the defect M7 wave 7F1 exists to keep out of the room
+ *  screen while it is being written.
+ *
+ *  **The literal, never the characters.** `3600` is already under this directory, in
+ *  `parse-metres.ts`'s head comment explaining that `3,6000` is 3600 mm — so a text gate would have
+ *  been red the day it landed and would have needed an exclusion that hollowed it out. A selector
+ *  reads the number the code builds against and leaves the prose quoting it alone, which is this
+ *  file's head comment's argument for the Romanian gate, applied again. */
+const ROOM_EXAMPLE_DIMENSIONS = [
+  { value: 3600, drawnAs: "wall A, 3,60 m" },
+  { value: 2400, drawnAs: "wall B, 2,40 m" },
+  { value: 2600, drawnAs: "the room height, 2,60 m" },
+];
+
+const ROOM_EXAMPLE_DIMENSION_SELECTORS = ROOM_EXAMPLE_DIMENSIONS.map(
+  ({ value, drawnAs }) => ({
+    selector: `Literal[value=${String(value)}]`,
+    message:
+      `${String(value)} is frame 1B's ${drawnAs}, and the mockup's example is an example. A room's ` +
+      "bounds come from the approved room policy; the plan's scale is derived from the draft. Quote " +
+      "the figure in a comment if it explains something — do not build against it (M7 criterion 16).",
+  }),
+);
+
 /** **The allow-list's file-level shape, and every entry's reason.**
  *
  *  The second shape is at the site: `// eslint-disable-next-line no-restricted-syntax -- …`, with the
@@ -402,6 +431,26 @@ export default tseslint.config(
         "error",
         ...ROMANIAN_LITERAL_SELECTORS,
         ...UNKEYED_JSX_TEXT_SELECTORS,
+      ],
+    },
+  },
+  {
+    // **The room's own gate, and why it re-declares two lists it does not own.**
+    //
+    // This block names `no-restricted-syntax` over a *subset* of the files the block directly above
+    // covers, and flat config replaces a rule's options rather than merging them — so spelling only
+    // the new selectors here would disarm both of that block's gates for exactly this directory,
+    // the one M7 grows the most new JSX text in. Its comment says so; this is that warning obeyed.
+    // The three lists therefore travel together, and
+    // `apps/web/tests/lint/room-example-dimensions.test.ts` asserts all three still fire.
+    name: "7F1: the room screen builds against no drawn example dimension",
+    files: ["apps/web/src/room/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...ROMANIAN_LITERAL_SELECTORS,
+        ...UNKEYED_JSX_TEXT_SELECTORS,
+        ...ROOM_EXAMPLE_DIMENSION_SELECTORS,
       ],
     },
   },

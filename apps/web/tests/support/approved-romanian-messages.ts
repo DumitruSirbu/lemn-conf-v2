@@ -27,6 +27,47 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     backAction: "Înapoi",
     reviewCta: "Verifică designul",
   },
+  // Step 1's screen, approved by ADR 0113 decision 2 in the wave that adds it. Every leaf is frame
+  // 1A's or 1B's wording used as written; `wallLabel.wallC` is the one drafted leaf, because no
+  // frame draws a U's third wall.
+  room: {
+    title: "Cameră",
+    shapeQuestion: "Ce formă are camera?",
+    shapeLead: "Alege conturul pereților pe care va sta bucătăria.",
+    shapes: {
+      linear: {
+        name: "Liniară",
+        detail: "Un singur perete",
+        short: "Liniară",
+      },
+      L: {
+        name: "În formă de L",
+        detail: "Doi pereți, un colț",
+        short: "În L",
+      },
+      U: {
+        name: "În formă de U",
+        detail: "Trei pereți",
+        short: "În U",
+      },
+    },
+    dimensionsLater: "Dimensiunile se cer după ce alegi forma.",
+    planCaption: "Plan de sus · previzualizare",
+    planWallLabel: "{wall} · {metres} m",
+    cornerQuestion: "Încotro merge cotul?",
+    cornerHint: "nu se deduce din lățimi",
+    cornerLeft: "La stânga",
+    cornerRight: "La dreapta",
+    wallLabel: {
+      wallA: "Perete A",
+      wallB: "Perete B",
+      wallC: "Perete C",
+    },
+    heightLabel: "Înălțimea camerei",
+    unitMetres: "m",
+    back: "Înapoi",
+    continue: "Continuă",
+  },
   panel: {
     close: "Închide panoul",
     done: "Gata",

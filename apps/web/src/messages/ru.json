@@ -23,6 +23,44 @@
     "backAction": "Назад",
     "reviewCta": "Проверить дизайн"
   },
+  "room": {
+    "title": "Комната",
+    "shapeQuestion": "Какой формы комната?",
+    "shapeLead": "Выбери контур стен, вдоль которых встанет кухня.",
+    "shapes": {
+      "linear": {
+        "name": "Линейная",
+        "detail": "Одна стена",
+        "short": "Линейная"
+      },
+      "L": {
+        "name": "Г-образная",
+        "detail": "Две стены, один угол",
+        "short": "Г-образная"
+      },
+      "U": {
+        "name": "П-образная",
+        "detail": "Три стены",
+        "short": "П-образная"
+      }
+    },
+    "dimensionsLater": "Размеры спросим после выбора формы.",
+    "planCaption": "Вид сверху · предпросмотр",
+    "planWallLabel": "{wall} · {metres} м",
+    "cornerQuestion": "Куда уходит угол?",
+    "cornerHint": "по ширинам не определить",
+    "cornerLeft": "Налево",
+    "cornerRight": "Направо",
+    "wallLabel": {
+      "wallA": "Стена A",
+      "wallB": "Стена B",
+      "wallC": "Стена C"
+    },
+    "heightLabel": "Высота комнаты",
+    "unitMetres": "м",
+    "back": "Назад",
+    "continue": "Продолжить"
+  },
   "panel": {
     "close": "Закрыть панель",
     "done": "Готово",
