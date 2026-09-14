@@ -932,7 +932,11 @@ anything imported from `design-source/`.
 **7H — the 3D room follows the design's room** (`lemnaria-3d-reference` skill applies)
 
 - **Anchor:** the corner (0, 0, 0), where wall A's plane (z = 0, fronts +Z) meets wall B's (x = 0,
-  fronts +X) — `room-transforms.ts:34-49`. No body moves.
+  fronts +X) — `packages/configurator-domain/src/room-transforms.ts:29-49` (**corrected 2026-09-14**:
+  the file is the domain's, not the three-adapter's, and `:29` is where the convention is stated;
+  `DEVELOPMENT-SPEC.md` §2 `:45-46` is its source). No body moves. **7H cites wave 7F1's criterion 12
+  for the anchor rather than re-deriving it** — the 2D plan adopts this same convention, and a
+  divergence between the two views is a defect neither side's unit tests can catch.
 - **Scaling rule:** only the shell's floor, its two wall planes and the wall-A backsplash change
   extent. No body, appliance, sink, handle or chamfer scales.
 - **Structural dependencies:** the run-end panel keeps following the records (ADR 0045), not the
@@ -1345,6 +1349,7 @@ table.
 | **7H** | The 3D room follows the entered room | *carried* | 7E2 | Full | **Yes** + desktop | — |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked |
+| ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
@@ -2395,6 +2400,42 @@ a `fast-check` sweep, **[visual]** the 390 × 844 gate, **[lint]** a rule run by
    rendered against a *fabricated* policy whose `buildableShapes` names a second shape, that shape's
    CTA **enables with no edit to the component** — which proves it asks `isShapeBuildable` rather than
    spelling `L`. **[component]**
+
+   > **R8 — `BuildableShapes` stays narrow; the fabricated policy keeps its cast, behind one named
+   > helper per package. Ruled 2026-09-14, on slice 1's finding, and recorded as
+   > [ADR 0116](../decisions/0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md),
+   > which is the binding version and carries the full sweep.** Slice 1 could not build the
+   > fabricated policy without `as BuildableShapes` (`tests/room/is-shape-buildable.test.ts:39-45`) and
+   > confined it rather than deciding; slice 4's component test meets the identical wall. **Widening
+   > the type to declare `linear?` now was proposed and is refused, on three grounds:**
+   >
+   > 1. **It would let production state something the validator does not honour.**
+   >    `isShapeBuildable` is deliberately shape-agnostic — it reports any key present in
+   >    `buildableShapes` (`room-policy.ts`, slice 1) — while `validateRoomInput` still refuses every
+   >    non-L input outright (`validate-room.ts:76`). Declaring `linear?` makes it **typechecked** to
+   >    populate linear bounds in `APPROVED_ROOM_POLICY`, at which point the card enables and the room
+   >    is then refused: two authorities disagreeing about one question, which is the defect
+   >    [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
+   >    names. **Today that state is unreachable because the type forbids it.** A cast in a test cannot
+   >    reach production; a widened type invites a half-change into it.
+   > 2. **Only the *numbers* are approved, not the *structure* that holds them.** F1 approved
+   >    1200–6300 mm (ADR 0108 Amendment D). It did not say whether a one-wall policy carries a
+   >    `minimumKitchen` block — the coupled sink-and-hob rule is a **two-wall** rule (Amendment C) and
+   >    plausibly collapses into the 1200 minimum, but that is 7J's analysis and it has not been done.
+   >    `ENGINE_ROOM_LIMITS` has **no linear entry** either, and Amendment D requires one
+   >    (*"approved values inside the engine's derived linear limits"*). Declaring the type now means
+   >    designing 7J's policy record from this chair, which is what ADR 0108 Amendment B decision B2's
+   >    *"Nothing here guesses them"* forbids.
+   > 3. **The inter-wave contract does not need it.** *"7J is a data-only change"* was the attraction,
+   >    and it was never quite true: 7J must also teach `validateRoomInput` to map a linear input onto
+   >    a `DesignRoom` (ADR 0108 decision 8). The contract 7F1 actually owes is narrower and survives
+   >    intact: **7J changes nothing under `apps/web/src/room`.** That is what criterion 3 proves.
+   >
+   > **So:** slice 4 repeats the cast behind **one named helper in `apps/web`**, commented as slice 1's
+   > is, naming this ruling. Two casts in two packages' tests is the honest price of a type that
+   > refuses to describe a shape nobody has designed yet. **7J widens `BuildableShapes`,
+   > `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` together**, and deletes both
+   > helpers in the same wave — at which point the cast's absence is the proof the widening was real.
 4. **One field per wall of the chosen shape, plus the height.** For each shape the rendered field-name
    set equals `requiredFieldsFor(shape)` — the **same function the URL parser uses**, exported rather
    than copied, so a wall added to a shape there makes the form grow with no edit to the form. This is
@@ -2438,11 +2479,39 @@ a `fast-check` sweep, **[visual]** the 390 × 844 gate, **[lint]** a rule run by
     either extreme of the range; and the drawn **wall thickness is a drawing constant that does not
     scale with the room**. **Must not:** an axis-independent normalisation (it would draw a 6,0 × 1,0 m
     room as a square), a wall drawn at a fixed length, or a scale read off the frame's example pixels.
-    **Anchor:** the corner is the drawing's origin, wall A runs right along the top and wall B down the
-    side — the domain's own corner at (0, 0, 0) with wall A on the z = 0 plane and wall B on x = 0
-    (`room-transforms.ts`, named in 7H). **Structural dependency: none** — the plan reads the draft's
-    lengths and direction and nothing else: no cabinet, no placement, no catalogue, and no depth
-    (ADR 0083 decision 2). **[property]** on the pure model, **[visual]** for the drawing.
+    **Structural dependency: none** — the plan reads the draft's lengths and direction and nothing else:
+    no cabinet, no placement, no catalogue, and no depth (ADR 0083 decision 2). **[property]** on the
+    pure model, **[visual]** for the drawing.
+
+    > **The anchor is adopted, never re-derived. Added 2026-09-14, before slice 3, and verified in the
+    > tree.** The 2D plan uses the project's **existing** wall convention rather than inventing a
+    > parallel one, because a 2D plan that disagrees with the 3D room it produces is a defect **no unit
+    > test on either side can catch — each is self-consistent**, and only a customer comparing the two
+    > would see it.
+    >
+    > **The convention, quoted from its source.** `DEVELOPMENT-SPEC.md` §2 (`:45-46`): ***Wall A** =
+    > back wall, plane **z = 0**, fronts face +Z, `rotation.y = 0`*; ***Wall B** = left wall, plane
+    > **x = 0**, fronts face +X, `rotation.y = π/2`*. Implemented in `WALL_TRANSFORMS`, whose own
+    > comment adds the part that matters here — *"Both walk 'along' from the corner where they meet
+    > (0,0,0)"*: wall A's tangent is +X and wall B's is +Z, from a shared origin.
+    >
+    > **So, for a top-down drawing with +X to the right and +Z downward:** the corner is the drawing's
+    > origin; **wall A runs right along the top** and **wall B runs down the side**. That is the view
+    > frame 1B draws, so the frame and the domain already agree and this criterion only writes the
+    > agreement down. **Must not:** flip the +Z axis (a top-down view looks *down*, so +Z goes down the
+    > screen, not up as a plotted Y axis would), or place the corner anywhere but the drawing's origin.
+    >
+    > **Two corrections to the citation the earlier 7H plan carries**, both verified today rather than
+    > copied: the file is **`packages/configurator-domain/src/room-transforms.ts`** — the **domain**,
+    > not `packages/three-adapter`, which matters because 7F1's must-not list fences off the adapter and
+    > an implementer chasing the wrong package would find nothing. And the convention is stated at
+    > **`:29-49`** (the doc comment plus `WALL_TRANSFORMS`); the earlier plan's `:34-49` names only the
+    > constant and omits the sentence that states the rule. **Wave 7H cites this criterion by name
+    > instead of re-deriving the anchor**, so the 2D and 3D views cannot drift apart.
+    >
+    > **The anchor and the scale are separable, and only the scale is in question.** The isotropic-scale
+    > clause above is with the owner as this plan's single departure from the frames (R4); the anchor is
+    > not, and does not move whichever way that answer goes.
 13. **Mirroring reflects the drawing and nothing else.** With `direction: "right"` the plan is the
     reflection of the `"left"` plan about the preview box's vertical centre line. **Must not:** swapping
     `wallA` and `wallB`; changing a field label (*Perete A* stays the horizontal wall); changing any
