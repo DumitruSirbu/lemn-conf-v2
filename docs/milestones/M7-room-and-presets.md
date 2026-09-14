@@ -8,9 +8,11 @@
 > local M7 commit through it are pushed to `origin/m7-room-and-presets`.
 > **Updated 2026-09-12: wave 7D2 is DONE at `4133cdc`, closed at `2126d52`. Updated 2026-09-13:
 > wave 7A2 is DONE at `f97d621`, closed at `6cde5ef`. Wave 7E1 is DONE at `57f1e94`, closed at
-> `160983d`; next wave: 7E2.** Final `pnpm ci:local` and the pre-push rerun passed in full; every M7
+> `160983d`.** Final `pnpm ci:local` and the pre-push rerun passed in full; every M7
 > commit through `160983d` is pushed to
 > `origin/m7-room-and-presets`.
+> **Updated 2026-09-14: wave 7E2 is DONE at `470e5c9`; next wave: 7F1.** `pnpm ci:local` had not
+> been run at close-out time — it is not claimed here and is recorded separately when it lands.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -700,14 +702,14 @@ Branch: waves land on `m7-room-and-presets`.
 | **7D1** | Generation shell: the structural corner plus recorded empty space fitted to the room | `src/generation/shell-design.ts`, `src/index.ts` | 7B | **Full** | No | none |
 | **7D2** | Priority insertion through `insertBody`; the step log | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/index.ts` (+ a real-probe parity test in `three-adapter/tests`) | 7D1 | **Full** | No | none (interim priorities; Q3 is data) |
 | **7E1** | `/configurator/room` route, URL state, proxy allow-list, `/` → Step 1 — **DONE, `57f1e94`** | `apps/web/src/proxy.ts`, `app/[locale]/configurator/room/page.tsx`, `src/room/room-url-state.ts`, `app/[locale]/page.tsx` | 7A | **Full** (every route) | Unstyled only | Q7 interim |
-| **7E2** | Create the design (mint, then an awaited `PUT`), `/d/{id}` only after the write, editor back links, start-over, demo URL after first save | `src/room/create-design.ts`, `app/configurator/configure/configure-screen.tsx`, `app/d/[id]/design-load-error.tsx`, `src/store/configurator-store.ts` | 7B, 7E1 | **Full + security** | Light check | Q7 interim |
+| **7E2** | Create the design (mint, then an awaited `PUT`), `/d/{id}` only after the write, editor back links, start-over, demo URL after first save — **DONE, `470e5c9`** | `src/room/create-design.ts`, `app/configurator/configure/configure-screen.tsx`, `app/d/[id]/design-load-error.tsx`, `src/store/configurator-store.ts` | 7B, 7E1 | **Full + security** | Light check | Q7 interim |
 | **7F1** | 1A shape cards; 1B fields, corner toggle, live 2D plan | `src/room/room-screen.tsx`, `shape-picker.tsx`, `dimensions-form.tsx`, `plan-preview.tsx`, `room.module.css` (+ `messages/ro.json`, `ru.json`) | 7A, 7E1 | Light | **Yes** | Q8 at close |
 | **7F2** | 1C validation state, shape refusal, the wall marked red | `dimensions-form.tsx`, `plan-preview.tsx`, `src/room/room-issue-copy.ts` (+ messages) | 7F1 | Light | **Yes** | Q5 interim |
 | **7F3** | 1D skeletons; 1E list and cards — counts by band, finish summary, starting price, **Folosește** | `src/room/preset-list.tsx`, `preset-card.tsx`, `preset-card-model.ts`, `room.module.css` (+ messages) | 7B, 7E2, 7F1 | Light | **Yes** | — |
 | **7F4** | 1F composition steps, struck *nu încape*, straight into the editor | `src/room/generation-steps.tsx`, `generation-model.ts`, `use-generation.ts`, `room.module.css` (+ messages) | 7D2, 7E2, 7F1 | **Full** (kit lifetime) | **Yes** | — |
 | **7G** | Preset thumbnails from the recipe; in-repo rig; recipe fingerprints | `app/internal/scene-shot/shot-request.ts`, `scene-shot.tsx`, `apps/web/scripts/capture-preset-thumbnails.mjs`, `src/room/preset-thumbnails.ts` (+ `public/presets/*.png`) | 7B, 7F3 | Light | Capture | Q4 (which recipes) |
 | **7H** | The 3D room follows the design's room: shell planes and camera framing | `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/stage.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `apps/web/src/scene/scene-view.ts` | 7E2 | **Full** (3D, fidelity gate) | **Yes**, and desktop | — |
-| **7I** | Corner to the right: the mirrored kitchen | `configurator-domain/src/design.ts` (optional `room.cornerDirection`), the adapter's scene root, `plan-preview.tsx`, `stage.ts` | 7H | **Full** | **Yes** | **blocked on Q6** |
+| **7I** | Corner to the right: the mirrored kitchen. **Owes 7E2's deferral**: `room-url-state.ts`'s `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` (correct today, ADR 0111 decision 8 — absent means left) and must gain the optional field | `configurator-domain/src/design.ts` (optional `room.cornerDirection`), the adapter's scene root, `plan-preview.tsx`, `stage.ts`, `apps/web/src/room/room-url-state.ts` | 7H | **Full** | **Yes** | **blocked on Q6** |
 | **7J** | Straight kitchens through composition | `src/room/room-policy.ts`, `src/generation/shell-design.ts`, `src/room/validate-room.ts` | 7D2, 7F2 | **Full** | **Yes** | **blocked on Q5** (only if *yes*) |
 | **7K** | **The mobile gate**: touch through all six states into the editor, Back, reload, restore | `apps/web/tests/e2e/*` only | 7F1–7F4, 7G, 7H | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line, D1A–D1F | `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `src/room/validation-suggestion.tsx` | 7F1–7F4 | Light | Desktop 1440 × 900 | Q5 (D1C's suggestion) |
@@ -1270,7 +1272,7 @@ table.
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
-| **7E2** | Create the design; `/d/{id}` only after the write; back links | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
+| **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan | *carried* | 7A, 7E1 | Light | **Yes** | — |
 | **7F4** | 1F composition steps into the editor | *carried*, plus *minimum not met* → 1C | 7D2, 7E2, 7F1 | Full (kit) | **Yes** | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
@@ -1287,7 +1289,7 @@ table.
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room | *carried* | 7E2 | Full | **Yes** + desktop | — |
-| **7I** | Mirrored right-hand L; a mirror that works on one group | *carried*, plus the per-group primitive | 7H | Full | **Yes** | answered (Q6) |
+| **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
@@ -1327,7 +1329,8 @@ after another.
 ADR 0110 Amendments A–D are the live contract below.~~ ~~**Corrected 2026-09-12: 7D2 is DONE at
 `4133cdc`; next dispatchable wave: 7A2.**~~ **Corrected 2026-09-13: 7A2 is DONE at `f97d621`,
 closed at `6cde5ef`; next dispatchable wave: 7E1.** **Corrected again 2026-09-13: 7E1 is DONE at
-`57f1e94`; next dispatchable wave: 7E2.** 7A2's shipped contract is ADR 0108 Amendment E and the
+`57f1e94`; next dispatchable wave: 7E2.** **Corrected again 2026-09-14: 7E2 is DONE at `470e5c9`;
+next dispatchable wave: 7F1.** 7A2's shipped contract is ADR 0108 Amendment E and the
 criteria below.
 
 ### Revised criteria for new and changed waves
@@ -1606,8 +1609,29 @@ wall marked red.
 
 **7F3 (add):** the list reads the library (7P1); a card shows every declared change per wall.
 
+> **Carried forward from 7E2's close-out, 2026-09-14.** (a) Construct the design-creation attempt
+> where the selection's state lives, never inside the click handler. (b) Acceptance criterion: two
+> taps on the rendered **Folosește** issue exactly one `POST /api/designs`, asserted through the
+> component with a stubbed fetch — a factory-level test cannot substitute, which is precisely the
+> gap 7E2 could not close from below. **Why this is owed rather than optional:** each attempt carries
+> its own mint identity, correctly implementing ADR 0111 decision 5 (choosing again creates a new
+> design) but opting out of `FetchConfigurationRepository`'s shared
+> `defaultProvisionalMintIdentity` — so "exactly one row however many times it is tapped" holds only
+> *within* one attempt instance today, and a handler written the obvious way mints a row per tap with
+> nothing currently red to catch it. (c) Consider a `useDesignCreationAttempt(design)` hook so
+> per-tap construction fails loudly. (d) Re-assert criterion 1's round-trip deep-equal on a genuinely
+> *evaluated* preset design — 7E2 proved it only for fixture-derived documents.
+
 **7K (add):** a returning visitor opening `/` lands on their design; opening `/configurator/configure`
 never shows an editor; no customer journey can reach the save-as-preset control.
+
+> **Carried forward from 7E2's close-out, 2026-09-14.** Add the evaluated-design round-trip assertion
+> from 7F3 item (d) above to 7K's own sweep.
+
+**7F4 (add), carried forward from 7E2's close-out, 2026-09-14:** one attempt is one hand-off,
+discarded after success — `runPromise` is deliberately never cleared on success, since it is
+terminal. A re-run of generation is a new selection and needs a new attempt. 7F3's (a) and (b) above
+apply equally to the generation hand-off.
 
 ## Wave 7D1 — dispatchable punch list
 
@@ -2101,6 +2125,67 @@ Implementation is `57f1e94`; documentation close-out is `160983d`. The final `pn
 the pre-push rerun both passed all gates: format, lint, typecheck, unit tests, **191 Playwright
 passes with 2 expected skips**, build, boundaries, lockfile and SCA. Every M7 commit through
 `160983d` is pushed to `origin/m7-room-and-presets`. Next wave: **7E2**.
+
+### 7E2 close-out — 2026-09-14, `470e5c9`
+
+**What shipped:** `createDesignCreationAttempt` (`apps/web/src/room/create-design.ts`, new) — one
+deliberate selection, minting once and writing before navigation. Concurrent taps on one attempt
+collapse to a single `POST`; a failed `PUT` retries onto the already-minted row; a failed mint
+re-mints with no stray write; the completed write is cached before navigation so a throwing router
+retries only the hand-off; a synchronous repository throw becomes a rejection so both failure shapes
+share one retry path. The editor's two back controls and the load-error start-over are now live
+links to `/configurator/room` carrying the design's room, through `roomHrefFromDesignRoom` in
+`room-url-state.ts`. 15 files, 1,297 insertions, 18 deletions.
+
+**Adversarial QA:** round 2, the final focused suite, passed **22 test files, 381 tests, 0 failed**,
+under `rtk proxy`. The coordinator re-ran it after the review fixes and reproduced the identical
+22/381.
+
+**Reviews:** logic review found all six criteria met, nothing contradicting ADR 0111, ADR 0069
+decision 5b, ADR 0085 or ADR 0104/0108. Clean-code review reported no must-fix items and three
+clarity items, all applied. Security review is **clean** — the wave adds no dependency, no
+environment variable and no API route.
+
+**Light visual check at 390 × 844:** all four navigation items pass. Both back controls keep the
+22 px back column and 52 px bottom row; no underline or link colour; 44 px targets met; no
+horizontal overflow on the editor, the room route or the error page.
+
+**Coordinator verification, as measured — none of it rounded up:** whole-tree `pnpm format:check`
+clean; `git diff --check` clean; typecheck and lint clean. **`pnpm ci:local` had not been run at the
+time of this close-out** — it is not claimed here, and is recorded separately when it lands, as with
+7E1's push.
+
+**Honest limits, recorded rather than smoothed over:**
+
+1. `createDesignCreationAttempt` has no production caller this wave. Waves 7F3 (**Folosește**) and
+   7F4 (generation) wire it — a deliberate seam between waves, not an oversight.
+2. Consequently criterion 2's *"a mint or `PUT` failure leaves the customer on Step 1 with the chosen
+   card and a retry"* has no UI to exercise this wave. It is proven at the unit level only.
+3. Criterion 5 is satisfied only as far as this wave can reach. The criterion says the back links
+   lead to Step 1 *"with the design's room filled in"*; 7E1's route renders no input elements at all,
+   so no field population could be verified. What was verified: the room reaches the URL to the
+   millimetre (seed `3560/2920/2600` → `3.56/2.92/2.6`) and the server parses it to substate 1D with
+   nothing marked. Field population is 7F1's surface.
+4. Visual gaps: no hydrated `/d/{id}` design was exercised (the verifier declined to write a row into
+   the live database for a light check); the `linear` branch of `roomHrefFromDesignRoom` was never
+   exercised in a browser (covered by the unit sweep; reachable only once 7J lands); keyboard
+   activation was not verified.
+5. Criterion 4 detail worth recording: QA found the route round-trip could **not** reach the
+   version-keyed room correction, because it lives in `NeonConfigurationRepository.load` and a fake
+   repository returns the document untouched. Closed by two `migrateDesign` tests — unchanged at
+   `CURRENT_SCHEMA_VERSION`, rewritten at version 2 — built from one shared factory so the version key
+   is provably the only difference.
+
+**Two security facts worth recording as findings, not absences:** a `PUT` that lands but fails at the
+gateway is safe to retry — it re-sends the mint's revision, which the row refuses with 409 rather
+than overwriting. `provisionalMintIdentity` is opaque and per-attempt, so wave 7E3a can add the
+visitor hash and the `__Host-` cookie at the route without changing this client's contract.
+
+**Carry-forwards against 7I, 7F3, 7F4 and 7K** are recorded at each wave's own row or criteria above,
+not repeated here.
+
+Implementation is `470e5c9`. `pnpm ci:local` has not yet run; this close-out is markdown-only and
+makes no push claim. Next wave: **7F1**.
 
 ## Verification
 
