@@ -477,8 +477,9 @@ security audit. The wave plans are `docs/milestones/M7-room-and-presets.md`, *Wa
 reference photographs raised; both are answered the same day, the hold is fully lifted, and the
 tall-body supply question OQ-1 is answered too (E12) — `tall-pantry` is reinstated and a block of two
 or three columns is composable from the catalogue as it stands. **No catalogue change is authorised
-and wave 7D3 is dispatchable.** One question remains open, **OQ-2**, which no wave can currently
-reach: whether a *base* cabinet is enough between a fridge and a *tall* oven tower.
+and wave 7D3 is dispatchable.** ~~One question remains open, **OQ-2**~~ — **OQ-2 was answered by the
+owner on 2026-09-14 and is recorded as E13: the separator's kind follows where the oven is.** **No
+question in this amendment is open.**
 
 **Two coordinator inferences in this amendment were put to the owner rather than built on. One came
 back confirmed and one came back wrong** — E10.4's *"the block excludes the fridge"*, withdrawn and
@@ -893,13 +894,20 @@ inside a block. **They chose none of the three**, and ruled, verbatim:
 > *"or minimum have another cabinets between them"*
 
 **E10.4.1 — the rule: the fridge and the oven may stand in the same run, and even in the same block,
-provided at least one cabinet stands between them.** What is barred is the **shared side panel** — two
-carcasses touching — and not nearness. This is narrower than E10.1 as first drafted and narrower than
-the withdrawn inference, and **it explains the photographs without calling them a minority case**,
-which is why it is coherent rather than a softening: a separating carcass answers the thermal reason
-**physically**, by breaking the conduction path, rather than by trading it against a layout preference.
-**E10.1's two reasons stand unchanged, the thermal one first, and are still barred from being traded
-away.**
+provided at least one cabinet stands between them.** **What is barred is ADJACENCY — a shared side
+panel, two carcasses touching — and never proximity.** This is narrower than E10.1 as first drafted
+and narrower than the withdrawn inference, and **it explains the photographs without calling them a
+minority case**, which is why it is coherent rather than a softening: a separating carcass answers the
+thermal reason **physically**, by breaking the conduction path, rather than by trading it against a
+layout preference. **E10.1's two reasons stand unchanged, the thermal one first, and are still barred
+from being traded away.**
+
+> **The same sentence, in the owner's own words, three clauses later** — E13.5, 2026-09-14: *"i said
+> that fridge should not be near oven but if they are not near then is not needed any special
+> separator cabinet"*. **E10 and E13 say this in the same words deliberately**, so that a reader who
+> lands on either cannot find a second, broader framing and adopt it. **Every loose phrasing of this
+> rule — *"near"*, *"beside"*, *"the problem of having the oven near the fridge"* — is the same
+> adjacency constraint, and none of them is a proximity rule.**
 
 **E10.4.2 — what it changes for composition: nothing this wave does, and the reason is now a better
 one.** A block may contain both a fridge column and the oven column with a door column between them;
@@ -943,7 +951,13 @@ columns apart inside a block still passes it. It is worth asserting precisely *b
 today: it is bought by Amendment A1's reading order, and a later wave that re-orders a run (7D4) or
 puts a fridge in a block would otherwise break a physical constraint with no test to notice.
 
-### E10.5 — does a base cabinet count as the separating cabinet? Half of it the geometry settles; half of it is OQ-2
+### E10.5 — does a base cabinet count as the separating cabinet? ~~Half of it the geometry settles; half of it is OQ-2~~ — **both halves answered by the owner in E13**
+
+> **Answered 2026-09-14 (E13), and the geometry below turned out to predict the answer.** The owner
+> ruled the same split this section derived: **a base cabinet is enough beside an oven under the hob,
+> and is not enough beside an oven in a tall cabinet — there the separator must itself be tall.** The
+> working below is kept because it is *why*, and because E13.4's minimum-width consequence is read off
+> it.
 
 The owner said *"another cabinets"* without qualifying, so the question was worked out from the heat
 path rather than the module count, as asked. **It splits in two, and only one half needs anyone.**
@@ -970,13 +984,14 @@ above it:
   across open air.
 
 So a base cabinet plus an upper is **not** a continuous barrier at the tower oven's own height, and
-the geometry does not answer whether that matters. **It is stated as OQ-2 and not chosen.**
+the geometry does not answer whether that matters. ~~**It is stated as OQ-2 and not chosen.**~~ **The
+owner chose, 2026-09-14: beside a tower the separator must itself be tall (E13).**
 
 **It blocks nothing, and it is not reachable by this wave.** A generated kitchen never places a fridge
 next-but-one to a tower: A1 fixes the fridge at a run's start, the block stands at wall A's free end,
-and the measured minimum separation is **1800 mm — sink, preparation and hob**. OQ-2 becomes live only
-when a wave places a fridge **inside or beside a block**, which E10.4 now permits in principle and
-which nothing plans. **Recorded here so that wave does not re-derive it.**
+and the measured minimum separation is **1800 mm — sink, preparation and hob**. E13's **branch 1**
+becomes live only when a wave places a fridge **inside or beside a block**, which E10.4 permits in
+principle and which nothing plans. **Recorded here so that wave does not re-derive it.**
 
 ### E11 — the top row stays excluded, and that is now the owner's own ruling
 
@@ -1065,12 +1080,72 @@ and behind it pull-out and internal-drawer larders and a compact housing — is 
 `docs/backlog/open.md` entry **66**, gated on beta feedback. **It is not part of wave 7D3 and is not
 planned.**
 
-### OQ-2 — open, blocking nothing: is a base cabinet enough between a fridge and a *tall* oven tower?
+### E13 — the separator's kind follows where the oven is: OQ-2, answered
 
-**Not put to the owner now**, on their own instruction — *"lets focus now on building algorithm"* —
-and because no wave can reach it. The geometry above is the finding; the question is whether the
-owner's *"another cabinets"* means **any** cabinet or, where both bodies are full height, **another
-full-height column**. The natural moment to ask is the wave that first composes a fridge into a block.
+**The owner, verbatim, 2026-09-14 — their own words, not a relay:**
+
+> *"if oven is in tall cabinet than between fridge and that particular cabinet should be another tall
+> cabinet, if the oven is under the hob being part of that cabinet with hob, than can be used any type
+> tall or standard cabinet"*
+
+**E13.1 — two branches, and the condition is *where the oven is*, never how wide the run is.**
+
+| the oven is… | the separator between it and the fridge must be… |
+| --- | --- |
+| **in a tall cabinet** (`tall-oven-tower`) | **another tall cabinet.** Not a base cabinet, not a gap. |
+| **under the hob**, part of the hob cabinet (`base-hob-oven`) | **any type — tall or standard.** |
+
+**Do not flatten the two branches.** The owner distinguished them deliberately and the distinction is
+**physical**: an oven under a worktop radiates within the base row, where a fridge's full height is
+mostly *not*; an oven at chest height in a column radiates straight into the neighbouring column for
+its whole depth. E10.1's thermal reason is the same in both branches — what changes is what it takes
+to break the path.
+
+**E13.2 — what this does to the existing record: it confirms, strengthens and relaxes, in that
+order.** It **confirms** E10.4's rule that a fridge and an oven are never adjacent; it **strengthens**
+branch 1 by constraining what the separator may *be*, where E10.4 only required that one exist; and it
+**relaxes** branch 2 explicitly. **E10.5's open question is answered for both branches** — a base
+cabinet is enough beside a hob-oven and is *not* enough beside a tower — and E10.5's measured geometry
+is why: the tower's oven reaches above the 860 mm worktop line into the open backsplash band, which a
+base cabinet does not cover, while the hob's oven sits entirely below it.
+
+**E13.3 — what generation does today, and it is untouched.** In every kitchen this generator composes,
+the oven under the hob is separated from `fridge-free` by the **sink and the preparation cabinet** —
+two base cabinets, minimum 1800 mm. **That is branch 2, and branch 2 explicitly blesses it.** The
+generator never places a fridge near a tower: the fridge stands where Amendment A1's reading order puts
+it, at a run's start, and the block stands at wall A's free end (E2, E10.4.2). **So branch 1 is not
+reachable by wave 7D3, no criterion changes, and no threshold moves.**
+
+**E13.4 — the consequence for whichever wave first composes a fridge into a block, recorded now so it
+is not rediscovered.** Branch 1 means a fridge column and an oven tower in one block imply a **third**
+tall body between them — so such a block is **three columns minimum**, which by E3's measured table
+needs **4500 mm of wall A** (5200 mm where wall B cannot hold the fridge). **Nothing in this record
+adjusts a threshold on that basis**; it is stated as the consequence it is.
+
+**E13.5 — the separator rule is conditional on proximity. ANSWERED by the owner, 2026-09-14 — their
+own words, not a relay:**
+
+> *"i said that fridge should not be near oven but if they are not near then is not needed any special
+> separator cabinet"*
+
+**The rule: E13.1's two branches govern only a fridge and an oven that are *near each other*. Where
+they are not near — opposite ends of a run, with base cabinets between — no special separator cabinet
+is required at all.** A tall separator is what makes **non-adjacency** true when the two would
+otherwise touch; it is not a tax on every kitchen that contains both.
+
+**This is the third time the same distinction has done real work, and E10 and E13 now say it in the
+same words: what the owner refuses is ADJACENCY — a shared side panel — and never proximity.** The
+earlier phrasing *"the problem of having the oven near the fridge"* (E10) was the loose form of this
+same adjacency constraint, and E10.1 already carries the correction. **A later reader must not be able
+to find two framings here and pick the broad one.**
+
+> **The working that led to the question, kept because it is why the question was worth asking.** The
+> broad reading — that any fridge and any oven in one kitchen need a tall cabinet between them — would
+> have required **a tall cabinet mid-run in every kitchen that has both**, contradicting the owner's
+> own *"not in the middle, but with the edges"* (E1, E2). That contradiction is what turned this from
+> an implementation detail into a one-line question. ~~The wave that makes branch 1 reachable must put
+> the specific case back to the owner.~~ **Struck: it has been put and answered. A record that asks
+> for a ruling it already holds is worse than one that never asked.**
 
 ### OQ-1 — ANSWERED 2026-09-14 by E12. A block needed two or three tall bodies and the catalogue appeared to have one
 

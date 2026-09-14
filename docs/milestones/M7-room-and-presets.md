@@ -3976,7 +3976,16 @@ Worked from the heat path rather than the module count.
   the owner's own arrangement, for their own reason, and what the photographs show. The geometry
   agrees: `base-hob-oven`'s oven sits **entirely below the worktop**, in the same 0–860 mm band as the
   separating carcasses, so the separator covers its full height.
-- **Between the fridge and a *tall oven tower*: the geometry does not answer it.** Measured,
+> **ANSWERED by the owner, 2026-09-14 (ADR 0110 **E13**), and the split below is the split they
+> ruled:** *"if oven is in tall cabinet than between fridge and that particular cabinet should be
+> another tall cabinet, if the oven is under the hob being part of that cabinet with hob, than can be
+> used any type tall or standard cabinet"*. **Branch 2 blesses what this wave already composes** —
+> fridge, sink, preparation, hob-with-oven, two base cabinets between. **Branch 1 is unreachable
+> here**, because the generator never places a fridge near the tower. **No criterion changes and no
+> threshold moves.**
+
+- **Between the fridge and a *tall oven tower*: the geometry does not answer it** — *the owner did,
+  and it answered as this working predicted: the separator must itself be tall.* Measured,
   `OVEN_TOWER_DOOR_BAND_HEIGHTS_MM` is `[500, 500]` in a 2200 mm frame — one leaf under the oven, one
   over the microwave — so the appliances sit in the column's middle and the oven reaches **above** the
   860 mm worktop line. A base cabinet covers only its lower part; **860–1500 is the backsplash gap and
@@ -4256,7 +4265,8 @@ QT-1 … QT-5 are recorded as ADR 0110 Amendment E's E8, E9, E3, E2 and E8; **QT
 their closing instruction was *"lets focus now on building algorithm"* — so no new question goes to
 them unless something genuinely blocks a slice. One thing is left **open and unreachable** rather than
 asked: **whether a base cabinet is enough between a fridge and a tall oven tower** (QT-7's second
-half, ADR 0110 **OQ-2**).
+half, ADR 0110 **OQ-2**) — **answered by the owner on 2026-09-14 as ADR 0110 E13; nothing in this
+wave is open.**
 
 - **QT-6 — a block of two or three columns needs two or three tall bodies, and the catalogue appeared
   to have one. ANSWERED by the owner, 2026-09-14: `tall-pantry` is reinstated; new body types wait for
@@ -4285,12 +4295,25 @@ half, ADR 0110 **OQ-2**).
   been marked as this plan's one inference and as something not to harden before an answer; that
   marking is why it was asked rather than built on.
 
-  **Left open, blocking nothing, not put to the owner now** (their *"lets focus now on building
-  algorithm"*): whether a **base** cabinet is enough between the fridge and a **tall** oven tower, or
-  whether both being full height asks for a full-height separator. D7.3 has the geometry — the tower's
-  oven reaches above the worktop line, the backsplash gap above it is open air, the wall row is
-  shallower than either body. **Not reachable by this wave**; the natural moment to ask is the wave
-  that first composes a fridge into a block.
+  ~~**Left open, blocking nothing, not put to the owner now**: whether a **base** cabinet is enough
+  between the fridge and a **tall** oven tower.~~ **ANSWERED by the owner, 2026-09-14 (ADR 0110
+  E13):** *"if oven is in tall cabinet than between fridge and that particular cabinet should be
+  another tall cabinet, if the oven is under the hob being part of that cabinet with hob, than can be
+  used any type tall or standard cabinet"*. **Two branches, conditional on where the oven is — not on
+  how wide the run is, and they must not be flattened.** The answer matches what D7.3's geometry
+  predicted. **For this wave: branch 2 blesses what it already composes; branch 1 is unreachable, and
+  nothing changes.** The consequence for a later wave: a fridge column and an oven tower in one block
+  imply a **third** tall body between them, so **three columns minimum — 4500 mm of wall A** by D2.2's
+  table. **No threshold is adjusted on that reading.**
+
+  **And the rule is conditional on proximity** — owner, verbatim, 2026-09-14: *"i said that fridge
+  should not be near oven but if they are not near then is not needed any special separator cabinet"*.
+  **So the separator branches govern only a fridge and an oven that would otherwise touch.** Where they
+  stand at opposite ends of a run with base cabinets between — which is every kitchen this wave
+  composes — **no special separator is required at all.** **What the owner refuses is ADJACENCY, a
+  shared side panel, and never proximity**; every loose phrasing of it (*"near"*, *"beside"*) is that
+  same constraint. **Nothing about this is an open question any more**, and no wave is owed a
+  follow-up on it.
 
 - **QT-1 — should `tall-fridge-housing` replace `fridge-free` at an end?** **Answered by the owner:
   no — `fridge-free` stands.** They accepted all three reasons. *Cost:* under ADR 0107 a free-standing
@@ -4413,7 +4436,7 @@ dishwasher niche is and costs);
 | --- | --- | --- |
 | R1 | **Roughly half drawers, half doors** — their own worked example is six slots giving three and three. | New. Every leftover slot is `base-cabinet` today (`generation-priorities.ts:27`, `:165-172`). |
 | R2 | **Maximising the variety of cabinet types is an explicit goal**, stated in as many words. | New, and it is the answer to the eleven, not a decoration on it. `base-3drawer`, `base-panbank`, `base-dishwasher` and `base-bottle-cargo` exist and are never generated. |
-| R3 | **The dishwasher stands beside the sink, after it.** Owner-confirmed. | New. No dishwasher is generated today. The word *after* is read in the owner's own order (A1) — see D7 and **Q-D1**. |
+| R3 | **The dishwasher is directly adjacent to the sink — either side — or it is not placed at all** (owner, 2026-09-14, answering Q-D1 twice; the second answer binds). ~~after it~~ ~~*"ideally directly near"* rather than necessarily touching~~ | New. No dishwasher is generated today. ~~The word *after* is read in the owner's own order (A1)~~ — the owner refused that premise (*"left or right… not mandatory left"*) and then **upgraded adjacency from a preference to a rule**: *"it should not be near only if is totally missing"*. **The fallback is omission, not displacement.** See D7 and **Q-D1**. |
 | R4 | **Drawers go before the hob**, for cutlery reached during cutting and preparation. | A1 already puts a **preparation** cabinet there. This names what that role's body should be — D6. |
 | R5 | Richer clients prefer drawers, thriftier ones doors. | **Context, not a rule.** There is no customer budget input and this wave invents none. It is why both classes appear at all, and it is why the price consequence in G9 is recorded rather than hidden. |
 
@@ -4745,17 +4768,23 @@ wall A (witness **1500 × 2800**). **This wave does not add a rule for that 4.9 
 
 > **MOVED TO WAVE 7D5 by D11, 2026-09-14. Nothing here is built by 7D4.** The rulings below are the
 > owner's and are recorded where they were worked out; the wave that builds them is 7D5, with the
-> bottle cargo (D2.2), for the reason D11 gives. **Q-D1 — which side of the sink — is deliberately
-> left open and travels with it**; it is not to be resolved on 7D4's record.
+> bottle cargo (D2.2), for the reason D11 gives. ~~**Q-D1 — which side of the sink — is deliberately
+> left open and travels with it**~~ — **Q-D1 was answered by the owner on 2026-09-14: either side, and
+> ~~adjacency is a preference rather than an invariant~~ **and — on their second answer the same day,
+> which binds — adjacency is a RULE: the dishwasher abuts the sink or is dropped.** The answer travels
+> to 7D5 with the rest.
 
 - **It is core, not storage.** Plumbing is the reason it must be *beside* the sink — it drains into
   the sink's waste and takes the sink's supply, so the two carcasses have to abut — and storage stands
   only at a run's ends, which is nowhere near the sink in most rooms. So it enters
   `GENERATION_PRIORITIES` as a role, not the cycle.
-- **Which side: after the sink, in the owner's own order.** A1's order reads fridge → sink → hob left
+- ~~**Which side: after the sink, in the owner's own order.** A1's order reads fridge → sink → hob left
   to right; the owner said *"dishasher is afetr sink"* in that vocabulary, so *after* is read there
-  rather than reinterpreted. The order becomes **fridge → sink → dishwasher → preparation → hob**.
-  **Confirm with Q-D1 before S5 is dispatched.**
+  rather than reinterpreted. The order becomes **fridge → sink → dishwasher → preparation → hob**.~~
+  **SUPERSEDED by the owner, 2026-09-14 (Q-D1): *"dishwasher can be on left or right of the sink not
+  mandatory left. Ideally directly near"*.** Either side is valid, adjacency is a **preference and not
+  an invariant**, and the planner chooses by fit. `fridge → sink → dishwasher → preparation → hob`
+  remains a **permitted** layout — it is no longer *the* layout, and nothing may assert it.
 - **Three things that fall out of it for free, and none of them is the reason it was chosen.** The
   sink stands between the fridge and the dishwasher, so a dishwasher's heat is never against a fridge
   (ADR 0110 E10's thermal reason names the oven and is **not** extended here by side effect); the
@@ -5187,7 +5216,8 @@ flight together.
   *interim data*, **with R6's softening recorded as a preference and the deleted criterion named**;
   D8's wall-row rule with R8's motion as its reason and R7's proportions recorded as guidance;
   **D10's priority and the owner's reasoning for it**; the dishwasher's position, drop order and
-  threshold cost, with **Q-D1 and Q-D2 marked as open**; the bottle cargo's exclusion with ADR 0026's
+  threshold cost, with ~~**Q-D1 and**~~ **Q-D2 marked as open** (**Q-D1 was answered 2026-09-14**);
+  the bottle cargo's exclusion with ADR 0026's
   reason; G9's and G16's price figures, so the variety goal is a knowing choice; **R10's top-row lift
   rule with the stretch-ceiling reason stated first, recorded and not built**; and **D0's correction of
   the reason 7D4 was said to depend on 7D3**. Markdown only. **No other slice starts until it exists
@@ -5285,11 +5315,84 @@ flight together.
     it, spending the wave's attention where 5 % of rooms and a smaller share of customers live.
     **D10 exists to be cited when that happens.**
 
-### Owner questions — three open, three answered, each with a recommendation
+### Owner questions — two open, five answered, each with a recommendation
 
-**Q-D1 — which side of the sink does the dishwasher stand on? PENDING FOR 7D5, and deliberately NOT
-resolved here** (D11). It blocks nothing in 7D4, and it is to be **put to the owner when 7D5 is
-planned rather than inferred now while inferring is cheap**. Both readings, kept whole:
+*(Q-D1 moved from open to answered on 2026-09-14.)*
+
+**Q-D1 — which side of the sink does the dishwasher stand on? ANSWERED by the owner, 2026-09-14 —
+their own words, not a relay:**
+
+> *"dishwasher can be on left or right of the sink not mandatory left. Ideally directly near"*
+
+**Neither reading below was chosen: the owner refused the question's premise.** Read as rules, for
+wave 7D5 to build:
+
+- **Either side of the sink is valid.** The wave **must not encode a left-hand preference**, and a
+  test that asserts one is wrong. The planner still produces one deterministic layout — the quote
+  permits a choice, it does not demand a coin toss — but *which* side is the planner's to decide by
+  fit, not a rule to be asserted.
+- **A useful freedom falls out: the dishwasher may go to whichever side fits.** A run that cannot
+  take it after the sink may take it before, instead of dropping it.
+- ~~**Adjacency is a preference, not an invariant.** *"Ideally directly near"* — **a dishwasher one
+  slot from the sink is acceptable output, not a defect.** No criterion may fail a composition because
+  the dishwasher is not touching the sink.~~
+  **SUPERSEDED THE SAME DAY — adjacency is a RULE. Both quotes, so the progression is visible:**
+  *"Ideally directly near"* became **"I preffer tha it will be like a rule, its most convienent
+  placement and it should not be near only if is totally missing"** (owner, verbatim, 2026-09-14).
+  **The dishwasher is directly adjacent to the sink — left or right — or it is not placed at all.
+  There is no third state, and a dishwasher two slots from the sink is not a degraded layout but wrong
+  output.** Read as three clauses:
+  1. **Adjacency is a constraint, not a tiebreaker.** The planner **rearranges around it** rather than
+     taking whatever fits — which reverses the *"chosen by fit"* framing of the struck clause above.
+  2. **Either side stays valid.** *"left or right of the sink not mandatory left"* is **not**
+     withdrawn; no test may assert a side.
+  3. **The fallback is omission, never displacement.** Where the sink's neighbours cannot take it, the
+     dishwasher is **dropped** — *"should not be near only if is totally missing"*.
+- **Clause 3 closes a loop with an existing ruling rather than opening one.** It is the owner's earlier
+  priority ruling arrived at from the other direction — *"if to choose between a dishwasher and a
+  cabinet with drawers, cabinet with drawers have higher priority"*. Both say **the dishwasher is the
+  thing that gives way**. **So a narrow kitchen losing its dishwasher is intended output, not a
+  compositional failure**, and nobody may later read an absent dishwasher as a bug to fix.
+- **What stands beside the sink today, measured — for 7D5 to plan against, and the reason clause 1 is
+  harder than it sounds.** Over 217 213 sampled rooms in which a sink is placed:
+
+  | what is on either side of the sink, on its own wall | rooms |
+  | --- | --- |
+  | `CORNER │ sink │ preparation` | **131 309 (60 %)** |
+  | `preparation │ sink │ fridge` | 23 518 |
+  | `fridge │ sink │ preparation` | 20 936 |
+  | `storage │ sink │ fridge` | 13 614 |
+  | `preparation │ sink │ FREE-END` | 8 659 |
+  | `CORNER │ sink │ FREE-END` (the sink alone on its wall) | 7 422 |
+  | the remaining four shapes, hob- or storage-sided | 11 755 |
+
+  **In 67 % of rooms the sink is the first body on its wall, so one of its two sides is the structural
+  corner and cannot be given to anything.** The dominant single shape is corner-on-one-side,
+  preparation-on-the-other — **so in most kitchens the only slot the dishwasher can have is the
+  preparation cabinet's**, and taking it pushes preparation and the hob 600 mm along the run.
+- **The one slot two rules can both want, and it is already resolved.** Where the run affords exactly
+  one body between the sink and the hob, D6's *preparation immediately before the hob* and clause 1's
+  *dishwasher against the sink* want the same slot. **The owner has already ruled it** — *"if to choose
+  between a dishwasher and a cabinet with drawers, cabinet with drawers have higher priority"* — so
+  **the drawers win and the dishwasher is dropped**, which is clause 3 again. **No new owner question
+  arises from this**, and 7D5 must not invent one.
+- **One thing 7D5 must not decide for itself: adjacency across the corner.** Where the sink is first on
+  its wall, its other side is the corner assembly — and whether a dishwasher on the *other* wall counts
+  as *"directly near"* is not something the owner has been asked. **The coordinator's reading is that it
+  does not**, since a 900 mm structural corner physically stands between the two carcasses and the
+  plumbing argument (*"drains into the sink's waste"*) assumes abutting bodies. **That is a reading and
+  is marked as one**; it is cheap to confirm and should be confirmed rather than assumed, because it
+  decides the 67 %.
+- **The coordinator's earlier reading — *"between sink and preparation"* — is superseded**, struck
+  below rather than deleted, with the owner's words beside it.
+- ~~**The standing rule applies, and the binary to watch for:** the quote does not say how far *"near"*
+  may drift. If 7D5's implementation needs a hard bound — *at most one slot away*, say — **that is a
+  specific choice to put back to the owner, not to pick.**~~ **CLOSED the same day: the bound is ZERO
+  slots.** The question was right to ask and was one round short of settled; **it is struck rather than
+  left standing, because an open question the owner has already answered is worse than one never
+  asked.**
+
+~~Both readings, kept whole:~~ **kept below as the record of what was put to the owner and refused.**
 
 - **Reading A — *after* the sink in A1's own order: fridge → sink → dishwasher → preparation → hob.**
   The owner said *"dishasher is afetr sink"* in the left-to-right vocabulary they themselves set, so
@@ -5397,7 +5500,18 @@ never appears there). Two things 7F4 must know:
 - **What it inherits ready-made:** the dishwasher's frequency, ladder position and cost note (D7); the
   cargo's feasibility arithmetic and its *both neighbours ≥ 500 mm* rule (D2.2); criteria 16–18 above,
   already written; and risk R11.
-- **What it owes the owner first: Q-D1**, which side of the sink, deliberately left open (D11).
+- ~~**What it owes the owner first: Q-D1**, which side of the sink, deliberately left open (D11).~~
+  ~~**Q-D1 is answered: either side, and *"ideally directly near"* is a preference, not an
+  invariant.**~~ **Q-D1 is answered twice, and the second answer is the binding one (owner,
+  2026-09-14): either side, and adjacency is a RULE — *"it should not be near only if is totally
+  missing"*. The dishwasher abuts the sink or is dropped. This wave owes the owner nothing further on
+  it.**
+- **What that changes for this wave's shape, and it is not nothing.** The dishwasher was charted here
+  as one of *"the two bodies that change the run's arithmetic"* — a **width** story. Adjacency makes it
+  additionally a **placement constraint on the sink's neighbours**, which the cargo is not. **The
+  charter still holds** — both bodies still re-baseline the same two things, which is why they share a
+  wave — **but the planner work is no longer symmetric between them, and the wave's slice order should
+  be planned against that rather than inherited from this bullet.**
 - **Its hardest single obligation** is restating 7D3's criterion 12 against its own planner and
   recording the restatement in the ADR — **not editing a 7D3 assertion**, which is a finding.
 
