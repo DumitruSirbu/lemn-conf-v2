@@ -18,7 +18,6 @@
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
-  type CornerDirection,
   type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
@@ -59,7 +58,9 @@ import {
 } from "./room-draft";
 import { parseMetresToMillimetres } from "./parse-metres";
 import {
+  isCornerDirection,
   requiredFieldsFor,
+  singleValue,
   type RoomSearchParams,
   type RoomUrlState,
 } from "./room-url-state";
@@ -318,7 +319,7 @@ function roomEntryKey(shape: RoomShape, query: RoomSearchParams): string {
   // M7B each add a key to this list, and a key joined from raw values is a collision waiting on a
   // schema change. Do not simplify this away.
   return roomKeys
-    .map((key) => encodeURIComponent(singleValueIn(query[key]) ?? ""))
+    .map((key) => encodeURIComponent(singleValue(query[key]) ?? ""))
     .join("|");
 }
 
@@ -333,7 +334,7 @@ function roomDraftFromQuery(
     (draft, field) => withLengthFromQuery(draft, field, query[field], locale),
     createRoomDraft(shape),
   );
-  const direction = singleValueIn(query.direction);
+  const direction = singleValue(query.direction);
   return isCornerDirection(direction)
     ? withCornerDirection(withLengths, direction)
     : withLengths;
@@ -345,22 +346,10 @@ function withLengthFromQuery(
   value: RoomSearchParams[string],
   locale: string,
 ): RoomDraft {
-  const parsed = parseMetresToMillimetres(singleValueIn(value) ?? "");
+  const parsed = parseMetresToMillimetres(singleValue(value) ?? "");
   return parsed.ok
     ? withStoredLength(draft, { field, millimetres: parsed.mm, locale })
     : draft;
-}
-
-/** A repeated key is not a value — the same rule `parseRoomUrlState` reads the query by, so the form
- *  and the parser cannot disagree about what `?wallA=3.6&wallA=4.2` means. */
-function singleValueIn(value: RoomSearchParams[string]): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function isCornerDirection(
-  value: string | undefined,
-): value is CornerDirection {
-  return value === "left" || value === "right";
 }
 
 /** *Continuă* leads on once the shape can be built and every field the shape asks for reads as a

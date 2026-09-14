@@ -71,7 +71,15 @@ export type PlanPreview = DrawnPlanPreview | EmptyPlanPreview;
 export const PLAN_WALL_THICKNESS_PX = 12;
 
 /** `left` is the drawn convention, with the corner at the origin the world puts it at; `right` is
- *  that same drawing reflected, and nothing else (criterion 13). */
+ *  that same drawing reflected, and nothing else (criterion 13).
+ *
+ *  **A `linear` draft is mirrored too, and that is deliberate.** Every draft carries a corner
+ *  direction whatever its shape (`room-draft.ts:59-83`) even though only `carriesCornerDirection`
+ *  shapes show a control for it, so `right` reaches this branch under `linear` as well. All a linear
+ *  plan draws is wall A, centred, which reflects onto itself — the rule is left unconditional
+ *  because it already changes nothing there, not because the `linear` case went unconsidered. The
+ *  corner point still swaps ends, which is the truth about a lone wall rather than a defect: it is
+ *  the end the room would turn at, and no linear plan draws a turn. */
 const MIRRORED_CORNER_DIRECTION: CornerDirection = "right";
 
 /** The walls a plan can draw, each with the field that gives it its length. The height is a field

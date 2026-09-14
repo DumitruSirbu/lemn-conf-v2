@@ -165,7 +165,11 @@ function invalidShape(): RoomUrlState {
   return { substate: "1A", markedFields: ["shape"] };
 }
 
-function singleValue(value: RoomSearchParams[string]): string | undefined {
+/** A repeated key is not a value. Exported rather than copied: the form reads the query by the same
+ *  rule the parser does, so the two cannot disagree about what `?wallA=3.6&wallA=4.2` means. */
+export function singleValue(
+  value: RoomSearchParams[string],
+): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
@@ -173,7 +177,9 @@ function isRoomShape(value: string | undefined): value is RoomShape {
   return value !== undefined && ROOM_SHAPES.has(value as RoomShape);
 }
 
-function isCornerDirection(
+/** Exported rather than copied, for the same reason as `singleValue`: a third corner direction is
+ *  added to `CORNER_DIRECTIONS` alone, and the form accepts it the moment the parser does. */
+export function isCornerDirection(
   value: string | undefined,
 ): value is CornerDirection {
   return value !== undefined && CORNER_DIRECTIONS.has(value as CornerDirection);
