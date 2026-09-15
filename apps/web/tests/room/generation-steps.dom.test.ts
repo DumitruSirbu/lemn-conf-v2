@@ -91,6 +91,7 @@ function renderRun(run: ActiveGenerationRun): void {
         children: createElement(GenerationSteps, {
           run,
           onBack: () => undefined,
+          onRetry: () => undefined,
         }),
         locale: "ro",
         messages: roMessages,
@@ -126,6 +127,10 @@ function composedRun(): ActiveGenerationRun {
     rows: resolveGenerationRows(result.log),
     design: result.design,
     log: result.log,
+    // The hand-off's two fields, which this file has no opinion about: it reads row classes. The
+    // attempt is never run, and `saving` is the state a composition is in the instant it exists.
+    attempt: { run: () => Promise.reject(new Error("never run here")) },
+    handoff: "saving",
   };
 }
 

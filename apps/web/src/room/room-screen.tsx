@@ -281,7 +281,13 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
   }
 
   if (run.state.phase !== "idle") {
-    return <GenerationSteps run={run.state} onBack={run.leave} />;
+    return (
+      <GenerationSteps
+        run={run.state}
+        onBack={run.leave}
+        onRetry={run.retryHandoff}
+      />
+    );
   }
 
   return (

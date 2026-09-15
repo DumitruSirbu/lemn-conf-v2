@@ -370,6 +370,7 @@ beforeEach(() => {
   adapter.probeConstructionThrows = false;
   adapter.disposalThrows = false;
   phaseTrail.length = 0;
+  holdEveryRequestOpen();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -382,7 +383,25 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.unstubAllGlobals();
 });
+
+/**
+ * **The hand-off wave 7F4b added, held open here rather than left to the network** (2026-09-15).
+ *
+ * A composition that settles now mints a design, and until this stub existed that `POST` left
+ * `happy-dom` opening a real socket to `localhost:3000` — an `ECONNREFUSED` per settled run, whose
+ * timing decided how far the hand-off got. **This file's subject is the kit and the run token**, and
+ * every assertion in it predates the hand-off.
+ *
+ * **It never answers, rather than failing**, so the hand-off produces no state change at all here: a
+ * rejection would land after the test that started it had finished, updating `RoomScreen` outside
+ * `act` and printing a warning per run. The hand-off's own guarantees — including what a refused
+ * write does to the screen — are `room-handoff.dom.test.ts`'s.
+ */
+function holdEveryRequestOpen(): void {
+  vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+}
 
 describe("a kit that exists before the lease does (criterion 28, risk 5)", () => {
   it.each([

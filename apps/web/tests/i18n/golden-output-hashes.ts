@@ -28,6 +28,11 @@
  * day's second ruling (*"not Ce includem but Ce este inclus"*) made 1F's list heading passive, so it
  * says *inclus* in the voice its own `status.placed` rows use. **One moved and no others**, verified
  * by diffing the 64-hex values alone rather than the file.
+ *
+ * **Grown again, never rebaselined, by wave 7F4b** — `room.compose.retry` and
+ * `room.compose.saveFailed`, the two sentences the hand-off owes and no frame draws. **Two added and
+ * no existing hash moved**, which is what a copy-adding wave owes: a moved hash would mean an
+ * approved sentence changed, and none did.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -655,6 +660,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "33c0c8a4c64822a0b5c87f68a299d4594477b4212cb8cdecc2d5ea8b12ca64a2",
   "room.compose.noPresetNotice":
     "feac196b98380da021c1e927c609160ff0643754fb66b1eda93860532c596ed7",
+  "room.compose.retry":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
   "room.compose.role.fridge":
     "47759269b7057594ed4fd329b9bcde97d9f43c5b6d22bc39590e269421680a41",
   "room.compose.role.hob":
@@ -673,6 +680,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "284b7e6d788f363f910f7beb1910473e23ce9d6c871f1ce0f31f22a982d48ad4",
   "room.compose.rule":
     "c0ab39bf9a66816c8300e8280ba3e05f2d5424c92edf56ad4b7cc3da62c4c3e6",
+  "room.compose.saveFailed":
+    "60b62ebef7456c982be74a1c02b1eebabc5306eee0486c43e95c81d875998887",
   "room.compose.status.notPlaced":
     "91af24868a56435376f937ac4c6ae9baf820e9fd618a37f24b3aeae36f7764f0",
   "room.compose.status.pending":

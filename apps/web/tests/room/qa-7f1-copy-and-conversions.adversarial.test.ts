@@ -57,8 +57,9 @@ const ROOM_KEYS: readonly string[] = catalogueLeaves(roMessages)
 
 describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () => {
   it("added the namespace this file is about, so the claims below are not vacuous", () => {
-    // 26 from wave 7F1's frames 1A and 1B, plus wave 7F4a's 20 under `room.compose.*` for 1F.
-    expect(ROOM_KEYS.length).toBe(46);
+    // 26 from wave 7F1's frames 1A and 1B, wave 7F4a's 20 under `room.compose.*` for 1F, and wave
+    // 7F4b's 2 for the hand-off that 1F's footer now performs.
+    expect(ROOM_KEYS.length).toBe(48);
   });
 
   it.each(ROOM_KEYS)("reads %s somewhere under src/room", (key) => {

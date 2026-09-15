@@ -290,6 +290,7 @@ beforeEach(() => {
   vi.mocked(generateKitchen).mockClear();
   kitLedger.built = 0;
   kitLedger.disposed = 0;
+  holdEveryRequestOpen();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -300,7 +301,27 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.unstubAllGlobals();
 });
+
+/**
+ * **The hand-off wave 7F4b added, held open here rather than left to the network** (2026-09-15).
+ *
+ * A composition that settles now mints a design, and until this stub existed that `POST` left
+ * `happy-dom` opening a real socket to `localhost:3000` — an `ECONNREFUSED` per settled run, whose
+ * timing decided how far the hand-off got and therefore whether a second `browser.push` had landed
+ * by the time an assertion below counted them. **This file's subject is the composition**, and every
+ * assertion in it predates the hand-off; holding the write open keeps each one measuring what it was
+ * written to measure and leaves every push count the departure's alone.
+ *
+ * **It never answers, rather than failing**, so the hand-off produces no state change at all here: a
+ * rejection would land after the test that started it had finished, updating `RoomScreen` outside
+ * `act`. The hand-off's own guarantees — one row, navigation only after the write, and the disarm —
+ * are `room-handoff.dom.test.ts`'s.
+ */
+function holdEveryRequestOpen(): void {
+  vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+}
 
 /**
  * **The two departure sequences this wave made new, and the reason they are tested here.**
@@ -355,8 +376,14 @@ describe("a departure in flight, with a composition beside it", () => {
     deliverTheFlush();
 
     // The push fires, and it carries the room the customer is looking at — the URL already showing,
-    // so it mints no history entry. **This is the seam 7F4b inherits:** when the destination becomes
-    // the editor, this late push must not navigate a customer who has walked back to the form.
+    // so it mints no history entry.
+    //
+    // **The seam this named for 7F4b, and where it was settled.** The late thing a primary tap arms
+    // is no longer only this flush: it also arms a write, whose own navigation *does* move the
+    // customer. That one is disarmed by the run token — `room-handoff.dom.test.ts`'s
+    // *"lets the write land but moves nobody when the customer has gone back"*. **This push stayed a
+    // no-op**, and `room-query-sync.ts` was not touched to make it one: its destination is still the
+    // room's own query, which is the URL already showing.
     expect(browser.push).toHaveBeenCalledTimes(1);
     expect(queryOf(browser.push.mock.calls[0]?.[0]).get("wallA")).toBe("4.3");
     expect(maybeAt("room-fields")).not.toBe(null);

@@ -757,6 +757,14 @@
   border-radius: 12px;
 }
 
+/* The retry the failed hand-off offers (wave 7F4b, criterion 41), which is the form's own primary
+ * button rather than a second one: `.dimensionsFooter .cta` carries the identical rule one footer
+ * up, for the identical reason — a 96 px *Înapoi* beside it and the rest of the row to fill. The
+ * class's own declarations are 7F1's and are untouched. */
+.composeFooter .cta {
+  flex: 1;
+}
+
 .composeCtaSpinner {
   flex: 0 0 14px;
   width: 14px;

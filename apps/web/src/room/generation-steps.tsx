@@ -1,7 +1,12 @@
 "use client";
 
 // **Sub-state 1F's body** — frame 1F (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:404-461`),
-// M7 wave 7F4a.
+// M7 waves 7F4a and 7F4b.
+//
+// **The footer's primary control has a destination from 7F4b on**, and the frame draws only the
+// waiting state it had in 7F4a. The two states beyond it — the write that did not land, and the
+// composition that did not finish — are drafted rather than drawn, and `ComposeCta` is where all
+// three are decided.
 //
 // **It renders what the model publishes and decides nothing.** The five rows, their extents and their
 // statuses are `generation-model.ts`'s; this file turns each role and each status into the leaf that
@@ -53,6 +58,9 @@ export interface GenerationStepsProps {
   /** Leaves composition. A pure state clear that restores the fields with the draft exactly as it
    *  was — no `departTo`, no re-seed from the URL (criterion 26, ruling R14). */
   readonly onBack: () => void;
+  /** Asks the failed hand-off to write again. Offered only in that state, and it re-runs the
+   *  composition's own attempt rather than composing anything (criterion 41). */
+  readonly onRetry: () => void;
 }
 
 /** The shape's short name, as the summary line reads it. A `Record` over `DesignRoom["shape"]`, so a
@@ -87,7 +95,11 @@ function classNames(...declared: readonly (string | undefined)[]): string {
   return declared.filter((name) => name !== undefined).join(" ");
 }
 
-export function GenerationSteps({ run, onBack }: GenerationStepsProps) {
+export function GenerationSteps({
+  run,
+  onBack,
+  onRetry,
+}: GenerationStepsProps) {
   const translate = useTranslations();
 
   return (
@@ -117,15 +129,55 @@ export function GenerationSteps({ run, onBack }: GenerationStepsProps) {
         >
           {translate("room.back")}
         </button>
-        {/* Wired to nothing in 7F4a, and a `<div>` for exactly that reason (ADR 0104 decision 6):
-            the destination is wave 7F4b's, and until it lands this control announces the run rather
-            than offering an action. It never resolves — that is the wave's shape, not a defect. */}
-        <div className={styles.composeCta} data-testid="room-compose-cta">
-          <span className={styles.composeCtaSpinner} aria-hidden="true" />
-          {translate("room.compose.busy")}
-        </div>
+        <ComposeCta run={run} onRetry={onRetry} />
       </div>
     </>
+  );
+}
+
+/**
+ * **The footer's primary control, in the three positions the wave gives it.**
+ *
+ * *Working* — a `<div>` announcing the run, which is ADR 0104 decision 6's shape for a control that
+ * performs nothing: the customer asked once, and the composition and the write that follows it are
+ * one wait with one label. 52 px is the frame's height and is already past the 44 px target.
+ *
+ * *The write failed* — a real `<button>`, because there is now an action to offer, and it re-runs
+ * the composition's own attempt (criterion 41).
+ *
+ * *The composition failed* — **nothing**. Wave 7F4a drew the busy control in every state, which was
+ * honest while nothing could ever resolve; with a destination in place a spinner reading
+ * *Se compune…* under *Compunerea nu s-a putut finaliza* would promise an arrival that is not
+ * coming. The way out of that state is *Înapoi*, and criterion 35 asks for no other.
+ */
+function ComposeCta({
+  run,
+  onRetry,
+}: {
+  readonly run: ActiveGenerationRun;
+  readonly onRetry: () => void;
+}) {
+  const translate = useTranslations();
+
+  if (run.phase === "failed") return null;
+  if (run.phase === "composed" && run.handoff === "failed") {
+    return (
+      <button
+        type="button"
+        className={styles.cta}
+        data-testid="room-compose-retry"
+        onClick={onRetry}
+      >
+        {translate("room.compose.retry")}
+      </button>
+    );
+  }
+
+  return (
+    <div className={styles.composeCta} data-testid="room-compose-cta">
+      <span className={styles.composeCtaSpinner} aria-hidden="true" />
+      {translate("room.compose.busy")}
+    </div>
   );
 }
 
@@ -148,12 +200,21 @@ function RoomSummary({ room }: { readonly room: DesignRoom }) {
   );
 }
 
-/** The band above the list: why the customer is waiting, or — with no frame to draw it — that the
- *  composition did not finish. It says **nothing about the room**: a room too small is refused before
- *  generation runs and its sentence is wave 7F2's, at 1C (ruling R16). */
+/**
+ * The band above the list: why the customer is waiting, or — with no frame to draw either — that the
+ * composition did not finish, or that the kitchen was composed and could not be opened.
+ *
+ * It says **nothing about the room** in any of the three: a room too small is refused before
+ * generation runs and its sentence is wave 7F2's, at 1C (ruling R16).
+ *
+ * **The two failures are separate sentences because they leave the customer in different places.**
+ * A composition that did not finish has no kitchen behind it and the way on is back to the
+ * dimensions; a write that did not land has the whole kitchen behind it, drawn and true, and the way
+ * on is to ask again.
+ */
 function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
   const translate = useTranslations();
-  const hasFailed = run.phase === "failed";
+  const hasFailed = run.phase === "failed" || hasFailedHandoff(run);
 
   return (
     <div
@@ -163,17 +224,33 @@ function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
       )}
       data-testid="room-compose-notice"
       data-compose-phase={run.phase}
+      data-compose-handoff={run.phase === "composed" ? run.handoff : undefined}
     >
       {run.phase === "composing" ? (
         <span className={styles.composeSpinner} aria-hidden="true" />
       ) : null}
       <span className={styles.composeNoticeText}>
-        {translate(
-          hasFailed ? "room.compose.failed" : "room.compose.noPresetNotice",
-        )}
+        {translate(noticeMessageKeyFor(run))}
       </span>
     </div>
   );
+}
+
+function hasFailedHandoff(run: ActiveGenerationRun): boolean {
+  return run.phase === "composed" && run.handoff === "failed";
+}
+
+/** The three sentences the band can carry, as a literal union: next-intl resolves a key's arguments
+ *  from its type, and a `string` return would make every one of them look like an ICU message. */
+function noticeMessageKeyFor(
+  run: ActiveGenerationRun,
+):
+  | "room.compose.failed"
+  | "room.compose.saveFailed"
+  | "room.compose.noPresetNotice" {
+  if (run.phase === "failed") return "room.compose.failed";
+  if (hasFailedHandoff(run)) return "room.compose.saveFailed";
+  return "room.compose.noPresetNotice";
 }
 
 function StepList({ rows }: { readonly rows: readonly GenerationRow[] }) {

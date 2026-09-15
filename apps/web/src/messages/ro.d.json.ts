@@ -87,7 +87,9 @@ declare const messages: {
       "rule": "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
       "busy": "Se compune…",
       "dropped": "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
-      "failed": "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou."
+      "failed": "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
+      "saveFailed": "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
+      "retry": "Încearcă din nou"
     }
   },
   "panel": {

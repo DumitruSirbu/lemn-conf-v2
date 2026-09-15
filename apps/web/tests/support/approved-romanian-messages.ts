@@ -132,6 +132,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
       failed:
         "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
+      // Wave 7F4b's two, and both are **drafted, not approved**: no frame draws a hand-off, and the
+      // wave's own copy table names them as drafted for criteria 35 and 41. They are in this file
+      // because it is a deep equality against `ro.json` — a leaf missing here fails the lock — and
+      // not because anybody has read them out loud. `saveFailed` is deliberately a different
+      // sentence from `failed` above: that one has no kitchen behind it and sends the customer back
+      // to the dimensions, this one has the whole kitchen drawn above it and offers `retry`.
+      saveFailed:
+        "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
+      retry: "Încearcă din nou",
     },
   },
   panel: {
