@@ -263,6 +263,7 @@ export {
   type LShellInputRefusal,
 } from "./generation/shell-design.js";
 export * from "./generation/leftover-rule.js";
+export * from "./generation/body-choice.js";
 export * from "./generation/generation-priorities.js";
 export * from "./generation/generate-kitchen.js";
 export * from "./commands/reconcile-command-result.js";
