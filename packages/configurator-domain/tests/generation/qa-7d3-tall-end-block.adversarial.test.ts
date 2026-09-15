@@ -385,5 +385,13 @@ describe("the centring hazard across the whole absorb window", () => {
       remaindersSeen.size,
       "one remainder proves nothing about a 200 mm window",
     ).toBeGreaterThan(20);
-  });
+    // **Given a budget, not left on the 5 s default, and the coverage is not the thing to cut.**
+    // Measured 2026-09-16: 3 710 ms run alone, 4 912 ms inside the full suite — 98 % of the default,
+    // so it passes in isolation and fails under parallel load. It plans ~27 000 rooms because the
+    // window is `0 < r <= 200` across five depths, and this sweep is the *only* thing in the tree
+    // that catches a tower centred in a merged void: `insertPlannedBase`'s width check compares the
+    // body's width against the planned width, which a fixed-width body dropped into a wider opening
+    // passes (7D3 close-out, finding 1). Sampling the window would return exactly the hole the
+    // sweep exists to close.
+  }, 30_000);
 });
