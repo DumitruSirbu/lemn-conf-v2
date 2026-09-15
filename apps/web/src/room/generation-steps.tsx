@@ -211,6 +211,29 @@ function RoomSummary({ room }: { readonly room: DesignRoom }) {
  * A composition that did not finish has no kitchen behind it and the way on is back to the
  * dimensions; a write that did not land has the whole kitchen behind it, drawn and true, and the way
  * on is to ask again.
+ *
+ * **It is the screen's live region, and the only one 1F has** (QA finding F4, wave 7F4b). Both
+ * failures arrive **unbidden** — no tap produces them; a run settles or a write is refused and the
+ * band rewrites itself under a customer who is waiting — and that is the case a live region exists
+ * for. Without one, a screen-reader user waits on *Se compune…* for a retry button that silently
+ * appeared and a sentence that silently changed.
+ *
+ * **`polite`, not `role="alert"`**, for `editor-panel.tsx`'s reason at `PanelNoticeRow`: nothing is
+ * waiting on the customer and nothing is lost by finishing the sentence in progress. The retry button
+ * keeps standing there.
+ *
+ * **Liveness is unconditional, and the happy path is silent because the sentence does not change.**
+ * `composing` and `composed`+`saving` resolve to the **same leaf**, so React mutates nothing in this
+ * subtree at *pending → composed* and there is nothing for a screen reader to read out; only a
+ * failure rewrites the text. The alternative — switching `aria-live` on in the same commit that
+ * changes the text — is the well-known way to get no announcement at all, because a region has to be
+ * live *before* the mutation it should announce. `noticeMessageKeyFor`'s one-leaf-for-two-states
+ * property is therefore load-bearing and is pinned by `generation-steps.dom.test.ts`.
+ *
+ * **Focus is deliberately not moved.** The rows above are composed, true and worth reading; taking
+ * the caret to *Încearcă din nou* would interrupt someone mid-list to hand them a control that is two
+ * tabs away and going nowhere. 7F4a's broader gap — 1F opening with focus on `<body>` — stays
+ * recorded rather than fixed here.
  */
 function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
   const translate = useTranslations();
@@ -222,6 +245,7 @@ function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
         styles.composeNotice,
         hasFailed ? styles.composeNoticeFailed : undefined,
       )}
+      aria-live="polite"
       data-testid="room-compose-notice"
       data-compose-phase={run.phase}
       data-compose-handoff={run.phase === "composed" ? run.handoff : undefined}
@@ -241,7 +265,13 @@ function hasFailedHandoff(run: ActiveGenerationRun): boolean {
 }
 
 /** The three sentences the band can carry, as a literal union: next-intl resolves a key's arguments
- *  from its type, and a `string` return would make every one of them look like an ICU message. */
+ *  from its type, and a `string` return would make every one of them look like an ICU message.
+ *
+ *  **Two states share one leaf on purpose.** `composing` and a composed kitchen still being written
+ *  both read `noPresetNotice`, which is what keeps `ComposeNotice`'s live region silent while the
+ *  happy path runs: the text never changes, so nothing is announced until a failure changes it.
+ *  Giving the saving state a sentence of its own would narrate *pending → composed* at a
+ *  screen-reader user for no reason. */
 function noticeMessageKeyFor(
   run: ActiveGenerationRun,
 ):

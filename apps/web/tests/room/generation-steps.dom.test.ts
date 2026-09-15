@@ -111,8 +111,11 @@ function composingRun(): ActiveGenerationRun {
 }
 
 /** A genuinely generated run rather than a hand-written one, so the two resolved statuses below are
- *  the statuses the engine really produces for this room and not a fixture's opinion of them. */
-function composedRun(): ActiveGenerationRun {
+ *  the statuses the engine really produces for this room and not a fixture's opinion of them.
+ *
+ *  Returned as the composed member rather than the whole union, so `failedHandoffRun` can spread it
+ *  and move `handoff` without the compiler losing which member it is holding. */
+function composedRun(): Extract<ActiveGenerationRun, { phase: "composed" }> {
   const result = generateKitchen({
     room: SMALLEST_ACCEPTED_ROOM,
     occurredAt: OCCURRED_AT,
@@ -132,6 +135,65 @@ function composedRun(): ActiveGenerationRun {
     attempt: { run: () => Promise.reject(new Error("never run here")) },
     handoff: "saving",
   };
+}
+
+/** A composed kitchen whose write was refused — the state QA finding F4 is about. The rows above it
+ *  are true and complete; what failed is the hand-off. */
+function failedHandoffRun(): ActiveGenerationRun {
+  return { ...composedRun(), handoff: "failed" };
+}
+
+/** A composition that did not finish. It carries no rows at all, by construction of the type. */
+function failedRun(): ActiveGenerationRun {
+  return { phase: "failed", room: SMALLEST_ACCEPTED_ROOM };
+}
+
+function noticeBand(): HTMLElement {
+  const band = container.querySelector<HTMLElement>(
+    '[data-testid="room-compose-notice"]',
+  );
+  if (band === null) throw new Error("1F drew no notice band");
+  return band;
+}
+
+/** A mutation a live region actually reads out. `aria-relevant` defaults to *additions text*, so the
+ *  spinner leaving the band when the run settles is **not** announced and is not counted here. */
+function isAnnounceable(record: MutationRecord): boolean {
+  return record.type === "characterData" || record.addedNodes.length > 0;
+}
+
+/**
+ * What a screen reader would be given by the notice band across one transition.
+ *
+ * Records are drained with `takeRecords`, because a `MutationObserver` callback is a microtask and
+ * `act` has already returned by the time one would run.
+ *
+ * **The identity check is what stops this from passing over nothing.** If React ever replaced the
+ * band instead of updating it, the observer would be watching a detached node, every assertion below
+ * would read zero mutations, and the silent-happy-path test would pass for the wrong reason — while
+ * the real region would be a freshly mounted one, which is the shape that gets announced late or not
+ * at all.
+ */
+function announceableMutationsAcross(
+  from: ActiveGenerationRun,
+  to: ActiveGenerationRun,
+): readonly MutationRecord[] {
+  renderRun(from);
+  const observed = noticeBand();
+  const observer = new MutationObserver(() => undefined);
+  observer.observe(observed, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+  });
+
+  renderRun(to);
+  const records = observer.takeRecords();
+  observer.disconnect();
+  if (noticeBand() !== observed) {
+    throw new Error("the notice band was remounted rather than updated");
+  }
+  return records.filter(isAnnounceable);
 }
 
 /** Every class token the rows of one render carry, keyed by the status the row is in. The two
@@ -269,5 +331,60 @@ describe("the not-placed row keeps the drawing R10 describes", () => {
     )} \\.composeRowGlyph::before`;
 
     expect(declarationsFor(glyphSelector)).toContain("content");
+  });
+});
+
+/**
+ * **QA finding F4** — the two states 1F reaches with no tap behind them are the two a live region
+ * exists for, and the save-failed one is the one that also needs an action.
+ *
+ * The region is live unconditionally rather than only in those states, because a region has to be
+ * live **before** the mutation it should announce; the silence of the happy path is a property of the
+ * text — `composing` and `composed`+`saving` share one leaf — and is asserted below rather than
+ * assumed.
+ */
+describe("the notice band is 1F's live region", () => {
+  it("is polite, so nothing interrupts a sentence the customer is already hearing", () => {
+    renderRun(failedHandoffRun());
+
+    expect(noticeBand().getAttribute("aria-live")).toBe("polite");
+    // `role="alert"` would be assertive, and nothing here is waiting on the customer: the retry
+    // button stands there until it is pressed.
+    expect(noticeBand().getAttribute("role")).toBeNull();
+  });
+
+  it("reads the save-failed sentence once the write has been refused", () => {
+    renderRun(failedHandoffRun());
+
+    expect(noticeBand().textContent).toBe(roMessages.room.compose.saveFailed);
+  });
+
+  it("announces the refused write, which arrives with no tap behind it", () => {
+    expect(
+      announceableMutationsAcross(composedRun(), failedHandoffRun()),
+    ).not.toHaveLength(0);
+  });
+
+  it("announces a composition that did not finish, for the same reason", () => {
+    expect(
+      announceableMutationsAcross(composingRun(), failedRun()),
+    ).not.toHaveLength(0);
+  });
+
+  it("says nothing when the composition simply resolves", () => {
+    // The happy path must not be narrated: *pending → composed* is a screenful of rows the customer
+    // can read at their own pace, and a region that fired here would talk over all of it.
+    expect(
+      announceableMutationsAcross(composingRun(), composedRun()),
+    ).toHaveLength(0);
+  });
+
+  it("leaves the caret where the customer left it when the write fails", () => {
+    renderRun(composedRun());
+    const focusedBefore = document.activeElement;
+
+    renderRun(failedHandoffRun());
+
+    expect(document.activeElement).toBe(focusedBefore);
   });
 });

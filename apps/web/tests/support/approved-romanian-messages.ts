@@ -1,6 +1,15 @@
 import { isDeepStrictEqual } from "node:util";
 
-// Gate O1: this inline literal is the sole approved Romanian wording corpus.
+// **Gate O1: this inline literal is the sole Romanian wording corpus** — the approved copy, **plus
+// the drafted leaves it has to carry**, each one marked as drafted at its own site (grep `drafted`).
+//
+// **A drafted leaf is here because the lock is a deep equality against `ro.json`**
+// (`tests/i18n/romanian-copy-lock.test.ts`), not a subset check: a key the catalogue holds and this
+// file omits fails that equality. So leaving an unapproved sentence out would not keep it away from
+// the customer — it would only break the gate that notices when **any** leaf changes. The equality is
+// the mechanism, so carrying the leaf and marking it is strictly stronger than dropping it.
+//
+// Nothing in this file is evidence that a sentence was approved; the note beside it is.
 export const APPROVED_ROMANIAN_MESSAGES = {
   brand: "Lemnaria",
   meta: {
