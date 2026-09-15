@@ -29,7 +29,8 @@ import {
   type GenerationStep,
 } from "@lemnaria/configurator-domain";
 
-/** The three states frame 1F draws: the spinner, the green tick, and the dashed *nu încape* row. */
+/** The three states frame 1F draws: the spinner, the green tick, and the dashed *nu poate fi
+ *  inclus* row. */
 export type GenerationRowStatus = "pending" | "placed" | "not_placed";
 
 /**
@@ -146,7 +147,7 @@ function generationRowsWith(
  *
  * For a core priority that is one step. For storage it is every storage cabinet the leftover rule
  * planned, and the row is *placed* when **any** of them placed — the 900 × 2200 room the owner ruled
- * on has none, and the row then reads *nu încape* rather than vanishing (criterion 32).
+ * on has none, and the row then reads *nu poate fi inclus* rather than vanishing (criterion 32).
  */
 function statusOfRoleIn(
   role: GenerationBaseRole,

@@ -107,7 +107,7 @@ describe("a row's word against the design behind it, swept over the approved rec
       const fromTheShell = shell.placements.map((placement) => placement.id);
 
       // A bijection over what generation added. An inclusion in either direction alone would let the
-      // log carry a placement the design never received (a row reading *așezat* over nothing) or the
+      // log carry a placement the design never received (a row reading *inclus* over nothing) or the
       // design carry a generated body no row accounts for.
       expect([...present].sort()).toEqual([...claimed, ...fromTheShell].sort());
     },

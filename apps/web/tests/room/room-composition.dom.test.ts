@@ -645,7 +645,7 @@ describe("a refusal or a throw is a dead end the customer can leave (criterion 3
     // **`generateKitchen`'s second refusal arm** (`generate-kitchen.ts:296-300`): the plan's minimum
     // was met, and then `insertBody` refused the sink or the hob at the real probe. The log it
     // refuses over carries the bodies that *did* insert — here the fridge — and folding it into rows
-    // put ***Frigider · 700 — așezat*** under ***Compunerea nu s-a putut finaliza***, for a design
+    // put ***Frigider · 700 — inclus*** under ***Compunerea nu s-a putut finaliza***, for a design
     // that was discarded and that nobody will ever open (coordinator's ruling, 2026-09-15).
     //
     // Mocked rather than provoked, because reaching this arm through the engine needs a plan whose
@@ -695,7 +695,17 @@ describe("a refusal or a throw is a dead end the customer can leave (criterion 3
     expect(rowStatuses()).toEqual([]);
     expect(maybeAt("room-compose-rows")).toBe(null);
     expect(maybeAt("room-compose-row-fridge")).toBe(null);
-    expect(container.textContent).not.toContain(
+    // **The sweep reads the screen with the rule paragraph removed, and that is not a relaxation.**
+    // Since the owner's 2026-09-15 ruling `status.placed` is *inclus* and `status.notPlaced` is *nu
+    // poate fi inclus* — the first is a substring of the second — and the rule paragraph, which this
+    // screen draws in every phase, contains the second by design. Left whole, the assertion would
+    // fail on approved copy rather than on a drawn row. Every other node still has to be free of the
+    // word, so a fridge row leaking onto a failed screen is caught exactly as before.
+    const textOutsideTheRule = container.textContent.replace(
+      roMessages.room.compose.rule,
+      "",
+    );
+    expect(textOutsideTheRule).not.toContain(
       roMessages.room.compose.status.placed,
     );
     expect(elementAt("room-compose-notice").textContent).toContain(

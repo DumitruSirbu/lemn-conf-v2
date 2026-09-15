@@ -16,6 +16,13 @@
  * wave owes: a moved hash would mean an approved sentence changed, and none did. The new leaves
  * arrive hashed because `ROOM_FIXTURES` is built from `ro.json`'s own `room` subtree rather than
  * from a hand-listed set.
+ *
+ * **Rebaselined a second time, 2026-09-15, over exactly four of those twenty** —
+ * `room.compose.status.placed`, `room.compose.status.notPlaced`, `room.compose.rule` and
+ * `room.compose.dropped`. The owner reworded 1F's two statuses (*așezat* → *inclus*, *nu încape* →
+ * *nu poate fi inclus*), `rule` restates the second one in running text and follows it, and
+ * `dropped` now names the wall sizes as the reason. **Four moved and no others**, which is the check
+ * a copy ruling owes: a fifth would mean something changed underneath the ruling.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -636,7 +643,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.busy":
     "241c8d13d3518b3c04ad55b494606e9881603d46959fedbbd3551955bcc48e6b",
   "room.compose.dropped":
-    "6e004cd9059c80827f8b78c2dbb3b445010ce5c8cc1a1151252956124fa0ff56",
+    "e2e503d5f26f8329749eb2c313b0d28378b6a91e035f9b93fd5d2b106f14071d",
   "room.compose.failed":
     "316e6aa5b4b22f9d0e800976cff039b40656ba294a987587d99174d6f14e40ee",
   "room.compose.heading":
@@ -660,13 +667,13 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.rowWidth":
     "284b7e6d788f363f910f7beb1910473e23ce9d6c871f1ce0f31f22a982d48ad4",
   "room.compose.rule":
-    "cbd6ab0e6aebd73cadd6e5d4ebbc3c1ce11a5a32e10e4ffa02f35e1d9881a818",
+    "c0ab39bf9a66816c8300e8280ba3e05f2d5424c92edf56ad4b7cc3da62c4c3e6",
   "room.compose.status.notPlaced":
-    "5a60ea131e5819ea277433e6fe0e7d60d153093b64a3b114af9d7f00b402aff2",
+    "91af24868a56435376f937ac4c6ae9baf820e9fd618a37f24b3aeae36f7764f0",
   "room.compose.status.pending":
     "1aadbf0b4f291714f5f2437447231809bd99051f8f90228fa97702cbce6e0749",
   "room.compose.status.placed":
-    "faaa9c02e2f32a9e95930022885600852c9e8c27cfe1b63a2f4c391e5c76e449",
+    "92b1126dbb94d72bbbd873b7f4ac99384adb16792d6bd4ad7798e0083bc70b06",
   "room.compose.stepsLabel":
     "a57e78f2d69eb42fb73c6226bb0b8eb33d343700974da3140d69909a17e8647c",
   "room.compose.storageExtent":

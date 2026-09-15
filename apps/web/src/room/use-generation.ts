@@ -80,7 +80,7 @@ export type GenerationRunState =
        * `generateKitchen` has a second refusal arm (`generate-kitchen.ts:296-300`): the plan's
        * minimum was met, but `insertBody` refused the sink or the hob at the real probe. It returns
        * `ok: false` over a log in which the fridge and the storage cabinets may be `placed` — so a
-       * row set folded from that log reads *Frigider · 700 — așezat* under
+       * row set folded from that log reads *Frigider · 700 — inclus* under
        * *Compunerea nu s-a putut finaliza*, for a design that was **discarded and that nobody will
        * ever open**. Nothing was placed, because nothing was kept.
        *

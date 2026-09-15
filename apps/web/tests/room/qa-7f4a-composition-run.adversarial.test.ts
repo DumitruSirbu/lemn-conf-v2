@@ -127,7 +127,8 @@ const DECLARED_CABINET_DEPTH_MM = 600;
 const ROOM_QUERY = "shape=L&wallA=4.2&wallB=3&height=2.5&direction=left";
 
 /** The owner's smallest accepted room: the fridge and the worktop are dropped for fit and nothing is
- *  left over for storage, so 1F draws both a *nu încape* row and the dropped-roles sentence. */
+ *  left over for storage, so 1F draws both a *nu poate fi inclus* row and the dropped-roles
+ *  sentence. */
 const SMALLEST_ROOM_QUERY =
   "shape=L&wallA=0.9&wallB=2.2&height=2.2&direction=left";
 

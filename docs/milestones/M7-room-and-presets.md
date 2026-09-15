@@ -7858,6 +7858,13 @@ decision 3 makes it the only route the product has to a refined kitchen.** That,
 count, is why the backup half of this wave matters and why it is not a chore appended to the
 migration. *(The framing is the architect's; the facts in it are ADR 0052's and ADR 0117's.)*
 
+**Sharpened 2026-09-15 by the owner's retention ruling — *"presets will be stored forever"* (P11).**
+The freeze argument above is now stronger than when it was written, and in a way worth stating
+plainly: **a row that is never deleted is a row whose schema mistakes are permanent.** For a table
+with a retention policy there is a natural horizon past which the oldest shape ages out and the
+problem solves itself. **Presets have no such horizon, by the owner's own ruling.** So *"free until
+7P2"* has a second half that was previously implicit: **after 7P2, wrong is forever.**
+
 ### Ground truth, measured at `41181d8`
 
 Each is a file and a line, because six of them contradict something a reader would reasonably assume.
@@ -7937,7 +7944,8 @@ consequences say 7P1 *"extends the export"* to presets;
 `designs` export **must not be widened** and that *"another table needs a second, separately-scoped
 export — not a broader query."* **The two are reconciled by ADR 0012's own sentence**, and the
 outcome is: `backup-presets.ts`, blob prefix `backups/presets/`, its own row source, **reusing** the
-streaming, truncation-detection and rotation machinery rather than copying it. **One cron
+streaming, truncation-detection and rotation machinery rather than copying it — **at its own
+retention settings, which P11 now fixes: no age cap, count cap only.** **One cron
 invocation, two exports** — a second cron path is a second entry on a plan whose cron limits ADR 0012
 already had to reason about, and two exports of one database want one schedule and one alarm. The
 route answers **503 if either export failed** and names both in the body (criterion 15).
@@ -7961,6 +7969,108 @@ against, which is the very thing under test.
 occur where there is no update, and ADR 0112 decision 1 grants `SELECT, INSERT` and nothing else.
 Stated so a reviewer does not ask for a concurrency token, and so that **a later wave wanting
 `UPDATE` knows it is adding two things, not one** — the grant and the token.
+
+**P10 — the name is one `names jsonb not null default '{}'`, keyed by locale code. A third locale is
+a KEY, not a migration.** *(Requirement owner-ruled 2026-09-15, verbatim: **"each locale its own
+name"**, relayed by the coordinator. The shape below is the architect's.)*
+
+**The alternative that loses, and why the answer is not `name_ro` / `name_ru` columns.** Adding a
+locale would then be a migration **and** a change to `REQUIRED_PRESET_COLUMNS` — so the
+**deployed-schema gate would have to learn what a locale is**, and a language added to the product
+would turn `deploy.yml`'s gate red until someone edited a file about database columns. With one
+`jsonb` map, **the gate never learns what a locale is**, and a third language is a key in a row
+nobody has to migrate. A separate `preset_names` table also makes a locale a row, and loses on cost:
+a second table is a second grant, a second entry in the deployed-schema gate, and — under ADR 0012 —
+**a third separately-scoped backup export**, all for a handful of short strings on a tiny table.
+
+**The domain does not know what the locales are, and that is deliberate — the codebase has already
+answered this exact question.** `routing.locales` lives in `apps/web/src/i18n/routing.ts`, which the
+domain cannot import and must not mirror. The precedent is `DesignSettingsSchema`, verbatim at
+`design.ts:164-167`: *"A tier id is an opaque identifier, validated for shape only. The domain
+imports no price book (ADR 0062 seam 1), so whether a tier exists is not a question this schema can
+ask; it is answered where the book is."* **A locale code is the same kind of thing.**
+`PresetRecordSchema` validates the **shape** of a key and never its membership; which key is rendered
+is answered where `routing.locales` is, in the web layer. **So there is no second list to disagree
+with the first** — the lead's constraint is met by the domain having no list at all.
+
+**A half-filled map is legal, and it is the normal state rather than an edge case.** The owner
+authors presets one at a time, by hand; a schema that required both names would be discovered by the
+owner, at the moment of saving, as a refusal. So: the empty map is legal, a map with one locale is
+legal, and **no preset is ever hidden for want of a name** — a text field must never be able to
+change which kitchens fit, which is also why matching does not read names (it compares rooms only).
+
+**What the list shows for a missing name is 7F3's, and it needs a copy leaf either way — but one
+option must be ruled out here, before it is implemented by default.** ~~Falling back to the other
+locale's name~~ is **rejected**: it would put Romanian text on a Russian screen, which ADR 0113's
+copy lock exists to prevent, and — the stronger reason — **it would hide the gap from the only person
+who can close it.** A generic label makes a missing Russian name visible to the owner at a glance;
+the other locale's name makes the preset look finished when it is not. **Recommendation to 7F3: a
+product-copy label derived from the preset's own shape and room**, entering the copy lock in 7F3
+under ADR 0113. *(The rejection is the architect's and binds; the label's wording is 7F3's.)*
+
+**Two bounds, and the distinction between them matters after the freeze.** Each name is a bounded
+string and the map holds a bounded number of keys — the row is read on **every** customer's first
+screen, so an unbounded free-text field there is a payload surface as well as a layout one. **Both
+bounds are code-level constants in the domain schema, not columns**, so under this wave's own freeze
+reasoning they are **free to loosen at any time and expensive to tighten** — tightening could refuse
+a row the owner has already written. 7P2's authoring form is where the numbers get their reason (the
+390 px card is the constraint), and it may lower nothing without checking what is stored.
+
+**P11 — a preset is never deleted and its backup is never rotated by age. Two properties, two
+classes, four cells — stated in full because the question and the answer were about different
+things.** *(Owner ruling 2026-09-15, relayed verbatim by the coordinator; the derivation of which
+mechanism they answered is the architect's, from the code and ADR 0012.)*
+
+> *"presets will be stored forever. the visitors that didn't register but made some configuration,
+> those configuration can be stored for lets say 1-2 months, I have doubts we will have so many
+> visitors and configuration should not take so much db memory to save. In the end is a record in a
+> table and a json format of configuration that has few kbs, so we can store even for half a year
+> and more and later we can adjust"*
+
+**The question asked was about a *backup* window; the answer is in the language of *retention*. They
+are different mechanisms and this repository already holds both, so the record must not blur them.
+Derived rather than re-asked:**
+
+- **Fourteen days is a *backup export* window, not a deletion policy.** `BACKUP_RETENTION_DAYS`
+  (`backup-designs.ts:28`) governs how long an **ndjson snapshot survives in Blob** — *"a mistake can
+  be undone for this long and no longer"* — and its own comment draws the line explicitly:
+  *"Bounding what each dump contains is the retention cron in ADR 0019 decision 7, not this."*
+- **Row deletion is a separate, unbuilt mechanism.** ADR 0019 decision 7 deletes an abandoned design
+  after **30 days**, and that ADR's own schedule places it in **M8**. **Nothing deletes any row
+  today.**
+
+| | **Row lifetime** (is it ever deleted?) | **Backup retention** (how far back can a restore reach?) |
+| --- | --- | --- |
+| **Presets** | **Never.** Owner: *"stored forever"*. Already true by construction in this wave — insert-only, no `DELETE` grant, no reaper (P9) — and now true by ruling as well. | **No age rotation** (this wave). A count cap stays as the only bound, for the runaway-schedule case `MAX_RETAINED_BACKUPS` exists for. |
+| **Customers' designs** | **Abandoned after 30 days** — ADR 0019 decision 7, **scheduled M8, not built**. **Raised by this ruling** to a 1–2 month floor with *"half a year and more"* acceptable. | **14 days** (`BACKUP_RETENTION_DAYS`) plus `MAX_RETAINED_BACKUPS = 30`. **Unchanged by this ruling** — the owner said nothing about it and nothing here asks them to. |
+
+**Why no age rotation for presets, and why that is affordable where it would not be for designs.**
+*"Forever"* applied to the question actually asked means a preset must be recoverable at any later
+date, which an age cap forbids by construction. The cost is bounded by arithmetic rather than by
+hope: the library is tens of rows of a few kB, so a nightly full copy kept indefinitely is a
+rounding error, while `designs` **grows with customers**, which is precisely why its export has an
+age cap and this one does not. *(The reading that "forever" answers the backup question is the
+architect's — the owner did not use the word "backup". The row half is unambiguous either way.)*
+
+**Two obligations this creates, neither of them 7P1's to build.**
+
+1. **ADR 0019 decision 7 is amended by an owner ruling and owes a dated record.** Thirty days is now
+   a floor of one to two months with half a year acceptable. **7P1 builds no reaper and must not** —
+   the mechanism is M8's — but the amendment is written down now, while it is a sentence, rather than
+   rediscovered as a conversation when M8 opens.
+2. **The number is deliberately loose and must be encoded as such.** The owner's own words are
+   *"lets say"*, *"even half a year and more"* and *"later we can adjust"*. Whoever builds it uses
+   **one named constant carrying that quotation**, so revising it is a one-line edit rather than an
+   archaeological one. **It is not a measured figure and no criterion may treat it as one.**
+
+**Why this answer was the right shape of question, recorded because it generalises.** The owner did
+not answer with a number — they answered with a **class distinction**: the thing that can be
+re-derived gets a window, the thing that cannot is kept. **That is
+[ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)'s
+principle arrived at independently and from the other end** — ADR 0117 divides *decisions* into the
+generator's and the owner's by whether a rule can be applied without looking at the particular
+kitchen; this divides *data* by whether it can be reproduced without the owner. **Same author, same
+instinct, two mechanisms.** *(The cross-reference is the architect's.)*
 
 ### Module boundaries
 
@@ -8023,6 +8133,14 @@ secret. A design is a **customer's document** under a per-design write token
 rejected storing presets as `designs` rows with a flag for exactly this reason, and the reviewer
 should hold the wave to that separation rather than to designs' rules.
 
+**One surface this adds that the rest of the row does not have: `names` is free text an author types,
+stored, and rendered to every visitor** (P10). It is the only attacker-shaped-looking field here —
+except that its only writer is the owner behind 7P2's gate, so the realistic failure is **size, not
+script**: an unbounded name on a row read at Step 1 is a payload the whole audience pays for. Both
+bounds are in the domain schema and are asserted (criterion 1). **Escaping is the renderer's** and is
+React's by default; **the reviewer's question is whether 7F3 ever reaches for `dangerouslySetInnerHTML`
+to style a name**, which is where an owner-typed string would stop being inert.
+
 **2. Are preset ids guessable, and does it matter? They are `nanoid` (21 characters, ≈ 126 bits, the
 same generator `generateDesignId` uses) — and the answer that matters is that a preset id is NOT a
 capability.** Guessing one buys an attacker what every visitor is shown anyway. **A design id today
@@ -8066,10 +8184,16 @@ not an oversight, and it is risk 3.
 ### Acceptance criteria
 
 1. *(unit)* **`PresetRecordSchema` is strict.** An unknown key is refused; the snapshot parses as
-   **`CurrentDesignSchema`**, so `settings.cabinetDepthMm` is mandatory; `names` is a map over the
-   locale codes only and **an empty map is legal**; `status` is one of exactly two literals. **Must
-   not:** a passthrough object, or a snapshot admitted under `LegacyDesignSchema` — a preset that
-   cannot state its own depth cannot be evaluated at every declared depth (ADR 0109 Amendment C).
+   **`CurrentDesignSchema`**, so `settings.cabinetDepthMm` is mandatory; `status` is one of exactly
+   two literals. **`names` is the map P10 rules**: the **empty map, a one-locale map and a two-locale
+   map are all legal** and are asserted as three separate cases, because half-filled is the owner's
+   normal authoring state; each name is length-bounded and the key count is bounded, both asserted at
+   their boundary; **a key is validated for shape and never for membership of a locale list** — a
+   test proves the domain package names no locale, so a third language needs no change here.
+   **Must not:** a passthrough object; a snapshot admitted under `LegacyDesignSchema` — a preset that
+   cannot state its own depth cannot be evaluated at every declared depth (ADR 0109 Amendment C); a
+   schema that **requires** both names, which the owner would discover as a refusal mid-save; a
+   hard-coded `"ro"` or `"ru"` anywhere under `packages/configurator-domain`.
 2. *(unit, the P2 guard — the criterion this wave exists for)* `presetRoomOf` is the **only**
    derivation of shape, wall A, wall B and height, and it reads `wallLengthMm`'s mapping. A record
    whose stored columns disagree with its snapshot is **dropped from the list with a named code and
@@ -8238,13 +8362,17 @@ P9's *"a later wave wanting `UPDATE` is adding two things"* is satisfied narrowl
 abandoning least privilege. *(The column-grant reading is the architect's; ADR 0112 does not
 contemplate a backfill, and 7G owns the final shape.)*
 
-**Q-7P1-3 — owner-facing, for tomorrow's batch. Not blocking: the build proceeds either way.** Two
-halves, and the second is the one worth their attention.
+**Q-7P1-3 — ~~owner-facing, for tomorrow's batch~~ BOTH HALVES ANSWERED by the owner, 2026-09-15.**
+Kept in full rather than deleted, because the reasoning below is what made each answerable and
+because the second half was answered *in a different mechanism from the one it asked about* — see
+**P11**, which derives which. Two halves, and the second is the one worth their attention.
 
-- **Names.** ADR 0112 decision 1 gives a preset *"an optional owner-typed name per locale"*, and the
-  locales are Romanian and Russian (G11). Does the owner expect to type both when saving, or one?
-  **Non-blocking by construction** — the record carries a map and an empty map is legal — so the
-  answer shapes 7P2's form and 7F3's fallback, not this schema.
+- ~~**Names.**~~ **ANSWERED by the owner, 2026-09-15, verbatim: *"each locale its own name"*** (relayed
+  by the coordinator). **The requirement is settled and the shape is ruling P10**: one `names jsonb`
+  map keyed by locale code, a third language a key rather than a migration, half-filled legal because
+  it is the owner's normal authoring state. What remains is **7F3's**, not the owner's: the label a
+  card shows when the customer's locale has no name — and P10 rules out the option that would
+  otherwise be implemented by default, falling back to the other locale's name.
 - **How long the library's backup reaches back.** Their authored presets are the first thing in this
   system that **cannot be re-derived**: a generated kitchen can be regenerated from a room, and a
   customer's design is theirs, but a kitchen the owner adjusted by hand and saved exists nowhere
@@ -8253,6 +8381,20 @@ halves, and the second is the one worth their attention.
   after"*. Presets are written rarely and lost permanently, which is the opposite profile. **Do they
   want a longer window for the library?** *Recommendation: yes — and it is one constant in
   `backup-presets.ts`, not a design, so it can be answered after the wave lands.*
+
+  **Strengthened 2026-09-15 by the owner's own answer to the other half.** *"Each locale its own
+  name"* means the row now carries **two independent kinds of authorship** — the adjusted kitchen and
+  the typed names — and a name is authorship with **no derivable substitute at all**: a lost snapshot
+  could at worst be re-adjusted from a regenerated kitchen, while a lost name can only be retyped
+  from memory. **The mechanism does not change** — the export is a whole-row export and covers both —
+  **but the case for the longer window is stronger than when the question was written**, and the
+  question should be put with that sentence in it rather than as a number.
+
+  **ANSWERED the same day, and the framing is why it was answerable: the owner replied with a class
+  distinction rather than a number — *"presets will be stored forever"*, anonymous configurations
+  *"1-2 months … even half a year and more"*. Ruled in P11**, which also derives the part the answer
+  did not distinguish: the question was about a **backup window** and the reply was in the language of
+  **retention**, and this repository holds both mechanisms at different numbers.
 
 ### Verification
 

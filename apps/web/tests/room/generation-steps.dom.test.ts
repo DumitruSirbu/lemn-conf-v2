@@ -7,7 +7,7 @@
 // `Record<GenerationRowStatus, string | undefined>`, because a CSS module's exports are typed
 // `string | undefined`. Rename or drop `.composeRowDropped` in `room.module.css` and the
 // `not_placed` entry becomes `undefined` — no compile error, `classNames` filters it out, and the
-// *nu încape* row silently loses its dashed border, its muted background and its `−` glyph. The one
+// dropped row silently loses its dashed border, its muted background and its `−` glyph. The one
 // R10 assertion that existed before this file (`room-composition.dom.test.ts:517`) is
 // `expect(fridge.className).not.toContain("strike")`, which is **negative**: it passes more easily
 // once the class is gone.

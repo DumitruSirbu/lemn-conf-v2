@@ -13,10 +13,17 @@
 // changes state without the log changing, and there is no progress to report because there is no
 // progress to observe.
 //
-// **A *nu încape* row is drawn as the frame draws it** (ruling R10): a dashed border, a muted
-// background, the `−` glyph and the trailing label. There is no `text-decoration: line-through`
-// anywhere — the earlier criterion's word *"struck"* is about the item being struck from the
-// composition, and the frame strikes no text.
+// **A *nu poate fi inclus* row is drawn as the frame draws it** (ruling R10): a dashed border, a
+// muted background, the `−` glyph and the trailing label. There is no `text-decoration:
+// line-through` anywhere — the earlier criterion's word *"struck"* is about the item being struck
+// from the composition, and the frame strikes no text.
+//
+// **The four leaves this file renders under `room.compose.{status.placed,status.notPlaced,rule,
+// dropped}` carry the owner's 2026-09-15 ruling in Romanian, and an agent's translation of it in
+// Russian.** The Russian is a draft awaiting **Gate O2**, the owner's own read of `ru.json`; it was
+// changed with the Romanian rather than left stale, because the catalogues must stay key-identical
+// and a Russian sentence still saying *не помещается* beside a Romanian one that no longer does is
+// worse than either. Nobody has approved those four Russian strings — do not record them as ruled.
 import type { DesignRoom, GenerationLog } from "@lemnaria/configurator-domain";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -54,7 +61,7 @@ const SHAPE_SHORT_MESSAGE_KEY = {
  *
  * **The classes themselves are not typed.** `styles.*` is `string | undefined`, so a stylesheet that
  * stopped declaring `.composeRowDropped` makes `not_placed` `undefined` — permitted by the
- * `satisfies` below, filtered out by `classNames`, and the *nu încape* row silently loses its dashed
+ * `satisfies` below, filtered out by `classNames`, and the dropped row silently loses its dashed
  * border, its muted background and its `−` glyph with every test still green. The guard against that
  * is `tests/room/generation-steps.dom.test.ts`, which takes the class each status **actually renders
  * with** off the DOM and requires `room.module.css` to declare it.
@@ -87,7 +94,7 @@ export function GenerationSteps({ run, onBack }: GenerationStepsProps) {
         <ComposeNotice run={run} />
         {/* **A failed run has no rows to draw, and this is a narrowing rather than a decision**:
             `GenerationRunState`'s `failed` member carries no `rows` at all, so the alternative to
-            this branch is a compile error and not a screen claiming *așezat* over a design that was
+            this branch is a compile error and not a screen claiming *inclus* over a design that was
             discarded (coordinator's ruling, 2026-09-15). */}
         {run.phase === "failed" ? null : <StepList rows={run.rows} />}
         {run.phase === "composed" ? <DroppedRoles log={run.log} /> : null}
@@ -221,10 +228,9 @@ function StepRow({ row }: { readonly row: GenerationRow }) {
  * specification: *"one message naming the dropped roles, in the state the screen already has, reading
  * `plan.dropped` as it stands. No new sub-state, no per-role explanation, no recovery flow."*
  *
- * **The sentence is unapproved copy, and this is the note that says so.** Amendment F asked the wave
- * that builds it to confirm the wording with the owner; that is **question Q7F4-1** and it is open.
- * `room.compose.dropped` is the plan's draft, shipped so the wave is not blocked — replace the leaf
- * when the owner answers, and delete this paragraph with it.
+ * **The Romanian sentence is approved** — the owner answered question Q7F4-1 on 2026-09-15 and
+ * `room.compose.dropped` now names the wall sizes as the reason, which is the substance the ruling
+ * asked for. One general reason and no per-role one, so the quoted instruction still holds.
  */
 function DroppedRoles({ log }: { readonly log: GenerationLog }) {
   const translate = useTranslations();

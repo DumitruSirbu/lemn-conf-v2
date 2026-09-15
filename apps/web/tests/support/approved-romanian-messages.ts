@@ -67,7 +67,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     unitMetres: "m",
     back: "Înapoi",
     continue: "Continuă",
-    // Sub-state 1F, wave 7F4a. Frame 1F's wording used as written, with four drafted leaves called
+    // Sub-state 1F, wave 7F4a. Frame 1F's wording used as written, with three drafted leaves called
     // out because no frame supplies them:
     //
     //   - `role.preparation` — the frame draws three rows and a dropped fridge, and never the
@@ -78,9 +78,16 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     //   - `failed` — no frame draws a composition that did not finish. It says the composition did
     //     not complete and **nothing about the room**: a room-level reason is 7F2's sentence, shown
     //     at 1C where the customer can act on it (wave 7F4 ruling R16).
-    //   - `dropped` — **awaiting the owner, question Q7F4-1.** ADR 0110 Amendment F created this
-    //     message and instructed the wave that builds it to confirm the wording; this is the plan's
-    //     draft, shipped so the wave is not blocked, and it is the one leaf here nobody has approved.
+    //
+    // **Three leaves depart from the frame on the owner's 2026-09-15 ruling, and it is the reason
+    // they are here in this wording rather than the frame's.** The ruling, verbatim: *"instead of
+    // așezat => inclus, related to 'nu încape' => nu poate fi inclus and to be mentioned that walls
+    // size didnt provide enough space to fit all cabinets"*. So `status.placed` and
+    // `status.notPlaced` carry the owner's two words, `rule` follows them into its running text —
+    // the paragraph restates the `notPlaced` status and must not restate it in the word the owner
+    // replaced — and `dropped` names the wall sizes as the reason. `dropped` was the one leaf
+    // nobody had approved (question Q7F4-1, ADR 0110 Amendment F's instruction to confirm it); the
+    // same ruling settles it, so it is approved copy like every other leaf in this file.
     //
     // Frame 1F's last sentence — *"Pragurile exacte sunt decizie de produs nefinalizată"* — is
     // deliberately **not** here (ruling R18): it announces an unfinished product decision that has
@@ -104,13 +111,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       storageExtent: "restul peretelui",
       status: {
         pending: "se calculează",
-        placed: "așezat",
-        notPlaced: "nu încape",
+        placed: "inclus",
+        notPlaced: "nu poate fi inclus",
       },
-      rule: "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu încape este scos și marcat, nu înghesuit.",
+      rule: "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
       busy: "Se compune…",
       dropped:
-        "Camera nu a lăsat loc pentru: {roles}. Restul bucătăriei e compus pe măsura ei.",
+        "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
       failed:
         "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
     },
