@@ -48,10 +48,17 @@ const SHAPE_SHORT_MESSAGE_KEY = {
   linear: "room.shapes.linear.short",
 } as const satisfies Readonly<Record<DesignRoom["shape"], string>>;
 
-/** The row's own class per status. A `Record` for `SHAPE_SHORT_MESSAGE_KEY`'s reason: a fourth row
- *  state would have to be drawn before it could ship. The values are typed as the CSS module
- *  declares them — a class this stylesheet stopped declaring is `undefined`, not a compile error, so
- *  `.composeRow*` is also asserted from the DOM in `tests/room/generation-steps.dom.test.ts`. */
+/**
+ * The row's own class per status. A `Record` for `SHAPE_SHORT_MESSAGE_KEY`'s reason: a fourth row
+ * state would have to be drawn before it could ship.
+ *
+ * **The classes themselves are not typed.** `styles.*` is `string | undefined`, so a stylesheet that
+ * stopped declaring `.composeRowDropped` makes `not_placed` `undefined` — permitted by the
+ * `satisfies` below, filtered out by `classNames`, and the *nu încape* row silently loses its dashed
+ * border, its muted background and its `−` glyph with every test still green. The guard against that
+ * is `tests/room/generation-steps.dom.test.ts`, which takes the class each status **actually renders
+ * with** off the DOM and requires `room.module.css` to declare it.
+ */
 const ROW_STATUS_CLASS = {
   pending: styles.composeRowPending,
   placed: styles.composeRowPlaced,
@@ -78,7 +85,11 @@ export function GenerationSteps({ run, onBack }: GenerationStepsProps) {
           <RoomSummary room={run.room} />
         </div>
         <ComposeNotice run={run} />
-        {run.rows === undefined ? null : <StepList rows={run.rows} />}
+        {/* **A failed run has no rows to draw, and this is a narrowing rather than a decision**:
+            `GenerationRunState`'s `failed` member carries no `rows` at all, so the alternative to
+            this branch is a compile error and not a screen claiming *așezat* over a design that was
+            discarded (coordinator's ruling, 2026-09-15). */}
+        {run.phase === "failed" ? null : <StepList rows={run.rows} />}
         {run.phase === "composed" ? <DroppedRoles log={run.log} /> : null}
         <p className={styles.composeRule}>{translate("room.compose.rule")}</p>
       </div>

@@ -103,14 +103,36 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   // disagree about which sub-state is drawn: both read this single expression.
   const isComposing = shapeInTheUrl !== undefined && run.state.phase !== "idle";
 
-  // **Leaving the room behind leaves its composition behind.** Composition mints no history entry,
-  // so a browser Back out of 1F lands at 1A — and a Forward would otherwise return to a screen
-  // drawing a kitchen composed for a room the URL no longer names. This ends a run the customer has
-  // already walked away from; it **starts** none (R15), and under StrictMode the second invocation
-  // clears an already-clear run.
+  // **A URL that names no shape names no room to compose for.** This is the 1A guard and nothing
+  // wider: a run is ended when the query it was started from is gone, so a screen cannot draw a
+  // kitchen composed for a room the URL no longer names. It ends a run; it **starts** none (R15),
+  // and under StrictMode the second invocation clears an already-clear run.
+  //
+  // **It is not what catches a browser Back out of 1F** — the effect below is. An earlier note here
+  // claimed composition mints no history entry, so that a Back out of 1F landed at 1A. It does not:
+  // `departTo("presets")` *pushes* the room's own query, and the entry behind it is the settle's
+  // `replace` of that same query, so a Back lands on a URL that still names the shape and this
+  // effect never fires. *"Leaving the room behind leaves its composition behind"* was only ever true
+  // of the shape-less URL, which is the one case this line still covers.
   useEffect(() => {
     if (shapeInTheUrl === undefined) leave();
   }, [shapeInTheUrl, leave]);
+
+  // **A history traversal out of composition clears the run and shows the form** (coordinator's
+  // ruling, 2026-09-15), because both entries around 1F carry the same query and nothing else can
+  // tell the traversal apart: not `liveText`, which is unchanged, and not the sub-state, which is
+  // 1D on both sides. Without this the customer presses Back, 1F stays on the glass, and the button
+  // appears to do nothing — the defect class wave 7F1 was spent removing.
+  //
+  // **R13 is intact**: the run is cleared by an *event*, and nothing about composition is written
+  // to or read from the URL. `leave` is idempotent, so a traversal taken anywhere else in step 1
+  // clears an already-clear run.
+  useEffect(() => {
+    window.addEventListener("popstate", leave);
+    return () => {
+      window.removeEventListener("popstate", leave);
+    };
+  }, [leave]);
 
   return (
     // The two markers the traversal gate and the visual pass read the screen's sub-state off. They

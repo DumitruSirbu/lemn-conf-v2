@@ -1441,9 +1441,10 @@ table.
 | **7F4a** | The composition runs and is drawn: 1F's rows, the borrowed kit, the measured cost | `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` (+ messages) | 7D2, 7F1 | **Full** (kit lifetime) | **Yes** | Q7F4-1 interim |
 | **7F4b** | The hand-off into the editor: one attempt, one row, navigation after the write | `src/room/use-generation.ts`, `generation-steps.tsx`, `room.module.css` (+ `tests/e2e`) | **7F4a**, 7E2 | **Full** | **Yes** (short) | — |
 | ↳ | ***Minimum not met* → 1C needs no new screen** (carried from the struck row, answered 2026-09-14): 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already resolves such a room to 1C **before** generation runs, and the sentence there is **7F2's**. The generator's own refusal arm is unreachable from 1D and is asserted so, not drawn for (R16) | | | | | |
+| **7T** | **The live persistence suite actually runs.** Five live suites gate on `DATABASE_URL`, which `ci.yml` deliberately never sets, so the database seam's live coverage has been **green by never executing**. Re-gate what is safe to re-gate onto `TEST_DATABASE_URL`, run it, and **report what it finds** — a red suite is the finding, not a reason to re-skip. **Ordered before 7P1** so the repository never holds two meanings of *"the persistence tests pass"* at once (coordinator's ruling on Q-7P1-1, 2026-09-15) | `packages/persistence/tests/*` (gating only), `tests/support/exclusive-migration-access.ts` (new, test support — T-J2's advisory lock), `.github/workflows/ci.yml`; **no production file** | — | Full (test infrastructure; CI is its verdict) | No | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button. **This wave is the project's freeze point**: the owner's *"a critical moment will be when I will start to save presets"*. From here the corner's reach, the wall minima and `ROOM_TOO_SMALL_FOR_KITCHEN` are load-bearing on stored data — **geometry that wants re-deriving (7D6, 7D7) lands before this, not after** | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
-| **7G** | Thumbnail captured at save, stored, served | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts` | 7P2 | Full + security (upload) | Capture | — |
+| **7G** | Thumbnail captured at save, stored, served — **and backfilled for every preset authored before this wave** (coordinator's ruling on Q-7P1-2, 2026-09-15). 7P2 ships the save before this wave ships the capture, so presets authored in the gap would otherwise have no thumbnail and no way to acquire one: the application holds no `UPDATE`. **Not accepted** — those presets are the owner's first authored artefacts and the first data here that cannot be re-derived. The backfill re-captures from each preset's own snapshot (ADR 0112 decision 6) and needs only a **column-level** grant, so `status` stays unwritable by the application | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts`, the thumbnail migration (not created by 7P1 — ruling P5) | 7P2 | Full + security (upload) | Capture | — |
 | **7B** | Preset matching: ±600 window, fit, availability, one evaluation | *carried* files; revised criteria below | 7A | Full | No | — |
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
@@ -1472,7 +1473,11 @@ F5), 7H, 7I and 7J fitted in where the tree is free** (corrected 2026-09-11; **a
 7E4 → 7E3a → 7E3c → 7E3b** — the share path lands before the open read closes).~~ **Corrected
 2026-09-13 after 7A2 closed: 7E1 → 7E2 → 7F1 → 7F4 → 7P1 → 7P2 → 7G → 7B → 7C → 7F2 → 7F3 →
 7E4 → 7E3a → 7E3c → 7E3b → 7H → 7I → 7J → 7K → 7L.** **Corrected again 2026-09-14: 7F4 is two waves
-— `… → 7F1 → 7F4a → 7F4b → 7P1 → …` (Q7F4-2).**
+— `… → 7F1 → 7F4a → 7F4b → 7P1 → …` (Q7F4-2).** **Corrected again 2026-09-15: wave 7T lands between
+them — `… → 7F4a → 7F4b → 7T → 7P1 → 7P2 → 7G → …` (coordinator's ruling on Q-7P1-1).** 7T blocks
+nothing it does not already gate: it touches **no production file**, and it is placed before 7P1
+because 7P1 adds live suites that run in CI alongside five that do not, and a repository in which
+*"the persistence tests pass"* means two different things is how the next green badge is misread.
 
 **The 7E3 split, confirmed against F5's final answer (ADR 0115) — three waves, not two.**
 - **7E3a — cookie and resume.** Needed under every answer the owner gave; nothing reads a design by
@@ -7187,6 +7192,28 @@ argue for reverting the fix that improved it.**
 > **Planned 2026-09-14 by the architect, on branch `m7-room-and-presets` at `e8027f5`.** This is the
 > binding version of the **7F4** bullet in *Acceptance criteria per wave* and of the 7F4 row in the
 > revised wave table; where this section and those disagree, this section is later and says why.
+>
+> **Criterion 34's boundary list was mis-notated and is corrected above (2026-09-15). The code and
+> the shipped test were already right.** 7F4a's visual gate mapped which L rooms actually reach 1F in
+> a production build and reported that criterion 34 named **1000 × 2100** as accepted while the screen
+> refused it. Adjudicated: the criterion's three pairs were flattened out of ADR 0108 Amendment E's
+> table, whose middle row **fixes wall B** — so that one pair alone was written `(B × A)` while its
+> neighbours were `(A × B)`. `validateRoomInput` was run against all twelve rooms the verifier typed
+> and agreed with the screen **12 for 12**; `minimum-kitchen.test.ts` and
+> `generated-kitchen-minimum.boundary.test.ts` both list `[2100, 1000]` in `wallA × wallB` order and
+> assert `widthMm: wallAMm`, so **the test types what a customer types**. `:7543` was the only
+> mis-notated occurrence in `docs/`.
+>
+> **The orientation asymmetry itself is correct and ruled**, not an accident: the corner assembly
+> reaches 900 mm along wall A and 1000 mm along wall B at 700 mm depth (ADR 0108 Amendment A), so wall
+> B must be 100 mm longer to offer the same free run — and the owner approved A ≥ 900 / B ≥ 1000 with
+> that corrected table in front of them. **Owner approval is not at risk and no owner question
+> arises.** Recorded here so the next reader does not re-derive it.
+>
+> One measured detail worth keeping: of the five dead-tap rooms the gate found, **2,20 × 0,90 refuses
+> for a different reason than the other four** — `WALL_TOO_SHORT` on wall B's own floor, a per-field
+> code, rather than the coupled `ROOM_TOO_SMALL_FOR_KITCHEN`. Same silent tap, two mechanisms; 7F2
+> owns the surface that tells them apart.
 > **Two clauses of the earlier 7F4 bullet are overturned here, deliberately and with reasons**
 > (R11, R12), and **one sentence of frame 1F is refused as customer copy** (R18). **Three questions
 > are not mine** — Q7F4-1 (the owner's, the warning's wording), Q7F4-2 (the coordinator's, the split)
@@ -7535,7 +7562,8 @@ surface. Each criterion names its proof: **[unit]**, **[property]** (`fast-check
     `apps/web/src/room`; a prerendered room route. **[build]** + **[review]**
 34. **The real probe agrees with the validator where it matters most.** Against the **real** adapter
     kit, `generateKitchen` returns `ok` for each of ADR 0108 Amendment E's accepted boundary rooms —
-    **900 × 2200, 1000 × 2100, 1500 × 1600**, plus their +1 mm neighbours — closing the gap that
+    stated **wall A × wall B**: **900 × 2200, 2100 × 1000, 1500 × 1600**, plus their +1 mm
+    neighbours — closing the gap that
     `minimum-kitchen.test.ts`'s fake-probe agreement property leaves open (G5). **A disagreement here
     is ADR 0110's to settle, not a number to nudge** — the implementer **stops and reports**, and the
     coordinator rules. **Must not:** a constant adjusted, a boundary moved or an exception added in the
@@ -7739,3 +7767,647 @@ criteria 33's route table and First Load JS. A 390 × 844 visual gate in **both*
 production build, with the tree frozen. 7F4b adds e2e, and **CI is its verdict** — `scripts/local-ci.sh`
 never sets `CI`, so every local e2e runs against `next dev` (7F1-D45's close-out records this in full).
 **The composition duration is reported, never rounded and never assumed.**
+
+## Wave 7P1 — dispatchable punch list: the preset store
+
+> **Planned 2026-09-15 by the architect, on branch `m7-room-and-presets` at `41181d8`.** This is the
+> binding version of the **7P1** bullet at *Revised criteria for new and changed waves* (four
+> criteria, above) and of the 7P1 row in the revised wave table; where this section and those
+> disagree, this section is later and says why. The four carried criteria all survive and are
+> widened — see the map at the end of *Acceptance criteria*. **Nine rulings below are the
+> architect's and are marked as such**; ADR 0112 settles the shape of the row and does not settle
+> most of what an implementer has to type. **Three questions are not mine** — Q-7P1-1 and Q-7P1-2
+> are the coordinator's, Q-7P1-3 is owner-facing and goes in tomorrow's batch rather than blocking.
+
+### Read this before anything else: what the freeze does and does not make expensive
+
+**Wave 7P2 is the project's freeze point**, and 7P1 builds the store 7P2 starts writing into. The
+owner's ruling of 2026-09-14 — *"there are no existing saved kitchens at the moment… until we'll not
+implement all the milestones, and I will not explicitly mention that we move it to production, we
+are pretty safe to not worry about existing kitchens"* — is what makes every wave up to here free
+with stored data. **From 7P2 onward it is not.** So the preset record's shape is the most
+consequential thing this wave decides, and it is decided once.
+
+**But the boundary has to be stated precisely, or the wave will over-build.** What the freeze makes
+expensive is:
+
+1. **a change to the meaning of a column that already holds the owner's data** — a rename, a retype,
+   a re-derivation, or anything needing a backfill;
+2. **any field the matcher reads**, because a field 7B needs and the row lacks cannot be filled in
+   retrospectively for presets already authored;
+3. **a change to what `document` means**, because the snapshot is a `Design` and is migrated by the
+   design mechanism.
+
+What the freeze does **not** make expensive is **adding a nullable column**. `alter table … add
+column if not exists` is additive, idempotent, recognised by the unattended screen, and touches no
+stored row. That distinction is why ruling **P5** declines to guess at 7G's thumbnail storage rather
+than creating a column now "to be safe".
+
+**One correction to a premise that is repeated in this file and is false.** *"There are no stored
+designs"* is the owner's statement about **customers' kitchens**, and it is true of those.
+[ADR 0038](../decisions/0038-pre-release-no-stored-designs-no-migrations.md)'s founding premise was
+measured false twice, most recently by [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)
+on 2026-09-02: **five `designs` rows exist at `schema_version` 1.** Those are development rows.
+**What is genuinely new about a preset is not that it is stored — it is that it is not
+reproducible.** A generated kitchen can be regenerated from its room; a customer's design is theirs
+and is replaceable by them; **an adjusted-by-hand preset exists nowhere else, and
+[ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
+decision 3 makes it the only route the product has to a refined kitchen.** That, and not a row
+count, is why the backup half of this wave matters and why it is not a chore appended to the
+migration. *(The framing is the architect's; the facts in it are ADR 0052's and ADR 0117's.)*
+
+### Ground truth, measured at `41181d8`
+
+Each is a file and a line, because six of them contradict something a reader would reasonably assume.
+
+| # | Measured | Consequence |
+| --- | --- | --- |
+| G1 | Migrations run `0001`–`0004`; `readMigrationFiles` enforces a contiguous run from 0001 (`migration-files.ts:73-93`). Two test files carry the literal filename list (`tests/migrate.test.ts:51`, `tests/migration-files.test.ts:30`), and the package's `build` script asserts `src/migrations/*.sql` and `dist/migrations/*.sql` have the **same count**. | **`presets` is `0005`.** Three places outside the migration directory must change with it, and the build's count check is the one that fails silently-looking at a `tsc` step rather than in a test. |
+| G2 | **No migration file contains a `grant`.** The application role's privileges on `designs` are granted by hand outside the runner; `tests/application-role-privileges.test.ts:57-72` asserts exactly `INSERT, SELECT, UPDATE`. | **A new table is created owned by the migration role, and the application role gets nothing.** The read path answers `permission denied for table presets` until an operator grants. **That is a deployment step, not a code step**, and ADR 0112 decision 1's *"granted `SELECT, INSERT` and nothing else"* is an instruction to a human. |
+| G3 | **The deployed-schema gate is `designs`-only.** `TABLE_PRESENCE_SQL` asks about `schema_migrations` and `designs` and nothing else (`migrate-status.ts:54-57`); `DESIGN_COLUMNS_SQL` reads only `designs` (`:62-64`); `REQUIRED_DESIGN_COLUMNS` lists only `designs` columns (`migration-status.ts:97-119`). `deploy.yml`'s *"Verify by reading the schema back"* step is **THE GATE**. | **It would report `level` against a production database with no `presets` table at all.** That is the 2026-09-07 incident's exact shape, one table over — and the gate is structurally blind to it, not merely untested. **Closing it is a work item of this wave** (ruling P8, criterion 8). |
+| G4 | `migrate:status` connects as `MIGRATION_DATABASE_URL` — the owner role — and reads `information_schema`, which is privilege-filtered **by the reader**. | **The gate cannot see a missing application grant in either direction.** Nothing in the deploy path can. G2's step has no automated witness at all except the privilege test in G5. |
+| G5 | **Every live persistence suite gates on `Boolean(process.env["DATABASE_URL"])`** — `application-role-privileges.test.ts:16`, `backup-restore-round-trip.adversarial.test.ts:37`, `design-row-source.test.ts:12`, `migrate.test.ts:33`, `neon-configuration-repository*.test.ts` — and `ci.yml`'s `test` job **deliberately does not set it** (`:136-138`), while it does set `TEST_DATABASE_URL` (`:143`). `resolveTestDatabaseUrl()` needs only the latter (`test-database-url.ts:120-130`). | **The whole live persistence suite is skipped in CI.** Four of those five suites *could* run there and do not. A Full + security wave whose centre is a migration therefore has **no CI gate on its central artefact** — see ruling P7 and risk 4. |
+| G6 | Wall lengths are derived, not stored: `wallLengthMm(wall, room)` maps **A → `room.widthMm`, B → `room.depthMm`** (`queries/overflowing-placements.ts:45-50`), and that mapping is deliberately not `max(width, depth)` (ADR 0065 decision 5). `DesignRoom` carries `shape`, `widthMm`, `depthMm`, `heightMm` and **no per-wall lengths and no corner direction** (`design.ts:144-150`). | ADR 0109 Amendment A2's ±600 window has exactly **three inputs**: the shape, wall A and wall B. Height is **not** a match criterion — a ceiling below the preset's tallest body is an *adaptation* (Amendment B), not a filter. *(That reading is the architect's; A2 says "every wall" and B rules the ceiling separately.)* |
+| G7 | **`migrateDesign` can rewrite the room.** `correctPreCorrectionRoom` is the version-2 arm (`migrate-design.ts:117`, `196-`), and it exists precisely to replace the room a stored document carries. | **The room read off a loaded snapshot is not necessarily the room the preset was authored at.** This is the argument that keeps ADR 0112 decision 1's room columns from being redundant — and the reason ruling **P2** puts an executable guard between them rather than trusting them to agree. |
+| G8 | `CURRENT_SCHEMA_VERSION` is **5** (`migrate-design.ts:62`). `mint` stamps it; `load` passes `row.schema_version` — never the constant — to `migrateDesign` (`neon-configuration-repository.ts:133-141, 231-246`). ADR 0096 decision 9 exists because the **document** version and the **migration** number were conflated once during a live diagnosis. | The row's `schema_version` is the *document*'s version; the row's *columns* are versioned by migration number. **Two mechanisms, already both present, and a preset needs no third** (ruling P1). |
+| G9 | **A design id is today a read capability to anyone holding it.** 7E3b is what closes that, and the recommended order puts it after 7P1, 7P2, 7G, 7B, 7C, 7F2, 7F3 and 7E4. | **The preset row must not carry the design id it was snapshotted from** (ruling P3). This row is read on every customer's Step 1. |
+| G10 | `Design.presetId` already exists — `z.string().max(…).nullable()`, **mandatory, nullable** (`design.ts:209`) — and a generated design sets it to `null` (`generation/shell-design.ts:134-138`). | The link from an applied design back to its preset already has a home. **This wave adds no field for it and no foreign key**; the two tables have different lifetimes and a customer's design must not be deletable-blocked by a preset or vice versa. |
+| G11 | Locales are exactly `["ro", "ru"]` (`apps/web/src/i18n/routing.ts:4`). | The name map has two possible keys today and must not be typed as a fixed pair of required strings. |
+| G12 | One cron path, `0 3 * * *` → `/api/cron/backup-designs` (`apps/web/vercel.json`); the route maps a **single** `BackupStatus` to a status code (`route.ts:21-25`); `BACKUP_PAGE_SIZE` is 200 rows held in memory at once (`backup-designs.ts:53`). | Ruling **P6**: one invocation, two separately-scoped exports, and the route's status contract changes — which is a monitoring-visible change and needs its own criterion (15). |
+| G13 | The unattended screen recognises `create table if not exists` as the first of six additive shapes (`migration-safety.ts:70-92`), strips comments first (`:226-234`), and diagnoses a bare `drop`, `update`, `delete` or `truncate` **anywhere in a statement**. | A prose header discussing `drop` is fine; **a clause naming it is not.** This is why ruling **P4** declines a `check` constraint whose value space is known to be growing — widening one needs a drop, which the screen refuses by construction. |
+| G14 | `deleteDesignsForTests` is the only cleanup path, is `designs`-only, refuses outside a test runner and resolves its own URL (`delete-designs-for-tests.ts:34-47`). ADR 0006's rule is that a suite minting rows removes them. | A `deletePresetsForTests` counterpart is owed, in the same package, under the same refusals. |
+
+### Rulings
+
+**P1 — the record shares `designs`' schema-version mechanism and gains no version number of its
+own.** *(Architect's; ADR 0112 does not settle it.)* The snapshot **is** a `Design` document, so it
+carries the document's `schema_version`, stamped with `CURRENT_SCHEMA_VERSION` at insert and read
+back and handed to `migrateDesign` on load — the same two lines `mint` and `load` already contain.
+The row's **columns** are versioned by migration number, as `designs`' are. A third scheme —
+`preset_record_version` — would be a second authority over the same question and would have to be
+kept in step with both existing ones; **G8 is the record of what happened the last time two of these
+were confused**, and adding a third is the same mistake with more surface.
+
+**P2 — ADR 0112 decision 1's room columns stay, and an executable guard is what stops them becoming
+a second authority.** *(Architect's; this is how decision 1 is implemented, not a change to it.)* The
+row carries `shape`, `wall_a_mm`, `wall_b_mm`, `height_mm`, and all four are derived **at insert** by
+one exported function, `presetRoomOf(design)`, reading `wallLengthMm`'s own mapping (G6) so no second
+wall mapping exists in the tree. The read path re-derives from the loaded snapshot and **compares**.
+They cannot merely be trusted to agree — G7 shows `migrateDesign` rewriting the room is a thing this
+codebase has actually done — and two numbers agreeing by luck is precisely
+[ADR 0028](../decisions/0028-wall-depth-is-derived-from-the-worktop.md)'s defect and
+[ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)'s.
+**Fail-closed and per row:** a record whose columns and snapshot disagree is dropped from the list
+with a named code and logged; the list still returns every other row. **The obligation this creates,
+recorded here so a later author finds it:** once presets exist, a new `migrateDesign` arm that
+rewrites `room` owes the preset table a re-stamp, and that is an operator migration rather than a
+code change.
+
+**P3 — the record does not carry the design id it was snapshotted from. Must-not, not merely out of
+scope.** *(Architect's.)* ADR 0112 decision 1 does not list it, and G9 is why its absence has to be
+deliberate: until 7E3b lands, a design id is a read capability, and this is the one row read on every
+customer's Step 1. One careless serialisation publishes the owner's own kitchen link. If provenance
+is ever wanted, a **hash** of the id is the shape to use, and it is a later wave's.
+
+**P4 — no database-level `check` constraint on `shape` or `status`.** *(Architect's.)* `0003`'s check
+constraint is the precedent the other way and it is a good one — but it guards a **security**
+invariant over a value space fixed forever (a SHA-256 digest), and application code is not on the
+path a manual insert takes. `shape` is a domain enum **known to be growing**: M7B adds `"U"` and a
+third wall, and widening a check needs a `drop`, which the unattended screen refuses by construction
+(G13) and which would be an operator migration on live preset data after the freeze. `status` has a
+fixed value space but no attacker: the application holds no `UPDATE`, so only an operator at the
+console can write an odd one, and the strict domain parse at the read seam refuses it immediately and
+visibly. **The columns are `text not null`; `PresetRecordSchema` is the authority.**
+
+**P5 — this wave creates no thumbnail column.** *(Architect's; ADR 0112 decision 1 lists a thumbnail
+among the row's fields and decision 6 rules how it is captured, neither of which says when the column
+appears.)* Where the bytes live — in the row or in Blob behind a pathname — is 7G's decision, and
+creating the wrong column now is worse than creating none: it would be a column already holding
+owner data at the moment 7G wanted to change it, which is exactly case 1 of the freeze. **The freeze
+does not bind here**, because adding a nullable column is free before and after it. **What the wave
+order does bind was raised as Q-7P1-2 and is now ruled: 7G adds the column *and backfills every
+preset authored before it*** (coordinator, 2026-09-15). So this ruling costs nothing and leaves no
+hole — see Q-7P1-2 for the two mechanisms that make the backfill cheap.
+
+**P6 — the export is a second, separately-scoped export and never a widened one.** ADR 0112's
+consequences say 7P1 *"extends the export"* to presets;
+[ADR 0012](../decisions/0012-scheduled-export-is-a-scoped-sql-select.md) says in terms that the
+`designs` export **must not be widened** and that *"another table needs a second, separately-scoped
+export — not a broader query."* **The two are reconciled by ADR 0012's own sentence**, and the
+outcome is: `backup-presets.ts`, blob prefix `backups/presets/`, its own row source, **reusing** the
+streaming, truncation-detection and rotation machinery rather than copying it. **One cron
+invocation, two exports** — a second cron path is a second entry on a plan whose cron limits ADR 0012
+already had to reason about, and two exports of one database want one schedule and one alarm. The
+route answers **503 if either export failed** and names both in the body (criterion 15).
+
+**P7 — this wave's new live suites gate on `TEST_DATABASE_URL`, and the five existing ones are
+reported, not re-gated.** *(Architect's.)* G5 is a real defect and it is not 7P1's: re-gating five
+suites is five files belonging to other waves, and a mistake there points a destructive suite at the
+wrong database. **New tests may follow the better rule without changing the old ones**, so 7P1's own
+live evidence runs in CI. **The existing gap is wave 7T, ruled by the coordinator on 2026-09-15 to
+land *before* this wave** (Q-7P1-1) — which means that by the time 7P1 is dispatched, P7's
+distinction should already have been retired by 7T rather than carried. **If 7T has not landed, P7
+still holds**: this wave does not re-gate anything.
+
+**P8 — the deployed-schema gate learns about `presets` in this wave.** G3. Without it, `deploy.yml`'s
+gate reports `level` over a database that cannot serve Step 1. `REQUIRED_PRESET_COLUMNS` is stated
+**independently of the migration file**, for the reason `REQUIRED_DESIGN_COLUMNS` already gives in
+its own header: a requirement derived from `0005` would agree with any database `0005` had been run
+against, which is the very thing under test.
+
+**P9 — the repository is insert-only and the row carries no `revision`.** `0004`'s lost update cannot
+occur where there is no update, and ADR 0112 decision 1 grants `SELECT, INSERT` and nothing else.
+Stated so a reviewer does not ask for a concurrency token, and so that **a later wave wanting
+`UPDATE` knows it is adding two things, not one** — the grant and the token.
+
+### Module boundaries
+
+- **The domain owns the record and its parse. It owns no SQL and chooses no locale.**
+  `packages/configurator-domain/src/presets/preset-record.ts` publishes `PresetRecordSchema`,
+  `PresetRecord`, `presetRoomOf(design)` — the **one** derivation P2 guards — and the named code a
+  disagreeing row is dropped with. It publishes the **name map**, never a sentence:
+  [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md)
+  survives untouched because a preset's name is owner-authored **content**, not product copy, and
+  content cannot live in a message file. *(That distinction is the architect's reading; ADR 0095
+  addresses copy and is silent on content.)* Which locale a card renders is 7F3's and is presentation.
+- **Persistence owns the row, the SQL and the id.** `preset-repository.ts` (`PresetRepository` with
+  `listPublished()` and `insert()`, and `NeonPresetRepository`), `generate-preset-id.ts` reusing
+  `nanoid` exactly as `generateDesignId` does, `fake-preset-repository.ts`,
+  `delete-presets-for-tests.ts`, `preset-row-source.ts` for the export. **No Postgres driver leaves
+  this package** — `scripts/gates/boundary.sh` is the standing rule and `delete-designs-for-tests.ts`
+  is the record of what happens when it is bent.
+- **The web owns composition and nothing else.** A lazy singleton beside `getRepository()`, in the
+  same shape and for the same `next build` reason. **No route is added in this wave.** The read is a
+  server-component call 7F3 makes; a public list endpoint is ruled out by ADR 0112 decision 5.
+- **The evaluator is 7B's and is not started here.** 7P1 publishes the record 7B's evaluator
+  consumes and **no matching logic whatsoever**. A ±600 comparison appearing anywhere in this wave is
+  the defect, not a head start.
+
+### Files, and the must-not-change set
+
+**May change** — grouped by slice, so each dispatch stays near `docs/WORKFLOW.md`'s five production
+files:
+
+- `packages/configurator-domain/src/presets/preset-record.ts` (new), `src/index.ts` (exports only).
+- `packages/persistence/src/migrations/0005_create_presets.sql` (new),
+  `src/migration-status.ts`, `src/migrate-status.ts` (+ the filename lists in `tests/migrate.test.ts`
+  and `tests/migration-files.test.ts`).
+- `packages/persistence/src/preset-repository.ts`, `src/generate-preset-id.ts`,
+  `src/fake-preset-repository.ts`, `src/delete-presets-for-tests.ts` (all new), `src/index.ts`.
+- `apps/web/src/lib/server/preset-library.ts` (new).
+- `packages/persistence/src/preset-row-source.ts` (new),
+  `apps/web/src/lib/server/backup-presets.ts` (new),
+  `apps/web/src/app/api/cron/backup-designs/route.ts`, `docs/runbooks/design-db-restore.md`.
+- `packages/persistence/tests/application-role-privileges.test.ts`.
+
+**Must not change:** `neon-configuration-repository.ts` — **the design write path is untouched by
+this wave**; migrations `0001`–`0004`, whose **bytes are frozen** and whose `0004` header says so in
+terms; `apps/web/src/app/api/designs/**`; `validate-design.ts`; **`migrate-design.ts` — no schema
+version bump is owed here**, and one taken in this wave would rewrite the *design* document for a
+reason that has nothing to do with designs; `backup-designs.ts`'s row source and its
+`designs`-only query (ADR 0012, P6); the five existing live suites' `DATABASE_URL` gating (P7);
+`approved-room-policy.ts`; anything under `packages/three-adapter`.
+
+### For the security reviewer — the four questions, answered where they can be checked
+
+**The tier is Full + security** (ADR 0112 decision 7). This wave adds no authentication mechanism —
+that is 7P2's — but it creates **the table every customer's first screen reads**, so the reviewer's
+questions are about a read path and a schema rather than about a credential.
+
+**1. Who may read a preset? Everyone, by design — and that is the asymmetry the rest of this section
+turns on.** A preset is **product data**: owner-authored, shown to every visitor, deliberately not
+secret. A design is a **customer's document** under a per-design write token
+([ADR 0019](../decisions/0019-security-baseline-writes-throttling-retention.md) decision 1). ADR 0112
+rejected storing presets as `designs` rows with a flag for exactly this reason, and the reviewer
+should hold the wave to that separation rather than to designs' rules.
+
+**2. Are preset ids guessable, and does it matter? They are `nanoid` (21 characters, ≈ 126 bits, the
+same generator `generateDesignId` uses) — and the answer that matters is that a preset id is NOT a
+capability.** Guessing one buys an attacker what every visitor is shown anyway. **A design id today
+*is* a capability** — it is a read on the document until 7E3b lands, which is after this wave, after
+7P2 and after 7G in the recommended order. **The reviewer's question is therefore not "is the id
+strong enough" but "is anything here a capability that looks like data".**
+
+**3. Can the read path leak anything about a design? This is P3, and it is a security property wearing
+a schema decision's clothes.** ADR 0112 decision 3 has the server snapshot a design **by id**, so the
+save knows an id that is, today, a read capability on the owner's own kitchen (G9). **The record must
+not carry that id in any form.** It is not "out of scope" and it is not a field anyone forgot — it is
+a must-not, criterion 11 is its executable form, and provenance, if a later wave wants it, is a
+**hash** and never the id. The failure this prevents is concrete: one `select *` reaching a card
+publishes a working `/d/{id}` link to the owner's design on every Step 1 screen.
+
+**What the snapshot itself carries, checked against `design.ts` rather than assumed:** `room`,
+`presetId`, `placements`, `emptyColumns`, `columnExtents`, `settings`, `createdAt`, `updatedAt`.
+**No credential and no visitor identity are in the document** — the write-token hash is a *column* on
+`designs` (`0002`) and the visitor hash will be another (`7E3a`), and neither has ever been part of
+`Design`. So the snapshot is safe to publish **by construction of the document type**, and the
+reviewer can check that claim in one file rather than by reasoning about what a save might include.
+
+**4. Who may write one? Nobody, in this wave.** No route is added (criterion 16), the repository's
+`insert` has no caller until 7P2, and the application role holds no `UPDATE` and no `DELETE`
+(criterion 9, P9). **Three further things the reviewer should look for, because each is a plausible
+"helpful" addition that would breach something recorded:**
+
+- **an `/api/presets` GET** — ADR 0112 decision 5 rules out a public list endpoint; the read is a
+  server-component call;
+- **`UPDATE` granted "so the owner can hide one"** — ADR 0112 decision 1 reserves hiding to the
+  database console until a wave needs it, and Q-7P1-2's backfill is answered by a **column-level**
+  grant in 7G rather than by widening the row's;
+- **a `grant` statement inside the migration file** — G2: the grant is an operator step, and the
+  unattended screen would refuse the file (G13).
+
+**One honest limit the reviewer must be told rather than left to infer:** the privilege assertion
+(criteria 9 and 10) needs the *application* role on the *application* database and therefore **cannot
+run in CI** (G4, G5). The grant has no automated witness in the deploy path. That is a stated gap,
+not an oversight, and it is risk 3.
+
+### Acceptance criteria
+
+1. *(unit)* **`PresetRecordSchema` is strict.** An unknown key is refused; the snapshot parses as
+   **`CurrentDesignSchema`**, so `settings.cabinetDepthMm` is mandatory; `names` is a map over the
+   locale codes only and **an empty map is legal**; `status` is one of exactly two literals. **Must
+   not:** a passthrough object, or a snapshot admitted under `LegacyDesignSchema` — a preset that
+   cannot state its own depth cannot be evaluated at every declared depth (ADR 0109 Amendment C).
+2. *(unit, the P2 guard — the criterion this wave exists for)* `presetRoomOf` is the **only**
+   derivation of shape, wall A, wall B and height, and it reads `wallLengthMm`'s mapping. A record
+   whose stored columns disagree with its snapshot is **dropped from the list with a named code and
+   logged**; a list containing one such row still returns every other row. **Must not:** a read path
+   that silently prefers either side; a read path that throws and so empties the library; a second
+   wall mapping anywhere (`widthMm`/`depthMm` re-read at a second site).
+3. *(property, ≥ 100 samples per arm)* Over rooms drawn from the approved L policy: insert, then
+   read, round-trips **byte-identically** under canonical serialisation — including the empty name
+   map, both statuses, and every `schema_version` 1–5 a row can carry.
+4. *(unit, boundary)* **The snapshot is migrated on read exactly as a design is**, using the row's
+   own `schema_version` and never the constant: a row stamped 1 loads migrated; a row stamped 6 is
+   refused as unsupported and dropped under criterion 2's arm rather than raising. **Must not:** a
+   read that assumes `CURRENT_SCHEMA_VERSION`.
+5. *(live, test database)* The migration runs through the ledger and **the schema is read back after
+   it** — the test asserts the `presets` columns out of `information_schema`, never the runner's exit
+   status (ADR 0020 decision 2, ADR 0042). **Must not:** a green `migrate` taken as evidence.
+6. *(unit)* `migrate:unattended-check` passes with `0005` present, and the file is recognised
+   **by shape name** as `create table if not exists`. **Must not:** a clause that makes the screen
+   refuse, discovered in `deploy.yml` instead of in a unit test (G13).
+7. *(unit)* The migration filename lists in `tests/migrate.test.ts` and `tests/migration-files.test.ts`
+   carry `0005`, versions stay contiguous, and `pnpm --filter @lemnaria/persistence build` still
+   passes its `src`/`dist` `.sql` count check (G1).
+8. *(unit — P8, the gate nothing has today)* `describeDeployedSchemaStatus` reports **not level** for
+   a reading whose `presets` table is **absent**, and for one where a required presets column is
+   present but **misshapen**; `REQUIRED_PRESET_COLUMNS` is written as the application's independent
+   statement of what it needs. **Must not:** a requirement derived from `0005_create_presets.sql` —
+   that is a guard that agrees with the file under test.
+9. *(live, application role, application database)* The application role holds **exactly `SELECT` and
+   `INSERT`** on `presets` — not `UPDATE`, not `DELETE` — and an `update presets set status = …` is
+   refused. **Must not:** `UPDATE` granted "so hiding works", which is ADR 0112 decision 1's explicit
+   exclusion.
+10. *(live, and stated honestly)* A read through `NeonPresetRepository` under the **application**
+    credential succeeds. **This is the only witness the grant of G2 has**, it runs only where
+    `DATABASE_URL` is set, and it therefore **does not run in CI** (G4, G5). The grant itself is an
+    operator step recorded in the runbook and is never a statement in the migration file.
+11. *(unit)* **No design id anywhere on the record** (P3): the record module and the row type contain
+    no `designId`/`sourceDesignId`, asserted by a grep-in-a-test, and `insert` takes a `Design` and
+    never an id. **Must not:** provenance travelling as an id "for debugging".
+12. *(unit)* `listPublished` returns **newest first**, deterministic on equal timestamps by id, and
+    never returns a `hidden` row. Its bound is **stated**, and the read reports when the bound was
+    reached rather than truncating silently. **Must not:** an unbounded `select` over a table read on
+    a customer's first screen.
+13. *(live, round trip — the criterion P6 is for)* A preset is exported through the production row
+    source, its row destroyed, restored through **the runbook's own statement copied verbatim into
+    the test**, and then **read back through the repository and parsed**. **Must not:** a test that
+    asserts the column list instead of performing the loop — `backup-restore-round-trip.adversarial.test.ts`'s
+    own header records why that would have passed against the defect it was written for.
+14. *(unit)* The presets export is a **second scoped export**: its own `backups/presets/` prefix, its
+    own rotation, and a test asserting the designs row source is **unchanged** and still names only
+    `designs`. **Must not:** one query over two tables (ADR 0012).
+15. *(unit)* The cron route answers **503 when either export failed**, 200 when both succeeded or only
+    rotation failed, and the body names each export's status **separately**. **Must not:** a failed
+    preset export hidden behind a successful designs export — that is ADR 0012's *"a backup that did
+    not happen must not look like one that did"*, one table over.
+16. *(unit)* **No route is added and no route writes to the table**: an enumeration of
+    `apps/web/src/app/api/**` finds no preset path in this wave. **Must not:** an `/api/presets` GET
+    "ready for 7F3" — ADR 0112 decision 5 rules out a public list endpoint.
+
+**Wave-wide must-nots.** **No agent applies this migration to any deployed database** (ADR 0020
+decision 1, ADR 0112 decision 1, `AGENTS.md`); the test database only, and the fact is stated in the
+close-out. No customer-reachable route writes to `presets`. `CURRENT_SCHEMA_VERSION` is not bumped.
+No ±600 comparison is written in this wave.
+
+**The four carried criteria, mapped.** Carried 1 → criteria 5, 7, 9; carried 2 → criteria 1, 3, 12
+(and its *"reads published presets by shape"* is satisfied by the domain evaluator's input, not by a
+SQL filter, per ADR 0112 decision 5); carried 3 → criteria 13, 14; carried 4 → the wave-wide
+must-nots and criterion 16. **None is withdrawn.**
+
+### Slices, in dependency order — dispatched one at a time, with the tree frozen between
+
+- **S1 — the record, in the domain, alone.** `preset-record.ts` + `index.ts`. Criteria 1, 2 (the
+  derivation half), 11. **Dispatched alone and reviewed before anything is built on it**, because
+  this slice is the freeze decision and every later slice inherits it.
+- **S2 — the migration and the deploy gate.** `0005_create_presets.sql`, `migration-status.ts`,
+  `migrate-status.ts`, the two filename lists. Criteria 5, 6, 7, 8. **The gate and the migration
+  belong in one slice**: a migration that ships without the gate is the state G3 describes.
+- **S3 — the repository.** `preset-repository.ts`, `generate-preset-id.ts`,
+  `fake-preset-repository.ts`, `delete-presets-for-tests.ts`, `index.ts`. Criteria 2 (the read half),
+  3, 4, 12.
+- **S4 — the web read composition.** `preset-library.ts`. Criterion 16. Small on purpose: it is one
+  lazy singleton and a boundary this wave must not cross.
+- **S5 — the backup.** `preset-row-source.ts`, `backup-presets.ts`, the cron route, the restore
+  runbook. Criteria 13, 14, 15.
+- **S6 — the grant and its witness.** The runbook's operator line and
+  `application-role-privileges.test.ts`. Criteria 9, 10. **Last, and not code**, so the operator step
+  is a reviewed artefact rather than a sentence in a close-out.
+
+### The test contract
+
+- **Unit and property suites** run in `configurator-domain`, `persistence` and `apps/web` and are
+  the wave's CI gate. Property suites **state their seeds and their per-arm counts in the test
+  names**, as every M7 property suite does.
+- **Live suites** are new and gate on `TEST_DATABASE_URL` (P7), so criteria 3, 5 and 13 **do** run in
+  CI. Every row they mint is removed through `deletePresetsForTests`, under the same refusals
+  `deleteDesignsForTests` carries (G14).
+- **Criteria 9 and 10 cannot run in CI at all**, because they need the *application* role on the
+  *application* database (G4, G5). They are run by hand and **their output is pasted into the
+  close-out**. A green CI run is not evidence for either, and the close-out says so rather than
+  implying coverage it does not have.
+- **No e2e, no Playwright, no visual capture.** The wave has no surface.
+
+### Risks, ranked — with the reason for the rank
+
+1. **A field the matcher needs, missing after the freeze.** Rank 1 because it is the **only** item
+   here whose cost is unbounded and whose discovery is silent: every other risk is caught by a test
+   or by a deploy gate within minutes, and this one is caught by nobody until the owner has authored
+   a library and 7B cannot match it. Criteria 1, 2 and 3 stand in front of it, and the window's
+   entire input set is enumerated in G6 and P2 for exactly this reason.
+2. **The deployed-schema gate reporting `level` over a database with no `presets` table.** Rank 2 and
+   not 1 **only because the failure is loud** — the first customer to reach Step 1 gets an error —
+   whereas risk 1 is silent. It is the 2026-09-07 incident's exact shape and the gate is structurally
+   blind to it today (G3), so it is a certainty rather than a hazard if criterion 8 is skipped.
+3. **The grant nobody runs.** Ranks above 4 because **no test in CI can catch it** (G4, G5) and the
+   symptom lands on a deployed environment rather than on the implementer's machine, where every
+   other failure in this wave lands.
+4. **The live persistence suite skipped in CI.** Ranked here rather than higher because P7 keeps
+   *this wave's* evidence out of the gap; ranked above 5 because a Full + security wave whose centre
+   is a migration and a live repository deserves a CI gate and, for the five existing suites, does
+   not have one. **Ruled 2026-09-15 into wave 7T, landing before this one** (Q-7P1-1), which retires
+   this risk if 7T lands first and leaves it exactly as written if it does not.
+5. **A second authority between the row's room and the snapshot's.** G7 makes it real rather than
+   theoretical — this codebase has shipped an arm that rewrites a stored room. Rank 5 because
+   criterion 2 converts it from a silent mismatch into a dropped row with a code, which is a
+   contained failure.
+6. **Thumbnail limbo between 7P2 and 7G.** The owner may author presets that can never show a
+   picture (P5, Q-7P1-2). Ranked low **because it is not a code risk at all** — it is a wave-order
+   one, and the fix is a decision rather than a criterion.
+7. **Scope creep into 7B.** A ±600 comparison written here would be a second matcher, and the
+   evaluator is the thing ADR 0112 decision 5 keeps single. Low rank, high visibility: the must-not
+   is stated twice on purpose.
+8. **The migration number raced by 7E3a and 7E3c**, which both plan migrations
+   (`0006_add_design_visitor_hash.sql`, `00NN_create_design_share_links.sql`). **Last, because
+   contiguity is enforced (G1), so two waves both taking `0005` is a hard, immediate failure rather
+   than a silent one** — but it is named because the recommended order puts 7P1 first and the number
+   must be claimed in the same commit that uses it.
+
+### Questions that are not mine
+
+**Q-7P1-1 — ~~the coordinator's~~ RULED by the coordinator, 2026-09-15: yes, and as its own wave
+*before* 7P1.** Four live persistence suites need only `TEST_DATABASE_URL` and gate themselves on
+`DATABASE_URL`, so they never run in CI (G5). The coordinator's reason for putting the wave **first**
+rather than after, recorded because it is better than the recommendation it replaced: 7P1 adds new
+live suites that *do* run alongside five that do not, so landing 7P1 first leaves the repository in a
+state where *"the persistence tests pass"* means two different things depending which file you are
+looking at. **It is wave 7T, planned below.** The coordinator's instruction stands on the record:
+*"I am not assuming they pass… if they are red, that is the finding — not a reason to re-skip them."*
+
+**Q-7P1-2 — ~~the coordinator's~~ RULED by the coordinator, 2026-09-15: 7G backfills, and the gap is
+not accepted.** 7P2 ships *save as preset* **before** 7G ships the thumbnail capture, and the
+application role holds no `UPDATE` (P9), so presets authored in that window would have no thumbnail
+and no way to acquire one. ~~Recommendation: accept the gap and tell the owner.~~ **Overturned, and
+the reason is the stronger one:** the presets authored in that window are the owner's first
+authored artefacts and the first data in this system that cannot be re-derived, which is the worst
+place in the product to accept a permanent hole — *"'we told them' does not repair it."* **7G carries
+a backfill for every preset authored before it**, recorded on 7G's row now while it is cheap; an
+obligation recorded after the data exists is a migration.
+
+**The mechanism, checked rather than assumed, so 7G does not have to rediscover it.** A backfill is
+not merely possible here, it is already provided for twice over. (1) **The source exists**:
+ADR 0112 decision 6 states that the rig (`/internal/scene-shot`) *"can re-capture any preset from its
+snapshot"* — the snapshot is the whole design, so nothing about an un-thumbnailed preset is lost.
+(2) **The grant need not be widened to `UPDATE` on the row.** Postgres grants privileges per column:
+`grant update (thumbnail…) on presets to <app role>` lets 7G write the image while **`status` stays
+unwritable by the application**, which is precisely the privilege ADR 0112 decision 1 withholds. So
+P9's *"a later wave wanting `UPDATE` is adding two things"* is satisfied narrowly rather than by
+abandoning least privilege. *(The column-grant reading is the architect's; ADR 0112 does not
+contemplate a backfill, and 7G owns the final shape.)*
+
+**Q-7P1-3 — owner-facing, for tomorrow's batch. Not blocking: the build proceeds either way.** Two
+halves, and the second is the one worth their attention.
+
+- **Names.** ADR 0112 decision 1 gives a preset *"an optional owner-typed name per locale"*, and the
+  locales are Romanian and Russian (G11). Does the owner expect to type both when saving, or one?
+  **Non-blocking by construction** — the record carries a map and an empty map is legal — so the
+  answer shapes 7P2's form and 7F3's fallback, not this schema.
+- **How long the library's backup reaches back.** Their authored presets are the first thing in this
+  system that **cannot be re-derived**: a generated kitchen can be regenerated from a room, and a
+  customer's design is theirs, but a kitchen the owner adjusted by hand and saved exists nowhere
+  else. The library would inherit `designs`' recovery window — **fourteen nightly exports**
+  (`BACKUP_RETENTION_DAYS`), chosen for *"a problem introduced before a weekend and noticed the week
+  after"*. Presets are written rarely and lost permanently, which is the opposite profile. **Do they
+  want a longer window for the library?** *Recommendation: yes — and it is one constant in
+  `backup-presets.ts`, not a design, so it can be answered after the wave lands.*
+
+### Verification
+
+Per-package `vitest` for `configurator-domain`, `persistence` and `apps/web`; `typecheck`; `lint`;
+and a whole-tree `pnpm format:check` at the wave's end. **No e2e, no Playwright, no visual capture.**
+The live suites' output is pasted into the close-out, and the close-out states plainly which criteria
+CI proved and which it could not (criteria 9 and 10). **The migration is applied to the test database
+and to nothing else**, and that is recorded as a sentence, not implied by silence.
+
+## Wave 7T — dispatchable punch list: the live persistence suite actually runs
+
+> **Planned 2026-09-15 by the architect**, on the coordinator's ruling of the same day (Q-7P1-1),
+> from a finding made while planning 7P1. **Ordered before 7P1.** **It touches no production file**
+> and its whole output is a change to which tests execute, plus whatever those tests then say.
+> **The coordinator's instruction is the wave's governing sentence and is quoted rather than
+> paraphrased:** *"I am not assuming they pass. Five suites that have never executed against a real
+> database may well be red, and if they are, that is the finding — not a reason to re-skip them."*
+
+### What this wave is, stated so nobody dispatches the easy version of it
+
+**The persistence layer's live coverage has been green by never executing.** Five suites gate
+themselves on `Boolean(process.env["DATABASE_URL"])`; `ci.yml`'s `test` job **deliberately never sets
+it** and says why (`:136-138`); `TEST_DATABASE_URL` **is** set (`:143`) and is all
+`resolveTestDatabaseUrl()` needs (`test-database-url.ts:120-130`). So the mismatch is between a gate
+written for one reason and a CI configuration written for another, and neither is wrong on its own
+terms.
+
+**It is not a one-line env-var flip, and the failure shape if it is dispatched as one is the worst
+available.** Turned on as it stands, `migrate.test.ts` **flakes by construction** — not occasionally,
+by construction — **and the flake looks exactly like a bug in the migration runner.** So it would
+burn somebody's day chasing a defect that is not there, and **the natural fix is to re-skip the
+suite**, which puts the repository back where it started with a story about why it had to be. That
+outcome is worse than never having enabled it, because the second attempt would face a precedent.
+**This is why the isolation answer is decided below (T-J2) rather than left to the implementer.**
+
+The measured reason:
+
+| # | Measured at `41181d8` | Consequence |
+| --- | --- | --- |
+| T1 | **`migrate.test.ts`'s live tests are deliberately destructive to the shared database's ledger.** They call `dropMigrationLedger`, `forgetAppliedMigrations([2])` and `forgetAppliedMigrations(VERSIONS_AFTER_THE_FIRST)`, run two concurrent `runMigrations`, and assert **exact ledger contents** (`:124-232`). Its own `afterEach` comment says *"This database is shared by every suite in the package and by whoever else is running them."* | **This suite cannot simply be turned on.** Its assertions are about the whole ledger, so a second runner doing the same thing at the same time breaks both. |
+| T2 | **`vitest.config.ts` sets `fileParallelism: false`** — and its comment is explicit that this is about files *within one runner* sharing one `designs` table. | **It gives no protection at all across runners**, which is the case CI introduces. |
+| T3 | **`ci.yml`'s concurrency group is `${{ github.workflow }}-${{ github.ref }}`** with `cancel-in-progress` on pull requests only (`:23-26`). | **Two different PRs, or a PR and a `main` push, run their `test` jobs simultaneously** against `lemn-conf-v2-staging`. T1 + T3 is a guaranteed flake, not a hazard. |
+| T4 | **The other three live suites are concurrency-tolerant by construction.** `design-row-source.test.ts` mints tracked ids and asserts *per id* within a full walk (`:99-102`); `backup-restore-round-trip.adversarial.test.ts` finds its own row in the export (`:82-89`) and restores by `on conflict do update`; both clean up by `delete … where id = any(ids)`. Nothing asserts a whole-table count. | **These three can be re-gated as they stand.** The split between T1 and T4 is what the slices below are built on. |
+| T5 | Both of those suites' `beforeAll` already calls `runMigrations(testDatabaseUrl)`. | **Re-gating does not make CI start applying migrations — it changes who triggers something that already happens.** It is a test database and not a deployed one, so ADR 0020 decision 1 and `AGENTS.md` are untouched; **say so in the close-out** rather than leaving a reviewer to work it out. |
+| T6 | `migrate:status` runs **only in `deploy.yml`** and nowhere in `ci.yml`. | **A gate/migration mismatch is discovered as a blocked deploy rather than as a red test.** That is what makes 7P1's criterion 8 expensive to get wrong, and closing it belongs here — see ruling T-J3. |
+
+### Rulings
+
+**T-J1 — the first slice is a measurement and produces no fix.** Re-gate, run, **report the output
+verbatim**, and stop. *(The shape is wave 7D6's S1 pre-flight and is used for the same reason: the
+expensive discovery should cost an hour.)* **A suite that fails is reported as a finding with its
+output, and is neither repaired in the same slice nor re-skipped.** Whoever dispatches slice 2 does
+so knowing what is red.
+
+**T-J2 — `migrate.test.ts` is isolated by a session-scoped advisory lock taken around every
+`runMigrations` call, in one shared test-support helper. Decided here, not left to the implementer**
+(coordinator's instruction, 2026-09-15: *"what that answer is belongs in the plan, not in the
+implementer's judgement"*).
+
+**The mechanism, source-verified at `41181d8` rather than recalled:**
+
+- `MIGRATION_ADVISORY_LOCK_KEY` is **already exported** (`migration-ledger.ts:60`), and `migrate.ts`
+  already connects with a **`Client`** rather than the HTTP `neon()` function — its own header says
+  why (`:43`): *"The HTTP driver has no session: it cannot hold a lock across a read and a write."*
+  **So a session-capable driver and a greppable key both already exist**, and the helper adds neither.
+- The suite takes `pg_advisory_lock` on a **separate, test-only key** — never
+  `MIGRATION_ADVISORY_LOCK_KEY` itself, which the runner takes per transaction and which a test
+  holding across a whole suite would deadlock against.
+- **It wraps the `runMigrations` call, not the whole suite**, so the hold is short and the three T4
+  suites queue for milliseconds rather than for a test run.
+- Acquisition is `pg_try_advisory_lock` in a **bounded retry**, failing with a named message. Stated
+  because the obvious alternative does not work: `lock_timeout` does not govern advisory locks *(the
+  architect's understanding of Postgres, not verified in this session — but the bounded retry is
+  correct either way, which is why it is what the plan prescribes)*. A blocking `pg_advisory_lock`
+  would hang to vitest's 30-second `hookTimeout` and report a timeout rather than a contended lock.
+
+**Why this and not the two alternatives, both of which were live and are recorded so they are not
+re-proposed:**
+
+- **A repository-wide CI `concurrency` group on the `test` job** — about four lines and no test code.
+  **Rejected, and the two reasons below are the whole of it.** *(1)* It **serialises every unrelated
+  CI job in the repository** behind the database suite, which is a large cost for a narrow problem.
+  *(2)* It **does nothing about the case that is live right now**: a developer running the suite
+  locally while CI runs it. A concurrency group cannot see a laptop.
+
+  **What it does NOT lose on, corrected 2026-09-15 so the record is not over-broad.** The first
+  version of this bullet rejected the option because *"a queued job is cancelled when a third run
+  arrives"* — **that behaviour is real and is the default**, and a cancelled required check reads as
+  a blocked merge on a repository where several agents push in a day. **But it is avoidable, not
+  intrinsic:** setting **`queue: max`** makes runs **wait** instead of being cancelled, up to 100 in
+  the group, with only the overflow beyond that dropped. **Verified by the coordinator on
+  2026-09-15** against `docs.github.com` → *Control the concurrency of workflows and jobs*; the
+  default-cancellation half was flagged in this plan as the architect's recollection and was checked
+  because it was load-bearing. **The correction is recorded rather than folded in, because this
+  option is T-J2's own fallback, and a rejection resting on a reason that turns out to be wrong is
+  how a good option gets permanently excluded.**
+- **A second Neon database for the ledger tests**, with its own entry in
+  `ALLOWED_TEST_DATABASE_NAMES`. **The cleanest answer and still rejected for this wave**, on one
+  fact rather than on taste: creating a Neon database and adding a repository secret is **the
+  owner's action**, so it would block a test-infrastructure wave on a person who is asleep. **Kept on
+  the record as the right destination** if the lock proves awkward, and it is the option to reach for
+  before ever re-skipping a suite.
+
+**The one thing a reviewer will challenge, answered here.** `migration-ledger.ts:42-53` explicitly
+rejects a session-scoped lock — *"would need a matching unlock on every path and would additionally
+rely on the server noticing a dropped connection"*. **That reasoning is not overturned and does not
+apply here**, because it is about the **production runner**: a lock left held there wedges a deploy.
+In a test the worst case is a suite that waits and then fails with a named message, and a dead worker
+drops its connection, which releases a session lock. **Different blast radius, same mechanism** — and
+the distinction is written down so nobody reads the helper as contradicting the file it imports from.
+
+**T-J3 — `migrate:status` runs in CI against the test database, and that is this wave's one addition
+rather than 7P1's.** T6. **7P1's gate extension itself must stay in 7P1**, because
+`REQUIRED_PRESET_COLUMNS` landing before `0005_create_presets.sql` exists makes
+`describeDeployedSchemaStatus` report `columns-missing` against **every** environment — which turns
+`deploy.yml`'s *"Verify by reading the schema back"*, THE GATE, red and blocks deploys until the
+migration arrives. **The requirement and the table have to be in one commit.** What this wave adds is
+the thing that makes the *next* such mismatch cheap: a `migrate:status` run in `ci.yml`, so a gate
+that disagrees with the migration set is a **red CI job** rather than a blocked deploy. **Its own
+design question, and it is the implementer's to answer in slice 3:** the command requires
+`MIGRATION_DATABASE_URL` and a DDL-capable credential, and it must run **after** whatever applies
+migrations to the test database or it reports *behind* by construction.
+
+**T-J4 — nothing in this wave changes a test's assertions to make it pass.** A gate change is in
+scope; an assertion change is not, and a suite that needs one is a finding for the coordinator. **This
+is the must-not the wave exists for**: the failure mode being repaired is a test that reported success
+without running, and repairing it by weakening what it checks reproduces it in a new shape.
+
+### Acceptance criteria
+
+1. *(CI, the point of the wave)* The three concurrency-tolerant live suites (T4) execute in `ci.yml`'s
+   `test` job — **proved by their names appearing as run, not skipped, in the job log**, quoted in the
+   close-out. **Must not:** a green job in which they are still skipped, which is the exact state
+   being repaired.
+2. *(report)* Slice 1's full output is recorded, **pass or fail**, before any remedy is written.
+   **Must not:** a slice that re-gates and fixes in one commit, so nobody can see what was broken.
+3. *(unit)* Every re-gated suite refuses to run against anything but an allowlisted test database —
+   `assertSafeTestDatabaseUrl` is still on the path, and the re-gating does not bypass it. **Must
+   not:** a suite reachable with `DATABASE_URL` pointed at the application database.
+4. *(live, T-J2)* **Two simultaneous runners cannot corrupt each other's migration run** — proved by
+   running the ledger suite twice **concurrently** and having both pass, which is the assertion the
+   helper exists to make true. The lock is taken on a key that is **not**
+   `MIGRATION_ADVISORY_LOCK_KEY`, and acquisition is bounded so contention fails with a named message
+   rather than as a hook timeout. **Must not:** a helper whose correctness rests on a comment; a
+   blocking acquire that reports a 30-second timeout and tells the reader nothing.
+5. *(CI, T-J3)* `migrate:status` runs in `ci.yml` and reports **level** against the test database,
+   after migrations are applied. **Must not:** a step that reports *behind* on every run and is
+   therefore read as noise — that is a gate nobody will believe.
+6. *(docs)* `ci.yml`'s comment at `:136-138` is corrected. It currently explains why `DATABASE_URL` is
+   absent and reads, to anyone checking, as though the live suites are covered. **Must not:** a
+   workflow whose comment describes the state before this wave.
+
+### Slices
+
+- **S1 — the measurement, and it is a step of its own before any editing.** Re-gate the three T4
+  suites onto `TEST_DATABASE_URL`, run them locally and in CI, and **report the raw output**.
+  Criteria 1, 2, 3. **No remedy is written in this slice** (T-J1).
+  - **Red is the expected outcome, not a surprise and not a blocker.** These suites have never
+    executed against a real database. **A failure is the wave's product**: it is reported with its
+    output and it is neither repaired in this slice nor made to pass by editing what it asserts
+    (T-J4), and it is **never** a reason to restore the gate that hid it.
+  - **The measurement is deliberately the implementer's and was not taken in advance**, although it
+    could have been. The coordinator's reason, recorded because it generalises: *"the measurement is
+    the finding, and the finding belongs to the wave that acts on it"* — an implementer whose first
+    act is to trust a number somebody else produced starts one step away from the evidence. The
+    second reason is ordinary care: the suite writes to a shared Neon database and one of its files
+    drops the ledger, so it is not run while another wave is in flight.
+- **S2 — whatever S1 found**, plus T-J2's advisory-lock helper for `migrate.test.ts`. Criterion 4.
+  Dispatched only after S1's output is in front of the coordinator.
+- **S3 — `migrate:status` in CI** and the comment correction. Criteria 5, 6. Separate because its
+  credential question (T-J3) is the one thing here that can fail for a configuration reason rather
+  than a code one.
+
+### Risks, ranked — with the reason for the rank
+
+1. **A red suite quietly re-skipped.** Rank 1 because it is the **only** outcome that leaves the
+   repository worse than before the wave: the coverage would then be absent *and* documented as
+   considered. T-J1 and T-J4 exist for this and criterion 2 is its executable form.
+2. **A flaky CI job blamed on the migration runner.** Rank 2 because it is **certain** rather than
+   likely — T1 and T3 together guarantee it if `migrate.test.ts` is re-gated without T-J2's helper —
+   and because a flake in a newly-enabled suite is usually "fixed" by disabling it, which collapses
+   into risk 1 and leaves a precedent behind it. **T-J2 exists to remove this risk rather than to
+   manage it**, which is why the remedy is decided in this plan and not deferred to slice 2's
+   author.
+3. **An assertion weakened to get to green.** Ranked third only because T-J4 names it; it would
+   otherwise rank first, since it reproduces the original defect in a form no future reader can see.
+4. **The staging database's `designs` table growing without bound**, since CI runs would now walk it
+   (`readAllDesignRows`, page size 2) on every push. Low rank: the suites delete what they mint, the
+   walk is O(rows) rather than incorrect, and the e2e job already writes there — but if slice 1 is
+   slow, this is the first thing to measure.
+5. **`migrate:status` in CI reporting *behind* by construction** and being ignored (T-J3). Low rank
+   because criterion 5 states the required outcome rather than the step.
+
+### Verification
+
+`pnpm --filter @lemnaria/persistence test` with `TEST_DATABASE_URL` set, and **the CI job log** — CI
+is this wave's verdict by definition, since the whole claim is about what CI executes. A local run
+proves the suites pass; **only the job log proves they ran**. Whole-tree `pnpm format:check` at the
+wave's end. No e2e, no visual capture, and **no production file in the diff** — a production file
+appearing in this wave's diff is itself a review finding.

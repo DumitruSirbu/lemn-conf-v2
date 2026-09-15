@@ -73,11 +73,24 @@ export type GenerationRunState =
       readonly log: GenerationLog;
     }
   | {
+      /**
+       * **A failed run carries no rows at all, and that is a rule about honesty rather than an
+       * omission** (coordinator's ruling, 2026-09-15).
+       *
+       * `generateKitchen` has a second refusal arm (`generate-kitchen.ts:296-300`): the plan's
+       * minimum was met, but `insertBody` refused the sink or the hob at the real probe. It returns
+       * `ok: false` over a log in which the fridge and the storage cabinets may be `placed` — so a
+       * row set folded from that log reads *Frigider · 700 — așezat* under
+       * *Compunerea nu s-a putut finaliza*, for a design that was **discarded and that nobody will
+       * ever open**. Nothing was placed, because nothing was kept.
+       *
+       * The row set is therefore **absent from the type**, not hidden by the view: there is no
+       * `rows` here for a component to remember not to draw, and `generation-steps.tsx` cannot
+       * reach one without a compile error. The same absence covers the throw, which ends before a
+       * log exists.
+       */
       readonly phase: "failed";
       readonly room: DesignRoom;
-      /** Absent when the run ended before a log existed — a throw. The list is then not drawn at
-       *  all: every row state the frame has would be a claim about fit that the run never made. */
-      readonly rows?: readonly GenerationRow[];
     };
 
 /** A run that is being drawn. `generation-steps.tsx` takes this rather than the whole union, so the
@@ -146,12 +159,13 @@ async function composeOrThrow(room: DesignRoom): Promise<GenerationRunState> {
     occurredAt: new Date().toISOString(),
     probeAt,
   });
-  const rows = resolveGenerationRows(composed.log);
-  if (!composed.ok) return { phase: "failed", room, rows };
+  // The log is folded into rows **only** on the path that keeps the design. A refusal's log is left
+  // unread: see the `failed` member above for why a row off it would be a false claim.
+  if (!composed.ok) return { phase: "failed", room };
   return {
     phase: "composed",
     room,
-    rows,
+    rows: resolveGenerationRows(composed.log),
     design: composed.design,
     log: composed.log,
   };

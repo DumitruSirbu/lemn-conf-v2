@@ -640,4 +640,116 @@ describe("a refusal or a throw is a dead end the customer can leave (criterion 3
       expect(maybeAt("room-fields")).not.toBe(null);
     },
   );
+
+  it("draws no row at all when the refusal's own log holds placed bodies", async () => {
+    // **`generateKitchen`'s second refusal arm** (`generate-kitchen.ts:296-300`): the plan's minimum
+    // was met, and then `insertBody` refused the sink or the hob at the real probe. The log it
+    // refuses over carries the bodies that *did* insert — here the fridge — and folding it into rows
+    // put ***Frigider · 700 — așezat*** under ***Compunerea nu s-a putut finaliza***, for a design
+    // that was discarded and that nobody will ever open (coordinator's ruling, 2026-09-15).
+    //
+    // Mocked rather than provoked, because reaching this arm through the engine needs a plan whose
+    // arithmetic and whose probe disagree. The shape of the value is the domain's own: `ok: false`
+    // with a log whose steps include a `placed` one.
+    vi.mocked(generateKitchen).mockImplementationOnce((input) => ({
+      ok: false,
+      reason: { code: "MINIMUM_NOT_MET", params: {} },
+      log: {
+        occurredAt: input.occurredAt,
+        plan: {
+          room: input.room,
+          bases: [],
+          floorWidthsMm: { A: [], B: [] },
+          dropped: [],
+          minimumMet: true,
+          remainderMm: { A: 0, B: 0 },
+        },
+        steps: [
+          {
+            id: "fridge",
+            role: "fridge",
+            buildId: "base-fridge-700",
+            status: "placed",
+            placementId: "placement-fridge",
+            commands: [],
+          },
+          {
+            id: "sink",
+            role: "sink",
+            buildId: "base-sink-600",
+            status: "not_placed",
+            reason: { code: "DROPPED_FOR_FIT", params: {} },
+            commands: [],
+          },
+        ],
+        commands: [],
+      },
+    }));
+    render();
+
+    tapContinue();
+    await settleFailure();
+
+    // No row, rather than rows the view remembers to hide: `GenerationRunState`'s `failed` member
+    // carries none.
+    expect(rowStatuses()).toEqual([]);
+    expect(maybeAt("room-compose-rows")).toBe(null);
+    expect(maybeAt("room-compose-row-fridge")).toBe(null);
+    expect(container.textContent).not.toContain(
+      roMessages.room.compose.status.placed,
+    );
+    expect(elementAt("room-compose-notice").textContent).toContain(
+      roMessages.room.compose.failed,
+    );
+  });
+});
+
+/**
+ * **A browser Back out of 1F clears the run and shows the form** — the coordinator's ruling of
+ * 2026-09-15, and there was no coverage of the gesture at all before it.
+ *
+ * The screen cannot read this traversal off the URL, which is why it is an event here and a
+ * `popstate` in `room-screen.tsx`. `departTo("presets")` **pushes** the room's own query and the
+ * entry behind it is the settle's `replace` of that same query, so **both entries carry the same
+ * text**: `liveText` does not move, the sub-state is 1D on both sides, and an effect keyed on either
+ * cannot fire. What the customer saw before this ruling was 1F still on the glass and a Back button
+ * that appeared to do nothing.
+ *
+ * R13 is untouched: nothing about composition is written to or read from the URL — the run is ended
+ * by the gesture.
+ */
+describe("a browser Back out of composition", () => {
+  function pressBrowserBack(): void {
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  }
+
+  it("restores the form on a URL that still names the same room", async () => {
+    render();
+    tapContinue();
+    await settleComposition();
+    // The entry behind 1F carries this same query, which is the whole difficulty.
+    expect(browser.search).toBe(ROOM_QUERY);
+
+    pressBrowserBack();
+
+    expect(maybeAt("room-compose")).toBe(null);
+    expect(maybeAt("room-fields")).not.toBe(null);
+    expect(elementAt("top-bar-title").textContent).toBe(roMessages.room.title);
+  });
+
+  it("ends a run still in flight, and the kit still goes back", async () => {
+    render();
+
+    tapContinue();
+    pressBrowserBack();
+
+    expect(maybeAt("room-fields")).not.toBe(null);
+    // The run cannot be cancelled — `generateKitchen` is one synchronous call — so what is asserted
+    // is that the abandoned run releases its kit and never paints over the form (the run token).
+    await settleReleasedKits(1);
+    expect(kitLedger).toEqual({ built: 1, disposed: 1 });
+    expect(maybeAt("room-compose")).toBe(null);
+  });
 });
