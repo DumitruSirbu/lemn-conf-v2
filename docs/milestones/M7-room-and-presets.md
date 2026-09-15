@@ -2733,8 +2733,10 @@ diffs.
   copy without a ruling. **This is that ruling**, and the owner chose the **passive** form over the
   first-person *includem* that was proposed to them, so the heading and the `status.placed` row now
   carry *inclus* in the same voice. Romanian reads *Ce este inclus, în ordinea priorității*; the
-  Russian follows into *Что включено, в порядке приоритета* and is **an agent translation awaiting
-  Gate O2**, on the same footing as the other four `room.compose.*` Russian leaves.
+  Russian is **re-drafted to follow it** into *Что включено, в порядке приоритета*, which is
+  [ADR 0113](../decisions/0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)
+  decision 4's ordinary consequence of a reworded Romanian leaf and **not a pending approval** —
+  the same footing as the other four `room.compose.*` Russian leaves.
   **`room.compose.noPresetNotice` keeps *nu încape* deliberately** — its subject is a ready-made
   preset fitting the room, not a cabinet being included in a composition.
 - **The owner asked whether the algorithm could drop non-fitting cabinets by itself. It already does,
@@ -2748,6 +2750,15 @@ diffs.
   changed leaves, exactly the case ADR 0113 decision 4 calls *"the Russian re-drafted"*. **If the
   coordinator meant the wider claim — that all of 7F4a's Russian is unapproved — that overturns ADR
   0113 decision 3 and is the coordinator's to record there.** This paragraph does not do it for them.
+  - **Settled against the record on 2026-09-15, and the coordinator's half of it was wrong.**
+    **Gate O2 closed on 2026-09-11** — `docs/STATUS.md:6`, the owner's own words, all 235 leaves of
+    `ru.json` approved as drafted — so there was no open gate for these leaves to await. The
+    coordinator was citing a note that had been true when written and had gone stale by four days,
+    and the brief built on it put *"awaiting Gate O2"* and *"do not record them as ruled"* into
+    `generation-steps.tsx`'s header, where it would have sent a reader looking for an approval step
+    that no longer exists. **ADR 0113 decision 4 is the whole mechanism**: the owner reworded the
+    Romanian, so the Russian is re-drafted. The code comment now says that and cites the decision
+    number.
 
 **Stated limits, not softened.**
 

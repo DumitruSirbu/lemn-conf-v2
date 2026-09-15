@@ -294,8 +294,10 @@ describe("a book text states no amount it is printed beside", () => {
   });
 
   it("recognises the same claim in Russian, where an ASCII word boundary does not", () => {
-    // Detector fixtures, not owner wording: the Russian catalogue is an unapproved draft and Gate O2
-    // is the owner's. What is asserted here is that the pattern reaches Cyrillic at all.
+    // Detector fixtures, not owner wording — the strings below are written to exercise the pattern
+    // and are not lifted from `ru.json`, whose 235 leaves the owner approved as drafted when Gate O2
+    // closed on 2026-09-11 (`docs/STATUS.md`). What is asserted here is that the pattern reaches
+    // Cyrillic at all.
     for (const claim of ["включено в цену", "Входит всегда", "включён в цену"])
       expect(INCLUSION_WORDS.ru.test(claim), claim).toBe(true);
     for (const kept of ["Стандартный материал кухни."])
