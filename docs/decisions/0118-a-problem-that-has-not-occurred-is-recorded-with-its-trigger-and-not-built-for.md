@@ -7,6 +7,13 @@ Date: 2026-09-15
 Type: Decision (owner preference + adjudication)
 Milestone: Cross-cutting — raised in M7 waves 7P1 and 7P2, binding on every plan and wave from here
 
+**Pointer, 2026-09-15 — its mirror.**
+[ADR 0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md)
+rules how a cited fact is handled: **re-read at HEAD before asserting, and check hardest what feels
+settled.** The two are mirrors — **this record is about work you should not do yet; 0119 is about
+evidence you must not reuse.** 0119 exists *because* it passes this record's test: the problem has
+occurred, eight times in two days.
+
 **Every code citation in this record was re-read at `9240d4f` on 2026-09-15, and none had moved.**
 Stated because an ADR is the most durable artefact in this repository and is quoted by people who
 will not re-check it: a citation taken hours earlier and reused **looks** verified whether or not it
