@@ -117,6 +117,25 @@
 > its dispatch**, and a comfortable number is what made that harmless rather than a justification.
 > **Owner rulings:** *așezat* → **inclus**, *nu încape* → **nu poate fi inclus**, the dropped sentence
 > names the wall sizes, and the report stays. Full close-out below.
+> **Updated 2026-09-15: wave 7D3 is DONE — S1 at `03c98dc`, S2 at `97a4913`.** Generation now composes
+> **a block of one to three full-height columns at wall A's free end — one `tall-oven-tower` innermost,
+> up to two `tall-pantry` outboard** — and the hob's base follows it. **Two acceptance criteria were
+> found wrong at close-out and are struck in place, not deleted: criteria 8 and 9**, both describing the
+> pre-E12 order with the tower outermost. **ADR 0110 Amendment E governs and the code follows it**, so
+> the criteria were stale and the code was not. Criterion 8's tower centre is **`runEnd − 1000`**, not
+> `runEnd − 300`, and wall A plans `[600, 600, 600, 600, 700]`; criterion 9's *"reduces by one column"*
+> clause **contradicted criterion 22** and is struck, its other two clauses kept. **A relayed correction
+> was itself wrong once on the way here** (`runEnd − 950`), which is why the corrected figure was
+> re-derived from an asserted test literal rather than transcribed. **The close-out's substance is its
+> findings**, and two must survive any later tidy-up: the centred-tower defect is **invisible to
+> production** — `generate-kitchen.ts:444` compares the body's width against the planned width and a
+> centred fixed-width tower passes — so `qa-7d3-tall-end-block.adversarial.test.ts:371` is
+> **a load-bearing assertion, not an arithmetic identity**, and E12.2's order is held by
+> `tall-end-block.test.ts:173-179` and `qa-7d3-tall-end-block.adversarial.test.ts:338-344`. **Not by
+> `tall-end-composition.test.ts:239`**, which was cited for it and derives both sides from
+> `plan.bases`, so an inversion passes it — corrected before this record was written, and wave 7D4's
+> punch list carries the full analysis. **`pnpm ci:local` and the push are not
+> claimed by this wave's record.** Full close-out below.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1450,7 +1469,7 @@ table.
 | **7D1** | Composition shell for the L — **DONE, `f5b4cd9`** | `src/generation/shell-design.ts`, `src/index.ts` | 7A | Full | No | — |
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
-| **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
+| **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
 | **7D4** | **A long storage run is composed, not repeated**: the storage cycle, the per-kitchen sequence carried across the corner, and the preparation cabinet's drawer body. **Changes which body fills a slot, and never how many slots there are or how wide they are** | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F is slice S0 and is not written**. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | **The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob). **Re-baselines 7D3's block-threshold table and restates its criterion 12** | `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/generation/body-choice.ts` | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15); **Q-D2 open and blocks this wave only** |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
@@ -1486,6 +1505,22 @@ table.
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
+
+**Two defects in the table above, found during 7D3's close-out on 2026-09-15, recorded and
+deliberately not resolved here.** A scribe pass may correct a row against evidence it has read; it may
+not make a scheduling decision, and both of these are scheduling decisions once looked at closely.
+
+1. **7F4b's row carries no DONE marker, and the coordinator reports it has shipped** — across
+   `ef83393`, `e2f24dc` and `b91cb25`. **Reported, not verified by this pass**, which had no shell and
+   read only the tree and this file; `docs/STATUS.md` and the 7F4a close-out both still say *7F4b is
+   next*. **Reconcile the row against `git log` before trusting either statement**, and correct all
+   three places in one pass rather than the row alone.
+2. **7F3 depends on 7C, and 7C is DEFERRED PAST M8** (its own row says so, by 7B's derivation). **A
+   wave in M7 cannot depend on a wave that has left M7**, and the table does not say which of the two
+   gives way — whether 7F3 is deferred with the rest of the preset story, or whether its dependency on
+   7C is narrower than the row states. **That is a scheduling call, not a documentation one**, and it
+   is left open here for whoever makes it. The same question does not arise for 7B, which states its
+   own deferral and its own reason.
 
 **Recommended order, and why.** The owner's own process — *choose the room, generate, adjust, save* —
 is the critical path, because matching is useless until the library has presets: **7A → 7D1 → 7D2 →
@@ -2786,6 +2821,151 @@ diffs.
 **Next wave: 7F4b**, which inherits the seam this wave armed: **a departure armed by the primary tap
 resolves after the customer has left 1F.** Risk 6 named it before the wave — while *Continuă*'s push
 was a no-op a discarded navigation cost nothing, and 7F4b is where it stops being a no-op.
+
+### 7D3 close-out — 2026-09-15, `03c98dc` (S1) + `97a4913` (S2)
+
+**What shipped.** Generation composes a **block of one to three full-height columns at wall A's free
+end** — **one `tall-oven-tower` innermost, up to two `tall-pantry` outboard** — and the hob's base
+follows it: `base-hob-2drawer` where a tower stands, `base-hob-oven` where none does. The rule is a new
+pure leaf, `src/generation/tall-end-rule.ts`; `generation-priorities.ts` places the block's columns as
+wall A's last modules and substitutes the hob's build id; `generate-kitchen.ts` gained the tall role in
+both `plan.bases` passes and D5's derived upper suppression, so an upper is attempted above a base only
+where the catalogue says that body's top is at or below the wall row's floor. **No catalogue row and no
+price-book row was added.**
+
+S1 (`03c98dc`) is the upper suppression as a pure refactor; S2 (`97a4913`) is the rule, the tower and
+the substitution together, unsplittable because either half alone ships two ovens or none.
+
+> **Provenance of the two hashes, stated because this record does not verify them itself.** This pass
+> had no shell: the commits are the coordinator's, **corroborated independently** by wave 7D4's
+> *Ground truth* section below, which re-measured on 2026-09-15 *"against 7D3's own build"* and names
+> the same pair.
+> Everything below marked **verified** was read in the tree at HEAD; everything marked **as reported**
+> was not re-run here.
+
+**Verification — what this pass verified, and what it is relaying.**
+
+- **Verified in the tree at HEAD.** The wave's four suites exist and carry the criteria they claim:
+  `tests/generation/tall-end-rule.test.ts` (the pure leaf, including the three E6.2 clauses),
+  `tall-end-block.test.ts` (criteria 1, 8, 9, 14, 20–23), `tall-end-composition.test.ts` (the
+  properties, with a stated per-arm floor at every `fc.assert`), and
+  `qa-7d3-tall-end-block.adversarial.test.ts` (QA's own sweeps).
+- **As reported by the wave's agents, not re-run here:** the suite was green at **87 tests** for the
+  arm-minimum experiment described below; QA's A/B of the one genuinely weakened assertion was
+  **11/11 pass** in its over-broad form under a compensating defect and **red** in the narrowed form;
+  **six assertions changed in total, of which one was a weakening**, narrowed in place.
+- **`pnpm ci:local` state and push state are not claimed by this record.** 7F4a's close-out, above,
+  records both as pending for that wave, and this pass ran neither. Nothing here may be read as a gate.
+
+**Two acceptance criteria were wrong and are corrected in the wave's own *Acceptance criteria* section
+below, struck in place rather than rewritten.** Both described the **pre-E12 order**, with the tower
+outermost, and **ADR 0110 Amendment E governs** — the code follows the amendment, so what was stale was
+the criteria.
+
+- **Criterion 8's literals.** It asked for wall A `[600, 600, 600, 700, 600]` and a tower centred at
+  `runEnd − 300`. As shipped at 4000 × 3000 the widths are `[600, 600, 600, 600, 700]`, the block is
+  `[tall-oven-tower 600, tall-pantry 700]` with the pantry flush to `runEnd`, and the tower's centre is
+  **`runEnd − 1000`**. **No body's centre sits at `runEnd − 300` at all.**
+- **A relayed correction was itself wrong once, and that is the reason this is written down.** The
+  first figure relayed for the corrected centre was **`runEnd − 950`**; the architect re-measured
+  rather than transcribing and caught it before it reached this record. **`runEnd − 1000` was then
+  derived a third time at close-out**, from the widths asserted at `tall-end-block.test.ts:225-231`
+  rather than from anyone's sentence. **A criterion is exactly the kind of text nobody re-checks**,
+  which is what makes a transcribed number in one expensive.
+- **Criterion 9's first clause** — *"the block reduces by one column so the freed `'fit'` module can
+  absorb it"* — **contradicted criterion 22**, which had it right. **Nothing reduces at two or three
+  columns**, because the outermost body is the `'fit'` pantry and it takes the merged opening itself;
+  **at one leftover module the block is not reduced but not planned**. Its other two clauses are
+  correct, are asserted, and were kept.
+
+**Findings that outlive the code. Each is worth more than the diff and each would otherwise be lost.**
+
+1. **The centred-tower defect is invisible to production, and one test assertion is the only thing
+   catching it.** `insertPlannedBase`'s width check is
+   `placement.body.widthMm !== planned.widthMm` (`generate-kitchen.ts:444`) — **a fixed-width 600 mm
+   tower dropped into a wider opening and centred there passes it**, because the body's width is
+   still the width that was planned. What catches it is
+   `qa-7d3-tall-end-block.adversarial.test.ts:371`, asserting the placed tower's `alongMm` against its
+   planned left edge plus half its width, swept across the whole `(0, 200]` window. **Record that
+   assertion as load-bearing and not redundant with production**: it reads like an obvious arithmetic
+   identity and will be deleted in a future tidy-up otherwise.
+
+   **E12.2's order is held by two other assertions, and a third that was named for it does not hold it
+   at all.** Corrected here on 2026-09-15 before this record was written, because the wrong one was
+   about to be recorded as load-bearing:
+   - **`tall-end-block.test.ts:173-179`** — `block.map(buildId)` equals
+     `[OVEN_TOWER, DOOR_COLUMN…]`, at four fixed wall-A widths.
+   - **`qa-7d3-tall-end-block.adversarial.test.ts:338-344`** — `block[0]` is the tower **and**
+     `block.at(-1).endMm === runA.endMm`, over a sweep. The strongest of the three, because it pins
+     both ends in one place.
+   - **`tall-end-rule.test.ts:68-72`** — the same order rule-side, on the pure leaf's own output.
+   - **Not `tall-end-composition.test.ts:239`.** `expect(onWallA.slice(-block.length)).toEqual(block)`
+     derives **both sides from `plan.bases`**, so an inverted block inverts both and the assertion
+     passes. What it binds is that the block occupies wall A's **last N array positions** —
+     contiguity and end-flushness, **not the tower's position within the block.** It was cited as
+     *the single assertion holding the order*; **there is no weaker true version of that claim**, and
+     it is named here only so the claim does not resurface.
+
+   **The three above must be re-read and must not be adjusted by an implementer that touches wall A's
+   order** — the same standing instruction this finding gives for the tower-edge assertion. **Wave
+   7D4's punch list carries the full analysis** — the seam, both corrections, the test helpers'
+   positional dependency and the four-form family the mistake belongs to — and it is **not restated
+   here**.
+2. **The merge boundary is aligned across two modules by equal strictness, not by a shared constant.**
+   `tall-end-rule.ts:149` refuses at `mergedWidthMm > MAX_EMPTY_COLUMN_WIDTH_MM`;
+   `merge-empty-columns.ts:278` breaks at `totalMm + candidate.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM`.
+   Both import the constant from `src/module-grid.ts` and both are strict `>`, so **`r = 200` merges in
+   both and `r = 201` in neither**. **A `>=` on either side would have centred the tower** across a
+   large share of eligible rooms — the coordinator reports **34 %**; not re-measured here.
+3. **An over-broad relaxation of a correct assertion is a weakening even when the narrow relaxation was
+   necessary.** QA's sentence, kept verbatim because the distinction is the whole point. One of the six
+   changed assertions was genuinely weakened; it was narrowed in place and the narrowing proved by A/B.
+4. **Unreachable end-to-end is not unbindable.** Three clauses of the pure leaf were witnessed by
+   nothing, because no approved room reaches them. **A pure function's branch is always bindable by a
+   four-line input literal**, and ADR 0093 decision 1 forbids discharging a clause by measurement.
+   `tall-end-rule.test.ts:157-220` now binds all three — the merge inside the bound, the refusal under a
+   **narrowed** bound, and the refusal below the bound's floor — each verified by deleting the clause.
+5. **Set a property's sample floor from the generator's observed behaviour, never from a uniform model
+   of the input space.** `fc.integer` is boundary-biased. A per-arm floor of **20**, derived from a
+   14.1 % *uniform* hit rate rather than from what the generator actually produces, saw **17** samples
+   in that arm and shipped flaky.
+6. **An arm-minimum guard is only as good as the diversity inside the arm.** The `coreSurvivedWhole`
+   clause was deletable with the whole suite green — **including a property demanding ≥ 100 samples in
+   that very arm** — because the discriminating sub-case is **234 rooms in 2.34 M**. **`WORKFLOW.md`'s
+   *"a stated minimum sample count per arm"* was complied with exactly and proved nothing.** An ADR
+   amending that rule is **commissioned and unwritten**; this is a pointer to it and deliberately not a
+   second copy of the rule.
+7. **Every block room loses wall A's run-end panel, and that is correct.** `runEndPanelSeatM` is
+   `undefined` at 3300 × 1700, 4000 × 3000, 4500 × 1700 and 6300 × 5100, and `2.11` in a room with no
+   block *(the four rooms and the value are the coordinator's measurements, relayed)*. **Owner-ruled
+   2026-09-01** and implemented as `blocksSeat`: the panel is hidden when a full-height column already
+   occupies the seat it would take, because a base-height end panel finishes nothing against a 2200 mm
+   body and would be buried inside its side — `run-end-panel.ts:76-98`, **verified at HEAD**.
+   **Recorded because a missing panel now affects roughly half of generated kitchens** and a later
+   reader will otherwise see a regression. The scale is measured in this file already: the 7D4
+   ground-truth row **G3.2** puts a block in **110 591 of 211 551 placed rooms (52.3 %)**.
+
+**One open obligation, recorded with its trigger and deliberately not built.**
+
+**ADR 0118 is owed for it; this pass writes nothing under `docs/decisions/`.**
+`outermostColumnOf` (`tall-end-rule.ts:140-160`) returns **no block at all** — not merely no absorb —
+when a merge is legal at the empty-column ceiling but the door column cannot be built that wide. It is
+unreachable today **only because `tall-pantry`'s declared maximum *is* `CABINETRY_MAX_WIDTH_MM`, and
+that constant's value equals `MAX_EMPTY_COLUMN_WIDTH_MM`'s — 800 in both** (`catalog.ts:102`, `:255`;
+`module-grid.ts:53`). They are two constants, not one, and nothing ties them together.
+**Trigger: the door column's declared maximum is narrowed below `MAX_EMPTY_COLUMN_WIDTH_MM`.** Then, in
+rooms where wall A's remainder falls in `(max − 600, 200]` with a two- or three-column block, **no block
+is planned at all**. **The fix, if it ever fires, is one line. Do not build it now** — and note that the
+branch is already *bound* by `tall-end-rule.test.ts:182`, which reaches it with a narrowed bound passed
+in as a literal, so a future change to the bound turns it red rather than silent.
+
+**Deferred, with an owner.** Nothing in 7D3's scope is deferred. The two items this wave leaves
+outstanding both belong elsewhere and are named at their owners: **ADR 0118** (above, commissioned, to
+be written separately) and **ADR 0110 Amendment F**, which does not exist and is owed by **wave 7D4's
+slice S0** — recorded in full in the 7F4a close-out above and unchanged by this wave.
+
+**Next wave: unchanged by this close-out.** 7D3 was dispatched out of the recommended order, which puts
+**7F4b** next; see the two recorded table defects under the revised wave table.
 
 ## Wave 7F1 — dispatchable punch list
 
@@ -4370,6 +4550,11 @@ and it is **never in flight with 7D7** — whose fidelity baseline is taken afte
 
 ## Wave 7D3 — dispatchable punch list: tall units at the run ends and the oven rule
 
+> **SHIPPED 2026-09-15 — S1 at `03c98dc`, S2 at `97a4913`.** This punch list is spent; the live record
+> is the **7D3 close-out** above. **Two of its acceptance criteria — 8 and 9 — were found wrong at
+> close-out and are struck in place below**, against ADR 0110 Amendment E, which governs. Read the
+> struck text: what a criterion *said* is part of why the code is what it is.
+
 **Tier: Full.** No visual surface — `generateKitchen` still has no production caller; 7F4 wires it.
 **Dispatchable. Nothing waits on the owner.** All six questions are answered (2026-09-14), the hold
 placed that day is fully lifted, and the wave composes **a block of one to three full-height columns —
@@ -4846,18 +5031,44 @@ exist.
    number rather than as a silently moved boundary. **Must not:** a test that only asserts the
    computed value against itself.
 8. *(unit, boundary, the hazard)* **The tower's opening is exactly 600 mm and it is flush to the
-   composed run.** At **4000 × 3000** (remainder 100, G6) the placed tower's centre is exactly
-   `runEnd − 300`; wall A's planned widths are `[600, 600, 600, 700, 600]`; the design reports zero
-   findings; and **no `set_width` command is logged for the tower**. Neighbouring boundary: at a
+   composed run.** At **4000 × 3000** (remainder 100, G6) ~~the placed tower's centre is exactly
+   `runEnd − 300`; wall A's planned widths are `[600, 600, 600, 700, 600]`~~ — **both literals
+   corrected 2026-09-15 at close-out, struck rather than replaced silently.** They describe the
+   **pre-E12 order**, with the tower outermost. **ADR 0110 Amendment E governs and the shipped code
+   follows it, so what was wrong is the criterion and not the code.** As shipped: wall A's planned
+   widths are **`[600, 600, 600, 600, 700]`**, the block is **`[tall-oven-tower 600, tall-pantry 700]`
+   with the pantry flush to `runEnd`**, and the placed tower's centre is **`runEnd − 1000`** — it is
+   the second-to-last module, so it spans `[runEnd − 1300, runEnd − 700]`. **No body's centre sits at
+   `runEnd − 300`**; the absorbing pantry's is `runEnd − 350`. The design reports zero findings, and
+   **no `set_width` command is logged for the tower**. Neighbouring boundary: at a
    remainder of 201 no absorb occurs and the plan is unchanged from 7D2's apart from the last module's
    identity. **Must not:** a tower whose placed width is 600 in an opening wider than 600 (the centred
    case), or a bare stretch on both sides of it.
-9. *(unit)* **The absorb has a floor, and it never lands on a column.** Where wall A's leftover is
+
+   **Evidence tier, because a corrected number is exactly where this matters.** The widths, the block's
+   composition and the pantry's flush far edge are **asserted literals** at
+   `tests/generation/tall-end-block.test.ts:225-231`, read at HEAD. The centre is **derived at
+   close-out from those literals** (remainder 0, block flush to `runEnd`, tower immediately inboard of
+   a 700 mm pantry), not separately measured; that the *placed* centre equals the *planned* span's
+   centre is asserted across the whole absorb window at
+   `tests/generation/qa-7d3-tall-end-block.adversarial.test.ts:371`.
+9. *(unit)* **The absorb has a floor, and it never lands on a column.** ~~Where wall A's leftover is
    exactly the block's own size and the remainder is in `(0, 200]`, the block **reduces by one column**
    so the freed `'fit'` module can absorb it; where that would take it below one column, **nothing is
-   planned** and the wall's widths and remainder equal 7D2's exactly. **Must not:** an absorbed width
-   above 800 mm or below `base-cabinet`'s 200 mm floor, or an absorb applied to any `fixedWidth` body
-   (D3.2 — at block size 2 or 3 the naive "module immediately inboard" is a column).
+   planned** and the wall's widths and remainder equal 7D2's exactly.~~ — **first clause struck
+   2026-09-15 at close-out.** It describes the **pre-E12** design and it **contradicted criterion 22
+   below**, which already stated the shipped behaviour correctly. **Nothing reduces at two or three
+   columns**: in the `(0, 200]` window the outermost body is the `'fit'` `tall-pantry`, which takes the
+   merged opening itself, so the block is placed at its full size at every remainder. **At one leftover
+   module the block is not reduced — it is not planned at all**, because a block of one ends in the
+   fixed-width tower and there is no module inboard to absorb with. **Inside the `(0, 200]` window**,
+   by wall-A leftover module count: **1 → block 0; 2 → 2; 3 → 3; 4 → 3; 5 → 3.** *(Outside the window a
+   single module still stands a block of one — criterion 1's 3300 × 1700.)* **The criterion's remaining
+   two clauses are correct, are asserted, and stand unchanged.** **Must not:** an absorbed width above
+   800 mm or below `base-cabinet`'s 200 mm floor, or an absorb applied to any `fixedWidth` body
+   (D3.2 — at block size 2 or 3 the naive "module immediately inboard" is a column). Those two are
+   asserted at `tests/generation/tall-end-block.test.ts:246-268`; the `1 → 0` shape and the absence of
+   any other step down are asserted at `:270-289`.
 10. *(property)* **No upper above a full-height body.** No `wall-cabinet` or `hood` placement shares
     along-wall extent with any body whose declared top is above the wall row's floor; `generateKitchen`
     never throws *"no A opening covers …"*. **Must not:** a role-name list deciding it — the test reads
@@ -5914,7 +6125,23 @@ oven, a fridge housing — and this rule governs **which** body fills a slot tha
 owner's variety goal is explicit, later, and stated as a goal rather than a preference. **A wave that
 later reads R5 as covering body choice is overturning this paragraph and owes a dated decision.**
 
-### Module boundaries
+**A consequence of 7D3 that this wave inherits and must not be read later as a regression: every
+kitchen with a block loses wall A's run-end panel.** *(Measured by 7D3's reviewer, 2026-09-15:
+`runEndPanelSeatM` is `undefined` at 3300 × 1700, 4000 × 3000, 4500 × 1700 and 6300 × 5100, and `2.11`
+in a room with no block. **Relayed, and the mechanism — not the measurement — re-read at HEAD.**)*
+
+**Nothing is wrong, and the mechanism says why.** `baseRunRightEdgeM` (`run-end-panel.ts:121-131`)
+takes the run's end from **base-band placements only**, so a full-height column at wall A's free end
+does not move it; `blocksSeat` (`:139-152`) then vetoes the panel for any **non-base** wall-A body
+overlapping the seat in both axes, and a 2200 mm column standing exactly there does. The panel is
+withheld, which is `blocksSeat` doing what ADR 0045's *"if possible"* asks and what the owner ruled on
+2026-09-01.
+
+**Why it is recorded here rather than left to be rediscovered.** A block stands in **52.3 %** of placed
+rooms (G3.2), so **the panel is now absent from roughly half of all generated kitchens** — and
+**7D4 changes which body fills a slot, never which rooms get a block**, so this wave moves the figure
+by exactly nothing. **A later reader who notices the missing panel is looking at an owner-ruled
+consequence of 7D3, not at a defect in 7D4**, and no criterion of this wave asserts anything about it.
 
 - **`src/generation/body-choice.ts` (new leaf).** One pure module answering one question:
   **which cabinet body stands in this base-row slot?** It declares the three storage build ids, the
@@ -6326,7 +6553,84 @@ flight together.
     seeing criterion 7 go red will be to edit 7D3, and it will be wrong.** A wave composing a *varied*
     run meets this far more often than 7D3 did: provenance is the only thing separating one 600 mm
     module from another once they stop being identical. **One exported predicate, not a string
-    convention repeated at each reader** — criterion 22.
+    convention repeated at each reader** — criterion 22. **There is a fourth form, *position*, found
+    the same day; all four are collected in risk 16 as one family rather than four traps.**
+16. **The block's order is a *positional* convention held across a module boundary, and this wave is
+    the one with a reason to reverse an array.** *(Raised by 7D3's reviewer, 2026-09-15; every claim
+    below re-read at HEAD, and **two of the reviewer's own are corrected**.)*
+
+    **The seam, confirmed.** `blockOf` (`tall-end-rule.ts:165-175`) puts the tower at index 0 and the
+    merged width at index `columnCount − 1`. `generation-priorities.ts:171` appends that array after
+    wall A's storage items, **where array position means corner → free end**. So the pure leaf depends
+    on its caller's **spatial direction**, and says so **only in a doc comment** at
+    `tall-end-rule.ts:71-73`. **Nothing types it**, and neither of the leaf's own guards would notice
+    an inversion: `refuseAColumnThatIsNotOneStorageModule` checks a width, and every column is still
+    one module wide.
+
+    **Correction 1 — the order is bound in four places, not one, and the strongest is not the one
+    named.** The reviewer cited `tall-end-composition.test.ts:239-248` as the single assertion holding
+    it. **Measured, that one would not catch an inversion at all**: `expect(onWallA.slice(-block.length)).toEqual(block)`
+    derives *both* sides from `plan.bases`, so it binds **contiguity and end-flushness** and is silent
+    on which end the tower is at. The assertions that would actually go red are
+    **`tall-end-block.test.ts:173-179`** (`block.map(buildId)` equals `[OVEN_TOWER, DOOR_COLUMN…]`, at
+    four fixed wall-A widths) and **`qa-7d3-tall-end-block.adversarial.test.ts:338-344`**
+    (`block[0]` is the tower **and** `block.at(-1).endMm === runA.endMm`, over a sweep — the strongest,
+    because it pins both ends in one place). **An implementer who re-orders wall A must re-read those
+    two and must not adjust them**, exactly as 7D3's review said of the tower-edge assertion.
+
+    **Correction 2 — 7D4 does not re-order wall A, and criterion 2 forbids it.** The reviewer called
+    this wave *"the live candidate"* because it re-orders a long run. **It does not**: D1 and criterion
+    2 hold every position, width and count deep-equal to 7D3's, and `spatial.A`'s construction is
+    untouched — only `buildId` changes. **The real exposure is narrower and worth stating precisely:
+    7D4 is the first wave whose implementer has a reason to hold both walls' arrays at once and
+    reverse one of them**, because the kitchen-wide sequence consumes wall B in reverse (D13, G12).
+    **The hazard is that instinct reaching wall A.** D13's *must not* already forbids expressing the
+    wall-B inversion as a `reverse()` on the placed array; **read it as covering wall A too, where the
+    consequence is not a mis-ordered cycle but an inverted block — the oven tower outermost and the
+    merged width landing on the innermost column.**
+
+    **A fifth instance, live in the tree.** All four order assertions route through a `blockOf` helper
+    that identifies the block by **`band === "column"` with a `role !== "fridge"` patch bolted on**
+    (`tall-end-composition.test.ts:83-88`). That patch **is** one of 7D3's three `fridge-free` sweeps,
+    still standing as a workaround rather than a fix. And `alongWallA` is a bare
+    `filter(wall === "A")` that is spatial **only because `placeAlongRun` happens to build it that
+    way** — a second positional dependency, in the test helpers this time. **The guards are real and
+    they rest on an identifier that already needed one patch.**
+
+    **The family, and this is the point worth carrying out of the wave.** Four forms of one mistake —
+    **identifying a thing by something that correlates with what it is, rather than by what it is**:
+    - **shape** — the `column` band sweeping in `fridge-free`, three times in 7D3;
+    - **role** — `role === "storage"` sweeping in the block, 32.8 % and 14.9 % of rooms (D12);
+    - **provenance done by convention** — `storage:` as a bare string at each reader (criterion 22);
+    - **position** — the tower's innermost-ness, held by an index and a doc comment.
+
+    **They are one trap, not four**, and the correction is the same each time: **name the thing, and
+    let one module own the name.**
+
+17. **An obligation with its trigger, and it is deliberately not built here** (ADR 0118). 7D3's
+    reviewer suggests making the convention **typed** rather than positional — naming the field
+    `columnsInnermostFirst`, or returning the outermost column as a **distinct member instead of by
+    position** — and argues it is cheapest in the wave already re-ordering a run. **Ruled: out of
+    7D4's scope, for three reasons, and recorded so the next wave inherits it rather than rediscovers
+    it.**
+    1. **It cannot be done without breaking this wave's central guarantee.** The change is to
+       `TallEndPlan` in `tall-end-rule.ts`, which the must-not-change set declares **read-only** and
+       which criterion 2 asserts **unchanged**. A wave whose one promise is *nothing but `buildId`
+       moves* cannot also reshape 7D3's return type.
+    2. **The *cheapest now* argument rests on a premise that is false** — correction 2 above. **7D4
+       re-orders nothing.** The wave that genuinely breaks the one-wall assumption is **7D5**, which
+       places a dishwasher **across the corner** and is already flagged as the first generated body
+       not confined to one wall's run.
+    3. **The problem has not occurred** (ADR 0118): no wave has inverted the block, and two live
+       assertions would go red if one did.
+
+    **So: recorded, not built, with its trigger named — the first wave that changes the order or the
+    direction of any spatial array in `generation-priorities.ts` types the convention as part of that
+    change.** **7D5 is the likely one**, and it should treat this as a slice rather than a courtesy.
+    **Whoever does it must not delete `tall-end-block.test.ts:173-179` or
+    `qa-7d3-tall-end-block.adversarial.test.ts:338-344` as redundant afterwards**; a type and a
+    composed-plan assertion prove different things, and those two are what make the change safe to
+    attempt at all.
 
 ### Owner questions — two open, five answered, plus four confirmations raised 2026-09-15
 
