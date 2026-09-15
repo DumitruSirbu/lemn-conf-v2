@@ -21,6 +21,7 @@ import {
   makeKit,
   type Kit,
   pick,
+  resizeShellToRoom,
   seatObjectOnStage,
   syncSolidBodies,
   syncVoidMeshes,
@@ -171,8 +172,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     // **The room decides the shell's extent, and it is deliberately not a dependency of this memo**
     // (ADR 0074 decision 1: keyed on the depth and on nothing else). A depth change owns GPU
     // resources and must rebuild the kit; a room change owns none and must not. The shell is drawn
-    // here at the room the design holds when the stage is built; re-drawing it when that room
-    // changes belongs to an effect of its own, never to this memo.
+    // here at the room the design holds when the stage is built, and re-drawn in place by the
+    // effect below whenever that room changes.
     const shell = buildKitchenShell(kit, designRoom);
 
     const solidsRoot = new THREE.Group();
@@ -189,6 +190,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     return {
       kit,
       room,
+      shell,
       solidsRoot,
       voidsRoot,
       lights: createLightRig(),
@@ -213,6 +215,31 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     // of every customer body, and `syncRunEndPanel` re-seats the freshly built panel from the
     // current records on the new generation's first sync (ADR 0045).
   }, [cabinetDepthMm]);
+
+  // **The drawn room follows the design's room, in place.**
+  //
+  // A room change owns no GPU resource the stage holds: it replaces four geometries and two maps
+  // the shell allocated for itself, and leaves the kit's shared buffers, every mounted cabinet and
+  // the run-end panel exactly as they are. So it is redrawn here rather than by keying the memo
+  // above, which would tear down the kit and rebuild all 27 bodies to move a floor (ADR 0074
+  // decision 1).
+  //
+  // **The camera is deliberately absent from this.** The seating effect further down is keyed on
+  // the stage and not on the room, so a customer who has orbited their kitchen and then corrects a
+  // wall length keeps the view they chose (ADR 0074 decision 7).
+  //
+  // It runs once on mount over a shell the memo has just drawn at this same room, which is a
+  // redraw with nothing to change. That is deliberate: the alternative is a record of the room the
+  // shell was last drawn at, and a second authority on that question is worth more than the four
+  // geometries it would save per mount.
+  useEffect(() => {
+    resizeShellToRoom({
+      kit: stage.kit,
+      shell: stage.shell,
+      room: designRoom,
+    });
+    invalidate();
+  }, [stage, designRoom, invalidate]);
 
   // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
   // meshes that vanished are removed and disposed, and an unchanged body keeps its exact instance

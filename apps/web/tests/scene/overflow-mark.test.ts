@@ -106,6 +106,7 @@ vi.mock("@lemnaria/three-adapter", async () => {
     isDragGesture: vi.fn(() => false),
     makeKit: vi.fn(() => ({ M: {} })),
     pick: vi.fn(() => null),
+    resizeShellToRoom: vi.fn(),
     seatObjectOnStage: vi.fn(),
     // Mounts one tagged group per record, which is what `userData.placementId` means to picking and
     // is the only part of the real sync this file depends on.

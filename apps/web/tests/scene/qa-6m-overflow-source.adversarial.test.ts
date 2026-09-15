@@ -128,6 +128,7 @@ vi.mock("@lemnaria/three-adapter", async () => {
     isDragGesture: vi.fn(() => false),
     makeKit: vi.fn(() => ({ M: {} })),
     pick: vi.fn(() => null),
+    resizeShellToRoom: vi.fn(),
     seatObjectOnStage: vi.fn(),
     syncSolidBodies: vi.fn(
       (input: {

@@ -397,6 +397,53 @@ describe("the shell frees what it replaces", () => {
   });
 });
 
+/** What lets `kitchen-stage.tsx` redraw the room from an effect instead of rebuilding the stage:
+ *  the kitchen standing in the room is untouched by the redraw, down to object identity.
+ *
+ *  Identity rather than value, deliberately. A cabinet whose geometry was replaced by an identical
+ *  one would pass every world-transform comparison in this file and still be a re-upload of every
+ *  buffer on the customer's handset — and if the old one were not freed, a leak per correction to a
+ *  wall length. */
+describe("redrawing the room leaves the kitchen standing in it alone", () => {
+  it("keeps every mounted body's geometry and material as the same objects, undisposed", () => {
+    const { kit, shell, solidsRoot } = mountedKitchenAt(SEEDED_ROOM);
+    const before = bodyResourcesOf(solidsRoot);
+    const disposals = before.flatMap((resource) => [
+      spyOnDispose(resource.geometry),
+      spyOnDispose(resource.material),
+    ]);
+
+    resizeShellToRoom({ kit, shell, room: roomOf(5000, 4000, 3000) });
+
+    const after = bodyResourcesOf(solidsRoot);
+    expect(after).toHaveLength(before.length);
+    after.forEach((resource, index) => {
+      const original = required(
+        before[index],
+        `body resource ${String(index)}`,
+      );
+      expect(resource.mesh, original.label).toBe(original.mesh);
+      expect(resource.geometry, original.label).toBe(original.geometry);
+      expect(resource.material, original.label).toBe(original.material);
+    });
+    for (const dispose of disposals) expect(dispose).not.toHaveBeenCalled();
+  });
+
+  /** The one shell child whose buffer the kit's cache owns and shares. Replacing it would free a
+   *  geometry other bodies of that size still render from. */
+  it("never replaces the run-end panel's kit-owned geometry", () => {
+    const { kit, shell } = shellFor(SEEDED_ROOM);
+    const panel = meshNamed(shell, "end_panel_right");
+    const geometry = panel.geometry;
+    const dispose = spyOnDispose(geometry);
+
+    resizeShellToRoom({ kit, shell, room: roomOf(5000, 4000, 3000) });
+
+    expect(panel.geometry).toBe(geometry);
+    expect(dispose).not.toHaveBeenCalled();
+  });
+});
+
 /** Criterion 7's shell half, and the limit Q7H-3 names rather than hides.
  *
  *  **What is provable here and what is not.** That the drawn wall contains the entered wall is the
@@ -529,13 +576,49 @@ function mountedSceneAt(
   room: DesignRoom,
   records: readonly PlacementRecord[],
 ): MountedScene {
+  return { withShell: mountedKitchenAt(room, records).solidsRoot };
+}
+
+interface MountedKitchen extends BuiltShell {
+  readonly solidsRoot: THREE.Group;
+}
+
+function mountedKitchenAt(
+  room: DesignRoom,
+  records: readonly PlacementRecord[] = SEEDED_RECORDS,
+): MountedKitchen {
   const { kit, shell } = shellFor(room);
-  const withShell = new THREE.Group();
-  withShell.name = "solids";
-  withShell.add(shell);
-  syncSolidBodies({ kit, solidsRoot: withShell, records, room });
-  withShell.updateWorldMatrix(true, true);
-  return { withShell };
+  const solidsRoot = new THREE.Group();
+  solidsRoot.name = "solids";
+  solidsRoot.add(shell);
+  syncSolidBodies({ kit, solidsRoot, records, room });
+  solidsRoot.updateWorldMatrix(true, true);
+  return { kit, shell, solidsRoot };
+}
+
+interface BodyResource {
+  /** Which mesh of which placement, for a failure that names itself. */
+  readonly label: string;
+  readonly mesh: THREE.Mesh;
+  readonly geometry: THREE.BufferGeometry;
+  readonly material: THREE.Material;
+}
+
+function bodyResourcesOf(solidsRoot: THREE.Group): BodyResource[] {
+  return placedBodies(solidsRoot).flatMap((body) => {
+    const placementId = String(body.userData["placementId"]);
+    const resources: BodyResource[] = [];
+    body.traverse((node) => {
+      if (!isMesh(node)) return;
+      resources.push({
+        label: `${placementId} > ${node.name}`,
+        mesh: node,
+        geometry: node.geometry,
+        material: soleMaterialOf(node),
+      });
+    });
+    return resources;
+  });
 }
 
 /** Every fact about a mounted body that the shell must not touch: where it stands and how it is
