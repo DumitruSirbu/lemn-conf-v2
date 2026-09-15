@@ -1465,8 +1465,8 @@ table.
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button. **This wave is the project's freeze point**: the owner's *"a critical moment will be when I will start to save presets"*. From here the corner's reach, the wall minima and `ROOM_TOO_SMALL_FOR_KITCHEN` are load-bearing on stored data — **geometry that wants re-deriving (7D6, 7D7) lands before this, not after** | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
 | **7G** | Thumbnail captured at save, stored, served — **and backfilled for every preset authored before this wave** (coordinator's ruling on Q-7P1-2, 2026-09-15). 7P2 ships the save before this wave ships the capture, so presets authored in the gap would otherwise have no thumbnail and no way to acquire one: the application holds no `UPDATE`. **Not accepted** — those presets are the owner's first authored artefacts and the first data here that cannot be re-derived. The backfill re-captures from each preset's own snapshot (ADR 0112 decision 6) and needs only a **column-level** grant, so `status` stays unwritable by the application | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts`, the thumbnail migration (not created by 7P1 — ruling P5) | 7P2 | Full + security (upload) | Capture | — |
-| **7B** | Preset matching: ±600 window, fit, availability, one evaluation | *carried* files; revised criteria below | 7A | Full | No | — |
-| **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
+| **7B** | Preset matching: ±600 window, fit, availability, one evaluation. **DEFERRED PAST M8 with the rest of the preset story (coordinator, 2026-09-15) — and this is DERIVED, not an independent choice**: matching searches the preset library, and **there is no library until the owner authors one**, which the owner has deferred past M8. It is not separately revisable — if the preset store moves, this moves with it, for that reason and no other | *carried* files; revised criteria below | 7A, **and a populated library** | Full | No | — |
+| **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes. **DEFERRED PAST M8**, by 7B's derivation — it adapts what 7B matched, so it cannot precede it | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
 | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
@@ -8061,16 +8061,32 @@ decision 3 makes it the only route the product has to a refined kitchen.** That,
 count, is why the backup half of this wave matters and why it is not a chore appended to the
 migration. *(The framing is the architect's; the facts in it are ADR 0052's and ADR 0117's.)*
 
-**A sequencing note, recorded as LIKELY and not decided — do not act on it.** The owner said on
-2026-09-15: *"now I will focus on building automatically this kitchen configurations and just after
-focus on the presets functionality."* **The coordinator has put the reorder to them and it is not
-ruled**, so this plan stands as written. Two consequences if it does land, noted here so a later
-reader is not misled by a confident-looking date: **(1) this plan's ground truth at `41181d8`
-is re-measured rather than inherited** — every `file:line` in the table below is a fact about a tree
-that will have moved, and a wave that re-measures nothing is a wave planning against a memory;
-**(2) the 7D6 / 7D7-before-7P2 deadline gets *easier*, not harder**, because the freeze moves out
-with the wave. Nothing in 7T, the deployed-schema gate gap (G3) or T-J2 changes either way — they are
-facts about the repository, not about the order.
+~~**A sequencing note, recorded as LIKELY and not decided — do not act on it.**~~ **RULED, later the
+same day: the whole preset story is DEFERRED PAST M8, this wave included. Do not dispatch 7P1 from
+this plan without re-measuring it first.** The owner first said *"now I will focus on building
+automatically this kitchen configurations and just after focus on the presets functionality"*, and
+then settled it — **storage, authoring and admin panel all come *"after even third page that is
+milestone 8"*** (relayed; recorded in full in the 7P2 section's own deferral banner, which is that
+wave's author's and not edited here).
+
+Three consequences, and the first is now a **precondition of dispatch** rather than a caution:
+
+1. **This plan's ground truth at `41181d8` is re-measured, never inherited.** Every `file:line` in
+   the table below is a fact about a tree that will be a milestone old by the time anyone acts on it.
+   **A wave that re-measures nothing is a wave planning against a memory** — and the G-rows most
+   likely to have moved are exactly the load-bearing ones: G3's deployed-schema gate, G5's CI gating
+   (7T may have closed it), and G1's migration number, which **another wave will almost certainly
+   have taken** (risk 8 anticipated 7E3a and 7E3c; over a whole milestone, assume it).
+2. **The 7D6 / 7D7-before-7P2 deadline gets *easier*, not harder**, because the freeze moves out with
+   the wave. **It does not disappear**: the deadline is *before the owner first saves a preset*, not
+   *before a date*, and that is still 7P2.
+3. **Nothing in 7T, the deployed-schema gate gap (G3) or T-J2 changes.** They are facts about the
+   repository rather than about the order, and 7T in particular **should not wait for the preset
+   story** — it repairs coverage the database seam has been missing all along.
+
+*(The deferral is the owner's, relayed. Which parts of this plan it makes stale is the architect's
+reading, and it is deliberately stated as a dispatch precondition rather than as a note, because a
+plan this detailed is exactly the kind a later reader trusts without re-checking.)*
 
 **Sharpened 2026-09-15 by the owner's retention ruling — *"presets will be stored forever"* (P11).**
 The freeze argument above is now stronger than when it was written, and in a way worth stating
@@ -8078,6 +8094,38 @@ plainly: **a row that is never deleted is a row whose schema mistakes are perman
 with a retention policy there is a natural horizon past which the oldest shape ages out and the
 problem solves itself. **Presets have no such horizon, by the owner's own ruling.** So *"free until
 7P2"* has a second half that was previously implicit: **after 7P2, wrong is forever.**
+
+> **Corrected the same day, and the true version is broader than the one above.** That contrast
+> leaned on `designs` being the table that *does* age out. **It no longer is.** The owner retired the
+> 30-day cleanup outright (P11, third position), so **no table in this project has a retention
+> horizon: every stored shape is permanent by default.** The paragraph above is not false, but it
+> misleads by implication, and the honest statement is that **the freeze argument is a fact about the
+> database, not a fact about presets.** Presets were only the first place it bit, because they are
+> the first thing the owner authors by hand.
+>
+> **The observation generalises; this wave's rulings do not.** 7P1 rules on `presets` and on nothing
+> else. **A later planner must not read the sentence above as licence to rule on a table this wave
+> does not own** — it is a reason to look at that table's own shape, not a decision already taken
+> about it. *(Correction the architect's, ruled with the coordinator 2026-09-15.)*
+
+**A standing preference of the owner's, recorded once because three plans grew obligations for
+hazards that do not exist.** They gave the same instruction twice in one day from opposite
+directions — *"to try to solve conflicts that at the moment we shouldn't create in general"* (on the
+reaper) and *"we try to solve an issue that we don't have"* (on schema versioning), with
+*"let's focus on the functionality, not on solving potential problems that we didn't have yet. So
+just keep it stupid simple."*
+
+**The test is whether a problem has occurred, not whether it is foreseeable.** And the half that
+keeps this from becoming an argument against all foresight: **recording an obligation with its
+trigger named is cheap and reversible; building machinery for it is neither.** A sentence saying
+*"when X happens, do Y"* costs a line and can be deleted. A column, a flag, a screen or a sweep
+built for the same X is a thing that must be kept working whether or not X ever arrives.
+
+**Its durable home is an ADR, not this file.** Milestone plans are archived when a phase closes, and
+[ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)'s
+own alternatives rejected *"record it in the milestone plan and nowhere else"* for exactly that
+reason. **Recommended to the coordinator, not written here** — it is a cross-cutting preference and
+authoring its record is not this wave's to take unilaterally.
 
 ### Ground truth, measured at `41181d8`
 
@@ -8287,7 +8335,7 @@ Derived rather than re-asked:**
 | | **Row lifetime** (is it ever deleted?) | **Backup retention** (how far back can a restore reach?) |
 | --- | --- | --- |
 | **Presets** | **Never.** Owner: *"stored forever"*. Already true by construction in this wave — insert-only, no `DELETE` grant, no reaper (P9) — and now true by ruling as well. | ~~No age rotation; count cap only.~~ **Corrected the same day by the owner — *"14 days backups for me is ok"*. `BACKUP_RETENTION_DAYS` stays at 14 for presets too**, with `MAX_RETAINED_BACKUPS` as the second bound, exactly as `designs` has it. |
-| **Customers' designs** | **Abandoned after 30 days** — ADR 0019 decision 7, **scheduled M8, not built**. **Raised by this ruling** to a 1–2 month floor with *"half a year and more"* acceptable. | **14 days** (`BACKUP_RETENTION_DAYS`) plus `MAX_RETAINED_BACKUPS = 30`. **Unchanged by this ruling** — the owner said nothing about it and nothing here asks them to. |
+| **Customers' designs** | ~~Abandoned after 30 days (ADR 0019 d7); raised to a 1–2 month floor.~~ **Superseded the same day, third position: NOTHING is deleted automatically. The 30-day reaper is removed, not raised — ADR 0019 decision 7 is RETIRED by owner ruling.** Private configurations, visitors' included, are kept indefinitely. *Later*, a **manual script** for kitchens older than roughly a year — *"not automatically"*. | **14 days** (`BACKUP_RETENTION_DAYS`) plus `MAX_RETAINED_BACKUPS = 30`. **Unchanged by every one of the three positions** — the owner ruled it separately and explicitly, and no retention ruling absorbs it. |
 
 ~~**Why no age rotation for presets, and why that is affordable where it would not be for designs.**
 *"Forever"* applied to the question actually asked means a preset must be recoverable at any later
@@ -8314,16 +8362,56 @@ The two rulings are about different objects and they do not compete: nothing del
 after fourteen days the backup's job is done — **the preset is still there.** *(The framing is the
 coordinator's, recorded because it is the question a reviewer will actually arrive with.)*
 
+**The third position, and the movement is the useful part.** Retention was ruled three times on
+2026-09-15 and each is struck in place rather than flattened, because **the direction — steadily
+looser — is what tells the next reader which way to lean when this returns.** Inherited: *14-day
+backups, 30-day row deletion.* Then: *1–2 months, half a year fine.* Finally:
+
+> *"presets will not be removed… just to avoid accidental removal, we can remove for the first
+> period of time this 30 days cleanup. We'll just keep collecting all the configuration of visitors,
+> of users and so on. And later we can implement a functionality or just manually detect a period of
+> time, let's say all the private kitchens that are older than one year, we can remove, not
+> automatically, but we'll make this a script… So we can focus now on storing and not removing. We
+> can remove this rule of 30 days clearance."*
+
+**Their reasoning is the test a later reader should apply, not the number:** few visitors expected, a
+row plus a few kB, so storage does not bind. And their closing sentence is a design principle rather
+than a decision, kept verbatim:
+
+> *"to try to solve conflicts that at the moment we shouldn't create in general, like removing a
+> private configuration that is used somewhere as a preset source."*
+
+**The cheapest way to avoid a class of conflict is not to create it** *(the coordinator's reading,
+2026-09-15)* — the same instinct as the owner's copy-on-use model, arrived at from the other end.
+
+**One finding dissolved rather than left standing.** `arch-7p2` found that under the single-table
+model the reaper would delete the preset library thirty days after the owner stopped editing. **It is
+void twice over** — the owner settled on a separate table, *and* there is no reaper — and it was a
+real finding against a model that no longer exists. **7P2's own section already records this**; it is
+noted here only so a reader of 7P1 does not re-derive it. *(That section is its author's and is not
+edited from here.)*
+
 **Two obligations this creates, neither of them 7P1's to build.**
 
-1. **ADR 0019 decision 7 is amended by an owner ruling and owes a dated record.** Thirty days is now
-   a floor of one to two months with half a year acceptable. **7P1 builds no reaper and must not** —
-   the mechanism is M8's — but the amendment is written down now, while it is a sentence, rather than
-   rediscovered as a conversation when M8 opens.
-2. **The number is deliberately loose and must be encoded as such.** The owner's own words are
-   *"lets say"*, *"even half a year and more"* and *"later we can adjust"*. Whoever builds it uses
-   **one named constant carrying that quotation**, so revising it is a one-line edit rather than an
-   archaeological one. **It is not a measured figure and no criterion may treat it as one.**
+1. **ADR 0019 decision 7 owes a dated record — for its RETIREMENT, not for a raise.** ~~Thirty days
+   is now a floor of one to two months.~~ **Corrected by the third ruling:** the reaper is removed.
+   **7P1 builds no reaper and never did; now nothing else does either.** Written down while it is a
+   sentence rather than rediscovered as a conversation when M8 opens.
+2. ~~**The number is deliberately loose and must be encoded as such** — one named constant carrying
+   the owner's *"lets say"*.~~ **DISSOLVED by the third ruling: there is no number and no mechanism
+   to put one in.** A constant with no reader is precisely the dead configuration this plan objects
+   to elsewhere, and carrying this obligation forward would have been the failure the owner's own
+   standing preference names — machinery for a problem nobody has. **The looseness survives only in
+   the future manual script's *"about a year"*, and nobody builds that either.**
+3. **The manual deletion script, when it comes, cannot run as the application — and P13 already
+   answers it.** `application-role-privileges.test.ts` asserts the application role holds exactly
+   `INSERT, SELECT, UPDATE` on `designs`, with a standing *"cannot delete a design"* test, so
+   **`DELETE` is absent by design and must stay absent.** The owner's *"not automatically… we'll make
+   this a script"* is already the right shape: a deliberate operator action under **its own narrow
+   credential**, on P13's pattern. **Recorded so a later wave reaches for a second credential rather
+   than widening the customer-facing role on the `designs` side — after this milestone spent a day
+   refusing exactly that on the `presets` side.** *(The connection is the architect's; no grant, no
+   script and no horizon constant is added by this wave.)*
 
 **Why this answer was the right shape of question, recorded because it generalises.** The owner did
 not answer with a number — they answered with a **class distinction**: the thing that can be
@@ -8412,6 +8500,41 @@ is not 7P1**, and the grant is not the app role's.
   `information_schema.role_table_grants` — and so whether it would trip criterion 9 — **is not
   checked in this plan**. 7G's implementer checks which view shows what **before** assuming the
   criterion and the backfill can coexist.
+
+**P14 — schema versioning: migrate forward, default the new, drop the unread. No multi-version
+support. This ratifies P1's mechanism and REMOVES work rather than adding it.** *(Owner ruling
+2026-09-15, relayed.)*
+
+> *"migration solve this. You can set default values where you introduce a new one or you can drop
+> existing values when the new functionality don't use them already… let's focus on the
+> functionality, not on solving potential problems that we didn't have yet. So just keep it stupid
+> simple."*
+
+> *"I know that it's better to have this versioning and support multiple versions, but with less
+> effort it will be like just migrating to newer schema… otherwise the logic in the code will be just
+> become a mess."*
+
+**It changes nothing, and that is the finding.** The codebase already works exactly this way:
+`CURRENT_SCHEMA_VERSION = 5`, `migrateDesign` carrying a stored document forward arm by arm, each arm
+keyed to the version that owes it (G8). **P1 — that presets share the designs' document-version
+mechanism and gain no second scheme of their own — is therefore not merely convenient but ruled**:
+the owner has said that mechanism *is* the strategy, so a preset-specific versioning scheme would be
+a second strategy for a problem the first one already solves.
+
+**What must NOT be built, recorded as a must-not so a later plan does not grow it.** No *unsupported*
+marker on a row; no *"this kitchen is too old, generate a new one"* screen; no sweep that sets such a
+marker. **All three are machinery for a problem that has not occurred.**
+
+**And the known gap, named with its trigger rather than filled.** `refuseUnsupportedVersion`
+currently **throws** an `InvalidDesignError` for a version outside 1–`CURRENT_SCHEMA_VERSION`
+(`migrate-design.ts:700-712`) — it does not produce a graceful screen, and **today it is
+unreachable**, because every version this build has ever written is inside that range. **The trigger
+for building anything better is a migration that genuinely cannot be written** — a stored shape the
+current code cannot carry forward — **and not the mere possibility of one.** Until then the throw is
+correct: it is a loud failure for a state no document is in.
+
+*(The ruling and both quotations are the owner's. That it ratifies P1 rather than changing it, and
+the naming of the trigger, are the architect's.)*
 
 ### Module boundaries
 
@@ -8962,6 +9085,97 @@ appearing in this wave's diff is itself a review finding.
 
 ## Wave 7P2 — dispatchable punch list: the authoring gate, the save, and the owner's button
 
+> **DEFERRED, AND ITS ARCHITECTURE CHURNED BEFORE IT SETTLED — 2026-09-15, the same day this was
+> planned. Read this before the section; do not dispatch it.** Three things, recorded apart because
+> they answer different questions.
+>
+> **1. Deferred past M8 — *when*.** The owner ruled that the whole preset story — **storage,
+> authoring and admin panel** — comes *"after even third page that is milestone 8"*. 7P2 is not next
+> and is not in M7's order as it stands.
+>
+> **2. The ground truth below is dated — *how far to trust it*.** Every measurement in it was taken
+> at `41181d8`, and months of waves land before this work does. **Re-measure; do not inherit.** The
+> file-and-line citations are how to re-measure in minutes; they are not a warrant that those lines
+> still say that.
+>
+> **3. The model moved twice on one day and came back — *what*.** Both owner rulings are quoted in
+> order, so a reader can see the movement rather than inherit a conclusion.
+>
+> **First, it collapsed into a single table** — a preset as a `designs` row carrying a public flag:
+> *"it will not be two separate type of kitchens it will be the same model the same object but with
+> the special status that it also used as a preset."* **Then it settled back onto the separate table
+> this section assumes**, with one thing added that was never in ADR 0112: *"we mark private
+> configuration as a preset. This preset we can move to its own table, and it shouldn't depend on the
+> initial private configuration. So these presets will be updated only by the administrator… private
+> configurations should not be messed and mixed with presets… when a user will click on a preset it
+> will make a copy of this preset… each time a user clicks to use a preset, this preset creates a new
+> record in private kitchens, linked to the specific user. In this way, we will avoid any
+> conflicts."* So, for a reviver:
+>
+> - **The separate `presets` table survives, and so does
+>   [ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md)
+>   decision 3's snapshot.** Two tables of the same document shape, copies in both directions, no
+>   shared row, administrator-only writes on the preset side.
+> - **Wave 7P1's punch list above therefore largely SURVIVES**, and this is the sentence most worth
+>   getting right, because the costly error is discarding live work: the separate table, the `names`
+>   map (P10), `status` as the one gate and its three members (P12), **the nullable wall columns**
+>   (P2, as amended — `wallLengthMm("B", room)` returns `room.depthMm` unconditionally, so a linear
+>   preset would have stored a room depth under `wall_b_mm`), P3's must-not on the design id, and
+>   P13's separate administrator credential. **None of it is superseded.**
+> - **The gate survives entirely** — a server-read flag, a secret exchanged for a signed cookie, and
+>   *the client never decides*. None of it ever depended on where the row lived, which is why it is
+>   the half worth reading here. **On the criteria, a count that was reported during the churn is
+>   worth correcting rather than repeating: "fourteen of eighteen survive" was measured against the
+>   *single-table* model.** Against the **settled** one, essentially all eighteen stand — criteria 9,
+>   10 and 12 were the three written off, and each returns with the thing that killed it: 9 (no design
+>   id on the record) with P3, 10 (the staleness guard) with the snapshot, and 12 (the name bounds)
+>   with `names`. **Copy-on-use adds criteria; the churn removed none.**
+> - **Copy-on-use is new and is planned nowhere.** Clicking a preset mints a private design from the
+>   snapshot, linked to that visitor. **It is the seam matching hangs off and no section of this file
+>   plans it** — a reviver plans it before anything else here.
+>
+> **Four measurements outlive all of it**, because each is a fact about this repository rather than
+> about presets:
+>
+> - **`route-availability.ts:20` returns `true` for every non-production build** (H1 below), so
+>   copying the `/internal/scene-shot` pattern that ADR 0112 decision 2 names by name would put a
+>   working owner-only control into every developer's browser and into the e2e server.
+>   `selection-debug-availability.ts` is the corrected precedent and says so about itself (H2).
+>   **A live trap for any wave adding an owner-only surface**, and the owner still wants a button.
+> - **`saveStatus: "idle"` is not an assertion about the database** (H6). `requestSave` arms a
+>   `MIN_SAVE_INTERVAL_MS` timer and reports no status change while it waits, and `SaveCoalescer`
+>   exports neither a flush nor a pending accessor. **Any feature that reads the stored design while
+>   the screen shows something newer inherits that window**, and a save-as-preset is exactly such a
+>   feature: ADR 0112 decision 3 snapshots the *stored* design. Ruling AU4's answer — state the
+>   `updatedAt` that is on screen and refuse anything but equality — needs no change to the write
+>   path and may generalise beyond presets.
+> - **`carriesAccessoryKind` has no reader anywhere in `src`** (H8): the hob is pinned only by the
+>   literal build-id list at `hob-front-clearance.parity.test.ts:39`, where the sink has a
+>   two-directional parity gate and `BodyDefinition.sink`'s own comment names a list of ids as the
+>   wrong shape. **A hob-bearing row added tomorrow that forgets the declaration is invisible**, and
+>   that is a catalogue-discipline gap rather than a preset one.
+> - **`failure-text.ts:52` emits `path:code` and nothing else** (H7) — a plausible worry about a
+>   schema describer echoing a secret into a log, checked and found false. Kept because somebody
+>   will worry again.
+>
+> **And one fact any preset wave needs, because it is easy to get wrong in exactly one direction: a
+> design id is a read capability *today*, and M7 is scheduled to end that.** ADR 0114 decision 5 —
+> final per [ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)
+> — is wave **7E3b**, which makes `/[locale]/d/{id}` and `GET /api/designs/{id}` refuse a design that
+> is not the requesting browser's; 7P1's own **G9** says the same in one line. So *"a design id is
+> already public"* is true at HEAD and is **deliberately being removed inside this milestone**. Under
+> the settled two-table model it costs nothing — a preset is its own row and `/d/{id}`'s check applies
+> to `designs` only — but under the single-table model it would have made the public flag a
+> **read-authorisation input**, which is the one role every record here keeps it out of. **Check the
+> date on that sentence before relying on it.**
+>
+> *(Banner written 2026-09-15 by the architect who planned the section, on the coordinator's
+> instruction, and revised the same day when the model settled — the intermediate single-table shape
+> is recorded above rather than quietly dropped, because a reader who meets only the final answer
+> cannot tell which parts were tested. The section is left intact rather than deleted, for the reason
+> the struck stored-design risk earlier in this file gives: a later reader who finds it missing may
+> re-derive it as new.)*
+
 > **Planned 2026-09-15 by the architect**, from the tree at `41181d8` (the working tree carried
 > uncommitted 7E2 and 7F4b work while this was written; **every file and line number below was read
 > at `41181d8`** and none of it was measured against the uncommitted half). This is the binding
@@ -9434,6 +9648,20 @@ plan makes.
    the must-not is stated twice on purpose.
 
 ### Questions that are not mine
+
+> **All four are closed by the deferral, 2026-09-15 — read this before the four below, which are
+> written as if the wave were next.** **Q-7P2-1 is dissolved**: 7D6 and 7D7's *"land before 7P2"*
+> deadline is trivially satisfiable now that 7P2 has moved out by more than a milestone, so the
+> contradiction it reports is no longer one. Its recommendation — that the freeze begins at the first
+> **production** row rather than at a merge commit — was the right answer to the question as it then
+> stood, and is kept for whoever revives the wave, because that distinction is what makes the deadline
+> cheap under any ordering. **Q-7P2-2, Q-7P2-3 and Q-7P2-4 are parked until revival, not asked**: each
+> is written below as *cheap to ask today*, and that is no longer true — the owner deferred this area
+> precisely so they could look at real generated kitchens first, and asking them now to settle an
+> unlock duration would be asking them to shape something they have said they cannot yet picture.
+> **The three recommendations stand and the coordinator agrees with all three** — a generated secret
+> rather than a chosen one, twelve hours fixed, and yes to the Russian leaf because the copy lock's
+> value is that it has no exceptions.
 
 **Q-7P2-1 — the coordinator's, and it wants answering before dispatch. 7D6 and 7D7 carry
 *"deadline: land before 7P2"*; the recommended order does not contain them.** The wave table's 7D6
