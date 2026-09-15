@@ -7944,8 +7944,10 @@ consequences say 7P1 *"extends the export"* to presets;
 `designs` export **must not be widened** and that *"another table needs a second, separately-scoped
 export — not a broader query."* **The two are reconciled by ADR 0012's own sentence**, and the
 outcome is: `backup-presets.ts`, blob prefix `backups/presets/`, its own row source, **reusing** the
-streaming, truncation-detection and rotation machinery rather than copying it — **at its own
-retention settings, which P11 now fixes: no age cap, count cap only.** **One cron
+streaming, truncation-detection and rotation machinery rather than copying it — **including its
+retention settings, which P11 fixes at the same fourteen days and the same count cap `designs` uses
+(owner, 2026-09-15: *"14 days backups for me is ok"*). Separately scoped does not mean differently
+configured**, and a second constant here would be a second number to keep right for no stated reason. **One cron
 invocation, two exports** — a second cron path is a second entry on a plan whose cron limits ADR 0012
 already had to reason about, and two exports of one database want one schedule and one alarm. The
 route answers **503 if either export failed** and names both in the body (criterion 15).
@@ -8041,16 +8043,33 @@ Derived rather than re-asked:**
 
 | | **Row lifetime** (is it ever deleted?) | **Backup retention** (how far back can a restore reach?) |
 | --- | --- | --- |
-| **Presets** | **Never.** Owner: *"stored forever"*. Already true by construction in this wave — insert-only, no `DELETE` grant, no reaper (P9) — and now true by ruling as well. | **No age rotation** (this wave). A count cap stays as the only bound, for the runaway-schedule case `MAX_RETAINED_BACKUPS` exists for. |
+| **Presets** | **Never.** Owner: *"stored forever"*. Already true by construction in this wave — insert-only, no `DELETE` grant, no reaper (P9) — and now true by ruling as well. | ~~No age rotation; count cap only.~~ **Corrected the same day by the owner — *"14 days backups for me is ok"*. `BACKUP_RETENTION_DAYS` stays at 14 for presets too**, with `MAX_RETAINED_BACKUPS` as the second bound, exactly as `designs` has it. |
 | **Customers' designs** | **Abandoned after 30 days** — ADR 0019 decision 7, **scheduled M8, not built**. **Raised by this ruling** to a 1–2 month floor with *"half a year and more"* acceptable. | **14 days** (`BACKUP_RETENTION_DAYS`) plus `MAX_RETAINED_BACKUPS = 30`. **Unchanged by this ruling** — the owner said nothing about it and nothing here asks them to. |
 
-**Why no age rotation for presets, and why that is affordable where it would not be for designs.**
+~~**Why no age rotation for presets, and why that is affordable where it would not be for designs.**
 *"Forever"* applied to the question actually asked means a preset must be recoverable at any later
 date, which an age cap forbids by construction. The cost is bounded by arithmetic rather than by
 hope: the library is tens of rows of a few kB, so a nightly full copy kept indefinitely is a
 rounding error, while `designs` **grows with customers**, which is precisely why its export has an
-age cap and this one does not. *(The reading that "forever" answers the backup question is the
-architect's — the owner did not use the word "backup". The row half is unambiguous either way.)*
+age cap and this one does not.~~ *(The reading that "forever" answers the backup question was the
+architect's — the owner did not use the word "backup" — and was **flagged as a reading for that
+reason**.)*
+
+> **Struck the same day: the owner said "backup" and named a number.** *"14 days backups for me is
+> ok"* (2026-09-15, relayed verbatim). **`BACKUP_RETENTION_DAYS` stays at 14 for everything, presets
+> included**, and the presets export takes the same two bounds `designs` has. **Struck in place
+> rather than rewritten**, because a flagged inference that got tested and lost is the loop working,
+> and a reader who finds only the corrected version learns nothing from it. **The cost argument above
+> was sound and is simply not what the owner wanted** — it is kept intact because it is exactly the
+> reasoning somebody will re-derive in a year, and they should find it already answered.
+
+**How *"stored forever"* and a fourteen-day backup sit together, answered before a reader asks.**
+**The backup is not the archive — it is the undo.** It exists so a mistake can be reversed for a
+bounded period; **the row is the thing that lasts.** A preset being irreplaceable is what makes the
+*row* durable, and it does not follow that every nightly snapshot of that row must be kept for ever.
+The two rulings are about different objects and they do not compete: nothing deletes a preset, so
+after fourteen days the backup's job is done — **the preset is still there.** *(The framing is the
+coordinator's, recorded because it is the question a reviewer will actually arrive with.)*
 
 **Two obligations this creates, neither of them 7P1's to build.**
 
@@ -8390,11 +8409,14 @@ because the second half was answered *in a different mechanism from the one it a
   **but the case for the longer window is stronger than when the question was written**, and the
   question should be put with that sentence in it rather than as a number.
 
-  **ANSWERED the same day, and the framing is why it was answerable: the owner replied with a class
-  distinction rather than a number — *"presets will be stored forever"*, anonymous configurations
-  *"1-2 months … even half a year and more"*. Ruled in P11**, which also derives the part the answer
-  did not distinguish: the question was about a **backup window** and the reply was in the language of
-  **retention**, and this repository holds both mechanisms at different numbers.
+  **ANSWERED the same day, in two replies, and the framing is why it was answerable: the owner
+  replied with a class distinction rather than a number — *"presets will be stored forever"*,
+  anonymous configurations *"1-2 months … even half a year and more"* — and then, asked nothing
+  further, settled the backup half themselves: *"14 days backups for me is ok"*. Ruled in P11.**
+  **The question as posed — should the library's backup window be longer? — is answered NO**, and the
+  architect's inference that *"forever"* meant the backup was **tested and lost**. What the framing
+  actually bought was the *first* reply: the owner reasoned about **which data can be re-derived**,
+  which is the durable part, and it turned out to govern the **row** rather than the export.
 
 ### Verification
 
