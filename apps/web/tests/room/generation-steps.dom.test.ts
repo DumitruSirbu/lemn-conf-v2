@@ -130,9 +130,20 @@ function composedRun(): Extract<ActiveGenerationRun, { phase: "composed" }> {
     rows: resolveGenerationRows(result.log),
     design: result.design,
     log: result.log,
-    // The hand-off's two fields, which this file has no opinion about: it reads row classes. The
-    // attempt is never run, and `saving` is the state a composition is in the instant it exists.
-    attempt: { run: () => Promise.reject(new Error("never run here")) },
+    // The hand-off's two fields, which this file has no opinion about: it reads row classes and the
+    // notice band. `saving` is the state a composition is in the instant it exists.
+    //
+    // **The attempt throws synchronously rather than returning a rejected promise** (wave 7F4b's
+    // review, finding F9): nothing here runs it, and a rejected promise nobody awaited would surface
+    // in whatever test happened to be running when it was collected — as an unhandled rejection
+    // rather than as this file saying what it does not do.
+    attempt: {
+      run: () => {
+        throw new Error(
+          "generation-steps.dom.test.ts renders hand-off states; it never performs one",
+        );
+      },
+    },
     handoff: "saving",
   };
 }
@@ -163,7 +174,7 @@ function isAnnounceable(record: MutationRecord): boolean {
 }
 
 /**
- * What a screen reader would be given by the notice band across one transition.
+ * Everything the notice band did across one transition, announceable or not.
  *
  * Records are drained with `takeRecords`, because a `MutationObserver` callback is a microtask and
  * `act` has already returned by the time one would run.
@@ -173,8 +184,13 @@ function isAnnounceable(record: MutationRecord): boolean {
  * would read zero mutations, and the silent-happy-path test would pass for the wrong reason — while
  * the real region would be a freshly mounted one, which is the shape that gets announced late or not
  * at all.
+ *
+ * **Unfiltered on purpose** (wave 7F4b's review, finding F2). The silent transition is silent
+ * because `aria-relevant` defaults to *additions text* and the one mutation there is a **removal**;
+ * a helper that filtered before returning let that test assert `toHaveLength(0)` over a filtered-out
+ * removal and over an observer that saw nothing at all, which are not the same claim.
  */
-function announceableMutationsAcross(
+function mutationsAcross(
   from: ActiveGenerationRun,
   to: ActiveGenerationRun,
 ): readonly MutationRecord[] {
@@ -193,6 +209,13 @@ function announceableMutationsAcross(
   if (noticeBand() !== observed) {
     throw new Error("the notice band was remounted rather than updated");
   }
+  return records;
+}
+
+/** What a screen reader would actually be read out of one transition's mutations. */
+function announceableIn(
+  records: readonly MutationRecord[],
+): readonly MutationRecord[] {
   return records.filter(isAnnounceable);
 }
 
@@ -361,22 +384,27 @@ describe("the notice band is 1F's live region", () => {
 
   it("announces the refused write, which arrives with no tap behind it", () => {
     expect(
-      announceableMutationsAcross(composedRun(), failedHandoffRun()),
+      announceableIn(mutationsAcross(composedRun(), failedHandoffRun())),
     ).not.toHaveLength(0);
   });
 
   it("announces a composition that did not finish, for the same reason", () => {
     expect(
-      announceableMutationsAcross(composingRun(), failedRun()),
+      announceableIn(mutationsAcross(composingRun(), failedRun())),
     ).not.toHaveLength(0);
   });
 
   it("says nothing when the composition simply resolves", () => {
+    const mutations = mutationsAcross(composingRun(), composedRun());
+
+    // The observer really watched this transition happen: React removes the spinner `<span>` from
+    // the band. Without this line the assertion below would read the same over an observer that saw
+    // nothing at all, and the silence would be the test's rather than the region's.
+    expect(mutations).toHaveLength(1);
     // The happy path must not be narrated: *pending → composed* is a screenful of rows the customer
-    // can read at their own pace, and a region that fired here would talk over all of it.
-    expect(
-      announceableMutationsAcross(composingRun(), composedRun()),
-    ).toHaveLength(0);
+    // can read at their own pace, and a region that fired here would talk over all of it. The
+    // removal above is not read out, because `aria-relevant` defaults to *additions text*.
+    expect(announceableIn(mutations)).toHaveLength(0);
   });
 
   it("leaves the caret where the customer left it when the write fails", () => {

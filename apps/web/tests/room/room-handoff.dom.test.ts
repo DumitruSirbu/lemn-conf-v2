@@ -454,6 +454,25 @@ describe("navigation follows the write and nothing else (criterion 40)", () => {
     // the spy holds a string rather than the value the hook passed it.
     expect(editorPushes()).toEqual([`/ro/d/${encodeURIComponent(MINTED_ID)}`]);
   });
+
+  it("stops calling the write in flight once it has landed", async () => {
+    const held = holdTheWrite();
+    render();
+
+    tapContinue();
+    await settleWrite();
+
+    expect(handoffState()).toBe("saving");
+
+    await release(held);
+    await settleNavigation();
+
+    // **The hand-off had no success arm at all until wave 7F4b's review** (finding F7), so a run
+    // that finished stayed `saving` for ever. It is invisible while the editor is opening — and it
+    // is the customer's whole position whenever the navigation is declined instead, which is what
+    // criterion 42 asks for on every screen the customer has left.
+    expect(handoffState()).toBe("saved");
+  });
 });
 
 describe("a failed hand-off keeps the customer where they are (criterion 41)", () => {

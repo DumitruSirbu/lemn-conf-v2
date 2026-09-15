@@ -8061,6 +8061,17 @@ decision 3 makes it the only route the product has to a refined kitchen.** That,
 count, is why the backup half of this wave matters and why it is not a chore appended to the
 migration. *(The framing is the architect's; the facts in it are ADR 0052's and ADR 0117's.)*
 
+**A sequencing note, recorded as LIKELY and not decided — do not act on it.** The owner said on
+2026-09-15: *"now I will focus on building automatically this kitchen configurations and just after
+focus on the presets functionality."* **The coordinator has put the reorder to them and it is not
+ruled**, so this plan stands as written. Two consequences if it does land, noted here so a later
+reader is not misled by a confident-looking date: **(1) this plan's ground truth at `41181d8`
+is re-measured rather than inherited** — every `file:line` in the table below is a fact about a tree
+that will have moved, and a wave that re-measures nothing is a wave planning against a memory;
+**(2) the 7D6 / 7D7-before-7P2 deadline gets *easier*, not harder**, because the freeze moves out
+with the wave. Nothing in 7T, the deployed-schema gate gap (G3) or T-J2 changes either way — they are
+facts about the repository, not about the order.
+
 **Sharpened 2026-09-15 by the owner's retention ruling — *"presets will be stored forever"* (P11).**
 The freeze argument above is now stronger than when it was written, and in a way worth stating
 plainly: **a row that is never deleted is a row whose schema mistakes are permanent.** For a table
@@ -8105,6 +8116,35 @@ a second authority.** *(Architect's; this is how decision 1 is implemented, not 
 row carries `shape`, `wall_a_mm`, `wall_b_mm`, `height_mm`, and all four are derived **at insert** by
 one exported function, `presetRoomOf(design)`, reading `wallLengthMm`'s own mapping (G6) so no second
 wall mapping exists in the tree. The read path re-derives from the loaded snapshot and **compares**.
+
+> **Corrected 2026-09-15, and it is a correction to this ruling rather than an addition to it.**
+> ~~All four columns are `not null`.~~ **Every wall column is NULLABLE, and carries a length only for
+> a wall the shape actually has.**
+>
+> **The defect this removes, which was live in the ruling above.** `wallLengthMm("B", room)` returns
+> `room.depthMm` **unconditionally, for every shape** (`queries/overflowing-placements.ts:45-50`). A
+> **linear** kitchen has no wall B — so a linear preset would have stored the room's *depth* in a
+> column named `wall_b_mm`. **A wrong value under a column name that asserts otherwise is worse than
+> a missing one**, and it would have surfaced first in the owner's own dashboard filter — *"wall B
+> between three and four metres"* matching linear presets on a number that is not a wall.
+>
+> **Why the timing is the whole point.** 7J ships linear kitchens **after** 7P2, so the first linear
+> preset would have been authored into a frozen `not null` column, and the obvious thing to put there
+> is the wrong number. Nullable now is free; nullable later is an `alter column drop not null` the
+> unattended screen does not recognise (G13), on a table holding the owner's data.
+>
+> **It also sharpens the matcher, which is the tell that it is the right model and not a patch.**
+> ADR 0109 Amendment A2's *"every wall is within ±600 mm"* means **the walls the shape has**. With a
+> NULL wall B, a linear preset compares wall A alone by construction, instead of silently comparing a
+> room depth against a wall length.
+>
+> **And it makes M7B's third wall free.** `wall_c_mm` arrives as another nullable column when the U
+> shape does; no existing L or linear preset has a wall C, so NULL is already correct and **nothing
+> is backfilled**. Adding a nullable column is free before and after the freeze, by this plan's own
+> reasoning — it is changing a column that already holds data that is not.
+>
+> *(Found by taking the coordinator's dashboard-filter question seriously, three waves away from the
+> matcher. Recorded that way on purpose: neither of us found it by re-reading the schema.)*
 They cannot merely be trusted to agree — G7 shows `migrateDesign` rewriting the room is a thing this
 codebase has actually done — and two numbers agreeing by luck is precisely
 [ADR 0028](../decisions/0028-wall-depth-is-derived-from-the-worktop.md)'s defect and
@@ -8294,6 +8334,85 @@ generator's and the owner's by whether a rule can be applied without looking at 
 kitchen; this divides *data* by whether it can be reproduced without the owner. **Same author, same
 instinct, two mechanisms.** *(The cross-reference is the architect's.)*
 
+**P12 — `status` is the ONE gate on whether a preset is offered, it records a decision and never a
+measurement, and it gains a third member.** *(Owner ruling 2026-09-15, relayed; the two invariants
+are the architect's, ruled by the coordinator the same day.)*
+
+> *"we'll need to have a status column that will display us those presets that somehow conflict with
+> the current implementation. So in this way, if a preset is not valid, that specific preset will not
+> be provided to be selected by end users, but will be provided to be fixed by the administrator…
+> Nothing should be automatically done. Everything should be manually reviewed and the decision will
+> be made by the administrator."*
+
+**The column already exists and this ruling costs one string.** ADR 0112 decision 1 gives it
+`published | hidden`, and **P4 already declined a `check` constraint on it**, so
+`PresetRecordSchema` is the authority and the column is plain `text not null`. **Adding a member is
+therefore a code change and not a migration — free forever. Renaming or removing one is not**, and
+that asymmetry is the only part of this a later wave must respect.
+
+**Three members, and the third is the owner's new one.** *Offered to customers*; *withheld by the
+owner's choice* (ADR 0112 decision 1's `hidden`); *withheld because it conflicts with the current
+implementation and is waiting for the administrator*. **Hidden and conflicting are not the same
+fact** — one is a decision the owner made, the other a finding the product made, and the dashboard
+lists the second specifically. **No fourth member is invented here.**
+
+**Invariant 1 — one column, one predicate. `status` is the only thing that decides whether a preset
+is offered, and no later wave may add a sibling that also withholds one.** This is the ruling that
+decays silently: with two withholding columns, 7B can satisfy one check, miss the other, and offer a
+kitchen the product knows is broken — and every test of the check it *did* write would pass. **Any
+future reason to withhold is a member of this column.**
+
+**Invariant 2 — `status` records a decision, never a measurement.** *Conflicting* means *an
+administrator has been told and has not yet acted*, not *this preset was invalid when we last
+looked*. That is the owner's *"nothing should be automatically done"* stated as a data property, and
+it is what makes the column safe to trust: **a decision cannot go stale the way a cached measurement
+can.** It also settles who writes it — a person, through the administrator's surface — and confirms
+that nothing in 7P1 or 7P2 writes anything but the initial value.
+
+**One reading, ruled by the coordinator rather than left as mine: a preset's prior status is not
+remembered when a conflict clears.** The administrator chooses where a fixed preset goes. A
+remembered prior status would be a machine making that choice, which is the thing the owner ruled
+out in terms.
+
+**What the conflict detector and the assisted repair will need from the row — asked, and the answer
+is nothing.** *(The coordinator asked for this explicitly so a later wave knows the question was put
+rather than skipped.)* Every conflict the owner describes is **computable from `document` against
+today's build** — a body id the catalogue no longer holds or no longer offers (ADR 0109 decision 6),
+any `validateDesignForCatalog` finding, a geometry re-derivation such as 7D6's, a room the approved
+policy no longer admits, a `schema_version` this build can no longer migrate. **The snapshot is the
+whole design, so the detector re-derives rather than reads.** And the *reason* a preset conflicts
+**must be derived at display time and never stored**: a stored reason is a claim about *the current
+implementation*, which is by definition the thing that changes — it would be a second authority of
+exactly ADR 0028's and ADR 0102's kind, and it would be wrong precisely when somebody relied on it.
+**So the row carries the decision and derives the diagnosis. No column is owed, and this is the last
+cheap moment at which that could have been false.**
+
+**P13 — 7P1 grants nothing new, and the administrator's writes get their own credential rather than
+a widened one.** *(Ruled with the coordinator, 2026-09-15.)* The owner wants to update and delete
+presets, and ADR 0112 decision 1's *"until a later wave needs `UPDATE`"* is now that wave — **but it
+is not 7P1**, and the grant is not the app role's.
+
+- **The authorisation model is not invented and does not need to be.** ADR 0112 decision 2 already
+  designs it: an environment flag that 404s when off, an owner secret compared in constant time and
+  sent only in a request body, and an `HttpOnly`, `Secure`, `SameSite=Strict`, expiring author cookie
+  that is not the secret, re-checked on every write. **An administrator update or delete sits behind
+  exactly that**, and 7P2 is where it is built.
+- **The grant is the sharper half.** There is one Postgres role in play: every Next route connects
+  with `DATABASE_URL`. Granting it `UPDATE, DELETE` on `presets` would leave **route-level checks as
+  the only thing between a customer request and a destroyed preset**. The stronger shape is a
+  **second, narrower credential used only by the administrator path** — and that is this repository's
+  existing pattern rather than a new idea: `MIGRATION_DATABASE_URL` is already a second,
+  more-privileged credential reserved to one narrow path and deliberately never `DATABASE_URL`
+  (ADR 0096 decision 4, and `migrate-status.ts`'s header says why in terms).
+- **It needs an owner action** — a database role and a deployment secret — **so it belongs to the
+  wave that builds the surface.** 7P1's runbook line stays `SELECT, INSERT` and criterion 9 is
+  unchanged.
+- **Flagged, not asserted, and deliberately not verified here.** 7G's thumbnail backfill (Q-7P1-2)
+  needs a **column-level** `grant update (thumbnail…)`. Whether a column-level grant appears in
+  `information_schema.role_table_grants` — and so whether it would trip criterion 9 — **is not
+  checked in this plan**. 7G's implementer checks which view shows what **before** assuming the
+  criterion and the backfill can coexist.
+
 ### Module boundaries
 
 - **The domain owns the record and its parse. It owns no SQL and chooses no locale.**
@@ -8422,6 +8541,13 @@ not an oversight, and it is risk 3.
    logged**; a list containing one such row still returns every other row. **Must not:** a read path
    that silently prefers either side; a read path that throws and so empties the library; a second
    wall mapping anywhere (`widthMm`/`depthMm` re-read at a second site).
+   - *(unit, boundary — P2's 2026-09-15 correction, and the case a linear preset would have broken)*
+     **A wall column is populated only for a wall the shape has.** An **L** preset carries wall A and
+     wall B; a **linear** preset carries wall A and **`wall_b_mm` is NULL** — asserted as a literal
+     null, because the value that would otherwise be there is `room.depthMm`, which is not a wall
+     (`queries/overflowing-placements.ts:45-50`). **Must not:** a linear preset storing its room
+     depth under `wall_b_mm`; a `not null` constraint on any wall column; `presetRoomOf` asking
+     `wallLengthMm` for a wall the shape does not have.
 3. *(property, ≥ 100 samples per arm)* Over rooms drawn from the approved L policy: insert, then
    read, round-trips **byte-identically** under canonical serialisation — including the empty name
    map, both statuses, and every `schema_version` 1–5 a row can carry.
@@ -8446,7 +8572,12 @@ not an oversight, and it is risk 3.
 9. *(live, application role, application database)* The application role holds **exactly `SELECT` and
    `INSERT`** on `presets` — not `UPDATE`, not `DELETE` — and an `update presets set status = …` is
    refused. **Must not:** `UPDATE` granted "so hiding works", which is ADR 0112 decision 1's explicit
-   exclusion.
+   exclusion. **Its purpose outlives this wave, and the next implementer to meet it should read it as
+   a purpose rather than an obstacle (P13):** the owner has asked for administrator update and
+   delete, and **this criterion is what stands between that requirement and the easy, wrong answer of
+   widening the customer-facing role.** The administrator's writes get their own credential; when
+   this criterion turns red, the question to ask is *which role is this?* and not *how do I relax
+   it?*
 10. *(live, and stated honestly)* A read through `NeonPresetRepository` under the **application**
     credential succeeds. **This is the only witness the grant of G2 has**, it runs only where
     `DATABASE_URL` is set, and it therefore **does not run in CI** (G4, G5). The grant itself is an
@@ -8455,9 +8586,12 @@ not an oversight, and it is risk 3.
     no `designId`/`sourceDesignId`, asserted by a grep-in-a-test, and `insert` takes a `Design` and
     never an id. **Must not:** provenance travelling as an id "for debugging".
 12. *(unit)* `listPublished` returns **newest first**, deterministic on equal timestamps by id, and
-    never returns a `hidden` row. Its bound is **stated**, and the read reports when the bound was
-    reached rather than truncating silently. **Must not:** an unbounded `select` over a table read on
-    a customer's first screen.
+    returns **only** rows whose `status` is the offered member — a `hidden` row and a *conflicting*
+    row are both absent, asserted separately (P12). Its bound is **stated**, and the read reports when
+    the bound was reached rather than truncating silently. **Must not:** an unbounded `select` over a
+    table read on a customer's first screen; **a second column consulted alongside `status` to decide
+    whether a preset is offered** — P12's one-column invariant, and the test is that the predicate
+    names exactly one column.
 13. *(live, round trip — the criterion P6 is for)* A preset is exported through the production row
     source, its row destroyed, restored through **the runbook's own statement copied verbatim into
     the test**, and then **read back through the repository and parsed**. **Must not:** a test that
@@ -8477,7 +8611,12 @@ not an oversight, and it is risk 3.
 **Wave-wide must-nots.** **No agent applies this migration to any deployed database** (ADR 0020
 decision 1, ADR 0112 decision 1, `AGENTS.md`); the test database only, and the fact is stated in the
 close-out. No customer-reachable route writes to `presets`. `CURRENT_SCHEMA_VERSION` is not bumped.
-No ±600 comparison is written in this wave.
+No ±600 comparison is written in this wave. **And, from the owner's dashboard ruling of 2026-09-15:
+no admin surface, no conflict detector, no repair — assisted or otherwise — and no new grant.** The
+owner was explicit that *"nothing should be automatically done"* and that the area needs testing
+sessions with their feedback first. **7P1 provides the column (P12) and withholds the grants (P13);
+who sets a status and how a conflict is found are a later wave's, and that wave starts from a
+recorded ruling rather than a fresh conversation.**
 
 **The four carried criteria, mapped.** Carried 1 → criteria 5, 7, 9; carried 2 → criteria 1, 3, 12
 (and its *"reads published presets by shape"* is satisfied by the domain evaluator's input, not by a
@@ -8820,3 +8959,539 @@ is this wave's verdict by definition, since the whole claim is about what CI exe
 proves the suites pass; **only the job log proves they ran**. Whole-tree `pnpm format:check` at the
 wave's end. No e2e, no visual capture, and **no production file in the diff** — a production file
 appearing in this wave's diff is itself a review finding.
+
+## Wave 7P2 — dispatchable punch list: the authoring gate, the save, and the owner's button
+
+> **Planned 2026-09-15 by the architect**, from the tree at `41181d8` (the working tree carried
+> uncommitted 7E2 and 7F4b work while this was written; **every file and line number below was read
+> at `41181d8`** and none of it was measured against the uncommitted half). This is the binding
+> version of the **7P2** row in the revised wave table and of the five 7P2 bullets at *Revised
+> criteria for new and changed waves*; where they disagree, this section is later and says why.
+> **Twelve rulings below are the architect's (AU1–AU12) and are marked as such.**
+> [ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md)
+> settles the gate's *shape* and hands its *mechanism* to this wave in terms — its status line reads
+> *"the gate's mechanism is an engineering decision and goes to a security reviewer in its wave"* —
+> so the mechanism is decided here rather than left to an implementer. **Four questions are not
+> mine**, and **Q-7P2-1 wants answering before this wave is dispatched, not before it is merged.**
+>
+> **One dependency stated plainly because it is unusual: 7P1 has not been built.** This plan is
+> written against **7P1's plan**, not against shipped code, and it consumes exactly five things from
+> it — `PresetRecordSchema`, `presetRoomOf(design)`, `PresetRepository.insert`, the `names` map's two
+> code-level bounds, and the operator's `SELECT, INSERT` grant. **If 7P1 lands differently from its
+> punch list, those five are where this wave breaks**, and a dispatcher should re-read them rather
+> than assume. Criteria numbering restarts at 1, as 7P1's and 7T's do.
+
+### The governing fact: this is the wave that starts the freeze, and nothing here expires
+
+The owner named the moment: *"a critical moment will be when I will start to save presets."* 7P1's
+own opening states what that costs, and its retention ruling **P11** sharpens it past recovery:
+presets are **stored forever** by the owner's ruling of 2026-09-15 — no reaper, no expiry, no age
+rotation on the row. **A table with a retention policy has a horizon past which its oldest mistakes
+age out. This one has none.** Until 7P2 runs, the preset record's shape and the geometry underneath
+it are free; **from the first row this wave writes, wrong is forever.** That sentence is the wave's
+governing fact and belongs at the top of every dispatch inside it.
+
+**One precision, because it is what makes Q-7P2-1 cheap rather than expensive: the freeze does not
+begin at this wave's merge commit. It begins at the first row in the *production* database** — and by
+ADR 0112 decision 2's own design that row cannot exist until the owner sets two environment variables
+that are not in this repository and that no agent may set (`AGENTS.md` rule 1). Rows minted against
+the **test** database by this wave's own suites are removed through `deletePresetsForTests` (7P1, G14)
+and freeze nothing. **So "7P2 ships" and "the freeze starts" are two separate events, and the second
+one is an owner action.** Everything that follows from that is in Q-7P2-1.
+
+### Ground truth, measured at `41181d8`
+
+Each is a file and a line. Six of them contradict something the wave table or a neighbouring record
+would reasonably lead an implementer to assume.
+
+| # | Measured | Consequence |
+| --- | --- | --- |
+| H1 | **`isSceneShotRouteEnabled` returns `true` for every non-production build** — `route-availability.ts:20` is `if (environment.NODE_ENV !== "production") return true;`, with the reason stated: the route *"would only teach people to set it everywhere"*. | ADR 0112 decision 2 names *"the pattern `/internal/scene-shot` uses"*. **Copying that module is the defect this wave must not commit**: it would put a working *save as preset* control into every developer's browser and into the e2e dev server, and 7K's *"no customer journey can reach the save-as-preset control"* would be asserting against a build that is not the deployed one. Ruling **AU1**. |
+| H2 | **The repository already contains the corrected form of that pattern.** `selection-debug-availability.ts` carries, verbatim: *"there is **no development exemption**: `NODE_ENV === "development"` must not imply E2E observability"* (finding WEB-004), and Playwright sets its flag on the server it starts. | **That module, not `route-availability.ts`, is this wave's precedent** — and its other difference is the one to invert: it is `NEXT_PUBLIC_`-prefixed *because a client component reads it*. Authoring's flag is read by the server only and **must not** carry that prefix (AU1). |
+| H3 | **No rate limiting exists anywhere in the product.** [ADR 0014](../decisions/0014-unauthenticated-write-surface.md) S4 says so in terms; [ADR 0019](../decisions/0019-security-baseline-writes-throttling-retention.md)'s own schedule table places *"application rate limiting"* in **M8**, and the firewall's whole contribution is one rule at **120 requests / 60 s per IP**, *"there to stop a flood… not to express any of the policy"*. | **The unlock route is the first endpoint in this product that compares a human-supplied secret**, and nothing throttles it. 120/60 s is ~170 000 guesses a day per IP — irrelevant against 256 bits and useless against a passphrase. **The control is the secret's entropy, and that is an owner action** (Q-7P2-2), not a code one. |
+| H4 | **`EditorPanel` returns `null` when nothing is selected** — `editor-panel.tsx`, `if (view.kind === "closed") return null;` — and every section it draws arrives already decided inside a `PanelView` that `describePanel` produced, a file whose header says *"No product rule lives here either."* | **The save control cannot live inside the panel.** It would be invisible unless a body happened to be selected, and teaching `panel-model.ts` about authoring would put an owner-only, non-product rule into the model whose stated invariant is that it holds none. Ruling **AU6**. |
+| H5 | **A server-decided value already reaches `ConfigureScreen` as an optional prop**: `webglUnavailableTitleMobile?: string`, passed by `app/[locale]/configurator/configure/page.tsx` and **not** passed by `d/[id]`'s `HydrateAndConfigure`, which renders `<ConfigureScreen />` bare. | The seam ADR 0112 decision 2 asks for — *"the `/d/{id}` page… reads the flag and the author cookie and passes one boolean down"* — **exists and has a precedent**. It also means the legacy configure page gets `false` by omission, which is the safe direction (AU6). |
+| H6 | **`saveStatus: "idle"` does not mean "the stored design matches the screen".** The coalescer's `requestSave` arms a `setTimeout` for `MIN_SAVE_INTERVAL_MS = 1000` and **reports no status change while it waits** (`save-coalescer.ts`, `requestSave`); `onSaveStatusChange("saving", …)` fires only when a request actually goes out. There is **no `flush` and no pending accessor** on the `SaveCoalescer` interface — it exports `scheduleSave` and `overwriteConflict` and nothing else. | **ADR 0112 decision 3 snapshots the *stored* design.** An owner who adjusts a kitchen and clicks *save as preset* within that window stores a preset **missing their last adjustment**, with no error, and the row is permanent. This is the wave's sharpest product hazard and it is invisible to every test that does not look for it. Ruling **AU4**, criterion 10. |
+| H7 | **`describeSchemaIssues` is value-free by construction** — `failure-text.ts:52` maps each issue to `` `${path}:${code}` `` and nothing else, then bounds the result. | Checked rather than assumed, because the obvious worry — *a schema describer echoing the owner's secret into a log* — **is not true of this one**. It is therefore safe to reuse on the unlock route, and the must-not is narrower and more useful: **no new describer may interpolate a parsed value**, and the raw body is never logged (AU11). |
+| H8 | **A sink is a declared property with a two-directional gate; a hob is not.** `declaresASink(definition)` reads `BodyDefinition.sink` (`void-engine.ts`), and `sink-declaration.parity.test.ts` holds every row's declaration to the `sink_faucet` group its builder draws in both directions. The hob's counterpart, `carriesAccessoryKind: HOB_ACCESSORY_KIND` (`catalog.ts:621`), has **no reader anywhere in `src`** and `HOB_ACCESSORY_KIND` is not exported; the hob is identified in `hob-front-clearance.parity.test.ts:39` by a literal list, `HOB_BEARING_BUILD_IDS = ["base-hob-2drawer", "base-hob-oven"]`. | ADR 0112 decision 4's *"must contain the minimum kitchen — a sink and a hob"* has **half a mechanism**. This wave writes the other half and must write it as a declaration reader, not as a second literal list — the shape `BodyDefinition.sink`'s own doc comment names as wrong (*"pricing must key on the property, not on a list of ids"*, ADR 0068). Ruling **AU5**. |
+| H9 | **Nothing in the domain answers *"does this design contain a sink and a hob?"*.** `minimumMet` is a field of `KitchenCompositionPlan` (`generation-priorities.ts:51`), set by `planKitchenComposition` **before** anything is placed; it is a property of a *plan*, not of a *design*. | The predicate is new. **Reusing `minimumMet` would answer a different question** — it says the generator could have fitted the core, not that the kitchen in front of the owner still has a sink after they deleted one (AU5). |
+| H10 | **The write-token cookie is `Path=/api/designs/{id}`, and `write-token.ts` explains at length that a server component therefore *cannot* read it** — *"the answer is not a lookup that missed, it is a question that route cannot be asked."* | **The author cookie must not be path-scoped the same way.** ADR 0112 decision 2 requires the `/d/{id}` **page** to read it, so its path is `/` — which is exactly the condition [ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)'s `__Host-` prefix is built for (AU2). |
+| H11 | **`playwright.config.ts` has one `webServer` shared by both projects**, and it already sets a test-only flag there (`SELECTION_DEBUG_FLAG`) *"so the opt-in travels with the runner that needs it"*. | The authoring flag can be set the same way **without** making the control reachable: the flag alone renders nothing, because the page also needs the author cookie. So one spec unlocks and every other spec is a live witness that nothing else can see the control (AU12, criterion 18). |
+| H12 | `.env.example` is *"key names only, no values"* and tracked; `AGENTS.md` rule 1 is add-only and *"never print a secret's value"*. | The two new variables are added to `.env.example` as **names**; the owner sets the values; **no agent reads, prints, echoes or commits either value**, including into a test fixture or a message to another agent. |
+| H13 | 7P1 ships the repository with **`insert` and no caller**, the application role with **no `UPDATE` and no `DELETE`**, and — by G2 — a table whose grant is **an operator step with no automated witness** (7P1 risk 3, criteria 9 and 10, which cannot run in CI). | **This wave is where that grant is first exercised by the application.** If the operator step was missed, the symptom is `permission denied for table presets` **at the owner's first save**, not in CI and not on an implementer's machine. Risk 3. |
+| H14 | A new Romanian leaf **enters the copy lock in the same commit that adds it** (ADR 0113 decision 2, `tests/i18n/romanian-copy-lock.test.ts`), and the Russian half is Gate O2's. | The owner-only control still carries product copy in the message files. Whether an owner-only surface owes a Russian leaf is **Q-7P2-4**, and the recommendation is that it owes one exactly like every other leaf. |
+| H15 | Method coverage on an App Router route is per exported handler: a verb with no export does not reach the module's own refusal. | Criterion 2 is written **behaviourally** — *every* method answers 404 — rather than as an instruction about which handlers to export, because a 405 on `DELETE` tells a prober the file exists and would defeat ADR 0112 decision 2's *"nothing distinguishes the feature from one that does not exist."* |
+
+### Rulings
+
+**AU1 — the flag is a new server-only module, it has no development exemption, and it is not
+`NEXT_PUBLIC_`.** *(Architect's; ADR 0112 decision 2 names the scene-shot pattern and H1 shows that
+copying it is a defect.)* `preset-authoring-availability.ts` publishes `PRESET_AUTHORING_FLAG`, the
+single opt-in value `"1"`, and a predicate that reads **only that variable** — no `NODE_ENV` arm, in
+any direction. `selection-debug-availability.ts` is the precedent and its sentence is the reason
+(H2). It is a **pure** module so `playwright.config.ts` and the tests can import the constants, and
+the crypto lives one file over in a `server-only` module. **Must not:** a `NEXT_PUBLIC_` prefix on
+either variable — that publishes the feature's existence to every visitor's bundle and moves the
+decision to the client, which ADR 0112 decision 2 forbids in terms (*"The client never decides"*);
+a call to `isSceneShotRouteEnabled`; a second flag for the save route, because two flags can disagree
+and ADR 0112 describes one.
+
+**AU2 — the author credential is a stateless, signed, expiring token in a `__Host-` cookie. No
+session table, no row, no store.** *(Architect's; ADR 0112 decision 2 fixes the cookie's attributes
+and says only that the value is "not the secret" and "server-verifiable".)*
+
+- **Why stateless.** The alternative is a session row, and a session row means a table, a migration,
+  a grant and a second thing the deployed-schema gate must learn — **all of it inside the wave whose
+  governing fact is that its schema decisions are permanent.** A signed token needs none of them.
+- **The shape.** Value = an expiry plus a MAC over it, verified in constant time; the signing key is
+  derived from the owner-set secret **hash**, so the deployment holds exactly one authoring secret
+  and **rotating it invalidates every outstanding cookie** — a property worth having and worth
+  stating, because it is the only revocation this design has.
+- **The attributes**, from ADR 0112 decision 2 and H10: `__Host-` prefix (which *enforces* `Secure`,
+  `Path=/` and no `Domain`, so a sibling subdomain cannot set it), `HttpOnly`, `SameSite=Strict`,
+  and an expiry from **one named constant**. `Path=/` is not laxity: the page must read it (H10),
+  and `__Host-` is what makes a root path safe.
+- **The lifetime is not in the record.** Recommendation **12 hours, fixed, not sliding** — the write
+  token slides because it is pinned to a retention clock (`write-token.ts`), and there is no such
+  clock here. A long-lived author cookie is a standing capability to publish onto every customer's
+  first screen. **Q-7P2-3** puts the number to the owner; the wave is not blocked on it.
+- **Must not:** binding the cookie to an IP or a user-agent (serverless, and it breaks the owner's
+  own browser more often than an attacker's); a cookie that carries the secret or its hash; any
+  decision taken from the token's payload **before** its signature verifies.
+
+**AU3 — the write surface is an id, a name map and one timestamp. The body can never become
+content.** ADR 0112 decision 3 is the rule and this is its executable form: the route parses
+`{ designId, names, sourceUpdatedAt }` strictly, loads **that design through the repository**, and
+builds the record from what it loaded. Nothing the client sent reaches the row except the names.
+**The body is read under its own small byte bound**, not `MAX_DESIGN_BYTES` — the design route's
+limit exists because its body *is* a document, and reusing it here would make an authoring endpoint
+an unnecessarily large sink. **Must not:** a design id in a query string or a path segment (it is a
+read capability until 7E3b — G9 — and a URL is the one place it will be logged by an intermediary);
+a document, a placements array, or any field the server would store verbatim.
+
+**AU4 — the save states the design the owner is looking at, and a mismatch is refused rather than
+snapshotted.** *(Architect's, and it is the ruling this wave most needs. H6 is the measurement.)*
+
+The client sends `sourceUpdatedAt`: the `updatedAt` of the design **on screen**. The server compares
+it with the loaded snapshot's `updatedAt` and refuses anything but equality with a named code. It
+costs one string.
+
+- **Why `updatedAt` and not a fingerprint.** `updatedAt` already moves on every successful command —
+  `command-result.ts` writes it on success and only on success — so it is a version marker the
+  document carries, needing no hashing, no `crypto.subtle`, and no new client dependency. A
+  canonical-serialisation hash is exact and is the better answer **if** the sub-millisecond bound
+  below is ever shown to bite; it is not the cheaper answer today.
+- **The honest bound, stated rather than discovered later:** two commands within the same millisecond
+  produce the same ISO timestamp, so the guard cannot separate them. It closes the second-scale
+  window `MIN_SAVE_INTERVAL_MS` opens, which is the one an owner can actually hit by clicking.
+- **Why not the revision header the design route uses.** The client's revision only advances on a
+  *successful save*, so with an edit still queued the client's revision **equals** the stored one and
+  the check would pass. `x-expected-revision` is a lost-update guard; this is a staleness guard, and
+  they are not the same question.
+- **It is a field and not a header**, which inverts the design route's own reasoning deliberately:
+  that route used a header because its body *is* the customer's document under a strict schema
+  (`route.ts`'s `EXPECTED_REVISION_HEADER` comment). Here the body is a request object this wave
+  defines, so the reason does not reach.
+- **Must not:** snapshotting a row the owner has not seen; writing the client's timestamp anywhere;
+  a UI that merely *hopes* the coalescer has flushed. **The refusal is what the owner sees**, and it
+  is recoverable by clicking again a moment later.
+
+**AU5 — the minimum kitchen is one domain function reading declarations, and it is new.**
+*(Architect's; ADR 0112 decision 4 states the rule and H8/H9 show the product cannot currently
+answer it.)* One exported function in `configurator-domain` answers *may this design be a preset?*
+with a list of named codes: any `validateDesignForCatalog` finding **of either severity** (ADR 0109
+decision 3, the owner's *"this should always fit the existing walls"*), no sink, no hob. The sink is
+`declaresASink`; the hob is a new `declaresAHob` reading `carriesAccessoryKind` — so the wave either
+exports `HOB_ACCESSORY_KIND` or places the reader beside it. **Must not:** a literal build-id list
+(H8: the shape ADR 0068 names as the failure, and the shape `hob-front-clearance.parity.test.ts`
+already has); reusing `minimumMet`, which answers about a plan and not about the kitchen on screen
+(H9); the *fatal-only* filter `fatalDesignValidationIssues`, which is the design save's rule and is
+deliberately weaker than a preset's.
+
+**One limit this creates, recorded because nobody else will find it.** `declaresASink` is safe
+because a **two-directional** parity gate holds every row's declaration against the mesh its builder
+draws. `carriesAccessoryKind` has no such gate, so a future hob-bearing row that forgets the
+declaration would be invisible to this predicate. **Closing it is a `three-adapter` test and this
+wave must not touch that package** — recommendation: a backlog entry naming the asymmetry, written
+by whoever closes this wave. *(The gap is the architect's finding; the remedy is not this wave's.)*
+
+**AU6 — the control is the configure screen's, never the panel's, and the server decides.**
+*(Architect's; H4 and H5.)* `save-as-preset.tsx` may live under `src/panel/` as the wave table has
+it — it is an editor-surface component — but it is rendered by `configure-screen.tsx` as a sibling
+of `EditorPanel`, and **`PanelView`, `panel-model.ts` and `describePanel` learn nothing about
+authoring**. The boolean travels `page.tsx` → `HydrateAndConfigure` → `ConfigureScreen` as an
+**optional prop defaulting to `false`**, which is the safe direction by construction: a surface that
+forgets to pass it shows nothing, and `/[locale]/configurator/configure` forgets it deliberately.
+**Must not:** a new `PanelSection` kind; the flag or the cookie read in a client component; the
+control's visibility stored in the configurator store, which would make an owner-only affordance part
+of the document editor's state.
+
+**AU7 — the form accepts a half-filled name map, and its bounds are the domain's.** 7P1 ruling P10 is
+explicit that *"a half-filled map is… the normal state rather than an edge case"* — the owner authors
+one at a time, by hand, and a schema demanding both names would be *"discovered by the owner, at the
+moment of saving, as a refusal."* So: both fields optional, an empty map accepted, one locale
+accepted, and **no refusal anywhere in this wave mentions a missing name**. Each field's `maxLength`
+is **read from the domain constant**, never typed — a second bound here is exactly
+[ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)'s
+laundered second authority. **On changing the bound:** P10 leaves the numbers' reason to this wave
+(the 390 px card). Raising one is free forever; **lowering one is free only until the owner authors**,
+after which it could refuse a row that already exists — so a downward change is taken in this wave or
+not at all.
+
+**AU8 — off means absent, and "off" is checked twice on every save.** Flag off: **both** routes answer
+**404 to every method**, with one body, and the editor renders no control. Flag on, no author
+cookie: 404 from the save, and no control. **A valid author cookie with the flag off is refused** —
+ADR 0112 decision 2's own sentence. A wrong secret gets the **same response as a disabled feature**,
+so the unlock endpoint is not an existence oracle; this is the same discipline
+`writeForbiddenResponse` already keeps for design ids (*"no cookie, a token belonging to a different
+design, or an id no row carries"* all answer alike). **Must not:** a 405 on an unexported verb
+(H15); a distinct body, header or timing between "off" and "wrong secret"; **a `GET` on
+`/api/presets`** — 7P1 criterion 16 forbade it for a wave that had no route at all, and ADR 0112
+decision 5 is what makes it permanent: the read is a server-component call and there is no public
+list endpoint.
+
+**AU9 — no thumbnail, no column, no grant, and the obligation is 7G's — checked, and it is
+recorded.** *(The coordinator's ruling on Q-7P1-2, 2026-09-15, verified present in two places: 7G's
+row in the revised wave table and Q-7P1-2's own answer.)* 7P1's **P5** creates no thumbnail column;
+this wave adds none either, captures no image, and asks for no widened grant. **Every preset authored
+between this wave and 7G has no picture and no way to acquire one until 7G backfills it** — which 7G
+does from each preset's own snapshot (ADR 0112 decision 6) under a **column-level**
+`grant update (thumbnail…)`, so `status` stays unwritable by the application. **This wave's
+close-out states that fact in a sentence**, so the backfill's scope is *"every row that exists"*
+rather than a date someone has to reconstruct. **Must not:** an image field on the request "so 7G
+only has to store it"; a nullable column added early; an `UPDATE` grant.
+
+**AU10 — the visitor cookie grants nothing here, whether or not 7E3a has landed.**
+[ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+decision 6 is verbatim: *"The save endpoint (ADR 0112) never reads the visitor cookie; a request with
+a valid visitor cookie and write token but no author cookie is refused exactly as when authoring is
+off."* Recorded here because 7E3a lands **after** this wave in the recommended order, so the
+temptation is the opposite one — to treat the absence as something to fix later. **Must not:** the
+authoring gate reading any cookie but its own; the write token consulted as evidence of authorship.
+
+**AU11 — what is logged, and the two things that must never be.** Every authoring refusal is logged
+with a stable code, through one transport, as the designs routes do (`design-failure-log.ts` is the
+shape: one module chooses the transport so *"an error tracker dropped behind it sees every line or
+none"*). **Never logged: the submitted secret, any fragment of it, and the author cookie's value.**
+H7 is why the existing describer is safe to reuse and why the must-not is narrower than it looks:
+**no new describer may interpolate a parsed value.** The *responses* name no design id, no room and
+no reason beyond a code (ADR 0014 finding S2, held to on every existing route).
+
+**AU12 — the e2e suite proves absence, and it needs the flag on to do it.** *(Architect's; H11.)* The
+Playwright `webServer` sets the authoring flag and a **test** secret hash, exactly as it already sets
+`SELECTION_DEBUG_FLAG` and for the same stated reason. That does **not** make the control reachable:
+the page also requires the author cookie, so every existing spec becomes a live witness that a
+customer journey cannot see it, and **one** spec unlocks through the session route and then can.
+**7K inherits the sweep** it already carries — *"no customer journey can reach the save-as-preset
+control"* — and it is now testable rather than vacuous. **Must not:** the owner's real secret, or any
+value derived from it, anywhere near a test.
+
+### Module boundaries
+
+- **The domain owns the product rule and nothing else.** One module publishing the
+  may-this-be-a-preset function and its codes, plus `declaresAHob` beside the sink's reader. **It
+  knows nothing about cookies, flags, requests or locales** — P10's *"the domain names no locale"*
+  survives this wave untouched, because the names arrive as a map and are validated for shape.
+- **`lib/server` owns the gate.** Two modules: the pure flag constants (importable by
+  `playwright.config.ts` and tests) and a `server-only` module holding the secret comparison and the
+  cookie's mint and verify. **The flag lives here rather than beside a surface** — unlike
+  `route-availability.ts` and `selection-debug-availability.ts`, which each gate one thing, this flag
+  gates two routes and a page, so no single surface owns it.
+- **The routes compose and decide nothing.** The session route unlocks; the save route re-checks both
+  gates, loads, applies the domain rule, and inserts through 7P1's repository. **No SQL, no driver,
+  no id generation** — `generate-preset-id.ts` is persistence's (7P1) and `scripts/gates/boundary.sh`
+  is the standing rule.
+- **The editor surface renders a decision it was handed.** `save-as-preset.tsx` takes a boolean and a
+  design, posts, and shows a result. **No product rule and no gate logic** on the client.
+- **Persistence and the migration are untouched.** This wave adds no migration, changes no grant, and
+  does not open `preset-repository.ts` except to call `insert`.
+
+### Files, and the must-not-change set
+
+**May change** — grouped by slice, so each dispatch stays near `docs/WORKFLOW.md`'s five production
+files:
+
+- `packages/configurator-domain/src/presets/preset-save-rules.ts` (new), the hob reader beside
+  `declaresASink`, `src/index.ts` (exports only).
+- `apps/web/src/lib/server/preset-authoring-availability.ts` (new),
+  `apps/web/src/lib/server/preset-authoring.ts` (new).
+- `apps/web/src/app/api/preset-authoring/session/route.ts` (new),
+  `apps/web/src/app/api/presets/route.ts` (new, `POST` only).
+- `apps/web/src/panel/save-as-preset.tsx` + its CSS module (new),
+  `apps/web/src/app/configurator/configure/configure-screen.tsx`,
+  `apps/web/src/app/d/[id]/hydrate-and-configure.tsx`,
+  `apps/web/src/app/[locale]/d/[id]/page.tsx`.
+- `apps/web/src/messages/ro.json`, `ru.json`, `src/i18n/content.ts`,
+  `tests/i18n/romanian-copy-lock.test.ts`.
+- `.env.example`, `apps/web/playwright.config.ts`, `docs/runbooks/preset-authoring.md` (new).
+
+**Must not change:** `packages/persistence/src/migrations/**` — **no migration in this wave**;
+`preset-repository.ts` and `preset-record.ts` — **7P1's, and the freeze is why**; `migrate-status.ts`
+and `migration-status.ts`; `neon-configuration-repository.ts` and `api/designs/**` — **the design
+write path is untouched**; `write-token.ts`; `save-coalescer.ts` — AU4 exists precisely so this wave
+does not open the write path to add a flush; `panel-model.ts` and `editor-panel.tsx` (AU6);
+`validate-design.ts`; `approved-room-policy.ts`; anything under `packages/three-adapter`.
+
+### For the security reviewer — the four questions, answered where they can be checked
+
+**The tier is Full + security** (ADR 0112 decision 7), and this wave is the one that decision was
+written for: it adds **an authentication mechanism, a write endpoint, and an owner-only UI** — three
+of the five things [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
+rules out for M6–M8, permitted here by that record's dated amendment and by nothing else.
+
+**1. Who may reach the authoring route?** With the flag unset — the default in every environment,
+including every developer's (AU1) — **nobody**: both routes are 404 to every method and the control
+is not rendered. With the flag set, reaching the *save* additionally requires the author cookie,
+which requires the secret. **The reviewer's first check is that the two gates are re-evaluated on
+every request rather than at module load**, and the second is that nothing short-circuits them: a
+valid cookie with the flag off is refused, and the page's boolean is computed on the server per
+request (the `/d/{id}` page is already dynamic — it reads the repository).
+
+**2. Is a preset id guessable, and does it matter?** It is `nanoid`, and **a preset id is not a
+capability** — 7P1 settled this, and its sharpest line carries into this wave unchanged: *a preset id
+is not a capability but a design id still is.* **The concrete failure this wave could create, and the
+thing to look for, is a working `/d/{id}` link to the owner's own kitchen appearing on a customer's
+screen.** The save request **names a design id** (ADR 0112 decision 3), so this is the one wave in
+which that id is in the hands of a route that writes the row every customer reads. 7P1 ruling **P3**
+is the must-not — the record carries no design id in any form — and criterion 9 is its executable
+form here: what the route stores is built from the **loaded design**, and the id it was loaded by is
+not among the record's fields. Until 7E3b lands (after this wave), a design id in a response body, a
+log, a URL or a `names` value is a read capability handed out.
+
+**3. Can the write path be driven by anyone but the owner?** The credential is a secret the owner
+holds and a cookie the server signs. Three things to check, each of which has a recorded reason:
+**(a)** the comparison is constant-time over equal-length digests and a missing or malformed
+environment hash behaves as flag-off rather than as "no secret required" — a fail-open default here
+publishes to every customer's screen; **(b)** `SameSite=Strict` plus a body-only secret is what
+stands in for CSRF protection, and the reviewer should confirm no `GET` and no URL parameter can
+drive either route; **(c)** **there is no rate limiter in this product** (H3) and there will not be
+one until M8, so the unlock endpoint's only real defence is the secret's entropy — which is why
+Q-7P2-2 is put to the owner rather than assumed, and why **this wave records an obligation for M8's
+limiter table: two new rows, the unlock and the save.**
+
+**4. What would a `select *` on this table publish?** The same answer 7P1 gave, now with a writer:
+the row is the snapshot, the room columns, the names, the status and the timestamps — **no
+credential, no visitor identity, no design id** — and the snapshot is safe *by construction of the
+`Design` type*, because the write-token hash and the visitor hash are **columns on `designs`**, never
+fields of the document. The new surface this wave adds to that answer is **`names`: free text the
+owner types, stored, and rendered to every visitor.** Its only writer is behind this gate, so the
+realistic failure is **size, not script** — both bounds live in the domain schema and are asserted —
+and escaping is the renderer's, React's by default. **The reviewer's question is whether anything
+downstream reaches for `dangerouslySetInnerHTML` to style a name.**
+
+**One honest limit, stated rather than left to inference:** the grant this wave finally exercises has
+**no automated witness anywhere in the deploy path** (7P1 G2, G4, risk 3). No test in CI can prove
+the application role may insert. The first proof is the owner's first save, and risk 3 is where that
+is ranked.
+
+### Acceptance criteria
+
+*(Numbered from 1, per wave, as 7P1's and 7T's are.)*
+
+1. *(unit)* **The flag opts in and nothing else does.** Only the exact value enables; a missing,
+   empty, `"0"`, `"false"` or `"true"` value does not; and a grep-in-a-test proves the module
+   contains **no `NODE_ENV` branch** and that neither variable name begins with `NEXT_PUBLIC_`.
+   **Must not:** a call to `isSceneShotRouteEnabled`, whose non-production arm is the defect (H1).
+2. *(unit)* **Flag off: both routes answer 404 to `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` and
+   `OPTIONS`**, with one body and no `Set-Cookie`. The verbs are enumerated in the test.
+   **Must not:** a 405 for any of them — it confirms the file exists (H15).
+3. *(unit)* **Flag on, wrong secret: the response is indistinguishable from criterion 2's** — same
+   status, same body, same headers but `Date` — and no cookie is set. The log line names a refusal
+   code and contains **no fragment of the submitted value**, asserted by searching the captured line
+   for the test secret.
+4. *(unit, boundary)* **Flag on, right secret: 204 and exactly one `Set-Cookie`** whose name carries
+   the `__Host-` prefix and whose attributes are `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`,
+   no `Domain`, and a `Max-Age` equal to the named constant. The cookie value is asserted **unequal**
+   to both the secret and its stored hash.
+5. *(unit)* **A missing or malformed secret hash in the environment behaves exactly as flag-off**,
+   even with the flag on. **Must not:** a default, a fallback, or a development secret anywhere in
+   the tree — a fail-open default here publishes to every customer's first screen.
+6. *(unit, boundary)* **Cookie verification refuses an expired token, a tampered one, and one minted
+   under a different secret hash** (rotation invalidates), and **no value from the token's payload is
+   read before its signature verifies**.
+7. *(unit)* **Both gates are re-checked on every save**: flag on with no cookie → 404; **flag off
+   with a valid cookie → 404** (ADR 0112 decision 2). **Must not:** a gate evaluated once at module
+   load.
+8. *(unit)* **The request body is `{ designId, names, sourceUpdatedAt }`, parsed strictly, under its
+   own byte bound.** An unknown key is refused. **Must not:** `MAX_DESIGN_BYTES`; a design id read
+   from a query string or a path segment; any document-shaped field.
+9. *(unit, the P3 guard in this wave's form)* **What is stored is built from the loaded design.** A
+   body carrying extra document-shaped keys changes nothing about the record, and **no field of the
+   record holds the design id in any form** — asserted over the object actually passed to `insert`.
+   **Must not:** provenance "for debugging".
+10. *(unit, the staleness guard — AU4, the criterion this wave most needs)* **A `sourceUpdatedAt`
+    that differs from the loaded design's `updatedAt` is refused with a stable code and nothing is
+    inserted**; equality passes. Both directions are asserted: a screen ahead of the row (the unsaved
+    edit, H6) and a row ahead of the screen (a second tab). **Must not:** a save that snapshots a row
+    the owner has not seen; the client's timestamp persisted anywhere.
+11. *(unit, domain)* **The preset rule refuses a design with any finding of *either* severity, one
+    with no sink, and one with no hob, and accepts the reference kitchen** — each as a separate case
+    with its own code. The sink and hob are answered from **declarations**. **Must not:** a literal
+    build-id list (H8); `fatalDesignValidationIssues`, which is the weaker design-save rule;
+    `minimumMet`, which answers about a plan (H9).
+12. *(unit, boundary)* **Names: the empty map, a one-locale map and a two-locale map all save**, and
+    no refusal in this wave mentions a name. A name one character over the domain bound is refused,
+    and the form's `maxLength` is asserted **equal to the domain constant read in the test**.
+    **Must not:** a literal length in the component; a required second locale (P10).
+13. *(dom)* **The control renders only when the server-decided prop is true**: absent by default,
+    absent on `/[locale]/configurator/configure`, present in `/d/{id}` when the page passes `true`.
+    A grep-in-a-test finds **no authoring section in `panel-model.ts`** and no flag or cookie read in
+    any client module. **Must not:** the control inside `EditorPanel`, which renders nothing when no
+    body is selected (H4).
+14. *(dom)* **Two taps issue exactly one `POST`**, asserted through the rendered component with a
+    stubbed fetch — 7E2's close-out carried this lesson forward in terms, and an owner double-tapping
+    a save that mints a permanent row is precisely the case it was written for.
+15. *(unit)* **Every refusal reaches the owner as a code and the log as a line**, and the **response
+    names no design id, no room and no reason** beyond the code (ADR 0014 S2).
+16. *(unit)* **No thumbnail anywhere in this wave**: no image field on the request, no column, no
+    grant, and a grep over the wave's files finds no `thumbnail`. **Must not:** a nullable column
+    "for 7G" — P5 and Q-7P1-2 settled the order.
+17. *(unit)* **`.env.example` names both variables and carries no value**, and a grep-in-a-test
+    proves neither variable is ever *assigned* in the tree — only read. **Must not:** a secret, a
+    hash, or an example value in any tracked file (`AGENTS.md` rule 1).
+18. *(e2e, both projects + one visual capture)* **With the flag set on the Playwright server, every
+    existing spec still finds no save control**, and one spec unlocks through the session route and
+    then sees it. The control is captured at 390 × 844 and 1440 × 900 in a production build.
+    **Must not:** the flag set in a way that leaks into a developer's `next dev` (H2, AU1).
+
+**Wave-wide must-nots.** **No agent sets either environment variable in any deployed environment, and
+no agent ever sees or prints the owner's secret** (`AGENTS.md` rule 1). No migration, no `grant`, no
+`UPDATE`, no `DELETE`. No public `GET` on `/api/presets` (ADR 0112 decision 5, 7P1 criterion 16). No
+±600 comparison — the evaluator is 7B's. The visitor cookie is not read (AU10). `CURRENT_SCHEMA_VERSION`
+is not bumped.
+
+**The five carried 7P2 bullets, mapped.** Carried 1 → criteria 2, 13; carried 2 → criteria 7, 13;
+carried 3 → criteria 3, 4, 5, 6; carried 4 → criteria 8, 9, 10, 11; carried 5 → criterion 7's flag-off
+arm plus the close-out statement that turning the flag off hides **authoring only** and publishes
+nothing and unpublishes nothing. **None is withdrawn**; criteria 10, 12, 14 and 18 are additions this
+plan makes.
+
+### Slices, in dependency order — dispatched one at a time, with the tree frozen between
+
+- **S1 — the product rule, in the domain, alone.** `preset-save-rules.ts`, the hob reader,
+  `index.ts`. Criterion 11. **First and alone** because it is the only piece whose *meaning* is
+  frozen by the first authored row: a rule that admits a sink-less kitchen admits it permanently.
+- **S2 — the gate, with no route on it.** The two `lib/server` modules. Criteria 1, 4, 5, 6.
+  Reviewed before anything is mounted on it; this is the wave's security core and it is testable
+  without a request.
+- **S3 — the session route.** Criteria 2 (its half), 3, 17, plus `.env.example` and the runbook.
+- **S4 — the save route.** Criteria 2 (its half), 7, 8, 9, 10, 15, 16. The largest slice, and it
+  consumes S1–S3 rather than re-deciding anything.
+- **S5 — the control and its copy.** `save-as-preset.tsx`, the three files that pass the boolean,
+  the message files and the copy lock. Criteria 12, 13, 14. **Sequenced against whoever else holds
+  `configure-screen.tsx` and `hydrate-and-configure.tsx`** — see risk 7.
+- **S6 — the e2e witness and the capture.** `playwright.config.ts` and one spec. Criterion 18.
+  **Last, because it is the only slice that can prove absence**, and absence is only meaningful once
+  everything that could leak exists.
+
+### The test contract
+
+- **Unit and DOM suites** in `configurator-domain` and `apps/web` are the wave's CI gate. Route
+  handlers are exercised by direct invocation, as `tests/app/api/designs/**` already does, against
+  7P1's `fake-preset-repository.ts`.
+- **No new live suite is owed.** The insert path's live evidence is 7P1's criteria 3 and 13. If one
+  is added anyway it gates on `TEST_DATABASE_URL` (7P1 ruling P7), never on `DATABASE_URL`.
+- **e2e: yes, and it is the only wave where the suite's value is what it does *not* find.** Both
+  Playwright projects; the runner is the verdict, and a green local run is not one.
+- **Visual: yes** — the wave table says so, and the surface is the owner's. One capture per project
+  with the control visible.
+- **Criterion 5's environment arms run by construction** (the test supplies the environment), but
+  **the grant of H13 has no test at all** — the close-out says so in a sentence rather than implying
+  coverage, exactly as 7P1's does for its criteria 9 and 10.
+
+### Risks, ranked — with the reason for the rank
+
+1. **The corner geometry frozen by the owner's first authored row.** Rank 1 because it is the only
+   risk here whose cost is **unbounded and irreversible by code**: 7D6 and 7D7 both carry *"deadline:
+   land before 7P2"* on their own rows, and the recommended order does not schedule either of them
+   before this wave. Every other item below is caught by a test, a gate or a retry. **Q-7P2-1 is
+   this risk**, and its cheapest answer is not a reorder.
+2. **A silently stale snapshot** (H6). Rank 2 because it is **silent and permanent** — the owner sees
+   a success, the preset is missing the adjustment they just made, and nothing anywhere will ever say
+   so. Criterion 10 converts it into a refusal the owner can act on, which is the whole of the
+   remedy.
+3. **The grant nobody ran** (H13). Rank 3 because **no test in CI can catch it**, the symptom lands
+   on the owner mid-authoring rather than on an implementer, and its fix is an operator action taken
+   under time pressure. It ranks below 2 only because it is **loud**: `permission denied for table
+   presets` names itself.
+4. **Guessing the secret, with no limiter in the product** (H3). Rank 4 rather than higher because
+   the mitigation is **complete if the secret is generated** — 256 bits is not guessable at 170 000
+   attempts a day — and **absent if it is chosen**. That makes it an owner question (Q-7P2-2) rather
+   than an engineering risk, and it is ranked here so nobody treats the firewall's flood rule as an
+   answer.
+5. **A half-filled name map refused mid-authoring** (P10). Rank 5: cheap to prevent, and the owner
+   discovers it at the worst possible moment — holding a kitchen they have just adjusted by hand.
+6. **The control reaching a customer.** Ranked below 5 because **three independent things must all
+   fail** — the flag, the cookie and the prop — and each has its own criterion. It is named because
+   the consequence is the largest on the list: a customer publishing to every Step 1 screen.
+7. **Two agents in `configure-screen.tsx`.** Rank 7, and it is a process risk rather than a code one:
+   7E2, 7F4b and 7E3a all touch the three files S5 needs, and the pre-commit hook re-adds whole
+   files, so **two agents cannot share one file — they must be sequenced.** Named because it is the
+   likeliest thing to cost this wave a day.
+8. **A Romanian leaf added outside the copy lock** (H14). Low: a test catches it in the same commit.
+9. **Scope creep into 7G.** A thumbnail captured "while the scene is right there" would create the
+   column P5 declined, in the wave whose mistakes are permanent. Low likelihood, high visibility, and
+   the must-not is stated twice on purpose.
+
+### Questions that are not mine
+
+**Q-7P2-1 — the coordinator's, and it wants answering before dispatch. 7D6 and 7D7 carry
+*"deadline: land before 7P2"*; the recommended order does not contain them.** The wave table's 7D6
+row reads *"Deadline: land before 7P2 — once presets are saved the reach is load-bearing on stored
+data and stops being freely re-derivable"*, and 7D7's reads *"Deadline: before 7P2, with 7D6"* — and
+7D7 additionally takes its fidelity baseline **after 7H**. The corrected recommended order
+(2026-09-15) reads `… → 7F4a → 7F4b → 7T → 7P1 → 7P2 → 7G → 7B → …` and places **7H after 7E3b**,
+with 7D6 and 7D7 not scheduled at all. **Those two statements cannot both be followed.**
+
+**Recommendation, and it is not a reorder.** The freeze begins at the first **production** row, not
+at the merge commit, and that row needs two environment variables only the owner can set. So:
+**ship 7P2, and make "the owner does not unlock authoring until 7D6 and 7D7 have landed" an explicit,
+recorded instruction** — in `docs/runbooks/preset-authoring.md`, which this wave creates anyway, and
+on the launch-gate line ADR 0112's consequences already add to M8. That keeps the corner freely
+re-derivable for exactly as long as it needs to be, without holding the authoring code behind three
+waves. **The cost, stated so it is chosen rather than discovered: it converts a wave-order guarantee
+into an operational one**, and an operational guarantee is only as good as the record of it — which
+is why the recommendation names two places to write it down rather than one. **The alternative is the
+literal reading — 7D6 → 7D7 (→ 7H first) → 7P2 — and it is defensible; it is simply three waves of
+delay to protect a moment the owner controls anyway.** *(The analysis is the architect's; the choice
+is the coordinator's, and either way it should be recorded as a dated ruling, because 7D6's and
+7D7's rows say something this plan would otherwise quietly contradict.)*
+
+**Q-7P2-2 — the owner's, and cheap to ask today. The authoring secret must be *generated*, not
+chosen.** There is no rate limiter in this product and there will not be one before M8 (H3), so a
+memorable passphrase is the one failure mode that would hand a stranger the ability to publish onto
+every customer's first screen. **The ask is one sentence:** *will you paste a randomly generated
+value (the runbook gives the exact command) rather than choose a phrase?* **Recommendation: yes**, and
+the runbook carries the command and the reminder that **no agent may ever see the value.** This is
+also the wave's one M8 obligation: **ADR 0019's limiter table gains two rows** — the unlock and the
+save — recorded now, while it is a sentence.
+
+**Q-7P2-3 — the owner's, not blocking. How long should one unlock last before the secret is typed
+again?** The record fixes every attribute of the cookie except its lifetime. **Recommendation: 12
+hours, fixed rather than sliding** — long enough for an authoring session, short enough that a
+forgotten browser is not a standing capability. It is one named constant, so the answer can arrive
+after the wave lands.
+
+**Q-7P2-4 — the coordinator's. Does an owner-only control owe a Russian leaf?** The control's copy
+goes in the message files like all copy, which under ADR 0113 means each Romanian leaf enters the
+copy lock in the same commit and the Russian value is Gate O2's — **the owner's own work, for a
+button only the owner will ever see. Recommendation: yes, treat it like every other leaf.** The lock's
+whole value is that it has no exceptions, and the first exception would be argued from a surface
+nobody sees — which is exactly the argument that is hardest to bound afterwards.
+
+**One thing to tell the owner that is not a question.** Between this wave and 7F3, **the owner authors
+blind**: there is no screen in the product that lists what is in the library, because ADR 0112
+decision 5 rules out a public list endpoint and 7F3 is the wave that reads it. **Recommendation, and
+it costs one line:** the save's confirmation names the preset's shape and room back to the owner, so
+the library is at least countable from the confirmations. Not a criterion; a courtesy the wave can
+afford.
+
+### Verification
+
+Per-package `vitest` for `configurator-domain` and `apps/web`; `typecheck`; `lint`; both Playwright
+projects **on the runner**; one visual capture per project; and a whole-tree `pnpm format:check` at
+the wave's end. **No migration is written and no database schema changes**, and that is recorded as a
+sentence rather than implied by silence. **The close-out states three things plainly:** that the
+grant of H13 has no automated witness and was proved (or not) by hand; that every preset authored
+before 7G has no thumbnail and is 7G's backfill to repair; and **whether the two environment
+variables have been set in any deployed environment — by the owner, never by an agent.**

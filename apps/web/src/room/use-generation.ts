@@ -65,14 +65,27 @@ import {
 } from "./generation-model";
 
 /**
- * How far the hand-off into the editor has got (wave 7F4b, criteria 39–42).
+ * How far the hand-off into the editor has got (wave 7F4b, criteria 39–42; corrected by that wave's
+ * review, finding F7).
  *
  * There is no *"not started"* member, and that is the point: the hand-off begins in the same
- * transition that first holds a design, so a composed kitchen is **always** either on its way to the
- * database or waiting for the customer to ask again. A third member would be a state in which a
- * design exists, nothing is happening to it, and nothing on the screen says so.
+ * transition that first holds a design, so a composed kitchen is never sitting still with nothing
+ * happening to it and nothing on the screen saying so.
+ *
+ * **`saved` is a member because the write finishing is not the write being in flight.** Until the
+ * review, `handOff` had no success arm at all and a run that succeeded stayed `saving` for ever —
+ * invisible only because the screen was normally on its way to the editor by then, and a lie the
+ * moment it is not (`navigateToDesign` declines to move a screen the customer has left, criterion
+ * 42). One word cannot mean both *"wait"* and *"done"* while `ComposeCta` reads it to decide whether
+ * there is anything to offer.
+ *
+ * **`saving` and `saved` are drawn identically** — the busy control — so this adds no screen state:
+ * on the path that matters the editor is already opening. What it adds is that the code, and anyone
+ * reading it, can tell the two apart. **What 1F should draw for a design that was written while the
+ * customer was away and therefore never opened is not decided here**; it is a position the product
+ * has never been asked about, and it is unreachable until `next.config.ts` sets `cacheComponents`.
  */
-export type HandoffStatus = "saving" | "failed";
+export type HandoffStatus = "saving" | "saved" | "failed";
 
 /**
  * Where one composition has got to.
@@ -162,66 +175,143 @@ export interface GenerationRun {
 
 const IDLE: GenerationRunState = { phase: "idle" };
 
+/**
+ * **One run, and the number that says which run it is** (wave 7F4b's review, findings F1 and F4).
+ *
+ * The two fields are one value because they answer one question — *is the state this continuation
+ * started for still the state on the screen?* — and they are only ever written together, by `show`.
+ * Before the review they were an integer ref and a state ref that three distant sites had to keep in
+ * step; `retryHandoff` read the integer and the attempt from those two places and they were equal
+ * only by convention.
+ *
+ * **It is deliberately not a field of `GenerationRunState`.** That type is what
+ * `generation-steps.tsx` renders, and a hook's bookkeeping integer is not something the view, or the
+ * fixtures that build runs for it, should have to carry.
+ *
+ * **It answers nothing about whether a screen exists** — that is `screenIsShowing`'s, below, and the
+ * two are separate because a route can lose its screen without losing this state.
+ */
+interface ShownRun {
+  readonly token: number;
+  readonly state: GenerationRunState;
+}
+
+const NO_RUN: ShownRun = { token: 0, state: IDLE };
+
 export function useGeneration(): GenerationRun {
   const [state, setState] = useState<GenerationRunState>(IDLE);
-  // The state as the screen holds it, readable from a handler that was not re-created for it. The
+  // The run as the screen holds it, readable from a handler that was not re-created for it. The
   // retry needs **this run's attempt** and a `setState` updater is the wrong place to look it up:
   // an updater must be pure, and under StrictMode it is invoked twice.
-  const shownState = useRef<GenerationRunState>(IDLE);
-  // Which run the screen is showing. A run that finishes after the customer has left, or after a
-  // second one started, settles into a state nobody is looking at — so it is discarded by token
-  // rather than allowed to overwrite the newer one. **The hand-off's navigation is discarded by the
-  // same token**, which is the whole of criterion 42.
-  const currentRun = useRef(0);
+  //
+  // It cannot drift from the `state` below it because `show` is the only writer of either, and
+  // nothing else in this hook may call `setState` — which is a rule this file keeps rather than a
+  // property React enforces. A second `setState` call site would leave every token comparison below
+  // reading a run the screen has moved on from.
+  const shown = useRef<ShownRun>(NO_RUN);
+  // Mints the number above, and nothing else reads it: a token has to be unique for this mount's
+  // lifetime, and *"which run is showing"* is a question only `shown` answers.
+  const lastRunToken = useRef(0);
+  // **Whether there is a screen here at all**, which is a different lifetime from the run above.
+  // False until the mount effect says otherwise, and false again the moment this screen's effects
+  // are torn down — by an unmount, or by Next hiding the route inside React's `<Activity>`, which
+  // runs cleanups and **keeps the state** (`node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md`).
+  const screenIsShowing = useRef(false);
   const openDesign = useDesignRoute();
 
-  // The one mutator, so the ref above cannot drift from the state below it.
-  const show = useCallback((next: GenerationRunState) => {
-    shownState.current = next;
+  const show = useCallback((token: number, next: GenerationRunState) => {
+    shown.current = { token, state: next };
     setState(next);
   }, []);
 
-  const leave = useCallback(() => {
-    currentRun.current += 1;
-    if (shownState.current.phase !== "idle") show(IDLE);
-  }, [show]);
+  /** A token no continuation in flight can be holding. Every state change that makes the runs in
+   *  flight stale takes one, which is the whole of how a run is retired. */
+  const mintRunToken = useCallback(() => {
+    lastRunToken.current += 1;
+    return lastRunToken.current;
+  }, []);
 
-  // **The screen going away disarms the hand-off too** (criterion 42). A write in flight when the
-  // customer navigates elsewhere still lands — it cannot be recalled and a half-written row is
-  // worse than a whole one — but the `push` that would have followed it belongs to a screen that no
-  // longer exists. Under StrictMode this runs at the throw-away mount, where no run is in flight.
-  useEffect(
-    () => () => {
-      currentRun.current += 1;
+  const leave = useCallback(() => {
+    // A fresh token, so the abandoned run's continuations find a screen that is no longer theirs.
+    if (shown.current.state.phase !== "idle") show(mintRunToken(), IDLE);
+  }, [mintRunToken, show]);
+
+  /**
+   * **The screen going away disarms the hand-off's navigation** (criterion 42). A write in flight
+   * when the customer navigates elsewhere still lands — it cannot be recalled and a half-written row
+   * is worse than a whole one — but the `push` that would have followed it belongs to a screen the
+   * customer is no longer looking at.
+   *
+   * **This is not the run token's business, and conflating the two was finding F1.** The cleanup
+   * used to bump the run token, which was sound only while a route that ran its cleanups also
+   * destroyed the state holding the attempt. Under `<Activity>` it does not: the route is hidden,
+   * this cleanup runs, and the composed kitchen and its retry control come back untouched when the
+   * customer returns — to a run whose token had been moved out from under it, so the retry wrote to
+   * the right row and then refused to open it. `tests/room/handoff-across-a-hidden-route.dom.test.ts`
+   * is that trip, and it failed before this separation existed.
+   *
+   * Setup as well as cleanup, so a route that is shown again is a screen again. Under StrictMode the
+   * throw-away mount's cleanup is followed by the real setup, which leaves this true.
+   *
+   * **What it deliberately does not do is resume anything.** A composition still running when the
+   * screen goes is dropped where it settles (`compose`), and a route hidden at that instant comes
+   * back showing the pending list for ever — which is what this hook has always done at an unmount,
+   * and is only *visible* once a hidden route can come back. Repairing that is a resumption, and a
+   * screen state nobody has been asked about; it is recorded rather than invented here.
+   */
+  useEffect(() => {
+    screenIsShowing.current = true;
+    return () => {
+      screenIsShowing.current = false;
+    };
+  }, []);
+
+  /** The hand-off's own outcome, written onto the run that asked for it and no other. A run that has
+   *  been left or superseded has no state left to mark, and a screen that is merely hidden still
+   *  does — it is the state the customer comes back to. */
+  const reportHandoff = useCallback(
+    (token: number, handoff: HandoffStatus) => {
+      const { state: current } = shown.current;
+      if (shown.current.token !== token || current.phase !== "composed") return;
+      show(token, { ...current, handoff });
     },
-    [],
+    [show],
   );
 
   const handOff = useCallback(
     (attempt: DesignCreationAttempt, token: number) => {
-      // Success needs nothing here: the attempt navigates, and the screen it would update is on its
-      // way out. What is left is the failure, which is a state the customer can act on.
-      void attempt.run().catch(() => {
-        if (currentRun.current !== token) return;
-        show(withFailedHandoff(shownState.current));
-      });
+      // **Both arms, and the success one is not decoration.** The attempt navigates when it can, and
+      // on the ordinary path this screen is leaving as it resolves — but `navigateToDesign` declines
+      // to move a screen the customer has left, and a run that stayed `saving` for ever would be the
+      // screen claiming to still be working over a write that finished (finding F7).
+      void attempt.run().then(
+        () => {
+          reportHandoff(token, "saved");
+        },
+        () => {
+          reportHandoff(token, "failed");
+        },
+      );
     },
-    [show],
+    [reportHandoff],
   );
 
   /**
    * **The one place in the application an attempt is constructed** (ruling R17), called from the one
    * transition in which a design first exists.
    *
-   * The token it closes over is criterion 42: a customer who tapped *Înapoi*, or a screen that has
-   * unmounted, leaves the write to land on its own and is moved nowhere by it.
+   * The two guards it closes over are criterion 42 and are **two different questions**: the token
+   * asks whether this composition is still the one on the screen — a customer who tapped *Înapoi*,
+   * or started a second run — and `screenIsShowing` asks whether there is a screen to move at all.
+   * A write left behind by either lands on its own and moves nobody.
    */
   const attemptFor = useCallback(
     (design: Design, token: number): DesignCreationAttempt =>
       createDesignCreationAttempt({
         design,
         navigateToDesign: (id) => {
-          if (currentRun.current !== token) return;
+          if (!screenIsShowing.current) return;
+          if (shown.current.token !== token) return;
           openDesign(id);
         },
       }),
@@ -230,17 +320,21 @@ export function useGeneration(): GenerationRun {
 
   const compose = useCallback(
     (room: DesignRoom) => {
-      currentRun.current += 1;
-      const token = currentRun.current;
-      show({ phase: "composing", room, rows: pendingGenerationRows() });
+      const token = mintRunToken();
+      show(token, { phase: "composing", room, rows: pendingGenerationRows() });
       void composeKitchen(room).then((composed) => {
-        if (currentRun.current !== token) return;
+        // **A composition settles onto a screen or not at all.** Settling is what builds the
+        // attempt, and building one **mints a row** — so a run whose screen has been torn down is
+        // dropped here rather than allowed to write a design nobody asked for twice and nobody will
+        // open. The customer who tapped *Înapoi* is the same case one line down.
+        if (!screenIsShowing.current) return;
+        if (shown.current.token !== token) return;
         if (composed.outcome === "refused") {
-          show({ phase: "failed", room });
+          show(token, { phase: "failed", room });
           return;
         }
         const attempt = attemptFor(composed.kitchen.design, token);
-        show({
+        show(token, {
           phase: "composed",
           room,
           ...composed.kitchen,
@@ -250,17 +344,20 @@ export function useGeneration(): GenerationRun {
         handOff(attempt, token);
       });
     },
-    [attemptFor, handOff, show],
+    [attemptFor, handOff, mintRunToken, show],
   );
 
   const retryHandoff = useCallback(() => {
-    const shown = shownState.current;
+    // **The attempt and the token it was built with are read out of one value**, so the navigation
+    // this re-arms is guarded by the number the attempt already closed over rather than by whatever
+    // a counter happens to hold (finding F4).
+    const { token, state: current } = shown.current;
     // A retry is the **hand-off's** alone: it re-runs the attempt the composition already holds, so
     // generation is not re-run (criterion 41) and no second attempt — and therefore no second row —
     // can come of it. A tap arriving in any other state has nothing to retry.
-    if (shown.phase !== "composed" || shown.handoff !== "failed") return;
-    show({ ...shown, handoff: "saving" });
-    handOff(shown.attempt, currentRun.current);
+    if (current.phase !== "composed" || current.handoff !== "failed") return;
+    show(token, { ...current, handoff: "saving" });
+    handOff(current.attempt, token);
   }, [handOff, show]);
 
   return { state, compose, leave, retryHandoff };
@@ -311,12 +408,6 @@ async function composeOrThrow(room: DesignRoom): Promise<Composition> {
   };
 }
 
-/** The same run, with its write reported as failed. Every other state is returned untouched: a
- *  hand-off that fails after the customer has left 1F has no state left to mark. */
-function withFailedHandoff(shown: GenerationRunState): GenerationRunState {
-  return shown.phase === "composed" ? { ...shown, handoff: "failed" } : shown;
-}
-
 /**
  * **The editor, at the design just written** (criterion 40).
  *
@@ -333,6 +424,8 @@ function useDesignRoute(): (id: DesignId) => void {
   const router = useRouter();
   const latestRouter = useRef(router);
 
+  // **No dependency array on purpose**: the ref has to be caught up after *every* render, because
+  // the identity this is tracking is the one thing a dependency array could not name.
   useEffect(() => {
     latestRouter.current = router;
   });

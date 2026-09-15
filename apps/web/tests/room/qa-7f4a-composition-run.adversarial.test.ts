@@ -394,10 +394,13 @@ afterEach(() => {
  * timing decided how far the hand-off got. **This file's subject is the kit and the run token**, and
  * every assertion in it predates the hand-off.
  *
- * **It never answers, rather than failing**, so the hand-off produces no state change at all here: a
+ * **It never answers, rather than failing**, so the hand-off gets no further than its first `fetch`:
+ * `compose` marks the run `saving` before the write is issued and nothing moves it off that, where a
  * rejection would land after the test that started it had finished, updating `RoomScreen` outside
- * `act` and printing a warning per run. The hand-off's own guarantees — including what a refused
- * write does to the screen — are `room-handoff.dom.test.ts`'s.
+ * `act` and printing a warning per run. **Every phase trail, push count and kit ledger below is read
+ * against that stop**, and a hand-off allowed to settle would add a navigation to each. The
+ * hand-off's own guarantees — including what a refused write does to the screen — are
+ * `room-handoff.dom.test.ts`'s.
  */
 function holdEveryRequestOpen(): void {
   vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));

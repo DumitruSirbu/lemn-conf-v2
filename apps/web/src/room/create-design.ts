@@ -22,9 +22,15 @@ interface DesignCreationOptions {
 
 /**
  * One deliberate Step 1 selection, from its first save through handing the customer the written
- * design's link. The attempt owns one opaque mint identity for its whole lifetime: retries reuse
- * the row the repository already minted, while a second factory call deliberately creates a new
- * design even when its document is byte-for-byte equal.
+ * design's link. The attempt owns one opaque mint identity for its whole lifetime, and a second
+ * factory call deliberately creates a new design even when its document is byte-for-byte equal.
+ *
+ * **Reusing the row across retries is half this factory's and half the repository's.** A retry after
+ * a **failed** `PUT` has no `savedResult` to return, so it calls `save` again — and what makes that
+ * a second write to the same row rather than a second row is the repository keeping one row per
+ * `provisionalMintIdentity` (`FetchConfigurationRepository`'s `mintedIds`). `repository` below is an
+ * injection point, so that is an **obligation on whatever is passed**: a repository that mints per
+ * `save` breaks the one-row guarantee with every test in this file still green.
  *
  * That fresh identity is what opts the attempt out of the repository's shared default one, so the
  * "one row however many times it is tapped" guarantee holds only *within* a single attempt.

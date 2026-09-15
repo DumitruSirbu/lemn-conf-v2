@@ -140,7 +140,10 @@ export function GenerationSteps({
  *
  * *Working* — a `<div>` announcing the run, which is ADR 0104 decision 6's shape for a control that
  * performs nothing: the customer asked once, and the composition and the write that follows it are
- * one wait with one label. 52 px is the frame's height and is already past the 44 px target.
+ * one wait with one label. 52 px is the frame's height and is already past the 44 px target. A
+ * hand-off that has **finished** (`handoff: "saved"`) is drawn here too, because on the path that
+ * reaches it the editor is already opening; `HandoffStatus` says why the two are nonetheless
+ * different states, and what is undecided about the one case where they look the same and are not.
  *
  * *The write failed* — a real `<button>`, because there is now an action to offer, and it re-runs
  * the composition's own attempt (criterion 41).
@@ -213,22 +216,31 @@ function RoomSummary({ room }: { readonly room: DesignRoom }) {
  * on is to ask again.
  *
  * **It is the screen's live region, and the only one 1F has** (QA finding F4, wave 7F4b). Both
- * failures arrive **unbidden** — no tap produces them; a run settles or a write is refused and the
- * band rewrites itself under a customer who is waiting — and that is the case a live region exists
- * for. Without one, a screen-reader user waits on *Se compune…* for a retry button that silently
- * appeared and a sentence that silently changed.
+ * failures **replace what the customer was last told is happening**: the band said *Se compune…*,
+ * nothing was tapped, and now it says the opposite. That — a sentence withdrawing the one before it —
+ * is what is announced here, and it is why the rule does not reach `DroppedRoles`, a sibling of this
+ * region that appears once, beside the rows, and contradicts nothing. Without a live region, a
+ * screen-reader user waits on *Se compune…* for a retry button that silently appeared and a sentence
+ * that silently changed.
  *
  * **`polite`, not `role="alert"`**, for `editor-panel.tsx`'s reason at `PanelNoticeRow`: nothing is
  * waiting on the customer and nothing is lost by finishing the sentence in progress. The retry button
  * keeps standing there.
  *
  * **Liveness is unconditional, and the happy path is silent because the sentence does not change.**
- * `composing` and `composed`+`saving` resolve to the **same leaf**, so React mutates nothing in this
- * subtree at *pending → composed* and there is nothing for a screen reader to read out; only a
- * failure rewrites the text. The alternative — switching `aria-live` on in the same commit that
- * changes the text — is the well-known way to get no announcement at all, because a region has to be
- * live *before* the mutation it should announce. `noticeMessageKeyFor`'s one-leaf-for-two-states
- * property is therefore load-bearing and is pinned by `generation-steps.dom.test.ts`.
+ * `composing` and a composed kitchen still being written resolve to the **same leaf**, so the text a
+ * screen reader would be given at *composing → composed* is the text it already has. React does
+ * mutate this subtree there — the spinner `<span>` is removed and the `data-compose-*` attributes
+ * move — and the silence is `aria-relevant`'s: it defaults to *additions text*, so a removal is not
+ * announced. `generation-steps.dom.test.ts`'s `isAnnounceable` is the statement of that rule, and its
+ * silent-happy-path test now counts the raw mutations too, so it cannot pass over an observer that
+ * saw nothing. **Commit `e2f24dc` carries the wrong version of this paragraph** — it claims React
+ * mutates nothing here — and that message cannot be rewritten; this is the correction.
+ *
+ * The alternative — switching `aria-live` on in the same commit that changes the text — is the
+ * well-known way to get no announcement at all, because a region has to be live *before* the
+ * mutation it should announce. `noticeMessageKeyFor`'s one-leaf-for-two-states property is therefore
+ * load-bearing and is pinned by `generation-steps.dom.test.ts`.
  *
  * **Focus is deliberately not moved.** The rows above are composed, true and worth reading; taking
  * the caret to *Încearcă din nou* would interrupt someone mid-list to hand them a control that is two
@@ -267,11 +279,11 @@ function hasFailedHandoff(run: ActiveGenerationRun): boolean {
 /** The three sentences the band can carry, as a literal union: next-intl resolves a key's arguments
  *  from its type, and a `string` return would make every one of them look like an ICU message.
  *
- *  **Two states share one leaf on purpose.** `composing` and a composed kitchen still being written
- *  both read `noPresetNotice`, which is what keeps `ComposeNotice`'s live region silent while the
- *  happy path runs: the text never changes, so nothing is announced until a failure changes it.
- *  Giving the saving state a sentence of its own would narrate *pending → composed* at a
- *  screen-reader user for no reason. */
+ *  **Every state but a failure shares one leaf on purpose.** `composing`, and a composed kitchen
+ *  whose write is in flight or has landed, all read `noPresetNotice`, which is what keeps
+ *  `ComposeNotice`'s live region silent while the happy path runs: the text never changes, so
+ *  nothing is announced until a failure changes it. Giving the saving state a sentence of its own
+ *  would narrate *pending → composed* at a screen-reader user for no reason. */
 function noticeMessageKeyFor(
   run: ActiveGenerationRun,
 ):

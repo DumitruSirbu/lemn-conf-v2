@@ -314,10 +314,13 @@ afterEach(() => {
  * assertion in it predates the hand-off; holding the write open keeps each one measuring what it was
  * written to measure and leaves every push count the departure's alone.
  *
- * **It never answers, rather than failing**, so the hand-off produces no state change at all here: a
- * rejection would land after the test that started it had finished, updating `RoomScreen` outside
- * `act`. The hand-off's own guarantees — one row, navigation only after the write, and the disarm —
- * are `room-handoff.dom.test.ts`'s.
+ * **It never answers, rather than failing**, so the hand-off gets no further than its first `fetch`:
+ * `compose` marks the run `saving` before the write is issued and nothing moves it off that, where a
+ * rejection would land after the test that started it had finished and update `RoomScreen` outside
+ * `act`. **Every push and request count below is counted against that stop** — a hand-off allowed to
+ * settle here would add a second `browser.push` and a `PUT` to totals this file reads as the
+ * departure's alone. The hand-off's own guarantees — one row, navigation only after the write, and
+ * the disarm — are `room-handoff.dom.test.ts`'s.
  */
 function holdEveryRequestOpen(): void {
   vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
