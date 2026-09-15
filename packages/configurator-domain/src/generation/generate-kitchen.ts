@@ -266,7 +266,7 @@ function compose(args: {
   // Every base is settled before any upper is attempted. A refusal is atomic in `insertBody`, so it
   // is logged and the base beneath it remains byte-identical.
   for (const planned of args.plan.bases) {
-    if (planned.role === "fridge") continue;
+    if (risesIntoWallRow(args.catalog, planned.buildId)) continue;
     const baseId = placedBaseIds.get(planned.id);
     const upperBuildId =
       planned.role === "hob" ? HOOD_BUILD_ID : WALL_CABINET_BUILD_ID;
@@ -388,6 +388,20 @@ function insertPlannedBase(
     commands: logged,
     ...(pendingResize === undefined ? {} : { pendingResize }),
   };
+}
+
+/** ADR 0110 Amendment E7: an upper is attempted above a base only where the body's declared top is
+ *  at or below the wall row's floor. A body that reaches past it — the fridge today, a full-height
+ *  column tomorrow — leaves no opening there, and reading the catalogue's declared height rather
+ *  than a list of role names means a new full-height body needs no second place to be remembered. */
+function risesIntoWallRow(catalog: BodyCatalog, buildId: string): boolean {
+  const declaredTopMm = catalog.get(buildId)?.nominalHeightMm;
+  if (declaredTopMm === undefined) {
+    throw new Error(
+      `generateKitchen: ${buildId} declares no height, so no upper can be ruled above it`,
+    );
+  }
+  return declaredTopMm > WALL_ROW_Y0_MM;
 }
 
 function insertUpper(

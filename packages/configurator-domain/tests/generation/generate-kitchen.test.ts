@@ -16,7 +16,9 @@ import {
   setCabinetDepth,
   toInsertableBody,
   validateDesignForCatalog,
+  type BodyCatalog,
   type Design,
+  type DesignPlacement,
   type DesignRoom,
   type BodyProbeFactory,
 } from "../../src/index.js";
@@ -35,6 +37,11 @@ function generate(room: DesignRoom) {
     probeAt: createFakeProbeFactory(),
   });
 }
+
+type GeneratedKitchen = Extract<
+  ReturnType<typeof generate>,
+  { readonly ok: true }
+>;
 
 describe("generateKitchen", () => {
   it("composes the reference room, its uppers and hood through a single lease", () => {
@@ -478,6 +485,52 @@ describe("generateKitchen", () => {
     );
   });
 
+  it("attempts an upper above a planned base exactly when the catalogue clears the wall row", () => {
+    const l = APPROVED_ROOM_POLICY.buildableShapes.L;
+    if (!l) throw new Error("approved policy has no L");
+    let suppressedBases = 0;
+    fc.assert(
+      fc.property(
+        fc.record({
+          shape: fc.constant("L" as const),
+          widthMm: fc.integer({ min: l.wallA.minMm, max: l.wallA.maxMm }),
+          depthMm: fc.integer({ min: l.wallB.minMm, max: l.wallB.maxMm }),
+          heightMm: fc.integer({ min: 2200, max: 3900 }),
+        }),
+        (room) => {
+          const result = generate(room);
+          if (!result.ok) return;
+          const catalog = buildKitchenLBodyCatalog(
+            cabinetDepthMmOf(result.design),
+          );
+          suppressedBases += basesAboveWallRow({ result, catalog }).length;
+          expect(upperSuppressionMismatches({ result, catalog })).toEqual([]);
+          expect(uppersOverTallBodies({ result, catalog })).toEqual([]);
+        },
+      ),
+      { numRuns: 150 },
+    );
+    // Without this the property above passes vacuously in a sweep that never plans a tall body.
+    expect(suppressedBases).toBeGreaterThan(0);
+  });
+
+  it("leaves the wall row above the fridge empty, reading its height off the catalogue", () => {
+    const result = generate(KITCHEN_L_DESIGN.room);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(result.design));
+    expect(result.log.steps.find((step) => step.id === "fridge")?.status).toBe(
+      "placed",
+    );
+    expect(basesAboveWallRow({ result, catalog })).toEqual(["fridge"]);
+    expect(
+      result.log.steps.filter((step) => step.id.endsWith(":fridge")),
+    ).toEqual([]);
+    expect(uppersOverTallBodies({ result, catalog })).toEqual([]);
+    expect(upperMismatches(result)).toEqual([]);
+  });
+
   it("returns no design for at least 50 approved samples below the minimum", () => {
     fc.assert(
       fc.property(
@@ -569,6 +622,97 @@ function coreReadingOrder(
         : left.placement.alongMm - right.placement.alongMm;
     });
   return core.map(({ role }) => role);
+}
+
+/** ADR 0110 Amendment E7's input, read where the amendment puts it: the catalogue entry's declared
+ *  height, never the role's name. A body whose declared top is above the wall row's floor has no
+ *  opening up there, so no upper is owed above it. */
+function basesAboveWallRow(input: {
+  readonly result: GeneratedKitchen;
+  readonly catalog: BodyCatalog;
+}): readonly string[] {
+  const floorMm = wallRowFloorMm(input.result.design);
+  return input.result.log.plan.bases
+    .filter((base) => declaredTopMm(input.catalog, base.buildId) > floorMm)
+    .map((base) => base.id);
+}
+
+/** The bases whose upper step disagrees with the rule — attempted above a body that reaches into
+ *  the wall row, or skipped above one that does not. */
+function upperSuppressionMismatches(input: {
+  readonly result: GeneratedKitchen;
+  readonly catalog: BodyCatalog;
+}): readonly string[] {
+  const suppressed = new Set(basesAboveWallRow(input));
+  return input.result.log.plan.bases
+    .filter((base) => {
+      const upperRole = base.role === "hob" ? "hood" : "upper";
+      const attempted = input.result.log.steps.some(
+        (step) => step.id === `${upperRole}:${base.id}`,
+      );
+      return attempted === suppressed.has(base.id);
+    })
+    .map((base) => base.id);
+}
+
+/** The placed uppers that overlap a generated body reaching into the wall row — the geometric half
+ *  of the rule, asserted on the design rather than on the log. */
+function uppersOverTallBodies(input: {
+  readonly result: GeneratedKitchen;
+  readonly catalog: BodyCatalog;
+}): readonly string[] {
+  const floorMm = wallRowFloorMm(input.result.design);
+  const generated = input.result.log.steps.flatMap((step) =>
+    step.status === "placed"
+      ? input.result.design.placements.filter(
+          (placement) => placement.id === step.placementId,
+        )
+      : [],
+  );
+  const tall = generated.filter(
+    (placement) =>
+      placement.y0Mm === 0 &&
+      declaredTopMm(input.catalog, placement.body.buildId) > floorMm,
+  );
+  return generated
+    .filter((upper) => upper.y0Mm >= floorMm)
+    .filter((upper) =>
+      tall.some(
+        (body) => body.wall === upper.wall && overlapsAlongWall(body, upper),
+      ),
+    )
+    .map((upper) => upper.id);
+}
+
+/** The wall row's floor as the generated design reports it — the lowest row standing off the floor
+ *  — so this reads the boundary back rather than restating a generation-side constant. */
+function wallRowFloorMm(design: Design): number {
+  const raised = design.placements
+    .map((placement) => placement.y0Mm)
+    .filter((y0Mm) => y0Mm > 0);
+  if (raised.length === 0) {
+    throw new Error("the generated design has no row above the floor");
+  }
+  return Math.min(...raised);
+}
+
+function declaredTopMm(catalog: BodyCatalog, buildId: string): number {
+  const nominalHeightMm = catalog.get(buildId)?.nominalHeightMm;
+  if (nominalHeightMm === undefined) {
+    throw new Error(`the catalogue declares no height for ${buildId}`);
+  }
+  return nominalHeightMm;
+}
+
+function overlapsAlongWall(
+  left: DesignPlacement,
+  right: DesignPlacement,
+): boolean {
+  const leftStartMm = left.alongMm - left.body.widthMm / 2;
+  const leftEndMm = left.alongMm + left.body.widthMm / 2;
+  const rightStartMm = right.alongMm - right.body.widthMm / 2;
+  const rightEndMm = right.alongMm + right.body.widthMm / 2;
+  return leftStartMm < rightEndMm && rightStartMm < leftEndMm;
 }
 
 function upperMismatches(
