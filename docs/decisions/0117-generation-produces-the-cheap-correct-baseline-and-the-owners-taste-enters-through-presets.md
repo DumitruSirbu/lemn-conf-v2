@@ -7,6 +7,14 @@ Type: Decision (owner ruling + adjudication)
 Milestone: M7 — cited by waves 7B, 7C, 7P1, 7P2 and 7G (matching, authoring, thumbnail) and binding
 on every generation wave from 7D3 onward (architect's plan, `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-09-15 — its sibling.**
+[ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)
+records the owner's preference that a problem which has not occurred is **recorded with its trigger
+and not built for**. The two are siblings and neither contains the other: **this record says where a
+product decision belongs — the generator's or a preset's; 0118 says when engineering work belongs —
+now or at a named trigger.** A wave asking *"is this correctness or is this taste?"* (decision 5
+here) often has a second question behind it: *"and has the problem occurred at all?"*
+
 ## Context
 
 Two records already exist either side of this one and neither states it.
