@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3 and pending the coordinator's review, E1–E12** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of wall A and nowhere else, excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of wall A and nowhere else, excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -510,11 +510,6 @@ Both questions the photographs raised, and where each landed:
    exclusion is **owner-confirmed**, with a stated reason and a stated eventual form that is *not* a
    top row. **The empty strip above the uppers is a deliberate deferral, not a defect.**
 
-Amendment A ruled the layout order and the minimum kitchen; Amendment C ruled the uppers, the drop
-order and wall B's reserve. This amendment rules the **third row the composition never touched**: the
-full-height column. Until now only two levels were ever composed — bases at `y0 = 0` and uppers at a
-hardcoded 1500 mm — and **no tall unit was generated at all**.
-
 ### Field corroboration — ten photographs of built kitchens, read 2026-09-14
 
 The owner sent ten photographs of **eight distinct kitchens their company has actually built**; the
@@ -557,10 +552,15 @@ agent may later quote them as the owner's own sentences:
   owner accepted all three reasons put to them, and **was offered the opposite reading explicitly —
   that they might have meant a built-in fridge — and did not take it.** So the free-standing fridge is
   settled rather than merely unexamined.
-- **QT-2 — `tall-pantry` is not generated in this wave.** The owner was also offered *"later, with the
-  long-run rework"* and chose the **plain deferral**, so the pantry is **open and unassigned**: it is
-  not pre-assigned to the long-run wave, and a wave that generates one is overturning nothing but must
-  first ask.
+- **QT-2 — `tall-pantry` is not generated in this wave. SUPERSEDED the same day by E12** — E9 carries
+  the supersession in full. ~~The owner was also offered *"later, with the long-run rework"* and chose
+  the **plain deferral**, so the pantry is **open and unassigned**: it is not pre-assigned to the
+  long-run wave, and a wave that generates one is overturning nothing but must first ask.~~ **The
+  pantry is in wave 7D3**: under E12.1 it is the block's **door column**, and a block composes as one
+  `tall-oven-tower` plus zero to two `tall-pantry`. The deferral is kept unedited above because it is
+  the state of the question on the morning of 2026-09-14 and **the sequence is the point** — but a
+  wave that reads it as live composes no pantry, and a block of two or three then has no door column
+  and cannot be composed at all.
 
 **Three rulings by the coordinator (QT-3, QT-4, QT-5)**, marked as such below, on questions the
 architect raised while planning and which are engineering consequences of the owner's rules rather
@@ -1196,8 +1196,24 @@ a composition rule, and neither E9's deferral nor E8's cost ruling needs reopeni
   what proportion and in what order), and cannot run beside 7D3.
 - **What a customer may still do is unchanged.** These rules bind **what the product proposes**, as
   A4 does. A customer may insert a second oven by hand, and nothing marks it.
-- **No surface changes.** `generateKitchen` still has no production caller until wave 7F4, so none of
-  this is visible in the app and none of it is provable by looking at it.
+- ~~**No surface changes.** `generateKitchen` still has no production caller until wave 7F4, so none
+  of this is visible in the app and none of it is provable by looking at it.~~ **Superseded
+  2026-09-15: wave 7F4 has landed.** `apps/web/src/room/use-generation.ts` is the caller — its opening
+  comment at `:3` names itself *"the generation algorithm's **first production caller**"* and it calls
+  `generateKitchen` at `:395`. Everything Amendment E rules is now reachable from the app.
+  - **E4's throw is reachable by a customer, not only by a developer.** E4 rules that a tower planned
+    and then refused at insert time *"is a programming error and **throws**"*, and that ruling was made
+    when a throw had no rendered path. It has one now: `composeKitchen` is the run's single error
+    boundary and maps a throw to `{ outcome: "refused" }` (`use-generation.ts:384-390`), which drives
+    frame 1F's **`failed` phase** and the customer-facing `room.compose.failed` notice. The hook says
+    so itself at `:97` — *"`failed` covers both arms of criterion 35 — a `MINIMUM_NOT_MET` refusal and
+    a throw"*.
+  - **E4's ruling does not change, and for the reason it gives**: shipping a kitchen whose hob has
+    drawers and whose oven does not exist is worse than a loud failure. What changes is only the claim
+    that none of this is observable.
+  - **So wave 7D3's QA owes a case for it.** A tower planned and then refused at insert time must be
+    shown to surface as 1F's `failed` phase — never as a composed kitchen missing its oven, and never
+    as a `composed` state carrying rows for a design that was discarded.
 
 ## Decision-record sweep — Amendment E
 
@@ -1205,12 +1221,11 @@ a composition rule, and neither E9's deferral nor E8's cost ruling needs reopeni
 | --- | --- |
 | This ADR, **Amendment A1 / A2 / A4** | **Unchanged, and A1 explicitly wins over E2 where they disagree** (E8). The minimum kitchen stays a sink and a hob; the 599 mm leftover cap stands, and E6's absorb lowers a bare end to 0 mm, which it already permits. **Strengthened by E10:** A1's cooking order now carries a physical reason as well as an ergonomic one, and E2 is reclassified as A1's shape in an L-room rather than as an independent finding. **A1 is load-bearing for a thermal constraint** — a wave that re-orders a run must read E10 before touching it. |
 | This ADR, **Amendment C** | **Extended, not altered.** The drop order and F7's reserve are untouched; C's *"never above the fridge"* becomes E7's derived rule, with the fridge as its witness. **C's top-row exclusion is now owner-confirmed** (E11) rather than inherited, and its eventual replacement is *taller uppers*, not a composed top row. |
-| [0048](0048-the-pantry-column-is-the-one-resizable-column.md), second reading | **Untouched, and now load-bearing.** The pantry is the one `'fit'` full-height row, so it both supplies the block's door columns (E12.1) and — standing outermost under E12.2 — dissolves E6's merge hazard. **Generation becomes its first automatic caller**, and its 400–800 bound plus its 500 mm door-count threshold are exercised at whatever width the free end gives it. Nothing in ADR 0048 changes; a wave that narrows that bound now changes generated kitchens. |
+| [0048](0048-the-pantry-column-is-the-one-resizable-column.md) — **the only row for 0048; read no other** | **Untouched, and now load-bearing.** The pantry is the one `'fit'` full-height row, so it both supplies the block's door columns (E12.1) and — standing outermost under E12.2 — dissolves E6's merge hazard. **Generation becomes its first automatic caller**, and its 400–800 bound plus its 500 mm door-count threshold are exercised at whatever width the free end gives it. Nothing in ADR 0048 changes; a wave that narrows that bound now changes generated kitchens. ~~A second row here read *"Untouched — E9 defers the pantry without ruling on it"*~~ — **struck 2026-09-15**: that was the pre-E12 reading, E12 reinstated the pantry the same day it was deferred, and a sweep table is what a later wave greps instead of reading the prose. |
 | [0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md), second reading | **Unchanged, and its scope clarified by E12.3.** *"Minimum costs less"* governs which appliances and roles a kitchen gets; it does not mean a full-height run may never cost more than the cabinets it displaces. The owner chose the pantry with its ~808 000 against ~693 000 in front of them. |
 | This ADR, **Clarification 2026-09-12** | **Unchanged.** E5 adds a third stage above the second and enters neither of the first two. |
 | [0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md) | **Load-bearing for E8**, and the reason the cheaper kitchen is the free-standing fridge. |
 | [0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md), [0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md) | **Unchanged, and the cause of E6.** The merge is correct; E6 removes the empty tile it would merge with rather than capping the merge. |
-| [0048](0048-the-pantry-column-is-the-one-resizable-column.md) | **Untouched** — E9 defers the pantry without ruling on it. |
 | [0083](0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md) decision 3 | **Reused** for E3 clause 4: a 2200 mm body in a 2200 mm room fits. |
 | [0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md) | **Now reached in composition**: a generated tower is the first composed full-height member with recorded space above it. Nothing is composed into that space. |
 | [0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md) | **Applied** to the tower's declared width and height. |
