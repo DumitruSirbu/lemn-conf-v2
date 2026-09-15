@@ -9,7 +9,7 @@
 // reason the rule is written this way and not discovered later:
 //
 //   - **Uppers and the hood have no row.** They are not in `GENERATION_PRIORITIES`, the frame's
-//     heading is *Ce așezăm, în ordinea priorității*, and a 390 px transient screen cannot hold
+//     heading is *Ce este inclus, în ordinea priorității*, and a 390 px transient screen cannot hold
 //     twenty rows without scrolling past its own footer.
 //   - **The row set does not move when 7D3–7D5 land.** Those waves change what storage *is*; they do
 //     not change that storage happened, which is the only thing this row claims.

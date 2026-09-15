@@ -23,6 +23,11 @@
  * *nu poate fi inclus*), `rule` restates the second one in running text and follows it, and
  * `dropped` now names the wall sizes as the reason. **Four moved and no others**, which is the check
  * a copy ruling owes: a fifth would mean something changed underneath the ruling.
+ *
+ * **Rebaselined a third time, 2026-09-15, over exactly one — `room.compose.stepsLabel`.** The same
+ * day's second ruling (*"not Ce includem but Ce este inclus"*) made 1F's list heading passive, so it
+ * says *inclus* in the voice its own `status.placed` rows use. **One moved and no others**, verified
+ * by diffing the 64-hex values alone rather than the file.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -675,7 +680,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.status.placed":
     "92b1126dbb94d72bbbd873b7f4ac99384adb16792d6bd4ad7798e0083bc70b06",
   "room.compose.stepsLabel":
-    "a57e78f2d69eb42fb73c6226bb0b8eb33d343700974da3140d69909a17e8647c",
+    "73eb498be716fb8ae0eb4f6f181ec686207089d5c508f3b20d37f9117dd0193b",
   "room.compose.storageExtent":
     "d4ad0b77e156fdc4e1109eb7a61c66e64a1517d5feaf306cf844f99cd4aaecb0",
   "room.compose.title":

@@ -89,6 +89,18 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // nobody had approved (question Q7F4-1, ADR 0110 Amendment F's instruction to confirm it); the
     // same ruling settles it, so it is approved copy like every other leaf in this file.
     //
+    // **`stepsLabel` is the fourth leaf that ruling reaches, settled by the owner on 2026-09-15 in
+    // its own words: *"not Ce includem but Ce este inclus"*.** The list heading had kept the frame's
+    // *Ce așezăm* after the rows below it stopped saying *așezat*, which is the one wording the
+    // ruling above cannot leave standing. The owner chose the **passive** form over the first-person
+    // *includem* an implementer had proposed, so the heading and the `status.placed` row now say
+    // *inclus* in the same voice — keep that property if this sentence is ever adjusted again.
+    //
+    // **`noPresetNotice` keeps *nu încape* deliberately**, and is not covered by either ruling: its
+    // subject is a ready-made preset fitting the room, not a cabinet being included in a
+    // composition, and *niciun preset… nu poate fi inclus* would be the wrong Romanian for what that
+    // sentence says.
+    //
     // Frame 1F's last sentence — *"Pragurile exacte sunt decizie de produs nefinalizată"* — is
     // deliberately **not** here (ruling R18): it announces an unfinished product decision that has
     // since been taken, and telling a customer a threshold is undecided is not copy.
@@ -98,7 +110,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       roomSummary: "{shape} · {wallA} × {wallB} m · h {height} m",
       noPresetNotice:
         "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
-      stepsLabel: "Ce așezăm, în ordinea priorității",
+      stepsLabel: "Ce este inclus, în ordinea priorității",
       role: {
         fridge: "Frigider",
         sink: "Spălător",

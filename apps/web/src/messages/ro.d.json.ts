@@ -68,7 +68,7 @@ declare const messages: {
       "heading": "Ți-o construim pe a ta",
       "roomSummary": "{shape} · {wallA} × {wallB} m · h {height} m",
       "noPresetNotice": "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
-      "stepsLabel": "Ce așezăm, în ordinea priorității",
+      "stepsLabel": "Ce este inclus, în ordinea priorității",
       "role": {
         "fridge": "Frigider",
         "sink": "Spălător",

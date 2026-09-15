@@ -97,6 +97,26 @@
 > dispatchable until 7F1 has landed**, because its anchor is 7F1's criterion 12.~~ **That gate is met
 > as of 2026-09-14: 7F1 is DONE at `5d2ff54` and 7F1-D45 at `8437c95`.** The recommended order still
 > puts 7F4 next; 7H is no longer blocked by this dependency.
+> **Updated 2026-09-15: wave 7F4a is DONE at `bf6901b` + `37f1ecb` + `6113176` + `52504d1`; next
+> wave: 7F4b.** The generation algorithm has its first production caller — a tap on *Continuă* at 1B
+> dynamically imports the adapter, borrows a transient kit through a lease, runs `generateKitchen`
+> once synchronously and draws frame 1F's five rows. **1F is a dead end by design** until 7F4b hands
+> off to the editor. Verification: web **210 files / 3,173 tests**, `three-adapter` **78 / 3,071**;
+> typecheck, lint and whole-tree `format:check` green; **adversarial QA with 45 tests and 19
+> deliberate breaks, 18 of which reddened a test**; one combined logic + clean-code review, no
+> blocker, three findings folded; and a **production-build visual gate at 390 × 844 in both locales**
+> — criterion 14 across 16 elements, criterion 15 across five layout states, five *Înapoi* round
+> trips with the draft intact, `history.length` never moving, and **tap-to-rows medians of 24–26 ms**
+> (n = 10 each). **`pnpm ci:local` has NOT been run for this wave and nothing is pushed — both are
+> pending.** Four defects were found and fixed: **a kit leaked on every throw between `makeKit` and
+> the lease** (measured `{ built: 1, disposed: 0 }`), **a failed screen drew green *inclus* rows for
+> a discarded design**, **browser Back out of 1F did nothing**, and **nothing guarded the
+> `.composeRow*` classes** — the last being the one deliberate break that reddened no test.
+> **Criterion 34's boundary list was mis-notated and the code was right** (`validateRoomInput` agreed
+> with the screen 12 for 12); **criterion 38's measurement was taken after slice 3 rather than before
+> its dispatch**, and a comfortable number is what made that harmless rather than a justification.
+> **Owner rulings:** *așezat* → **inclus**, *nu încape* → **nu poate fi inclus**, the dropped sentence
+> names the wall sizes, and the report stays. Full close-out below.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1438,7 +1458,7 @@ table.
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan — **DONE, `5d2ff54`** (five slices), with the visual gate's D1–D3 fixed at `852df10`; **its D4 and D5 are closed by 7F1-D45, not here** | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
 | **7F1-D45** | Back keeps the room the customer typed: the debounced `router.replace`, the client-derived sub-state, the departure flush and the traversal e2e (R9) — **DONE, `8437c95`**, review fold `6682d8e` | `room/room-query-sync.ts` (new), `room/room-screen.tsx`, `app/[locale]/configurator/room/page.tsx`, `eslint.config.mjs` (+ `tests/e2e/room-traversal.qa.e2e.spec.ts`) | 7F1 | Light | **Yes** | none |
 | ~~**7F4**~~ | ~~1F composition steps into the editor~~ — **split 2026-09-14 into 7F4a and 7F4b (Q7F4-2, coordinator)**, because the two halves fail differently and different instruments catch them | | | | | |
-| **7F4a** | The composition runs and is drawn: 1F's rows, the borrowed kit, the measured cost | `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` (+ messages) | 7D2, 7F1 | **Full** (kit lifetime) | **Yes** | Q7F4-1 interim |
+| **7F4a** | The composition runs and is drawn: 1F's rows, the borrowed kit, the measured cost — **DONE, `bf6901b` + `37f1ecb` + `6113176` + `52504d1`**; `ci:local` and the push are **pending** | `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` (+ messages) | 7D2, 7F1 | **Full** (kit lifetime) | **Yes** | Q7F4-1 **answered** — the owner's words for 1F, 2026-09-15 |
 | **7F4b** | The hand-off into the editor: one attempt, one row, navigation after the write | `src/room/use-generation.ts`, `generation-steps.tsx`, `room.module.css` (+ `tests/e2e`) | **7F4a**, 7E2 | **Full** | **Yes** (short) | — |
 | ↳ | ***Minimum not met* → 1C needs no new screen** (carried from the struck row, answered 2026-09-14): 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already resolves such a room to 1C **before** generation runs, and the sentence there is **7F2's**. The generator's own refusal arm is unreachable from 1D and is asserted so, not drawn for (R16) | | | | | |
 | **7T** | **The live persistence suite actually runs.** Five live suites gate on `DATABASE_URL`, which `ci.yml` deliberately never sets, so the database seam's live coverage has been **green by never executing**. Re-gate what is safe to re-gate onto `TEST_DATABASE_URL`, run it, and **report what it finds** — a red suite is the finding, not a reason to re-skip. **Ordered before 7P1** so the repository never holds two meanings of *"the persistence tests pass"* at once (coordinator's ruling on Q-7P1-1, 2026-09-15) | `packages/persistence/tests/*` (gating only), `tests/support/exclusive-migration-access.ts` (new, test support — T-J2's advisory lock), `.github/workflows/ci.yml`; **no production file** | — | Full (test infrastructure; CI is its verdict) | No | — |
@@ -2592,6 +2612,167 @@ push was **already** demoted to a replace before R9, so R9 removes no evidence o
 
 Implementation is `74c5b39` + `8437c95`, with the review fold at `6682d8e`. **7F1's D4 and D5 are
 closed here.** Next wave: **7F4**.
+
+### 7F4a close-out — 2026-09-15, `bf6901b` + `37f1ecb` + `6113176` + `52504d1`
+
+**What shipped — the generation algorithm's first production caller.** A tap on *Continuă* at 1B
+dynamically imports `@lemnaria/three-adapter`, borrows a transient kit through
+`createBodyProbeLease`, runs `generateKitchen` **once, synchronously**, and draws frame 1F's five
+rows. **7F4b — the hand-off into the editor — is not in this wave, and 1F is a dead end by design:**
+the primary control stays disabled reading *Se compune…* after the rows have settled, because its
+destination does not exist yet. That is the visual gate's first must-not-file, not a defect.
+
+Commits, with the subjects as the log records them:
+
+| Commit | What |
+| --- | --- |
+| `bf6901b` | **M7 wave 7F4a: the composition runs in the browser and is drawn** — `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx` (all new), `room-screen.tsx` and `room.module.css` edited, both catalogues, the lock and the golden manifest |
+| `37f1ecb` | **stop stranding a kit, and deliver a composition whose kit would not go back** — adversarial QA's two live findings |
+| `6113176` | **fold the review's three findings**, and plan waves 7P1 and 7T (the planning half is those waves', not this one's) |
+| `52504d1` | **the owner's words for 1F**, and preset retention recorded |
+
+Two commits inside the `bf6901b~1..1afd65c` range belong to other waves and are named so they are not
+read as this one's: `30a52a0` re-measures wave 7H at `bf6901b`, and `a03ecca` records that the corner
+does not break the dishwasher's adjacency to the sink. **Which of the four defects below landed in
+which commit is not stated here**, because this pass read the tree and the log's subjects, not the
+diffs.
+
+**Verification actually performed, as reported and not rounded:**
+
+- **The suite: web 210 files / 3,173 tests; `three-adapter` 78 files / 3,071 tests.**
+- **Typecheck, lint and whole-tree `pnpm format:check` green.**
+- **Adversarial QA: 45 tests, 19 deliberate breaks, of which 18 reddened a test.** The nineteenth did
+  not, and it is QA finding **F2** — defect 4 below.
+- **One combined logic + clean-code review: no blocker, three findings, all folded** at `6113176`.
+- **A production-build visual gate at 390 × 844 in both locales.** Criterion 14 — **44 px targets
+  across 16 elements**. Criterion 15 — **no horizontal overflow at 390**, across **five layout
+  states**. **No `line-through` on a *nu poate fi inclus* row** (R10). **Five *Înapoi* round trips
+  with the draft intact**, and **`history.length` never moved** (criterion 24, R13). **Tap-to-rows
+  medians of 24–26 ms, n = 10 each** (criterion 38).
+- **`pnpm ci:local` has NOT been run for this wave, and nothing is pushed.** Both are **pending**.
+  This record does not claim a gate that has not run; `origin/m7-room-and-presets` is behind local by
+  the whole of this wave.
+
+**The four defects the wave found and fixed. These are the record's substance.**
+
+1. **A kit leaked whenever anything between `makeKit` and the lease threw.** `createBodyProbeLease`'s
+   `finally` brackets the body of `lease.use` and **not** the factory that built the kit, so the two
+   steps between `makeKit` and the lease — building the room, and building the probe over it — had no
+   `finally` above them, and `composeKitchen`'s `catch` turned the throw into the failure screen
+   without freeing anything. **Measured `{ built: 1, disposed: 0 }` at both throw sites.** The
+   realistic trigger is a low-end phone running out of memory after the textures baked (risk 2), where
+   **every retry from *Înapoi* stranded one more kit for the page's lifetime**. Fixed by
+   catch-release-rethrow at the allocating site (`use-generation.ts:200-227`) rather than by a second
+   lease, because `body-probe.ts` declares itself the only `finally` in that seam — its contract is
+   that `release` runs exactly once per `use`, not that `release` cannot fail.
+   **The same finding has a second half that is a separate rule:** a `finally` that throws *replaces*
+   what its block was returning, so a `disposeKit` that failed used to travel out of a
+   `generateKitchen` that had already returned `ok: true` and land in `composeKitchen`'s `catch` — the
+   customer reading *composition could not be completed* over a kitchen that was composed correctly.
+   **A composition that succeeded is delivered**; a kit that will not go back is logged
+   (`releaseOrReport` / `reportKitReleaseFailure`, `use-generation.ts:229-283`).
+2. **A failed screen drew green *inclus* rows.** `generateKitchen` has a second refusal arm
+   (`generate-kitchen.ts:296-300`) that returns `ok: false` over a log in which the fridge and the
+   storage cabinets may already be `placed` — so the customer read *Compunerea nu s-a putut finaliza*
+   above *Frigider — inclus*, **for a design that was discarded and that nobody will ever open**. The
+   `failed` state now carries **no `rows` property at all** (`use-generation.ts:75-94`), so drawing
+   them is a **compile error** rather than a branch a component has to remember not to take. The same
+   absence covers the throw, which ends before a log exists.
+3. **Browser Back out of 1F did nothing.** The history entry behind 1F is the settle's `replace` of
+   the same room query, so the URL never moved and the screen stayed in composition — the
+   dead-control class wave 7F1 was spent removing. Cleared by a `popstate` listener
+   (`room-screen.tsx:130-135`). **R13 is intact:** the run is cleared by an *event*, and nothing about
+   composition is written to or read from the URL, so composition stays unaddressable.
+4. **A comment cited a test file that did not exist, and nothing guarded the `.composeRow*`
+   classes.** `ROW_STATUS_CLASS` satisfies `Record<GenerationRowStatus, string | undefined>` because a
+   CSS module's exports are typed `string | undefined`; renaming or dropping `.composeRowDropped`
+   makes the `not_placed` entry `undefined`, `classNames` filters it out, and **the dropped row
+   silently loses its dashed border, its muted background and its `−` glyph — all of R10 — with the
+   suite green.** The one R10 assertion that existed before was
+   `expect(fridge.className).not.toContain("strike")`, which is **negative and passes more easily once
+   the class is gone**. The replacement is `tests/room/generation-steps.dom.test.ts`.
+
+**Three things that must survive into the record.**
+
+1. **The guard the coordinator specified would have been vacuous, and the implementer measured that
+   rather than building it.** `vitest.config.ts` enables no CSS processing, so a `.module.css` import
+   resolves to a stub that **fabricates a class name for any property**: `styles.composeRowDropped`
+   and `styles.thisClassDoesNotExist` are both `"_<key>_<hash>"` strings under the test runner. A
+   presence check — in the module or in the DOM — therefore asserts nothing. What is not vacuous is
+   the **pair**: the class the row *actually renders with*, read off the DOM, against
+   `room.module.css`'s own text, **read by path** exactly as `plan-preview.dom.test.ts:45` reads it.
+   **This is the fourth "green over something that never ran" recorded against this milestone** — the
+   others are M6B's four dead gates, its parity gate that enforced the Russian plural defect, and
+   7F1-D45's tautological `liveQueryNamesARoom`. The pattern is not a coincidence and the lesson is
+   the one that keeps recurring: **a guard is worth what its falsification shows, not what its name
+   claims.**
+2. **Criterion 34's boundary list was mis-notated, and the code was right.** One pair was written
+   `(wall B × wall A)` while its neighbours were `(A × B)`, because the three pairs were flattened out
+   of ADR 0108 Amendment E's table **whose middle row fixes wall B**. `validateRoomInput` was run
+   against all twelve rooms the visual gate typed and agreed with the screen **12 for 12**. The
+   correction is recorded in place at the head of the 7F4 wave section above. **No code defect, no
+   owner question, and owner approval is not at risk** — the orientation asymmetry itself is ruled
+   (the corner assembly reaches 900 mm along wall A and 1000 mm along wall B, ADR 0108 Amendment A).
+3. **Criterion 38's measurement was taken after slice 3 rather than before its dispatch.** The plan
+   made it a **gate inside slice 2** — *"taken in a production build before slice 3 is dispatched"* —
+   and the coordinator's correction arrived late, so it was **a number in a close-out rather than a
+   gate**. The medians (24–26 ms) are far enough under the one-second stop-and-report threshold that
+   the ordering changed no decision. **That is what made it harmless — it is not a justification**,
+   and a slice gate taken after the slice it gates is not a slice gate.
+
+**Owner rulings recorded during the wave.**
+
+- ***așezat* → *inclus*, *nu încape* → *nu poate fi inclus***, and the dropped-roles sentence must say
+  the wall sizes did not leave enough space. Both catalogues carry it: `room.compose.status.placed` is
+  *inclus*, `.notPlaced` is *nu poate fi inclus*, `room.compose.rule` is reworded to match, and
+  `room.compose.dropped` reads *"Dimensiunile pereților nu au lăsat destul spațiu pentru toate
+  dulapurile, așa că nu am putut include: {roles}…"*.
+- ***"not Ce includem but Ce este inclus"*** *(owner, 2026-09-15)* — the 1F list heading.
+  `room.compose.stepsLabel` was still frame 1F's *Ce așezăm, în ordinea priorității* after the rows
+  under it stopped saying *așezat*, and 7F4a's implementer correctly declined to change approved 1F
+  copy without a ruling. **This is that ruling**, and the owner chose the **passive** form over the
+  first-person *includem* that was proposed to them, so the heading and the `status.placed` row now
+  carry *inclus* in the same voice. Romanian reads *Ce este inclus, în ordinea priorității*; the
+  Russian follows into *Что включено, в порядке приоритета* and is **an agent translation awaiting
+  Gate O2**, on the same footing as the other four `room.compose.*` Russian leaves.
+  **`room.compose.noPresetNotice` keeps *nu încape* deliberately** — its subject is a ready-made
+  preset fitting the room, not a cabinet being included in a composition.
+- **The owner asked whether the algorithm could drop non-fitting cabinets by itself. It already does,
+  and has since 7D1** — and the owner then ruled that **the report stays**.
+- **The Romanian is approved. The Russian is an agent translation and must not be recorded as
+  approved** *(coordinator, 2026-09-15)*. **An earlier ruling says something different and is named
+  here rather than overwritten:** [ADR 0113](../decisions/0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)
+  decision 3 approves *"the Russian draft of the same leaves… by the same ruling"*. The two reconcile
+  on the facts of this wave — ADR 0113 approved the **drafted** Step 1 copy, and the owner then
+  **changed the Romanian**, which makes the Russian now in `ru.json` a **fresh agent re-draft** of the
+  changed leaves, exactly the case ADR 0113 decision 4 calls *"the Russian re-drafted"*. **If the
+  coordinator meant the wider claim — that all of 7F4a's Russian is unapproved — that overturns ADR
+  0113 decision 3 and is the coordinator's to record there.** This paragraph does not do it for them.
+
+**Stated limits, not softened.**
+
+- **The 24–26 ms medians are a laptop over localhost.** The **399 kB** adapter chunk is paid on the
+  customer's first tap, at their own network speed, on their own device. **The durable fact is the
+  manifest one: `three` is absent from the room route's first load** (criterion 33) — not the
+  millisecond number, which will not survive contact with a phone on mobile data.
+- **The list jumps up 18.1 px when the rows resolve**, as the notice band reflows. Measured,
+  repeatable, in both locales. Not filed as a defect; recorded.
+- **Opening composition drops focus to `<body>`, and nothing announces the run to a screen reader.**
+  Recorded, not fixed.
+- **A room the domain refuses still gives a silent dead tap.** 1C's surface is **7F2's**, and of the
+  five dead-tap rooms the visual gate found, **2,20 × 0,90 refuses for a different reason than the
+  other four** — `WALL_TOO_SHORT` on wall B's own floor, a per-field code, rather than the coupled
+  `ROOM_TOO_SMALL_FOR_KITCHEN`.
+- **`ADR 0110 Amendment F` does not exist and is cited by four places in the tree** —
+  `apps/web/src/room/generation-steps.tsx:232`, `apps/web/src/room/room.module.css:723`, ADR 0117 (at
+  three points) and this milestone. Measured: ADR 0110 carries Amendments **A–E** and no F. **It is
+  owed by wave 7D4's slice S0**, which that wave's punch list already marks *NOT WRITTEN* — the
+  dispatch brief for this close-out said 7D3, and the record and both code comments say 7D4. **An open
+  obligation, carried until 7D4 writes it.**
+
+**Next wave: 7F4b**, which inherits the seam this wave armed: **a departure armed by the primary tap
+resolves after the customer has left 1F.** Risk 6 named it before the wave — while *Continuă*'s push
+was a no-op a discarded navigation cost nothing, and 7F4b is where it stops being a no-op.
 
 ## Wave 7F1 — dispatchable punch list
 
@@ -7785,6 +7966,17 @@ instruction is binding on this wave.** The draft to put to the owner, one leaf a
   wave is not blocked** *(coordinator)*: ship the draft marked unapproved in the code. **If the answer
   changes it, that is a message-file edit — the cheapest kind of change to absorb late**, which is why
   it does not gate a slice.
+  > **Answered 2026-09-15, during 7F4a, and it changed the wording.** The owner ruled that the
+  > dropped sentence **must say the wall sizes did not leave enough space**, and ruled two status
+  > labels with it: *așezat* → **inclus**, *nu încape* → **nu poate fi inclus**. `room.compose.dropped`
+  > now reads *"Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am
+  > putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale."*, and
+  > `room.compose.rule` is reworded to match the new label. **The interim did not survive**, which is
+  > the argument for keeping such a question off the critical path rather than against it: the change
+  > was a message-file edit, absorbed late, exactly as ruled.
+  >
+  > **The owner also asked whether the algorithm could drop non-fitting cabinets by itself.** It
+  > already does, and has since 7D1 — and the owner then ruled that **the report stays**.
 - **Q7F4-2 — the coordinator's. → *Split: 7F4a, then 7F4b.*** *(Coordinator, 2026-09-14, taking the
   recommendation and its reason.)* **The halves fail differently and different instruments catch
   them:** a bundle, a frozen main thread and a leaked kit are browser-measurable; **a duplicate design

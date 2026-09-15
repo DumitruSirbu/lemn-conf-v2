@@ -18,12 +18,19 @@
 // line-through` anywhere — the earlier criterion's word *"struck"* is about the item being struck
 // from the composition, and the frame strikes no text.
 //
-// **The four leaves this file renders under `room.compose.{status.placed,status.notPlaced,rule,
-// dropped}` carry the owner's 2026-09-15 ruling in Romanian, and an agent's translation of it in
-// Russian.** The Russian is a draft awaiting **Gate O2**, the owner's own read of `ru.json`; it was
-// changed with the Romanian rather than left stale, because the catalogues must stay key-identical
-// and a Russian sentence still saying *не помещается* beside a Romanian one that no longer does is
-// worse than either. Nobody has approved those four Russian strings — do not record them as ruled.
+// **The five leaves this file renders under `room.compose.{stepsLabel,status.placed,
+// status.notPlaced,rule,dropped}` carry the owner's 2026-09-15 rulings in Romanian, and the Russian
+// re-drafted to follow them under [ADR 0113](../../../../docs/decisions/0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)
+// decision 4** — a reworded Romanian leaf *means* the Russian is re-drafted; that is the ruling's own
+// consequence, not a pending approval. The catalogues must stay key-identical, and a Russian sentence
+// still reading *не помещается* beside a Romanian one that no longer does would be worse than either.
+// `stepsLabel` is the fifth: the owner's second ruling made the heading passive (*Ce este inclus*),
+// so the Russian follows it into *Что включено* and matches the `включено` its own rows show.
+//
+// **Do not mark these as awaiting Gate O2.** That gate **closed on 2026-09-11** (`docs/STATUS.md`),
+// and ADR 0113 decision 3 approves the Russian draft of these leaves by the same ruling as the
+// Romanian. An earlier version of this paragraph said otherwise on the coordinator's instruction,
+// which cited a note that had gone stale.
 import type { DesignRoom, GenerationLog } from "@lemnaria/configurator-domain";
 import { useLocale, useTranslations } from "next-intl";
 
