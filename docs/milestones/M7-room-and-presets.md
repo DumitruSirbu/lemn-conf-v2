@@ -1451,6 +1451,8 @@ table.
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
+| **7D4** | **A long storage run is composed, not repeated**: the storage cycle, the per-kitchen sequence carried across the corner, and the preparation cabinet's drawer body. **Changes which body fills a slot, and never how many slots there are or how wide they are** | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F is slice S0 and is not written**. Q-7D4-1…4 are **confirmations, not gates** |
+| **7D5** | **The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob). **Re-baselines 7D3's block-threshold table and restates its criterion 12** | `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/generation/body-choice.ts` | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15); **Q-D2 open and blocks this wave only** |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Ordering: its fidelity baseline is taken *after* 7H lands, never before. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders (+ fidelity and parity coverage) | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths | — |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
@@ -5259,16 +5261,41 @@ were offered *"only in larger kitchens"* and *"never — the customer adds it"* 
 > the cases, they have much more space. And this scenario when they don't have space for all kitchen
 > electronics and cabinets, it's very rare."*
 
-### Ground truth, measured at `41181d8`
+### Ground truth — **re-measured 2026-09-15 against 7D3's own build**, not derived
 
-Measured by importing the package's built `dist/generation/` from the scratchpad; nothing in the tree
-was edited, and nothing below was taken from an earlier document without re-running it.
+**The first version of this table was measured at `41181d8`, *before* 7D3, with the block's effect
+applied arithmetically. 7D3 has since landed — S1 at `03c98dc`, S2 at `97a4913` — so the block is
+measurable rather than modelled.** Rows G1, G4–G14 and G17 are unchanged and re-confirmed; **G2 is
+confirmed exactly; G3's histogram was wrong in six of its nine buckets and is replaced.**
+
+**The lesson is worth more than the corrected numbers, and it generalises past this table: an
+arithmetic model of a rule with a refusal arm under-counts the arm.** The derived histogram applied
+`min(3, wall-A leftover)` uniformly, and the real rule **refuses a block outright** where the outermost
+column cannot take the remainder (E6.2's `1 → 0` step). **Its total was right and its distribution was
+not** — which is exactly why it passed: the model was wrong in a way its own consistency check could
+not see. **A row whose figures sum correctly has not been checked; it has been added up.**
+
+Measured by importing a **scratchpad snapshot** of the package's built `dist/`; nothing in the tree was
+edited, built or written, and nothing below was taken from an earlier document without re-running it.
+Sweeps are the approved L policy on a **10 mm grid at 2600 mm** — wall A 900–6300, wall B 1000–5100 —
+giving **222 351 rooms, 211 551 placed**.
 
 | # | Measured | Consequence for this plan |
 | --- | --- | --- |
-| G1 | **The eleven, re-measured.** At 6300 × 5100 × 2600 wall A plans `sink, preparation, hob` then **six** storage (remainder 0) and wall B plans **five** storage then `fridge:700` (remainder 400). Eleven storage slots, every one `base-cabinet:600`. | The figure the wave exists for holds at HEAD. |
-| G2 | **After 7D3 the same room keeps eight.** Its block takes `min(3, wall-A leftover)` = 3, leaving wall A three and wall B five. | **7D4 composes eight slots there, not eleven** — the block removes three, and this wave must not assume otherwise. |
-| G3 | **The whole approved policy, swept on a 10 mm grid at 2600 mm**: 222 351 rooms, 10 800 of them *minimum not met*. Storage slots **after** 7D3's block: `0:64 800  1:37 260  2:31 870  3:27 720  4:24 120  5:17 100  6:6 120  7:2 520  8:41`. | **30.6 % of placed rooms have no storage slot at all and 17.6 % have one**, so D9's degradation is the common case, not the corner. 51.8 % have two or more and are where the rule is visible. |
+| G1 | **The eleven, re-confirmed.** At 6300 × 5100 × 2600, **before the block**, wall A plans `sink, preparation, hob` then **six** storage (remainder 0) and wall B plans **five** storage then `fridge:700` (remainder 400). Eleven storage slots, every one `base-cabinet:600`. | **Right.** The figure the wave exists for holds at HEAD. |
+| G2 | **After 7D3 the same room keeps eight — measured, not derived.** Wall A three cycle slots and a three-column block; wall B five. Composed wall A, corner outward: `base-sink 600, base-cabinet 600, base-hob-2drawer 600, storage ×3 @ 600, tall-oven-tower 600, tall-pantry 600, tall-pantry 600`. | **Right to the module.** **7D4 composes eight slots there, not eleven**, and this wave must not assume otherwise. |
+| G3 | **The storage-slot histogram over the whole approved policy, measured after the block**: `0:62 400  1:38 260  2:32 070  3:27 720  4:24 120  5:17 480  6:6 940  7:2 520  8:41`. As a share of the 211 551 placed rooms: **0 slots 29.5 %, 1 slot 18.1 %, ≥ 2 slots 52.4 %.** | **The derived row was wrong in six buckets.** It read `0:64 800  1:37 260  2:31 870  3:27 720  4:24 120  5:17 100  6:6 120  7:2 520  8:41`, over-counting zero-slot rooms by **2 400** and under-counting the 1-, 2-, 5- and 6-slot rooms. **The conclusions survive and that is what makes this instructive rather than alarming**: D9's degradation is still the common case, and the recorded 30.6 / 17.6 / 51.8 becomes **29.5 / 18.1 / 52.4**. |
+| G3.1 | **Why the derivation was wrong, so nobody repeats the method.** It applied `min(3, wall-A leftover)` uniformly. The real rule refuses a block where the outermost column cannot take the remainder — **E6.2's `1 → 0` step**, `outermostColumnOf` returning `undefined` in `tall-end-rule.ts`. Those rooms **keep** the storage slot the arithmetic took away. | The 2 400-room error is exactly that arm. **A refusal arm is invisible to arithmetic that only models the success path.** |
+| G3.2 | **A block stands in 110 591 of 211 551 placed rooms — 52.3 %**, distributed `1 column: 16 440   2: 24 660   3: 69 491`. | **An open discrepancy, recorded and not resolved here.** 7D3's own measurement, cited by this section's D10, says **a block lands in 58 % of sampled rooms**; the same question measured over the approved policy on a 10 mm grid gives **52.3 %**. **Both figures stand as measured and neither is adjusted.** The likely cause is that the two were taken over **different room populations** — this sweep is uniform over the policy, and 7D3's sampling is not stated here — but **that is unverified**, and it is **7D3's number to reconcile**, not this wave's. **D10's argument is unaffected either way**: a block is still the typical output. |
+| G3.3 | **Where the cycle is actually visible.** Wall A keeps **≥ 1** cycle storage slot in **53 751 rooms (25.4 % of placed)**; wall B in 135 831 (64.2 %); **both walls in only 40 431 (19.1 %)**. Wall A's cycle-slot count never exceeds **3**, wall B's never exceeds **5**, and in **95 400 rooms (45.1 %)** every cycle slot in the kitchen is on wall B. | **New, and load-bearing on criterion 8.** In roughly three kitchens in four the whole varied run stands on wall B while wall A carries only the core and the block. The phase-carry criterion has a **19.1 % arm** that splits again by wall B's parity — risk 14 — and the customer-facing half of it is **Q-7D4-1**. |
+| G3.4 | **Every witness room in the table below re-measured, and every slot count is exactly as claimed**: 900 × 2200 → 0, 3300 × 1000 → 1, 3300 × 1600 → 2, 5100 × 2900 → 3, 5100 × 3500 → 4, 5100 × 4100 → 5, **5700 × 4100 → 6**, 5700 × 4700 → 7, **6300 × 4700 → 8**. | **The witness table is sound and needs no change but a header fix** — its *Wall A storage* and *Wall B storage* columns are **pre-block** counts, and a reader will take them for composed ones. |
+| G3.5 | **Criterion 10's merge witness re-measured: at 2700 × 1699 the single storage slot is on wall B**, at `[900, 1500]`, wall B remainder **98**, no block, fridge dropped. At 2700 × 1700 the fridge is kept and there is no storage slot at all. | **Right as written.** The 98 mm merges into the slot's tile, giving a 698 mm opening a `'fit'` body steps back to 600. |
+| G3.6 | **G10's and G17's figures re-measured and exact to the room.** At **1500 × 2800** the plan is `B sink, B preparation, B storage \| A hob` in reading order. G10's three shares: preparation 190 491 (90.0 %), sink 10 800 (5.1 %), wall-B storage 10 260 (4.9 %). G17's: 4.9 % refused; of the placed, 86.6 % full core, 8.3 % fridge only, 5.1 % fridge and preparation. | **G10 and G17 needed no correction of any kind.** |
+| G3.7 | **G9's prices re-derived from the book's own formulas at HEAD** (`sample-price-book.ts:68-90`): `base-cabinet` 120 000 + 400/mm + 18 000/leaf = **396 000** at 600 with two leaves; `base-3drawer` 180 000 + 500/mm = **480 000**; `base-panbank` 160 000 + 480/mm = **448 000**; `base-dishwasher` 140 000 + 300/mm = **320 000**. Eight slots: 3 168 000 → **3 440 000 minor, +8.59 %**. | **G9 and D7's cost note are exact.** |
+| G3.8 | **D2's *three is every storage body the catalogue can build at 600* re-verified by enumeration.** Every row in `buildKitchenLBodyCatalog` at base height 860 is `base-cabinet`, `base-3drawer`, `base-panbank`, `base-hob-2drawer`, `base-hob-oven`, `base-bottle-cargo`, `base-sink`, `base-dishwasher`. Of those, the **general storage** rows buildable at 600 are exactly **three**. | **Criterion 6's `min(3, slotCount)` is right at HEAD**, and the `3` is a measured property of the catalogue rather than a guess. |
+| G3.9 | **G7's width claim is correct at 600 and imprecise below it.** Measured at HEAD: `base-cabinet` `'fit'` **200–800**; `base-3drawer` and `base-panbank` `'fit'` **300–800**; `base-dishwasher` discrete `{450, 600}`; `base-bottle-cargo` discrete `{200, 300}`; `tall-pantry` `'fit'` **400–800**; `wall-lift` `'fit'` **300–800**; `open-shelf` `canFinish: false`. | **The drawer rows are drop-in replacements at every width generation plans, not at every width the catalogue allows** — their floor is 300 against `base-cabinet`'s 200. Harmless today, because `planLeftover` plans only whole 600 mm modules; **it is the constraint a later wave that plans a narrower storage module would break.** State it as a bound, never as equivalence. |
+| G3.10 | **Two stale line references in G7, re-read at HEAD** (ADR 0119): `base-dishwasher`'s row is at `catalog.ts:860`, not `:875`; `base-bottle-cargo`'s at `:800`, not `:810`. `CABINETRY_WIDTHS` is declared at `:193` and spread at `:605`; the drawer rows are at `:734` and `:744` as cited; `widestBlockFrom` is at `merge-empty-columns.ts:265` with the inclusive cap at `:278`, as cited. | **The implementer cites what they re-read**, not what this table says. |
+| G3.11 | **`MAX_EMPTY_COLUMN_WIDTH_MM` is declared in `src/module-grid.ts`**, not in `merge-empty-columns.ts`; the merge module and `tall-end-rule.ts` both import it from there. | **`src/module-grid.ts` was missing from the must-not-change set**, which named the merge module and stopped one file short of the constant D1's whole safety argument rests on. Added below. |
 | G4 | **The 800 mm merge is the wave's structural boundary.** `widestBlockFrom` merges adjacent *empty* columns while the run's running total stays **at or under** `MAX_EMPTY_COLUMN_WIDTH_MM` = 800 (`merge-empty-columns.ts:265-283`), and it runs over the shell's tiles **before any body is inserted**. `600 + 600 = 1200` never merges; `450 + 300 = 750` does, and so does `200 + 600 = 800` — the cap is inclusive. | **Width variety is not free and type variety is.** A plan that mixed 450 and 300 mm tiles would hand `plannedVoid` an opening it cannot match (G6) and hand `insert-fit` a discrete body it would centre with slivers (G5). D1 is derived from this row. |
 | G5 | A discrete-width body dropped into a wider opening is built at **the widest listed size that fits, centred** (`insert-fit.ts`, `resolveFixedSetWidth`); a `'fit'` body takes the opening exactly (`resolveFitWidth`). | The only safe non-600 body is one whose set contains the tile's own width. |
 | G6 | `plannedVoid` matches an opening by **exact `startMm`** and `end ≥ planned end`, and throws otherwise (`generate-kitchen.ts:503-527`). | A merge that moves a tile boundary is a throw, not a cosmetic defect. |
@@ -5287,7 +5314,7 @@ was edited, and nothing below was taken from an earlier document without re-runn
 **Witness rooms, measured, for every slot count this wave can produce** (wall A × wall B at 2600 mm;
 *slots* counts what remains after 7D3's block):
 
-| Slots | Room | Wall A storage | Wall B storage | 7D3 block |
+| Slots | Room | Wall A storage *(before the block)* | Wall B storage | 7D3 block |
 | --- | --- | --- | --- | --- |
 | 0 | 900 × 2200 | 0 | 0 | 0 |
 | 1 | 3300 × 1000 | 1 | 0 | 0 (fridge dropped) |
@@ -5300,6 +5327,36 @@ was edited, and nothing below was taken from an earlier document without re-runn
 | 8 — the maximum | 6300 × 4700 | 6 | 5 | 3 |
 
 ### Twelve rulings
+
+**Read first — ADR 0117 and this wave's criterion 3, related here rather than left for a reviewer to
+collide with.** ADR 0117 decision 4 forbids, in as many words, that *"no criterion may assert a ratio,
+a share or a frequency band"*. **Criterion 3 asserts a balance, and a balance is a ratio.** They do not
+conflict, and the reason is inside 0117 itself:
+
+- 0117's §*Where the boundary is genuinely unclear* **#1** names this exact pair — the owner's *"3 with
+  drawers and 3 with doors"* and their 20–30 % lift band — calls them *"formally identical"*, and
+  records that **the first is being built as wave 7D4 at a measured +8.6 %** and the second is not. The
+  discriminator it offers is **not cost**: R1 is a property the owner wants every baseline to have, and
+  the lift is a per-kitchen judgement they said they would make by eye.
+- 0117 §**#3** goes further: a reader who cites decision 2 (*the cheaper composition is correct*) to
+  argue 7D4 away **is reading it wrong**, because the owner ruled the variety.
+- 0117 decision 8: *"No 7D3, 7D4 or 7D5 criterion changes on its strength."*
+
+**So the rule is: a criterion may assert a proportion that is a consequence of a composition the owner
+ruled; it may not assert a proportion observed in the owner's practice.** Criterion 3 is the first kind
+— there is no ratio constant in the code and *half* falls out of the cycle's shape (D3). Criterion 21's
+refusal to assert a lift band is the second. **A reviewer who flags criterion 3 against 0117 decision 4
+has found this paragraph, not a defect.** *(Source-verified against ADR 0117 at `f898b87`.)*
+
+**ADR 0120 checked and compatible.** Decision 1 — *the room is a fact* — is untouched: this wave
+changes body identity and never a dimension, so nothing it composes needs a wall the customer did not
+enter. Decision 2 — *coverage is negotiable where dimensions are not* — is what D9 is an instance of.
+
+**ADR 0118 applied to this plan's own content.** D4 rules what happens *if* variety and balance ever
+conflict, for a catalogue that does not exist until backlog 66. That is a problem which has not
+occurred, **recorded with its trigger and not built for**, which is 0118's own shape. **No slice may
+contain machinery for a fourth storage body**; criterion 6's `min(3, …)` is expected to go red when one
+arrives, and **that redness is the notification.**
 
 **D0 — the dependency on 7D3 holds, and the reason recorded when 7D4 was approved is wrong.** That
 paragraph says 7D4 *"changes `leftover-rule.ts`, which this wave deliberately reads and does not
@@ -5317,8 +5374,26 @@ The dependency is real for two other reasons, and they are stronger:
    computed over slots the block then takes away, and every measured figure in G3 and the witness
    table would be wrong.
 
-**So: 7D4 is dispatched only after 7D3 has closed**, and its ground truth above is measured at HEAD
-*before* 7D3, with the block's effect applied arithmetically and marked as such (G2, G3).
+**Re-judged 2026-09-15, after 7D3 landed: the dependency holds, and both reasons are now measured
+rather than argued.**
+
+1. **File collision was not a forecast — it was the tree's own state.** While 7D4 was being planned,
+   `generation-priorities.ts` and `generate-kitchen.ts` stood **modified and uncommitted** and
+   `tall-end-rule.ts` **untracked**: 7D3's S2 was in the working tree and not in git. It is now
+   committed at **`97a4913`** (S1 at `03c98dc`). **7D4's S1 may not start on a tree that is not
+   clean**, and the reason is the pre-commit hook re-adding whole files, not politeness.
+2. **The block spends the free-end modules first, and the figure is now measured.** At 6300 × 5100 the
+   sequence 7D4 composes is **eight slots, not eleven**; over the whole policy the block stands in
+   **52.3 %** of placed rooms and wall A keeps a cycle slot in only **25.4 %** (G2, G3.2, G3.3).
+   Composed before 7D3, wall A's phase would have been computed over modules the block then takes
+   away, and **every figure in G3 and every row of the witness table would be wrong.**
+3. **D0's correction of the approval note is confirmed at HEAD.** `leftover-rule.ts` is a pure
+   `freeEndMm → {storageCount, remainderMm}` function, it was **unmodified through the whole of 7D3**,
+   and this wave does not have to touch it. Criterion 14 asserts it byte-identical.
+
+**The ground truth above is no longer derived.** G2 and G3 are measured against 7D3's own build; where
+the arithmetic was right that is now confirmed rather than assumed, and where it was wrong — G3's
+distribution — it is replaced.
 
 **D1 — this wave changes a body's identity and never its width.** Every planned width, every slot
 count, every remainder, the surviving core and the wall cut stay exactly what 7D2 and 7D3 produce.
@@ -5457,6 +5532,16 @@ that **the corner is always continuous worktop**, so the L is one run that turns
 and a per-wall restart gives three-and-three slots a 4 : 2 drawer majority, which contradicts R1 in the
 owner's own example. **Refused: restarting the cycle on each wall.** Its one real advantage is stated
 rather than hidden — it would make the body standing beside the hob deterministic.
+
+**Which *end* the sequence starts from is a separate question from its shape, and it is open —
+`Q-7D4-1`, put to the owner 2026-09-15.** This ruling starts it at **wall B's free end**, so sequence
+index 0 stands beside the fridge. Measured consequences: a drawer body stands **next to the fridge in
+48.0 %** of placed rooms, and **in 45.1 % every cycle slot in the kitchen is on wall B** while wall A
+carries only the core and the block (G3.3). **The plan is built on this default and no slice waits for
+the answer.** The alternative — starting at wall A's free end, so the first drawer lands nearest the
+hob — **costs one line at the leaf's caller and a new pair of phase witnesses for criterion 8, and it
+is cheap only until the criteria harden.** That is why the question is asked before S2 rather than
+after, and it is the only reason it is asked at all.
 
 **The accepted awkward boundary, stated rather than discovered later: wall A's phase is set by wall
 B's storage count.** Wall B storage even → wall A's first storage slot is a drawer body; odd → a door
@@ -5745,9 +5830,75 @@ one re-baselines 7D3's D2.2 threshold table and restates 7D3's criterion 12.
   below, because they are the owner's and this is where they were worked out; **they are 7D5's to
   build.** See *Wave 7D5* at the end of this section.
 
+**D12 — a storage slot is identified by *what composed it*: never by its role, and never by its width.
+Read this before you write a property, because four criteria in this wave fail against 7D3's own
+correct output if you do not, and the first instinct on seeing them go red will be to edit 7D3.**
+
+7D3's block columns are declared with **`role: "storage"`** (`generation-priorities.ts`,
+`tallColumnItems`) — deliberately, because ADR 0110 **E5.2** keeps frame 1F's row set from moving. So
+after 7D3 the word *storage* has two referents inside one plan: **the cycle's slots**, which this wave
+composes, and **the block's columns**, which 7D3 composes and this wave must not touch.
+
+**Measured against the built planner over all 211 551 placed rooms**, reading *storage slot* as
+`role === "storage"`:
+
+| Criterion, scoped by role | Rooms it fails on, **against output that is correct** |
+| --- | --- |
+| **7** — no two adjacent storage slots share a build id | **69 491 (32.8 %)**. Every three-column block is `tall-oven-tower, tall-pantry, tall-pantry`; the outer two are adjacent and identical. Witness: **4500 × 1700**. |
+| **1**'s must-not — no storage slot whose width is not 600 | **31 480 (14.9 %)**. E6.2's outermost column absorbs the remainder and is planned at 600 + *r*, to 800. Witness: **3910 × 1700**, `column:A:1 @ 610`. Measured column widths run 600 and then every 10 mm step to 800. |
+| **6** — distinct storage build ids = `min(3, slotCount)` | Every room with a block and no cycle slot: two distinct ids against an expected zero. |
+| **3** — the drawer/door balance | `tall-pantry` is a door body and `tall-oven-tower` is neither; both would enter the count. |
+
+**And measured with *storage slot* read as *the modules the cycle composed*, the cycle satisfies
+criteria 3, 5, 6 and 7 on every one of the 211 551 placed rooms, with zero failures.** **The rules were
+right and only their subject was wrong.**
+
+**The ruling, in three clauses:**
+
+1. **Every criterion in this wave that says *storage slot* means *a module the storage cycle
+   composed*.** The block's columns are **out of the cycle, out of the balance, out of the variety
+   count and out of the adjacency check**, and each criterion says so in its own text rather than
+   leaning on this paragraph.
+2. **The discriminator is declared, not parsed.** Today it exists only as a string convention:
+   `storagePriorities` writes `storage:{wall}:{n}` and `tallColumnItems` writes `column:A:{n}`, both as
+   bare template literals with no named authority and no test. **A property that does
+   `id.startsWith("storage:")` is one more reader of an undeclared contract.** S1 exports **one
+   predicate** — `isCycleStorageSlot(base)` — beside the cycle, and it is the only thing in the
+   repository that knows the convention. **Criterion 22 is its guard.**
+3. **The role does not change, and changing it would be the defect.** E5.2 rules that a column carries
+   the storage role so 1F's row set does not move. **This wave must not "fix" the ambiguity by giving
+   the block a role of its own**; it fixes it by naming the subject precisely.
+
+*(Checked against ADR 0110 Amendment E at `128e515`: E5.2 and E12.2 both stand, and this ruling refines
+nothing in either.)*
+
+**D13 — the kitchen-wide sequence has exactly two call sites and one index map, and the map is written
+here because it is this wave's most likely silent defect.**
+
+`storagePriorities(wall, count)` is called twice in `builtPlan` — once for wall A with
+`tallEnd.storageCount`, once for wall B with `leftovers.B.storageCount`. The cycle is per kitchen (D5),
+so the second call needs a **start index**, and wall B's slots are consumed in the reverse of their
+spatial order (G12). The map, stated once:
+
+```
+let bCount = leftovers.B.storageCount              // wall B's cycle slots
+storage:B:i   ->   sequence index  (bCount - 1 - i)   // i is spatial, corner outward
+storage:A:j   ->   sequence index  (bCount + j)       // j is spatial, corner outward
+```
+
+**Measured: this map, and only this map, satisfies criteria 3, 5, 6 and 7 on all 211 551 placed
+rooms.** The wall-B term is the one that inverts, and an implementer who writes `bCount + i` for wall B
+produces a plausible alternating run that **passes criteria 3, 5, 6 and 7 and fails only criterion 8**.
+That is risk 2, now with its exact expression.
+
+**Must not:** a third call site; a sequence index recomputed anywhere outside `builtPlan`; the wall-B
+inversion expressed as a `reverse()` on the *placed* array after the fact, which would leave the plan's
+ids disagreeing with its bodies.
+
 **D9 — what a run too short for variety does, and it must never be worse than today.** Measured (G3):
-after 7D3, **30.6 %** of placed rooms have no storage slot at all and **17.6 %** have exactly one, so
-this is the common case.
+after 7D3, **29.5 %** of placed rooms have no storage slot at all and **18.1 %** have exactly one, so
+this is the common case. *(The 30.6 / 17.6 this paragraph carried were the derived figures G3 replaced;
+the conclusion is unchanged.)*
 
 | Slots | What is composed | Against today |
 | --- | --- | --- |
@@ -5767,22 +5918,28 @@ later reads R5 as covering body choice is overturning this paragraph and owes a 
 
 - **`src/generation/body-choice.ts` (new leaf).** One pure module answering one question:
   **which cabinet body stands in this base-row slot?** It declares the three storage build ids, the
-  cycle, and `storageBodyAt(slotIndex)`. It imports nothing from generation — no catalogue, no probe,
-  no design, no room — and it is written beside `leftover-rule.ts` for the reason that module exists.
-  It is the **only declaration site** for `base-cabinet`, `base-3drawer` and `base-panbank` under
-  `src/generation/`.
+  cycle, `storageBodyAt(slotIndex)`, and **`isCycleStorageSlot(base)`** — the one answer to *is this
+  module the cycle's, or the block's?* (D12). It imports nothing from generation — no catalogue, no
+  probe, no design, no room — and it is written beside `leftover-rule.ts` for the reason that module
+  exists. It is the **only declaration site** for `base-cabinet`, `base-3drawer` and `base-panbank`
+  under `src/generation/`, **and the only place in the repository that knows the `storage:` /
+  `column:` id convention.**
   **A second half of this leaf was planned and is withdrawn.** `upperBodyFor(baseRole)` was to move the
   wall row's choice out of the funnel; with D8's lift rule withdrawn the wall row's output is unchanged,
   so **moving the two constants would be a pure refactor buying nothing**, and the wave does not do it.
   `generate-kitchen.ts` keeps `WALL_CABINET_BUILD_ID` and `HOOD_BUILD_ID` exactly where they are.
 - **`src/generation/generation-priorities.ts`** keeps the reading order, the cut, the spatial layout
   and the **core** role data. It calls `storageBodyAt` in place of today's `STORAGE_BUILD_ID`, builds
-  the kitchen-wide storage sequence D5 defines, and — in S5 only — gains the dishwasher row and its
-  place in the attempt ladder. **The preparation row reads `THREE_DRAWER_BASE_BUILD_ID` from the new
-  leaf rather than writing the id again.** It gains no width literal and no ratio literal.
-- **`src/generation/generate-kitchen.ts`** keeps the command funnel and, **in S1–S4, changes nothing at
-  all** — the wall row's withdrawal (D8) removed this wave's only reason to touch it. In S5 it gains
-  the dishwasher role in both `plan.bases` passes.
+  the kitchen-wide storage sequence D5 defines, on **D13's index map and no other**. ~~and — in S5 only
+  — gains the dishwasher row and its place in the attempt ladder~~ **struck: S5 went to 7D5 (D11), so
+  this module gains no dishwasher row in this wave.** **The preparation row reads
+  `THREE_DRAWER_BASE_BUILD_ID` from the new leaf rather than writing the id again.** It gains no width
+  literal and no ratio literal.
+- **`src/generation/generate-kitchen.ts`** keeps the command funnel and **changes nothing at all** —
+  the wall row's withdrawal (D8) removed this wave's only reason to touch it, and D11 removed the
+  other. ~~In S5 it gains the dishwasher role in both `plan.bases` passes.~~ **Struck with S5.** The
+  file therefore belongs on the must-not-change side for the whole of 7D4, and it is listed under *may
+  change* above only because 7D5 inherits this section.
   **The funnel gains no new branch and no new refusal path** — an upper that cannot be placed is still
   logged *not placed* and still removes nothing below it (ADR 0110 Amendment C).
 - **The split of authority, stated so criterion 20 is checkable:** the priorities table is the one
@@ -5791,7 +5948,9 @@ later reads R5 as covering body choice is overturning this paragraph and owes a 
   than by role data** — the storage cycle and the whole wall row. The two sets are disjoint, and
   `base-3drawer` belongs to the second even though the preparation role reads it.
 - **`leftover-rule.ts`, `shell-design.ts`, `tall-end-rule.ts`, `insert-fit.ts`, `merge-empty-columns.ts`,
-  the void engine, the validator, the catalogue and the price book are read-only to this wave.**
+  `module-grid.ts`, the void engine, the validator, the catalogue and the price book are read-only to
+  this wave.** `module-grid.ts` is named because it, and not the merge module, declares the 800 mm cap
+  D1's safety argument rests on (G3.11).
 - **No declared size is restated.** A generation-side width or price constant checked against the
   catalogue in a test is the second authority ADR 0102 forbids.
 
@@ -5809,19 +5968,41 @@ later reads R5 as covering body choice is overturning this paragraph and owes a 
 
 **Must not change:** `src/generation/leftover-rule.ts` (D0 — and criterion 14 asserts it byte-identical);
 `src/generation/shell-design.ts`; `src/generation/tall-end-rule.ts`; `src/catalog.ts`; `src/pricing/**`;
-`src/commands/**`; `src/void-engine.ts`; `src/merge-empty-columns.ts`; `src/validate-design.ts`;
-`src/room/**` — in particular `room-policy.ts` and `approved-room-policy.ts`, whose minimum kitchen
-stays **sink and hob**; anything under `apps/web`. **7D3's own assertions must not be edited**, with
-the single declared exception in criterion 16.
+`src/commands/**`; `src/void-engine.ts`; `src/merge-empty-columns.ts`; **`src/module-grid.ts`**;
+`src/validate-design.ts`; `src/room/**` — in particular `room-policy.ts` and `approved-room-policy.ts`,
+whose minimum kitchen stays **sink and hob**; anything under `apps/web`. **7D3's own assertions must
+not be edited**, with the single declared exception in criterion 16.
+
+**Two additions, each with its reason** (G3.11, D12):
+
+- **`src/module-grid.ts`** declares `MAX_EMPTY_COLUMN_WIDTH_MM`, which is **the whole of D1's safety
+  argument**, and which `merge-empty-columns.ts` and `tall-end-rule.ts` both import from there. The
+  list named the merge module and stopped one file short of the constant.
+- **`src/generation/tall-end-rule.ts` is read-only, and every one of its outputs is asserted
+  *unchanged* rather than merely unmentioned** — the column build ids, the block's size, the absorbed
+  outermost width and the hob's build id. Criterion 2 carries the assertion. **A criterion of this wave
+  going red on a block column is this wave's defect, not 7D3's** (D12).
 
 ### Acceptance criteria
 
 Each names its proof mechanism. *Property* means a `fast-check` property over the **approved** L policy
 (wall A 900–6300, wall B 1000–5100, height 2200–3900, on a 1 mm grid) with a stated minimum sample
-count **per arm**, per `docs/WORKFLOW.md`. Every criterion says what must not happen. **Criteria 1–15,
-19, 20 and 21 belong to S1–S2 and S4. **Criteria 16–18 moved to wave 7D5 with the dishwasher (D11) and are left in place, numbered, so every reference still reads.** The witness table above supplies a
-measured room for every slot count, and a property that never samples a room with four or more slots
-proves nothing.
+count **per arm**, per `docs/WORKFLOW.md`. Every criterion says what must not happen. Criteria 1–15 and
+19–22 belong to S1, S2 and S4. **Criteria 16–18 moved to wave 7D5 with the dishwasher (D11) and are
+left in place, numbered, so every reference still reads.** The witness table above supplies a measured
+room for every slot count, and a property that never samples a room with four or more slots proves
+nothing.
+
+**Before you write any of them — D12.** **Every criterion below whose subject is a *storage slot* means
+a module the storage cycle composed, and says so in its own text.** A criterion that reaches its
+subject through `role === "storage"`, or through a width, is a defect **in the test**: measured, the
+role scoping fails on **32.8 %** of placed rooms and the width scoping on **14.9 %**, in both cases
+against 7D3's output being **correct**. The failure therefore presents as a defect in a closed wave,
+and **the first instinct will be to edit 7D3. It is the wrong one.** Scope by provenance — the exported
+`isCycleStorageSlot` — and the same rules pass on all 211 551 placed rooms.
+
+**Sample floors come from risk 14's measured table**, taken under `fc.integer` against the real
+generator, and never from a uniform model of the room space.
 
 **Two things no criterion here may do, and both are rulings rather than style.** No criterion asserts
 a **ratio band** for lifts or open shelves (R7, D8), and no criterion asserts that **no drawer stands
@@ -5831,39 +6012,59 @@ tests, not in the composer.
 
 1. *(unit — the wave's headline)* At **6300 × 4700 × 2600** the eight storage slots compose as
    **4 × `base-cabinet`, 2 × `base-3drawer`, 2 × `base-panbank`**, and at **6300 × 5100 × 2600** the
-   same. **Must not:** eleven identical bodies; any run of two adjacent storage slots sharing a build
-   id; a storage slot whose width is not 600.
+   same. **Must not:** eleven identical bodies; any two adjacent **cycle slots** sharing a build id; a
+   **cycle slot** whose width is not 600. **The block's three columns are not cycle slots** — at both
+   rooms they are `tall-oven-tower, tall-pantry, tall-pantry` and the test asserts them **unchanged**
+   rather than exempting them silently (D12).
 2. *(property, ≥ 200 samples)* **Width neutrality — the wave's strongest invariant.** For every room,
    `plan.floorWidthsMm`, `plan.remainderMm`, `plan.dropped`, the chosen wall cut, and every planned
    base's `wall`, `startMm`, `endMm` and `widthMm` are **deep-equal to 7D3's** for the same room. The
-   **only** difference in the whole plan is `buildId`, and only on storage slots and the preparation
-   slot. **Must not:** any width, count, remainder, cut or dropped-list change **anywhere in the wave**
-   — since D11 moved the dishwasher to 7D5 this criterion has **no exception and no asterisk**, which
-   is the whole reason that ruling went the way it did.
-3. *(property, ≥ 150 samples with ≥ 2 slots)* **Balance.** `|drawerBodies − doorBodies| ≤ 1` over the
-   kitchen's storage slots; at an even count they are **equal**; at an odd count **drawers** carry the
-   extra. **Must not:** a door majority at any count, on any room in the policy.
+   **only** difference in the whole plan is `buildId`, and only on the modules whose planned ids are
+   `storage:{A|B}:{n}` and on the **preparation** role. **Every block column's `buildId`, `widthMm`,
+   `startMm` and `endMm` is deep-equal to 7D3's**, and so is the hob's `buildId` — which 7D3's rule
+   sets and this wave never reads. **Must not:** any width, count, remainder, cut or dropped-list change
+   **anywhere in the wave** — since D11 moved the dishwasher to 7D5 this criterion has **no exception
+   and no asterisk**, which is the whole reason that ruling went the way it did; a block column whose
+   identity moved.
+3. *(property, ≥ 150 samples with ≥ 2 slots — measured arm rate 43.7 %, so ≥ 350 runs)* **Balance.**
+   `|drawerBodies − doorBodies| ≤ 1` over the kitchen's **cycle slots**; at an even count they are
+   **equal**; at an odd count **drawers** carry the extra. **Must not:** a door majority at any count,
+   on any room in the policy; the block's columns entering the count — `tall-pantry` is a door body and
+   `tall-oven-tower` is neither, and both would corrupt it (D12).
 4. *(unit — the owner's own example)* At **5700 × 4100 × 2600** there are six storage slots and they
    compose **three drawer bodies and three door bodies**. **Must not:** the three-and-three arriving
    from a hardcoded six, a ratio constant or a `floor(n / 2)` count — criterion 20 is its guard.
 5. *(property)* **Per-wall deviation is at most one body.** On each wall, the drawer count differs from
-   half that wall's storage count by at most one. **Must not:** a wall composed entirely of one class
-   while the other wall carries the balance.
-6. *(property)* **Maximum variety, quantified.** The number of **distinct** storage build ids in a
-   generated design is exactly `min(3, slotCount)`. **Must not:** a fourth body appearing; a kitchen
-   with three or more slots showing fewer than three distinct bodies.
-7. *(property)* **No two adjacent storage slots carry the same build id** — asserted **along the wall**
-   (spatial order) as well as in the reading order, so wall B's reversal is exercised (G12).
-   **Must not:** the assertion written only in reading order.
+   half that wall's **cycle-slot** count by at most one. **Must not:** a wall composed entirely of one
+   class while the other wall carries the balance.
+6. *(property)* **Maximum variety, quantified.** The number of **distinct** build ids across a
+   generated design's **cycle slots** is exactly `min(3, slotCount)`. Measured: a room with a
+   three-column block and **no** cycle slot holds two distinct full-height build ids and **zero** cycle
+   slots, and this criterion's expected value there is **0** — scoping by role gives 2 and a false red
+   (D12). **Must not:** a fourth body appearing; a kitchen with three or more slots showing fewer than
+   three distinct bodies.
+7. *(property)* **No two adjacent cycle slots carry the same build id** — asserted **along the wall**
+   (spatial order) as well as in the reading order, so wall B's reversal is exercised (G12). Adjacency
+   is between two **cycle slots**; a cycle slot adjacent to a block column, to the hob or to the corner
+   is not a pair this criterion looks at. **Must not:** the assertion written only in reading order;
+   **the assertion scoped by `role === "storage"`** — measured, that form fails on **69 491 rooms
+   (32.8 %)** against 7D3's own correct output, witness **4500 × 1700** where wall A is
+   `tall-oven-tower, tall-pantry, tall-pantry`, and whoever meets it will be tempted to change 7D3.
 8. *(unit + property, the accepted awkward boundary)* **The cycle is per kitchen and the phase carries
-   across the corner.** Where wall B's storage count is **even**, wall A's first storage slot is a
+   across the corner.** Where wall B's cycle-slot count is **even**, wall A's first cycle slot is a
    **drawer** body; where **odd**, a **door** body. Witnesses **5700 × 4100** (even) and
-   **5100 × 4700** (odd). **Must not:** a per-wall restart — it passes criteria 3 and 6 and fails this
-   one, which is the only criterion that tells them apart.
+   **5100 × 4700** (odd). **Must not:** a per-wall restart — measured, it passes criteria 3, 5, 6 **and
+   7** and fails only this one, which is the sole criterion that tells them apart; and **an arm floor
+   taken from anywhere but risk 14's table** — the property's arm is rooms with cycle storage on both
+   walls (**17.4 % of runs**), and its even branch is **6.4 %**, so ≥ 100 samples of it needs
+   **≥ 1 600 runs**. At the house default of 200 it sees about thirteen.
 9. *(property)* **Every generated base module is on the grid.** Every placed base's width equals its
    planned width, and no placed base is narrower than its opening (the centred-sliver case, G5).
-   `base-bottle-cargo` appears in **no** generated design, at any room in the policy. **Must not:** a
-   discrete-width row generated into a tile its set does not contain.
+   `base-bottle-cargo` appears in **no** generated design, at any room in the policy. The **width**
+   assertion is over **cycle slots**: the block's outermost column is legitimately 600 + *r* up to 800
+   (E6.2) in **31 480 rooms (14.9 %)**, witness **3910 × 1700** at 610 mm, and a criterion that reads
+   that as a storage width fails against correct output. **Must not:** a discrete-width row generated
+   into a tile its set does not contain.
 10. *(unit, boundary — the merge)* **The free-end merge still lands on a `'fit'` body.** At
     **2700 × 1699** (wall B remainder 98, one storage slot on B) the slot is inserted into the merged
     698 mm opening and stepped back to 600, exactly as it is today, whichever body the cycle assigned
@@ -5920,16 +6121,23 @@ tests, not in the composer.
     at the 7F4 seam — 7F4 names what was dropped in a customer-visible sentence.
 19. *(property)* **Every planned base is attempted exactly once.** The log's step ids for base roles are
     a permutation of `plan.bases`' ids, with no duplicate and no omission, for every room. *(7D3's
-    criterion 15, restated because S5 adds a role to the same two `plan.bases` partitions — a role that
-    falls through both is never inserted and its tile silently stays empty.)*
+    criterion 15, restated. **Its original reason has expired**: it was restated because S5 added a role
+    to the same two `plan.bases` partitions, and D11 moved S5 to 7D5. **It is kept for a better
+    reason** — `compose` partitions on `role !== "storage"` and `role === "storage"`, which is exactly
+    the word D12 showed has two referents, and a permutation check over planned ids is the cheapest
+    guard there is against a module falling through both.)*
 20. *(lint / grep in a test)* **One declaration site per build id, and no ratio constant.**
     `base-cabinet`, `base-3drawer` and `base-panbank` appear as literals in exactly one module under
-    `src/generation/` (`body-choice.ts`); `base-dishwasher` in exactly one
-    (`generation-priorities.ts`); `base-bottle-cargo` appears **nowhere** under `src/generation/`. No
-    file under `src/generation/` encodes the balance as a percentage, a ratio or a halving — it is the
-    cycle's shape. **Must not:** a generation-side width or price constant "kept in sync" with the
-    catalogue; a percentage anywhere under `src/generation/` — neither the base row's half nor the wall
-    row's 20–30 % nor the 5 % is a number this wave writes down.
+    `src/generation/` — `body-choice.ts`. **`base-dishwasher` and `base-bottle-cargo` appear nowhere**
+    under `src/generation/`. *(The dishwasher's clause is **withdrawn from its earlier form**, which
+    named `generation-priorities.ts` as its one site; that was written before **D11** moved the body to
+    7D5, and at HEAD the id appears in no generation module at all, so the old form would fail.)*
+    `tall-oven-tower` and `tall-pantry` stay where **7D3's criterion 23** put them, in
+    `tall-end-rule.ts`, and this criterion does not reach them. No file under `src/generation/` encodes
+    the balance as a percentage, a ratio or a halving — it is the cycle's shape. **Must not:** a
+    generation-side width or price constant "kept in sync" with the catalogue; a percentage anywhere
+    under `src/generation/` — neither the base row's half nor the wall row's 20–30 % nor the 5 % is a
+    number this wave writes down.
 21. *(property, ≥ 200 samples)* **The wall row is byte-identical to 7D3's, and it is asserted rather
     than composed** (D8). For every room: every upper's build id, opening, position and width are
     deep-equal to 7D3's; the hood stands over the hob; nothing stands over the fridge or over a
@@ -5939,10 +6147,21 @@ tests, not in the composer.
     a lift reinstated without a new dated ruling — **this criterion is the guard on a rule that was
     written, built into this plan and withdrawn by the owner in one day**, and it exists so the next
     reader of D8's struck text does not re-add it.
+22. *(unit + grep — **D12's guard**)* **The cycle's slots are identified by one exported predicate, and
+    nothing else knows the convention.** `isCycleStorageSlot` is exported from `body-choice.ts`; it
+    returns `true` for every `storage:{A|B}:{n}` module and `false` for every `column:A:{n}` module,
+    over a sample of designs covering block sizes **0, 1, 2 and 3**; and the literal `"storage:"`
+    appears in exactly **two** places in the repository — the predicate, and the one `Array.from` that
+    writes the id. **Must not:** a test, a property or a production module that parses a planned id
+    itself; **a predicate that answers by role or by width** — the two forms D12 measured to fail on
+    32.8 % and 14.9 % of placed rooms; a second discriminator added anywhere, including a new field on
+    `PlannedGenerationBase` or a role of the block's own, which E5.2 forbids.
 
-*(Criteria 22–24 were the composed wall row's — `upperBodyFor`'s totality, the one lift above the
-sink, and its measured share. **All three are withdrawn with D8's lift rule**, and the numbers are not
-reused, so every reference above still reads.)*
+*(Criteria 23 and 24 were the composed wall row's — the one lift above the sink and its measured share
+— and are **withdrawn with D8's lift rule**. **Number 22 was theirs too** — `upperBodyFor`'s totality —
+and is **reused here deliberately**: no surviving text references the withdrawn 22, and retiring a
+number permanently for a criterion nobody cites costs more than it saves. Every other reference above
+still reads.)*
 
 ### Slices, in dependency order — dispatched one at a time
 
@@ -5962,12 +6181,19 @@ flight together.
   the reason 7D4 was said to depend on 7D3**. Markdown only. **No other slice starts until it exists
   and is reviewed.**
 - **S1 — the leaf, alone** (`body-choice.ts` + its unit tests). The cycle, `storageBodyAt`,
-  `upperBodyFor`, and every build id both answers use. Criteria 3, 4, 6, 7 and 21 are provable against
-  the leaf before anything calls it, and 20's grep runs here. **It changes no generated design**, which
-  is why it goes first.
+  **`isCycleStorageSlot`** (D12), and every storage build id those answers use. **`upperBodyFor` is not
+  in it** — the module-boundaries section withdrew that half of the leaf when D8's lift rule was
+  withdrawn, and this bullet went on naming it. Criteria 3, 4, 6, 7 and **22** are provable against the
+  leaf before anything calls it, and 20's grep runs here. **Criterion 21 is not S1's** — it is a
+  whole-design property and belongs to S4; this bullet listed it here and was wrong. **S1 changes no
+  generated design**, which is why it goes first.
+  **It is not gated on any owner answer.** Q-7D4-1 confirms the cycle's *starting end*, not its shape,
+  and the leaf is identical under either answer. **A reader must not treat this wave as blocked.**
 - **S2 — the storage sequence and the preparation body** (`generation-priorities.ts`). The kitchen-wide
   sequence of D5, `storagePriorities` reading the leaf, and the one-line preparation change. Criteria
   1, 2, 5, 8, 9, 10, 11, 13, 14 and 19. **This is the slice that removes the eleven.**
+  **D13's index map is this slice's contract**, and the wall-B inversion is written before the cycle is
+  called — not discovered by running criterion 8.
 - ~~**S3 — the wall run** (`generate-kitchen.ts`).~~ **WITHDRAWN with D8's lift rule, 2026-09-14.**
   With no lift generated, the wall row's output is already correct and the slice's whole content was a
   refactor. **It does not fold into S2 either** — there is nothing to fold. What the wall row is owed
@@ -5978,6 +6204,10 @@ flight together.
   against the criteria, not against the implementation**, and any property that cannot be made to fail
   by a deliberate one-line sabotage of `body-choice.ts` is reported as not proving its criterion.
   **The two forbidden assertions named above the criteria are part of this slice's brief.**
+  **Every property in this slice is mutation-verified before the slice closes** (risk 13): delete the
+  clause the criterion is about, show the property **red**, revert. A property that stays green under
+  the deletion **has not proved its criterion** and is reported, not patched. **Every arm floor comes
+  from risk 14's measured table**, and the suite **fails** — never warns — when an arm is starved.
 - ~~**S5 — the dishwasher.**~~ **WITHDRAWN from 7D4 by D11, 2026-09-14, and moved to wave 7D5 with the
   bottle cargo.** **7D4 is S0–S4 and contains no width-changing commit at all**, which is what makes
   criterion 2 hold across the whole wave.
@@ -6053,8 +6283,133 @@ flight together.
     not reopened. The risk is the opposite one: a later reader finding that path plain and *improving*
     it, spending the wave's attention where 5 % of rooms and a smaller share of customers live.
     **D10 exists to be cited when that happens.**
+13. **An arm-minimum guard is only as good as the diversity *inside* the arm — 7D3's finding, and it
+    cost that wave a clause.** 7D3 carried a property demanding ≥ 100 samples per arm; it complied
+    exactly, and **the clause it existed to protect could be deleted with every test green**, because
+    the discriminating sub-case was 234 rooms in 2.34 M. **So every property in this wave is
+    mutation-verified**: delete the clause the criterion names, run the property, and it must go
+    **red**. Three are named because a green mutation is likeliest there, and each was checked against
+    the measured composition rather than guessed:
+    - **criterion 8's phase clause** — delete the `bCount +` term in D13's wall-A map and the cycle
+      restarts per wall; **criteria 3, 5, 6 and 7 all stay green** (measured over 211 551 rooms);
+    - **criterion 3's odd-count clause** — swap the cycle's index 0 and index 1 bodies and the balance
+      still holds at every even count, so only the odd arm separates them;
+    - **criterion 6's `min(3, n)`** — replace the cycle with `[3drawer, cabinet, 3drawer, cabinet]` and
+      criteria 1, 3, 5 and 7 stay green.
+14. **A sample floor derived from a uniform model of the input space ships a flaky gate.** `fc.integer`
+    is boundary-biased, and the divergence here is real and measurable: zero-slot rooms are **29.5 %**
+    of placed in the uniform 10 mm sweep and **32.9 %** under `fc.integer` over the same policy, so a
+    floor set from the sweep is **optimistic for every rich arm**. **Set every floor from the second
+    column below** — measured with `fc.integer` over the approved L policy, 5 000 runs, seed
+    `20260915`, against the real planner:
 
-### Owner questions — two open, five answered, each with a recommendation
+    | Arm | % of runs | Runs for 100 samples |
+    | --- | --- | --- |
+    | a room is placed at all | 89.0 % | 113 |
+    | ≥ 2 cycle slots — **criterion 3's arm** | 43.7 % | 229 |
+    | ≥ 6 cycle slots — the owner's own example | 6.1 % | 1 640 |
+    | cycle storage on **both** walls — **criterion 8's arm** | 17.4 % | 575 |
+    | ↳ with wall B's count **even** | **6.4 %** | **1 563** |
+    | ↳ with wall B's count odd | 11.0 % | 910 |
+    | the block absorbed a remainder | 10.9 % | 918 |
+
+    **The scarcest arm is criterion 8's even branch at 6.4 %.** A property at the house default of 200
+    runs sees about **thirteen** samples of it. **Criterion 8 needs ≥ 1 600 runs, or an arbitrary that
+    constructs the arm**, and the suite must **fail** rather than warn when an arm is starved.
+15. **Identify a body by what composed it — not by its role, and not by its shape** (D12). 7D3 met the
+    **shape** form three times: a check that identified cabinets dimensionally by the `column` band
+    swept in `fridge-free`, which is declared in the same band and is Amendment A1's body, not the
+    block's; each fix was the same distinction. **This wave meets the *role* form, and it is worse,
+    because the role is correct** — E5.2 puts the storage role on a block column deliberately.
+    Measured, the naive scoping fails on **32.8 %** and **14.9 %** of placed rooms **against output
+    that is right**, so the failure presents as a defect in a closed wave. **The first instinct on
+    seeing criterion 7 go red will be to edit 7D3, and it will be wrong.** A wave composing a *varied*
+    run meets this far more often than 7D3 did: provenance is the only thing separating one 600 mm
+    module from another once they stop being identical. **One exported predicate, not a string
+    convention repeated at each reader** — criterion 22.
+
+### Owner questions — two open, five answered, plus four confirmations raised 2026-09-15
+
+**Read this before treating the wave as blocked.** The brief that dispatched this planning said 7D4
+*"is owed an owner ruling it does not have — which bodies, in what proportion, and in what order"*.
+**Measured against the record at HEAD, two of those three are closed and the third is closed in part:**
+
+- **Which bodies** — R2, *"out goal is to use maximum cabonets types possible"*, together with the
+  measured fact (G3.8) that the catalogue holds exactly **three** general storage bodies buildable at
+  600 mm. The cycle uses all three. **Nothing to ask.**
+- **In what proportion** — R1, verbatim: *"if there is like space for 6 cabinets will be like 3 with
+  drawers and 3 with doors"*. **Nothing to ask**, and ADR 0117 §*unclear* #1 records that this
+  proportion is being built while the lift band is not.
+- **In what order** — **partly open.** The owner gave *ergonomic anchors* (cutlery before the hob, oil
+  after the hob) and never an order for the storage run itself. **The 4-cycle and the end it starts
+  from are the coordinator's derivation, not the owner's sentence.**
+
+**So the wave is owed a confirmation, not a ruling** — which is risk 10 and ADR 0117 decision 7 doing
+their job. **None of Q-7D4-1…4 gates S1 or S2**, and the plan is written on the stated default so
+neither slice waits.
+
+**Q-7D4-1 — the storage pattern, put in the exact form it is about to be built. OPEN; put to the owner
+2026-09-15; not a gate.** The pattern, as they should see it: *drawer cabinet (3 drawers) → door
+cabinet → drawer cabinet (2 deep pan drawers) → door cabinet*, repeated. Six cabinets give three and
+three, which is their number, and no two neighbours are alike. **The two consequences they have not
+seen, both measured**: the sequence starts at the **far end of the fridge wall**, so the first drawer
+cabinet stands **next to the fridge in 48.0 %** of kitchens; and **in 45.1 % of kitchens every varied
+cabinet is on the fridge wall**, with the cooking wall carrying only the core and the tall block —
+**only 19.1 % have variety on both walls** (G3.3).
+
+- *Answer "as described":* **the plan as written** (D3, D5). This is the default and **is what S1 and
+  S2 build unless the answer arrives first.**
+- *Answer "start at the cooking end":* the sequence reverses — wall A's slots take indices 0…*n* and
+  wall B's follow. The drawer cabinet lands nearest the hob instead of nearest the fridge. **The cost
+  is one line in `body-choice.ts`'s caller and a new pair of phase witnesses for criterion 8.** It is
+  cheap **now** and stops being cheap once the criteria harden, which is the whole reason the question
+  is asked before S2 rather than after.
+- *Answer "restart on each wall":* **refused in D5, and the refusal goes back to them with their own
+  example** — three-and-three then comes out **4 drawers and 2 doors**, not 3 and 3.
+
+**Q-7D4-2 — the block's two identical tall door cabinets. OPEN; not a gate.** Measured: in **32.8 %**
+of placed rooms the block is `tall-oven-tower, tall-pantry, tall-pantry` — a pair of identical tall
+door cabinets side by side, which is the shape of the repetition the owner objected to, and which the
+variety rule does not reach. *Answer "fine":* **nothing is built**; one sentence records that the
+variety rule stops at the block, so the next person who counts identical cabinets finds the answer
+instead of raising it. **This is the cheap answer and the expected one.** *Answer "same objection":*
+**it cannot be built in this wave or this milestone** — the catalogue has exactly one full-height door
+body, and a second is a **new catalogue row**, deferred to after beta (ADR 0110 E12.4, backlog 66).
+**Say so before they answer.** Either way the answer decides whether a criterion reads *exempt and
+correct* or *exempt and a known gap*, which read very differently to whoever builds the tall-body wave.
+
+**Q-7D4-3 — three drawer fronts in a row at the cooking position. OPEN; the one most likely to change
+something.** D6 makes the preparation cabinet a drawer body; 7D3 already makes the hob cabinet
+`base-hob-2drawer` whenever the oven moves into a column. **Measured together: two drawer-fronted
+cabinets stand side by side at the cooking position in 52.3 % of placed rooms, and three in a row in
+11.7 %.** The two rules were ruled on different days in different waves and **the owner has never seen
+them next to each other.** *Answer "fine":* D6 stands as written and the record gains the measured
+share, so it is a knowing choice. *Answer "make them different":* the preparation body becomes
+conditional on the hob's body — **a new rule, a new criterion, and the first place in this wave where
+one body's identity depends on another's.** *Answer "doesn't matter":* built as the first, and recorded
+as **not important to the owner** rather than as **approved** — six months from now those are different
+facts.
+
+**Q-7D4-4 — the price of variety, confirmed rather than assumed. OPEN; one line, ask it last.** Eight
+storage cabinets go from 3 168 000 to **3 440 000 minor, +8.6 %** (G9, G3.7). The choice is already
+theirs and this does not reopen it; the point is that ADR 0110 E12.3 records the `tall-pantry` choice
+as knowing **because the number was in front of them**, and G9's number has not been. If they push
+back, the answer is in D3: the cycle holds no ratio constant, so a cheaper cycle is a one-line change
+rather than a redesign.
+
+**A discrepancy of record, for the coordinator and not for the owner.** A relay dated 2026-09-15 has
+the owner saying *"whenever it fits"* about **mechanisms**. This section has *"whenever it fits"* about
+the **dishwasher** (D7, itself marked as a relay rather than a quotation), while **Q-D7** records the
+opposite shape for the corner mechanism — *blind by default, mechanism in larger kitchens*, with no
+number — and D8 records the owner pricing mechanisms out in general. **These cannot both be current.**
+Either the dishwasher's ruling has been attached to the mechanism in passing, or the owner said
+something new that **overturns Q-D7**. Under ADR 0119 it is **not treated as a ruling here and nothing
+in this plan rests on it**; it affects **no 7D4 slice**, because the corner is unbuildable until a
+corner body exists. **It would change 7D5 and the corner wave, so it is worth one line of
+clarification before either is planned.** *(The other two relays check out: "drawers are often
+preferred" is R1, recorded verbatim and at greater length; "lift mechanisms are very expensive, so for
+sure the default will be the doors" is D8's third step, recorded verbatim, and is the basis of ADR
+0117's whole lift section.)*
 
 *(Q-D1 moved from open to answered on 2026-09-14.)*
 
