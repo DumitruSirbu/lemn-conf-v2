@@ -451,8 +451,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   }, [stage]);
 
   const goal = useRef<CameraGoal | null>(null);
-  const viewKey = sceneViewKey(view);
-  const resolved = resolveSceneView(view);
+  const viewKey = sceneViewKey(view, designRoom);
+  const resolved = resolveSceneView(view, designRoom);
   const resolvedRef = useRef(resolved);
   resolvedRef.current = resolved;
 

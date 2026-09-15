@@ -5,6 +5,7 @@
 // makes the ported geometry read as product photography instead of a generic 3D scene, and
 // `docs/milestones/M1-scene-port.md` treats them as part of the port. The web-component shell,
 // the OBJ/GLB exporters and the toolbar are deliberately left behind — R3F owns the canvas now.
+import type { DesignRoom } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { context2d } from "./three-guards.js";
@@ -16,6 +17,17 @@ export const STAGE_BACKGROUND = "#f2f0ea";
 export const CAMERA_FIELD_OF_VIEW_DEGREES = 45;
 export const TONE_MAPPING_EXPOSURE = 0.98;
 export const MAX_DEVICE_PIXEL_RATIO = 2;
+
+/** The reference's framing margin: having worked out how far back holds the subject, stand back
+ *  this much further so it never touches the frame's edge. Used by the auto-frame in
+ *  `seatObjectOnStage` and by the camera presets, which is why it is declared once. */
+const FRAMING_HEADROOM = 1.35;
+
+/** `fov` is **vertical**, so this is what a distance converts into a framed height; `aspect`
+ *  widens the frustum horizontally from it. */
+const VERTICAL_HALF_ANGLE_TANGENT = Math.tan(
+  (CAMERA_FIELD_OF_VIEW_DEGREES * Math.PI) / 360,
+);
 
 /** `WebGLRenderer` construction parameters. `preserveDrawingBuffer` keeps the last frame readable
  *  after compositing, which is what lets a screenshot capture the scene instead of a blank canvas. */
@@ -169,7 +181,8 @@ export function seatObjectOnStage(input: StageSeatingInput): THREE.Vector3 {
   blob.visible = true;
 
   const sphere = box.getBoundingSphere(new THREE.Sphere());
-  const dist = (sphere.radius / Math.tan((camera.fov * Math.PI) / 360)) * 1.35;
+  const dist =
+    (sphere.radius / Math.tan((camera.fov * Math.PI) / 360)) * FRAMING_HEADROOM;
   const dir = new THREE.Vector3(1, 0.55, 1.25).normalize();
   camera.position.copy(sphere.center).add(dir.multiplyScalar(dist));
   camera.near = Math.max(dist / 100, 0.01);
@@ -194,8 +207,22 @@ export interface CameraPreset {
 
 export type CameraPresetId = "overview" | "wallA" | "wallB";
 
-/** `DEVELOPMENT-SPEC.md` §6.4. All three must frame floor to ceiling: with the target at 1.05 the
- *  2.2–2.6 m row projected to about 37 px in a 540 px viewport and became unclickable. */
+/**
+ * The reference library's three views, drawn on its one 4.2 x 3.4 m room — `DEVELOPMENT-SPEC.md`
+ * §6.4. The recorded starting point, and **no longer what the app reads**: `cameraPresetsForRoom`
+ * below frames the room the customer entered, and these three triples frame a room 99 customers in
+ * 100 do not have.
+ *
+ * They are retained, exported and unmoved for two jobs. They are this file's declaration of the
+ * **three viewing directions** — the reference's own aesthetic, which the room does not get to
+ * change — and they are the regression witness a framing change is measured against.
+ *
+ * Its original note, kept because the failure it records is still the one to avoid: all three must
+ * frame floor to ceiling, because with the target at 1.05 the 2.2–2.6 m row projected to about
+ * 37 px in a 540 px viewport and became unclickable. Q7H-3 has since restated the *floor to
+ * ceiling* half — the presets frame the **kitchen**, and the ceiling is permitted above the frame —
+ * while leaving the 37 px failure exactly where it was.
+ */
 export const CAMERA_PRESETS: readonly CameraPreset[] = [
   { id: "overview", position: [4.3, 3.0, 5.3], target: [1.6, 1.35, 0.85] },
   { id: "wallA", position: [1.9, 2.1, 5.6], target: [1.7, 1.35, 0.45] },
@@ -206,4 +233,106 @@ export function findCameraPreset(id: CameraPresetId): CameraPreset {
   const preset = CAMERA_PRESETS.find((candidate) => candidate.id === id);
   if (!preset) throw new Error(`Unknown camera preset: ${id}`);
   return preset;
+}
+
+/** The top of the tallest body a kitchen carries: the ceiling row of wall cabinets runs
+ *  2.20–2.60 m and nothing in the catalogue stands above it.
+ *
+ *  **A kitchen dimension, not a room one**, and that is the whole of Q7H-3's ruling. At the
+ *  owner-approved 3900 mm ceiling a camera pulled back far enough to hold floor-to-ceiling shrinks
+ *  the 2.20–2.60 row by about a third, and §11 row 21 — that row stays tappable — is the one that
+ *  must not break. So the presets frame the kitchen and the ceiling is permitted above the frame.
+ *  The owner's own stated range is 2500–3000 mm (ADR 0110 E11); the 3900 bound is an arithmetic
+ *  artefact of the old shell times 1.5, and no framing rule here is tuned for it. */
+export const KITCHEN_TOP_M = 2.6;
+
+/**
+ * How far every preset stands from what it looks at.
+ *
+ * **Derived from the kitchen's height and from nothing else**, which is what makes §11 row 21 safe
+ * at every room in the policy: the 2.20–2.60 m band projects the same number of pixels in a
+ * 900 x 1000 mm kitchen as in a 6300 x 5100 one, because the camera has not moved away from it.
+ * A distance derived from the room's *length* would pull back as the wall grew and take the row
+ * with it — measured, a camera far enough back to hold a 6300 mm wall leaves that band at about
+ * 25 px of the 44 it owes.
+ */
+const PRESET_DISTANCE_M =
+  (KITCHEN_TOP_M / 2 / VERTICAL_HALF_ANGLE_TANGENT) * FRAMING_HEADROOM;
+
+const MILLIMETRES_PER_METRE = 1000;
+
+/**
+ * The three presets, framed on the room the customer entered.
+ *
+ * **This is what the app reads**; `CAMERA_PRESETS` above is the recorded starting point and the
+ * source of the three viewing directions. The room decides **where** each preset looks — the middle
+ * of the wall it is named for, or the middle of the floor — and the kitchen's own height decides
+ * how far back it stands.
+ *
+ * **Not a lookup around a special case.** There is no room this answers from a table, the seeded
+ * one included: two rooms a millimetre apart return presets a fraction of a millimetre apart,
+ * because every term is linear in the room's dimensions.
+ */
+export function cameraPresetsForRoom(
+  room: DesignRoom,
+): readonly CameraPreset[] {
+  return CAMERA_PRESETS.map((reference) => framedOnRoom(reference, room));
+}
+
+export function findCameraPresetForRoom(
+  id: CameraPresetId,
+  room: DesignRoom,
+): CameraPreset {
+  const preset = cameraPresetsForRoom(room).find(
+    (candidate) => candidate.id === id,
+  );
+  if (!preset) throw new Error(`Unknown camera preset: ${id}`);
+  return preset;
+}
+
+function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
+  const target = targetInRoom(reference.id, room);
+  const direction = viewingDirectionOf(reference);
+  return {
+    id: reference.id,
+    position: [
+      target[0] + direction[0] * PRESET_DISTANCE_M,
+      target[1] + direction[1] * PRESET_DISTANCE_M,
+      target[2] + direction[2] * PRESET_DISTANCE_M,
+    ],
+    target,
+  };
+}
+
+/** Where each preset looks. Wall A runs along +x from the corner and wall B along +z, so the middle
+ *  of each is half its entered length; the eye is at half the kitchen's height. A `switch` over the
+ *  union rather than a table, so a fourth preset cannot be added without deciding this. */
+function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
+  const widthM = metresFrom(room.widthMm);
+  const depthM = metresFrom(room.depthMm);
+  const eyeM = KITCHEN_TOP_M / 2;
+  switch (id) {
+    case "overview":
+      return [widthM / 2, eyeM, depthM / 2];
+    case "wallA":
+      return [widthM / 2, eyeM, 0];
+    case "wallB":
+      return [0, eyeM, depthM / 2];
+  }
+}
+
+/** The direction the reference stands in, as a unit vector. Read off `CAMERA_PRESETS` rather than
+ *  restated, so the three angles have one declaration. */
+function viewingDirectionOf(reference: CameraPreset): Vector3Tuple {
+  const offset: Vector3Tuple = [
+    reference.position[0] - reference.target[0],
+    reference.position[1] - reference.target[1],
+    reference.position[2] - reference.target[2],
+  ];
+  const length = Math.hypot(...offset);
+  return [offset[0] / length, offset[1] / length, offset[2] / length];
+}
+
+function metresFrom(millimetres: number): number {
+  return millimetres / MILLIMETRES_PER_METRE;
 }
