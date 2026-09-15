@@ -6,11 +6,18 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createNeonDesignRowSource } from "../src/design-row-source.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { readAllDesignRows } from "./support/read-all-design-rows.js";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
+const SUITE_NAME = "createNeonDesignRowSource (live test database)";
+
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const WRITE_TOKEN_HASH = "e".repeat(64);
 
@@ -20,7 +27,7 @@ const WRITE_TOKEN_HASH = "e".repeat(64);
  * and permanently unwritable — the link still works, so nothing looks broken until a customer tries
  * to save and is refused. These tests are what stop that column being dropped again.
  */
-describe("createNeonDesignRowSource (live test database)", () => {
+describe(SUITE_NAME, () => {
   const mintedIds: DesignId[] = [];
 
   async function mintTrackingId(hash = WRITE_TOKEN_HASH): Promise<DesignId> {

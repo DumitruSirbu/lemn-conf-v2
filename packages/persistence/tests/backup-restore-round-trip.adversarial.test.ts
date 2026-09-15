@@ -27,15 +27,23 @@ import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { readAllDesignRows } from "./support/read-all-design-rows.js";
 
 /** A restored row carries the revision its dump held, and every dump in this suite predates the
  *  revision column — so what comes back is the migration's backfill. */
 const RESTORED_REVISION = "1";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
+const SUITE_NAME =
+  "a backup round trip preserves edit access (live test database)";
+
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 /** Exactly what `apps/web/src/lib/server/write-token.ts` does, reproduced so the test holds a real
  *  token and can present it after the restore. */
@@ -48,7 +56,7 @@ function toNdjsonLine(row: DesignBackupRow): string {
   return `${JSON.stringify(row)}\n`;
 }
 
-describe("a backup round trip preserves edit access (live test database)", () => {
+describe(SUITE_NAME, () => {
   const mintedIds: DesignId[] = [];
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
