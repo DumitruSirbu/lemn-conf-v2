@@ -1,0 +1,389 @@
+// Independent adversarial QA for M7 wave 7D3 slice S2 — ADR 0110 Amendment E's block of full-height
+// columns at wall A's free end, and the hob that follows it.
+//
+// **Two of these close a hole that was opened rather than found.** Wave 7D2's assertions had to move
+// for S2's ruling, and some came back weaker than they went in or stopped covering what their own
+// comment claims: criterion 6's dropped-core arm is counted over a uniform room generator that draws
+// the discriminating case about once in three hundred; and a body silently planned over its module,
+// with the wall's reported remainder reduced to match, was left uncovered when the remainder
+// assertion was relaxed to `run − composed` — the one quantity such a pair leaves unchanged.
+//
+// Two sibling repairs live where their subjects do rather than here, because a second copy would be
+// the duplication this wave spent its criterion 23 avoiding: the **remainder identity** is narrowed
+// in place in `generation-priorities.test.ts`, and the **plannable build id** guard is derived from
+// real plans in `qa-7d3-upper-suppression.adversarial.test.ts`.
+//
+// The rest read the block off the **built design** wherever the wave's own tests read it off the
+// plan, so a plan that says one thing and a kitchen that is another is a disagreement between two
+// derivations rather than two readings of one number.
+import { fc } from "@fast-check/vitest";
+import { describe, expect, it } from "vitest";
+
+import {
+  APPROVED_ROOM_POLICY,
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  declaredColumnSizes,
+  findOverflowingPlacementIds,
+  generateKitchen,
+  GENERATION_PRIORITIES,
+  KITCHEN_L_DESIGN,
+  lShellFloorRuns,
+  planKitchenComposition,
+  planLeftover,
+  STORAGE_BUILD_ID,
+  validateDesignForCatalog,
+  type DesignRoom,
+  type KitchenCompositionPlan,
+} from "../../src/index.js";
+import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
+import { createFakeProbeFactory } from "../support/fake-probe.js";
+
+const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
+const OVEN_TOWER = "tall-oven-tower";
+const HOB_WITH_DRAWERS = "base-hob-2drawer";
+const HOB_WITH_OVEN = "base-hob-oven";
+const STORAGE_MODULE_WIDTH_MM = 600;
+
+/** Wall B is too short to seat the fridge below this, so the drop order gives it up and `dropped`
+ *  is non-empty — which is the only region of the policy where E3 clause 1 decides anything. */
+const WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM = { minMm: 1000, maxMm: 1699 };
+
+const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
+const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
+
+const APPROVED_L = (() => {
+  const shape = APPROVED_ROOM_POLICY.buildableShapes.L;
+  if (!shape) throw new Error("the approved policy has no L");
+  return shape;
+})();
+
+function roomOf(widthMm: number, depthMm: number, heightMm = 2600): DesignRoom {
+  return { shape: "L", widthMm, depthMm, heightMm };
+}
+
+function planFor(room: DesignRoom): KitchenCompositionPlan {
+  return planKitchenComposition({
+    room,
+    runs: lShellFloorRuns(room),
+    columns: DECLARED_COLUMNS,
+  });
+}
+
+function generate(room: DesignRoom) {
+  return generateKitchen({
+    room,
+    occurredAt: OCCURRED_AT,
+    probeAt: createFakeProbeFactory(),
+  });
+}
+
+/** The full-height bodies composition stood that the reading order did not, read off the
+ *  catalogue's own `column` band. `fridge-free` is declared in that band too and is Amendment A1's,
+ *  so its role excludes it. */
+function blockOf(plan: KitchenCompositionPlan) {
+  return plan.bases.filter(
+    (base) =>
+      base.role !== "fridge" && CATALOG.get(base.buildId)?.band === "column",
+  );
+}
+
+/** What the leftover rule alone makes of wall A's free end — E3 clause 3's own input, recomputed
+ *  here from the run and the composed core rather than read back off the plan. */
+function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
+  const run = lShellFloorRuns(room).A;
+  const coreWidthMm = plan.bases
+    .filter((base) => base.wall === "A" && base.role !== "storage")
+    .reduce((sum, base) => sum + base.widthMm, 0);
+  return planLeftover(run.endMm - run.startMm - coreWidthMm);
+}
+
+const approvedRoom = fc.record({
+  shape: fc.constant("L" as const),
+  widthMm: fc.integer({
+    min: APPROVED_L.wallA.minMm,
+    max: APPROVED_L.wallA.maxMm,
+  }),
+  depthMm: fc.integer({
+    min: APPROVED_L.wallB.minMm,
+    max: APPROVED_L.wallB.maxMm,
+  }),
+  heightMm: fc.integer({
+    min: APPROVED_ROOM_POLICY.heightBounds.minMm,
+    max: APPROVED_ROOM_POLICY.heightBounds.maxMm,
+  }),
+});
+
+describe("E3 clause 1 decides something, and it is asserted where it decides it", () => {
+  // Criterion 6's "**must not:** a block in a room whose `dropped` list is non-empty". The clause is
+  // R5 stated as a precondition: a kitchen that gave up its fridge for want of space has no business
+  // gaining a second oven.
+  //
+  // **Swept rather than sampled, and that is the point.** Removing `coreSurvivedWhole` from
+  // `isABlockAffordable` changes the plan in 0.06 % of the approved policy — two wall A values per
+  // wall B — so a uniform property over 4 000 rooms draws the deciding room about once and passes
+  // whether the clause is there or not. The two counters below fail when the sweep stops reaching it.
+  it("stands no block in a room that dropped a core role, wherever that is decidable", () => {
+    let droppedCoreRooms = 0;
+    let wouldStandWithoutTheClause = 0;
+    for (
+      let depthMm = WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM.minMm;
+      depthMm <= WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM.maxMm;
+      depthMm += 100
+    ) {
+      for (
+        let widthMm = APPROVED_L.wallA.minMm;
+        widthMm <= APPROVED_L.wallA.maxMm;
+        widthMm += 1
+      ) {
+        const room = roomOf(widthMm, depthMm);
+        const plan = planFor(room);
+        if (!plan.minimumMet || plan.dropped.length === 0) continue;
+        droppedCoreRooms += 1;
+
+        const leftover = freeEndOf(plan, room);
+        const clausesTwoToFour =
+          plan.bases.find((base) => base.role === "hob")?.wall === "A" &&
+          leftover.storageCount >= 1 &&
+          room.heightMm >= DECLARED_COLUMNS.columnHeightMm;
+        const mergesWithTheFreeEndTile =
+          leftover.remainderMm > 0 &&
+          DECLARED_COLUMNS.columnWidthMm + leftover.remainderMm <=
+            MAX_EMPTY_COLUMN_WIDTH_MM;
+        const sizeTheOtherClausesAllow = Math.min(3, leftover.storageCount);
+        if (
+          clausesTwoToFour &&
+          !(sizeTheOtherClausesAllow === 1 && mergesWithTheFreeEndTile)
+        ) {
+          wouldStandWithoutTheClause += 1;
+        }
+
+        expect(
+          blockOf(plan),
+          `${String(widthMm)}x${String(depthMm)} dropped ${plan.dropped.join()}`,
+        ).toEqual([]);
+        expect(plan.bases.find((base) => base.role === "hob")?.buildId).toBe(
+          HOB_WITH_OVEN,
+        );
+      }
+    }
+
+    expect(
+      droppedCoreRooms,
+      "the dropped-core arm never fired",
+    ).toBeGreaterThan(1000);
+    expect(
+      wouldStandWithoutTheClause,
+      "the sweep reached no room where clause 1 is the only thing refusing a block, so it proves nothing about clause 1",
+    ).toBeGreaterThan(10);
+  });
+});
+
+describe("no body is silently planned over its own module", () => {
+  // The half of the compensating defect that `generation-priorities.test.ts`'s remainder assertion
+  // does **not** claim, and the one that makes the pair impossible to *build* rather than merely
+  // visible: every composed body stands at a width its own declaration accounts for, **per body**,
+  // including the columns' bound. A storage cabinet silently planned at 700 mm is a cabinet the
+  // customer is charged 600 for, and it survives a later wave that changes how remainders are
+  // reported.
+  //
+  // The modulo identity itself is asserted once, where its subject lives — `planKitchenComposition`'s
+  // own suite, narrowed in place to subtract only E6.2's absorb. A second copy here would be the
+  // duplication this wave spent its criterion 23 avoiding.
+  it("plans every composed body at a width its declaration accounts for", () => {
+    const declaredCoreWidthMm = new Map(
+      GENERATION_PRIORITIES.map((priority) => [
+        priority.role,
+        priority.widthMm,
+      ]),
+    );
+    fc.assert(
+      fc.property(approvedRoom, (room) => {
+        const plan = planFor(room);
+        if (!plan.minimumMet) return;
+        const block = blockOf(plan);
+        const outermost = block.at(-1);
+        const where = `${String(room.widthMm)}x${String(room.depthMm)}`;
+
+        for (const base of plan.bases) {
+          const declared = CATALOG.get(base.buildId);
+          const label = `${where} ${base.id} (${base.buildId})`;
+          expect(base.endMm - base.startMm, label).toBe(base.widthMm);
+
+          if (base.role !== "storage") {
+            expect(base.widthMm, label).toBe(
+              declaredCoreWidthMm.get(base.role),
+            );
+            continue;
+          }
+          if (declared?.band !== "column") {
+            expect(base.buildId, label).toBe(STORAGE_BUILD_ID);
+            expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
+            continue;
+          }
+          // A column is its declared width, except the outermost one, which is the `'fit'` door
+          // column taking a merged opening inside its own bound (E6.2 / E12.2).
+          if (base !== outermost) {
+            expect(base.widthMm, label).toBe(DECLARED_COLUMNS.columnWidthMm);
+            continue;
+          }
+          expect(base.widthMm, label).toBeGreaterThanOrEqual(
+            DECLARED_COLUMNS.columnWidthMm,
+          );
+          expect(base.widthMm, label).toBeLessThanOrEqual(
+            DECLARED_COLUMNS.doorColumnWidthMm.maxMm,
+          );
+          if (base.widthMm !== DECLARED_COLUMNS.columnWidthMm) {
+            expect(base.buildId, label).not.toBe(OVEN_TOWER);
+          }
+        }
+      }),
+      { numRuns: 400 },
+    );
+  });
+});
+
+// The plannable-build-id guard that slice S2 outgrew lives where its subject does — it is E7's
+// input, so it is repaired in `qa-7d3-upper-suppression.adversarial.test.ts` rather than copied
+// here. A second copy would be the second authority this wave spent its criterion 23 avoiding.
+
+describe("exactly one oven, read off the built kitchen", () => {
+  // Criterion 2 in both directions, and deliberately **not** through `assertExactlyOneOven`: that
+  // post-condition is production's own, so a test that only observes it passing observes production
+  // agreeing with itself. This counts the bodies in the design.
+  it("carries one oven-bearing body in every generated kitchen, in both arms", () => {
+    const arms = { withATower: 0, withoutOne: 0 };
+    let generated = 0;
+    for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
+      for (const depthMm of [1000, 1450, 1700, 2600, 5100]) {
+        const result = generate(roomOf(widthMm, depthMm));
+        if (!result.ok) continue;
+        generated += 1;
+        const towers = result.design.placements.filter(
+          (placement) => placement.body.buildId === OVEN_TOWER,
+        );
+        const hobsWithAnOven = result.design.placements.filter(
+          (placement) => placement.body.buildId === HOB_WITH_OVEN,
+        );
+        const hobsWithDrawers = result.design.placements.filter(
+          (placement) => placement.body.buildId === HOB_WITH_DRAWERS,
+        );
+        const where = `${String(widthMm)}x${String(depthMm)}`;
+
+        expect(towers.length + hobsWithAnOven.length, where).toBe(1);
+        expect(hobsWithAnOven.length + hobsWithDrawers.length, where).toBe(1);
+        expect(hobsWithDrawers.length === 1, where).toBe(towers.length === 1);
+        if (towers.length === 1) arms.withATower += 1;
+        else arms.withoutOne += 1;
+      }
+    }
+
+    expect(generated).toBeGreaterThan(500);
+    expect(arms.withATower, "the tower arm never fired").toBeGreaterThan(150);
+    expect(arms.withoutOne, "the no-tower arm never fired").toBeGreaterThan(
+      150,
+    );
+  });
+});
+
+describe("the block shrinks in exactly one shape, swept in two dimensions", () => {
+  // Criterion 22. The wave's own sweep holds wall B at 1700; the `1 → 0` claim is about the whole
+  // policy, and a `2 → 1` step reachable only at some other wall B would be invisible to it.
+  it("never steps down except from one column to none, over every sampled wall B", () => {
+    const steps = new Map<string, number>();
+    for (const depthMm of [1000, 1200, 1600, 1700, 2300, 3100, 4200, 5100]) {
+      let previous = blockOf(planFor(roomOf(900, depthMm))).length;
+      for (let widthMm = 901; widthMm <= 6300; widthMm += 1) {
+        const size = blockOf(planFor(roomOf(widthMm, depthMm))).length;
+        if (size < previous) {
+          const step = `${String(previous)}->${String(size)} at wallB ${String(depthMm)}`;
+          steps.set(step, (steps.get(step) ?? 0) + 1);
+        }
+        previous = size;
+      }
+    }
+
+    expect(
+      [...steps.keys()].filter((step) => !step.startsWith("1->0")),
+    ).toEqual([]);
+    expect(
+      [...steps.values()].reduce((sum, count) => sum + count, 0),
+      "the sweep found no step down at all, so it proves nothing about their shape",
+    ).toBeGreaterThan(5);
+  });
+});
+
+describe("the centring hazard across the whole absorb window", () => {
+  // Criterion 8 / risk 1. The wave pins 4000 x 3000 as its witness; the window is `0 < r <= 200` and
+  // covers about a third of eligible rooms. A merge that fired at one remainder and not another, or
+  // that left the run short of the wall's reachable end, is invisible to a single witness.
+  it("leaves the tower's opening at 600, the run flush, and no column resized, at every remainder in the window", () => {
+    const remaindersSeen = new Set<number>();
+    let roomsInTheWindow = 0;
+    for (const depthMm of [1700, 2400, 3000, 4100, 5100]) {
+      for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
+        const room = roomOf(widthMm, depthMm);
+        const plan = planFor(room);
+        if (!plan.minimumMet) continue;
+        const leftover = freeEndOf(plan, room);
+        if (!(leftover.remainderMm > 0 && leftover.remainderMm <= 200))
+          continue;
+        const block = blockOf(plan);
+        if (block.length === 0) continue;
+        roomsInTheWindow += 1;
+        remaindersSeen.add(leftover.remainderMm);
+
+        const runA = lShellFloorRuns(room).A;
+        const where = `${String(widthMm)}x${String(depthMm)} r=${String(leftover.remainderMm)}`;
+        const tower = block[0];
+
+        expect(tower?.buildId, where).toBe(OVEN_TOWER);
+        expect(tower && tower.endMm - tower.startMm, where).toBe(
+          DECLARED_COLUMNS.columnWidthMm,
+        );
+        expect(block.at(-1)?.endMm, where).toBe(runA.endMm);
+        expect(plan.remainderMm.A, where).toBe(0);
+
+        const result = generate(room);
+        expect(result.ok, where).toBe(true);
+        if (!result.ok) continue;
+        const columnPlacementIds = new Set(
+          result.design.placements
+            .filter(
+              (placement) =>
+                CATALOG.get(placement.body.buildId)?.band === "column" &&
+                placement.body.buildId !== "fridge-free",
+            )
+            .map((placement) => placement.id),
+        );
+        for (const command of result.log.commands) {
+          if (command.type !== "set_width") continue;
+          expect(columnPlacementIds.has(command.placementId), where).toBe(
+            false,
+          );
+        }
+        const placedTower = result.design.placements.find(
+          (placement) => placement.body.buildId === OVEN_TOWER,
+        );
+        expect(placedTower?.body.widthMm, where).toBe(
+          DECLARED_COLUMNS.columnWidthMm,
+        );
+        expect(placedTower?.alongMm, where).toBe(
+          (tower?.startMm ?? 0) + DECLARED_COLUMNS.columnWidthMm / 2,
+        );
+        expect(validateDesignForCatalog(result.design, CATALOG), where).toEqual(
+          [],
+        );
+        expect(findOverflowingPlacementIds(result.design), where).toEqual([]);
+      }
+    }
+
+    expect(roomsInTheWindow, "the absorb window never fired").toBeGreaterThan(
+      500,
+    );
+    expect(
+      remaindersSeen.size,
+      "one remainder proves nothing about a 200 mm window",
+    ).toBeGreaterThan(20);
+  });
+});

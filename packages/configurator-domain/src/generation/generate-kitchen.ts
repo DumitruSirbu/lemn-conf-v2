@@ -13,6 +13,7 @@ import {
   deriveRecordedColumns,
   recomputeVoids,
   type BodyCatalog,
+  type BodyDefinition,
   type Column,
   type VoidRecord,
 } from "../void-engine.js";
@@ -21,9 +22,13 @@ import { reconcileSuccessfulCommandResult } from "../commands/reconcile-command-
 import type { RejectionReason } from "../commands/rejection.js";
 import { insertBody } from "../commands/insert-body.js";
 import { setWidth } from "../commands/set-width.js";
-import { buildKitchenLBodyCatalog } from "../fixtures/kitchen-l-design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
+} from "../fixtures/kitchen-l-design.js";
 import {
   GENERATION_PRIORITIES,
+  hobWithItsOwnOvenBuildId,
   planKitchenComposition,
   type GenerationBaseRole,
   type GenerationCoreRole,
@@ -31,6 +36,12 @@ import {
   type PlannedGenerationBase,
 } from "./generation-priorities.js";
 import { buildLShellDesign, lShellFloorRuns } from "./shell-design.js";
+import {
+  DOOR_COLUMN_BUILD_ID,
+  OVEN_TOWER_BUILD_ID,
+  type DeclaredColumnSizes,
+  type WidthBoundMm,
+} from "./tall-end-rule.js";
 
 export type GenerationPlanningReason =
   | {
@@ -118,24 +129,94 @@ const WALL_ROW_Y0_MM = 1500;
 const WALL_CABINET_BUILD_ID = "wall-cabinet";
 const HOOD_BUILD_ID = "hood";
 
+/** The shell copies the reference kitchen's settings whatever room it is built for
+ *  (`shell-design.ts`), so the catalogue the plan reads the block's declared sizes from is knowable
+ *  before the shell the plan shapes exists. `refuseAnUnplannedShellDepth` below is what keeps that
+ *  from becoming an assumption. */
+const PLANNING_CABINET_DEPTH_MM = cabinetDepthMmOf(KITCHEN_L_DESIGN);
+
+/** The two bodies a generated kitchen may carry an oven in, which ADR 0110 E4 rules there is always
+ *  exactly one of. */
+const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
+  hobWithItsOwnOvenBuildId(),
+  OVEN_TOWER_BUILD_ID,
+]);
+
 /** Composes one deterministic L kitchen through the same command and frozen-map funnel as the
  *  editor. One probe lease brackets the entire attempt, including a minimum refusal or a throw. */
 export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
+  const catalog = buildKitchenLBodyCatalog(PLANNING_CABINET_DEPTH_MM);
   const plan = planKitchenComposition({
     room: input.room,
     runs: lShellFloorRuns(input.room),
+    columns: declaredColumnSizes(catalog),
   });
   const shell = buildLShellDesign({
     room: input.room,
     occurredAt: input.occurredAt,
     compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
   });
-  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(shell));
+  refuseAnUnplannedShellDepth(shell);
   const lease = input.probeAt(cabinetDepthMmOf(shell));
 
   return lease.use((probe) => compose({ shell, catalog, plan, probe, input }));
+}
+
+/** ADR 0102: the block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the
+ *  rule. A generation-side constant checked against the catalogue in a test would be the second
+ *  authority that ADR names, not a safeguard. */
+export function declaredColumnSizes(catalog: BodyCatalog): DeclaredColumnSizes {
+  return {
+    columnWidthMm: soleDeclaredWidthMm(catalog, OVEN_TOWER_BUILD_ID),
+    doorColumnWidthMm: declaredWidthBoundMm(catalog, DOOR_COLUMN_BUILD_ID),
+    columnHeightMm: declaredHeightMm(catalog, OVEN_TOWER_BUILD_ID),
+  };
+}
+
+function declaredEntry(catalog: BodyCatalog, buildId: string): BodyDefinition {
+  const definition = catalog.get(buildId);
+  if (!definition) {
+    throw new Error(`generateKitchen: the catalogue holds no ${buildId}`);
+  }
+  return definition;
+}
+
+function declaredWidthBoundMm(
+  catalog: BodyCatalog,
+  buildId: string,
+): WidthBoundMm {
+  const bound = declaredEntry(catalog, buildId).widthRangesMm?.[0];
+  if (!bound) {
+    throw new Error(`generateKitchen: ${buildId} declares no width bound`);
+  }
+  return { minMm: bound.minMm, maxMm: bound.maxMm };
+}
+
+function soleDeclaredWidthMm(catalog: BodyCatalog, buildId: string): number {
+  const bound = declaredWidthBoundMm(catalog, buildId);
+  if (bound.minMm !== bound.maxMm) {
+    throw new Error(
+      `generateKitchen: ${buildId} declares a width range and not the one width a fixed column has`,
+    );
+  }
+  return bound.minMm;
+}
+
+function declaredHeightMm(catalog: BodyCatalog, buildId: string): number {
+  const heightMm = declaredEntry(catalog, buildId).nominalHeightMm;
+  if (heightMm === undefined) {
+    throw new Error(`generateKitchen: ${buildId} declares no height`);
+  }
+  return heightMm;
+}
+
+function refuseAnUnplannedShellDepth(shell: Design): void {
+  if (cabinetDepthMmOf(shell) === PLANNING_CABINET_DEPTH_MM) return;
+  throw new Error(
+    `generateKitchen: the shell stands at ${String(cabinetDepthMmOf(shell))} mm, which is not the depth its plan read the catalogue at`,
+  );
 }
 
 function compose(args: {
@@ -299,6 +380,7 @@ function compose(args: {
   if (!hasMinimum)
     return refused(args.plan, args.input.occurredAt, steps, commands);
 
+  assertExactlyOneOven(world.design);
   assertGeneratedDesign(world.design, args.catalog);
   return {
     ok: true,
@@ -559,6 +641,21 @@ function placementById(design: Design, id: string): DesignPlacement {
       `generateKitchen: command reported missing placement ${id}`,
     );
   return placement;
+}
+
+/** ADR 0110 Amendment E4: **exactly one oven — never two, and never zero.** The block and the hob's
+ *  build id are decided together, so a kitchen with no oven means a planned column was refused at
+ *  insert time while the hob had already given its oven up. E4 rules that a programming error and
+ *  makes it throw: logging the column *not placed* and carrying on ships a kitchen whose hob has
+ *  drawers and whose oven does not exist, which is worse than a loud failure. */
+function assertExactlyOneOven(design: Design): void {
+  const ovenCount = design.placements.filter((placement) =>
+    OVEN_BEARING_BUILD_IDS.has(placement.body.buildId),
+  ).length;
+  if (ovenCount === 1) return;
+  throw new Error(
+    `generateKitchen: a generated kitchen carries exactly one oven and this one carries ${String(ovenCount)}`,
+  );
 }
 
 function assertGeneratedDesign(design: Design, catalog: BodyCatalog): void {

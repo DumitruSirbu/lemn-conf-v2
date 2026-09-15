@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  declaredColumnSizes,
   GENERATION_PRIORITIES,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
@@ -12,10 +15,44 @@ import {
   type DesignRoom,
 } from "../../src/index.js";
 
+/** What `generateKitchen` reads off the catalogue and hands the planner (ADR 0110 E, wave 7D3). */
+const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
+const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
+
+/**
+ * How many millimetres of a wall's free end the block's outermost column took into its own width.
+ *
+ * ADR 0110 Amendment E6.2, and **the only thing that moves a wall's reported remainder off the
+ * leftover rule's modulo.** Read from the one body that may be planned over a module — the outermost
+ * full-height column, found by the catalogue's own `column` band — so a wider body anywhere else in
+ * the run still shows up as a mismatch rather than being absorbed into the arithmetic.
+ *
+ * `fridge-free` is declared in that same band and stands at wall B's free end, so it is the **role**
+ * that excludes it: it is Amendment A1's body at its declared 700 mm, not a module the block widened.
+ */
+function absorbedIntoTheBlockMm(
+  plan: ReturnType<typeof planKitchenComposition>,
+  wall: "A" | "B",
+): number {
+  const outermost = plan.bases.filter((base) => base.wall === wall).at(-1);
+  if (
+    !outermost ||
+    outermost.role !== "storage" ||
+    CATALOG.get(outermost.buildId)?.band !== "column"
+  ) {
+    return 0;
+  }
+  return outermost.widthMm - DECLARED_COLUMNS.columnWidthMm;
+}
+
 describe("planKitchenComposition", () => {
   it("plans the reference room at the owner-ruled boundaries", () => {
     const room = KITCHEN_L_DESIGN.room;
-    const plan = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+    const plan = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
+      room,
+      runs: lShellFloorRuns(room),
+    });
 
     expect(plan.minimumMet).toBe(true);
     expect(
@@ -56,7 +93,11 @@ describe("planKitchenComposition", () => {
       depthMm: 1600,
       heightMm: 2200,
     };
-    const plan = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+    const plan = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
+      room,
+      runs: lShellFloorRuns(room),
+    });
 
     expect(plan.dropped).toEqual(["fridge"]);
     expect(
@@ -102,6 +143,7 @@ describe("planKitchenComposition", () => {
         heightMm: 2200,
       };
       const plan = planKitchenComposition({
+        columns: DECLARED_COLUMNS,
         room,
         runs: lShellFloorRuns(room),
       });
@@ -123,7 +165,11 @@ describe("planKitchenComposition", () => {
       depthMm: 2000,
       heightMm: 2200,
     };
-    const plan = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+    const plan = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
+      room,
+      runs: lShellFloorRuns(room),
+    });
 
     expect(plan.minimumMet).toBe(false);
     expect(plan.bases).toEqual([]);
@@ -157,10 +203,12 @@ describe("planKitchenComposition", () => {
         }),
         (room) => {
           const first = planKitchenComposition({
+            columns: DECLARED_COLUMNS,
             room,
             runs: lShellFloorRuns(room),
           });
           const second = planKitchenComposition({
+            columns: DECLARED_COLUMNS,
             room,
             runs: lShellFloorRuns(room),
           });
@@ -193,7 +241,11 @@ describe("planKitchenComposition", () => {
         }),
         (room) => {
           const runs = lShellFloorRuns(room);
-          const plan = planKitchenComposition({ room, runs });
+          const plan = planKitchenComposition({
+            columns: DECLARED_COLUMNS,
+            room,
+            runs,
+          });
           if (!plan.minimumMet) return;
           for (const wall of ["A", "B"] as const) {
             const bases = plan.bases.filter((base) => base.wall === wall);
@@ -205,7 +257,15 @@ describe("planKitchenComposition", () => {
             expect(
               bases.filter((base) => base.role === "storage"),
             ).toHaveLength(Math.floor(finalLeftoverMm / 600));
-            expect(plan.remainderMm[wall]).toBe(finalLeftoverMm % 600);
+            // Still the leftover rule's modulo, **less the one millimetre count E6.2 takes out of
+            // it**: where the block's outermost column is the `'fit'` door column, it is planned at
+            // the merged width and the bare wall it would have left goes to 0. Narrowed to that one
+            // subtraction on that one wall rather than relaxed to `run − composed`, which is
+            // *exactly* the quantity a body planned over its module and a remainder reduced to match
+            // leave unchanged — a 700 mm cabinet sold as a 600 mm one, invisible to that form.
+            expect(plan.remainderMm[wall]).toBe(
+              (finalLeftoverMm % 600) - absorbedIntoTheBlockMm(plan, wall),
+            );
           }
         },
       ),

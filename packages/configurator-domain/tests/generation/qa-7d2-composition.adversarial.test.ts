@@ -11,6 +11,7 @@ import {
   cabinetDepthMmOf,
   canonicalSerializeDesign,
   createBodyProbeLease,
+  declaredColumnSizes,
   findOverflowingPlacementIds,
   generateKitchen,
   GENERATION_PRIORITIES,
@@ -36,6 +37,11 @@ import {
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CORE_ORDER = ["fridge", "sink", "preparation", "hob"] as const;
+
+/** What `generateKitchen` reads off the catalogue and hands the planner (ADR 0110 E, wave 7D3). */
+const DECLARED_COLUMNS = declaredColumnSizes(
+  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
+);
 
 function generate(room: DesignRoom) {
   return generateKitchen({
@@ -148,7 +154,11 @@ describe("7D2 pure planning and exact cut transitions", () => {
       heightMm: 2200,
     };
     const runs = lShellFloorRuns(room);
-    const plan = planKitchenComposition({ room, runs });
+    const plan = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
+      room,
+      runs,
+    });
     const generated = generate(room);
 
     expect(runs).toEqual({
@@ -184,6 +194,7 @@ describe("7D2 pure planning and exact cut transitions", () => {
         heightMm: 2200,
       };
       const plan = planKitchenComposition({
+        columns: DECLARED_COLUMNS,
         room,
         runs: lShellFloorRuns(room),
       });
@@ -198,8 +209,13 @@ describe("7D2 pure planning and exact cut transitions", () => {
     [{ shape: "L", widthMm: 3299, depthMm: 1700, heightMm: 2200 }, []],
     [{ shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2200 }, []],
   ] as const)("keeps the two-wall cut deterministic at %o", (room, dropped) => {
-    const first = planKitchenComposition({ room, runs: lShellFloorRuns(room) });
+    const first = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
+      room,
+      runs: lShellFloorRuns(room),
+    });
     const second = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
       room,
       runs: lShellFloorRuns(room),
     });
@@ -286,7 +302,11 @@ describe("7D2 pure planning and exact cut transitions", () => {
     const check = (room: DesignRoom) => {
       checked += 1;
       const runs = lShellFloorRuns(room);
-      const plan = planKitchenComposition({ room, runs });
+      const plan = planKitchenComposition({
+        columns: DECLARED_COLUMNS,
+        room,
+        runs,
+      });
       const where = `${String(room.widthMm)}x${String(room.depthMm)}`;
       if (!plan.minimumMet) {
         if (plan.bases.length > 0)
@@ -356,6 +376,7 @@ describe("7D2 pure planning and exact cut transitions", () => {
     expect(failures.slice(0, 20)).toEqual([]);
 
     const storageBefore = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
       room: { shape: "L", widthMm: 900, depthMm: 4099, heightMm: 2200 },
       runs: lShellFloorRuns({
         shape: "L",
@@ -365,6 +386,7 @@ describe("7D2 pure planning and exact cut transitions", () => {
       }),
     });
     const storageAt = planKitchenComposition({
+      columns: DECLARED_COLUMNS,
       room: { shape: "L", widthMm: 900, depthMm: 4100, heightMm: 2200 },
       runs: lShellFloorRuns({
         shape: "L",
@@ -392,6 +414,7 @@ describe("7D2 planned shell and leftover invariants", () => {
     "tiles every planned body boundary, with only the documented free-end merge in %o",
     (room) => {
       const plan = planKitchenComposition({
+        columns: DECLARED_COLUMNS,
         room,
         runs: lShellFloorRuns(room),
       });

@@ -1,8 +1,15 @@
 import type { DesignRoom, DesignWall } from "../design.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
+import {
+  planTallEndBlock,
+  type DeclaredColumnSizes,
+  type PlannedTallColumn,
+} from "./tall-end-rule.js";
 
 export type GenerationCoreRole = "fridge" | "sink" | "preparation" | "hob";
 export type GenerationBaseRole = GenerationCoreRole | "storage";
+
+const HOB_ROLE: GenerationCoreRole = "hob";
 
 export interface GenerationPriority {
   readonly role: GenerationCoreRole;
@@ -25,6 +32,17 @@ export const GENERATION_PRIORITIES: readonly GenerationPriority[] = [
 ];
 
 export const STORAGE_BUILD_ID = "base-cabinet";
+
+/** The hob body that carries its own oven, which is what a kitchen keeps whenever no oven tower
+ *  stands in it (ADR 0110 E4). Read from the priorities rather than restated, so the substitution
+ *  and the reading order cannot name two different hobs. */
+export function hobWithItsOwnOvenBuildId(): string {
+  const hob = GENERATION_PRIORITIES.find((item) => item.role === HOB_ROLE);
+  if (!hob) {
+    throw new Error("GENERATION_PRIORITIES declares no hob to carry an oven");
+  }
+  return hob.buildId;
+}
 
 export interface GenerationRun {
   readonly wall: DesignWall;
@@ -59,6 +77,10 @@ export interface KitchenCompositionPlan {
 export function planKitchenComposition(input: {
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  /** The catalogue's declared sizes for the full-height block, read by `generateKitchen`. Required,
+   *  because a caller that omitted them would silently compose a kitchen the tall-end rule never
+   *  saw. */
+  readonly columns: DeclaredColumnSizes;
 }): KitchenCompositionPlan {
   const capacities = {
     A: runWidth(input.runs.A),
@@ -75,7 +97,7 @@ export function planKitchenComposition(input: {
   for (const kept of attempts) {
     const cut = chooseWallCut(kept, capacities);
     if (cut === undefined) continue;
-    return builtPlan(input.room, input.runs, kept, cut);
+    return builtPlan({ ...input, kept, cut });
   }
 
   return {
@@ -107,14 +129,16 @@ function chooseWallCut(
   return candidates[0];
 }
 
-function builtPlan(
-  room: DesignRoom,
-  runs: Readonly<Record<DesignWall, GenerationRun>>,
-  kept: readonly GenerationPriority[],
-  cut: number,
-): KitchenCompositionPlan {
-  const onBReadingOrder = kept.slice(0, cut);
-  const onA = kept.slice(cut);
+function builtPlan(args: {
+  readonly room: DesignRoom;
+  readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  readonly columns: DeclaredColumnSizes;
+  readonly kept: readonly GenerationPriority[];
+  readonly cut: number;
+}): KitchenCompositionPlan {
+  const { room, runs, kept } = args;
+  const onBReadingOrder = kept.slice(0, args.cut);
+  const onA = kept.slice(args.cut);
   const coreWidths = {
     A: sumWidths(onA),
     B: sumWidths(onBReadingOrder),
@@ -124,13 +148,33 @@ function builtPlan(
     B: planLeftover(runWidth(runs.B) - coreWidths.B),
   };
 
+  // ADR 0110 Amendment E, stage 3: the block takes wall A's outermost leftover modules and the hob's
+  // build id follows from the same answer. Core selection and the leftover count above are what 7D2
+  // made them (E5.1, E5.2); only the identity of those outermost modules changes, and in the absorb
+  // window one width with it.
+  const tallEnd = planTallEndBlock({
+    coreSurvivedWhole: kept.length === GENERATION_PRIORITIES.length,
+    hobStandsOnWallA: onA.some((item) => item.role === HOB_ROLE),
+    freeEndStorageCount: leftovers.A.storageCount,
+    freeEndRemainderMm: leftovers.A.remainderMm,
+    roomHeightMm: room.heightMm,
+    hobWithItsOwnOvenBuildId: hobWithItsOwnOvenBuildId(),
+    declared: args.columns,
+  });
+
   // Storage on B stands nearest the corner, leaving the reading-order prefix at the free end; that
   // makes the reference fridge [2100, 2800] while the free-end remainder stays beyond it.
   const spatial = {
-    A: [...onA, ...storagePriorities("A", leftovers.A.storageCount)],
+    A: [
+      ...onA.map((item) => asWidthItem(item, tallEnd.hobBuildId)),
+      ...storagePriorities("A", tallEnd.storageCount),
+      ...tallColumnItems(tallEnd.columns),
+    ],
     B: [
       ...storagePriorities("B", leftovers.B.storageCount),
-      ...[...onBReadingOrder].reverse(),
+      ...[...onBReadingOrder]
+        .reverse()
+        .map((item) => asWidthItem(item, tallEnd.hobBuildId)),
     ],
   } as const;
   const bases = (["A", "B"] as const).flatMap((wall) =>
@@ -149,7 +193,7 @@ function builtPlan(
     ).map((item) => item.role),
     minimumMet: true,
     remainderMm: {
-      A: leftovers.A.remainderMm,
+      A: tallEnd.remainderMm,
       B: leftovers.B.remainderMm,
     },
   };
@@ -160,6 +204,28 @@ interface WidthItem {
   readonly buildId: string;
   readonly widthMm: number;
   readonly id?: string;
+}
+
+/** ADR 0110 E4: the hob wears whichever body the tall-end rule chose, wherever the wall cut put it.
+ *  Every other priority carries its own declared id. */
+function asWidthItem(item: GenerationPriority, hobBuildId: string): WidthItem {
+  return {
+    role: item.role,
+    buildId: item.role === HOB_ROLE ? hobBuildId : item.buildId,
+    widthMm: item.widthMm,
+  };
+}
+
+/** A column stands exactly where the leftover rule was going to stand a storage cabinet, and it is
+ *  that module's identity that changes rather than the wall's plan — so it carries the storage role
+ *  and frame 1F's row set does not move (E5.2). Which body it is, the build id says. */
+function tallColumnItems(columns: readonly PlannedTallColumn[]): WidthItem[] {
+  return columns.map((column, index) => ({
+    id: `column:A:${String(index)}`,
+    role: "storage" as const,
+    buildId: column.buildId,
+    widthMm: column.widthMm,
+  }));
 }
 
 function storagePriorities(wall: DesignWall, count: number): WidthItem[] {

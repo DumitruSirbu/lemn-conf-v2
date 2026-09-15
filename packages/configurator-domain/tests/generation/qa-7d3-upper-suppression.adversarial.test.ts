@@ -10,9 +10,12 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredCabinetDepthsMm,
+  declaredColumnSizes,
   generateKitchen,
   GENERATION_PRIORITIES,
   KITCHEN_L_DESIGN,
+  lShellFloorRuns,
+  planKitchenComposition,
   STORAGE_BUILD_ID,
   type Design,
   type DesignPlacement,
@@ -23,15 +26,36 @@ import { createFakeProbeFactory } from "../support/fake-probe.js";
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const SWEPT_ROOMS = 150;
 
-/** Every build id a plan can carry into `risesIntoWallRow` — the four priorities and the leftover
- *  rule's storage body. Read off the exported constants rather than listed, because the whole point
- *  of E7's derivation is that a new priority needs no second place to be remembered. */
-const PLANNABLE_BUILD_IDS: readonly string[] = [
-  ...new Set([
-    ...GENERATION_PRIORITIES.map((priority) => priority.buildId),
-    STORAGE_BUILD_ID,
-  ]),
-];
+/**
+ * Every build id a plan can carry into `risesIntoWallRow`, **taken from plans rather than from the
+ * tables a plan is built out of**.
+ *
+ * It was the four priorities plus the leftover rule's storage body when slice S1 wrote this, and
+ * enumerating those two constants was then the same set. **Slice S2 made them different**: the
+ * tall-end rule composes `tall-oven-tower`, `tall-pantry` and `base-hob-2drawer`, and none of the
+ * three is in `GENERATION_PRIORITIES` or is `STORAGE_BUILD_ID` — so the old derivation went on
+ * passing while quietly checking nothing about the bodies the wave had just added. Reading the set
+ * off `plan.bases` is the only form that cannot fall behind composition again.
+ */
+const PLANNABLE_BUILD_IDS: readonly string[] = (() => {
+  const columns = declaredColumnSizes(
+    buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
+  );
+  const found = new Set<string>();
+  for (let widthMm = 900; widthMm <= 6300; widthMm += 7) {
+    for (const depthMm of [1000, 1300, 1700, 2500, 3600, 5100]) {
+      const room: DesignRoom = { shape: "L", widthMm, depthMm, heightMm: 2600 };
+      const plan = planKitchenComposition({
+        room,
+        runs: lShellFloorRuns(room),
+        columns,
+      });
+      if (!plan.minimumMet) continue;
+      for (const base of plan.bases) found.add(base.buildId);
+    }
+  }
+  return [...found];
+})();
 
 function generate(room: DesignRoom) {
   return generateKitchen({
@@ -47,6 +71,22 @@ type GeneratedKitchen = Extract<
 >;
 
 describe("E7's upper suppression reads a field the generated bodies honour", () => {
+  // Guards the guard. Both assertions below quantify over `PLANNABLE_BUILD_IDS`, so a derivation that
+  // silently narrowed would make them pass while checking less — which is exactly how this file came
+  // to stop covering slice S2's three new bodies. The old enumeration is asserted as a **floor** and
+  // no longer as the definition, and the bodies that caught it out are named.
+  it("derives a plannable set that covers the priorities, the storage body and the block", () => {
+    for (const buildId of [
+      ...GENERATION_PRIORITIES.map((priority) => priority.buildId),
+      STORAGE_BUILD_ID,
+      "tall-oven-tower",
+      "tall-pantry",
+      "base-hob-2drawer",
+    ]) {
+      expect(PLANNABLE_BUILD_IDS, `${buildId} is plannable`).toContain(buildId);
+    }
+  });
+
   // `risesIntoWallRow` throws for a build id whose catalogue entry declares no height, and 22 of the
   // catalogue's 38 rows — every seeded one — declare none. A byte-identical output sweep cannot see
   // this: a room that throws throws in both captures. The throw is unreachable only while every

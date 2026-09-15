@@ -79,10 +79,13 @@ describe("generateKitchen", () => {
             placement.alongMm + placement.body.widthMm / 2,
           ],
       );
+    // The reference room plans a block at wall A's free end, so the hob carries drawers and the
+    // oven stands in the tower (ADR 0110 Amendment E4). Its width, tile and position are unchanged:
+    // both hob bodies are discrete 600 mm, which is what makes the substitution shell-neutral.
     expect(named).toEqual([
       ["base-sink", "A", 900, 1500],
       ["base-cabinet", "A", 1500, 2100],
-      ["base-hob-oven", "A", 2100, 2700],
+      ["base-hob-2drawer", "A", 2100, 2700],
     ]);
     expect(bases.length).toBeGreaterThan(4);
     expect(
@@ -434,9 +437,13 @@ describe("generateKitchen", () => {
               (placement) => placement.body.buildId === "base-sink",
             ),
           ).toHaveLength(1);
+          // ADR 0110 Amendment E4: exactly one oven, never two and never zero. Where a tower stands
+          // the hob carries drawers instead, so the count that must be 1 is the two bodies together.
           expect(
-            first.design.placements.filter(
-              (placement) => placement.body.buildId === "base-hob-oven",
+            first.design.placements.filter((placement) =>
+              ["base-hob-oven", "tall-oven-tower"].includes(
+                placement.body.buildId,
+              ),
             ),
           ).toHaveLength(1);
           expect(coreReadingOrder(first)).toEqual(
@@ -446,7 +453,7 @@ describe("generateKitchen", () => {
               ),
             ),
           );
-          expect(upperMismatches(first)).toEqual([]);
+          expect(upperMismatches({ result: first, catalog })).toEqual([]);
         },
       ),
       { numRuns: 100 },
@@ -523,12 +530,18 @@ describe("generateKitchen", () => {
     expect(result.log.steps.find((step) => step.id === "fridge")?.status).toBe(
       "placed",
     );
-    expect(basesAboveWallRow({ result, catalog })).toEqual(["fridge"]);
+    // The fridge is no longer the only body the rule suppresses an upper above: the reference room
+    // plans a block at wall A's free end, and its oven tower reaches the same wall row. That the
+    // rule finds it without being told its name is exactly what reading the declared height buys.
+    expect(basesAboveWallRow({ result, catalog })).toEqual([
+      "column:A:0",
+      "fridge",
+    ]);
     expect(
       result.log.steps.filter((step) => step.id.endsWith(":fridge")),
     ).toEqual([]);
     expect(uppersOverTallBodies({ result, catalog })).toEqual([]);
-    expect(upperMismatches(result)).toEqual([]);
+    expect(upperMismatches({ result, catalog })).toEqual([]);
   });
 
   it("returns no design for at least 50 approved samples below the minimum", () => {
@@ -715,14 +728,23 @@ function overlapsAlongWall(
   return leftStartMm < rightEndMm && rightStartMm < leftEndMm;
 }
 
-function upperMismatches(
-  result: Extract<ReturnType<typeof generate>, { readonly ok: true }>,
-) {
+/** Every base that should carry an upper, and whether the one above it is the body, wall, width and
+ *  row the rule says. **What it skips is derived, not named**: a body reaching into the wall row has
+ *  no opening above it, which was the fridge alone until a block stood at wall A's free end and is
+ *  now whatever the catalogue declares tall (ADR 0110 Amendment E7). */
+function upperMismatches(input: {
+  readonly result: GeneratedKitchen;
+  readonly catalog: BodyCatalog;
+}) {
+  const { result } = input;
+  const suppressed = new Set(basesAboveWallRow(input));
   return result.log.steps
     .flatMap((step) => (step.status === "placed" ? [step] : []))
     .filter(
       (step) =>
-        step.role !== "fridge" && step.role !== "upper" && step.role !== "hood",
+        !suppressed.has(step.id) &&
+        step.role !== "upper" &&
+        step.role !== "hood",
     )
     .flatMap((baseStep) => {
       const upperRole = baseStep.id === "hob" ? "hood" : "upper";

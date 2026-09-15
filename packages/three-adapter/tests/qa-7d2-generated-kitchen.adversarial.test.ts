@@ -164,12 +164,20 @@ function assertDomainParity(design: Design): void {
         upper.alongMm === base.alongMm &&
         upper.body.widthMm === base.body.widthMm,
     );
-    if (base.body.buildId === "fridge-free") {
-      expect(above, "nothing is composed above the fridge").toEqual([]);
+    // ADR 0110 Amendment E7 and E4, both read off the catalogue rather than off a build id: a body
+    // whose declared top crosses the wall row leaves no opening above it — the fridge, and now the
+    // block's full-height columns — and the hood stands above whichever body carries the hob.
+    const declared = catalog.get(base.body.buildId);
+    if ((declared?.nominalHeightMm ?? 0) > 1500) {
+      expect(above, `nothing is composed above ${base.body.buildId}`).toEqual(
+        [],
+      );
     } else {
       expect(above, `one upper matches ${base.id}`).toHaveLength(1);
       expect(above[0]?.body.buildId).toBe(
-        base.body.buildId === "base-hob-oven" ? "hood" : "wall-cabinet",
+        declared?.carriesAccessoryKind === "induction_cooktop"
+          ? "hood"
+          : "wall-cabinet",
       );
     }
   }
@@ -280,11 +288,15 @@ describe("7D2 generated kitchens against the real Three adapter", () => {
   it("keeps the real fridge, sink, hob, oven, and hood at their bought widths", () => {
     const rendered = render(generated(KITCHEN_L_DESIGN.room));
     try {
+      // The reference room now plans a block at wall A's free end, so its oven stands in the tower
+      // and its hob carries drawers (ADR 0110 Amendment E4). Both bodies are still measured at the
+      // widths they are bought at: the substitution changes which carcass holds the oven, never a
+      // width.
       const checks = [
         ["fridge-free", "fridge_body", 0.7],
         ["base-sink", "bowl_floor", 0.56],
-        ["base-hob-oven", "cooktop_glass", 0.59],
-        ["base-hob-oven", "oven_front", 0.596],
+        ["base-hob-2drawer", "cooktop_glass", 0.59],
+        ["tall-oven-tower", "oven_front", 0.596],
         ["hood", "hood_canopy", 0.6],
       ] as const;
       for (const [buildId, meshName, expectedM] of checks) {
