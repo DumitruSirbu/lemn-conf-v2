@@ -134,7 +134,7 @@ interface MountedStage extends KitStage {
 function mountStage(kit: Kit): MountedStage {
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
-  solidsRoot.add(buildKitchenShell(kit));
+  solidsRoot.add(buildKitchenShell(kit, KITCHEN_L_DESIGN.room));
 
   const voidsRoot = new THREE.Group();
   voidsRoot.name = "voids";
@@ -337,7 +337,9 @@ describe("a kit released by its stage's teardown", () => {
     disposeKitAndStage(stage);
     const spies = spyOnDisposals(cached);
 
-    expect(() => buildKitchenShell(kit)).toThrow(/released/);
+    expect(() => buildKitchenShell(kit, KITCHEN_L_DESIGN.room)).toThrow(
+      /released/,
+    );
 
     for (const [resource, spy] of spies) {
       expect(spy, describeResource(resource)).not.toHaveBeenCalled();
@@ -415,7 +417,7 @@ function buildShellOverSpiedRoom(kit: Kit): StrippedShell {
     spies = spyOnDisposals(reachableResources(room));
     return room;
   };
-  const shell = buildKitchenShell(kit);
+  const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
   kit.builders["kitchen-l"] = buildReferenceRoom;
 
   expect(discarded.length).toBeGreaterThan(20);

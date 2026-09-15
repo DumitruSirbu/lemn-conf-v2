@@ -8,12 +8,19 @@ import { toMillimetres } from "./millimetres.js";
 import { LEVELS, MIN_SPAN_M } from "./void-engine.js";
 
 /**
- * The room shell the scene actually builds, in millimetres.
+ * The **seeded** room shell, in millimetres — the one L-shape the reference builder knows.
  *
  * `packages/three-adapter/src/kitchen-parts.ts` declares `RW = 4.2`, `RD = 3.4`, `WH = 2.6` and
- * builds the floor and both wall planes from them. Restated here rather than imported: the domain
+ * builds its floor and both wall planes from them. Restated here rather than imported: the domain
  * is I/O-free and `three-adapter` depends on **it**, never the reverse, so the adapter is cited as
  * the source of the number instead of being made a dependency.
+ *
+ * **These stopped being "the room shell the scene actually builds" in M7 wave 7H**, which made the
+ * drawn shell a function of the room the customer entered. The wording moved; the **values must
+ * not**. `MAX_ROOM_*` below are 1.5x them, and the owner-approved maxima in
+ * `room/approved-room-policy.ts` — 6300 / 5100 / 3900 — are exactly those three, so these numbers
+ * are load-bearing under owner-approved product data. Deriving the shell from `MAX_ROOM_*` would
+ * close the circle the other way round.
  */
 const SCENE_SHELL_WIDTH_MM = 4200;
 const SCENE_SHELL_DEPTH_MM = 3400;

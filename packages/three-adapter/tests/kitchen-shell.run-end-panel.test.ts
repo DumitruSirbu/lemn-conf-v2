@@ -54,7 +54,7 @@ interface MountedScene {
 }
 
 function mountScene(records: readonly PlacementRecord[]): MountedScene {
-  const shell = buildKitchenShell(kit);
+  const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);

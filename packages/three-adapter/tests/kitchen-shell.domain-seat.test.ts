@@ -53,7 +53,7 @@ beforeAll(() => {
 });
 
 function panelAfterSync(records: readonly PlacementRecord[]): THREE.Object3D {
-  const shell = buildKitchenShell(kit);
+  const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);
@@ -155,9 +155,18 @@ describe("the adapter's panel constants are the domain's, not a copy", () => {
    *  above, which is a fact about `kitchen-parts.ts`. There is no value only the domain can produce
    *  to route this through: the module exposes no constant of its own to compare against.
    *
-   *  Asserted as "no numeric literal survives the comment strip", which is stronger than the
-   *  criterion and true today: the module's entire arithmetic is `runEndPanelSeatM`'s answer and a
-   *  seeded parking coordinate it imports. A wave that needs a number here has to say so. */
+   *  **This was "no numeric literal survives the comment strip" until wave 7H, and that form said
+   *  more than the criterion does.** It held while the module's entire arithmetic was
+   *  `runEndPanelSeatM`'s answer and a seeded parking coordinate it imports; its own note said *a
+   *  wave that needs a number here has to say so*, and 7H is that wave. Making the drawn shell the
+   *  entered room puts a corner overhang in this module — one named constant, ruled fixed at 300 mm
+   *  because it is what stops the two wall planes ending in a visible seam where they meet.
+   *
+   *  So the instrument is kept and the claim is narrowed to exactly the criterion: the module's
+   *  distinct numeric literals are **enumerated**, each with the name it is declared under, and no
+   *  panel slab number is among them. A new number cannot arrive quietly — it turns this red and
+   *  its author has to name it here — and a restored `const PANEL_HALF_THICKNESS_M = 0.009` is
+   *  still exactly what it catches. */
   it("declares no slab number of its own", () => {
     const source = readFileSync(
       resolve(import.meta.dirname, "../src/kitchen-shell.ts"),
@@ -166,11 +175,31 @@ describe("the adapter's panel constants are the domain's, not a copy", () => {
     const code = source
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/[^\n]*/g, "");
+    const literals = [
+      ...new Set(
+        code.match(/(?<![\w$])\d[\d_]*(?:\.\d+)?(?:e[+-]?\d+)?/gi) ?? [],
+      ),
+    ].sort();
 
     // Non-vacuity: the strip left the seating code standing rather than eating the file.
     expect(code).toContain("syncRunEndPanel");
     expect(code).toContain("runEndPanelSeatM");
-    expect(code).not.toMatch(/(?<![\w$])\d[\d_]*(?:\.\d+)?(?:e[+-]?\d+)?/i);
+    expect(literals).toEqual([
+      "0", // an anchored wall plane's coordinate on the axis it stands on
+      "0.3", // CORNER_OVERHANG_M
+      "1", // the unstretched tile axis, and a sole-material count
+      "1000", // MILLIMETRES_PER_METRE
+      "2", // halving a drawn length or a height to its centre
+    ]);
+    for (const slab of [
+      DOMAIN_THICKNESS_M,
+      DOMAIN_GAP_M,
+      DOMAIN_HEIGHT_M,
+      DOMAIN_EDGE_OFFSET_M,
+    ]) {
+      expect(literals).not.toContain(String(slab));
+      expect(literals).not.toContain(String(slab / 2));
+    }
   });
 
   /** ADR 0083 decision 5's 3519, read off the built scene rather than off the constants: the

@@ -138,7 +138,7 @@ afterEach(() => {
 });
 
 describe("KitchenStage shell ownership", () => {
-  it("builds the fixed adapter shell before syncing the persisted placement set", () => {
+  it("builds the adapter shell at the held design's room before syncing the persisted placement set", () => {
     KitchenStage({
       view: {
         kind: "fixed",
@@ -148,7 +148,10 @@ describe("KitchenStage shell ownership", () => {
     });
 
     expect(harness.buildKitchenShell).toHaveBeenCalledOnce();
-    expect(harness.buildKitchenShell).toHaveBeenCalledWith(harness.kit);
+    expect(harness.buildKitchenShell).toHaveBeenCalledWith(
+      harness.kit,
+      KITCHEN_L_DESIGN.room,
+    );
     expect(harness.referenceBuilder).not.toHaveBeenCalled();
     expect(harness.syncSolidBodies).toHaveBeenCalledOnce();
 

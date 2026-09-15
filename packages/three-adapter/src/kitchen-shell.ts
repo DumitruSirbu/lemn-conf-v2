@@ -3,33 +3,63 @@ import {
   type DesignRoom,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
-import type { Group, Object3D } from "three";
+import * as THREE from "three";
+import type { Group, Mesh, Object3D } from "three";
 
 import { disposeDiscardedBodies } from "./kit-disposal.js";
+import { kitOwnedResources } from "./kit-ownership.js";
 import {
+  kitMaterialList,
   RUN_END_PANEL_NAME,
   RUN_END_PANEL_SEEDED_X_M,
   type Kit,
 } from "./kitchen-parts.js";
+import { isMesh, isTexture, toMaterials } from "./three-guards.js";
+
+/** The floor and the two wall planes run this far past the corner into the other wall's direction.
+ *
+ *  It is what stops the two planes ending in a visible seam where they meet, so it is a
+ *  construction detail of the planes rather than a room dimension, and it is fixed: a
+ *  **proportional** overhang would stop being a construction detail and become a lie about the
+ *  room, and **butting** the two planes creates the seam the reference deliberately avoids. At a
+ *  900 mm wall the drawn plane is 1200 mm and a third of it sits behind the corner — the accepted
+ *  appearance of a minimum room, not a defect. */
+const CORNER_OVERHANG_M = 0.3;
+
+const MILLIMETRES_PER_METRE = 1000;
+
+const FLOOR_NAME = "floor";
+/** Wall A's plane: z = 0, fronts +Z, `rotation.y = 0`. */
+const WALL_A_PLANE_NAME = "wall_back";
+/** Wall B's plane: x = 0, fronts +X, `rotation.y = π/2`. */
+const WALL_B_PLANE_NAME = "wall_left";
+const BACKSPLASH_NAME = "backsplash_wall_a";
 
 /** The immutable room children in `docs/design/SPEC.md`'s L-shape scene. Customer bodies are
  * deliberately absent: `syncSolidBodies` is their sole owner and tags every one with a
  * `placementId` for §6.1 picking. */
 const KITCHEN_L_SHELL_CHILD_NAMES = new Set([
-  "floor",
-  "wall_back",
-  "wall_left",
+  FLOOR_NAME,
+  WALL_A_PLANE_NAME,
+  WALL_B_PLANE_NAME,
   RUN_END_PANEL_NAME,
-  "backsplash_wall_a",
+  BACKSPLASH_NAME,
 ]);
 
-/** Builds the canonical room shell without consulting the currently loaded design.
+/** Builds the room shell the customer entered, without consulting the currently loaded design's
+ * placements.
  *
  * The full reference builder remains the geometry source so the shell stays inside M1's 1e-6 m
  * fidelity gate. Its customer bodies are removed from a fixed shell manifest, never inferred from
  * current placement records: a placement deleted before this first build must not survive as an
- * untagged, unselectable reference ghost. */
-export function buildKitchenShell(kit: Kit): Group {
+ * untagged, unselectable reference ghost.
+ *
+ * **The drawn wall is the entered wall.** The builder's own room is one specific L-shape, and a
+ * customer's room matches it in roughly one case in a hundred; the five children it hands back are
+ * therefore resized to `room` before anyone sees them. Nothing here reads a placement, a record,
+ * the catalogue or a cabinet depth — ADR 0083 decision 2: the room is never a function of the
+ * depth. */
+export function buildKitchenShell(kit: Kit, room: DesignRoom): Group {
   const shell = kit.builders["kitchen-l"]();
   const discarded = shell.children.filter(isCustomerBody);
   for (const child of discarded) shell.remove(child);
@@ -37,11 +67,292 @@ export function buildKitchenShell(kit: Kit): Group {
   // keeps five of it. Whatever the other 27 alone allocated is released here rather than left for
   // the garbage collector, which never frees a GPU buffer.
   disposeDiscardedBodies({ kit, discarded, retained: shell.children });
+  resizeShellToRoom({ kit, shell, room });
   return shell;
 }
 
 function isCustomerBody(child: Object3D): boolean {
   return !KITCHEN_L_SHELL_CHILD_NAMES.has(child.name);
+}
+
+export interface ShellResizeInput {
+  /** The kit that built `shell`. Its ownership record is what the replaced resources are returned
+   *  to and the new ones are recorded in. */
+  readonly kit: Kit;
+  readonly shell: Object3D;
+  readonly room: DesignRoom;
+}
+
+/**
+ * Redraws the shell at `room`, and touches nothing else in the scene.
+ *
+ * **The anchor is wave 7F1's criterion 12, adopted rather than re-derived**: wall A's plane is
+ * z = 0 fronting +Z, wall B's is x = 0 fronting +X, and both walk "along" from the corner they
+ * share at (0, 0, 0). The convention is declared in the **domain**, at
+ * `packages/configurator-domain/src/room-transforms.ts:29-49`, whose source is
+ * `docs/design/DEVELOPMENT-SPEC.md` §2. It is cited here and not restated because a 2D plan that
+ * disagrees with the room it produces is a defect no unit test on either side can catch — each
+ * stays self-consistent, and only a customer holding the two views side by side would see it.
+ *
+ * **Four of the five children move; the fifth does not.** The floor follows both floor axes, wall
+ * A's plane follows `widthMm`, wall B's follows `depthMm`, both planes' height follows `heightMm`,
+ * and the wall-A backsplash follows `widthMm` with its start pinned at the corner. The run-end
+ * panel is not touched at all: ADR 0045 makes its seat a function of the **records**, written by
+ * `syncRunEndPanel`, and widening the room for a fixed record set must leave it exactly where it
+ * was.
+ *
+ * **No body moves.** Customer bodies are `syncSolidBodies`' and are not children of the shell.
+ */
+export function resizeShellToRoom(input: ShellResizeInput): void {
+  const { kit, shell, room } = input;
+  resizeFloor(kit, shellChild(shell, FLOOR_NAME), room);
+  resizeWallAPlane(shellChild(shell, WALL_A_PLANE_NAME), room);
+  resizeWallBPlane(shellChild(shell, WALL_B_PLANE_NAME), room);
+  resizeBacksplash(kit, shellChild(shell, BACKSPLASH_NAME), room);
+}
+
+function resizeFloor(kit: Kit, floor: Mesh, room: DesignRoom): void {
+  const drawnWidthM = drawnWallLengthM(room.widthMm);
+  const drawnDepthM = drawnWallLengthM(room.depthMm);
+  const slab = boxSizeOf(floor);
+
+  // The top face tiles across the slab's width and depth, so both are the map's world axes. The
+  // slab's thickness is not a room dimension and is read back from the geometry the builder made
+  // rather than re-declared here.
+  replaceBox(kit, floor, {
+    width: drawnWidthM,
+    height: slab.height,
+    depth: drawnDepthM,
+    tiling: { u: drawnWidthM / slab.width, v: drawnDepthM / slab.depth },
+  });
+  floor.position.x = alongWallCentreM(drawnWidthM);
+  floor.position.z = alongWallCentreM(drawnDepthM);
+}
+
+function resizeWallAPlane(plane: Mesh, room: DesignRoom): void {
+  const drawnLengthM = drawnWallLengthM(room.widthMm);
+  const heightM = metresFrom(room.heightMm);
+
+  replacePlane(plane, drawnLengthM, heightM);
+  plane.position.set(alongWallCentreM(drawnLengthM), heightM / 2, 0);
+}
+
+function resizeWallBPlane(plane: Mesh, room: DesignRoom): void {
+  const drawnLengthM = drawnWallLengthM(room.depthMm);
+  const heightM = metresFrom(room.heightMm);
+
+  // `rotation.y` is left as the builder set it: the plane turns to face +X, and its geometry's
+  // width axis is therefore the world's z.
+  replacePlane(plane, drawnLengthM, heightM);
+  plane.position.set(0, heightM / 2, alongWallCentreM(drawnLengthM));
+}
+
+/** The backsplash means *"behind the worktop"*, and it follows the **room's** wall A rather than
+ *  the run's extent, with its start pinned at the corner.
+ *
+ *  Four numbers live within 60 mm of each other at wall A's right-hand end and nothing reconciles
+ *  them: the seeded base run ends at 3500 mm, the run-end panel seats at 3510, this backsplash
+ *  spanned 0 → 3500, and the seeded room is 3560. **Two readings were refused.** Following the
+ *  *records*, as ADR 0045's panel does, would need records plumbed into a build that has none.
+ *  Leaving it a literal only made sense while the drawn wall was longer than the entered one;
+ *  since the drawn wall *is* the entered wall, a fixed 3.5 m would sit 60 mm short of the corner
+ *  it belongs to in the seeded room and arbitrarily wrong in every other. */
+function resizeBacksplash(kit: Kit, backsplash: Mesh, room: DesignRoom): void {
+  const widthM = metresFrom(room.widthMm);
+  const slab = boxSizeOf(backsplash);
+
+  // The front face tiles across the slab's width and height; only the width follows the room.
+  replaceBox(kit, backsplash, {
+    width: widthM,
+    height: slab.height,
+    depth: slab.depth,
+    tiling: { u: widthM / slab.width, v: 1 },
+  });
+  backsplash.position.x = widthM / 2;
+}
+
+/** A drawn wall runs from behind the corner to the end of the entered wall. */
+function drawnWallLengthM(wallLengthMm: number): number {
+  return metresFrom(wallLengthMm) + CORNER_OVERHANG_M;
+}
+
+/** Its span is therefore [−overhang, wallLength], so its centre sits one overhang back from half
+ *  its drawn length. */
+function alongWallCentreM(drawnLengthM: number): number {
+  return drawnLengthM / 2 - CORNER_OVERHANG_M;
+}
+
+function metresFrom(millimetres: number): number {
+  return millimetres / MILLIMETRES_PER_METRE;
+}
+
+interface BoxResize {
+  readonly width: number;
+  readonly height: number;
+  readonly depth: number;
+  /** How far each of the map's two axes is stretched by this resize, as a ratio of the extent it
+   *  currently covers. A ratio rather than a repeat count, because what must stay constant is the
+   *  **world size of one plank or one tile** — a repeat count that happens to be right for one room
+   *  is the defect restated. */
+  readonly tiling: TileStretch;
+}
+
+interface TileStretch {
+  readonly u: number;
+  readonly v: number;
+}
+
+function replaceBox(kit: Kit, mesh: Mesh, resize: BoxResize): void {
+  replaceGeometry(
+    mesh,
+    new THREE.BoxGeometry(resize.width, resize.height, resize.depth),
+  );
+  retileToConstantWorldDensity(kit, mesh, resize.tiling);
+}
+
+function replacePlane(plane: Mesh, widthM: number, heightM: number): void {
+  replaceGeometry(plane, new THREE.PlaneGeometry(widthM, heightM));
+}
+
+/**
+ * Attaches `next` and frees what it replaced, in that order.
+ *
+ * **Rebuilt, never scaled.** A per-axis `scale` on the mesh would preserve the floor's 40 mm slab
+ * and the backsplash's 14 mm for free, but it stretches the map's UVs exactly as a resize does, so
+ * it fixes nothing there, and it leaves every world-space measurement of the scene reading through
+ * a non-unit transform.
+ *
+ * **Safe here and nowhere else.** `plainBox` and the two wall planes call their geometry
+ * constructors directly: the result goes through neither `chamferBox`'s memo nor the kit's owned
+ * set, so it is private to this one mesh and nothing else in the scene renders from it. The run-end
+ * panel is the one shell child built by `chamferBox` — its buffer **is** shared and kit-owned — and
+ * it is the one child this module never resizes.
+ *
+ * **Attached before the old one is freed**, so a throw can strand nothing: the new geometry is
+ * reachable from the shell the moment it exists, and a teardown walking the mounted room finds it.
+ */
+function replaceGeometry(mesh: Mesh, next: THREE.BufferGeometry): void {
+  const previous = mesh.geometry;
+  mesh.geometry = next;
+  previous.dispose();
+}
+
+/**
+ * Gives the mesh its own material and its own map, tiled so that one plank and one tile keep the
+ * world size they have in the reference room.
+ *
+ * **The kit's texture is never re-tiled in place.** `M.tile` also dresses the counter `backsplash`
+ * and the open shelf's `back_panel`, so correcting the shell's repeat on the shared texture would
+ * silently re-tile two customer bodies — a defect introduced into the customer's kitchen while
+ * fixing the room around it, and nothing in the fidelity gate looks at a texture repeat. It would
+ * also make the shell's build order load-bearing on every body built after it.
+ *
+ * **The density is measured, not declared.** The repeat is scaled by how far this resize stretches
+ * the face, so a plank keeps whatever world size the reference builder gives it and no number from
+ * that builder is copied here. At the reference extent the ratio is exactly 1 and the repeat does
+ * not move.
+ *
+ * Both clones are recorded as the kit's the moment they exist, before either is attached to
+ * anything, so a throw later in the resize cannot strand a resource no teardown would find.
+ */
+function retileToConstantWorldDensity(
+  kit: Kit,
+  mesh: Mesh,
+  stretch: TileStretch,
+): void {
+  const material = soleMaterialOf(mesh);
+  if (!hasMapSlot(material)) return;
+  const map = material.map;
+  if (!isTexture(map)) return;
+
+  const owned = kitOwnedResources(kit.M);
+  const ownMaterial = material.clone();
+  const ownMap = map.clone();
+  owned.materials.add(ownMaterial);
+  owned.textures.add(ownMap);
+
+  ownMap.repeat.set(map.repeat.x * stretch.u, map.repeat.y * stretch.v);
+  ownMap.needsUpdate = true;
+  ownMaterial.map = ownMap;
+  mesh.material = ownMaterial;
+
+  releaseReplacedShellMaterial(kit, material, map);
+}
+
+/** Frees a material and map this function made on an **earlier** resize, and leaves the kit's own
+ *  alone. `kitMaterialList` is the kit's declaration of the materials it owns and shares, so this
+ *  asks what the material *is* rather than inferring it from what happens to be attached. */
+function releaseReplacedShellMaterial(
+  kit: Kit,
+  material: THREE.Material,
+  map: THREE.Texture,
+): void {
+  if (kitMaterialList(kit.M).includes(material)) return;
+
+  const owned = kitOwnedResources(kit.M);
+  owned.materials.delete(material);
+  owned.textures.delete(map);
+  material.dispose();
+  map.dispose();
+}
+
+interface BoxSize {
+  readonly width: number;
+  readonly height: number;
+  readonly depth: number;
+}
+
+/** The size the reference builder gave this box, read back from its own geometry so the axes this
+ *  resize does not touch are carried forward rather than re-declared as literals here. */
+function boxSizeOf(mesh: Mesh): BoxSize {
+  const parameters: unknown = (mesh.geometry as { parameters?: unknown })
+    .parameters;
+  if (!isBoxParameters(parameters)) {
+    throw new Error(`Shell child ${mesh.name} is not a box`);
+  }
+  return parameters;
+}
+
+function isBoxParameters(value: unknown): value is BoxSize {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate["width"] === "number" &&
+    typeof candidate["height"] === "number" &&
+    typeof candidate["depth"] === "number"
+  );
+}
+
+function shellChild(shell: Object3D, name: string): Mesh {
+  const child = shell.children.find((candidate) => candidate.name === name);
+  if (!child || !isMesh(child)) {
+    throw new Error(`The kitchen shell has no mesh named ${name}`);
+  }
+  return child;
+}
+
+function soleMaterialOf(mesh: Mesh): THREE.Material {
+  const materials = toMaterials(mesh.material);
+  const material = materials[0];
+  if (materials.length !== 1 || !material) {
+    throw new Error(
+      `Shell child ${mesh.name} has ${String(materials.length)} materials`,
+    );
+  }
+  return material;
+}
+
+/** A material that samples a colour map. `THREE.Material` declares no `map` — the slot belongs to
+ *  the concrete materials that have one — so the shell's own must be narrowed to it before its map
+ *  can be read or written. The wall planes' paint has no slot at all, which is not an error. */
+interface MaterialWithMapSlot extends THREE.Material {
+  map: THREE.Texture | null;
+}
+
+/** Narrowed rather than asserted, for `three-guards.ts`'s reason: a material without the slot must
+ *  not be given one by an assignment that types as valid. */
+function hasMapSlot(material: THREE.Material): material is MaterialWithMapSlot {
+  return "map" in material;
 }
 
 /** `syncSolidBodies`'s tag on every body it mounts (`scene-sync.ts`), and what `picking.ts` climbs

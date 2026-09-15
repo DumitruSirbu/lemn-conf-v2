@@ -168,7 +168,12 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       cabinetDepthMm,
       wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
     });
-    const shell = buildKitchenShell(kit);
+    // **The room decides the shell's extent, and it is deliberately not a dependency of this memo**
+    // (ADR 0074 decision 1: keyed on the depth and on nothing else). A depth change owns GPU
+    // resources and must rebuild the kit; a room change owns none and must not. The shell is drawn
+    // here at the room the design holds when the stage is built; re-drawing it when that room
+    // changes belongs to an effect of its own, never to this memo.
+    const shell = buildKitchenShell(kit, designRoom);
 
     const solidsRoot = new THREE.Group();
     solidsRoot.name = "solids";
@@ -198,9 +203,11 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     // kit, which can then be neither released nor kept.
     //
     // **The reference-ghost guarantee is the shell's fixed manifest, never the number of builds.**
-    // `buildKitchenShell` takes a `Kit` and *no records*; it keeps `KITCHEN_L_SHELL_CHILD_NAMES` and
-    // disposes the other 27 children, so building it N times yields N identical shells with no
-    // customer body in any of them. This comment said "built once per mount" until 2026-09-04, which
+    // `buildKitchenShell` takes a `Kit` and a `DesignRoom` and *no records*; it keeps
+    // `KITCHEN_L_SHELL_CHILD_NAMES` and disposes the other 27 children, so building it N times
+    // yields N shells of that room with no customer body in any of them. The room decides the
+    // shell's extent and nothing else about it, and it is deliberately **not** in the dependency
+    // array below — see the read above. This comment said "built once per mount" until 2026-09-04, which
     // read as if the empty dependency array were the safety property — it was not, and the invariant
     // would have died silently the moment this was keyed. `syncSolidBodies` remains the sole owner
     // of every customer body, and `syncRunEndPanel` re-seats the freshly built panel from the

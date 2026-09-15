@@ -27,7 +27,11 @@ export {
   setHandlesVisible,
 } from "./decomposed-bodies.js";
 
-export { buildKitchenShell } from "./kitchen-shell.js";
+export {
+  buildKitchenShell,
+  resizeShellToRoom,
+  type ShellResizeInput,
+} from "./kitchen-shell.js";
 
 export {
   disposeDiscardedBodies,

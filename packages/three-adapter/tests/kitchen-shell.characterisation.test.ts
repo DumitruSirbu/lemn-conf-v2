@@ -1,15 +1,17 @@
-// Wave 7H slice 1, criterion 2: the one test in this repository that watches the room shell.
+// Wave 7H, criterion 2: the one test in this repository that watches the room shell.
 //
 // **Why it has to exist.** The M1 fidelity gate — `kitchen-parts.parity.test.ts` — calls
 // `kit.builders["kitchen-l"]()` directly and never calls `buildKitchenShell`. Everything the shell
-// does downstream of that builder is invisible to it, so without this file wave 7H could move the
+// does downstream of that builder is invisible to it, so without this file the wave could move the
 // floor, re-tile it, or scale a wall plane and every gate in the repository would stay green.
 //
-// **What it is, and is not.** It is a measurement of what `HEAD` builds, recorded before anything
-// moves, so that slice 2's change is visible and deliberate. It is **not** an image to preserve:
-// Q7H-1 rules that the drawn shell becomes the room the customer entered, so at the seeded document
-// it changes from 4200 x 3400 to 3560 x 2920 and loses its -0.3 m corner offsets. This table is
-// re-baselined in the commit that lands slice 2, with the before-and-after values in the message.
+// **What it is, and is not.** It is a measurement, recorded so that a change to the shell is
+// visible and deliberate. It is **not** an image to preserve. It was written in slice 1 against the
+// fixed 4200 x 3400 x 2600 shell and **re-baselined in slice 2**, deliberately, because Q7H-1 rules
+// that the drawn shell becomes the room the customer entered: at the seeded document the drawn
+// floor goes from 4200 x 3400 to 3860 x 3220 and the backsplash from 3500 to 3560. A test asserting
+// it did not would have been asserting the wrong thing. When a pin here goes red the question is
+// *"is this the change I intended, and is it right"* — never *"how do I update the pin."*
 //
 // **The four numbers that live within 60 mm of each other at wall A's right-hand end**, measured
 // here rather than carried over, because Q7H-4 rules the backsplash follows the room and the next
@@ -18,12 +20,11 @@
 //   - the seeded base run ends at   3500 mm  (`RUN_END_PANEL_SEEDED_X_M` 3.51 minus
 //                                             `RUN_END_PANEL_EDGE_OFFSET_M` 0.010)
 //   - the run-end panel is seated at 3510 mm (`kitchen-parts.ts`'s `RUN_END_PANEL_SEEDED_X_M`)
-//   - `backsplash_wall_a` spans       0 -> 3500 mm (width 3.5 centred at 1.75, so it starts at the
-//                                             corner exactly)
 //   - the seeded document's room is  3560 mm (`KITCHEN_L_DESIGN.room.widthMm`)
+//   - `backsplash_wall_a` spanned     0 -> 3500 mm before this wave and spans 0 -> 3560 after it
 //
-// Nothing reconciles them and nothing ever has. Q7H-4 rules the backsplash follows the **room**,
-// not the run and not the records.
+// Nothing reconciles the first three and nothing ever has. Q7H-4 rules the backsplash follows the
+// **room**, not the run and not the records, which is why the fourth is the one that moved.
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -76,30 +77,37 @@ interface ShellChildFacts {
   readonly mapIsKitOwned: boolean;
 }
 
-/** Measured at `HEAD`, 2026-09-16, by building the shell and reading the values back out.
+/** Measured at the seeded room — 3560 x 2920 x 2600 — by building the shell and reading the values
+ *  back out. Re-baselined 2026-09-16 in the commit that made the drawn wall the entered wall.
  *
- *  The floor and both wall planes carry the corner overhang as a `-0.3 m` offset on each floor
- *  axis (`RW / 2 - 0.3`, `RD / 2 - 0.3`), so the drawn floor spans x in [-0.30, 3.90] and z in
- *  [-0.30, 3.10]. Q7H-2 keeps the 300 mm overhang and Q7H-1 takes the rest away. */
+ *  The floor and both wall planes keep the 300 mm corner overhang and lose everything else: each
+ *  runs from one overhang behind the corner to the end of the wall the customer entered, so the
+ *  drawn floor spans x in [-0.30, 3.56] and z in [-0.30, 2.92]. Before this wave they spanned
+ *  [-0.30, 3.90] and [-0.30, 3.10], from a builder that knew one L-shape. Q7H-2 keeps the overhang
+ *  fixed and named; Q7H-1 takes the rest away. */
 const SHELL_CHILDREN_AT_HEAD: readonly ShellChildFacts[] = [
   {
     name: "floor",
     geometryType: "BoxGeometry",
     geometryParameters: {
-      width: 4.2,
+      // 3560 + 300 overhang, and 2920 + 300. Was 4.2 x 3.4.
+      width: 3.86,
       height: 0.04,
-      depth: 3.4,
+      depth: 3.22,
       widthSegments: 1,
       heightSegments: 1,
       depthSegments: 1,
     },
-    geometryExtentM: [4.2, 0.04, 3.4],
-    positionM: [1.8, -0.02, 1.4],
+    geometryExtentM: [3.86, 0.04, 3.22],
+    // Was [1.8, -0.02, 1.4]. The slab's y is not a room dimension and did not move.
+    positionM: [1.63, -0.02, 1.31],
     rotationRad: [0, 0, 0],
     scale: [1, 1, 1],
     visible: true,
     materialName: "floor_oak",
-    mapRepeat: [4, 4],
+    // Was [4, 4] across a 4.2 x 3.4 floor, i.e. a plank of 1.05 x 0.85 m. The repeat now carries
+    // that same plank across a smaller floor: 4 x 3.86/4.2 and 4 x 3.22/3.4.
+    mapRepeat: [3.676190476190476, 3.788235294117647],
     geometryIsKitOwned: false,
     materialIsKitOwned: true,
     mapIsKitOwned: true,
@@ -108,13 +116,14 @@ const SHELL_CHILDREN_AT_HEAD: readonly ShellChildFacts[] = [
     name: "wall_back",
     geometryType: "PlaneGeometry",
     geometryParameters: {
-      width: 4.2,
+      // Was 4.2. The height follows `heightMm` and the seeded room's 2600 is what it already was.
+      width: 3.86,
       height: 2.6,
       widthSegments: 1,
       heightSegments: 1,
     },
-    geometryExtentM: [4.2, 2.6, 0],
-    positionM: [1.8, 1.3, 0],
+    geometryExtentM: [3.86, 2.6, 0],
+    positionM: [1.63, 1.3, 0], // was [1.8, 1.3, 0]
     rotationRad: [0, 0, 0],
     scale: [1, 1, 1],
     visible: true,
@@ -122,7 +131,8 @@ const SHELL_CHILDREN_AT_HEAD: readonly ShellChildFacts[] = [
     mapRepeat: null,
     geometryIsKitOwned: false,
     // A clone of `M.wall`, so the kit's record does not claim it and both planes share the one
-    // clone. Recorded because slice 2 must not turn that into a per-room allocation nobody frees.
+    // clone. Recorded because this wave must not turn that into a per-room allocation nobody frees
+    // — and it did not: the planes carry no map, so the resize leaves their material alone.
     materialIsKitOwned: false,
     mapIsKitOwned: false,
   },
@@ -130,13 +140,14 @@ const SHELL_CHILDREN_AT_HEAD: readonly ShellChildFacts[] = [
     name: "wall_left",
     geometryType: "PlaneGeometry",
     geometryParameters: {
-      width: 3.4,
+      // Rotated to face +X, so its geometry width is the world's z: 2920 + 300. Was 3.4.
+      width: 3.22,
       height: 2.6,
       widthSegments: 1,
       heightSegments: 1,
     },
-    geometryExtentM: [3.4, 2.6, 0],
-    positionM: [0, 1.3, 1.4],
+    geometryExtentM: [3.22, 2.6, 0],
+    positionM: [0, 1.3, 1.31], // was [0, 1.3, 1.4]
     rotationRad: [0, Math.PI / 2, 0],
     scale: [1, 1, 1],
     visible: true,
@@ -150,9 +161,11 @@ const SHELL_CHILDREN_AT_HEAD: readonly ShellChildFacts[] = [
     name: "end_panel_right",
     geometryType: "ExtrudeGeometry",
     geometryParameters: {},
+    // **Every value in this entry is unchanged by the wave, and that is the assertion.** ADR 0045
+    // makes the panel a function of the records; the shell's new extent must reach it nowhere.
     geometryExtentM: [0.018, 0.82, 0.6],
-    // ADR 0045: `syncRunEndPanel` overwrites this x from `runEndPanelSeatM(records, room)` on every
-    // sync. 3.51 is where an **unsynced** shell parks it, and the seat the seeded records produce.
+    // `syncRunEndPanel` overwrites this x from `runEndPanelSeatM(records, room)` on every sync.
+    // 3.51 is where an **unsynced** shell parks it, and the seat the seeded records produce.
     positionM: [3.51, 0.41, 0.29],
     rotationRad: [0, 0, 0],
     scale: [1, 1, 1],
@@ -169,23 +182,27 @@ const SHELL_CHILDREN_AT_HEAD: readonly ShellChildFacts[] = [
     name: "backsplash_wall_a",
     geometryType: "BoxGeometry",
     geometryParameters: {
-      width: 3.5,
+      // Q7H-4: the room's wall A, with the start pinned at the corner — so no overhang, unlike the
+      // floor and the planes. Was 3.5, the run's extent rather than the room's.
+      width: 3.56,
       height: 0.59,
       depth: 0.014,
       widthSegments: 1,
       heightSegments: 1,
       depthSegments: 1,
     },
-    geometryExtentM: [3.5, 0.59, 0.014],
-    positionM: [1.75, 1.155, 0.037],
+    geometryExtentM: [3.56, 0.59, 0.014],
+    positionM: [1.78, 1.155, 0.037], // was [1.75, ...]: half the width, so x still starts at 0
     rotationRad: [0, 0, 0],
     scale: [1, 1, 1],
     visible: true,
     materialName: "backsplash_tile",
-    // Six tiles across 3.5 m. `M.tile` also dresses the counter `backsplash` and the open shelf's
+    // Was six tiles across 3.5 m, i.e. a tile 583 mm wide; now 6 x 3.56/3.5 across 3.56 m, which is
+    // the same tile. `M.tile` also dresses the counter `backsplash` and the open shelf's
     // `back_panel`, so this repeat cannot be corrected in place without re-tiling two customer
-    // bodies — Q7H-6 rules a per-mesh clone at constant world density instead.
-    mapRepeat: [6, 1],
+    // bodies — Q7H-6 rules a per-mesh clone at constant world density, and this mesh now carries
+    // its own map. The clone is registered, which is what `mapIsKitOwned` still being true says.
+    mapRepeat: [6.102857142857143, 1],
     geometryIsKitOwned: false,
     materialIsKitOwned: true,
     mapIsKitOwned: true,
@@ -199,7 +216,7 @@ let shell: THREE.Group;
 
 beforeAll(() => {
   kit = makeKit({ createCanvas: createHeadlessCanvas });
-  shell = buildKitchenShell(kit);
+  shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
 });
 
 describe("the room shell, as HEAD builds it", () => {
@@ -221,8 +238,8 @@ describe("the room shell, as HEAD builds it", () => {
     },
   );
 
-  it("takes a kit and no room, which is what wave 7H changes", () => {
-    expect(buildKitchenShell).toHaveLength(1);
+  it("takes the room, so no caller can build a shell without naming one", () => {
+    expect(buildKitchenShell).toHaveLength(2);
   });
 });
 
@@ -230,10 +247,10 @@ describe("the room shell, as HEAD builds it", () => {
  *  **which** recorded facts that mechanism disturbs. A characterisation test nobody has watched
  *  fail is not a measurement, and three of these four failures move no transform at all. */
 describe("the recorded facts are falsifiable", () => {
-  it("catches a floor rebuilt for a different room", () => {
+  it("catches a floor drawn for a different room", () => {
     const mutated = mutatedShell((built) => {
       const floor = asMesh(childNamed(built, "floor"));
-      floor.geometry = new THREE.BoxGeometry(5.2, 0.04, 3.4);
+      floor.geometry = new THREE.BoxGeometry(4.86, 0.04, 3.22);
     });
 
     expect(differingFieldsIn(mutated, "floor")).toEqual([
@@ -244,7 +261,7 @@ describe("the recorded facts are falsifiable", () => {
 
   it("catches a mesh scaled instead of rebuilt, which fact A.1 forbids", () => {
     const mutated = mutatedShell((built) => {
-      childNamed(built, "floor").scale.x = 5.2 / 4.2;
+      childNamed(built, "floor").scale.x = 4.86 / 3.86;
     });
 
     expect(differingFieldsIn(mutated, "floor")).toEqual(["scale[0]"]);
@@ -252,21 +269,34 @@ describe("the recorded facts are falsifiable", () => {
 
   it("catches a wall plane moved off the recorded corner offset", () => {
     const mutated = mutatedShell((built) => {
-      childNamed(built, "wall_back").position.x = 2.1;
+      childNamed(built, "wall_back").position.x = 1.93;
     });
 
     expect(differingFieldsIn(mutated, "wall_back")).toEqual(["positionM[0]"]);
   });
 
-  it("catches the shared kit texture re-tiled in place, which Q7H-6 forbids", () => {
+  it("catches a backsplash re-tiled off its constant world density", () => {
     const mutated = mutatedShell((built) => {
       const backsplash = asMesh(childNamed(built, "backsplash_wall_a"));
-      mapOf(backsplash).repeat.set(3, 1);
+      mapOf(backsplash).repeat.set(6, 1);
     });
 
     expect(differingFieldsIn(mutated, "backsplash_wall_a")).toEqual([
       "mapRepeat[0]",
     ]);
+  });
+
+  /** The re-tile above is only evidence that this pin has teeth if the map it moved is the shell's
+   *  own. Left as its own case because *"we corrected the shell's repeat and the open shelf
+   *  changed"* is the failure Q7H-6 names, and it moves no transform. */
+  it("re-tiles a map no customer body renders from", () => {
+    const throwawayKit = makeKit({ createCanvas: createHeadlessCanvas });
+    const built = buildKitchenShell(throwawayKit, KITCHEN_L_DESIGN.room);
+    const backsplash = asMesh(childNamed(built, "backsplash_wall_a"));
+
+    expect(soleMaterialOf(backsplash)).not.toBe(throwawayKit.M.tile);
+    expect(mapOf(backsplash)).not.toBe(throwawayKit.M.tile.map);
+    expect(throwawayKit.M.tile.map?.repeat.toArray()).toEqual([6, 1]);
   });
 });
 
@@ -473,7 +503,7 @@ interface MutatedShell {
  *  kit-owned resource — the re-tile below does — cannot escape into the suite's shared kit. */
 function mutatedShell(breakIt: (built: THREE.Group) => void): MutatedShell {
   const throwawayKit = makeKit({ createCanvas: createHeadlessCanvas });
-  const built = buildKitchenShell(throwawayKit);
+  const built = buildKitchenShell(throwawayKit, KITCHEN_L_DESIGN.room);
   breakIt(built);
   return { shell: built, owned: kitOwnedResources(throwawayKit.M) };
 }
