@@ -18,6 +18,11 @@ rtk pytest -q
 If RTK does not support a required command, its filtering hides needed diagnostic detail, or the
 proxied command fails unexpectedly, run the command directly and explain why when relevant.
 
+**Exit codes are trustworthy; filtered output text is not.** Whenever the *absence* of content is the
+signal — a diff that reports "identical", a lint or format probe that reports clean, a grep that
+returns nothing — use `rtk proxy <command>`. Filtered output has falsely reported all four.
+Instances and the parsing trap: `docs/best-practices/ci-and-local-gates.md`, *The `rtk` proxy*.
+
 ## Diagnostics
 
 ```bash

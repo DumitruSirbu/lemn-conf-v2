@@ -52,6 +52,48 @@ matches. Both sent a debugging session down the wrong path.
 When a result decides something, re-run the binary directly (`./node_modules/.bin/…`) or capture
 output to a file and read the file.
 
+**The rule, sharpened by four more instances: exit codes are trustworthy, filtered output text is
+not.** The filter summarises to save tokens, and a summary that drops the lines you were reading for
+is indistinguishable from a clean result — which is worse than verbosity, because it ends the
+investigation instead of prolonging it.
+
+- `diff a b` returned **`[ok] Files are identical`** for two files differing on three lines, one of
+  them a load-bearing ADR citation. `rtk proxy diff a b` showed the divergence (2026-09-11).
+- An `eslint --stdin` probe that flagged a real error came back as **`ESLint: No issues found`**.
+- A `prettier --check` over `docs/` reported **passing** on files it would have restyled.
+- A `grep -E 'a|b'` alternation returned **nothing** where both alternatives matched.
+
+So: **run it as `rtk proxy <cmd>` whenever the *absence* of content is the signal** — is this a
+duplicate, did content survive a move, do two copies agree, does this file lint clean. Brief
+dispatched agents to do the same. Separately, rtk reformats `grep -n` output, so a pipeline doing
+`awk -F: '{print $1}'` gets the **path** rather than the line number; anything parsing grep output
+needs `rtk proxy` too.
+
+### Never pipe a gate through `tail` or `head`
+
+A pipeline's exit status is the **last** command's. `pnpm ci:local 2>&1 | tail -60` reports `tail`'s
+success, not the gate's. Redirect instead, and read the status:
+
+```sh
+rtk proxy pnpm ci:local > "$SCRATCH/ci-local.log" 2>&1; echo "CI_EXIT=$?"
+```
+
+**Why this is a rule and not a style note.** Closing M7 wave 7E2 on 2026-09-14 that exact pipe
+reported **exit code 0** while the gate had printed `LOCAL CI FAILED: e2e`. It was caught only
+because `scripts/local-ci.sh` prints its verdict banner near the end and the banner happened to
+survive inside the kept 60 lines; two lines further from the end and a red tree would have been
+pushed as green. The same pipe then **destroyed the diagnosis**: `tail -60` kept 62 lines, so every
+e2e failure message was discarded. The failure never reproduced — a full re-run was green on every
+gate, e2e alone at 191 passed / 2 skipped — so it is recorded permanently as an unexplained
+transient. The evidence existed exactly once.
+
+Treat any "exit code 0" from a piped command as **unverified**. `run_in_background` is right for
+`ci:local`, which takes roughly ten minutes with e2e — but its completion notice reports the
+*pipeline's* status too, so the redirect still matters.
+
+**`git push` is a ten-minute command**, because `.githooks/pre-push` reruns the whole gate. Background
+it from the start rather than discovering it against a tool timeout.
+
 ### Why recursive scripts are serialised
 
 The root recursive scripts run with `--workspace-concurrency=1`. Several packages depend on
@@ -97,6 +139,29 @@ credentials. The full gate runs before the push instead.
 
 Do not bypass the hook with `git commit --no-verify`. If the hook is wrong, fix the hook.
 
+### Two consequences of how the hook works, both of which bite when several agents share the tree
+
+**1. `pnpm lint` is workspace-wide, so a commit needs a *quiet tree*, not merely non-conflicting
+paths.** The hook lints all four packages regardless of what is staged
+(`.githooks/pre-commit:44`). A commit touching **only `docs/`** therefore fails whenever anyone has
+an in-progress edit under `apps/` or `packages/` — a half-written function with one unused import is
+enough. On 2026-09-15 a docs commit failed on a developer's unused variable in
+`apps/web/src/room/use-generation.ts`: `HEAD` did not move and the docs change was left **staged
+against a tree its author did not own**, which is how two agents end up sharing one commit. Either
+wait for the implementer to report, or say plainly that the commit is blocked instead of retrying.
+If it must be unwound, **`git reset` (no `--hard`)** unstages without touching anyone's work —
+never `git checkout --` or `--hard`, which destroy the in-flight edit.
+
+**2. The hook re-stages whole files, so partial staging does not survive it.** It runs Prettier over
+the staged paths and `git add`s them back (`.githooks/pre-commit:40-42`), re-staging each file
+entirely. `git add -p` and `git apply --cached` both **silently lose the split**. On 2026-09-09 two
+agents were editing `docs/backlog/open.md`, one adding entry 50 and one entry 60; the second staged
+only its own two hunks, verified the split was clean, committed — and swept the other's 50-line entry
+into its commit anyway (`4618046`). Nothing was lost or altered, the text was byte-identical, but the
+work is attributed to a commit about a different entry. **Two agents may not share a file in this
+repository; sequence them.** The coordination rules that follow from this are in `docs/WORKFLOW.md`
+under *Running agents in parallel*.
+
 ## Rule — the whole CI gate set runs locally before every push
 
 **Nothing is pushed to GitHub until every CI gate passes locally.** GitHub Actions minutes on a
@@ -134,6 +199,41 @@ Playwright's own server binds to, and does not sidestep a peer session's `pnpm -
 rather than a bind error, which looks like a green exit at a glance and is easy to mistake for
 "nothing to test" instead of "the server that should have booted never did." Check for another `next
 dev` in the same directory before trusting a zero-test e2e run.
+
+#### `pnpm ci:local` does not run e2e against a production build — only CI does
+
+**The mechanism, because the conclusion alone invites someone to re-litigate it.**
+`playwright.config.ts:83-85` picks the `webServer` command from `process.env.CI !== undefined` (read
+once into `isContinuousIntegration` at `:15`): a runner gets `pnpm run build && next start`, every
+other machine gets `next dev`. `scripts/local-ci.sh:128` runs `run_gate e2e pnpm test:e2e` and
+**never sets `CI`** — the name appears nine times in that file and every one is a comment, so a grep
+that looks like confirmation is not one. So every local e2e run — including the one inside
+`ci:local`, whose closing banner reads *"LOCAL CI PASSED — all gates green, safe to push"*
+(`scripts/local-ci.sh:141`) — exercises the dev server.
+
+**An acceptance criterion that names a production build is therefore satisfiable only by CI, and
+must not be recorded as met locally.** The claim is plausible from the gate's *name*, and on
+2026-09-14 a close-out was "corrected" into asserting exactly that. Two greps and `printenv CI`
+settled it. It matters because M7 wave 7F1's defects D4 and D5 were both found in a production build
+and neither was visible under `next dev`: writing the criterion off as locally satisfied would have
+retired the check that catches the class.
+
+#### A green local e2e run is not evidence about a runner-only failure
+
+The runner's WebGL stack paints roughly **2 s per frame** while an orbit drag is in flight — measured
+2026-09-07 from a Playwright trace, where a 12-step `mouse.move` took **25.9 s**. A local machine
+cannot be slowed to that: swiftshader plus `Emulation.setCPUThrottlingRate` at 20× still keeps frame
+gaps under 500 ms, because the bottleneck on the runner is its software GL stack rather than its CPU.
+
+So for any assertion whose correctness depends on frame timing or animation settling, **a passing
+local run proves nothing** — including a full `scripts/local-ci.sh`. Diagnose from the CI trace
+artifact (`gh run download`, then parse `0-trace.trace` JSONL for `before`/`after` records and call
+durations), treat the next CI run as the only verdict, and say so rather than reporting the fix as
+verified.
+
+**When writing such a test, never express "settled" in wall-clock milliseconds.** Scale the threshold
+to the machine's own observed frame gap, or the rule degenerates on the runner and silently reads a
+moving value.
 
 The `boundary` and `lockfile:single-source` gates are the **same shell scripts** the workflow
 invokes (`scripts/gates/`), not reimplementations. That is deliberate: a local gate that has drifted
