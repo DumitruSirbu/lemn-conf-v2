@@ -197,11 +197,15 @@ control.
 
 ### 7. Retention: abandoned designs are deleted
 
-A design that has never reached the contact step and has not been modified for **30 days** is
+> **RETIRED by owner ruling, 2026-09-15** — see *Supersession note — 2026-09-15: decision 7* below.
+> **Nothing is deleted automatically.** The text below stays in place, struck, because its security
+> argument is the thing a later reader must weigh before proposing a reaper again.
+
+~~A design that has never reached the contact step and has not been modified for **30 days** is
 deleted by the existing nightly cron. This closes the retention question open since 2026-08-25, and
 it is a security control as much as a hygiene one: it bounds how much an attacker who gets past
-every other layer can accumulate, and it bounds free-tier storage. The same cron prunes expired
-rate-limit counters.
+every other layer can accumulate, and it bounds free-tier storage.~~ The same cron prunes expired
+rate-limit counters — **unchanged; that half is not retention and is not retired.**
 
 Designs that reached the contact step are out of scope here and follow whatever the contact
 submission's own retention policy becomes in M8.

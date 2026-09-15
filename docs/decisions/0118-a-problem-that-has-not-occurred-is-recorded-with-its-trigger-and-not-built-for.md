@@ -7,6 +7,12 @@ Date: 2026-09-15
 Type: Decision (owner preference + adjudication)
 Milestone: Cross-cutting — raised in M7 waves 7P1 and 7P2, binding on every plan and wave from here
 
+**Every code citation in this record was re-read at `9240d4f` on 2026-09-15, and none had moved.**
+Stated because an ADR is the most durable artefact in this repository and is quoted by people who
+will not re-check it: a citation taken hours earlier and reused **looks** verified whether or not it
+still is. The one claim here that could **not** be re-measured is marked where it appears, with the
+reason it could not be — see decision 3.
+
 ## Context
 
 **The owner gave the same instruction twice in one day, from opposite directions, about two
@@ -62,9 +68,22 @@ arrives** — and after enough time nobody remaining can say why it is there.
 **3. A recorded obligation names its trigger, not its likelihood.** *"When a migration genuinely
 cannot be written for a stored shape, build the refusal surface"* is a usable record. *"We may one
 day need a refusal surface"* is not: it cannot be acted on and it cannot be closed. The worked
-example is 7P1 ruling P14 — `refuseUnsupportedVersion` throws an `InvalidDesignError` today, is
-unreachable because no stored document is outside the supported range, and **the trigger for
-building anything better is a document that cannot be carried forward, not the possibility of one.**
+example is 7P1 ruling P14 — `refuseUnsupportedVersion` throws an `InvalidDesignError` for any version
+outside `OLDEST_SUPPORTED_SCHEMA_VERSION`–`CURRENT_SCHEMA_VERSION`, today 1–5
+(`packages/configurator-domain/src/migrate-design.ts:62, 66, 700-712`, re-read at `9240d4f`), and
+**the trigger for building anything better is a stored document that cannot be carried forward, not
+the possibility of one.**
+
+**The one claim in this record that could not be re-measured, marked with the reason rather than
+hedged.** *"No stored document is outside the supported range"* rests on
+[ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s measurement of **2026-09-02** — five
+`designs` rows, all at `schema_version` 1, which is inside 1–5. **It was not re-measured for this
+record, and the reason is structural rather than an omission:** reading it needs the application
+database credential, which agents do not hold (`AGENTS.md` rule 1) and which CI deliberately never
+sets. **So the honest status is: true when last measured, unmeasurable from here, and re-measurable
+only by someone holding that credential.** That is a different and more useful claim than
+*"unverified"* — and ADR 0038 is the standing warning about what happens to a premise like this one
+when it is carried forward unchecked instead.
 
 **4. The discriminator, and without it this record argues against the best decision of the day:
 anticipate when the cost of acting rises at a datable event; record and stop when it does not.**
@@ -97,7 +116,11 @@ problem occurred, and if not, is its trigger named and is anything being built?*
 ## Alternatives considered
 
 - **Record it in the milestone plan and nowhere else.** *Rejected, and it is the reason this file
-  exists.* Milestone plans are archived when a phase closes (`AGENTS.md`), and
+  exists.* The rule is stronger than "archived": `AGENTS.md:16` says a milestone marked **Done** is
+  moved to `docs/milestones/done/` and **"must not be read"** — so a preference living only in a
+  plan is not merely hard to find later, it is **placed out of bounds by the repository's own
+  instructions.** (Re-read at `9240d4f`; the earlier draft of this line said *"archived when a phase
+  closes"*, which is true and materially weaker than what the file actually says.) And
   [ADR 0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
   rejected the same option for the same reason. **A preference that outlived three plans in one day
   will outlive M7.** It was recorded in M7 wave 7P1 as well, deliberately — that is where a planner
@@ -143,4 +166,5 @@ problem occurred, and if not, is its trigger named and is anything being built?*
 | [0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md) decision 2 | The authoring gate: a flag, an owner secret, a server-verified cookie. | **Untouched.** A gate answers a capability an adversary already has. |
 | [0028](0028-wall-depth-is-derived-from-the-worktop.md), [0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md) | Two numbers must not agree by luck; a second authority is the defect laundered. | **Consistent, and the reason the preset-specific versioning scheme was refused** — it would have been a second version number to keep in step with the first. |
 | [0038](0038-pre-release-no-stored-designs-no-migrations.md) | Its premise was measured false twice, each time after being carried forward unchecked. | **The mirror-image failure, and worth naming**: that record deferred work on a stale premise. This one refuses work on a premise nobody has tested either. **Both are answered by naming the trigger and re-checking it**, which is what decision 3 requires. |
-| `AGENTS.md` | Milestone plans are archived when a phase closes. | **Why this is an ADR** (alternatives, first entry). |
+| `AGENTS.md:16` | A milestone marked **Done** is archived in `docs/milestones/done/` and **must not be read**. | **Why this is an ADR** (alternatives, first entry) — and the rule is stronger than "hard to find": a plan-only preference is placed **out of bounds**, not merely out of sight. |
+| [0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md) | Five `designs` rows exist, all at `schema_version` 1 (measured 2026-09-02). | **The unmeasurable claim's only support**, cited with its date and with the reason it cannot be re-checked from here (decision 3). |
