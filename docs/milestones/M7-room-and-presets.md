@@ -1470,7 +1470,7 @@ table.
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
-| **7D4** | **A long storage run is composed, not repeated**: the storage cycle, the per-kitchen sequence carried across the corner, and the preparation cabinet's drawer body. **Changes which body fills a slot, and never how many slots there are or how wide they are** | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F is slice S0 and is not written**. Q-7D4-1…4 are **confirmations, not gates** |
+| **7D4** | **A long storage run is composed, not repeated**: the storage cycle, the per-kitchen sequence carried across the corner, and the preparation cabinet's drawer body. **Changes which body fills a slot, and never how many slots there are or how wide they are** | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | **The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob). **Re-baselines 7D3's block-threshold table and restates its criterion 12** | `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/generation/body-choice.ts` | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15); **Q-D2 open and blocks this wave only** |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Ordering: its fidelity baseline is taken *after* 7H lands, never before. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders (+ fidelity and parity coverage) | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths | — |
@@ -2811,12 +2811,13 @@ diffs.
   five dead-tap rooms the visual gate found, **2,20 × 0,90 refuses for a different reason than the
   other four** — `WALL_TOO_SHORT` on wall B's own floor, a per-field code, rather than the coupled
   `ROOM_TOO_SMALL_FOR_KITCHEN`.
-- **`ADR 0110 Amendment F` does not exist and is cited by four places in the tree** —
+- ~~**`ADR 0110 Amendment F` does not exist and is cited by four places in the tree**~~ —
   `apps/web/src/room/generation-steps.tsx:232`, `apps/web/src/room/room.module.css:723`, ADR 0117 (at
-  three points) and this milestone. Measured: ADR 0110 carries Amendments **A–E** and no F. **It is
-  owed by wave 7D4's slice S0**, which that wave's punch list already marks *NOT WRITTEN* — the
-  dispatch brief for this close-out said 7D3, and the record and both code comments say 7D4. **An open
-  obligation, carried until 7D4 writes it.**
+  three points) and this milestone. Measured at the time: ADR 0110 carried Amendments **A–E** and no F.
+  **CLOSED 2026-09-15 — Amendment F is written, F0–F15.** Its **F15** carries the dropped-roles
+  sentence's shape the two code comments were citing it for, and its head carries ADR 0117's pointer
+  line. **The citations now resolve to text about the thing they cite**, which is the part that would
+  otherwise have been missed by writing the amendment and stopping at the wave's own rulings.
 
 **Next wave: 7F4b**, which inherits the seam this wave armed: **a departure armed by the primary tap
 resolves after the customer has left 1F.** Risk 6 named it before the wave — while *Continuă*'s push
@@ -2961,8 +2962,9 @@ in as a literal, so a future change to the bound turns it red rather than silent
 
 **Deferred, with an owner.** Nothing in 7D3's scope is deferred. The two items this wave leaves
 outstanding both belong elsewhere and are named at their owners: **ADR 0118** (above, commissioned, to
-be written separately) and **ADR 0110 Amendment F**, which does not exist and is owed by **wave 7D4's
-slice S0** — recorded in full in the 7F4a close-out above and unchanged by this wave.
+be written separately) and **ADR 0110 Amendment F**, ~~which does not exist and~~ which is owed by
+**wave 7D4's slice S0** — recorded in full in the 7F4a close-out above and unchanged by this wave.
+**Both are now written: ADR 0118, and Amendment F on 2026-09-15.**
 
 **Next wave: unchanged by this close-out.** 7D3 was dispatched out of the recommended order, which puts
 **7F4b** next; see the two recorded table defects under the revised wave table.
@@ -5350,10 +5352,12 @@ narrowings in one day is the record worth keeping.
 **Where the record lives.** These are new owner rulings about *what generation composes*, which is
 [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)'s
 subject — Amendment A ruled the layout order, C the uppers and the drop order, E the tall block. They
-belong there as **Amendment F, not as a new ADR**, so composition keeps one authority. **Amendment F
-is not written.** It is slice S0 and the coordinator asked to be told before an ADR file was touched;
-this section is the draft it will be written from, and no other slice may start before it exists and
-is reviewed. Where it and this section differ, **the amendment is binding**.
+belong there as **Amendment F, not as a new ADR**, so composition keeps one authority. ~~**Amendment F
+is not written.**~~ **WRITTEN 2026-09-15 as clauses F0–F15 — after slice S1 rather than before it,
+which F0 records rather than conceals.** This section was the draft it was written from. **Where it and
+this section differ, the amendment is binding**, and it differs in four named places — F2's width
+bounds, F6's provenance ruling and its correction of the "E5.2" citation, and F14's two criterion
+corrections. **S2 and S4 do not start before the amendment is reviewed.**
 
 **ADRs to check intent against first, and to stop and report on if they disagree:**
 [0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
@@ -6045,8 +6049,15 @@ one re-baselines 7D3's D2.2 threshold table and restates 7D3's criterion 12.
 Read this before you write a property, because four criteria in this wave fail against 7D3's own
 correct output if you do not, and the first instinct on seeing them go red will be to edit 7D3.**
 
-7D3's block columns are declared with **`role: "storage"`** (`generation-priorities.ts`,
-`tallColumnItems`) — deliberately, because ADR 0110 **E5.2** keeps frame 1F's row set from moving. So
+7D3's block columns are declared with **`role: "storage"`** (`generation-priorities.ts:222-230`,
+`tallColumnItems`) — deliberately, because it keeps frame 1F's row set from moving. *(**Citation
+corrected 2026-09-15**: this section, and the code comment it came from, cite **"E5.2"**, and **that
+string appears nowhere in Amendment E** — E5 is unnumbered prose with three clauses. The substance is
+**E5 clause 2** — *the leftover fill is unchanged in count and the identity of the module changes* —
+and the **role** and the **row set** are the 7D3 implementer's derivation from it. **ADR 0110 F6 now
+rules it directly and is the citation to use.** The derivation is source-verified at HEAD:
+`apps/web/src/room/generation-model.ts:127-157` folds every step carrying a role onto that role's one
+aggregate row, and `:60-72` makes a new `GenerationBaseRole` without a label a **compile error**.)* So
 after 7D3 the word *storage* has two referents inside one plan: **the cycle's slots**, which this wave
 composes, and **the block's columns**, which 7D3 composes and this wave must not touch.
 
@@ -6076,12 +6087,14 @@ right and only their subject was wrong.**
    `id.startsWith("storage:")` is one more reader of an undeclared contract.** S1 exports **one
    predicate** — `isCycleStorageSlot(base)` — beside the cycle, and it is the only thing in the
    repository that knows the convention. **Criterion 22 is its guard.**
-3. **The role does not change, and changing it would be the defect.** E5.2 rules that a column carries
-   the storage role so 1F's row set does not move. **This wave must not "fix" the ambiguity by giving
+3. **The role does not change, and changing it would be the defect.** **ADR 0110 F6** rules that a
+   column carries the storage role so 1F's row set does not move, on E5 clause 2's principle — *the
+   module's identity changes and the wall's plan does not*. **This wave must not "fix" the ambiguity by giving
    the block a role of its own**; it fixes it by naming the subject precisely.
 
-*(Checked against ADR 0110 Amendment E at `128e515`: E5.2 and E12.2 both stand, and this ruling refines
-nothing in either.)*
+*(Checked against ADR 0110 Amendment E at `128e515`: E5 clause 2 and E12.2 both stand, and this ruling
+refines nothing in either. **Re-checked 2026-09-15 while writing Amendment F**, which is where the
+"E5.2" label was found to name no section; the ruling itself is unchanged and is now F6.)*
 
 **D13 — the kitchen-wide sequence has exactly two call sites and one index map, and the map is written
 here because it is this wave's most likely silent defect.**
@@ -6188,8 +6201,13 @@ consequence of 7D3, not at a defect in 7D4**, and no criterion of this wave asse
 - `packages/configurator-domain/src/generation/body-choice.ts` *(new)*
 - `packages/configurator-domain/src/generation/generation-priorities.ts`
 - `packages/configurator-domain/src/generation/generate-kitchen.ts` *(S3 and S5 only)*
-- `packages/configurator-domain/src/index.ts` *(exports only, if the new leaf's type is needed
-  outside)*
+- `packages/configurator-domain/src/index.ts` *(exports only)* — ~~if the new leaf's type is needed
+  outside~~ **struck: the condition is false and the edit is unconditional** (ADR 0110 **F13**,
+  measured in S1). `tsconfig.build.json` sets `"include": ["src/index.ts"]` and emits only that file's
+  import closure, while `tests/dist-module-graph.test.ts:75-89` asserts every `src/**/*.ts` has a
+  `dist` counterpart — **so an orphan leaf fails the suite**, measured as `dist is missing
+  generation/body-choice.js`. **Any leaf-alone slice in this package hits this**, whether or not
+  anything outside the package wants the leaf. S1's change is one `export * from` line.
 - `packages/configurator-domain/tests/generation/*` and one `packages/three-adapter/tests/*` parity
   addition
 
@@ -6353,18 +6371,37 @@ tests, not in the composer.
     reason** — `compose` partitions on `role !== "storage"` and `role === "storage"`, which is exactly
     the word D12 showed has two referents, and a permutation check over planned ids is the cheapest
     guard there is against a module falling through both.)*
-20. *(lint / grep in a test)* **One declaration site per build id, and no ratio constant.**
-    `base-cabinet`, `base-3drawer` and `base-panbank` appear as literals in exactly one module under
-    `src/generation/` — `body-choice.ts`. **`base-dishwasher` and `base-bottle-cargo` appear nowhere**
-    under `src/generation/`. *(The dishwasher's clause is **withdrawn from its earlier form**, which
-    named `generation-priorities.ts` as its one site; that was written before **D11** moved the body to
-    7D5, and at HEAD the id appears in no generation module at all, so the old form would fail.)*
+20. *(lint / grep in a test — **S2's, not S1's**)* **One declaration site per *composed body*, and no
+    ratio constant.** **Corrected 2026-09-15 by ADR 0110 Amendment F14.1, after the S1 implementer
+    proved the earlier wording unsatisfiable.** ~~`base-cabinet`, `base-3drawer` and `base-panbank`
+    appear as literals in exactly one module under `src/generation/`~~ — **false at HEAD and this wave
+    cannot make it true**: `shell-design.ts:105` declares `const FLOOR_TILE_SOURCE = "base-cabinet"`
+    and that file is in the must-not-change set. **Verified before scoping it away** (F14.1, every site
+    re-read at HEAD): the constant reaches only `TileRun.source`, consumed at `tileDepthMm` (`:395`,
+    `:401-414`), at `depthFromBuildId` (`:396`) and in `slideReserveMm` (`:346-360`) — all three
+    producing an `EmptyColumn`, never a placement. **A declared depth source (ADR 0073) is not a
+    composed body.** The scoped form, in three parts:
+    1. **`body-choice.ts` is the only module under `src/generation/` that declares a composed storage
+       body id** — `base-cabinet`, `base-3drawer`, `base-panbank`. **`base-dishwasher` and
+       `base-bottle-cargo` appear nowhere** under `src/generation/`. *(The dishwasher's clause is
+       withdrawn from its earlier form, which named `generation-priorities.ts` as its one site; that
+       was written before **D11** moved the body to 7D5.)*
+    2. **In `shell-design.ts` the literal `"base-cabinet"` occurs exactly once, on the
+       `FLOOR_TILE_SOURCE` line.** The exception is **pinned, not excluded**: a second occurrence in
+       that file goes red, so it cannot quietly acquire a composed body under cover of the exemption.
+       An exclusion by filename would buy nothing.
+    3. **No file under `src/generation/` encodes the balance as a percentage, a ratio or a halving** —
+       it is the cycle's shape.
+
     `tall-oven-tower` and `tall-pantry` stay where **7D3's criterion 23** put them, in
-    `tall-end-rule.ts`, and this criterion does not reach them. No file under `src/generation/` encodes
-    the balance as a percentage, a ratio or a halving — it is the cycle's shape. **Must not:** a
-    generation-side width or price constant "kept in sync" with the catalogue; a percentage anywhere
-    under `src/generation/` — neither the base row's half nor the wall row's 20–30 % nor the 5 % is a
-    number this wave writes down.
+    `tall-end-rule.ts`, and this criterion does not reach them. **It belongs to S2, not S1**: at HEAD
+    `generation-priorities.ts:34` still declares `export const STORAGE_BUILD_ID = "base-cabinet"`, and
+    S2 is the slice that removes it — so the grep could not have passed in S1 for a second reason the
+    plan did not see, and S1 correctly shipped no guard for it. **Must not:** a generation-side width or
+    price constant "kept in sync" with the catalogue; a percentage anywhere under `src/generation/` —
+    neither the base row's half nor the wall row's 20–30 % nor the 5 % is a number this wave writes
+    down; **an exemption for `shell-design.ts` written as a filename exclusion rather than as clause 2's
+    pin.**
 21. *(property, ≥ 200 samples)* **The wall row is byte-identical to 7D3's, and it is asserted rather
     than composed** (D8). For every room: every upper's build id, opening, position and width are
     deep-equal to 7D3's; the hood stands over the hob; nothing stands over the fridge or over a
@@ -6377,12 +6414,33 @@ tests, not in the composer.
 22. *(unit + grep — **D12's guard**)* **The cycle's slots are identified by one exported predicate, and
     nothing else knows the convention.** `isCycleStorageSlot` is exported from `body-choice.ts`; it
     returns `true` for every `storage:{A|B}:{n}` module and `false` for every `column:A:{n}` module,
-    over a sample of designs covering block sizes **0, 1, 2 and 3**; and the literal `"storage:"`
-    appears in exactly **two** places in the repository — the predicate, and the one `Array.from` that
-    writes the id. **Must not:** a test, a property or a production module that parses a planned id
-    itself; **a predicate that answers by role or by width** — the two forms D12 measured to fail on
-    32.8 % and 14.9 % of placed rooms; a second discriminator added anywhere, including a new field on
-    `PlannedGenerationBase` or a role of the block's own, which E5.2 forbids.
+    over a sample of designs covering block sizes **0, 1, 2 and 3**.
+
+    **The site count is replaced by a pinned site set. Corrected 2026-09-15 by ADR 0110 Amendment
+    F14.2, after the S1 implementer proved the count wrong at HEAD.** ~~the literal `"storage:"`
+    appears in exactly **two** places in the repository~~ — **there is a third**:
+    `tests/generation/generate-kitchen.test.ts:241` matches `base.id === "storage:A:0"`, a **whole-id
+    equality rather than a parse**, in a 7D2 test this wave is forbidden to edit. Editing it to make
+    this wave's criterion pass is the edited-assertion defect criterion 13 calls a finding, so the
+    count was wrong either way. **The guard pins the exact set in three assertions:** production is
+    exactly `body-choice.ts` **plus** the one `Array.from` in `generation-priorities.ts`; tests are
+    exactly that one 7D2 file, **commented in place as a reported deviation with its reason**; anywhere
+    else is **empty**. The guard excludes **itself, by resolved path rather than by basename**, because
+    it must spell the convention in order to count it.
+
+    **This is strictly stronger than the count, not a relaxation.** *Exactly two* passes if a site
+    moves to another file; the pinned set fails on a fourth reader, on a site that moves, and on a
+    deviation that stops being commented. **The guard's declared limit, stated because a guard that
+    oversells itself is worse than none:** it matches a **quoted** prefix, so a reader that builds
+    `storage:` by concatenation or holds it in a variable is not caught. Accepted — the guard stops the
+    ordinary copy of a string literal, which is how the convention would actually spread, and the
+    predicate is what makes copying unnecessary.
+
+    **Must not:** a test, a property or a production module that parses a planned id itself; **a
+    predicate that answers by role or by width** — the two forms D12 measured to fail on 32.8 % and
+    14.9 % of placed rooms; a second discriminator added anywhere, including a new field on
+    `PlannedGenerationBase` or a role of the block's own, which **ADR 0110 F6** forbids; **the 7D2
+    deviation left uncommented, or "fixed" by editing that test.**
 
 *(Criteria 23 and 24 were the composed wall row's — the one lift above the sink and its measured share
 — and are **withdrawn with D8's lift rule**. **Number 22 was theirs too** — `upperBodyFor`'s totality —
@@ -6395,7 +6453,15 @@ still reads.)*
 The tree is frozen for QA and review between slices (`docs/WORKFLOW.md`); no two of these may be in
 flight together.
 
-- **S0 — the record. NOT WRITTEN.** ADR 0110 **Amendment F**: the owner's four statements verbatim;
+- **S0 — the record. WRITTEN 2026-09-15 as [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+  Amendment F, clauses F0–F14 — and written *after* S1, which F0 records rather than conceals.** The
+  amendment is **binding where it and this section differ**, and it differs in four places, each named
+  in its own clause: **F2** states the three storage rows' width bounds as bounds (`base-cabinet`
+  floors at 200, the drawer rows at 300) rather than as equivalence; **F6** rules the provenance
+  convention directly and records that **the citation "E5.2" names a section Amendment E does not
+  contain** — the substance is E5 clause 2; **F14.1 and F14.2** correct criteria 20 and 22 above.
+  **F13 adds an obligation this plan did not anticipate** — see the `src/index.ts` bullet in *Files*.
+  What the amendment carries: the owner's four statements verbatim;
   D1's grid rule and the merge measurement behind it; the cycle and why the ratio is not a constant;
   the per-kitchen sequence and its phase boundary; the preparation body as an amendment to A1's
   *interim data*, **with R6's softening recorded as a preference and the deleted criterion named**;
@@ -6405,13 +6471,19 @@ flight together.
   the bottle cargo's exclusion with ADR 0026's
   reason; G9's and G16's price figures, so the variety goal is a knowing choice; **R10's top-row lift
   rule with the stretch-ceiling reason stated first, recorded and not built**; and **D0's correction of
-  the reason 7D4 was said to depend on 7D3**. Markdown only. **No other slice starts until it exists
-  and is reviewed.**
-- **S1 — the leaf, alone** (`body-choice.ts` + its unit tests). The cycle, `storageBodyAt`,
+  the reason 7D4 was said to depend on 7D3**. Markdown only. ~~**No other slice starts until it exists
+  and is reviewed.**~~ **S1 was dispatched before it — the coordinator's error, found and reported by
+  the S1 implementer, and safe only because S1 composes no design. The rule still binds S2 and S4:
+  neither starts before this amendment is reviewed.**
+- **S1 — the leaf, alone** (`body-choice.ts` + its unit tests). **LANDED, uncommitted.** The cycle,
+  `storageBodyAt`,
   **`isCycleStorageSlot`** (D12), and every storage build id those answers use. **`upperBodyFor` is not
   in it** — the module-boundaries section withdrew that half of the leaf when D8's lift rule was
   withdrawn, and this bullet went on naming it. Criteria 3, 4, 6, 7 and **22** are provable against the
-  leaf before anything calls it, and 20's grep runs here. **Criterion 21 is not S1's** — it is a
+  leaf before anything calls it. ~~and 20's grep runs here~~ — **struck: criterion 20 is S2's** (ADR
+  0110 F14.1). At HEAD `generation-priorities.ts:34` still declares `STORAGE_BUILD_ID`, so the grep
+  cannot pass until S2 removes it, and S1 correctly shipped no guard for it. **Criterion 21 is not
+  S1's** — it is a
   whole-design property and belongs to S4; this bullet listed it here and was wrong. **S1 changes no
   generated design**, which is why it goes first.
   **It is not gated on any owner answer.** Q-7D4-1 confirms the cycle's *starting end*, not its shape,
@@ -6547,7 +6619,8 @@ flight together.
     **shape** form three times: a check that identified cabinets dimensionally by the `column` band
     swept in `fridge-free`, which is declared in the same band and is Amendment A1's body, not the
     block's; each fix was the same distinction. **This wave meets the *role* form, and it is worse,
-    because the role is correct** — E5.2 puts the storage role on a block column deliberately.
+    because the role is correct** — **ADR 0110 F6**, on E5 clause 2, puts the storage role on a block
+    column deliberately.
     Measured, the naive scoping fails on **32.8 %** and **14.9 %** of placed rooms **against output
     that is right**, so the failure presents as a defect in a closed wave. **The first instinct on
     seeing criterion 7 go red will be to edit 7D3, and it will be wrong.** A wave composing a *varied*

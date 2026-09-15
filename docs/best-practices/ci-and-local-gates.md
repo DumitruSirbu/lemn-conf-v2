@@ -139,6 +139,27 @@ credentials. The full gate runs before the push instead.
 
 Do not bypass the hook with `git commit --no-verify`. If the hook is wrong, fix the hook.
 
+### `pnpm typecheck` is the only gate that typechecks a test file
+
+**`lint` does not, and `test` does not.** A brief that asks for "lint, the suite and `format:check`" has
+omitted the gate that reads the test files, and a type error in a test survives all three.
+
+- `lint` runs `pnpm run build && eslint .`, and `build` uses **`tsconfig.build.json`, which includes
+  only `src/index.ts` and its import closure.** No test file is in it.
+- **vitest does not typecheck at all** — it strips types and runs.
+- `typecheck` runs `tsc --project tsconfig.json --noEmit`, the **test-inclusive** config, per package.
+
+Measured 2026-09-15 on wave 7D4 S1: a new test dereferenced an optional catalogue field, and `lint`
+(exit 0), the 4,264-test domain suite (exit 0) and whole-tree `format:check` (exit 0) all passed while
+`pnpm typecheck` returned exit 2 on `error TS18048`. Nothing broken could have reached `main` — the
+gate is in `scripts/local-ci.sh` and in CI — but **it fails at push time, ten minutes in, with the
+tree held for the whole run** ([agent-coordination.md](agent-coordination.md): a push is a verifier
+and holds the tree).
+
+**So: name `typecheck` explicitly in every implementer brief, and run it after any edit to a test.**
+The failure mode is not a broken build; it is a gate reported green by someone who ran three of the
+four gates that existed.
+
 ### Two consequences of how the hook works, both of which bite when several agents share the tree
 
 **1. `pnpm lint` is workspace-wide, so a commit needs a *quiet tree*, not merely non-conflicting
