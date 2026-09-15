@@ -224,9 +224,13 @@ function StepRow({ row }: { readonly row: GenerationRow }) {
 /**
  * **The roles the room left no wall for, named once and explained no further.**
  *
- * ADR 0110 Amendment F's instruction is binding and is quoted here because it is the whole
- * specification: *"one message naming the dropped roles, in the state the screen already has, reading
- * `plan.dropped` as it stands. No new sub-state, no per-role explanation, no recovery flow."*
+ * The instruction is binding and is quoted here because it is the whole specification: *"one message
+ * naming the dropped roles, in the state the screen already has, reading `plan.dropped` as it stands.
+ * No new sub-state, no per-role explanation, no recovery flow."*
+ *
+ * **Where the ruling lives today: `docs/milestones/M7-room-and-presets.md`, wave 7D4.** It is owed a
+ * home in ADR 0110 as **Amendment F — wave 7D4's slice S0, not yet written.** Cite the milestone
+ * until it exists; a missing amendment here is a missing *record*, never a missing rule.
  *
  * **The Romanian sentence is approved** — the owner answered question Q7F4-1 on 2026-09-15 and
  * `room.compose.dropped` now names the wall sizes as the reason, which is the substance the ruling

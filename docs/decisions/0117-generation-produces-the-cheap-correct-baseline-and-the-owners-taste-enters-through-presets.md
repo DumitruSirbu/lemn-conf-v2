@@ -233,7 +233,8 @@ undated prose in a wave plan.
   Amendment A, and this principle does constrain composition. **But its readers are the preset and
   matching waves — 7B, 7C, 7P1, 7P2, 7G — whose implementers have no reason to open a composition
   record at all.** A principle nobody reads is not a principle. **The resolution is a pointer, not a
-  fork:** this record is the authority, and ADR 0110's Amendment F and ADR 0109 each carry one line
+  fork:** this record is the authority, and ADR 0110's Amendment F (not yet written, owed by wave
+  7D4) and ADR 0109 each carry one line
   naming it, so composition's own record still leads a reader to the rule that bounds it.
 - **Record it in the milestone plan and nowhere else.** Rejected: milestone plans are archived when a
   phase closes (`AGENTS.md`), and the principle outlives M7. A dated decision beats milestone prose.
