@@ -4983,7 +4983,7 @@ dishwasher niche is and costs);
 | --- | --- | --- |
 | R1 | **Roughly half drawers, half doors** — their own worked example is six slots giving three and three. | New. Every leftover slot is `base-cabinet` today (`generation-priorities.ts:27`, `:165-172`). |
 | R2 | **Maximising the variety of cabinet types is an explicit goal**, stated in as many words. | New, and it is the answer to the eleven, not a decoration on it. `base-3drawer`, `base-panbank`, `base-dishwasher` and `base-bottle-cargo` exist and are never generated. |
-| R3 | **The dishwasher is directly adjacent to the sink — either side — or it is not placed at all** (owner, 2026-09-14, answering Q-D1 twice; the second answer binds). ~~after it~~ ~~*"ideally directly near"* rather than necessarily touching~~ | New. No dishwasher is generated today. ~~The word *after* is read in the owner's own order (A1)~~ — the owner refused that premise (*"left or right… not mandatory left"*) and then **upgraded adjacency from a preference to a rule**: *"it should not be near only if is totally missing"*. **The fallback is omission, not displacement.** See D7 and **Q-D1**. |
+| R3 | **The dishwasher is directly adjacent to the sink — either side, and across the corner counts — or it is not placed at all** (owner, 2026-09-14 answering Q-D1 twice, the second answer binding; **and 2026-09-15**: *"yes, should be counted as near the sync"*). ~~after it~~ ~~*"ideally directly near"* rather than necessarily touching~~ | New. No dishwasher is generated today. ~~The word *after* is read in the owner's own order (A1)~~ — the owner refused that premise (*"left or right… not mandatory left"*) and then **upgraded adjacency from a preference to a rule**: *"it should not be near only if is totally missing"*. **The fallback is omission, not displacement.** See D7 and **Q-D1**. |
 | R4 | **Drawers go before the hob**, for cutlery reached during cutting and preparation. | A1 already puts a **preparation** cabinet there. This names what that role's body should be — D6. |
 | R5 | Richer clients prefer drawers, thriftier ones doors. | **Context, not a rule.** There is no customer budget input and this wave invents none. It is why both classes appear at all, and it is why the price consequence in G9 is recorded rather than hidden. |
 
@@ -5886,9 +5886,9 @@ wave 7D5 to build:
   **SUPERSEDED THE SAME DAY — adjacency is a RULE. Both quotes, so the progression is visible:**
   *"Ideally directly near"* became **"I preffer tha it will be like a rule, its most convienent
   placement and it should not be near only if is totally missing"** (owner, verbatim, 2026-09-14).
-  **The dishwasher is directly adjacent to the sink — left or right — or it is not placed at all.
-  There is no third state, and a dishwasher two slots from the sink is not a degraded layout but wrong
-  output.** Read as three clauses:
+  **The dishwasher is directly adjacent to the sink — left or right, and *across the corner counts*
+  (owner, 2026-09-15) — or it is not placed at all. There is no third state, and a dishwasher two slots
+  from the sink is not a degraded layout but wrong output.** Read as three clauses:
   1. **Adjacency is a constraint, not a tiebreaker.** The planner **rearranges around it** rather than
      taking whatever fits — which reverses the *"chosen by fit"* framing of the struck clause above.
   2. **Either side stays valid.** *"left or right of the sink not mandatory left"* is **not**
@@ -5923,13 +5923,43 @@ wave 7D5 to build:
   between a dishwasher and a cabinet with drawers, cabinet with drawers have higher priority"* — so
   **the drawers win and the dishwasher is dropped**, which is clause 3 again. **No new owner question
   arises from this**, and 7D5 must not invent one.
-- **One thing 7D5 must not decide for itself: adjacency across the corner.** Where the sink is first on
-  its wall, its other side is the corner assembly — and whether a dishwasher on the *other* wall counts
-  as *"directly near"* is not something the owner has been asked. **The coordinator's reading is that it
-  does not**, since a 900 mm structural corner physically stands between the two carcasses and the
-  plumbing argument (*"drains into the sink's waste"*) assumes abutting bodies. **That is a reading and
-  is marked as one**; it is cheap to confirm and should be confirmed rather than assumed, because it
-  decides the 67 %.
+- **How often that actually costs the kitchen its dishwasher — re-measured 2026-09-15 under the
+  owner's corner ruling, because the earlier figure was derived from the overruled reading.** Modelling
+  a `preparation` slot as contested (the drawers win) and a `storage` slot as free:
+
+  | | rooms with a sink | share |
+  | --- | --- | --- |
+  | dishwasher dropped, **under the overruled reading** | 202 981 | **93.4 %** |
+  | dishwasher dropped, **under the owner's ruling** | 98 275 | **45.2 %** |
+  | **rescued by the across-the-corner slot** | **104 706** | **48.2 %** |
+
+  **The overruled reading would have dropped the dishwasher from almost every kitchen this generator
+  composes.** The reason is in the shape table above: the sink's same-wall neighbour is the preparation
+  cabinet in 85 % of rooms, and the drawers win that slot — so with the corner closed off, most
+  kitchens had no uncontested slot at all. Across the corner there is **storage** in 104 706 of the
+  146 156 corner-adjacent-sink rooms, and a storage slot costs no core role to give away.
+
+  **What this model does and does not prove.** It measures **slot availability** against today's
+  planner, not final placement: 7D5's planner does not exist yet, and the contested/free split is the
+  coordinator's reading of the priority ruling rather than a measured behaviour. **Treat 45.2 % as the
+  order of magnitude and re-measure inside 7D5**, against its own planner. The load-bearing figure is
+  not 45.2 % but the *difference* — the ruling roughly halves the drop rate.
+- **Adjacency across the corner — ANSWERED by the owner, 2026-09-15, and it overruled the
+  coordinator's reading.** Asked whether a dishwasher on the far side of the corner counts as adjacent
+  to the sink, they said, verbatim: ***"yes, should be counted as near the sync"*** *(their spelling;
+  they mean sink)*.
+
+  **The rule: a dishwasher on the other wall, immediately past the corner cabinet, satisfies
+  *"adjacent to the sink"*. The corner does not break adjacency.** Everything else stands unchanged —
+  either side is valid, no test may assert a side, and the fallback is omission, never displacement.
+
+  > ~~**The coordinator's reading is that it does not**, since a 900 mm structural corner physically
+  > stands between the two carcasses and the plumbing argument (*"drains into the sink's waste"*)
+  > assumes abutting bodies.~~ **OVERRULED. Struck in place, not deleted, so the next reader meets the
+  > argument that lost instead of re-deriving it.** The reasoning was sound and the owner simply
+  > decided otherwise: their *"near"* is about the working triangle, not about carcasses touching.
+  > **It was marked as a reading, and that is the only reason it was asked rather than built** — it
+  > governed 67 % of rooms and would have been wrong in all of them.
 - **The coordinator's earlier reading — *"between sink and preparation"* — is superseded**, struck
   below rather than deleted, with the owner's words beside it.
 - ~~**The standing rule applies, and the binary to watch for:** the quote does not say how far *"near"*
@@ -6059,6 +6089,18 @@ never appears there). Two things 7F4 must know:
   charter still holds** — both bodies still re-baseline the same two things, which is why they share a
   wave — **but the planner work is no longer symmetric between them, and the wave's slice order should
   be planned against that rather than inherited from this bullet.**
+- **And the constraint reaches across the corner** (owner, 2026-09-15): a sink at the start of its wall
+  may take its dishwasher from the **other wall's corner-most slot**. So the dishwasher is the first
+  generated body whose placement is **not confined to one wall's run**, which every planner rule in
+  7D1–7D4 has been. **7D5 should treat that as its most likely source of surprise** — the wall cut, the
+  reversed spatial order on wall B, and `plannedVoid`'s per-wall lookup all assume a body belongs to one
+  run. **Nothing here says it is hard; it says it is the thing to look at first.**
+- **One question to put back only if the build forces it, and not before.** The owner's ruling settles
+  that across-the-corner counts. It does **not** rank an across-the-corner slot **against** a same-wall
+  adjacent one where both are free. **Do not invent a preference.** In the measured shapes that choice
+  barely arises — where the corner slot rescues the dishwasher, the same-wall slot is the contested
+  preparation one, and the priority ruling already says not to take it — so this is expected to stay
+  theoretical. **Flag it if it becomes real.**
 - **Its hardest single obligation** is restating 7D3's criterion 12 against its own planner and
   recording the restatement in the ADR — **not editing a 7D3 assertion**, which is a finding.
 
