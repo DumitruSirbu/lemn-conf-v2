@@ -328,7 +328,12 @@ the accepted range would have passed the broken code at 83.5 %.
   such a rule.
 - **A convention scanner records whether a mention is a defect or evidence**, in one line at the
   check. The two existing answers in `body-choice.test.ts` are the worked examples.
-- **`chooseWallCut` remains an open obligation with no wave**, now carrying a stated test requirement.
+- ~~**`chooseWallCut` remains an open obligation with no wave**~~, now carrying a stated test
+  requirement. **Superseded 2026-09-17: it has a wave.** [ADR 0120 Amendment E](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md#amendment-e--2026-09-17-amendment-c2s-obligation-has-a-home-and-the-key-is-the-entered-wall-length)
+  assigns it to **M7 wave 7D8** and names the key as **the entered wall length**; **the stated test
+  requirement survives intact and is carried into that wave's criteria**, which report both arms of
+  the width split separately and add a second split to prove the key. **Instance 1 is still live in
+  the code at the date of this note** — the record of the fix precedes the fix, deliberately.
 - **This record is itself subject to ADR 0119 decision 4.** Its instances are dated 2026-09-15 and
   2026-09-16 and measured at `9258fa3`; a later reader treats the table as history, and re-reads
   `generation-priorities.ts` before asserting instance 1 is still live.

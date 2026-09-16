@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of wall A and nowhere else, excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence; **Amendment F, 2026-09-15, wave 7D4's slice S0, F0–F14** — a long storage run is composed, not repeated: the owner's four statements of 2026-09-14; a four-step storage cycle `[base-3drawer, base-cabinet, base-panbank, base-cabinet]` whose even split is a consequence of its shape and **not a ratio constant**, advanced as **one sequence per kitchen across the corner** from wall B's free end, so wall B's slot count sets wall A's phase; the preparation cabinet becomes `base-3drawer`, amending **A1's *interim data* and not its order**, with *drawers before the hob* recorded as a preference the owner softened and the criterion it would have justified deleted; **this wave changes a body's identity and never its width**, on the inclusive 800 mm merge cap; **a module is identified by what composed it — never by its role and never by its width**, through one exported predicate, because a block column carries `role: "storage"` deliberately under E5 clause 2 and role-scoping is wrong on 32.8 % of placed rooms against correct output (**and the citation "E5.2" names a section E does not contain**); the catalogue's own `fronts` declaration stays the one authority for a drawer front; the wall row composes exactly what it composes today with **no lift and no open shelf generated**, the owner having priced the lift and declined it, and the top row's stretch-ceiling lift rule recorded and not built; the variety's measured **+8.6 %** so the choice is a knowing one; the dishwasher and the bottle cargo recorded and **deferred to wave 7D5**; a new leaf in `configurator-domain` must be exported from `src/index.ts` or the build emits nothing for it; and **two of the wave's criteria corrected — the one-declaration-site grep scoped to composed-body declaration sites, and the id-convention count replaced by a pinned site set**; **F15** closes the dangling citations by carrying the dropped-roles sentence's shape and naming where the owner's wording ruling lives. **Written after the slice it ratifies, which F0 records rather than conceals**; **Amendment G, 2026-09-16, G1–G8 — drawers are anchored to the work, not distributed by a pattern**: the owner corrected the cycle within a day of its acceptance — *"is not like in chess"* — and gave the placement rule directly, so **F3 and F4 are superseded and struck in place** while F1, F2, F5–F15 stand and **F6's provenance discriminator is untouched, because it names a slot's origin and never its body**. Drawer cabinets are anchored **between the sink and the hob**, ideally two; **everything after the hob and after the tall cabinets takes doors**, and so does everywhere else. **The ratio stops being a rule and becomes a consequence of the room**, which is what ADR 0117 asks for and what F3 reached only by argument — so **no criterion may assert a 3-and-3 proportion**, and four of wave 7D4's are withdrawn. Measured against the slots that exist: **a storage slot never stands between the sink and the hob on one wall** — there is exactly one module there and it is the preparation cabinet — so the rule reduces to *the preparation cabinet is a drawer* (already F5) plus *every storage slot is a door* (already today's output), and it composes **zero drawer storage cabinets in all 149 151 rooms that have storage**, at a **31.9 %** fleet-wide drawer share falling to **10–19 %** in long runs. **The *ideally two* is a width change and is never free** — a second module costs a storage cabinet in 45.1 % of rooms, a block column in 31.1 %, a core role in 15.6 %, and nothing in 0.0 % — so it is ruled to **one** pending the owner, and belongs to 7D5 if it is ever two. **`STORAGE_CYCLE` and `base-panbank`'s only caller die with F3**; the owner said twice the rule is not strict, so **G2 is a set of defaults and no criterion may assert it as an invariant**; **Amendment H, 2026-09-16, H1–H8 — the owner's run order, and the split between waves 7D4 and 7D5**: the owner gave the whole order rather than choosing between the coordinator's two candidate placements — **fridge → [door, if space] → sink → drawer [+ a second, if space] → hob → bottle cabinet → [a third drawer, if the run is long] → doors to fill → tall cabinets at the edge** — which **supersedes G2** and reconciles the two readings before it: *"after the hob, doors"* means **after the drawer group**, and the drawers are **one group astride the hob**. **Two of the order's five clauses are already built** — the fridge→sink stretch and the post-hob fill are wall B's and wall A's storage, doors today, **which answers Q-G1 in the affirmative from the owner's own mouth** — and the tall cabinets are Amendment E's block, so **the order adds exactly two modules, both width changes: a 300 mm bottle cabinet and a 600 mm second drawer**. Measured, the order gives **29.8 % drawers at the owner's own six-cabinet run** against G2's 16.7 %, and its residual shortfall falls in runs of 7 and 8 — **exactly the band the unmodelled third clause covers, so the gap is ours and not the rule's**. **G5's *"a second drawer cabinet is never free" is WITHDRAWN**: it displaces a storage slot one-for-one and the cabinet count does not change, so **Q-G3 dissolves** — the error was counting slots and calling the result a kitchen. The bottle cabinet is **free in 45.7 %** of rooms, moves Amendment E's block table **cleanly by +300** (3600/4200/4800), and **refutes D2.2's absorb-window warning by measurement** — 39 530 rooms in the window with and without it — which is struck rather than left standing. **7D4 keeps only the width-neutral part** (preparation and the first post-hob storage become drawer bodies, **1.31 drawers at run 6, and no criterion may claim it meets the proportion**) and **7D5 takes the order**, grouped by what re-baselines the run's arithmetic exactly as F-era D11 grouped the dishwasher and the cargo. **All three phrasings of this rule are recorded with their dates and none is smoothed away**; none of the three corrections was caught by a test or a review, only by asking)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of ~~wall A and nowhere else~~ **the suffix wall — the *"nowhere else"* was OVERTURNED by an owner ruling and the block follows the run onto wall B where wall B is wider; see Amendment I** — excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence; **Amendment F, 2026-09-15, wave 7D4's slice S0, F0–F14** — a long storage run is composed, not repeated: the owner's four statements of 2026-09-14; a four-step storage cycle `[base-3drawer, base-cabinet, base-panbank, base-cabinet]` whose even split is a consequence of its shape and **not a ratio constant**, advanced as **one sequence per kitchen across the corner** from wall B's free end, so wall B's slot count sets wall A's phase; the preparation cabinet becomes `base-3drawer`, amending **A1's *interim data* and not its order**, with *drawers before the hob* recorded as a preference the owner softened and the criterion it would have justified deleted; **this wave changes a body's identity and never its width**, on the inclusive 800 mm merge cap; **a module is identified by what composed it — never by its role and never by its width**, through one exported predicate, because a block column carries `role: "storage"` deliberately under E5 clause 2 and role-scoping is wrong on 32.8 % of placed rooms against correct output (**and the citation "E5.2" names a section E does not contain**); the catalogue's own `fronts` declaration stays the one authority for a drawer front; the wall row composes exactly what it composes today with **no lift and no open shelf generated**, the owner having priced the lift and declined it, and the top row's stretch-ceiling lift rule recorded and not built; the variety's measured **+8.6 %** so the choice is a knowing one; the dishwasher and the bottle cargo recorded and **deferred to wave 7D5**; a new leaf in `configurator-domain` must be exported from `src/index.ts` or the build emits nothing for it; and **two of the wave's criteria corrected — the one-declaration-site grep scoped to composed-body declaration sites, and the id-convention count replaced by a pinned site set**; **F15** closes the dangling citations by carrying the dropped-roles sentence's shape and naming where the owner's wording ruling lives. **Written after the slice it ratifies, which F0 records rather than conceals**; **Amendment G, 2026-09-16, G1–G8 — drawers are anchored to the work, not distributed by a pattern**: the owner corrected the cycle within a day of its acceptance — *"is not like in chess"* — and gave the placement rule directly, so **F3 and F4 are superseded and struck in place** while F1, F2, F5–F15 stand and **F6's provenance discriminator is untouched, because it names a slot's origin and never its body**. Drawer cabinets are anchored **between the sink and the hob**, ideally two; **everything after the hob and after the tall cabinets takes doors**, and so does everywhere else. **The ratio stops being a rule and becomes a consequence of the room**, which is what ADR 0117 asks for and what F3 reached only by argument — so **no criterion may assert a 3-and-3 proportion**, and four of wave 7D4's are withdrawn. Measured against the slots that exist: **a storage slot never stands between the sink and the hob on one wall** — there is exactly one module there and it is the preparation cabinet — so the rule reduces to *the preparation cabinet is a drawer* (already F5) plus *every storage slot is a door* (already today's output), and it composes **zero drawer storage cabinets in all 149 151 rooms that have storage**, at a **31.9 %** fleet-wide drawer share falling to **10–19 %** in long runs. **The *ideally two* is a width change and is never free** — a second module costs a storage cabinet in 45.1 % of rooms, a block column in 31.1 %, a core role in 15.6 %, and nothing in 0.0 % — so it is ruled to **one** pending the owner, and belongs to 7D5 if it is ever two. **`STORAGE_CYCLE` and `base-panbank`'s only caller die with F3**; the owner said twice the rule is not strict, so **G2 is a set of defaults and no criterion may assert it as an invariant**; **Amendment H, 2026-09-16, H1–H8 — the owner's run order, and the split between waves 7D4 and 7D5**: the owner gave the whole order rather than choosing between the coordinator's two candidate placements — **fridge → [door, if space] → sink → drawer [+ a second, if space] → hob → bottle cabinet → [a third drawer, if the run is long] → doors to fill → tall cabinets at the edge** — which **supersedes G2** and reconciles the two readings before it: *"after the hob, doors"* means **after the drawer group**, and the drawers are **one group astride the hob**. **Two of the order's five clauses are already built** — the fridge→sink stretch and the post-hob fill are wall B's and wall A's storage, doors today, **which answers Q-G1 in the affirmative from the owner's own mouth** — and the tall cabinets are Amendment E's block, so **the order adds exactly two modules, both width changes: a 300 mm bottle cabinet and a 600 mm second drawer**. Measured, the order gives **29.8 % drawers at the owner's own six-cabinet run** against G2's 16.7 %, and its residual shortfall falls in runs of 7 and 8 — **exactly the band the unmodelled third clause covers, so the gap is ours and not the rule's**. **G5's *"a second drawer cabinet is never free" is WITHDRAWN**: it displaces a storage slot one-for-one and the cabinet count does not change, so **Q-G3 dissolves** — the error was counting slots and calling the result a kitchen. The bottle cabinet is **free in 45.7 %** of rooms, moves Amendment E's block table **cleanly by +300** (3600/4200/4800), and **refutes D2.2's absorb-window warning by measurement** — 39 530 rooms in the window with and without it — which is struck rather than left standing. **7D4 keeps only the width-neutral part** (preparation and the first post-hob storage become drawer bodies, **1.31 drawers at run 6, and no criterion may claim it meets the proportion**) and **7D5 takes the order**, grouped by what re-baselines the run's arithmetic exactly as F-era D11 grouped the dishwasher and the cargo. **All three phrasings of this rule are recorded with their dates and none is smoothed away**; none of the three corrections was caught by a test or a review, only by asking; **Amendment I, 2026-09-17, written for wave 7D8 slice S1(a) and recording an owner ruling of 2026-09-16 — the block follows the run rather than the letter A, and A1's order survives its own mirror**: shown both measured arms, the owner chose **follow-the-run — 144 866 blocks with 47 175 on wall B and nobody losing one** — over **confinement to physical wall A — 97 691, costing 12 900 kitchens a block they have today**, so **Amendment E's E2 *"and nowhere else"* is OVERTURNED in its wall** while **E2's refusal of the corner end, and E3–E7 and E10–E13 entire, are untouched**. The engineering argument that reaches the same answer — E's stated reason was about *the free end the layout leaves*, not about the letter A (`tall-end-rule.ts:51-53`) — is **kept and explicitly demoted to a reason rather than a permission: the owner did not need it and the ruling does not rest on it** (ADR 0120 D2's lesson applied). On **Amendment A1 the verdict is deliberately split, against the wave plan's tidier "restated, not broken", which this record was asked to check rather than transcribe**: A1's **order** is **RESTATED** and unamended, on the owner's own *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink, cabinets, fridge"*; A1's **second sentence** — *"on a left-corner L the run reads from wall B's free end"* — is **CORRECTED** to *the prefix wall's free end*, because it is stated unqualifiedly and is **false in 82 395 of 211 551 placed rooms** after the wave; and *"left to right as seen from inside the room"* is **narrowed to the direction *along the run*, which A1's own *"the fridge is not tied to a wall"* already pointed at**. The reader's rule: **a mirrored kitchen is not A1 violated; a run that does not read fridge → sink → preparation → hob in *either* direction is.** Q-7D8-2 — whether the rule may cost a cabinet — is **left open and not prejudged**)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -2266,6 +2266,251 @@ ratio constant anywhere, and why **no criterion asserts it** (G6 stands).
   **add it wherever it displaces only a storage slot** — never a tall column, never a core role. Under
   that reading *space* means *the run has a cabinet to convert*, which is the only reading with a
   referent: the wall never has 600 mm spare.
+
+## Amendment I — 2026-09-17: the block follows the run, not the letter A, and A1's order survives its own mirror
+
+**Written 2026-09-17 for wave 7D8 slice S1(a), recording an owner ruling given 2026-09-16.** The two
+dates are kept apart rather than collapsed: the ruling is the owner's and is dated when they gave it;
+this record is the architect's and is dated when it was written. **Nothing here was backdated to the
+ruling.**
+
+**This amendment does two things and they are not the same kind of thing.** The first is an
+**overturning**: Amendment E's *"and nowhere else"* falls to an owner ruling. The second is a
+**correction with a survival**: Amendment A1's order stands and one sentence of A1 does not. **A
+reader who takes both as "amended" and stops reading will get the second one wrong**, which is why
+I5 spends more words on what survives than on what falls.
+
+**Where the figures come from, stated before any of them is used.** Every count below is taken from
+**wave 7D8's plan** (`docs/milestones/M7-room-and-presets.md`, sections E1, E3 and E6), which
+measured them on 2026-09-16 against a `tsc` build of `packages/configurator-domain/src/` at
+`8201915`, sweeping `APPROVED_ROOM_POLICY`'s L bounds at **10 mm** and keeping the **211 551** rooms
+`planKitchenComposition` reports `minimumMet` for. **They were not re-measured for this record and
+are not presented as if they had been** — this amendment's own warrant for them is
+**doc-quoted from that plan**, and the plan's is **[measured]**. The source readings below were
+re-read at HEAD **`5c915f8`** while writing (ADR 0119 decision 4); `git diff --name-only HEAD --
+docs/ packages/` was empty at that moment, so the file-and-line pairs are HEAD's and not a working
+tree's.
+
+### I1 — The ruling, and the two arms the owner chose between
+
+**The owner was shown both measured arms and chose the first.** [doc-quoted from the 7D8 plan, E3]
+
+| | blocks composed | on wall A | on wall B | kitchens that lose a block they have today |
+| --- | ---: | ---: | ---: | ---: |
+| **HEAD** | 110 591 (52.28 %) | 110 591 | 0 | — |
+| **CHOSEN — the block follows the run** | **144 866 (68.48 %)** | 97 691 | **47 175 (22.3 % of placed)** | **0** |
+| **REFUSED — the block is confined to physical wall A** | 97 691 (46.18 %) | 97 691 | 0 | **12 900** |
+
+**The ruling: the block follows the run and may stand on wall B.** It is the owner's, not the
+coordinator's and not this record's. What they were choosing between was **144 866 blocks with
+47 175 of them on wall B and nobody losing one**, against **97 691 confined and 12 900 kitchens
+losing a block they have today.**
+
+**The refused alternative is recorded with its cost, permanently and on purpose.** A later wave
+reading only the shipped number would have no way to know confinement was considered, and would
+re-derive it from Amendment E's letter as though nobody had looked. **12 900 is what looking cost.**
+
+### I2 — Amendment E's *"and nowhere else"* is OVERTURNED
+
+**The sentence being overturned, quoted at the line it stands on. [doc-quoted]** This record's
+[Amendment E](#amendment-e--2026-09-14-a-tall-unit-stands-at-the-free-end-of-wall-a-and-the-hobs-oven-follows-it)
+heads section **E2** *"a generated tall unit stands at the free end of wall A, and nowhere else"*
+(line 576 at `5c915f8`), and E2's body argues it: *"So **wall A's free end is the only leftover end
+an L run has**, and the rule has exactly one eligible site"* (line 585). **The Status line at the
+head of this file carried the same words** and is struck there too.
+
+**What replaces it.** A generated tall block stands at the free end of **the wall that carries the
+reading order's suffix** — whichever physical wall that is. In every room where wall A is wider, or
+the two are equal, that is wall A and the shipped picture is unchanged. In the **82 395** rooms
+where wall B is wider it is wall B, and **47 175** of them compose a block there.
+
+**E2's refusal of the *corner* end is untouched and is not what fell.** A run starts past the
+structural corner, where the worktop turns; a 2200 mm column planted there walls the corner in and
+interrupts the only continuous work surface an L has. **That half of E2 is confirmed by the field
+photographs E records and by nothing this ruling touches.** What fell is only the identification of
+*the free end* with *the letter A*.
+
+### I3 — The engineering argument reaches the same answer, and it is kept and explicitly demoted
+
+**There is an argument that the block *should* follow the run, and it is good.** Amendment E's
+stated reason was never about wall A as a name: it was about **the free end the layout leaves**.
+Wall B's spatial array is `[storage…, core reversed]`, so B's free end holds core bodies and has no
+leftover modules to swap for columns. **The module says so at the parameter itself. [source-verified
+at `5c915f8`]** — `packages/configurator-domain/src/generation/tall-end-rule.ts:51-53`:
+
+> `/** E3 clause 2 with E2: wall A's free end is the only site an L run has, so a hob on wall B means`
+> `*  no block and a hob that keeps its oven. */`
+
+Re-keyed, that reason is true of whichever wall carries the **prefix**, and the block's site becomes
+the **suffix** wall's free end. So following the run honours E's *intent* while confining it would be
+a regression nobody asked for.
+
+**And that argument is not the authority for this amendment.** The owner did not need it, was not
+shown it, and **the ruling does not rest on it.** It is recorded as a **reason, never as a
+permission** — the distinction ADR 0120 Amendment D2 had to learn the hard way about ADR 0045
+Amendment A, where *"a recorded reason is not a second authority for the ruling it accompanies"*.
+**If this argument were found tomorrow to be wrong, the ruling would stand unchanged**; if the
+argument alone had been all there was, the amendment could not have been written, because an
+architect may not overturn an owner ruling with a derivation. **The order matters: the owner ruled,
+and then the engineering was found to agree.**
+
+### I4 — What in Amendment E is untouched, listed so nothing is widened by accident
+
+- **E4 — exactly one oven, never two and never zero.** Untouched. The substitution still keys on
+  whether a tower is planned, not on which wall it stands against.
+- **E5, E6 — the identity-not-count rule and the outermost body's absorb.** Untouched. E6's absorb is
+  a fact about the block's outermost column, and the column does not learn which wall it is on.
+- **E7 — no upper above a full-height body, read from the declared height.** Untouched, and it now
+  applies on wall B in the rooms where a block stands there. **[inference, and the thing to check:**
+  a wave that ships the block onto wall B without exercising E7 on a wall-B block has not tested the
+  interaction. It is named here so it is not discovered by a screenshot.**]**
+- **E10, E13 — adjacency between the fridge and the oven is barred; proximity is not.** Untouched
+  **and load-bearing under the mirror**, because the mirrored run puts the same bodies in the same
+  sequence with the same cabinets between them. The invariant is about the **run**, and the run is
+  what is preserved.
+- **E11 — the top row stays excluded.** Untouched.
+- **E12 — the block is one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard.**
+  Untouched. Composition does not change; the wall it composes against does.
+- **E3's thresholds — 3300 / 3900 / 4500 mm, moved to 3600 / 4200 / 4800 by Amendment H's bottle
+  cabinet.** Untouched as numbers. **They are compared against the suffix wall's length rather than
+  against wall A's**, which is a change in what is fed to the rule and not a change in the rule.
+  Wave 7D8's criterion 12 holds `tall-end-rule.ts` to **a rename and a comment**: every threshold,
+  width, body id and branch in that module is byte-identical, and the corrected comment must name
+  *the free end the layout leaves* rather than wall A.
+
+### I5 — Amendment A1: its order is restated, and one of its sentences is corrected
+
+**This section does not say what wave 7D8's plan says, and the divergence is deliberate and is
+flagged rather than absorbed.** The plan's **E4** concludes *"ADR 0110 Amendment A1's 'left to right
+as seen from inside the room' is RESTATED, not broken"*. **That is right about A1's order and too
+tidy about A1's second sentence.** This record was asked to check the claim rather than transcribe
+it, and the honest verdict is a split one. The plan and the milestone owe a correction to match.
+
+**A1 in full, quoted, because the split is between its two sentences. [doc-quoted, lines 122-126 at
+`5c915f8`]**
+
+> **A1. The layout order replaces decision 3's interim list.** Along the run, left to right as seen
+> from inside the room: **fridge → sink → preparation cabinet → hob with the oven under it**, then
+> storage. On a left-corner L the run reads from wall B's free end toward the corner and then along
+> wall A from the corner outward — which is the reference kitchen's own order (fridge on wall B;
+> sink, then hob, on wall A). The fridge is not tied to a wall: it stands wherever the order puts it.
+
+**I5.1 — The order is RESTATED, and the owner's own words are the authority.** The sequence
+**fridge → sink → preparation → hob-with-oven, then storage** is untouched by this wave in every
+room. What the owner ruled in Q3 — *"a regular order on cooking, take something from fridge, wash,
+then process on worktop… and after you cook on hub"* — is a statement about **what follows what**,
+and reflecting a sequence does not change what follows what. **The owner said so themselves, in
+their own sentence, which is the one to quote at the keying site rather than any reasoning about
+it:**
+
+> *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink, cabinets, fridge"*
+
+**Read what that sentence lists: hob first and fridge last** — the exact reverse of A1's written
+direction, offered by the owner as a **normal** arrangement rather than an exception. It is the
+owner narrowing their own earlier *"from left to right"*, by the only authority that could.
+
+**I5.2 — A1's second sentence is CORRECTED, and it is not a quibble.** *"On a left-corner L the run
+reads from wall B's free end toward the corner and then along wall A from the corner outward"* is
+stated without qualification, about **a left-corner L** and not about *the reference kitchen* — the
+reference kitchen appears in the clause after it, as corroboration. After this wave that sentence is
+**false in 82 395 of 211 551 placed rooms (38.95 %)**, where the run reads from **wall A's** free end
+toward the corner and out along **wall B**. **A reader taking A1 at its word would call those rooms a
+defect.** So the sentence is superseded in part, and the amended reading is:
+
+> On a left-corner L the run reads from the **prefix wall's** free end toward the corner and then
+> along the **suffix wall** from the corner outward. Which wall carries the prefix is derived from
+> the entered wall lengths (ADR 0120, this amendment's companion). Where wall A is the wider wall, or
+> the two are equal, that is wall B's free end and A1's original sentence is what you see.
+
+**I5.3 — *"left to right as seen from inside the room"* is narrowed, and the ambiguity is resolved
+rather than left for the next reader to resolve differently.** The phrase has two readings and the
+record has never distinguished them:
+
+| reading | status after this amendment |
+| --- | --- |
+| **along the run** — the sequence you meet walking the worktop from one end to the other | **Untouched.** This is the reading that governs. |
+| **as a direction in the room** — start at the left-hand end as you stand inside and move right | **Broken in the mirrored population**, and the owner's *"sometimes the arrangement is in mirror"* is what breaks it. |
+
+**The governing reading is the first.** A1 fixes the order **along the run**; it does not fix which
+end of the room the run begins at. **A1's own next sentence already pointed this way** — *"The fridge
+is not tied to a wall: it stands wherever the order puts it"* — and so did the owner's Q3, which
+opens *"fridge position is not mandatory on a specific wall"*. **What this amendment adds is that the
+same freedom extends to the run's handedness, which A1 asserted and neither the owner's Q3 nor A1's
+own reasoning ever required.**
+
+**I5.4 — The rule for a later reader, stated as the two cases that look alike and are not.**
+
+- **A mirrored kitchen is not A1 violated.** Finding `hob → preparation → sink → fridge` corner-outward
+  and "fixing" it back to wall B is reintroducing the defect 7D8 exists to remove.
+- **A kitchen whose run does not read fridge → sink → preparation → hob in *either* direction IS A1
+  violated**, and no ruling in this amendment excuses it.
+
+**I5.5 — The worked case, so the distinction has a witness rather than a definition.** A **900 × 3500**
+room — ADR 0120 Amendment C2's own counterexample, where wall A at 900 mm has no free run at all and
+all four bodies stand on wall B. **[doc-quoted from the 7D8 plan, E4]**
+
+| | wall B, corner outward |
+| --- | --- |
+| **HEAD** | hob → preparation → sink → fridge |
+| **after the re-keying** | fridge → sink → preparation → hob |
+
+**Same bodies, same widths, same wall, opposite ends.** Neither is more compliant with the
+wider-wall rule — what changes is **which end the cooking order starts at**, and that is exactly the
+thing the owner was shown and accepted.
+
+### I6 — What this amendment does not decide
+
+- **It does not rule whether the wider-wall rule may cost a cabinet.** That is wave 7D8's **Q-7D8-2**,
+  genuinely open, and this record neither answers it nor prejudges it. The wave is planned for *the
+  ladder wins* — no preparation-cabinet drop — and if the owner rules the other way it is a new dated
+  record, not a reading of this one.
+- **It does not change which wall is wider or how that is computed.** That is the companion amendment
+  at [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md),
+  and the two must be read together: this record says *the block follows the run*, that record says
+  *what decides which wall the run starts on*.
+- **It does not license a wave to ship before it exists.** Wave 7D8's criterion 10 carries the
+  must-not in its surviving form: **no commit may put a column on wall B before this amendment has
+  landed**, because until then the repository's own standing record reads *wall A … and nowhere else*.
+  **A repository that ships against its own record has failed whether or not the change was
+  authorised** (`AGENTS.md`).
+
+### Alternatives considered — Amendment I
+
+1. **Confine the block to physical wall A, keeping Amendment E's letter intact.** **Refused by the
+   owner**, at a measured cost of **12 900 kitchens losing a block they have today** — a regression
+   arriving as a side effect of a rule about sinks. Recorded rather than dropped, per criterion 10.
+2. **Leave A1 and E alone and treat the mirrored runs as the defect.** That is HEAD: `PREFIX_WALL` is
+   the literal `"B"` (`generation-priorities.ts:20`). It is the state ADR 0120 C2 measured as the
+   **exact inverse** of the owner's rule whenever wall B is wider, and it is what 7D8 exists to fix.
+3. **Record A1 as flatly "restated, not broken".** Refused. It is true of A1's order and false of
+   A1's second sentence, and a record that is tidy about a sentence a reader will later quote is the
+   failure this project keeps finding. **The coordinator asked for this to be checked rather than
+   accepted, and this is what the check returned.**
+4. **Record A1 as flatly "broken" or "overturned".** Also refused, and for the symmetric reason: it
+   would put the **cooking order** — which nobody has questioned, which the owner restated the same
+   day, and which E10's thermal rule leans on — into play. **The order and the handedness are two
+   claims in one paragraph, and the amendment's whole job is to separate them.**
+5. **Write one amendment covering both this record and ADR 0120.** Refused. They overturn different
+   things by different authorities — an owner ruling here, a measured key there — and a reader
+   arriving at either record must find its own answer in it.
+
+### Decision-record sweep — Amendment I
+
+| Record | What it says | Standing after I |
+| --- | --- | --- |
+| This ADR, **Amendment A1** | The layout order, and that on a left-corner L the run reads from wall B's free end. | **Split: the order is RESTATED and unamended; the run-start sentence is CORRECTED** and reads *prefix wall's free end* (I5.2). *"Left to right as seen from inside the room"* is **narrowed to the direction along the run** by the owner's own later sentence (I5.3). |
+| This ADR, **Amendment A2, A3, A4** | Minimum kitchen, drop order, leftover rule. | **Untouched.** No room becomes buildable or unbuildable — `minimumMet` flips in 0 of 222 351 swept rooms. |
+| This ADR, **Amendment C** | Uppers, the drop order, wall B's 100 mm reserve. | **Untouched.** The reserve is a fact about the wall the shell is planned against, not about which role stands there. |
+| This ADR, **Amendment D / D revised** | Plan the row, tile the shell at its boundaries; wall B is laid out in reverse against the reading order. | **Untouched in mechanism and re-pointed in subject.** `isLaidOutInReverse` still names exactly one wall; which wall it names is derived rather than the constant `"B"`. |
+| This ADR, **Amendment E — E2** | The block stands at wall A's free end *"and nowhere else"*. | **OVERTURNED in its wall, by the owner** (I1, I2). **Its refusal of the corner end stands.** |
+| This ADR, **Amendment E — E3, E4, E5, E6, E7, E10–E13** | Thresholds, the one-oven rule, the absorb, the upper veto, adjacency, composition. | **Untouched** (I4). The thresholds are compared against the suffix wall's length; the numbers do not move. |
+| This ADR, **Amendment F, G, H** | The storage composition and the owner's run order. | **Untouched.** They rule what stands *along* the run, which is the half the mirror preserves. H's bottle cabinet still moves E's block table by +300. |
+| [0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) **Amendment C2** | `chooseWallCut` is keyed on wall identity; the wider-wall rule is not implemented; the record does not design the fix. | **Companion.** Its obligation is discharged by that record's own Amendment E of the same date, which names the key. |
+| [0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) **Amendment D2** | A recorded *reason* is not a second authority for the ruling it accompanies. | **Applied directly** (I3). The engineering argument is kept and demoted, and the ruling is recorded as resting on the owner alone. |
+| [0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation owes the cheap, correct baseline; taste enters through presets. | **Respected.** The block count rises because the rule reaches more rooms, not because a taste rule was added; and **12 900 kitchens keeping a body they have today is correctness, not taste.** |
+| [0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | A foreseeable problem is recorded with its trigger and left unbuilt. | **Applied once** (I4, E7 on a wall-B block): named as the interaction to exercise, with **no machinery built for it**. |
+| [0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) | Re-read a cited fact at HEAD before asserting it. | **Applied to this amendment's own sources.** E2's *"nowhere else"*, A1's two sentences and `tall-end-rule.ts:51-53` were each re-read at `5c915f8` while writing, and **the split verdict in I5 exists only because A1 was read rather than quoted from the brief.** |
+| [0121](0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md) | A thing is identified by what it is, never by what correlates with it. | **This amendment is that record's cure applied to a decision record rather than to code.** *Wall A* correlated with *the free end the layout leaves*; Amendment E wrote down the correlate. **A record can carry the defect as easily as a test can.** |
 
 ## Consequences of Amendment F
 

@@ -1185,3 +1185,216 @@ change, and 7H is confirmed correct twice over rather than merely "shipped no de
 | [ADR 0045](0045-a-run-end-panel-is-a-scene-fact-and-the-wall-end-vetoes-it.md) Amendment A | Owner: *"No panel when run hits wall."* | **Behaviour stands unamended.** Its recorded *reason* — the fitter's filler strip — is false under the run reading and owes a comment correction in `run-end-panel.ts:94-98`. |
 | Wave 7H, Q7H-1 | Ruled (a): the drawn wall is the entered wall. | **Re-answered on the new terms; same answer.** 7H confirmed correct. |
 | This record, decision 1 | The room is a fact and the kitchen adapts to it. | **Kept.** D1 makes the fact singular: the entered run is the only fact there is. |
+
+## Amendment E — 2026-09-17: Amendment C2's obligation has a home, and the key is the entered wall length
+
+> **Read the letter carefully: this is *ADR 0120* Amendment E, and it is not *ADR 0110* Amendment E.**
+> The two records share a letter and are cited within a paragraph of each other throughout this
+> milestone. ADR 0110's Amendment E is the **tall-unit and oven** amendment; this one is the
+> **wall-keying** amendment. Every cross-reference below names its record. **This is
+> [C3](#c3--two-different-4-metre-numbers-and-a-reader-will-conflate-them)'s hazard in a new costume
+> — two things a reader will conflate — so it is flagged at the head rather than left to be
+> discovered.**
+
+**Written 2026-09-17 for wave 7D8 slice S1(b).** This amendment **decides** something Amendment C2
+deliberately did not: it names the key. It is the architect's adjudication on a measured question,
+not an owner ruling, and it overturns nothing — **C2 left the fix undesigned and unowned, and this
+records who owns it and what it is keyed on.**
+
+**Its companion is [ADR 0110 Amendment I](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-i--2026-09-17-the-block-follows-the-run-not-the-letter-a-and-a1s-order-survives-its-own-mirror)
+of the same date**, which carries the owner ruling on where the tall block may stand. **This record
+says what decides which wall the run starts on; that record says what the block does once it is
+decided.** Neither is complete alone.
+
+**Where the figures come from, before any of them is used.** Every count below is taken from **wave
+7D8's plan** (`docs/milestones/M7-room-and-presets.md`, sections E0.1, E0.2, E1, E2 and E6), measured
+on 2026-09-16 against a `tsc` build of `packages/configurator-domain/src/` at `8201915`, sweeping
+this policy's L bounds at **10 mm** and keeping the **211 551** rooms `planKitchenComposition`
+reports `minimumMet` for. **They were not re-measured here**; this record's warrant for them is
+**doc-quoted from that plan** and the plan's is **[measured]**. C2's own 50 mm figures are quoted
+beside them where the comparison is to C2. **The plan reproduced C2's sweep to the digit from one
+instrument, and closed the one parameter C2 never stated — the ceiling — by re-running at 2200,
+2600 and 3900 with every figure identical**, so the two populations are one population and this
+amendment introduces no third number.
+
+### E1 — C2's obligation was open at HEAD, and it is now wave 7D8's
+
+**Checked at HEAD `5c915f8` rather than taken on trust, because this amendment's whole purpose is to
+close it and closing something already closed would be worse than leaving it.** Three statements in
+this record, read in order:
+
+1. **[C2](#c2--sink-and-hob-on-the-wider-wall-fridge-on-the-narrower-measured-and-the-generator-does-not-implement-it)
+   itself:** *"This record does not design the fix. It records that the rule is not implemented, that
+   the current behaviour is keyed on a wall identity rather than a dimension, and that any fix owes a
+   test **split by which wall is wider**."*
+2. **[What the milestone owes](#what-the-milestone-owes--reported-not-written), item 3:**
+   *"`chooseWallCut` needs the wider-wall rule and the 4 m relaxation. **No wave owns it** — 7D3 and
+   7D4 own the tall-end rule, not the cut. **An obligation with no home.**"*
+3. **[Amendment D](#amendment-d--2026-09-16-q-c1-q-c2-and-q-c3-answered-and-all-three-confirm-what-already-ships)'s
+   survival table, the row that matters:** *"**C2's `chooseWallCut`** … **Untouched.** None of these
+   three answers concerns which wall a body lands on. **Still an obligation with no home.**"*
+
+**So Amendment D did not discharge it, and said so in its own words.** D answered three questions
+about what the entered number *means*; C2 is about which wall a body *lands on*. They are adjacent
+and they are not the same question.
+
+**Ruled: wave 7D8 owns it.** The obligation now has a home, a plan, and acceptance criteria stated
+**split by which wall is wider** exactly as C2 required — its criteria 1, 2 and 3 report both arms
+separately and its criterion 5 asserts that **nothing outside the discriminating arm moves.**
+
+### E2 — The key is the entered wall length, and the two candidates disagree in 1.83 % of rooms
+
+**Two candidate keys exist. [doc-quoted from the 7D8 plan, E1]**
+
+| candidate | what it is |
+| --- | --- |
+| **the entered wall length** | `room.widthMm` against `room.depthMm` — the two numbers the customer typed |
+| **the free run capacity** | `runs.A` against `runs.B` — the entered length **less the corner's reach**, 900 mm on A and 1000 mm on B |
+
+**They rank the walls differently in 3 861 of 211 551 placed rooms (1.83 %)** — at 50 mm, **213 of
+8 615 (2.5 %)** — and the divergent population has an exact description: **every room whose two
+entered lengths differ by less than 100 mm**, which is the difference between the two corner reaches.
+**[doc-quoted from the plan, E1]**
+
+**Ruled: the key is the entered wall length.** Two reasons, and the second is the durable one.
+
+1. **It is the quantity the owner's sentence names.** The ruling at this amendment's parent —
+   *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* — says
+   *wider wall*, and under **[C1](#c1--what-the-number-means-and-it-is-not-what-the-form-asks-for)**
+   the entered number **is** the run the customer chose to furnish. Under **D1** it is the *whole* of
+   what the product knows about that wall. **So *wider* means *the bigger of the two numbers they
+   typed*, because there is no other number.**
+2. **The corner's reach is a fact about the corner, not about which wall is wider.** Keying on
+   capacity would make *"which wall is wider"* mean something **no customer can compute from the two
+   numbers they entered** — a 3000 × 2950 room would have its roles placed by a 50 mm asymmetry in
+   the corner assembly that appears on no screen. **That is this milestone's recurring defect wearing
+   the fix's clothes**: a key that correlates with the named quantity and is not it
+   ([ADR 0121](0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)).
+
+**The 1.83 % is recorded here precisely because it is the population a later reader will "fix" in the
+other direction.** A room where the entered lengths differ by 40 mm and the free runs differ the
+other way looks, from inside the generator, like a bug. **It is this ruling.** A wave that re-keys it
+onto capacity is overturning a dated decision and owes its own record.
+
+**And the choice is falsifiable rather than argued, which is why it can be a criterion.** The plan
+implemented **both** keys and swept both, reporting the hob-on-the-wider-wall rate under each of the
+two *splits*: **keyed on entered length it reads 100.0 % / 100.0 % on the entered-length split and
+98.7 % / 100.0 % on the free-run split; keyed on capacity the pattern inverts.** **[doc-quoted from
+the plan, E1]** **The split that reads 100 / 100 names the key** — and a criterion reading 100 / 100
+on *both* splits has discriminated nothing and fails the wave. **This is C2's own requirement carried
+one step further:** C2 demanded a test split by which wall is wider; the wave reports **two** splits
+and shows which one the code answers.
+
+### E3 — Why this is a re-keying and not a comparator, recorded because C2's own wording invites the wrong fix
+
+**C2 described the defect correctly — *"`capacities` enters only as a feasibility filter … and never
+as a preference"* — and that true sentence leads a reader to a fix that cannot work.
+[doc-quoted from the 7D8 plan, E0.2, which marks the underlying argument source-verified and its
+falsification measured]**
+
+`GENERATION_PRIORITIES` is **fridge → sink → preparation → hob**, `builtPlan` sends `kept.slice(0, cut)`
+to wall **B** and `kept.slice(cut)` to wall **A**, and `PREFIX_WALL` is the literal `"B"`. With **B**
+the wider wall the owner's rule needs `fridge ∈ A` **and** `sink, hob ∈ B`. The fridge is the order's
+**first** element, so `fridge ∈ A` forces `cut = 0` — which puts the sink and the hob on A with it.
+**The rule is unreachable at every cut index, for any preference function whatsoever.** The plan
+falsified this rather than arguing it: a variant ranking the feasible cuts lexicographically by rule
+compliance produced output **identical on all 8 615 rooms** of the 50 mm sweep to the plain re-keying.
+
+**So the fix is that the wall carrying the reading order's prefix becomes a function of the entered
+wall lengths, instead of the module constant.** **The blast radius is exactly the discriminating
+population:** **82 395 of 211 551 rooms change (38.95 %) — 0.00 % of the A-wider rooms and 100.00 %
+of the B-wider ones — and `minimumMet` flips in 0 of 222 351 swept rooms.** **[doc-quoted from the
+plan, E2]** **No room becomes buildable and none becomes unbuildable**; the wave moves where the
+cabinets stand and never whether a kitchen exists.
+
+**This is recorded in C2's own record because C2 is where the next reader will start.** The sentence
+that misleads is C2's, it is true, and a correction that lives only in a milestone plan will not be
+found by someone reading the ADR.
+
+### E4 — The 4-metre relaxation is a permission the corrected generator never needs, and its absence is the compliance
+
+**Held apart from [Amendment B1](#amendment-b--2026-09-16-the-products-intended-size-range-is-walls-up-to-about-4-metres-and-it-narrows-no-bound)'s
+four metres, per [C3](#c3--two-different-4-metre-numbers-and-a-reader-will-conflate-them), and the
+separation is restated because this is the first wave to act on either.** B1 is a **market judgement**
+about whom to optimise for and narrows no bound. C's clause — *"in case wall have more than 4 meters
+it can fit on any wide wall… you can place all including fridge on same wall"* — is a **geometric
+threshold** for when the layout rule relaxes. **Neither implies the other, and *"the owner said
+4 metres, so above that we do not have to care"* is the sentence both halves exist to refuse.**
+
+**Measured. [doc-quoted from the 7D8 plan, E6]** **25 190 of 211 551 placed rooms (11.91 %) have both
+entered walls over 4 000 mm**, **5 995** of them B-wider. **And in all 25 190, the corrected
+generator already stands the fridge on the narrower wall, and in none of them is the fridge dropped.**
+Above 4 000 mm on both walls the narrower wall offers at least 3 000 mm of free run and a 700 mm
+fridge always fits, so the cut never collapses.
+
+**Read against the free run instead of the entered length, the population collapses to 1 400 (0.66 %)**
+— a second, independent reason to key the whole rule on the entered length (E2). **The same choice
+answers two questions, which is worth noting because it is the kind of agreement that makes a key
+right rather than merely chosen.**
+
+**Ruled: the relaxation is satisfied by doing nothing, and a `> 4000` branch would be dead code.**
+It enters the wave as a **must-not — no `4000` literal in `generation-priorities.ts`** — plus **one
+line at the keying site saying that the clause's absence *is* the rule being satisfied**, so that a
+later reader who greps for `4000`, finds nothing, and concludes the ruling was never implemented is
+corrected at the place they are standing.
+
+**The trigger that would make the branch live, recorded in
+[ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)'s
+shape and not built for:** *when a later ruling lets the wider-wall rule **drop a body** — wave 7D8's
+**Q-7D8-2** answered the other way — then above 4 m becomes the region where it must not, and the
+branch is written then.* **[This is 0118 decision 3's form: it names its trigger and not its
+likelihood, so it can be acted on and it can be closed.]** Until that ruling exists, **building the
+branch is building machinery for a state the system has never been in**, and 0118 decision 4's
+discriminator does not rescue it: the cost of adding the branch later does not rise at any datable
+event, because nothing is stored, migrated or authored against it.
+
+**And the permission is not a licence.** C3's second half stands: **above 4 m is not a region the
+product stops caring about, it is a region where the product is *allowed* to do something simpler.**
+The corrected generator declines the permission and is correct there anyway — **which is the best
+possible outcome for a relaxation and the easiest one to misread as an oversight.**
+
+### E5 — What this amendment does not do
+
+- **It does not reopen C1, D1, D2 or D3.** The entered number is still the run; there is still no
+  second field; the run-end panel still gets no finished end; the 3D still draws the kitchen.
+- **It does not discharge C1's field-copy obligation** (*"Perete A"* names the wrong quantity,
+  `ro.json:54-58`, `dimensions-form.tsx:39-43`). **That is still an obligation with no wave**, and it
+  is the item most likely to be dropped because it looks like a wording tweak. **It is named again
+  here so that closing C2 does not read as closing Amendment C.**
+- **It does not answer Q-7D8-2** — whether the wider-wall rule may cost a cabinet. The wave is
+  planned for *the ladder wins*: **no body is dropped to satisfy this rule.** That is a criterion,
+  not a ruling, and the owner may rule otherwise in a new dated record.
+- **It rules nothing about where the tall block stands.** That is the owner's, and it is at
+  [ADR 0110 Amendment I](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-i--2026-09-17-the-block-follows-the-run-not-the-letter-a-and-a1s-order-survives-its-own-mirror).
+
+### Alternatives considered — Amendment E
+
+1. **Key on the free run capacity.** Refused (E2): it is not the quantity the owner named, and it
+   makes *wider* uncomputable from the two numbers the customer typed. **Its 1.83 % of divergent
+   rooms is recorded so the refusal is falsifiable rather than a preference.**
+2. **Add a width comparison inside `chooseWallCut` and leave `PREFIX_WALL` alone.** Refused, and
+   **falsified rather than argued** (E3): unreachable at every cut index, and a lexicographic variant
+   measured identical to the re-keying on all 8 615 rooms.
+3. **Implement the 4-metre relaxation as a `> 4000` branch.** Refused (E4): dead code on every room
+   the policy admits, with its trigger recorded instead.
+4. **Leave C2's obligation unowned until the wave closes and record it then.** Refused. C2 has been an
+   obligation with no home across two amendments and one owner round; **a record that names its owner
+   before the code lands is the only version of this that cannot be lost.** It is also wave 7D8's own
+   sequencing: **slice S1 lands before slice S2 writes a line of code.**
+
+### Sweep for this amendment
+
+| Record | What it says | Standing after E |
+| --- | --- | --- |
+| This record, **Amendment C2** | `chooseWallCut` is keyed on wall identity; the rule is not implemented; *"this record does not design the fix"*; any fix owes a test split by which wall is wider. | **Measurement confirmed and reproduced to the digit; obligation DISCHARGED into wave 7D8.** The fix is named (E2), its unreachable alternative falsified (E3), and the split-by-width requirement is carried into the wave's criteria 1–5. |
+| This record, **Amendment C1 / D1** | The entered number is the run the customer wants furnished, and it is the whole of what the product knows. | **Load-bearing, and it is reason 1 for the key.** *Wider* can only mean the bigger of the two entered numbers, because under D1 there is no other number. |
+| This record, **Amendment C3** | Two different 4-metre numbers; a reader will conflate them. | **Applied, and its guard sentence restated** (E4). The relaxation is declined by a generator that is correct without it. |
+| This record, **Amendment D2** | A recorded reason is not a second authority for the ruling it accompanies. | **Applied in the companion record** (ADR 0110 Amendment I3), where the engineering argument is kept and demoted. |
+| This record, **decision 1** | The room is a fact and the kitchen adapts to it. | **Kept, and this is the amendment that makes it operative in the generator.** Until now the kitchen adapted to *wall A*; after the wave it adapts to the wider of the two numbers the customer gave. |
+| [ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md) **Amendment A1** | The layout order, and the run reading from wall B's free end. | **Order restated, run-start corrected** — at ADR 0110 Amendment I5, on the owner's *"sometimes the arrangement is in mirror"*. **The correction is the direct consequence of this key.** |
+| [ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md) **Amendment E (the tall-unit one)** | The block stands at wall A's free end *"and nowhere else"*. | **OVERTURNED in its wall by the owner**, recorded at ADR 0110 Amendment I. **Not this record's doing and not this record's to rule.** |
+| [ADR 0108](0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md) | The room bounds and the minimum kitchen. | **Untouched.** `minimumMet` flips in **0 of 222 351** swept rooms; no bound moves and no room's admissibility changes. |
+| [ADR 0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation owes the cheap, correct baseline; taste enters through presets. | **Respected.** This is an owner-stated rule being implemented, not a taste rule inferred from how a kitchen looked in one room. |
+| [ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | Record a foreseeable problem with its trigger and build nothing. | **Applied once and by the book** (E4): the 4-metre branch is named, its trigger stated as *when Q-7D8-2 is answered the other way*, and **no code is written for it.** |
+| [ADR 0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) | Re-read a claim at HEAD before asserting it. | **Applied to the one claim that would have wasted this amendment.** *"C2 is still open"* was re-read at `5c915f8` in three places (E1) rather than taken from the brief that commissioned this slice. |
+| [ADR 0121](0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md) | A thing is identified by what it is, never by what correlates with it; measure a rule stated in a quantity **split by that quantity**. | **This amendment is its first instance being closed.** 0121's *Consequences* says *"`chooseWallCut` remains an open obligation with no wave"* (line 331 at `5c915f8`), and its index row in `README.md` says *"still unfixed and owned by no wave"*. **Both are out of date from this date, and this is the record that dates them.** Decision 5 is what E2's two-split instrument implements. |
