@@ -813,3 +813,287 @@ the engine constrains room size any more, so the maxima are free product numbers
 how many use these big kitchens"* — they want the real distribution of entered room sizes once the
 product has traffic. A measurement request with no wave attached, no code owed, and no trigger but
 traffic.
+
+## Amendment C — 2026-09-16: the entered number is the run the customer wants furnished, not their wall
+
+**Every claim below carries its evidence tier** — **[measured]** (executed against the current source
+and the figures printed), **[source-verified]** (read at HEAD today), or **[inference]** (reasoned,
+and marked so it can be argued with). Measured at HEAD `a70efc1`, against a `tsc` build of
+`packages/configurator-domain/src` taken today, never against the checked-in `dist`.
+
+**The ruling, verbatim** (owner, 2026-09-16):
+
+> *"on wider wall you always place the sink and hub, and fridge you place on narrower wall. but in
+> case wall have more than 4 meters it can fit on any wide wall (if all walls have more than 4
+> meters) you can place all including fridge on same wall. Very often even if room is big enough
+> people choose to furniture only part of the walls and this size the user should insert for each
+> wall not the real walls sizes"*
+
+### C1 — What the number means, and it is not what the form asks for
+
+**The ruling.** The customer enters, for each wall, **the length they want furnished**. Not the
+wall's real length. The two coincide only when someone furnishes wall to wall.
+
+**Decision 1 of this record is unchanged and its subject is sharpened.** *The room is a fact and the
+kitchen adapts to it* — the fact is the customer's **intended run**. It is still a fact: they chose
+it, the product may not enlarge it, and a kitchen that needs 100 mm more than they asked to furnish
+must drop or resize a cabinet. **The ruling narrows what "the room" refers to; it does not weaken the
+principle.** If anything it strengthens it: a *wall* is a physical constraint the customer discovered,
+while a *run* is a decision they made, and overriding a decision is worse than overriding a
+measurement.
+
+**The copy contradicts the ruling today. [source-verified]** `apps/web/src/messages/ro.json:54-58`
+(`room.wallLabel`) labels the wall fields **"Perete A"**, **"Perete B"**, **"Perete C"** — *wall A*,
+*wall B*, *wall C*. `:59` reads **"Înălțimea camerei"** — *the room's height*. `:66`'s summary is
+`"{shape} · {wallA} × {wallB} m · h {height} m"`. **A customer reading "Perete A" enters their wall.**
+Nothing in the form hints otherwise, and `dimensions-form.tsx:39-43`'s `FIELD_LABEL` maps each field
+straight to those leaves.
+
+*(Not to be confused with `ro.json:16-19`, `room.cameraPresets.wallA/wallB` — those name the 3D
+camera views, not the form's inputs. An earlier draft of this amendment cited them by mistake; the
+claim held, the citation did not.)*
+
+**So the product currently collects one quantity and the owner has ruled it wants another.** This is
+a **contract gap**, not an implementation defect: the code faithfully implements what was specified,
+and the specification was wrong about the customer's intent.
+
+#### What downstream assumes the number is a physical wall
+
+`wallLengthMm(wall, room)` (`queries/overflowing-placements.ts`) is the single mapping — wall A is
+`widthMm`, wall B is `depthMm` — and **six call sites read it. [source-verified]** Each was checked
+against the run reading rather than assumed:
+
+| Caller | Under the run reading |
+| --- | --- |
+| `queries/overflowing-placements.ts` — a body past the end is marked | **Still correct, arguably more so.** A body past the stretch the customer asked to furnish is still wrong, and the mark still means something they chose. |
+| `validate-design.ts` — `endsPastWall` | **Still correct**, same reasoning. |
+| `clip-empty-columns-at-wall-end.ts` | **Still correct.** Recorded space past the run's end is space the customer did not ask for. |
+| `generation/shell-design.ts` — `plannedEndMm` | **Still correct.** The generated run ends where the customer said to stop. |
+| **`run-end-panel.ts` — `passesWallAEnd`** | **Inverts. This is the finding.** See below. |
+| The 3D shell (wave 7H) | **Under-draws. See below.** |
+
+**The run-end panel's wall-end veto inverts, and it rests on an owner ruling. [source-verified]**
+`runEndPanelSeatM` suppresses the finished end panel when its outer face would pass wall A's end. The
+module states its authority: *"**The second veto is the wall's own end** (ADR 0045 Amendment A,
+owner: *'No panel when run hits wall'*): a panel whose outer face would pass wall A's end is not
+drawn — **a fitter closes that gap with a filler strip**."*
+
+**That reasoning holds only if the number is a wall.** Under the run reading, a run ending at the
+entered number stops **in the middle of the customer's wall, in open air** — there is no wall to hit
+and no gap for a fitter to fill, and an exposed carcass side is exactly what a finished end panel
+exists for. **[inference, and the strongest one in this amendment]** ADR 0083's own title is *"wall
+coverage is the run's extent and **the finished end is part of it**."*
+
+**This is a conflict between two owner rulings, and this record does not resolve it** — ADR 0045
+Amendment A is the owner's, ruled 2026-09-01, and it is drafted in terms of a wall. It goes back to
+them as **Q-C2** below.
+
+**The 3D shell now draws walls at exactly the entered numbers. [source-verified]** Wave 7H shipped
+(`a70efc1` and the four commits before it). `kitchen-shell.ts`' `resizeShellToRoom` moves the floor,
+both wall planes and the wall-A backsplash: *"wall A's plane follows `widthMm`, wall B's follows
+`depthMm`"*, each drawn at `drawnWallLengthM(mm) = toMetres(mm) + CORNER_OVERHANG_M`. Its own ruling
+is **Q7H-1, ruled (a): the drawn wall is the entered wall.**
+
+**So the honest answer to *"does the shell now under-draw?"* is: it draws exactly what it was ruled
+to draw, and what it was ruled to draw is now the wrong quantity. [inference]** A customer who
+furnishes 3 m of a 5 m wall would see a **3 m room**. Their kitchen would look correct and their room
+would not exist. **Nobody has ruled on this** — Q7H-1 was answered before the run/wall distinction was
+made, so it answered a question whose terms have changed. It is **Q-C3** below.
+
+**What it is not.** It is not a 7H defect. 7H implemented its ruling exactly, and this record says so
+plainly so the wave's close-out is not reopened as though it shipped something wrong.
+
+#### What it does to the minima and the maxima
+
+**[inference, flagged because it is the kind of claim that gets quoted as settled]** A run of 880 mm
+is a different claim from a wall of 880 mm, and the two bounds are affected in opposite directions:
+
+- **The minima get *stronger* justification, not weaker.** F1's argument was that a wall shorter than
+  the corner's reach cannot hold its own corner — physics. Under the run reading it becomes: a
+  customer who asks to furnish 900 mm cannot be given a corner that reaches 1000. **The corner could
+  physically stand there** (their wall may be 5 m long) — but it would furnish 100 mm they did not
+  ask for. **The refusal is now about consent rather than geometry, and decision 1 covers it
+  either way.**
+- **The maxima lose what little justification they retained.** A cap on the *run* is a cap on how much
+  a customer may ask to furnish, which no physical fact supports at all. Amendment B3 already
+  records that *"nothing in the engine constrains room size any more"*, and the ruled 6000 mm per
+  wall is **not yet applied to the policy literals** — they are still 6300 / 5100 at HEAD.
+  **[source-verified]**
+
+**The coupled `ROOM_TOO_SMALL_FOR_KITCHEN` rule is unaffected in arithmetic and changes in
+meaning.** It still asks whether a sink and a hob fit. It now asks it of a stretch the customer
+chose, which is a better question.
+
+#### What the 1C sentence must now say — and decision 3 already forbids the wrong version
+
+**Decision 3 of this record says a refusal may state a floor and may never ask for millimetres.
+Amendment C adds the second half: it must refuse the right noun.** *"This wall is too short"* is
+false under the run reading — the wall may be enormous. **[inference]**
+
+The sentence says, in substance, *"the stretch you asked us to furnish cannot hold a kitchen"*, and
+the natural remedy it implies is one the customer can actually act on: **furnish more of the wall.**
+That is a remedy, where *"find another 100 mm of wall"* was not — **which is the ruling of
+2026-09-15 satisfied, in copy, a day later.**
+
+**Wave 7F2 owns the sentence and it is still unwritten. [source-verified]** The Romanian
+localisation gates are closed, so this is a copy change entering the lock through 7F2 rather than a
+correction to shipped text.
+
+### C2 — Sink and hob on the wider wall, fridge on the narrower: MEASURED, and the generator does not implement it
+
+**The coordinator asked for this to be measured rather than reasoned about. It was.** Executed
+against a fresh build of the current source, sweeping wall A 900–6300 and wall B 1000–5100 at 50 mm,
+keeping only rooms `APPROVED_ROOM_POLICY` accepts and `planKitchenComposition` reports
+`minimumMet` for — **8 615 rooms. [measured]**
+
+**Aggregate, which is the misleading view and is shown first for that reason:**
+
+| | share |
+| --- | ---: |
+| sink on the wider wall | 83.5 % |
+| hob on the wider wall | 69.3 % |
+| fridge on the narrower wall | **51.7 %** |
+
+**Split by which wall is actually wider, which is the discriminating view: [measured]**
+
+| | **A wider** (5 209 rooms) | **B wider** (3 335 rooms) |
+| --- | ---: | ---: |
+| sink on the wider wall | 95.6 % | 64.7 % |
+| hob on the wider wall | **100.0 %** | **21.2 %** |
+| fridge on the **narrower** wall | 82.3 % | **0.0 %** |
+
+**The verdict: it correlates, and it does not implement.** A rule keyed on *width* cannot be 100 % on
+one side of the split and 21.2 % on the other. **A rule keyed on *wall A* can, and that is what is
+there.** And the fridge is on the narrower wall in **0.0 %** of the 2 760 B-wider rooms that have
+one — the shipped behaviour is the **exact inverse** of the owner's rule whenever wall B is the wider
+wall.
+
+**Why, from the source. [source-verified]** `chooseWallCut` computes
+`preferred = kept[0]?.role === "fridge" ? 1 : 0` and sorts the feasible cuts by distance from it.
+Cut 1 puts the fridge on wall B and everything after it on wall A. **`capacities` enters only as a
+feasibility filter — `sumWidths(...) <= capacities.B && sumWidths(...) <= capacities.A` — and never
+as a preference.** There is no comparison of A's length to B's anywhere in the module. The
+correlation arises because wall A is the longer wall in most *accepted* rooms, so "always wall A"
+looks like "the wider wall".
+
+**A worked counterexample, from the sweep: [measured]** a **900 × 3500** room. Wall B is the wider
+wall by 2 600 mm. The generator places the sink on B and the hob on B — correct by luck, since wall A
+at 900 has no free run at all — **and the fridge on B as well**, where the owner's rule puts it on A.
+All three bodies on the wider wall, with the narrower wall bare.
+
+**Classification: contract gap, and the fifth appearance of this milestone's recurring defect.**
+Not an implementation defect — `chooseWallCut` does exactly what ADR 0110 Amendment A1's reading
+order specified, and that specification never mentioned width. **The defect is the family ADR 0119
+decision 7 names: *a check that cannot distinguish the property it claims to hold*.** A spot-check on
+typical rooms — where A is wider — returns 100 % and 82 % and reads as confirmation that the rule
+works. **The rooms that discriminate are the ones nobody screenshots**, and they are 39 % of the
+accepted range.
+
+**This record does not design the fix.** It records that the rule is not implemented, that the
+current behaviour is keyed on a wall identity rather than a dimension, and that any fix owes a test
+**split by which wall is wider** — an aggregate figure over the whole sweep would have passed at
+83.5 % and hidden a 0.0 %.
+
+### C3 — Two different 4-metre numbers, and a reader will conflate them
+
+**They are consistent. They are not the same claim, and neither implies the other. [inference]**
+
+| | [Amendment B1](#amendment-b--2026-09-16-the-products-intended-size-range-is-walls-up-to-about-4-metres-and-it-narrows-no-bound) | Amendment C's ruling |
+| --- | --- | --- |
+| **The claim** | *"let's focus on medium, small or medium, like till four meters per wall"* | *"in case wall have more than 4 meters it can fit on any wide wall… you can place all including fridge on same wall"* |
+| **What it is about** | **Which customers to optimise for.** A market judgement. | **When the layout rule relaxes.** A geometric threshold. |
+| **What it governs** | Priority between two correct behaviours | Whether the wider/narrower split applies at all |
+| **Direction** | Above 4 m is *the tail we do not tune for* | Above 4 m is *where a single wall can hold everything* |
+
+**The conflation to guard against, stated as the sentence somebody will write:** *"the owner said
+4 metres, so above that we do not have to care."* **B2 already refuses half of that** — B1 narrows no
+bound and large rooms must remain correct. **C3 refuses the other half**: above 4 m is not a region
+the product stops caring about, it is a region where the product is *allowed to do something simpler*.
+**A relaxation is not a licence to be wrong.**
+
+**And note the shape they share, because it is the interesting part.** Both say the same thing about
+constraint: **below 4 m the geometry forces the product's hand, and above it the product has
+choices.** B1 says the choices are not worth tuning; C3 says one particular choice — everything on one
+wall — becomes available. **Consistent, and they meet at the same number for the same underlying
+reason: 4 m is about where one wall stops being a scarce resource.** That reason is worth recording
+because it is what makes the coincidence not a coincidence.
+
+### What this amendment does to the findings
+
+| Finding | Amended verdict |
+| --- | --- |
+| **F1** — wall B's minimum | **Unchanged in arithmetic; its justification changes and gets stronger.** It is now a refusal to furnish more than the customer asked for, not a claim about their wall. |
+| **F2** — the reserve, and the paired invariant | **Unchanged and still binding.** |
+| **F3** — the coupled rule | **Unchanged in arithmetic**, and it now asks a better question. |
+| **F4** — `MINIMUM_NOT_MET` | **Unchanged.** |
+| **F5** — the silent 1C refusal | **Unchanged, and its copy gains a second constraint** (C1's noun, on top of decision 3's "no millimetres"). |
+| **F6** — the maxima | **Weakened further.** A cap on a *run* has no physical basis at all, and the ruled 6000 mm is still unapplied. |
+| **F7** — `offeredCabinetDepthsMm` | **Unchanged.** |
+| **New: the run-end panel veto** | **Inverts under the run reading, and conflicts with an owner ruling** (ADR 0045 Amendment A). Q-C2. |
+| **New: `chooseWallCut`** | **Contract gap, measured.** The wider-wall rule is not implemented. |
+
+### What the milestone owes — reported, not written
+
+*(`docs/milestones/M7-room-and-presets.md` is held by two other agents; this is a report for the
+coordinator to sequence, not a punch list.)*
+
+1. **7F2** already owns the 1C sentence. It gains C1's constraint on the **noun**, alongside decision
+   3's on millimetres. **No new wave.**
+2. **The field copy** (*"Perete A"* → a label naming the length to furnish) is a **new obligation with
+   no home** at HEAD. It is copy, so it enters the lock; it is one leaf pair plus the summary at
+   `ro.json:66`. **This is the item most likely to be dropped**, because it looks like a wording tweak
+   and is the whole of C1 reaching the customer.
+3. **`chooseWallCut`** needs the wider-wall rule and the 4 m relaxation. **No wave owns it** — 7D3
+   and 7D4 own the tall-end rule, not the cut. **An obligation with no home.**
+4. **The run-end panel veto** owes nothing until Q-C2 is answered.
+5. **The 6000 mm policy-literal edit** is ruled and unapplied. Already known to the plan.
+
+### The questions, drafted as they should be put
+
+**Q-C1 — does the entered number include what is already there?** *(Asked because the ruling says
+what the number is not, and leaves one case open.)*
+
+> *"You said people often furnish only part of a wall, and we should ask for that part rather than
+> the whole wall. If someone's wall is 5 metres and they want 3 metres of kitchen, they type 3. What
+> if there's a fridge or a boiler already standing in the other 2 metres — do they still type 3, and
+> we just never know about the rest of the wall? Or do you want to ask about the whole wall and let
+> them mark the part to furnish?"*
+
+**Consequence:** the first keeps one number per wall and the product never learns the room's real
+size. The second is a second field per wall and a different screen. **[inference]** The first is what
+the ruling literally says and is far cheaper; the question exists because the answer determines
+whether the 3D room can ever be drawn truthfully (Q-C3).
+
+**Q-C2 — the finished end, where a run stops mid-wall.**
+
+> *"Today we don't fit an end panel when the run reaches the wall — you told us in September, 'no
+> panel when run hits wall', because a fitter closes that gap with a filler strip. But now the number
+> someone types is how much they want furnished, not how long the wall is. So a run can end in the
+> middle of a wall with nothing beside it. Should that end get a finished panel?"*
+
+**Consequence:** *yes* means the veto reads a real wall length the product no longer collects, which
+depends on Q-C1. *No* means an exposed carcass side mid-wall. **[inference]** **This is the question
+Q-C1 should be asked before**, because one answer to Q-C1 makes this one easy and the other makes it
+hard.
+
+**Q-C3 — what the 3D room should draw.**
+
+> *"The 3D room now draws walls exactly as long as the numbers typed in. If those numbers are the
+> part someone wants furnished, the room on screen is smaller than their real room. Would you rather
+> the picture showed the kitchen they're buying, or the room they're standing in?"*
+
+**Consequence:** the first is what ships today and needs no work. The second needs the real wall
+length, which is Q-C1 again. **Ask all three together; they are one question wearing three hats.**
+
+### Sweep for this amendment
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| This record, decision 1 | The room is a fact and the kitchen adapts to it. | **Kept, subject sharpened.** The fact is the intended run. A decision overridden is worse than a measurement overridden. |
+| This record, decision 3 | A refusal may state a floor, never ask for millimetres. | **Extended by C1**: it must also refuse the right noun. |
+| [Amendment B](#amendment-b--2026-09-16-the-products-intended-size-range-is-walls-up-to-about-4-metres-and-it-narrows-no-bound) | Optimise for walls to about 4 m; narrows no bound. | **Consistent, and C3 states the difference explicitly** so the shared number is not read as one rule. |
+| [ADR 0045](0045-a-run-end-panel-is-a-scene-fact-and-the-wall-end-vetoes-it.md) Amendment A | Owner: *"No panel when run hits wall."* | **In conflict under the run reading, and NOT resolved here.** It is an owner ruling drafted in terms of a wall; Q-C2 puts it back to them. |
+| [ADR 0083](0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md) | Wall coverage is the run's extent, and the finished end is part of it. | **The nearest relative, and it reads differently now.** That record already treats *the run* as the quantity that matters; this ruling makes the customer's input the same quantity. |
+| [ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md) Amendment A1 | The reading order — fridge, sink, preparation, hob — and the B-then-A traversal. | **Untouched as an order; incomplete as a placement rule.** A1 never said which wall is which, and C2 measures that the gap was filled by wall identity rather than by width. |
+| [ADR 0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) decision 7 | A check must tell a thing from a mention of it. | **C2 is a fresh instance, measured rather than argued.** 83.5 % aggregate hides 0.0 % on the discriminating half. Also paid for itself in the drafting: `planKitchenComposition`'s signature had gained a required `columns` argument since this record's first draft, and the measurement failed loudly instead of silently measuring stale `dist`. |
+| Wave 7H, Q7H-1 | Ruled (a): the drawn wall is the entered wall. | **Answered correctly to the question as then posed.** The terms have changed underneath it; Q-C3 re-asks it. **7H shipped no defect.** |
