@@ -40,6 +40,7 @@ import {
 
 import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
+import { publishSceneMeasurement } from "./scene-measurement-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
 import { useOverflowingPlacementIds } from "./use-overflowing-placements";
 
@@ -484,6 +485,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       controls?.target.copy(pending.target);
       controls?.update();
       goal.current = null;
+      // The one moment a projection is worth measuring: the camera is where the preset put it and
+      // is no longer moving. Off unless the build opted in (`scene-measurement-store.ts`).
+      publishSceneMeasurement({ camera, solidsRoot: stage.solidsRoot });
       onSettled?.();
     }
     invalidate();

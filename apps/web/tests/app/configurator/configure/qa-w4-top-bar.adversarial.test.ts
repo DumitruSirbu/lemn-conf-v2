@@ -51,6 +51,11 @@ const priceBarStylesheet = readFileSync(
   resolve(SOURCE_ROOT, "price/price-bar.module.css"),
   "utf8",
 );
+const desktopScenePoints = readFileSync(
+  resolve(import.meta.dirname, "../../../e2e/support/desktop-scene-points.ts"),
+  "utf8",
+);
+
 const desktopRailSpec = readFileSync(
   resolve(import.meta.dirname, "../../../e2e/editor-rail.desktop.e2e.spec.ts"),
   "utf8",
@@ -299,10 +304,25 @@ describe("the desktop click constants the browser measured", () => {
   it("puts every tap inside the canvas box the spec declares", () => {
     const { viewportPx } = documentedBands();
     const originY = documentedCanvasOriginY();
+    // **The taps moved on 2026-09-16 and this scan followed them.** They were four literals in
+    // `editor-rail.desktop.e2e.spec.ts`; three specs each carried their own identical copies, and
+    // M7 wave 7H made the camera a function of the room, so all of them went stale in one pass.
+    // They now live once in `tests/e2e/support/desktop-scene-points.ts`, which also carries a
+    // second group for the narrowed-room document — a canvas constant is a function of the room it
+    // was measured on, and a suite driving two documents needs two sets.
+    //
+    // Every point in that module is scanned, including the origin of each measured pixel box: a box
+    // whose corner is off the canvas frames nothing, which is the same failure this guard exists to
+    // catch for a tap.
     const taps = [
-      ...desktopRailSpec.matchAll(/const (\w+) = \{ x: (\d+), y: (\d+) \};/g),
+      ...desktopScenePoints.matchAll(
+        /(\w+)(?::\s*\w+)?\s*[=:]\s*\{\s*x:\s*(\d+),\s*y:\s*(\d+)/g,
+      ),
     ];
-    expect(taps.length, "the spec declares no taps at all").toBe(4);
+    expect(
+      taps.length,
+      "the desktop scene points module declares no points at all",
+    ).toBe(8);
 
     for (const [, name, x, y] of taps) {
       expect(Number(y), `${name ?? ""} above the canvas`).toBeGreaterThan(
