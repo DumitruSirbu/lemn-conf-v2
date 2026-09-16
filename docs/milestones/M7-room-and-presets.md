@@ -163,6 +163,27 @@
 > 6000 mm per wall is a policy-literal edit — **not made here**. **`pnpm ci:local` and the push are
 > not claimed by this wave's record**, and this pass had no shell: the eleven hashes and the test
 > counts are reported, not verified. Full close-out below.
+> **Updated again 2026-09-16: wave 7D4 is DONE across eight commits, `00152b8` … `6456a3b`.** The
+> **preparation** cabinet and **the first storage slot after the hob in the reading order** take
+> `base-3drawer`; **every other storage slot takes `base-cabinet`**. A slot is identified by **what
+> composed it** — never by its `role` or its width, which are wrong on **32.8 %** and **14.9 %** of
+> placed rooms against 7D3's **correct** output. Measured over **211 551 placed rooms:
+> `nonBuildIdDiff: 0`**, **261 162 body changes**, none on a block column or on the hob *(reported,
+> reproduced by the logic reviewer, not re-run here)*. **This wave is small in code and large in
+> correction, and the close-out does not present it as clean.** The owner **replaced its central
+> ruling mid-flight** — there is no cycle — and **five plan defects were then found and fixed, every
+> one the coordinator's own** (a missing enumeration case at 11.1 % of rooms; a criterion
+> unsatisfiable by correct output; a must-not contradicting three criteria of its own plan; a
+> citation to a non-existent ADR section; a risk that named a re-measurement and not the artefact it
+> invalidates), **plus three in the wave's own tests** — a parity suite that **passed 15/15 with the
+> central rule deleted**, two QA guards that **passed under the sabotage they existed to catch**, and
+> **one NUL byte** that made a test file binary to git so a **229-line diff was reviewed by nobody**.
+> All three are **ADR 0121**. **Two comment-only obligations pass to 7D5's first slice**
+> (`run-end-panel.ts:94-98`'s false stated reason; the widened clause's missing pointer under ADR
+> 0091 Amendment A) and **two obligations remain unowned** (`chooseWallCut` keyed on wall identity;
+> the *"Perete A"* field copy). **`pnpm ci:local` and the push are not claimed for this wave either**,
+> and this pass had no shell: the eight hashes and every figure above are reported unless the
+> close-out marks them verified at HEAD. Full close-out below.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1497,7 +1518,7 @@ table.
 | **7D1b** | The run-end panel veto at wall A's end (ADR 0045 Amendment A); B3a's reserve removed — **DONE, `f61c361` + `85091cc`** | `run-end-panel.ts`, `three-adapter/src/kitchen-shell.ts`, `three-adapter/src/scene-sync.ts`, `apps/web/src/scene/kitchen-stage.tsx`, `src/generation/shell-design.ts` | 7D1 | Full | **Yes** | answered (backlog 64 ruling) |
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
-| **7D4** | **A long storage run is composed, not repeated**: the storage cycle, the per-kitchen sequence carried across the corner, and the preparation cabinet's drawer body. **Changes which body fills a slot, and never how many slots there are or how wide they are** | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
+| **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | **The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob). **Re-baselines 7D3's block-threshold table and restates its criterion 12** | `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/generation/body-choice.ts` | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15); **Q-D2 open and blocks this wave only** |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Re-scoped 2026-09-16 under ADR 0120 Amendment A: the width is a function of the depth *and the room*, so the parity criterion sweeps rooms × depths.** The wall row's 570 returns move with the base row's 320 or the wave buys nothing — **the 290 mm cliff, defused by the owner's ruling below and live again the moment one row moves alone**. **Floors ruled 2026-09-16: a cabinet with one door at all three levels → 200 everywhere, wall B's bound 1000 → 880.** **Ordering: its fidelity baseline is taken *after* 7H lands, never before — 7H is landed at `7b1f92c`. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders, `decomposed-bodies.ts`, `build-any-body.ts` (+ fidelity, parity and room-sweep coverage); **slice S5 only**, jointly with 7D6 and by the coordinator's recorded exception, `configurator-domain/src/room/approved-room-policy.ts` | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + a narrow room | **Q-7D7-1 ANSWERED 2026-09-16** (one door at all three levels → 200). **Q-7D7-2 open** — wall A's minimum moves to 880 too, which ADR 0120 said it would not; gates S5's wall-A half only. S0–S4 dispatch now |
@@ -3131,6 +3152,185 @@ are recorded in ADR 0118's shape in this file rather than as records of their ow
 order. **Two table defects remain outstanding and are deliberately left unresolved** — 7F4b showing
 as not-done while reported in git, and 7F3 depending on 7C, which is deferred past M8. Both are under
 the revised wave table, and **both are scheduling calls rather than documentation ones.**
+
+### 7D4 close-out — 2026-09-16, `00152b8` … `6456a3b`
+
+**What shipped, and it is one sentence.** The **preparation** cabinet and **the first storage slot
+after the hob in the reading order** take `base-3drawer`; **every other storage slot takes
+`base-cabinet`**. Nothing else moved. The rule is a new pure leaf, `src/generation/body-choice.ts`,
+which declares the three composed storage body ids and answers one question — *did the storage run
+compose this module?* — through provenance (`isComposedStorageSlot`, the `storage:` id prefix) and
+never through the role or the width, both of which look as though they can answer it and cannot.
+`generation-priorities.ts` reads the leaf at two points: the preparation priority's `buildId`
+(`:39`) and `storagePriorities`' per-slot choice (`:262-265`). **All four sites verified at HEAD.**
+
+**This was a small wave in code and a large one in correction, and it should not be read as a clean
+one.** It was re-planned mid-flight when the owner replaced its central ruling (*"is not like one
+with drawers one with door… is not like in chess"*, D14, ADR 0110 Amendment G, then H): the storage
+**cycle** the plan was built around ceased to exist before a line of it shipped, and what remains is
+a positional rule. **Five defects were then found in the plan itself, every one the coordinator's
+own, and three in the wave's own tests.** Both lists are below, in full, because they are what this
+wave is actually worth.
+
+> **Provenance of the eight hashes, stated because this record does not verify them.** This pass had
+> no shell and could not run `git log`. The range is the coordinator's, reported as `00152b8` (S1b),
+> `9daf757` (S2), `8be7d9a` (the criterion-13 adjudication and ADR 0091 Amendment A), `d89a3b6` (S4),
+> `a51d6ef` (the NUL byte), `9258fa3` (review fixes), `c444ef9` (ADR 0121), `6456a3b` (the
+> cycle→composed rename). **Two are corroborated from inside the tree**:
+> `tests/support/composed-run-baseline.ts:6-11` names `9daf757` as the tree S4's baseline was
+> captured on and `7816634` as 7D3's last commit on either production module, and **ADR 0121 is
+> measured at `9258fa3`** and cites `a51d6ef` and `00152b8` by hash for the NUL-byte instance. The
+> other five are **reported, not verified here.** Below, **verified** means read in the tree at HEAD
+> by this pass; **as reported** means relayed and not re-run.
+
+**What was measured, and by whom.** Over **211 551 placed rooms**: **`nonBuildIdDiff: 0`** — no
+position, width, remainder, drop decision or cut moved anywhere — and **261 162 body changes, every
+one `base-cabinet → base-3drawer`**, 200 751 on the preparation role and 60 411 on composed storage
+slots, **zero on a block column and zero on the hob**. The post-hob slot stands on **wall A in
+53 751 rooms (25.41 %)** and on **wall B in 6 660 (3.148 %)**, with **`wrongEnd: 0`**. *(The
+coordinator's measurements, **independently reproduced by the wave's logic reviewer**; not re-run by
+this pass. The wall split is corroborated inside this file at **D15.7**, which records 25.4 % / 3.1 %
+and the same **6 660**.)* **Beware the number 25.4 in this file: it names three unrelated
+quantities** — this split, G3.3's *wall A keeps a cycle slot*, and ADR 0117's withdrawn lift share.
+They are not the same measurement and must not be cited for one another.
+
+**Verification — what this pass verified, and what it is relaying.**
+
+- **Verified in the tree at HEAD.** `body-choice.ts` declares all three ids with the **ADR 0110 G7
+  reversal recorded at the declaration it reverses** (`:54-62` — `base-panbank` is kept with no
+  caller because 7D5 places it under Amendment H1, and the entry says so). `drawer-rows.test.ts`
+  carries criteria 6, 7, 9 and 11 over the swept policy, with the three-arm reachability guard at
+  `:301-314` and the set-equality assertion at `:316-328`. The three
+  `qa-7d4-*.adversarial.test.ts` files exist; `tests/support/composed-run-baseline.ts` states S4's
+  capture method in its own header; and `packages/three-adapter/tests/qa-7d4-generated-storage-bodies.parity.test.ts`
+  is criterion 15's suite and records its own two limits at `:10-27`.
+- **Verified: the rename is complete where it has to be.** `isCycleStorageSlot` occurs **nowhere
+  under `packages/`**; `isComposedStorageSlot` is the only spelling in production and in all eight
+  test files that reach it.
+- **Verified: the false ADR citation is gone.** `generation-priorities.ts:327` now cites *"the 7D4
+  ground-truth table's G12 in `docs/milestones/M7-room-and-presets.md`"* where it had cited *"ADR
+  0110 G12"*, a section that does not exist in that ADR.
+- **As reported, not re-run here:** every figure in the paragraph above; the sabotage results;
+  the suite counts. **This pass has no shell and observed no test run.**
+- **`pnpm ci:local` state and push state are not claimed by this record.** 7F4a's close-out records
+  both as pending, and 7D3 and 7H are unchanged; nothing here may be read as a gate.
+
+**Five defects in the plan, every one the coordinator's own.** Each is struck or corrected in place
+in the wave's punch list below rather than rewritten, and each is named here so the close-out does
+not read as a clean wave:
+
+1. **Criterion 6's enumeration was incomplete.** It listed `{}`, `{base-cabinet}` and
+   `{base-cabinet, base-3drawer}` and omitted **`{base-3drawer}`** — a kitchen whose only composed
+   slot *is* the post-hob one has no other slot left to hold a door. **394 of 3 547 placed rooms in
+   a 4 000-run sweep, 11.1 %**, witness 6229 × 1489 × 2641. The composer was right and the criterion
+   was wrong. Reported by S4's QA as F1 and fixed in the plan, not in the suite.
+2. **Criterion 15 was unsatisfiable by correct output.** It demanded a parity sample containing
+   **all three** storage bodies, including `base-panbank` — which **criterion 6's own must-not
+   forbids in a storage slot this wave** and which generation places nowhere. The two halves were
+   written either side of D14/D15. Reported by S4's QA as F2.
+3. **Criterion 13's must-not contradicted criteria 1, 6, 7 and this section's own preamble.** The
+   plan said three times to make the post-hob slot a drawer and once not to touch any 7D3 assertion
+   that says otherwise. An implementer met it exactly as a contradiction is met. The adjudication is
+   the dated note under criterion 13 below, and the general rule it forced is **ADR 0091 Amendment
+   A**: a product claim retired by a *later* dated ruling is retired by **moving** the invariant —
+   asserted at least as strongly in the suite that owns the new rule, in the same commit — and the
+   old clause is **deleted, or widened only with a comment naming where the invariant went**.
+4. **A production comment cited an ADR section that does not exist** — *"ADR 0110 G12"* in
+   `generation-priorities.ts`. G12 is a row of this milestone's own ground-truth table. Fixed;
+   verified at HEAD.
+5. **Risk 21 named re-measuring a figure and not re-capturing the artefact that re-measurement
+   invalidates.** A wave that re-keys `chooseWallCut` legitimately changes 7D3's composition, so
+   `tests/generation/7d3-composition-baseline.json` **stops being a valid baseline for it** and must
+   be re-captured against that wave's own pre-state by S4's method. Added to risk 21 after the logic
+   review measured the blast radius (**26 tests red across 7 files**, every one a position change and
+   none a body-identity test — the digest doing its job). *(As reported.)*
+
+**Three defects in the wave's own tests, and they matter more than the code.** All three are the
+same family, now recorded as **[ADR 0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)**
+— *a thing identified by what merely correlates with it* — and are **not restated in full here**:
+
+1. **The parity suite passed 15/15 with the wave's central rule deleted outright.** `storageBodiesIn`
+   selected storage bodies **by build id**, and the preparation module now carries `base-3drawer`, so
+   every *"a drawer exists"* assertion in the file was satisfied by the preparation cabinet alone —
+   while the domain suite went 8 red at the same sabotage. Found by the clean-code review, reading
+   past a passing suite. **After the fix, the identical sabotage gives 4 failed / 12 passed**
+   *(ADR 0121 instance 4, measured at `9258fa3`, both directions reproduced independently)*. The
+   reference room was **kept and re-justified as the counter-case**, precisely because it stands no
+   drawer in a composed slot at all.
+2. **Two QA guards passed under the sabotage they existed to catch**, because each asked whether a
+   body's id equalled `THREE_DRAWER_BASE_BUILD_ID` — **and the sabotage moves that constant.** The
+   filter then matched every door cabinet. **Found by QA in its own work and reported rather than
+   buried in a clean table**, which is why it is named as a credit and not only as a defect. The
+   strengthened form is mutation-verified: the identical sabotage turns **7 domain and 3 parity tests
+   red where it turned none** *(as reported, via ADR 0121 instance 3)*.
+3. **One NUL byte made a test file binary to git.** A literal NUL where an escape was meant, at line
+   260 of `qa-7d4-body-choice.adversarial.test.ts`, **pre-existing at `7816634`**. Git classified the
+   file as binary, so every diff read *"Binary files differ"* and every grep read *"Binary file …
+   matches"*. **`00152b8` changed 93 lines and deleted 136 in that file — 229 lines — and nobody read
+   the change**, not the implementer's reviewer and not the coordinator, and **the repo-wide
+   convention greps this project uses as gates stepped over it and reported success.** The fix
+   (`a51d6ef`) also withdraws a claim in `00152b8`'s own commit message. **This is the form of the
+   family nobody chose**: no author decided to identify source by the absence of a NUL byte; a tool
+   did, and every downstream gate inherited it.
+
+**What this wave does NOT prove, stated because the rest of the record would otherwise read as full
+coverage.** From S4's finding F6, **as reported**, with the two clauses this pass could check marked:
+
+- **Criterion 13's four non-oven clauses have no assertion at all.**
+- **Criterion 12 is asserted weaker than *byte-identical***, and with no sabotage against
+  `approved-room-policy.ts`. **Verified at HEAD:** the shipped form is *"declares exactly two
+  required roles, and they are the sink and the hob"*
+  (`qa-7d4-composed-bodies.adversarial.test.ts:439-444`) — which holds the must-not, and is not the
+  byte-identity the criterion words.
+- **Criterion 2's wall-cut clause rides on the digest**, with no sabotage isolating `chooseWallCut`.
+- **Criterion 21's refused-upper clause had no mutation aimed at it.**
+- **Criterion 15's two-front arm is unreachable this wave** — it needs `base-panbank` in a composed
+  slot, which is 7D5's. **Verified at HEAD** in the parity file's own header (`:19-27`).
+
+**Obligations carried forward, each to a named owner. Two have one; two have none, and that is
+recorded rather than papered over.**
+
+1. **`run-end-panel.ts:94-98` — a comment whose stated reason is false.** It justifies the wall-end
+   veto as *"a fitter closes that gap with a filler strip"*, a sentence about a physical wall that
+   ADR 0120 Amendment D's run reading removed. **The behaviour is correct and its stated reason is
+   false, which is the more dangerous of the two states.** **Owed by 7D5's first slice.** *(Comment
+   lines verified at HEAD; ADR 0120 D2 owns the ruling and is not touched by this pass.)*
+2. **`qa-7d3-tall-end-block.adversarial.test.ts`'s widened clause has no pointer.** ADR 0091
+   Amendment A makes widening admissible **only** with a comment naming the file and line where the
+   invariant now lives — `drawer-rows.test.ts:316-328`. **Verified at HEAD: the comment at `:221-226`
+   explains the widening and names no file.** Until it does, the shipped form does not meet the
+   amendment written for it in the same wave. **Owed by 7D5's first slice.**
+3. **`chooseWallCut` is keyed on wall identity, not on width** — contrary to the owner's *sink and
+   hob on the wider wall, fridge on the narrower*. ADR 0120 C2, re-recorded as ADR 0121 instance 1:
+   the fridge is on the narrower wall in **0.0 %** of the 2 760 B-wider rooms that have one. **This
+   is owned by no wave, and no owner is invented here.** 7D4 neither fixes it nor depends on it: its
+   rule is stated in the **reading order**, which no re-keying of the cut changes.
+4. **The field copy — *"Perete A"* names the wrong quantity** (`ro.json:54-58`,
+   `dimensions-form.tsx:39-43`). **Unowned**, and ADR 0120 Amendment D makes it **more** load-bearing,
+   not less: under D1 the label is the single place the customer is told what number to type, and the
+   product has no second source for it. *(Relayed; the two file references are ADR 0120's and were not
+   re-read by this pass.)*
+
+**A vocabulary note, so the plan below does not read as describing the shipped code.** `6456a3b`
+renamed the wave's central predicate `isCycleStorageSlot` → **`isComposedStorageSlot`**, and the
+rename is complete under `packages/` (**verified**). **This milestone file still says *cycle slot*
+in 25 places**, including D12 and criterion 22 below, and **ADR 0091 Amendment A names the old symbol
+once.** Those are dated records and are **not** swept here; a dated pointer is added at D12, at
+criterion 22 and in the ADR instead. **Read *cycle slot* as *composed storage slot* throughout the
+7D4 plan** — and note that the word *cycle* in that plan often refers to the **rule the owner
+deleted**, which is a second reason not to rewrite it in place.
+
+**Deferred, with an owner.** Nothing in 7D4's scope is deferred. The dishwasher and the bottle cargo
+were withdrawn from this wave by **D11** and are **7D5's**, which is what makes 7D4 contain no
+width-changing commit at all — criterion 2's *no exception and no asterisk*. The wave owes no ADR:
+**ADR 0110 Amendment F is written** (2026-09-15, slice S0, discharging the obligation 7F4a and 7D3
+both recorded), **Amendments G and H carry the owner's replacement ruling**, **ADR 0091 Amendment A**
+and **ADR 0121** are written, and **ADR 0118** was written for 7D3.
+
+**Next wave: this close-out makes no scheduling call.** 7D4 was dispatched out of the recommended
+order, as 7D3, 7H and 7F4a were. **The two table defects recorded at 7H's close-out remain open and
+are deliberately left unresolved here** — 7F4b showing as not-done while reported in git, and 7F3
+depending on 7C, which is deferred past M8. Both are scheduling calls rather than documentation ones.
 
 ## Wave 7F1 — dispatchable punch list
 
@@ -6814,6 +7014,13 @@ against 7D3's output being **correct**. The failure therefore presents as a defe
 and **the first instinct will be to edit 7D3. It is the wrong one.** Scope by provenance — the exported
 `isCycleStorageSlot` — and the same rules pass on all 211 551 placed rooms.
 
+> **Renamed at close-out, 2026-09-16 (`6456a3b`): the predicate ships as `isComposedStorageSlot`**,
+> and `isCycleStorageSlot` exists nowhere under `packages/`. **This section and the criteria below
+> are left in their dated wording**, partly because rewriting a dated record is not this project's
+> habit and partly because the word *cycle* in this plan usually names **the rule the owner deleted
+> at D14** — so a mechanical sweep would make the text read as though that rule shipped. Throughout
+> the 7D4 plan, read *cycle slot* as **composed storage slot**.
+
 **Sample floors come from risk 14's measured table**, taken under `fc.integer` against the real
 generator, and never from a uniform model of the room space.
 
@@ -7133,7 +7340,8 @@ composes, not a goal it fell short of.
     written, built into this plan and withdrawn by the owner in one day**, and it exists so the next
     reader of D8's struck text does not re-add it.
 22. *(unit + grep — **D12's guard**)* **The cycle's slots are identified by one exported predicate, and
-    nothing else knows the convention.** `isCycleStorageSlot` is exported from `body-choice.ts`; it
+    nothing else knows the convention.** `isCycleStorageSlot` *(shipped as **`isComposedStorageSlot`**
+    — renamed at close-out, `6456a3b`; see the dated note under D12 above)* is exported from `body-choice.ts`; it
     returns `true` for every `storage:{A|B}:{n}` module and `false` for every `column:A:{n}` module,
     over a sample of designs covering block sizes **0, 1, 2 and 3**.
 

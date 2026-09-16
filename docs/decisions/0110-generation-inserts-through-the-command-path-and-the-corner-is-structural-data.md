@@ -2019,6 +2019,12 @@ require that no drawer body stands anywhere else, nor that a given room yields a
 - **`isCycleStorageSlot` and `CYCLE_STORAGE_ID_PREFIX`** — F6's provenance discriminator. **It names a
   slot's origin, not its body**, so the rule change does not reach it. Its head comment's measured
   figures (32.8 %, 14.9 %) are unaffected.
+  *(**Renamed at 7D4's close-out, 2026-09-16, `6456a3b`: they ship as `isComposedStorageSlot` and
+  `COMPOSED_STORAGE_ID_PREFIX`** — source-verified at HEAD, where the old spellings occur nowhere
+  under `packages/`. The wording above and **Amendment F's F6 clause 2**, which names the predicate
+  the same way, are left as dated text — *cycle* in this ADR frequently names **the rule this
+  amendment deletes**, so a mechanical sweep would make the text read as though that rule shipped.
+  Nothing else about the clause changes.)*
 - **`DOOR_BASE_BUILD_ID` and `THREE_DRAWER_BASE_BUILD_ID`** — clause 2 needs the first and clause 1 the
   second.
 - **`refuseASlotThatIsNotAWholePosition`'s index discipline**, and the zero-import dependency floor the

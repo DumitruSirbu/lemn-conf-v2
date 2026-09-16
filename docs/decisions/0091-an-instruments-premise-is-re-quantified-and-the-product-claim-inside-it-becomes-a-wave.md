@@ -481,6 +481,21 @@ decision 2 refuses. Widening earns its place only when the two clauses are **der
 a real cross-check of the word D12 showed has two referents, and is why the shipped form is judged
 admissible rather than merely tolerated.
 
+> **Two corrections at 7D4's close-out, 2026-09-16. Nothing above is struck.**
+>
+> **The predicate ships as `isComposedStorageSlot`.** `6456a3b`, the wave's last commit, renamed it
+> after this amendment was written at `8be7d9a`; `isCycleStorageSlot` exists nowhere under
+> `packages/`. **Source-verified at HEAD.** The cited line range is unaffected —
+> `drawer-rows.test.ts:316-328` is still the set-equality assertion limb 2 requires.
+>
+> **The type specimen does not yet meet this amendment, and saying so is the point of writing one.**
+> The widened clause shipped **with no comment naming where the invariant went**: the note at
+> `qa-7d3-tall-end-block.adversarial.test.ts:221-226` explains *why* the clause widened and names no
+> file or line. **Source-verified at HEAD.** Limb 2 is discharged — the invariant really is asserted
+> in `drawer-rows.test.ts` — so this is the pointer and not the assertion that is missing, which is
+> exactly the state *"widening without that pointer is inadmissible"* forbids. **The comment-only fix
+> is owed by wave 7D5's first slice** and is recorded in the M7 milestone's 7D4 close-out.
+
 ### A.3 A plan's must-not may not forbid what the same plan's behaviour requires
 
 **A must-not that a wave's own correct, ruled behaviour forces a breach of is a defect in the plan,

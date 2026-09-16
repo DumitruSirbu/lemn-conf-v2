@@ -224,6 +224,15 @@ describe("no body is silently planned over its own module", () => {
             // purpose: the slot standing first after the hob in the reading order takes the drawer
             // body (ADR 0110 Amendment H1, 7D4 D15.7). Widened to the pair a slot may take rather
             // than deleted, so a third body planned into a composed slot still fails here.
+            //
+            // **The identity invariant moved rather than weakened, and this is where it went:**
+            // `tests/generation/drawer-rows.test.ts`, *"gives a kitchen at most one drawer slot, and
+            // it is always the first after the hob"* — set equality against
+            // `slotsAfterTheHob(plan).slice(0, 1)`, so too many drawers and too few both fail.
+            // **The clause below cannot make that distinction and must not be read as authority for
+            // it**: it stays green whether one composed slot holds a drawer or every one does, which
+            // was measured in both directions. ADR 0091 Amendment A.2 admits a widening **only**
+            // with this pointer; without it the clause reads as proving a property it cannot see.
             expect(
               [DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID],
               label,

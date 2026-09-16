@@ -286,7 +286,10 @@ the accepted range would have passed the broken code at 83.5 %.
 - **Not a ban on correlates.** A correlate is often all that is available, and instance 4's fix still
   reaches the slot through a **filter** over the log step's planned id — named `isCycleStorageSlot` at
   `9258fa3`, **and a rename to `isComposedStorageSlot` is in the working tree unlanded as this record
-  is written** (ADR 0119 decision 3: the fact and the change that ends it, in one sentence). The duty
+  is written** (ADR 0119 decision 3: the fact and the change that ends it, in one sentence).
+  ***(That rename landed at `6456a3b`, 2026-09-16, the same day. The predicate is
+  `isComposedStorageSlot` from there on; the sentence above is kept rather than rewritten because it
+  is decision 3 working — a fact recorded with the change that would end it, and then ended.)*** The duty
   is to know a correlate is one, write that down, and discharge decision 3.
 - **Not more tests.** Instance 4 had fifteen. Instance 3's parity file had twelve. **Both were full
   suites passing for the wrong reason**; neither was short of assertions.
