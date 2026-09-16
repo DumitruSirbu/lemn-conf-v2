@@ -9613,6 +9613,20 @@ at 10 mm over 211 551 placed rooms, are:
    expression in the module, and **a test goes red when it alone is inverted** — which no count,
    width, remainder, cut, provenance or digest will do (E7). The assertion **names P6's size and fails
    if that arm is empty**, so it cannot pass by never reaching a wall-B room.
+
+   > **Why this cannot be discharged from the baseline, verified in the artefact rather than assumed
+   > — and it is worse than "the digest masks `buildId`". [source-verified at `8ebff1f`]**
+   > `composed-run-baseline.ts:182-184` defines the masking predicate as
+   > `base.role === PREPARATION_ROLE || isComposedStorageSlot(base)` — **a test of *which slot it is*,
+   > never of *which body it holds*.** Both recorded forms read it: the 240 room digests through
+   > `canonicalPlanBeyondThisWavesBodies` (`:111-117`) and **the five whole witnesses through
+   > `canonicalPlanWithTheDoorBodyRestored` (`:128-134`)**. So when the drawer slides from
+   > `count − 1` to `0`, **every composed slot is substituted on both sides of the comparison and the
+   > two renderings stay equal** — the positions never moved, and the one field that did is replaced
+   > at every slot the defect could have touched. **The witness half is not a second opinion here; it
+   > is the same blindness spelled out longhand.** S0's own re-capture note reaches the same
+   > conclusion from the other direction and says a build-id criterion *"needs its own assertion"*.
+   > **This criterion is that assertion, and nothing already in the repository can stand in for it.**
 8. _(sweep)_ **D15.7 re-measured and still exercised on both walls: 50 361 (23.81 %) on wall A and
    5 910 (2.79 %) on wall B, `wrongEnd: 0`**, with the wall-B arm sampled by at least one whole
    recorded witness. **7D4's rule is unchanged** and no assertion of it is weakened (ADR 0091
