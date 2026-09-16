@@ -1519,7 +1519,7 @@ table.
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
-| **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15); **Q-H5 blocks slice S3 only; Q-H3 and Q-H4 change two criteria and no code** |
+| **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), **Q-H3 answered 2026-09-16 (a threshold at six plain storage cabinets, not a ratio — it re-keyed the plan)**; **Q-H5 blocks slice S3 only; Q-H4 and the new Q-H3a change two criteria and no code** |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Re-scoped 2026-09-16 under ADR 0120 Amendment A: the width is a function of the depth *and the room*, so the parity criterion sweeps rooms × depths.** The wall row's 570 returns move with the base row's 320 or the wave buys nothing — **the 290 mm cliff, defused by the owner's ruling below and live again the moment one row moves alone**. **Floors ruled 2026-09-16: a cabinet with one door at all three levels → 200 everywhere, wall B's bound 1000 → 880.** **Ordering: its fidelity baseline is taken *after* 7H lands, never before — 7H is landed at `7b1f92c`. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders, `decomposed-bodies.ts`, `build-any-body.ts` (+ fidelity, parity and room-sweep coverage); **slice S5 only**, jointly with 7D6 and by the coordinator's recorded exception, `configurator-domain/src/room/approved-room-policy.ts` | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + a narrow room | **Q-7D7-1 ANSWERED 2026-09-16** (one door at all three levels → 200). **Q-7D7-2 open** — wall A's minimum moves to 880 too, which ADR 0120 said it would not; gates S5's wall-A half only. S0–S4 dispatch now |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
@@ -8396,8 +8396,22 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 
 **Tier: Full** (a domain rule stated in a quantity, touching the module 7D3 and 7D4 both touched):
 adversarial QA, then the logic and clean-code reviewers separately. **Visual: No** — nothing reaches
-a screen in this wave. **Owner answers needed: Q-H3 and Q-H4 change two acceptance criteria and no
-slice's code; Q-H5 and Q-H6 are put below as consequences and are not picked here.**
+a screen in this wave. **Owner answers: Q-H3 is ANSWERED (E1) and the answer re-keyed this plan;
+Q-H4 follows from it by implication and is put back as a confirmation, with the plan written for
+*no*; Q-H3a is new and is the preparation cabinet's place in the count; Q-H5 and Q-H6 are put below
+as consequences and are not picked here.**
+
+> **Re-keyed 2026-09-16, after the owner answered Q-H3.** The denominator is **the plain storage
+> cabinets left once fridge, tall columns, sink, hob and the bottle cabinet are placed**, and the rule
+> is a **threshold at six of them**, not a ratio at every size. **Every figure keyed on H8's 4.98
+> mean is superseded**; the tables that used it are struck in place rather than deleted, because two
+> of their columns survive the change. **Read E1, E7.1, E8, E8.1 and E9 — they are the re-keyed
+> sections. E0 and E3–E6 are unaffected: they measure the run, not the proportion.**
+
+*(The heading's `ffc472e` is the commit every figure was measured against. This plan's first pass
+landed at **`ff69950`** and the re-keying sits on top of it; **`ff69950` is docs-only —
+`git diff --name-only ffc472e..ff69950 -- packages/ apps/` returns nothing — so every figure still
+holds at HEAD.** ADR 0119 decision 4: re-checked rather than assumed.)*
 
 ### E0 — the instrument, its parameters, and the one falsification that makes the rest admissible
 
@@ -8433,40 +8447,72 @@ table, which then reported *today* as 3600 / 4200 / 4800 — **a plausible numbe
 the answer to a different question.** Both are ADR 0121's family; both were caught by comparing the
 artefact to something outside it.
 
-### E1 — the denominators (Q-H3), confirmed, and what each branch does to the answer
+### E1 — Q-H3 ANSWERED by the owner, 2026-09-16: it is a threshold, not a ratio, and the denominator is the plain storage cabinets
 
-**[measured]** Mean per placed kitchen, at HEAD:
+**The owner's words, relayed by the coordinator:**
 
-| Q-H3 branch | What it counts | Mean per kitchen |
-| --- | --- | ---: |
-| storage only | composed storage slots | **2.028** |
-| plus preparation | + the preparation cabinet | **2.977** |
-| **plus sink and hob** *(every table below)* | + the two required core bodies | **4.977** |
-| plus tall columns | + the block at wall A's free end | **6.273** |
+> *"I meant not when are only 6 but when there a so many cabinets that already covered fridge, tall
+> cabinets, sink, hob, bottle and remains so much space to includ also 6 more cabinets then 2 are
+> drawers and rest are door cabinets"*
 
-**The branch changes which rooms are the owner's *"6 cabinets"*, and that is the whole of its
-effect.** Under *plus sink and hob* the six-cabinet population is **27 720 rooms (13.1 %)**; under
-*plus tall columns* the same rooms are counted at 7 or 8 and the six-cabinet population is a
-different set. **No slice's code reads a denominator** — no rule in this wave is keyed on `n` unless
-Q-H5 is answered as reading (ii) below — so **the branch changes criteria 3 and 4 and nothing else.**
-Both criteria are written below with the figure for each branch in place.
+**Two things change, and the second is the larger.** The denominator is **none of the four means
+H8 measured**: it is the plain storage cabinets that remain once the fridge, the tall columns, the
+sink, the hob and the bottle cabinet are all placed. And **the rule is not a proportion to hold at
+every size** — it is a statement about what happens **at or above six** of them. Below six the owner
+said nothing, and this plan does not extrapolate.
 
-### E2 — Q-H4, and the number that decides it
+> **Every *"% of run"* figure in this plan's first pass, and every `n` keyed on H8's 4.98, is
+> SUPERSEDED and struck in place below.** They answered a question the owner has now told us is not
+> the question. The measurements themselves stand; what they measure is no longer the denominator.
 
-**[measured]** `base-hob-2drawer` stands in **52.3 %** of placed rooms (ADR 0110 H8, not re-measured
-here) and carries two drawer fronts. Counting it:
+**Write it as *D*.** *D* counts the plain door-and-drawer cabinets of the run — `storage:` slots plus
+any drawer module composed into the group astride the hob — and excludes the fridge, the sink, the
+hob, the bottle cabinet and every tall column. **At HEAD, *D* is exactly H8's *storage only* column,
+and its mean reproduces: 2.028.**
 
-| World | run 6, not counting the hob | run 6, counting the hob |
-| --- | ---: | ---: |
-| HEAD (7D4) | 21.8 % | **31.9 %** |
-| + bottle + second drawer | 29.9 % | **39.6 %** |
-| + the third clause at *n* ≥ 6, reading (ii) | **33.0 %** | **42.7 %** |
+**The distribution, which is the number that decides whether this wave is worth building as
+specified. [measured, 211 551 placed rooms]**
 
-**So Q-H4 decides whether this wave has already overshot.** Counting the hob, 7D4 alone is at 31.9 %
-— *above* the owner's one-third — and every 7D5 candidate is well above it. Not counting the hob,
-only one candidate reaches one-third at run 6. **The two answers do not merely shift a figure; they
-put the wave on opposite sides of the owner's own number, and the plan must not be written as though
-either were settled.**
+| *D* | at HEAD | share | **after the bottle cabinet** *(the owner's own condition)* | share |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 | 62 400 | 29.50 % | 73 200 | 34.60 % |
+| 1 | 38 260 | 18.09 % | 37 760 | 17.85 % |
+| 2 | 32 070 | 15.16 % | 29 930 | 14.15 % |
+| 3 | 27 720 | 13.10 % | 26 250 | 12.41 % |
+| 4 | 24 120 | 11.40 % | 22 320 | 10.55 % |
+| 5 | 17 480 | 8.26 % | 15 680 | 7.41 % |
+| **6** | 6 940 | 3.28 % | **5 140** | **2.43 %** |
+| **7** | 2 520 | 1.19 % | **1 271** | **0.60 %** |
+| 8 | 41 | 0.02 % | **0** | — |
+| **≥ 6 — the rule's whole population** | **9 501** | **4.49 %** | **6 411** | **3.03 %** |
+
+**Said plainly, because the plan has to be honest about it: the rule the owner described as the
+headline binds in 3.03 % of placed kitchens — 6 411 of 211 551 — and in none of them does *D* exceed
+seven.** The wave's other work (the bottle cabinet, the drawer group's position) is positional and
+touches every kitchen; **the proportion touches a thin tail.** That is not an argument against
+building it — it is the owner's rule and it is cheap — but **it is an argument against letting the
+proportion set this wave's priorities**, and against any close-out sentence that presents the wave's
+value as *"reaching the owner's number"*.
+
+**One branch the owner did not close and this plan does not invent: the preparation cabinet.** Their
+list of what is *"already covered"* names the fridge, the tall cabinets, the sink, the hob and the
+bottle — **not the preparation cabinet**, which is a core role in the code and a drawer cabinet on
+the wall. If it counts inside *D*, the threshold population grows from **6 411 (3.03 %)** to
+**22 091 (10.44 %)**. **Recorded as Q-H3a, put to the owner as a confirmation, and not assumed
+either way.** Every table below excludes it, which is the coordinator's reading.
+
+### E2 — Q-H4 follows by implication, and the plan is written for *no*
+
+**If the six exclude the hob, then `base-hob-2drawer`'s two drawer fronts are outside the
+denominator and cannot count toward the proportion.** That is a consequence of the owner's sentence
+rather than something they said, so **it is put back as a confirmation and marked as an inference —
+[inference], not [doc-quoted].** The plan is written for **no**, per the coordinator's instruction.
+
+**What *yes* would do, so the confirmation is cheap to act on. [measured]** The hob stands on wall A
+in **100 %** of the 6 411 threshold rooms, and carries `base-hob-2drawer` in the **5 591 of them
+(87.2 %)** that also carry a three-column block. **So a *yes* adds one drawer to seven of every eight
+rooms the rule governs, and the answer flips from *under* to *over* almost everywhere at once.** It
+changes **criteria 3 and 6 and no slice's code.**
 
 ### E3 — the bottle cabinet: free in half the rooms, and it refuses 6 300 of them
 
@@ -8558,10 +8604,18 @@ re-measurement, and it returns a different number.** Risk 3 below carries it.
 
 ### E7 — Q-H6, the second drawer's threshold, as consequences
 
+> **The table below is keyed on H8's superseded *plus sink and hob* denominator and is KEPT, struck
+> as an authority, for the two things in it that survive Q-H3's answer: the *costs a column* and
+> *costs a core role* columns, which are properties of the run and not of a denominator.** Read
+> **E7.1** for the same candidates on the owner's *D*. **Do not quote the *drawers* or *%* columns
+> below as the owner's proportion** — they measure a quantity the owner has told us is not the one
+> they meant.
+
 **Candidate A, the one every H3 figure is measured under: add it wherever it costs neither a tall
 column nor a core role.** **Candidate B: add it wherever the kitchen still stands.** Both measured
-over 211 551 placed rooms, with the conditional bottle cabinet in place; *n* is the *plus sink and
-hob* denominator and is the kitchen's own count, not the count it had before:
+over 211 551 placed rooms, with the conditional bottle cabinet in place; *n* is the ~~*plus sink and
+hob* denominator~~ **superseded denominator** and is the kitchen's own count, not the count it had
+before:
 
 | *n* | rooms (A) | A: drawers | A: % | A: fires | A: costs a column | A: costs a role | rooms (B) | B: drawers | B: % | B: costs a column | B: costs a role |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -8581,7 +8635,28 @@ cabinet from one in eleven** — and at run 3 it takes a core role from **seven 
 consequence to put to the owner is that sentence, not the percentage**, per D15.5's guard: *a door
 cabinet becoming a drawer cabinet is not a cost; a kitchen losing its fridge is.*
 
-### E8 — Q-H5, the third drawer, and the finding that changes the question
+### E7.1 — Q-H6 on the owner's *D*, and the branch the answer opens
+
+**Q-H3's answer adds a third candidate that did not exist before it: fire the second drawer cabinet
+ONLY at the threshold**, since the proportion is what the owner said it serves. Measured over
+211 551 placed rooms, with the conditional bottle cabinet in place:
+
+| Candidate | fires in | at *D* ≥ 6: mean drawers | at *D* ≥ 6: exactly 2 | costs a column | costs a core role |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **A — positional, wherever it costs neither a column nor a role** | 84 291 rooms (39.8 %) | **1.488** | **48.84 %** | 20.8 % at *D* = 3 | **0 %** |
+| **C — only where *D* ≥ 6** *(new, opened by Q-H3's answer)* | **6 411 rooms (3.03 %)** | **1.488** | **48.84 %** | 0 % below the threshold | **0 %** |
+| B — unconditional | 187 251 rooms (88.5 %) | 1.363 | 36.35 % | up to 64.2 % | up to **70.7 %** |
+
+**A and C compose the identical kitchen in every room at or above the threshold and differ only
+below it** — measured, not argued: both give 1.488 drawers and 48.84 % exactly-two over the same
+6 411 rooms. **So Q-H6 is now a question about the 205 140 rooms the proportion does not govern**,
+and the owner's positional order (H1) is the only authority over those. **Candidate B is measured and
+recommended against**: it buys nothing at the threshold — 36.35 % against 48.84 %, *worse*, because
+it spends columns — and takes a core role from **70.7 %** of the smallest rooms.
+
+**C's one real advantage is E9's, and it is large.** See below.
+
+### E8 — Q-H5, and the geometric ceiling that decides it
 
 **The clause is already built.** *"bottle cabinets (if space for a large number of cabinets, the
 drawer cabinet) and after only door cabinets"* names the **first storage slot standing after the
@@ -8589,59 +8664,87 @@ bottle**. Once the bottle cabinet exists, that slot is exactly **the first stora
 in the reading order** — the slot 7D4 already composes as `base-3drawer` (D15.3, D15.7), because the
 bottle carries a `group:` id and is not in the storage numbering. **Amendment H2's own table
 corroborates this: it lists two new modules, the bottle cabinet and the second drawer, and no third.**
-H3's *"that clause is the one not modelled here"* is therefore **inaccurate at HEAD** and is the
-thing to put back to the owner rather than to build around.
+**Measured: at *D* ≥ 6 that slot exists in 100 % of rooms at HEAD, and every one of those 6 411
+kitchens has exactly one drawer among its *D*.** So the owner's *"2 are drawers"* asks for **exactly
+one more**, and the coordinator's reading of what the rule changes is **confirmed from the sweep**.
 
-**So Q-H5 has two readings, and they are not the same question. [measured]**
+> **Q-H5 reading (i) — *"the threshold GATES the slot 7D4 already draws"* — is STRUCK as
+> meaningless under Q-H3's answer, and the reason is recorded rather than left to be re-derived.**
+> Gating that slot at *D* ≥ 6 would delete the only drawer cabinet from **96.97 % of placed
+> kitchens** to satisfy a sentence the owner spoke about the other 3.03 %. The owner described what
+> happens **at** the large size; they did not prohibit a drawer below it, and reading their sentence
+> as a prohibition inverts it. **Its candidates (*n* ≥ 6 / 7 / 8) are withdrawn and must not be read
+> as live.** Reading (ii) survives, and E8.1 is why it is now the *only* thing that can close the gap.
 
-- **Reading (i) — the threshold GATES the slot 7D4 already draws.** Width-neutral; every candidate
-  **removes** drawers relative to what ships today.
-- **Reading (ii) — the threshold ADDS a 600 mm drawer body after the bottle**, guaranteeing one even
-  where 7D3's block took the free end; the post-hob slot then reverts to a door, because the order
-  says *"and after only door cabinets"*. A width change; it moves E5's table by a further 600.
+### E8.1 — the ceiling: the owner's two drawers have nowhere to stand in half the rooms the rule governs
 
-| *n* | rooms | today (7D4 + bottle + 2nd) | **(i)** *n* ≥ 6 | **(i)** *n* ≥ 7 | **(i)** *n* ≥ 8 | **(ii)** *n* ≥ 6 | **(ii)** *n* ≥ 7 | **(ii)** *n* ≥ 8 | **(ii)** always |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 4 | 37 760 | 38.6 % | 37.4 % | 37.4 % | 37.4 % | 38.6 % | 38.6 % | 38.6 % | 38.6 % |
-| 5 | 29 930 | 36.5 % | 32.4 % | 32.4 % | 32.4 % | 36.5 % | 36.5 % | 36.5 % | **39.7 %** |
-| **6** | **25 920** | **29.9 %** | 29.9 % | **27.2 %** | **27.2 %** | **33.0 %** | 29.9 % | 29.9 % | **33.0 %** |
-| 7 | 22 650 | 23.9 % | 23.9 % | 23.9 % | **22.5 %** | 27.1 % | **27.1 %** | 23.9 % | 27.1 % |
-| 8 | 15 680 | 21.3 % | 21.3 % | 21.3 % | 21.3 % | 24.4 % | 24.4 % | **24.2 %** | 24.4 % |
-| 9 | 5 140 | 26.2 % | 26.2 % | 26.2 % | 26.2 % | 28.0 % | 28.0 % | 28.0 % | 28.0 % |
+**This is the finding that decides whether the proportion is buildable as specified, and it is
+geometry rather than a rule choice. [measured]** The 6 411 threshold rooms are **exactly three
+shapes**, by where their *D* cabinets stand:
 
-**Share of rooms in which reading (ii)'s module actually fires**, i.e. is affordable without costing
-a column or a role: **28.2 % at *n* = 6, 32.8 % at 7, 36.5 % at 8, 52.1 % at 9, 100 % at 10.**
-
-**The one sentence the owner needs:** *not counting the hob's own drawers, **reading (ii) at n ≥ 6 is
-the only candidate that reaches your one-third at a six-cabinet kitchen — 33.0 %, against 29.9 %
-without it and 21.8 % today.*** Every reading (i) candidate is a reduction against what 7D4 already
-ships. **No candidate is picked here.**
-
-**And one consequence of reading (ii) that must travel with it:** it needs 6000 mm of wall A for a
-three-column block (E5), and **at 6300 × 4700 the two readings compose the byte-identical kitchen** —
-which is exactly why a witness at the largest room cannot discriminate them, and why criterion 6
-names a room where they differ.
-
-### E9 — what the order does to 7D4's rule, and the population that will not be there to test
-
-**The drawer group eats the very slots 7D4's rule fires on. [measured]** Rooms in which
-`firstStorageSlotAfterTheHob` returns a slot at all:
-
-| World | wall A | wall B | none |
+| Shape | rooms | share of the threshold population | plain cabinets **after the hob** |
 | --- | ---: | ---: | ---: |
-| HEAD (D15.7's split) | 53 751 (25.4 %) | **6 660 (3.1 %)** | 151 140 |
-| + conditional bottle | 42 521 | 6 390 | 162 640 |
-| + second drawer (candidate A) | 17 771 (8.4 %) | **1 650 (0.78 %)** | 192 130 |
-| reading (i) at *n* ≥ 7 | 6 851 | **330 (0.16 %)** | 204 370 |
-| reading (i) at *n* ≥ 8 | 4 991 | **0** | 206 560 |
-| reading (ii) always | 7 200 | **0** | 204 351 |
+| **A1 / B5** — one on wall A, five on wall B | **3 280** | **51.16 %** | **1** |
+| A2 / B4 | 1 860 | 29.01 % | 2 |
+| A2 / B5 *(`D` = 7)* | 1 271 | 19.83 % | 2 |
 
-**This is ADR 0121 decision 5 and ADR 0093 decision 1 arriving together.** D15.7's wall-B arm — *the
-slot after the hob is wall B's highest index, not `storage:A:0`* — is held today by a discriminating
-population of **6 660 rooms**. After the minimum 7D5 it is **1 650**; under two of the candidates it
-is **zero**, at which point the ruled behaviour is **unshipped**, whatever the code says. **Every
-criterion below that concerns the reading order names its discriminating population and its size**,
-and **criterion 9 is the one that fails the wave if a chosen candidate empties it.**
+**Wall A never carries more than two plain cabinets anywhere in the threshold population, and the hob
+stands on wall A in 100 % of it.** The other four or five are on wall B — **between the fridge and
+the sink, which the owner's own order rules as door cabinets** (H2: *"door cabinet between fridge and
+sink … already exists and is already a door"*). **The three-column block takes wall A's free end in
+5 591 of the 6 411 (87.2 %).**
+
+**So, measured: in 3 280 rooms (51.16 % of the population the rule governs) there is exactly one
+plain cabinet standing after the hob, and the owner's second drawer has nowhere to go that their own
+order permits.** Three candidates were measured — the second drawer positional, the second drawer at
+the threshold, and a width-neutral *"make two of the D cabinets drawers"* rule that simply relabels
+existing slots — and **all three return the identical figure: 48.84 % of threshold rooms reach two
+drawers, mean 1.488.** *(At *D* = 6: 36.19 %. At *D* = 7: 100 %.)* **The ceiling is not the rule. It
+is that only 3 131 of the 6 411 rooms have two slots to put drawers in.**
+
+**Only reading (ii) can exceed it**, by inserting a 600 mm drawer module rather than relabelling a
+slot — and it reaches **61.63 %** of the threshold population (mean 1.616), not 100 %, because in the
+rest it would cost a tall column and is refused. **Its price is E5's last row: a three-column block
+then needs 6000 mm of wall A against a 6300 mm maximum.**
+
+**The three sentences to put to the owner, and no candidate is picked here:**
+
+1. *Your rule governs about 3 in 100 kitchens — the ones with six or more plain cabinets left over.*
+2. *In half of those, five of the six cabinets are on the fridge wall, which your own order says are
+   door cabinets, and only one cabinet stands after the hob. **We can reach two drawers in 49 % of
+   them for free.***
+3. *To reach more we must add a cabinet instead of re-facing one, which reaches 62 % and pushes the
+   tall block to needing 6 metres of the long wall. **Or we put a drawer between the fridge and the
+   sink, against your order.*** *(A third option, not measured because it needs a ruling first:
+   **accept one drawer where only one cabinet stands after the hob** — which is what 49 % already
+   means in practice.)*
+
+### E9 — what the order does to 7D4's rule, and how Q-H3's answer rescues it
+
+**The drawer group eats the very slots 7D4's rule fires on — and the threshold reading is what stops
+it. [measured]** Rooms in which `firstStorageSlotAfterTheHob` returns a slot, and how many of
+D15.7's original 6 660 wall-B rooms are still wall-B rooms afterwards:
+
+| World | wall A | wall B | **of D15.7's 6 660, still discriminating** |
+| --- | ---: | ---: | ---: |
+| HEAD (D15.7's split) | 53 751 (25.4 %) | 6 660 (3.1 %) | **6 660** |
+| + conditional bottle | 42 521 | 6 390 | **4 260** |
+| + second drawer, **candidate A** (positional) | 17 771 | 1 650 | **660** |
+| + second drawer, **candidate C** (only at *D* ≥ 6) | 39 241 | **6 390** | **4 260** |
+| + second drawer, candidate B (unconditional) | 36 591 | 3 150 | 1 260 |
+| ~~reading (i) at *n* ≥ 8~~ / reading (ii) always | 4 991 / 7 200 | **0** | **0** |
+
+**Candidate C keeps 4 260 of the 6 660 where candidate A keeps 660 — 6.5× the discriminating
+population, for the identical kitchen at every room the proportion governs (E7.1).** The reason is
+arithmetic rather than lucky: the second drawer consumes a wall-A slot, and under C it only does so
+in the 3 % tail, which barely intersects the hob-on-wall-B rooms.
+
+**This is ADR 0121 decision 5 and ADR 0093 decision 1 arriving together, and it is now a reason to
+prefer a candidate rather than only a reason to test one.** D15.7's wall-B arm — *the slot after the
+hob is wall B's highest index, not `storage:A:0`* — is a ruled behaviour whose only witnesses live in
+that population. **Under the struck reading (i) at *n* ≥ 8 and under reading (ii) always it is
+exactly zero, at which point the rule is unshipped whatever the code says.** **Criterion 9 fails the
+wave if the chosen combination empties it.**
 
 ### E10 — the dishwasher: the corner path is the majority, and adjacency is width-neutral
 
@@ -8687,6 +8790,14 @@ here.
 second drawer cabinet left of it, the third drawer clause resolved under the owner's answer to Q-H5,
 the block threshold table re-measured, and `PAN_DRAWER_BASE_BUILD_ID` given the caller 7D4 kept it
 for.
+
+**And one thing the goal is NOT, restated after Q-H3's answer because it was the wave's headline
+until 2026-09-16: reaching the owner's proportion is not this wave's measure of success.** The
+proportion governs **3.03 % of placed kitchens** (E1) and its ceiling in half of those is **geometric
+rather than a rule choice** (E8.1). **What this wave is actually worth is the positional order, which
+touches every kitchen**: a bottle cabinet beside the hob, a second drawer type in the run, and the
+cooking group standing together. **A close-out that leads with a percentage will be leading with the
+smaller half**, and criterion 3 is written to stop it.
 
 **In scope:** `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`,
 `src/run-end-panel.ts` (one comment), and the domain, parity and adversarial suites that cover them.
@@ -8739,10 +8850,28 @@ the slice that gives the constant its caller**, discharging the note 7D4 wrote a
 there**; the pairing with the preparation cabinet's `base-3drawer` is what lets the group carry two
 types, which is R2's *"maximum cabinet types"* satisfied by placement rather than by a cycle.
 
-**S3 — the third drawer clause.** *(Owner: implementer. Tier: Full. **Blocked on Q-H5**, and on
-nothing else.)* Under reading (i) it is a gate on a rule that already ships and touches one
-expression; under reading (ii) it is a new module and moves E5's table again. **The slice is written
-after the answer, not before**, and the plan does not pre-commit its shape.
+**Q-H3's answer added candidate C to this slice's question and it changes the slice's blast radius,
+not its code.** Under C the module is composed only where *D* ≥ 6 — **6 411 rooms rather than 84 291**
+— and the kitchen at or above the threshold is **identical** to candidate A's (E7.1). **The
+engineering consequence is criterion 9's**: C leaves 4 260 of D15.7's 6 660 discriminating rooms
+standing where A leaves 660. **S2 is implemented so the condition is one predicate**, so that the
+choice between A and C is a one-line change after the owner answers and not a re-write.
+
+**S3 — the threshold rule.** *(Owner: implementer. Tier: Full. **Blocked on Q-H5**, and on nothing
+else.)* **Re-scoped by Q-H3's answer.** The owner's *"2 are drawers"* is a rule over the plain
+cabinets at *D* ≥ 6, and **7D4 already supplies the first of the two in 100 % of that population**
+(E8). So the slice is: **count *D* after the bottle cabinet stands, and where it reaches six, give a
+second plain cabinet a drawer body.** **Width-neutral if the second drawer cabinet is not already in
+the group and a second plain cabinet stands after the hob — which is true in 48.84 % of the
+population and false in the other 51.16 %, measured** (E8.1). **Under reading (ii) it instead inserts
+a 600 mm module and moves E5's table again.** ~~Reading (i)'s gate~~ is **struck** (E8) and must not
+be built. **The slice is written after the answer, not before.**
+
+**Two things S3 must not do, both because a criterion already forbids them.** It must not require two
+drawers where only one plain cabinet stands after the hob — unsatisfiable by correct output in 3 280
+rooms (criterion 6). And it must not put a drawer in a wall-B slot between the fridge and the sink to
+make the count — **the owner's own order rules those door cabinets** (H2), and 4–5 of the six are
+there in every threshold room.
 
 **S4 — the re-baselining.** *(Owner: implementer + QA. Tier: Full.)* 7D3's criterion 12 restated
 against 7D5's own planner **and the restatement recorded in ADR 0110** — not an edited 7D3
@@ -8783,35 +8912,47 @@ behaviour standing, the check must stay green.**
    **(a)** remove the conditional drop and compose the cargo unconditionally → red, naming a witness
    room. **(b)** change which body the group's optional member is → green.
 
-3. *(sweep, **branch on Q-H3 and Q-H4**)* **The composed proportion at the owner's own example is
-   reported and pinned, and no criterion asserts that it meets a ratio.** At *n* = 6 under *plus sink
-   and hob*, counting only storage-and-preparation drawer bodies, over **25 920 rooms**: 7D4 ships
-   **21.8 %**; this wave's minimum (bottle + second drawer, Q-H6 candidate A) is **29.9 %**; under
-   Q-H5 reading (ii) at *n* ≥ 6 it is **33.0 %**. **Counting `base-hob-2drawer` (Q-H4 answered yes)
-   the same three figures are 31.9 %, 39.6 % and 42.7 %.** **Under Q-H3's *plus tall columns* branch
-   the six-cabinet population is a different set of rooms and the figures are re-taken, not
-   re-labelled.** **Must not:** any assertion that a kitchen's drawer count divided by its cabinet
-   count equals or exceeds one third — G6 and H7 stand, and a ratio constant in any of the four
-   source files is the defect this wave exists to avoid.
+3. *(sweep, on the owner's *D*; **branch on Q-H4 and Q-H3a**)* **The threshold population, and what
+   the kitchen gets in it, are reported and pinned — and no criterion asserts that a ratio is met.**
+   The population is **the rooms with *D* ≥ 6 once the bottle cabinet is placed: 6 411 of 211 551,
+   3.03 %**, split **5 140 at *D* = 6 and 1 271 at *D* = 7**, and *D* reaches **no higher anywhere in
+   the approved range**. Within it: **7D4 ships exactly one drawer in 100 % of those rooms**; this
+   wave's minimum reaches **two drawers in 48.84 % (3 131 rooms), mean 1.488**; Q-H5 reading (ii)
+   reaches **61.63 %, mean 1.616**. **Must not:** a ratio constant, or any assertion that drawers
+   divided by cabinets meets one third — G6 and H7 stand. **Must not:** a criterion that reports the
+   proportion as an aggregate over all placed rooms; **the discriminating population is 3.03 % of the
+   sweep and an aggregate hides it entirely.**
+   **(a)** delete the threshold and let the rule fire everywhere → red, on a room with *D* = 5.
+   **(b)** change *which* drawer body stands in a threshold slot → green.
 
-4. *(sweep, **branch on Q-H3**)* **The four denominators are reported per wave, not per reading.**
-   After this wave the means are re-taken over the placed population and recorded beside E1's
-   HEAD figures, so a later reader can see which way each moved. *(Minimum 7D5, measured: **1.816 /
-   2.765 / 4.765 / 5.886** — every one **below** HEAD, because the bottle cabinet spends run.
-   **The kitchen gains a cabinet type and loses 0.21 of a cabinet**, and the record says so rather
-   than reporting only the proportion.)*
+4. *(sweep, **branch on Q-H3a**)* **The threshold population is re-measured after the wave, not
+   carried from this plan.** *D*'s mean falls from **2.028** at HEAD to **1.814** once the bottle
+   cabinet stands, and the *D* ≥ 6 population falls from **9 501 (4.49 %)** to **6 411 (3.03 %)** —
+   **the wave's own bodies shrink the population its headline rule governs by a third**, and the
+   close-out says so rather than reporting the proportion alone (D15.5's guard). **If Q-H3a is
+   answered *the preparation cabinet counts*, the population is 22 091 (10.44 %) and every figure in
+   criterion 3 is re-taken over that set, not re-labelled.**
 
 5. *(unit)* **`PAN_DRAWER_BASE_BUILD_ID` has a production caller.** `body-choice.ts:54-62`'s note
    that *"generation places it nowhere in this wave"* is struck and replaced with where it now
    stands. **Must not:** the note deleted without a replacement sentence — ADR 0091 Amendment A's
    rule about a claim that is retired rather than moved.
 
-6. *(unit, the discriminating witness)* **Under Q-H5, the chosen reading is asserted at a room where
-   the two readings differ.** **6300 × 4700 is not that room: readings (i) and (ii) compose the
-   byte-identical kitchen there** (E8), because the block absorbs the difference. **A witness at the
-   largest approved room is the one that cannot discriminate this rule**, and naming it here is the
-   point. The witness is a room where reading (ii)'s module fires — **28.2 % of the 25 920 six-cabinet
-   rooms**.
+6. *(unit, the two witnesses the rule needs, and **branch on Q-H4**)* **The threshold rule is asserted
+   at one room where two drawers are reachable and one where they are not** — because the population
+   is two shapes and **a witness from either alone reads as the rule working or as the rule broken**
+   (E8.1). **Reachable: 6000 × 4100** — *D* = 6 as **A2 / B4**, three columns, wall A reads
+   `sink, base-3drawer, base-hob-2drawer, base-bottle-cargo, base-3drawer, base-cabinet, tall-oven-tower, tall-pantry, tall-pantry`;
+   **1 860 rooms (29.01 %) share this shape.** **Unreachable: 3610 × 4700** — *D* = 6 as **A1 / B5**,
+   no block, wall A reads `sink, base-3drawer, base-hob-oven, base-bottle-cargo, base-3drawer`, and
+   **the single plain cabinet after the hob is already the drawer**; **3 280 rooms (51.16 %) share it,
+   and they are the majority of the population the rule governs.** **Must not:** a criterion that
+   requires two drawers at *D* ≥ 6 unconditionally — it is unsatisfiable by correct output in those
+   3 280 rooms, which is the defect class 7D4's plan shipped five of. **If Q-H4 is answered *yes*, the
+   unreachable witness is 3610 × 4700 still — its hob is `base-hob-oven`, so it gains nothing — while
+   6000 × 4100 gains two fronts; the pair keeps discriminating.**
+   **(a)** delete the threshold rule and leave the constants → red on 6000 × 4100.
+   **(b)** swap which of `base-3drawer` / `base-panbank` stands in each slot → green.
 
 7. *(sweep)* **The block threshold table is the one E5 measures for the chosen candidate**, re-taken
    after the slice rather than derived by adding 300 or 600 to 7D3's. **Discriminating population: the
@@ -8830,11 +8971,14 @@ behaviour standing, the check must stay green.**
 9. *(sweep, and this one can fail the wave)* **7D4's reading-order rule still has a witness.** The
    wall-B arm of D15.7 — *the slot after the hob is wall B's highest index* — must be exercised by at
    least one room in the approved range after this wave, and its population must be **named and sized
-   in the close-out**. **At HEAD it is 6 660 rooms (3.1 %); after the minimum 7D5 it is 1 650
-   (0.78 %); under Q-H5 reading (i) at *n* ≥ 8 and under reading (ii) always it is ZERO.** **If the
-   chosen candidate empties it, the rule is unshipped under ADR 0093 decision 1 and the wave owes a
+   in the close-out**. **At HEAD it is 6 660 rooms (3.1 %). After the bottle cabinet alone, 4 260.
+   Under Q-H6 candidate C (the second drawer only at the threshold) it stays 4 260; under candidate A
+   (positional) it falls to 660; under Q-H5 reading (ii) always it is ZERO.** **If the chosen
+   combination empties it, the rule is unshipped under ADR 0093 decision 1 and the wave owes a
    decision — retire the rule, or reject the candidate. It may not ship a rule with no witness and a
-   green suite.**
+   green suite.** *(E9. This criterion is the strongest argument on the table for candidate C, and it
+   is an engineering argument rather than an owner one, so it is put to the owner as a consequence and
+   not as the reason.)*
 
 10. *(unit)* **`run-end-panel.ts:94-98` states a reason that is true at HEAD.** A grep for
     *"filler strip"* in `packages/configurator-domain/src/` returns nothing. **Must not:** the
@@ -8863,10 +9007,25 @@ behaviour standing, the check must stay green.**
 4. **Reading (ii) pushes a three-column block to 6000 mm of wall A** against a 6300 mm maximum (E5).
    The owner's *"tall cabinets at the edge"* then reaches its full form in a sliver of the range.
    **Measure the three-column share before and after and put it to the owner if reading (ii) is
-   chosen**; it is not measured here, because the candidate is not chosen here.
+   chosen**; it is not measured here, because the candidate is not chosen here. **Sharpened by
+   Q-H3's answer: 87.2 % of the threshold population already carries a three-column block**, so
+   reading (ii) is spending the very thing the threshold rooms are made of.
+4a. **The owner's rule is unsatisfiable by correct output in 3 280 of the 6 411 rooms it governs, and
+   a plan that does not say so invites a criterion nobody can pass.** *(E8.1.)* 7D4's plan shipped
+   five defects of which one was *"a criterion unsatisfiable by correct output"*; **this is the same
+   shape, visible in advance, and criterion 6 is written against it.** **The mitigation is a ruling,
+   not code:** the owner is shown the two shapes and asked whether one drawer is acceptable where one
+   cabinet stands. **Do not let an implementer resolve it by putting a drawer on wall B** — the
+   arithmetic works and the owner's order forbids it, which is exactly the trade that looks like a
+   fix.
+4b. **The proportion is 3 % of the sweep and it is the part everyone will quote.** E1's population is
+   **6 411 of 211 551**. Every earlier relay of this rule to the owner carried a percentage over a
+   denominator that has now changed twice. **Risk 20's guard applies verbatim and is restated because
+   it is about to be needed again: before a figure leaves this wave, write what a customer would see
+   and check the claim still holds when said that way.**
 5. **The second drawer is `base-panbank` because the plan says so, and the owner has not been asked.**
    The order says *"drawer cabinet"* and names no product. **Both `base-3drawer` and `base-panbank`
-   satisfy every figure in E7 identically** — the choice changes no count. It is recorded as the
+   satisfy every figure in E7, E7.1 and E8.1 identically** — the choice changes no count. It is recorded as the
    planner's, with its reason (pans belong beside the hob; two types in the group answers R2), and
    **it is cheap to reverse**, which is why it is not an owner question.
 6. **The dishwasher's across-the-corner placement is the first generated body whose position is not
