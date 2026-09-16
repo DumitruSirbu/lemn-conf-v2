@@ -257,7 +257,7 @@ describe("the convention the predicate reads ends at its separator", () => {
     // guarantee that only the composer writes the prefix is the pinned site set, not this function.
     // Asserted rather than described, because a reader who took it for a validator would trust an id
     // this returns true for to have a wall and an index in it.
-    for (const tail of ["", ":", "Z:-1", " "]) {
+    for (const tail of ["", ":", "Z:-1", "\u0000"]) {
       expect(isCycleStorageSlot({ id: opening + tail })).toBe(true);
     }
   });
