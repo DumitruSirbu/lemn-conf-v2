@@ -82,3 +82,46 @@ export const SINK_PATCH: PixelBox = {
   width: 230,
   height: 310,
 };
+
+/**
+ * **The same scene, on the narrowed-room document — and it needs its own numbers.**
+ *
+ * **This is a structural consequence of M7 wave 7H and it is not in any must-not list.** Before the
+ * wave the camera was a constant, so one set of points served every document; the note at the head
+ * of `pixel-counter-witness.desktop.e2e.spec.ts` records exactly that, its taps having been
+ * *"re-confirmed here on a narrowed walnut document as well as the seeded one"*. Now that the camera
+ * follows the room, **a canvas constant measured against one document does not transfer to
+ * another**. A constant here is a function of **(room, rail state)**, and a suite that drives more
+ * than one document needs more than one set.
+ *
+ * Measured 2026-09-16 on the narrowed walnut document by clicking the running scene and reading
+ * `[data-testid="selection-debug"]`, the same way as everything above.
+ *
+ * **One hazard cost two corrupted probes before it was caught, and it is the mirror of the one
+ * recorded above.** Returning to the rail-**closed** regime by clicking empty scene does not work:
+ * that click is itself made in whichever regime is current, and the point that is empty at one is a
+ * body at the other, so the rail never closes and every later reading is in the wrong regime. **The
+ * only reliable way back is a page reload**, one per sample. It was caught because a horizontal
+ * probe disagreed with a vertical one at the same point.
+ */
+export const NARROWED_ROOM = {
+  /** `p0` on the **first** click, rail closed. Measured with a reload before each sample: `p0` at
+   *  (800, 560) and (800, 640), `p25` at 720 and `p1` at 880. The seeded document's (700, 570)
+   *  answers `p5` here, which is what this whole group exists to record. */
+  sinkCabinetFullWidth: { x: 800, y: 600 } as ScenePoint,
+
+  /** `p2` — a **marked** body, and on screen at this viewport. It is not at 390 x 844, where wave
+   *  7H's Q7H-8 was ruled on its absence; desktop is wide enough to hold it. Confirmed by a click
+   *  returning `p2`, with `p2` also at (780, 588), (860, 588) and (780, 650). */
+  farBaseCabinet: { x: 820, y: 620 } as ScenePoint,
+
+  /** `p0`'s highlight, rail open: measured page x 509–701, y 420–694 by differencing the canvas
+   *  with the fridge selected against the same canvas with `p0` selected (8 817 changed pixels).
+   *  This box carries ~20 px of margin on every side. */
+  sinkPatch: { x: 489, y: 400, width: 232, height: 314 } as PixelBox,
+
+  /** `p2`'s region, rail open: measured page x 755–932, y 519–762 the same way (8 495 changed
+   *  pixels), against the fridge rather than against `p0` so the two adjacent regions cannot clip
+   *  each other at the window's edge. */
+  markedBodyPatch: { x: 735, y: 499, width: 217, height: 283 } as PixelBox,
+} as const;

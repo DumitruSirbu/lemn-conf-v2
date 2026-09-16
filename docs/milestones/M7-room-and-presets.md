@@ -4660,6 +4660,46 @@ So **small-to-medium is the case to optimise for, and 5–6 m rooms are the tail
 many use these big kitchens"* — they want the real distribution of entered room sizes once the
 product has traffic. A measurement request with no wave attached and no code owed.
 
+### Two findings from slice 6's e2e pass, for whoever picks them up
+
+**1. A canvas constant measured against one document does not transfer to another, now that the
+camera follows the room.** This is a structural consequence of the wave and it is not in any
+must-not list. `pixel-counter-witness.desktop.e2e.spec.ts` drives a **narrowed-room** document while
+its sibling specs drive the seeded one; its own header records that a single set of taps was once
+*"re-confirmed here on a narrowed walnut document as well as the seeded one"*, which was possible
+only while the camera was fixed. A constant is now a function of **(room, rail state)**, so a suite
+that drives more than one document needs more than one set.
+
+**2. A near-black diagonal now crosses `SINK_PATCH`, and here is what it is *not*.** Routed to the
+visual pass rather than to a threshold, because
+`pixel-counter-witness.adversarial.desktop.e2e.spec.ts`'s `MAX_ABSENT_CASING_PIXELS = 10` was never
+an area tolerance: its basis is *the casing pass is the only near-black source in the patch*, with
+10 as slack over a measured zero. **A re-derived threshold cannot repair a false premise** — it
+would encode *"there is one other near-black thing in here and we have decided not to look at it."*
+
+The measurements, so the visual pass starts from them rather than rediscovering them:
+
+| camera | patch | area | near-black, unselected control |
+| --- | --- | --- | --- |
+| reference (pre-wave) | old 180 × 240 | 43 200 | **0** |
+| room-driven (today) | old 180 × 240 | 43 200 | **14** |
+| room-driven (today) | new 230 × 310 | 71 300 | **14** |
+
+**What it is not.** Not area-proportional — 1.65× the area returns the identical count. Not the
+enlarged box — the old box reads 14 too. Not pre-existing — the pre-wave reading is 0, so the
+constant's premise was exactly true before this wave. Not in the lower half of the patch — that
+reads 0. Not a region — all fourteen pixels lie on **one straight diagonal**, one pixel wide,
+canvas-relative (92, 94) → (165, 107) inside a box whose origin is page (427, 389), stepping x by
+about 5.6 per 1 y. It is deterministic: 14 on every run.
+
+**And it cannot be excluded geometrically**: it sits at page y 483–496, inside `p0`'s highlight
+(page y 412–676), which is what the patch exists to contain.
+
+**What to look for.** A seam, a shadow gap, or z-fighting between coplanar faces — the
+`lemnaria-3d-reference` contract's *avoid coplanar or intersecting solid faces*. If it is a defect
+the fix is geometry and the count returns to 0; if it is legitimate, the constant's premise is
+restated with the edge named. **Do not pick a number before someone has looked.**
+
 ### The wall maxima are unblocked — answered 2026-09-16, and this record says so
 
 **`design-bounds.ts`'s `SCENE_SHELL_*` have stopped being the basis of `MAX_ROOM_*`, and nothing in

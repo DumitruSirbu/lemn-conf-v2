@@ -14,6 +14,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   FAR_BASE_CABINET,
   FRIDGE,
+  NARROWED_ROOM,
   SINK_CABINET_FULL_WIDTH,
   SINK_PATCH,
 } from "./support/desktop-scene-points";
@@ -90,12 +91,10 @@ import { readSelection } from "./support/panel";
  *  widens from 313.28 to 648.16, while the row's height stays 76. So the two documents no longer
  *  differ in canvas origin at all, and this patch is no longer a constant of one of them: it is
  *  simply `p2`'s region, which both documents project identically. */
-const MARKED_BODY_PATCH: PixelRect = {
-  x: 615,
-  y: 547,
-  width: 168,
-  height: 224,
-};
+/** **Re-measured 2026-09-16 and moved into `support/desktop-scene-points.ts`'s narrowed-room
+ *  group**, because it is `p2`'s region on the *narrowed* document and wave 7H made that a
+ *  different rectangle from the seeded one. Was (615, 547, 168 x 224). */
+const MARKED_BODY_PATCH: PixelRect = NARROWED_ROOM.markedBodyPatch;
 
 const SCENE_SETTLE_MS = 2500;
 const RENDER_SETTLE_MS = 400;
@@ -512,15 +511,21 @@ test("on a marked walnut kitchen the mark and the selection are each attributed 
   expect(overflowing).not.toContain("p0");
   await openAndSettle(page, stored.id);
 
-  await clickScene(page, SINK_CABINET_FULL_WIDTH);
+  await clickScene(page, NARROWED_ROOM.sinkCabinetFullWidth);
   await selectInRail(page, "p0");
-  const sinkWithTheSinkSelected = await capturePatch(page, SINK_PATCH);
+  const sinkWithTheSinkSelected = await capturePatch(
+    page,
+    NARROWED_ROOM.sinkPatch,
+  );
   const markedWithTheSinkSelected = await capturePatch(page, MARKED_BODY_PATCH);
   const markedAgain = await capturePatch(page, MARKED_BODY_PATCH);
 
-  await clickScene(page, FAR_BASE_CABINET);
+  await clickScene(page, NARROWED_ROOM.farBaseCabinet);
   await selectInRail(page, "p2");
-  const sinkWithTheMarkedBodySelected = await capturePatch(page, SINK_PATCH);
+  const sinkWithTheMarkedBodySelected = await capturePatch(
+    page,
+    NARROWED_ROOM.sinkPatch,
+  );
   const markedWithTheMarkedBodySelected = await capturePatch(
     page,
     MARKED_BODY_PATCH,

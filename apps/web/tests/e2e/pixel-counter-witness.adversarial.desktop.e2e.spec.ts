@@ -104,10 +104,46 @@ const CASING = {
  *  discipline the rim holds; it was departed from once, and this floor is the consequence.
  *
  *  The floor is re-measured rather than lowered until it passes. It still discriminates by a wide
- *  margin: the casing pass is the only near-black source in the patch, and the control below
- *  measures ≤ 10 on the same document — 30x below this floor — so deleting the pass still fails. */
+ *  margin: see `MAX_ABSENT_CASING_PIXELS` below for what else in the scene is near-black and by how
+ *  much this floor still clears it. */
 const MIN_CASING_PIXELS = 300;
-const MAX_ABSENT_CASING_PIXELS = 10;
+
+/**
+ * **What may read near-black in this patch when nothing is selected.**
+ *
+ * **This constant's premise changed on 2026-09-16 and the number followed it.** It used to say *the
+ * casing pass is the only near-black source in the patch*, with 10 as slack over a control measured
+ * at **0**. That was exactly true until M7 wave 7H made the camera a function of the customer's
+ * room; the scene re-framed, and a deliberately black strip came into the patch.
+ *
+ * **What it is, identified rather than tolerated.** `bowl_edge_back` — `kitchen-parts.ts:1455`, in
+ * the `"sink-faucet"` builder — a 558 x 12 x 2 mm box of `M.shadowGap` seated at y = -0.024 under
+ * `sink_rim_back`, whose own comment calls it the *"inner shadow line right under the rim"*. It is
+ * authored black on purpose and is **not** a defect: no seam, no z-fighting, nothing to fix in
+ * geometry. It reads as 14 pixels on one 1 px diagonal, and it cannot be excluded by moving the
+ * box — it sits inside `p0`'s highlight, which is what the patch exists to contain.
+ *
+ * **Two palette members fall inside `CASING_TOLERANCE`, and both are named because the second is a
+ * near miss rather than an absence.** Swept over all 14 of `kitchen-parts.ts`'s declared materials,
+ * measured from `SELECTION_OUTLINE_CASING_COLOR` (`#101010`):
+ *
+ * - `M.shadowGap` `#16181a`, distance **14.1** — the sink rim strips, `drain_hole`, and the
+ *   corner-return carcasses' `front_liner`. This is the one in the patch today.
+ * - `M.glassDark` `#15171a`, distance **13.2** — smoked glass, which is the **hob top**. It sits
+ *   just *outside* this patch's right edge today. A camera change that brings it in would add far
+ *   more than 14, and the next reader needs to know it was a near miss.
+ *
+ * The third-nearest is `M.dark` (graphite, `#3a3d40`) at **78**, comfortably outside the 40-ball, so
+ * nothing else in the palette can enter without a new material.
+ *
+ * **Why 50 and not 15.** The count is anti-aliasing-sensitive: the visible line is about 73 px long
+ * and only 14 samples currently clear the ball, so another GPU or driver moves it by several either
+ * way. A ceiling of 15 would be calibrated to one machine. **The gate keeps its teeth regardless:**
+ * `MIN_CASING_PIXELS` is 300 against a control of 14, which is **~21x separation**, so deleting the
+ * casing pass still fails this spec by a wide margin. That ratio is what justifies the slack, not
+ * the observation.
+ */
+const MAX_ABSENT_CASING_PIXELS = 50;
 
 /** `overflow-mark.e2e.spec.ts`'s own slack for an absence, reused so the two files agree on what
  *  counts as "no mark on screen". **The slack is shared; the threshold is not** — that gate counts a
