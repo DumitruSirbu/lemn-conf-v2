@@ -3,7 +3,10 @@
 Status: Accepted (adjudicates wave 6R's overflow-mark conflict; rewrites one criterion of
 [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s wave-6M guard; corrects a
 claim in `selection-outline.ts`; **applies and does not weaken**
-[ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 7)
+[ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 7;
+**Amendment A, 2026-09-16 — decision 1's Q1/Q2 ordering is clarified for a premise falsified by a
+*later* dated ruling, and that retirement is ruled to be a **move** of the invariant rather than a
+widening in place; decisions 1–5 stand and nothing is struck**)
 Date: 2026-09-06
 Type: Finding + Decision
 Milestone: M6 — rules wave 6R's tints, retires one instrument premise, and opens wave 6V
@@ -419,3 +422,86 @@ ADR 0091 decision 4a puts into the 6M guard, applied at the e2e seam.
   wave's tier; the fallback that stays in scope is a second contrasting outline pass, which
   `selection-outline.ts` already has the machinery for (`OCCLUDED_OUTLINE_OPACITY`'s pass is one).
 - **Item 1 must not reach a geometry builder.** M1's fidelity gate is not this wave's to re-baseline.
+
+## Amendment A, 2026-09-16 — a premise falsified by a *later* dated ruling is **retired by moving the invariant**, not by widening the clause in place
+
+**Nothing above is struck. Decisions 1–5 stand unchanged.** This amendment answers a question
+decision 1 left ambiguous, raised by M7 wave 7D4 slice S2 (`9daf757`) and adjudicated at the M7
+milestone's criterion-13 note of the same date.
+
+**The ambiguity.** Decision 1 asks Q1 first — *"does any customer-visible or contract-level fact
+change?"* — and rules that a **yes** gives *"no licence at all"*. Q2 then distinguishes a premise
+falsified **by a wave's code** (a defect) from one falsified **by a dated owner ruling** (retired by
+the product). Read in order, Q1's *no licence* fires before Q2 is reached, so a **product claim**
+retired by a later ruling has no admissible repair at all: the assertion is false, it cannot be
+edited, and a red suite fails the wave. Every M6 case decision 1 was written against had an
+instrument premise on one side, so the ordering never bound. **7D4 is the first case where the
+falsified clause is a product claim and the falsifying fact is a dated ruling** (ADR 0110 Amendment
+H1 / 7D4 D15.7: the first storage slot after the hob in the reading order takes the drawer body).
+
+### A.1 Q1 is about *why the clause would be edited*, not about which half of the tree it sits in
+
+Q1's *no licence at all* binds an assertion rewritten **so that the product's current behaviour
+passes**. It does not bind an assertion that a **dated ruling has made a false statement about the
+product** — that is Q2's second arm, and decision 1 already names its consequence: *"the assertion
+is not a criterion the product can pass or fail — it is a false statement about the product."*
+
+**So Q1 and Q2 are asked together when the falsifying fact is a dated ruling that post-dates the
+assertion.** A **yes** at Q1 does not end the inquiry in that case; it raises the bar at Q3, per A.2.
+A **yes** at Q1 still ends the inquiry when the falsifying fact is a wave's code, which is every case
+decision 1 decided and is unchanged.
+
+### A.2 The retirement is a **move**, and widening in place is the form that must be justified
+
+A product claim is never simply relaxed. When a later ruling retires it, decision 1 Q3's three limbs
+are read as follows, and all three still bind:
+
+1. **The surviving true statement** stays asserted where it stood.
+2. **The negation of the retired premise, positively and by measurement**, is asserted **in the suite
+   that owns the new rule**, in the **same commit**, and **at least as strongly as the clause it
+   replaces**. This is the limb that does the work: the invariant is *relocated*, not dropped.
+3. **Any residue is a named wave**, not a comment.
+
+Then, in the earlier wave's file, the retired clause is **deleted, or widened only with a comment
+naming the file and line where the invariant now lives.** **Widening without that pointer is
+inadmissible**, and the reason is the failure family this project keeps paying for: a widened clause
+reads as an authority for the property it names while being unable to distinguish it. 7D4's is the
+type specimen — `expect([DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID]).toContain(base.buildId)`
+passes whether **one** slot takes the drawer or **every** slot does, which is the whole of what the
+ruling decided. It is admissible only because limb 2 was discharged:
+`packages/configurator-domain/tests/generation/drawer-rows.test.ts:316-328` asserts set equality
+between the drawer slots found and `slotsAfterTheHob(plan).slice(0, 1)` over the swept plans, so both
+*too many* and *too few* go red.
+
+**Deletion is the default and widening is the exception**, because a widened duplicate of an
+assertion that already lives elsewhere is the second authority
+[ADR 0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
+decision 2 refuses. Widening earns its place only when the two clauses are **derived differently** —
+7D4's are (`declared.band !== "column"` off the catalogue here, `isCycleStorageSlot` there), which is
+a real cross-check of the word D12 showed has two referents, and is why the shipped form is judged
+admissible rather than merely tolerated.
+
+### A.3 A plan's must-not may not forbid what the same plan's behaviour requires
+
+**A must-not that a wave's own correct, ruled behaviour forces a breach of is a defect in the plan,
+not in the implementer.** 7D4's criterion 13 forbade editing any 7D3 assertion while criteria 1, 6
+and 7 — and the criteria section's own preamble, which calls a clause denying a post-hob drawer *"a
+defect in the tests, not in the composer"* — required behaviour that makes one of those assertions
+false. The implementer could not satisfy both.
+
+**The obligation this leaves on a planner** is discharged when the criterion is written, not after:
+a criterion that freezes an **earlier** wave's assertions names, in the same breath, **which of them
+this wave's declared behaviour is expected to falsify, and where each one's invariant is to land.**
+An unqualified freeze is only correct for a wave that changes no observable output.
+
+**The obligation it leaves on an implementer is unchanged and was not met here:** an edit to another
+wave's assertion is **reported in the implementer's own summary, file by file**, whether or not the
+edit was forced. The 7D4 S2 summary listed **two** changed files where the diff touched **five**, and
+the two adversarial edits were found by the coordinator's diff read instead — `docs/WORKFLOW.md`'s
+*Trust but verify* working as designed, and the only thing that stood between a weakened adversarial
+clause and no record of it anywhere.
+
+**Trigger for revisiting this amendment** (ADR 0118's shape): a wave in which limb 2 has **no** suite
+to land in, because the ruling that retires the old claim also leaves the new one unasserted. Nothing
+in M7 is in that position — 7D5 inherits exactly this shape and has `drawer-rows.test.ts` and its
+successors to land in — and nothing is built for it.

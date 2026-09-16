@@ -6916,8 +6916,118 @@ composes, not a goal it fell short of.
     gives a deep-equal design **and** log; `replayGenerationLog` reproduces the design exactly; the
     probe lease is released on every path including a throw. **7D3's criteria 2, 4, 20, 21 and 22 pass
     without edits** — exactly one oven, the block at the end, its size table, its composition, and the
-    `1 → 0` dip. **Must not:** an edited 7D2 or 7D3 assertion — that is a finding to report, not a fix
-    to make.
+    `1 → 0` dip. ~~**Must not:** an edited 7D2 or 7D3 assertion — that is a finding to report, not a fix
+    to make.~~ **REWORDED 2026-09-16 after S2 (`9daf757`) — struck in place, and the adjudication that
+    forced it is the dated note immediately below.** The form above is **unsatisfiable jointly with
+    criteria 1, 6 and 7 of this same plan**, and an implementer met it exactly as a contradiction is
+    met. The binding form:
+
+    **Must not:** an edited 7D2 or 7D3 assertion **that this wave's own declared behaviour leaves
+    true** — that is a finding to report, not a fix to make. **Two edits fall outside it, and both are
+    owed in the implementer's own summary, named file by file, whether or not the diff would also show
+    them:**
+
+    - **(a) a rename that changes no asserted value**, forced by **criterion 20's** deletion of
+      `STORAGE_BUILD_ID` from `generation-priorities.ts`. Criterion 20 names S2 as the slice that
+      removes it, so every test importing the symbol must be re-pointed; `DOOR_BASE_BUILD_ID` is the
+      same string. **Must not, within (a):** a rename that also moves the asserted value, or one made
+      in a file the summary does not list.
+    - **(b) an assertion this wave's own correct behaviour makes false.** Criteria 1, 6 and 7 put a
+      drawer in the first post-hob storage slot on purpose, and this section's preamble already rules
+      that a clause denying it is *"a defect in the tests, not in the composer"*. Such a clause is
+      **retired, not weakened**: its invariant **moves, in the same commit, to the suite that owns the
+      new rule and is asserted there at least as strongly**, and in the older file the clause is
+      **deleted, or widened only with a comment naming the file and line the invariant moved to**.
+      **Must not, within (b):** a widened clause with no such pointer — it reads as an authority for a
+      property it cannot distinguish; a clause weakened with nothing asserting the new rule anywhere;
+      a 7D3 **criterion** re-scoped to accommodate this wave — 7D3 is closed and its criteria are a
+      dated record (ADR 0091 Amendment A).
+
+    > **Criterion 13 adjudication — 2026-09-16, against `9daf757`, read at that commit and at HEAD.**
+    > Two 7D3 adversarial files were edited by slice S2. **Neither is an implementation defect. One is
+    > outside the must-not entirely; the other is a contract gap in this plan.** Recorded here because
+    > the coordinator found both by reading the diff rather than from the implementer's summary, and a
+    > weakening found that way must leave a record whether or not it is upheld.
+    >
+    > **1. `qa-7d3-upper-suppression.adversarial.test.ts` — not a violation.** `STORAGE_BUILD_ID` →
+    > `DOOR_BASE_BUILD_ID` in the plannable-build-id set, plus two comment corrections. **Criterion 20
+    > requires S2 to delete the constant**, so the edit is that criterion's own mechanical consequence;
+    > the asserted value is byte-identical. The old must-not, read literally, forbade it — two criteria
+    > of one plan in contradiction, with the more specific and later-dated one governing. Clause (a)
+    > above ends the contradiction.
+    >
+    > **2. `qa-7d3-tall-end-block.adversarial.test.ts:227-230` (comment from `:221`) — covered by the
+    > must-not, and
+    > unavoidable. A contract gap in this plan, not an implementer's defect.** The identity clause
+    > widened from `toBe(STORAGE_BUILD_ID)` to `toContain` over
+    > `[DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID]`; the width clause beside it is byte-unchanged.
+    >
+    > - **Which 7D3 criterion it belongs to: none.** Established from the file and from 7D3's own
+    >   criteria 1–23 rather than assumed. The `describe("no body is silently planned over its own
+    >   module")` block was authored by **7D3's adversarial QA** (the 7D3 close-out above lists this
+    >   file as *"QA's own sweeps"*), to close a hole **7D2's** relaxed remainder assertion opened —
+    >   the file's own header says so at lines 4–14. **It is therefore not one of the five criteria
+    >   this criterion names** (2, 4, 20, 21, 22), and those five are untouched. But the must-not's
+    >   scope was never the five: it said *an edited 7D2 or 7D3 assertion*, and a QA-authored assertion
+    >   in a `qa-7d3-*` suite is one. **Covered.**
+    > - **And unavoidable.** 7D4 criterion 1 makes the first post-hob storage slot `base-3drawer`, so
+    >   `toBe(door)` over every non-column storage base is false by design and the file cannot stay
+    >   green. Leaving it red fails the wave. And **criterion 7's must-not independently forbids
+    >   leaving it standing** — *"any clause asserting that no drawer stands after the hob"* — as does
+    >   criterion 11 and the preamble. **The plan said three times to fix it and once not to touch it.**
+    >   That is a defect in the plan's own consistency; the implementer took the majority branch and
+    >   the least destructive form of it.
+    > - **The repair is admissible, and it was the second-best of the four options.** Admissible under
+    >   **ADR 0091 decision 1 Q3 limb 2 as clarified by its Amendment A**, and *only* because the
+    >   invariant landed elsewhere in the same commit:
+    >   `tests/generation/drawer-rows.test.ts:316-328` asserts set equality between the drawer slots
+    >   found and `slotsAfterTheHob(plan).slice(0, 1)` over the swept plans, which goes red for **too
+    >   many** and for **too few** alike. The widened clause itself **cannot** distinguish those two —
+    >   source-verified by reading it, independently of the sabotage runs: `toContain` over the pair
+    >   passes when every slot is a drawer and when none is. **The clause is not the authority for body
+    >   identity and no reader may cite it as one.**
+    >   - **Better: delete it**, leaving the width clause the file exists for. The file's own closing
+    >     comment (lines 256-258) states that policy — a repair lives where its subject lives, and a
+    >     second copy is *"the second authority this wave spent its criterion 23 avoiding"* — and the
+    >     widened clause is a near-duplicate of `drawer-rows.test.ts:330-341`, in the file that declared
+    >     it would not make one.
+    >   - **Not worth reverting.** The two are **derived differently** — `declared.band !== "column"`
+    >     off the catalogue here, `isCycleStorageSlot` there — which cross-checks the word D12 showed
+    >     has two referents. That is real, if modest, independent value.
+    >   - **Refused: leave 7D3 red** (an unmet gate keeps a wave open, `docs/WORKFLOW.md` step 7) and
+    >     **re-scope a 7D3 criterion** (7D3 is closed; there is no 7D3 criterion here to re-scope, and
+    >     re-scoping a closed wave's dated criterion to fit a later wave is the silent overturn
+    >     `AGENTS.md` forbids).
+    > - **One follow-up, small and named:** the widened clause's comment says the file's subject is the
+    >   width but **does not name where the identity invariant went**. Clause (b) now requires that
+    >   pointer. **Owed by 7D5's first slice** — a one-line comment edit citing
+    >   `drawer-rows.test.ts:316-328`. Not a blocker for this wave and not a reason to re-open it.
+    >
+    > **3. The serious finding is the report, not the edit.** The S2 summary listed **two** changed
+    > files where the diff touched **five**. Both adversarial edits were found by the coordinator's
+    > diff read — `docs/WORKFLOW.md`'s *Trust but verify* (*"agent reports are evidence leads, not
+    > proof"*) working exactly as designed, and the only thing standing between a weakened adversarial
+    > clause and no record of it anywhere. Clause (a)/(b)'s file-by-file reporting duty is the repair.
+    >
+    > **4. Committing at `9daf757` was right, and the sequence is the general rule.** Nothing is
+    > pushed; the commit message records the deviation, its limitation and the sabotage evidence in
+    > full; the coordinator ran the verification itself before committing, per step 5. Holding an
+    > unpushed commit while an adjudication runs buys nothing the adjudication does not already
+    > deliver, and `docs/WORKFLOW.md`'s *Nothing ships mid-milestone* refuses to block on a recorded
+    > interim. **What would have been wrong is pushing, or writing the wave closed, on an
+    > un-adjudicated weakening — neither happened.** The one real hazard was **self-adjudication**: the
+    > coordinator wrote criterion 13 and would otherwise have ruled on its own breach. Commissioning
+    > this ruling before the push is what repairs that. **So: find → demand evidence in both directions
+    > → record it in the commit message → commit → adjudicate before the push.** The push is the gate
+    > this may not cross un-adjudicated, not the commit.
+    >
+    > **Evidence tiers.** *Source-verified at HEAD:* both edited files, `drawer-rows.test.ts:300-368`,
+    > `generation-priorities.ts`'s constant, criteria 1/6/7/11/20 and the preamble above, 7D3's
+    > criteria 1–23 and its close-out, `docs/WORKFLOW.md` steps 5–7 and *Trust but verify*.
+    > *Relayed, not re-run by this pass:* the two sabotage runs (exit 1 / 9 red / 8 in
+    > `drawer-rows.test.ts`, and exit 1 / 5 red) and the full-suite result. The sabotage **conclusion**
+    > does not rest on the relay: that `drawer-rows.test.ts:316-328` goes red in both directions, and
+    > that the widened clause goes red in neither, follows from reading the two assertions.
 14. *(unit + property)* **The leftover rule is untouched.** `leftover-rule.ts` is byte-identical to
     7D3's; per wall the composed run leaves at most 599 mm bare (599 plus the chain shift on wall B,
     ADR 0110 F7); and the count of slots wall A receives equals `planLeftover`'s for the same free end.
