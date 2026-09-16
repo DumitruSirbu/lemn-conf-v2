@@ -6867,10 +6867,19 @@ composes, not a goal it fell short of.
    per wall.
 6. *(property)* **At most two bodies fill a kitchen's storage slots, and `base-3drawer` appears at most
    once.** Across every room in the policy the set of distinct build ids over a design's **cycle slots**
-   is `{}`, `{base-cabinet}` or `{base-cabinet, base-3drawer}` — **and where `base-3drawer` appears it
-   appears exactly once, in the slot immediately after the hob in the reading order** (D15.7).
+   is `{}`, `{base-cabinet}`, `{base-cabinet, base-3drawer}` **or `{base-3drawer}`** — **and where
+   `base-3drawer` appears it appears exactly once, in the slot immediately after the hob in the reading
+   order** (D15.7).
    *(Restated 2026-09-16 under D15; the form before it said the door body was the only one, which the
-   owner's order makes false.)* Measured: a room with a three-column block and **no** cycle slot holds
+   owner's order makes false.)*
+   ***(`{base-3drawer}` added 2026-09-16, reported by S4's QA as F1 and fixed HERE rather than in the
+   suite.** The three-way enumeration was the stale half of the D15 restatement: a kitchen whose **only**
+   cycle slot is the post-hob one composes that slot as a drawer and has no other slot left to hold a
+   door. **The composer is correct and the criterion was wrong.** Measured over a 4 000-run sweep:
+   **394 of 3 547 placed rooms — 11.1 %** — witness **6229 × 1489 × 2641**, one cycle slot. Too large
+   to carry as a footnote, and exactly the shape a QA agent is asked to report rather than patch: the
+   suite asserts the criterion's **substance** — every cycle-slot body is one of the two composed rows,
+   and the drawer appears at most once — which is true under all four sets.)* Measured: a room with a three-column block and **no** cycle slot holds
    two distinct full-height build ids and **zero** cycle slots — scoping by role gives 2 and a false red
    (D12). **Must not:** `base-panbank` in a storage slot **in this wave**; a second `base-3drawer`; the
    assertion scoped by role or by width.
@@ -7032,11 +7041,23 @@ composes, not a goal it fell short of.
     7D3's; per wall the composed run leaves at most 599 mm bare (599 plus the chain shift on wall B,
     ADR 0110 F7); and the count of slots wall A receives equals `planLeftover`'s for the same free end.
     **Must not:** a second remainder or slot-count arithmetic anywhere in generation.
-15. *(three-adapter parity, real probe)* A sample of generated designs containing **all three** storage
-    bodies builds with the real probe: no two bodies intersect beyond
+15. *(three-adapter parity, real probe)* A sample of generated designs containing **both composed**
+    storage bodies builds with the real probe: no two bodies intersect beyond
     `room-composition.parity.test.ts`'s shared-face tolerance, each body's back face is on its wall
-    plane, and each drawer body draws its declared fronts (three and two). **Must not:** a re-baselined
-    fidelity capture — this wave changes no builder.
+    plane, and **the body standing first after the hob draws exactly three drawer fronts and no door
+    leaf**. **Must not:** a re-baselined fidelity capture — this wave changes no builder; **a front
+    count read back from the catalogue row the body was drawn from** — that is self-consistent whatever
+    row the composer picked and proves nothing (F3, Guard B).
+
+    ***(Was "all three storage bodies… each drawer body draws its declared fronts (three and two)".
+    Corrected 2026-09-16, reported by S4's QA as F2.** The two halves of that sentence were written
+    either side of D14/D15 and contradict each other **and** criterion 6: generation places
+    `base-panbank` nowhere in this wave, and criterion 6's must-not forbids it in a storage slot **in
+    this wave**, so a criterion demanding a sample containing it was unsatisfiable by correct output.
+    The parity suite covers the two composed bodies and **asserts the third is absent**;
+    `base-panbank`'s own fronts remain gated at every declared width by
+    `front-population.parity.test.ts`, so nothing is lost by removing it here. **7D5 places it and
+    re-earns this clause.**)*
 16. **7D5** *(unit, boundary, derived)* **The dishwasher's cost in millimetres.** With the dishwasher in
     the core, 7D3's D2.2 table moves by exactly one module: with the fridge on wall B the minimum wall
     A for a one-, two- and three-column block becomes **3900 / 4500 / 5100**, and where wall B is too
