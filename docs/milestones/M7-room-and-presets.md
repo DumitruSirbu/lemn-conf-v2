@@ -9356,8 +9356,26 @@ which is the sentence to quote at the keying site rather than this plan's reason
 
 > *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink, cabinets, fridge"*
 
-**So ADR 0110 Amendment A1's *"left to right as seen from inside the room"* is RESTATED, not broken**,
-and that is the distinction S1(a) must record. A1 describes the run's order **along the run**; it does
+~~**So ADR 0110 Amendment A1's *"left to right as seen from inside the room"* is RESTATED, not
+broken**~~, ***and that verdict was too tidy. CORRECTED 2026-09-16 by S1(a), which is now written and
+committed at `2439da5` as [ADR 0110 Amendment I](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md).
+The coordinator asked S1's author to judge whether "restated, not broken" was honest or merely
+convenient, and to say so if it was convenient. It was. **The verdict splits three ways:***
+
+- ***A1's ORDER is genuinely restated.*** The owner's sentence lists hob-first and fridge-last — the
+  exact reverse of A1's written direction, offered as normal. That is the owner narrowing their own
+  earlier *"from left to right"*, by the only authority that could.
+- ***A1's SECOND SENTENCE is BROKEN, and is recorded as corrected rather than restated.***
+  *"On a left-corner L the run reads from wall B's free end toward the corner and then along wall A
+  from the corner outward"* (`0110:124`) is stated **unqualifiedly**, with the reference kitchen
+  following as corroboration rather than as a scope limit. After this wave it is **false in 82 395 of
+  211 551 placed rooms**. Amendment I corrects it to *the prefix wall's free end*.
+- ***"left to right as seen from inside the room" had two readings this record never separated:***
+  along the run — untouched, and it governs — and as a direction in the room, which **is** broken in
+  the mirrored population. Amendment I resolves the ambiguity explicitly so the next reader cannot
+  resolve it the other way.
+
+**What survives unchanged is the sentence below**, and it is why the wave is still sound: A1 describes the run's order **along the run**; it does
 not fix which end of the room the run begins at, and the owner's sentence says so independently of
 this wave. **A later reader must not find a mirrored kitchen and treat it as A1 violated** — the
 amendment exists to stop exactly that reading, and the owner's sentence is its authority.
