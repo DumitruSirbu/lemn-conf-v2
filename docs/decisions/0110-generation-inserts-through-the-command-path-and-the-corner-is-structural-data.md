@@ -2294,17 +2294,87 @@ tree's.
 ### I1 — The ruling, and the two arms the owner chose between
 
 **The owner was shown both measured arms and chose the first.** [doc-quoted from the 7D8 plan, E3]
+**One cell of the table they were shown was wrong, and it is corrected at I1.1 below rather than
+silently rewritten here — read the two together.**
 
 | | blocks composed | on wall A | on wall B | kitchens that lose a block they have today |
 | --- | ---: | ---: | ---: | ---: |
 | **HEAD** | 110 591 (52.28 %) | 110 591 | 0 | — |
-| **CHOSEN — the block follows the run** | **144 866 (68.48 %)** | 97 691 | **47 175 (22.3 % of placed)** | **0** |
+| **CHOSEN — the block follows the run** | **144 866 (68.48 %)** | 97 691 | **47 175 (22.3 % of placed)** | ~~**0**~~ **74** (I1.1) |
 | **REFUSED — the block is confined to physical wall A** | 97 691 (46.18 %) | 97 691 | 0 | **12 900** |
 
 **The ruling: the block follows the run and may stand on wall B.** It is the owner's, not the
 coordinator's and not this record's. What they were choosing between was **144 866 blocks with
-47 175 of them on wall B and nobody losing one**, against **97 691 confined and 12 900 kitchens
-losing a block they have today.**
+47 175 of them on wall B and ~~nobody losing one~~ 74 kitchens losing one**, against **97 691
+confined and 12 900 kitchens losing a block they have today.**
+
+### I1.1 — CORRECTION, 2026-09-17: 74 kitchens lose a block, not none. The ruling stands; the figure does not
+
+**Written 2026-09-17 by the architect adjudicating wave 7D8 slice S2, whose implementation is in the
+working tree and uncommitted at HEAD `355a15e`.** It is recorded here, in I1, because **this is the
+section a later reader will quote**, and a correction kept anywhere else would not be read by the
+person who needs it.
+
+**What was told to the owner, and what is true.** The chosen arm was presented as *"nobody losing
+one"*. **Measured on the 7D8 candidate: 74 kitchens lose a tall block they have today.** The
+smallest reported witness is **3300 × 3310**. **[reported by the S2 implementer; not re-measured by
+this record]**
+
+**The 74 is not a new measurement, and this is the part that settles it: the number is forced by
+this record's own table.** Nothing had to be swept to find it. [doc-quoted from the 7D8 plan, E3,
+and arithmetic over the table above]
+
+- HEAD composes **110 591** blocks, all on wall A.
+- The chosen arm composes **97 691** on wall A — so **12 900** rooms lose the wall-A block they had.
+- The plan's E3 states, in its own sentence, that **12 826** rooms *"would carry a block on wall B
+  where HEAD carries one on wall A"*.
+- **12 900 − 12 826 = 74.** Those 74 lose the block on A and gain none on B.
+
+**So *"nobody losing one"* was contradicted by the two figures printed beside it.** It was not an
+unmeasured claim and not an unlucky sweep; it was an inference — *the total went up, so no room went
+down* — drawn over a set difference that the same table already decomposed. **A rising aggregate
+never establishes a superset**, and that is the durable lesson here, not the 74.
+
+**The mechanism, and it belongs to the companion ruling rather than to this one.** Wall B's corner
+reach is **1000 mm** against wall A's **900 mm** (`lShellFloorRuns`; `wallLengthMm("A") = widthMm`,
+`("B") = depthMm` — **[source-verified at `355a15e`]**). At **3300 × 3310** wall B is the wider
+**entered** wall by 10 mm, so it becomes the suffix wall and carries the block; but its **free run**
+is 3310 − 1000 = **2310 mm** where HEAD's wall-A free run was 3300 − 900 = **2400 mm**. The suffix
+run loses 90 mm, the last 600 mm leftover module falls away, `freeEndStorageCount` drops below the
+one-module floor E6.2 requires, and **the block is not planned at all** — E6.2's own `1 → 0` step,
+reached from the other direction.
+
+**Every one of the 74 therefore sits inside the population ADR 0120 Amendment E2 already ruled on**:
+the rooms whose two entered lengths differ by less than the 100 mm gap between the two corner
+reaches, where *wider by entered length* and *wider by free run* disagree. **That population is the
+entered-length key's own consequence, recorded in the 7D8 plan's E1 as *"this ruling rather than a
+bug in it"*.** The 74 are that recorded consequence showing up in the block rule. **They are not a
+cost of the ruling recorded in this amendment**, which is about *which wall the block follows*; a
+room whose suffix run is too short has no block wherever the block is allowed to stand.
+
+**The ruling stands, and is not re-put to the owner. The reasons, in order of weight.**
+
+1. **The comparison the owner made is untouched.** They chose between an arm costing **74** and an
+   arm costing **12 900** — a factor of **174**. No correction of this size reorders the two, and
+   putting it back would be asking the owner to re-affirm an answer that nothing has moved.
+2. **The 74 are not attributable to what the owner was asked.** They are a consequence of the
+   entered-length key, which is the architect's measured ruling (E1 / ADR 0120 Amendment E2) and was
+   not before the owner. Re-putting *this* ruling would invite an answer to the wrong question.
+3. **The refused arm does not avoid them.** Confinement keeps the block on physical wall A, which in
+   a B-wider room carries the reading order's prefix and has no leftover modules to convert — which
+   is the whole of its 12 900. **There was no arm on the table that cost zero**, and presenting one
+   as though there were is precisely the error being corrected.
+
+**And the owner is owed the correction as a notification.** *"Nobody"* is a qualitative promise, not
+a rounding; a reader of I1 — including the owner — could reasonably have taken it as *no customer is
+worse off*, and that is now false in 74 rooms. **The obligation discharged here is to make the record
+true and to tell them; it is not to reopen the choice.** Wave 7D8's close-out carries the line, with
+the witness.
+
+**Nothing in the code is defective on this account and no fix is assigned.** S2's implementation
+reproduced every other figure in the plan exactly, including criterion 5's zero field differences
+across all 129 156 A-wider and equal rooms. **This is a defect of record, and the correcting edit is
+this section.**
 
 **The refused alternative is recorded with its cost, permanently and on purpose.** A later wave
 reading only the shipped number would have no way to know confinement was considered, and would

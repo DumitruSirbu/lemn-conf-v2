@@ -9307,12 +9307,27 @@ site becomes the **suffix** wall's free end, which is wall B in every B-wider ro
 costs 12 900 rooms a block they have today** — a regression nobody asked for, arriving as a side
 effect of a rule about sinks.
 
+> **CORRECTED 2026-09-17, and the correction is derivable from the two figures immediately above.**
+> The chosen arm does **not** cost nobody a block: **74 kitchens lose one**, witness **3300 × 3310**.
+> **12 900 rooms lose the wall-A block they had and only 12 826 of them gain one on wall B —
+> 12 900 − 12 826 = 74.** This section's *"nobody losing one"* was an inference from a rising total
+> (110 591 → 144 866) across a set difference the same paragraph had already decomposed, and **a
+> rising aggregate never establishes a superset.** The mechanism, the reason the owner's ruling
+> stands unchanged, and the notification owed to the owner are recorded at
+> [ADR 0110 Amendment I1.1](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md).
+> **In short: the 74 are a consequence of E1's entered-length key, not of the block rule** — their
+> suffix wall is wider by entered length and *narrower by free run*, so the suffix run loses up to
+> 90 mm to wall B's larger corner reach and the last leftover module falls below E6.2's one-module
+> floor. They are inside the 3 861-room population E1 records as *"this ruling rather than a bug in
+> it"*, and **the refused arm does not avoid them either.**
+
 ~~**Ruled for this plan, and it is a recommendation the amendment must ratify rather than a decision
 this plan may take alone: the block follows the suffix wall.**~~ **SUPERSEDED within the day, and by
 the only authority that could: RULED BY THE OWNER, 2026-09-16 — the block follows the run, and may
 stand on wall B.** The owner was shown **both rows of the table above** and chose follow-the-run over
-confinement: **144 866 blocks with 47 175 on wall B and nobody losing one**, against **97 691 confined
-and 12 900 kitchens losing a block they have today.**
+confinement: **144 866 blocks with 47 175 on wall B and ~~nobody losing one~~ 74 kitchens losing one
+(corrected 2026-09-17, see the box above)**, against **97 691 confined and 12 900 kitchens losing a
+block they have today.**
 
 **ADR 0110 Amendment E's *"and nowhere else"* is OVERTURNED by that ruling**, with those two figures
 as its authority. **The engineering argument is kept and demoted to what it always was** — a reason,
@@ -9464,9 +9479,37 @@ catch"*** — which is why criterion 7 exists and why it is a dedicated assertio
 baseline row.
 
 **Risk 21's re-measurement, discharged here. [measured]** D15.7's split moves from **53 751 (25.41 %)
-on wall A and 6 660 (3.15 %) on wall B** to **50 361 (23.81 %) and 5 910 (2.79 %)**. **The wall-B
+on wall A and 6 660 (3.15 %) on wall B** to **50 361 (23.81 %) and 5 910 (2.79 %)**. ~~**The wall-B
 discriminating arm shrinks by 11.3 % and does not empty**, so 7D4's wall-B witnesses stay reachable
-and its rule stays exercised on both walls. **Nothing in 7D4 is struck by this wave.**
+and its rule stays exercised on both walls.~~ **Nothing in 7D4 is struck by this wave.**
+
+> **CORRECTED 2026-09-17 — this paragraph measured one population and reasoned about another, and
+> the two come apart precisely because of this wave.** The struck sentence is the single most
+> consequential error in this plan, and it is the root of the adjudication recorded at *7D8
+> adjudication — S2's stop conditions* below.
+>
+> **There are two different "wall-B arms" here, and at HEAD they were the same set.**
+>
+> | | what it is | at HEAD | after this wave |
+> | --- | --- | ---: | ---: |
+> | **P6a — physical** | the composed drawer slot stands on **physical wall B** | 6 660 | **5 910** |
+> | **P6b — reversed layout** | the drawer slot is reached through `firstStorageSlotAfterTheHob`'s **prefix branch**, at index `count − 1` | 6 660 | **0** |
+>
+> At HEAD `PREFIX_WALL` is the literal `"B"`, so *on wall B* and *on the prefix wall, counted
+> backwards* named one set and the distinction had no referent. **After the re-key they are almost
+> disjoint**: in a B-wider room wall B is the **suffix**, so a drawer standing on wall B is reached
+> **ascending** through the suffix branch. **The 5 910 above is P6a and it reproduces exactly**;
+> P6b — the arm 7D4's rule was built to discriminate, and the only arm in which *the first slot in
+> the reading order* differs from *the first slot along the hob's own wall* — **is empty.** The
+> mechanism is criterion 1 holding with zero exceptions: the hob always lands on the suffix wall, so
+> the prefix branch is never taken.
+>
+> **The 5 910 was therefore real and was not evidence for what it was cited for.** Risk 21 asked for
+> a re-measurement and got one; what it needed was a re-measurement **of the discriminating
+> definition**, and *"wall B"* had silently stopped being that definition one section earlier in this
+> same plan. **This is ADR 0121's rule — a thing is identified by what it is, never by what
+> correlates with it — landing on a measurement rather than on a body**, and it survived a planning
+> pass that quotes ADR 0121 four times.
 
 ### E8 — sequencing against 7D5: run this wave first, and here is the argument rather than the preference
 
@@ -9597,8 +9640,14 @@ at 10 mm over 211 551 placed rooms, are:
 | **P3** | equal | 351 (0.17 %) |
 | **P4** | the two candidate keys disagree (\|A − B\| < 100 mm) | 3 861 (1.83 %) |
 | **P5** | both entered walls over 4 000 mm | 25 190 (11.91 %), **5 995** of them B-wider |
-| **P6** | the composed drawer slot stands on wall B — 7D4's wall-B arm | **5 910 (2.79 %)** after the wave |
+| **P6a** | the composed drawer slot stands on **physical wall B** | **5 910 (2.79 %)** after the wave |
+| **P6b** | the drawer slot is reached through the **prefix branch**, at index `count − 1` — 7D4's discriminating arm | **0** after the wave — see E7's correction |
 | **P7** | the sink exception class | 14 335 (6.78 %), **3 595** of them forced |
+
+> **P6 was one row until 2026-09-17 and had to become two.** At HEAD the prefix wall *is* wall B, so
+> the two readings named one set; after the re-key they do not. **Every use of "P6" below that means
+> the discriminating arm means P6b, and P6b is empty.** The consequence is adjudicated at *7D8
+> adjudication — S2's stop conditions*.
 
 1. _(sweep, both arms reported separately)_ **The hob stands on the wider wall in every room, on both
    arms.** **0 exceptions over P1 and 0 over P2.** **Stated as a must-not and never as a percentage:**
@@ -9616,10 +9665,35 @@ at 10 mm over 211 551 placed rooms, are:
    room whose narrower run has 700 mm or more free.**
 4. _(sweep, **two** splits — the wave's central instrument)_ **The key is proved, not asserted.**
    The hob criterion reads **100.00 % on both arms of the entered-length split** and is
-   **demonstrably not 100 / 100 on the free-run split** (measured: **98.7 %** on the A-capacity arm),
-   with **P4 named and sized**. **A criterion that reads 100 / 100 on both splits has discriminated
-   nothing and fails this wave**, because that is the signature of a key this plan has not
-   distinguished. *(E1 carries the full table; the close-out repeats it from the wave's own build.)*
+   **demonstrably not 100 / 100 on the free-run split** (measured by the planning pass: **98.7 %** on
+   the A-capacity arm; **measured by S2 on the wave's own build: 97.61 %, 3 159 exceptions of
+   132 315**), with **P4 named and sized**. **A criterion that reads 100 / 100 on both splits has
+   discriminated nothing and fails this wave**, because that is the signature of a key this plan has
+   not distinguished. *(E1 carries the full table; the close-out repeats it from the wave's own
+   build.)*
+
+   > **SETTLED 2026-09-17 — the wave's own build governs, and the criterion is met by either
+   > figure.** This plan's own *Verification* section already rules it: every close-out line is
+   > measured *"against the **wave's own build**"*, so **97.61 % is the number this criterion is
+   > reported at** and 98.7 % is kept struck-through-in-place as the planning pass's reading rather
+   > than deleted.
+   >
+   > **What is NOT settled, and must not be written up as though it were: *why* they differ.** S2
+   > argues the plan is simply wrong because `lShellFloorRuns` returns exactly `width − 900` /
+   > `depth − 1000`, leaving no second candidate definition. **That argument is plausible and it is
+   > not sufficient**, because it explains only the *numerator's* definition. **Neither figure was
+   > ever published with its denominator**: 98.7 % appears in E1's table with none, and 132 315 is
+   > not any population this plan names (P2, the A-wider-by-entered-length arm, is **128 805**). **A
+   > percentage whose denominator moved by 3 510 rooms is not the same measurement**, and *"the
+   > earlier one was wrong"* is a conclusion, not a reconciliation. **The close-out states both
+   > figures with grid, ceiling, population and denominator** — which this plan's *Verification*
+   > section already requires of every sweep figure and which E1 did not do — **and if they then
+   > still disagree, the close-out says so rather than picking one.**
+   >
+   > **The criterion's binding content is unaffected either way**: it asks that the free-run split be
+   > *demonstrably not* 100 / 100, and 97.61 % and 98.7 % both discharge that. **No behaviour turns
+   > on which is right**; what turns on it is whether this plan's numbers can be trusted, which is
+   > why it is being closed rather than waved through.
 5. _(sweep)_ **Nothing outside P1 moves.** Over **P2 ∪ P3 — 129 156 rooms** — every composed plan is
    identical to the wave's pre-state in **every** field: id, wall, role, build id, start, end, the
    `floorWidthsMm` rows, `remainderMm` and the dropped set. **Measured on the candidate: 0
@@ -9629,8 +9703,34 @@ at 10 mm over 211 551 placed rooms, are:
 7. _(unit, and it is the only guard against the wave's silent failure)_ **One expression decides
    which wall is laid out against the reading order.** `isLaidOutInReverse` is the sole such
    expression in the module, and **a test goes red when it alone is inverted** — which no count,
-   width, remainder, cut, provenance or digest will do (E7). The assertion **names P6's size and fails
-   if that arm is empty**, so it cannot pass by never reaching a wall-B room.
+   width, remainder, cut, provenance or digest will do (E7). ~~The assertion **names P6's size and fails
+   if that arm is empty**, so it cannot pass by never reaching a wall-B room.~~
+
+   > **AMENDED 2026-09-17, and the amendment is the opposite of a relaxation.** The struck clause is
+   > unsatisfiable as written, because **P6b is empty and no sweep over `APPROVED_ROOM_POLICY` can
+   > reach it** (E7's correction). It is replaced by **three obligations, all of which S3 must
+   > discharge and none of which is a sweep floor**:
+   >
+   > **7a — the live arm, by sweep.** `isLaidOutInReverse` governs `inSpatialOrder` as well as
+   > `slotsInReadingOrder`, and **that use is live in all 82 395 P1 rooms**: it is what reverses the
+   > prefix wall's core bodies. A criterion-7 assertion must go red when the expression is inverted,
+   > and this is the arm on which it can. **`isLaidOutInReverse` is not dead code and must not be
+   > described as such.**
+   >
+   > **7b — the empty arm, by a declared witness.** The **descending** index path
+   > (`count − 1 − step`) is reachable only through `firstStorageSlotAfterTheHob`'s prefix branch,
+   > which no admitted room reaches. **ADR 0093 decision 2 and 3b decide the form**: the witness is
+   > **declared by the test at the unit boundary** — call the function with
+   > `hobStandsOnTheSuffixWall: false` and assert the index — never sought by widening a sweep and
+   > never discharged by a comment. **The test states, in its own words, that the arm is unreachable
+   > from `APPROVED_ROOM_POLICY` and why**, so a later reader does not file it as a live customer
+   > defect (ADR 0093 decision 3b's own construction).
+   >
+   > **7c — both sabotages, against a green suite.** The assertion must go red under **both** of
+   > risk 1's forms: inverting `isLaidOutInReverse`, and re-literalising the two
+   > `slotsInReadingOrder` calls to `"B"` then `"A"`. **A sabotage run against a red suite is not a
+   > measurement** — see the adjudication section for what was measured at 25 red and why it does not
+   > discharge this.
 
    > **Why this cannot be discharged from the baseline, verified in the artefact rather than assumed
    > — and it is worse than "the digest masks `buildId`". [source-verified at `8ebff1f`]**
@@ -9649,6 +9749,12 @@ at 10 mm over 211 551 placed rooms, are:
    5 910 (2.79 %) on wall B, `wrongEnd: 0`**, with the wall-B arm sampled by at least one whole
    recorded witness. **7D4's rule is unchanged** and no assertion of it is weakened (ADR 0091
    Amendment A).
+
+   > **CLARIFIED 2026-09-17: this criterion is about P6a and it is met — S2 reproduced 50 361 /
+   > 5 910 exactly.** It says nothing about P6b and **must not be cited as discharging criterion 7b.
+   > The physical arm survives; the reversed-layout arm is empty**, and this criterion cannot tell
+   > the difference because *"on wall B"* stopped being the discriminating definition one section
+   > earlier (E7's correction).
 9. _(sweep + convention)_ **The 4-metre clause is a permission, asserted as a must-not.** Over **P5
    (25 190, of which 5 995 B-wider)**, **no room loses its fridge and no room is refused a layout on
    this rule's account.** **Must not: no `4000` literal enters `generation-priorities.ts`** — and
@@ -9659,7 +9765,10 @@ at 10 mm over 211 551 placed rooms, are:
     that overturns Amendment E exists before the code that relies on it.** The close-out states the
     count on both arms: **the shipped behaviour — the block follows the suffix wall — 144 866 total,
     47 175 on wall B**, against the refused alternative, **confined to wall A: 97 691 total, 12 900
-    fewer than HEAD ships.** ~~Must not: no code decides this before slice S1's dated amendment
+    fewer than HEAD ships.** **AMENDED 2026-09-17: the close-out must also state that the shipped arm
+    costs **74 kitchens** a block they have today, with the witness **3300 × 3310** and the mechanism
+    — a close-out repeating *"nobody loses one"* fails this criterion** (E3's correction box;
+    ADR 0110 Amendment I1.1). ~~Must not: no code decides this before slice S1's dated amendment
     exists~~ — **the decision is no longer the code's to make; it is the owner's and it is made.**
     **Must not, in its surviving and now narrower form: no commit puts a column on wall B before
     S1(a)'s amendment has landed**, because ADR 0110 Amendment E still reads *"wall A … and nowhere
@@ -9698,6 +9807,15 @@ at 10 mm over 211 551 placed rooms, are:
   whole-recorded witnesses on P1 and P6, and the two-split instrument of criterion 4. **A sabotage is
   run in both directions for each (ADR 0121 decision 3), and each criterion's close-out line names
   which sabotage discharged which direction.**
+
+  > **RE-SCOPED 2026-09-17 and now load-bearing for the wave rather than confirmatory.** S3 is the
+  > only slice that can discharge criteria **7a, 7b and 7c**, and it runs in this order: **(1)**
+  > repair the stale test models — `drawer-rows.test.ts:64-71`'s `inReadingOrder` is re-derived from
+  > the **entered wall lengths**, never by importing production's `isLaidOutInReverse`; **(2)**
+  > re-green the suite; **(3)** re-run **both** sabotages against the green suite and report the
+  > counts; **(4)** add the declared unit witness for the emptied P6b arm. **S3 owns both test files
+  > the re-key invalidated, and no floor is lowered to 0 in either.** See *7D8 adjudication — S2's
+  > stop conditions*.
 - **S4 — ~~the two chores~~ ONE chore, and only if this wave runs before 7D5.** 7D4's close-out
   assigned two first-slice chores to *"7D5's first slice"*; **whichever wave is first inherits them,
   and one of them is already done.** **Verified at HEAD `8201915` rather than relayed:**
@@ -9763,8 +9881,10 @@ at 10 mm over 211 551 placed rooms, are:
 > arithmetic, and both were answered the same day.
 >
 > **Ruling A — the tall block follows the run, and may stand on wall B.** The owner was shown both
-> arms and chose it over confinement: **144 866 blocks (68.5 %) with 47 175 on wall B and nobody
-> losing one**, against **97 691 confined and 12 900 kitchens losing a block they have today**.
+> arms and chose it over confinement: **144 866 blocks (68.5 %) with 47 175 on wall B and ~~nobody
+> losing one~~ 74 kitchens losing one — corrected 2026-09-17, and the ruling stands unchanged
+> (E3's box; ADR 0110 Amendment I1.1)**, against **97 691 confined and 12 900 kitchens losing a block
+> they have today**.
 > **ADR 0110 Amendment E's *"and nowhere else"* is overturned by this ruling**, with those two figures
 > as its authority. **S1(a) writes that amendment; it is no longer gated on an answer.** The reason
 > the owner's choice is the right one is also recorded: E's stated reason was about *the free end the
@@ -9829,6 +9949,184 @@ than it is.** Measured: every figure in E0–E8, from a scratch build at `820191
 test suite was never run by this planning pass** — the tree was frozen for `ci:local` — so **no test
 count is claimed anywhere above**, and R7's run-end-panel consequence is reasoned from source line
 numbers rather than swept.
+
+### 7D8 adjudication — S2's stop conditions, 2026-09-17
+
+**Three findings were raised against slice S2 by the coordinator, two of them as candidate stop
+conditions. The wave does not stop. None of the three is a defect in S2's code, and all three are
+defects in this plan** — which is why the corrections above are edits to criteria rather than
+instructions to an implementer.
+
+**What this section rests on, labelled.** The S2 measurements below are **reported by the
+implementer and were not re-run here** (this adjudication is markdown-only and did not build).
+Everything drawn from this plan, ADR 0110, ADR 0093 and ADR 0121 is **doc-quoted**; the code
+readings — `generation-priorities.ts`'s two `slotsInReadingOrder` call sites and its two
+`isLaidOutInReverse` uses, `wallLengthMm`'s wall-to-dimension mapping, and
+`drawer-rows.test.ts`'s `inReadingOrder` helper — are **source-verified in the working tree at
+`355a15e` plus S2's uncommitted diff**. **The 74 of Finding A is the one figure that needed neither**:
+it is arithmetic over E3's own published numbers.
+
+#### Finding A — the 74 lost blocks: a defect of record, and the owner's ruling stands
+
+**Classification: contract gap, in this plan and in ADR 0110 Amendment I1. Not an implementation
+defect; no fix is assigned to any slice.**
+
+**Ruled: the ruling stands and is corrected rather than re-put to the owner.** The owner chose
+between an arm costing **74** and an arm costing **12 900**; the correction moves one side of a
+174-fold comparison and reorders nothing. The 74 are a consequence of **E1's entered-length key**,
+which was the architect's ruling and was never before the owner, and **the refused arm does not
+avoid them**. Full reasoning, mechanism and witness: **ADR 0110 Amendment I1.1**, written
+2026-09-17; the figure is corrected in E3, criterion 10 and Ruling A above.
+
+**The owner is owed a notification, not a decision.** *"Nobody"* is a qualitative promise and it is
+now false in 74 rooms; criterion 10 carries the obligation to say so at close-out, with the witness.
+
+**On the coordinator's disclosure that they supplied the wrong figure: that is the reason to trust
+this adjudication, not to discount it.** The correcting arithmetic — 12 900 − 12 826 = 74 — was
+already printed in E3 beside the claim it refutes. **The failure was not measurement, it was
+inferring a superset from a rising total**, and it is recorded in ADR 0110 I1.1 in that form so the
+next reader inherits the lesson rather than the number.
+
+#### Finding B — P6b is empty: the wave does not fail its own criterion, and the branch is kept
+
+**Classification: contract gap (criterion 7 and E7 named a population that this wave's own criterion 1
+dissolves) plus a test-fidelity problem (no declared witness for the arm that emptied). Not an
+implementation defect.**
+
+**B1 — the wave is not failing criterion 7 as the criterion is written.** Criterion 7's clause
+*"names P6's size and fails if that arm is empty"* was written against a **P6 that this plan defined
+as the physical wall-B arm** — *"the composed drawer slot stands on wall B"* — and **that arm is not
+empty: it measures 5 910, exactly as planned, and criterion 8 reproduced it.** The clause is
+therefore satisfiable on its own terms and is not the failure. **What has happened is worse than a
+failed criterion: the criterion stopped referring to the thing it was written to protect**, because
+*on wall B* and *reached through the prefix branch* were one set at HEAD and are two after the
+re-key. The populations are now split into **P6a** and **P6b** above and the clause is replaced by
+criteria **7a / 7b / 7c**.
+
+**B2 — the prefix branch is UNREACHABLE under `APPROVED_ROOM_POLICY`, and that is not the same as
+dead code.** It is reachable in the type: `firstStorageSlotAfterTheHob` is a total function of
+`{hobStandsOnTheSuffixWall, slotCounts, walls}` and the branch executes whenever the first is false.
+What makes it unenterable is an **empirical** fact about the admitted room range — criterion 1
+holding with zero exceptions — and E5 already states the reason: the hob is the reading order's last
+element, so it leaves the suffix wall only at `cut = kept.length`, *"and no room in the accepted
+range does that."* **An empirical emptiness is a fact about the policy bounds, not about the rule.**
+
+**B3 — RULED: the branch is KEPT. Deleting it is refused, for three independent reasons.**
+
+1. **Deleting it edits 7D4's ruled behaviour, which this wave's own scope forbids.** ADR 0110
+   Amendment H1 / ruling D15.7 rules *the first storage slot after the hob **in the reading order***.
+   Collapsing the function to the suffix wall's first slot narrows that rule to *the first slot on
+   the hob's own wall* — **the exact defect `drawer-rows.test.ts` was written to prevent**, and this
+   plan's *goal* section forbids it in terms: *"the reading order itself … is untouched"*.
+2. **It replaces a rule with a coincidence.** The branch is correct by construction; its emptiness is
+   contingent on bounds that are **actively moving in this same milestone** — 7D6 derives the
+   corner's reach from the cabinet depth and **7D7's Q-7D7-2 explicitly moves wall A's minimum**. A
+   later widening that makes the population non-empty would, against a deleted branch, stand the
+   drawer at the wrong end with **no count, width, remainder, cut, provenance or digest moving** —
+   risk 1's failure, re-armed and with its control removed.
+3. **ADR 0118 governs the converse and not this.** 0118 forbids *building* for a problem that has
+   not occurred. This branch is not built for a future problem; it is **already-ruled behaviour whose
+   discriminating population shrank**, and deleting shipped behaviour is not what 0118 asks for.
+
+**B4 — ADR 0093 decision 1 applies, is not satisfied today, and is discharged by a declared witness
+rather than by stopping the wave.** Decision 1 is unambiguous: *"a ruled behaviour that the tree
+cannot distinguish from its own absence is unshipped."* **Today the tree cannot distinguish the
+descending-index path from its absence, so that path is unshipped and the obligation is live.**
+ADR 0093 **decision 2 and decision 3b supply the remedy for exactly this shape** — a consequence
+*"not reachable from today's seed"* is witnessed by **a design the test declares** at the unit
+boundary, with the test stating the unreachability and why. **That is criterion 7b, it is S3's, and
+it is cheap.** Stopping the wave would leave the repository in the strictly worse state it is in
+right now: the mirrored layout shipped in 82 395 rooms with **no** control at all.
+
+**B5 — what is NOT unreachable, stated because the brief asked whether `isLaidOutInReverse` is dead
+code. It is not, and calling it dead would be the most expensive error available here.**
+`isLaidOutInReverse` has **two** uses. Its `slotsInReadingOrder` use has an unreachable true-arm;
+its **`inSpatialOrder` use is live in all 82 395 P1 rooms** — it is the expression that mirrors the
+kitchen, the whole visible subject of ADR 0110 Amendment I5. **Only the descending-slot path is
+unwitnessed. The expression itself is heavily exercised and must stay one expression** (risk 1).
+
+#### Finding C — the sabotage results are real, and one of them was taken against an invalid control
+
+**Classification: test-fidelity problem, and the control criterion 7 names has not been built yet
+because S3 has not run. This is the expected state after S2, not a regression.**
+
+**C1 — the 25 → 21 result is not evidence that the repository cannot catch the inversion; it is
+evidence that it cannot catch it *today*, and the reason is diagnosed.** A sabotage measured against
+a **25-red suite is not a measurement** — the control is not in a state where a red can be
+attributed. The four tests that turn green are diagnosable from source:
+`packages/configurator-domain/tests/generation/drawer-rows.test.ts:64-71` re-derives the reading
+order as `[...alongTheWall(plan, "B")].reverse(), ...alongTheWall(plan, "A")` — **the test's own
+model of the reversal, hard-coded to wall B.** That helper is the test-side twin of
+`isLaidOutInReverse`, and it is now stale. Reverting production to `wall === "B"` makes production
+agree with the stale model again, which is why four go green. **The repository is not rewarding the
+defect; it is rewarding agreement with a fixture this wave invalidated**, and the distinction decides
+the repair.
+
+**C2 — RULED: the repair is to re-derive the test's reading order from the entered wall lengths, and
+that is a STRENGTHENING.** The file's header states its design intent in its own words — this file
+and `generation-priorities.ts` *"agree only if both read wall B's reversal the same way"*. **That
+independence is the asset and it must survive**: the helper is re-keyed **from the room**, never by
+importing production's `isLaidOutInReverse` or by reading a planned id. A repair that imports the
+production helper turns an independent oracle into a tautology and is a finding, not a fix.
+
+**C3 — the 25 → 25 result is the serious one and it is not explained.** Leaving the slot lookup on
+the literals `"B"` / `"A"` changes which wall the drawer is sought on in every P1 room — the suffix
+call becomes `("A", slotCounts.A)` where it should read wall B — and **nothing measured it.** The
+prefix call is unreachable, so only the second literal bites, and it bites in 82 395 rooms.
+**S3 must make criterion 7c go red under this sabotage specifically**, and must report the count
+rather than the pass.
+
+**C4 — risk 1's control is not "removed"; it was never built.** This plan assigns it to **S3** —
+*"criterion 7's dedicated guard, the whole-recorded witnesses … and a sabotage run in both
+directions"*. **S2 shipping without it is the plan working.** What Finding C changes is that S3 is
+now **load-bearing for the wave rather than confirmatory**, and it must run against a green suite.
+
+#### Sequencing — the plain answer
+
+**S2 may be committed as it stands, and the commit must not be pushed.** Four things make that safe,
+each checked rather than assumed:
+
+- **Criterion 10's surviving must-not is satisfied.** *"No commit puts a column on wall B before
+  S1(a)'s amendment has landed."* S1(a) landed at **`2439da5`**, which is an ancestor of HEAD
+  **`355a15e`**. **[verified by `git log`]** The repository is no longer shipping against its own
+  record.
+- **The record is true before the code lands.** ADR 0110 Amendment I1.1 and this plan's corrections
+  are written now, ahead of the commit, so the 74 is not discovered after the fact.
+- **`--no-verify` is permitted on intermediate commits** (`docs/WORKFLOW.md`, step 6, owner's
+  direction 2026-08-26) and **the commit message must name the 25 red tests and assign them to S3**.
+  A commit made this way *"may not be described as verified"* — say so.
+- **`docs/WORKFLOW.md`'s pre-push rule is absolute: a red build must not reach GitHub.** **So S3
+  lands before any push, and no reviewer is dispatched until the suite is green** (QA gates review).
+
+**May S3 touch the two files whose arm-coverage floors now measure 0? YES — and the distinction the
+brief asks for is real, so here it is in the only form that is safe to act on.**
+
+| the floor | what it counts | why it reads 0 | what S3 may do |
+| --- | --- | --- | --- |
+| `drawer-rows.test.ts:313`, `arms.wallB >= 30` | drawer slots on **physical wall B** (P6a) | **The population did not empty — 5 910 rooms still qualify.** The count is computed *through* the stale `inReadingOrder` helper, so what reads 0 is the instrument, not the arm. | **Repair the helper. The floor itself must NOT be lowered, and 30 is a floor rather than a target.** Once the helper is re-keyed this arm must be non-zero again; **if it is not, that is a finding and S3 stops.** |
+| any floor on P6b — the reversed / `count − 1` arm | slots reached through the **prefix branch** | **The population genuinely emptied**, 6 660 → 0, by criterion 1 (Finding B). | **Must NOT be lowered to 0, and must NOT be deleted.** It is **re-sited**: the arm moves from a sweep floor to criterion **7b**'s declared unit witness, and the sweep-side assertion is replaced by an explicit statement that the arm is unreachable from `APPROVED_ROOM_POLICY` and why (ADR 0093 decision 3b's construction). **Coverage is moved, never dropped.** |
+
+**The governing rule, so the two are never confused again: a floor that reads 0 because the
+instrument is stale is repaired; a floor that reads 0 because the population emptied is re-sited to
+a declared witness. Neither is ever relaxed to 0.** ADR 0091 Amendment A binds — **no assertion of
+7D4's rule may be weakened by this wave** — and criterion 8 already says so.
+
+**Ownership: both files are S3's, and S3 alone.** S2's diff stays a pure re-key so criterion 5's
+zero-field-difference result remains reviewable as one unit. **S2 must not green its own stale
+assertions**, which is the shape QA exists to separate.
+
+#### Still in flight after this adjudication
+
+- **Risk 7, the run-end panel — UNANSWERED and it is S2's.** This plan's own words: *"A wave that
+  reports the domain sweep green and says nothing about the panel has not answered this."* The brief
+  reports no measurement of it. **S2's close-out owes the measurement**, and the coordinator then
+  decides the 390 × 844 visual gate.
+- **An ADR is owed for Finding B's ruling, and it is not written here.** *A ruled behaviour whose
+  discriminating population is emptied by a later wave keeps its branch and converts its sweep
+  coverage into a declared witness* generalises beyond 7D8 and beyond `generation-priorities.ts`.
+  It currently lives only in a milestone plan, which `AGENTS.md` warns has a shelf life. **The
+  scribe's close-out should raise it; this adjudication did not hold that file and did not take it.**
+- **Q-7D8-2** remains open and still gates nothing.
 
 ## Wave 7D6 — dispatchable punch list: the corner's reach is derived from the cabinet depth
 
