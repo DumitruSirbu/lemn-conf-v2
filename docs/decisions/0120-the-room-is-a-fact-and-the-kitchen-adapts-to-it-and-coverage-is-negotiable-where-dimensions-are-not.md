@@ -1097,3 +1097,91 @@ length, which is Q-C1 again. **Ask all three together; they are one question wea
 | [ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md) Amendment A1 | The reading order — fridge, sink, preparation, hob — and the B-then-A traversal. | **Untouched as an order; incomplete as a placement rule.** A1 never said which wall is which, and C2 measures that the gap was filled by wall identity rather than by width. |
 | [ADR 0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) decision 7 | A check must tell a thing from a mention of it. | **C2 is a fresh instance, measured rather than argued.** 83.5 % aggregate hides 0.0 % on the discriminating half. Also paid for itself in the drafting: `planKitchenComposition`'s signature had gained a required `columns` argument since this record's first draft, and the measurement failed loudly instead of silently measuring stale `dist`. |
 | Wave 7H, Q7H-1 | Ruled (a): the drawn wall is the entered wall. | **Answered correctly to the question as then posed.** The terms have changed underneath it; Q-C3 re-asks it. **7H shipped no defect.** |
+
+## Amendment D — 2026-09-16: Q-C1, Q-C2 and Q-C3 answered, and all three confirm what already ships
+
+Amendment C closed with three questions and the note that they were *"one question wearing three
+hats"*. The owner answered all three the same afternoon, within an hour of the amendment landing.
+**Every answer is the cheap one, and together they mean no engine or rendering work is owed** — the
+single obligation C1 created is a copy change, and it survives untouched.
+
+**The answers, verbatim** (owner, 2026-09-16):
+
+> 1. *"if they insert 3 and need only 3 meters of cabinets kitchen should have only those 3 meters"*
+> 2. *"no panel needed"*
+> 3. *"the kitchen we build only (you have no idea what is the real room size and we don't care about)"*
+
+### D1 — Q-C1: one number per wall, and the product never learns the room
+
+**Ruled: the entered number is the whole of what the product knows about that wall.** There is no
+second field, no "wall length" beside "length to furnish", and no inference of the remainder. A
+customer who types 3 gets three metres of cabinets, and the other two metres of their wall do not
+exist as far as this product is concerned.
+
+**This is the literal reading of Amendment C's ruling, and it settles C1's open case by refusing the
+question's premise.** C1 asked what happens when a boiler or a fridge already stands in the
+unfurnished remainder. The answer is that the remainder is not modelled at all, so the situation has
+no representation to get wrong. **[inference]** The customer handles it by typing a smaller number.
+
+**What this closes.** Amendment C1 raised the two-field screen as the expensive alternative and noted
+it *"is a second field per wall and a different screen"*. **It is refused, not deferred.** A later
+wave proposing to collect the real wall length is reopening this ruling and owes a dated decision.
+
+### D2 — Q-C2: no panel, and the finding that the veto "inverts" is WITHDRAWN
+
+**Ruled: a run ending mid-wall gets no finished end panel.** The shipped behaviour is correct.
+
+**Verified at HEAD before recording this. [source-verified]** `runEndPanelSeatM`
+(`run-end-panel.ts:99-116`) returns `undefined` when `passesWallAEnd(seatM, room)` — that is,
+when the panel's outer face would pass `wallLengthMm("A", room)`, which under the run reading is the
+end of the customer's run. **So the veto already fires exactly where the owner wants no panel.
+Amendment C predicted an inversion; the ruling means there is none. C's "New: the run-end panel
+veto" finding is withdrawn, and ADR 0045 Amendment A stands unamended in its behaviour.**
+
+**One thing is left wrong, and it is a comment rather than a behaviour.** The head comment at
+`run-end-panel.ts:94-98` justifies the veto as *"a fitter closes that gap with a filler strip"* — a
+sentence about a physical wall that is no longer there. **The code is right and its stated reason is
+false**, which is the more dangerous of the two states: a later reader who finds the reason wrong is
+one step from concluding the behaviour is wrong and "fixing" it. **The correction is owed, and it is
+a comment-only edit deliberately not made here** — `packages/configurator-domain` has an implementer
+in flight on `body-choice.ts` at the time of writing, and this milestone has four freeze violations
+already. **It lands with the next wave touching that package.**
+
+**The lesson worth keeping, because this is the second time it has happened this milestone.** ADR
+0045 Amendment A was an owner ruling recorded with the owner's *reason* attached. The ruling survived
+the change of premise; the reason did not. **A recorded reason is not a second authority for the
+ruling it accompanies** — when the premise moves, re-ask rather than deducing the new answer from the
+old reason. Amendment C did the right thing by putting it back to the owner instead of resolving it.
+
+### D3 — Q-C3: draw the kitchen, not the room; 7H is confirmed, not corrected
+
+**Ruled: the 3D view shows the kitchen being bought.** The owner's phrasing is the strongest form of
+the answer — *"you have no idea what is the real room size and we don't care about"* — and it is
+consistent with D1, which is why the product has no idea: it never asked.
+
+**Wave 7H's Q7H-1 was ruled (a), *the drawn wall is the entered wall*, before the run/wall
+distinction existed. Amendment C flagged that it had answered a question whose terms then changed.
+It is now re-answered on the new terms and the answer is the same.** `resizeShellToRoom` needs no
+change, and 7H is confirmed correct twice over rather than merely "shipped no defect".
+
+### What survives all three answers
+
+| From Amendment C | After D |
+| --- | --- |
+| **C1's field copy** — *"Perete A"* names the wrong quantity (`ro.json:54-58`, `dimensions-form.tsx:39-43`) | **Untouched and now the only C1 obligation.** D1 makes it *more* load-bearing: the label is the single place the customer is told what number to type, and the product has no second source for it. **7F2 owns the refusal sentence; this label has no wave.** |
+| **C2's `chooseWallCut`** — the wider-wall rule is not implemented, measured | **Untouched.** None of these three answers concerns which wall a body lands on. Still an obligation with no home. |
+| **C1's run-end panel finding** | **Withdrawn by D2.** Replaced by a comment correction. |
+| **C1's 3D under-draw finding** | **Withdrawn by D3.** It was never a defect; it is now not even a divergence. |
+| **C3's two 4-metre numbers** | **Untouched.** Neither is touched by these answers. |
+| **Decision 3 + C1's noun constraint on the 1C sentence** | **Untouched and sharpened by D1.** The refusal talks about the stretch the customer asked to furnish, and under D1 there is no other stretch it could mean. |
+
+### Sweep for this amendment
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| [Amendment C](#amendment-c--2026-09-16-the-entered-number-is-the-run-the-customer-wants-furnished-not-their-wall) C1 | The entered number is the run; the two-field screen is the alternative. | **Confirmed, and the alternative refused.** D1. |
+| Amendment C, "New: the run-end panel veto" | The veto inverts under the run reading. | **WITHDRAWN.** D2. The prediction was sound and the ruling went the other way. |
+| Amendment C, the 3D shell under-draws | The room on screen is smaller than the real one. | **WITHDRAWN as a concern.** D3 — that is the intended picture. |
+| [ADR 0045](0045-a-run-end-panel-is-a-scene-fact-and-the-wall-end-vetoes-it.md) Amendment A | Owner: *"No panel when run hits wall."* | **Behaviour stands unamended.** Its recorded *reason* — the fitter's filler strip — is false under the run reading and owes a comment correction in `run-end-panel.ts:94-98`. |
+| Wave 7H, Q7H-1 | Ruled (a): the drawn wall is the entered wall. | **Re-answered on the new terms; same answer.** 7H confirmed correct. |
+| This record, decision 1 | The room is a fact and the kitchen adapts to it. | **Kept.** D1 makes the fact singular: the entered run is the only fact there is. |
