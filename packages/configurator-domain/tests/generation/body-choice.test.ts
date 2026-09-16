@@ -1,15 +1,18 @@
-// M7 wave 7D4 slice S1 — the body-choice leaf: the storage cycle, and the one answer to *did the
-// cycle compose this module?* (ADR 0110 Amendment F, rulings D3, D4, D12).
+// M7 wave 7D4 slice S1b — the body-choice leaf as ADR 0110 Amendment H leaves it: the ids the
+// owner's run order names, and the one answer to *did the storage run compose this module, or the
+// block?* (rulings D12, D15).
+//
+// **What this file can and cannot prove, stated because the criteria it names are larger than the
+// leaf.** Under D15 a storage slot's body depends on where the hob stands in the reading order, and
+// that is the composer's fact (S2). What is provable here is the half criteria 6 and 7 rest on: the
+// leaf offers a storage slot exactly two bodies, they are two different catalogue rows, and each is
+// the product its name claims. A whole-design property that never checked this passes against a leaf
+// whose two ids are the same string.
 //
 // **Drawer-front and door-front are read off the catalogue's own `fronts` declaration and are never
-// listed here by hand.** The balance is a claim about the products the cycle picks, so a test that
-// classified them itself would pass against a cycle picking the wrong ones — the catalogue is the one
-// authority for what a row's front is (ADR 0102), exactly as it is for a width.
-//
-// **The slot counts are swept exhaustively rather than sampled.** The cycle is a total function of
-// one small integer, so the whole range is cheaper than a property over it and leaves no arm to
-// starve. Eight is the most slots any approved room composes; the sweep runs far past it so what
-// passes is the cycle's shape rather than the range it was checked over.
+// listed here by hand**, and no build id is spelled here either — every one comes from the leaf. The
+// catalogue is the one authority for what a row's front is (ADR 0102), exactly as it is for a width,
+// and a test that classified them itself would pass against a leaf naming the wrong rows.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,34 +32,32 @@ import {
   DOOR_BASE_BUILD_ID,
   isCycleStorageSlot,
   PAN_DRAWER_BASE_BUILD_ID,
-  storageBodyAt,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "../../src/generation/body-choice.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
-/** Well past the eight slots of the largest approved room (6300 x 4700 x 2600), so a cycle that
- *  happened to behave over a short run has nowhere to hide. */
-const LONGEST_SWEPT_RUN = 40;
+/** The two bodies a storage slot may take in this wave, in the roles D15 gives them: every slot
+ *  takes the first, and the one standing first after the hob in the reading order takes the second
+ *  (S2). **`base-panbank` is deliberately absent** — criterion 6's *must not*. */
+const BODIES_A_STORAGE_SLOT_MAY_TAKE: readonly string[] = [
+  DOOR_BASE_BUILD_ID,
+  THREE_DRAWER_BASE_BUILD_ID,
+];
 
-/** Every general storage body the catalogue can build at 600 mm, by enumeration of
- *  `buildKitchenLBodyCatalog` at base height: `base-cabinet`, `base-3drawer` and `base-panbank`.
- *  **Pinned as a literal deliberately.** When a fourth row arrives this goes red, and that redness is
- *  the notification that the cycle owes it a step (ADR 0118). */
-const DISTINCT_STORAGE_BODIES_AVAILABLE = 3;
-
-function sequenceOf(slotCount: number): readonly string[] {
-  return Array.from({ length: slotCount }, (_, index) => storageBodyAt(index));
+function catalogRowFor(buildId: string) {
+  const entry = CATALOG.get(buildId);
+  if (!entry) {
+    throw new Error(`the catalogue declares no row ${buildId}`);
+  }
+  return entry;
 }
 
 /** What the catalogue says fills this row's front. `drawers > 0` is the declaration itself, not an
  *  inference from a `kind` or a handle edge — ADR 0061's mistake is exactly that inference. */
 function hasDrawerFront(buildId: string): boolean {
-  const entry = CATALOG.get(buildId);
-  if (!entry) {
-    throw new Error(`the catalogue declares no row ${buildId}`);
-  }
+  const entry = catalogRowFor(buildId);
   // `fronts` is optional on the `BodyCatalog` port and required of every shipped row by two sweeps
   // instead (`void-engine.ts:175-180`), so a missing one means a definition arrived from outside
   // TypeScript — a different failure from a missing row, and `front-population.ts` refuses it the
@@ -69,97 +70,57 @@ function hasDrawerFront(buildId: string): boolean {
   return entry.fronts.drawers > 0;
 }
 
-describe("storageBodyAt refuses a position that is not a whole slot", () => {
-  it("throws on a negative index rather than wrapping to the end of the cycle", () => {
-    expect(() => storageBodyAt(-1)).toThrow(/non-negative whole slot position/);
-  });
-
-  it("throws on a fractional index rather than truncating it", () => {
-    expect(() => storageBodyAt(1.5)).toThrow(
-      /non-negative whole slot position/,
-    );
-  });
-});
-
-describe("criterion 3 — the balance is a consequence of the cycle's shape", () => {
-  it("splits evenly at every even slot count and gives drawers the extra at every odd one", () => {
-    for (let slotCount = 0; slotCount <= LONGEST_SWEPT_RUN; slotCount += 1) {
-      const bodies = sequenceOf(slotCount);
-      const drawerBodies = bodies.filter(hasDrawerFront).length;
-      const doorBodies = bodies.length - drawerBodies;
-
-      // Doors never outnumber drawers, and the gap is one exactly where the count is odd — all
-      // three clauses of the criterion, held by one difference so none can pass while another fails.
-      expect({ slotCount, classified: drawerBodies + doorBodies }).toEqual({
-        slotCount,
-        classified: slotCount,
-      });
-      expect({ slotCount, lead: drawerBodies - doorBodies }).toEqual({
-        slotCount,
-        lead: slotCount % 2,
-      });
-    }
-  });
-});
-
-describe("criterion 4 — the owner's own example, derived rather than special-cased", () => {
-  it("composes six slots as three drawer bodies and three door bodies", () => {
-    const bodies = sequenceOf(6);
-
-    expect(bodies.filter(hasDrawerFront)).toHaveLength(3);
-    expect(bodies.filter((buildId) => !hasDrawerFront(buildId))).toHaveLength(
-      3,
+describe("criterion 6 — a storage slot has two bodies to take, and the pan drawer is not one", () => {
+  it("offers two ids that are two different catalogue rows", () => {
+    // The sabotage this is the only guard against: one id assigned the other's string. Every
+    // whole-design property of criteria 6 and 7 stays green under it — the distinct set is still
+    // a subset of `{door, drawer}` and every slot still holds a legal body — while the kitchen
+    // silently loses the drawer the owner's order puts after the hob.
+    expect(new Set(BODIES_A_STORAGE_SLOT_MAY_TAKE).size).toBe(2);
+    expect(catalogRowFor(DOOR_BASE_BUILD_ID)).not.toBe(
+      catalogRowFor(THREE_DRAWER_BASE_BUILD_ID),
     );
   });
 
-  it("reaches that split through the alternation and not through a count of six", () => {
-    expect(sequenceOf(6)).toEqual([
-      THREE_DRAWER_BASE_BUILD_ID,
-      DOOR_BASE_BUILD_ID,
+  it("leaves the pan drawer outside the pair, so no storage slot can take it in this wave", () => {
+    // Kept as a declaration against 7D5's drawer group (Amendment H1) and placed by nothing here.
+    // Pinned at the one site that names it, because the constant surviving with no caller is
+    // exactly what makes a later reader reach for it.
+    expect(BODIES_A_STORAGE_SLOT_MAY_TAKE).not.toContain(
       PAN_DRAWER_BASE_BUILD_ID,
-      DOOR_BASE_BUILD_ID,
-      THREE_DRAWER_BASE_BUILD_ID,
-      DOOR_BASE_BUILD_ID,
-    ]);
+    );
+    expect(catalogRowFor(PAN_DRAWER_BASE_BUILD_ID)).not.toBe(
+      catalogRowFor(THREE_DRAWER_BASE_BUILD_ID),
+    );
   });
 });
 
-describe("criterion 6 — maximum variety, quantified", () => {
-  it("shows min(3, slotCount) distinct bodies at every slot count", () => {
-    for (let slotCount = 0; slotCount <= LONGEST_SWEPT_RUN; slotCount += 1) {
-      const distinct = new Set(sequenceOf(slotCount));
+describe("criterion 7 — each id is the product its name claims, read off the catalogue", () => {
+  it("names a door body that declares no drawer front", () => {
+    expect(hasDrawerFront(DOOR_BASE_BUILD_ID)).toBe(false);
+  });
 
-      expect({ slotCount, distinct: distinct.size }).toEqual({
-        slotCount,
-        distinct: Math.min(DISTINCT_STORAGE_BODIES_AVAILABLE, slotCount),
-      });
-    }
+  it("names a drawer body that declares drawers", () => {
+    expect(hasDrawerFront(THREE_DRAWER_BASE_BUILD_ID)).toBe(true);
   });
 });
 
-describe("criterion 7 — no two adjacent slots carry the same body", () => {
-  it("alternates along the sequence", () => {
-    const bodies = sequenceOf(LONGEST_SWEPT_RUN);
+describe("the leaf changes a body's identity and never its width", () => {
+  it("declares every body as a fit-width base row, so each drops into its planned tile", () => {
+    // D1's safety argument at the leaf: a row that could not be built at the width the leftover
+    // rule planned would move a tile boundary the merge and `plannedVoid` both depend on. Read
+    // from the catalogue entry rather than asserted by name, and never as a width literal — a
+    // generation-side copy of a declared size is the second authority ADR 0102 forbids.
+    for (const buildId of [
+      ...BODIES_A_STORAGE_SLOT_MAY_TAKE,
+      PAN_DRAWER_BASE_BUILD_ID,
+    ]) {
+      const row = catalogRowFor(buildId);
 
-    expect(bodies).toHaveLength(LONGEST_SWEPT_RUN);
-    for (let slotIndex = 1; slotIndex < bodies.length; slotIndex += 1) {
-      expect({ slotIndex, body: bodies[slotIndex] }).not.toEqual({
-        slotIndex,
-        body: bodies[slotIndex - 1],
-      });
-    }
-  });
-
-  it("still alternates read backwards, which is the direction wall B consumes", () => {
-    // Wall B's slots are consumed in the reverse of their spatial order (ADR 0110 F / G12), so the
-    // pairs a wall sees are the sequence's own pairs in the other direction. Asserted rather than
-    // argued, because the whole defect this wave removes is a run of identical neighbours.
-    const backwards = [...sequenceOf(LONGEST_SWEPT_RUN)].reverse();
-
-    for (let slotIndex = 1; slotIndex < backwards.length; slotIndex += 1) {
-      expect({ slotIndex, body: backwards[slotIndex] }).not.toEqual({
-        slotIndex,
-        body: backwards[slotIndex - 1],
+      expect({ buildId, band: row.band, widthFlex: row.widthFlex }).toEqual({
+        buildId,
+        band: "base",
+        widthFlex: "fit",
       });
     }
   });

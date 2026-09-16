@@ -1,6 +1,7 @@
-// Independent adversarial QA for M7 wave 7D4 slice S1 — ADR 0110 Amendment F's storage-cycle leaf.
+// Independent adversarial QA for M7 wave 7D4 slice S1b — the body-choice leaf as ADR 0110
+// Amendment H leaves it: the ids the owner's run order names, and F6's provenance discriminator.
 //
-// **This file spells the cycle's id prefix nowhere, and that is a constraint rather than a style.**
+// **This file spells the slot id prefix nowhere, and that is a constraint rather than a style.**
 // `body-choice.test.ts` pins the exact set of sites that spell the id convention (criterion 22 as
 // F14.2 corrected it), and a QA file that spelled it would both turn that guard red and become the
 // fourth undeclared reader the guard exists to refuse. **Every id below is either taken from the
@@ -10,35 +11,33 @@
 // The guard matches the prefix **wherever it appears in the file's text, comments included**, so the
 // sentence above could not describe itself in the obvious way. Reported with the rest.
 //
-// **What is deliberately not re-asserted here, with the derivation, so the gap is a decision rather
-// than an omission.** The shipped suite sweeps `|drawers − doors|` against `slotCount % 2` at every
-// length from 0, and that single family of equalities **entails** three further claims that looked
-// like separate coverage when this file was planned:
-//   - the drawer/door classes strictly alternate (the lead can only move by one per slot, so it can
-//     only track `n % 2` if every step flips the class);
-//   - no run length is pathological — no all-doors run, no all-drawers run, no adjacent pair of
-//     either class at any length;
-//   - **Amendment F4's per-wall bound** — a wall holding *m* of the sequence's slots at any phase is
-//     off half by at most one — because every contiguous window of an alternating sequence is.
-// A test of any of them could not go red while the shipped sweep is green. **F4's bound therefore
-// needs no leaf test of its own, and S2/S4 should spend criterion 5 on the planner's split instead.**
+// **What S1b removed from this file, recorded so the gap reads as a decision.** Every attack on the
+// storage cycle went with the cycle itself (D14): the refused index positions, the *same answer
+// whichever order the slots are asked in* property, and the phase-window check that F4's per-wall
+// bound rested on. **None of them has a subject any more** — a storage slot's body no longer depends
+// on its index, and which slot stands first after the hob is the composer's fact, attacked in S2's
+// and S4's suites rather than here.
 //
-// What is left uncovered is what the leaf's index *cannot* separate: past `Number.MAX_SAFE_INTEGER`
-// two consecutive slot positions are the same double and return the same body. No room in the
-// approved policy composes more than eight slots, so it is recorded here and not asserted.
+// **What replaces them attacks the leaf's remaining claim**: that the ids it declares are three
+// distinct rows the catalogue will build at the width the planner plans, and that the one with no
+// caller reaches no design.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
+  acceptsWidthMm,
   APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
+  DOOR_BASE_BUILD_ID,
   isCycleStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
+  PAN_DRAWER_BASE_BUILD_ID,
   planKitchenComposition,
-  storageBodyAt,
+  THREE_DRAWER_BASE_BUILD_ID,
+  toInsertableBody,
   type DesignRoom,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
@@ -52,17 +51,19 @@ const APPROVED_L = (() => {
   return shape;
 })();
 
-/** Far past the eight slots of the largest approved room, for the same reason the shipped suite
- *  sweeps past it: what passes should be the cycle's shape and not the range it was checked over. */
-const LONGEST_SWEPT_RUN = 64;
-
-function sequenceOf(slotCount: number): readonly string[] {
-  return Array.from({ length: slotCount }, (_, index) => storageBodyAt(index));
-}
+/** Every body id the leaf declares, including the one generation places nowhere in this wave. */
+const EVERY_DECLARED_BODY: readonly string[] = [
+  DOOR_BASE_BUILD_ID,
+  THREE_DRAWER_BASE_BUILD_ID,
+  PAN_DRAWER_BASE_BUILD_ID,
+];
 
 function roomOf(widthMm: number, depthMm: number, heightMm = 2600): DesignRoom {
   return { shape: "L", widthMm, depthMm, heightMm };
 }
+
+/** A room whose plan holds both provenances at once, so one plan supplies every witness below. */
+const A_ROOM_WITH_A_BLOCK_AND_A_CYCLE = roomOf(6300, 4700);
 
 function planFor(room: DesignRoom): KitchenCompositionPlan {
   return planKitchenComposition({
@@ -89,122 +90,59 @@ function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `storageBodyAt`'s refusal, and the boundary of the domain it accepts.
+// The declared ids, attacked as the catalogue references they are.
 // ---------------------------------------------------------------------------------------------
 
-/** Every shape of *not a slot position* the type `number` admits. The shipped suite covers a
- *  negative integer and one fraction; these are the values a caller reaches by arithmetic rather
- *  than by typing them — a subtraction that ran past zero, a division by a count that was zero, a
- *  `parseInt` of an empty string. */
-const REFUSED_POSITIONS: readonly number[] = [
-  Number.NaN,
-  Number.POSITIVE_INFINITY,
-  Number.NEGATIVE_INFINITY,
-  -1,
-  -4,
-  -Number.MAX_SAFE_INTEGER,
-  -0.5,
-  0.5,
-  1.5,
-  3.999999999,
-  Number.MIN_VALUE,
-  Number.EPSILON,
-];
+/** The width the planner actually plans for a storage slot, taken from a plan rather than written
+ *  here: a width literal in a generation-side test is the second authority ADR 0102 forbids, and it
+ *  would also pass against a planner whose module width had moved. */
+function plannedStorageSlotWidthMm(): number {
+  const { cycleSlots } = storageRoleModulesByBand(
+    planFor(A_ROOM_WITH_A_BLOCK_AND_A_CYCLE),
+  );
+  const slot = cycleSlots[0];
+  if (!slot) {
+    throw new Error("the witness room no longer plans a storage slot");
+  }
+  return slot.widthMm;
+}
 
-describe("storageBodyAt refuses every value that is not a slot position", () => {
-  it("throws on each of them, rather than truncating, wrapping or answering undefined", () => {
-    for (const refused of REFUSED_POSITIONS) {
-      expect(() => storageBodyAt(refused)).toThrow(
-        /non-negative whole slot position/,
-      );
-    }
-  });
+describe("every id the leaf declares names a row that can stand in a planned slot", () => {
+  it("resolves each to a distinct catalogue row", () => {
+    // Two constants holding one string is the sabotage no whole-design property catches: every
+    // slot still holds a legal body and the distinct-id set is still a legal subset, while the
+    // drawer the owner's order puts after the hob silently becomes a door.
+    const rows = EVERY_DECLARED_BODY.map((buildId) => CATALOG.get(buildId));
 
-  it("names the offending value in the message, so a caller's arithmetic is diagnosable", () => {
-    // The one fact the caller does not already have. Without it every refusal reads the same and the
-    // index that produced it has to be reconstructed from the stack — and `String` is what makes the
-    // message total over `number`, including `NaN` and both infinities.
-    for (const refused of REFUSED_POSITIONS) {
-      expect(() => storageBodyAt(refused)).toThrow(String(refused));
-    }
-  });
-
-  it("admits negative zero as the first slot, which is what it arithmetically is", () => {
-    // `Number.isInteger(-0)` is true and `-0 < 0` is false, so the guard lets it through and the
-    // lookup reads slot 0. Pinned because a guard rewritten as `Math.sign(…) < 0` or `1 / … < 0`
-    // would refuse a value that is the first slot, and the caller that produced it — a subtraction
-    // landing exactly on zero — is the ordinary one.
-    expect(storageBodyAt(-0)).toEqual(storageBodyAt(0));
-  });
-
-  it("keeps the cycle turning at the top of the safe integer range", () => {
-    // The index is arithmetic, and arithmetic on a `number` degrades. Past `MAX_SAFE_INTEGER` two
-    // consecutive positions are the same double and the leaf answers them identically — asserted
-    // *below* that edge, where every integer is still its own, and recorded rather than asserted
-    // above it, because no room in the policy composes more than eight slots.
-    const topOfTheSafeRange = Array.from({ length: 8 }, (_, offset) =>
-      storageBodyAt(Number.MAX_SAFE_INTEGER - 7 + offset),
+    expect(rows.filter((row) => row !== undefined)).toHaveLength(
+      EVERY_DECLARED_BODY.length,
     );
+    expect(new Set(EVERY_DECLARED_BODY).size).toBe(EVERY_DECLARED_BODY.length);
+    expect(new Set(rows).size).toBe(EVERY_DECLARED_BODY.length);
+  });
 
-    for (let position = 1; position < topOfTheSafeRange.length; position += 1) {
-      expect({ position, body: topOfTheSafeRange[position] }).not.toEqual({
-        position,
-        body: topOfTheSafeRange[position - 1],
+  it("builds each at the width the planner plans, through the catalogue's own predicate", () => {
+    // `acceptsWidthMm` is the one question both width paths ask (ADR 0031 rule 5), so asking it
+    // here is the same question the insert will ask later. A row that answered no would move a
+    // tile boundary the merge and `plannedVoid` depend on — D1's whole safety argument — and the
+    // failure would surface as a throw in one room and a re-tiled run in the next.
+    const widthMm = plannedStorageSlotWidthMm();
+
+    for (const buildId of EVERY_DECLARED_BODY) {
+      const row = CATALOG.get(buildId);
+      if (!row) {
+        throw new Error(`the catalogue declares no row ${buildId}`);
+      }
+      const body = toInsertableBody(buildId, row);
+
+      expect({ buildId, insertable: body !== undefined }).toEqual({
+        buildId,
+        insertable: true,
       });
-    }
-  });
-});
-
-describe("the body at a slot is a function of that slot alone", () => {
-  it("answers the same body whichever order the slots are asked in", () => {
-    // The anti-invariant is a cursor: a leaf that advanced a module-level index would pass every
-    // assertion written as a forward walk from zero, which is how every other test here reads it,
-    // and would then compose a different kitchen on the second call in one process.
-    fc.assert(
-      fc.property(
-        fc.uniqueArray(fc.integer({ min: 0, max: 5_000 }), {
-          minLength: 1,
-          maxLength: 40,
-        }),
-        (slotIndices) => {
-          const askedForwards = slotIndices.map(storageBodyAt);
-          const askedBackwards = [...slotIndices]
-            .reverse()
-            .map(storageBodyAt)
-            .reverse();
-
-          expect(askedBackwards).toEqual(askedForwards);
-        },
-      ),
-      { numRuns: 300 },
-    );
-  });
-});
-
-describe("the variety a wall shows does not depend on where its slice of the cycle begins", () => {
-  it("shows every body the cycle uses in every four consecutive slots, at every phase", () => {
-    // Amendment F4 gives wall A a phase set by wall B's slot count, so the run a customer stands in
-    // front of is a *window* of the sequence and never its opening. **This is the one claim the
-    // shipped suite's sweep from index 0 does not entail**: a longer cycle drawing the same three
-    // bodies satisfies the balance, the adjacency and `min(3, slotCount)` counted from zero while
-    // leaving a four-slot wall at some other phase showing only two of them.
-    const everyBodyTheCycleUses = [...new Set(sequenceOf(LONGEST_SWEPT_RUN))]
-      .sort()
-      .join(" ");
-
-    for (
-      let firstSlotIndex = 0;
-      firstSlotIndex < LONGEST_SWEPT_RUN;
-      firstSlotIndex += 1
-    ) {
-      const window = Array.from({ length: 4 }, (_, offset) =>
-        storageBodyAt(firstSlotIndex + offset),
-      );
-
       expect({
-        firstSlotIndex,
-        shown: [...new Set(window)].sort().join(" "),
-      }).toEqual({ firstSlotIndex, shown: everyBodyTheCycleUses });
+        buildId,
+        buildsAtThePlannedWidth: body ? acceptsWidthMm(body, widthMm) : false,
+      }).toEqual({ buildId, buildsAtThePlannedWidth: true });
     }
   });
 });
@@ -226,9 +164,6 @@ interface ModuleAsAMistakenReaderSeesIt {
   readonly role: string;
   readonly widthMm: number;
 }
-
-/** A room whose plan holds both provenances at once, so one plan supplies both witnesses. */
-const A_ROOM_WITH_A_BLOCK_AND_A_CYCLE = roomOf(6300, 4700);
 
 function anIdOfEachProvenance() {
   const { blockColumns, cycleSlots } = storageRoleModulesByBand(
@@ -399,5 +334,27 @@ describe("the predicate agrees with provenance over the whole approved policy", 
     expect(
       [...roomsByBlockSize.keys()].sort((left, right) => left - right),
     ).toEqual([0, 1, 2, 3]);
+  });
+});
+
+/** Fewer rooms than the sweep above, and deliberately: this claim is about a body appearing at all,
+ *  so every room is a witness and no arm can starve. Kept a sweep rather than a handful of rooms
+ *  because the failure it guards is a body reaching *one* room out of thousands. */
+const ROOMS_SWEPT_FOR_THE_UNPLACED_BODY = 1_000;
+
+describe("the body kept for 7D5 reaches no design in this wave", () => {
+  it("plans the pan drawer into no module, at any room in the approved policy", () => {
+    // Criterion 6's *must not*, pinned where the constant survives. `PAN_DRAWER_BASE_BUILD_ID` is
+    // kept against 7D5's drawer group (Amendment H1) with no caller in 7D4, and a constant with no
+    // caller is exactly what a later reader reaches for — so the claim that nothing places it is
+    // asserted rather than assumed.
+    fc.assert(
+      fc.property(approvedRoom, (room) => {
+        const planned = planFor(room).bases.map((base) => base.buildId);
+
+        expect(planned).not.toContain(PAN_DRAWER_BASE_BUILD_ID);
+      }),
+      { numRuns: ROOMS_SWEPT_FOR_THE_UNPLACED_BODY },
+    );
   });
 });
