@@ -9,7 +9,11 @@ import {
   waitForMintedDesignId,
 } from "./support/panel";
 import { deleteMintedDesigns } from "./support/minted-designs";
-import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
+import {
+  SINK_CABINET_TAP,
+  tapCanvas,
+  tapSceneStripAboveSheet,
+} from "./support/canvas-taps";
 
 /**
  * M2's mobile picking gate (`docs/milestones/M2-void-engine.md`, "Surfaces"): tapping a body and
@@ -43,11 +47,14 @@ import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
  *
  *  **Re-found by tapping, never computed.** A grid of real taps was walked across the running scene
  *  and the selected id read back out of `[data-testid="selection-debug"]`, exactly as the originals
- *  were found; the two below sit in the middle of their body's region in that map, and each was
- *  then confirmed by a single tap. Computing them from the new projection would have made these
+ *  were found; both sit in the middle of their body's region in that map — `SINK_CABINET_TAP` on
+ *  `p0`, `WALL_CABINET_TAP` on `p17` — and each was then confirmed by a single tap. Computing them from the new projection would have made these
  *  tests agree with the camera by construction — a wrong camera would have produced matching wrong
- *  constants and the suite would have gone green while testing nothing. */
-const SINK_CABINET_TAP = { x: 210, y: 400 }; // was (215, 500); re-tapped, selects p0
+ *  constants and the suite would have gone green while testing nothing.
+ *
+ *  `SINK_CABINET_TAP` is **imported** rather than declared: four specs needed it and all four went
+ *  stale together, so `support/canvas-taps.ts` holds it now. `WALL_CABINET_TAP` stays here because
+ *  this file is its only user. */
 const WALL_CABINET_TAP = { x: 230, y: 110 }; // was (195, 165); re-tapped, selects p17
 /** Background in the overview preset that is **above** the sheet, so it can be tapped while a body
  *  is selected. M3's background constant, (195, 150), cannot be: it sits below the sheet's top edge.

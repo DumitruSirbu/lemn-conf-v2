@@ -14,7 +14,6 @@
 // where they stand whatever the room is, so a sweep against them varies the camera and holds the
 // obstacles still, which is half a test.
 import {
-  APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   createBodyProbeLease,
@@ -46,7 +45,14 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
-import { required } from "./support/required.js";
+import {
+  anyApprovedRoom,
+  APPROVED_HEIGHT as HEIGHT,
+  APPROVED_WALL_A as WALL_A,
+  APPROVED_WALL_B as WALL_B,
+  roomOf,
+  SEEDED_ROOM,
+} from "./support/approved-rooms.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 
@@ -59,24 +65,6 @@ const BEHIND_A_WALL_M = 0;
  *  it. Generous on purpose: this is not a framing margin, it is the difference between a kitchen
  *  and the inside of a carcass. */
 const CLEARANCE_M = 0.05;
-
-const L_BOUNDS = required(
-  APPROVED_ROOM_POLICY.buildableShapes.L,
-  "the approved L bounds",
-);
-const WALL_A = L_BOUNDS.wallA;
-const WALL_B = L_BOUNDS.wallB;
-const HEIGHT = APPROVED_ROOM_POLICY.heightBounds;
-
-const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
-
-function roomOf(
-  widthMm: number,
-  depthMm: number,
-  heightMm: number,
-): DesignRoom {
-  return { shape: "L", widthMm, depthMm, heightMm };
-}
 
 /** The eight corners of the policy box, the seeded triple, and the two shapes the constant distance
  *  is most exposed to: the deepest shallow room and the shallowest deep one. */
@@ -93,13 +81,6 @@ const SAMPLED_ROOMS: readonly DesignRoom[] = [
   roomOf(WALL_A.minMm, WALL_B.maxMm, HEIGHT.minMm),
 ];
 
-const roomArbitrary = fc.record({
-  shape: fc.constant("L" as const),
-  widthMm: fc.integer({ min: WALL_A.minMm, max: WALL_A.maxMm }),
-  depthMm: fc.integer({ min: WALL_B.minMm, max: WALL_B.maxMm }),
-  heightMm: fc.integer({ min: HEIGHT.minMm, max: HEIGHT.maxMm }),
-});
-
 beforeAll(() => {
   installHeadlessDocument();
 });
@@ -114,7 +95,7 @@ describe("every preset stands in the room it frames", () => {
     },
   );
 
-  propertyTest.prop([roomArbitrary, fc.constantFrom(...presetIds())], {
+  propertyTest.prop([anyApprovedRoom, fc.constantFrom(...presetIds())], {
     numRuns: 300,
   })("keeps the eye in the room at every room in the policy", (room, id) => {
     expectStandsInTheRoom(findCameraPresetForRoom(id, room));

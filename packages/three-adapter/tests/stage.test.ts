@@ -7,11 +7,7 @@
 // seeded kitchen's own ceiling-row bodies: composition places nothing in the 2200–2600 row (ADR
 // 0110 E11 / wave 7D3's D8), so a *generated* kitchen has no ceiling-row body at all and pointing
 // this sweep at one would make §11 row 21 vacuously green. The room varies; the bodies do not.
-import {
-  APPROVED_ROOM_POLICY,
-  KITCHEN_L_DESIGN,
-  type DesignRoom,
-} from "@lemnaria/configurator-domain";
+import { type DesignRoom } from "@lemnaria/configurator-domain";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -28,7 +24,12 @@ import {
   type CameraPresetId,
 } from "../src/stage.js";
 import { createHeadlessCanvas } from "./support/headless-canvas.js";
-import { required } from "./support/required.js";
+import {
+  APPROVED_HEIGHT,
+  APPROVED_WALL_A,
+  APPROVED_WALL_B,
+  SEEDED_ROOM,
+} from "./support/approved-rooms.js";
 
 /** The gate viewport, and the taller canvas the editor actually gets once the header is deducted. */
 const MOBILE = { width: 390, height: 789 };
@@ -39,20 +40,12 @@ const MIN_TAP_TARGET_PX = 44;
 const CEILING_ROW_BOTTOM_M = 2.2;
 const CEILING_ROW_TOP_M = 2.6;
 
-const L_BOUNDS = required(
-  APPROVED_ROOM_POLICY.buildableShapes.L,
-  "the approved L bounds",
-);
-const HEIGHT_BOUNDS = APPROVED_ROOM_POLICY.heightBounds;
-
-const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
-
 /** The eight corners of the owner-approved policy box, plus the seeded triple — which a sweep over
  *  that box would essentially never generate, and which is the preset library's own room. */
 const SAMPLED_ROOMS: readonly DesignRoom[] = [
-  ...[L_BOUNDS.wallA.minMm, L_BOUNDS.wallA.maxMm].flatMap((widthMm) =>
-    [L_BOUNDS.wallB.minMm, L_BOUNDS.wallB.maxMm].flatMap((depthMm) =>
-      [HEIGHT_BOUNDS.minMm, HEIGHT_BOUNDS.maxMm].map(
+  ...[APPROVED_WALL_A.minMm, APPROVED_WALL_A.maxMm].flatMap((widthMm) =>
+    [APPROVED_WALL_B.minMm, APPROVED_WALL_B.maxMm].flatMap((depthMm) =>
+      [APPROVED_HEIGHT.minMm, APPROVED_HEIGHT.maxMm].map(
         (heightMm): DesignRoom => ({ shape: "L", widthMm, depthMm, heightMm }),
       ),
     ),
@@ -63,16 +56,16 @@ const SAMPLED_ROOMS: readonly DesignRoom[] = [
 const roomArbitrary = fc.record({
   shape: fc.constant("L" as const),
   widthMm: fc.integer({
-    min: L_BOUNDS.wallA.minMm,
-    max: L_BOUNDS.wallA.maxMm,
+    min: APPROVED_WALL_A.minMm,
+    max: APPROVED_WALL_A.maxMm,
   }),
   depthMm: fc.integer({
-    min: L_BOUNDS.wallB.minMm,
-    max: L_BOUNDS.wallB.maxMm,
+    min: APPROVED_WALL_B.minMm,
+    max: APPROVED_WALL_B.maxMm,
   }),
   heightMm: fc.integer({
-    min: HEIGHT_BOUNDS.minMm,
-    max: HEIGHT_BOUNDS.maxMm,
+    min: APPROVED_HEIGHT.minMm,
+    max: APPROVED_HEIGHT.maxMm,
   }),
 });
 
@@ -273,11 +266,11 @@ describe("every preset frames the kitchen, floor to the top of the tallest body"
   it("frames the same kitchen height whatever the ceiling, which is why the row survives", () => {
     const low = findCameraPresetForRoom("overview", {
       ...SEEDED_ROOM,
-      heightMm: HEIGHT_BOUNDS.minMm,
+      heightMm: APPROVED_HEIGHT.minMm,
     });
     const high = findCameraPresetForRoom("overview", {
       ...SEEDED_ROOM,
-      heightMm: HEIGHT_BOUNDS.maxMm,
+      heightMm: APPROVED_HEIGHT.maxMm,
     });
 
     expect(thinnestBandPx(high, MOBILE)).toBeCloseTo(

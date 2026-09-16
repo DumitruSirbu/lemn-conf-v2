@@ -26,9 +26,22 @@ const SCENE_SHELL_WIDTH_MM = 4200;
 const SCENE_SHELL_DEPTH_MM = 3400;
 const SCENE_SHELL_HEIGHT_MM = 2600;
 
-/** Half as much again as the shell. Deliberate slack, not a product rule — §13.3 question 4 records
- *  that `LEVELS` and both wall planes are constants for this one room, so in practice every room
- *  *is* the shipped one — sized so a room a little larger than it still loads. */
+/** Half as much again as the seeded shell. Deliberate slack, not a product rule — sized so a room a
+ *  little larger than the one the scene drew still loads.
+ *
+ *  **Its original justification expired in M7 wave 7H and is corrected here rather than left to
+ *  read true.** It cited §13.3 question 4: *`LEVELS` and both wall planes are constants for this one
+ *  room, so in practice every room is the shipped one.* **Both wall planes stopped being constants
+ *  in that wave** — the drawn shell is now a function of the room the customer entered — so every
+ *  room is emphatically not the shipped one; the owner expects an entered room to match it in about
+ *  1% of cases. `LEVELS` is still fixed, and that half stands.
+ *
+ *  **What follows for the numbers below.** The 1.5x no longer stands for anything the engine needs:
+ *  nothing in `packages/three-adapter/src` reads `MAX_ROOM_*`, `SCENE_SHELL_*` or any room ceiling,
+ *  and the shell is correct at every room in the approved policy and beyond it. The maxima are now
+ *  **free product numbers** resting on the owner's approval alone (ADR 0120's Q-B, answered
+ *  2026-09-16). They keep their values because that approval is what holds them, not because this
+ *  factor still derives them. */
 const ROOM_HEADROOM_FACTOR = 1.5;
 
 /**

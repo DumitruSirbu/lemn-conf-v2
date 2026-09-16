@@ -7,10 +7,8 @@
 // **The seeded picture changes in this wave, by the owner's ruling.** A difference from any earlier
 // capture or screenshot of the 4200 x 3400 room is expected rather than a finding.
 import {
-  APPROVED_ROOM_POLICY,
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
   OVERFLOWING_KITCHEN_L_DESIGN,
   runEndPanelSeatM,
   type DesignRoom,
@@ -20,7 +18,7 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { kitOwnedResources } from "../src/kit-ownership.js";
+import { deriveKitMaterial, kitOwnedResources } from "../src/kit-ownership.js";
 import {
   buildKitchenShell,
   resizeShellToRoom,
@@ -31,6 +29,14 @@ import { syncSolidBodies } from "../src/scene-sync.js";
 import { isMesh, isTexture, toMaterials } from "../src/three-guards.js";
 import { createHeadlessCanvas } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import {
+  APPROVED_HEIGHT,
+  APPROVED_WALL_A,
+  APPROVED_WALL_B,
+  roomOf,
+  SEEDED_RECORDS,
+  SEEDED_ROOM,
+} from "./support/approved-rooms.js";
 
 /** Ruled fixed at 300 mm (Q7H-2) and written here as the expectation rather than imported from the
  *  module under test: a constant read from the production file would agree with itself. */
@@ -44,20 +50,6 @@ const METRE_EPSILON = 1e-6;
 const FLOOR_PLANK_SIZE_M = { alongWallA: 1.05, alongWallB: 0.85 };
 const BACKSPLASH_TILE_WIDTH_M = 3.5 / 6;
 
-const L_BOUNDS = required(
-  APPROVED_ROOM_POLICY.buildableShapes.L,
-  "the approved L bounds",
-);
-const WALL_A = L_BOUNDS.wallA;
-const WALL_B = L_BOUNDS.wallB;
-const HEIGHT = APPROVED_ROOM_POLICY.heightBounds;
-
-const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
-const SEEDED_RECORDS = derivePlacementRecords(
-  KITCHEN_L_DESIGN,
-  KITCHEN_L_BODY_CATALOG,
-);
-
 /** The eight corners of the owner-approved policy box, plus the seeded triple.
  *
  *  The seeded room is explicit because a sweep over a 5400 x 4100 x 1700 mm box will essentially
@@ -68,19 +60,11 @@ const SAMPLED_ROOMS: readonly DesignRoom[] = [
   roomOf(4000, 3000, 2700),
 ];
 
-function roomOf(
-  widthMm: number,
-  depthMm: number,
-  heightMm: number,
-): DesignRoom {
-  return { shape: "L", widthMm, depthMm, heightMm };
-}
-
 function boxCornerRooms(): DesignRoom[] {
   const rooms: DesignRoom[] = [];
-  for (const widthMm of [WALL_A.minMm, WALL_A.maxMm]) {
-    for (const depthMm of [WALL_B.minMm, WALL_B.maxMm]) {
-      for (const heightMm of [HEIGHT.minMm, HEIGHT.maxMm]) {
+  for (const widthMm of [APPROVED_WALL_A.minMm, APPROVED_WALL_A.maxMm]) {
+    for (const depthMm of [APPROVED_WALL_B.minMm, APPROVED_WALL_B.maxMm]) {
+      for (const heightMm of [APPROVED_HEIGHT.minMm, APPROVED_HEIGHT.maxMm]) {
         rooms.push(roomOf(widthMm, depthMm, heightMm));
       }
     }
@@ -90,9 +74,18 @@ function boxCornerRooms(): DesignRoom[] {
 
 const roomArbitrary = fc.record({
   shape: fc.constant("L" as const),
-  widthMm: fc.integer({ min: WALL_A.minMm, max: WALL_A.maxMm }),
-  depthMm: fc.integer({ min: WALL_B.minMm, max: WALL_B.maxMm }),
-  heightMm: fc.integer({ min: HEIGHT.minMm, max: HEIGHT.maxMm }),
+  widthMm: fc.integer({
+    min: APPROVED_WALL_A.minMm,
+    max: APPROVED_WALL_A.maxMm,
+  }),
+  depthMm: fc.integer({
+    min: APPROVED_WALL_B.minMm,
+    max: APPROVED_WALL_B.maxMm,
+  }),
+  heightMm: fc.integer({
+    min: APPROVED_HEIGHT.minMm,
+    max: APPROVED_HEIGHT.maxMm,
+  }),
 });
 
 /** A kit is a whole room's worth of geometry and baked canvas textures, so a property that builds
@@ -427,6 +420,103 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
       expect(resource.material, original.label).toBe(original.material);
     });
     for (const dispose of disposals) expect(dispose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * **The one shape that would free a texture the whole scene renders from.**
+   *
+   * `buildFinishMaterial` is `(isOak ? M.oak : M.door).clone()`, and three's `Material.copy`
+   * assigns `map` **by reference** — so a **wood** decor's material carries `oakTex` *itself*, the
+   * kit's own, shared by every oak surface including `end_panel_right`. Five of the eight palette
+   * entries are woods.
+   *
+   * Nothing paints a shell child today: `applyFinish` selects through `FRONT_MESH_NAME`
+   * (`/door_front|drawer_front/`) and neither shell name matches. **So this stages the situation
+   * that regex prevents** and asserts the release refuses it. Before the resize kept a record of
+   * what it had cloned, this case freed `oakTex` and dropped it from the ownership record — black
+   * surfaces everywhere oak is drawn, and nothing thrown.
+   */
+  it("refuses to free the kit's wood texture when a derived finish is painted onto a shell child", () => {
+    const { kit, shell } = shellFor(SEEDED_ROOM);
+    const floor = meshNamed(shell, "floor");
+    const woodFinish = deriveKitMaterial(kit.M, "a-wood-decor", () =>
+      kit.M.oak.clone(),
+    );
+    floor.material = woodFinish;
+
+    // The premise, checked rather than assumed: the clone's map really is the kit's own object.
+    const oakTexture = required(mapOf(floor), "the wood finish's map");
+    expect(oakTexture).toBe(kit.M.oak.map);
+    const owned = kitOwnedResources(kit.M);
+    expect(owned.textures.has(oakTexture)).toBe(true);
+    const disposeTexture = spyOnDispose(oakTexture);
+    const disposeMaterial = spyOnDispose(woodFinish);
+
+    resizeShellToRoom({ kit, shell, room: roomOf(5000, 4000, 3000) });
+
+    expect(disposeTexture).not.toHaveBeenCalled();
+    expect(disposeMaterial).not.toHaveBeenCalled();
+    expect(owned.textures.has(oakTexture)).toBe(true);
+    expect(owned.materials.has(woodFinish)).toBe(true);
+  });
+
+  /** Non-vacuity for the guard above: it must still free what the resize itself made. */
+  it("still frees the material and map it cloned on the previous resize", () => {
+    const { kit, shell } = shellFor(SEEDED_ROOM);
+    const floor = meshNamed(shell, "floor");
+    const ownMaterial = soleMaterialOf(floor);
+    const ownMap = required(mapOf(floor), "the floor's own map");
+    const disposeMaterial = spyOnDispose(ownMaterial);
+    const disposeMap = spyOnDispose(ownMap);
+
+    resizeShellToRoom({ kit, shell, room: roomOf(5000, 4000, 3000) });
+
+    expect(disposeMaterial).toHaveBeenCalledOnce();
+    expect(disposeMap).toHaveBeenCalledOnce();
+  });
+
+  /** **A room equal by value but not by identity must redraw nothing.**
+   *
+   *  Every command path spreads `{...design}` today, so `room` keeps its object identity and an
+   *  identity check would pass — right up until a save round-trip, a re-hydrate or a
+   *  `structuredClone` rebuilt it. At that point every design mutation would silently become four
+   *  geometry rebuilds and two clone-and-dispose cycles on a handset, with nothing failing. This is
+   *  the case that would go red then, so `structuredClone` is the point of it. */
+  it("redraws nothing for a room rebuilt from the same three numbers", () => {
+    const { kit, shell } = shellFor(SEEDED_ROOM);
+    const resized = resizedChildren(shell);
+    const before = resized.map((mesh) => ({
+      geometry: mesh.geometry,
+      material: soleMaterialOf(mesh),
+    }));
+    const disposals = resized.flatMap((mesh) => [
+      spyOnDispose(mesh.geometry),
+      spyOnDispose(soleMaterialOf(mesh)),
+    ]);
+
+    resizeShellToRoom({ kit, shell, room: structuredClone(SEEDED_ROOM) });
+
+    resizedChildren(shell).forEach((mesh, index) => {
+      const original = required(before[index], `child ${String(index)}`);
+      expect(mesh.geometry, mesh.name).toBe(original.geometry);
+      expect(soleMaterialOf(mesh), mesh.name).toBe(original.material);
+    });
+    for (const dispose of disposals) expect(dispose).not.toHaveBeenCalled();
+  });
+
+  /** Non-vacuity: the guard above must not be answering "nothing ever redraws". */
+  it("still redraws when one millimetre of the room changes", () => {
+    const { kit, shell } = shellFor(SEEDED_ROOM);
+    const floor = meshNamed(shell, "floor");
+    const before = floor.geometry;
+
+    resizeShellToRoom({
+      kit,
+      shell,
+      room: { ...SEEDED_ROOM, widthMm: SEEDED_ROOM.widthMm + 1 },
+    });
+
+    expect(floor.geometry).not.toBe(before);
   });
 
   /** The one shell child whose buffer the kit's cache owns and shares. Replacing it would free a

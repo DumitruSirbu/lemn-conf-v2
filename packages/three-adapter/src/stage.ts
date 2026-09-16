@@ -5,7 +5,11 @@
 // makes the ported geometry read as product photography instead of a generic 3D scene, and
 // `docs/milestones/M1-scene-port.md` treats them as part of the port. The web-component shell,
 // the OBJ/GLB exporters and the toolbar are deliberately left behind — R3F owns the canvas now.
-import type { DesignRoom } from "@lemnaria/configurator-domain";
+import {
+  LEVELS,
+  toMetres,
+  type DesignRoom,
+} from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { context2d } from "./three-guards.js";
@@ -235,8 +239,15 @@ export function findCameraPreset(id: CameraPresetId): CameraPreset {
   return preset;
 }
 
-/** The top of the tallest body a kitchen carries: the ceiling row of wall cabinets runs
- *  2.20–2.60 m and nothing in the catalogue stands above it.
+/** The top of the tallest body a kitchen carries.
+ *
+ *  **Read off the domain's `LEVELS`, never restated.** That grid — `module-grid.ts`,
+ *  `DEVELOPMENT-SPEC.md` §2 — is where the level lines are declared, and its highest is the
+ *  2.20–2.60 m row; nothing in the catalogue stands above it. A literal `2.6` here would be a
+ *  second authority on the same fact, and the failure it enables is silent: a later wave raising
+ *  the top level would leave the presets framing to a height no body reaches any more, with every
+ *  test still green because they would all be reading the stale copy too. The **maximum** rather
+ *  than the last entry, so the answer does not depend on the grid staying sorted.
  *
  *  **A kitchen dimension, not a room one**, and that is the whole of Q7H-3's ruling. At the
  *  owner-approved 3900 mm ceiling a camera pulled back far enough to hold floor-to-ceiling shrinks
@@ -244,7 +255,7 @@ export function findCameraPreset(id: CameraPresetId): CameraPreset {
  *  must not break. So the presets frame the kitchen and the ceiling is permitted above the frame.
  *  The owner's own stated range is 2500–3000 mm (ADR 0110 E11); the 3900 bound is an arithmetic
  *  artefact of the old shell times 1.5, and no framing rule here is tuned for it. */
-export const KITCHEN_TOP_M = 2.6;
+export const KITCHEN_TOP_M = Math.max(...LEVELS.map(([, top]) => top));
 
 /**
  * How far every preset stands from what it looks at.
@@ -258,8 +269,6 @@ export const KITCHEN_TOP_M = 2.6;
  */
 const PRESET_DISTANCE_M =
   (KITCHEN_TOP_M / 2 / VERTICAL_HALF_ANGLE_TANGENT) * FRAMING_HEADROOM;
-
-const MILLIMETRES_PER_METRE = 1000;
 
 /**
  * The three presets, framed on the room the customer entered.
@@ -308,8 +317,8 @@ function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
  *  of each is half its entered length; the eye is at half the kitchen's height. A `switch` over the
  *  union rather than a table, so a fourth preset cannot be added without deciding this. */
 function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
-  const widthM = metresFrom(room.widthMm);
-  const depthM = metresFrom(room.depthMm);
+  const widthM = toMetres(room.widthMm);
+  const depthM = toMetres(room.depthMm);
   const eyeM = KITCHEN_TOP_M / 2;
   switch (id) {
     case "overview":
@@ -331,8 +340,4 @@ function viewingDirectionOf(reference: CameraPreset): Vector3Tuple {
   ];
   const length = Math.hypot(...offset);
   return [offset[0] / length, offset[1] / length, offset[2] / length];
-}
-
-function metresFrom(millimetres: number): number {
-  return millimetres / MILLIMETRES_PER_METRE;
 }

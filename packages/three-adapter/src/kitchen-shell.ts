@@ -1,5 +1,6 @@
 import {
   runEndPanelSeatM,
+  toMetres,
   type DesignRoom,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
@@ -9,7 +10,6 @@ import type { Group, Mesh, Object3D } from "three";
 import { disposeDiscardedBodies } from "./kit-disposal.js";
 import { kitOwnedResources } from "./kit-ownership.js";
 import {
-  kitMaterialList,
   RUN_END_PANEL_NAME,
   RUN_END_PANEL_SEEDED_X_M,
   type Kit,
@@ -25,8 +25,6 @@ import { isMesh, isTexture, toMaterials } from "./three-guards.js";
  *  900 mm wall the drawn plane is 1200 mm and a third of it sits behind the corner — the accepted
  *  appearance of a minimum room, not a defect. */
 const CORNER_OVERHANG_M = 0.3;
-
-const MILLIMETRES_PER_METRE = 1000;
 
 const FLOOR_NAME = "floor";
 /** Wall A's plane: z = 0, fronts +Z, `rotation.y = 0`. */
@@ -105,11 +103,45 @@ export interface ShellResizeInput {
  */
 export function resizeShellToRoom(input: ShellResizeInput): void {
   const { kit, shell, room } = input;
+  if (isAlreadyDrawnAt(shell, room)) return;
+
   resizeFloor(kit, shellChild(shell, FLOOR_NAME), room);
   resizeWallAPlane(shellChild(shell, WALL_A_PLANE_NAME), room);
   resizeWallBPlane(shellChild(shell, WALL_B_PLANE_NAME), room);
   resizeBacksplash(kit, shellChild(shell, BACKSPLASH_NAME), room);
+  shell.userData[DRAWN_ROOM_KEY] = drawnRoomSignature(room);
 }
+
+/**
+ * Whether this shell already stands at these three dimensions.
+ *
+ * **A record of what was drawn, not a second authority on what the room is.** The design's room
+ * remains the only answer to *what room is this*; this answers *what did I last draw*, which is the
+ * same category as `kitchen-stage.tsx`'s `hasSeatedAStage` — a fact about work already done, kept
+ * beside the thing it was done to.
+ *
+ * **By value, because identity is a property of the caller this module does not control.** Every
+ * command path today spreads `{...design}` and leaves `room` the same object, so an identity check
+ * would work — and would keep working right up until a save round-trip, a re-hydrate or a
+ * `structuredClone` reconstructed it. At that point every design mutation would silently become
+ * four geometry rebuilds and two clone-and-dispose cycles, on a handset, with nothing failing. A
+ * value comparison costs three number reads and does not care how the room got here.
+ *
+ * It also makes the mounting effect's deliberate first redraw free: `kitchen-stage.tsx` calls this
+ * on mount over a shell the memo has just drawn at this same room, and that call now returns here.
+ */
+function isAlreadyDrawnAt(shell: Object3D, room: DesignRoom): boolean {
+  return shell.userData[DRAWN_ROOM_KEY] === drawnRoomSignature(room);
+}
+
+function drawnRoomSignature(room: DesignRoom): string {
+  return `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
+}
+
+/** Where the signature above is kept. On the shell rather than in a module-scope map, so it shares
+ *  the shell's lifetime exactly: a shell that is dropped takes its record with it, and a second
+ *  shell built from the same kit starts with none. */
+const DRAWN_ROOM_KEY = "drawnRoom";
 
 function resizeFloor(kit: Kit, floor: Mesh, room: DesignRoom): void {
   const drawnWidthM = drawnWallLengthM(room.widthMm);
@@ -131,7 +163,7 @@ function resizeFloor(kit: Kit, floor: Mesh, room: DesignRoom): void {
 
 function resizeWallAPlane(plane: Mesh, room: DesignRoom): void {
   const drawnLengthM = drawnWallLengthM(room.widthMm);
-  const heightM = metresFrom(room.heightMm);
+  const heightM = toMetres(room.heightMm);
 
   replacePlane(plane, drawnLengthM, heightM);
   plane.position.set(alongWallCentreM(drawnLengthM), heightM / 2, 0);
@@ -139,7 +171,7 @@ function resizeWallAPlane(plane: Mesh, room: DesignRoom): void {
 
 function resizeWallBPlane(plane: Mesh, room: DesignRoom): void {
   const drawnLengthM = drawnWallLengthM(room.depthMm);
-  const heightM = metresFrom(room.heightMm);
+  const heightM = toMetres(room.heightMm);
 
   // `rotation.y` is left as the builder set it: the plane turns to face +X, and its geometry's
   // width axis is therefore the world's z.
@@ -158,7 +190,7 @@ function resizeWallBPlane(plane: Mesh, room: DesignRoom): void {
  *  since the drawn wall *is* the entered wall, a fixed 3.5 m would sit 60 mm short of the corner
  *  it belongs to in the seeded room and arbitrarily wrong in every other. */
 function resizeBacksplash(kit: Kit, backsplash: Mesh, room: DesignRoom): void {
-  const widthM = metresFrom(room.widthMm);
+  const widthM = toMetres(room.widthMm);
   const slab = boxSizeOf(backsplash);
 
   // The front face tiles across the slab's width and height; only the width follows the room.
@@ -173,17 +205,13 @@ function resizeBacksplash(kit: Kit, backsplash: Mesh, room: DesignRoom): void {
 
 /** A drawn wall runs from behind the corner to the end of the entered wall. */
 function drawnWallLengthM(wallLengthMm: number): number {
-  return metresFrom(wallLengthMm) + CORNER_OVERHANG_M;
+  return toMetres(wallLengthMm) + CORNER_OVERHANG_M;
 }
 
 /** Its span is therefore [−overhang, wallLength], so its centre sits one overhang back from half
  *  its drawn length. */
 function alongWallCentreM(drawnLengthM: number): number {
   return drawnLengthM / 2 - CORNER_OVERHANG_M;
-}
-
-function metresFrom(millimetres: number): number {
-  return millimetres / MILLIMETRES_PER_METRE;
 }
 
 interface BoxResize {
@@ -270,30 +298,60 @@ function retileToConstantWorldDensity(
   const ownMap = map.clone();
   owned.materials.add(ownMaterial);
   owned.textures.add(ownMap);
+  SHELL_OWN_MATERIALS.add(ownMaterial);
+  SHELL_OWN_MAPS.add(ownMap);
 
   ownMap.repeat.set(map.repeat.x * stretch.u, map.repeat.y * stretch.v);
   ownMap.needsUpdate = true;
   ownMaterial.map = ownMap;
   mesh.material = ownMaterial;
 
-  releaseReplacedShellMaterial(kit, material, map);
+  releaseReplacedShellMaterial(material, map, kit);
 }
 
-/** Frees a material and map this function made on an **earlier** resize, and leaves the kit's own
- *  alone. `kitMaterialList` is the kit's declaration of the materials it owns and shares, so this
- *  asks what the material *is* rather than inferring it from what happens to be attached. */
+/**
+ * **Provenance, recorded where the clone is made.** Not "is this in the kit's declared list", which
+ * is a *correlate* of authorship rather than authorship — `kitMaterialList(M)` is the 14 materials
+ * `makeKit` declares, while `owned.materials` is those plus every `deriveKitMaterial` finish clone
+ * plus the clones below. A release that tested *"not declared"* would be testing the union of the
+ * last two and would be right only because the middle set cannot reach a shell child today.
+ *
+ * **What that coincidence rests on, and what it would cost.** The only other writer of materials
+ * onto scene meshes is `applyFinish`, which selects through `FRONT_MESH_NAME`
+ * (`/door_front|drawer_front/`); neither `floor` nor `backsplash_wall_a` matches, so no finish clone
+ * ever lands on a shell child. If that regex ever widens, the failure is silent and total:
+ * `buildFinishMaterial` is `(isOak ? M.oak : M.door).clone()` and three's `Material.copy` assigns
+ * `map` **by reference**, so a **wood** decor's clone carries `oakTex` *itself* — the kit's own,
+ * shared by every oak surface in the scene including `end_panel_right`. Freeing it would black out
+ * every one of them and drop it from the ownership record so the teardown could not free it either,
+ * with nothing thrown. Five of the eight palette entries are woods.
+ *
+ * A `WeakSet` keyed on the object cannot be wrong about that, and weak for `resourcesByKit`'s own
+ * reason: an abandoned kit's entries die with it.
+ */
+const SHELL_OWN_MATERIALS = new WeakSet<THREE.Material>();
+const SHELL_OWN_MAPS = new WeakSet<THREE.Texture>();
+
+/** Frees a material and map **this module made** on an earlier resize, and leaves everything else
+ *  alone — the kit's own declared materials, and any finish clone that might one day reach here.
+ *
+ *  The two are asked separately rather than as a pair: they are created together, so the answers
+ *  agree today, and a future path that assigns one without the other cannot make this free the
+ *  wrong half. */
 function releaseReplacedShellMaterial(
-  kit: Kit,
   material: THREE.Material,
   map: THREE.Texture,
+  kit: Kit,
 ): void {
-  if (kitMaterialList(kit.M).includes(material)) return;
-
   const owned = kitOwnedResources(kit.M);
-  owned.materials.delete(material);
-  owned.textures.delete(map);
-  material.dispose();
-  map.dispose();
+  if (SHELL_OWN_MATERIALS.has(material)) {
+    owned.materials.delete(material);
+    material.dispose();
+  }
+  if (SHELL_OWN_MAPS.has(map)) {
+    owned.textures.delete(map);
+    map.dispose();
+  }
 }
 
 interface BoxSize {

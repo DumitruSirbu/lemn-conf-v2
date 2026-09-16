@@ -120,6 +120,25 @@ as relatives until now:
   on a variable CI never sets — **passing by never running**.
 - **A passing gate is not a passing gate when a filter sits in front of it.** The standing rule to use
   `rtk proxy` when the output text is the signal.
+- **An aggregate over a set that does not contain your subject still returns a number — in range, with
+  no error.** *(2026-09-16, wave 7D7's re-scope.)* `NARROWEST_CATALOG_WIDTH_MM` was read as the
+  narrowest cabinet the product will build.
+  [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+  Amendment A records the first half of why that is wrong — the module's head comment says its
+  constants are *"limits on what a **document** may say, not product rules."* **The second half is
+  sharper and was found later: it is `Math.min` over `INSERTABLE_BODY_DEFINITIONS`, and no corner row
+  is insertable** — the four carry no `catalogEquivalentId`, so `resolveBuildableSizes` returns nothing
+  for them. **The set it aggregates contains no corner at all.** It was not a true-but-different
+  statement being misread; it was a true statement about a population that **excluded the thing being
+  asked about** — and it could not have told a 200 mm corner from a corner the catalogue has never
+  heard of.
+
+**What the last one adds to the four above it, and it is the property they all share:** the failure is
+not that the answer is wrong. **It is that the answer is well-formed.** A ledger row exists; a column
+exists; a suite reports green; a gate passes with a filter in front of it; an aggregate returns a
+plausible millimetre. **Nothing in the shape of the result says it is about something else**, which is
+why none of these is caught by looking harder at the output — only by asking what population, table or
+run the answer was drawn from.
 
 **So the question to ask of any check is not "did it pass?" but "could it have failed for the reason
 I care about?"** A check that cannot fail that way is a ritual, and it is more dangerous than no

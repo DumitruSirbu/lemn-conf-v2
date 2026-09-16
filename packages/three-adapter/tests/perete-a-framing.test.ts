@@ -19,9 +19,6 @@
 // happens, the numbers below are the agreed behaviour.
 import {
   APPROVED_ROOM_POLICY,
-  derivePlacementRecords,
-  KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
   runEndPanelSeatM,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
@@ -38,22 +35,17 @@ import {
 } from "../src/stage.js";
 import { createHeadlessCanvas } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import {
+  APPROVED_WALL_A,
+  APPROVED_WALL_B,
+  SEEDED_RECORDS,
+  SEEDED_ROOM,
+} from "./support/approved-rooms.js";
 
 /** The mobile gate's **viewport**. Not 789: that is the canvas under the chrome, which is what
  *  `stage.test.ts` measures the tappable row in. They are different quantities and reconciling them
  *  by editing one is how the evidence gets lost. */
 const VIEWPORT = { width: 390, height: 844 };
-
-const L_BOUNDS = required(
-  APPROVED_ROOM_POLICY.buildableShapes.L,
-  "the approved L bounds",
-);
-
-const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
-const SEEDED_RECORDS = derivePlacementRecords(
-  KITCHEN_L_DESIGN,
-  KITCHEN_L_BODY_CATALOG,
-);
 
 /** The narrowest wall A on which the seeded run's end panel is shown at all.
  *
@@ -73,11 +65,11 @@ const roomShowingThePanel = fc.record({
   shape: fc.constant("L" as const),
   widthMm: fc.integer({
     min: NARROWEST_ROOM_SHOWING_THE_PANEL_MM,
-    max: L_BOUNDS.wallA.maxMm,
+    max: APPROVED_WALL_A.maxMm,
   }),
   depthMm: fc.integer({
-    min: L_BOUNDS.wallB.minMm,
-    max: L_BOUNDS.wallB.maxMm,
+    min: APPROVED_WALL_B.minMm,
+    max: APPROVED_WALL_B.maxMm,
   }),
   heightMm: fc.integer({
     min: APPROVED_ROOM_POLICY.heightBounds.minMm,
@@ -89,8 +81,12 @@ const PROPERTY_RUNS = { numRuns: 40 };
 
 describe("the panel's visibility band, which every property here depends on", () => {
   it("shows the seeded run's panel from 3519 mm of wall A and not from 3518", () => {
-    expect(runEndPanelSeatM(SEEDED_RECORDS, roomOf(3518))).toBeUndefined();
-    expect(runEndPanelSeatM(SEEDED_RECORDS, roomOf(3519))).toBe(3.51);
+    expect(
+      runEndPanelSeatM(SEEDED_RECORDS, seededRoomWithWallA(3518)),
+    ).toBeUndefined();
+    expect(runEndPanelSeatM(SEEDED_RECORDS, seededRoomWithWallA(3519))).toBe(
+      3.51,
+    );
   });
 
   /** Non-vacuity for the generator: the band it draws from is inside the approved range and is not
@@ -101,7 +97,7 @@ describe("the panel's visibility band, which every property here depends on", ()
     );
     expect(SEEDED_ROOM.widthMm - NARROWEST_ROOM_SHOWING_THE_PANEL_MM).toBe(41);
     expect(NARROWEST_ROOM_SHOWING_THE_PANEL_MM).toBeLessThan(
-      L_BOUNDS.wallA.maxMm,
+      APPROVED_WALL_A.maxMm,
     );
   });
 
@@ -152,10 +148,10 @@ describe("Perete A frames the working area, not the whole wall", () => {
    *  height. Below this the whole wall is on screen; above it, part of it is. */
   it("holds 1.62 m of wall A, at every room in the policy", () => {
     const held = [
-      L_BOUNDS.wallA.minMm,
+      APPROVED_WALL_A.minMm,
       SEEDED_ROOM.widthMm,
-      L_BOUNDS.wallA.maxMm,
-    ].map((widthMm) => heldWallLengthM(roomOf(widthMm)));
+      APPROVED_WALL_A.maxMm,
+    ].map((widthMm) => heldWallLengthM(seededRoomWithWallA(widthMm)));
 
     for (const length of held) expect(length).toBeCloseTo(1.623, 3);
   });
@@ -179,20 +175,19 @@ describe("where the seeded run's end happens to land back on screen", () => {
   ])(
     "projects the run end's near edge to $nearestEdgePx px at $widthMm mm",
     ({ widthMm, nearestEdgePx }) => {
-      expect(panelUnderPereteA(roomOf(widthMm)).nearestEdgePx).toBeCloseTo(
-        nearestEdgePx,
-        1,
-      );
+      expect(
+        panelUnderPereteA(seededRoomWithWallA(widthMm)).nearestEdgePx,
+      ).toBeCloseTo(nearestEdgePx, 1);
     },
   );
 
   it("brings the whole panel inside the viewport only in the longest rooms", () => {
-    expect(panelUnderPereteA(roomOf(6300)).farthestEdgePx).toBeLessThan(
-      VIEWPORT.width,
-    );
-    expect(panelUnderPereteA(roomOf(5400)).farthestEdgePx).toBeGreaterThan(
-      VIEWPORT.width,
-    );
+    expect(
+      panelUnderPereteA(seededRoomWithWallA(6300)).farthestEdgePx,
+    ).toBeLessThan(VIEWPORT.width);
+    expect(
+      panelUnderPereteA(seededRoomWithWallA(5400)).farthestEdgePx,
+    ).toBeGreaterThan(VIEWPORT.width);
   });
 });
 
@@ -281,6 +276,8 @@ function toPixelX(point: THREE.Vector3, camera: THREE.PerspectiveCamera) {
   return ((point.clone().project(camera).x + 1) / 2) * VIEWPORT.width;
 }
 
-function roomOf(widthMm: number): DesignRoom {
+/** The seeded room with wall A moved and nothing else — this file sweeps one axis, so it does
+ *  not want `support/approved-rooms.ts`'s three-argument `roomOf`. */
+function seededRoomWithWallA(widthMm: number): DesignRoom {
   return { ...SEEDED_ROOM, widthMm };
 }

@@ -12,13 +12,7 @@
 //   2. the drawn room is a function of the room alone — the *path* to it cannot matter;
 //   3. the tile density survives compounding, at the policy corners and either side of them;
 //   4. the geometries the **first** resize disposes were never the kit's to begin with.
-import {
-  APPROVED_ROOM_POLICY,
-  derivePlacementRecords,
-  KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
-  type DesignRoom,
-} from "@lemnaria/configurator-domain";
+import { type DesignRoom } from "@lemnaria/configurator-domain";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -33,6 +27,15 @@ import { kitMaterialList, makeKit, type Kit } from "../src/kitchen-parts.js";
 import { isMesh, isTexture, toMaterials } from "../src/three-guards.js";
 import { createHeadlessCanvas } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import {
+  anyApprovedRoom,
+  APPROVED_HEIGHT as HEIGHT,
+  APPROVED_WALL_A as WALL_A,
+  APPROVED_WALL_B as WALL_B,
+  roomOf,
+  SEEDED_RECORDS,
+  SEEDED_ROOM,
+} from "./support/approved-rooms.js";
 
 /** The four children the wave redraws, and the fifth it must never touch. */
 const RESIZED_CHILD_NAMES = [
@@ -43,32 +46,10 @@ const RESIZED_CHILD_NAMES = [
 ] as const;
 const RUN_END_PANEL_NAME = "end_panel_right";
 
-const L_BOUNDS = required(
-  APPROVED_ROOM_POLICY.buildableShapes.L,
-  "the approved L bounds",
-);
-const WALL_A = L_BOUNDS.wallA;
-const WALL_B = L_BOUNDS.wallB;
-const HEIGHT = APPROVED_ROOM_POLICY.heightBounds;
-
-const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
-const SEEDED_RECORDS = derivePlacementRecords(
-  KITCHEN_L_DESIGN,
-  KITCHEN_L_BODY_CATALOG,
-);
-
 /** How many corrections a customer is allowed to make before the room is permitted to leak. The
  *  answer is none, so this is only as large as the suite can afford: each pass allocates four
  *  geometries, two materials and two maps and frees the previous eight. */
 const MANY_CORRECTIONS = 100;
-
-function roomOf(
-  widthMm: number,
-  depthMm: number,
-  heightMm: number,
-): DesignRoom {
-  return { shape: "L", widthMm, depthMm, heightMm };
-}
 
 /** The eight corners of the owner-approved box, a millimetre inside each of them, and the seeded
  *  triple. A sweep over a 5400 x 4100 x 1700 mm box essentially never generates a corner, and the
@@ -86,13 +67,6 @@ const CORNER_ROOMS: readonly DesignRoom[] = [
       ),
   ),
 );
-
-const roomArbitrary = fc.record({
-  shape: fc.constant("L" as const),
-  widthMm: fc.integer({ min: WALL_A.minMm, max: WALL_A.maxMm }),
-  depthMm: fc.integer({ min: WALL_B.minMm, max: WALL_B.maxMm }),
-  heightMm: fc.integer({ min: HEIGHT.minMm, max: HEIGHT.maxMm }),
-});
 
 /** A kit and a whole room's worth of baked canvas textures per run, so the run count is what the
  *  suite can pay for rather than what a pure function would deserve. */
@@ -158,7 +132,10 @@ describe("a room corrected over and over frees exactly what it replaced", () => 
   });
 
   propertyTest.prop(
-    [fc.array(roomArbitrary, { minLength: 2, maxLength: 10 }), roomArbitrary],
+    [
+      fc.array(anyApprovedRoom, { minLength: 2, maxLength: 10 }),
+      anyApprovedRoom,
+    ],
     PROPERTY_RUNS,
   )(
     "draws the room it was last given, whatever it was given before it",
@@ -217,7 +194,7 @@ describe("a plank and a tile keep their world size under repeated corrections", 
   );
 
   propertyTest.prop(
-    [fc.array(roomArbitrary, { minLength: 3, maxLength: 12 })],
+    [fc.array(anyApprovedRoom, { minLength: 3, maxLength: 12 })],
     {
       numRuns: 10,
     },

@@ -229,10 +229,17 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // the stage and not on the room, so a customer who has orbited their kitchen and then corrects a
   // wall length keeps the view they chose (ADR 0074 decision 7).
   //
-  // It runs once on mount over a shell the memo has just drawn at this same room, which is a
-  // redraw with nothing to change. That is deliberate: the alternative is a record of the room the
-  // shell was last drawn at, and a second authority on that question is worth more than the four
-  // geometries it would save per mount.
+  // **It runs unconditionally on mount, and that is load-bearing rather than tidy.** The memo above
+  // reads `designRoom` while keyed on `[cabinetDepthMm]`, so it carries a **stale closure**: a
+  // depth change that arrives after a room change rebuilds the shell at whichever room the memo
+  // last captured. This effect redraws on every `stage` identity, so the stale draw is corrected
+  // before a frame is asked for — and `react-hooks/exhaustive-deps` is not configured in this
+  // repository, so nothing else will tell the next reader that closure is there.
+  //
+  // The redundant redraw it implies on an ordinary mount costs nothing: `resizeShellToRoom` keeps a
+  // record of the three numbers it last drew and returns immediately when they have not moved. That
+  // record is a fact about work already done — the same category as `hasSeatedAStage` below — and
+  // not a second authority on what the room is, which the design still answers alone.
   useEffect(() => {
     resizeShellToRoom({
       kit: stage.kit,
