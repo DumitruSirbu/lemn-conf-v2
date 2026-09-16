@@ -1592,7 +1592,16 @@ per-shell fork and its comment, and re-point
 `3` this would restore. If it meets something, record what and close this entry: the fork is then the
 right answer and the table should say so.
 
-## 66. Tapping the overflow warning should move the camera to the marked body — WANTED BY THE OWNER 2026-09-16, NOT BUILT, NOT SCHEDULED
+## 67. Tapping the overflow warning should move the camera to the marked body — WANTED BY THE OWNER 2026-09-16, NOT BUILT, NOT SCHEDULED
+
+> **Numbered 66 when first written, on 2026-09-16, and corrected to 67 the same day at wave 7H's
+> close-out.** **66 was already taken** — by *The catalogue has three full-height rows and no broom /
+> utility unit* at the top of this file, ruled 2026-09-14 — and that number is cited as *"backlog 66"*
+> in [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md),
+> [ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
+> and roughly ten places in `../milestones/M7-room-and-presets.md`, so **the newer item is the one
+> that moves.** The collision is recorded rather than silently fixed because 7H's own close-out and
+> `../STATUS.md` were written against the wrong number first.
 
 **Wanted, unscheduled, and deliberately unbuilt** — recorded in
 [ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)'s

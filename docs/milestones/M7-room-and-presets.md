@@ -136,6 +136,33 @@
 > `plan.bases`, so an inversion passes it — corrected before this record was written, and wave 7D4's
 > punch list carries the full analysis. **`pnpm ci:local` and the push are not
 > claimed by this wave's record.** Full close-out below.
+> **Updated 2026-09-16: wave 7H is DONE across eleven commits, `7072930` … `a70efc1`.** The 3D shell
+> was **4.2 × 3.4 m for every customer** — the reference library's one room. The floor, both wall
+> planes, the backsplash and every seat now derive from the design's room; the tile repeats
+> **re-derive to hold world density constant** rather than stretching; a standing stage updates **in
+> place** on a room change, with nothing disposed; and the three camera presets derive from the room,
+> with the distance taken from the **kitchen's height** and the field of view and **no room term**,
+> which is why they survive a 3900 mm ceiling. **Four deferrals are recorded with their triggers, in
+> ADR 0118's shape, and none is built for:** **Q7H-7** — a preset showing part of a long wall is
+> correct behaviour and the camera does not pull back for length; **Q7H-8** — a marked body framed
+> off screen at mobile is accepted, the band still reports and the body stays editable; **backlog
+> 67** — tapping the warning moves the camera, *"great to have"*, unscheduled, **relayed as 66 and
+> renumbered because 66 is the tall-body gap**; and **the near-black
+> premise**, `MAX_ABSENT_CASING_PIXELS = 50` rather than 15, because the count is
+> anti-aliasing-sensitive and 15 would be calibrated to one GPU, with **`MIN_CASING_PIXELS` 300
+> against a control of 14, ~21× separation**, as the ratio that earns the slack. **Four things a
+> later wave must not file as bugs:** those first two, the empty strip above the uppers (ADR 0110
+> E11, owner-confirmed), and **`MARKED_BODY_TAP` having no correct value** — struck with its old
+> (330, 440) visible so a reader knows one was once reachable. **The wave's real output is eight
+> structural findings**, and three carry standing obligations: **a canvas constant is now a function
+> of (room, rail state)** and does not transfer between documents; **the 95 shell tests all built a
+> fresh shell**, so a defect on the **second** resize — the customer path — passed 95/95, closed by
+> new tests with **no `src/` change**; and **a property whose generator cannot reach its own case is
+> not testing it**, M7's second instance of that class. **The wall maxima are unblocked**: nothing in
+> the adapter reads `MAX_ROOM_*` or `SCENE_SHELL_*`, so **ADR 0120's Q-B is answered** and the ruled
+> 6000 mm per wall is a policy-literal edit — **not made here**. **`pnpm ci:local` and the push are
+> not claimed by this wave's record**, and this pass had no shell: the eleven hashes and the test
+> counts are reported, not verified. Full close-out below.
 >
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
@@ -1498,7 +1525,7 @@ table.
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
-| **7H** | The 3D room follows the entered room. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** | *carried* | 7E2 | Full | **Yes** + desktop | — |
+| **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
@@ -2968,6 +2995,142 @@ be written separately) and **ADR 0110 Amendment F**, ~~which does not exist and~
 
 **Next wave: unchanged by this close-out.** 7D3 was dispatched out of the recommended order, which puts
 **7F4b** next; see the two recorded table defects under the revised wave table.
+
+### 7H close-out — 2026-09-16, `7072930` … `a70efc1`
+
+**What shipped.** The 3D shell was **4.2 × 3.4 m for every customer**, whatever room they entered —
+the reference library's one room (`stage.ts:215`, `kitchen-parts.ts:2156-2157`, both **verified at
+HEAD**). The floor, both wall planes, the backsplash and every seat are now derived from the
+design's room; the tile repeats **re-derive to hold world density constant** rather than stretching
+with the room (`kitchen-shell.ts:222-223, :304` — *"what must stay constant is the world size of one
+plank or one tile"*, **verified at HEAD**); a standing stage updates **in place** on a room change —
+same meshes, same geometries, same materials, nothing disposed; and the three camera presets derive
+from the room, with the distance taken from the **kitchen's height** and the field of view and **no
+room term at all** (`stage.ts:270-271`, **verified at HEAD**), which is why they survive a 3900 mm
+ceiling.
+
+> **Provenance of the eleven hashes, stated because this record does not verify them.** This pass had
+> no shell and could not run `git log`. The commit range is the coordinator's, reported as
+> `7072930`, `463abc1`, `3d9a243`, `b3d0c59`, `6ba2b51`, `729ca62`, `2a4428f`, `ab2ae17`, `b0ca1eb`,
+> `7b1f92c`, `a70efc1`. **`7b1f92c` is corroborated independently inside this file** — wave 7D7's
+> table row names it as where 7H landed, and 7D7's *Ground truth* section is source-verified at it.
+> The other ten are **reported, not verified here.** Below, **verified** means read in the tree at
+> HEAD by this pass; **as reported** means relayed and not re-run.
+
+**Verification — what this pass verified, and what it is relaying.**
+
+- **Verified in the tree at HEAD.** The wave's suites exist and carry the claims made for them:
+  `packages/three-adapter/tests/kitchen-shell.room-shaped.test.ts`,
+  `stage.test.ts`, `perete-a-framing.test.ts` (Q7H-7's ruled framing),
+  `qa-7h-resize-in-place.adversarial.test.ts` and `qa-7h-preset-stands-clear.adversarial.test.ts`,
+  with `tests/support/approved-rooms.ts` carrying the policy corners.
+- **As reported, not re-run here:** the wave's **95 shell tests**, the pixel scans behind Q7H-7 and
+  Q7H-8, and the two named flakes below. This pass has no shell; no number in this paragraph was
+  observed by it.
+- **`pnpm ci:local` state and push state are not claimed by this record.** 7F4a's close-out records
+  both as pending; nothing here may be read as a gate.
+
+**Deferrals, each with its trigger, in [ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)'s
+shape.** All four are already written up in full in the 7H punch list below and are **not restated
+here** — this is the index a close-out reader needs:
+
+1. **Q7H-7 — the framing ruling.** A preset showing part of a long wall is **correct behaviour**; the
+   camera does not pull back for length. **Trigger: the owner has seen a 6 m kitchen on screen and
+   wants the whole wall framed.**
+2. **Q7H-8 — marked bodies.** A body the document marks as overflowing is framed **off screen at
+   mobile**; every pixel of the canvas was scanned and none of the six is reachable. The warning band
+   still tells the customer and the body stays editable, which is what ADR 0065 decision 1 requires.
+   **Trigger: backlog 67.**
+3. **Backlog 67 — tapping the overflow warning moves the camera to the marked body.** The owner
+   called it *"great to have"*. **Wanted, unscheduled, not built.** **It was relayed to this pass as
+   *backlog 66* and written into `docs/backlog/open.md` under that number; 66 was already the
+   tall-body gap, cited by number in ADR 0110, ADR 0117 and this file, so the new item was
+   renumbered 67 at this close-out** and the collision is recorded at both entries.
+4. **The near-black premise.** `MAX_ABSENT_CASING_PIXELS` is **50, not 15** — **verified at
+   `apps/web/tests/e2e/pixel-counter-witness.adversarial.desktop.e2e.spec.ts:146`**, with the file's
+   own reason at `:139-144`: the count is anti-aliasing-sensitive, the visible line is about **73 px**
+   long and only **14** samples clear the ball, so 15 would be calibrated to one GPU. **The ratio that
+   earns the slack is `MIN_CASING_PIXELS` 300 against a control of 14 — ~21× separation** (`:109`,
+   `:142`).
+
+**What a later wave must NOT read as a bug.** Four things, each correct as shipped:
+
+- a preset showing part of a long wall (Q7H-7);
+- a marked body off screen at mobile (Q7H-8);
+- the empty strip above the uppers — ADR 0110 E11, owner-confirmed;
+- **`MARKED_BODY_TAP` having no correct value.** It is struck with its old value left visible so a
+  reader knows one was once reachable at **(330, 440)** and why it stopped being —
+  `apps/web/tests/e2e/overflow-mark.e2e.spec.ts:72-82`, **verified at HEAD**.
+
+**Structural findings. These are the wave's real output and must not be lost.**
+
+1. **A canvas constant is a function of (room, rail state).** One measured against one document does
+   not transfer to another now that the camera follows the room; a narrowed-room document puts a
+   different body under the same pixel. Recorded in full at *Two findings from slice 6's e2e pass*
+   below.
+2. **Two measurement hazards, both self-caught.** Clicking empty scene **deselects**, which closes
+   the rail and re-widens the canvas **1020 → 1440 px mid-scan**, so every reading after such a click
+   is in the other coordinate regime — caught only because a horizontal probe disagreed with a
+   vertical one at the same point. And the mirror: returning to rail-closed by clicking empty scene
+   makes that click in whichever regime is current, so the rail never closes. **A page reload per
+   sample is the only reliable way back.** *(As reported; the pixel regimes were not re-measured
+   here.)*
+3. **`bowl_edge_back` is a deliberate shadow strip, not a defect** — `kitchen-parts.ts:1455`, in the
+   `"sink-faucet"` builder, authored black on purpose. The spec's premise now names **both**
+   near-black sources: it, and **`M.glassDark`** — the hob's smoked glass, **just outside** the
+   patch's right edge, *"a near miss rather than an absence"*, so the next reader knows a camera
+   change that brings it in would add far more than 14.
+   **Verified at `pixel-counter-witness.adversarial.desktop.e2e.spec.ts:119-134`.**
+4. **Load-bearing assertions that read as redundant and must not be deleted.** The tower's left edge
+   at **`packages/configurator-domain/tests/generation/qa-7d3-tall-end-block.adversarial.test.ts:371`**
+   — the only thing catching a centred tower, which production's width check at
+   `generate-kitchen.ts:444` cannot see — and the two that hold E12.2's block order. **Explicitly NOT
+   `tall-end-composition.test.ts:239`**, which compares a subsequence with itself and is silent on
+   order. **All three are 7D3's, restated here only because 7H re-confirmed them**; the analysis is
+   in the 7D3 close-out above and in 7D4's punch list. **The file name was relayed to this pass as
+   `qa-7h-tall-end-block…` and corrected against the tree — there is no such file.**
+5. **`end_panel_right` is the one kit-owned shell geometry** and is deliberately never replaced —
+   `RUN_END_PANEL_NAME`, `kitchen-parts.ts:376-378`, **verified at HEAD**.
+6. **QA's coverage gap: the wave's 95 shell tests all build a fresh shell**, so a defect appearing
+   only on the **second** resize passed 95/95 — and the customer path, correcting a wall length in
+   the room screen, *is* the second resize. Closed by
+   `qa-7h-resize-in-place.adversarial.test.ts`, whose own header states the gap in the same terms
+   (**verified at HEAD**, `:1-14`): the wave proves **one** resize frees what it replaces, and this
+   file attacks the other axis. **No `src/` change was needed.**
+7. **A property whose generator cannot reach the case it asserts about is not testing it.**
+   Criterion 9's tautology survived a **40-run** continuity property because `fast-check` essentially
+   never generated the seeded triple. Closed with an explicit `it.each` at that triple and the eight
+   policy corners — `qa-7h-resize-in-place.adversarial.test.ts:156` and `:183`, **verified at HEAD**.
+   **This is the second instance in M7 of the same class**; the first is 7D3's finding 6, whose
+   commissioned ADR is named there.
+8. **Identify a thing by what it is.** Four appearances in this milestone — shape, role,
+   provenance-by-accident, position. 7H's own was `releaseReplacedShellMaterial` asking *"is it in
+   the kit's declared list?"* as a correlate of *"did I make it?"*. It is now a **`WeakSet` recorded
+   at creation** — `kitchen-shell.ts:329-341`, whose comment gives the failure it prevents: a wood
+   decor's clone carries the kit's own `oakTex` **by reference**, so freeing it would black out every
+   oak surface in the scene, `end_panel_right` among them, **with nothing thrown**. **Verified at
+   HEAD.**
+
+**The wall maxima are unblocked, and this is a wave outcome rather than a plan.** Nothing in
+`packages/three-adapter/src` reads `MAX_ROOM_*`, `SCENE_SHELL_*` or any room ceiling; the shell is a
+linear function of the room plus one 300 mm construction constant; `PRESET_DISTANCE_M` has no room
+term. **ADR 0120's Q-B is answered**, and the owner's **6000 mm per wall** can be applied by editing
+the policy literals alone. **Not done in this wave** — it is its own change with its own record. The
+full statement, with the verification hash, is at *The wall maxima are unblocked* below.
+
+**Two flakes, named so they are not mistaken for regressions.**
+`top-bar-pill-containment` and `global-colour` each failed **once** under a loaded full-project run
+and each passed in isolation — **21/21** and **7/7** respectively. **Neither is a spec this wave
+touched.** *(As reported; not re-run here.)*
+
+**Deferred, with an owner.** The four deferrals above, each with its trigger. Nothing else in 7H's
+scope is deferred, and the wave owes no ADR: **ADR 0117 is written**, and Q7H-7, Q7H-8 and backlog 67
+are recorded in ADR 0118's shape in this file rather than as records of their own.
+
+**Next wave: this close-out makes no scheduling call.** 7H was dispatched out of the recommended
+order. **Two table defects remain outstanding and are deliberately left unresolved** — 7F4b showing
+as not-done while reported in git, and 7F3 depending on 7C, which is deferred past M8. Both are under
+the revised wave table, and **both are scheduling calls rather than documentation ones.**
 
 ## Wave 7F1 — dispatchable punch list
 
@@ -4623,7 +4786,11 @@ until a marked body can be framed again.
 
 **The trigger for revisiting is the improvement below**, not a defect report.
 
-### Backlog — tapping the overflow warning moves the camera to the marked body
+### Backlog 67 — tapping the overflow warning moves the camera to the marked body
+
+**Numbered 67, not 66.** It was written into `docs/backlog/open.md` as 66 on the day it was raised
+and renumbered at 7H's close-out: **66 is the tall-body gap**, ruled 2026-09-14 and cited as
+*"backlog 66"* in ADR 0110, ADR 0117 and about ten places in this file.
 
 **Wanted, unscheduled, not built.** The owner, 2026-09-16, on being shown the options:
 *"you can somewhere mark that it's great to have what you propose on the second option."*

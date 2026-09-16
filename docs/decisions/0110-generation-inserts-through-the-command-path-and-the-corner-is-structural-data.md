@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of wall A and nowhere else, excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence; **Amendment F, 2026-09-15, wave 7D4's slice S0, F0–F14** — a long storage run is composed, not repeated: the owner's four statements of 2026-09-14; a four-step storage cycle `[base-3drawer, base-cabinet, base-panbank, base-cabinet]` whose even split is a consequence of its shape and **not a ratio constant**, advanced as **one sequence per kitchen across the corner** from wall B's free end, so wall B's slot count sets wall A's phase; the preparation cabinet becomes `base-3drawer`, amending **A1's *interim data* and not its order**, with *drawers before the hob* recorded as a preference the owner softened and the criterion it would have justified deleted; **this wave changes a body's identity and never its width**, on the inclusive 800 mm merge cap; **a module is identified by what composed it — never by its role and never by its width**, through one exported predicate, because a block column carries `role: "storage"` deliberately under E5 clause 2 and role-scoping is wrong on 32.8 % of placed rooms against correct output (**and the citation "E5.2" names a section E does not contain**); the catalogue's own `fronts` declaration stays the one authority for a drawer front; the wall row composes exactly what it composes today with **no lift and no open shelf generated**, the owner having priced the lift and declined it, and the top row's stretch-ceiling lift rule recorded and not built; the variety's measured **+8.6 %** so the choice is a knowing one; the dishwasher and the bottle cargo recorded and **deferred to wave 7D5**; a new leaf in `configurator-domain` must be exported from `src/index.ts` or the build emits nothing for it; and **two of the wave's criteria corrected — the one-declaration-site grep scoped to composed-body declaration sites, and the id-convention count replaced by a pinned site set**; **F15** closes the dangling citations by carrying the dropped-roles sentence's shape and naming where the owner's wording ruling lives. **Written after the slice it ratifies, which F0 records rather than conceals**; **Amendment G, 2026-09-16, G1–G8 — drawers are anchored to the work, not distributed by a pattern**: the owner corrected the cycle within a day of its acceptance — *"is not like in chess"* — and gave the placement rule directly, so **F3 and F4 are superseded and struck in place** while F1, F2, F5–F15 stand and **F6's provenance discriminator is untouched, because it names a slot's origin and never its body**. Drawer cabinets are anchored **between the sink and the hob**, ideally two; **everything after the hob and after the tall cabinets takes doors**, and so does everywhere else. **The ratio stops being a rule and becomes a consequence of the room**, which is what ADR 0117 asks for and what F3 reached only by argument — so **no criterion may assert a 3-and-3 proportion**, and four of wave 7D4's are withdrawn. Measured against the slots that exist: **a storage slot never stands between the sink and the hob on one wall** — there is exactly one module there and it is the preparation cabinet — so the rule reduces to *the preparation cabinet is a drawer* (already F5) plus *every storage slot is a door* (already today's output), and it composes **zero drawer storage cabinets in all 149 151 rooms that have storage**, at a **31.9 %** fleet-wide drawer share falling to **10–19 %** in long runs. **The *ideally two* is a width change and is never free** — a second module costs a storage cabinet in 45.1 % of rooms, a block column in 31.1 %, a core role in 15.6 %, and nothing in 0.0 % — so it is ruled to **one** pending the owner, and belongs to 7D5 if it is ever two. **`STORAGE_CYCLE` and `base-panbank`'s only caller die with F3**; the owner said twice the rule is not strict, so **G2 is a set of defaults and no criterion may assert it as an invariant**)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of wall A and nowhere else, excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence; **Amendment F, 2026-09-15, wave 7D4's slice S0, F0–F14** — a long storage run is composed, not repeated: the owner's four statements of 2026-09-14; a four-step storage cycle `[base-3drawer, base-cabinet, base-panbank, base-cabinet]` whose even split is a consequence of its shape and **not a ratio constant**, advanced as **one sequence per kitchen across the corner** from wall B's free end, so wall B's slot count sets wall A's phase; the preparation cabinet becomes `base-3drawer`, amending **A1's *interim data* and not its order**, with *drawers before the hob* recorded as a preference the owner softened and the criterion it would have justified deleted; **this wave changes a body's identity and never its width**, on the inclusive 800 mm merge cap; **a module is identified by what composed it — never by its role and never by its width**, through one exported predicate, because a block column carries `role: "storage"` deliberately under E5 clause 2 and role-scoping is wrong on 32.8 % of placed rooms against correct output (**and the citation "E5.2" names a section E does not contain**); the catalogue's own `fronts` declaration stays the one authority for a drawer front; the wall row composes exactly what it composes today with **no lift and no open shelf generated**, the owner having priced the lift and declined it, and the top row's stretch-ceiling lift rule recorded and not built; the variety's measured **+8.6 %** so the choice is a knowing one; the dishwasher and the bottle cargo recorded and **deferred to wave 7D5**; a new leaf in `configurator-domain` must be exported from `src/index.ts` or the build emits nothing for it; and **two of the wave's criteria corrected — the one-declaration-site grep scoped to composed-body declaration sites, and the id-convention count replaced by a pinned site set**; **F15** closes the dangling citations by carrying the dropped-roles sentence's shape and naming where the owner's wording ruling lives. **Written after the slice it ratifies, which F0 records rather than conceals**; **Amendment G, 2026-09-16, G1–G8 — drawers are anchored to the work, not distributed by a pattern**: the owner corrected the cycle within a day of its acceptance — *"is not like in chess"* — and gave the placement rule directly, so **F3 and F4 are superseded and struck in place** while F1, F2, F5–F15 stand and **F6's provenance discriminator is untouched, because it names a slot's origin and never its body**. Drawer cabinets are anchored **between the sink and the hob**, ideally two; **everything after the hob and after the tall cabinets takes doors**, and so does everywhere else. **The ratio stops being a rule and becomes a consequence of the room**, which is what ADR 0117 asks for and what F3 reached only by argument — so **no criterion may assert a 3-and-3 proportion**, and four of wave 7D4's are withdrawn. Measured against the slots that exist: **a storage slot never stands between the sink and the hob on one wall** — there is exactly one module there and it is the preparation cabinet — so the rule reduces to *the preparation cabinet is a drawer* (already F5) plus *every storage slot is a door* (already today's output), and it composes **zero drawer storage cabinets in all 149 151 rooms that have storage**, at a **31.9 %** fleet-wide drawer share falling to **10–19 %** in long runs. **The *ideally two* is a width change and is never free** — a second module costs a storage cabinet in 45.1 % of rooms, a block column in 31.1 %, a core role in 15.6 %, and nothing in 0.0 % — so it is ruled to **one** pending the owner, and belongs to 7D5 if it is ever two. **`STORAGE_CYCLE` and `base-panbank`'s only caller die with F3**; the owner said twice the rule is not strict, so **G2 is a set of defaults and no criterion may assert it as an invariant**; **Amendment H, 2026-09-16, H1–H8 — the owner's run order, and the split between waves 7D4 and 7D5**: the owner gave the whole order rather than choosing between the coordinator's two candidate placements — **fridge → [door, if space] → sink → drawer [+ a second, if space] → hob → bottle cabinet → [a third drawer, if the run is long] → doors to fill → tall cabinets at the edge** — which **supersedes G2** and reconciles the two readings before it: *"after the hob, doors"* means **after the drawer group**, and the drawers are **one group astride the hob**. **Two of the order's five clauses are already built** — the fridge→sink stretch and the post-hob fill are wall B's and wall A's storage, doors today, **which answers Q-G1 in the affirmative from the owner's own mouth** — and the tall cabinets are Amendment E's block, so **the order adds exactly two modules, both width changes: a 300 mm bottle cabinet and a 600 mm second drawer**. Measured, the order gives **29.8 % drawers at the owner's own six-cabinet run** against G2's 16.7 %, and its residual shortfall falls in runs of 7 and 8 — **exactly the band the unmodelled third clause covers, so the gap is ours and not the rule's**. **G5's *"a second drawer cabinet is never free" is WITHDRAWN**: it displaces a storage slot one-for-one and the cabinet count does not change, so **Q-G3 dissolves** — the error was counting slots and calling the result a kitchen. The bottle cabinet is **free in 45.7 %** of rooms, moves Amendment E's block table **cleanly by +300** (3600/4200/4800), and **refutes D2.2's absorb-window warning by measurement** — 39 530 rooms in the window with and without it — which is struck rather than left standing. **7D4 keeps only the width-neutral part** (preparation and the first post-hob storage become drawer bodies, **1.31 drawers at run 6, and no criterion may claim it meets the proportion**) and **7D5 takes the order**, grouped by what re-baselines the run's arithmetic exactly as F-era D11 grouped the dishwasher and the cargo. **All three phrasings of this rule are recorded with their dates and none is smoothed away**; none of the three corrections was caught by a test or a review, only by asking)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -2049,6 +2049,11 @@ leaf, not after it. **F6's paragraph in that comment is correct and stays.**
 
 ### Owner questions arising
 
+> **All three are ANSWERED or DISSOLVED as of 2026-09-16 — see Amendment H.** **Q-G1: answered yes, by
+> the owner, in their own run order** (*"Fridge (if space - door cabinet)"*), which confirms the
+> recommendation below. **Q-G2: answered** — *"from 6 cabinets proportion should be 2 drawers and 4 with
+> doors"*. **Q-G3: dissolved** — its premise was wrong; see H4.
+
 - **Q-G1** — *does the stretch between the fridge and the sink take door cabinets?* G2 clause 3 is an
   **inference**. It governs wall B's storage, which is **64.2 %** of all storage slots. *Recommendation:
   yes, doors.* **Blocks nothing**: it is what the generator does today either way.
@@ -2058,6 +2063,203 @@ leaf, not after it. **F6's paragraph in that comment is correct and stays.**
 - **Q-G3** — *a second drawer cabinet between sink and hob costs a storage cabinet (45 %), a tall
   cabinet column (31 %) or the fridge (16 %). Which do you give up?* **Put the trade, not the
   condition** — *"where there is enough space"* has no referent here. **Blocks 7D5, not 7D4.**
+
+## Amendment H — 2026-09-16: the owner's run order, and the split between 7D4 and 7D5
+
+**Amendment G's G2 is superseded by H1 within the same day.** G's other clauses stand; **G6 (the
+defaults are defaults) and G7 (what survives in code) are unchanged**, and **F6's provenance
+discriminator is untouched for the third time running** — it names a slot's origin, never its body.
+
+**Evidence tiers as in F and G.** Every measurement below was taken for this amendment on **2026-09-16**
+from a scratchpad snapshot of `dist/`, verified byte-identical to
+`packages/configurator-domain/src/generation/` and `catalog.ts` at HEAD `a70efc1`. Sweep: the approved L
+policy on a 10 mm grid at 2600 mm — 222 351 rooms, **211 551 placed**.
+
+### H1 — the owner's words, and the order
+
+*(Owner's words, 2026-09-16, their third statement of this rule in three days.)*
+
+> *"often drawer cabinets are near, in case there is not space then before and after cabinet with hob,
+> i know i mentioned that after the hob is the bottles cabinet but it can be just after bottle cabinet
+> and next already door cabinets like : Fridge (if space - door cabinet) => sink => drawer cabinetss (
+> if space drawer cabinet) hub => bottle cabinets (if space for a large number of cabinets, the drawer
+> cabinet) and after only door cabinets to fit spaces or tall cabinets instead of door but at the
+> edge"*
+
+**Read as an order** *(inference — the coordinator's reading, and the architect's structural check
+below did not dispute it)*:
+
+> **fridge → [door cabinet, if space] → sink → drawer cabinet [+ a second, if space] → hob → bottle
+> cabinet → [a third drawer cabinet, if the run is long] → door cabinets to fill → tall cabinets at the
+> far edge, instead of doors**
+
+**The reconciliation, and it is what the previous two readings each missed.** *"Drawer cabinets are
+near"* means near **each other**; *"before and after cabinet with hob"* puts them as **one group astride
+the hob**. So *"drawers between sink and hob"* (G2 clause 1) and *"after the hob, doors"* (G2 clause 2)
+were **both true of one arrangement** — *after the hob* means **after the drawer group**, not
+immediately after the hob body. **Neither earlier reading was wrong; each described one end of one
+group.**
+
+### H2 — two of the order's five clauses are already built, and naming that halves the work
+
+*(Source-verified against `generation-priorities.ts` and the composed spatial arrays at HEAD.)*
+
+| Clause | What it actually is |
+| --- | --- |
+| *door cabinet between fridge and sink* | **Already exists and is already a door.** The run reads `fridge, [wall B storage…], CORNER, sink` — that stretch **is** wall B's storage, `base-cabinet` today. **No new slot.** **This answers Q-G1 in the affirmative, from the owner's own mouth.** |
+| *door cabinets to fill, after* | **Already exists and is already a door** — wall A's storage after the hob. **No new slot.** |
+| *tall cabinets at the edge instead of doors* | **Amendment E's block, shipped in 7D3.** Stated as part of one order rather than as a separate rule, which is a gain in presentation and not a change. |
+| **bottle cabinet, right of the hob** | **New. A slot, 300 mm.** |
+| **second drawer cabinet, left of the hob** | **New. A slot, 600 mm.** |
+
+**So the order adds exactly two modules.** Both are **width** changes.
+
+### H3 — what the order produces, measured
+
+**With the second drawer added only where it displaces a storage slot** — never a tall column, never a
+core role. *n* counts sink + preparation + hob + storage cabinets (see H7 on the denominator).
+
+| Run *n* | Rooms | Drawers | **% of run** | One-third | 2nd drawer added | would cost a column or role |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 3 | 51 600 | 1.00 | **33.3 %** | 1.00 | 0.0 % | 37.2 % |
+| 4 | 38 260 | 1.58 | **39.5 %** | 1.33 | 58.2 % | 29.3 % |
+| 5 | 32 070 | 1.74 | **34.7 %** | 1.67 | 62.4 % | 29.9 % |
+| **6 — the owner's own example** | 27 720 | **1.79** | **29.8 %** | **2.00** | **65.4 %** | **34.6 %** |
+| 7 | 24 120 | 1.75 | 25.1 % | 2.33 | 60.2 % | 39.8 % |
+| 8 | 17 480 | 1.83 | 22.9 % | 2.67 | 62.5 % | 37.5 % |
+| 9 | 6 940 | 2.53 | 28.1 % | 3.00 | 100 % | 0.0 % |
+| 10 | 2 520 | 3.00 | 30.0 % | 3.33 | 100 % | 0.0 % |
+
+**At the owner's own example the order gives 29.8 % against one-third**, short by 0.21 of a cabinet.
+Amendment G's rule gave **16.7 %** there, short by a whole one.
+
+**Where it falls short, and the shortfall is evidence the rule is coherent rather than that it is
+broken.** Runs of **7 and 8** give 25.1 % and 22.9 %. **That is exactly the band the owner's third
+clause covers** — *"if space for a large number of cabinets, the drawer cabinet"* — **and that clause is
+the one not modelled here, because its threshold is unset.** The gap and the unbuilt clause are in the
+same rooms. **The deficiency is ours, not the rule's**, and a later reader must not treat the table as
+evidence against the owner's order.
+
+### H4 — a framing this record got wrong, withdrawn with its reason
+
+> **WITHDRAWN: *"a second drawer cabinet is never free"*** (Amendment G5, and the 7D4 plan's D14.4).
+> **It is true of capacity and misleading about the kitchen, and it was relayed to the owner in the
+> misleading form.**
+
+Adding a 600 mm drawer cabinet before the hob **displaces one storage slot**, so **the run's cabinet
+count is unchanged**. **Nothing is lost.** A door cabinet at the run's far end becomes a drawer cabinet
+beside the preparation zone — **which is precisely the swap the owner is asking for.** It is a genuine
+loss only when it takes a **tall column** (34.6 % at run 6) or drops a **core role**.
+
+**The error was counting slots and calling the result a kitchen.** G5's table measured capacity
+correctly and then labelled the 45.1 % column *"costs a storage cabinet"*, which reads as a loss to
+anyone who has not traced what replaces it. **A customer does not experience a door cabinet becoming a
+drawer cabinet as a cost.** **Q-G3 is dissolved rather than answered**: it asked *which do you give up*,
+and the answer is *nothing, in the majority case*.
+
+**This is the general lesson and it is worth more than the correction:** a measurement of the plan's
+internal quantities is not a measurement of the product, and **the translation between them is where a
+true number becomes a false claim.**
+
+### H5 — what the bottle cabinet costs, and one warning of Amendment E's is refuted
+
+**Free in 45.7 % of placed rooms**, because Amendment A4 leaves up to 599 mm of run bare and a 300 mm
+cabinet often fits in it. Costs a storage cabinet in 24.9 %, a block column in 17.5 %, a core role in
+7.8 %.
+
+**Amendment E's block-threshold table moves by exactly +300 mm**, measured at wall B 1700:
+
+| | 1 column | 2 columns | 3 columns |
+| --- | ---: | ---: | ---: |
+| today | 3300 | 3900 | 4500 |
+| **with the bottle cabinet** | **3600** | **4200** | **4800** |
+
+**Derivable rather than re-measured** — the table follows the core's width, which is how E built it.
+
+**The absorb-window warning is refuted by measurement and is struck.** The 7D4 plan's D2.2 warned that a
+300 mm body *"shifts essentially every room into or out of 7D3's `(0, 200]` absorb window"* and called
+it the wave's worst hazard. **Measured: 39 530 rooms fall in that window both with and without the
+bottle cabinet.** Individual rooms move; **the aggregate exposure does not change at all**, because over
+a uniform sweep a constant shift of wall A relabels which rooms land in the window without changing how
+many. **So 7D5 owes a re-measurement, not a new hazard**, and D2.2's sentence must be struck rather than
+left standing as a live warning.
+
+**Merge-safe in this position.** D2.2's own rule is that a 300 mm cargo survives **iff both neighbours
+are at least 500 mm**. Here they are the hob (600) and either a storage cabinet or a block column (600).
+**Both clear it**, and this is the one position D2.2 measured as surviving. **The unsafe case is a cargo
+with nothing outboard of it**, where its neighbour is the bare remainder — so **7D5 asserts the
+neighbours, not the cargo.**
+
+> **A caveat on this record's own arithmetic, stated so it is not later quoted as a finding.** The model
+> behind H3 and H5 adds a module by shortening wall A by the same amount, so it cannot sample wall A
+> below 1200 mm and its *placed* denominator falls from 211 551 to 199 221. **That is a sampling
+> artefact, not 12 330 rooms becoming unbuildable.** The real refusal boundary does move by 300 mm at
+> the bottom of the policy, and that is a separate and smaller question for 7D5.
+
+### H6 — the split: 7D4 keeps what is width-neutral, 7D5 takes the order
+
+**Ruled by the coordinator, 2026-09-16.**
+
+- **7D4 builds only the width-neutral part**: the preparation cabinet becomes a drawer body (**F5**,
+  already ruled), the first storage slot after the hob becomes a drawer body, and everything else stays
+  a door cabinet. **No width, tile, remainder, cut or count moves**, so **F2 and the wave's criterion 2
+  survive intact.** **Measured, this alone gives 1.31 drawers at run 6 — 21.8 %**, and **no criterion of
+  7D4 may claim it meets the owner's proportion**, because it does not.
+- **7D5 builds the order**: the bottle cabinet, the second drawer cabinet, the third drawer cabinet and
+  its threshold, and the re-measured block table.
+
+**This is not a deferral of an owner ruling, and the distinction is the reason.** The split is a
+**grouping by what re-baselines the run's arithmetic**, which is exactly the argument **F-era D11** used
+when it moved the dishwasher and the bottle cargo to 7D5. **The owner's order is the third member of
+that same set and the largest.** Doing the width changes in one wave re-measures Amendment E's threshold
+table **once instead of twice** — and H5 has already shown it moves cleanly by +300, which is the
+evidence that it belongs with the other width work rather than alone.
+
+**Why 7D4 is worth shipping small.** Without the width changes the order reaches only 1.31 drawers at
+run 6, **because only 30.5 % of run-6 rooms have a post-hob storage slot at all** — 7D3's block takes
+the free end. **That number is the justification for 7D5 existing**, and it is also why 7D4's own
+contribution is honest but partial. **A small unblocked wave ships; a large blocked one does not.**
+
+### H7 — the three phrasings, with their dates, unsmoothed
+
+**The rule has been stated three times in three days and corrected twice. None of the three corrections
+was caught by a test or by a review — each was caught by putting the rule back to the owner in the form
+it was about to be built.**
+
+| Date | The owner's words | Read as | How it failed |
+| --- | --- | --- | --- |
+| **2026-09-14** | *"if there is like space for 6 cabinets will be like 3 with drawers and 3 with doors"* | a **proportion**, built as a 4-step alternating cycle (F3) | **Rejected on sight** — *"is not like in chess"* — one day after acceptance. The proportion was an illustration inside a sentence about preference, not a rule. |
+| **2026-09-16 (a)** | *"add where is enough space 2 cabinets width drawer ideally between sink and hob, and after the hob and tall cabinets add cabinets with doors"* | a **positional rule**, built as *preparation is the only drawer* (G2) | **The measurement drew the correction.** Reported back as one drawer per kitchen and **16.7 % at run 6**; the owner answered with a number. |
+| **2026-09-16 (b)** | *"from 6 cabinets proportion should be 2 drawers and 4 with doors"* | a **proportion**, one third | Not wrong, but **underdetermined** — it did not say where the extras go, and the two candidate placements each contradicted a different owner statement. |
+| **2026-09-16 (c)** | the run order quoted at **H1** | **a full run order** | **Standing.** It reconciles (a) and (b): one drawer group astride the hob. |
+
+**Do not read this as the owner changing their mind three times.** It is **one rule, always positional,
+described from three angles** — and an architect who twice built the angle rather than the rule. **The
+2-and-4 proportion survives as a *consequence* of the order**, which is why it can be recorded without a
+ratio constant anywhere, and why **no criterion asserts it** (G6 stands).
+
+### H8 — open questions, all of them 7D5's
+
+**None blocks 7D4.**
+
+- **Q-H3 — the denominator.** What counts as one of the *"6 cabinets"*? The order names *fridge*,
+  *sink*, *hob*, *bottle cabinet* and *tall cabinets* as distinct things, which is **evidence** that
+  *cabinets* means the door-and-drawer cabinetry — **still an inference.** Measured means per kitchen:
+  storage only **2.03**; plus preparation **2.98**; **plus sink and hob 4.98** *(used throughout this
+  amendment)*; plus tall columns **6.27**.
+- **Q-H4 — does `base-hob-2drawer` count toward the proportion?** It is a drawer front that Amendment E
+  places for an **oven** reason in 52.3 % of rooms, not a storage one. **The order makes this sharper
+  rather than softer**: the hob now sits *inside* the drawer group, so its two drawers are part of what
+  the customer sees. **Counting it moves run 6 from 1.79 to 2.31 — from under the owner's number to
+  over it.**
+- **Q-H5 — the third drawer's threshold**, *"if space for a large number of cabinets"*. **Unset, and it
+  is the whole of H3's remaining shortfall.** Candidate: from run 7 upward, which is where the gap
+  opens. **Do not pick it. Measure what each candidate produces and put the numbers to the owner as
+  consequences**, as was done for the second drawer.
+- **Q-H6 — the second drawer's threshold**, *"if space"*. Candidate, and the one H3 is measured under:
+  **add it wherever it displaces only a storage slot** — never a tall column, never a core role. Under
+  that reading *space* means *the run has a cabinet to convert*, which is the only reading with a
+  referent: the wall never has 600 mm spare.
 
 ## Consequences of Amendment F
 

@@ -781,8 +781,9 @@ is what removes the reason those maxima had.
 
 ## Amendment B — 2026-09-16: the product's intended size range is walls up to about 4 metres, and it narrows no bound
 
-**Drafted by wave 7H's implementer from the owner's words and awaiting the coordinator's
-confirmation.** It is recorded here rather than in a wave's subsection because it is a fact about
+**Drafted by wave 7H's implementer from the owner's words; ~~awaiting the coordinator's
+confirmation~~ — confirmed by the coordinator 2026-09-16, with the owner's words checked against
+this record's quotation of them.** It is recorded here rather than in a wave's subsection because it is a fact about
 the product, not about 7H — 7H is merely where it was said, while the owner was ruling on whether a
 marked body framed off screen is a defect (wave 7H's Q7H-8).
 
