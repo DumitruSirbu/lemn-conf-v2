@@ -7,6 +7,12 @@ import {
   type CapturedPatch,
   type PixelRect,
 } from "./support/pixels";
+import {
+  FAR_BASE_CABINET,
+  FRIDGE,
+  SINK_CABINET_FULL_WIDTH,
+  SINK_PATCH,
+} from "./support/desktop-scene-points";
 import { readSelection } from "./support/panel";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
@@ -48,35 +54,19 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * which is the margin this file's own history asks for.
  */
 
-/** The sink cabinet, in the 1440 px-canvas coordinates a first tap lands in.
+/** `p0` with the rail open — **the centre of `SINK_PATCH`**, which is that body's own measured
+ *  highlight box. `SINK_CABINET_FULL_WIDTH` is a 1440 px-canvas point and selects nothing here;
+ *  the two are not the same world point.
  *
- *  Measured band at x 700: `p0` from y 540 to 690, background above 535. At y 610 the band runs
- *  x 660-740. The old {700, 560} still reaches `p0`, but with only ~25 px above it; this sits
- *  ~70 px from the nearer vertical edge and ~40 px from each horizontal one. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
-/** The same scene once the rail has taken its 420 px and the world has re-projected into 1020 px:
- *  a base cabinet well clear of the patches below, and the fridge column.
- *
- *  Measured band with the rail open: at y 650 `p2` runs x 640-720 (`p1` to its left, `p4` from
- *  ~730), and at x 680 it runs y 570-730. The old {700, 640} still reaches `p2` but leaves only
- *  ~30 px before `p4`; this is ~50 px from either horizontal edge and ~80 px from either vertical
- *  one. The 2026-09-06 note this replaces recorded a **flapping** `p0`/background boundary across
- *  545-560 as the reason to take an anchor deep inside a band — that reasoning is why this one
- *  moved even though the old value passed. */
-const FAR_BASE_CABINET = { x: 680, y: 650 };
-/** The fridge column, with the rail open. Measured band: at y 560 `p7` runs from the canvas edge
- *  to ~230 (`p6` beyond it), and at x 140 it runs y 470 to past 790. The old {200, 500} still
- *  reaches `p7` with ~30 px to spare before `p6`; this has ~90 px. */
-const FRIDGE = { x: 140, y: 560 };
-/** The sink cabinet again, in the coordinates it occupies **once the rail is open** — the centre of
- *  `SINK_PATCH` below, which is that body's own measured highlight box. `SINK_CABINET_FULL_WIDTH`
- *  is a 1440 px-canvas point and selects nothing here; the two are not the same world point.
- *
- *  **Kept at the value it had**, re-confirmed 2026-09-08. Measured band with the rail open: at
- *  y 590 `p0` runs x 460-550, and at x 510 it runs y 540-685 — so this point is at least 40 px
- *  from every edge, which is margin enough, and moving it would break the one relationship stated
- *  above: that it is the centre of `SINK_PATCH`. */
-const SINK_CABINET_WITH_RAIL = { x: 510, y: 588 };
+ *  **Moved 2026-09-16: (510, 588) -> (542, 544).** The old point still selects `p0` — re-probed
+ *  with the rail open, `p0` runs page x 460-580 at y 588 and y 480-640 at x 510 — but `SINK_PATCH`
+ *  had to move to hold the re-measured highlight, and the relationship this constant exists to keep
+ *  is that it is that box's centre. So it followed the box rather than being left behind, and the
+ *  new point was confirmed by a click returning `p0`. */
+const SINK_CABINET_WITH_RAIL = {
+  x: SINK_PATCH.x + SINK_PATCH.width / 2,
+  y: SINK_PATCH.y + SINK_PATCH.height / 2,
+};
 
 const VIEWPORT_WIDTH_PX = 1440;
 const RAIL_WIDTH_PX = 420;
@@ -112,10 +102,6 @@ const MIN_CHIP_HEIGHT_PX = 52;
  * A patch nudged until a count passes is the failure ADR 0028 exists for; a patch left alone
  * because it was re-measured and still frames its subject is not that.
  */
-/** The sink cabinet's highlight. Re-measured with the rail open on 2026-09-08 at page x 432–592,
- *  y 479–706 — the box has ~2 px of margin below that region, which is tight but is containment
- *  rather than clipping, confirmed by the larger box reading the identical 10 416. */
-const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 /** The opening the fridge leaves behind, once §5.1 has selected it. Found the same way as the tap
  *  coordinates: by removing the fridge in the running app and reading where the vacated slot
  *  projects with the rail open — re-measured 2026-09-08 at page x 44–267, y 604–842.

@@ -4602,6 +4602,64 @@ run's 3500 plus a 1 mm gap plus half an 18 mm slab — and the seeded room is 35
 about a visible panel therefore has to generate inside a band that starts at 3519; a sweep over
 900–6300 spends 46% of its runs on rooms where there is no panel to assert about.
 
+### Q7H-8 — RULED by the owner 2026-09-16: a marked body framed off screen is accepted
+
+**Raised during slice 6, on a measurement.** Wave 7H's room-driven presets frame the middle of the
+customer's room; the bodies ADR 0065 **marks** are the ones past the end of a wall. A grid of real
+taps across the whole canvas on the narrowed-room document returns
+`p0, p1, p5, p6, p7, p8, p11, p12, p15, p17, p18, p22, p23, p25` — **not one of the six marked
+bodies is on screen at any pixel**. The mark's wash reaches **333 px** of the canvas, against the
+**7 875** it measured before the wave.
+
+**Ruled: leave it. Nothing is built.** The warning band still tells the customer their kitchen
+overflows, and the body stays editable through the rail, which is what ADR 0065 decision 1 requires
+— *"stays exactly where it is and stays editable"*. Being unreachable at the mobile preset without
+dragging does not violate that.
+
+**What it cost, stated rather than absorbed.** `overflow-mark.e2e.spec.ts` no longer carries a
+running-scene witness that the wash is not a raycast target. The adapter's own suite still holds
+that claim at unit level; no spec has picked up the browser-level half, and none should be written
+until a marked body can be framed again.
+
+**The trigger for revisiting is the improvement below**, not a defect report.
+
+### Backlog — tapping the overflow warning moves the camera to the marked body
+
+**Wanted, unscheduled, not built.** The owner, 2026-09-16, on being shown the options:
+*"you can somewhere mark that it's great to have what you propose on the second option."*
+
+**The trigger a later reader can check:** the owner asks for it, or usage shows customers reaching
+the overflow state and not resolving it. Until then Q7H-8's ruling stands and the band alone is the
+report.
+
+### The product's intended size range: walls up to about 4 metres — owner, 2026-09-16
+
+**This is not a 7H fact and it is recorded here only because 7H is where it was said.** It belongs
+with the room policy; see the amendment proposed to ADR 0120.
+
+> *"when somebody have enough space, like very big kitchen, and have enough money to build a lot of
+> cabinets for that kitchen, I have doubts that they will go and use this tool, mainly because there
+> is a lot of work on that kitchen, so they will go directly to a consultant and will ask to provide
+> the design for them, ergonomic, functional, and so on. So we can see the statistic of how many use
+> these big kitchens or have these big kitchens. But now let's focus on medium, small or medium,
+> like till four meters per wall."*
+
+**The reason is a market one, not a technical one**: a customer with a very large kitchen has a
+large budget and goes to a consultant for an ergonomic design rather than to a self-service tool.
+So **small-to-medium is the case to optimise for, and 5–6 m rooms are the tail.**
+
+**Two consequences, stated plainly because a later reader will otherwise take this too far.**
+
+- **It does not narrow the accepted range.** The owner separately ruled **6000 mm per wall** and
+  that stands. Large rooms remain buildable; they are simply not what the product is tuned for.
+  **This is not a reason to lower a maximum.**
+- **It is a prioritisation rule, not a correctness rule.** Where a trade-off exists between a small
+  kitchen and a 6 m one, the small one wins. It is **not** a licence to ship something wrong at 6 m.
+
+**And the owner's own open question, recorded so it is not lost:** *"we can see the statistic of how
+many use these big kitchens"* — they want the real distribution of entered room sizes once the
+product has traffic. A measurement request with no wave attached and no code owed.
+
 ### The wall maxima are unblocked — answered 2026-09-16, and this record says so
 
 **`design-bounds.ts`'s `SCENE_SHELL_*` have stopped being the basis of `MAX_ROOM_*`, and nothing in

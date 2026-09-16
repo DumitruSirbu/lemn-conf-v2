@@ -11,6 +11,11 @@ import {
 } from "@lemnaria/three-adapter";
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  FAR_BASE_CABINET,
+  SINK_CABINET_FULL_WIDTH,
+  SINK_PATCH,
+} from "./support/desktop-scene-points";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { readSelection } from "./support/panel";
 import {
@@ -20,7 +25,6 @@ import {
   countPixelsIn,
   toRgb,
   type CapturedPatch,
-  type PixelRect,
 } from "./support/pixels";
 
 /**
@@ -59,9 +63,6 @@ import {
  *  document reached through `/d/{id}`, which is the route this file drives — five clicks each,
  *  right body 5/5. The patch is unchanged and still contains `p0`'s own region (page x 432–592,
  *  y 479–706). */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
-const FAR_BASE_CABINET = { x: 680, y: 650 };
-const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
 const SCENE_SETTLE_MS = 2500;
 const RENDER_SETTLE_MS = 400;

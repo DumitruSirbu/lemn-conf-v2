@@ -7,6 +7,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { atThisCanvas, SINK_CABINET_TAP } from "./support/canvas-taps";
 import { countPixels, toRgb, type PixelRect } from "./support/pixels";
 import { readSelection } from "./support/panel";
 
@@ -68,10 +69,17 @@ import { readSelection } from "./support/panel";
  */
 const BACKGROUND_ABOVE_SHEET_TAP = { x: 310, y: 40 };
 
-/** `p2`, the right-hand base cabinet on wall A — **captured**, by tapping the running app on the
- *  document below and reading `[data-testid="selection-debug"]`. It is one of the six bodies this
- *  document marks, which is what makes the selectability case below about a *marked* body. */
-const MARKED_BODY_TAP = { x: 330, y: 440 };
+/** ~~`p2`, the right-hand base cabinet on wall A — captured by tapping the running app on the
+ *  document below and reading `[data-testid="selection-debug"]`.~~
+ *
+ *  **Struck 2026-09-16, and struck rather than re-measured because it has no correct value.** Wave
+ *  7H made the camera a function of the customer's room; the six bodies this document marks stand
+ *  past the end of wall A, and the preset frames the middle of the room, so none of them is on the
+ *  canvas at any pixel. A grid of real taps across the whole scene returns only unmarked bodies.
+ *  The owner ruled this accepted behaviour the same day — see the case below for what it cost.
+ *
+ *  Left here as a record rather than deleted: the next reader to want a marked body on screen needs
+ *  to know that one was once reachable at (330, 440) and why it stopped being. */
 
 /** The room this document declares, and the bodies that then reach past wall A — in the **byte**
  *  order `findOverflowingPlacementIds` publishes them in (`compareOpaqueIds`), which is why `p13`
@@ -385,8 +393,30 @@ test("a stored overflowing design is marked in the scene and warned about, and a
   // documents are the same scene, so what the count gains is the mark. It is not a difference of
   // two captures: the header above the canvas is taller on the flagged document, so the two frames
   // do not share a rectangle (see `MARK` above for the measurement).
+  //
+  // **What this asserted until 2026-09-16, and why it no longer can.** It asked that the mark be
+  // *prominent*: `markedPixels > fittingPixels + MIN_MARK_PIXELS`, a floor of 2 000 under the 7 875
+  // then measured. Wave 7H made the camera a function of the customer's room, and the bodies this
+  // document marks are the ones past the end of wall A — so the preset, which frames the middle of
+  // the room, no longer frames them. Measured after the change: **333**. Not one marked body is
+  // reachable anywhere on the canvas.
+  //
+  // **The owner ruled on 2026-09-16 that this is accepted behaviour**: the band is what tells the
+  // customer their kitchen overflows, and a marked body framed off screen is not a defect. So the
+  // claim is restated rather than the floor lowered — *the wash reaches the framebuffer*, which is
+  // the half ADR 0091 decision 6 is about, and it is measured against the **noise floor** rather
+  // than against a prominence bar. `MAX_ABSENT_PIXELS` is that floor and is independently
+  // measured — 0 on the fitting design in every preset, 40 of slack for antialiasing — and 333
+  // clears it eightfold.
   expect(fittingPixels).toBeLessThanOrEqual(MAX_ABSENT_PIXELS);
-  expect(markedPixels).toBeGreaterThan(fittingPixels + MIN_MARK_PIXELS);
+  expect(markedPixels).toBeGreaterThan(fittingPixels + MAX_ABSENT_PIXELS);
+
+  // **And the tripwire for the ruling's own trigger.** `MIN_MARK_PIXELS` keeps the value it was
+  // measured at; it is no longer the bar, it is the line that says the world has changed. If a
+  // later wave frames the marked bodies again — the overflow warning growing a tap that moves the
+  // camera to them is the improvement the owner called *"great to have"* — this goes red, and
+  // whoever reads it should restore the prominence assertion above rather than raise this number.
+  expect(markedPixels).toBeLessThan(MIN_MARK_PIXELS);
 
   // And nothing is selected, so a screen full of mark must contain no highlight at all. This is what
   // "the two never read as each other" means where it can actually be measured.
@@ -451,24 +481,48 @@ test("the orbit hint rides above the band rather than inside it", async ({
   expect(hint.y + hint.height).toBeLessThanOrEqual(band.y);
 });
 
-test("a marked body is still selectable, and the strip above the sheet is still reachable", async ({
+/**
+ * **This case lost half its subject on 2026-09-16, and the half it lost is recorded rather than
+ * quietly dropped.**
+ *
+ * It used to tap a **marked** body and prove two things at once: that the body is still selectable
+ * (ADR 0065 decision 1 — it *"stays exactly where it is and stays editable"*) and that the wash in
+ * front of it is not a raycast target, in the real scene rather than only in a unit test.
+ *
+ * Wave 7H made the camera a function of the customer's room. The bodies this document marks stand
+ * past the end of wall A, and the preset frames the middle of the room, so **no marked body is on
+ * the canvas at any pixel** — a grid of real taps across the whole scene returns
+ * `p0, p1, p5, p6, p7, p8, p11, p12, p15, p17, p18, p22, p23, p25` and none of the six marked ones.
+ * `MARKED_BODY_TAP` therefore has no correct value; it is struck rather than re-measured.
+ *
+ * **The owner ruled this accepted on 2026-09-16**: the band is what tells the customer, the body is
+ * still editable through the rail, and being unreachable at this preset without dragging does not
+ * violate ADR 0065 decision 1. **So what is lost here is the browser-level proof that the wash is
+ * not a raycast target.** The adapter's own suite still holds that claim; this file no longer adds
+ * a running-scene witness to it, and no other spec has picked it up. It returns when a marked body
+ * can be framed again — which is the trigger the ruling names.
+ *
+ * What the case keeps is the rest of its subject, and every part of it still runs: an on-screen
+ * body is selectable with the band up, the strip above the sheet is reachable, and dismissing
+ * leaves the mark where it was.
+ */
+test("a body is selectable with the band up, and the strip above the sheet is still reachable", async ({
   page,
 }) => {
   const stored = await mintDesign(page);
-  const overflowing = await storeANarrowedRoom(page, stored);
+  await storeANarrowedRoom(page, stored);
   await openAndSettle(page, stored.id);
 
-  // ADR 0065 decision 1: a marked body "stays exactly where it is and stays editable". The wash sits
-  // in front of the fronts the customer taps, so this is where it is proved not to be a raycast
-  // target in the real scene rather than only in a unit test.
-  await page.tap("canvas", { position: MARKED_BODY_TAP });
+  // An **unmarked** body, because no marked one is on screen. The seeded sink cabinet, at this
+  // file's own re-measured constant.
+  await page.tap("canvas", {
+    position: await atThisCanvas(page, SINK_CABINET_TAP),
+  });
   await page.waitForTimeout(RENDER_SETTLE_MS);
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
 
   const selected = await readSelection(page);
   expect(selected.selectionKind).toBe("placement");
-  // Not merely *a* body: one of the bodies this document marks.
-  expect(overflowing).toContain(selected.selectionId);
 
   // The strip above the sheet is reachable with the band on screen — the constant at the top of this
   // file, and the reason it is this file's own rather than either existing one.

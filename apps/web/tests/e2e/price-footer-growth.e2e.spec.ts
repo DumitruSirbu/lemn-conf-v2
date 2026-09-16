@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
 import { readSelection } from "./support/panel";
-import { tapCanvas } from "./support/canvas-taps";
+import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
@@ -25,7 +25,6 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * application ever puts one there. That is the model's job, and it is asserted at the model.
  */
 
-const SINK_CABINET_TAP = { x: 215, y: 500 };
 const SCENE_SETTLE_MS = 2000;
 const SETTLE_MS = 400;
 /** A tolerance for sub-pixel layout, not for a real difference. */

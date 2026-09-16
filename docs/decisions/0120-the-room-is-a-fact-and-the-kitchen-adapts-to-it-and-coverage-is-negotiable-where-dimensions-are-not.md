@@ -777,3 +777,37 @@ is what removes the reason those maxima had.
 | [0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation owes correct, complete and cheap — not a designer's kitchen. | **Consistent, and a guard on the fix.** Sizing a corner to its room is correctness. Choosing a corner *style* by proportion would be the taste rule 0117 forbids. |
 | [0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) decision 4 | Act when the cost rises at a datable event; record and stop when it does not. | **Why the sequencing recommendation inverted.** 7P2 is that datable event, named by the owner, and it is the whole of the argument for doing this inside M7. |
 | [0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) decisions 1, 7 | Re-check what you cite; a check must tell a thing from a mention of it. | **Paid for itself twice here.** *"The catalogue bottoms out at 200"* was a `design-bounds.ts` aggregate read as a product floor, and the original sequencing recommendation was written without knowing 7D7 existed. |
+
+## Amendment B — 2026-09-16: the product's intended size range is walls up to about 4 metres, and it narrows no bound
+
+**Drafted by wave 7H's implementer from the owner's words and awaiting the coordinator's
+confirmation.** It is recorded here rather than in a wave's subsection because it is a fact about
+the product, not about 7H — 7H is merely where it was said, while the owner was ruling on whether a
+marked body framed off screen is a defect (wave 7H's Q7H-8).
+
+> *"when somebody have enough space, like very big kitchen, and have enough money to build a lot of
+> cabinets for that kitchen, I have doubts that they will go and use this tool, mainly because there
+> is a lot of work on that kitchen, so they will go directly to a consultant and will ask to provide
+> the design for them, ergonomic, functional, and so on. So we can see the statistic of how many use
+> these big kitchens or have these big kitchens. But now let's focus on medium, small or medium,
+> like till four meters per wall."*
+
+**B1 — small-to-medium is the case to optimise for; 5–6 m rooms are the tail.** The reason is a
+**market** one and not a technical one: a customer with a very large kitchen has a large budget and
+goes to a consultant for an ergonomic design rather than to a self-service configurator. Walls up to
+about **4 000 mm** are where the customers are.
+
+**B2 — this narrows no bound, and that is the half a later reader will get wrong.** The owner
+separately ruled **6000 mm per wall**, and that ruling stands. Large rooms remain buildable and must
+remain correct. **B1 is not a reason to lower a maximum**, and a wave that cites it to shrink
+`APPROVED_ROOM_POLICY` has misread it.
+
+**B3 — it is a prioritisation rule, not a correctness rule.** Where a trade-off exists between
+serving a small kitchen well and serving a 6 m one well, the small one wins. It is **not** a licence
+to ship something wrong at 6 m. Q-B above is answered on the same day and independently: nothing in
+the engine constrains room size any more, so the maxima are free product numbers.
+
+**B4 — the owner's own open question, recorded so it is not lost.** *"we can see the statistic of
+how many use these big kitchens"* — they want the real distribution of entered room sizes once the
+product has traffic. A measurement request with no wave attached, no code owed, and no trigger but
+traffic.

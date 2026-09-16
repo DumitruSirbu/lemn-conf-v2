@@ -47,6 +47,23 @@ export interface CanvasPoint {
   readonly y: number;
 }
 
+/**
+ * **The seeded sink cabinet, `p0`, in the overview preset** — the one canvas constant four specs
+ * all needed, and until 2026-09-16 the one four specs each declared for themselves.
+ *
+ * `kitchen-stage`, `editor-panel`, `price-footer-growth` and `read-only-panel` carried identical
+ * copies of `{ x: 215, y: 500 }`, and they agreed only because they were written together. Wave 7H
+ * moved the camera and all four went stale at once — so it is declared here, once, the way ADR 0083
+ * decision 10 settled the same question for the overflowing design fixture.
+ *
+ * **Re-found by tapping on 2026-09-16, not computed.** A grid of real taps was walked across the
+ * running scene and the selected id read back from `[data-testid="selection-debug"]`; this point
+ * sits in the middle of p0's region in that map and was confirmed by a single tap. Deriving it from
+ * the camera's own projection would have made every spec that uses it agree with the camera by
+ * construction.
+ */
+export const SINK_CABINET_TAP: CanvasPoint = { x: 210, y: 400 };
+
 /** A real touch at a point found on the reference canvas, converted to this one. */
 export async function tapCanvas(page: Page, found: CanvasPoint): Promise<void> {
   await page.tap("canvas", { position: await atThisCanvas(page, found) });

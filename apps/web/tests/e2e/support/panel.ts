@@ -26,8 +26,19 @@ import { alongThisCanvas } from "./canvas-taps";
  *  the y positions below are already fractions of the live canvas, so running the whole point
  *  through `atThisCanvas` would scale them twice. A shorter canvas widens the camera's horizontal
  *  field, so a world position moves *toward* the centre — wave 6G's band moves this line from 65 to
- *  73.75 — which no fraction of the height can express. See `support/canvas-taps.ts`. */
-export const FRIDGE_COLUMN_TAP_X = 65;
+ *  73.75 — which no fraction of the height can express. See `support/canvas-taps.ts`.
+ *
+ *  **Re-measured 2026-09-16: 65 → 45.** Wave 7H made the camera presets a function of the
+ *  customer's room, so *Perete B* now frames that room rather than the reference one and the
+ *  columns moved across the canvas. At 65 the scan walked the **next** column down and reported
+ *  `p23, p6` and a void where it wanted `p24, p7` — which is the error this constant's own message
+ *  was written to produce, working exactly as intended.
+ *
+ *  **Re-found by tapping, not computed.** A grid of real taps was walked across the running scene
+ *  in this preset and the selected id read back; the fridge column stands at x ∈ [20, 45] and 45 was
+ *  confirmed at every y in the scan. Deriving it from the new camera would have made this scan agree
+ *  with the camera by construction. */
+export const FRIDGE_COLUMN_TAP_X = 45;
 
 /** Top of the column (the 2.6 m ceiling line) down to the floor, in steps of ~2.5% of the canvas.
  *  The column is ~62% of the canvas here, so the shortest opening M3 can produce in it — a 400 mm

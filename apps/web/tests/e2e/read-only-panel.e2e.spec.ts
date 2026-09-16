@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { readSelection } from "./support/panel";
-import { tapCanvas } from "./support/canvas-taps";
+import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
@@ -26,7 +26,6 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * in this suite carries.
  */
 
-const SINK_CABINET_TAP = { x: 215, y: 500 };
 const SCENE_SETTLE_MS = 2000;
 const PROBE_TIMEOUT_MS = 15_000;
 

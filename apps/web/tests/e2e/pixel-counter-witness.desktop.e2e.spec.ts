@@ -11,6 +11,12 @@ import {
 } from "@lemnaria/three-adapter";
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  FAR_BASE_CABINET,
+  FRIDGE,
+  SINK_CABINET_FULL_WIDTH,
+  SINK_PATCH,
+} from "./support/desktop-scene-points";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
   MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
@@ -71,10 +77,6 @@ import { readSelection } from "./support/panel";
  *  narrowed walnut document as well as the seeded one — five clicks each, right body 5/5 — because
  *  this file drives `/d/{id}` rather than the seeded route. The patch is unchanged: `p0`'s own
  *  region measures page x 432–592, y 479–706 and this box still contains it. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
-const FAR_BASE_CABINET = { x: 680, y: 650 };
-const FRIDGE = { x: 140, y: 560 };
-const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
 /** `p2`'s own region on the **narrowed-room** document, re-measured 2026-09-08 as the bounding box
  *  of the pixels that move when the selection travels between `p0` and `p2` with the rail open,
@@ -568,4 +570,61 @@ test("on a marked walnut kitchen the mark and the selection are each attributed 
     await countPixelsIn(page, sinkWithTheSinkSelected, MARK),
   ).toBeGreaterThanOrEqual(MIN_MARK_PIXELS);
   expect(OVERFLOW_MARK_COLOR).not.toBe(SELECTION_HIGHLIGHT_COLOR);
+});
+
+test("TMPSCAN narrowed walnut", async ({ page }) => {
+  test.setTimeout(900_000);
+  const finish = paletteFinish("veneer.nuc");
+  const stored = await mintDesign(page);
+  const overflowing = await storeAKitchenWearing(page, stored, {
+    materialTierId: VENEER,
+    finish,
+    roomWidthMm: NARROWED_ROOM_OVERFLOWING_DESIGN.room.widthMm,
+  });
+  console.warn("marked:", JSON.stringify(overflowing));
+  await openAndSettle(page, stored.id);
+
+  const idAt = async (x: number, y: number) => {
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(90);
+    const { selectionKind, selectionId } = await readSelection(page);
+    return selectionKind === "" ? "—" : selectionId;
+  };
+
+  const xs = [100, 220, 340, 460, 580, 700, 820, 940, 1060, 1180, 1300];
+  const ys = [200, 320, 420, 520, 620, 700];
+  const closed: string[] = [];
+  for (const y of ys) {
+    const cells: string[] = [];
+    for (const x of xs) cells.push((await idAt(x, y)).padStart(6, " "));
+    closed.push(String(y).padStart(4, " ") + " |" + cells.join(""));
+    // Deselect between rows so the next row starts rail-closed again.
+    await page.mouse.click(60, 200);
+    await page.waitForTimeout(120);
+  }
+  console.warn(
+    "\n=== narrowed walnut, first click (rail closed)\n     " +
+      xs.map((x) => String(x).padStart(6, " ")).join("") +
+      "\n" +
+      closed.join("\n"),
+  );
+
+  // Rail open: select once and keep it open.
+  await page.mouse.click(700, 520);
+  await page.waitForTimeout(500);
+  const box = await page.locator("canvas").boundingBox();
+  console.warn("rail-open canvas:", JSON.stringify(box));
+  const openXs = [60, 140, 220, 300, 380, 460, 540, 620, 700, 780, 860, 950];
+  const open: string[] = [];
+  for (const y of [200, 320, 420, 520, 588, 650, 720]) {
+    const cells: string[] = [];
+    for (const x of openXs) cells.push((await idAt(x, y)).padStart(6, " "));
+    open.push(String(y).padStart(4, " ") + " |" + cells.join(""));
+  }
+  console.warn(
+    "\n=== narrowed walnut, rail open\n     " +
+      openXs.map((x) => String(x).padStart(6, " ")).join("") +
+      "\n" +
+      open.join("\n"),
+  );
 });

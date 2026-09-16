@@ -1,7 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { dismissPanel, readSelection } from "./support/panel";
-import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
+import {
+  SINK_CABINET_TAP,
+  tapCanvas,
+  tapSceneStripAboveSheet,
+} from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
@@ -17,14 +21,6 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * iOS Safari here. A handset pass remains open (`docs/STATUS.md`).
  */
 
-/** The seeded sink cabinet, in the default overview preset. Found by tapping the running scene and
- *  reading `[data-testid="selection-debug"]`; sensitive to `CAMERA_PRESETS.overview` and the seed.
- *
- *  **In the coordinates of the canvas it was found on, and converted by `tapCanvas`** — see
- *  `support/canvas-taps.ts`. Left as the number that was measured rather than restated for today's
- *  chrome, because a constant that is silently re-typed every time a band is added stops being a
- *  measurement of anything. */
-const SINK_CABINET_TAP = { x: 215, y: 500 };
 /** Background **above** the sheet's top edge, which is the only part of the scene a tap can reach
  *  while the sheet is open. Only its `x` is used: the strip's height is measured live, because it
  *  is the gap between the canvas and a sheet pinned to the viewport, and it shrinks faster than the

@@ -1591,3 +1591,34 @@ per-shell fork and its comment, and re-point
 `qa-0104-the-stacking-table.adversarial.test.ts`'s desktop cases — the mobile ones already assert the
 `3` this would restore. If it meets something, record what and close this entry: the fork is then the
 right answer and the table should say so.
+
+## 66. Tapping the overflow warning should move the camera to the marked body — WANTED BY THE OWNER 2026-09-16, NOT BUILT, NOT SCHEDULED
+
+**Wanted, unscheduled, and deliberately unbuilt** — recorded in
+[ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)'s
+shape, with a trigger a later reader can check.
+
+**Where it came from.** M7 wave 7H made the camera presets a function of the customer's room. The
+bodies [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) **marks**
+are the ones past the end of a wall, and a preset that frames the middle of the room does not frame
+them — measured on the narrowed-room document, **not one of the six marked bodies is on the canvas at
+any pixel**, and the mark's wash reaches 333 px against the 7 875 it measured before the wave.
+
+**The owner ruled that state accepted on 2026-09-16** (wave 7H's Q7H-8): the warning band tells the
+customer their kitchen overflows, the body stays editable through the rail, and nothing is built. On
+being shown the alternative they added: *"you can somewhere mark that it's great to have what you
+propose on the second option."*
+
+**The improvement.** The overflow warning band becomes a control: tapping it moves the camera to the
+marked body, so a customer who is told their cabinets do not fit can see which ones without orbiting
+for them.
+
+**The trigger.** The owner asks for it, **or** usage shows customers reaching the overflow state and
+not resolving it. Until one of those, the band alone is the report and Q7H-8's ruling stands — a
+marked body framed off screen is **not** a defect and must not be filed as one.
+
+**What it would restore if built.** `apps/web/tests/e2e/overflow-mark.e2e.spec.ts` lost its
+browser-level witness that the mark's wash is not a raycast target, because there is no marked body
+on screen to tap through. The adapter's suite still holds that claim at unit level. Building this
+makes the running-scene half assertable again, and the spec carries a tripwire — `MIN_MARK_PIXELS`,
+kept at its measured 2 000 — that turns red the day a marked body is framed again.
