@@ -4550,6 +4550,77 @@ were ruled the same day.
 dispatchable on sequencing:** it waits on **7F4a's kit-leak fix landing** and on **7F4b closing**,
 and it is **never in flight with 7D7** — whose fidelity baseline is taken after this wave lands.
 
+### Q7H-7 — RULED by the owner 2026-09-16: a preset frames the working area, and a long wall is dragged
+
+**Raised during slice 5, on a measurement rather than a judgement**, and it supersedes backlog 16's
+2026-09-05 ruling for every wall longer than 3545 mm. Recorded here in **ADR 0118's shape — a
+deferral with its trigger, not a known defect** — because the behaviour it describes is the kind a
+later wave "fixes" without ever seeing this exchange.
+
+**The measurement, taken at `b3d0c59` by binary search on a real `PerspectiveCamera` at the ported
+45° vertical field of view.** These are not estimates:
+
+| wall A | distance that holds the whole wall | the 2.20–2.60 m band at 390 × 789 |
+| --- | --- | --- |
+| 900 mm | 2.198 m | 173.3 px |
+| 3000 mm | 7.326 m | 52.0 px |
+| **3545 mm** | **8.658 m** | **44.0 px — the boundary** |
+| 3560 mm (seeded) | 8.694 m | 43.8 px |
+| 4000 mm | 9.768 m | 39.0 px |
+| 6300 mm | 15.385 m | 24.8 px |
+
+A 0.40 m band clears a 44 px tap target only within **8.658 m** of the camera, and a camera at
+8.658 m holds **3545 mm** of wall across a 390 px canvas. **So criterion 12's *the run end is on
+screen* and criterion 10's *§11 row 21 stays tappable* are geometrically incompatible above
+3545 mm** — 56% of the approved range, and the seeded room by 15 mm. It is worse at 390 × 844 than
+at 390 × 789: the field of view is vertical, so a taller canvas at a narrower aspect holds *less*
+width at the same distance.
+
+**Three options went to the owner — leave it, pull the camera back on long walls, cap the wall
+length. The owner chose: leave it.** *The preset frames the working area; a long wall is explored by
+dragging.* The camera's distance stays derived from the kitchen's height, which is what makes it
+correct at a 2200 mm ceiling and a 3900 mm one alike. **Nothing is built for this.**
+
+**The consequences, stated so they are not rediscovered as defects.**
+
+- **A preset that shows part of a long wall is correct behaviour.** *Perete A* holds **1.62 m** of
+  wall A at every room in the policy, because its distance is a constant of the kitchen's height.
+- **Backlog 16 is closed by ruling rather than by building**, and its recorded measurement moved the
+  wrong way on the way there: the run end projected to x ≈ 514 of 390 under the reference preset,
+  which stood 5.21 m back, and projects to **x ≈ 596** under the room-driven one, which stands
+  4.24 m back. The owner ruled with that number in front of them.
+- **Criterion 12's property arm is superseded** and slice 5 pins the ruled behaviour instead, in
+  `packages/three-adapter/tests/perete-a-framing.test.ts`. Criterion 12's **capture** arm (slice 6)
+  measures the same ruled behaviour, not the withdrawn one.
+- **The trigger for revisiting**: *the owner has seen a 6 m kitchen on screen and wants the whole
+  wall framed.* Until that happens, this is not a bug and must not be filed as one — by the visual
+  pass, by QA, or by a later wave reading the backlog.
+
+**One measured boundary worth keeping, because two unrelated numbers land 41 mm apart.** The seeded
+run's end panel is vetoed until wall A reaches **3519 mm** — ADR 0083 decision 5's outer face, the
+run's 3500 plus a 1 mm gap plus half an 18 mm slab — and the seeded room is 3560. Every property
+about a visible panel therefore has to generate inside a band that starts at 3519; a sweep over
+900–6300 spends 46% of its runs on rooms where there is no panel to assert about.
+
+### The wall maxima are unblocked — answered 2026-09-16, and this record says so
+
+**`design-bounds.ts`'s `SCENE_SHELL_*` have stopped being the basis of `MAX_ROOM_*`, and nothing in
+the engine replaces them.** Verified at `b3d0c59` rather than argued:
+
+- Nothing in `packages/three-adapter/src` reads `MAX_ROOM_WIDTH_MM`, `MAX_ROOM_DEPTH_MM`,
+  `MAX_ROOM_HEIGHT_MM`, `SCENE_SHELL_*`, or any other room ceiling.
+- The shell's extent is a linear function of `DesignRoom` plus one 300 mm construction constant,
+  proved correct at all eight corners of the approved policy box and over a swept sweep inside it.
+- `PRESET_DISTANCE_M` in `stage.ts` is derived from the kitchen's height and the field of view and
+  **contains no room term at all**, so a longer wall does not move the camera.
+
+**So [ADR 0120](../decisions/0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)'s
+Q-B is answered**: the owner-approved 6300 / 5100 maxima now rest on nothing but the owner's
+approval, and the ruled **6000 mm per wall** can be applied by editing the policy literals alone.
+**That change is not part of this wave** — it is its own edit with its own record — but the blocker
+7H existed to remove is gone. Criterion 15 still stands unchanged: those three constants keep their
+values, and only their comment moved.
+
 ## Wave 7D3 — dispatchable punch list: tall units at the run ends and the oven rule
 
 > **SHIPPED 2026-09-15 — S1 at `03c98dc`, S2 at `97a4913`.** This punch list is spent; the live record
