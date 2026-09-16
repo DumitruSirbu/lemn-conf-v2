@@ -80,11 +80,18 @@ const DOOR_FRONT_MESH_NAME = "door_front";
  *  **counter-case**: generation stands no drawer in a composed slot in it at all — both of its wall-B
  *  composed slots take the door body and its only `base-3drawer` is the preparation core module — so it
  *  is the room that catches a claim selecting a drawer by build id. The other two stand one in a
- *  composed slot, on a different wall each. */
+ *  composed slot, on a different wall each.
+ *
+ *  **The wall-B room moved for M7 wave 7D8 and the reason it was chosen did not.** It was
+ *  900 x 4700, where the whole run stood on wall B and the layout ran against the reading order.
+ *  After the re-key that room's run follows wall B the other way, the block takes its free end and it
+ *  composes **no** storage slot at all — so it can no longer sample a drawer in a composed slot.
+ *  1 500 x 3 400 is the same subject on the same wall: wall B is the wider wall, the hob ends the run
+ *  on it, and the slot past the hob is wall B's while wall A holds a composed slot of its own. */
 const SAMPLE_ROOMS: readonly Design["room"][] = [
   KITCHEN_L_DESIGN.room,
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
-  { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
+  { shape: "L", widthMm: 1500, depthMm: 3400, heightMm: 2600 },
 ];
 
 interface DrawerSlotRoom {
@@ -94,16 +101,17 @@ interface DrawerSlotRoom {
 
 /** The two rooms whose generated run stands the drawer body in a slot the **storage run** composed,
  *  chosen so the slot lands on a different wall in each. Measured through the real probe: at
- *  6300 x 4700 it is wall A's first composed slot, standing behind the core; at 900 x 4700 it is wall
- *  B's **highest-indexed** composed slot, where the hob stands among wall B's core and the reading order
- *  runs against the layout (D15.7's 3.1 % arm). */
+ *  6300 x 4700 wall A is the wider wall and the slot is its first composed one, standing behind the
+ *  core; at 1500 x 3400 wall B is the wider wall, so the run ends there and the slot is wall B's
+ *  first composed one — while wall A's own composed slot is read **before** the hob and keeps its
+ *  door (D15.7 on physical wall B, 7D8's P6a). */
 const DRAWER_SLOT_ROOMS: readonly DrawerSlotRoom[] = [
   {
     room: { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
     wall: "A",
   },
   {
-    room: { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
+    room: { shape: "L", widthMm: 1500, depthMm: 3400, heightMm: 2600 },
     wall: "B",
   },
 ];

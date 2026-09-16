@@ -16,6 +16,7 @@ import {
   setCabinetDepth,
   toInsertableBody,
   validateDesignForCatalog,
+  wallLengthMm,
   type BodyCatalog,
   type Design,
   type DesignPlacement,
@@ -616,9 +617,18 @@ function interiorFloorGaps(design: Design) {
   });
 }
 
+/** The wall the kitchen is laid out against the reading order on — the **narrower entered wall**,
+ *  and wall B where the two are equal, because M7 wave 7D8 keyed the run onto the wider one (ADR
+ *  0120 Amendment E). Derived from the room the design carries rather than imported, so this file
+ *  and the composer agree only if both read that rule the same way. */
+function wallReadInReverse(room: DesignRoom): "A" | "B" {
+  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "A" : "B";
+}
+
 function coreReadingOrder(
   result: Extract<ReturnType<typeof generate>, { readonly ok: true }>,
 ) {
+  const reversed = wallReadInReverse(result.design.room);
   const core = result.log.steps
     .flatMap((step) => (step.status === "placed" ? [step] : []))
     .filter((step) =>
@@ -633,9 +643,9 @@ function coreReadingOrder(
     })
     .sort((left, right) => {
       if (left.placement.wall !== right.placement.wall) {
-        return left.placement.wall === "B" ? -1 : 1;
+        return left.placement.wall === reversed ? -1 : 1;
       }
-      return left.placement.wall === "B"
+      return left.placement.wall === reversed
         ? right.placement.alongMm - left.placement.alongMm
         : left.placement.alongMm - right.placement.alongMm;
     });

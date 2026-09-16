@@ -62,10 +62,17 @@ const SWEEP_SEED = 20260916;
 const SWEEP_RUNS = 1000;
 const ARM_FLOOR = 100;
 
-/** The wall-B arm is 3.1 % of placed rooms (D15.7) — about 31 samples in the sweep above and not
- *  enough. Risk 14 allows the other answer, *an arbitrary that constructs the arm*: a wall A too
- *  short to hold the hob puts the whole run, hob included, on wall B. Measured: 130 of 300. */
-const CONSTRUCTED_WALL_B_RUNS = 300;
+/** The wall-B arm is scarce in the sweep above and not enough on its own. Risk 14 allows the other
+ *  answer, *an arbitrary that constructs the arm*: a wall B wider than wall A carries the run, hob
+ *  included, and a depth band that leaves a storage module past the hob puts the drawer there.
+ *
+ *  **Re-constructed for M7 wave 7D8, and the arm it draws is the physical one.** The band was
+ *  900–1500 × 2800–5100 while wall B was the wall the layout reversed; after the re-key that band
+ *  composes a post-hob slot on wall B in 13.0 % of its rooms — 32 of 300 draws, under the hundred
+ *  risk 14's table asks for. Measured over the band below, 1 500-3 000 x 3 300-3 600 and 451 801
+ *  rooms: **63.9 % put the drawer on wall B and 37.5 % hold a composed slot on wall A as well**,
+ *  which is the arm a lookup left on the wrong letter would land in. */
+const CONSTRUCTED_WALL_B_RUNS = 600;
 
 /** Criterion 13 asks for 200 samples and each run composes the same room three times — twice for the
  *  determinism clause and once more through the replay. Measured: 263 of 300 placed. */
@@ -144,22 +151,37 @@ function alongTheWall(
   );
 }
 
-/** The kitchen as it is read: wall B from its free end toward the corner, then wall A from the corner
- *  outward (ADR 0110 A1). Wall B is laid out corner-first, so reading it means reversing it — ADR
- *  0110 D2, and the whole of D15.7. */
+/**
+ * The wall the kitchen is laid out **against** the order it is read in — the narrower entered wall,
+ * and wall B where the two are equal, because M7 wave 7D8 keyed the run onto the wider one (ADR 0120
+ * Amendment E; ADR 0110 Amendment I re-points D2's reversal at it).
+ *
+ * Re-derived here from the room the customer entered, never from `generation-priorities.ts`: this
+ * file's whole value is being a second derivation, and one that asked the composer which wall it
+ * reversed would agree with it whatever it reversed.
+ */
+function wallReadInReverse(room: DesignRoom): DesignWall {
+  return room.depthMm > room.widthMm ? "A" : "B";
+}
+
+/** The kitchen as it is read: the reversed wall from its free end toward the corner, then the other
+ *  wall from the corner outward (ADR 0110 A1 and D2) — the whole of D15.7. */
 function inReadingOrder(
   modules: readonly ComposedModule[],
+  room: DesignRoom,
 ): readonly ComposedModule[] {
+  const reversed = wallReadInReverse(room);
   return [
-    ...[...alongTheWall(modules, "B")].reverse(),
-    ...alongTheWall(modules, "A"),
+    ...[...alongTheWall(modules, reversed)].reverse(),
+    ...alongTheWall(modules, reversed === "A" ? "B" : "A"),
   ];
 }
 
 function composedSlotsAfterTheHob(
   modules: readonly ComposedModule[],
+  room: DesignRoom,
 ): readonly ComposedModule[] {
-  const read = inReadingOrder(modules);
+  const read = inReadingOrder(modules, room);
   const hobAt = read.findIndex((module) => module.role === "hob");
   if (hobAt < 0) throw new Error("the design holds no hob to read past");
   return read.slice(hobAt + 1).filter(isComposedSlot);
@@ -178,7 +200,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
         if (!kitchen) return;
         arms.placed += 1;
         const modules = composedModules(kitchen);
-        const postHob = composedSlotsAfterTheHob(modules)[0];
+        const postHob = composedSlotsAfterTheHob(modules, room)[0];
         if (postHob) arms.withDrawerSlot += 1;
         else arms.withoutDrawerSlot += 1;
 
@@ -214,7 +236,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
         const slots = modules.filter(isComposedSlot);
         if (slots.length >= 2) arms.twoOrMoreSlots += 1;
         if (slots.length === 0) arms.noSlots += 1;
-        const drawerSlot = composedSlotsAfterTheHob(modules)[0];
+        const drawerSlot = composedSlotsAfterTheHob(modules, room)[0];
 
         for (const wall of ["A", "B"] as const) {
           const spatial = alongTheWall(modules, wall).filter(isComposedSlot);
@@ -271,36 +293,58 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
   });
 
   it("finds the post-hob slot on wall B where the hob stands there, over a constructed arm", () => {
-    // D15.7's 3.1 %: with the hob among wall B's core, the slot the run reaches next is wall B's
-    // **highest** index, and wall A's first slot is the wrong module — while every width, count and
-    // remainder stays correct. The sweep above draws about 31 of these; this draws 130.
+    // D15.7 on physical wall B — M7 wave 7D8's P6a, 5 910 placed rooms. Wall B is the wider wall in
+    // every room this band draws, so the run ends on it, the hob stands among its core and the slot
+    // the run reaches next is wall B's **first**, with wall A's own slot read before the hob and
+    // keeping its door. A lookup left on the letter `"A"` takes wall A's slot instead, and every
+    // width, count, remainder and provenance in the design stays correct while it does.
+    //
+    // **What this arm asserted before 7D8, and where that went.** It read the drawer off wall B's
+    // **highest** index, because wall B was then the wall laid out against the reading order. That
+    // population is empty now — the hob is the run's last core role and the run ends on the wider
+    // wall — so the descending-index half of D15.7 is witnessed at the composer's unit boundary
+    // against a declared pair of runs, in
+    // `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (ADR 0091 Amendment A: moved, and
+    // asserted there at least as strongly, rather than relaxed here).
     let onWallB = 0;
+    let withASlotOnWallAToo = 0;
     fc.assert(
       fc.property(
         fc.record({
           shape: fc.constant("L" as const),
-          widthMm: fc.integer({ min: 900, max: 1500 }),
-          depthMm: fc.integer({ min: 2800, max: 5100 }),
+          widthMm: fc.integer({ min: 1500, max: 3000 }),
+          depthMm: fc.integer({ min: 3300, max: 3600 }),
           heightMm: fc.integer({ min: 2200, max: 3900 }),
         }),
         (room) => {
           const kitchen = generated(room);
           if (!kitchen) return;
           const modules = composedModules(kitchen);
-          const drawerSlot = composedSlotsAfterTheHob(modules)[0];
+          const drawerSlot = composedSlotsAfterTheHob(modules, room)[0];
           if (!drawerSlot) return;
           onWallB += 1;
           const alongB = alongTheWall(modules, "B").filter(isComposedSlot);
+          const alongA = alongTheWall(modules, "A").filter(isComposedSlot);
+          if (alongA.length > 0) withASlotOnWallAToo += 1;
 
           expect(drawerSlot.wall).toBe("B");
-          expect(drawerSlot.plannedId).toBe(alongB.at(-1)?.plannedId);
+          expect(drawerSlot.plannedId).toBe(alongB[0]?.plannedId);
           expect(drawerSlot.buildId).toBe(THREE_DRAWER_BASE_BUILD_ID);
+          expect(alongA.map((slot) => slot.buildId)).toEqual(
+            alongA.map(() => DOOR_BASE_BUILD_ID),
+          );
         },
       ),
       { numRuns: CONSTRUCTED_WALL_B_RUNS, seed: SWEEP_SEED },
     );
 
     expect(onWallB).toBeGreaterThanOrEqual(ARM_FLOOR);
+    // The wrong letter needs somewhere to land before the assertion above can catch it: a room whose
+    // narrower wall also holds a composed slot.
+    expect(
+      withASlotOnWallAToo,
+      "no drawn room held a composed slot on wall A as well as on wall B",
+    ).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 });
 
@@ -472,7 +516,9 @@ describe("criterion 12 — the room rule is unmoved", () => {
     if (!kitchen) throw new Error("the minimum room composed no kitchen");
 
     expect(
-      inReadingOrder(composedModules(kitchen)).map((module) => module.role),
+      inReadingOrder(composedModules(kitchen), room).map(
+        (module) => module.role,
+      ),
     ).toEqual(["sink", "hob"]);
     expect(kitchen.log.plan.dropped).toEqual(["fridge", "preparation"]);
   });

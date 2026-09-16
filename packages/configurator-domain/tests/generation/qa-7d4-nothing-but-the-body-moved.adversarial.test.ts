@@ -45,6 +45,7 @@ import {
   BASELINE_RUNS,
   BASELINE_SEED,
   canonicalModule,
+  canonicalPlan,
   canonicalPlanBeyondThisWavesBodies,
   canonicalPlanWithTheDoorBodyRestored,
   canonicalWallRow,
@@ -79,13 +80,41 @@ const ARM_FLOOR = 100;
  *  without a new dated ruling. */
 const NEVER_GENERATED_UPPERS = ["wall-lift", "open-shelf"];
 
-const WITNESS_ROOMS: readonly DesignRoom[] = [
+/** The four recorded witnesses **outside** M7 wave 7D8's re-key: wall A is the wider entered wall in
+ *  every one, so criterion 5's *"nothing outside P1 moves"* is what they assert, field by field,
+ *  against 7D3's recording. */
+const UNMOVED_WITNESS_ROOMS: readonly DesignRoom[] = [
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
   { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2600 },
   { shape: "L", widthMm: 5700, depthMm: 4100, heightMm: 2600 },
-  { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
   { shape: "L", widthMm: 2700, depthMm: 1699, heightMm: 2200 },
 ];
+
+/** The fifth recorded witness, and the one 7D8 moved: wall B is wider, so the run follows it and the
+ *  whole composition turns around. It is asserted whole below rather than dropped from the set. */
+const RE_KEYED_WITNESS_ROOM: DesignRoom = {
+  shape: "L",
+  widthMm: 900,
+  depthMm: 4700,
+  heightMm: 2600,
+};
+
+/** Wall B wider by the length the customer entered — M7 wave 7D8's key, and the only thing that
+ *  decides which half of the recording a room belongs to (ADR 0120 Amendment E). */
+function isWallBWider(room: DesignRoom): boolean {
+  return room.depthMm > room.widthMm;
+}
+
+/** Is this a room whose composition 7D8 moved? The re-key runs the reading order along the wider
+ *  entered wall, so it reaches every **placed** room where wall B is the wider one and no other: a
+ *  room the policy admits but the composer refuses holds no bases to move, and its recorded line is
+ *  the same refusal on both sides. */
+function reKeyedByWave7D8(
+  room: DesignRoom,
+  plan: KitchenCompositionPlan,
+): boolean {
+  return isWallBWider(room) && plan.minimumMet;
+}
 
 function planFor(room: DesignRoom): KitchenCompositionPlan {
   return planKitchenComposition({
@@ -141,25 +170,54 @@ function declaredHeightMm(buildId: string): number {
 }
 
 describe("criterion 2 — this wave moves a body's identity and nothing else", () => {
-  it("composes 7D3's plan to the millimetre over the recorded sweep", () => {
+  it("composes 7D3's plan to the millimetre wherever 7D8 did not re-key the run", () => {
+    // **This is the comparison working, not the recording going stale, and the split is the whole
+    // assertion.** M7 wave 7D8 keyed the reading order onto the wider entered wall, which moves the
+    // plan in the rooms where wall B is wider — 82 395 placed rooms, 38.95 % — and in **no** other
+    // room: criterion 5 states it as *"nothing outside P1 moves"*, 0 field differences over the
+    // 129 156 rooms of P2 and P3. So this sweep asserts both halves against the same recording. A
+    // recording re-taken from this wave's own output would make the whole comparison a tautology and
+    // is what `composed-run-baseline.ts`'s header exists to forbid.
+    //
+    // **The outcome is collected and asserted after the sweep rather than inside it**, because the
+    // recording is keyed by room: a failing property shrinks toward small rooms, and the first room
+    // the shrinker reaches that the capture never saw throws *"the baseline holds no room"* over the
+    // top of the real counterexample.
+    const arms = { outsideTheReKey: 0, moved: 0, wallBWiderButRefused: 0 };
+    const unexpected: string[] = [];
     let placed = 0;
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
         const plan = planFor(room);
         if (plan.minimumMet) placed += 1;
-
-        expect(
-          digestOf(canonicalPlanBeyondThisWavesBodies(plan)),
-          roomKey(room),
-        ).toBe(recordedRoom(BASELINE, room).plan);
+        const composed = digestOf(canonicalPlanBeyondThisWavesBodies(plan));
+        const recorded = recordedRoom(BASELINE, room).plan;
+        const movedByTheReKey = reKeyedByWave7D8(room, plan);
+        if (movedByTheReKey) arms.moved += 1;
+        else if (isWallBWider(room)) arms.wallBWiderButRefused += 1;
+        else arms.outsideTheReKey += 1;
+        if ((composed !== recorded) !== movedByTheReKey) {
+          unexpected.push(
+            `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
+          );
+        }
       }),
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
     );
 
+    expect(unexpected).toEqual([]);
     expect(placed).toBeGreaterThanOrEqual(PLACED_ROOMS_FLOOR);
+    // **The draw is fixed by the recording — the same seed and the same 240 runs — so the split is
+    // asserted exactly rather than floored.** A room the capture never saw makes `recordedRoom`
+    // throw, so a generator that drifted fails this file loudly whatever a floor said.
+    expect(arms).toEqual({
+      outsideTheReKey: 135,
+      moved: 82,
+      wallBWiderButRefused: 23,
+    });
   });
 
-  it.each(WITNESS_ROOMS)(
+  it.each(UNMOVED_WITNESS_ROOMS)(
     "renders back to 7D3's own plan once the door body is restored, in %o",
     (room) => {
       // The sweep above says a plan is unchanged; this says **what changed and to what**, field by
@@ -173,7 +231,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     },
   );
 
-  it.each(WITNESS_ROOMS)(
+  it.each(UNMOVED_WITNESS_ROOMS)(
     "leaves every block column and the hob exactly as 7D3 composed them, in %o",
     (room) => {
       // Criterion 2 names these separately and D12 says why: a block column carries `role: "storage"`
@@ -192,7 +250,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     },
   );
 
-  it.each(WITNESS_ROOMS)(
+  it.each(UNMOVED_WITNESS_ROOMS)(
     "moves a body at all, and only in a module it is allowed to, in %o",
     (room) => {
       // Without this the two assertions above pass over a wave that composed nothing: an empty
@@ -216,9 +274,59 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     },
   );
 
+  it("turns the re-keyed witness around, whole, and says what moved in it", () => {
+    // **The one recorded witness M7 wave 7D8 does move, asserted as the change rather than dropped.**
+    // Wall B is wider here — 900 x 4700 — and wall A's run is empty, so the whole kitchen stands on
+    // wall B and the re-key reverses which end of it the run starts at. Two things follow, and both
+    // are in the string below:
+    //
+    // 1. **The run turned around.** 7D3 recorded `storage, storage, hob, preparation, sink, fridge`
+    //    from the corner outward; the run now reads from wall A's free end, so the same order stands
+    //    corner-outward as `fridge, sink, preparation, hob, ...`.
+    // 2. **The block followed the run onto wall B** (ADR 0110 Amendment I; 7D8 criterion 10). The hob
+    //    now ends the run on the free-end wall, which is E3's clause 2, so the two modules the
+    //    recording holds as composed storage slots are a tall oven tower and a pantry column — and
+    //    the hob carries drawers instead of its own oven, because a tower stands.
+    //
+    // Pinned whole, with real build ids and no masking, so a later wave that moves this room again
+    // has to say so here. `canonicalPlanWithTheDoorBodyRestored` is deliberately **not** used: the
+    // masking that makes the recording comparable across 7D4's body change would hide half of what
+    // this witness exists to show.
+    expect(canonicalPlan(planFor(RE_KEYED_WITNESS_ROOM)).split("|")).toEqual([
+      "minimumMet=true",
+      "cut=4",
+      "dropped=",
+      "remainder=0/0",
+      "floorWidths=/700,600,600,600,600,600",
+      "fridge~fridge~fridge-free~B~900~1600~700",
+      "sink~sink~base-sink~B~1600~2200~600",
+      "preparation~preparation~base-3drawer~B~2200~2800~600",
+      "hob~hob~base-hob-2drawer~B~2800~3400~600",
+      "column:B:0~storage~tall-oven-tower~B~3400~4000~600",
+      "column:B:1~storage~tall-pantry~B~4000~4600~600",
+    ]);
+    // And it is a change against the recording rather than a second reading of it — the assertion
+    // that keeps the pin above from being satisfiable by a wave that did nothing.
+    expect(
+      canonicalPlanWithTheDoorBodyRestored(planFor(RE_KEYED_WITNESS_ROOM)),
+    ).not.toBe(recordedWitness(BASELINE, RE_KEYED_WITNESS_ROOM));
+  });
+
   it("sweeps rooms that hold composed slots, block columns and storage on both walls", () => {
-    // The recording proves nothing about rooms it never reached. Measured at this seed over the
-    // 240 drawn rooms: composed slots in 127, a block in 112, wall-B storage in 105.
+    // The recording proves nothing about rooms it never reached. Measured at this seed over the 240
+    // drawn rooms before M7 wave 7D8: composed slots in 127, a block in 112, wall-B storage in 105.
+    //
+    // **The wall-B storage arm now measures 62 in this draw, and the hundred it owes has moved
+    // rather than been given up.** The re-key turns composed slots on wall B into block columns
+    // wherever wall B is the wider wall, so the arm thinned — and this draw **cannot** be widened to
+    // compensate, because the seed and run count are the recording's and re-taking the recording
+    // from this wave's own output is what criterion 11 forbids. Under ADR 0091 Amendment A the
+    // sample floor is asserted where the population still lives, at full strength and against a
+    // deterministic grid rather than a draw:
+    // `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts`, *stands every composed drawer on
+    // the wider entered wall* — 8 615 swept plans, 2 343 composing a drawer, and at least 100 of
+    // them holding a composed slot on each wall. What is asserted here is the exact split of this
+    // fixed draw, which is a stronger statement about the recording's reach than a floor was.
     const arms = { composedSlots: 0, blockColumns: 0, wallBStorage: 0 };
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
@@ -239,32 +347,48 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
 
     expect(arms.composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
     expect(arms.blockColumns).toBeGreaterThanOrEqual(ARM_FLOOR);
-    expect(arms.wallBStorage).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.wallBStorage).toBe(62);
   });
 });
 
 describe("criterion 21 — the wall row is asserted, not composed", () => {
-  it("reproduces 7D3's wall row character for character over the recorded sweep", () => {
+  it("reproduces 7D3's wall row character for character wherever 7D8 did not re-key", () => {
+    // Criterion 21 asked that **no** character of the wall row moved, and it still asks that of
+    // every room outside M7 wave 7D8's re-key. Inside it the row follows the bases it stands over:
+    // the run turned around, so the openings did. **The split is asserted, not the aggregate** — a
+    // wall row that changed in a room where the floor did not is this wave composing an upper, which
+    // it must never do.
+    const arms = { outsideTheReKey: 0, moved: 0, refused: 0 };
+    const unexpected: string[] = [];
     let withUppers = 0;
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
         const kitchen = generated(room);
+        const recorded = recordedRoom(BASELINE, room).wallRow;
         if (!kitchen) {
-          expect(recordedRoom(BASELINE, room).wallRow, roomKey(room)).toBe(
-            undefined,
-          );
+          arms.refused += 1;
+          if (recorded !== undefined)
+            unexpected.push(`${roomKey(room)} refused`);
           return;
         }
         if (wallRowSteps(kitchen).length > 0) withUppers += 1;
-
-        expect(digestOf(canonicalWallRow(kitchen)), roomKey(room)).toBe(
-          recordedRoom(BASELINE, room).wallRow,
-        );
+        const movedByTheReKey = reKeyedByWave7D8(room, kitchen.log.plan);
+        if (movedByTheReKey) arms.moved += 1;
+        else arms.outsideTheReKey += 1;
+        const composed = digestOf(canonicalWallRow(kitchen));
+        if ((composed !== recorded) !== movedByTheReKey) {
+          unexpected.push(
+            `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
+          );
+        }
       }),
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
     );
 
+    expect(unexpected).toEqual([]);
     expect(withUppers).toBeGreaterThanOrEqual(PLACED_ROOMS_FLOOR);
+    // Exact, for the reason the sibling sweep above gives: the draw is fixed by the recording.
+    expect(arms).toEqual({ outsideTheReKey: 127, moved: 82, refused: 31 });
   });
 
   it("stands a hood over every hob and nothing over a body that reaches the wall row", () => {

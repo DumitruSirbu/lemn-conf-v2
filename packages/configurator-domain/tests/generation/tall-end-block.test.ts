@@ -1,5 +1,10 @@
-// M7 wave 7D3 slice S2 — the block of full-height columns at wall A's free end, the hob that
+// M7 wave 7D3 slice S2 — the block of full-height columns at the run's free end, the hob that
 // follows it, and the boundaries both of them move on (ADR 0110 Amendment E).
+//
+// **The block stood at wall A's free end until M7 wave 7D8 re-keyed the run onto the wider entered
+// wall** (Amendment I, criterion 10). The rooms below name wall A deliberately — every one of them
+// is wall-A-wider, so the block stands where these thresholds were measured — and the one assertion
+// that was about the letter rather than about the run asserts the rule instead.
 //
 // The millimetre thresholds this file asserts are **computed from the run and the declared widths
 // first and pinned as literals second** (criterion 7): a width that changes must show up as a failing
@@ -198,18 +203,36 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     }
   });
 
-  it("puts no column on wall B and no column against either run's corner end", () => {
+  it("puts every column on the wider entered wall and none against either run's corner end", () => {
+    // **The block follows the run, and the owner ruled it may follow it onto wall B** (ADR 0110
+    // Amendment E as Amendment I overturns its *"wall A … and nowhere else"*, M7 wave 7D8 criterion
+    // 10). What survives of the old assertion is the part that was ever about the block rather than
+    // about a letter: a column stands at the run's **free** end, never against its corner end. The
+    // wall is re-derived from the room's two entered numbers, so this and the composer agree only if
+    // both read the wider-wall rule the same way.
+    const arms = { onWallA: 0, onWallB: 0 };
     for (const wallAMm of [3300, 3900, 4500, 6300]) {
       for (const wallBMm of [1000, 1600, 1700, 3000, 5100]) {
         const room = roomOf(wallAMm, wallBMm, 2600);
         const runs = lShellFloorRuns(room);
+        const widerWall = wallBMm > wallAMm ? "B" : "A";
         for (const column of blockOf(planFor(room))) {
-          expect(column.wall).toBe("A");
+          if (column.wall === "A") arms.onWallA += 1;
+          else arms.onWallB += 1;
+
+          expect(column.wall, `${String(wallAMm)}x${String(wallBMm)}`).toBe(
+            widerWall,
+          );
           expect(column.startMm).not.toBe(runs.A.startMm);
           expect(column.startMm).not.toBe(runs.B.startMm);
         }
       }
     }
+
+    // Both arms, because a rule stated as *the wider wall* and sampled only where that is wall A
+    // agrees with the letter it replaced.
+    expect(arms.onWallA).toBeGreaterThan(0);
+    expect(arms.onWallB).toBeGreaterThan(0);
   });
 });
 

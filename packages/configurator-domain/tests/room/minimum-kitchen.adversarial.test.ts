@@ -230,10 +230,26 @@ describe("APPROVED_ROOM_POLICY — exact 7A2 boundaries", () => {
   );
 });
 
+/**
+ * **The wall each arm expects is derived from the room, never spelled as a letter.** M7 wave 7D8
+ * keyed the run onto the **wider entered wall** (ADR 0120 Amendment E), so a pair of letters names
+ * the right walls only in the arms whose bounds happen to fix which wall is wider — and the
+ * `ordered split only` arm's bounds overlap, so it draws rooms on both sides of the key.
+ */
 interface AgreementArm {
   readonly name: string;
   readonly rooms: fc.Arbitrary<DesignRoom>;
-  readonly expectedWalls: readonly ["A" | "B", "A" | "B"];
+  readonly expectedWalls: (room: DesignRoom) => readonly ["A" | "B", "A" | "B"];
+}
+
+/** The wider entered wall, which is the one the run ends on and the hob therefore stands on; wall A
+ *  where the two are equal. */
+function widerWall(room: DesignRoom): "A" | "B" {
+  return room.depthMm > room.widthMm ? "B" : "A";
+}
+
+function narrowerWall(room: DesignRoom): "A" | "B" {
+  return widerWall(room) === "A" ? "B" : "A";
 }
 
 function approvedRooms(args: {
@@ -259,7 +275,8 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
       wallBMin: 1000,
       wallBMax: 1599,
     }),
-    expectedWalls: ["A", "A"],
+    // Wall A is the wider one everywhere in these bounds, so the run and both bodies stand on it.
+    expectedWalls: (room) => [widerWall(room), widerWall(room)],
   },
   {
     name: "both-on-B only",
@@ -269,7 +286,8 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
       wallBMin: 2200,
       wallBMax: 5100,
     }),
-    expectedWalls: ["B", "B"],
+    // And wall B is the wider one everywhere in these — the same rule, sampled from the other side.
+    expectedWalls: (room) => [widerWall(room), widerWall(room)],
   },
   {
     name: "ordered split only",
@@ -279,7 +297,11 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
       wallBMin: 1600,
       wallBMax: 2199,
     }),
-    expectedWalls: ["B", "A"],
+    // **These bounds overlap, so this arm draws rooms with either wall wider** — which is exactly
+    // what makes it the arm that catches a key spelled as a letter. The split is the same either
+    // way: the hob ends the run on the wider wall and the sink is read before the corner, on the
+    // narrower one.
+    expectedWalls: (room) => [narrowerWall(room), widerWall(room)],
   },
 ];
 
@@ -347,7 +369,7 @@ describe("7A2 — validator and generator share the minimum", () => {
           expect([
             placedWall(generated, "sink"),
             placedWall(generated, "hob"),
-          ]).toEqual(expectedWalls);
+          ]).toEqual(expectedWalls(room));
           for (const cornerDirection of ["left", "right"] as const) {
             expect(
               validateRoomInput(

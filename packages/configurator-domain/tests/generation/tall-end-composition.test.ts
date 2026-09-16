@@ -20,7 +20,9 @@ import {
   MAX_GENERATED_LEFTOVER_MM,
   planKitchenComposition,
   planLeftover,
+  wallLengthMm,
   type DesignRoom,
+  type DesignWall,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
@@ -98,10 +100,23 @@ function coreShapeOf(plan: KitchenCompositionPlan) {
     }));
 }
 
+/**
+ * The wall the run ends on, and the wall the block therefore stands at the free end of: the **wider
+ * entered wall**, and wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I,
+ * which overturns Amendment E's *"wall A and nowhere else"*).
+ *
+ * **Derived from the room's two entered numbers rather than read back off the plan**, so a block
+ * that moved to the other wall fails these assertions instead of redefining them.
+ */
+function freeEndWallOf(room: DesignRoom): DesignWall {
+  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "B" : "A";
+}
+
 function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
-  const run = lShellFloorRuns(room).A;
+  const wall = freeEndWallOf(room);
+  const run = lShellFloorRuns(room)[wall];
   const coreWidthMm = plan.bases
-    .filter((base) => base.wall === "A" && base.role !== "storage")
+    .filter((base) => base.wall === wall && base.role !== "storage")
     .reduce((sum, base) => sum + base.widthMm, 0);
   return planLeftover(run.endMm - run.startMm - coreWidthMm);
 }
@@ -116,7 +131,7 @@ function expectedBlockSize(
   const leftover = freeEndOf(plan, room);
   const qualifies =
     plan.dropped.length === 0 &&
-    hob?.wall === "A" &&
+    hob?.wall === freeEndWallOf(room) &&
     leftover.storageCount >= 1 &&
     room.heightMm >= DECLARED_COLUMNS.columnHeightMm;
   if (!qualifies) return 0;
@@ -132,10 +147,18 @@ function expectedBlockSize(
 
 describe("the threshold and the block's size (criterion 6)", () => {
   it("stands a block exactly when the four clauses hold, at the largest size that fits", () => {
+    // **E3 clause 2 — the hob standing anywhere but the free-end wall — is no longer sampled here,
+    // and the clause is not weakened: it moved.** The run now follows the wider entered wall and the
+    // hob is the run's last core role, so the hob stands on the free-end wall in every room the
+    // approved policy admits (M7 wave 7D8 criterion 1, 0 exceptions on both arms). The clause is
+    // asserted at the rule's own unit boundary instead, against a declared input rather than a room:
+    // `tall-end-rule.test.ts`, `hobStandsOnTheFreeEndWall: false` — ADR 0091 Amendment A, coverage
+    // moved rather than dropped. The `qualifies` expression above still reads it, so a composer that
+    // stopped honouring it fails on the size rather than on an arm count.
     const arms = {
       none: 0,
       dropped: 0,
-      hobOnB: 0,
+      hobOffTheFreeEndWall: 0,
       noModule: 0,
       one: 0,
       two: 0,
@@ -151,8 +174,11 @@ describe("the threshold and the block's size (criterion 6)", () => {
         );
 
         if (plan.dropped.length > 0) arms.dropped += size === 0 ? 1 : 0;
-        if (plan.bases.find((base) => base.role === "hob")?.wall === "B") {
-          arms.hobOnB += size === 0 ? 1 : 0;
+        if (
+          plan.bases.find((base) => base.role === "hob")?.wall !==
+          freeEndWallOf(room)
+        ) {
+          arms.hobOffTheFreeEndWall += 1;
         }
         if (freeEndOf(plan, room).storageCount === 0) {
           arms.noModule += size === 0 ? 1 : 0;
@@ -166,9 +192,14 @@ describe("the threshold and the block's size (criterion 6)", () => {
     );
 
     // A property that never samples an arm proves nothing about it.
-    for (const [arm, count] of Object.entries(arms)) {
+    const { hobOffTheFreeEndWall, ...sampledArms } = arms;
+    for (const [arm, count] of Object.entries(sampledArms)) {
       expect(count, `the ${arm} arm never fired`).toBeGreaterThanOrEqual(100);
     }
+    // Reported rather than floored, and asserted as the must-not it now is: a sample that found the
+    // hob off the free-end wall would mean criterion 1 had stopped holding and the re-sited clause
+    // above had become reachable from a room again.
+    expect(hobOffTheFreeEndWall).toBe(0);
   });
 });
 
@@ -190,12 +221,18 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
         if (towers.length === 1) arms.withATower += 1;
         else arms.withoutOne += 1;
       }),
-      { numRuns: 300 },
+      { numRuns: 900 },
     );
 
     // An *if and only if* needs both sides sampled: a run that never stood a tower would agree with
     // a planner that never substitutes, and one that always did would agree with a planner that
     // always substitutes.
+    //
+    // **The sample was raised from 300 and neither floor was lowered.** M7 wave 7D8 lets the block
+    // follow the run onto wall B, so a tower stands in 34 275 more rooms than it did (criterion 10)
+    // and the no-tower arm thinned to 77 of 300 draws. The arm did not empty; the instrument stopped
+    // reaching its hundred, and a floor cut to fit a shrunken sample is the failure ADR 0091
+    // Amendment A forbids.
     expect(arms.withATower, "the tower arm never fired").toBeGreaterThanOrEqual(
       100,
     );
@@ -205,28 +242,40 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
     ).toBeGreaterThanOrEqual(100);
   });
 
-  it("stands no column on wall B and none against a run's corner end, in any approved room", () => {
-    let columnsChecked = 0;
+  it("stands every column on the wider entered wall and none against a run's corner end", () => {
+    // **The letter moved and the rule did not.** ADR 0110 Amendment I overturns Amendment E's *"wall
+    // A … and nowhere else"*: the block follows the run, and the run follows the wider entered wall,
+    // so a column stands on wall B in 47 175 placed rooms (7D8 criterion 10). What never moved is
+    // that a column stands at the run's **free** end and never against its corner.
+    const arms = { onWallA: 0, onWallB: 0 };
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const runs = lShellFloorRuns(room);
         for (const column of blockOf(planFor(room))) {
-          columnsChecked += 1;
-          expect(column.wall).toBe("A");
-          expect(column.startMm).toBeGreaterThan(runs.A.startMm);
+          if (column.wall === "A") arms.onWallA += 1;
+          else arms.onWallB += 1;
+
+          expect(
+            column.wall,
+            `${String(room.widthMm)}x${String(room.depthMm)}`,
+          ).toBe(freeEndWallOf(room));
+          expect(column.startMm).toBeGreaterThan(runs[column.wall].startMm);
         }
       }),
       { numRuns: 300 },
     );
 
-    // The loop body is the whole assertion, so a sample that stood no block asserts nothing at all.
+    // The loop body is the whole assertion, so a sample that stood no block asserts nothing at all —
+    // and a rule stated as *the wider wall* needs both arms, or it agrees with the letter it replaced.
     expect(
-      columnsChecked,
+      arms.onWallA + arms.onWallB,
       "no sample stood a column, so this asserted nothing about where columns stand",
     ).toBeGreaterThanOrEqual(150);
+    expect(arms.onWallA, "the wall-A arm never fired").toBeGreaterThan(0);
+    expect(arms.onWallB, "the wall-B arm never fired").toBeGreaterThan(0);
   });
 
-  it("keeps the block contiguous and outermost on wall A wherever one stands", () => {
+  it("keeps the block contiguous and outermost on its own wall wherever one stands", () => {
     let withABlock = 0;
     fc.assert(
       fc.property(approvedRoom, (room) => {
@@ -234,11 +283,13 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
         const block = blockOf(plan);
         if (block.length === 0) return;
         withABlock += 1;
-        const onWallA = plan.bases.filter((base) => base.wall === "A");
+        const onTheBlocksWall = plan.bases.filter(
+          (base) => base.wall === freeEndWallOf(room),
+        );
 
-        expect(onWallA.slice(-block.length)).toEqual(block);
+        expect(onTheBlocksWall.slice(-block.length)).toEqual(block);
         expect(block.at(-1)?.endMm).toBe(
-          Math.max(...onWallA.map((base) => base.endMm)),
+          Math.max(...onTheBlocksWall.map((base) => base.endMm)),
         );
         expect(
           block.every(
@@ -287,10 +338,11 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
         }
 
         // A column stands where a storage module would have: the count the leftover rule returns is
-        // what wall A receives, whichever bodies fill it.
+        // what the free-end wall receives, whichever bodies fill it.
         expect(
           plan.bases.filter(
-            (base) => base.wall === "A" && base.role === "storage",
+            (base) =>
+              base.wall === freeEndWallOf(room) && base.role === "storage",
           ),
         ).toHaveLength(leftover.storageCount);
 

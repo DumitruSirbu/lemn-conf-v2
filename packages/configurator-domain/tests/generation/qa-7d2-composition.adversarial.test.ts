@@ -75,9 +75,23 @@ function placementInterval(placement: Design["placements"][number]) {
   });
 }
 
+/**
+ * The wall the kitchen is laid out **against** the order it is read in: the narrower entered wall,
+ * and wall B where the two are equal, because M7 wave 7D8 keyed the run onto the wider one (ADR 0120
+ * Amendment E; ADR 0110 Amendment I re-points D2's reversal at it).
+ *
+ * Re-derived here from the two numbers the customer typed — this file works from the published
+ * contracts and never from the implementation's helpers, and a reading order that asked the composer
+ * which wall it reversed would agree with it whatever it reversed.
+ */
+function wallReadInReverse(room: DesignRoom): "A" | "B" {
+  return room.depthMm > room.widthMm ? "A" : "B";
+}
+
 function spatialCoreOrder(
   result: Extract<ReturnType<typeof generate>, { readonly ok: true }>,
 ) {
+  const reversed = wallReadInReverse(result.design.room);
   return result.log.steps
     .flatMap((step) => {
       if (
@@ -94,9 +108,9 @@ function spatialCoreOrder(
     })
     .sort((left, right) => {
       if (left.placement.wall !== right.placement.wall) {
-        return left.placement.wall === "B" ? -1 : 1;
+        return left.placement.wall === reversed ? -1 : 1;
       }
-      return left.placement.wall === "B"
+      return left.placement.wall === reversed
         ? right.placement.alongMm - left.placement.alongMm
         : left.placement.alongMm - right.placement.alongMm;
     })
@@ -234,15 +248,18 @@ describe("7D2 pure planning and exact cut transitions", () => {
     }
   });
 
-  it("reads wall B from its free end and keeps the core order as a subsequence across fillers", () => {
+  it("reads the narrower wall from its free end and keeps the core order across fillers", () => {
+    // The reference room is 3 560 × 2 800, so wall B is the narrower one and the run reads it first —
+    // which is the same answer the letter used to give, now stated as the rule that produces it.
     const result = successful(KITCHEN_L_DESIGN.room);
+    const reversed = wallReadInReverse(KITCHEN_L_DESIGN.room);
     const readingOrder = result.design.placements
       .filter(
         (placement) => placement.y0Mm === 0 && placement.id.startsWith("n"),
       )
       .sort((left, right) => {
-        if (left.wall !== right.wall) return left.wall === "B" ? -1 : 1;
-        return left.wall === "B"
+        if (left.wall !== right.wall) return left.wall === reversed ? -1 : 1;
+        return left.wall === reversed
           ? right.alongMm - left.alongMm
           : left.alongMm - right.alongMm;
       })
@@ -345,12 +362,13 @@ describe("7D2 pure planning and exact cut transitions", () => {
         }
       }
 
+      const reversed = wallReadInReverse(room);
       const readingCore = [
         ...plan.bases
-          .filter((base) => base.wall === "B")
+          .filter((base) => base.wall === reversed)
           .slice()
           .reverse(),
-        ...plan.bases.filter((base) => base.wall === "A"),
+        ...plan.bases.filter((base) => base.wall !== reversed),
       ]
         .filter((base) => base.role !== "storage")
         .map((base) => base.role);
@@ -619,10 +637,15 @@ describe("7D2 command and log truth", () => {
   );
 
   it("uses setWidth only for the final fit body merged with a <=200 mm free end", () => {
+    // **The witness room moved and the rule did not.** This was 900 × 2300 until M7 wave 7D8 keyed
+    // the run onto the wider entered wall: there the sink stood at wall B's free end and took the
+    // merged opening, and now the hob does — a discrete body, which is centred rather than resized,
+    // so that room issues no width command at all. 1600 × 1700 is the same shape on the other side
+    // of the key: the sink is the last body on the narrower wall, wall A, with 100 mm to absorb.
     const room: DesignRoom = {
       shape: "L",
-      widthMm: 900,
-      depthMm: 2300,
+      widthMm: 1600,
+      depthMm: 1700,
       heightMm: 2200,
     };
     const result = successful(room);
@@ -752,7 +775,8 @@ describe("7D2 probe lifetime and refusal paths", () => {
 
     expect(() =>
       generateKitchen({
-        room: { shape: "L", widthMm: 900, depthMm: 2300, heightMm: 2200 },
+        // The same room the free-end resize is witnessed at above, for the same reason it moved.
+        room: { shape: "L", widthMm: 1600, depthMm: 1700, heightMm: 2200 },
         occurredAt: OCCURRED_AT,
         probeAt: rejecting.probeAt,
       }),
@@ -770,7 +794,11 @@ describe("7D2 probe lifetime and refusal paths", () => {
 
     expect(() =>
       generateKitchen({
-        room: { shape: "L", widthMm: 900, depthMm: 2300, heightMm: 2200 },
+        // The same room again, and here the move mattered to what this covers rather than only to
+        // whether it passed: at 900 × 2300 the sink is now planned at its declared 600 and inserted
+        // at it, so a probe that throws at 0.6 throws during the **insert** and this test would have
+        // gone on passing while no longer reaching a resize at all.
+        room: { shape: "L", widthMm: 1600, depthMm: 1700, heightMm: 2200 },
         occurredAt: OCCURRED_AT,
         probeAt: throwing.probeAt,
       }),

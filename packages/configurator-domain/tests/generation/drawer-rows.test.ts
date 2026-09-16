@@ -8,16 +8,25 @@
 //
 // **The wall-B case is written first, and it is the reason this file exists.** *The first slot after
 // the hob* is the **reading** order, not *the same wall, further along*. The two definitions
-// disagree in 6 660 placed rooms — 3.1 % — and **nothing else in the wave goes red when the wrong
-// one is built**: the count, the widths, the remainder and the provenance all stay correct while the
-// drawer stands in the wrong module or in none (ruling D15.7).
+// disagree wherever the hob stands on the wall the layout runs in reverse, and **nothing else in the
+// wave goes red when the wrong one is built**: the count, the widths, the remainder and the
+// provenance all stay correct while the drawer stands in the wrong module or in none (ruling D15.7).
 //
-// **The reading order below is re-derived from the plan's own spatial positions**, never from a
-// planned id and never from production's own helper, so this file and `generation-priorities.ts`
-// agree only if both read wall B's reversal (ADR 0110 D2) the same way. A storage slot is reached
-// through `isComposedStorageSlot` and never through `role === "storage"`: the block's full-height
-// columns carry that role deliberately (E5.2), and a rule scoped by it is wrong on a third of all
-// placed rooms against output that is correct (D12).
+// **Re-keyed for M7 wave 7D8 slice S3.** The wall read in reverse is no longer wall B: it is the
+// **narrower entered wall**, because the run now follows the wider one (ADR 0120 Amendment E, ADR
+// 0110 Amendment I). Every assertion below that named a letter has been re-derived from the rule.
+// **The population that separates the two definitions of *after the hob* emptied with that re-key**
+// — the hob is the reading order's last core role and it now always stands on the wider wall — so
+// that half of D15.7 is witnessed at the composer's unit boundary instead, in
+// `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (ADR 0091 Amendment A: the invariant
+// moved, and it is asserted there at least as strongly).
+//
+// **The reading order below is re-derived from the entered wall lengths and the plan's own spatial
+// positions**, never from a planned id and never from production's own helper, so this file and
+// `generation-priorities.ts` agree only if both read the owner's wider-wall rule the same way. A
+// storage slot is reached through `isComposedStorageSlot` and never through `role === "storage"`:
+// the block's full-height columns carry that role deliberately (E5.2), and a rule scoped by it is
+// wrong on a third of all placed rooms against output that is correct (D12).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -31,6 +40,7 @@ import {
   lShellFloorRuns,
   planKitchenComposition,
   THREE_DRAWER_BASE_BUILD_ID,
+  wallLengthMm,
   type DesignRoom,
   type DesignWall,
   type KitchenCompositionPlan,
@@ -58,15 +68,30 @@ function alongTheWall(
   );
 }
 
-/** The kitchen in the order it is read: wall B from its free end toward the corner, then wall A from
- *  the corner outward (ADR 0110 Amendment A1). Wall B's modules are laid out corner-first, so
- *  reading that wall means reversing it — and that single reversal is the whole of D15.7. */
+/**
+ * The wall the kitchen is laid out against the reading order on — the run's **first** half, read
+ * from that wall's free end toward the corner (ADR 0110 Amendment A1 and D2).
+ *
+ * **It is the narrower entered wall, and wall B where the two are equal**, because the run follows
+ * the wider one (ADR 0120 Amendment E). **Derived here from the room's own two numbers and never
+ * imported from `generation-priorities.ts`**: production's `isLaidOutInReverse` is the expression
+ * this file exists to disagree with, and importing it would turn an independent oracle into a
+ * tautology (7D8 adjudication, finding C2).
+ */
+function wallReadInReverse(room: DesignRoom): DesignWall {
+  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "A" : "B";
+}
+
+/** The kitchen in the order it is read: the reversed wall from its free end toward the corner, then
+ *  the other wall from the corner outward. That single reversal is the whole of D15.7. */
 function inReadingOrder(
   plan: KitchenCompositionPlan,
 ): readonly PlannedGenerationBase[] {
+  const reversed = wallReadInReverse(plan.room);
+  const forwards: DesignWall = reversed === "A" ? "B" : "A";
   return [
-    ...[...alongTheWall(plan, "B")].reverse(),
-    ...alongTheWall(plan, "A"),
+    ...[...alongTheWall(plan, reversed)].reverse(),
+    ...alongTheWall(plan, forwards),
   ];
 }
 
@@ -85,42 +110,58 @@ function bodiesOf(bases: readonly PlannedGenerationBase[]): readonly string[] {
 }
 
 describe("D15.7 — the slot after the hob is found in the reading order and not along one wall", () => {
-  // The one witness that separates the two definitions: the hob stands among wall B's core, so the
-  // slot the run reaches next is wall B's, at the end of that wall the spatial array reaches **last**.
+  // The witness that separates *after the hob in the reading order* from *the first slot on a named
+  // wall*. Wall B is the wider entered wall here, so the run starts at wall A's free end, reads that
+  // wall's one slot, crosses the corner and reaches the hob among wall B's core. The slot the run
+  // reaches next is wall B's; **wall A's slot is a module the run passed before the hob** and must
+  // keep its door.
   const HOB_ON_WALL_B: DesignRoom = {
     shape: "L",
-    widthMm: 900,
-    depthMm: 4700,
+    widthMm: 1500,
+    depthMm: 3400,
     heightMm: 2600,
   };
 
-  it("stands the whole composed run on wall B, leaving wall A without a single module", () => {
+  it("stands the hob on the wider entered wall, with a composed slot on each wall", () => {
     const plan = planFor(HOB_ON_WALL_B);
 
     expect(plan.minimumMet).toBe(true);
-    expect(alongTheWall(plan, "A")).toEqual([]);
     expect(plan.bases.find((base) => base.role === "hob")?.wall).toBe("B");
+    expect(
+      plan.bases.filter(isComposedStorageSlot).map((slot) => slot.wall),
+    ).toEqual(["A", "B"]);
   });
 
   it("gives the drawer to the slot the run reaches first after the hob", () => {
     const plan = planFor(HOB_ON_WALL_B);
     const [first, ...rest] = slotsAfterTheHob(plan);
 
+    expect(first?.wall).toBe("B");
     expect(first?.buildId).toBe(THREE_DRAWER_BASE_BUILD_ID);
-    expect(bodiesOf(rest)).toEqual([DOOR_BASE_BUILD_ID]);
+    expect(bodiesOf(rest)).toEqual([]);
   });
 
-  it("is the slot nearest the hob along the wall, not the one nearest the corner", () => {
-    // The same disagreement seen spatially, and the form that fails loudest under the wrong rule.
-    // Wall A holds no slot at all here, so an implementation that reaches for wall A's first slot
-    // composes **no drawer anywhere** in this room — while the widths, the count, the remainder and
-    // every module's provenance stay exactly as they are below.
+  it("leaves the slot the run read before the hob a door, though it is a wall's first slot", () => {
+    // The same disagreement seen spatially, and the form that fails loudest under the wrong rule: an
+    // implementation that sought the slot on **wall A** — the letter the prefix wall used to wear —
+    // finds this room's only other composed slot and gives it the drawer, while the widths, the
+    // count, the remainder and every module's provenance stay exactly as they are below.
+    //
+    // **What this room can no longer separate, and where that went instead.** *The first slot after
+    // the hob* and *the first slot on the hob's own wall* name the same module in every room the
+    // approved policy admits, because the hob now always stands on the wall the run reads last. That
+    // half of D15.7 is witnessed at the composer's unit boundary in
+    // `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` — *the drawer stands at the prefix
+    // wall's highest slot index* — under ADR 0091 Amendment A: the invariant moved rather than
+    // weakened, and it is asserted there against a declared pair of runs rather than not at all.
     const plan = planFor(HOB_ON_WALL_B);
-    const slots = alongTheWall(plan, "B").filter(isComposedStorageSlot);
+    const slots = plan.bases.filter(isComposedStorageSlot);
 
-    expect(slots.map((slot) => [slot.startMm, slot.buildId])).toEqual([
-      [900, DOOR_BASE_BUILD_ID],
-      [1500, THREE_DRAWER_BASE_BUILD_ID],
+    expect(
+      slots.map((slot) => [slot.wall, slot.startMm, slot.buildId]),
+    ).toEqual([
+      ["A", 900, DOOR_BASE_BUILD_ID],
+      ["B", 2700, THREE_DRAWER_BASE_BUILD_ID],
     ]);
     expect(plan.bases.find((base) => base.role === "hob")?.startMm).toBe(2100);
   });
@@ -269,6 +310,12 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
 // The arms are counted and floored: 71.4 % of placed rooms have no post-hob slot at all (D15.3's
 // ceiling, and 7D5's justification), so a sweep that never reached the other two arms would pass
 // while proving nothing about the rule this slice exists for.
+//
+// **The wall-B floor stays at 30 through 7D8, and it is a floor rather than a target.** That arm
+// counts the post-hob slot standing on **physical wall B** — 7D8's P6a, 5 910 placed rooms, which
+// the re-key did not empty. Measured on this grid after the re-key: 2 202 plans, 1 587 with no
+// post-hob slot, 555 on wall A, **60 on wall B**. A repair that left this arm reading 0 would be
+// reporting a stale instrument rather than an emptied population (7D8 adjudication).
 // ---------------------------------------------------------------------------------------------
 
 const GRID_STEP_MM = 100;

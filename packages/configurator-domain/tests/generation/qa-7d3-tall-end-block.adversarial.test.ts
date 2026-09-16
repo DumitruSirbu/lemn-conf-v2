@@ -34,6 +34,7 @@ import {
   planLeftover,
   THREE_DRAWER_BASE_BUILD_ID,
   validateDesignForCatalog,
+  wallLengthMm,
   type DesignRoom,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
@@ -89,12 +90,24 @@ function blockOf(plan: KitchenCompositionPlan) {
   );
 }
 
-/** What the leftover rule alone makes of wall A's free end — E3 clause 3's own input, recomputed
+/**
+ * The wall the run ends on, and so the wall the block stands at the free end of: the **wider entered
+ * wall**, wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I, which
+ * overturns Amendment E's *"wall A and nowhere else"* on the owner's ruling that the block follows
+ * the run). Derived from the two entered numbers rather than read back off the plan, so a block that
+ * moved to the other wall fails these assertions instead of redefining them.
+ */
+function freeEndWallOf(room: DesignRoom): "A" | "B" {
+  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "B" : "A";
+}
+
+/** What the leftover rule alone makes of the free-end wall — E3 clause 3's own input, recomputed
  *  here from the run and the composed core rather than read back off the plan. */
 function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
-  const run = lShellFloorRuns(room).A;
+  const wall = freeEndWallOf(room);
+  const run = lShellFloorRuns(room)[wall];
   const coreWidthMm = plan.bases
-    .filter((base) => base.wall === "A" && base.role !== "storage")
+    .filter((base) => base.wall === wall && base.role !== "storage")
     .reduce((sum, base) => sum + base.widthMm, 0);
   return planLeftover(run.endMm - run.startMm - coreWidthMm);
 }
@@ -144,7 +157,8 @@ describe("E3 clause 1 decides something, and it is asserted where it decides it"
 
         const leftover = freeEndOf(plan, room);
         const clausesTwoToFour =
-          plan.bases.find((base) => base.role === "hob")?.wall === "A" &&
+          plan.bases.find((base) => base.role === "hob")?.wall ===
+            freeEndWallOf(room) &&
           leftover.storageCount >= 1 &&
           room.heightMm >= DECLARED_COLUMNS.columnHeightMm;
         const mergesWithTheFreeEndTile =
@@ -352,7 +366,8 @@ describe("the centring hazard across the whole absorb window", () => {
         roomsInTheWindow += 1;
         remaindersSeen.add(leftover.remainderMm);
 
-        const runA = lShellFloorRuns(room).A;
+        const freeEndWall = freeEndWallOf(room);
+        const freeEndRun = lShellFloorRuns(room)[freeEndWall];
         const where = `${String(widthMm)}x${String(depthMm)} r=${String(leftover.remainderMm)}`;
         const tower = block[0];
 
@@ -360,8 +375,8 @@ describe("the centring hazard across the whole absorb window", () => {
         expect(tower && tower.endMm - tower.startMm, where).toBe(
           DECLARED_COLUMNS.columnWidthMm,
         );
-        expect(block.at(-1)?.endMm, where).toBe(runA.endMm);
-        expect(plan.remainderMm.A, where).toBe(0);
+        expect(block.at(-1)?.endMm, where).toBe(freeEndRun.endMm);
+        expect(plan.remainderMm[freeEndWall], where).toBe(0);
 
         const result = generate(room);
         expect(result.ok, where).toBe(true);
