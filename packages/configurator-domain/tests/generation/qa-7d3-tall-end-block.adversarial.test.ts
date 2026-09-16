@@ -223,7 +223,7 @@ describe("no body is silently planned over its own module", () => {
             // identity clause said *the door body and nothing else*, which 7D4 makes false on
             // purpose: the slot standing first after the hob in the reading order takes the drawer
             // body (ADR 0110 Amendment H1, 7D4 D15.7). Widened to the pair a slot may take rather
-            // than deleted, so a third body planned into a cycle slot still fails here.
+            // than deleted, so a third body planned into a composed slot still fails here.
             expect(
               [DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID],
               label,

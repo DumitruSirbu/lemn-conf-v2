@@ -9,7 +9,7 @@
 //
 // **Three things this file is careful about, each a ruling rather than a preference.**
 //
-// 1. A slot is reached through `isCycleStorageSlot` — never `role === "storage"`, which the block's
+// 1. A slot is reached through `isComposedStorageSlot` — never `role === "storage"`, which the block's
 //    full-height columns also carry (ADR 0110 E5.2), and never a width, which E6.2 lets the block's
 //    outermost column take up to 800. Measured, those two scopings are wrong on 32.8 % and 14.9 % of
 //    placed rooms **against output that is right** (D12), so meeting one looks like a defect in a
@@ -29,7 +29,7 @@ import {
   findOverflowingPlacementIds,
   GENERATION_PRIORITIES,
   generateKitchen,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   PAN_DRAWER_BASE_BUILD_ID,
   replayGenerationLog,
@@ -57,7 +57,7 @@ const SWEEP_SEED = 20260916;
 /** Risk 14's table is written in samples per arm, so every floor below is its hundred. The run count
  *  is what the table's second column asks for the **scarcest arm this slice needs**: the block
  *  absorbing a remainder is 10.9 % of placed rooms, 918 runs for 100 samples. Measured at this seed
- *  over 1 000 runs: 876 placed, 407 with two or more cycle slots, 312 with none, 326 composing a
+ *  over 1 000 runs: 876 placed, 407 with two or more composed slots, 312 with none, 326 composing a
  *  post-hob drawer, 550 composing none, 107 absorbing a remainder into the block. */
 const SWEEP_RUNS = 1000;
 const ARM_FLOOR = 100;
@@ -74,7 +74,7 @@ const DETERMINISM_FLOOR = 200;
 
 const STORAGE_MODULE_WIDTH_MM = 600;
 
-/** The two bodies generation may stand in a slot the cycle composed. */
+/** The two bodies generation may stand in a slot the storage run composed. */
 const COMPOSED_STORAGE_BODIES = [
   DOOR_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
@@ -156,17 +156,17 @@ function inReadingOrder(
   ];
 }
 
-function cycleSlotsAfterTheHob(
+function composedSlotsAfterTheHob(
   modules: readonly ComposedModule[],
 ): readonly ComposedModule[] {
   const read = inReadingOrder(modules);
   const hobAt = read.findIndex((module) => module.role === "hob");
   if (hobAt < 0) throw new Error("the design holds no hob to read past");
-  return read.slice(hobAt + 1).filter(isCycleSlot);
+  return read.slice(hobAt + 1).filter(isComposedSlot);
 }
 
-function isCycleSlot(module: ComposedModule): boolean {
-  return isCycleStorageSlot({ id: module.plannedId });
+function isComposedSlot(module: ComposedModule): boolean {
+  return isComposedStorageSlot({ id: module.plannedId });
 }
 
 describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no third", () => {
@@ -178,7 +178,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
         if (!kitchen) return;
         arms.placed += 1;
         const modules = composedModules(kitchen);
-        const postHob = cycleSlotsAfterTheHob(modules)[0];
+        const postHob = composedSlotsAfterTheHob(modules)[0];
         if (postHob) arms.withDrawerSlot += 1;
         else arms.withoutDrawerSlot += 1;
 
@@ -202,7 +202,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
     expect(arms.withoutDrawerSlot).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
-  it("gives every other cycle slot the door body, asserted along each wall", () => {
+  it("gives every other composed slot the door body, asserted along each wall", () => {
     // The expectation is decided in the **reading** order and asserted in the **spatial** one, so
     // wall B's reversal has to be right in both places for this to pass (criterion 7, ADR 0110 D2).
     const arms = { twoOrMoreSlots: 0, noSlots: 0 };
@@ -211,13 +211,13 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
         const kitchen = generated(room);
         if (!kitchen) return;
         const modules = composedModules(kitchen);
-        const slots = modules.filter(isCycleSlot);
+        const slots = modules.filter(isComposedSlot);
         if (slots.length >= 2) arms.twoOrMoreSlots += 1;
         if (slots.length === 0) arms.noSlots += 1;
-        const drawerSlot = cycleSlotsAfterTheHob(modules)[0];
+        const drawerSlot = composedSlotsAfterTheHob(modules)[0];
 
         for (const wall of ["A", "B"] as const) {
-          const spatial = alongTheWall(modules, wall).filter(isCycleSlot);
+          const spatial = alongTheWall(modules, wall).filter(isComposedSlot);
           expect(
             spatial.map((slot) => slot.buildId),
             `${String(room.widthMm)}x${String(room.depthMm)} wall ${wall}`,
@@ -237,14 +237,14 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
     expect(arms.noSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
-  it("fills a kitchen's cycle slots from at most two bodies, the drawer appearing at most once", () => {
+  it("fills a kitchen's composed slots from at most two bodies, the drawer appearing at most once", () => {
     // **Criterion 6's enumeration is asserted as a membership, not as its three listed sets, and the
-    // reason is measured rather than preferred.** The criterion says a kitchen's distinct cycle-slot
+    // reason is measured rather than preferred.** The criterion says a kitchen's distinct composed-slot
     // bodies are `{}`, `{base-cabinet}` or `{base-cabinet, base-3drawer}`. A kitchen whose **only**
-    // cycle slot stands after the hob composes `{base-3drawer}`, which that list does not hold — and
+    // composed slot stands after the hob composes `{base-3drawer}`, which that list does not hold — and
     // the composer is right: D15.3 gives the first post-hob slot the drawer and there is no other
     // slot to keep a door. Measured over a 4 000-run sweep of the approved policy: 394 of 3 547
-    // placed rooms, 11.1 %, witness **6229 x 1489 x 2641** with one cycle slot. The enumeration is
+    // placed rooms, 11.1 %, witness **6229 x 1489 x 2641** with one composed slot. The enumeration is
     // the stale half of a criterion restated under D15, and **widening it is not this slice's to
     // do** — the finding is reported, and what is asserted here is the clause the criterion exists
     // for.
@@ -252,7 +252,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
       fc.property(approvedLRoom(), (room) => {
         const kitchen = generated(room);
         if (!kitchen) return;
-        const slots = composedModules(kitchen).filter(isCycleSlot);
+        const slots = composedModules(kitchen).filter(isComposedSlot);
         const unexpected = slots
           .map((slot) => slot.buildId)
           .filter((buildId) => !COMPOSED_STORAGE_BODIES.includes(buildId));
@@ -287,10 +287,10 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
           const kitchen = generated(room);
           if (!kitchen) return;
           const modules = composedModules(kitchen);
-          const drawerSlot = cycleSlotsAfterTheHob(modules)[0];
+          const drawerSlot = composedSlotsAfterTheHob(modules)[0];
           if (!drawerSlot) return;
           onWallB += 1;
-          const alongB = alongTheWall(modules, "B").filter(isCycleSlot);
+          const alongB = alongTheWall(modules, "B").filter(isComposedSlot);
 
           expect(drawerSlot.wall).toBe("B");
           expect(drawerSlot.plannedId).toBe(alongB.at(-1)?.plannedId);
@@ -310,7 +310,7 @@ describe("criterion 9 — every generated module is built on the grid", () => {
     // the widest size its set holds and centred, leaving slivers. It presents as a built width below
     // the planned one, which is what this reads. **Not** *narrower than the opening it stands in* —
     // criterion 10's own merge witness legitimately puts a 600 mm module in a 698 mm opening.
-    let cycleSlots = 0;
+    let composedSlots = 0;
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
         const kitchen = generated(room);
@@ -320,8 +320,8 @@ describe("criterion 9 — every generated module is built on the grid", () => {
           expect(module.builtWidthMm, module.plannedId).toBe(
             module.plannedWidthMm,
           );
-          if (!isCycleSlot(module)) continue;
-          cycleSlots += 1;
+          if (!isComposedSlot(module)) continue;
+          composedSlots += 1;
           expect(module.builtWidthMm, module.plannedId).toBe(
             STORAGE_MODULE_WIDTH_MM,
           );
@@ -330,7 +330,7 @@ describe("criterion 9 — every generated module is built on the grid", () => {
       { numRuns: SWEEP_RUNS, seed: SWEEP_SEED },
     );
 
-    expect(cycleSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
   it("generates no bottle cargo and no pan drawer, at any room in the policy", () => {

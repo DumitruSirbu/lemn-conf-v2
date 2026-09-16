@@ -15,7 +15,7 @@
 // **The reading order below is re-derived from the plan's own spatial positions**, never from a
 // planned id and never from production's own helper, so this file and `generation-priorities.ts`
 // agree only if both read wall B's reversal (ADR 0110 D2) the same way. A storage slot is reached
-// through `isCycleStorageSlot` and never through `role === "storage"`: the block's full-height
+// through `isComposedStorageSlot` and never through `role === "storage"`: the block's full-height
 // columns carry that role deliberately (E5.2), and a rule scoped by it is wrong on a third of all
 // placed rooms against output that is correct (D12).
 import { describe, expect, it } from "vitest";
@@ -26,7 +26,7 @@ import {
   cabinetDepthMmOf,
   declaredColumnSizes,
   DOOR_BASE_BUILD_ID,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
   planKitchenComposition,
@@ -77,7 +77,7 @@ function slotsAfterTheHob(
   const read = inReadingOrder(plan);
   const hobAt = read.findIndex((base) => base.role === "hob");
   if (hobAt < 0) throw new Error("the plan composed no hob to read past");
-  return read.slice(hobAt + 1).filter(isCycleStorageSlot);
+  return read.slice(hobAt + 1).filter(isComposedStorageSlot);
 }
 
 function bodiesOf(bases: readonly PlannedGenerationBase[]): readonly string[] {
@@ -116,7 +116,7 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
     // composes **no drawer anywhere** in this room — while the widths, the count, the remainder and
     // every module's provenance stay exactly as they are below.
     const plan = planFor(HOB_ON_WALL_B);
-    const slots = alongTheWall(plan, "B").filter(isCycleStorageSlot);
+    const slots = alongTheWall(plan, "B").filter(isComposedStorageSlot);
 
     expect(slots.map((slot) => [slot.startMm, slot.buildId])).toEqual([
       [900, DOOR_BASE_BUILD_ID],
@@ -167,16 +167,16 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
       const read = inReadingOrder(plan);
       const hobAt = read.findIndex((base) => base.role === "hob");
 
-      expect(bodiesOf(read.slice(0, hobAt).filter(isCycleStorageSlot))).toEqual(
-        Array.from({ length: 5 }, () => DOOR_BASE_BUILD_ID),
-      );
+      expect(
+        bodiesOf(read.slice(0, hobAt).filter(isComposedStorageSlot)),
+      ).toEqual(Array.from({ length: 5 }, () => DOOR_BASE_BUILD_ID));
     },
   );
 
   it.each([4700, 5100])(
     "leaves the block's three columns exactly where 7D3 put them at 6300 × %i",
     (depthMm) => {
-      // Not cycle slots, and asserted unchanged rather than exempted silently (D12). Their identity
+      // Not composed slots, and asserted unchanged rather than exempted silently (D12). Their identity
       // is 7D3's and this wave never reads it.
       const plan = planFor({
         shape: "L",
@@ -185,7 +185,7 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
         heightMm: 2600,
       });
       const columns = plan.bases.filter(
-        (base) => base.role === "storage" && !isCycleStorageSlot(base),
+        (base) => base.role === "storage" && !isComposedStorageSlot(base),
       );
 
       expect(
@@ -200,7 +200,7 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   );
 
   it.each([4700, 5100])(
-    "changes a body's identity and never a cycle slot's width at 6300 × %i",
+    "changes a body's identity and never a composed slot's width at 6300 × %i",
     (depthMm) => {
       const plan = planFor({
         shape: "L",
@@ -208,7 +208,7 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
         depthMm,
         heightMm: 2600,
       });
-      const slots = plan.bases.filter(isCycleStorageSlot);
+      const slots = plan.bases.filter(isComposedStorageSlot);
 
       expect(slots.length).toBeGreaterThan(0);
       for (const slot of slots) {
@@ -231,7 +231,7 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
 
   it("inserts wall B's one slot into the merged opening and steps it back to one module", () => {
     const plan = planFor(MERGE_BOUNDARY);
-    const slots = plan.bases.filter(isCycleStorageSlot);
+    const slots = plan.bases.filter(isComposedStorageSlot);
 
     expect(
       slots.map((slot) => [slot.wall, slot.startMm, slot.endMm, slot.widthMm]),
@@ -244,7 +244,7 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
     // row dropped into the merged 698 mm opening would move a tile boundary the merge and
     // `plannedVoid` both depend on, whichever body the rule assigned.
     const plan = planFor(MERGE_BOUNDARY);
-    const slot = plan.bases.find(isCycleStorageSlot);
+    const slot = plan.bases.find(isComposedStorageSlot);
     if (!slot)
       throw new Error("the merge boundary room composed no storage slot");
 
@@ -257,7 +257,7 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
     // two definitions agree only by accident, and this pins which one produced the answer.
     const plan = planFor(MERGE_BOUNDARY);
 
-    expect(bodiesOf(plan.bases.filter(isCycleStorageSlot))).toEqual([
+    expect(bodiesOf(plan.bases.filter(isComposedStorageSlot))).toEqual([
       DOOR_BASE_BUILD_ID,
     ]);
     expect(slotsAfterTheHob(plan)).toEqual([]);
@@ -316,7 +316,7 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
   it("gives a kitchen at most one drawer slot, and it is always the first after the hob", () => {
     for (const plan of SWEPT_PLANS) {
       const drawers = plan.bases
-        .filter(isCycleStorageSlot)
+        .filter(isComposedStorageSlot)
         .filter((slot) => slot.buildId === THREE_DRAWER_BASE_BUILD_ID);
       const expected = slotsAfterTheHob(plan).slice(0, 1);
 
@@ -329,7 +329,9 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
 
   it("gives every other storage slot the door body, and no slot a third body", () => {
     for (const plan of SWEPT_PLANS) {
-      const distinct = new Set(bodiesOf(plan.bases.filter(isCycleStorageSlot)));
+      const distinct = new Set(
+        bodiesOf(plan.bases.filter(isComposedStorageSlot)),
+      );
 
       for (const buildId of distinct) {
         expect(
@@ -340,9 +342,9 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
     }
   });
 
-  it("stands every cycle slot at one module, drawer or door", () => {
+  it("stands every composed slot at one module, drawer or door", () => {
     for (const plan of SWEPT_PLANS) {
-      for (const slot of plan.bases.filter(isCycleStorageSlot)) {
+      for (const slot of plan.bases.filter(isComposedStorageSlot)) {
         expect(slot.widthMm, slot.id).toBe(STORAGE_MODULE_WIDTH_MM);
         expect(slot.endMm - slot.startMm, slot.id).toBe(
           STORAGE_MODULE_WIDTH_MM,

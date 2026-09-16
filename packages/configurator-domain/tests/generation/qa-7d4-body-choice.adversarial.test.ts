@@ -31,7 +31,7 @@ import {
   cabinetDepthMmOf,
   declaredColumnSizes,
   DOOR_BASE_BUILD_ID,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
   PAN_DRAWER_BASE_BUILD_ID,
@@ -63,7 +63,7 @@ function roomOf(widthMm: number, depthMm: number, heightMm = 2600): DesignRoom {
 }
 
 /** A room whose plan holds both provenances at once, so one plan supplies every witness below. */
-const A_ROOM_WITH_A_BLOCK_AND_A_CYCLE = roomOf(6300, 4700);
+const A_ROOM_WITH_A_BLOCK_AND_A_RUN = roomOf(6300, 4700);
 
 function planFor(room: DesignRoom): KitchenCompositionPlan {
   return planKitchenComposition({
@@ -75,7 +75,7 @@ function planFor(room: DesignRoom): KitchenCompositionPlan {
 
 /** A module's provenance read **independently of its id**, so the predicate is never checked against
  *  itself: the block's columns are the storage-role modules the catalogue declares in the `column`
- *  band, and the cycle's slots are the rest. `fridge-free` is a column too and carries Amendment
+ *  band, and the storage run's slots are the rest. `fridge-free` is a column too and carries Amendment
  *  A1's own role, which excludes it from both. */
 function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
@@ -83,7 +83,7 @@ function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
     blockColumns: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band === "column",
     ),
-    cycleSlots: storageRole.filter(
+    composedSlots: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band !== "column",
     ),
   };
@@ -97,10 +97,10 @@ function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
  *  here: a width literal in a generation-side test is the second authority ADR 0102 forbids, and it
  *  would also pass against a planner whose module width had moved. */
 function plannedStorageSlotWidthMm(): number {
-  const { cycleSlots } = storageRoleModulesByBand(
-    planFor(A_ROOM_WITH_A_BLOCK_AND_A_CYCLE),
+  const { composedSlots } = storageRoleModulesByBand(
+    planFor(A_ROOM_WITH_A_BLOCK_AND_A_RUN),
   );
-  const slot = cycleSlots[0];
+  const slot = composedSlots[0];
   if (!slot) {
     throw new Error("the witness room no longer plans a storage slot");
   }
@@ -148,14 +148,14 @@ describe("every id the leaf declares names a row that can stand in a planned slo
 });
 
 // ---------------------------------------------------------------------------------------------
-// `isCycleStorageSlot` — Amendment F6's discriminator, attacked as the string predicate it is.
+// `isComposedStorageSlot` — Amendment F6's discriminator, attacked as the string predicate it is.
 // ---------------------------------------------------------------------------------------------
 
 /** The block's outermost column at the free-end witness Amendment F6 measures (3910 × 1700), and the
  *  width whose 14.9 % is the reason a rule may not read one. Carried here as the value a module
  *  would have if width could answer the question — it cannot, and that is what is asserted. */
 const A_BLOCK_COLUMN_WIDTH_MM = 610;
-const A_CYCLE_SLOT_WIDTH_MM = 600;
+const A_COMPOSED_SLOT_WIDTH_MM = 600;
 
 /** A module as a reader that had not read F6 would look at it: an id, and the two fields that look
  *  as though they answer the question. The predicate takes only the first. */
@@ -166,99 +166,109 @@ interface ModuleAsAMistakenReaderSeesIt {
 }
 
 function anIdOfEachProvenance() {
-  const { blockColumns, cycleSlots } = storageRoleModulesByBand(
-    planFor(A_ROOM_WITH_A_BLOCK_AND_A_CYCLE),
+  const { blockColumns, composedSlots } = storageRoleModulesByBand(
+    planFor(A_ROOM_WITH_A_BLOCK_AND_A_RUN),
   );
-  const cycleSlot = cycleSlots[0];
+  const composedSlot = composedSlots[0];
   const blockColumn = blockColumns[0];
-  if (!cycleSlot || !blockColumn) {
+  if (!composedSlot || !blockColumn) {
     throw new Error(
-      "the witness room no longer plans both a cycle slot and a block column",
+      "the witness room no longer plans both a composed slot and a block column",
     );
   }
-  return { cycleSlotId: cycleSlot.id, blockColumnId: blockColumn.id };
+  return { composedSlotId: composedSlot.id, blockColumnId: blockColumn.id };
 }
 
-describe("isCycleStorageSlot answers by provenance, and by nothing that correlates with it", () => {
+describe("isComposedStorageSlot answers by provenance, and by nothing that correlates with it", () => {
   it("is unmoved by the role and the width the module carries", () => {
-    const { cycleSlotId, blockColumnId } = anIdOfEachProvenance();
-    // Each module dressed as the other: the cycle's slot given a core role and the block's absorbed
-    // width, the block's column given the storage role E5 clause 2 puts on it and a cycle slot's
+    const { composedSlotId, blockColumnId } = anIdOfEachProvenance();
+    // Each module dressed as the other: the storage run's slot given a core role and the block's absorbed
+    // width, the block's column given the storage role E5 clause 2 puts on it and a composed slot's
     // width. Both fields are the ones F6 measured at 32.8 % and 14.9 % wrong.
-    const aCycleSlotDressedAsSomethingElse: ModuleAsAMistakenReaderSeesIt = {
-      id: cycleSlotId,
+    const aComposedSlotDressedAsSomethingElse: ModuleAsAMistakenReaderSeesIt = {
+      id: composedSlotId,
       role: "sink",
       widthMm: A_BLOCK_COLUMN_WIDTH_MM,
     };
-    const aBlockColumnDressedAsACycleSlot: ModuleAsAMistakenReaderSeesIt = {
+    const aBlockColumnDressedAsAComposedSlot: ModuleAsAMistakenReaderSeesIt = {
       id: blockColumnId,
       role: "storage",
-      widthMm: A_CYCLE_SLOT_WIDTH_MM,
+      widthMm: A_COMPOSED_SLOT_WIDTH_MM,
     };
 
-    expect(isCycleStorageSlot(aCycleSlotDressedAsSomethingElse)).toBe(true);
-    expect(isCycleStorageSlot(aBlockColumnDressedAsACycleSlot)).toBe(false);
+    expect(isComposedStorageSlot(aComposedSlotDressedAsSomethingElse)).toBe(
+      true,
+    );
+    expect(isComposedStorageSlot(aBlockColumnDressedAsAComposedSlot)).toBe(
+      false,
+    );
   });
 
   it("rejects an id that carries the convention without opening with it", () => {
-    const { cycleSlotId } = anIdOfEachProvenance();
+    const { composedSlotId } = anIdOfEachProvenance();
 
     // A containment test rather than a prefix test passes every witness the shipped suite has, because
     // no id the planner writes today carries the convention anywhere but at its start. It would then
     // accept the first composed id of any later wave that prefixed a namespace onto this one.
     for (const disguise of ["x", " ", "\n", "column:", "not-"]) {
-      expect(isCycleStorageSlot({ id: disguise + cycleSlotId })).toBe(false);
+      expect(isComposedStorageSlot({ id: disguise + composedSlotId })).toBe(
+        false,
+      );
     }
   });
 
   it("rejects an id whose case differs from the convention", () => {
-    const { cycleSlotId } = anIdOfEachProvenance();
+    const { composedSlotId } = anIdOfEachProvenance();
 
-    expect(isCycleStorageSlot({ id: cycleSlotId.toUpperCase() })).toBe(false);
+    expect(isComposedStorageSlot({ id: composedSlotId.toUpperCase() })).toBe(
+      false,
+    );
   });
 
   it("rejects an id that is empty or is only whitespace", () => {
     for (const empty of ["", " ", "\t", "\n"]) {
-      expect(isCycleStorageSlot({ id: empty })).toBe(false);
+      expect(isComposedStorageSlot({ id: empty })).toBe(false);
     }
   });
 });
 
-/** The shortest opening of a real cycle id the predicate accepts, found by asking it rather than by
+/** The shortest opening of a real composed-slot id the predicate accepts, found by asking it rather than by
  *  spelling the convention out — which is what keeps this file out of criterion 22's pinned site
  *  set while still checking where the convention ends. */
 function shortestAcceptedOpeningOf(id: string): string {
   for (let length = 0; length <= id.length; length += 1) {
     const opening = id.slice(0, length);
-    if (isCycleStorageSlot({ id: opening })) {
+    if (isComposedStorageSlot({ id: opening })) {
       return opening;
     }
   }
-  throw new Error(`no opening of ${id} is accepted, so it is not a cycle id`);
+  throw new Error(
+    `no opening of ${id} is accepted, so it is not a composed-slot id`,
+  );
 }
 
 describe("the convention the predicate reads ends at its separator", () => {
   it("accepts nothing shorter than the whole prefix, separator included", () => {
-    const { cycleSlotId } = anIdOfEachProvenance();
-    const opening = shortestAcceptedOpeningOf(cycleSlotId);
+    const { composedSlotId } = anIdOfEachProvenance();
+    const opening = shortestAcceptedOpeningOf(composedSlotId);
 
     // Without the separator the predicate answers on a word, and a later `storageroom:` or
     // `storage-wall:` module — the kind of name a wave adds without reading this leaf — would be
-    // swept into the cycle's balance, its variety count and its adjacency rule.
+    // swept into the storage run's balance, its variety count and its adjacency rule.
     expect(opening.at(-1)).toBe(":");
-    expect(isCycleStorageSlot({ id: opening.slice(0, -1) })).toBe(false);
+    expect(isComposedStorageSlot({ id: opening.slice(0, -1) })).toBe(false);
   });
 
   it("accepts any tail after it — the declared limit, asserted so it is not read as a parse", () => {
-    const { cycleSlotId } = anIdOfEachProvenance();
-    const opening = shortestAcceptedOpeningOf(cycleSlotId);
+    const { composedSlotId } = anIdOfEachProvenance();
+    const opening = shortestAcceptedOpeningOf(composedSlotId);
 
     // F14.2 states this limit and accepts it: the predicate answers *who composed this*, and the
     // guarantee that only the composer writes the prefix is the pinned site set, not this function.
     // Asserted rather than described, because a reader who took it for a validator would trust an id
     // this returns true for to have a wall and an index in it.
     for (const tail of ["", ":", "Z:-1", "\u0000"]) {
-      expect(isCycleStorageSlot({ id: opening + tail })).toBe(true);
+      expect(isComposedStorageSlot({ id: opening + tail })).toBe(true);
     }
   });
 });
@@ -290,32 +300,34 @@ const ROOMS_SWEPT = 3_000;
 const LEAST_ROOMS_PER_BLOCK_SIZE = 100;
 
 describe("the predicate agrees with provenance over the whole approved policy", () => {
-  it("answers true for every cycle slot and false for every block column, at every block size", () => {
+  it("answers true for every composed slot and false for every block column, at every block size", () => {
     const roomsByBlockSize = new Map<number, number>();
-    let roomsWithACycleSlot = 0;
+    let roomsWithAComposedSlot = 0;
 
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const plan = planFor(room);
-        const { blockColumns, cycleSlots } = storageRoleModulesByBand(plan);
+        const { blockColumns, composedSlots } = storageRoleModulesByBand(plan);
         const blockSize = blockColumns.length;
         roomsByBlockSize.set(
           blockSize,
           (roomsByBlockSize.get(blockSize) ?? 0) + 1,
         );
-        if (cycleSlots.length > 0) {
-          roomsWithACycleSlot += 1;
+        if (composedSlots.length > 0) {
+          roomsWithAComposedSlot += 1;
         }
 
-        expect(cycleSlots.filter(isCycleStorageSlot)).toEqual(cycleSlots);
-        expect(blockColumns.filter(isCycleStorageSlot)).toEqual([]);
+        expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
+          composedSlots,
+        );
+        expect(blockColumns.filter(isComposedStorageSlot)).toEqual([]);
         // The core roles are the third population the plan holds, and the one whose ids are the role
         // names themselves. A predicate that answered anything but false for them would put the sink
         // in the balance.
         expect(
           plan.bases
             .filter((base) => base.role !== "storage")
-            .filter(isCycleStorageSlot),
+            .filter(isComposedStorageSlot),
         ).toEqual([]);
       }),
       { numRuns: ROOMS_SWEPT },
@@ -328,7 +340,7 @@ describe("the predicate agrees with provenance over the whole approved policy", 
           (roomsByBlockSize.get(blockSize) ?? 0) >= LEAST_ROOMS_PER_BLOCK_SIZE,
       }).toEqual({ blockSize, reached: true });
     }
-    expect(roomsWithACycleSlot).toBeGreaterThanOrEqual(
+    expect(roomsWithAComposedSlot).toBeGreaterThanOrEqual(
       LEAST_ROOMS_PER_BLOCK_SIZE,
     );
     expect(

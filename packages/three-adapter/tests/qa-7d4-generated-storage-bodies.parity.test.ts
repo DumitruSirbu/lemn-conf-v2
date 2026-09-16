@@ -10,10 +10,10 @@
 // **A drawer is reached through provenance, never through a build id, and that is a measured
 // correction rather than a preference.** The **preparation** core module carries `base-3drawer` from
 // this wave on (ADR 0110 Amendment F5), so *a placement whose build id is the drawer's* is satisfied
-// in every placed kitchen whether or not the storage cycle composed one. Measured: with the composer's
+// in every placed kitchen whether or not the storage run composed one. Measured: with the composer's
 // drawer slot set to `undefined` — the wave's central rule deleted outright — the build-id form of
 // this file passed 15 of 15 while the domain suite went 8 red. Every claim about *the slot the run
-// reaches after the hob* therefore goes through `isCycleStorageSlot` and the log's own step, which is
+// reaches after the hob* therefore goes through `isComposedStorageSlot` and the log's own step, which is
 // the only thing that says which module planned a placement.
 //
 // **The criterion says *all three* storage bodies and this wave composes two.** `base-panbank` is
@@ -34,7 +34,7 @@ import {
   drawerCount,
   DOOR_BASE_BUILD_ID,
   generateKitchen,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   PAN_DRAWER_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
@@ -78,9 +78,9 @@ const DOOR_FRONT_MESH_NAME = "door_front";
 
 /** The rooms every geometry assertion below is run over. The reference room is kept as the
  *  **counter-case**: generation stands no drawer in a composed slot in it at all — both of its wall-B
- *  cycle slots take the door body and its only `base-3drawer` is the preparation core module — so it
+ *  composed slots take the door body and its only `base-3drawer` is the preparation core module — so it
  *  is the room that catches a claim selecting a drawer by build id. The other two stand one in a
- *  cycle slot, on a different wall each. */
+ *  composed slot, on a different wall each. */
 const SAMPLE_ROOMS: readonly Design["room"][] = [
   KITCHEN_L_DESIGN.room,
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
@@ -92,10 +92,10 @@ interface DrawerSlotRoom {
   readonly wall: DesignWall;
 }
 
-/** The two rooms whose generated run stands the drawer body in a slot the **storage cycle** composed,
+/** The two rooms whose generated run stands the drawer body in a slot the **storage run** composed,
  *  chosen so the slot lands on a different wall in each. Measured through the real probe: at
- *  6300 x 4700 it is wall A's first cycle slot, standing behind the core; at 900 x 4700 it is wall
- *  B's **highest-indexed** cycle slot, where the hob stands among wall B's core and the reading order
+ *  6300 x 4700 it is wall A's first composed slot, standing behind the core; at 900 x 4700 it is wall
+ *  B's **highest-indexed** composed slot, where the hob stands among wall B's core and the reading order
  *  runs against the layout (D15.7's 3.1 % arm). */
 const DRAWER_SLOT_ROOMS: readonly DrawerSlotRoom[] = [
   {
@@ -185,13 +185,13 @@ function plannedIdByPlacement(log: GenerationLog): ReadonlyMap<string, string> {
   );
 }
 
-/** Every built body standing in a slot the **storage cycle** composed. Never `role === "storage"`,
+/** Every built body standing in a slot the **storage run** composed. Never `role === "storage"`,
  *  which the tall-end block's full-height columns also carry (ADR 0110 E5.2), and never a build id. */
-function cycleSlotBodies(rendered: RenderedDesign) {
+function composedSlotBodies(rendered: RenderedDesign) {
   const plannedIds = plannedIdByPlacement(rendered.log);
   return placementBodies(rendered).flatMap(({ body, placement }) => {
     const plannedId = plannedIds.get(placement.id);
-    if (plannedId === undefined || !isCycleStorageSlot({ id: plannedId })) {
+    if (plannedId === undefined || !isComposedStorageSlot({ id: plannedId })) {
       return [];
     }
     return [{ body, placement, plannedId }];
@@ -224,11 +224,11 @@ function declaredFrontsOf(placement: DesignPlacement, design: Design) {
 
 describe("a generated run's storage bodies, built by the real adapter", () => {
   it.each(SAMPLE_ROOMS)(
-    "fills its cycle slots from the two composed bodies and stands no pan drawer in %o",
+    "fills its composed slots from the two composed bodies and stands no pan drawer in %o",
     (room) => {
       const rendered = render(generated(room));
       try {
-        const slotBodies = cycleSlotBodies(rendered).map(
+        const slotBodies = composedSlotBodies(rendered).map(
           ({ placement, plannedId }) =>
             `${plannedId}:${placement.body.buildId}`,
         );
@@ -251,14 +251,14 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
   );
 
   it.each(DRAWER_SLOT_ROOMS)(
-    "stands the drawer body in exactly one cycle slot, on the wall the reading order reaches after the hob, in %o",
+    "stands the drawer body in exactly one composed slot, on the wall the reading order reaches after the hob, in %o",
     ({ room, wall }) => {
       // **The wave's central rule, asserted where a build id cannot answer it.** The preparation core
       // module carries the same body, so `a drawer exists` is true in every placed kitchen; what is
-      // true only while the composer's rule holds is that a slot the *cycle* composed carries one.
+      // true only while the composer's rule holds is that a slot the *storage run* composed carries one.
       const rendered = render(generated(room));
       try {
-        const drawerSlots = cycleSlotBodies(rendered).filter(
+        const drawerSlots = composedSlotBodies(rendered).filter(
           ({ placement }) =>
             placement.body.buildId === THREE_DRAWER_BASE_BUILD_ID,
         );
@@ -274,11 +274,11 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
   );
 
   it.each(DRAWER_SLOT_ROOMS)(
-    "builds three drawer fronts and no leaf in that cycle slot, in %o",
+    "builds three drawer fronts and no leaf in that composed slot, in %o",
     ({ room }) => {
       const rendered = render(generated(room));
       try {
-        const drawerSlots = cycleSlotBodies(rendered).filter(
+        const drawerSlots = composedSlotBodies(rendered).filter(
           ({ placement }) =>
             placement.body.buildId === THREE_DRAWER_BASE_BUILD_ID,
         );

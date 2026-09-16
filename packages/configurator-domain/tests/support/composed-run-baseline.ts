@@ -11,14 +11,14 @@
 // 7D3's composition **as this wave found it** rather than a reconstruction of it.
 //
 // **Why a digest rather than the plans themselves.** Criterion 2 allows exactly one difference —
-// `buildId`, on the preparation role and on the cycle's own slots — so the canonical form below
+// `buildId`, on the preparation role and on the storage run's own slots — so the canonical form below
 // replaces those two build ids with a marker and spells every other field verbatim. A recorded
 // digest of that string is 16 bytes per room instead of a kilobyte, and the criterion's whole content
 // survives it: any width, count, remainder, cut, id, role, wall or position that moves changes the
 // string. **What a digest cannot do is say which field moved**, so the suite pairs it with witness
 // rooms whose plans are compared field by field.
 //
-// A storage slot is reached through `isCycleStorageSlot` and never through `role === "storage"`: the
+// A storage slot is reached through `isComposedStorageSlot` and never through `role === "storage"`: the
 // block's full-height columns carry that role deliberately (ADR 0110 E5.2), and a rule scoped by it
 // is wrong on 32.8 % of placed rooms against output that is correct (D12).
 import { createHash } from "node:crypto";
@@ -31,7 +31,7 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   DOOR_BASE_BUILD_ID,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   type DesignPlacement,
   type DesignRoom,
   type DesignWall,
@@ -47,7 +47,7 @@ import {
 export const BASELINE_SEED = 20260916;
 export const BASELINE_RUNS = 240;
 
-/** The preparation role and the cycle's slots are the two modules criterion 2 lets this wave move,
+/** The preparation role and the storage run's slots are the two modules criterion 2 lets this wave move,
  *  so the recorded form carries a marker where their body would stand. */
 const MOVED_BY_THIS_WAVE = "<7D4>";
 
@@ -83,7 +83,7 @@ export function canonicalPlan(plan: KitchenCompositionPlan): string {
 }
 
 /**
- * The same string with the body of the preparation role and of each cycle slot replaced by a marker,
+ * The same string with the body of the preparation role and of each composed slot replaced by a marker,
  * because those two are the only differences criterion 2 allows this wave. **The block's columns and
  * the hob keep their build ids**, so a block column whose identity moved, or a hob following
  * something other than 7D3's rule, still changes the string.
@@ -160,7 +160,7 @@ function canonicalPlannedBase(
 /** The two modules this wave is allowed to re-body, named by provenance and by role — never by width
  *  and never by `role === "storage"`, which the block's columns also carry. */
 export function isMovedByThisWave(base: PlannedGenerationBase): boolean {
-  return base.role === PREPARATION_ROLE || isCycleStorageSlot(base);
+  return base.role === PREPARATION_ROLE || isComposedStorageSlot(base);
 }
 
 /**

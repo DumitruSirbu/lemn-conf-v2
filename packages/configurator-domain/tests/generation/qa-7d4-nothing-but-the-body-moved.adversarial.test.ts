@@ -11,11 +11,11 @@
 // **What the recording is asked.** Criterion 2: for every room, every planned base's `id`, `role`,
 // `wall`, `startMm`, `endMm` and `widthMm`, the floor widths, the remainders, the dropped list and
 // the chosen wall cut are 7D3's, and the **only** difference anywhere is `buildId`, on the
-// preparation role and on the cycle's own slots. Criterion 21: the wall row is 7D3's to the
+// preparation role and on the storage run's own slots. Criterion 21: the wall row is 7D3's to the
 // character — this wave composes no upper at all — and no lift or open shelf stands in any generated
 // design.
 //
-// A storage slot is reached through `isCycleStorageSlot` and never through `role === "storage"` or a
+// A storage slot is reached through `isComposedStorageSlot` and never through `role === "storage"` or a
 // width: the block's full-height columns carry that role deliberately (ADR 0110 E5.2), and the two
 // naive scopings are wrong on 32.8 % and 14.9 % of placed rooms against output that is right (D12).
 import { fc } from "@fast-check/vitest";
@@ -28,7 +28,7 @@ import {
   declaredColumnSizes,
   DOOR_BASE_BUILD_ID,
   generateKitchen,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
   normaliseBand,
@@ -216,19 +216,19 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     },
   );
 
-  it("sweeps rooms that hold cycle slots, block columns and storage on both walls", () => {
+  it("sweeps rooms that hold composed slots, block columns and storage on both walls", () => {
     // The recording proves nothing about rooms it never reached. Measured at this seed over the
-    // 240 drawn rooms: cycle slots in 127, a block in 112, wall-B storage in 105.
-    const arms = { cycleSlots: 0, blockColumns: 0, wallBStorage: 0 };
+    // 240 drawn rooms: composed slots in 127, a block in 112, wall-B storage in 105.
+    const arms = { composedSlots: 0, blockColumns: 0, wallBStorage: 0 };
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
         const bases = planFor(room).bases;
-        const slots = bases.filter(isCycleStorageSlot);
-        if (slots.length > 0) arms.cycleSlots += 1;
+        const slots = bases.filter(isComposedStorageSlot);
+        if (slots.length > 0) arms.composedSlots += 1;
         if (slots.some((slot) => slot.wall === "B")) arms.wallBStorage += 1;
         if (
           bases.some(
-            (base) => base.role === "storage" && !isCycleStorageSlot(base),
+            (base) => base.role === "storage" && !isComposedStorageSlot(base),
           )
         ) {
           arms.blockColumns += 1;
@@ -237,7 +237,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
     );
 
-    expect(arms.cycleSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
     expect(arms.blockColumns).toBeGreaterThanOrEqual(ARM_FLOOR);
     expect(arms.wallBStorage).toBeGreaterThanOrEqual(ARM_FLOOR);
   });

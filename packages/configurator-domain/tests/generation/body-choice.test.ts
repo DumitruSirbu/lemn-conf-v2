@@ -30,7 +30,7 @@ import {
 } from "../../src/index.js";
 import {
   DOOR_BASE_BUILD_ID,
-  isCycleStorageSlot,
+  isComposedStorageSlot,
   PAN_DRAWER_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "../../src/generation/body-choice.js";
@@ -127,7 +127,7 @@ describe("the leaf changes a body's identity and never its width", () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Criterion 22 — D12's guard: the cycle's slots are identified by one exported predicate.
+// Criterion 22 — D12's guard: the storage run's slots are identified by one exported predicate.
 // ---------------------------------------------------------------------------------------------
 
 /** Block sizes 0, 1, 2 and 3, measured against the planner rather than transcribed. Every one of
@@ -150,7 +150,7 @@ function planFor(room: DesignRoom) {
 
 /** A module's provenance found **independently of its id**, so the two sides of every assertion
  *  below come from different sources: the block's columns are the storage-role modules the catalogue
- *  declares in the `column` band, and the cycle's are the rest. `fridge-free` is a column too and is
+ *  declares in the `column` band, and the storage run's are the rest. `fridge-free` is a column too and is
  *  excluded by its role, which is Amendment A1's and not the block's. */
 function storageRoleModulesByBand(plan: ReturnType<typeof planFor>) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
@@ -158,13 +158,13 @@ function storageRoleModulesByBand(plan: ReturnType<typeof planFor>) {
     blockColumns: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band === "column",
     ),
-    cycleSlots: storageRole.filter(
+    composedSlots: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band !== "column",
     ),
   };
 }
 
-describe("criterion 22 — one predicate separates the cycle's slots from the block's columns", () => {
+describe("criterion 22 — one predicate separates the storage run's slots from the block's columns", () => {
   it("covers block sizes 0, 1, 2 and 3, so neither arm of the ambiguity is unwitnessed", () => {
     const sizes = BLOCK_SIZE_WITNESSES.map(
       (room) => storageRoleModulesByBand(planFor(room)).blockColumns.length,
@@ -175,22 +175,24 @@ describe("criterion 22 — one predicate separates the cycle's slots from the bl
     ]);
   });
 
-  it("answers true for every module the cycle composed and false for every block column", () => {
-    let cycleSlotsSeen = 0;
+  it("answers true for every module the storage run composed and false for every block column", () => {
+    let composedSlotsSeen = 0;
     let blockColumnsSeen = 0;
 
     for (const room of BLOCK_SIZE_WITNESSES) {
       const plan = planFor(room);
-      const { blockColumns, cycleSlots } = storageRoleModulesByBand(plan);
-      cycleSlotsSeen += cycleSlots.length;
+      const { blockColumns, composedSlots } = storageRoleModulesByBand(plan);
+      composedSlotsSeen += composedSlots.length;
       blockColumnsSeen += blockColumns.length;
 
-      expect(cycleSlots.filter(isCycleStorageSlot)).toEqual(cycleSlots);
-      expect(blockColumns.filter(isCycleStorageSlot)).toEqual([]);
+      expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
+        composedSlots,
+      );
+      expect(blockColumns.filter(isComposedStorageSlot)).toEqual([]);
     }
 
-    expect({ cycleSlotsSeen, blockColumnsSeen }).toEqual({
-      cycleSlotsSeen: 12,
+    expect({ composedSlotsSeen, blockColumnsSeen }).toEqual({
+      composedSlotsSeen: 12,
       blockColumnsSeen: 6,
     });
   });
@@ -202,7 +204,7 @@ describe("criterion 22 — one predicate separates the cycle's slots from the bl
       );
 
       expect(core.length).toBeGreaterThan(0);
-      expect(core.filter(isCycleStorageSlot)).toEqual([]);
+      expect(core.filter(isComposedStorageSlot)).toEqual([]);
     }
   });
 });

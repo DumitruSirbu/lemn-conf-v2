@@ -26,13 +26,13 @@
 // (H6); the bottle cabinet and the second drawer cabinet are 7D5's, and both are width changes.
 //
 // **The second question this module answers is *whose module is this?*** After wave 7D3 the storage
-// **role** has two referents: the cycle's slots, and the full-height columns of the block at wall A's
-// free end, which carry `role: "storage"` deliberately so frame 1F's row set does not move (ADR 0110
-// E5.2). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 % of them
-// and one scoped by width on 14.9 % — in both cases against output that is **correct**, so the
-// failure presents as a defect in a closed wave. A slot is therefore identified by **what composed
-// it**; `isCycleStorageSlot` is the only answer to that question, and this is the only module in the
-// repository that knows the id convention it reads.
+// **role** has two referents: the storage run's slots, and the full-height columns of the block at
+// wall A's free end, which carry `role: "storage"` deliberately so frame 1F's row set does not move
+// (ADR 0110 E5.2). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
+// of them and one scoped by width on 14.9 % — in both cases against output that is **correct**, so
+// the failure presents as a defect in a closed wave. A slot is therefore identified by **what
+// composed it**; `isComposedStorageSlot` is the only answer to that question, and this is the only
+// module in the repository that knows the id convention it reads.
 //
 // A pure leaf, beside `leftover-rule.ts` and for the reason that module exists: no catalogue, no
 // probe, no design, no room, and no knowledge of how a run is laid out. It states no width and no
@@ -61,9 +61,9 @@ export const THREE_DRAWER_BASE_BUILD_ID = "base-3drawer";
  *  is a planned wave behind a dated owner ruling, not a hazard someone imagined. */
 export const PAN_DRAWER_BASE_BUILD_ID = "base-panbank";
 
-/** The id `storagePriorities` writes for a module the cycle composed. Declared here because the
- *  predicate below is the one reader of it (wave 7D4 criterion 22). */
-const CYCLE_STORAGE_ID_PREFIX = "storage:";
+/** The id `storagePriorities` writes for a module the storage run composed. Declared here because
+ *  the predicate below is the one reader of it (wave 7D4 criterion 22). */
+const COMPOSED_STORAGE_ID_PREFIX = "storage:";
 
 /** The one field the answer reads. Structural rather than an import of `PlannedGenerationBase`, so
  *  this leaf keeps the dependency floor its head comment claims. */
@@ -72,7 +72,7 @@ export interface ComposedModuleIdentity {
 }
 
 /**
- * Did the **storage cycle** compose this module, as opposed to the tall-end block?
+ * Did the **storage run** compose this module, as opposed to the tall-end block?
  *
  * **Neither the role nor the width can answer this**, and both look as though they can: a block
  * column carries `role: "storage"` by ADR 0110 E5.2, and E6.2 lets its outermost column absorb the
@@ -80,6 +80,6 @@ export interface ComposedModuleIdentity {
  * of all placed rooms respectively — against output that is right. Provenance is what separates one
  * 600 mm module from another once they stop being identical.
  */
-export function isCycleStorageSlot(base: ComposedModuleIdentity): boolean {
-  return base.id.startsWith(CYCLE_STORAGE_ID_PREFIX);
+export function isComposedStorageSlot(base: ComposedModuleIdentity): boolean {
+  return base.id.startsWith(COMPOSED_STORAGE_ID_PREFIX);
 }
