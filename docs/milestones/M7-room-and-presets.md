@@ -1520,7 +1520,7 @@ table.
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), **Q-H3 answered 2026-09-16 (a threshold at six plain storage cabinets, not a ratio — it re-keyed the plan)**; **Q-H5 blocks slice S3 only; Q-H4 and the new Q-H3a change two criteria and no code** |
-| **7D8** | **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **Q-7D8-1 gates slice S1(a) and therefore S2** (the mirrored reading direction, ADR 0110 A1); **Q-7D8-2 changes one criterion and no code** (may the rule cost a cabinet). **Neither gates S0 or S1(b)** |
+| **7D8** | **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Re-scoped 2026-09-16 under ADR 0120 Amendment A: the width is a function of the depth *and the room*, so the parity criterion sweeps rooms × depths.** The wall row's 570 returns move with the base row's 320 or the wave buys nothing — **the 290 mm cliff, defused by the owner's ruling below and live again the moment one row moves alone**. **Floors ruled 2026-09-16: a cabinet with one door at all three levels → 200 everywhere, wall B's bound 1000 → 880.** **Ordering: its fidelity baseline is taken *after* 7H lands, never before — 7H is landed at `7b1f92c`. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders, `decomposed-bodies.ts`, `build-any-body.ts` (+ fidelity, parity and room-sweep coverage); **slice S5 only**, jointly with 7D6 and by the coordinator's recorded exception, `configurator-domain/src/room/approved-room-policy.ts` | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + a narrow room | **Q-7D7-1 ANSWERED 2026-09-16** (one door at all three levels → 200). **Q-7D7-2 open** — wall A's minimum moves to 880 too, which ADR 0120 said it would not; gates S5's wall-A half only. S0–S4 dispatch now |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
@@ -9082,8 +9082,11 @@ cabinet).
 > direction is accepted**. Both rulings and their authority are at **E3** and **E4**, which are
 > rewritten; **slice S1(a) now records an owner ruling instead of asking for one**, and **S2 is
 > ungated**. **Every measurement in this plan is unchanged** — the owner chose between two measured
-> consequences and did not move a number. **Read E3, E4, S1 and the owner-questions section; E0–E2 and
-> E5–E8 are untouched.**
+> consequences and did not move a number. **Read E3, E4, criterion 10, risks 2 and 6, S1 and S4, and
+> the owner-questions section.** **E1, E2 and E5–E8 are untouched**; **E0 gained two paragraphs that
+> are not about the rulings at all** — the coordinator's note that `format` is no gate on this file,
+> and E0.2's record that **the brief which commissioned this wave described the defect correctly and
+> drew the wrong conclusion from it.**
 
 **What this wave is, in one sentence.** The owner's *"on wider wall you always place the sink and
 hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C's ruling, verbatim at that
@@ -9195,6 +9198,18 @@ only then today's `|cut − preferred|` tie-break — produces output **identica
 constraint**, and a wave that spends its budget there will find the same thing at the end instead of
 the start.
 
+**This corrects the brief that commissioned this plan, and the correction is recorded rather than
+absorbed.** The dispatch asked for *"the wave that fixes `chooseWallCut`'s wall-identity keying"* and
+described the defect as `preferred` being *"a cut index"* with `capacities` entering *"only as a
+feasibility filter … never as a preference"*. **Every one of those statements is true, and the
+conclusion a reader draws from them — that the fix is to make capacities enter as a preference — is
+false.** The correction is not a quibble about scope: **a wave dispatched on the brief's framing would
+have shipped a preference computation, measured its split, and found 100 % on one arm and 21.2 % on
+the other, which is the state it was sent to fix.** Recorded here because **the next person to read
+this module will reach for the comparator too** — it is the part that looks wrong — and because ADR
+0121 decision 4's *"the expected value comes from outside the producer"* applies to a brief exactly as
+it does to a test.
+
 ### E1 — the key: the entered wall length, not the free run, and the split is what proves it
 
 **Two candidate keys exist and they disagree. [measured]** The **entered wall length**
@@ -9274,14 +9289,27 @@ site becomes the **suffix** wall's free end, which is wall B in every B-wider ro
 costs 12 900 rooms a block they have today** — a regression nobody asked for, arriving as a side
 effect of a rule about sinks.
 
-**Ruled for this plan, and it is a recommendation the amendment must ratify rather than a decision
-this plan may take alone: the block follows the suffix wall.** E's own stated reason supports it and
-the confined alternative is a measured regression. **But Amendment E's *"and nowhere else"* is a
-standing ruling, and this wave overturns it in 47 175 rooms**, so **slice S1 writes the dated
-amendment before slice S2 writes a line of code.** A wave that ships the block on wall B without that
-record has silently overturned an owner-derived ruling, which `AGENTS.md` forbids outright.
+~~**Ruled for this plan, and it is a recommendation the amendment must ratify rather than a decision
+this plan may take alone: the block follows the suffix wall.**~~ **SUPERSEDED within the day, and by
+the only authority that could: RULED BY THE OWNER, 2026-09-16 — the block follows the run, and may
+stand on wall B.** The owner was shown **both rows of the table above** and chose follow-the-run over
+confinement: **144 866 blocks with 47 175 on wall B and nobody losing one**, against **97 691 confined
+and 12 900 kitchens losing a block they have today.**
 
-### E4 — the run reads the other way in the mirrored rooms, and A1 has a sentence about direction
+**ADR 0110 Amendment E's *"and nowhere else"* is OVERTURNED by that ruling**, with those two figures
+as its authority. **The engineering argument is kept and demoted to what it always was** — a reason,
+not a permission: E's stated reason was about *the free end the layout leaves* rather than about the
+letter A, so following the run honours E's intent while confining it would be a regression nobody
+asked for. **The owner did not need that argument to rule, and the ruling does not rest on it.**
+
+**What this changes in the plan: slice S1(a) now writes an amendment instead of waiting for one, and
+S2 is no longer gated on an owner answer.** The sequence is unchanged and still binding — **S1(a)
+lands before S2 writes a line of code** — but it is now a documentation-before-code discipline rather
+than a dispatch gate. **A wave that ships the block on wall B without that record has still silently
+overturned a standing ruling**, which `AGENTS.md` forbids whether or not the overturning was
+authorised.
+
+### E4 — the run reads the other way in the mirrored rooms, and the owner has accepted it
 
 **ADR 0110 Amendment A1, quoted:** *"On a left-corner L the run reads from wall B's free end toward
 the corner and then along wall A from the corner outward"*, and the order itself is *"along the run,
@@ -9300,10 +9328,25 @@ own worked counterexample, reproduced here:
 **Both put all four bodies on wall B** (wall A at 900 mm has no free run at all), so neither is more
 compliant — **what changes is which end the cooking order starts at.** **[measured]**
 
-**This plan does not treat it as a defect.** A mirrored kitchen is an ordinary thing, the re-keyed
-direction is the one that reads fridge-first from the corner, and **the owner's new rule cannot be
-honoured without it.** But it restates a sentence that sits inside an owner ruling, so it is
-**Q-7D8-1** below and it is the owner's, not the coordinator's.
+~~**This plan does not treat it as a defect** … so it is **Q-7D8-1** below and it is the owner's, not
+the coordinator's.~~ **ANSWERED the same day: the owner was shown the 900 × 3500 case above —
+`hob, prep, sink, fridge` becoming `fridge, sink, prep, hob` corner-outward, same bodies, same widths
+— and ACCEPTED IT.**
+
+**And it is not a concession: the owner had already described this arrangement in their own words,
+which is the sentence to quote at the keying site rather than this plan's reasoning about it:**
+
+> *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink, cabinets, fridge"*
+
+**So ADR 0110 Amendment A1's *"left to right as seen from inside the room"* is RESTATED, not broken**,
+and that is the distinction S1(a) must record. A1 describes the run's order **along the run**; it does
+not fix which end of the room the run begins at, and the owner's sentence says so independently of
+this wave. **A later reader must not find a mirrored kitchen and treat it as A1 violated** — the
+amendment exists to stop exactly that reading, and the owner's sentence is its authority.
+
+**What this changes in the plan: nothing measured, and one gate removed.** Every figure in E0–E8 was
+taken before the ruling and none of them moves; the ruling chose between two behaviours this plan had
+already measured. **S1(a) and therefore S2 are ungated.**
 
 ### E5 — what the corrected rule reaches, with every exception class named and sized
 
@@ -9455,11 +9498,12 @@ on both sides of the split, rather than by correlation on one.**
   and changes nothing beneath it.
 - **The *"Perete A"* field copy**, which ADR 0120 Amendment D makes more load-bearing and which
   remains **unowned**. It is a different defect in the same amendment and is not smuggled in here.
-- **The two first-slice chores 7D4 handed to *"7D5's first slice"*** — `run-end-panel.ts:94-98`'s
-  false comment reason, and `qa-7d3-tall-end-block.adversarial.test.ts`'s widened clause with no ADR
-  0091 Amendment A pointer. **That is a recorded assignment and this plan does not move it.** If the
-  coordinator runs 7D8 before 7D5, moving them here is a one-line scheduling call and is the
-  coordinator's; see slice S4.
+- ~~**The two first-slice chores 7D4 handed to *"7D5's first slice"***~~ — **there is one, and it is
+  in scope here if this wave runs first.** 7D4 assigned two; **the ADR 0091 Amendment A pointer is
+  already discharged at `ffc472e` and was verified at HEAD by this plan, not relayed** — see slice S4,
+  which carries the line numbers. What remains is `run-end-panel.ts:94-98`'s false comment reason, and
+  **7D8 has a particular claim on it because R7 sends an implementer into that same module.** The
+  scheduling call is still the coordinator's.
 
 ### Module boundaries
 
@@ -9561,11 +9605,18 @@ at 10 mm over 211 551 placed rooms, are:
    **one line at the keying site records that its absence is the clause being satisfied**, naming the
    trigger that would make it live (E6). A wave that adds the branch without that trigger has built
    for a problem that has not occurred (ADR 0118).
-10. _(sweep + record)_ **The block's wall is a ruling before it is a behaviour.** The close-out states
-    the count on both arms — **the block follows the suffix wall: 144 866 total, 47 175 on wall B**;
-    **confined to wall A: 97 691 total, 12 900 fewer than HEAD ships.** **Must not: no code decides
-    this before slice S1's dated amendment to ADR 0110 Amendment E exists**, because E rules *"wall A
-    … and nowhere else"* and this wave overturns it in 47 175 rooms.
+10. _(sweep + record)_ **The block follows the run onto wall B, as the owner ruled, and the record
+    that overturns Amendment E exists before the code that relies on it.** The close-out states the
+    count on both arms: **the shipped behaviour — the block follows the suffix wall — 144 866 total,
+    47 175 on wall B**, against the refused alternative, **confined to wall A: 97 691 total, 12 900
+    fewer than HEAD ships.** ~~Must not: no code decides this before slice S1's dated amendment
+    exists~~ — **the decision is no longer the code's to make; it is the owner's and it is made.**
+    **Must not, in its surviving and now narrower form: no commit puts a column on wall B before
+    S1(a)'s amendment has landed**, because ADR 0110 Amendment E still reads *"wall A … and nowhere
+    else"* until it is amended, and a repository that ships against its own standing record is the
+    failure whether or not the change was authorised. **Must not: the refused alternative is recorded
+    with its cost and never quietly dropped** — a later wave reading only the shipped number would
+    have no way to know confinement was considered and what it would have cost.
 11. _(artefact)_ **`7d3-composition-baseline.json` is a recording of this wave's pre-state**, captured
     by the method `tests/support/composed-run-baseline.ts` states in its own header — production
     modules restored to their pre-wave bytes on the new tree, swept at the same `BASELINE_SEED` and
@@ -9597,8 +9648,20 @@ at 10 mm over 211 551 placed rooms, are:
   whole-recorded witnesses on P1 and P6, and the two-split instrument of criterion 4. **A sabotage is
   run in both directions for each (ADR 0121 decision 3), and each criterion's close-out line names
   which sabotage discharged which direction.**
-- **S4 — only if this wave runs before 7D5, and only on the coordinator's word.** The two chores 7D4
-  assigned to *"7D5's first slice"*. **This plan does not reassign them.**
+- **S4 — ~~the two chores~~ ONE chore, and only if this wave runs before 7D5.** 7D4's close-out
+  assigned two first-slice chores to *"7D5's first slice"*; **whichever wave is first inherits them,
+  and one of them is already done.** **Verified at HEAD `8201915` rather than relayed:**
+  - **DISCHARGED, and not to be re-done.** The ADR 0091 Amendment A pointer the widened clause owed
+    is **present**: `qa-7d3-tall-end-block.adversarial.test.ts:228-235` now reads *"**The identity
+    invariant moved rather than weakened, and this is where it went:** `tests/generation/drawer-rows.test.ts`
+    …"*, names the assertion it moved to, and cites **Amendment A.2** explicitly. Landed at
+    `ffc472e`. **A slice that re-does this has not read the file.**
+  - **STILL OPEN, and it is the whole of S4.** `run-end-panel.ts:94-98` still justifies the wall-end
+    veto as *"a fitter closes that gap with a filler strip"* — a sentence about a **physical wall**
+    that ADR 0120 Amendment D's run reading removed. **The behaviour is correct and its stated reason
+    is false, which is the more dangerous of the two states**, and this wave has particular reason to
+    fix it rather than pass it on: **R7 is about that same module**, and an implementer sent to read
+    `run-end-panel.ts` for R7 should not find a false sentence and believe it.
 
 ### Risks, ranked, with the reason for the rank visible
 
@@ -9609,8 +9672,12 @@ at 10 mm over 211 551 placed rooms, are:
    Criterion 7 is the whole control, and it is why the two must be one expression rather than two
    agreeing ones.
 2. **The block's wall lands as an implementation detail.** 47 175 rooms gain a full-height block on
-   wall B, overturning ADR 0110 Amendment E, and the diff that does it reads as a refactor. Criterion
-   10 and the S1-before-S2 gate are the control.
+   wall B, and **the diff that does it reads as a refactor** — the behaviour falls out of the
+   prefix/suffix re-keying with no line of code naming it. **The owner's ruling removes the question
+   and does not remove this risk:** what ships is now authorised, but ADR 0110 Amendment E still says
+   *"nowhere else"* until S1(a) amends it, and an implementer who never noticed the block moved will
+   not notice the amendment is owed either. Criterion 10 and the S1(a)-before-S2 ordering are the
+   control.
 3. **The key silently becomes the free run**, because `chooseWallCut` already holds `capacities` and
    the room is one field further away. The result would be 100 / 100 on the wrong split and would read
    as a pass (E1). Criterion 4's double split is the control.
@@ -9619,8 +9686,14 @@ at 10 mm over 211 551 placed rooms, are:
 5. **The 14 335 sink exceptions get "fixed" by dropping the preparation cabinet** without Q-7D8-2
    being answered, turning a layout preference into a cabinet the customer does not get. Criterion 2's
    must-not.
-6. **The mirrored reading direction ships unasked**, quietly restating ADR 0110 A1's *"left to right
-   as seen from inside the room"*. Q-7D8-1.
+6. ~~**The mirrored reading direction ships unasked**, quietly restating ADR 0110 A1's *"left to right
+   as seen from inside the room"*. Q-7D8-1.~~ **RETIRED 2026-09-16 — the owner was asked and accepted
+   it (E4).** **Kept struck rather than deleted, because a risk that was real and was discharged by
+   asking is the record of how it was discharged**, and because the residual is not zero: **A1's
+   sentence is restated in S1(a) and not in the code**, so a reader of `generation-priorities.ts`
+   alone still sees a mirror with no ruling beside it. **The mitigation is one line at the keying
+   site quoting the owner's *"sometimes the arrangement is in mirror"*** — not a test, because there
+   is nothing here to falsify.
 7. **The run-end panel, and this is the wave's most likely visual surprise. NOT MEASURED.**
    `run-end-panel.ts:115`, `:126` and `:140` are keyed on **wall A**, and ADR 0110 Amendment B3a stops
    wall A's floor run short by the panel's footprint. Re-keyed, **wall A's free end no longer closes
