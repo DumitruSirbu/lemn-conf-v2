@@ -9111,6 +9111,24 @@ is the state it is fixing.
 > own family — a check that returns green without inspecting its subject — committed by the person
 > who commissioned that record, in the same week, while quoting it. **The real gate on a docs change
 > is a human or an agent reading the diff. There is no automated one.**
+>
+> **Reproduced rather than relayed, because a note about a check that lies is worth nothing if the
+> note itself is taken on trust. [measured, 2026-09-16 at `8ebff1f`]** Run against **this file, by
+> name, as an explicit path**:
+>
+> ```
+> $ npx prettier --check docs/milestones/M7-room-and-presets.md
+> Prettier: All files formatted correctly
+> $ echo $?
+> 0
+> ```
+>
+> **Naming the file explicitly does not defeat the ignore**, which is the half that makes the trap
+> work: the operator believes an explicit path proves intent, and prettier answers about the empty set
+> it was left with. **The output does not say *"1 file ignored"* or anything else a reader could
+> catch** — the success sentence is identical to the one a genuinely-clean file produces, which is why
+> nobody spotted it for a week. **This is the strongest available form of the claim and it is now
+> checkable**: run those two lines.
 
 **Every figure in this plan was taken on 2026-09-16 from a `tsc` build of
 `packages/configurator-domain/src/` at HEAD `8201915`, compiled into a scratch tree outside the
@@ -9758,6 +9776,14 @@ became a plain cupboard?*
 
 `pnpm --filter @lemnaria/configurator-domain test` and the three-adapter parity suite per slice;
 `pnpm check` before the wave's closing commit; `pnpm ci:local` before the push.
+
+**And one gate this wave does not have, stated here because this is where a reader comes to learn what
+verifies it: there is no automated gate on this plan itself.** `docs/` is in `.prettierignore`, so
+`format` — the one gate that would otherwise read a markdown file — **skips it and reports success**.
+**E0's banner carries the reproduction and the exact output.** Every slice of this wave edits this
+file at close-out, and **the only thing that checks those edits is a person reading the diff.** A
+close-out citing `pnpm ci:local` as evidence that its documentation is sound has cited a gate that
+never opened the file.
 
 **The sweep is the verification, and it is run twice.** Every criterion's close-out line is measured
 against the **wave's own build** on the **10 mm** grid and **reports both arms of the split with the
