@@ -7051,8 +7051,15 @@ flight together.
 >   (32.8 %, 14.9 %) are still correct.
 > - **`DOOR_BASE_BUILD_ID`** and **`THREE_DRAWER_BASE_BUILD_ID`** — clause 2 needs the first, clause 1
 >   the second.
-> - **`refuseASlotThatIsNotAWholePosition`'s index discipline** — a slot is a whole non-negative
->   position. Keep the shape even though the answer it guards is now constant.
+> - ~~**`refuseASlotThatIsNotAWholePosition`'s index discipline** — a slot is a whole non-negative
+>   position. Keep the shape even though the answer it guards is now constant.~~ **STRUCK 2026-09-16,
+>   and moved rather than dropped — see S2's obligation below.** This entry was written while
+>   `storageBodyAt` was still assumed to survive in some form. It does not: the "What dies" list below
+>   removes it, its only honest remaining body would be `return DOOR_BASE_BUILD_ID` — the exact shim
+>   S1b's must-not forbids — and once it is gone a *private* guard for it has no caller and fails
+>   `eslint --max-warnings 0`. **The two entries could not both be obeyed literally**, which S1b's
+>   implementer caught and reported rather than silently picking one. **The discipline is real and is
+>   now S2's**, asserted where the indexing actually happens.
 > - **The zero-import dependency floor** the head comment claims, and **F13's `src/index.ts`
 >   obligation** with it — including the `dist-module-graph` finding that proved the floor.
 > - **The adversarial suite at `tests/generation/qa-7d4-body-choice.adversarial.test.ts`** — its
@@ -7060,9 +7067,13 @@ flight together.
 >
 > **What dies:**
 > - **`STORAGE_CYCLE`**, and every assertion of an alternating order.
-> - **`PAN_DRAWER_BASE_BUILD_ID`** — `base-panbank` now has no caller anywhere. **Delete it rather than
->   keep it in case** (ADR 0118; ADR 0110 G7). If Q-G1 or Q-G2 gives the drawer group a second member it
->   comes back with a reason.
+> - ~~**`PAN_DRAWER_BASE_BUILD_ID`** — `base-panbank` now has no caller anywhere. **Delete it rather
+>   than keep it in case** (ADR 0118; ADR 0110 G7). If Q-G1 or Q-G2 gives the drawer group a second
+>   member it comes back with a reason.~~ **STRUCK 2026-09-16. It is KEPT — see the S1b bullet, which
+>   reverses this and ADR 0110 G7.** The condition this entry set has since been met: under the owner's
+>   run order (ADR 0110 Amendment H) 7D5 needs a second drawer body, so the member arrives *with* a
+>   reason and a dated ruling. **ADR 0118 is not violated** — the caller is a planned wave, not an
+>   imagined hazard. **The S1b bullet wins over this box wherever they disagree.**
 > - **`storageBodyAt(slotIndex)` in its present form** — clause 2 makes a storage slot's body constant,
 >   so the function has no varying answer left to give.
 > - **The leaf's head comment, first three paragraphs.** They argue for a cycle. **F6's paragraph is
@@ -7137,10 +7148,20 @@ flight together.
 
   Criteria **1, 2, 6, 7, 9, 10, 11, 13, 14, 19 and 20**. ~~This is the slice that removes the
   eleven.~~ **Struck: under the owner's rule the eleven are correct** (D14.2).
+  **INHERITED FROM S1b, 2026-09-16 — the index discipline, and it arrives here because it could not
+  stay where it was.** S1b deletes `refuseASlotThatIsNotAWholePosition` along with `storageBodyAt`,
+  because a private guard for a deleted function has no caller and fails `eslint --max-warnings 0`.
+  **The invariant it carried is still real — a slot is a whole non-negative position — and S2 is the
+  first slice that indexes slots for its own purposes, so S2 re-establishes it.** Not as a restored
+  helper: **as an assertion where the indexing happens.** *(Recorded because a behaviour the tree
+  cannot distinguish from its absence is unshipped — ADR 0093 d1. This is the failure mode where an
+  invariant evaporates in the gap between two slices, each correctly declining to own it.)*
+
   **Must not:** reaching for the cycle because the slice feels small; `storage:A:0` assumed to be the
   post-hob slot (D15.7); a second preparation module or the bottle cabinet — **both are width changes
   and both are 7D5's** (D15.2); any attempt to close the gap between this wave's **21.8 %** and the
-  owner's one-third inside 7D4 (D15.3).
+  owner's one-third inside 7D4 (D15.3); **the index discipline left unasserted because S1b removed
+  the guard** — S1b removed the *guard*, not the *rule*.
 - ~~**S3 — the wall run** (`generate-kitchen.ts`).~~ **WITHDRAWN with D8's lift rule, 2026-09-14.**
   With no lift generated, the wall row's output is already correct and the slice's whole content was a
   refactor. **It does not fold into S2 either** — there is nothing to fold. What the wall row is owed
