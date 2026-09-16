@@ -1,5 +1,5 @@
 {
-  "capturedFrom": "7816634 (7D3), swept on 9daf757 with this wave's two modules restored to their pre-wave bytes",
+  "capturedFrom": "7816634 (7D3), swept on 9daf757 with 7D4's two modules restored to their pre-wave bytes; re-captured 2026-09-16 in wave 7D8 slice S0 as 7D8's pre-state, swept on 8ebff1f with no restore needed (the tree already carried the pre-wave bytes, verified rather than assumed) and reproducing all 240 rooms and all 5 witnesses byte-identically",
   "seed": 20260916,
   "runs": 240,
   "rooms": [

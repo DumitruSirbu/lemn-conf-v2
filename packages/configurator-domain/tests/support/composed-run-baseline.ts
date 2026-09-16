@@ -1,5 +1,6 @@
 // M7 wave 7D4 slice S4 — what 7D3 composed, recorded once, and the canonical forms it is recorded
-// over.
+// over. **"This wave" throughout this module means 7D4**, whose criteria the canonical forms are
+// shaped for; the re-capture paragraph below names each later wave that re-takes the recording.
 //
 // **Criteria 2 and 21 say *deep-equal to 7D3's*, and neither can be proved from this wave's own
 // output.** A plan rebuilt out of the module that composed it agrees with itself whatever that module
@@ -9,6 +10,29 @@
 // (`7816634`, 7D3's last commit on either), swept over the rooms below, and the wave's own modules
 // put back from a byte copy. Nothing else in the tree was touched, which is what makes the recording
 // 7D3's composition **as this wave found it** rather than a reconstruction of it.
+//
+// **Re-captured 2026-09-16, wave 7D8 slice S0, and the recording is now 7D8's pre-state as well as
+// 7D3's composition.** 7D8 re-keys which wall carries the reading order's prefix and moves 38.95 % of
+// placed rooms, so the file has to be a recording of *that* wave's pre-state before its first
+// production edit lands. **The method is the one above and the restore step was measured rather than
+// assumed: `git diff HEAD -- packages/` was empty at the then-HEAD `8ebff1f`, so the pre-wave bytes of
+// `generation-priorities.ts` (blob `d893354`) and `tall-end-rule.ts` (blob `96c0c8e`) were already on
+// the tree and no restore was needed.** The sweep ran at the same `BASELINE_SEED` and `BASELINE_RUNS`
+// through `planKitchenComposition` and `generateKitchen` directly, and **reproduced all 240 room
+// lines and all five witnesses byte-identically**, which is what licenses one file to serve both
+// waves. **The re-capture is not an echo of HEAD's raw output**: HEAD composes `base-3drawer` where
+// the recorded witnesses hold `base-cabinet`, in the preparation role and in the first storage slot
+// after the hob, so the recording still carries 7D3's bodies and 7D4's masking is still doing work.
+//
+// **What the recording does not cover, stated here because a later wave will need it — and the
+// witnesses do not cover it either.** `isMovedByThisWave` is a test of *which slot it is*, by role
+// and provenance, and never of *which body it holds*. **Both** recorded forms call it: the 240 room
+// digests through `canonicalPlanBeyondThisWavesBodies` and the five whole witnesses through
+// `canonicalPlanWithTheDoorBodyRestored`. So a defect that moves `buildId` between composed slots
+// while leaving every position alone is substituted away on both sides of both comparisons, and the
+// five witnesses are the same blindness spelled out longhand rather than a second opinion on it.
+// **A criterion asking whether a build id stayed put cannot be discharged from this file at all** and
+// needs its own assertion.
 //
 // **Why a digest rather than the plans themselves.** Criterion 2 allows exactly one difference —
 // `buildId`, on the preparation role and on the storage run's own slots — so the canonical form below
