@@ -14,7 +14,7 @@
 //
 // **The reading order below is re-derived from the plan's own spatial positions**, never from a
 // planned id and never from production's own helper, so this file and `generation-priorities.ts`
-// agree only if both read wall B's reversal (Amendment G12) the same way. A storage slot is reached
+// agree only if both read wall B's reversal (ADR 0110 D2) the same way. A storage slot is reached
 // through `isCycleStorageSlot` and never through `role === "storage"`: the block's full-height
 // columns carry that role deliberately (E5.2), and a rule scoped by it is wrong on a third of all
 // placed rooms against output that is correct (D12).

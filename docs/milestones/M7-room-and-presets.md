@@ -7550,6 +7550,25 @@ flight together.
     re-keying of the cut. **A wave that re-keys `chooseWallCut` changes which wall a slot lands on and
     must re-measure D15.7's 25.4 % / 3.1 % split — it does not need to change 7D4's rule.**
 
+    **Added 2026-09-16 after 7D4's logic review measured it: re-measurement also INVALIDATES AN
+    ARTEFACT, and this risk did not say so.** The reviewer sabotaged `chooseWallCut` to
+    `preferred = 0` and got **26 tests red across 7 files** — the digest sweep, all five whole-recorded
+    witnesses, and 7D2's and 7D3's own cut assertions. **Every one was a *position* change and none was
+    a body-identity test**, which is the digest doing exactly its job: it fires when the cut moves.
+    So the blast radius is **consistent with this risk, not larger than it** — but it means
+    `tests/generation/7d3-composition-baseline.json` **stops being a valid baseline** for the re-keying
+    wave, because that wave legitimately changes 7D3's composition. **It must be re-captured against
+    that wave's own pre-state, by S4's method** (both modules restored to their pre-wave bytes on the
+    new tree, swept, restored from byte copies with the digests re-verified). Re-measuring a figure and
+    re-capturing a recording are different obligations; this risk named only the first.
+
+    **And the second copy of wall B's reversal is the thing most likely to break silently here**
+    (logic review F3, fixed in 7D4's review-fix slice). `slotsInReadingOrder` held its own literal
+    `wall === "B"` 130 lines from the layout's `[...onBReadingOrder].reverse()`. A re-keying wave that
+    edits the visible one and misses the local-looking one puts the drawer at index 0 instead of
+    `count - 1` — **and nothing goes red**, because no count, width, remainder, cut, provenance or
+    digest moves, and `buildId` on a cycle slot is precisely the field the baseline masks.
+
 ### Owner questions — two open, five answered, plus four confirmations raised 2026-09-15
 
 **Read this before treating the wave as blocked.** The brief that dispatched this planning said 7D4

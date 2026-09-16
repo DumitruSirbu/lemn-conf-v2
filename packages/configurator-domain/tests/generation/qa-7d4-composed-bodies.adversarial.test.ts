@@ -145,8 +145,8 @@ function alongTheWall(
 }
 
 /** The kitchen as it is read: wall B from its free end toward the corner, then wall A from the corner
- *  outward (ADR 0110 A1). Wall B is laid out corner-first, so reading it means reversing it — G12,
- *  and the whole of D15.7. */
+ *  outward (ADR 0110 A1). Wall B is laid out corner-first, so reading it means reversing it — ADR
+ *  0110 D2, and the whole of D15.7. */
 function inReadingOrder(
   modules: readonly ComposedModule[],
 ): readonly ComposedModule[] {
@@ -204,7 +204,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
 
   it("gives every other cycle slot the door body, asserted along each wall", () => {
     // The expectation is decided in the **reading** order and asserted in the **spatial** one, so
-    // wall B's reversal has to be right in both places for this to pass (criterion 7, G12).
+    // wall B's reversal has to be right in both places for this to pass (criterion 7, ADR 0110 D2).
     const arms = { twoOrMoreSlots: 0, noSlots: 0 };
     fc.assert(
       fc.property(approvedLRoom(), (room) => {

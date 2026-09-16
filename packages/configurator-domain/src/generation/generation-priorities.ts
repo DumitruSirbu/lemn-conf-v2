@@ -15,6 +15,10 @@ export type GenerationBaseRole = GenerationCoreRole | "storage";
 
 const HOB_ROLE: GenerationCoreRole = "hob";
 
+/** The wall carrying the reading order's **prefix**, and therefore the wall laid out in reverse
+ *  against it (ADR 0110 D2). Read through `isLaidOutInReverse` by both places that reverse. */
+const PREFIX_WALL: DesignWall = "B";
+
 export interface GenerationPriority {
   readonly role: GenerationCoreRole;
   readonly buildId: string;
@@ -179,15 +183,17 @@ function builtPlan(args: {
   // makes the reference fridge [2100, 2800] while the free-end remainder stays beyond it.
   const spatial = {
     A: [
-      ...onA.map((item) => asWidthItem(item, tallEnd.hobBuildId)),
+      ...inSpatialOrder("A", onA).map((item) =>
+        asWidthItem(item, tallEnd.hobBuildId),
+      ),
       ...storagePriorities("A", slotCounts.A, drawerSlot),
       ...tallColumnItems(tallEnd.columns),
     ],
     B: [
       ...storagePriorities("B", slotCounts.B, drawerSlot),
-      ...[...onBReadingOrder]
-        .reverse()
-        .map((item) => asWidthItem(item, tallEnd.hobBuildId)),
+      ...inSpatialOrder("B", onBReadingOrder).map((item) =>
+        asWidthItem(item, tallEnd.hobBuildId),
+      ),
     ],
   } as const;
   const bases = (["A", "B"] as const).flatMap((wall) =>
@@ -294,26 +300,44 @@ function firstStorageSlotAfterTheHob(args: {
 }
 
 /**
+ * Is this wall laid out against the order the kitchen is read in?
+ *
+ * **The single answer behind both places that reverse**, which is the point of it: `inSpatialOrder`
+ * turns the prefix wall's core items around and `slotsInReadingOrder` counts its slot indices
+ * downward, and those two sit a hundred lines apart. A wave that moved the prefix to the other wall
+ * would plausibly edit the visible one and miss the other, standing the drawer at index 0 instead of
+ * `count - 1` — and **no count, width, remainder, cut, provenance or digest would move**, so nothing
+ * recorded would report it.
+ */
+function isLaidOutInReverse(wall: DesignWall): boolean {
+  return wall === PREFIX_WALL;
+}
+
+/** A wall's items in spatial order, corner outward, given them in the order the kitchen is read. */
+function inSpatialOrder<Item>(
+  wall: DesignWall,
+  readingOrder: readonly Item[],
+): readonly Item[] {
+  return isLaidOutInReverse(wall) ? [...readingOrder].reverse() : readingOrder;
+}
+
+/**
  * A wall's storage slots in the order the kitchen is read: wall A ascends from the corner outward,
  * wall B descends, because B is the reading order's prefix laid out in reverse against it (ADR 0110
- * F7 and G12).
+ * D2; the 7D4 ground-truth table's G12 in `docs/milestones/M7-room-and-presets.md`).
  *
- * **A slot is a whole, non-negative position**, refused here because this is where a slice indexes
- * one for its own purposes: wall B's reading order counts `count - 1` downward, so a count that is
- * not a whole number of slots names a position no composed id matches, and the drawer body would be
- * placed **nowhere** while every width, count and remainder in the plan stayed correct. Slice S1b
- * deleted the guard that used to carry this rule along with the function it protected; the rule
- * outlived the guard (ADR 0093 d1).
+ * **A slot is a whole, non-negative position**, and the reason matters here even though the refusal
+ * does not live here: wall B's reading order counts `count - 1` downward, so a count that is not a
+ * whole number of slots would name a position no composed id matches, and the drawer body would be
+ * placed **nowhere** while every width, count and remainder in the plan stayed correct. Both counts
+ * reaching this function descend from `planLeftover`, which refuses non-whole and negative input at
+ * the real boundary (`leftover-rule.ts`); that is where the discipline is enforced, and a second
+ * guard here would be unreachable.
  */
 function slotsInReadingOrder(wall: DesignWall, count: number): StorageSlot[] {
-  if (!Number.isInteger(count) || count < 0) {
-    throw new Error(
-      `planKitchenComposition: wall ${wall} was given ${String(count)} storage slots, which is not a whole non-negative count of positions`,
-    );
-  }
   return Array.from({ length: count }, (_, step) => ({
     wall,
-    index: wall === "B" ? count - 1 - step : step,
+    index: isLaidOutInReverse(wall) ? count - 1 - step : step,
   }));
 }
 
