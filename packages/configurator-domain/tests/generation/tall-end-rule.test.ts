@@ -51,7 +51,7 @@ function qualifyingInput(
 ): TallEndRuleInput {
   return {
     coreSurvivedWhole: true,
-    hobStandsOnWallA: true,
+    hobStandsOnTheFreeEndWall: true,
     freeEndStorageCount: 3,
     freeEndRemainderMm: 0,
     roomHeightMm: DECLARED.columnHeightMm,
@@ -76,17 +76,21 @@ describe("planTallEndBlock composes a block when every clause holds", () => {
   });
 });
 
-describe("E3 clause 2 — a hob on wall B means no block and no substitution", () => {
-  // ADR 0110 E2 and D6/QT-4: wall B's leftover is at the corner end, which E2 forbids, and a tower on
-  // wall A while the hob is on wall B would put the oven round the corner from the cooking position.
+describe("E3 clause 2 — a hob on the prefix wall means no block and no substitution", () => {
+  // ADR 0110 E2 and D6/QT-4: the prefix wall's leftover is at the corner end, which E2 forbids, and a
+  // tower at the free end while the hob is round the corner would put the oven away from the cooking
+  // position. **Amendment I2 re-pointed the wall and not the clause** — the free end is the suffix
+  // wall's, whichever physical wall that is.
   //
   // **Unreachable through `generateKitchen` and recorded as such**: over 2.34 M planned rooms there is
-  // no room where the hob stands on wall B, the core survives whole, and wall A still yields a
-  // leftover module — `chooseWallCut` never produces that combination. The clause is therefore
-  // defensive, for the wave that re-orders a run. Defensive is not the same as unwitnessed, and this
-  // is the witness ADR 0093 decision 1 requires.
-  it("refuses the block and leaves the hob its own oven when the hob is not on wall A", () => {
-    const plan = planTallEndBlock(qualifyingInput({ hobStandsOnWallA: false }));
+  // no room where the hob stands on the prefix wall, the core survives whole, and the suffix wall
+  // still yields a leftover module — `chooseWallCut` never produces that combination. The clause is
+  // therefore defensive, for the wave that re-orders a run. Defensive is not the same as unwitnessed,
+  // and this is the witness ADR 0093 decision 1 requires.
+  it("refuses the block and leaves the hob its own oven when the hob is not on the free-end wall", () => {
+    const plan = planTallEndBlock(
+      qualifyingInput({ hobStandsOnTheFreeEndWall: false }),
+    );
 
     expect(plan.columns).toEqual([]);
     expect(plan.hobBuildId).toBe(HOB_WITH_ITS_OWN_OVEN);
@@ -98,7 +102,7 @@ describe("E3 clause 2 — a hob on wall B means no block and no substitution", (
   it("echoes whatever hob id its caller passed rather than naming one of its own", () => {
     const plan = planTallEndBlock(
       qualifyingInput({
-        hobStandsOnWallA: false,
+        hobStandsOnTheFreeEndWall: false,
         hobWithItsOwnOvenBuildId: "base-hob-some-later-body",
       }),
     );
@@ -139,7 +143,7 @@ describe("a column that is no longer one storage module is refused loudly", () =
       planTallEndBlock(
         qualifyingInput({
           coreSurvivedWhole: false,
-          hobStandsOnWallA: false,
+          hobStandsOnTheFreeEndWall: false,
           freeEndStorageCount: 0,
           roomHeightMm: 0,
           declared: { ...DECLARED, columnWidthMm: STORAGE_BODY_WIDTH_MM - 1 },

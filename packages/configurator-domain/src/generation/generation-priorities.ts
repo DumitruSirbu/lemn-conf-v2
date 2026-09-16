@@ -1,4 +1,5 @@
 import type { DesignRoom, DesignWall } from "../design.js";
+import { wallLengthMm } from "../queries/overflowing-placements.js";
 import {
   DOOR_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
@@ -15,9 +16,49 @@ export type GenerationBaseRole = GenerationCoreRole | "storage";
 
 const HOB_ROLE: GenerationCoreRole = "hob";
 
-/** The wall carrying the reading order's **prefix**, and therefore the wall laid out in reverse
- *  against it (ADR 0110 D2). Read through `isLaidOutInReverse` by both places that reverse. */
-const PREFIX_WALL: DesignWall = "B";
+/** Which physical wall carries each half of the reading order. The **prefix** wall is the one laid
+ *  out in reverse against that order (ADR 0110 D2), and it is read through `isLaidOutInReverse` by
+ *  both places that reverse. */
+interface ReadingOrderWalls {
+  readonly prefix: DesignWall;
+  readonly suffix: DesignWall;
+}
+
+/**
+ * The reading order's **suffix** runs along the **wider entered wall**, so the sink and the hob
+ * stand there and the fridge on the narrower one — the owner's *"on wider wall you always place the
+ * sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment E).
+ *
+ * **The key is the entered wall length and never the free run capacity** (ADR 0120 E2). The corner's
+ * reach is a fact about the corner, not about which wall is wider, so keying on capacity would make
+ * *wider* mean something no customer can compute from the two numbers they typed. The two keys rank
+ * the walls differently in the 1.83 % of placed rooms whose entered lengths differ by less than
+ * 100 mm; **that population is this ruling rather than a bug in it**, and re-keying it onto capacity
+ * overturns a dated decision.
+ *
+ * **Equal walls keep wall B as the prefix**, which is the answer every room had before the rule
+ * existed.
+ *
+ * **The owner's 4-metre relaxation is implemented by this function's silence about it**, and the
+ * silence is the compliance (ADR 0120 E4). *"In case wall have more than 4 meters it can fit on any
+ * wide wall"* is a permission, and above 4000 mm on both walls the narrower run always holds the
+ * 700 mm fridge, so the cut never collapses and a `> 4000` branch would be dead on every room the
+ * approved policy admits. **The trigger that would make it live** — recorded, not built for — is a
+ * later ruling letting this rule **drop a body** (wave 7D8's Q-7D8-2 answered the other way), at
+ * which point above 4 m becomes the region where it must not.
+ *
+ * **A mirrored kitchen is this rule working, not ADR 0110 A1 violated** (Amendment I5). Where wall B
+ * is wider the run reads from wall A's free end toward the corner and out along B, which is the
+ * owner's own *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink,
+ * cabinets, fridge"*. A1 fixes the order **along the run** and not which end of the room it starts
+ * at.
+ */
+function readingOrderWallsFor(room: DesignRoom): ReadingOrderWalls {
+  const isWallBWider = wallLengthMm("B", room) > wallLengthMm("A", room);
+  return isWallBWider
+    ? { prefix: "A", suffix: "B" }
+    : { prefix: "B", suffix: "A" };
+}
 
 export interface GenerationPriority {
   readonly role: GenerationCoreRole;
@@ -80,10 +121,10 @@ export interface KitchenCompositionPlan {
   readonly remainderMm: Readonly<Record<DesignWall, number>>;
 }
 
-/** Pure declared-width planning. Wall B is the prefix of the reading order and therefore appears
- *  in reverse spatial order; wall A is the suffix and appears in reading order. The preferred cut
- *  keeps the fridge on B when it fits, reproducing the reference-room composition without tying the
- *  fridge to that wall. */
+/** Pure declared-width planning. The prefix wall appears in reverse spatial order and the suffix
+ *  wall in reading order; which physical wall is which comes from `readingOrderWallsFor`. The
+ *  preferred cut keeps the fridge on the prefix wall when it fits, reproducing the reference-room
+ *  composition without tying the fridge to a wall. */
 export function planKitchenComposition(input: {
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
@@ -92,6 +133,7 @@ export function planKitchenComposition(input: {
    *  saw. */
   readonly columns: DeclaredColumnSizes;
 }): KitchenCompositionPlan {
+  const walls = readingOrderWallsFor(input.room);
   const capacities = {
     A: runWidth(input.runs.A),
     B: runWidth(input.runs.B),
@@ -105,9 +147,12 @@ export function planKitchenComposition(input: {
   ];
 
   for (const kept of attempts) {
-    const cut = chooseWallCut(kept, capacities);
+    const cut = chooseWallCut(kept, {
+      prefix: capacities[walls.prefix],
+      suffix: capacities[walls.suffix],
+    });
     if (cut === undefined) continue;
-    return builtPlan({ ...input, kept, cut });
+    return builtPlan({ ...input, walls, kept, cut });
   }
 
   return {
@@ -120,16 +165,19 @@ export function planKitchenComposition(input: {
   };
 }
 
+/** Where the reading order splits between the two walls, in free run millimetres and never in wall
+ *  letters: the cut is a feasibility answer about two run lengths, and which physical wall holds
+ *  each of them was decided before this was called (ADR 0120 E3). */
 function chooseWallCut(
   kept: readonly GenerationPriority[],
-  capacities: Readonly<Record<DesignWall, number>>,
+  capacityMm: { readonly prefix: number; readonly suffix: number },
 ): number | undefined {
   const preferred = kept[0]?.role === "fridge" ? 1 : 0;
   const candidates = Array.from({ length: kept.length + 1 }, (_, cut) => cut)
     .filter(
       (cut) =>
-        sumWidths(kept.slice(0, cut)) <= capacities.B &&
-        sumWidths(kept.slice(cut)) <= capacities.A,
+        sumWidths(kept.slice(0, cut)) <= capacityMm.prefix &&
+        sumWidths(kept.slice(cut)) <= capacityMm.suffix,
     )
     .sort((left, right) =>
       Math.abs(left - preferred) === Math.abs(right - preferred)
@@ -143,59 +191,72 @@ function builtPlan(args: {
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
   readonly columns: DeclaredColumnSizes;
+  readonly walls: ReadingOrderWalls;
   readonly kept: readonly GenerationPriority[];
   readonly cut: number;
 }): KitchenCompositionPlan {
-  const { room, runs, kept } = args;
-  const onBReadingOrder = kept.slice(0, args.cut);
-  const onA = kept.slice(args.cut);
-  const hobStandsOnWallA = onA.some((item) => item.role === HOB_ROLE);
-  const coreWidths = {
-    A: sumWidths(onA),
-    B: sumWidths(onBReadingOrder),
-  };
+  const { room, runs, kept, walls } = args;
+  const onThePrefixWall = kept.slice(0, args.cut);
+  const onTheSuffixWall = kept.slice(args.cut);
+  const hobStandsOnTheSuffixWall = onTheSuffixWall.some(
+    (item) => item.role === HOB_ROLE,
+  );
   const leftovers = {
-    A: planLeftover(runWidth(runs.A) - coreWidths.A),
-    B: planLeftover(runWidth(runs.B) - coreWidths.B),
+    prefix: planLeftover(
+      runWidth(runs[walls.prefix]) - sumWidths(onThePrefixWall),
+    ),
+    suffix: planLeftover(
+      runWidth(runs[walls.suffix]) - sumWidths(onTheSuffixWall),
+    ),
   };
 
-  // ADR 0110 Amendment E, stage 3: the block takes wall A's outermost leftover modules and the hob's
-  // build id follows from the same answer. Core selection and the leftover count above are what 7D2
-  // made them (E5.1, E5.2); only the identity of those outermost modules changes, and in the absorb
-  // window one width with it.
+  // ADR 0110 Amendment E, stage 3, as Amendment I re-points it: the block takes the **suffix** wall's
+  // outermost leftover modules — whichever physical wall that is, and the owner ruled it may be wall
+  // B — and the hob's build id follows from the same answer. Core selection and the leftover count
+  // above are what 7D2 made them (E5.1, E5.2); only the identity of those outermost modules changes,
+  // and in the absorb window one width with it.
   const tallEnd = planTallEndBlock({
     coreSurvivedWhole: kept.length === GENERATION_PRIORITIES.length,
-    hobStandsOnWallA,
-    freeEndStorageCount: leftovers.A.storageCount,
-    freeEndRemainderMm: leftovers.A.remainderMm,
+    hobStandsOnTheFreeEndWall: hobStandsOnTheSuffixWall,
+    freeEndStorageCount: leftovers.suffix.storageCount,
+    freeEndRemainderMm: leftovers.suffix.remainderMm,
     roomHeightMm: room.heightMm,
     hobWithItsOwnOvenBuildId: hobWithItsOwnOvenBuildId(),
     declared: args.columns,
   });
 
-  const slotCounts = { A: tallEnd.storageCount, B: leftovers.B.storageCount };
+  const slotCounts = keyedOnWalls(walls, {
+    prefix: leftovers.prefix.storageCount,
+    suffix: tallEnd.storageCount,
+  });
   const drawerSlot = firstStorageSlotAfterTheHob({
-    hobStandsOnWallA,
+    hobStandsOnTheSuffixWall,
     slotCounts,
+    walls,
   });
 
-  // Storage on B stands nearest the corner, leaving the reading-order prefix at the free end; that
-  // makes the reference fridge [2100, 2800] while the free-end remainder stays beyond it.
-  const spatial = {
-    A: [
-      ...inSpatialOrder("A", onA).map((item) =>
-        asWidthItem(item, tallEnd.hobBuildId),
-      ),
-      ...storagePriorities("A", slotCounts.A, drawerSlot),
-      ...tallColumnItems(tallEnd.columns),
+  // Storage on the prefix wall stands nearest the corner, leaving the reading order's first body at
+  // that wall's free end; in the reference room that makes the fridge [2100, 2800] while the free-end
+  // remainder stays beyond it.
+  const spatial = keyedOnWalls(walls, {
+    suffix: [
+      ...inSpatialOrder({
+        wall: walls.suffix,
+        readingOrder: onTheSuffixWall,
+        walls,
+      }).map((item) => asWidthItem(item, tallEnd.hobBuildId)),
+      ...storagePriorities(walls.suffix, slotCounts[walls.suffix], drawerSlot),
+      ...tallColumnItems(tallEnd.columns, walls.suffix),
     ],
-    B: [
-      ...storagePriorities("B", slotCounts.B, drawerSlot),
-      ...inSpatialOrder("B", onBReadingOrder).map((item) =>
-        asWidthItem(item, tallEnd.hobBuildId),
-      ),
+    prefix: [
+      ...storagePriorities(walls.prefix, slotCounts[walls.prefix], drawerSlot),
+      ...inSpatialOrder({
+        wall: walls.prefix,
+        readingOrder: onThePrefixWall,
+        walls,
+      }).map((item) => asWidthItem(item, tallEnd.hobBuildId)),
     ],
-  } as const;
+  });
   const bases = (["A", "B"] as const).flatMap((wall) =>
     placeAlongRun(wall, runs[wall].startMm, spatial[wall]),
   );
@@ -211,11 +272,27 @@ function builtPlan(args: {
       (item) => !keptRoles.has(item.role),
     ).map((item) => item.role),
     minimumMet: true,
-    remainderMm: {
-      A: tallEnd.remainderMm,
-      B: leftovers.B.remainderMm,
-    },
+    remainderMm: keyedOnWalls(walls, {
+      prefix: leftovers.prefix.remainderMm,
+      suffix: tallEnd.remainderMm,
+    }),
   };
+}
+
+/**
+ * A pair of values stated by layout role, re-keyed onto the physical walls that carry those roles.
+ *
+ * **Every id, floor-width row and remainder this module publishes stays keyed on the physical wall**
+ * — they describe the room the customer entered, not the layout planned into it — so the one
+ * crossing back from role to wall happens here and nowhere downstream (ADR 0120 Amendment E).
+ */
+function keyedOnWalls<Value>(
+  walls: ReadingOrderWalls,
+  byRole: { readonly prefix: Value; readonly suffix: Value },
+): Readonly<Record<DesignWall, Value>> {
+  return walls.prefix === "A"
+    ? { A: byRole.prefix, B: byRole.suffix }
+    : { A: byRole.suffix, B: byRole.prefix };
 }
 
 interface WidthItem {
@@ -237,10 +314,17 @@ function asWidthItem(item: GenerationPriority, hobBuildId: string): WidthItem {
 
 /** A column stands exactly where the leftover rule was going to stand a storage cabinet, and it is
  *  that module's identity that changes rather than the wall's plan — so it carries the storage role
- *  and frame 1F's row set does not move (E5.2). Which body it is, the build id says. */
-function tallColumnItems(columns: readonly PlannedTallColumn[]): WidthItem[] {
+ *  and frame 1F's row set does not move (E5.2). Which body it is, the build id says.
+ *
+ *  **The wall is the caller's and is the suffix wall's, never the letter A** (ADR 0110 Amendment I2,
+ *  on the owner's ruling that the block follows the run): a hard-coded `A` here would name the wrong
+ *  wall in every room where wall B is the wider one, and an id is the only field that would say so. */
+function tallColumnItems(
+  columns: readonly PlannedTallColumn[],
+  wall: DesignWall,
+): WidthItem[] {
   return columns.map((column, index) => ({
-    id: `column:A:${String(index)}`,
+    id: `column:${wall}:${String(index)}`,
     role: "storage" as const,
     buildId: column.buildId,
     widthMm: column.widthMm,
@@ -279,22 +363,37 @@ interface StorageSlot {
  * a drawer body (ADR 0110 Amendment H1, ruling D15.7).
  *
  * **It is not *the same wall, further along*, and the two answers disagree.** The hob is the reading
- * order's last core role, so every slot on the hob's own wall follows it. With the hob on wall A,
- * wall B's slots were read before the corner and are already behind. With the hob on wall B — 3.1 %
- * of placed rooms, 6 660 — the slot after it is wall B's **highest** index, because B is the reading
- * order's prefix and is laid out in reverse against it. Wall A's first slot is the wrong module in
- * every one of those rooms, and **nothing else in the plan goes red when it is chosen**: the count,
- * the widths and the provenance all stay correct while the drawer stands at the wrong end.
+ * order's last core role, so every slot on the hob's own wall follows it. With the hob on the suffix
+ * wall, the prefix wall's slots were read before the corner and are already behind. With the hob on
+ * the prefix wall — 2.8 % of placed rooms, 5 910 — the slot after it is that wall's **highest**
+ * index, because the prefix is laid out in reverse against the reading order. The suffix wall's
+ * first slot is the wrong module in every one of those rooms, and **nothing else in the plan goes
+ * red when it is chosen**: the count, the widths and the provenance all stay correct while the
+ * drawer stands at the wrong end.
+ *
+ * **The two walls below are named by their layout role and never by their letter**, because the two
+ * `slotsInReadingOrder` calls here *are* "prefix then suffix": spelling them `"B"` then `"A"` is the
+ * same defect as spelling the reversal `wall === "B"`, and it is silent in exactly the same way.
  */
 function firstStorageSlotAfterTheHob(args: {
-  readonly hobStandsOnWallA: boolean;
+  readonly hobStandsOnTheSuffixWall: boolean;
   readonly slotCounts: Readonly<Record<DesignWall, number>>;
+  readonly walls: ReadingOrderWalls;
 }): StorageSlot | undefined {
+  const { walls, slotCounts } = args;
   const readAfterTheHob = [
-    ...(args.hobStandsOnWallA
+    ...(args.hobStandsOnTheSuffixWall
       ? []
-      : slotsInReadingOrder("B", args.slotCounts.B)),
-    ...slotsInReadingOrder("A", args.slotCounts.A),
+      : slotsInReadingOrder({
+          wall: walls.prefix,
+          count: slotCounts[walls.prefix],
+          walls,
+        })),
+    ...slotsInReadingOrder({
+      wall: walls.suffix,
+      count: slotCounts[walls.suffix],
+      walls,
+    }),
   ];
   return readAfterTheHob[0];
 }
@@ -307,37 +406,49 @@ function firstStorageSlotAfterTheHob(args: {
  * downward, and those two sit a hundred lines apart. A wave that moved the prefix to the other wall
  * would plausibly edit the visible one and miss the other, standing the drawer at index 0 instead of
  * `count - 1` — and **no count, width, remainder, cut, provenance or digest would move**, so nothing
- * recorded would report it.
+ * recorded would report it. **Wave 7D8 is that wave**, and this stayed one expression through it.
  */
-function isLaidOutInReverse(wall: DesignWall): boolean {
-  return wall === PREFIX_WALL;
+function isLaidOutInReverse(
+  wall: DesignWall,
+  walls: ReadingOrderWalls,
+): boolean {
+  return wall === walls.prefix;
 }
 
 /** A wall's items in spatial order, corner outward, given them in the order the kitchen is read. */
-function inSpatialOrder<Item>(
-  wall: DesignWall,
-  readingOrder: readonly Item[],
-): readonly Item[] {
-  return isLaidOutInReverse(wall) ? [...readingOrder].reverse() : readingOrder;
+function inSpatialOrder<Item>(args: {
+  readonly wall: DesignWall;
+  readonly readingOrder: readonly Item[];
+  readonly walls: ReadingOrderWalls;
+}): readonly Item[] {
+  return isLaidOutInReverse(args.wall, args.walls)
+    ? [...args.readingOrder].reverse()
+    : args.readingOrder;
 }
 
 /**
- * A wall's storage slots in the order the kitchen is read: wall A ascends from the corner outward,
- * wall B descends, because B is the reading order's prefix laid out in reverse against it (ADR 0110
- * D2; the 7D4 ground-truth table's G12 in `docs/milestones/M7-room-and-presets.md`).
+ * A wall's storage slots in the order the kitchen is read: the suffix wall ascends from the corner
+ * outward and the prefix wall descends, because the prefix is laid out in reverse against the
+ * reading order (ADR 0110 D2; the 7D4 ground-truth table's G12 in
+ * `docs/milestones/M7-room-and-presets.md`).
  *
  * **A slot is a whole, non-negative position**, and the reason matters here even though the refusal
- * does not live here: wall B's reading order counts `count - 1` downward, so a count that is not a
+ * does not live here: the prefix wall's reading order counts `count - 1` downward, so a count that is not a
  * whole number of slots would name a position no composed id matches, and the drawer body would be
  * placed **nowhere** while every width, count and remainder in the plan stayed correct. Both counts
  * reaching this function descend from `planLeftover`, which refuses non-whole and negative input at
  * the real boundary (`leftover-rule.ts`); that is where the discipline is enforced, and a second
  * guard here would be unreachable.
  */
-function slotsInReadingOrder(wall: DesignWall, count: number): StorageSlot[] {
+function slotsInReadingOrder(args: {
+  readonly wall: DesignWall;
+  readonly count: number;
+  readonly walls: ReadingOrderWalls;
+}): StorageSlot[] {
+  const { wall, count } = args;
   return Array.from({ length: count }, (_, step) => ({
     wall,
-    index: isLaidOutInReverse(wall) ? count - 1 - step : step,
+    index: isLaidOutInReverse(wall, args.walls) ? count - 1 - step : step,
   }));
 }
 

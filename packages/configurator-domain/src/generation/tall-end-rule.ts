@@ -1,5 +1,10 @@
-// ADR 0110 Amendment E — wave 7D3: the block of full-height columns at wall A's free end, and the
-// hob that follows it.
+// ADR 0110 Amendment E — wave 7D3: the block of full-height columns at the free end the layout
+// leaves, and the hob that follows it.
+//
+// **Amendment I overturned E2's *"wall A … and nowhere else"* (owner, 2026-09-16): the block follows
+// the run.** Nothing in this module moved for it — no threshold, no width, no body id and no branch —
+// because this rule never knew a wall letter. Its caller feeds it the free end of whichever wall
+// carries the reading order's suffix, and in the rooms where wall B is the wider one that is wall B.
 //
 // **One question, and one answer decides both halves** (E5 stage 3). Whether a block stands and
 // whether the hob keeps its own oven are the same decision, so they are returned together: a
@@ -24,9 +29,9 @@ export const DOOR_COLUMN_BUILD_ID = "tall-pantry";
 const HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID = "base-hob-2drawer";
 
 /** The owner's own *"two, three columns"* (E2.2), and **the one number this rule states**. Every
- *  other figure the rule produces — the 3300 / 3900 / 4500 mm of wall A the three block sizes need —
- *  is a consequence of the declared widths and the corner's reach, and moves by itself when one of
- *  them does. */
+ *  other figure the rule produces — the 3300 / 3900 / 4500 mm of the block's own wall that the three
+ *  block sizes need — is a consequence of the declared widths and the corner's reach, and moves by
+ *  itself when one of them does. */
 export const MAX_TALL_BLOCK_COLUMNS = 3;
 
 /** What a body may be built to, as the catalogue declares it. */
@@ -48,9 +53,11 @@ export interface TallEndRuleInput {
   /** E3 clause 1: the full core survived, so `dropped` is empty. A kitchen that gave up its fridge
    *  for want of space has no business gaining a second oven. */
   readonly coreSurvivedWhole: boolean;
-  /** E3 clause 2 with E2: wall A's free end is the only site an L run has, so a hob on wall B means
-   *  no block and a hob that keeps its oven. */
-  readonly hobStandsOnWallA: boolean;
+  /** E3 clause 2 with E2, as Amendment I2 re-points it: **the free end the layout leaves** is the
+   *  only site an L run has, and it is the reading order's **suffix** wall's — whichever physical
+   *  wall that is. The prefix wall's free end holds core bodies and has no leftover modules to swap
+   *  for columns, so a hob that landed there means no block and a hob that keeps its oven. */
+  readonly hobStandsOnTheFreeEndWall: boolean;
   /** E3 clause 3, from `planLeftover` and from nowhere else — generation holds one remainder
    *  arithmetic. */
   readonly freeEndStorageCount: number;
@@ -71,7 +78,7 @@ export interface TallEndPlan {
   /** Innermost first — the oven tower, then the door columns outboard (E12.2). Empty where no block
    *  stands. */
   readonly columns: readonly PlannedTallColumn[];
-  /** The storage modules wall A keeps once the block has taken its own. */
+  /** The storage modules the block's own wall keeps once the block has taken its own. */
   readonly storageCount: number;
   /** The bare wall past the composed run, which is **0** where the outermost column absorbed it. */
   readonly remainderMm: number;
@@ -79,7 +86,8 @@ export interface TallEndPlan {
 }
 
 /**
- * The block at wall A's free end, the storage the leftover rule keeps, and the hob's build id.
+ * The block at the free end the layout leaves, the storage the leftover rule keeps, and the hob's
+ * build id.
  *
  * A block never enters core selection and never causes a role to be dropped (E5.1): it takes modules
  * the leftover rule had already planned, at the end the spatial order leaves free.
@@ -115,7 +123,7 @@ export function planTallEndBlock(input: TallEndRuleInput): TallEndPlan {
 function isABlockAffordable(input: TallEndRuleInput): boolean {
   return (
     input.coreSurvivedWhole &&
-    input.hobStandsOnWallA &&
+    input.hobStandsOnTheFreeEndWall &&
     input.freeEndStorageCount >= 1 &&
     input.roomHeightMm >= input.declared.columnHeightMm
   );
@@ -126,14 +134,14 @@ function isABlockAffordable(input: TallEndRuleInput): boolean {
  * cannot stand flush to the run.
  *
  * **E6.2.** Two adjacent columns sum past the empty-column ceiling and never merge, so a block is
- * exposed at its free-end face alone however many columns it has. Where wall A's remainder is small
- * enough to merge with that face, the outermost column is **planned at the merged width**: the
+ * exposed at its free-end face alone however many columns it has. Where that wall's remainder is
+ * small enough to merge with that face, the outermost column is **planned at the merged width**: the
  * opening is then exactly what the column is built to, the run reaches the wall's reachable end, and
  * nothing is centred with a bare sliver on each side.
  *
  * A block of two or three ends in a `'fit'` door column, which takes that width the way any fit body
  * takes its tile. A block of one ends in the fixed-width oven tower, which cannot — and a block of
- * one means wall A had exactly one leftover module, so there is no module inboard to absorb it
+ * one means that wall had exactly one leftover module, so there is no module inboard to absorb it
  * either. **That block is not planned at all**: the single `1 → 0` step E6.2 names, and the one place
  * a block shrinks as the room grows.
  */
