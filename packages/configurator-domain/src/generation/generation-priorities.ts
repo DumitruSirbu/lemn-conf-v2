@@ -1,4 +1,8 @@
 import type { DesignRoom, DesignWall } from "../design.js";
+import {
+  DOOR_BASE_BUILD_ID,
+  THREE_DRAWER_BASE_BUILD_ID,
+} from "./body-choice.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
   planTallEndBlock,
@@ -18,20 +22,22 @@ export interface GenerationPriority {
   readonly required: boolean;
 }
 
-/** Owner-ruled reading order and declared widths (ADR 0110 A1 and D3). */
+/** Owner-ruled reading order and declared widths (ADR 0110 A1 and D3). The preparation body is A1's
+ *  *interim data* amended by Amendment F5 — the cutlery reached while cutting lives in drawers within
+ *  reach of the preparation surface — and it is read from `body-choice.ts` rather than spelled again,
+ *  so one module declares every composed storage body (wave 7D4 criterion 20). The order itself is
+ *  untouched. */
 export const GENERATION_PRIORITIES: readonly GenerationPriority[] = [
   { role: "fridge", buildId: "fridge-free", widthMm: 700, required: false },
   { role: "sink", buildId: "base-sink", widthMm: 600, required: true },
   {
     role: "preparation",
-    buildId: "base-cabinet",
+    buildId: THREE_DRAWER_BASE_BUILD_ID,
     widthMm: 600,
     required: false,
   },
   { role: "hob", buildId: "base-hob-oven", widthMm: 600, required: true },
 ];
-
-export const STORAGE_BUILD_ID = "base-cabinet";
 
 /** The hob body that carries its own oven, which is what a kitchen keeps whenever no oven tower
  *  stands in it (ADR 0110 E4). Read from the priorities rather than restated, so the substitution
@@ -139,6 +145,7 @@ function builtPlan(args: {
   const { room, runs, kept } = args;
   const onBReadingOrder = kept.slice(0, args.cut);
   const onA = kept.slice(args.cut);
+  const hobStandsOnWallA = onA.some((item) => item.role === HOB_ROLE);
   const coreWidths = {
     A: sumWidths(onA),
     B: sumWidths(onBReadingOrder),
@@ -154,7 +161,7 @@ function builtPlan(args: {
   // window one width with it.
   const tallEnd = planTallEndBlock({
     coreSurvivedWhole: kept.length === GENERATION_PRIORITIES.length,
-    hobStandsOnWallA: onA.some((item) => item.role === HOB_ROLE),
+    hobStandsOnWallA,
     freeEndStorageCount: leftovers.A.storageCount,
     freeEndRemainderMm: leftovers.A.remainderMm,
     roomHeightMm: room.heightMm,
@@ -162,16 +169,22 @@ function builtPlan(args: {
     declared: args.columns,
   });
 
+  const slotCounts = { A: tallEnd.storageCount, B: leftovers.B.storageCount };
+  const drawerSlot = firstStorageSlotAfterTheHob({
+    hobStandsOnWallA,
+    slotCounts,
+  });
+
   // Storage on B stands nearest the corner, leaving the reading-order prefix at the free end; that
   // makes the reference fridge [2100, 2800] while the free-end remainder stays beyond it.
   const spatial = {
     A: [
       ...onA.map((item) => asWidthItem(item, tallEnd.hobBuildId)),
-      ...storagePriorities("A", tallEnd.storageCount),
+      ...storagePriorities("A", slotCounts.A, drawerSlot),
       ...tallColumnItems(tallEnd.columns),
     ],
     B: [
-      ...storagePriorities("B", leftovers.B.storageCount),
+      ...storagePriorities("B", slotCounts.B, drawerSlot),
       ...[...onBReadingOrder]
         .reverse()
         .map((item) => asWidthItem(item, tallEnd.hobBuildId)),
@@ -228,12 +241,79 @@ function tallColumnItems(columns: readonly PlannedTallColumn[]): WidthItem[] {
   }));
 }
 
-function storagePriorities(wall: DesignWall, count: number): WidthItem[] {
+/** Every storage slot takes the door body the owner's order ends on — *"and after only door cabinets
+ *  to fit spaces"* — except the one slot `firstStorageSlotAfterTheHob` named, which takes the drawer
+ *  body (ADR 0110 Amendment H1). The spatial order below ascends on both walls; only the drawer
+ *  slot's identity was decided in the reading order. */
+function storagePriorities(
+  wall: DesignWall,
+  count: number,
+  drawerSlot: StorageSlot | undefined,
+): WidthItem[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `storage:${wall}:${String(index)}`,
     role: "storage" as const,
-    buildId: STORAGE_BUILD_ID,
+    buildId:
+      drawerSlot?.wall === wall && drawerSlot.index === index
+        ? THREE_DRAWER_BASE_BUILD_ID
+        : DOOR_BASE_BUILD_ID,
     widthMm: STORAGE_BODY_WIDTH_MM,
+  }));
+}
+
+/** A storage slot's position along its wall — the pair `storagePriorities` turns into an id. */
+interface StorageSlot {
+  readonly wall: DesignWall;
+  readonly index: number;
+}
+
+/**
+ * The storage slot standing first after the hob in the **reading** order, and `undefined` where a
+ * kitchen has no storage slot after its hob at all. This is the one slot the owner's run order gives
+ * a drawer body (ADR 0110 Amendment H1, ruling D15.7).
+ *
+ * **It is not *the same wall, further along*, and the two answers disagree.** The hob is the reading
+ * order's last core role, so every slot on the hob's own wall follows it. With the hob on wall A,
+ * wall B's slots were read before the corner and are already behind. With the hob on wall B — 3.1 %
+ * of placed rooms, 6 660 — the slot after it is wall B's **highest** index, because B is the reading
+ * order's prefix and is laid out in reverse against it. Wall A's first slot is the wrong module in
+ * every one of those rooms, and **nothing else in the plan goes red when it is chosen**: the count,
+ * the widths and the provenance all stay correct while the drawer stands at the wrong end.
+ */
+function firstStorageSlotAfterTheHob(args: {
+  readonly hobStandsOnWallA: boolean;
+  readonly slotCounts: Readonly<Record<DesignWall, number>>;
+}): StorageSlot | undefined {
+  const readAfterTheHob = [
+    ...(args.hobStandsOnWallA
+      ? []
+      : slotsInReadingOrder("B", args.slotCounts.B)),
+    ...slotsInReadingOrder("A", args.slotCounts.A),
+  ];
+  return readAfterTheHob[0];
+}
+
+/**
+ * A wall's storage slots in the order the kitchen is read: wall A ascends from the corner outward,
+ * wall B descends, because B is the reading order's prefix laid out in reverse against it (ADR 0110
+ * F7 and G12).
+ *
+ * **A slot is a whole, non-negative position**, refused here because this is where a slice indexes
+ * one for its own purposes: wall B's reading order counts `count - 1` downward, so a count that is
+ * not a whole number of slots names a position no composed id matches, and the drawer body would be
+ * placed **nowhere** while every width, count and remainder in the plan stayed correct. Slice S1b
+ * deleted the guard that used to carry this rule along with the function it protected; the rule
+ * outlived the guard (ADR 0093 d1).
+ */
+function slotsInReadingOrder(wall: DesignWall, count: number): StorageSlot[] {
+  if (!Number.isInteger(count) || count < 0) {
+    throw new Error(
+      `planKitchenComposition: wall ${wall} was given ${String(count)} storage slots, which is not a whole non-negative count of positions`,
+    );
+  }
+  return Array.from({ length: count }, (_, step) => ({
+    wall,
+    index: wall === "B" ? count - 1 - step : step,
   }));
 }
 

@@ -82,9 +82,14 @@ describe("generateKitchen", () => {
     // The reference room plans a block at wall A's free end, so the hob carries drawers and the
     // oven stands in the tower (ADR 0110 Amendment E4). Its width, tile and position are unchanged:
     // both hob bodies are discrete 600 mm, which is what makes the substitution shell-neutral.
+    //
+    // **The preparation body moved in 7D4 S2 and its position did not**: Amendment F5 makes it
+    // `base-3drawer`, the cutlery reached while cutting being within reach of the preparation
+    // surface. Still 600 mm at [1500, 2100] on wall A, which is 7D4's criterion 11 — this wave
+    // changes a body's identity and never its width.
     expect(named).toEqual([
       ["base-sink", "A", 900, 1500],
-      ["base-cabinet", "A", 1500, 2100],
+      ["base-3drawer", "A", 1500, 2100],
       ["base-hob-2drawer", "A", 2100, 2700],
     ]);
     expect(bases.length).toBeGreaterThan(4);

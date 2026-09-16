@@ -24,6 +24,7 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
+  DOOR_BASE_BUILD_ID,
   findOverflowingPlacementIds,
   generateKitchen,
   GENERATION_PRIORITIES,
@@ -31,7 +32,7 @@ import {
   lShellFloorRuns,
   planKitchenComposition,
   planLeftover,
-  STORAGE_BUILD_ID,
+  THREE_DRAWER_BASE_BUILD_ID,
   validateDesignForCatalog,
   type DesignRoom,
   type KitchenCompositionPlan,
@@ -217,7 +218,16 @@ describe("no body is silently planned over its own module", () => {
             continue;
           }
           if (declared?.band !== "column") {
-            expect(base.buildId, label).toBe(STORAGE_BUILD_ID);
+            // **Widened by 7D4 S2, and reported as a deviation rather than made quietly.** This
+            // file's subject is the **width**, and the width clause below is byte-unchanged. The
+            // identity clause said *the door body and nothing else*, which 7D4 makes false on
+            // purpose: the slot standing first after the hob in the reading order takes the drawer
+            // body (ADR 0110 Amendment H1, 7D4 D15.7). Widened to the pair a slot may take rather
+            // than deleted, so a third body planned into a cycle slot still fails here.
+            expect(
+              [DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID],
+              label,
+            ).toContain(base.buildId);
             expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
             continue;
           }

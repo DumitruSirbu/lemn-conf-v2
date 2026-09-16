@@ -11,12 +11,12 @@ import {
   cabinetDepthMmOf,
   declaredCabinetDepthsMm,
   declaredColumnSizes,
+  DOOR_BASE_BUILD_ID,
   generateKitchen,
   GENERATION_PRIORITIES,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
   planKitchenComposition,
-  STORAGE_BUILD_ID,
   type Design,
   type DesignPlacement,
   type DesignRoom,
@@ -31,9 +31,9 @@ const SWEPT_ROOMS = 150;
  * tables a plan is built out of**.
  *
  * It was the four priorities plus the leftover rule's storage body when slice S1 wrote this, and
- * enumerating those two constants was then the same set. **Slice S2 made them different**: the
+ * enumerating those two constants was then the same set. **7D3's slice S2 made them different**: the
  * tall-end rule composes `tall-oven-tower`, `tall-pantry` and `base-hob-2drawer`, and none of the
- * three is in `GENERATION_PRIORITIES` or is `STORAGE_BUILD_ID` — so the old derivation went on
+ * three is in `GENERATION_PRIORITIES` or is the storage body — so the old derivation went on
  * passing while quietly checking nothing about the bodies the wave had just added. Reading the set
  * off `plan.bases` is the only form that cannot fall behind composition again.
  */
@@ -78,7 +78,9 @@ describe("E7's upper suppression reads a field the generated bodies honour", () 
   it("derives a plannable set that covers the priorities, the storage body and the block", () => {
     for (const buildId of [
       ...GENERATION_PRIORITIES.map((priority) => priority.buildId),
-      STORAGE_BUILD_ID,
+      // 7D4 S2 renamed the constant and moved its declaration to `body-choice.ts`; the id is the
+      // same string and this assertion is unchanged in value.
+      DOOR_BASE_BUILD_ID,
       "tall-oven-tower",
       "tall-pantry",
       "base-hob-2drawer",

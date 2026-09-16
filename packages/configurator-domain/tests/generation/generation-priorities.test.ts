@@ -73,12 +73,17 @@ describe("planKitchenComposition", () => {
   });
 
   it("declares the ruled order and widths as data", () => {
+    // ADR 0110 Amendment A1's order, with A1's *interim data* amended once by Amendment F5: the
+    // preparation body is `base-3drawer` from wave 7D4 on. The order, the widths and the required
+    // flags are untouched, which is what criterion 11 asserts and what keeps criterion 2's width
+    // neutrality true of this row. Spelled as a literal here rather than read from the leaf: this
+    // is the test that would go green against a leaf whose ids were swapped.
     expect(GENERATION_PRIORITIES).toEqual([
       { role: "fridge", buildId: "fridge-free", widthMm: 700, required: false },
       { role: "sink", buildId: "base-sink", widthMm: 600, required: true },
       {
         role: "preparation",
-        buildId: "base-cabinet",
+        buildId: "base-3drawer",
         widthMm: 600,
         required: false,
       },

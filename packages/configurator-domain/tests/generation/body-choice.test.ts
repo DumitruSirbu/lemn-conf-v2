@@ -319,3 +319,132 @@ describe("criterion 22 — nothing else in the repository knows the id conventio
     expect(outsideSourceAndTests).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Criterion 20 — one declaration site per composed body, and no ratio constant. **Slice S2's, not
+// S1's**: at S1 `generation-priorities.ts` still declared its own `STORAGE_BUILD_ID`, so the grep
+// could not have passed then, and S2 is the slice that deletes it.
+// ---------------------------------------------------------------------------------------------
+
+const GENERATION_SOURCE = path.join(
+  "packages",
+  "configurator-domain",
+  "src",
+  "generation",
+);
+
+function generationModules(): readonly string[] {
+  return typeScriptFilesUnder(path.join(REPOSITORY_ROOT, GENERATION_SOURCE))
+    .map((file) => path.basename(file))
+    .sort();
+}
+
+function generationSourceOf(basename: string): string {
+  return readFileSync(
+    path.join(REPOSITORY_ROOT, GENERATION_SOURCE, basename),
+    "utf8",
+  );
+}
+
+/** A build id as a module writes one down: quoted, or spelled in a comment's backticks. The second
+ *  form is deliberately included — a body id named in prose beside code that composes it is exactly
+ *  how a second declaration site starts. */
+function generationModulesNaming(buildId: string): readonly string[] {
+  const asWritten = new RegExp(`["'\`]${buildId}`);
+  return generationModules().filter((basename) =>
+    asWritten.test(generationSourceOf(basename)),
+  );
+}
+
+describe("criterion 20 clause 1 — body-choice.ts is the only module that declares a composed body", () => {
+  it.each([THREE_DRAWER_BASE_BUILD_ID, PAN_DRAWER_BASE_BUILD_ID])(
+    "names %s in that leaf and nowhere else under src/generation",
+    (buildId) => {
+      expect(generationModulesNaming(buildId)).toEqual(["body-choice.ts"]);
+    },
+  );
+
+  it("names the door body in that leaf and in the one pinned depth source", () => {
+    // `shell-design.ts` declares the same string as `FLOOR_TILE_SOURCE`, a **declared depth source**
+    // (ADR 0073) that reaches only `TileRun.source` and never a placement. Amendment F14.1 verified
+    // every site and scoped the clause rather than deleting it; clause 2 below pins the occurrence.
+    expect(generationModulesNaming(DOOR_BASE_BUILD_ID)).toEqual([
+      "body-choice.ts",
+      "shell-design.ts",
+    ]);
+  });
+
+  it.each(["base-dishwasher", "base-bottle-cargo"])(
+    "does not name %s anywhere under src/generation",
+    (buildId) => {
+      // Both are 7D5's, and both are width changes (D11, D15.2). Spelled here rather than imported
+      // because there is deliberately no constant to import.
+      expect(generationModulesNaming(buildId)).toEqual([]);
+    },
+  );
+});
+
+describe("criterion 20 clause 2 — the depth source is pinned, not excluded by filename", () => {
+  it("writes the door body's string exactly once in shell-design.ts, on the FLOOR_TILE_SOURCE line", () => {
+    // An exclusion by filename would buy nothing: this file could then acquire a composed body under
+    // cover of the exemption. Pinning the line means a second occurrence goes red.
+    const lines = generationSourceOf("shell-design.ts")
+      .split("\n")
+      .filter((line) => line.includes(`"${DOOR_BASE_BUILD_ID}"`));
+
+    expect(lines).toEqual([
+      `const FLOOR_TILE_SOURCE = "${DOOR_BASE_BUILD_ID}";`,
+    ]);
+  });
+});
+
+/**
+ * A module's code with its comments removed and its identifiers broken into words.
+ *
+ * **Comments go** because clause 3 is about what a module *encodes*, and every generation source
+ * discusses at length the proportion it refuses to encode — `body-choice.ts`'s own head comment
+ * names one four times. A guard that read the prose would go red on the record of the ruling it
+ * exists to enforce.
+ *
+ * **Identifiers are split** because `DRAWER_SHARE` and `drawerShare` are how a constant is actually
+ * named, and a word boundary finds neither: `_` and a camel hump are both word characters. Breaking
+ * them first is what lets the patterns below be written as plain words.
+ */
+function codeWordsOf(basename: string): string {
+  return generationSourceOf(basename)
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ");
+}
+
+/**
+ * How a drawer-to-door proportion gets written down: a percentage, a fractional multiplier, an
+ * identifier that names a share, or a count divided in two.
+ *
+ * **The guard's declared limit, stated because one that oversells itself is worse than none.** It
+ * catches the ordinary forms — the 50 % the deleted cycle encoded, the wall row's 20–30 %, the 5 % —
+ * and does not catch a proportion assembled through an indirection or read from data. What makes
+ * that acceptable is that under D14 and Amendment H there is **no proportion to encode at all**: the
+ * owner's rule is positional, and the 2-and-4 the owner described survives as a *consequence* of the
+ * run order (H7). The clause is unconditional and strictly easier to satisfy than the form F3 wrote.
+ */
+const A_PROPORTION_ENCODED: readonly RegExp[] = [
+  /\d\s*%/,
+  /\b0\.\d/,
+  /\b(ratio|percent|percentage|proportion|share|half|halve|alternating|everyOther)\b/i,
+  /\b\w*(count|slots|bodies|cabinets)\s*(\/|>>)\s*\d/i,
+];
+
+describe("criterion 20 clause 3 — no file under src/generation encodes a proportion", () => {
+  it.each(A_PROPORTION_ENCODED.map((pattern) => [pattern.source, pattern]))(
+    "writes nothing matching %s in any generation module's code",
+    (_label, pattern) => {
+      const offenders = generationModules().filter((basename) =>
+        pattern.test(codeWordsOf(basename)),
+      );
+
+      expect(offenders).toEqual([]);
+    },
+  );
+});
