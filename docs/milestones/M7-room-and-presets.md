@@ -6965,9 +6965,12 @@ composes, not a goal it fell short of.
     producing an `EmptyColumn`, never a placement. **A declared depth source (ADR 0073) is not a
     composed body.** The scoped form, in three parts:
     1. **`body-choice.ts` is the only module under `src/generation/` that declares a composed storage
-       body id** — `base-cabinet` and `base-3drawer`. ***(`base-panbank` struck 2026-09-16: D14 leaves
-       it with no caller, and G7 rules it is deleted rather than kept in case. If it survives, this
-       clause names it again and an owner answer says why.)*** **`base-dishwasher` and
+       body id** — `base-cabinet`, `base-3drawer` **and `base-panbank`**. ***(`base-panbank` was struck
+       2026-09-16 under D14, which left it callerless, and is RESTORED the same day: this clause said
+       "if it survives, this clause names it again and an owner answer says why", and it survived. The
+       owner answer is ADR 0110 Amendment H1 — the drawer group astride the hob takes a second member
+       and 7D5 places it. Kept at S1b `00152b8` with the reversal recorded at the declaration. The
+       clause's own escape hatch was honoured rather than quietly ignored.)*** **`base-dishwasher` and
        `base-bottle-cargo` appear nowhere** under `src/generation/`. *(The dishwasher's clause is
        withdrawn from its earlier form, which named `generation-priorities.ts` as its one site; that
        was written before **D11** moved the body to 7D5.)*
