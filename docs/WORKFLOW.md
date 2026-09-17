@@ -215,6 +215,7 @@ open the pull request into `main` on GitHub. Wave branches merge into it and are
   (a commit and a `git push` both do), what to tell an implementer that has reported "done", and the
   tripwire a deliberately-red test gives you for free, are stated in full in
   `docs/best-practices/agent-coordination.md`, *Freeze the tree for the whole of any measurement*.
+  **The freeze begins when the writing agent says it does, not when you infer it has** — **R1**.
 - **QA is adversarial**: the implementer tests what they built, QA tests what they assumed. A test QA
   writes that fails is a *finding*. Leave it failing and report it. QA never weakens an assertion to
   make it pass and never edits production code to make its own test green — that is how a suite ends
@@ -329,12 +330,18 @@ how to retire an agent with a handoff.
 - Documentation describes what has landed, never a plan presented as shipped functionality.
 - Copy quantitative claims directly from an inspected source. Do not invent counts or estimates.
   What this binds about a *corrected* number is stated in `docs/best-practices/documentation.md`,
-  *Evidence and numbers*.
+  *Evidence and numbers*. An inferred **mechanism** behind a number is bound by **R4**.
 - **Finish a wave with `pnpm format:check`, whole-tree — never `npx prettier --check` on a
   hand-listed set.** The format gate has no per-package scope, so a per-round list cannot cover a
   file edited two rounds earlier. Wave 6Q-a failed the gate on exactly that: three files that had
   each passed a per-round check. Run it last, even when the dispatch scopes test runs to "affected
   suites only" and someone else holds `ci:local`.
+
+  **Over `docs/`, a hand-listed check reads nothing at all.** `.prettierignore:3` ignores `docs/`, so
+  `npx prettier --check docs/<file>.md` prints *"All files formatted correctly"* and exits 0 **without
+  opening the file** — naming the path explicitly does not defeat the ignore, and the output is
+  byte-identical to a real pass. The coordinator cited it as verification four times in the week to
+  2026-09-17. The general rule this is an instance of is **R5**.
 - **A gate failing on e2e or the persistence suite is a contention suspect before it is a defect.**
   Re-run it alone before diagnosing. Both failed on 2026-09-05 for a held port 4320 and two runs
   racing the same test database, neither of which was a defect and both of which cost a diagnosis
@@ -342,3 +349,93 @@ how to retire an agent with a handoff.
 - **Label what warrants every load-bearing claim** — doc-quoted, source-verified, or inference — and
   read the installed source when the documentation is silent:
   `docs/best-practices/documentation.md`, *Label the evidence tier behind every load-bearing claim*.
+
+## Rules
+
+Eight failures from 2026-09-16/17, **every one the coordinator's own**, written as rules on the
+owner's instruction: *"so all this conclusions add the workflow to not repeat once more, describe
+them clearly and mark as rules"*. Each keeps its instance, because a rule without its instance gets
+argued away. Where an older section above or a detail document already owns the surrounding
+mechanism, the rule points at it rather than restating it.
+
+**R1 — Freeze on the agent's word, never on inference.** Do not commit, edit or rebuild while an
+agent may be writing; wait for an explicit *"nothing is in flight"*. **Five violations in M7.** One
+committed a plan mid-correction (`8ebff1f`), producing a document that contradicted itself about
+whether its own wave was dispatchable. An implementer's own framing: *"the thing that would make it
+safe is not on your side — it is me saying 'stopping here, nothing in flight' explicitly."* What
+counts as a write is in `docs/best-practices/agent-coordination.md`, *Freeze the tree for the whole
+of any measurement*.
+
+**R2 — One writing agent per working tree.** Two implementers in different packages still share one
+git index. **Never** `git stash`, `git stash pop`, `git checkout -- .`, `git reset --hard` or
+`git clean` in a shared tree; revert from a byte copy in the scratchpad, scoped to one named file.
+An agent stashed another's in-flight files, the `pop` aborted, and that work sat reverted for three
+minutes. Use separate worktrees when parallelism is wanted. The prohibition every brief must carry
+by name is in `docs/best-practices/agent-coordination.md`, *Every brief bans the discarding git
+commands by name*.
+
+**R3 — If you edit inside a section an agent owns, say so in the same message.** The coordinator
+edited a plan an architect was writing without telling it; the architect correctly detected an
+unexplained concurrent writer, stopped, and spent a round trip on forensics — *"I will hand the file
+over rather than guess, and neither of us will spend a turn on forensics."*
+
+**R4 — Never report a figure you inferred. Measure it, or cite where it was measured.** Twice in one
+record: *"nobody loses a block"* was contradicted by two figures printed side by side in the same
+table (12 900 − 12 826 = 74), and it reached the owner, who made a decision on it. The mechanism for
+those 74 was then inferred from the smallest witness and asserted of all of them — **true for 54,
+false for 20**. A witness explains a class only once the class has been measured against it.
+
+**R5 — A check that cannot examine its subject is not a gate. Verify the checker looked.** A pass and
+a no-op are indistinguishable from the output alone, so establish that the tool opened the file.
+Two instances: `npx prettier --check` over a `docs/` path, which exits 0 reading nothing (*Evidence
+standards* above); and one NUL byte that made a test file binary to git, so a 229-line diff rendered
+as *"Binary files differ"* and the repo-wide convention greps used as gates stepped over it
+reporting success.
+
+**R6 — Sabotage in both directions is the verification that works; reading is not.** Remove the
+behaviour with the correlate standing → the suite **must go red**. Move the correlate with the
+behaviour standing → it **must stay green**. Everything genuinely broken in M7 was found this way and
+nothing was found by reading: a parity suite that passed **15/15 with the wave's central rule
+deleted**; two QA guards that passed under the sabotage they existed to catch; a slot-lookup sabotage
+that changed the failing set by **25 → 25**, i.e. produced no signal at all. **A sabotage run against
+an already-red suite is not a measurement.** Proving a mutation actually reached the code is
+`docs/best-practices/engineering-conventions.md`, *A surviving mutation may not have been applied*.
+
+**R7 — Brief agents to lead with the complete changed-file list and to bound their report length.**
+Roughly seven reports truncated mid-sentence on 2026-09-17, each costing a round trip; and two
+agents' summaries understated their file counts — one declared two changed files where the diff
+touched five, caught only by the coordinator reading the diff.
+
+**R8 — Do not push, or run `ci:local`, on a dirty tree.** The push hook gates the **working tree**,
+not the commits, so a run over half-written code is worthless. A visual-verification agent had the
+tree change under it mid-run and had to re-run every measurement in isolated worktrees to salvage
+its report. That a push holds the tree for its whole ten minutes is in
+`docs/best-practices/agent-coordination.md`, *"Both are read-only" is not isolation*.
+
+**R9 — `rtk` is for orientation; `rtk proxy` is for evidence.** The shell hook transparently rewrites
+commands (`git status` → `rtk git status`) to save tokens, and **what comes back is summarised, not
+the command's real output**. Fine for looking around, wrong for verification. **Any command whose
+output you are about to assert, cite, or act on must be run as `rtk proxy <cmd>`.** On 2026-09-17
+`git log --oneline origin/…..HEAD | wc -l` reported **1 commit unpushed immediately after a
+successful push**; re-run through `rtk proxy git status -sb` and `git ls-remote`, local and remote
+were identical at `8b73439` and nothing was unpushed — the coordinator was one sentence from telling
+the owner a push had not landed. Same day, `grep -n` returned *"N matches in 1 files"* with **no
+matching lines**, so the claim being checked could not be read from the output shown; and
+`git show <commit> -- <path>` returned a commit summary **instead of the diff**, which would have
+made a diff review of that path vacuous.
+
+**R9 is R5 one layer out, and the pairing is the point.** R5 is a gate that skipped its subject; R9 is
+a proxy that summarised it. **Both return a well-formed, plausible answer without having examined
+what was asked about**, and in both the output is indistinguishable from the real thing — which is
+why this is a written rule rather than a habit. It is
+[ADR 0121](decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)'s
+family reaching the tooling: the coordinator commissioned that record about the code while committing
+the same error with the tools.
+
+### Guidance, not a rule: review tier is a real cost lever
+
+The owner has not ruled on this. Full tier — QA, then logic and clean-code review separately — is
+what found three defects on 7H and a parity suite that could not fail on 7D4; it is also why 7D8 took
+a full day. Light tier is defensible for a wave that changes no generated output. **Choose
+deliberately rather than defaulting to Full**, against the tier table in *How much review a wave
+gets*.

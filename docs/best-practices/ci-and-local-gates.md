@@ -181,7 +181,11 @@ only its own two hunks, verified the split was clean, committed — and swept th
 into its commit anyway (`4618046`). Nothing was lost or altered, the text was byte-identical, but the
 work is attributed to a commit about a different entry. **Two agents may not share a file in this
 repository; sequence them.** The coordination rules that follow from this are in `docs/WORKFLOW.md`
-under *Running agents in parallel*.
+under ~~*Running agents in parallel*~~ ***Team coordination*, and under *Rules* R1, R2, R3 and R8.**
+*(Corrected 2026-09-17: no section named "Running agents in parallel" has ever existed in that file.
+Found by the scribe adding the Rules section, which reported it rather than papering over it — a dead
+pointer on the one sentence R2 and R3 both lean on, so a reader following it to check "two agents may
+not share a file" would have found nothing and concluded the rule was unwritten.)*
 
 ## Rule — the whole CI gate set runs locally before every push
 
