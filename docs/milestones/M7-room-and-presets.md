@@ -9421,9 +9421,35 @@ suffix bodies but not all three: the cut moves to 2, the sink crosses to the nar
 fridge and the preparation cabinet are both kept.** Dropping the preparation cabinet instead would
 satisfy the rule and costs almost nothing in width — the leftover rule refills the same 600 mm with a
 storage cabinet — **but ADR 0110 A3 orders the drops (storage, then the fridge, then the preparation
-cabinet) and the owner's new sentence says *"always"* about the sink and the hob. Nobody has ruled
-which wins.** That is **Q-7D8-2**, and **this plan is written for *the ladder wins*: a rule about which
+cabinet) and the owner's new sentence says *"always"* about the sink and the hob. ~~Nobody has ruled
+which wins.~~** That is **Q-7D8-2**, and **this plan is written for *the ladder wins*: a rule about which
 wall a body stands on may never cause a body to be dropped.**
+
+> **Q-7D8-2 RULED 2026-09-17, and it settles more than it was asked.** Verbatim:
+>
+> > *"oh is not a strict rule is prefferable to be on wider but it can be also on narrower"*
+>
+> **The ladder wins, confirmed — no body is ever dropped to move the sink.** The plan was written for
+> the right branch and needs no change in code.
+>
+> **But the ruling also downgrades the rule's status, and that DOES change how this wave reports
+> itself.** The owner's earlier sentence was read as *"on wider wall you **always** place the sink and
+> hub"*, and *always* is what made a room that could not manage it an **exception**. It is a
+> **preference**: the sink is *preferably* on the wider wall and **may stand on the narrower one**.
+>
+> **So criterion 2's 14 335 "exceptions" are not exceptions.** They are **permitted outcomes**, and
+> the word matters — an exception count invites a later wave to drive it to zero, which under this
+> ruling would mean dropping cabinets to chase a preference. **The count is still reported, because a
+> number that moves unexpectedly is still evidence; it is reported as a distribution and not as a
+> shortfall.** The 3 595 forced cases (wider run under 1 200 mm, cannot hold sink and hob at all)
+> and the 10 740 ladder cases are both compliant.
+>
+> **Not ruled, and deliberately not assumed: whether the same downgrade applies to the HOB.** The
+> question put to the owner was about the sink alone. Criterion 1 measures the hob on the wider wall
+> with **0 exceptions on both arms**, so nothing operational turns on it today — but a later wave that
+> finds a room where the hob cannot reach the wider wall **must ask rather than infer a preference
+> from this ruling.** Recorded in ADR 0118's shape: a question with a trigger, and no code owed until
+> it fires.
 
 ### E6 — the 4-metre relaxation is a permission this wave never needs to exercise
 
