@@ -352,7 +352,7 @@ how to retire an agent with a handoff.
 
 ## Rules
 
-Eight failures from 2026-09-16/17, **every one the coordinator's own**, written as rules on the
+Nine failures from 2026-09-16/17, **every one the coordinator's own**, written as rules on the
 owner's instruction: *"so all this conclusions add the workflow to not repeat once more, describe
 them clearly and mark as rules"*. Each keeps its instance, because a rule without its instance gets
 argued away. Where an older section above or a detail document already owns the surrounding
@@ -412,25 +412,19 @@ tree change under it mid-run and had to re-run every measurement in isolated wor
 its report. That a push holds the tree for its whole ten minutes is in
 `docs/best-practices/agent-coordination.md`, *"Both are read-only" is not isolation*.
 
-**R9 — `rtk` is for orientation; `rtk proxy` is for evidence.** The shell hook transparently rewrites
-commands (`git status` → `rtk git status`) to save tokens, and **what comes back is summarised, not
-the command's real output**. Fine for looking around, wrong for verification. **Any command whose
-output you are about to assert, cite, or act on must be run as `rtk proxy <cmd>`.** On 2026-09-17
-`git log --oneline origin/…..HEAD | wc -l` reported **1 commit unpushed immediately after a
-successful push**; re-run through `rtk proxy git status -sb` and `git ls-remote`, local and remote
-were identical at `8b73439` and nothing was unpushed — the coordinator was one sentence from telling
-the owner a push had not landed. Same day, `grep -n` returned *"N matches in 1 files"* with **no
-matching lines**, so the claim being checked could not be read from the output shown; and
-`git show <commit> -- <path>` returned a commit summary **instead of the diff**, which would have
-made a diff review of that path vacuous.
+**R9 — `rtk` is for orientation; `rtk proxy` is for evidence.** The hook rewrites commands
+transparently and returns **summarised output, not the command's own**. **Any output you are about to
+assert, cite or act on runs as `rtk proxy <cmd>`** — the test is what you will do with it, not whether
+you expect it to be empty. On 2026-09-17 a `git log … | wc -l` reported **1 commit unpushed
+immediately after a successful push**, where local and remote were identical at `8b73439`. Instances
+and the grep-parsing trap: `docs/best-practices/ci-and-local-gates.md`, *The `rtk` proxy*.
 
-**R9 is R5 one layer out, and the pairing is the point.** R5 is a gate that skipped its subject; R9 is
-a proxy that summarised it. **Both return a well-formed, plausible answer without having examined
-what was asked about**, and in both the output is indistinguishable from the real thing — which is
-why this is a written rule rather than a habit. It is
+**R9 is R5 one layer out**, and that pairing is why both are rules rather than habits: a gate that
+skipped its subject, and a proxy that summarised it, **both returning a well-formed answer without
+examining what was asked**. It is
 [ADR 0121](decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)'s
-family reaching the tooling: the coordinator commissioned that record about the code while committing
-the same error with the tools.
+family reaching the tooling — that record was commissioned about the code by a coordinator making the
+same error with the tools.
 
 ### Guidance, not a rule: review tier is a real cost lever
 
