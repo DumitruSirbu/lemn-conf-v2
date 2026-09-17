@@ -1521,7 +1521,7 @@ table.
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), **Q-H3 answered 2026-09-16 (a threshold at six plain storage cabinets, not a ratio — it re-keyed the plan)**; **Q-H5 blocks slice S3 only; Q-H4 and the new Q-H3a change two criteria and no code** |
 | **7D8** | **DONE, close-out 2026-09-17** — see [7D8 close-out](#7d8-close-out--2026-09-17). Commits: planning `8ebff1f`/`36fde8c`/`275c95e`/`27ae496`; S0 `5c915f8`; S1 `2439da5`; E4 correction `355a15e`; adjudication `c456dbd`; S2 `814ca44` (`--no-verify`, 25 known-red assigned to S3); S3 `f919bfa` (suite green); review `62cfee1`; Q-7D8-2 ruling `6dbff27`; ADR 0110 Amendment I1.1 `e18908b`; shrink-strip fix `24ca2bc`; panel-colour fix `dcec03f`; ADR 0122 `8b73439`; S4 `b83e4f2`. `pnpm ci:local`/push pending. **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
-| **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | none to dispatch; **Q-K1 arises only if a number moves, and is a conversation, not a migration** |
+| **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **S1's pre-flight PASSES (900/900) and S2's shape is ruled — see [7D6 adjudication — S2's shape, 2026-09-17](#7d6-adjudication--s2s-shape-2026-09-17): J3 → J3′, criteria 2 and 4 struck and replaced, three added, eight must-nots. S2 and S3 dispatch now.** **Q-K1 is now live rather than contingent** (derived floor-reach 880/880 against the approved 900/1000), is **worded in that adjudication**, must be put **jointly with Q-7D7-2**, and gates the **joint bound slice only** — still a conversation, not a migration |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Re-scoped 2026-09-16 under ADR 0120 Amendment A: the width is a function of the depth *and the room*, so the parity criterion sweeps rooms × depths.** The wall row's 570 returns move with the base row's 320 or the wave buys nothing — **the 290 mm cliff, defused by the owner's ruling below and live again the moment one row moves alone**. **Floors ruled 2026-09-16: a cabinet with one door at all three levels → 200 everywhere, wall B's bound 1000 → 880.** **Ordering: its fidelity baseline is taken *after* 7H lands, never before — 7H is landed at `7b1f92c`. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders, `decomposed-bodies.ts`, `build-any-body.ts` (+ fidelity, parity and room-sweep coverage); **slice S5 only**, jointly with 7D6 and by the coordinator's recorded exception, `configurator-domain/src/room/approved-room-policy.ts` | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + a narrow room | **Q-7D7-1 ANSWERED 2026-09-16** (one door at all three levels → 200). **Q-7D7-2 open** — wall A's minimum moves to 880 too, which ADR 0120 said it would not; gates S5's wall-A half only. S0–S4 dispatch now |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
@@ -10357,7 +10357,7 @@ post-beta body deferral. This wave adds no body.
 | K1 | **Every corner width is a literal that does not follow the cabinet depth.** `base-corner-x-900` is 900, `base-corner-return-320` is 320, both wall returns 570 — **identical at 600 mm and at 700 mm**. What moves with the depth is the **position**, through the along-wall chain. | This is the whole of *"correct shape and size"*. The corner does not resize with the kitchen it belongs to; it slides. |
 | K2 | **At 600 mm all four pieces land flush: far edge exactly 900 on both walls.** | Today's runs start at 900/900, and **every 7D3 and 7D4 measurement was taken against that origin.** |
 | K3 | **At 700 mm they no longer agree: the base row reaches 1000 while the wall row reaches 970 — a 30 mm disagreement between rows**, produced by two chains sliding fixed widths rather than by either width being re-derived. | **The concrete motivating defect.** It is a fidelity defect at the deeper declared depth, not a missing cabinet, and it is what the owner's instruction actually names. |
-| K4 | The shell validates clean at 600 mm in every room sampled — zero `validateDesignForCatalog` findings at 900 × 1000, 3600 × 2920 and 6300 × 5100. | **Nothing is broken today at the shipped depth.** This wave is correctness at the *other* depth, and derivation in place of literals. |
+| K4 | The shell validates clean at 600 mm in every room sampled — zero `validateDesignForCatalog` findings at 900 × 1000, ~~3600 × 2920~~ **3560 × 2920 × 2600 — the fixture's actual room, corrected 2026-09-17 (`fixtures/kitchen-l-design.ts:957`, `:967-972`); see the 7D6 adjudication, D7.1** — and 6300 × 5100. **Re-measured at HEAD `76907f2`: still zero, and zero at 6000 × 6000 too (adjudication M5).** | **Nothing is broken today at the shipped depth.** This wave is correctness at the *other* depth, and derivation in place of literals. |
 | K5 | **Run origins are on the grid and stay there.** 900 on both walls: `% 50 = 0`, `% 100 = 0`. The 570 mm return's non-grid width **never reaches the run origin**, because a run reads the **assembly's far edge**, not any single piece's width. | A worry worth having had, and it does not bite: neither ADR 0052's 800 mm merge cap nor 7D3's ≤ 200 mm absorb window is affected. At 700 mm the wall row's origin would be 970 — off the 50 mm grid — but **generation never sees it**: the shell is built at 600 and a depth change is a later customer edit. |
 | K6 | §13.1's *"Corners are structural"* rationale is **"No replace, no delete, never a width donor. A sink-in-corner request is a custom product, not a loosened rule."** | It governs **customer editing**, says nothing about who authors a corner, and **is untouched by this wave**. Nothing needs loosening. |
 | K7 | §13.3 open question 6: *"Hob and corner widths are still fixed in geometry; parameterising them is the remaining builder work."* | **The spec already carries this as its own open question.** It is `three-adapter` work and it is **wave 7D7**, not this one. |
@@ -10441,18 +10441,36 @@ half arrives downstream as **wave 7D7**, re-scoped the same day for the same rea
 catalogue row is added, `toInsertableBody` is untouched, and the per-wall column model is not taught
 about two-wall footprints. **Must-not, not merely out of scope.**
 
-**J3 — the wall row and the base row must agree at every declared depth.** K3's 30 mm disagreement is
-the defect. The two rows' reaches are derived from the same depth, so they cannot drift apart.
+**~~J3 — the wall row and the base row must agree at every declared depth.~~ ~~K3's 30 mm disagreement
+is the defect. The two rows' reaches are derived from the same depth, so they cannot drift apart.~~
+SUPERSEDED 2026-09-17 by J3′ — see the [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17),
+D4: it names no wall, and it calls "the defect" a 30 mm residue ADR 0089 rules on. Struck rather than
+deleted because it is the ruling S2 was dispatched against.**
 
-**J4 — no approved bound moves silently, in either direction.** Criterion 4 asserts the approved
-minima and the derived reach **agree**, rather than only that the approved ones are not lower.
+**J3′ — the two rows are derived from the same depth and the same room, and the residue between them
+is accounted for. Wall B only.** The wall row never passes the base row; any difference is a recorded
+wall-only run or is narrower than anything the catalogue could place there; neither row's width is
+tuned without the other; **the 30 mm at 700 mm after a depth change is ADR 0089's product answer and
+is not S2's to remove**; and **wall A's wall-row origin is 0 and stays 0** (ADR 0110 Amendment B2).
+Full text and its evidence: the adjudication's *Rulings amended*.
+
+**J4 — no approved bound moves silently, in either direction.** ~~Criterion 4 asserts the approved
+minima and the derived reach **agree**, rather than only that the approved ones are not lower.~~
+**Narrowed 2026-09-17 (adjudication D6): the ruling stands; its mechanism is now criterion 4′'s
+pinned margin rather than an equality. ADR 0108 B1 permits a margin (`>=`) and only the owner may
+choose one, so an equality would make a legitimate answer to Q-K1 inexpressible while a pinned margin
+is loud in both directions.** *"Not lower"* alone is still refused — it is what already ships and it
+passes on every shrink.
 
 ### Module boundaries
 
-- **The derivation is one pure function with one caller apiece.** It answers *"how far does the corner
-  assembly reach along wall W at cabinet depth D?"* and is read by `ENGINE_ROOM_LIMITS`
-  (`farthestCornerEdgeMm`) and by the shell's `floorRunStartMm` / `wallRowStartMm`. **Two readers, one
-  authority** — today both re-derive it from the fixture's placements.
+- ~~**The derivation is one pure function with one caller apiece.** It answers *"how far does the
+  corner assembly reach along wall W at cabinet depth D?"* and is read by `ENGINE_ROOM_LIMITS`
+  (`farthestCornerEdgeMm`) and by the shell's `floorRunStartMm` / `wallRowStartMm` — two readers, one
+  authority.~~ **SUPERSEDED 2026-09-17: there are three call sites and two quantifiers, and under J1′
+  the question is two questions.** Replaced by D1's three entry points and D2's signatures in the
+  [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17). Today all three sites re-derive from
+  the fixture's placements, which is the fact this bullet got right.
 - **The fixture keeps its placements**; what changes is that their along-wall widths come from the
   derivation rather than from stored literals.
 - **`along-wall-chain-shift.ts` is read, not rewritten.** The chain is how a corner *slides*; this wave
@@ -10486,20 +10504,31 @@ anything under `packages/three-adapter` or `apps/web`.
    change is visible as a failing number. **Must not:** a test that compares the derivation only
    against itself; or a reading of this pin as a claim about *every* room — under **J1′** it is a claim
    about one room at one depth, and it is the free pin 7D7 criterion 1 shares.
-2. *(unit, boundary — the motivating defect)* **At 700 mm the base row and the wall row reach the same
+2. ~~*(unit, boundary — the motivating defect)* **At 700 mm the base row and the wall row reach the same
    figure on wall B.** K3's 1000-versus-970 disagreement is gone, and the test names both rows.
-   **Must not:** the two rows agreeing at 600 and drifting at 700.
+   **Must not:** the two rows agreeing at 600 and drifting at 700.~~ **STRUCK 2026-09-17 and replaced
+   by criterion 2′ — it is unsatisfiable as written (no depth-independent width pair agrees at both
+   depths, and at the ruled floors neither pair does at either depth). See the
+   [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17), D5 and *Acceptance criteria amended*.**
 3. *(property, over both declared depths and every room in the approved policy)* The shell reports
    **zero** `validateDesignForCatalog` findings and no overflowing placement, **at each declared depth
    and after `setCabinetDepth` between them** — the invariant 7D1 criteria 2 and 9 already hold, now
-   re-run against the derivation.
-4. *(unit — the criterion nothing has today, J4, restated under J1′)* **The approved minima and the
+   re-run against the derivation. **Must not (added 2026-09-17):** re-validating an unchanged 600 mm
+   design against `buildKitchenLBodyCatalog(700)` — that is **3 × `RECORDED_SPAN_OVERLAPS_CORNER_BODY`
+   in every room** and says nothing about the product; the depth change goes through `setCabinetDepth`,
+   whose `catalogAt` factory exists to make the other call site unwritable (adjudication D7.2, M5).
+4. ~~*(unit — the criterion nothing has today, J4, restated under J1′)* **The approved minima and the
    derived reach agree.** `APPROVED_ROOM_POLICY`'s wall-A and wall-B minima **equal** the derived reach
    **at the corner's floor, over the (depth, room) pair that maximises it** — not merely *"are not
    below"* it, and no longer *"at the depth that maximises it"*, because under **J1′** a depth alone no
-   longer identifies a reach. **Must not:** a guard that passes when the derivation shrinks — that is
-   the silent direction, and this criterion exists for it alone; or a maximum taken over depths only,
-   which is the pre-J1′ wording and would hold a bound against the wrong worst case.
+   longer identifies a reach.~~ **STRUCK 2026-09-17 and replaced by criterion 4′, the pinned margin:
+   the equality is stricter than ADR 0108 B1 (which is `>=`) and makes an owner-chosen margin
+   inexpressible, and *"the (depth, room) pair that maximises it"* is attained in the largest room —
+   pinning the bound to the reference corner for ever and blinding the one criterion written to catch a
+   shrink. See the [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17), D1 and D6.** The two
+   must-nots it carried are kept and restated in 4′: **a guard that passes when the derivation
+   shrinks** — the silent direction, which this criterion exists for alone — and **a maximum taken over
+   depths only**, the pre-J1′ wording.
 5. *(unit)* **No insertability changes.** The count of insertable rows is **16**, unchanged, and no
    row whose `structuralReason` is `"corner"` is among them. **Must not:** a corner row gaining a
    catalogue equivalent.
@@ -10523,16 +10552,24 @@ anything under `packages/three-adapter` or `apps/web`.
     authority [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
     forbids.
 
+**Criteria 2′, 4′, 11, 12 and 13 are stated in the [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17)**
+(*Acceptance criteria amended and added*, 2026-09-17) and are part of this list.
+
 ### Slices, in dependency order — dispatched one at a time
 
 - **S1 — the pre-flight, alone.** Derive the reach, assert 900/900 at 600 mm, and **report the number
   before writing anything else.** If it is not 900, stop: the coordinator decides whether 7D3's table
   is re-measured first. **This slice exists so the expensive discovery happens in an hour.**
-- **S2 — the derivation and its two readers**, with criteria 1–3 and 5–9. Behaviour at 600 mm is
-  byte-identical; the only visible change is at 700 mm.
-- **S3 — the agreement guard** (criterion 4) and the literal sweep (criterion 10). Separate because it
-  is the criterion most likely to turn red for a legitimate reason, and its failure is a **report to
-  the owner**, not a fix.
+  **DONE — it PASSES: 900 / 900, re-measured independently at HEAD `76907f2` (adjudication M1).**
+- **S2 — the derivation and its ~~two~~ three readers**, with criteria 1, **2′**, 3, 5–9 and the new
+  **11, 12 and 13**. Behaviour at 600 mm is byte-identical; **the only change visible anywhere is in
+  what the derivation answers when it is asked at 700 mm, which no product path does (adjudication
+  M6).** **Shape ruled 2026-09-17 — see the adjudication, D1–D5, and its eight must-nots.**
+- **S3 — ~~the agreement guard~~ the margin pin** (criterion **4′**) and the literal sweep
+  (criterion 10). ~~Separate because it is the criterion most likely to turn red for a legitimate
+  reason, and its failure is a **report to the owner**, not a fix.~~ **Amended 2026-09-17 (D6): the
+  criterion asserts the gap instead of forbidding it, so the anticipated red does not occur and S3
+  no longer waits on the owner to go green.** The **joint bound slice** is what waits on Q-K1.
 
 ### Risks
 
@@ -10540,8 +10577,11 @@ anything under `packages/three-adapter` or `apps/web`.
    Nothing today fails when the derivation is more conservative than the approved bound; the product
    then quietly refuses rooms it could build, and no test says so. **It was previously the second item
    here because the stored-design risk stood above it; that risk is struck, and this one moves up.**
-   Criterion 4 is the only thing standing in front of it and **must be written as an equality**, not as
-   *"not below"*.
+   Criterion 4 is the only thing standing in front of it and ~~**must be written as an equality**, not
+   as *"not below"*~~ **— amended 2026-09-17 (adjudication D6): it must be written as a *pinned
+   margin*, which is loud in both directions and, unlike an equality, does not forbid a margin
+   ADR 0108 B1 permits the owner to choose.** *"Not below"* is still refused: it is what already ships
+   (`tests/room/approved-room-policy.test.ts:98`) and it passes on every shrink.
 2. **An approved bound moved without the owner.** `approved-room-policy.ts` is in the must-not-change
    set for this reason. **If the derivation and the owner's literals disagree, the wave stops and
    reports** — the number is theirs, not the implementer's. **This is the loud direction and the guard
@@ -10562,13 +10602,508 @@ anything under `packages/three-adapter` or `apps/web`.
 
 ### Owner question — raised only if the derivation moves a number
 
-- **Q-K1 — if the derived reach differs from 900 / 1000, may the approved wall minima move?** Not asked
-  unless the pre-flight or criterion 4 turns red. **It is a conversation, not a data problem:** nothing
+- **Q-K1 — if the derived reach differs from 900 / 1000, may the approved wall minima move?**
+  **WORDED 2026-09-17, with three options and their measured consequences, in the
+  [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17)** — and **it must be put once, jointly
+  with 7D7's Q-7D7-2, which is the same question about wall A.** ~~Not asked unless the pre-flight or
+  criterion 4 turns red.~~ **Struck: the pre-flight passed and criterion 4′ no longer turns red, yet
+  the derived floor-reach is 880 / 880 against the approved 900 / 1000, so the question *is* live and
+  gates the joint bound slice.** **It is a conversation, not a data problem:** nothing
   is stored and nothing is in production, so there is no migration behind it and no compatibility
   window to hold open. ~~Put it with the stored-design sentence about a customer reopening a saved
   kitchen~~ — **struck, and it must not be used to argue for caution here.** **Recommendation if it
   arises:** take the owner's ruling on the bound before any code lands, and **ask it before 7P2**,
   while the answer is still free.
+
+### 7D6 adjudication — S2's shape, 2026-09-17
+
+**Seven questions were put against slice S2 before dispatch. S2 dispatches, with the shape below.**
+Six of the seven are **contract gaps in this plan**, one is a **test-fidelity trap**, and **none is an
+implementation defect in shipped code.** Each ruling below carries its classification, the
+alternatives weighed, and the sentence that kills each rejected one.
+
+#### What this section rests on, labelled
+
+Per `docs/best-practices/documentation.md`, *Label the evidence tier behind every load-bearing claim*.
+
+- **S1's pre-flight figures are implementer-reported.** Every one this adjudication rests on was
+  **re-measured here**, against the built `packages/configurator-domain/dist/` at HEAD `76907f2`
+  (tier **dist-measured**). `dist` is not stale for this subject: it reports wave 7A3's 6000 mm
+  approved maxima, the most recent change to the files in question.
+- **Source-verified**, with `file:line`: the fixture's corner placements, `room/room-policy.ts`,
+  `generation/shell-design.ts`, `along-wall-chain-shift.ts`, `catalog.ts`, `door-count.ts`,
+  `commands/set-cabinet-depth.ts`, `generation/generate-kitchen.ts`,
+  `tests/room/approved-room-policy.test.ts`.
+- **Doc-quoted**, with `file:line`: ADRs 0089, 0102, 0108, 0110, 0120, 0030's retirement note, and
+  `docs/design/DEVELOPMENT-SPEC.md`.
+- **Arithmetic** over the above: the 250/280 mm row algebra (M12) and Q-K1's room counts. **Nothing
+  in this section was produced by a new test**, and no code was written.
+- **Not verified here, and carried as implementer-reported:** that a real
+  `setCabinetDepth(600 → 700)` reports **zero** `validateDesignForCatalog` findings. It needs a
+  `BodyProbe`, which is the adapter's, and this adjudication is markdown-only. Corroborated
+  doc-side by ADR 0089's *Consequences* (the validator "checks room containment and column extents
+  and not cross-wall corner intersection"), which is corroboration of a different measurement and
+  not the same claim.
+
+#### Ground truth, re-measured at `76907f2`
+
+| # | Tier | Fact |
+| --- | --- | --- |
+| **M1** | dist-measured | `lShellFloorRuns` gives **`A.startMm = B.startMm = 900`** in every room sampled: 3560 × 2920, 900 × 1000 × 2200, **3300 × 1700, 3900 × 1700, 4500 × 1700, 4000 × 3000** (7D3's four) and 6000 × 6000. `endMm` is wall A's own length and wall B's length less the 100 mm reserve. **Criterion 8 and S1's 231-sample bucket reproduce.** |
+| **M2** | dist-measured | `ENGINE_ROOM_LIMITS.buildableShapes.L` = wallA `{900, 6300}`, wallB `{1000, 6300}`, `cornerReachMm {A 900, B 1000}`; `APPROVED_ROOM_POLICY` = wallA `{900, 6000}`, wallB `{1000, 6000}`, reach `{900, 1000}`. **Criterion 4's equality holds at HEAD**, and the maxima differ by design (ADR 0124). |
+| **M3** | source-verified + arithmetic | Far edges from the fixture's own literals: `p25` A `450 ± 450` → **900** (`fixtures/kitchen-l-design.ts:917`); `p26` B `740 ± 160` → **900** (`:918`); `p9`/`p21` B `615 ± 285` → **900** (`:923`, `:935`). At 700 the wall-B pieces slide **+100** (base chain) and **+70** (wall-map): `p26` → **1000**, `p9`/`p21` → **970**. **K3 reproduced by arithmetic**, and identical to ADR 0108 Amendment A's independently measured table. |
+| **M4** | dist-measured | **Wall A's wall-only run exists, and it is 900 mm in two tiles.** Reference room: `A@400 w800` and `A@850 w100`, both `y0 1500`, `top 2600`, source `wall-cabinet`. **In the smallest admitted room, 900 × 1000 × 2200, those two tiles are the shell's *only* recorded space** (3 placements, 2 columns, nothing on wall B). |
+| **M5** | dist-measured | Re-validating the **unchanged** 600 mm shell against `buildKitchenLBodyCatalog(700)` gives **exactly 3 × `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, in every room sampled** — 3560 × 2920, 900 × 1000 × 2200, 3300 × 1700, 4000 × 3000, 6000 × 6000 — and **0** against the 600 mm catalogue. |
+| **M6** | source-verified | **Generation has no depth input.** `GenerateKitchenInput` is `{ room, occurredAt, probeAt }` (`generation/generate-kitchen.ts:113-117`); `SHELL_CABINET_DEPTH_MM = cabinetDepthMmOf(REFERENCE_KITCHEN)` and the shell copies the reference settings whatever room it is built for (`generation/shell-design.ts:100`, `:132-133`). **The product builds a shell at 600 mm and at no other depth.** 700 is reachable only through `setCabinetDepth`. |
+| **M7** | source-verified | **One door runs to 499.** `TWO_DOOR_MIN_WIDTH_MM = 500`, and the constant's own comment states the rule as *"499 and below is one door, 500 and above is two"* (`door-count.ts`). `HINGED_CABINET_MIN_WIDTH_MM = 200` (`catalog.ts:151`). |
+| **M8** | source-verified | **The shipped guard is `>=`, not equality:** `expect(approved.minMm).toBeGreaterThanOrEqual(engine.minMm)` (`tests/room/approved-room-policy.test.ts:98`, and `:209-213` for the two reaches). The reach pin is a literal pair `{ wallA: 900, wallB: 1000 }` (`:154-159`). **So a bound move is already a visible diff, and a shrink already passes.** |
+| **M9** | doc-quoted | ADR 0108 decision B1: a guard test ties the two objects so that *"every approved minimum is **at or above** the engine's minimum for the same field"*. **Equality is nowhere required by the ADR.** |
+| **M10** | doc-quoted | ADR 0110 Amendment B2: a run's start is the far edge of the structural pieces *"on that wall **in that band**, over the full assembly… That gives 900 for every band of wall B and for wall A's base band, and **0 for wall A's wall and top bands, where nothing structural stands above the corner base**."* |
+| **M11** | doc-quoted | ADR 0120 Amendment A: *"At a 900 mm wall B the return must be ≤ 320 mm at a 600 mm depth and ≤ 220 mm at 700."* **The room enters the derivation as a ceiling on the width, never as a target** — which is what makes J1′ tractable. |
+| **M12** | arithmetic | The two rows' **near** edges on wall B are 580 / 330 at 600 mm and 680 / 400 at 700 (M3). So the rows' far edges coincide only when `F_upper − F_base` equals **250 at 600 and 280 at 700**. **No depth-independent width pair satisfies both.** Today's `(320, 570)` difference is exactly 250 — which is *why* the rows agree at 600 and part by exactly 30 mm at 700. |
+| **M13** | arithmetic, from 7D7's ruled floors | At `F_base = F_upper = 200`, wall B's rows are **780 / 530 at 600** and **880 / 600 at 700**: 250 and 280 mm apart. **At the floors the two rows cannot agree at either depth** — so "agree at every declared depth" is not merely hard, it is unsatisfiable in the room the bound is set by. |
+
+#### D1 — the circularity: what the derivation takes, what each caller passes, and what makes the policy's reader well-defined
+
+**Classification: contract gap in this plan.** *Module boundaries*' "one pure function with one caller
+apiece" pre-dates J1′ and does not survive it. No shipped code is wrong.
+
+**Ruled: three entry points, each named for its own quantifier, and the policy's one takes no room.**
+
+1. `cornerAssemblyWidthsMm({ cabinetDepthMm, room })` → the four along-wall widths for **one**
+   (depth, room). This is J1′'s function, and the room enters as M11's **ceiling** —
+   `min(the reference width, what the wall can still hold)`, floored at the piece's own floor.
+2. `cornerFarEdgeMm({ widths, cabinetDepthMm, wall, band })` → a far edge from widths and depth.
+   Pure arithmetic. **No room, no policy, no catalogue lookup.**
+3. `narrowestCornerReachMm(wall)` → the maximum over `declaredCabinetDepthsMm()` of (2) evaluated at
+   the corner's **floor** widths, the floors read from `HINGED_CABINET_MIN_WIDTH_MM` and never typed
+   (7D7's L-R7). **No room argument at all.** This replaces `farthestCornerEdgeMm` as
+   `ENGINE_ROOM_LIMITS`' reader.
+
+**Callers:** `ENGINE_ROOM_LIMITS` reads **(3) only**. The shell's `floorRunStartMm` and
+`wallRowStartMm` read **(1) then (2)**, at `SHELL_CABINET_DEPTH_MM` and their own room, **keeping
+their band filters** (M10).
+
+**What makes the policy's reader well-defined, and it is not a fixed point.** The bound answers *"is
+this wall long enough to hold a corner at all"*. Under J1′ the corner shrinks to fit, so the binding
+case is the **narrowest corner the product will build**, whose widths are the catalogue's floors and
+are **room-independent**. The quantifier over rooms therefore disappears rather than needing to be
+resolved: the least admissible wall is `max over declared depths of the floor reach`, full stop.
+
+**Asserted, not assumed** — new criterion 12, stated as a property over rooms × depths:
+
+- **Containment:** `cornerFarEdgeMm(cornerAssemblyWidthsMm(d, room), wall) ≤ wallLengthMm(wall, room)`
+  for every room the approved policy admits and every declared depth. *(This is the monotonicity
+  argument's content, asserted directly rather than argued.)*
+- **Attainment:** the reach at the approved minimum room **equals** `narrowestCornerReachMm(wall)` —
+  the bound is tight, not merely safe.
+- **Acyclicity:** the derivation module imports nothing from `room/`, and every
+  `ENGINE_ROOM_LIMITS` bound is a finite positive whole number at module load.
+
+**Alternatives considered.**
+
+- **The policy reads (1) at the smallest admissible room** — S1's resolvable reading. **Refused, and
+  the reason is mechanical rather than aesthetic:** the smallest admissible room *is* what the bound
+  defines, so the read must reach either `ENGINE_ROOM_LIMITS`' own literal (a self-reference inside a
+  module-load object literal) or `APPROVED_ROOM_POLICY` (a `room/` → `room/` edge).
+  `room-policy.ts`'s own head comment names that exact failure: *"Nothing it imports reaches back
+  into `room/`: a cycle here would bind a bound to `undefined` and compare every value against it
+  silently"* (`room/room-policy.ts:10-11`). A fixed-point iteration is arithmetically sound and puts
+  a loop at module load inside the one file whose contract forbids the edge it needs.
+- **The policy maximises (1) over admissible rooms.** **Refused — and this is the trap already
+  sitting in criterion 4's wording.** The maximum over rooms is attained in the *largest* room, where
+  the corner is widest, so the bound would be pinned to the reference corner (900 / 1000) for ever
+  and **the criterion written to catch a shrink would be structurally unable to see one.**
+- **One function with an optional room, defaulting to the reference room.** Refused: a defaulted room
+  is precisely how the shell silently acquires the policy's answer (D2), and it is the flag-argument
+  shape in another costume.
+
+#### D2 — three call sites, two quantifiers and a band filter: the quantifier lives in the signature
+
+**Classification: contract gap in this plan.** "Two readers, one authority" undercounts the sites and
+omits the band filter.
+
+**Measured (source-verified).** `farthestCornerEdgeMm` maximises over **both** declared depths and
+over **every** structural corner on the wall (`room/room-policy.ts:142-148`) — hence 900 / **1000**.
+`floorRunStartMm` and `wallRowStartMm` read the fixture's stored `alongMm` at the shell's own depth,
+band-filtered (`generation/shell-design.ts:267-292`) — hence 900 / **900**. **Three sites, two
+quantifiers, and a band filter on two of them.**
+
+**Ruled: the quantifier is expressed in the signature and the type, never in a comment.**
+
+- The bound entry point (3) takes **no depth and no room** and maximises internally.
+- The shell's helpers take a depth and a room and answer per **(wall, band)**.
+- The two return **distinct named types** — a wall minimum is not a set of far edges — so passing one
+  where the other is expected is a compile error rather than a plausible program.
+- **No exported function answers "the reach" with an optional or defaulted depth or room.**
+
+**Falsifiable:** criterion 8 is what the wrong swap breaks (wall B's origin would move 900 → 1000),
+and **new criterion 13** pins that the two entry points give **different** answers on wall B, so a
+swap cannot be silent.
+
+**Alternatives.** *One function with a `maximiseOverDepths` flag* — refused: a flag argument, and both
+answers would share one type, so the swap stays a valid program. *One function returning both* —
+refused: the shell would then hold the bound's answer in scope, which is the accident being
+prevented.
+
+#### D3 — J3 is wall B only, and wall A's zero is load-bearing
+
+**Classification: contract gap in this plan** (J3 names no wall), **with a latent implementation
+defect if the broad reading is acted on.** The contract — ADR 0110 Amendment B2 — is intact and is
+what the code already implements.
+
+**Ruled: J3 governs wall B alone. `wallRowStartMm("A")` is 0 and stays 0.**
+
+Mechanism, source-verified: `p25`'s top is `0 + 820 = 820 ≤ WALL_ROW_FLOOR_MM` (1500, from `LEVELS[1]`
+— `fixtures/kitchen-l-design.ts:917`, `generation/shell-design.ts:117-120`), so the band filter at
+`:275-282` selects nothing and `farthestEdgeMm`'s `Math.max(0, …)` (`:285-292`) answers **0**, which
+`freeRunTiles` (`:195-206`) turns into the wall-only run standing **over** wall A's corner base.
+**M10 is the recorded decision behind that zero**; M4 is its measured consequence.
+
+**Why no existing criterion catches the broad reading:** criteria 1 and 8 read the **floor** run only,
+and M4's tiles are **wall-only**. The change would pass both, in every room. **Hence new criterion
+11.** The behaviour lost is not 600 mm but **900 mm in two tiles** — and in the smallest admitted room
+it is *the shell's entire frozen map* (M4).
+
+**Alternatives.** *State J3 for both walls and special-case wall A in code* — refused: it re-derives
+B2 as an exception instead of reading the band filter that already expresses it. *Leave J3 unscoped
+and trust review* — refused: the trap is invisible to the suite (above), so review would be the only
+control, and a green suite is what a reviewer reads first.
+
+#### D4 — the head comment is right, ADR 0089 is not amended, and J3's premise is what is wrong
+
+**Classification: contract gap in this plan.** J3 calls "the defect" a number a dated ADR rules on,
+because J3 does not distinguish two mechanisms.
+
+- **ADR 0089 and `along-wall-chain-shift.ts:17-22` are about the *slide*.** Two chains, +100 and +70;
+  *"a single uniform shift is wrong for one of the two by 30 mm"*, and what *"smooth away"* refuses is
+  **using one delta for both**. Its residue is named exactly: *"the resulting 30 mm gap in wall B's
+  top row at 700 (`p21` ends at 970 where `p22` starts at 1000) as a thing to assert rather than
+  smooth away"* (ADR 0089, *The measurement*, item 2).
+- **J3 is about the *width* of a generated corner.** ADR 0120 Amendment A licenses **the generator**
+  to size a corner; ADR 0110 granted the **command** no such thing, and 7D7's L-R6 keeps it that way.
+
+**So the 30 mm K3 names is reachable only through the second mechanism** — a design authored at 600
+and taken to 700 — **because generation never builds at 700 (M6).** J3's sentence therefore
+mis-attributes a slide residue to a width derivation.
+
+**Ruled, in three parts.**
+
+1. **ADR 0089 is not amended.** Its subject is the slide, the slide does not change in S2, and an
+   amendment would record a conflict that does not exist.
+2. **J3 is restated as J3′** (below). Its premise, not the comment, is corrected.
+3. **`along-wall-chain-shift.ts` enters S2's may-change set for exactly one appended sentence** — a
+   cross-reference distinguishing the **slide** from the **generated width** — with every existing
+   sentence, the constant and **every line of code in the file unchanged.** A head comment that
+   appears to forbid what the wave is doing gets resolved by whoever hits it, and resolving it
+   silently is the laundered-second-authority shape [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
+   is about. One reviewed sentence is cheaper than an implementer's guess. **If S2 finds it needs more
+   than a cross-reference, S2 stops:** a substantive change to that paragraph is an ADR 0089
+   amendment and is not S2's to make.
+
+**Alternatives.** *Leave the file wholly untouched and carry the distinction only here* — refused:
+the trap stays in the file the implementer is reading, and this plan is not. *Amend ADR 0089* —
+refused, above. *Rule J3 correct and re-derive the corner inside `setCabinetDepth`* — refused: that
+is a command-path behaviour ADR 0110 did not grant (7D7's L-R6), and it would delete the 30 mm that
+wave 6J-c's criteria assert.
+
+#### D5 — which figure the rows agree on at 700 mm: none, in S2
+
+**Classification: contract gap in this plan, opening one product question.**
+
+**Ruled: S2 does not make the rows coincide at 700 mm, and this plan stops implying that it will.**
+
+- **M12:** coincidence needs `F_upper − F_base` = 250 at 600 **and** 280 at 700, so the pair must be
+  depth-dependent. That is expressible under J1′ for a corner *authored* at 700 — **and no such
+  corner exists** (M6).
+- **For the reference-sized corner at 700 there are exactly two ways to close the 30 mm, and both are
+  refused for S2.** Widening the two upper returns 570 → **600** crosses `TWO_DOOR_MIN_WIDTH_MM`
+  (M7): it turns a piece the owner's own rule describes as *"a cabinet with one door"* into a
+  two-door one, fails 7D7 criterion 4's door-count arm, and reopens the swing-arc question
+  [ADR 0030](../decisions/0030-a-single-hinged-door-tops-out-at-600.md)'s retirement note says *"a
+  future change to that threshold reopens"*. Narrowing the frontless base return 320 → **290** lands
+  the base row at **970** — off the 50 mm grid K5 flags — and buys exactly the 30 mm that 7D7's cliff
+  caps, parking the one piece with no front on the cliff edge where the next millimetre buys nothing.
+- **If it is ever closed, the figure is 1000 and not 970.** 1000 is what every other consumer of the
+  assembly's far edge already reads (`farthestCornerEdgeMm` → `ENGINE_ROOM_LIMITS.wallB.minMm` →
+  `APPROVED_L_WALL_B_MIN_MM`, M2) and it is on the 50 mm grid. **But reaching it moves the two fronted
+  pieces past the one-door threshold, which is a product change and is Q-K2 below, not S2's.**
+- **At the ruled floors the rows are 250 and 280 mm apart and cannot coincide at all** (M13). J3′'s
+  residue rule is what covers that case, and it is the case the *bound* is set by.
+
+**Alternatives.** *Target 970 by narrowing the filler* — refused above. *Target 1000 by widening the
+fronted returns* — refused for S2; it is Q-K2. *Shrink both pieces to a common figure in
+`[880, 899]`* (the only window where both stay one-door and above 200 at 700) — refused: it narrows
+the corner in rooms that can hold the reference one, for a 30 mm gain, and it contradicts 7D7's
+criterion 1 free pin in spirit — M11's room term is a **ceiling**, not a target.
+
+#### D6 — criterion 4 versus the expected shrink: assert the gap, do not forbid it
+
+**Classification: contract gap in this plan.** Criterion 4's **equality** is stricter than the record
+it guards (M8, M9: both the shipped test and ADR 0108 B1 are `>=`), so the one criterion written to
+catch a silent shrink would turn red for a reason that is **not** a shrink, and the cheapest way to
+make it green is to re-type an owner's literal.
+
+**Ruled: criterion 4 becomes a pinned margin (4′), and the anticipated red does not occur.**
+
+One test, three assertions: (i) the derived floor-reach per wall; (ii) the approved minimum per wall;
+(iii) their difference against a **named constant whose name carries the obligation** —
+`WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM`, today `{ wallA: 20, wallB: 120 }` under 7D7's ruled floors —
+with the date and Q-K1 cited beside it.
+
+**Both directions are then loud.** A shrink grows the margin and fails. A growth shrinks it and fails.
+The bound can move **only** in the commit that edits the approved literal and the margin **together**,
+which is the joint 7D6 / 7D7-S5 slice.
+
+- **S2 and S3 neither stop nor report a failure.** The gap is *asserted*, so it is visible without
+  being red; nothing waits on the owner to go green.
+- **The owner is owed Q-K1 before the joint slice, not before S2.** S3 may land with a non-zero
+  margin; the joint slice may not.
+- **J4 is kept and narrowed.** *"No approved bound moves silently, in either direction"* is satisfied
+  by the pin. *"Criterion 4 asserts the approved minima and the derived reach **agree**"* is **struck
+  as the mechanism**: ADR 0108 B1 permits a margin and only the owner may choose one.
+- **If the owner answers Q-K1 with option 3** (keep 900 / 1000 as a deliberate product margin above
+  the engine's 880), **J4's equality is superseded and that needs a dated record** — see *ADRs owed*.
+
+**Alternatives.** *Keep the equality and let S3 land red until the joint slice* — refused: a red gate
+is not a report, `docs/WORKFLOW.md` does not admit one, and a known-red criterion is the shape that
+gets re-typed. *Skip or `todo` the criterion until the bound moves* — refused: invisible in a green
+suite, which is the failure mode risk 1 already names. *Assert `>=` only* — refused: that is M8, it is
+what already ships, and it passes on every shrink.
+
+#### D7 — the two corrections
+
+**D7.1 — K4's reference room is wrong, and so is the spec's, in two places.** *(Classification:
+defect of record. No code.)* The fixture room is **3560 × 2920 × 2600** —
+`widthMm: 3560`, `depthMm: WALL_B_LENGTH_MM`, `heightMm: 2600`
+(`fixtures/kitchen-l-design.ts:967-972`) with `const WALL_B_LENGTH_MM = 2920` (`:957`). K4's
+"3600 × 2920" is corrected in the *Ground truth* table above. **Separately owed and not this wave's
+code:** `DEVELOPMENT-SPEC.md:44` (*"Room `kitchen-l`: 3.6 × 2.4 m footprint"*) and `:620`
+(§13.3 open question 4, *"constants for this 3.6 × 2.4 m L-shaped room"*) both carry a figure that
+matches **neither** the domain fixture **nor** a constant scene — the wall planes now follow
+`DesignRoom` (`three-adapter/src/kitchen-shell.ts:98`, `:166-174`). **Recorded here; the spec edit is
+the coordinator's, not S2's.**
+
+**D7.2 — the re-validation trap, and it is a test-fidelity problem rather than a defect.**
+**Reproduced here** (M5): the unchanged 600 mm shell judged against a 700 mm catalogue reports
+**3 × `RECORDED_SPAN_OVERLAPS_CORNER_BODY` in every room sampled**, and **0** against its own
+catalogue. **The product path cannot reach that state, by design:** `SetCabinetDepthInput` takes
+`catalogAt: (cabinetDepthMm) => BodyCatalog` rather than a built catalogue precisely so that *"a
+`catalog: BodyCatalog` field would let a caller ask for 700 while passing a catalogue built at 600,
+and every body would be rebuilt to the old depth with the new number written beside it — silently…
+A factory makes the wrong call site impossible to write instead of merely wrong"*
+(`commands/set-cabinet-depth.ts:57-63`). **Criterion 3's text already says "through `setCabinetDepth`";
+the trap is now explicit in it, because a test that builds its own catalogue reproduces three findings
+that mean nothing about the product.**
+
+#### Rulings amended
+
+**J3 is struck and replaced. Old:**
+
+> **J3 — the wall row and the base row must agree at every declared depth.** K3's 30 mm disagreement
+> is the defect. The two rows' reaches are derived from the same depth, so they cannot drift apart.
+
+**New:**
+
+> **J3′ — the two rows are derived from the same depth and the same room, and the residue between
+> them is accounted for. Wall B only.**
+>
+> 1. The wall row's far edge **never passes** the base row's, at any declared depth or admitted room.
+> 2. Where they differ, the residue is **recorded** — it is the wall-only run between
+>    `wallRowStartMm` and `floorRunStartMm`, exactly as wall A's already is (ADR 0110 Amendment B2) —
+>    **or it is narrower than the narrowest body the catalogue could place there**, in which case
+>    nothing is lost.
+> 3. **Neither row's width is tuned independently of the other** (7D7's L-R4, the 290 mm cliff).
+> 4. **The 30 mm K3 names at 700 mm is not S2's to remove.** It is reachable only through a depth
+>    change on a design authored at 600 (M6), where the widths are frozen and the two chains part by
+>    ADR 0089's ruling. **Agreement at every declared depth is not required and at the ruled floors is
+>    not possible** (M12, M13).
+> 5. **Wall A's wall-row origin is 0 and stays 0.**
+
+#### Acceptance criteria amended and added
+
+**Criterion 2 is struck and replaced. Old:**
+
+> 2. *(unit, boundary — the motivating defect)* **At 700 mm the base row and the wall row reach the
+>    same figure on wall B.** K3's 1000-versus-970 disagreement is gone, and the test names both rows.
+>    **Must not:** the two rows agreeing at 600 and drifting at 700.
+
+**New:**
+
+> 2′. *(property, `fast-check`, over `declaredCabinetDepthsMm()` × rooms drawn from
+>     wallA ∈ [approved min, 6000] × wallB ∈ [approved min, 6000] × height ∈ [2200, 3900], whole
+>     millimetres, plus the fixed anchors 3560 × 2920 × 2600 and the approved minimum room)* **The two
+>     rows' far edges on wall B are each computed from their own row's near edge at that depth plus
+>     that row's own derived width, and `farWall ≤ farBase` always.** The residue `farBase − farWall`
+>     is **0 in the reference room at 600 mm**, and wherever it is non-zero it **equals the arithmetic
+>     the derivation's own inputs give** — `(nearBase(d) − nearWall(d)) − (F_upper − F_base)` — with
+>     **both rows named in the assertion**. **Must not:** closing the residue by deriving an upper
+>     corner return at or above `TWO_DOOR_MIN_WIDTH_MM` (D5); closing it by narrowing the frontless
+>     base return to 290 mm at 700 (D5); asserting this of a **design** at 700 mm — generation builds
+>     only at `SHELL_CABINET_DEPTH_MM` (M6), so the 700 mm claim is a claim about the pure derivation
+>     and the test must say so in its name.
+
+**Criterion 3 keeps its text and gains the trap.** Added: **Must not:** re-validating an unchanged
+600 mm design against `buildKitchenLBodyCatalog(700)`. That is **3 ×
+`RECORDED_SPAN_OVERLAPS_CORNER_BODY` in every room** and says nothing about the product (D7.2, M5);
+the depth change goes through `setCabinetDepth`, whose `catalogAt` factory exists to make the other
+call site unwritable.
+
+**Criterion 4 is struck and replaced. Old:**
+
+> 4. *(unit — the criterion nothing has today, J4, restated under J1′)* **The approved minima and the
+>    derived reach agree.** `APPROVED_ROOM_POLICY`'s wall-A and wall-B minima **equal** the derived
+>    reach **at the corner's floor, over the (depth, room) pair that maximises it** …
+
+**New:**
+
+> 4′. *(unit — the criterion nothing has today, J4 as narrowed by D6)* **The approved minima, the
+>     derived floor-reach and the margin between them are asserted in one place.** The test states
+>     (i) `narrowestCornerReachMm(wall)` — the reach at the corner's **floor** widths, maximised over
+>     `declaredCabinetDepthsMm()` and **taking no room**; (ii) `APPROVED_ROOM_POLICY`'s minimum for
+>     that wall; (iii) their difference, against `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` — today
+>     `{ wallA: 20, wallB: 120 }`, dated, with Q-K1 cited beside it. **Must not:** a `>=` check, which
+>     is what already ships and passes on every shrink (M8); an **equality**, which makes an
+>     owner-chosen margin inexpressible although ADR 0108 B1 permits one (M9); a maximum taken over
+>     **rooms**, which is attained in the largest room and pins the bound to the reference corner for
+>     ever (D1); a skipped, `todo` or `expect.fail`-guarded criterion; the margin edited in any commit
+>     but the joint bound slice or a dated adjudication; or an approved literal re-typed to make the
+>     margin fit.
+
+**Criterion 6 is unchanged, and D5 records why it is not extended to 700 mm.** At the ruled floors and
+one-door widths there is **no** multiple of 50 in the window the rows could meet in
+(`[880, 899]`, M13), so a grid requirement at 700 would be unsatisfiable rather than protective. K5's
+observation stands as an observation.
+
+**Three criteria are added.**
+
+> 11. *(unit + property, over the same room set as 2′)* **The residue is recorded, and wall A's
+>     wall-only run survives.** For every room, each wall's wall-only run spans exactly
+>     `[wallRowStartMm(wall), min(floorRunStartMm(wall), plannedEnd)]`; **in the reference room, wall
+>     A's is still two tiles totalling 900 mm from 0 to 900** — `A@400 w800` and `A@850 w100`, `y0
+>     1500`, source `wall-cabinet` (M4) — **and in the approved minimum room those two tiles are the
+>     shell's only recorded space.** **Must not:** `wallRowStartMm("A")` becoming non-zero, which
+>     deletes that run and, in the smallest admitted room, the entire frozen map — a change **criteria
+>     1 and 8 cannot see**, because both read the floor run (D3).
+> 12. *(property + unit — what makes the policy's reader well-defined, asserted rather than assumed)*
+>     **Containment:** the derived reach on each wall is `≤` that wall's length, for every admitted
+>     room and declared depth. **Attainment:** the reach at the approved minimum room **equals**
+>     `narrowestCornerReachMm(wall)`, so the bound is tight and not merely safe. **Acyclicity:** the
+>     derivation module imports nothing from `room/`, and every `ENGINE_ROOM_LIMITS` bound is a finite
+>     positive whole number at module load. **Must not:** a bound read as `undefined` at load and
+>     compared silently — `room/room-policy.ts:10-11`'s named failure; a containment property whose
+>     room generator stops below 6000 mm on either wall.
+> 13. *(unit — the two quantifiers cannot be swapped)* **The bound entry point takes no depth and no
+>     room; the shell's helpers take both and answer per (wall, band); the two return distinct types**
+>     — and the test asserts they give **different** answers on wall B in the reference room, so a
+>     caller that took the other's cannot do so silently. **Must not:** one exported function
+>     answering "the reach" with an optional or defaulted depth or room; a shell helper reading
+>     `Math.max(...declaredCabinetDepthsMm())`, which moves wall B's origin 900 → 1000 and breaks
+>     criterion 8.
+
+#### The must-not set S2 carries, restated as one list
+
+1. **Wall A's wall-row origin must not move off 0** (D3, criterion 11). ADR 0110 Amendment B2.
+2. **The 30 mm at 700 mm after a depth change must not be removed** (D4, J3′.4). ADR 0089.
+3. **No corner return may be derived at or above 500 mm** while the owner's one-door rule stands
+   (D5, M7).
+4. **The frontless base return must not be narrowed to 290 mm** to buy the 30 mm (D5).
+5. **No approved literal moves in S1–S3**, and the margin constant moves only in the joint slice
+   (D6).
+6. **No test builds a catalogue at a depth its design is not at** (D7.2).
+7. **`along-wall-chain-shift.ts` gains one appended comment sentence and no code change** (D4.3).
+8. **The derivation must not import from `room/`** (D1, criterion 12).
+
+#### Module boundaries, corrected
+
+The first bullet's *"one pure function with one caller apiece… Two readers, one authority"* is
+**struck** and replaced by D1's three entry points and D2's call-site table. The rest of that section
+— the fixture keeping its placements, `along-wall-chain-shift.ts` read not rewritten (now with D4.3's
+single-sentence exception), and nothing under `packages/three-adapter` — **stands unchanged.**
+
+#### Q-K1 — the wording for the owner, and it must be put once with Q-7D7-2
+
+**Not to be put by this adjudication. Handed to the coordinator.** **Q-K1 and 7D7's Q-7D7-2 are the
+same question about wall A** and must be put **as one question**, or the same number gets two answers.
+
+> **The corner cabinet will now be made to fit the room, so the smallest room we can build in gets
+> smaller. Two numbers you approved on 2026-09-11 are affected.**
+>
+> Today a customer must enter a back wall of at least **900 mm** and a side wall of at least
+> **1000 mm**. Those two numbers are the width of the corner cabinet we build, and until now the
+> corner was always the same size. Following your ruling that every cabinet is custom made, corners
+> included, the corner is now made as large as the room allows and as small as **a cabinet with one
+> door at each of the three levels** — the 200 mm you already set for a one-door cabinet. At that
+> smallest corner, **both walls need only 880 mm**.
+>
+> **Three options.**
+>
+> 1. **Move both minima to 880 mm.** A customer may enter a back wall from 880 and a side wall from
+>    880.
+> 2. **Move the side wall only, 1000 → 880, and leave the back wall at 900.** The back wall then
+>    stays 20 mm stricter than the kitchen needs.
+> 3. **Keep 900 and 1000 as they are**, as a deliberate margin above what we can build — we would
+>    then be refusing rooms we could build, on purpose, and we record that as your choice.
+>
+> **What each option changes, measured.** Counting whole-millimetre wall pairs the room bounds admit
+> (any ceiling from 2200 to 3900 multiplies all four figures by 1701 equally):
+>
+> | | wall A | wall B | wall pairs admitted | newly admitted |
+> | --- | --- | --- | --- | --- |
+> | today | 900–6000 | 1000–6000 | 25 510 101 | — |
+> | option 1 | **880**–6000 | **880**–6000 | 26 224 641 | **+714 540** |
+> | option 2 | 900–6000 | **880**–6000 | 26 122 221 | **+612 120** |
+> | option 3 | 900–6000 | 1000–6000 | 25 510 101 | 0 |
+>
+> In plain terms: **option 1 or 2 makes a side wall of 880–999 mm enterable**, which is 120 mm lower
+> than today; option 1 also takes 20 mm off the back wall. **No option withdraws any room** — every
+> room admitted today stays admitted under all three.
+>
+> **One figure we do not have yet, and we say so rather than estimate it.** Entering a room is not the
+> same as getting a kitchen: a room must also hold a sink and a hob (your rule, 2026-09-11). **How
+> many of those newly admitted rooms actually produce a kitchen is not derivable from the bounds
+> alone** — it needs the validator run over the new range, which is one existing test file's room
+> list (7D7 criterion 10 / L12) and is cheap. **We will measure it before the bound moves, not
+> estimate it.**
+>
+> **Timing.** The answer is free today because nothing is stored and nothing is in production. It
+> stops being free once you begin saving presets, so we are asking before that wave.
+
+**Evidence tiers inside Q-K1:** the 880 figures are 7D7's **arithmetic** over source-verified
+constants; the four room-pair counts are **arithmetic** over the approved bounds at HEAD
+(M2: 5101 × 5001, 5121 × 5121, 5101 × 5121); the 200 mm floor is **source-verified**
+(`catalog.ts:151`); the *"no option withdraws any room"* claim is **arithmetic** — all three options
+only lower a minimum.
+
+#### Q-K2 — new, and it is 7D7's rather than 7D6's
+
+**May the corner's upper returns become two-door cabinets at the 700 mm depth, so the wall row and the
+base row meet at 1000 mm?** Raised by D5, **gates nothing in 7D6**, and belongs with 7D7's fronts,
+leaves and door-count property. **Not put here, and no wave is to assume an answer.** The reason it
+exists: the only way to close K3's 30 mm at the reference size crosses `TWO_DOOR_MIN_WIDTH_MM` (M7),
+and *"at least one door"* admits two while ADR 0030's retirement note reserves the swing-arc question
+for whoever moves that threshold.
+
+#### ADRs owed — named here, deliberately not written
+
+1. **An ADR 0108 amendment, at the joint bound slice.** Amendment A ruling 1 reads *"each L wall
+   minimum is the largest far edge of that wall's structural corner pieces over every declared cabinet
+   depth"*. D1 narrows the derivation to **the corner's floor widths** and adds the room to the
+   assembly's sizing. **That is a change to a recorded derivation rule and needs a dated amendment**,
+   written with the owner's Q-K1 answer in hand so the bound and its reason land together.
+2. **A dated record if the owner chooses option 3.** J4's equality, and criterion 4′'s zero-margin
+   expectation, would be superseded by a deliberate product margin. **A milestone entry is not enough
+   for that:** it reverses the direction ADR 0108 B1's guard was written to run in.
+3. **Nothing else.** ADR 0089 stands unamended (D4), ADR 0110 Amendment B2 is preserved rather than
+   changed (D3), ADR 0120 Amendment A needs nothing (its room term is the ceiling this adjudication
+   reads it as, M11), and ADR 0102 is applied rather than touched (D4.3).
+
+#### What S2 dispatches with
+
+**S2 is dispatchable now**, with D1's three entry points, D2's signatures, J3′, criteria 1, 2′,
+3 (amended), 5–9 and the new 11–13, and the eight must-nots. **S3 is dispatchable after it**, with
+criterion 4′ and 10 — **and it no longer needs the owner to go green.** The joint bound slice
+(7D6 / 7D7-S5) **remains gated on Q-K1**, which is now written above and is the coordinator's to put.
 
 ## Wave 7D7 — dispatchable punch list: the corner builders take their size as a parameter
 
