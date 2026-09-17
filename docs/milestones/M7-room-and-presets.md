@@ -1529,7 +1529,7 @@ table.
 | **7F1-D45** | Back keeps the room the customer typed: the debounced `router.replace`, the client-derived sub-state, the departure flush and the traversal e2e (R9) — **DONE, `8437c95`**, review fold `6682d8e` | `room/room-query-sync.ts` (new), `room/room-screen.tsx`, `app/[locale]/configurator/room/page.tsx`, `eslint.config.mjs` (+ `tests/e2e/room-traversal.qa.e2e.spec.ts`) | 7F1 | Light | **Yes** | none |
 | ~~**7F4**~~ | ~~1F composition steps into the editor~~ — **split 2026-09-14 into 7F4a and 7F4b (Q7F4-2, coordinator)**, because the two halves fail differently and different instruments catch them | | | | | |
 | **7F4a** | The composition runs and is drawn: 1F's rows, the borrowed kit, the measured cost — **DONE, `bf6901b` + `37f1ecb` + `6113176` + `52504d1`**; `ci:local` and the push are **pending** | `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` (+ messages) | 7D2, 7F1 | **Full** (kit lifetime) | **Yes** | Q7F4-1 **answered** — the owner's words for 1F, 2026-09-15 |
-| **7F4b** | The hand-off into the editor: one attempt, one row, navigation after the write | `src/room/use-generation.ts`, `generation-steps.tsx`, `room.module.css` (+ `tests/e2e`) | **7F4a**, 7E2 | **Full** | **Yes** (short) | — |
+| **7F4b** | The hand-off into the editor: one attempt, one row, navigation after the write — **DONE, close-out 2026-09-17, reconciled against `git log` 2026-09-17**. Commits: `9bb222b` (the hand-off), `b91cb25` (adversarial QA, no defect found), `e2f24dc` (save-failed notice as a live region; a false contract line corrected), `ef83393` (the run token detached from the mount's lifetime; `HandoffStatus` gains `saved`). See [7F4b close-out](#7f4b-close-out--2026-09-17). **Criterion 44's "CI is the verdict" is outstanding** — no push to this branch has ever triggered `ci.yml`; the owner has agreed to trigger it by hand from the Actions tab | `src/room/use-generation.ts`, `generation-steps.tsx`, `room.module.css` (+ `tests/e2e`) | **7F4a**, 7E2 | **Full** | **Yes** (short) | — |
 | ↳ | ***Minimum not met* → 1C needs no new screen** (carried from the struck row, answered 2026-09-14): 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already resolves such a room to 1C **before** generation runs, and the sentence there is **7F2's**. The generator's own refusal arm is unreachable from 1D and is asserted so, not drawn for (R16) | | | | | |
 | **7T** | **The live persistence suite actually runs.** Five live suites gate on `DATABASE_URL`, which `ci.yml` deliberately never sets, so the database seam's live coverage has been **green by never executing**. Re-gate what is safe to re-gate onto `TEST_DATABASE_URL`, run it, and **report what it finds** — a red suite is the finding, not a reason to re-skip. **Ordered before 7P1** so the repository never holds two meanings of *"the persistence tests pass"* at once (coordinator's ruling on Q-7P1-1, 2026-09-15) | `packages/persistence/tests/*` (gating only), `tests/support/exclusive-migration-access.ts` (new, test support — T-J2's advisory lock), `.github/workflows/ci.yml`; **no production file** | — | Full (test infrastructure; CI is its verdict) | No | — |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
@@ -1560,11 +1560,16 @@ table.
 deliberately not resolved here.** A scribe pass may correct a row against evidence it has read; it may
 not make a scheduling decision, and both of these are scheduling decisions once looked at closely.
 
-1. **7F4b's row carries no DONE marker, and the coordinator reports it has shipped** — across
+1. ~~**7F4b's row carries no DONE marker, and the coordinator reports it has shipped** — across
    `ef83393`, `e2f24dc` and `b91cb25`. **Reported, not verified by this pass**, which had no shell and
    read only the tree and this file; `docs/STATUS.md` and the 7F4a close-out both still say *7F4b is
    next*. **Reconcile the row against `git log` before trusting either statement**, and correct all
-   three places in one pass rather than the row alone.
+   three places in one pass rather than the row alone.~~ **RESOLVED 2026-09-17: 7F4b DID ship,
+   2026-09-15, across four commits (`9bb222b`, `b91cb25`, `e2f24dc`, `ef83393`), reconciled by the
+   coordinator from `git log` and relayed to this pass, which still has no shell of its own. The row
+   above, `docs/STATUS.md` and the 7F4a close-out are corrected in this same pass — see the [7F4b
+   close-out](#7f4b-close-out--2026-09-17) for what each of criteria 39–44 does and does not discharge,
+   including the outstanding CI verdict on criterion 44.**
 2. **7F3 depends on 7C, and 7C is DEFERRED PAST M8** (its own row says so, by 7B's derivation). **A
    wave in M7 cannot depend on a wave that has left M7**, and the table does not say which of the two
    gives way — whether 7F3 is deferred with the rest of the preset story, or whether its dependency on
@@ -2869,9 +2874,11 @@ diffs.
   line. **The citations now resolve to text about the thing they cite**, which is the part that would
   otherwise have been missed by writing the amendment and stopping at the wave's own rulings.
 
-**Next wave: 7F4b**, which inherits the seam this wave armed: **a departure armed by the primary tap
-resolves after the customer has left 1F.** Risk 6 named it before the wave — while *Continuă*'s push
-was a no-op a discarded navigation cost nothing, and 7F4b is where it stops being a no-op.
+~~**Next wave: 7F4b**~~, which inherited the seam this wave armed: **a departure armed by the primary
+tap resolves after the customer has left 1F.** Risk 6 named it before the wave — while *Continuă*'s
+push was a no-op a discarded navigation cost nothing, and 7F4b is where it stopped being a no-op.
+**Corrected 2026-09-17: 7F4b is DONE, `9bb222b` … `ef83393` — see the [7F4b
+close-out](#7f4b-close-out--2026-09-17).**
 
 ### 7D3 close-out — 2026-09-15, `03c98dc` (S1) + `97a4913` (S2)
 
@@ -12364,6 +12371,113 @@ criteria 33's route table and First Load JS. A 390 × 844 visual gate in **both*
 production build, with the tree frozen. 7F4b adds e2e, and **CI is its verdict** — `scripts/local-ci.sh`
 never sets `CI`, so every local e2e runs against `next dev` (7F1-D45's close-out records this in full).
 **The composition duration is reported, never rounded and never assumed.**
+
+### 7F4b close-out — 2026-09-17
+
+**Reconciled against `git log` at HEAD `a59e1aa`, resolving defect 1 under the revised wave table
+below.** This pass has no shell and cannot run `git log` itself; the four hashes and their subjects
+are the coordinator's, relayed rather than independently verified — a distinction this record keeps
+rather than papers over. **7F4b DID ship, 2026-09-15**: `9bb222b` (the hand-off itself — one
+attempt, one row, navigation after the write; nine deliberate breaks, each reddening its own test; a
+live defect found where both 7F4a DOM suites opened real sockets to `localhost:3000`), `b91cb25`
+(adversarial QA, no defect found in the hand-off), `e2f24dc` (the save-failed notice becomes a live
+region; a false contract line corrected), `ef83393` (the run token stops sharing a lifetime with the
+mount — a latent defect the review found and the implementer measured with React 19.2's `Activity`;
+`HandoffStatus` gains `saved`). Reported gates at `ef83393`: web **214 files / 3,227 tests**,
+three-adapter **78 / 3,071**; lint and whole-tree `format:check` green.
+
+**Criterion by criterion, what discharges it and what does not:**
+
+- **39 — one composition, one design row.** Discharged, per `9bb222b`'s own description: exactly one
+  `POST /api/designs` per completed run, none on a retry after a failed `PUT`, none on re-render.
+  *(Relayed from the commit subject and body; not re-run by this pass.)*
+- **40 — navigation only after the `PUT` resolves.** Discharged by the same commit's stated shape —
+  "navigation after the write." *(Relayed.)*
+- **41 — a failed hand-off keeps the customer in place, with a way forward.** Discharged; `e2f24dc`
+  additionally makes the save-failed notice a live region and corrects a false contract line — both
+  are strengthenings of this criterion's surface, not new obligations. *(Relayed.)*
+- **42 — leaving disarms the hand-off.** **Not verifiable from a browser** — this criterion is marked
+  `[component]` only in the plan, and the visual gate run 2026-09-17 could not exercise a departure
+  mid-`PUT`. `ef83393`'s own description is that the run token no longer shares a lifetime with the
+  mount, which is a component-level fix aimed exactly at this criterion, measured with React 19.2's
+  `Activity`. **Discharged at the component tier, as reported; not independently re-run.**
+- **43 — the editor opens on the generated kitchen.** **Partly verified.** The visual gate confirmed
+  the weaker half by inspection — room, `presetId: null`, and the generator's own placements read
+  back correctly in a live document at `/ro/d/{id}` and again at wave 7A3's 6 × 6 maximum. **The
+  stronger half — a full deep-equality against `generateKitchen(...).design`** — was not checked from
+  a browser; that is component-covered per the plan's own `[component]` tag and is not restated here
+  as browser evidence it is not.
+- **44 — the journey, once, end to end.** **The journey itself PASSES**, run 2026-09-17 in a
+  production build at 390 × 844, touch, both locales — this had never been run before. Step 1 → În L
+  → 3,6 / 2,4 / 2,6 → *Continuă* → 1F first paint 23 ms, rows 117 ms, all five *inclus* ~159 ms,
+  footer *Se compune…* → self-navigates to `/ro/d/{id}` (1,274 ms cold, 357–365 ms warm) → editor
+  draws the typed room, read-back document `room 3600×2400×2600`, `presetId: null`, placements on
+  walls A and B → *‹ Cameră* (44×44, accessible name "Cameră") returns to Step 1 sub-state 1D with
+  3,60 / 2,40 / 2,60 refilled. Also passes at wave 7A3's new 6,0 × 6,0 maximum (stored room
+  6000×6000×2600, price *de la 123 000 MDL*) and in **ru** (*Собираем…*, `/ru/d/…`). URL hygiene:
+  `/{locale}/d/{id}`, no query string. Console: no page errors beyond the pre-existing report-only-CSP
+  error already pinned by `webgl-unavailable-i18n.e2e.spec.ts:13`, plus THREE.Clock/permissions-policy
+  warnings. Failure paths probed with request interception: a failed `POST` and a failed `PUT` both
+  keep the customer in 1F with all rows shown, the notice *"Bucătăria e gata, dar nu am putut-o
+  deschide. Încearcă din nou."* and a *"Încearcă din nou"* control; with only the first `PUT` blocked,
+  retry issued a second `PUT` **to the same id** and opened the editor — `POST` count 1.
+  **But criterion 44's own text says "CI is the verdict — a green local run proves nothing about the
+  runner," and that half is NOT met.** `.github/workflows/ci.yml` runs on pull requests to `main`,
+  pushes to `main`, and manual `workflow_dispatch` only; no push to `m7-room-and-presets` has ever
+  triggered it (`gh run list --branch m7-room-and-presets` empty against 36 runs overall). The
+  coordinator's attempt to dispatch it manually failed, **HTTP 403, token not authorised**. **The
+  owner has agreed to trigger the `ci` workflow by hand from the Actions tab, 2026-09-17; the verdict
+  on criterion 44 is outstanding until that run completes.**
+
+**A finding with no owner, recorded here because a reader of this wave needs it and no other document
+carries it: the last CI run on `main` — `34580253814`, the push of `995ad03` (the M6B merge),
+2026-09-11 — FAILED**, on `e2e (desktop)` only, two specs red:
+`top-bar-pill-containment.desktop.e2e.spec.ts:793` and `top-bar.desktop.e2e.spec.ts:202` ("cuts none
+of the row's own copy" at 900 px, `expect(measured.clippedSpans).toEqual([])`). Every other job
+passed. `main` has been red since that merge and no document recorded it before this pass. **Not
+scheduled for a fix here** — see `docs/STATUS.md`'s open-work section, which is where this belongs,
+and note the overlap: these two spec names are the same two wave 7H reported as one-off flakes
+(`top-bar-pill-containment` and `top-bar`/`global-colour`) — recorded as flakes at the time, now
+sitting on a run that failed rather than merely one loaded local run.
+
+**Visual gate evidence was gitignored and has since been deleted; do not cite a path as if it
+persists.** The coordinator inspected the 6×6 editor screenshot before deletion; nothing under that
+path survives this record.
+
+**Owner ruling recorded, 2026-09-17 — what frame 1F shows when the write succeeded but the customer
+had already left, so nothing navigated** (the open product question `ef83393` recorded, and the
+reason `HandoffStatus` gained `saved`). Asked, the owner answered: *"Just load the kitchen based on
+url that include the user id, taken from browser cookie or if is registered from user profile."*
+**The ruling: no new 1F state is built. A returning customer reaches their kitchen by resuming from
+their visitor identity** — wave **7E3a**'s subject (the `__Host-` visitor cookie, the visitor-hash
+column, server-side resume), with the registered-user half of the answer beyond M7's scope. **This
+discharges no work for 7F4b.** In ADR 0118's shape: the problem (an orphaned write with nobody to
+navigate) has occurred, so it is not deferred as a bare hazard — but the *mechanism* that answers it
+already exists as a planned wave, so 7F4b builds nothing new for it. Whether this warrants its own
+ADR or an amendment to an existing one is not decided in this pass; flagged for the coordinator's
+judgement rather than decided unilaterally here.
+
+**The 1F copy table above (*The copy 7F4a adds*) is stale on two leaves, and the screen is right, not
+the table.** `room.compose.stepsLabel` ships as *"Ce este inclus, în ordinea priorității"* (ru
+*"Что включено, в порядке приоритета"*), not the table's *"Ce așezăm, în ordinea priorității"*; the
+placed status ships as `room.compose.status.placed` = **"inclus"**, verified at
+`apps/web/src/messages/ro.json:84,97` at HEAD, not the table's *"așezat."* The owner ruled the
+heading wording at `0abb8be` — *"not Ce includem but Ce este inclus… Passive, matching the inclus its
+own rows show"* — moving one golden hash. **The two leaves were ruled in different commits, settled by
+the coordinator from `git log -S` at HEAD `a59e1aa`: `stepsLabel` at `0abb8be`, and
+`room.compose.status.placed` = "inclus" earlier, at `52504d1` (*"the owner's words for 1F"*), which is
+also inside 7F4a.** Both are owner-ruled; neither diverged from an approval. `0abb8be` itself does not
+touch `ro.json` — it carries the ru leaf, the copy lock and the component — so a reader looking for
+the Romanian heading's move must read `git log -S` rather than that commit's diff. The table is corrected in place above rather than left to be filed as a
+defect by the next reader.
+
+**`room.compose.saveFailed` is drafted, not approved.** Recorded at `9bb222b`, and the 2026-09-17
+visual gate confirms the shipped sentence — *"Bucătăria e gata, dar nu am putut-o deschide. Încearcă
+din nou."*, read at `apps/web/src/messages/ro.json:104` at HEAD. This is copy the owner has not ruled
+on; no wave is owed for it.
+
+**Next wave: 7F4b is DONE.** See the corrected wave table row and the defect note under it. 7D6 is
+next — it carries a deadline (before 7P2); 7D5 and 7F2 follow it.
 
 ## Wave 7P1 — dispatchable punch list: the preset store
 

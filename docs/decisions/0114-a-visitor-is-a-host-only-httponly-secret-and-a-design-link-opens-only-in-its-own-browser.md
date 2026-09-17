@@ -276,3 +276,33 @@ M8's to decide.
 **The owner's clarification, verbatim: *"short link only to share"*.** Consistent with Amendment C:
 the 12-character token is the share link's alone. A design's own address `/d/{id}` keeps its existing
 `nanoid` identifier and is not shortened. Nothing in this record said otherwise.
+
+## Amendment E — 2026-09-17: a customer who left the composing screen returns by their own identity, not by a new screen state
+
+**The question, and why it was asked.** M7 wave 7F4b's hand-off writes the composed kitchen and then
+navigates to `/{locale}/d/{id}`. If the customer leaves frame 1F while the write is in flight, the
+write still lands and the navigation is deliberately disarmed (criterion 42), so a design exists that
+nobody was taken to. Wave 7F4b recorded, at `ef83393`, that `HandoffStatus` gained a `saved` state and
+that **what 1F should draw in it was an open product question** — deliberately not answered by that
+wave.
+
+**The owner's answer, 2026-09-17, verbatim:** *"Just load the kitchen based on url that include the
+user id, taken from browser cookie or if is registered from user profile."*
+
+**What this decides.** The remedy is **not** a new 1F state and not new 1F copy. A returning customer
+reaches their kitchen by being **recognised**, which is this record's own subject: the `__Host-`
+HttpOnly visitor secret and the visitor-hash column, with server-side resume — wave **7E3a**. The
+registered-profile half is [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)'s
+and arrives in M8; M7 ships the cookie alone, exactly as Amendment D already states.
+
+**What is owed, and by whom.** Nothing by 7F4b, which is closed on this ruling rather than held open
+by it. **7E3a** already owns server-side resume; this amendment adds the reason it also answers the
+orphaned-write case, so the wave that builds resume knows the case exists and does not read the
+`saved` state as dead code. **No wave is created here**, and the `saved` state stays as shipped.
+
+**What this does not say.** It does not put a design id in a URL keyed by the visitor — the design's
+link stays `/{locale}/d/{id}` and is gated by the owning browser (decision 5, Amendment B). *"A url
+that include the user id"* is read as **the customer being identified when they return**, not as a
+URL shape that carries an identifier; a per-visitor listing URL is neither designed nor approved here.
+That reading was the coordinator's, and it is recorded as a reading rather than as the owner's words.
+
