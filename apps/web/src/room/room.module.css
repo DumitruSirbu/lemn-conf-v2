@@ -474,10 +474,10 @@
 }
 
 /**
- * **The label's row, and the wall's help beside it — at the label's own height.** The glyph is
- * absolutely placed inside its button, so the button contributes no height and the row stays the
- * 12.5 px line the frame draws: the fields' vertical rhythm does not move (7A3 criterion 22).
- * `position: relative` makes this row the explanation's anchor.
+ * **The label's row, and the wall's help at its right end.** The help button is absolutely placed, so
+ * it contributes no height and the row stays the 12.5 px line the frame draws: the fields' vertical
+ * rhythm does not move (7A3 criterion 22). `position: relative` makes this row the anchor of both the
+ * button and the explanation.
  */
 .fieldHeading {
   position: relative;
@@ -485,41 +485,46 @@
   align-items: stretch;
 }
 
-.lengthHelp {
-  display: flex;
-}
-
 /**
- * **The 44 px target, taken as `.cornerControl` takes it**: the button is a full `--touch-target`
- * wide, which the row has room for, and the vertical surplus is a pseudo-element that costs no
- * layout (ADR 0104 decision 5). Surplus vertical only, so ADR 0082 decision 1's clip predicate never
- * reads the row as truncated. The expanded area reaches a few pixels into the neighbouring boxes above
- * and below — the gaps between fields are narrower than 44 px, so some overlap is the price of the
- * target, and it falls on the edges of those boxes, not on a control's middle.
+ * **The help sits above the unit, at the right end of the label row — owner ruling, 2026-09-17 (7A3
+ * defect D2).** Its target is a full 44 x 44 (`--touch-target`, ADR 0104 decision 5), and **no part of
+ * it may lie over an input**. Beside the label that cannot hold: at 390 x 844 a wall's input ends
+ * 32.5 px above the next one begins, so any 44 px-tall target there takes taps from a box. To the
+ * right of the inputs it can — the unit and the box's own padding end each input at least 33 px short
+ * of the box's edge — so the button is placed there, and reaches `--length-help-bleed` into the
+ * column's 18 px padding to clear the input. It stops inside that padding, so it never meets the
+ * screen's edge, and being absolutely placed it adds nothing to the clipping column's scroll width.
+ *
+ * The button **is** the target: 44 px square, with no pseudo-element to widen it, so what a
+ * measurement reads off its box is what a thumb can hit. **That is also why the tap highlight is
+ * cleared**: a mobile browser paints it over the whole box, and here the box is an invisible square
+ * hanging off the field's corner rather than anything the customer sees. The explanation opening is
+ * the tap's feedback, and the keyboard's focus ring below is untouched.
  */
 .lengthHelpButton {
-  position: relative;
-  flex: 0 0 auto;
+  --length-help-bleed: 16px;
+
+  position: absolute;
+  top: calc((100% - var(--touch-target)) / 2);
+  right: calc(-1 * var(--length-help-bleed));
   width: var(--touch-target);
+  height: var(--touch-target);
   padding: 0;
   background: transparent;
   border: 0;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.lengthHelpButton::before {
-  position: absolute;
-  inset-block: calc((100% - var(--touch-target)) / 2);
-  inset-inline: 0;
-  content: "";
-}
-
+/* The glyph is centred over the unit rather than in its target: the unit's centre is 20 px in from the
+ * box's edge (a 1 px border, 14 px of padding and half a one-letter unit), so from the target's right
+ * edge it is that plus the bleed, less the glyph's own half-width of 8 px. */
 .lengthHelpGlyph {
   position: absolute;
   top: 50%;
-  left: 50%;
+  right: calc(var(--length-help-bleed) + 20px - 8px);
   border-radius: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
 }
 
 .lengthHelpButton:focus-visible {

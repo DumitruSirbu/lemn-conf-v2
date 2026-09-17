@@ -1,8 +1,9 @@
 "use client";
 
-// **A wall's help control on frame 1B** (wave 7A3, owner ruling Q-7A3-1): a button beside the wall's
-// label that opens the explanation of what number to type. Which explanation, and in which words, is
-// `dimensions-form.tsx`'s decision — this file receives resolved copy and never reads a catalogue.
+// **A wall's help control on frame 1B** (wave 7A3, owner ruling Q-7A3-1): a button at the right end of
+// the wall's label row, above the unit (owner ruling 2026-09-17), that opens the explanation of what
+// number to type. Which explanation, and in which words, is `dimensions-form.tsx`'s decision — this
+// file receives resolved copy and never reads a catalogue.
 import { useCallback, useRef, useState } from "react";
 
 import { useDismissOnOutsidePointerOrEscape } from "@/lib/use-dismiss-on-outside-pointer-or-escape";
@@ -48,7 +49,6 @@ export function WallLengthHelp({
   return (
     <span
       ref={rootRef}
-      className={styles.lengthHelp}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) close();
       }}
