@@ -33,6 +33,10 @@
  * `room.compose.saveFailed`, the two sentences the hand-off owes and no frame draws. **Two added and
  * no existing hash moved**, which is what a copy-adding wave owes: a moved hash would mean an
  * approved sentence changed, and none did.
+ *
+ * **Grown again, never rebaselined, by wave 7A3 S3** (ADR 0113 decision 2) — `room.lengthsHint` and
+ * the six `room.lengthHelp.*` leaves, the Step 1 copy that says the number is the run to furnish
+ * (owner ruling Q-7A3-1). **Seven added and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -708,6 +712,20 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "1b00450091831491e1b4128640374d6a2a3ac0ad3e84ebc083e6b5a5310803f1",
   "room.heightLabel":
     "ff63771df164dbfdaf4e10f822bac40675197de9117bce6a26d7ae15afd8312c",
+  "room.lengthHelp.wallA.name":
+    "f59dc3455abaf89693b4f767601a0c89f30310e2508fc680587366da1bfc4c74",
+  "room.lengthHelp.wallA.text":
+    "4b1d825d422d671cc85328d60d76529e813fc2a957ddb56221cff4259fd5456e",
+  "room.lengthHelp.wallB.name":
+    "7f35661bbee984f9608fd74a46b9611bfa107c2bcf97d47b1c2d33fd5f7beb29",
+  "room.lengthHelp.wallB.text":
+    "15c99a7cb1a1fd909850fe3a6760b5eb3043bd359fa7bb08dc2ac3aca0c39710",
+  "room.lengthHelp.wallC.name":
+    "bf17e5275ea69b6434e21b1efc654f2f5a7382267307d65b98a4b493c4cb0ee4",
+  "room.lengthHelp.wallC.text":
+    "57c308f8334c18dd34dddc4c0b27db9a9cbf9d86939a059f74cf1e832b06eea0",
+  "room.lengthsHint":
+    "a70ffb130edcd7653af7ccac3fbb8553e9874223c33717155d6f9c6798406655",
   "room.planCaption":
     "8dc37f456be3e5385df4820512a22970029bfccee43021d3e4d6d190c5dba4f5",
   "room.planWallLabel":

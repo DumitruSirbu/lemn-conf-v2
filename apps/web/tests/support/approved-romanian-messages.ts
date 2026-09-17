@@ -72,6 +72,26 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       wallB: "Perete B",
       wallC: "Perete C",
     },
+    // Wave 7A3 S3, approved by ADR 0113 decision 2 in the wave that adds them. **Drafted, not frame
+    // wording** — frame 1B draws neither a hint nor a help control, so no frame word is overwritten
+    // (ADR 0104; ADR 0113 decision 5). The instrument is the owner's (Q-7A3-1, 2026-09-17: an
+    // always-visible hint above the wall fields plus a help control per wall), and what it says is
+    // ADR 0120 Amendments C1 and D1: the number is the run the customer wants furnished, not the wall.
+    lengthsHint: "Introdu lungimea dulapurilor dorite, nu lungimea peretelui.",
+    lengthHelp: {
+      wallA: {
+        name: "Ce lungime introduc la Perete A?",
+        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele A. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+      },
+      wallB: {
+        name: "Ce lungime introduc la Perete B?",
+        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele B. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+      },
+      wallC: {
+        name: "Ce lungime introduc la Perete C?",
+        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele C. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+      },
+    },
     heightLabel: "Înălțimea camerei",
     unitMetres: "m",
     back: "Înapoi",

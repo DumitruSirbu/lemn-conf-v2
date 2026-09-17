@@ -18,7 +18,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DimensionsForm } from "@/room/dimensions-form";
+import { DimensionsForm, WALL_LENGTH_HELP } from "@/room/dimensions-form";
 import {
   createRoomDraft,
   withEnteredText,
@@ -28,7 +28,7 @@ import {
 import { requiredFieldsFor } from "@/room/room-url-state";
 
 import roMessages from "../../src/messages/ro.json";
-import { CATALOGUES } from "../support/catalogues";
+import { catalogueLeaves, CATALOGUES } from "../support/catalogues";
 
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
@@ -274,4 +274,257 @@ describe("a field still to be filled is not a field painted wrong (criterion 10)
     expect((left as HTMLInputElement).checked).toBe(true);
     expect((right as HTMLInputElement).checked).toBe(false);
   });
+});
+
+// ── Wave 7A3 S3: the wall fields say what number to type (owner ruling Q-7A3-1) ─────────────────────
+
+type WallField = Exclude<RoomLengthField, "height">;
+
+/** Criterion 21 at compile time: `tsc` over this file fails if a wall the URL parser knows has no
+ *  help copy, whatever later happens to the `satisfies` beside the table. */
+type WallWithoutHelp = Exclude<WallField, keyof typeof WALL_LENGTH_HELP>;
+const EVERY_WALL_HAS_HELP: [WallWithoutHelp] extends [never] ? true : false =
+  true;
+
+function isWallField(field: RoomLengthField): field is WallField {
+  return field !== "height";
+}
+
+function wallsOf(shape: RoomShape): readonly WallField[] {
+  return requiredFieldsFor(shape).filter(isWallField);
+}
+
+function lengthsHint(): HTMLElement {
+  const hint = container.querySelector("[data-testid='room-lengths-hint']");
+  if (!(hint instanceof HTMLElement)) {
+    throw new Error("the form draws no hint above the wall fields");
+  }
+  return hint;
+}
+
+function helpButtonFor(wall: WallField): HTMLButtonElement {
+  const button = container.querySelector(
+    `[data-testid="room-length-help-${wall}"]`,
+  );
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`the ${wall} field carries no help button`);
+  }
+  return button;
+}
+
+function explanationControlledBy(button: HTMLButtonElement): HTMLElement {
+  const explanation = container.querySelector(
+    `[id="${button.getAttribute("aria-controls") ?? ""}"]`,
+  );
+  if (!(explanation instanceof HTMLElement)) {
+    throw new Error("the help button controls no element");
+  }
+  return explanation;
+}
+
+function describedByIds(input: HTMLInputElement): readonly string[] {
+  return (input.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .filter((id) => id !== "");
+}
+
+function press(button: HTMLButtonElement): void {
+  act(() => {
+    button.click();
+  });
+}
+
+function dispatchOn(target: EventTarget, event: Event): void {
+  act(() => {
+    target.dispatchEvent(event);
+  });
+}
+
+function pointerDownOn(target: EventTarget): void {
+  dispatchOn(target, new Event("pointerdown", { bubbles: true }));
+}
+
+/** The seven leaves this wave adds, in one catalogue. */
+function lengthCopyIn(messages: typeof roMessages): readonly string[] {
+  return [
+    messages.room.lengthsHint,
+    ...catalogueLeaves(messages.room.lengthHelp).map(([, leaf]) => leaf),
+  ];
+}
+
+describe("a customer who taps nothing is told what number to type (7A3 criterion 17)", () => {
+  it("draws the hint above the fields, unhidden, for every shape", () => {
+    fc.assert(
+      fc.property(ANY_SHAPE, (shape) => {
+        render(createRoomDraft(shape));
+        const hint = lengthsHint();
+        const firstField = fieldFor(requiredFieldsFor(shape)[0] ?? "wallA");
+
+        expect(hint.textContent).toBe(roMessages.room.lengthsHint);
+        expect(hint.hidden).toBe(false);
+        expect(
+          hint.compareDocumentPosition(firstField) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).not.toBe(0);
+      }),
+    );
+  });
+
+  it.each(CATALOGUES)("says it in %s", (locale, messages) => {
+    render(createRoomDraft("L"), locale);
+
+    expect(lengthsHint().textContent).toBe(messages.room.lengthsHint);
+  });
+
+  it("describes every wall field with the hint, and the height with nothing", () => {
+    // The association is what a screen reader announces on focus, so it is the non-visual half of
+    // the same criterion: the customer hears it without opening anything.
+    render(createRoomDraft("U"));
+    const hintId = lengthsHint().id;
+
+    for (const wall of wallsOf("U")) {
+      expect(describedByIds(fieldFor(wall))).toContain(hintId);
+    }
+    expect(fieldFor("height").hasAttribute("aria-describedby")).toBe(false);
+  });
+});
+
+describe("each wall carries its own help, and the height carries none (7A3 criterion 21)", () => {
+  it("keys the help over every wall the URL parser knows", () => {
+    expect(EVERY_WALL_HAS_HELP).toBe(true);
+    expect(Object.keys(WALL_LENGTH_HELP)).toEqual([...wallsOf("U")]);
+  });
+
+  it("gives every wall a native button with a name of its own", () => {
+    render(createRoomDraft("U"));
+    const walls = wallsOf("U");
+
+    for (const wall of walls) {
+      const button = helpButtonFor(wall);
+      expect(button.getAttribute("type")).toBe("button");
+      expect(button.getAttribute("aria-label")).toBe(
+        roMessages.room.lengthHelp[wall].name,
+      );
+    }
+    const names = walls.map((wall) =>
+      helpButtonFor(wall).getAttribute("aria-label"),
+    );
+    expect(new Set(names).size).toBe(walls.length);
+    expect(
+      container.querySelectorAll("[data-testid^='room-length-help-height']")
+        .length,
+    ).toBe(0);
+  });
+
+  it("controls the wall's own explanation, which also describes the wall's field while closed", () => {
+    render(createRoomDraft("U"));
+
+    for (const wall of wallsOf("U")) {
+      const explanation = explanationControlledBy(helpButtonFor(wall));
+      expect(explanation.textContent).toBe(
+        roMessages.room.lengthHelp[wall].text,
+      );
+      expect(explanation.hidden).toBe(true);
+      expect(describedByIds(fieldFor(wall))).toContain(explanation.id);
+    }
+  });
+
+  it.each(CATALOGUES)(
+    "names and explains every wall from the %s catalogue",
+    (locale, messages) => {
+      render(createRoomDraft("U"), locale);
+
+      for (const wall of wallsOf("U")) {
+        const button = helpButtonFor(wall);
+        expect(button.getAttribute("aria-label")).toBe(
+          messages.room.lengthHelp[wall].name,
+        );
+        expect(explanationControlledBy(button).textContent).toBe(
+          messages.room.lengthHelp[wall].text,
+        );
+      }
+    },
+  );
+});
+
+describe("the help opens and closes by pointer and keyboard (owner ruling Q-7A3-1)", () => {
+  it("opens on a press and closes on a second one", () => {
+    render(createRoomDraft("L"));
+    const button = helpButtonFor("wallB");
+    const explanation = explanationControlledBy(button);
+
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+
+    press(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(explanation.hidden).toBe(false);
+
+    press(button);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(explanation.hidden).toBe(true);
+  });
+
+  it("closes on Escape", () => {
+    render(createRoomDraft("L"));
+    const button = helpButtonFor("wallA");
+    press(button);
+
+    dispatchOn(
+      button,
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(explanationControlledBy(button).hidden).toBe(true);
+  });
+
+  it("closes on a pointer press outside it, and stays open on one inside its explanation", () => {
+    render(createRoomDraft("L"));
+    const button = helpButtonFor("wallA");
+    press(button);
+
+    pointerDownOn(explanationControlledBy(button));
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+
+    pointerDownOn(fieldFor("wallA"));
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes when keyboard focus moves on to the field", () => {
+    render(createRoomDraft("L"));
+    const button = helpButtonFor("wallA");
+    act(() => {
+      button.focus();
+    });
+    press(button);
+
+    act(() => {
+      fieldFor("wallA").focus();
+    });
+
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("paints nothing as an error while open", () => {
+    // `dimensions-form.tsx`'s head comment: nothing on 1B is painted wrong, and the help is not a
+    // refusal (7A3 criteria 19 and 20).
+    render(createRoomDraft("U"));
+    for (const wall of wallsOf("U")) press(helpButtonFor(wall));
+
+    expect(container.querySelectorAll("[aria-invalid]").length).toBe(0);
+    expect(container.querySelectorAll("[role='alert']").length).toBe(0);
+  });
+});
+
+describe("the copy that says what to type states no bound (7A3 criterion 19, ADR 0108 decision 3)", () => {
+  it.each(CATALOGUES)(
+    "carries no digit, no millimetre and no maximum in %s",
+    (_locale, messages) => {
+      for (const sentence of lengthCopyIn(messages)) {
+        expect(sentence).not.toMatch(/\d/u);
+        expect(sentence).not.toMatch(/(^|\P{L})(mm|мм)(\P{L}|$)/iu);
+        expect(sentence).not.toMatch(/max|макс/iu);
+      }
+    },
+  );
 });

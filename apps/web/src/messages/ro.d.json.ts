@@ -59,6 +59,21 @@ declare const messages: {
       "wallB": "Perete B",
       "wallC": "Perete C"
     },
+    "lengthsHint": "Introdu lungimea dulapurilor dorite, nu lungimea peretelui.",
+    "lengthHelp": {
+      "wallA": {
+        "name": "Ce lungime introduc la Perete A?",
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele A. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+      },
+      "wallB": {
+        "name": "Ce lungime introduc la Perete B?",
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele B. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+      },
+      "wallC": {
+        "name": "Ce lungime introduc la Perete C?",
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele C. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+      }
+    },
     "heightLabel": "Înălțimea camerei",
     "unitMetres": "m",
     "back": "Înapoi",

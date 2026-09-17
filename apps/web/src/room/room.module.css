@@ -371,7 +371,10 @@
   font: 700 12.5px/1 var(--font-ui);
 }
 
-.cornerHint {
+/* `.lengthsHint` is wave 7A3's hint above the wall fields, and it speaks in the corner hint's quiet
+ * voice rather than a type of its own. */
+.cornerHint,
+.lengthsHint {
   font: 400 11px/1 var(--font-ui);
   color: var(--ink-faint);
 }
@@ -454,8 +457,89 @@
   gap: 6px;
 }
 
+/* A line box of its own, so a locale whose hint wraps does not set its two lines touching. */
+.lengthsHint {
+  line-height: 1.4;
+}
+
 .fieldLabel {
   font: 700 12.5px/1 var(--font-ui);
+}
+
+/**
+ * **The label's row, and the wall's help beside it — at the label's own height.** The glyph is
+ * absolutely placed inside its button, so the button contributes no height and the row stays the
+ * 12.5 px line the frame draws: the fields' vertical rhythm does not move (7A3 criterion 22).
+ * `position: relative` makes this row the explanation's anchor.
+ */
+.fieldHeading {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.lengthHelp {
+  display: flex;
+}
+
+/**
+ * **The 44 px target, taken as `.cornerControl` takes it**: the button is a full `--touch-target`
+ * wide, which the row has room for, and the vertical surplus is a pseudo-element that costs no
+ * layout (ADR 0104 decision 5). Surplus vertical only, so ADR 0082 decision 1's clip predicate never
+ * reads the row as truncated. The expanded area reaches a few pixels into the neighbouring boxes above
+ * and below — the gaps between fields are narrower than 44 px, so some overlap is the price of the
+ * target, and it falls on the edges of those boxes, not on a control's middle.
+ */
+.lengthHelpButton {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--touch-target);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.lengthHelpButton::before {
+  position: absolute;
+  inset-block: calc((100% - var(--touch-target)) / 2);
+  inset-inline: 0;
+  content: "";
+}
+
+.lengthHelpGlyph {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.lengthHelpButton:focus-visible {
+  outline: none;
+}
+
+.lengthHelpButton:focus-visible .lengthHelpGlyph {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* Opens **above** the label rather than over the field, so the box the customer is about to type in
+ * stays visible beside the explanation of what to type. Neutral surface and ink: nothing here reads as
+ * an error. No `display` is declared, so the `hidden` attribute still removes it while closed. */
+.lengthHelpText {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 10px 28px rgb(28 24 20 / 14%);
 }
 
 /* The frame draws a 54 px box holding the value and its unit (`:167`). The box is the frame's; the
