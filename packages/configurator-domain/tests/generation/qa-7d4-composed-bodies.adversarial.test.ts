@@ -43,6 +43,7 @@ import {
   type GenerationLog,
 } from "../../src/index.js";
 import { approvedLRoom } from "../support/composed-run-baseline.js";
+import { narrowerEnteredWall } from "../support/entered-walls.js";
 import {
   createFakeProbeFactory,
   createLeaseLedger,
@@ -156,12 +157,12 @@ function alongTheWall(
  * and wall B where the two are equal, because M7 wave 7D8 keyed the run onto the wider one (ADR 0120
  * Amendment E; ADR 0110 Amendment I re-points D2's reversal at it).
  *
- * Re-derived here from the room the customer entered, never from `generation-priorities.ts`: this
- * file's whole value is being a second derivation, and one that asked the composer which wall it
- * reversed would agree with it whatever it reversed.
+ * Derived in `entered-walls.ts` from the room the customer entered, never from
+ * `generation-priorities.ts`: this file's whole value is being a second derivation, and one that
+ * asked the composer which wall it reversed would agree with it whatever it reversed.
  */
 function wallReadInReverse(room: DesignRoom): DesignWall {
-  return room.depthMm > room.widthMm ? "A" : "B";
+  return narrowerEnteredWall(room);
 }
 
 /** The kitchen as it is read: the reversed wall from its free end toward the corner, then the other

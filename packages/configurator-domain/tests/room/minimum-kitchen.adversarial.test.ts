@@ -16,6 +16,10 @@ import {
   type RoomPolicy,
 } from "../../src/index.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
+import {
+  narrowerEnteredWall,
+  widerEnteredWall,
+} from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-13T00:00:00.000Z";
@@ -242,16 +246,6 @@ interface AgreementArm {
   readonly expectedWalls: (room: DesignRoom) => readonly ["A" | "B", "A" | "B"];
 }
 
-/** The wider entered wall, which is the one the run ends on and the hob therefore stands on; wall A
- *  where the two are equal. */
-function widerWall(room: DesignRoom): "A" | "B" {
-  return room.depthMm > room.widthMm ? "B" : "A";
-}
-
-function narrowerWall(room: DesignRoom): "A" | "B" {
-  return widerWall(room) === "A" ? "B" : "A";
-}
-
 function approvedRooms(args: {
   readonly wallAMin: number;
   readonly wallAMax: number;
@@ -276,7 +270,7 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
       wallBMax: 1599,
     }),
     // Wall A is the wider one everywhere in these bounds, so the run and both bodies stand on it.
-    expectedWalls: (room) => [widerWall(room), widerWall(room)],
+    expectedWalls: (room) => [widerEnteredWall(room), widerEnteredWall(room)],
   },
   {
     name: "both-on-B only",
@@ -287,7 +281,7 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
       wallBMax: 5100,
     }),
     // And wall B is the wider one everywhere in these — the same rule, sampled from the other side.
-    expectedWalls: (room) => [widerWall(room), widerWall(room)],
+    expectedWalls: (room) => [widerEnteredWall(room), widerEnteredWall(room)],
   },
   {
     name: "ordered split only",
@@ -301,7 +295,10 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
     // what makes it the arm that catches a key spelled as a letter. The split is the same either
     // way: the hob ends the run on the wider wall and the sink is read before the corner, on the
     // narrower one.
-    expectedWalls: (room) => [narrowerWall(room), widerWall(room)],
+    expectedWalls: (room) => [
+      narrowerEnteredWall(room),
+      widerEnteredWall(room),
+    ],
   },
 ];
 

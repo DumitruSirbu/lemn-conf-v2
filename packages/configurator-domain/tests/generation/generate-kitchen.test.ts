@@ -16,13 +16,13 @@ import {
   setCabinetDepth,
   toInsertableBody,
   validateDesignForCatalog,
-  wallLengthMm,
   type BodyCatalog,
   type Design,
   type DesignPlacement,
   type DesignRoom,
   type BodyProbeFactory,
 } from "../../src/index.js";
+import { narrowerEnteredWall } from "../support/entered-walls.js";
 import {
   createFakeProbe,
   createFakeProbeFactory,
@@ -619,10 +619,10 @@ function interiorFloorGaps(design: Design) {
 
 /** The wall the kitchen is laid out against the reading order on — the **narrower entered wall**,
  *  and wall B where the two are equal, because M7 wave 7D8 keyed the run onto the wider one (ADR
- *  0120 Amendment E). Derived from the room the design carries rather than imported, so this file
- *  and the composer agree only if both read that rule the same way. */
+ *  0120 Amendment E). Derived in `entered-walls.ts` from the room the design carries rather than
+ *  read off the composer, so this file and it agree only if both read that rule the same way. */
 function wallReadInReverse(room: DesignRoom): "A" | "B" {
-  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "A" : "B";
+  return narrowerEnteredWall(room);
 }
 
 function coreReadingOrder(

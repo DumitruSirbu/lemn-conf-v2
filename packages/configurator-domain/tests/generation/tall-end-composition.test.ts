@@ -20,12 +20,12 @@ import {
   MAX_GENERATED_LEFTOVER_MM,
   planKitchenComposition,
   planLeftover,
-  wallLengthMm,
   type DesignRoom,
   type DesignWall,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
+import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
@@ -105,11 +105,11 @@ function coreShapeOf(plan: KitchenCompositionPlan) {
  * entered wall**, and wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I,
  * which overturns Amendment E's *"wall A and nowhere else"*).
  *
- * **Derived from the room's two entered numbers rather than read back off the plan**, so a block
- * that moved to the other wall fails these assertions instead of redefining them.
+ * **Derived in `entered-walls.ts` from the room's two entered numbers rather than read back off the
+ * plan**, so a block that moved to the other wall fails these assertions instead of redefining them.
  */
 function freeEndWallOf(room: DesignRoom): DesignWall {
-  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "B" : "A";
+  return widerEnteredWall(room);
 }
 
 function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
@@ -262,17 +262,24 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
           expect(column.startMm).toBeGreaterThan(runs[column.wall].startMm);
         }
       }),
-      { numRuns: 300 },
+      { numRuns: 900 },
     );
 
     // The loop body is the whole assertion, so a sample that stood no block asserts nothing at all —
     // and a rule stated as *the wider wall* needs both arms, or it agrees with the letter it replaced.
-    expect(
-      arms.onWallA + arms.onWallB,
-      "no sample stood a column, so this asserted nothing about where columns stand",
-    ).toBeGreaterThanOrEqual(150);
-    expect(arms.onWallA, "the wall-A arm never fired").toBeGreaterThan(0);
-    expect(arms.onWallB, "the wall-B arm never fired").toBeGreaterThan(0);
+    //
+    // **Each arm carries risk 14's hundred, and the sample was raised from 300 to reach it rather
+    // than the floor lowered to fit** — the same trade this file's tower arm made three tests above.
+    // The wall-B arm is the scarce one: measured over 60 unseeded draws of 900, it never fell below
+    // 338 columns and the wall-A arm never below 856, where 300 draws put wall B as low as 92. Two
+    // floors of a hundred also state the old combined floor of 150 and more, so it is gone rather
+    // than restated.
+    expect(arms.onWallA, "the wall-A arm never fired").toBeGreaterThanOrEqual(
+      100,
+    );
+    expect(arms.onWallB, "the wall-B arm never fired").toBeGreaterThanOrEqual(
+      100,
+    );
   });
 
   it("keeps the block contiguous and outermost on its own wall wherever one stands", () => {

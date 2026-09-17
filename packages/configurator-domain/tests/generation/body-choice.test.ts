@@ -290,12 +290,18 @@ describe("criterion 22 — nothing else in the repository knows the id conventio
     ]);
   });
 
-  it("is named by exactly one test besides this guard, and that one is a reported deviation", () => {
-    // Criterion 22 asks for **two** sites in the repository. There is a third: 7D2's
-    // `generate-kitchen.test.ts` finds a module by `base.id === "storage:A:0"`. It is a whole-id
-    // equality rather than a parse, it predates the predicate, and this wave does not edit an
-    // existing assertion to make its own criterion pass — so the deviation is pinned here instead,
-    // and a fourth reader still fails.
+  it("is named by exactly two tests besides this guard, and both are reported deviations", () => {
+    // Criterion 22 asks for **two** sites in the repository. There are two more, and neither reads a
+    // planned id — the list is the wave-by-wave record of that, and a fifth namer still fails.
+    //
+    // 1. 7D2's `generate-kitchen.test.ts` finds a module by `base.id === "storage:A:0"`. It is a
+    //    whole-id equality rather than a parse, it predates the predicate, and 7D4 did not edit an
+    //    existing assertion to make its own criterion pass — so the deviation was pinned here.
+    // 2. 7D8's `qa-7d4-nothing-but-the-body-moved.adversarial.test.ts` pins five whole composed plans
+    //    as **expected output**, and a composed plan contains the ids the composer wrote. That file
+    //    reaches a slot through `isComposedStorageSlot` everywhere it has to *decide* anything; what
+    //    it spells is data the plan produced, and data that stopped matching is what a pinned witness
+    //    is for. Masking the ids out of it would hide the field this wave moved.
     const inTests = modulesNamingTheConvention().filter((file) =>
       file.includes(`${path.sep}tests${path.sep}`),
     );
@@ -307,6 +313,13 @@ describe("criterion 22 — nothing else in the repository knows the id conventio
         "tests",
         "generation",
         "generate-kitchen.test.ts",
+      ),
+      path.join(
+        "packages",
+        "configurator-domain",
+        "tests",
+        "generation",
+        "qa-7d4-nothing-but-the-body-moved.adversarial.test.ts",
       ),
     ]);
   });

@@ -29,6 +29,7 @@ import {
   type GenerationCommand,
   type GenerationStep,
 } from "../../src/index.js";
+import { narrowerEnteredWall } from "../support/entered-walls.js";
 import {
   createFakeProbe,
   createFakeProbeFactory,
@@ -80,12 +81,12 @@ function placementInterval(placement: Design["placements"][number]) {
  * and wall B where the two are equal, because M7 wave 7D8 keyed the run onto the wider one (ADR 0120
  * Amendment E; ADR 0110 Amendment I re-points D2's reversal at it).
  *
- * Re-derived here from the two numbers the customer typed — this file works from the published
- * contracts and never from the implementation's helpers, and a reading order that asked the composer
- * which wall it reversed would agree with it whatever it reversed.
+ * Derived in `entered-walls.ts` from the two numbers the customer typed — this file works from the
+ * published contracts and never from the implementation's helpers, and a reading order that asked
+ * the composer which wall it reversed would agree with it whatever it reversed.
  */
 function wallReadInReverse(room: DesignRoom): "A" | "B" {
-  return room.depthMm > room.widthMm ? "A" : "B";
+  return narrowerEnteredWall(room);
 }
 
 function spatialCoreOrder(

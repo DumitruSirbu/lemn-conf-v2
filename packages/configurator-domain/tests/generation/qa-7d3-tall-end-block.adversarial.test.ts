@@ -34,11 +34,11 @@ import {
   planLeftover,
   THREE_DRAWER_BASE_BUILD_ID,
   validateDesignForCatalog,
-  wallLengthMm,
   type DesignRoom,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
+import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
@@ -94,11 +94,11 @@ function blockOf(plan: KitchenCompositionPlan) {
  * The wall the run ends on, and so the wall the block stands at the free end of: the **wider entered
  * wall**, wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I, which
  * overturns Amendment E's *"wall A and nowhere else"* on the owner's ruling that the block follows
- * the run). Derived from the two entered numbers rather than read back off the plan, so a block that
- * moved to the other wall fails these assertions instead of redefining them.
+ * the run). Derived in `entered-walls.ts` from the two entered numbers rather than read back off the
+ * plan, so a block that moved to the other wall fails these assertions instead of redefining them.
  */
 function freeEndWallOf(room: DesignRoom): "A" | "B" {
-  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "B" : "A";
+  return widerEnteredWall(room);
 }
 
 /** What the leftover rule alone makes of the free-end wall — E3 clause 3's own input, recomputed

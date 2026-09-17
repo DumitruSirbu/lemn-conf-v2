@@ -15,6 +15,12 @@
 // character — this wave composes no upper at all — and no lift or open shelf stands in any generated
 // design.
 //
+// **What the recording cannot say about the half M7 wave 7D8 moved, and what stands in for it.** The
+// re-key moves 82 of the 240 recorded rooms, and for those the comparison below degenerates into
+// *the digest changed* — which any wrong plan also satisfies. So the moved half is pinned instead:
+// `RE_KEYED_WITNESSES` holds five whole plans, chosen across the shapes those 82 take, and
+// `7d8-re-keyed-baseline.json` records the rest of them for the wave that changes this next.
+//
 // A storage slot is reached through `isComposedStorageSlot` and never through `role === "storage"` or a
 // width: the block's full-height columns carry that role deliberately (ADR 0110 E5.2), and the two
 // naive scopings are wrong on 32.8 % and 14.9 % of placed rooms against output that is right (D12).
@@ -56,6 +62,7 @@ import {
   recordedWitness,
   roomKey,
 } from "../support/composed-run-baseline.js";
+import { widerEnteredWall } from "../support/entered-walls.js";
 import {
   createFakeProbe,
   createFakeProbeFactory,
@@ -90,19 +97,144 @@ const UNMOVED_WITNESS_ROOMS: readonly DesignRoom[] = [
   { shape: "L", widthMm: 2700, depthMm: 1699, heightMm: 2200 },
 ];
 
-/** The fifth recorded witness, and the one 7D8 moved: wall B is wider, so the run follows it and the
- *  whole composition turns around. It is asserted whole below rather than dropped from the set. */
-const RE_KEYED_WITNESS_ROOM: DesignRoom = {
-  shape: "L",
-  widthMm: 900,
-  depthMm: 4700,
-  heightMm: 2600,
-};
+/**
+ * The rooms M7 wave 7D8 **does** move, pinned whole.
+ *
+ * **The sweep below can only say of these that the digest changed, and any wrong plan says that
+ * too.** 82 of the 240 recorded rooms are re-keyed, and the comparison against 7D3's recording turns
+ * into an inequality for every one of them — 34 % of the recording, and the half this wave exercised
+ * hardest. These pins are what makes the other half of the claim reviewable by a person: not *it
+ * moved* but *it moved to this*.
+ *
+ * **Why pinned rather than derived from the recorded pre-state.** The re-key is not a letter swap.
+ * Wall A's run starts at 900 mm and wall B's at 1000, and the two corner reaches differ, so
+ * exchanging the walls moves every `startMm` and `endMm` in the plan. A test that computed the
+ * post-state from the pre-state would be re-implementing the composer beside it — a tautology with
+ * no marker on it, which is worse than the inequality it replaced.
+ *
+ * **Chosen for shape coverage across the 82**, because 900 x 4700 is the degenerate case: wall A's
+ * run is empty there, so it says nothing about a kitchen that stands on both walls. Every room here
+ * except that one is drawn by the recorded sweep itself, so what a pin adds is exactly the field
+ * detail the digest threw away.
+ */
+const RE_KEYED_WITNESSES = [
+  {
+    // Two core bodies on the reversed wall, which is the only shape where the reversal is
+    // **visible**: wall A carries sink then fridge from the corner outward, so the run reads fridge
+    // then sink from its free end. A wall carrying one core body is reversed into itself.
+    name: "the reversed wall carries two core bodies (2289 x 2796)",
+    room: { shape: "L", widthMm: 2289, depthMm: 2796, heightMm: 2670 },
+    plan: [
+      "minimumMet=true",
+      "cut=2",
+      "dropped=",
+      "remainder=88/596",
+      "floorWidths=600,700/600,600",
+      "sink~sink~base-sink~A~900~1500~600",
+      "fridge~fridge~fridge-free~A~1500~2200~700",
+      "preparation~preparation~base-3drawer~B~900~1500~600",
+      "hob~hob~base-hob-oven~B~1500~2100~600",
+    ],
+  },
+  {
+    // A composed storage slot on **each** wall, which is where a slot lookup on the wrong letter has
+    // somewhere wrong to land: the drawer after the hob stands on wall B, the wider wall, while wall
+    // A's two slots keep their doors.
+    name: "a composed slot on each wall (3367 x 3506)",
+    room: { shape: "L", widthMm: 3367, depthMm: 3506, heightMm: 3715 },
+    plan: [
+      "minimumMet=true",
+      "cut=3",
+      "dropped=",
+      "remainder=566/106",
+      "floorWidths=600,600,700/600,600,600,600",
+      "storage:A:0~storage~base-cabinet~A~900~1500~600",
+      "storage:A:1~storage~base-cabinet~A~1500~2100~600",
+      "fridge~fridge~fridge-free~A~2100~2800~700",
+      "sink~sink~base-sink~B~900~1500~600",
+      "preparation~preparation~base-3drawer~B~1500~2100~600",
+      "hob~hob~base-hob-oven~B~2100~2700~600",
+      "storage:B:0~storage~base-3drawer~B~2700~3300~600",
+    ],
+  },
+  {
+    // The block, three columns of it, standing at wall B's free end because the run ends there (ADR
+    // 0110 Amendment I) — with the hob carrying drawers instead of its own oven because a tower
+    // stands, and three door slots filling wall A ahead of the fridge.
+    name: "a three-column block on the wider wall (3849 x 5065)",
+    room: { shape: "L", widthMm: 3849, depthMm: 5065, heightMm: 3546 },
+    plan: [
+      "minimumMet=true",
+      "cut=3",
+      "dropped=",
+      "remainder=448/464",
+      "floorWidths=600,600,600,700/600,600,600,600,600,600",
+      "storage:A:0~storage~base-cabinet~A~900~1500~600",
+      "storage:A:1~storage~base-cabinet~A~1500~2100~600",
+      "storage:A:2~storage~base-cabinet~A~2100~2700~600",
+      "fridge~fridge~fridge-free~A~2700~3400~700",
+      "sink~sink~base-sink~B~900~1500~600",
+      "preparation~preparation~base-3drawer~B~1500~2100~600",
+      "hob~hob~base-hob-2drawer~B~2100~2700~600",
+      "column:B:0~storage~tall-oven-tower~B~2700~3300~600",
+      "column:B:1~storage~tall-pantry~B~3300~3900~600",
+      "column:B:2~storage~tall-pantry~B~3900~4500~600",
+    ],
+  },
+  {
+    // The drop order reached, twice: wall A is 912 mm, which leaves it no run at all, and what wall B
+    // can seat is the sink and the hob. A re-key that moved a *kept* body would show here as a
+    // changed `dropped` list rather than only as a changed position.
+    name: "two roles dropped and the kitchen at its minimum (912 x 2783)",
+    room: { shape: "L", widthMm: 912, depthMm: 2783, heightMm: 3539 },
+    plan: [
+      "minimumMet=true",
+      "cut=2",
+      "dropped=fridge,preparation",
+      "remainder=12/582",
+      "floorWidths=/600,600",
+      "sink~sink~base-sink~B~900~1500~600",
+      "hob~hob~base-hob-oven~B~1500~2100~600",
+    ],
+  },
+  {
+    // The fifth recorded witness, and the degenerate shape: wall A's run is empty, so the whole
+    // kitchen stands on wall B and the re-key reverses which end of it the run starts at. Two things
+    // follow and both are below.
+    //
+    // 1. **The run turned around.** 7D3 recorded `storage, storage, hob, preparation, sink, fridge`
+    //    from the corner outward; the run now reads from wall A's free end, so the same order stands
+    //    corner-outward as `fridge, sink, preparation, hob, ...`.
+    // 2. **The block followed the run onto wall B** (ADR 0110 Amendment I; 7D8 criterion 10). The hob
+    //    now ends the run on the free-end wall, which is E3's clause 2, so the two modules the
+    //    recording holds as composed storage slots are a tall oven tower and a pantry column — and
+    //    the hob carries drawers instead of its own oven, because a tower stands.
+    name: "the whole kitchen on one wall (900 x 4700)",
+    room: { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
+    plan: [
+      "minimumMet=true",
+      "cut=4",
+      "dropped=",
+      "remainder=0/0",
+      "floorWidths=/700,600,600,600,600,600",
+      "fridge~fridge~fridge-free~B~900~1600~700",
+      "sink~sink~base-sink~B~1600~2200~600",
+      "preparation~preparation~base-3drawer~B~2200~2800~600",
+      "hob~hob~base-hob-2drawer~B~2800~3400~600",
+      "column:B:0~storage~tall-oven-tower~B~3400~4000~600",
+      "column:B:1~storage~tall-pantry~B~4000~4600~600",
+    ],
+  },
+] as const satisfies readonly {
+  readonly name: string;
+  readonly room: DesignRoom;
+  readonly plan: readonly string[];
+}[];
 
 /** Wall B wider by the length the customer entered — M7 wave 7D8's key, and the only thing that
  *  decides which half of the recording a room belongs to (ADR 0120 Amendment E). */
 function isWallBWider(room: DesignRoom): boolean {
-  return room.depthMm > room.widthMm;
+  return widerEnteredWall(room) === "B";
 }
 
 /** Is this a room whose composition 7D8 moved? The re-key runs the reading order along the wider
@@ -167,6 +299,29 @@ function declaredHeightMm(buildId: string): number {
     throw new Error(`the catalogue declares no height for ${buildId}`);
   }
   return nominalHeightMm;
+}
+
+/**
+ * A witness room's composed plan beside what 7D3 recorded for it, **in whichever of the recording's
+ * two forms holds that room**: the whole masked plan for one of the five rooms recorded as a
+ * witness, the masked digest for one of the 240 rooms the recorded sweep drew. Either way the right
+ * side is the pre-wave capture and never this wave's own output.
+ */
+function comparedWithTheRecording(room: DesignRoom): {
+  readonly composed: string;
+  readonly recorded: string;
+} {
+  const plan = planFor(room);
+  if (BASELINE.witnesses.has(roomKey(room))) {
+    return {
+      composed: canonicalPlanWithTheDoorBodyRestored(plan),
+      recorded: recordedWitness(BASELINE, room),
+    };
+  }
+  return {
+    composed: digestOf(canonicalPlanBeyondThisWavesBodies(plan)),
+    recorded: recordedRoom(BASELINE, room).plan,
+  };
 }
 
 describe("criterion 2 — this wave moves a body's identity and nothing else", () => {
@@ -274,43 +429,26 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     },
   );
 
-  it("turns the re-keyed witness around, whole, and says what moved in it", () => {
-    // **The one recorded witness M7 wave 7D8 does move, asserted as the change rather than dropped.**
-    // Wall B is wider here — 900 x 4700 — and wall A's run is empty, so the whole kitchen stands on
-    // wall B and the re-key reverses which end of it the run starts at. Two things follow, and both
-    // are in the string below:
-    //
-    // 1. **The run turned around.** 7D3 recorded `storage, storage, hob, preparation, sink, fridge`
-    //    from the corner outward; the run now reads from wall A's free end, so the same order stands
-    //    corner-outward as `fridge, sink, preparation, hob, ...`.
-    // 2. **The block followed the run onto wall B** (ADR 0110 Amendment I; 7D8 criterion 10). The hob
-    //    now ends the run on the free-end wall, which is E3's clause 2, so the two modules the
-    //    recording holds as composed storage slots are a tall oven tower and a pantry column — and
-    //    the hob carries drawers instead of its own oven, because a tower stands.
-    //
-    // Pinned whole, with real build ids and no masking, so a later wave that moves this room again
-    // has to say so here. `canonicalPlanWithTheDoorBodyRestored` is deliberately **not** used: the
-    // masking that makes the recording comparable across 7D4's body change would hide half of what
-    // this witness exists to show.
-    expect(canonicalPlan(planFor(RE_KEYED_WITNESS_ROOM)).split("|")).toEqual([
-      "minimumMet=true",
-      "cut=4",
-      "dropped=",
-      "remainder=0/0",
-      "floorWidths=/700,600,600,600,600,600",
-      "fridge~fridge~fridge-free~B~900~1600~700",
-      "sink~sink~base-sink~B~1600~2200~600",
-      "preparation~preparation~base-3drawer~B~2200~2800~600",
-      "hob~hob~base-hob-2drawer~B~2800~3400~600",
-      "column:B:0~storage~tall-oven-tower~B~3400~4000~600",
-      "column:B:1~storage~tall-pantry~B~4000~4600~600",
-    ]);
-    // And it is a change against the recording rather than a second reading of it — the assertion
-    // that keeps the pin above from being satisfiable by a wave that did nothing.
-    expect(
-      canonicalPlanWithTheDoorBodyRestored(planFor(RE_KEYED_WITNESS_ROOM)),
-    ).not.toBe(recordedWitness(BASELINE, RE_KEYED_WITNESS_ROOM));
-  });
+  it.each(RE_KEYED_WITNESSES)(
+    "composes the re-keyed plan whole, with $name",
+    ({ room, plan }) => {
+      // Pinned with real build ids and no masking, so a later wave that moves one of these rooms
+      // again has to say so here. `canonicalPlanWithTheDoorBodyRestored` is deliberately **not**
+      // used: the masking that makes the recording comparable across 7D4's body change would hide
+      // half of what these witnesses exist to show.
+      expect(canonicalPlan(planFor(room)).split("|")).toEqual(plan);
+    },
+  );
+
+  it.each(RE_KEYED_WITNESSES)(
+    "moved against 7D3's recording rather than agreeing with it, with $name",
+    ({ room }) => {
+      // The assertion that keeps each pin above from being satisfiable by a wave that did nothing.
+      const { composed, recorded } = comparedWithTheRecording(room);
+
+      expect(composed).not.toBe(recorded);
+    },
+  );
 
   it("sweeps rooms that hold composed slots, block columns and storage on both walls", () => {
     // The recording proves nothing about rooms it never reached. Measured at this seed over the 240

@@ -40,12 +40,12 @@ import {
   lShellFloorRuns,
   planKitchenComposition,
   THREE_DRAWER_BASE_BUILD_ID,
-  wallLengthMm,
   type DesignRoom,
   type DesignWall,
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "../../src/index.js";
+import { narrowerEnteredWall } from "../support/entered-walls.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -73,13 +73,13 @@ function alongTheWall(
  * from that wall's free end toward the corner (ADR 0110 Amendment A1 and D2).
  *
  * **It is the narrower entered wall, and wall B where the two are equal**, because the run follows
- * the wider one (ADR 0120 Amendment E). **Derived here from the room's own two numbers and never
- * imported from `generation-priorities.ts`**: production's `isLaidOutInReverse` is the expression
- * this file exists to disagree with, and importing it would turn an independent oracle into a
- * tautology (7D8 adjudication, finding C2).
+ * the wider one (ADR 0120 Amendment E). **Derived in `entered-walls.ts` from the room's own two
+ * numbers and never imported from `generation-priorities.ts`**: production's `isLaidOutInReverse` is
+ * the expression this file exists to disagree with, and importing it would turn an independent
+ * oracle into a tautology (7D8 adjudication, finding C2).
  */
 function wallReadInReverse(room: DesignRoom): DesignWall {
-  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "A" : "B";
+  return narrowerEnteredWall(room);
 }
 
 /** The kitchen in the order it is read: the reversed wall from its free end toward the corner, then

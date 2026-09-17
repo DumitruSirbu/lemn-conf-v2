@@ -30,6 +30,7 @@ import {
   type DesignRoom,
   type GenerationLog,
 } from "../../src/index.js";
+import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
@@ -215,13 +216,12 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
       for (const wallBMm of [1000, 1600, 1700, 3000, 5100]) {
         const room = roomOf(wallAMm, wallBMm, 2600);
         const runs = lShellFloorRuns(room);
-        const widerWall = wallBMm > wallAMm ? "B" : "A";
         for (const column of blockOf(planFor(room))) {
           if (column.wall === "A") arms.onWallA += 1;
           else arms.onWallB += 1;
 
           expect(column.wall, `${String(wallAMm)}x${String(wallBMm)}`).toBe(
-            widerWall,
+            widerEnteredWall(room),
           );
           expect(column.startMm).not.toBe(runs.A.startMm);
           expect(column.startMm).not.toBe(runs.B.startMm);

@@ -44,10 +44,12 @@ import {
   wallLengthMm,
   type DesignRoom,
   type DesignWall,
+  type GenerationCoreRole,
   type GenerationRun,
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "../../src/index.js";
+import { narrowerEnteredWall } from "../support/entered-walls.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -60,7 +62,7 @@ const GRID_STEP_MM = 50;
 
 /** The run order, read off the owner's ruled priority list rather than spelled again here — a kitchen
  *  is read fridge, sink, preparation, hob whichever wall each stands on (ADR 0110 Amendment A1). */
-const RUN_ORDER: readonly string[] = GENERATION_PRIORITIES.map(
+const RUN_ORDER: readonly GenerationCoreRole[] = GENERATION_PRIORITIES.map(
   (priority) => priority.role,
 );
 
@@ -75,12 +77,13 @@ function planFor(
  * The wall the layout runs **against** the reading order on: the narrower entered wall, and wall B
  * where the two are equal (ADR 0120 Amendment E).
  *
- * **Derived from the room and never from `generation-priorities.ts`.** This is the test-side twin of
- * production's `isLaidOutInReverse`, and the independence is the whole asset: the two agree only if
- * both read the owner's wider-wall rule the same way (7D8 adjudication, finding C2).
+ * **Derived in `entered-walls.ts` from the room and never from `generation-priorities.ts`.** This is
+ * the test-side twin of production's `isLaidOutInReverse`, and the independence is the whole asset:
+ * the two agree only if both read the owner's wider-wall rule the same way (7D8 adjudication,
+ * finding C2).
  */
 function wallReadInReverse(room: DesignRoom): DesignWall {
-  return wallLengthMm("B", room) > wallLengthMm("A", room) ? "A" : "B";
+  return narrowerEnteredWall(room);
 }
 
 function theOtherWall(wall: DesignWall): DesignWall {
@@ -111,10 +114,8 @@ function inReadingOrder(
 
 function coreRolesOf(
   bases: readonly PlannedGenerationBase[],
-): readonly string[] {
-  return bases
-    .filter((base) => base.role !== "storage")
-    .map((base) => base.role);
+): readonly GenerationCoreRole[] {
+  return bases.flatMap((base) => (base.role === "storage" ? [] : [base.role]));
 }
 
 function sweptPlans(): readonly KitchenCompositionPlan[] {
@@ -168,10 +169,7 @@ describe("7a — the reversed wall is the narrower entered wall, and the sweep c
       }
 
       expect(coreRolesOf(inReadingOrder(plan)), roomKeyOf(plan)).toEqual(
-        RUN_ORDER.filter(
-          (role) =>
-            !plan.dropped.includes(role as (typeof plan.dropped)[number]),
-        ),
+        RUN_ORDER.filter((role) => !plan.dropped.includes(role)),
       );
     }
 
@@ -192,7 +190,7 @@ describe("7a — the reversed wall is the narrower entered wall, and the sweep c
     // assertions rather than one, because an inversion that flipped both walls at once would leave
     // the concatenated reading order in this file's first test looking merely rotated in a kitchen
     // whose core all stands on one wall.
-    let withARankedPair = 0;
+    const rankedPairs = { descending: 0, ascending: 0 };
     for (const plan of SWEPT_PLANS) {
       const reversed = wallReadInReverse(plan.room);
       const descending = coreRolesOf(alongTheWall(plan, reversed)).map((role) =>
@@ -201,7 +199,8 @@ describe("7a — the reversed wall is the narrower entered wall, and the sweep c
       const ascending = coreRolesOf(
         alongTheWall(plan, theOtherWall(reversed)),
       ).map((role) => RUN_ORDER.indexOf(role));
-      if (descending.length >= 2 || ascending.length >= 2) withARankedPair += 1;
+      if (descending.length >= 2) rankedPairs.descending += 1;
+      if (ascending.length >= 2) rankedPairs.ascending += 1;
 
       expect(descending, `${roomKeyOf(plan)} wall ${reversed}`).toEqual(
         [...descending].sort((left, right) => right - left),
@@ -212,7 +211,17 @@ describe("7a — the reversed wall is the narrower entered wall, and the sweep c
       ).toEqual([...ascending].sort((left, right) => left - right));
     }
 
-    expect(withARankedPair).toBeGreaterThanOrEqual(8000);
+    // **Both arms are floored, and the descending one is this test's whole subject.** A single
+    // counter satisfied by either arm is satisfied by the forward wall alone — 8 470 of the 8 615
+    // swept plans — and the wall that is actually read backwards is 103 of them, thin enough that a
+    // change emptying it would leave a combined floor untouched. The descending floor is risk 14's
+    // hundred and the population is 103, so it is asserted at full strength rather than fitted to
+    // the sample (ADR 0091 Amendment A).
+    expect(
+      rankedPairs.descending,
+      "no swept room gave the reversed wall two ranked core bodies",
+    ).toBeGreaterThanOrEqual(100);
+    expect(rankedPairs.ascending).toBeGreaterThanOrEqual(8000);
   });
 });
 
