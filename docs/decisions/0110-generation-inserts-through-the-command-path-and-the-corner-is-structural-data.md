@@ -2344,9 +2344,34 @@ run loses 90 mm, the last 600 mm leftover module falls away, `freeEndStorageCoun
 one-module floor E6.2 requires, and **the block is not planned at all** — E6.2's own `1 → 0` step,
 reached from the other direction.
 
-**Every one of the 74 therefore sits inside the population ADR 0120 Amendment E2 already ruled on**:
+~~**Every one of the 74 therefore sits inside the population ADR 0120 Amendment E2 already ruled on**:
 the rooms whose two entered lengths differ by less than the 100 mm gap between the two corner
-reaches, where *wider by entered length* and *wider by free run* disagree. **That population is the
+reaches, where *wider by entered length* and *wider by free run* disagree.~~
+
+> **CORRECTED 2026-09-17, measured by 7D8's logic review. The class claim above is false for 20 of
+> the 74, and the mechanism is wrong for them too. The count is unchanged.**
+>
+> **54 of the 74** match the description above: their entered lengths differ by under 100 mm and
+> their suffix free run is narrower, so `freeEndStorageCount` falls below the one-module floor. That
+> half stands.
+>
+> **20 do not.** Their entered lengths differ by **110–300 mm** — well outside the 100 mm corner-reach
+> gap — and their suffix free run is **wider**, not narrower. Witness **3300 × 3410**: `capB 2410 >
+> capA 2400`, leftover 610, which is **one slot with a 10 mm remainder**, and `outermostColumnOf`
+> (`tall-end-rule.ts:148-168`) refuses a single fixed-width tower that cannot absorb it. That is
+> **ADR 0120 Amendment E6.2's `1 → 0` step**, not the one-module floor and not the corner reach.
+>
+> **What the correction does and does not touch.** The **count is still exactly 74**, the same rooms,
+> smallest 3300 × 3310 and largest 3590 × 3600 — so **the owner's ruling, taken on 74 against 12 900,
+> is untouched and is not re-put to them.** What was wrong is this record's account of *why*, and the
+> word *"every"*, which would have made criterion 10's close-out line state a mechanism false in
+> **27 %** of the set.
+>
+> **The error is the coordinator's and is the same one that produced the "nobody loses a block"
+> figure it replaced**: reasoning from one worked example to a whole population instead of measuring
+> the population. The first error was arithmetic over two figures already printed; this one was a
+> mechanism inferred from the smallest witness and asserted of all 74. **A witness explains a class
+> only once the class has been measured against it.** **That population is the
 entered-length key's own consequence, recorded in the 7D8 plan's E1 as *"this ruling rather than a
 bug in it"*.** The 74 are that recorded consequence showing up in the block rule. **They are not a
 cost of the ruling recorded in this amendment**, which is about *which wall the block follows*; a
