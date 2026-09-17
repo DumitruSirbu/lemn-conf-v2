@@ -2,6 +2,9 @@ import {
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  paletteFinish,
+  resolvedDefaultFinishOf,
+  type Finish,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import * as React from "react";
@@ -174,5 +177,47 @@ describe("KitchenStage shell ownership", () => {
     expect(harness.buildKitchenShell.mock.invocationCallOrder[0]).toBeLessThan(
       harness.syncSolidBodies.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+});
+
+/** The owner's ruling of 2026-09-17 — *"end pannel should inherit the kitchen global color"*. The
+ *  panel is shell, so no `PlacementRecord` carries a colour for it and `kitchenFinish` is the only
+ *  value that reaches it. What is provable here is the seam: that the stage hands the **domain's**
+ *  answer over rather than deriving a second one. That the adapter then paints the right mesh with
+ *  it is `the-run-end-panel-wears-the-kitchens-colour.test.ts`. */
+describe("KitchenStage hands the kitchen's own colour to the scene", () => {
+  const CAPTURE_VIEW = {
+    kind: "fixed",
+    position: [4.3, 3, 5.3],
+    target: [1.6, 1.35, 0.85],
+  } as const;
+
+  function kitchenFinishPassedToSync(): Finish | undefined {
+    const input = harness.syncSolidBodies.mock.calls[0]?.[0] as
+      | { readonly kitchenFinish?: Finish }
+      | undefined;
+    expect(input, "KitchenStage did not call syncSolidBodies").toBeDefined();
+    return input?.kitchenFinish;
+  }
+
+  it("passes the design's resolved default finish, never one of its own", () => {
+    const expected = resolvedDefaultFinishOf(KITCHEN_L_DESIGN);
+    // Non-vacuity: the seeded design really does declare a colour to follow.
+    expect(expected).toBeDefined();
+
+    KitchenStage({ view: CAPTURE_VIEW });
+
+    expect(kitchenFinishPassedToSync()).toBe(expected);
+  });
+
+  /** The capture route repaints every front in the room through the `finish` prop, so the panel
+   *  takes that same colour — a reference shot must not contain one surface matching nothing else
+   *  in it. */
+  it("prefers the capture route's whole-room finish when it is given one", () => {
+    const captured = paletteFinish("pal.antracit");
+
+    KitchenStage({ view: CAPTURE_VIEW, finish: captured });
+
+    expect(kitchenFinishPassedToSync()).toBe(captured);
   });
 });

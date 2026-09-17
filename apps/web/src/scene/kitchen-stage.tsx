@@ -34,6 +34,7 @@ import {
   DEFAULT_CABINET_DEPTH_MM,
   wallCarcassDepthMm,
   createBodyProbeLease,
+  resolvedDefaultFinishOf,
   type BodyProbeFactory,
   type Finish,
 } from "@lemnaria/configurator-domain";
@@ -156,6 +157,18 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     (state) =>
       state.design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,
   );
+  // **The kitchen's own colour, resolved by the domain and never re-derived here** (ADR 0099
+  // decision 1). Every cabinet's colour reaches the scene as its record's `drawnFinish`; the
+  // run-end panel is *shell*, carries no record, and since the owner's ruling of 2026-09-17 —
+  // "end pannel should inherit the kitchen global color" — this is the only value that reaches it.
+  //
+  // Selected rather than derived in the body for the reason the depth above is: this is one
+  // already-existing object per design — `settings.finish`, or a material's declared default, which
+  // is a module constant — so the selector's result is stable and no command re-renders this
+  // component that did not change what is painted.
+  const kitchenFinish = useConfiguratorStore((state) =>
+    resolvedDefaultFinishOf(state.design),
+  );
 
   const stage = useMemo(() => {
     // **The kit is built at the depth the held design declares, never at a constant and never at the
@@ -259,11 +272,18 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       solidsRoot: stage.solidsRoot,
       records,
       room: designRoom,
+      // **Whichever colour the fronts in this same picture are taking.** In the editor `finish` is
+      // absent and the kitchen's resolved colour is the answer; the capture route hands the whole
+      // room one finish through the prop and repaints every front with it, so a panel that ignored
+      // it would be the one surface in a reference shot matching nothing around it. This is not a
+      // second precedence chain over ADR 0099's — it is the harness's whole-room override reaching
+      // one more surface it already overrides the rest of.
+      kitchenFinish: finish ?? kitchenFinish,
     });
     syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids });
     if (finish) applyFinish(collectFronts(stage.room), stage.kit.M, finish);
     invalidate();
-  }, [stage, records, designRoom, voids, finish, invalidate]);
+  }, [stage, records, designRoom, voids, finish, kitchenFinish, invalidate]);
 
   // ADR 0011 Gap B: `insert` measures the body it is about to place, and the probe needs a `Kit`
   // and the mounted room — neither of which exists until this component runs. The store therefore

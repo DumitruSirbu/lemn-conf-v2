@@ -430,11 +430,13 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
    * kit's own, shared by every oak surface including `end_panel_right`. Five of the eight palette
    * entries are woods.
    *
-   * Nothing paints a shell child today: `applyFinish` selects through `FRONT_MESH_NAME`
-   * (`/door_front|drawer_front/`) and neither shell name matches. **So this stages the situation
-   * that regex prevents** and asserts the release refuses it. Before the resize kept a record of
-   * what it had cloned, this case freed `oakTex` and dropped it from the ownership record — black
-   * surfaces everywhere oak is drawn, and nothing thrown.
+   * **A shell child is painted since the owner's ruling of 2026-09-17** — `paintRunEndPanel` puts
+   * exactly such a clone on `end_panel_right` so it inherits the kitchen's colour. That panel is
+   * also the one shell child this resize never touches, so the case is staged here on the `floor`
+   * instead: the release must refuse a material it did not clone wherever one turns up, not only on
+   * the child that happens to be out of its reach. Before the resize kept a record of what it had
+   * cloned, this case freed `oakTex` and dropped it from the ownership record — black surfaces
+   * everywhere oak is drawn, and nothing thrown.
    */
   it("refuses to free the kit's wood texture when a derived finish is painted onto a shell child", () => {
     const { kit, shell } = shellFor(SEEDED_ROOM);

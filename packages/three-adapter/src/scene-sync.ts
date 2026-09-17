@@ -12,6 +12,7 @@ import {
   toMetres,
   toMillimetres,
   type DesignRoom,
+  type Finish,
   type PlacementRecord,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
@@ -24,7 +25,7 @@ import {
 } from "./decomposed-bodies.js";
 import { applyBodyFinish, finishSignature } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
-import { syncRunEndPanel } from "./kitchen-shell.js";
+import { paintRunEndPanel, syncRunEndPanel } from "./kitchen-shell.js";
 import {
   disposeUnsharedGeometries,
   isLine,
@@ -50,6 +51,16 @@ export interface SolidSyncInput {
   /** The room the records stand in, handed to the run-end panel's sync for the domain's wall-end
    *  veto (ADR 0045 Amendment A). Required: without it that veto could not fire. */
   readonly room: DesignRoom;
+  /** The colour the whole kitchen is wearing, resolved by the domain (`resolvedDefaultFinishOf`)
+   *  and passed through to the run-end panel, which is shell and so carries no record of its own
+   *  (owner's ruling, 2026-09-17).
+   *
+   *  **Optional, because a caller that owns no design cannot answer it.** Every headless suite that
+   *  exercises `syncSolidBodies` alone mounts bodies into a bare group with no shell in it, so
+   *  there is no panel for the answer to reach; and a document whose material id names nothing
+   *  declared has no colour to give (ADR 0078 decision 3), which is the same `undefined` arriving
+   *  from the other side. Both leave the panel on the oak its builder gave it. */
+  readonly kitchenFinish?: Finish | undefined;
 }
 
 export interface VoidSyncInput {
@@ -85,6 +96,13 @@ export function syncSolidBodies(input: SolidSyncInput): void {
     solidsRoot: input.solidsRoot,
     records: input.records,
     room: input.room,
+  });
+  // Its colour is a function of the kitchen's finish where its seat is a function of the records,
+  // so the two are derived by two calls rather than one (owner's ruling, 2026-09-17).
+  paintRunEndPanel({
+    kit: input.kit,
+    solidsRoot: input.solidsRoot,
+    kitchenFinish: input.kitchenFinish,
   });
 }
 

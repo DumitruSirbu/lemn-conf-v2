@@ -2,11 +2,13 @@ import {
   runEndPanelSeatM,
   toMetres,
   type DesignRoom,
+  type Finish,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import type { Group, Mesh, Object3D } from "three";
 
+import { applyFinish } from "./finishes.js";
 import { disposeDiscardedBodies } from "./kit-disposal.js";
 import { kitOwnedResources } from "./kit-ownership.js";
 import {
@@ -316,15 +318,20 @@ function retileToConstantWorldDensity(
  * plus the clones below. A release that tested *"not declared"* would be testing the union of the
  * last two and would be right only because the middle set cannot reach a shell child today.
  *
- * **What that coincidence rests on, and what it would cost.** The only other writer of materials
- * onto scene meshes is `applyFinish`, which selects through `FRONT_MESH_NAME`
- * (`/door_front|drawer_front/`); neither `floor` nor `backsplash_wall_a` matches, so no finish clone
- * ever lands on a shell child. If that regex ever widens, the failure is silent and total:
+ * **What it would cost to be wrong, and why that is no longer hypothetical.** Since the owner's
+ * ruling of 2026-09-17 — *"end pannel should inherit the kitchen global color"* — `paintRunEndPanel`
+ * below puts a finish clone on `end_panel_right`, which **is** a shell child. So a finish clone now
+ * reaches this module's neighbourhood for real, where until then `FRONT_MESH_NAME`
+ * (`/door_front|drawer_front/`) matched no shell name and the case was only theoretical.
  * `buildFinishMaterial` is `(isOak ? M.oak : M.door).clone()` and three's `Material.copy` assigns
  * `map` **by reference**, so a **wood** decor's clone carries `oakTex` *itself* — the kit's own,
- * shared by every oak surface in the scene including `end_panel_right`. Freeing it would black out
- * every one of them and drop it from the ownership record so the teardown could not free it either,
- * with nothing thrown. Five of the eight palette entries are woods.
+ * shared by every oak surface in the scene. Freeing it would black out every one of them and drop it
+ * from the ownership record so the teardown could not free it either, with nothing thrown. Five of
+ * the eight palette entries are woods.
+ *
+ * Two things keep that harmless, and both are needed. The panel is the one shell child
+ * `resizeShellToRoom` never touches, so the release below is not reached for it at all; and the
+ * `WeakSet` means that if it ever were, a material this module did not clone is left alone.
  *
  * A `WeakSet` keyed on the object cannot be wrong about that, and weak for `resourcesByKit`'s own
  * reason: an abandoned kit's entries die with it.
@@ -455,6 +462,54 @@ export function syncRunEndPanel(input: RunEndPanelInput): void {
   const seatM = runEndPanelSeatM(input.records, input.room);
   panel.visible = seatM !== undefined;
   panel.position.x = seatM ?? RUN_END_PANEL_SEEDED_X_M;
+}
+
+export interface RunEndPanelFinishInput {
+  /** The kit that built the panel. The recoloured material is derived from its `M` and recorded as
+   *  the kit's, so the panel's paint is freed by the same teardown as every other finish clone. */
+  readonly kit: Kit;
+  /** The `solids` group, as `syncRunEndPanel` takes it. */
+  readonly solidsRoot: Object3D;
+  /** The colour the kitchen is wearing, **already resolved by the domain**
+   *  (`resolvedDefaultFinishOf`). `undefined` is an answer rather than a hole: a design whose
+   *  material id names nothing declared has no colour to follow (ADR 0078 decision 3). */
+  readonly kitchenFinish: Finish | undefined;
+}
+
+/**
+ * **The run-end panel wears the kitchen's colour** — the owner's ruling of 2026-09-17: *"end pannel
+ * should inherit the kitchen global color"*. Until then it was built with `M.oak` and stood as a
+ * wood plank against a white kitchen.
+ *
+ * **The kitchen's colour, not a cabinet's.** The panel is shell, so no `PlacementRecord` carries a
+ * finish for it and there is nothing for ADR 0099's per-cabinet override to resolve; the caller
+ * hands over the kitchen's own resolved default and this package still learns no precedence rule
+ * (§12). Reading the colour off the last base cabinet instead would have made the panel follow a
+ * cabinet's *private* choice, which is a different ruling from the one that was made.
+ *
+ * **Not a declaration in `body-finish-surfaces.ts`.** That mechanism answers *which meshes of a
+ * body* a body's finish lands on, and is read by `applyBodyFinish` over one mounted placement. The
+ * panel belongs to no body, so a declaration on it would be read by nothing; the surface is found
+ * the way everything else about the panel is found — structurally, through `findRunEndPanel`.
+ *
+ * **`M.oak` is never mutated.** It is shared by every oak surface in the scene, so recolouring it
+ * would repaint the open shelf's six boards along with the panel. `applyFinish` assigns a material
+ * cloned and cached per kit per finish, exactly as a cabinet front gets one.
+ *
+ * **Both branches write**, as `syncRunEndPanel`'s do and for the same reason: the panel's colour is
+ * then a pure function of the kitchen's, so a kitchen that has no colour to give puts the panel back
+ * on the oak its builder gave it rather than leaving the last paint stranded on it.
+ */
+export function paintRunEndPanel(input: RunEndPanelFinishInput): void {
+  // As in `syncRunEndPanel`: a caller may mount bodies into a bare group with no shell at all.
+  const panel = findRunEndPanel(input.solidsRoot);
+  if (!panel || !isMesh(panel)) return;
+
+  if (input.kitchenFinish) {
+    applyFinish([panel], input.kit.M, input.kitchenFinish);
+    return;
+  }
+  panel.material = input.kit.M.oak;
 }
 
 /** The shell is the one `solidsRoot` child `syncSolidBodies` did not mount, which is the manifest's
