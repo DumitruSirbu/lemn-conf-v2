@@ -107,8 +107,11 @@ interface CurrentWidthParams extends LabelParams {
  *  the space next door, because a refusal that says only "no room" leaves the customer with nothing
  *  to act on: they need to know whether to delete something, and on which side. */
 export type EmptySpaceRefusal =
-  /** No **empty** column is edge-adjacent on that side — either a body stands there or the wall
-   *  ends. ADR 0031 rule 2: width comes from empty space and from nowhere else. */
+  /** No **empty** column is edge-adjacent on that side — either a body stands there, or the wall
+   *  ends, or a shrink's only abutting column could not record the strip it would be handed
+   *  (`plan-width-funding.ts`, `recordsTheStripAShrinkHandsOver`). ADR 0031 rule 2: width comes from
+   *  empty space and from nowhere else, and space at another level is not space this run can
+   *  spend. */
   | "absent"
   /** There is an empty column, and it is narrower than the growth being asked for. */
   | "too_narrow"

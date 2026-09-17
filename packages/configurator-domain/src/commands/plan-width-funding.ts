@@ -41,6 +41,11 @@ const EDGE_ABUTMENT_TOLERANCE_M = 1e-6;
  *  resizes the same way. An order, not a set. */
 const EMPTY_SPACE_ORDER: readonly Side[] = ["right", "left"];
 
+/** How far short of the band it receives a column may fall and still be said to record it. Float
+ *  noise and nothing more, for the reason `EDGE_ABUTMENT_TOLERANCE_M` is: the two bands are metres
+ *  off two different frames, so a region ending exactly where the next begins can part by an ulp. */
+const BAND_COVERAGE_TOLERANCE_M = 1e-6;
+
 export type EmptySpaceEvaluation =
   | { readonly ok: true; readonly value: EmptySpace }
   | { readonly ok: false; readonly reason: EmptySpaceRefusal };
@@ -192,7 +197,14 @@ export function refuseNoSideFunds(
  *  a shrink adds to the remainder rather than spending it.
  *
  *  It answers only what can be decided from geometry. `opens_a_gap`, the fourth reason a side can
- *  refuse, needs the rebuilt records and belongs to `fundColumnResize`. */
+ *  refuse, needs the rebuilt records and belongs to `fundColumnResize`.
+ *
+ *  **`absent` covers two ways a side can hold nothing to trade**: no empty column abuts the edge at
+ *  all, and one abuts it but could not record the strip a shrink would hand it — see
+ *  `recordsTheStripAShrinkHandsOver`. One reason rather than two, because the customer's answer is
+ *  the same, "there is no space on this side", and because a column standing only over the wall row
+ *  is not space a base run can spend. On a shrink the refusal is never terminal: `fundingScan` falls
+ *  to ADR 0035 decision 7 and the run records the strip itself. */
 function evaluateEmptySpace(
   input: SetWidthInput,
   records: readonly PlacementRecord[],
@@ -208,6 +220,10 @@ function evaluateEmptySpace(
   if (!extent) return { ok: false, reason: "absent" };
 
   const deltaMm = input.widthMm - plan.extent.widthMm;
+  if (!recordsTheStripAShrinkHandsOver(plan.column, neighbour, deltaMm)) {
+    return { ok: false, reason: "absent" };
+  }
+
   const remainderMm = extent.widthMm - deltaMm;
   // **The only arithmetic bound on a growth** (ADR 0043). A remainder of any width at or above zero
   // is a legal state: the owner, 2026-09-01, *"Empty space can be even 100 mm or 50 mm, if somebody
@@ -269,6 +285,66 @@ function byFundingCapacity(left: Column, right: Column): number {
 function facingEdgeM(column: Column, side: Side): number {
   const centreM = alongWallM(column.wall, column);
   return side === "right" ? centreM - column.w / 2 : centreM + column.w / 2;
+}
+
+/** **The column a shrink hands its strip to has to record that strip at every height the run stood
+ *  at.** ADR 0031's "empty" is already "empty at every level" (`findAdjacentEmptyColumn`); this is
+ *  the same sentence read the other way, about the level rather than about the emptiness.
+ *
+ *  A column is a space along the wall *and* a vertical extent, and a resize moves a boundary in both
+ *  at once: the strip the run withdraws from is the strip the empty column takes, over the whole
+ *  height the run stood at. Where the empty column stands at other heights, the width is conserved
+ *  and the **floor is lost** — that part of the strip belongs to no placement, no recorded empty
+ *  column and no derived void, and §4 derives nothing for it because both extents are frozen and
+ *  neither covers it. That is the invisibility `EDGE_ABUTMENT_TOLERANCE_M` is set to avoid, arrived
+ *  at by a different route.
+ *
+ *  **Measured, and older than the wave that surfaced it.** On a 1550×1600 L the built wall A shipped
+ *  `base-corner-x-900[0,900]`, 50 mm of nothing, then `base-sink[950,1550]`, where the plan puts the
+ *  sink at `[900,1500]`: the free-end shrink funded itself from the wall-row-only empty column at
+ *  `[800,900]`, whose only region is 1.5–2.6 m, so the floor under the returned strip was recorded
+ *  nowhere. The built design contradicted its own plan, which is why nothing measuring the plan
+ *  could see it. The same strip is reachable on the **shipped reference kitchen** with two ordinary
+ *  deletes and one step — `set-width.records-the-strip-it-hands-over.test.ts` walks it — so the
+ *  repair belongs to this command and not to whatever composed the kitchen.
+ *
+ *  **A growth is left alone, and that is a scope decision rather than a claim that it is safe.** The
+ *  mirror case exists: growing into an empty column whose bands the run does not cover leaves the
+ *  uncovered part of the taken strip recorded nowhere, by the same arithmetic. It is not repaired
+ *  here because refusing it **withdraws an operation customers have today** — growing a wall cabinet
+ *  into the opening beside it is the commonest instance, and the suite has nine assertions across
+ *  six files that spend it — and which of "refuse the growth" or "accept the sliver" is right is a
+ *  product question rather than a defect. The shrink has no such cost: ADR 0035 decision 7 catches
+ *  it and records the strip where the run actually vacated it.
+ *
+ *  **Asked of the column the scan already selected, rather than folded into
+ *  `findAdjacentEmptyColumn`'s filter.** Filtering would let a narrower abutting column win where
+ *  the widest one fails the band, and which of two abutting columns a resize spends is a product
+ *  question this does not reopen (`byFundingCapacity`).
+ *
+ *  Both bands come from the **frozen** map, the one place a member-less column's heights survive, so
+ *  the two sides of the comparison have the same source. */
+function recordsTheStripAShrinkHandsOver(
+  resized: Column,
+  neighbour: Column,
+  deltaMm: number,
+): boolean {
+  if (deltaMm >= 0) return true;
+  return resized.regions.every((band) => coversBand(neighbour.regions, band));
+}
+
+/** Whether `regions` cover `band` end to end. A union rather than any single region: a column that
+ *  grew by a merge carries one region per member, and two that meet cover the span across them. */
+function coversBand(
+  regions: readonly (readonly [number, number])[],
+  band: readonly [number, number],
+): boolean {
+  let reached = band[0];
+  for (const [start, end] of [...regions].sort((a, b) => a[0] - b[0])) {
+    if (start > reached + BAND_COVERAGE_TOLERANCE_M) break;
+    reached = Math.max(reached, end);
+  }
+  return reached >= band[1] - BAND_COVERAGE_TOLERANCE_M;
 }
 
 /** An empty column has no member to read integers off, so its extent comes from the frozen map —
