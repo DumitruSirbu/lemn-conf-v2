@@ -1622,6 +1622,41 @@ propose on the second option."*
 marked body, so a customer who is told their cabinets do not fit can see which ones without orbiting
 for them.
 
+## 69. Two gate runs against one test database corrupt its migration ledger — OBSERVED 2026-09-18, ENVIRONMENTAL, NOT SCHEDULED
+
+**What happened, and it is recorded because a retry made it disappear.** On 2026-09-18 `pnpm ci:local`
+passed in full on `0d79ce9` (wave 7D6). The push started minutes later, and its pre-push gate —
+the same script, the same commit — **failed**: `LOCAL CI FAILED: test e2e`.
+
+- **`test`:** 3 failed / 216 passed / **63 skipped** in `@lemnaria/persistence`, against 20 files /
+  282 passed with no skips in the run ten minutes earlier. Every failure was one error:
+  `MigrationSequenceError: Migration 4 ("0004_add_design_revision.sql") is recorded as applied, but 2
+  ("0002_add_write_token_hash.sql") is not`, plus `NeonDbError: column "write_token_hash" does not
+  exist`.
+- **`e2e`:** `http://localhost:4320/configurator/configure is already used` — the previous run's
+  server had not released the port.
+
+**The database was healthy again when inspected**, read-only, straight afterwards: all four
+migrations present with their checksums (applied_at 22:29 and 22:31) and `designs` carrying
+`write_token_hash`. So the ledger was observed **mid-reset**: the live suites migrate and reset the
+shared test database as part of running, and a second runner entering while the first is still
+finishing sees a schema that is neither the old one nor the new one.
+
+**Read as a defect in the arrangement, not in the wave.** Nothing in 7D6 touches persistence, and the
+retry — with port 4320 free and no vitest or next process alive — passed every gate and pushed.
+**The retry is not offered as evidence that the first run was wrong**: what the first run showed was
+real, and it will recur for anyone who starts a second gate run before the first has fully released
+its port and its database.
+
+**Whose it is: wave 7T** owns the live persistence suites (*"the live persistence suite actually
+runs"*), and this is exactly its subject — a live suite whose isolation is the runner's good manners
+rather than a mechanism. **Not scheduled here, and no fix attempted.** Two things a fix would have to
+decide: whether each runner gets its own database or branch, and whether the pre-push hook should
+refuse to start while a port it needs is held rather than failing eight minutes later.
+
+**Not done, deliberately:** nothing was repaired by hand. The error's own text says to resolve the gap
+by hand before migrating again, and the gap had already resolved itself.
+
 ## 68. A large wood-decor run-end panel shows a visible grain tiling seam — OBSERVED 2026-09-17, OWNER QUESTION, NOT BUILT, NOT SCHEDULED
 
 **Where it came from.** M7 wave 7D8's visual check of the panel-colour fix (`dcec03f`), a production
