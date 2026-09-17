@@ -8,6 +8,11 @@
 // - **The pin** — the six values against the amendment's table, with both wall maxima at the owner's
 //   6000 mm since ADR 0120 Amendment B2, so an edit to the approved data is a deliberate, visible diff:
 //   the copy lock's role (ADR 0095 decision 2), for numbers.
+//
+// **A third test joins them at wave 7D6's criterion 4′ — the margin pin.** The guard's direction
+// reversed on 2026-09-17: the approved wall minima now sit *above* what the engine needs, by a gap
+// the owner chose on purpose (ADR 0125). An inequality is silent inside that gap, so the gap itself
+// is asserted as an exact size — see *the ruled margin* below.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -15,6 +20,7 @@ import {
   APPROVED_ROOM_POLICY,
   DesignRoomSchema,
   KITCHEN_L_DESIGN,
+  narrowestCornerReachMm,
   NARROWED_ROOM_OVERFLOWING_DESIGN,
   type DesignRoom,
   type LRoomInput,
@@ -95,6 +101,11 @@ function expectHeldInsideEngine(
   const approved = boundsOf(policy);
   const engine = boundsOf(ENGINE_ROOM_LIMITS);
 
+  // **`>=`, and the gap under it is no longer zero.** ADR 0108 B1 wrote this to redden when an
+  // engineering change pushes the engine's floor *past* an approved bound — still the loud
+  // direction, and still what this line is for. Since ADR 0125 the approved wall minima sit above
+  // the engine's floor by a margin the owner chose, and movement *inside* that margin passes here
+  // by design: *the ruled margin above the engine's floor* asserts the gap's exact size instead.
   expect(approved.minMm).toBeGreaterThanOrEqual(engine.minMm);
   expect(approved.maxMm).toBeLessThanOrEqual(engine.maxMm);
   expect(approved.minMm).toBeLessThan(approved.maxMm);
@@ -212,6 +223,153 @@ describe("APPROVED_ROOM_POLICY — held inside the engine's limits", () => {
     expect(approved.cornerReachMm.wallB).toBeGreaterThanOrEqual(
       engine.cornerReachMm.wallB,
     );
+  });
+});
+
+// =================================================================================================
+// Wave 7D6 criterion 4′ — the ruled margin above the engine's floor
+// =================================================================================================
+
+/** One figure per wall, which is how every number in the margin pin is stated. */
+interface WallFiguresMm {
+  readonly wallA: number;
+  readonly wallB: number;
+}
+
+/** The derived floor reach: `narrowestCornerReachMm`, the narrowest corner this product builds — a
+ *  cabinet with one door at each of the three levels — over every declared cabinet depth and taking
+ *  no room at all (`corner-assembly-size.ts`, entry point 3). Spelled as literals so a derivation
+ *  that moves is read here as a failing number instead of following the code it is guarding. That
+ *  these are also `ENGINE_ROOM_LIMITS`' wall minima is `room-policy.test.ts`'s pin, not this one's. */
+const DERIVED_WALL_FLOOR_REACH_MM: WallFiguresMm = { wallA: 880, wallB: 880 };
+
+/** The owner's approved wall minima (ADR 0108 Amendment B), spelled again for the same reason. */
+const APPROVED_WALL_MINIMUM_MM: WallFiguresMm = { wallA: 900, wallB: 1000 };
+
+/** The gap between the two, and it is **ruled rather than owed**: the owner kept 900 and 1000
+ *  although the kitchen can be built against 880 on each wall, so the product refuses rooms it
+ *  could furnish, on purpose (ADR 0125, owner ruling 2026-09-17, answering M7's Q-K1 with option 3;
+ *  ADR 0125 proposes `WALL_MINIMUM_APPROVED_MARGIN_MM` for the same constant). It was
+ *  `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` while Q-K1 was open, and that name is false now the
+ *  question is answered.
+ *
+ *  **Asserted as an exact size, never as an inequality.** A derivation that shrinks grows this gap
+ *  and fails; a derivation that grows toward the approved bound shrinks it and fails. The approved
+ *  bound can therefore move only in a commit that edits the owner's literal and this margin
+ *  together, which is the whole of J4: no approved bound moves silently, in either direction. */
+const RULED_WALL_MINIMUM_MARGIN_MM: WallFiguresMm = { wallA: 20, wallB: 120 };
+
+function derivedFloorReachMm(): WallFiguresMm {
+  return {
+    wallA: narrowestCornerReachMm("A").wallMinimumMm,
+    wallB: narrowestCornerReachMm("B").wallMinimumMm,
+  };
+}
+
+function approvedWallMinimaOf(policy: RoomPolicy): WallFiguresMm {
+  const walls = lWallBoundsOf(policy);
+  return { wallA: walls.wallA.minMm, wallB: walls.wallB.minMm };
+}
+
+/** Criterion 4′'s three figures in one object, so a failure prints all three and names which of them
+ *  moved rather than reporting a difference alone. */
+function marginPinOf(derivedMm: WallFiguresMm, approvedMm: WallFiguresMm) {
+  return {
+    derivedFloorReachMm: derivedMm,
+    approvedMinimumMm: approvedMm,
+    marginMm: {
+      wallA: approvedMm.wallA - derivedMm.wallA,
+      wallB: approvedMm.wallB - derivedMm.wallB,
+    },
+  };
+}
+
+/** The pin as an assertion, so a caller can prove it reddens for a pair that has drifted either way. */
+function expectMarginIsRuled(
+  derivedMm: WallFiguresMm,
+  approvedMm: WallFiguresMm,
+): void {
+  expect(marginPinOf(derivedMm, approvedMm)).toStrictEqual({
+    derivedFloorReachMm: DERIVED_WALL_FLOOR_REACH_MM,
+    approvedMinimumMm: APPROVED_WALL_MINIMUM_MM,
+    marginMm: RULED_WALL_MINIMUM_MARGIN_MM,
+  });
+}
+
+function policyFieldNamed(name: string): PolicyField {
+  const field = POLICY_FIELDS.find((candidate) => candidate.name === name);
+  if (field === undefined) {
+    throw new Error(`approved-room-policy.test: no policy field named ${name}`);
+  }
+  return field;
+}
+
+/** `APPROVED_ROOM_POLICY` with one wall minimum raised, staying inside the ruled margin. */
+function withWallAMinimum(minMm: number): RoomPolicy {
+  const walls = lWallBoundsOf(APPROVED_ROOM_POLICY);
+  return {
+    ...APPROVED_ROOM_POLICY,
+    buildableShapes: { L: { ...walls, wallA: { ...walls.wallA, minMm } } },
+  };
+}
+
+describe("APPROVED_ROOM_POLICY — the ruled margin above the engine's floor (7D6 criterion 4′)", () => {
+  it("states the derived floor reach, the approved minimum and the exact gap between them", () => {
+    expectMarginIsRuled(
+      derivedFloorReachMm(),
+      approvedWallMinimaOf(APPROVED_ROOM_POLICY),
+    );
+  });
+
+  // The silent direction, and the only thing standing in front of it (7D6 risk 1): a derivation that
+  // becomes more conservative widens the gap, and the product then refuses rooms it could build.
+  it.each(["wallA", "wallB"] as const)(
+    "reddens when %s's derivation shrinks, which widens the ruled margin",
+    (wall) => {
+      const derived = derivedFloorReachMm();
+
+      expect(() => {
+        expectMarginIsRuled(
+          { ...derived, [wall]: derived[wall] - 1 },
+          approvedWallMinimaOf(APPROVED_ROOM_POLICY),
+        );
+      }).toThrow();
+    },
+  );
+
+  // The loud direction, which the `>=` guard above also catches — but only once the derivation has
+  // passed the approved bound. Every millimetre of approach before that is invisible to it and
+  // visible here.
+  it.each(["wallA", "wallB"] as const)(
+    "reddens when %s's derivation grows toward the approved bound, which narrows the ruled margin",
+    (wall) => {
+      const derived = derivedFloorReachMm();
+
+      expect(() => {
+        expectMarginIsRuled(
+          { ...derived, [wall]: derived[wall] + 1 },
+          approvedWallMinimaOf(APPROVED_ROOM_POLICY),
+        );
+      }).toThrow();
+    },
+  );
+
+  // Why criterion 4′ exists at all, shown against the shipped guard rather than argued: a bound
+  // moved ten millimetres up sits well inside the margin, so ADR 0108 B1's `>=` stays green.
+  it("catches a bound moved inside the margin, where the shipped >= guard stays green", () => {
+    const insideTheMargin = withWallAMinimum(
+      APPROVED_WALL_MINIMUM_MM.wallA + 10,
+    );
+
+    expect(() => {
+      expectHeldInsideEngine(policyFieldNamed("wall A"), insideTheMargin);
+    }).not.toThrow();
+    expect(() => {
+      expectMarginIsRuled(
+        derivedFloorReachMm(),
+        approvedWallMinimaOf(insideTheMargin),
+      );
+    }).toThrow();
   });
 });
 

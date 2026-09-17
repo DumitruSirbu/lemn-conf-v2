@@ -3,19 +3,26 @@
 // the constant it is derived from**, so a limit hand-edited to a chosen number turns this file red
 // (wave 7A criterion 7), and with it the guard `approved-room-policy.test.ts` rests on.
 //
-// **Amendment A** holds each wall minimum to the corner at *every* declared cabinet depth, so the
-// wall minima are re-derived here from `setCabinetDepth`'s own output rather than read off the
-// reference kitchen at its one depth. **What that does not prove:** the command and the policy share
-// the chain reader (`alongWallPositionAtMm`), so a reader that disagreed with the built geometry
-// would move both sides together. That the reader matches built geometry at both depths is
-// `three-adapter/tests/room-composition.parity.test.ts`'s job, not this file's.
-//
-// **Wave 7D6's J1′, 2026-09-17, changed what a wall minimum is derived *from*, and this file with
+// **Amendment A** holds each wall minimum to the corner at *every* declared cabinet depth, and
+// **wave 7D6's J1′, 2026-09-17, changed what that minimum is derived *from*, and this file with
 // it.** A minimum is no longer where the reference kitchen's corner ends; it is where the
 // **narrowest** corner the product will build ends, over the declared depths and taking no room
-// (`corner-assembly-size.ts`, entry point 3). The reference corner's own reach is still measured
-// here through `setCabinetDepth`, but as the *larger* figure the bound sits below — the margin
-// criterion 4′ pins and Q-K1 is about.
+// (`corner-assembly-size.ts`, entry point 3).
+//
+// **That moved the bound out of the shared reader's reach, and the warning this comment used to
+// carry with it.** It read that the command and the policy share the chain reader
+// (`alongWallPositionAtMm`), so a reader disagreeing with the built geometry would move both sides
+// of a wall-minimum assertion together. **No longer true of the bound:** its only inputs are the
+// catalogue's own depth formulas, the hinged rows' declared width floor and
+// `declaredCabinetDepthsMm()` — no placement, no chain and no command.
+//
+// **It is still true of the reference corner**, which is measured here through `setCabinetDepth` as
+// the *larger* figure the bound sits below, and of every other assertion below that reads a
+// placement. That the reader matches built geometry at both depths remains
+// `three-adapter/tests/room-composition.parity.test.ts`'s job, not this file's.
+//
+// The margin between the bound and the owner's minima — criterion 4′, ruled by ADR 0125 — is pinned
+// in `approved-room-policy.test.ts`, where the approved literals live.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -123,10 +130,10 @@ describe("ENGINE_ROOM_LIMITS — every bound is the constant it is derived from"
     },
   );
 
-  // The margin wave 7D6's criterion 4′ pins and owner question Q-K1 is about: the corner the shell
-  // still *places* is the reference one, which reaches farther than the bound on both walls. A
-  // guard that read the reference corner here would have to move the bound to stay green, which is
-  // how an owner-approved number moves without the owner.
+  // The margin wave 7D6's criterion 4′ pins, ruled by ADR 0125 rather than open on Q-K1: the corner
+  // the shell still *places* is the reference one, which reaches farther than the bound on both
+  // walls. A guard that read the reference corner here would have to move the bound to stay green,
+  // which is how an owner-approved number moves without the owner.
   it.each([
     ["A", WALL_A_CORNER_IDS, () => engineLWallBounds().wallA.minMm],
     ["B", WALL_B_CORNER_IDS, () => engineLWallBounds().wallB.minMm],
