@@ -134,8 +134,14 @@ const CORNER_BAND_FLOORS_MM: Readonly<Record<CornerBand, number>> = {
 };
 
 /** Which rows a wall-only run has to start past: the ones standing at or above its own floor.
- *  Filtered from the grid rather than listed, so a row that moves takes this filter with it. */
-const BANDS_ABOVE_THE_WALL_ROW_FLOOR: readonly CornerBand[] =
+ *  Filtered from the grid rather than listed, so a row that moves takes this filter with it.
+ *
+ *  **Exported to be pinned, not to be used.** The wall row's own floor is the bound this compares
+ *  against, so the equality is the whole of the operator — and the wall and top pieces read the same
+ *  catalogue row and the same near-edge branch, so their far edges are equal in every room at every
+ *  depth and a `>` here moves no origin the shell computes. The membership is therefore asserted
+ *  directly (7D6 QA's band-filter mutant). */
+export const BANDS_ABOVE_THE_WALL_ROW_FLOOR: readonly CornerBand[] =
   CORNER_BANDS.filter(
     (band) => CORNER_BAND_FLOORS_MM[band] >= WALL_ROW_FLOOR_MM,
   );

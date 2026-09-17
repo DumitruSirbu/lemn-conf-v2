@@ -59,8 +59,8 @@ import {
 } from "../body-finish-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import {
+  cornerAlongWallCentreMm,
   cornerAssemblyWidthsMm,
-  cornerFarEdgeMm,
   type CornerAssemblyPiece,
 } from "../corner-assembly-size.js";
 import type { Design, DesignPlacement } from "../design.js";
@@ -961,7 +961,8 @@ const REFERENCE_CORNER_WIDTHS = cornerAssemblyWidthsMm({
 
 /** A structural corner piece, placed at the width and centre the derivation gives it in this room:
  *  its far edge is the assembly's reach along that wall in that row, and its centre follows from
- *  the width, never the other way round. */
+ *  the width, never the other way round — through `cornerAlongWallCentreMm`, which refuses a centre
+ *  that does not land on a whole millimetre rather than rounding one into a stored design. */
 function cornerPlacement(
   id: string,
   piece: CornerAssemblyPiece,
@@ -969,8 +970,7 @@ function cornerPlacement(
   buildId: string,
   heightMm: number,
 ): DesignPlacement {
-  const widthMm = cornerWidthMm(piece);
-  const { farEdgeMm } = cornerFarEdgeMm({
+  const { alongMm } = cornerAlongWallCentreMm({
     widths: REFERENCE_CORNER_WIDTHS,
     cabinetDepthMm: WORKTOP_DEPTH_MM,
     wall: piece.wall,
@@ -979,10 +979,10 @@ function cornerPlacement(
   return placement(
     id,
     piece.wall,
-    farEdgeMm - widthMm / 2,
+    alongMm,
     y0Mm,
     buildId,
-    widthMm,
+    cornerWidthMm(piece),
     heightMm,
   );
 }

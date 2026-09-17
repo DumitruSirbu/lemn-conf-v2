@@ -10,13 +10,18 @@
 //
 // **Three entry points, each named for its own quantifier** (adjudication D1, D2), because "the
 // corner's reach" is two different questions and answering both with one function is how the shell
-// silently acquires the policy's number:
+// silently acquires the policy's number. The second answers in two halves — an edge and a centre —
+// which share that one quantifier and differ by half a width:
 //
 // 1. `cornerAssemblyWidthsMm` — the four along-wall widths at one (depth, room). **The room enters
 //    as a ceiling and never as a target** (ADR 0120 Amendment A): a corner is built to the
 //    reference kitchen's own size unless the wall cannot hold it, and never wider.
-// 2. `cornerFarEdgeMm` — where one piece stops along its wall. Arithmetic over (1), band-aware, and
-//    it reads no room, no policy and no catalogue row.
+// 2. `cornerFarEdgeMm` — where one piece stops along its wall — and `cornerAlongWallCentreMm`, the
+//    coordinate a placement carries. Both are arithmetic over (1), band-aware, and read no policy
+//    and no catalogue row; the room they answer in is the one (1) was derived for, carried so a
+//    refusal can name it and never computed from. **The centre is where the millimetre grid binds**:
+//    a piece is placed on its centre, so an odd width would put that centre on a half millimetre,
+//    which `docs/best-practices/product-invariants.md` rejects rather than rounds.
 // 3. `narrowestCornerReachMm` — the least length a wall may have and still hold a corner at all,
 //    which is the **narrowest** corner the product builds, at whichever declared depth reaches
 //    farthest. **It takes no room**: under J1′ the corner shrinks to fit, so the binding case is
@@ -72,6 +77,9 @@ export interface SizedCornerPiece extends CornerAssemblyPiece {
  *  — the same reason `setCabinetDepth` takes a catalogue *factory* rather than a catalogue. */
 export interface CornerAssemblyWidthsMm {
   readonly cabinetDepthMm: number;
+  /** The room these widths were derived in, for the same reason the depth is carried: a refusal
+   *  downstream names the room that produced the number rather than leaving a reader to find it. */
+  readonly room: DesignRoom;
   readonly pieces: readonly SizedCornerPiece[];
 }
 
@@ -97,6 +105,14 @@ export interface CornerFarEdge {
   readonly farEdgeMm: number;
 }
 
+/** Where one piece's centre sits along its wall. **A centre, not a far edge**: the two differ by
+ *  half a width, and a distinct type is what stops a caller placing a piece on the wrong one. */
+export interface CornerAlongWallCentre {
+  readonly wall: DesignWall;
+  readonly band: CornerBand;
+  readonly alongMm: number;
+}
+
 /** The least length a wall may have and still hold a corner at all. **A wall minimum, not a far
  *  edge**, and no room took part in deriving it. */
 export interface NarrowestCornerReach {
@@ -110,6 +126,7 @@ export function cornerAssemblyWidthsMm(
 ): CornerAssemblyWidthsMm {
   return {
     cabinetDepthMm: query.cabinetDepthMm,
+    room: query.room,
     pieces: CORNER_ASSEMBLY_PIECES.map((piece) => ({
       ...piece,
       widthMm: widthInRoomMm(piece, query),
@@ -151,6 +168,45 @@ export function cornerFarEdgeMm(query: CornerFarEdgeQuery): CornerFarEdge {
     band: query.band,
     farEdgeMm: nearEdgeMm(piece, query.cabinetDepthMm) + piece.widthMm,
   };
+}
+
+/** Where one piece is centred along its wall — the coordinate a `DesignPlacement` carries, so this
+ *  is the last arithmetic before a derived width becomes a persisted number.
+ *
+ *  **A half-millimetre centre is refused, never rounded** (`docs/best-practices/product-invariants.md`):
+ *  the persisted `Design` holds integer millimetres, and rounding one here would move the piece off
+ *  the wall end its own width was derived from. Every derived width is even today — the room only
+ *  binds below 900 mm, and the walls a customer may enter start at 900 / 1000 (ADR 0125) — so this
+ *  fires for no shipped room; it is what stops the first odd width from being written silently. */
+export function cornerAlongWallCentreMm(
+  query: CornerFarEdgeQuery,
+): CornerAlongWallCentre {
+  const { widthMm } = sizedPieceOf(query);
+  const { farEdgeMm } = cornerFarEdgeMm(query);
+  const centre = {
+    wall: query.wall,
+    band: query.band,
+    alongMm: farEdgeMm - widthMm / 2,
+  };
+  refuseAHalfMillimetreCentre({ centre, widthMm, room: query.widths.room });
+  return centre;
+}
+
+function refuseAHalfMillimetreCentre(placed: {
+  readonly centre: CornerAlongWallCentre;
+  readonly widthMm: number;
+  readonly room: DesignRoom;
+}): void {
+  if (
+    Number.isInteger(placed.widthMm) &&
+    Number.isInteger(placed.centre.alongMm)
+  ) {
+    return;
+  }
+  const { wall, band, alongMm } = placed.centre;
+  throw new Error(
+    `cornerAlongWallCentreMm: the wall ${wall} ${band} corner is ${String(placed.widthMm)} mm wide in the ${String(placed.room.widthMm)} × ${String(placed.room.depthMm)} mm room, so its centre falls on ${String(alongMm)} mm — a persisted design holds whole millimetres`,
+  );
 }
 
 function sizedPieceOf(query: CornerFarEdgeQuery): SizedCornerPiece {
@@ -227,10 +283,20 @@ function nearEdgeMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
 ): number {
-  if (piece.wall !== WALL_THE_CORNER_IS_TAKEN_FROM) return 0;
-  return piece.band === "base"
+  if (ownsTheCorner(piece)) return 0;
+  return standsInTheBaseRow(piece)
     ? baseSeatDepthMm(cabinetDepthMm)
     : wallCarcassDepthMm(cabinetDepthMm);
+}
+
+/** Wall A's pieces start at the corner itself, so nothing of the other wall stands in front of them
+ *  and nothing of the other wall moves them. */
+function ownsTheCorner(piece: CornerAssemblyPiece): boolean {
+  return piece.wall !== WALL_THE_CORNER_IS_TAKEN_FROM;
+}
+
+function standsInTheBaseRow(piece: CornerAssemblyPiece): boolean {
+  return piece.band === "base";
 }
 
 /** The narrowest this piece is ever built: the blind span it has to cover before it is a cabinet at
@@ -253,9 +319,7 @@ function blindSpanMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
 ): number {
-  return piece.wall === WALL_THE_CORNER_IS_TAKEN_FROM
-    ? 0
-    : baseSeatDepthMm(cabinetDepthMm);
+  return ownsTheCorner(piece) ? baseSeatDepthMm(cabinetDepthMm) : 0;
 }
 
 /** The owner's rule of 2026-09-16 — *"corner cabinet should have at least one door so calculate to

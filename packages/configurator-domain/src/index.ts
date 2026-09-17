@@ -253,10 +253,12 @@ export {
   type URoomInput,
 } from "./room/validate-room.js";
 // **How wide the corner assembly is built** (7D6's J1′, ADR 0120 Amendment A). Three entry points
-// and no fourth: `narrowestCornerReachMm` answers the *bound* and takes no room, the other two
-// answer one (depth, room), and their return types differ so the two questions cannot be confused
-// at a call site. Exported for wave 7D7's builders, which take the corner's size as a parameter
-// instead of holding it as a literal.
+// published and no fourth: `narrowestCornerReachMm` answers the *bound* and takes no room, the
+// other two answer one (depth, room), and their return types differ so the two questions cannot be
+// confused at a call site. Exported for wave 7D7's builders, which take the corner's size as a
+// parameter instead of holding it as a literal. The module's `cornerAlongWallCentreMm` — the far
+// edge's other half, which refuses a centre that is not a whole millimetre — stays in the package:
+// the fixture is its only caller, and nothing outside the domain places a corner.
 export {
   CORNER_ASSEMBLY_PIECES,
   cornerAssemblyWidthsMm,

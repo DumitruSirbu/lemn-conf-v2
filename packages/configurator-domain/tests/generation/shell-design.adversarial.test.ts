@@ -1230,8 +1230,13 @@ describe("buildLShellDesign — the engine's own limits (R1.2)", () => {
    *  **no product path reaches it**: a customer's room is judged against `APPROVED_ROOM_POLICY`
    *  (`apps/web/src/room/room-url-state.ts`), whose minima are the 900 × 1000 swept here.
    *
-   *  Read off the policy rather than typed, so it collapses back onto the engine's own minimum in the
-   *  commit that makes the shell place a corner sized for its room. */
+   *  Read off the policy rather than typed, so a bound the owner moves moves this sweep with it.
+   *  **It does not return to the engine's minimum in 7D7, or ever**: ADR 0125 keeps the approved
+   *  minima at 900 and 1000 deliberately above what the engine admits, so the smallest room a
+   *  customer can enter stays there after the shell is parameterised. The engine-minimum arm lives
+   *  in `tests/qa-7d6-the-room-term-and-the-engine-window.adversarial.test.ts` (*the engine admits a
+   *  room the shell cannot yet furnish*), where 880 × 880 is built and its overflow held as the
+   *  `it.fails` wave 7D7 clears. */
   function smallestRoomTheShellPlacesItsCornerIn(): {
     readonly widthMm: number;
     readonly depthMm: number;

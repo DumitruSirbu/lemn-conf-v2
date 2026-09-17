@@ -19,6 +19,13 @@
 // and **wave 7D7 is where the shell places a room-sized corner**, so the invariant is asserted as an
 // `it.fails`: it runs, it names the correct behaviour, and it turns red the moment 7D7 makes it true
 // (`docs/best-practices/engineering-conventions.md`, *A deferred test has two shapes*).
+//
+// **3. Two values nothing in the suite can see, added on the wave's review.** A band filter whose
+// `>=` no reach can distinguish from `>` — the wall and top rows share a catalogue row and a near
+// edge, so their far edges are equal in every room at every depth — and a corner centre that lands
+// on a half millimetre, which is unreachable from a shipped room and one odd derived width away.
+// Both are asserted where the value is, because neither can be observed through anything built from
+// it.
 import { fc } from "@fast-check/vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -44,6 +51,9 @@ import {
   type LWallBounds,
   type MillimetreBounds,
 } from "../src/index.js";
+import { cornerAlongWallCentreMm } from "../src/corner-assembly-size.js";
+import { BANDS_ABOVE_THE_WALL_ROW_FLOOR } from "../src/generation/shell-design.js";
+import { LEVELS } from "../src/module-grid.js";
 import { ENGINE_ROOM_LIMITS } from "../src/room/room-policy.js";
 
 const OCCURRED_AT = "2026-09-17T09:00:00.000Z";
@@ -366,6 +376,12 @@ describe("the engine admits a room the shell cannot yet furnish (7D6 S2's record
   // **Expected to fail until wave 7D7**, which is where the shell places a room-sized corner. It
   // asserts the correct behaviour, so it turns red the moment 7D7 makes it true and the debt clears
   // itself instead of depending on someone remembering this file.
+  //
+  // **The self-clearance is verified, not assumed** (`engineering-conventions.md`, *Verify that the
+  // mechanism self-clears*): on 2026-09-18 the sweep was pointed at the reference room instead of
+  // `ENGINE_ONLY_ROOMS`, which makes the assertion pass, and this marker went red with *Expect test
+  // to fail*; the sweep was then restored. So a green run of this file is evidence that the rooms
+  // below still overflow, and not that the marker asserts nothing.
   it.fails(
     "places its whole corner inside both walls of every room the engine admits (7D7)",
     () => {
@@ -456,6 +472,129 @@ describe("ENGINE_ROOM_LIMITS stays off the package's public surface", () => {
     expect(code).not.toMatch(/\bENGINE_ROOM_LIMITS\b/);
     expect(code).not.toMatch(
       /export\s+\*\s+from\s+["']\.\/room\/room-policy\.js["']/,
+    );
+  });
+});
+
+// =================================================================================================
+// The band filter's `>=`, which no origin the shell computes can tell from `>`
+// =================================================================================================
+
+describe("the rows a wall-only run has to start past (7D6 QA's band-filter mutant)", () => {
+  /** The grid's own row floors, in the order `CORNER_BANDS` lists the bands. */
+  const rowFloorsM = LEVELS.map(([floorM]) => floorM);
+  const baseRowFloorM = Number(rowFloorsM[0]);
+  const wallRowFloorM = Number(rowFloorsM[1]);
+  const topRowFloorM = Number(rowFloorsM[2]);
+
+  it("is exactly the wall and top rows", () => {
+    expect(BANDS_ABOVE_THE_WALL_ROW_FLOOR).toStrictEqual(["wall", "top"]);
+  });
+
+  // Why the membership is asserted directly instead of through a run origin: the bound the filter
+  // compares against is the wall row's own floor, so the wall row is the only band that can ride the
+  // equality — the base row is excluded strictly and the top row admitted strictly, and neither of
+  // those two can witness the operator.
+  it("stands the base row strictly below that bound and the top row strictly above it", () => {
+    expect(baseRowFloorM).toBeLessThan(wallRowFloorM);
+    expect(topRowFloorM).toBeGreaterThan(wallRowFloorM);
+  });
+
+  // And why dropping it changes nothing measurable: the wall and top pieces read the same catalogue
+  // row for their one-door floor and take the same near-edge branch, so their far edges are equal in
+  // every room at every declared depth — `Math.max` over the two cannot see one of them leave. The
+  // day wave 7D7 sizes the two rows differently this goes red, and the mutant becomes observable
+  // through an origin for the first time.
+  it("leaves the wall and top pieces sharing one far edge, in every room and at every depth", () => {
+    const rooms = [
+      { shape: "L" as const, widthMm: 900, depthMm: 1000, heightMm: 2200 },
+      { shape: "L" as const, widthMm: 3560, depthMm: 2920, heightMm: 2600 },
+      { shape: "L" as const, widthMm: 6000, depthMm: 6000, heightMm: 2600 },
+    ];
+
+    for (const room of rooms) {
+      for (const cabinetDepthMm of declaredCabinetDepthsMm()) {
+        const widths = cornerAssemblyWidthsMm({ cabinetDepthMm, room });
+        const farEdgeOf = (band: "wall" | "top") =>
+          cornerFarEdgeMm({ widths, cabinetDepthMm, wall: "B", band })
+            .farEdgeMm;
+
+        expect(
+          farEdgeOf("wall"),
+          `${JSON.stringify(room)} at ${String(cabinetDepthMm)} mm`,
+        ).toBe(farEdgeOf("top"));
+      }
+    }
+  });
+});
+
+// =================================================================================================
+// A corner centre is a whole millimetre or a refusal (the wave's review, N1)
+// =================================================================================================
+
+describe("an odd corner width is refused rather than centred on a half millimetre", () => {
+  /** A room the **engine** admits — 880 is its floor — whose wall A is odd, so the room term binds
+   *  at an odd number. No approved room reaches it: `APPROVED_ROOM_POLICY` floors wall A at 900,
+   *  above the point where the ceiling binds at all (ADR 0125). */
+  const ODD_WALL_ROOM: DesignRoom = {
+    shape: "L",
+    widthMm: 881,
+    depthMm: 881,
+    heightMm: 2200,
+  };
+
+  it("derives that odd width, which is what makes a half-millimetre centre reachable", () => {
+    expect(ODD_WALL_ROOM.widthMm).toBeGreaterThanOrEqual(ENGINE_L.wallA.minMm);
+    expect(
+      widthOf(
+        { wall: "A", band: "base" },
+        ODD_WALL_ROOM,
+        SHIPPED_CABINET_DEPTH_MM,
+      ),
+    ).toBe(881);
+  });
+
+  it("refuses the centre it would be placed on, naming the piece and the room", () => {
+    const widths = cornerAssemblyWidthsMm({
+      cabinetDepthMm: SHIPPED_CABINET_DEPTH_MM,
+      room: ODD_WALL_ROOM,
+    });
+
+    expect(() =>
+      cornerAlongWallCentreMm({
+        widths,
+        cabinetDepthMm: SHIPPED_CABINET_DEPTH_MM,
+        wall: "A",
+        band: "base",
+      }),
+    ).toThrow(
+      /wall A base corner is 881 mm wide in the 881 × 881 mm room, so its centre falls on 440\.5 mm/,
+    );
+  });
+
+  it("answers a whole millimetre for every piece of every approved room, at both depths", () => {
+    fc.assert(
+      fc.property(
+        roomFrom(APPROVED_L, fc.constant(2600)),
+        fc.constantFrom(...declaredCabinetDepthsMm()),
+        (room, cabinetDepthMm) => {
+          const widths = cornerAssemblyWidthsMm({ cabinetDepthMm, room });
+          for (const piece of CORNER_ASSEMBLY_PIECES) {
+            const { alongMm } = cornerAlongWallCentreMm({
+              widths,
+              cabinetDepthMm,
+              wall: piece.wall,
+              band: piece.band,
+            });
+
+            expect(
+              Number.isInteger(alongMm),
+              `${piece.wall}/${piece.band} of ${JSON.stringify(room)} at ${String(cabinetDepthMm)} mm sits on ${String(alongMm)}`,
+            ).toBe(true);
+          }
+        },
+      ),
+      { numRuns: 200 },
     );
   });
 });
