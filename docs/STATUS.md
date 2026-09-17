@@ -952,6 +952,20 @@ policy, so every per-endpoint limit is application code.
 > — both have their dependencies met (7D4 and 7D3 through it; 7F1 and 7D2) and no unresolved owner
 > question gating dispatch.
 
+> **RESUME HERE — 2026-09-17, later still. Owner ruling on 7D6's Q-K1 (jointly 7D7's Q-7D7-2):
+> [ADR 0125](decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).**
+> Put once, the owner first rejected the question's wording — a corner cannot be "200 mm" when it
+> spans two walls — then gave the arithmetic that matches 7D7's own floor exactly: 200 mm per leg,
+> 400 mm minimum corner. Put again with the premise corrected, **the owner chose to keep the approved
+> minima at 900 (wall A) and 1000 (wall B)**, a deliberate 20 mm / 120 mm margin above the engine's
+> derived 880/880 floor. **No bound moves, and no room is withdrawn or newly admitted.** Both waves'
+> joint bound slice (7D6-S5 / 7D7-S5) does not dispatch, because no literal in
+> `approved-room-policy.ts` moves; 7D6's criterion 4′ and 7D7's Q-7D7-2 are answered in place; an ADR
+> 0108 amendment narrowing Amendment A ruling 1 to the corner's floor widths is still owed, now
+> unblocked, by whichever wave lands the derivation. **7D6 slice S2 is in flight, concurrently, on
+> `packages/configurator-domain/src`** — this ruling changes no code and touches nothing S2 is
+> writing. **No wave is claimed done by this entry.**
+
 > **RESUME HERE (superseded above, kept for its detail) — 2026-09-17, later the same day still. M7
 > wave 7A3 is DONE, close-out at `6bc1b44`.**
 > Commits: S0 (ADR 0124) `6c8a1bc`; S1 `71aae6d`; S2 `1fac007`; S2 QA `cbd04a8`; S2 review fixes

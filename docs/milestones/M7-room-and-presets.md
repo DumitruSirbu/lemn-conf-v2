@@ -10460,7 +10460,9 @@ minima and the derived reach **agree**, rather than only that the approved ones 
 pinned margin rather than an equality. ADR 0108 B1 permits a margin (`>=`) and only the owner may
 choose one, so an equality would make a legitimate answer to Q-K1 inexpressible while a pinned margin
 is loud in both directions.** *"Not lower"* alone is still refused — it is what already ships and it
-passes on every shrink.
+passes on every shrink. **Q-K1 answered 2026-09-17, option 3: the owner kept 900/1000. The margin
+criterion 4′ pins is now a ruled choice, not a placeholder — see
+[ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).**
 
 ### Module boundaries
 
@@ -10839,6 +10841,11 @@ criterion 1 free pin in spirit — M11's room term is a **ceiling**, not a targe
 
 #### D6 — criterion 4 versus the expected shrink: assert the gap, do not forbid it
 
+**Q-K1 ANSWERED 2026-09-17, option 3 — the owner kept 900/1000 as a deliberate margin.** See
+[ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).
+This section's reasoning for why the margin must be a pinned, asserted gap rather than an equality
+stands unchanged; what changes is that the gap it anticipates is now ruled rather than open.
+
 **Classification: contract gap in this plan.** Criterion 4's **equality** is stricter than the record
 it guards (M8, M9: both the shipped test and ADR 0108 B1 are `>=`), so the one criterion written to
 catch a silent shrink would turn red for a reason that is **not** a shrink, and the cheapest way to
@@ -10864,6 +10871,11 @@ which is the joint 7D6 / 7D7-S5 slice.
   as the mechanism**: ADR 0108 B1 permits a margin and only the owner may choose one.
 - **If the owner answers Q-K1 with option 3** (keep 900 / 1000 as a deliberate product margin above
   the engine's 880), **J4's equality is superseded and that needs a dated record** — see *ADRs owed*.
+  **RULED 2026-09-17: option 3 is what the owner chose.** See
+  [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).
+  The margin `{ wallA: 20, wallB: 120 }` is now a **ruled** margin, not one owed on an open question —
+  `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM`'s name says otherwise and ADR 0125 proposes a rename, not made
+  there or here; it is code, and belongs to whoever lands the derivation.
 
 **Alternatives.** *Keep the equality and let S3 land red until the joint slice* — refused: a red gate
 is not a report, `docs/WORKFLOW.md` does not admit one, and a known-red criterion is the shape that
@@ -10962,7 +10974,11 @@ call site unwritable.
 >     (i) `narrowestCornerReachMm(wall)` — the reach at the corner's **floor** widths, maximised over
 >     `declaredCabinetDepthsMm()` and **taking no room**; (ii) `APPROVED_ROOM_POLICY`'s minimum for
 >     that wall; (iii) their difference, against `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` — today
->     `{ wallA: 20, wallB: 120 }`, dated, with Q-K1 cited beside it. **Must not:** a `>=` check, which
+>     `{ wallA: 20, wallB: 120 }`, dated, with Q-K1 cited beside it. **RULED 2026-09-17 (Q-K1,
+>     [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)):
+>     the owner kept 900/1000, so this margin is a deliberate, approved gap, not one awaiting an
+>     answer — the constant's name is now misleading and a rename is owed to whoever touches this
+>     test next, not made here.** **Must not:** a `>=` check, which
 >     is what already ships and passes on every shrink (M8); an **equality**, which makes an
 >     owner-chosen margin inexpressible although ADR 0108 B1 permits one (M9); a maximum taken over
 >     **rooms**, which is attained in the largest room and pins the bound to the reference corner for
@@ -11022,6 +11038,15 @@ The first bullet's *"one pure function with one caller apiece… Two readers, on
 single-sentence exception), and nothing under `packages/three-adapter` — **stands unchanged.**
 
 #### Q-K1 — the wording for the owner, and it must be put once with Q-7D7-2
+
+**ANSWERED 2026-09-17 — see [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).**
+Put once with the wording below, the owner rejected the premise as first worded — *"Corner cabinets
+can't have 200mm at least on each wall 200 is already 400 mm"* — then gave the arithmetic that
+resolves it, matching 7D7's own 200 mm-per-leg floor: *"200+200 = 400mm the minimum possible
+corner"*. Put again with the premise corrected, **the owner chose option 3: keep 900 and 1000** as a
+deliberate margin above the engine's derived 880/880 floor. **No bound moves.** ADR 0125 carries the
+full exchange, both verbatim answers and which one governs, and the consequences for J4, criterion
+4′ and the joint bound slice below.
 
 **Not to be put by this adjudication. Handed to the coordinator.** **Q-K1 and 7D7's Q-7D7-2 are the
 same question about wall A** and must be put **as one question**, or the same number gets two answers.
@@ -11086,14 +11111,19 @@ for whoever moves that threshold.
 
 #### ADRs owed — named here, deliberately not written
 
-1. **An ADR 0108 amendment, at the joint bound slice.** Amendment A ruling 1 reads *"each L wall
+1. **An ADR 0108 amendment, narrowing Amendment A ruling 1.** Amendment A ruling 1 reads *"each L wall
    minimum is the largest far edge of that wall's structural corner pieces over every declared cabinet
    depth"*. D1 narrows the derivation to **the corner's floor widths** and adds the room to the
-   assembly's sizing. **That is a change to a recorded derivation rule and needs a dated amendment**,
-   written with the owner's Q-K1 answer in hand so the bound and its reason land together.
+   assembly's sizing. **That is a change to a recorded derivation rule and needs a dated amendment**.
+   **No longer gated on Q-K1 — Q-K1 is answered**, see
+   [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).
+   **Still owed and still unwritten**, by whichever wave lands the derivation (7D6 slice S2 or its
+   successor), written against code that has actually shipped rather than a shape planned ahead of it.
 2. **A dated record if the owner chooses option 3.** J4's equality, and criterion 4′'s zero-margin
    expectation, would be superseded by a deliberate product margin. **A milestone entry is not enough
-   for that:** it reverses the direction ADR 0108 B1's guard was written to run in.
+   for that:** it reverses the direction ADR 0108 B1's guard was written to run in. **DONE 2026-09-17
+   — the owner chose option 3.** See
+   [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).
 3. **Nothing else.** ADR 0089 stands unamended (D4), ADR 0110 Amendment B2 is preserved rather than
    changed (D3), ADR 0120 Amendment A needs nothing (its room term is the ceiling this adjudication
    reads it as, M11), and ADR 0102 is applied rather than touched (D4.3).
@@ -11102,8 +11132,10 @@ for whoever moves that threshold.
 
 **S2 is dispatchable now**, with D1's three entry points, D2's signatures, J3′, criteria 1, 2′,
 3 (amended), 5–9 and the new 11–13, and the eight must-nots. **S3 is dispatchable after it**, with
-criterion 4′ and 10 — **and it no longer needs the owner to go green.** The joint bound slice
-(7D6 / 7D7-S5) **remains gated on Q-K1**, which is now written above and is the coordinator's to put.
+criterion 4′ and 10 — **and it no longer needs the owner to go green.** ~~The joint bound slice
+(7D6 / 7D7-S5) **remains gated on Q-K1**, which is now written above and is the coordinator's to put.~~
+**Q-K1 is answered, 2026-09-17 — the owner kept 900/1000** ([ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)).
+**No literal moves, so the joint slice (7D6-S5 / 7D7-S5) does not dispatch.**
 
 ## Wave 7D7 — dispatchable punch list: the corner builders take their size as a parameter
 
@@ -11112,8 +11144,10 @@ criterion 4′ and 10 — **and it no longer needs the owner to go green.** The 
 which post-dates the original plan. **Depends on 7D6** (the domain must know the correct size before a
 builder can be asked to draw it) **and on 7H, for ordering rather than for content.** **Owner answers: Q-7D7-1
 (the corner's floors) is ANSWERED 2026-09-16** — a cabinet with one door at all three levels, which
-derives every floor to **200** and wall B's bound to **880**. **Q-7D7-2 (wall A's minimum moves too, to
-880) is open and gates S5's wall-A half only.** S0–S4 dispatch now.
+derives every floor to **200** and wall B's bound to **880**. ~~**Q-7D7-2 (wall A's minimum moves too, to
+880) is open and gates S5's wall-A half only.**~~ **Q-7D7-2 is ANSWERED 2026-09-17 — the owner kept
+900/1000** ([ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)),
+**and S5 does not dispatch: no literal moves.** S0–S4 dispatch now, ungated.
 
 **This is `DEVELOPMENT-SPEC.md` §13.3 open question 6 being closed:** *"Hob and corner widths are still
 fixed in geometry; parameterising them is the remaining builder work"* (`DEVELOPMENT-SPEC.md:622`,
@@ -11535,8 +11569,9 @@ other half, out of scope); any re-baseline at 600 mm in the reference room.
     that file already states every other boundary. **Must not:** a test that pins the new number
     instead of the outcome; and **must not:** `APPROVED_L_WALL_B_MIN_MM` moving while
     `APPROVED_L_CORNER_REACH_WALL_B_MM`, `floorRunStartMm` and `slideReserveMm`'s consumers do not
-    (L17). **The wall-A half of this criterion waits on Q-7D7-2** — `880 × 880` needs both literals,
-    and only wall B's is ruled.
+    (L17). ~~**The wall-A half of this criterion waits on Q-7D7-2** — `880 × 880` needs both literals,
+    and only wall B's is ruled.~~ **MOOT 2026-09-17: Q-7D7-2 answered, the owner kept 900/1000, no
+    literal moves, this criterion's S5 does not dispatch** ([ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)).
 11. **Must not, wave-wide:** touch `kitchen-shell.ts`, `stage.ts` or the scene wiring — **7H's files**;
     re-baseline anything at 600 mm; change the hob's parameterisation, which is §13.3 q6's other half
     and is not in scope; rename a corner buildId; or give a corner row any editor-facing capability
@@ -11559,14 +11594,20 @@ other half, out of scope); any re-baseline at 600 mm in the reference room.
 - **S4 — the room sweep and the property.** Criteria 3, 5, 7, 9. **The wave is coherent and shippable at
   the end of S4, and it has moved nothing a customer can see — that is stated here, not discovered at
   close-out.**
-- **S5 — the bound. Joint with 7D6, and one commit.** **Q-7D7-1 is answered, so the floors are
+- ~~**S5 — the bound. Joint with 7D6, and one commit.** **Q-7D7-1 is answered, so the floors are
   settled: 200 at every level, read from `HINGED_CABINET_MIN_WIDTH_MM` (L-R7), giving wall B 880.**
   Dispatched **as one commit with 7D6's own bound slice, to one implementer**: the reach derivation,
   `APPROVED_L_WALL_B_MIN_MM` (1000 → 880), `APPROVED_L_CORNER_REACH_WALL_B_MM`,
   `APPROVED_L_CORNER_REACH_WALL_A_MM`, `APPROVED_L_WALL_A_MIN_MM` (900 → 880) and criterion 10's rooms.
   **Wall A's two literals wait on Q-7D7-2** — the X-leg's derivation moves a number ADR 0120 said would
   not move, and that is the owner's to confirm. **If only wall B is cleared, S5 ships wall B and the
-  close-out names wall A as owed**; it does not ship a half-derived X-leg.
+  close-out names wall A as owed**; it does not ship a half-derived X-leg.~~ **NOT DISPATCHED,
+  2026-09-17 — both Q-7D7-1's and Q-7D7-2's answers are in, and the owner's ruling on Q-K1/Q-7D7-2 is
+  to keep 900 and 1000 unchanged** ([ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)).
+  **No literal in `approved-room-policy.ts` moves, so this slice has nothing to ship.**
+  `APPROVED_L_WALL_B_MIN_MM`, `APPROVED_L_WALL_A_MIN_MM` and the corner-reach constants stay exactly
+  as approved. `src/room/approved-room-policy.ts` returns to the plain must-not-change set for this
+  wave, as it does for 7D6.
 
 #### S5 crosses a package boundary inside one slice — the coordinator's ruling, 2026-09-16
 
@@ -11642,12 +11683,21 @@ produces is above** — `F_base = F_upper = 200`, wall B's bound **880**, and th
 is exactly what defuses the 290 mm cliff. **Asking all three parts is what made a one-sentence rule
 sufficient**; asked as one floor, the same sentence would have moved the bound by 30 mm.
 
-**S5's gate is lifted on the floors.** It is **not** lifted on Q-7D7-2.
+**S5's gate is lifted on the floors.** ~~It is **not** lifted on Q-7D7-2.~~ **Q-7D7-2 is answered
+2026-09-17 (the owner kept 900/1000), and S5 does not dispatch on that answer either — see the
+slice note below and [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).**
 
-#### Q-7D7-2 — wall A's minimum moves too, and it is an approved number ADR 0120 said would not move
+#### ~~Q-7D7-2 — wall A's minimum moves too, and it is an approved number ADR 0120 said would not move~~ ANSWERED 2026-09-17, by the same ruling as 7D6's Q-K1
 
-**Open. Blocks S5's wall-A half only; the wall-B half is ungated.** It is the coordinator's to put,
-and it is a **confirmation**, not a design question.
+**Struck rather than deleted, because the question is what the owner answered.** This was, by this
+section's own words, "the same question about wall A" that 7D6's Q-K1 put for wall B, and both were
+put to the owner **as one question**, per 7D6's own instruction. **The owner chose option 3: keep
+900 and 1000 (wall A included) as a deliberate margin above the engine's derived 880/880.** See
+[ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).
+**`APPROVED_L_WALL_A_MIN_MM` does not move.** S5 does not dispatch — see the amended slice note below.
+
+**Formerly: Open. Blocks S5's wall-A half only; the wall-B half is ungated.** It was the coordinator's
+to put, and it was a **confirmation**, not a design question.
 
 ADR 0120 Amendment A states *"Wall A does not move at either depth, because the corner is taken out of
 wall B."* **That is true of a fixed 900 mm X-leg and stops being true the moment the X-leg is derived**
