@@ -1538,6 +1538,7 @@ table.
 | **7B** | Preset matching: ±600 window, fit, availability, one evaluation. **DEFERRED PAST M8 with the rest of the preset story (coordinator, 2026-09-15) — and this is DERIVED, not an independent choice**: matching searches the preset library, and **there is no library until the owner authors one**, which the owner has deferred past M8. It is not separately revisable — if the preset store moves, this moves with it, for that reason and no other | *carried* files; revised criteria below | 7A, **and a populated library** | Full | No | — |
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes. **DEFERRED PAST M8**, by 7B's derivation — it adapts what 7B matched, so it cannot precede it | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
+| **7A3** | **The wall maxima become 6000 mm each, and the field says what number to type.** Two recorded owner rulings, both unbuilt at HEAD: the ruled **6000 mm per wall** (ADR 0120 Amendment B2, unapplied — the literals are still 6300 / 5100) and the **"Perete A" field copy** that names the wrong quantity (ADR 0120 Amendment D's *"the only C1 obligation"*, with no wave until this one). **It is not a two-literal edit**: wall B's approved maximum would cross `MAX_ROOM_DEPTH_MM`, which is the `DesignRoomSchema` wire bound, so the room passes Step 1 and the design cannot be stored — **measured**. **PLANNED — see [Wave 7A3 — the plan](#wave-7a3--the-plan-2026-09-17-the-wall-maxima-become-6000-mm-each-and-the-field-says-what-number-to-type)** | `src/room/approved-room-policy.ts`, `src/design-bounds.ts`; then `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json` + `ru.json` | **7D8 closed** (its re-keyed arm governs 91.0 % of the rooms this wave admits). Not in flight with 7D5, 7D6 or 7D7 | **Full** (domain bound + a wire bound) | **Yes**, slice S3 only | **Both rulings are recorded; one instrument is questioned.** Q-7A3-1 (the owner's) — the owner named a **tooltip**, and a tooltip is only read by a customer who taps it; **gates S3 and nothing else**. Q-7A3-2 (the coordinator's) — whether the label slice detaches to 7F2 if Q-7A3-1 is unanswered when S1–S2 close |
 | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
@@ -13939,3 +13940,467 @@ sentence rather than implied by silence. **The close-out states three things pla
 grant of H13 has no automated witness and was proved (or not) by hand; that every preset authored
 before 7G has no thumbnail and is 7G's backfill to repair; and **whether the two environment
 variables have been set in any deployed environment — by the owner, never by an agent.**
+
+## Wave 7A3 — the plan, 2026-09-17: the wall maxima become 6000 mm each, and the field says what number to type
+
+> **Evidence tiers, on every load-bearing claim.** **[measured]** — executed today against a `tsc`
+> build of `packages/configurator-domain/src` taken at HEAD `8b73439` into a scratch `outDir`, never
+> against the checked-in `dist`, with the figures printed. **[source-verified]** — read at HEAD today.
+> **[computed]** — arithmetic on a measured value, shown. **[inference]** — reasoned, and marked so it
+> can be argued with. **Nothing in this plan was run against a modified tree**: the proposed policy was
+> simulated by constructing a `RoomPolicy` object and handing it to `validateRoomInput`, which takes
+> the policy as an argument. **No source file was edited by this pass.**
+
+### Goal
+
+Apply two owner rulings that are recorded and unbuilt, and stop at their edges.
+
+1. **Every wall's approved maximum becomes 6000 mm.** Owner, 2026-09-15: *"Gemini mentioned that a
+   good functional kitchen in sum on all walls should have maximum 8 meters, but I am ok to have
+   maximum 6 meters per wall… lets stick to 6 now for each of the wall."* Recorded as
+   [ADR 0120](../decisions/0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+   Amendment B2 — *"The owner separately ruled **6000 mm per wall**, and that ruling stands"* — and
+   Amendment C1's closing line, *"the ruled 6000 mm per wall is **not yet applied to the policy
+   literals** — they are still 6300 / 5100 at HEAD."* **Confirmed at HEAD: `approved-room-policy.ts:16`
+   is `6300` and `:20` is `5100`. [source-verified]**
+2. **The length fields ask for the length the customer wants furnished, and say so.** ADR 0120
+   Amendment C1 and Amendment D1. The form says *"Perete A" / "Perete B" / "Perete C"* — *wall A, wall
+   B, wall C* (`apps/web/src/messages/ro.json:54-58`, read by `dimensions-form.tsx:39-43`).
+   **[source-verified]** D1 ruled that the entered number is *the whole of what the product knows about
+   that wall* and refused the second field, which makes the label the only place the customer is told
+   what to type and leaves no second source to correct it.
+
+**What this wave does not do.** It does not repair
+[ADR 0122](../decisions/0122-a-wall-cabinet-may-widen-over-floor-nothing-records-and-the-column-model-is-why.md)
+(a widened wall cabinet leaving floor unrecorded — **ruled to ship as is**); it does not implement
+ADR 0120 C2's wider-wall keying beyond what 7D8 already shipped; and it does not write 7F2's refusal
+sentence.
+
+### The measurement that re-scopes the wave, and it is the whole reason this is not a two-literal edit
+
+**Wall B's approved maximum would cross the wire bound that lets a design be stored.**
+
+`design-bounds.ts:56-58` derives the room's wire bounds from the seeded scene shell:
+`MAX_ROOM_WIDTH_MM = 4200 × 1.5 = 6300` and `MAX_ROOM_DEPTH_MM = 3400 × 1.5 = 5100` —
+**printed from the build, not read off the arithmetic. [measured]** `design.ts:146-148` makes them
+`DesignRoomSchema`'s bounds, and `room-policy.ts:105-106` makes them `ENGINE_ROOM_LIMITS`' maxima.
+
+Two things follow, and the second is the one that would reach a customer:
+
+- **`approved-room-policy.test.ts:83` goes red on the edit itself.** It asserts
+  `expect(approved.maxMm).toBeLessThanOrEqual(engine.maxMm)` for each of wall A, wall B and the
+  height. An approved wall-B maximum of 6000 against an engine ceiling of 5100 fails it.
+  **[source-verified]** That is the guard working exactly as its head comment says it should — *"an
+  engineering change that moves a limit past an approved bound turns red here and goes back to the
+  owner"* — and it is the reason this defect cannot ship silently.
+- **Without that guard it would have shipped silently, because the two validators are not chained.**
+  Simulated with the proposed policy: `validateRoomInput` **accepts** a 6000 × 6000 L, returns
+  `{"shape":"L","widthMm":6000,"depthMm":6000,"heightMm":2600}`, and `DesignRoomSchema.safeParse` of
+  that very object is **REFUSED — `depthMm: Too big: expected number to be <=5100`. [measured]** A
+  customer would clear Step 1 and the mint would refuse their design.
+
+**The boundary quartet under the proposed policy, executed: [measured]**
+
+| room | proposed policy | current policy |
+| --- | --- | --- |
+| 6000 × 6000 | accepted | refused, `wallB: WALL_TOO_LONG` |
+| 6001 × 6000 | refused, `wallA: WALL_TOO_LONG` | — |
+| 6000 × 6001 | refused, `wallB: WALL_TOO_LONG` | — |
+| 900 × 6000 | accepted | — |
+| 6000 × 5101 | — | refused, `wallB: WALL_TOO_LONG` |
+| 6300 × 5100 | **refused**, `wallA: WALL_TOO_LONG` | accepted |
+
+**So the wave has a second production file, and it is a security-adjacent one.** `MAX_ROOM_DEPTH_MM`
+must move before the policy literal does, or with it in the same commit.
+
+### How `MAX_ROOM_DEPTH_MM` moves — adjudicated, with the alternatives
+
+**The bound may not be derived from the approved policy.** That would make
+`approved-room-policy.test.ts:83` vacuous — `approved ≤ engine` cannot fail when `engine` is computed
+from `approved` — and the guard it deletes is the one that just caught this defect. **[inference, and
+the strongest one here.]** `design-bounds.ts`' own head comment already refuses the mirror image of
+this (*"Deriving the shell from `MAX_ROOM_*` would close the circle the other way round"*).
+
+**Ruled: the two horizontal wire bounds become one number, `4200 × 1.5 = 6300`, applied to both axes.**
+
+The 4200/3400 asymmetry is the **seeded scene shell's**, and wave 7H retired that shell as "the room";
+`design-bounds.ts:32-43` says so in its own words (*"Both wall planes stopped being constants in that
+wave"*). ADR 0120 D1 then made wall A and wall B **the same kind of quantity** — a run the customer
+asked to furnish — so there is no remaining reason for the two axes to carry different ceilings. One
+number, derived from the longer seeded side, is the smallest honest change that clears 6000.
+
+**What it costs, all of it measured or computed:**
+
+| constant | at HEAD | after | why |
+| --- | ---: | ---: | --- |
+| `MAX_ROOM_WIDTH_MM` | 6300 | 6300 | unchanged |
+| `MAX_ROOM_DEPTH_MM` | 5100 | 6300 | the axis that moves |
+| headroom over the approved 6000 | A: 300, B: **−900** | A: 300, B: 300 | symmetric, and the guard stays real |
+| `MAX_EMPTY_COLUMNS` | 1262 | **1262** | `max(runs)/10 + 1) × 2` — the max was already 6300 |
+| `MAX_PLACEMENTS` | 168 | **186** | `(⌊6300/200⌋ + ⌊6300/200⌋) × 3` **[computed]** |
+| `MAX_COLUMN_EXTENTS` | 168 | 186 | `= MAX_PLACEMENTS` |
+| `MAX_DESIGN_BYTES` | **337 290** | **349 656** | +12 366 bytes, **+3.67 %** **[measured at HEAD; computed after]** |
+
+**`MAX_DESIGN_BYTES` is SEC-002's request cap** on `PUT /api/designs/[id]`
+(`apps/web/src/app/api/designs/[id]/route.ts:198`). A 3.67 % widening of a DoS budget is the whole
+security cost of this wave, it is stated here rather than discovered at review, and it is **honest
+rather than slack**: wall B really can now carry as many cabinets as wall A.
+
+**Alternatives considered, and why they lose.**
+
+- **Raise `ROOM_HEADROOM_FACTOR` to 2.** Clears 6000 on every axis and keeps the derivation's shape,
+  but inflates the width ceiling to 8400 and the depth to 6800 for no product reason —
+  `MAX_PLACEMENTS` 168 → 228 and `MAX_EMPTY_COLUMNS` 1262 → 1682. **Rejected**: the wave *shrinks*
+  wall A's product maximum to 6000 while doubling its wire ceiling, which is backwards.
+- **Pick the bounds outright.** Rejected: `design-bounds.ts`' stated convention is that each bound is
+  derived from a catalogue or spec constant rather than chosen, and nothing here forces an exception.
+- **Leave wall B at 5100 and apply the ruling to wall A only.** Rejected: the owner said *"6 meters
+  per wall… for each of the wall"*, and half a ruling recorded as done is worse than a ruling
+  deferred.
+
+**This adjudication owes a dated record.** It changes a bound two ADRs describe, so **slice S0 writes
+ADR 0120 Amendment F** (or a standalone ADR if the coordinator prefers, given ADR 0120 already carries
+five amendments and a letter collision with ADR 0110). **This plan is not that record** and must not
+be cited as one. **Not written by this pass, deliberately** — ADR 0120 was last amended on 2026-09-17
+for 7D8 slice S1(b) and this pass does not know whether that file is still held.
+
+### What changes for customers, sized
+
+**On the 1 mm grid, in wall pairs (height is unaffected): [computed]**
+
+| | wall A | wall B | pairs |
+| --- | --- | --- | ---: |
+| at HEAD | 900–6300 (5 401) | 1000–5100 (4 101) | 22 149 501 |
+| after | 900–6000 (5 101) | 1000–6000 (5 001) | 25 510 101 |
+| **withdrawn** | 6001–6300 | 1000–5100 | **1 230 300** |
+| **admitted** | 900–6000 | 5101–6000 | **4 590 900** |
+
+**+15.2 % net, and the two directions are not symmetric — 3.73 admitted for every 1 withdrawn.**
+
+**Swept at 25 mm through `planKitchenComposition` at a 2600 mm ceiling: [measured]**
+
+| band | rooms | compose (`minimumMet`) | max modules | `dropped` non-empty | block column on wall B |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **withdrawn** — A 6025–6300 | 1 980 | **1 980 (100 %)** | 15 | 0 | 0 |
+| **kept** — A ≤ 6000, B ≤ 5100 | 33 825 | 32 097 (94.9 %) | 14 | 4 618 (14.4 %) | 7 626 |
+| **admitted** — B 5125–6000 | 7 380 | **7 380 (100 %)** | **16** | **0** | **6 714 (91.0 %)** |
+
+**Four things that table says, and each is a criterion below.**
+
+1. **The withdrawal takes away 1 980 rooms that all build correctly today.** Nothing is being
+   repaired. It is a product decision the owner made, and the close-out says so rather than letting it
+   read as a fix.
+2. **The admitted band composes designs two modules larger than anything the product has ever
+   composed** — 16 against a previous ceiling of 14. Nothing breaks at 16 (`MAX_PLACEMENTS` is 168),
+   but no recorded artefact covers it.
+3. **The admitted band is structurally *narrower* than the kept band, not wider.** It drops nothing in
+   any of its 7 380 rooms, it never composes `base-hob-oven` (0 of 7 380, against 33.3 % of the kept
+   band), and it never produces a kitchen with no drawer body. **It is uniformly the "big room,
+   everything fits" regime.** The reassuring half, measured rather than hoped: **the admitted band
+   produces no `buildId` the kept band does not already produce — the set difference is empty.
+   [measured]**
+4. **`ROOM_TOO_SMALL_FOR_KITCHEN` does not move, in arithmetic or in reach.** Every refusal in the
+   sweep is in the kept band (1 728 of 33 825) and both moving bands are 100 % composing — the coupled
+   rule lives at the minima, which this wave does not touch. **[measured]**
+
+### ADR 0121's split — the rule is stated in a quantity, so the population is reported split by it
+
+[ADR 0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)
+decision 5: *an aggregate is not evidence for a rule stated in a quantity; name the discriminating
+sub-population and give its size.* The quantity here is the wall length, and the discriminating
+variable downstream is **which wall is wider**, because that is what 7D8 keys the run on.
+
+| band | composing rooms (25 mm) | **wall B wider** |
+| --- | ---: | ---: |
+| **withdrawn** — A 6025–6300 | 1 980 | **0 (0.0 %)** |
+| kept | 32 097 | 13 242 (41.3 %) |
+| **admitted** — B 5125–6000 | 7 380 | **6 714 (91.0 %)** |
+
+**The population-level consequence, which the aggregate hides: the share of accepted composing rooms
+where wall B is the wider wall goes from 13 242 / 34 077 = 38.86 % to 19 956 / 39 477 = 50.55 %.
+[measured]** The wave removes a band that is **0 %** B-wider and adds one that is **91 %** B-wider.
+
+**So this wave's real risk is not the arithmetic — it is that it shifts the customer population onto
+7D8's freshest and least-settled arm**, and 7D8 is committed but not closed. **Dependency: 7A3 does
+not dispatch until 7D8 closes.** A room that is 91 % likely to be governed by the re-keyed prefix
+should not be admitted while the wave that wrote the re-key still owes its close-out.
+
+### The recorded baselines — ruled: freeze the draw, do not re-capture
+
+**Both recordings are keyed by rooms drawn from the policy itself.**
+`tests/support/composed-run-baseline.ts:82-94`'s `approvedLRoom()` reads `APPROVED_ROOM_POLICY` for its
+`fc.integer` bounds, and both `7d3-composition-baseline.json` and `7d8-re-keyed-baseline.json` are
+keyed by `roomKey(room)` over a draw at `seed 20260916, numRuns 240`. **[source-verified]**
+
+**Measured, by replaying the arbitrary and the `fc.assert` parameters at both rectangles: of the 240
+drawn rooms, only 11 survive the change. [measured]** 33 of the current 240 have wall A > 6000 and
+leave the accepted set; 51 of the proposed 240 have wall B > 5100 and have never been composed by
+anything. `recordedRoom()` throws by design on a room the capture never saw, so the edit reddens
+every property that reads either file.
+
+*(Method, stated so it can be checked: the arbitrary and the assert parameters were replicated against
+`fast-check` 4.9.0 directly, where the suite reaches the same package through `@fast-check/vitest`'s
+re-export. If a reviewer finds the two draw differently, the **11** is wrong and the direction of the
+finding is not.)*
+
+**The designed answer is re-capture** — `composed-run-baseline.ts:308-313` says so in the throw's own
+message. **It is refused here, and the argument is not convenience.**
+
+> **A pre-state recording cannot record a room that had no pre-state.** 51 of the 240 rooms in the
+> new draw are rooms the pre-wave policy *refused*. Re-capturing over the new draw would mint 51 rows
+> of HEAD's own output into a file whose entire purpose is to hold output from **before** the change —
+> output blessed as a baseline by the filename. That is
+> [ADR 0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)'s
+> family, instance 3's shape: the expected value coming from the producer.
+
+**Ruled: `composed-run-baseline.ts` gains a second arbitrary and the two uses separate.**
+
+- **`recordedLRoom()` — frozen** at the bounds the capture was taken over (wall A 900–6300, wall B
+  1000–5100, height 2200–3900), stated as constants in that module beside the recording they belong
+  to. Read by `qa-7d4-nothing-but-the-body-moved.adversarial.test.ts` and
+  `qa-7d8-the-re-keyed-half-recorded.test.ts` — **the two recording-backed suites. Both files keep
+  every key, both JSON files are untouched, and `RE_KEYED_ROOMS = 82` does not move.**
+- **`approvedLRoom()` — keeps reading `APPROVED_ROOM_POLICY`.** Read by
+  `qa-7d4-composed-bodies.adversarial.test.ts`, whose subject is a **live rule** (criteria 6 and 7)
+  and which therefore *should* start sweeping the widened rectangle.
+
+**This is ADR 0121 decision 2 applied to a test fixture: the recording's population and the product's
+policy are two different things that happened to be equal, and this wave is the event that separates
+them.** The separation is the finding; the saved re-capture is a side effect.
+
+**The cost of the separation, measured.** `qa-7d4-composed-bodies.adversarial.test.ts` carries six
+`toBeGreaterThanOrEqual(ARM_FLOOR)` assertions at `ARM_FLOOR = 100` over `SWEEP_RUNS = 1000`, and the
+widened rectangle shifts mass toward large rooms, which is the direction that starves the *small-room*
+arms. **Replayed at the same seed and run count, using the production predicate
+`isComposedStorageSlot` as a plan-level proxy for the suite's own `isComposedSlot`: [measured, proxy]**
+
+| arm | at HEAD | after |
+| --- | ---: | ---: |
+| rooms placed | 876 | 874 |
+| **no composed slot** | **385** | **345** |
+| one composed slot | 169 | 180 |
+| two or more | 322 | 349 |
+
+**No arm approaches 100.** *(Proxy, not the suite's own count: the suite arms on `generateKitchen`'s
+placed modules and this counts `planKitchenComposition`'s planned ones. The margin is 3.45× the floor,
+so the conclusion survives a large proxy error — but the number to quote in the close-out is the
+suite's, from a real run.)*
+
+**One stale citation the widening creates**, and it is prose rather than an assertion:
+`qa-7d4-composed-bodies.adversarial.test.ts:270` cites witness **6229 × 1489 × 2641** for criterion
+6's `{base-3drawer}` case, and the proposed policy refuses a 6229 mm wall. The same figure is repeated
+at two places in this milestone (the 7D4 punch list and its close-out). **A comment whose witness the
+policy no longer accepts is exactly ADR 0119's class**, so the witness is re-measured inside the new
+rectangle and all three places move together, or the citation is marked as measured under the
+pre-7A3 policy. **Not both, and not neither.**
+
+### Slices
+
+Each is one dispatch. **S1 and S2 are within the five-production-file limit; S3 is four.**
+
+| slice | production files | what it is |
+| --- | --- | --- |
+| **S0** | none | The dated record. ADR 0120 Amendment F (or its own ADR): the two horizontal wire bounds become one, with the alternatives above and the `MAX_DESIGN_BYTES` figure. **Nothing else dispatches first.** |
+| **S1** | `tests/support/composed-run-baseline.ts` *(test support; no production file)* | The arbitrary splits into `recordedLRoom()` (frozen) and `approvedLRoom()` (policy-backed). **Lands before S2, and on its own**, so the tree at S1's end proves the recordings are green *without* the policy having moved — which is what makes S2's green mean something. |
+| **S2** | `src/design-bounds.ts`, `src/room/approved-room-policy.ts` **(2)** | `MAX_ROOM_DEPTH_MM` becomes 6300 via a single horizontal run bound; the two policy literals become 6000; every comment the change falsifies is corrected in the same commit. The pins move with them. |
+| **S3** | `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json`, `messages/ru.json` **(4)** | The field copy. **Gated on Q-7A3-1.** |
+
+**S3's dependency is a question, not a file.** If Q-7A3-1 is unanswered when S2 closes, **the wave
+closes on S0–S2 and S3 detaches to 7F2** with the question attached — 7F2 already owns the other
+Step-1 room-copy obligation and would then own both. That is Q-7A3-2, and it is the coordinator's.
+
+### Files this wave touches
+
+**Production (6 across three dispatches):**
+
+- `packages/configurator-domain/src/design-bounds.ts` — the horizontal run bound, and the head
+  comment at `:19-23` which asserts *"the owner-approved maxima … 6300 / 5100 / 3900 — are exactly
+  those three"*, **false after this wave in both halves**.
+- `packages/configurator-domain/src/room/approved-room-policy.ts:16,20` — the two literals, and the
+  head comment recording that they are the owner's numbers.
+- `apps/web/src/room/dimensions-form.tsx`, `apps/web/src/room/room.module.css`,
+  `apps/web/src/messages/ro.json`, `apps/web/src/messages/ru.json` — S3 only.
+
+**Tests and fixtures that hold one of the four numbers and must move with them (not a limit count):**
+
+| file | what it holds |
+| --- | --- |
+| `tests/room/approved-room-policy.test.ts:49-50` | the pin — `wallA: {maxMm: 6300}`, `wallB: {maxMm: 5100}` |
+| `tests/room/room-policy.test.ts:122,126,170-171` | the engine bounds against `MAX_ROOM_*` |
+| `tests/room/validate-room.adversarial.test.ts:107-108,306-307` | a constructed policy at 6300 / 5100 |
+| `tests/room/minimum-kitchen.test.ts:136,147`, `minimum-kitchen.adversarial.test.ts:268,281` | `wallAMax` / `wallBMax` |
+| `tests/empty-columns.test.ts:123`, `qa-5b2a.adversarial.test.ts:141` | `MAX_EMPTY_COLUMNS === (6300/10+1)*2` — **the value does not move; its meaning does** (it is now `max` of two equal runs), so the comment moves even though the number does not |
+| `tests/column-extents.test.ts:366-397` | `MAX_PLACEMENTS`, `MAX_COLUMN_EXTENTS` |
+| `tests/qa-6k-c-frozen-source.adversarial.test.ts:327-328`, `qa-5h.adversarial.test.ts` | derived from `MAX_DESIGN_BYTES` |
+| `apps/web/tests/app/api/designs/payload-limits.test.ts` | the SEC-002 cap |
+| `apps/web/tests/room/qa-7e2-room-href.adversarial.test.ts:19-20` | `fc.integer({min:900,max:6300})` / `{min:1000,max:5100}` |
+| `apps/web/tests/room/qa-7f4a-row-honesty.adversarial.test.ts:36-37` | the same rectangle |
+| `apps/web/tests/room/room-url-state.test.ts:489` | `[6300, 5100, 3900]` |
+| `tests/generation/generate-kitchen.test.ts:474-475`, `tall-end-block.test.ts`, `shell-design.adversarial.test.ts:563`, `qa-7d4-nothing-but-the-body-moved.adversarial.test.ts:94-95`, `drawer-rows.test.ts` | rooms at 6300 × 5100 used as fixtures; **each is triaged rather than swept** — see criterion 11 |
+
+**The working tree is clean at HEAD `8b73439` apart from this plan. [source-verified, `git status`
+re-run at the end of this pass]** An earlier snapshot in this pass's own context showed
+`apps/web/tests/room/room-url-state.test.ts` and eleven other files modified; **that snapshot was
+stale — it was taken at `41181d8`, and the work has since been committed.** It is recorded here
+rather than dropped, because the correction is the point: **the dispatch re-runs `git status` itself
+and does not trust this paragraph**, which will be days old by then.
+
+**No `apps/web/src` file carries either literal. [source-verified]** That is 7F1 criterion 3's claim
+still holding, and this wave is a second test of it.
+
+### Acceptance criteria
+
+**On the numbers.**
+
+1. `APPROVED_ROOM_POLICY` states `wallA.maxMm === 6000` and `wallB.maxMm === 6000`, and
+   `approved-room-policy.test.ts`'s pin asserts both **as literals**, not as a reference to anything
+   derived. The minima — 900 and 1000 — and the height bounds — 2200 and 3900 — are **byte-identical
+   to HEAD**.
+2. `validateRoomInput` under `APPROVED_ROOM_POLICY` **accepts** 6000 × 6000 and **refuses** each of
+   6001 × 6000 (`wallA: WALL_TOO_LONG`) and 6000 × 6001 (`wallB: WALL_TOO_LONG`). The refusal issue
+   carries **only** `field` and `code` — ADR 0108 decision 3, no `limitMm`.
+3. **The end-to-end pair, asserted as one test and this is the criterion the wave exists for:** every
+   room `validateRoomInput` accepts under `APPROVED_ROOM_POLICY` **parses clean through
+   `DesignRoomSchema`**. It fails at HEAD + the policy edit alone with
+   `depthMm: Too big: expected number to be <=5100`, and that failure is demonstrated before the fix
+   lands. **Must not** be written as `MAX_ROOM_DEPTH_MM >= 6000` — that is a restatement of the fix.
+4. `MAX_ROOM_WIDTH_MM === MAX_ROOM_DEPTH_MM`, and **the equality carries a comment naming ADR 0120 D1
+   as its reason** — the two entered numbers are the same kind of quantity. A later reader must not be
+   able to "restore" the asymmetry as a simplification.
+5. `MAX_EMPTY_COLUMNS` is **unchanged at 1262**; `MAX_PLACEMENTS` is **186**; `MAX_COLUMN_EXTENTS`
+   is **186**; `MAX_DESIGN_BYTES` is **349 656**. All four asserted as literals in the same commit
+   that moves them, so the SEC-002 budget cannot drift silently.
+6. **`approved-room-policy.test.ts:83`'s guard still has teeth**: a test proves the guard reddens by
+   constructing a policy one millimetre past the engine ceiling on each of the three fields. If the
+   guard cannot be made to fail, the engine bound has become a function of the approved one and the
+   wave has deleted its own safety net.
+
+**On the population, split by the quantity the rule names (ADR 0121 decision 5).**
+
+7. **The withdrawn band, sized and named:** wall A ∈ [6001, 6300] — **1 980 rooms at 25 mm, 100 % of
+   which compose today**. The close-out states this as *a product decision that takes working rooms
+   away*, never as a fix. A criterion reading *"the policy accepts most rooms"* is refused.
+8. **The admitted band, sized and named:** wall B ∈ [5101, 6000] — **7 380 rooms at 25 mm**. Every one
+   composes with `minimumMet`, none throws, and **the set of `buildId`s it produces is a subset of the
+   set the kept band produces** (measured empty difference — assert the subset, not a fixed list).
+9. **The admitted band's structural uniformity is asserted, because it is what makes it safe and it
+   would be invisible in an aggregate:** across the band, `dropped` is empty in **100 %** of rooms and
+   `base-hob-oven` appears in **0**. If either moves, the band is not the regime this plan measured
+   and the wave stops.
+10. **The wider-wall split is reported in the close-out as three numbers, not one:** withdrawn
+    **0.0 %** B-wider, kept **41.3 %**, admitted **91.0 %**; and the population share moving
+    **38.86 % → 50.55 %**. An aggregate B-wider percentage alone does not discharge this.
+11. **Every fixture room at 6300 × 5100 is triaged, one by one, and the triage is recorded.** Each is
+    either (a) a room the policy still accepts, unchanged; (b) a *deliberate* out-of-policy fixture
+    exercising the engine rather than the product, which keeps its value **and gains a one-line
+    comment saying so**; or (c) moved to 6000 with the reason. **A blind sweep of `6300` → `6000` is a
+    blocker finding**, because `ENGINE_ROOM_LIMITS`-driven suites legitimately use rooms the approved
+    policy refuses.
+
+**On the recordings.**
+
+12. `7d3-composition-baseline.json` and `7d8-re-keyed-baseline.json` are **byte-identical to HEAD** at
+    the wave's end. `git diff --stat` over both is empty, quoted in the close-out.
+13. `qa-7d8-the-re-keyed-half-recorded.test.ts` passes with `RE_KEYED_ROOMS` **still 82**, and
+    `qa-7d4-nothing-but-the-body-moved.adversarial.test.ts` sweeps the **same 240 keys** as at HEAD.
+14. `recordedLRoom()`'s bounds are **stated as constants in `composed-run-baseline.ts` and do not
+    read `APPROVED_ROOM_POLICY`**, and a test asserts that the module's recording-side arbitrary is
+    **not** the policy-side one — so a later tidy-up that "removes the duplication" reddens.
+15. `qa-7d4-composed-bodies.adversarial.test.ts` keeps `approvedLRoom()` and passes over the widened
+    rectangle with **`ARM_FLOOR = 100` unchanged**. The close-out quotes **the suite's own six arm
+    counts from a real run**, not this plan's proxy figures.
+16. `qa-7d4-composed-bodies.adversarial.test.ts:270`'s witness **6229 × 1489 × 2641** is either
+    re-measured inside the new rectangle — with the milestone's two other citations moved in the same
+    commit — or marked in place as *measured under the pre-7A3 policy*. **Leaving it unmarked is a
+    blocker.**
+
+**On the copy (S3 only, and only after Q-7A3-1).**
+
+17. A customer who reads the fields **without any interaction** learns that the number is the length
+    they want furnished. **This is the criterion, and it is stated as a property of the non-interacting
+    customer on purpose**: an instrument that requires a tap does not satisfy it.
+18. The Romanian leaves are in `approved-romanian-messages.ts` and the golden manifest in the same
+    commit, citing ADR 0113 decision 2, **and no existing hash moves except for keys this wave
+    changes**. The Russian is drafted by the same ruling.
+19. **Nothing in the copy states a bound.** No "6 m", no "max", no millimetre — ADR 0108 decision 3,
+    and the existing `dimensions-form.tsx` head comment's *"nothing is painted as an error"* stance is
+    preserved: nothing here turns a field red.
+20. **The refusal sentence is not written.** 7F2 owns it. A leaf added here that reads as a refusal is
+    a scope breach.
+21. `dimensions-form.tsx` keeps its **`Record<RoomLengthField, …>` totality** — a wall added to a
+    shape is still a compile error, not a field with no name (7F1 criterion 4), whatever S3 adds.
+22. **Visual gate at 390 × 844 in both locales, production build**, which is the priority surface. The
+    three fields and the height field are checked for: no clipped or wrapped label that changes the
+    fields' vertical rhythm, and the *Continuă* control still reachable without scrolling past it.
+
+### Risks
+
+| # | risk | mitigation |
+| --- | --- | --- |
+| R1 | **The policy edit lands before `MAX_ROOM_DEPTH_MM`** and a customer clears Step 1 onto a design that cannot be minted. | Criterion 3 fails loudly for exactly this; S2 makes both edits in one commit. |
+| R2 | **Somebody re-captures the baselines** because the throw's message tells them to. | Criteria 12 and 13 assert the files are byte-identical; S1 lands first so the split exists before the throw can fire. |
+| R3 | **A blind `6300` → `6000` sweep** breaks `ENGINE_ROOM_LIMITS`-driven suites, or worse, leaves them green having silently narrowed what they exercise. | Criterion 11 makes the triage per file and recorded. |
+| R4 | **The admitted band is 91 % governed by 7D8's re-key, and 7D8 is not closed.** | Hard dependency: 7A3 does not dispatch until 7D8 closes. |
+| R5 | **The `MAX_DESIGN_BYTES` widening passes review unnoticed** as a derived side effect. | Criterion 5 pins it as a literal; the dispatch names it as a security-adjacent change and the reviewer is told the figure. |
+| R6 | **The tooltip ships and nobody taps it**, so the wrong-quantity defect survives the wave that claimed to fix it. | Criterion 17 is written about a customer who does not interact. Q-7A3-1 puts the instrument back to the owner before S3 exists. |
+| R7 | **This plan's own figures are quoted as settled.** They were measured at HEAD `8b73439` at a 25 mm grid and a 2600 mm ceiling; the 1 mm population and other ceilings are not swept. | Every table above carries its grid and its tier. The close-out re-measures rather than transcribing. |
+| R8 | **The wave spans two packages and thirteen test files**, several of which other M7 waves also touch. | The tree is clean at HEAD `8b73439`, but that will not hold to dispatch: **the dispatch re-runs `git status` and checks `docs/best-practices/agent-coordination.md`'s per-file ownership before S2**, rather than trusting this plan's snapshot. |
+
+### Owner and coordinator questions
+
+**Q-7A3-1 — the owner's, and it gates S3 alone.** The owner's words for the remedy, 2026-09-15:
+*"this can be solved simple with a tooltip that will mention clear what size they should insert the
+wanted lenght of cabinets on specific wall."* **The instrument is put back, and the ruling is not
+reinterpreted here.** Three instruments exist, and the frames constrain the choice:
+
+| | what it costs | what it risks |
+| --- | --- | --- |
+| **(a) A tooltip per field** — the owner's choice | Additive: frame 1B has no tooltip, so **no frame word is overwritten** (ADR 0104, ADR 0113 decision 5). One tap target, one dismiss, one accessible name per field. | **Only read by a customer who taps it.** Under ADR 0120 D1 there is no second source and nothing detects the wrong number, so a customer who does not tap types their wall and the product silently builds the wrong kitchen. |
+| **(b) One hint line above the three fields** — the coordinator's recommendation | One new leaf, no new interaction. **Frame 1A already carries this exact idiom** (`room.shapeLead`, *"Alege conturul pereților pe care va sta bucătăria."*) and frame 1B carries a secondary hint beside the corner question (`room.cornerHint`, *"nu se deduce din lățimi"*), already shipped with its own style. | Adds a line of vertical space above the fields on a 390 px surface. |
+| **(c) Rewrite the three labels** | Always read. | **Overwrites three words the frame states** (`Lemnaria Configurator Mobil.dc.html:159,166`), which ADR 0104 makes the chrome specification, and stretches a 12.5 px bold single-line label. |
+
+**The recommendation is (b), and (a) is not refused — the two compose.** A hint line makes the
+quantity unconditional; the owner's tooltip can carry the longer explanation on top of it. **What the
+plan will not do is ship (a) alone**, because criterion 17 cannot be met by an instrument that
+requires a tap, and it will not ship (c) without the owner's word, because that overwrites the frames.
+**The question in one sentence: may the field group carry a short always-visible line saying the
+number is the length of cabinets you want on that wall — with or without the tooltip on top?**
+
+**Q-7A3-2 — the coordinator's, not blocking.** If Q-7A3-1 is unanswered when S2 closes, does S3
+detach to 7F2 (which already owes the 1C refusal sentence and would then own both Step-1 copy
+obligations), or does the wave hold open? **Recommendation: detach.** S0–S2 are a complete, shippable
+change with no copy in them, and a wave held open on a question is a wave nobody can close.
+
+**Q-7A3-3 — the coordinator's, and it may be answered by fiat.** ADR 0120 already carries amendments
+A–E and shares its letters with ADR 0110 in a way ADR 0120 Amendment E itself flags as a reader
+hazard. Does S0's record go in as **ADR 0120 Amendment F**, or as its own ADR? **Recommendation: its
+own ADR.** Its subject is a *wire bound*, not the room ruling, and it will be cited from
+`design-bounds.ts` rather than from the room code.
+
+### Verification
+
+`pnpm --filter @lemnaria/configurator-domain test` and `pnpm --filter web test`; `typecheck`; `lint`;
+whole-tree `pnpm format:check`; **adversarial QA on S2 with the sabotages named** (revert each policy
+literal; revert `MAX_ROOM_DEPTH_MM`; make `recordedLRoom()` read the policy again; delete criterion 3's
+end-to-end pair); **one combined logic + clean-code review, with the reviewer told that
+`MAX_DESIGN_BYTES` moves**; and **a 390 × 844 production-build visual gate in both locales for S3
+only**. `pnpm ci:local` before any push.
+
+**The close-out states, plainly and without softening:**
+
+- that the withdrawal **takes away 1 980 rooms (at 25 mm) that all compose correctly today**, and that
+  this is the owner's product decision;
+- the **three-way wider-wall split** and the **38.86 % → 50.55 %** population move;
+- the **`MAX_DESIGN_BYTES` figure before and after**, named as a SEC-002 budget change;
+- **the suite's own six arm counts** for `qa-7d4-composed-bodies`, replacing this plan's proxy;
+- and **whether S3 shipped, detached, or was refused** — never silence.
+
+### Outstanding elsewhere, carried here so it is not lost, and **not taken by this wave**
+
+- **Wave 7D8 is committed and not closed.** It owes a close-out, the comment correction at
+  `run-end-panel.ts:94-98` whose stated reason is false under ADR 0120 Amendment D, and a visual check
+  of the end-panel colour. **7A3 depends on that close-out** (R4) and does none of it.
+- **ADR 0122** — a wall cabinet widening over floor nothing records — is **ruled to ship as is**. No
+  repair is planned here and none may be folded in.
+- **ADR 0120 C2's `chooseWallCut` obligation** is partly discharged by 7D8 and its remainder is not
+  this wave's.
