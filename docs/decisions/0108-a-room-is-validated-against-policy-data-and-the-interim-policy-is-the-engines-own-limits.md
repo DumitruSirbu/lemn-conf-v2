@@ -3,7 +3,7 @@
 Status: Accepted (**Amendment A, 2026-09-11** — the L wall minima hold the corner at every declared
 cabinet depth, so wall B's is 1000, not 900; **Amendment B, 2026-09-11** — the owner approved the L
 bounds: wall A 900–6300, wall B 1000–5100, ceiling 2200–3900, held as product data inside the
-engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal)
+engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal; **Amendment F, 2026-09-18** — Amendment A ruling 1 is narrowed to the corner's floor widths at a `(depth, room)` argument, not the reference-sized far edge at a depth alone, and the approved 900/1000 are recorded as [ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)'s deliberate margin above the derived 880/880 floor)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — wave 7A (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -428,3 +428,133 @@ domain API.
 The three exact boundary pairs above, the 900 × 2160 refusal and the generated-kitchen equivalence
 property all pass. The property follows the B→A order from Amendment C: both bodies on A, both on B,
 or sink on B and hob on A. The catalogue's 560 mm manual sink floor remains legal.
+
+## Amendment F — 2026-09-18: Amendment A ruling 1 is narrowed to the corner's floor widths at a `(depth, room)` argument, and the approved 900/1000 are recorded as ADR 0125's deliberate margin
+
+**Owed by [ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)'s
+*Consequences* item 4, unblocked once Q-K1 was answered.** ADR 0125 named this amendment as owed by
+"the wave that lands the derivation — wave 7D6 slice S2, or whichever commit actually implements
+`cornerAssemblyWidthsMm`, `cornerFarEdgeMm` and `narrowestCornerReachMm`". That commit is `bf58f97`
+(wave 7D6 S2); the margin the two functions leave open was pinned by `dcb67ce` (S3). This amendment
+is written against HEAD `9ae586c` on `m7-room-and-presets`, with the values below read from that
+code, not carried forward from the adjudication's estimate.
+
+**Found by logic review finding SF1, 2026-09-18: Amendment A rulings 1 and 2, above, are false of
+HEAD.** Ruling 1 said each L wall minimum is *"the largest far edge of that wall's structural corner
+pieces over every declared cabinet depth"* — a statement about the **reference-sized** pieces stood
+up in `KITCHEN_L_DESIGN`. Ruling 2 said the derivation reads a wall-B piece's position through
+`alongWallPositionAtMm({…})`, the same reader `setCabinetDepth` uses. Neither is true of the code
+that has stood since 7D6 S2 landed:
+
+- **The reader that answers `ENGINE_ROOM_LIMITS`' corner question changed.** `farthestCornerEdgeMm`
+  and its four helpers are gone. `narrowestCornerReachMm(wall)`
+  (`packages/configurator-domain/src/corner-assembly-size.ts:175-190`) is `ENGINE_ROOM_LIMITS`' only
+  corner reader (`room-policy.ts:97-98, 104-106, 144-145`) and takes **no depth and no room** —
+  callers pass only `wall`.
+- **`alongWallPositionAtMm` is not imported.** `room-policy.ts`'s import list
+  (`room-policy.ts:12-25`) has no such name; the module that answers the wall minimum now imports
+  `narrowestCornerReachMm` from `corner-assembly-size.ts` and nothing from `along-wall-chain-shift.ts`
+  or the placement-position readers `setCabinetDepth` uses.
+- **The values moved, 900/1000 → 880/880.** `narrowestCornerReachMm("A").wallMinimumMm` and
+  `narrowestCornerReachMm("B").wallMinimumMm` are each **880**, asserted directly in
+  `packages/configurator-domain/tests/corner-assembly-size.test.ts:702-711` and cited in this ADR's
+  own head comment at `room-policy.ts:140-143`. `APPROVED_ROOM_POLICY`'s 900/1000 are unmoved.
+
+**1. Ruling 1 is narrowed to the corner's floor widths, not the reference-sized ones, at a
+`(depth, room)` argument.** The reference reading measured the far edge of pieces sized to the
+*reference* kitchen (900 mm along each wall at 600 mm depth, ADR 0120's pre-Amendment-A shape). Since
+[ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment A ("every cabinet is custom made, corners included") the corner the generator actually
+builds is sized down to the room it stands in, so the binding case for a wall *minimum* — the
+narrowest corner the product will ever build — is not the reference corner at all. The corrected
+ruling: **each L wall minimum is the farthest reach of that wall's structural corner pieces, built at
+their catalogue **floor** widths (`HINGED_CABINET_MIN_WIDTH_MM = 200`, `catalog.ts:151`, read through
+`base-cabinet` and `wall-cabinet`'s own `minWidthMm` declarations at `catalog.ts:729, 905`), maximised
+over every declared cabinet depth.** The floor, not the reference reach, is what a wall must clear to
+hold a corner *at all* once the corner is allowed to shrink to fit.
+
+The sizing this replaces takes a `(depth, room)` pair, not a depth alone — [ADR
+0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment A's room-adapts-to-fact principle, carried here as `cornerAssemblyWidthsMm({ cabinetDepthMm,
+room })` (`corner-assembly-size.ts:108-118`): **the room enters as a ceiling on each piece's width and
+never as a target** — `min(the reference width, what the wall can still hold)`, floored at the
+piece's own floor (`corner-assembly-size.ts:120-138`). `narrowestCornerReachMm(wall)` itself takes no
+room because the wall-minimum question is answered at the floor, which is room-independent by
+construction (`corner-assembly-size.ts:169-190`'s own head comment) — the room argument belongs to
+the sizing function the wall minimum is derived *from the floor of*, not to the wall-minimum reader.
+
+**Measured, at HEAD, why 880 on both walls.** `base-cabinet` and `wall-cabinet` each declare
+`minWidthMm: HINGED_CABINET_MIN_WIDTH_MM = 200` (`catalog.ts:151, 729, 905`), read once at module load
+by `corner-assembly-size.ts`'s `declaredWidthFloorMm` and refused rather than defaulted if a row ever
+stops declaring one (`corner-assembly-size.ts:285-299`). Wall A carries the blind X-leg alone: its
+floor width is `blindSpanMm(cabinetDepthMm) + 200`, where `blindSpanMm` is the base seat depth the
+X-leg's return sits behind — **780 at 600 mm, 880 at 700 mm** — so wall A's reach maximises to **880**.
+Wall B carries three pieces (base, wall, top); each piece's floor width is `200` and its near edge is
+`max(baseSeatDepthMm(d), wallCarcassDepthMm(d))` depending on band, giving near edges of 580/330 at
+600 mm and 680/400 at 700 mm — so the four reaches are `max(580+200, 680+200, 330+200, 400+200) =
+880`. **Both walls' floor-reach is 880**, verified tight and attained by different pieces at
+different depths — wall A's X-leg at 700 mm, wall B's base piece at 700 mm — in
+`corner-assembly-size.test.ts:681-700`.
+
+**2. The derivation stays probe-free and literal-free, through a different reader than the one
+ruling 2 named.** Ruling 2's *"stands at `alongWallPositionAtMm({…})` — the production reader
+`setCabinetDepth` itself uses"* described how Amendment A's own measurement was taken by hand against
+the reference fixture, before this derivation existed as code. It is not what `narrowestCornerReachMm`
+does. The corrected statement: `narrowestCornerReachMm` computes each piece's near edge with
+`nearEdgeMm` (`corner-assembly-size.ts:226-234`) — pure arithmetic over `baseSeatDepthMm` and
+`wallCarcassDepthMm`, the same catalogue functions `setCabinetDepth` itself calls, but never through
+`setCabinetDepth`, a placement, or `alongWallPositionAtMm` — and adds `narrowestWidthMm`
+(`:238-243`), the floor. No probe, no placement lookup, no import from `room/` (checked by
+`corner-assembly-size.test.ts:713-719` and this file's own head comment at
+`corner-assembly-size.ts:27-30`).
+
+**3. The approved 900/1000 are retained above the derived 880/880 as ADR 0125's deliberate margin,
+not this ADR's engineering finding.** `APPROVED_ROOM_POLICY`'s wall-A and wall-B minima stay 900 and
+1000; `ENGINE_ROOM_LIMITS`' now read 880 and 880 (`room-policy.ts:97-98, 104-106`). The 20 mm and
+120 mm gaps are not an oversight this amendment should close: the owner was asked directly whether to
+lower the approved minima to the derived floor (Q-K1) and chose to keep 900/1000, recorded in
+[ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md).
+This ADR's own decision B1 guard (`expect(approved.minMm).toBeGreaterThanOrEqual(engine.minMm)`,
+`tests/room/approved-room-policy.test.ts`) was written so a shrink of the engine's floor **past** the
+approved bound turns the guard red — the loud direction. Under ADR 0125's ruling the approved bound
+now sits *above* what the engine needs by a margin the owner chose on purpose, so the `>=` guard is
+satisfied by an intentional gap, and the gap's size is asserted separately rather than left as an
+inequality: 7D6 criterion 4′, against `RULED_WALL_MINIMUM_MARGIN_MM` (or whatever name the constant
+carries once the rename ADR 0125 flags — but does not itself make — lands). This amendment records
+the guard's changed meaning; it does not restate ADR 0125's arithmetic or reopen its ruling.
+
+**4. A hazard the review found and this record is the only place it belongs: `ENGINE_ROOM_LIMITS` and
+`APPROVED_ROOM_POLICY` now disagree about what `cornerReachMm` means.**
+`ENGINE_ROOM_LIMITS.buildableShapes.L.minimumKitchen.cornerReachMm` reads `narrowestCornerReachMm`
+directly (`room-policy.ts:103-106`) — the **narrowest** corner, 880/880. `APPROVED_ROOM_POLICY`'s same
+field is the **reference** corner, 900/1000. The two objects' `cornerReachMm` fields now carry
+different meanings under the same shape. **This is harmless today, for two independent reasons that
+must both keep holding**: `ENGINE_ROOM_LIMITS.buildableShapes.L.minimumKitchen.isRequired` is `false`
+(`room-policy.ts:100`), so `validateLRoom` never reads the engine object's `cornerReachMm` at all
+(`validate-room.ts:117-124` reads only `bounds.walls.minimumKitchen`, and the policy handed to
+production is `APPROVED_ROOM_POLICY`); and no test or production code compares the two objects'
+`cornerReachMm` fields to each other. **The trigger that would turn this from a naming oddity into a
+live bug:** anything that makes the engine object's `minimumKitchen.isRequired` true (there is
+currently no code path that does), or any future test or reader that treats the two `cornerReachMm`
+fields as the same quantity and compares them.
+
+## What this amendment does not do
+
+It does not move any literal in `approved-room-policy.ts` — ADR 0125 already ruled that question and
+this amendment cites it rather than restating its arithmetic. It does not rename
+`WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` or whatever constant carries the 20/120 mm gap; ADR 0125 names
+that rename as owed to the commit that touches it, not to this record. It does not change
+`ENGINE_ROOM_LIMITS.minimumKitchen.cornerReachMm`'s value or `isRequired` flag, and does not resolve
+the naming disagreement in item 4 — it records the disagreement and its trigger, per this
+repository's rule that a problem which has not occurred is recorded with its trigger and not built
+for ([ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)).
+
+## Decision-record sweep for this amendment
+
+| Record | What it says | How it is settled here |
+| --- | --- | --- |
+| Amendment A, ruling 1 (this record) | Each L wall minimum is the largest far edge of the reference-sized corner pieces over every declared depth. | **Narrowed.** The binding case is the floor-width corner, room-independent, not the reference-sized one; the derivation's sizing function takes a `(depth, room)` pair, the wall-minimum reader itself takes neither. |
+| Amendment A, ruling 2 (this record) | The derivation reads `alongWallPositionAtMm`, the `setCabinetDepth` reader. | **Corrected.** `narrowestCornerReachMm` reads no placement position at all; it computes near edges directly from `baseSeatDepthMm`/`wallCarcassDepthMm`. `alongWallPositionAtMm` is not imported by `room-policy.ts` or `corner-assembly-size.ts`. |
+| [0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | Q-K1 answered: keep 900/1000 as a deliberate margin above the derived 880/880; this ADR 0108 amendment is owed by the wave that lands the derivation. | **This amendment.** The margin is cited, not re-derived; the rename it flags is left to the commit that makes it. |
+| [0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) Amendment A | Every cabinet is custom made, corners included; the room enters sizing as a ceiling, never a target. | **Carried through** as `cornerAssemblyWidthsMm`'s `(depth, room)` argument, which is what makes the reference-sized reading in the original ruling 1 no longer the binding case. |
+| Logic review finding SF1, 2026-09-18 | Amendment A rulings 1 and 2 are false of HEAD; the reader and the values both moved. | **This amendment**, written and checked against HEAD `9ae586c` rather than against the adjudication's estimate. |

@@ -10697,8 +10697,15 @@ resolved: the least admissible wall is `max over declared depths of the floor re
 - **Containment:** `cornerFarEdgeMm(cornerAssemblyWidthsMm(d, room), wall) ≤ wallLengthMm(wall, room)`
   for every room the approved policy admits and every declared depth. *(This is the monotonicity
   argument's content, asserted directly rather than argued.)*
-- **Attainment:** the reach at the approved minimum room **equals** `narrowestCornerReachMm(wall)` —
-  the bound is tight, not merely safe.
+- **Attainment:** ~~the reach at the approved minimum room **equals** `narrowestCornerReachMm(wall)` —
+  the bound is tight, not merely safe.~~ **Corrected 2026-09-18 (ADR 0108 Amendment F, ADR 0125):**
+  unsatisfiable once the owner ruled the margin — at the approved minimum room (900 × 1000) the reach
+  is the reference corner's 900, not the floor's 880. Both S2's implementer and the logic reviewer
+  flagged the wording; the shipped test asserts the invariant that is actually true instead: **the
+  smallest room the *bound* admits attains the bound exactly** — verified tight at 880 × 880 and
+  attained on wall B by different pieces at different depths
+  (`corner-assembly-size.test.ts:675-700`). No product decision is involved; this is a wording fix to
+  the plan, not a new ruling.
 - **Acyclicity:** the derivation module imports nothing from `room/`, and every
   `ENGINE_ROOM_LIMITS` bound is a finite positive whole number at module load.
 
@@ -11003,8 +11010,14 @@ observation stands as an observation.
 >     1 and 8 cannot see**, because both read the floor run (D3).
 > 12. *(property + unit — what makes the policy's reader well-defined, asserted rather than assumed)*
 >     **Containment:** the derived reach on each wall is `≤` that wall's length, for every admitted
->     room and declared depth. **Attainment:** the reach at the approved minimum room **equals**
->     `narrowestCornerReachMm(wall)`, so the bound is tight and not merely safe. **Acyclicity:** the
+>     room and declared depth. **Attainment:** ~~the reach at the approved minimum room **equals**
+>     `narrowestCornerReachMm(wall)`, so the bound is tight and not merely safe.~~ **Corrected
+>     2026-09-18 (ADR 0108 Amendment F, ADR 0125):** unsatisfiable once the owner ruled the margin —
+>     at 900 × 1000 the reach is the reference corner's 900, not the floor's 880. Flagged by both S2's
+>     implementer and the logic reviewer; the shipped test asserts instead **the smallest room the
+>     *bound* admits attains the bound exactly**, verified tight at 880 × 880 and attained on wall B by
+>     different pieces at different depths (`corner-assembly-size.test.ts:675-700`); no product
+>     decision is involved. **Acyclicity:** the
 >     derivation module imports nothing from `room/`, and every `ENGINE_ROOM_LIMITS` bound is a finite
 >     positive whole number at module load. **Must not:** a bound read as `undefined` at load and
 >     compared silently — `room/room-policy.ts:10-11`'s named failure; a containment property whose
