@@ -261,8 +261,8 @@ export const KITCHEN_TOP_M = Math.max(...LEVELS.map(([, top]) => top));
  * How far every preset stands from what it looks at.
  *
  * **Derived from the kitchen's height and from nothing else**, which is what makes §11 row 21 safe
- * at every room in the policy: the 2.20–2.60 m band projects the same number of pixels in a
- * 900 x 1000 mm kitchen as in a 6300 x 5100 one, because the camera has not moved away from it.
+ * at every room in the policy: the 2.20–2.60 m band projects the same number of pixels in the
+ * policy's smallest kitchen as in its largest, because the camera has not moved away from it.
  * A distance derived from the room's *length* would pull back as the wall grew and take the row
  * with it — measured, a camera far enough back to hold a 6300 mm wall leaves that band at about
  * 25 px of the 44 it owes.

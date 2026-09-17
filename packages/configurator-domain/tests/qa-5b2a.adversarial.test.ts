@@ -89,8 +89,7 @@ function throughTheWire(design: Design): Design {
 describe("the cap and the byte budget carry each other", () => {
   /** The at-cap document the byte budget has to admit is the *largest* one the schema accepts, not
    *  a convenient one: `MAX_PLACEMENTS` placements and `MAX_EMPTY_COLUMNS` empty columns, every
-   *  millimetre value at its ceiling
-   *  and every identifier at `MAX_IDENTIFIER_LENGTH`.
+   *  millimetre value at its ceiling and every identifier at `MAX_IDENTIFIER_LENGTH`.
    *
    *  The identifiers are what make this falsifiable. With the product's own short ids the widest
    *  document is about 80 kB and the pre-wave budget of 87040 already admitted it — so an at-cap

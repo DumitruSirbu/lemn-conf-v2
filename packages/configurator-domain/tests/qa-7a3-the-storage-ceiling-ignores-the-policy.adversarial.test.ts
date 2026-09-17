@@ -52,9 +52,9 @@ describe("the storage ceilings do not follow the approved policy (ADR 0124)", ()
       const probeRooms = await probeRoomsAtTheMovedMaxima(movePolicy);
       const unmoved = await loadStorageCeilings(probeRooms);
 
-      replacePolicyModule(movePolicy);
-      const underMovedPolicy = await loadStorageCeilings(probeRooms);
-      vi.doUnmock(POLICY_MODULE);
+      const underMovedPolicy = await underReplacedPolicy(movePolicy, () =>
+        loadStorageCeilings(probeRooms),
+      );
 
       expect(underMovedPolicy).toStrictEqual(unmoved);
     },
@@ -65,9 +65,7 @@ describe("the storage ceilings do not follow the approved policy (ADR 0124)", ()
     async (_name, movePolicy) => {
       const real = await freshIndex();
       const realRooms = [roomAtMaxima(real.APPROVED_ROOM_POLICY)];
-      replacePolicyModule(movePolicy);
-      const moved = await freshIndex();
-      vi.doUnmock(POLICY_MODULE);
+      const moved = await underReplacedPolicy(movePolicy, freshIndex);
       const probeRooms = [
         ...realRooms,
         roomAtMaxima(moved.APPROVED_ROOM_POLICY),
@@ -164,6 +162,21 @@ async function probeRoomsAtTheMovedMaxima(
     { ...realRoom, depthMm: movedL.wallB.maxMm },
     { ...realRoom, heightMm: moved.heightBounds.maxMm },
   ];
+}
+
+/** Runs `load` with the policy module replaced, and restores the real module whether or not it
+ *  throws — a mock left behind would hand the moved policy to every later load in this file. */
+async function underReplacedPolicy<T>(
+  movePolicy: MovePolicy,
+  load: () => Promise<T>,
+): Promise<T> {
+  replacePolicyModule(movePolicy);
+  try {
+    return await load();
+  } finally {
+    vi.doUnmock(POLICY_MODULE);
+    vi.resetModules();
+  }
 }
 
 function replacePolicyModule(movePolicy: MovePolicy): void {

@@ -33,6 +33,10 @@ import {
  *  times a run on top of the corners the property always visits. */
 const ACCEPTED_ROOM_RUNS = 400;
 
+/** The wire bound on `depthMm` before ADR 0124 — criterion 3's counterexample was a room one
+ *  millimetre past it. The property must reach past it, or it passes without visiting the band. */
+const OLD_DEPTH_WIRE_BOUND_MM = 5100;
+
 /** The owner's 6000 mm per wall (ADR 0120 Amendment B2), spelled here so the pin cannot follow an
  *  edit to the policy it pins. */
 const RULED_WALL_MAX_MM = 6000;
@@ -258,11 +262,19 @@ describe("APPROVED_ROOM_POLICY — a room it accepts is a room a design can stor
   // of the two maxima, so it holds whatever makes it true.
   it("parses every accepted room clean through DesignRoomSchema, corners included", () => {
     let acceptedCount = 0;
+    let acceptedPastTheOldBoundOnWallB = 0;
+    let acceptedPastTheOldBoundOnWallA = 0;
     fc.assert(
       fc.property(approvedRoomInput(), (input) => {
         const result = validateRoom(input, APPROVED_ROOM_POLICY);
         if (!result.ok) return;
         acceptedCount += 1;
+        if (result.room.depthMm > OLD_DEPTH_WIRE_BOUND_MM) {
+          acceptedPastTheOldBoundOnWallB += 1;
+        }
+        if (result.room.widthMm > OLD_DEPTH_WIRE_BOUND_MM) {
+          acceptedPastTheOldBoundOnWallA += 1;
+        }
 
         expect(storageRefusalsOf(result.room)).toEqual([]);
       }),
@@ -273,6 +285,8 @@ describe("APPROVED_ROOM_POLICY — a room it accepts is a room a design can stor
     );
 
     expect(acceptedCount).toBeGreaterThan(0);
+    expect(acceptedPastTheOldBoundOnWallB).toBeGreaterThanOrEqual(1);
+    expect(acceptedPastTheOldBoundOnWallA).toBeGreaterThanOrEqual(1);
   });
 });
 

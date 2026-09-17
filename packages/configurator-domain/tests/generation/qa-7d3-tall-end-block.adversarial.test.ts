@@ -287,9 +287,19 @@ describe("exactly one oven, read off the built kitchen", () => {
   it("carries one oven-bearing body in every generated kitchen, in both arms", () => {
     const arms = { withATower: 0, withoutOne: 0 };
     let generated = 0;
-    // The pre-7A3 approved rectangle, kept on purpose: generation is swept, not the policy (M7 7A3).
+    // Generation is swept, not the policy (M7 7A3): wall A keeps the pre-7A3 6300, and wall B adds
+    // the band the policy admits since, from its first value to its maximum.
     for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
-      for (const depthMm of [1000, 1450, 1700, 2600, 5100]) {
+      for (const depthMm of [
+        1000,
+        1450,
+        1700,
+        2600,
+        5100,
+        5101,
+        5600,
+        APPROVED_L.wallB.maxMm,
+      ]) {
         const result = generate(roomOf(widthMm, depthMm));
         if (!result.ok) continue;
         generated += 1;
@@ -325,8 +335,21 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
   // policy, and a `2 → 1` step reachable only at some other wall B would be invisible to it.
   it("never steps down except from one column to none, over every sampled wall B", () => {
     const steps = new Map<string, number>();
-    // The pre-7A3 approved wall B list, kept as measured (M7 7A3): wall B 5101–6000 is not sampled.
-    for (const depthMm of [1000, 1200, 1600, 1700, 2300, 3100, 4200, 5100]) {
+    // Wall B reaches the policy's maximum, through the band M7 7A3 admitted from 5101.
+    for (const depthMm of [
+      1000,
+      1200,
+      1600,
+      1700,
+      2300,
+      3100,
+      4200,
+      5100,
+      5101,
+      5300,
+      5600,
+      APPROVED_L.wallB.maxMm,
+    ]) {
       let previous = blockOf(planFor(roomOf(900, depthMm))).length;
       for (let widthMm = 901; widthMm <= 6300; widthMm += 1) {
         const size = blockOf(planFor(roomOf(widthMm, depthMm))).length;

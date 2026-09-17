@@ -163,6 +163,9 @@ const SAMPLE_ROOMS: readonly Design["room"][] = [
   { shape: "L", widthMm: 1500, depthMm: 2802, heightMm: 2200 },
   // The pre-7A3 approved corner, kept on purpose: a storable room the adapter must draw (M7 7A3).
   { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2599 },
+  // The approved corner since M7 7A3, and a room the policy admits only since then: wall B wider.
+  { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 2599 },
+  { shape: "L", widthMm: 2400, depthMm: 6000, heightMm: 2599 },
 ];
 
 const WORKTOP_SAMPLE_ROOMS: readonly Design["room"][] = [

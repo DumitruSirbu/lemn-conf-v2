@@ -48,6 +48,9 @@ const ROOMS = [
   KITCHEN_L_DESIGN.room,
   // The pre-7A3 approved corner, kept on purpose: a storable room the adapter must draw (M7 7A3).
   { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 3900 },
+  // The approved corner since M7 7A3, and a room the policy admits only since then: wall B wider.
+  { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 3900 },
+  { shape: "L", widthMm: 2400, depthMm: 6000, heightMm: 3900 },
 ] satisfies readonly Design["room"][];
 
 beforeAll(() => {
@@ -272,6 +275,9 @@ describe("7D2 generated kitchens against the real Three adapter", () => {
     { shape: "L", widthMm: 3561, depthMm: 2921, heightMm: 2599 },
     // The pre-7A3 approved corner, kept on purpose: a storable room the adapter must draw (M7 7A3).
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 3900 },
+    // The approved corner since M7 7A3, and a room the policy admits only since then: wall B wider.
+    { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 3900 },
+    { shape: "L", widthMm: 2400, depthMm: 6000, heightMm: 3900 },
   ] satisfies readonly Design["room"][])(
     "preserves parity after the 600 to 700 mm cabinet-depth transition in %o",
     (room) => {

@@ -308,13 +308,15 @@ describe("7D2 pure planning and exact cut transitions", () => {
   });
 
   it("sweeps every one-millimetre wall value against cut, drop, storage, and remainder edges", () => {
-    // The pre-7A3 approved rectangle, kept on purpose: the composer is swept, not the policy (M7 7A3).
+    // The composer is swept, not the policy (M7 7A3): wall A keeps the pre-7A3 6300, and wall B runs
+    // past its pre-7A3 5100 to the 6000 the policy admits since — 5101 the first admitted value,
+    // 5299 / 5300 a storage edge inside that band.
     const wallAValues = [
       900, 1499, 1500, 2099, 2100, 2699, 2700, 3299, 3300, 6300,
     ];
     const wallBValues = [
       1000, 1599, 1600, 1699, 1700, 2199, 2200, 2299, 2300, 2799, 2800, 2899,
-      2900, 3499, 3500, 4099, 4100, 5100,
+      2900, 3499, 3500, 4099, 4100, 5100, 5101, 5299, 5300, 6000,
     ];
     const failures: string[] = [];
     let checked = 0;
@@ -387,12 +389,12 @@ describe("7D2 pure planning and exact cut transitions", () => {
         check({ shape: "L", widthMm, depthMm, heightMm: 2200 });
       }
     }
-    for (let depthMm = 1000; depthMm <= 5100; depthMm += 1) {
+    for (let depthMm = 1000; depthMm <= 6000; depthMm += 1) {
       for (const widthMm of wallAValues) {
         check({ shape: "L", widthMm, depthMm, heightMm: 2599 });
       }
     }
-    expect(checked).toBe(138_228);
+    expect(checked).toBe(168_832);
     expect(failures.slice(0, 20)).toEqual([]);
 
     const storageBefore = planKitchenComposition({
@@ -431,6 +433,9 @@ describe("7D2 planned shell and leftover invariants", () => {
     KITCHEN_L_DESIGN.room,
     // The pre-7A3 approved corner, kept on purpose: the planner is judged, not the policy (M7 7A3).
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 3900 },
+    // The approved corner since M7 7A3, and a room the policy admits only since then: wall B wider.
+    { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 3900 },
+    { shape: "L", widthMm: 2400, depthMm: 6000, heightMm: 3900 },
   ] satisfies readonly DesignRoom[])(
     "tiles every planned body boundary, with only the documented free-end merge in %o",
     (room) => {
@@ -567,6 +572,9 @@ describe("7D2 command and log truth", () => {
     KITCHEN_L_DESIGN.room,
     // The pre-7A3 approved corner, kept on purpose: the command log is judged, not the policy (M7 7A3).
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2599 },
+    // The approved corner since M7 7A3, and a room the policy admits only since then: wall B wider.
+    { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 2599 },
+    { shape: "L", widthMm: 2400, depthMm: 6000, heightMm: 2599 },
   ] satisfies readonly DesignRoom[])(
     "accounts for every composed placement and every command exactly once in %o",
     (room) => {

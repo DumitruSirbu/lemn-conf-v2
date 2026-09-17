@@ -562,6 +562,9 @@ describe("buildLShellDesign — the offer list and the command agree on every op
     { shape: "L", widthMm: 1702, depthMm: 1802, heightMm: 2599 },
     // The pre-7A3 approved corner, kept on purpose: the shell is engine-level and this is storable.
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 3900 },
+    // The approved corner since M7 7A3, and a room the policy admits only since then: wall B wider.
+    { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 3900 },
+    { shape: "L", widthMm: 2400, depthMm: 6000, heightMm: 3900 },
   ];
 
   it.each(ROOMS.map((room) => [JSON.stringify(room), room] as const))(
