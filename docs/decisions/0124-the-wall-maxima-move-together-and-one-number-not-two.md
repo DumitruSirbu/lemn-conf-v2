@@ -113,11 +113,11 @@ made the same kind of quantity.
 
 **Swept at 25 mm through `planKitchenComposition` at a 2600 mm ceiling [measured, 7A3 plan]:**
 
-- **Withdrawn band, wall A 6001–6300 mm: 1 980 rooms, 100 % of which build correctly today.** Moving
-  `MAX_ROOM_DEPTH_MM` this way, in step with the approved policy's own maximum falling to 6000 on wall
-  A, takes these rooms away. **This is an owner product decision, not a defect fix** — nothing in
-  these 1 980 rooms is broken; they simply stop being reachable because the owner ruled the ceiling
-  at 6000 rather than 6300.
+- **Withdrawn band, wall A 6001–6300 mm: 1 980 rooms, 100 % of which build correctly today.** The
+  approved policy's own maximum falling to 6000 on wall A — not the `MAX_ROOM_DEPTH_MM` move, which
+  only widens the wire bound — takes these rooms away. **This is an owner product decision, not a
+  defect fix** — nothing in these 1 980 rooms is broken; they simply stop being reachable because the
+  owner ruled the ceiling at 6000 rather than 6300.
 - **Admitted band, wall B 5101–6000 mm: 7 380 rooms, all of which compose successfully and none of
   which drop a cabinet.** Wall B's approved maximum rising from 5100 to 6000 opens this band, and it
   is the band this decision exists to make reachable at all — without `MAX_ROOM_DEPTH_MM` moving to

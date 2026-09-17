@@ -1538,7 +1538,7 @@ table.
 | **7B** | Preset matching: ±600 window, fit, availability, one evaluation. **DEFERRED PAST M8 with the rest of the preset story (coordinator, 2026-09-15) — and this is DERIVED, not an independent choice**: matching searches the preset library, and **there is no library until the owner authors one**, which the owner has deferred past M8. It is not separately revisable — if the preset store moves, this moves with it, for that reason and no other | *carried* files; revised criteria below | 7A, **and a populated library** | Full | No | — |
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes. **DEFERRED PAST M8**, by 7B's derivation — it adapts what 7B matched, so it cannot precede it | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
-| **7A3** | **The wall maxima become 6000 mm each, and the field says what number to type.** Two recorded owner rulings, both unbuilt at HEAD: the ruled **6000 mm per wall** (ADR 0120 Amendment B2, unapplied — the literals are still 6300 / 5100) and the **"Perete A" field copy** that names the wrong quantity (ADR 0120 Amendment D's *"the only C1 obligation"*, with no wave until this one). **It is not a two-literal edit**: wall B's approved maximum would cross `MAX_ROOM_DEPTH_MM`, which is the `DesignRoomSchema` wire bound, so the room passes Step 1 and the design cannot be stored — **measured**. **PLANNED — see [Wave 7A3 — the plan](#wave-7a3--the-plan-2026-09-17-the-wall-maxima-become-6000-mm-each-and-the-field-says-what-number-to-type)** | `src/room/approved-room-policy.ts`, `src/design-bounds.ts`; then `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json` + `ru.json` | **7D8 closed** (its re-keyed arm governs 91.0 % of the rooms this wave admits). Not in flight with 7D5, 7D6 or 7D7 | **Full** (domain bound + a wire bound) | **Yes**, slice S3 only | **Both rulings are recorded; one instrument is questioned.** Q-7A3-1 (the owner's) — the owner named a **tooltip**, and a tooltip is only read by a customer who taps it; **gates S3 and nothing else**. Q-7A3-2 (the coordinator's) — whether the label slice detaches to 7F2 if Q-7A3-1 is unanswered when S1–S2 close |
+| **7A3** | **The wall maxima become 6000 mm each, and the field says what number to type — DONE, close-out 2026-09-17.** See [7A3 close-out](#7a3-close-out--2026-09-17). Commits: S0 (ADR 0124) `6c8a1bc`; S1 (`recordedLRoom` split + guard) `71aae6d`; S2 (policy 6000/6000, `MAX_ROOM_DEPTH_MM` 6300) `1fac007`; S2 QA (4 new qa-7a3 files) `cbd04a8`; S2 review fixes (new corner suites, wall-B sweeps to 6000) `2898b14`; S3 (hint line + per-wall help, copy lock) `c0d74dc`; S3 fixes (U-room clip, corner clause, shared dismiss hook) `b7b3941`; S3 D2 (help button placement, 44px non-overlap guard) `6bc1b44`. `pnpm ci:local`/push **pending at the time of writing; the coordinator records it separately.** | `src/room/approved-room-policy.ts`, `src/design-bounds.ts`; then `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json` + `ru.json` | **7D8 closed** (its re-keyed arm governs 91.0 % of the rooms this wave admits). Not in flight with 7D5, 7D6 or 7D7 | **Full** (domain bound + a wire bound) | **Yes**, slice S3 only | **Two owner rulings recorded 2026-09-17** — see *Owner questions for M7* for the dated entries: the corner clause, and help-button placement option (a) |
 | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
@@ -14527,6 +14527,23 @@ recommendation — [ADR 0124](../decisions/0124-the-wall-maxima-move-together-an
 Its subject is a *wire bound*, not the room ruling, and it is cited from `design-bounds.ts` rather
 than from the room code.
 
+**Owner ruling, 2026-09-17 — the corner clause.** Raised by S3's combined review (item 4), not by
+the visual gate. The question, as put by the coordinator: *"In an L kitchen both entered lengths are
+measured from the corner, so the corner cabinet counts toward both wall A's number and wall B's. The
+new help text says 'the length you want the cabinets to take on wall B'. A customer might leave out
+the corner and type about 600 mm too little. Should the L/U help text say the length is measured from
+the corner?"* Options offered: say "from the corner" (recommended — L/U help text adds *"măsurată de la
+colț"*, corner included; a straight kitchen keeps the current text), or keep it as is. **The owner
+chose "from the corner".** Implemented at `b7b3941`: wall B/C text carries the clause, wall A has a
+straight-room and a corner-room reading chosen by shape.
+
+**Owner ruling, 2026-09-17 — the help button placement (D2).** The question: *"The project requires
+44 px tap targets, but next to the wall label there's only 32.5 px between two inputs, so the 'i' help
+button currently takes taps meant for the top of its input. Where should the help button go?"*
+Options: (a) the right end of the label row, above the unit (recommended); (b) inside the field, right
+of the unit; (c) keep it beside the label with a ~32 px target as an exception. **The owner chose
+(a).** Implemented at `6bc1b44` with an e2e guard asserting the non-overlap.
+
 ### Verification
 
 `pnpm --filter @lemnaria/configurator-domain test` and `pnpm --filter web test`; `typecheck`; `lint`;
@@ -14535,6 +14552,123 @@ literal; revert `MAX_ROOM_DEPTH_MM`; make `recordedLRoom()` read the policy agai
 end-to-end pair); **one combined logic + clean-code review, with the reviewer told that
 `MAX_DESIGN_BYTES` moves**; and **a 390 × 844 production-build visual gate in both locales for S3
 only**. `pnpm ci:local` before any push.
+
+### 7A3 close-out — 2026-09-17
+
+**Evidence tiers as in the plan header: [measured] executed today; [source-verified] read at HEAD;
+[computed] arithmetic on a measured value; [inference] reasoned. Figures below are copied from the
+coordinator's commit messages for `b80ab97..6bc1b44`, which this pass could not itself execute
+(`pnpm ci:local` is running concurrently and its result is not claimed here — the coordinator
+records it separately once it completes).**
+
+**Commits, in order:** S0 (ADR 0124) `6c8a1bc`; S1 `71aae6d`; S2 `1fac007`; S2 QA `cbd04a8`; S2
+review fixes `2898b14`; S3 `c0d74dc`; S3 fixes `b7b3941`; S3 D2 `6bc1b44`. HEAD is `6bc1b44`.
+
+**Criterion by criterion, with the discharging commit or measurement (figures below are
+coordinator-reported from the commit bodies unless marked otherwise):**
+
+1. `wallA.maxMm === 6000` / `wallB.maxMm === 6000`, pinned as literals — discharged at `1fac007`
+   ("policy 6000/6000").
+2. `validateRoomInput` accepts 6000 × 6000 and refuses 6001 × 6000 / 6000 × 6001 with `field`+`code`
+   only — discharged at `1fac007`.
+3. The end-to-end red→green pair — discharged at `1fac007`, whose body names the counterexample
+   explicitly: *"criterion 3 red→green counterexample 900×5101"*.
+4. `MAX_ROOM_WIDTH_MM === MAX_ROOM_DEPTH_MM`, with the ADR 0120 D1 comment — discharged at `1fac007`
+   ("one wire bound 6300").
+5. `MAX_EMPTY_COLUMNS` 1262 (unchanged), `MAX_PLACEMENTS`/`MAX_COLUMN_EXTENTS` 186,
+   `MAX_DESIGN_BYTES` 349,656 — discharged at `1fac007`, which names "SEC-002 caps 186/349,656". The
+   before figure, 337,290, is carried from the plan and ADR 0124, not re-measured by this close-out.
+6. `approved-room-policy.test.ts:83`'s guard still reddens on a one-millimetre-over-ceiling policy —
+   discharged by S2 QA at `cbd04a8`, whose adversarial sabotage sweep is reported to have caught "all
+   others" after finding two sabotage classes that had escaped the suite (storage ceiling derived
+   from policy; width/depth asymmetry 6200–6299) — both then fixed and added to the suite in the same
+   commit.
+7. The withdrawn band, wall A ∈ [6001, 6300] — **1,980 rooms, 100 % composing today**, per `1fac007`
+   ("admitted band 7,380 rooms 0 dropped 0 base-hob-oven"; the 1,980 figure is carried from the plan
+   and ADR 0124, not separately re-stated in the commit body available to this pass). **Stated
+   plainly, per the plan's own Verification requirement: withdrawing 1,980 rooms that all compose
+   today, at 25 mm, is the owner's product decision, not a defect fix.**
+8. The admitted band, wall B ∈ [5101, 6000] — **7,380 rooms**, discharged at `1fac007` ("admitted
+   band 7,380 rooms 0 dropped 0 base-hob-oven"), which also discharges the subset-of-`buildId`s
+   property this criterion requires.
+9. The admitted band's structural uniformity — `dropped` empty in 100 % and `base-hob-oven` in 0 —
+   discharged in the same `1fac007` figure ("0 dropped 0 base-hob-oven").
+10. **The wider-wall split, reported as the plan's own measured figures and not re-measured by this
+    wave**: withdrawn 0.0 %, kept 41.3 %, admitted 91.0 % B-wider; the population share moving
+    38.86 % → 50.55 %. Carried from the 7A3 plan's own *ADR 0121's split* table above; this close-out
+    does not claim to have re-executed the sweep.
+11. Every 6300 × 5100 fixture triaged — discharged at `2898b14` ("new corner 6000×6000 + 2400×6000
+    added to suites that held 6300×5100; wall-B sweeps extended to 6000"); the 7D2 check count moving
+    138,228 → 168,832 is reported in the same commit as a consequence of the wider sweep, not a
+    separate triage figure.
+12. `7d3-composition-baseline.json` / `7d8-re-keyed-baseline.json` byte-identical to HEAD — discharged
+    at `71aae6d`, corroborated by the coordinator-supplied fact "Recordings byte-identical (blob
+    `c634328…`, `c9e3477…`)" [QA + implementer tier, as labelled by the coordinator].
+13. `RE_KEYED_ROOMS` still 82, both recording-backed suites sweep the same 240 keys — discharged at
+    `71aae6d`; `RE_KEYED_ROOMS = 82` is the coordinator-supplied figure.
+14. `recordedLRoom()` stated as constants, asserted distinct from `approvedLRoom()` — discharged at
+    `71aae6d` ("recordedLRoom split + guard").
+15. `qa-7d4-composed-bodies.adversarial.test.ts` keeps `approvedLRoom()`, `ARM_FLOOR = 100` unchanged,
+    and passes over the widened rectangle. **The suite's own real-run arm counts, per this criterion's
+    requirement to quote the suite rather than the plan's proxy** (`qa-7d4-composed-bodies`,
+    `ARM_FLOOR 100`, coordinator-supplied real run): placed 874, withDrawerSlot 367,
+    withoutDrawerSlot 507, twoOrMoreSlots 349, noSlots 345, onWallB 295, withASlotOnWallAToo 186,
+    composedSlots 1,684.
+16. The `qa-7d4-composed-bodies.adversarial.test.ts:270` witness `6229 × 1489 × 2641` is **marked in
+    place, not re-measured**: "measured under the pre-7A3 policy" — the criterion's either/or is
+    discharged by taking the mark-in-place branch. Per the coordinator's note, the milestone's other
+    citations of the same figure do not move.
+17. A non-interacting customer learns the field is the length to furnish — discharged at `c0d74dc`
+    (the always-visible `room.lengthsHint` line, shipped independently of the tooltip).
+18. The Romanian leaves and golden manifest move together, citing ADR 0113 decision 2 — discharged at
+    `c0d74dc` ("copy lock; 7 leaves"). No hash-move figure beyond the changed keys is reported to this
+    pass.
+19. Nothing in the copy states a bound — **met**: S3's combined review found no digit, unit or maximum
+    in any leaf in either locale; asserted in both locales by `dimensions-form.dom.test.ts`'s bound-word
+    table, widened at `b7b3941` (metres, "cel mult", "не более", limit…), each pattern proven able to fire.
+20. The refusal sentence is not written — **met**: the combined review found nothing reading as a
+    refusal, no `aria-invalid`, no alert role, no red.
+21. `Record` totality — **met**: the combined review confirmed `satisfies` makes a missing wall a
+    compile error; at `b7b3941` the table's type requires both readings for wall A and the corner
+    reading for B/C, and the implementer showed deleting a wall or a reading fails `tsc`.
+22. The 390 × 844 production-build visual gate — discharged across three commits: `c0d74dc` shipped
+    the hint/help copy; `b7b3941` fixed **D1, the U-room clip, measured 27 px → 0 px**, plus the
+    corner-clause owner ruling, a `tabIndex` fix, a shared dismissal hook for two popovers, and
+    bound-word regexes; `6bc1b44` fixed **D2, the tap-steal**, by moving the help button to the end
+    of the label row (owner-ruled option (a)), so its 44 px target overlaps no input, with a new e2e
+    non-overlap guard. The coordinator inspected screenshots of the original L/U state and the final
+    U wall-B popover; this close-out did not itself view the screenshots.
+
+**Gate figures reported per commit (typecheck/lint/format all 0 as reported; none independently
+re-run by this pass):** S2 domain 207/4,372, three-adapter 3,476, web 3,263, persistence 282; after
+QA domain 210/4,418, web 218/3,269; after review fixes domain 210/4,424, three-adapter 85/3,484;
+after S3 D2 web 218/3,316.
+
+**Known and accepted, not fixed, no owner requested:** an open help popover covers the controls
+above it (wall A's covers both corner choices plus the hint in L/U; wall B/C's covers the input
+above it), dismissed only by an outside tap; U boxes are 48 px versus 54 px in L (a field-shift on
+chip switch); the U-room's 2.6 px of spare assumes the hint stays one line.
+
+**Recorded, not fixed, no owner, carried forward rather than owned by this wave:** qa-7d3's "only
+1→0" claim does not hold swept along wall B (7D8's wider-wall move: 2→1 at 3900×3901, 3→2 at
+4500×4501) — 7D8's question, not 7A3's; `is-shape-buildable.test.ts:20`'s linear 1200–6300 bound —
+7J's question, whether the 6000 ruling covers straight kitchens; a pre-existing item at
+`qa-6n-a-run-end-panel.adversarial.test.ts:249-253`; composer-level fixtures still sampling wall B
+≤ 5100 (`tall-end-block:217`, `drawer-rows:171`, the qa-7d3 centring sweep,
+`qa-7d3-upper-suppression:45`); `onTheReversedWall` at 103 against a floor of 100 (the reviewer's
+suggestion of a declared witness per ADR 0093 3b, not acted on here).
+
+**ADR 0124's wording nit, fixed as part of this close-out (not part of the wave's own commits):**
+`0124-…md`'s sentence describing what moving `MAX_ROOM_DEPTH_MM` "takes away" was corrected in
+place — the withdrawal is from the falling policy literal, not from the depth-bound widening, which
+only enlarges the wire ceiling.
+
+**Shipped:** S3 is confirmed shipped — the hint line, per-wall help, and both visual-gate defects
+(D1 U-room clip, D2 tap-steal) found and fixed on a production build.
+
+**Not claimed by this close-out:** `pnpm ci:local`'s result for this wave, and the push. Both are
+pending at the time of writing; the coordinator records them once available, per this wave's own
+Verification section requiring `pnpm ci:local` before any push.
 
 **The close-out states, plainly and without softening:**
 
