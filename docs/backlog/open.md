@@ -1622,6 +1622,24 @@ propose on the second option."*
 marked body, so a customer who is told their cabinets do not fit can see which ones without orbiting
 for them.
 
+## 68. A large wood-decor run-end panel shows a visible grain tiling seam — OBSERVED 2026-09-17, OWNER QUESTION, NOT BUILT, NOT SCHEDULED
+
+**Where it came from.** M7 wave 7D8's visual check of the panel-colour fix (`dcec03f`), a production
+build at 390 × 844 and 1440 × 900, on the desktop crop for **Stejar Halifax**: on a large wood-decor
+panel the grain texture shows a visible tiling seam — **horizontal at half height, vertical down the
+middle**.
+
+**Suspected mechanism, marked as an inference and not measured.** Likely the texture's repeat set to
+`1, 1` on a panel-sized mesh, so one texture tile is stretched across the whole panel rather than
+repeating at the plank/board scale; **not verified against the material or geometry source**.
+
+**What is not known.** The check that found it was **not compared against a pre-`dcec03f` build**, so
+whether the seam pre-dates this wave — and would therefore show on M.oak too — is unmeasured. Only
+Stejar Halifax was observed; the other wood decors (Nuc Warmia, Stejar Bardolino) were checked for
+colour-following in the same pass but not inspected for this seam specifically.
+
+**Owner question, not yet asked: does it matter?** No wave is assigned and none is proposed here.
+
 **The trigger.** The owner asks for it, **or** usage shows customers reaching the overflow state and
 not resolving it. Until one of those, the band alone is the report and Q7H-8's ruling stands — a
 marked body framed off screen is **not** a defect and must not be filed as one.

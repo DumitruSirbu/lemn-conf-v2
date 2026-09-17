@@ -154,3 +154,14 @@ carries no finished end (ADR 0083 decision 5). When the panel is drawn it is sti
 occupied width (ADR 0083 decision 5); when it is vetoed it occupies nothing. **The seeded kitchen is
 untouched:** its run ends at 3500 on a 3560 wall, a 60 mm gap, so the panel stays at 3.510 and the M1
 fidelity capture does not move.
+
+## Pointer, 2026-09-17: this amendment's stated *reason* is false; its *ruling* stands
+
+This amendment's own words above — *"a real fitter closes that gap with a filler strip"* — are the
+reason the owner was given at the time. [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment D2 found that sentence **false** under the run reading D1 rules: it describes a physical
+wall the run-reading model no longer has. **The ruling in this amendment is unaffected and stands as
+written** — D2 verified the shipped veto already fires exactly where the owner's ruling wants it to.
+Only the recorded *reason* was wrong, and the correction — a comment-only edit at
+`run-end-panel.ts:94-98` — landed at M7 wave 7D8's `b83e4f2` (slice S4). This paragraph is not a
+rewrite of the ruling above; it is the pointer ADR 0120 D2 itself said was owed.
