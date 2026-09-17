@@ -442,12 +442,14 @@ describe("the room rule is unmoved (criterion 17)", () => {
   });
 
   it("keeps the approved policy's own numbers where the wave found them", () => {
+    // The wall maxima were 6300 / 5100 when 7D3 left them; M7 7A3 moved both to the owner's 6000 mm
+    // (ADR 0120 Amendment B2). Everything else here is still what 7D3 found.
     expect(APPROVED_ROOM_POLICY).toEqual({
       approval: "owner-approved",
       buildableShapes: {
         L: {
-          wallA: { minMm: 900, maxMm: 6300 },
-          wallB: { minMm: 1000, maxMm: 5100 },
+          wallA: { minMm: 900, maxMm: 6000 },
+          wallB: { minMm: 1000, maxMm: 6000 },
           minimumKitchen: {
             isRequired: true,
             sinkWidthMm: 600,

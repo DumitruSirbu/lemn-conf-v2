@@ -260,12 +260,14 @@ function approvedRooms(args: {
   });
 }
 
+/** Each arm's open side stops at the approved maximum, 6000 mm per wall (ADR 0120 Amendment B2): every
+ *  room drawn here must also be one `APPROVED_ROOM_POLICY` accepts. */
 const AGREEMENT_ARMS: readonly AgreementArm[] = [
   {
     name: "both-on-A only",
     rooms: approvedRooms({
       wallAMin: 2100,
-      wallAMax: 6300,
+      wallAMax: 6000,
       wallBMin: 1000,
       wallBMax: 1599,
     }),
@@ -278,7 +280,7 @@ const AGREEMENT_ARMS: readonly AgreementArm[] = [
       wallAMin: 900,
       wallAMax: 1499,
       wallBMin: 2200,
-      wallBMax: 5100,
+      wallBMax: 6000,
     }),
     // And wall B is the wider one everywhere in these — the same rule, sampled from the other side.
     expectedWalls: (room) => [widerEnteredWall(room), widerEnteredWall(room)],

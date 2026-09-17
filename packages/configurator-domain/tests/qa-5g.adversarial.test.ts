@@ -222,6 +222,7 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
    *  **Not reachable from an honest document** — the shipped kitchen derives thirteen columns in
    *  total against a bound of 1262 — so this is a hostile-input refusal, not a share link at risk. */
   it("refuses a version 1 document whose normalisation would exceed the entry bound", () => {
+    // A storable room, not a policy one (M7 7A3): the migration is judged here, not Step 1.
     const wideRoom: Design = {
       ...EMPTY_ROOM,
       room: { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2600 },

@@ -42,6 +42,7 @@ const PLANNABLE_BUILD_IDS: readonly string[] = (() => {
     buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
   );
   const found = new Set<string>();
+  // The pre-7A3 approved rectangle, kept on purpose (M7 7A3): its wall-B band produces no new build id.
   for (let widthMm = 900; widthMm <= 6300; widthMm += 7) {
     for (const depthMm of [1000, 1300, 1700, 2500, 3600, 5100]) {
       const room: DesignRoom = { shape: "L", widthMm, depthMm, heightMm: 2600 };

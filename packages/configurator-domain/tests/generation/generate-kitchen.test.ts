@@ -471,8 +471,9 @@ describe("generateKitchen", () => {
       fc.property(
         fc.record({
           shape: fc.constant("L" as const),
-          widthMm: fc.integer({ min: 2100, max: 6300 }),
-          depthMm: fc.integer({ min: 1000, max: 5100 }),
+          // Named approved samples, so both walls stop at the owner's 6000 mm (ADR 0120 Amendment B2).
+          widthMm: fc.integer({ min: 2100, max: 6000 }),
+          depthMm: fc.integer({ min: 1000, max: 6000 }),
           heightMm: fc.integer({ min: 2200, max: 3900 }),
         }),
         (room) => {

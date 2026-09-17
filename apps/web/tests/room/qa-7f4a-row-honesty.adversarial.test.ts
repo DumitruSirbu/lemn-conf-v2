@@ -31,10 +31,11 @@ import { createFakeProbeFactory } from "../support/fake-body-probe";
 const OCCURRED_AT = "2026-09-14T09:00:00.000Z";
 
 /** `APPROVED_ROOM_POLICY`'s own L bounds, as the numbers a customer may type. Spelled rather than
- *  read off the policy so a policy that widens does not silently widen this sweep's claims too. */
+ *  read off the policy so a policy that widens does not silently widen this sweep's claims too —
+ *  and moved here deliberately when M7 7A3 applied the owner's 6000 mm per wall (ADR 0120 B2). */
 const APPROVED_L = {
-  wallAMm: { min: 900, max: 6300 },
-  wallBMm: { min: 1000, max: 5100 },
+  wallAMm: { min: 900, max: 6000 },
+  wallBMm: { min: 1000, max: 6000 },
   heightMm: { min: 2200, max: 3900 },
 } as const;
 

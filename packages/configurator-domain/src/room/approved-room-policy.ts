@@ -10,14 +10,18 @@
 // their bounds to the owner (decision B2).
 import type { RoomPolicy } from "./room-policy.js";
 
-/** Wall A: the corner's reach along it at every declared depth, up to the widest room a design can
- *  store. */
+// Both wall maxima are the owner's 6000 mm per wall (ADR 0120 Amendment B2, owner 2026-09-15:
+// *"lets stick to 6 now for each of the wall"*), replacing the 6300 / 5100 first approved. A product
+// number, not the widest room a design can store: that is `MAX_ROOM_*`, which ADR 0124 keeps above
+// it on both walls.
+
+/** Wall A: the corner's reach along it at every declared depth. */
 const APPROVED_L_WALL_A_MIN_MM = 900;
-const APPROVED_L_WALL_A_MAX_MM = 6300;
+const APPROVED_L_WALL_A_MAX_MM = 6000;
 
 /** Wall B: the corner reaches 1000 mm along it with the 700 mm cabinets (Amendment A). */
 const APPROVED_L_WALL_B_MIN_MM = 1000;
-const APPROVED_L_WALL_B_MAX_MM = 5100;
+const APPROVED_L_WALL_B_MAX_MM = 6000;
 
 /** ADR 0108 Amendment E: the generated kitchen uses 600 mm for both required bodies, and each free
  *  run begins beyond the corner's farthest reach over all offered cabinet depths. Literals are

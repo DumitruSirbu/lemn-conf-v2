@@ -62,7 +62,8 @@ function roomOf(widthMm: number, depthMm: number, heightMm = 2600): DesignRoom {
   return { shape: "L", widthMm, depthMm, heightMm };
 }
 
-/** A room whose plan holds both provenances at once, so one plan supplies every witness below. */
+/** A room whose plan holds both provenances at once, so one plan supplies every witness below. Past
+ *  the approved 6000 mm on purpose (M7 7A3): a planner witness, not a policy room. */
 const A_ROOM_WITH_A_BLOCK_AND_A_RUN = roomOf(6300, 4700);
 
 function planFor(room: DesignRoom): KitchenCompositionPlan {

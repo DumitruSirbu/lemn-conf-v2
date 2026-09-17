@@ -57,9 +57,10 @@ const SWEEP_SEED = 20260916;
 
 /** Risk 14's table is written in samples per arm, so every floor below is its hundred. The run count
  *  is what the table's second column asks for the **scarcest arm this slice needs**: the block
- *  absorbing a remainder is 10.9 % of placed rooms, 918 runs for 100 samples. Measured at this seed
- *  over 1 000 runs: 876 placed, 407 with two or more composed slots, 312 with none, 326 composing a
- *  post-hob drawer, 550 composing none, 107 absorbing a remainder into the block. */
+ *  absorbing a remainder is 10.9 % of placed rooms, 918 runs for 100 samples. Measured under the
+ *  pre-7A3 policy at this seed over 1 000 runs: 876 placed, 407 with two or more composed slots, 312
+ *  with none, 326 composing a post-hob drawer, 550 composing none, 107 absorbing a remainder into the
+ *  block. */
 const SWEEP_RUNS = 1000;
 const ARM_FLOOR = 100;
 
@@ -266,8 +267,9 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
     // bodies are `{}`, `{base-cabinet}` or `{base-cabinet, base-3drawer}`. A kitchen whose **only**
     // composed slot stands after the hob composes `{base-3drawer}`, which that list does not hold — and
     // the composer is right: D15.3 gives the first post-hob slot the drawer and there is no other
-    // slot to keep a door. Measured over a 4 000-run sweep of the approved policy: 394 of 3 547
-    // placed rooms, 11.1 %, witness **6229 x 1489 x 2641** with one composed slot. The enumeration is
+    // slot to keep a door. **Measured under the pre-7A3 policy** (wall A to 6300, which M7 7A3 no
+    // longer accepts), over a 4 000-run sweep: 394 of 3 547 placed rooms, 11.1 %, witness
+    // **6229 x 1489 x 2641** with one composed slot. The enumeration is
     // the stale half of a criterion restated under D15, and **widening it is not this slice's to
     // do** — the finding is reported, and what is asserted here is the clause the criterion exists
     // for.

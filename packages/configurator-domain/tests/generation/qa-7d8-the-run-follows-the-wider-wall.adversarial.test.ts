@@ -56,8 +56,11 @@ const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
 /** 50 mm rather than the 100 mm this wave's sibling files sweep at: the arm where the reversed wall
  *  carries two core bodies to reverse is 1.2 % of placed rooms, and a coarser grid draws 25 of them.
- *  Measured on this grid: 8 615 placed plans, 3 335 with wall B wider, 5 209 with wall A wider, 71
- *  equal, and 103 in the two-body arm. */
+ *  Measured on this grid under the current policy: 9 971 placed plans, 5 018 with wall B wider, 4 864
+ *  with wall A wider, 89 equal, 103 in the two-body arm and 9 826 with a two-body forward wall.
+ *  **Pre-7A3 figures, kept for the record:** 8 615 placed, 3 335 B wider, 5 209 A wider, 71 equal,
+ *  103 two-body. The floors were re-calibrated because M7 7A3 (ADR 0124) moved the population: the
+ *  wall-A-wider arm shrank by the withdrawn wall A 6001–6300 band, and wall B 5101–6000 was added. */
 const GRID_STEP_MM = 50;
 
 /** The run order, read off the owner's ruled priority list rather than spelled again here — a kitchen
@@ -173,15 +176,15 @@ describe("7a — the reversed wall is the narrower entered wall, and the sweep c
       );
     }
 
-    expect(SWEPT_PLANS.length).toBeGreaterThanOrEqual(8000);
-    expect(arms.wallBWider).toBeGreaterThanOrEqual(3000);
-    expect(arms.wallAWider).toBeGreaterThanOrEqual(5000);
+    expect(SWEPT_PLANS.length).toBeGreaterThanOrEqual(9000);
+    expect(arms.wallBWider).toBeGreaterThanOrEqual(4500);
+    expect(arms.wallAWider).toBeGreaterThanOrEqual(4500);
     expect(arms.equal).toBeGreaterThanOrEqual(50);
     expect(
       reversals.onTheReversedWall,
       "no swept room gave the reversed wall two bodies to reverse",
     ).toBeGreaterThanOrEqual(100);
-    expect(reversals.onTheForwardWall).toBeGreaterThanOrEqual(8000);
+    expect(reversals.onTheForwardWall).toBeGreaterThanOrEqual(9000);
   });
 
   it("stands the reversed wall's core against the run and the other wall's core with it", () => {

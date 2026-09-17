@@ -128,12 +128,14 @@ function roomsIn(args: {
   });
 }
 
+/** Each arm's open side stops at the approved maximum, 6000 mm per wall (ADR 0120 Amendment B2): the
+ *  agreement is asserted against `APPROVED_ROOM_POLICY`, so a room past it is a refusal by design. */
 const LOGICAL_ARMS: readonly LogicalArm[] = [
   {
     name: "both required bodies on wall A",
     rooms: roomsIn({
       wallAMin: 2100,
-      wallAMax: 6300,
+      wallAMax: 6000,
       wallBMin: 1000,
       wallBMax: 1599,
     }),
@@ -144,7 +146,7 @@ const LOGICAL_ARMS: readonly LogicalArm[] = [
       wallAMin: 900,
       wallAMax: 1499,
       wallBMin: 2200,
-      wallBMax: 5100,
+      wallBMax: 6000,
     }),
   },
   {

@@ -90,6 +90,7 @@ const DOOR_FRONT_MESH_NAME = "door_front";
  *  on it, and the slot past the hob is wall B's while wall A holds a composed slot of its own. */
 const SAMPLE_ROOMS: readonly Design["room"][] = [
   KITCHEN_L_DESIGN.room,
+  // Past the approved 6000 mm on purpose (M7 7A3): 7D4's measured witness, a storable room.
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
   { shape: "L", widthMm: 1500, depthMm: 3400, heightMm: 2600 },
 ];
@@ -106,6 +107,7 @@ interface DrawerSlotRoom {
  *  first composed one — while wall A's own composed slot is read **before** the hob and keeps its
  *  door (D15.7 on physical wall B, 7D8's P6a). */
 const DRAWER_SLOT_ROOMS: readonly DrawerSlotRoom[] = [
+  // Past the approved 6000 mm on purpose (M7 7A3): 7D4's measured witness, a storable room.
   {
     room: { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
     wall: "A",

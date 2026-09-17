@@ -88,7 +88,8 @@ function throughTheWire(design: Design): Design {
 
 describe("the cap and the byte budget carry each other", () => {
   /** The at-cap document the byte budget has to admit is the *largest* one the schema accepts, not
-   *  a convenient one: 168 placements and 684 empty columns, every millimetre value at its ceiling
+   *  a convenient one: `MAX_PLACEMENTS` placements and `MAX_EMPTY_COLUMNS` empty columns, every
+   *  millimetre value at its ceiling
    *  and every identifier at `MAX_IDENTIFIER_LENGTH`.
    *
    *  The identifiers are what make this falsifiable. With the product's own short ids the widest
@@ -138,6 +139,7 @@ describe("the cap and the byte budget carry each other", () => {
    *  distinctly keyed, so any cap derived from a width floor or from §2's bands refuses a document
    *  the domain's own rules accept. Pinned as the arithmetic, not as 1262 alone. */
   it("is derived from the key resolution, not from a width or a band count", () => {
+    // Wall A's and wall B's runs are both 6300 since ADR 0124; the longer of the two was already 6300.
     expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 2);
     expect(MAX_EMPTY_COLUMNS).toBeGreaterThan(MAX_PLACEMENTS);
   });

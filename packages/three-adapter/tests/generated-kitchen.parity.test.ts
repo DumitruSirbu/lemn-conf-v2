@@ -161,6 +161,7 @@ function intersectingBoxes(boxes: readonly MeasuredBox[]): string[] {
 const SAMPLE_ROOMS: readonly Design["room"][] = [
   KITCHEN_L_DESIGN.room,
   { shape: "L", widthMm: 1500, depthMm: 2802, heightMm: 2200 },
+  // The pre-7A3 approved corner, kept on purpose: a storable room the adapter must draw (M7 7A3).
   { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2599 },
 ];
 

@@ -531,7 +531,24 @@ function keyOf(entry: { wall: string; alongMm: number }): string {
 describe("the caps", () => {
   it("bounds the occupied half by the placements, not by the wall's keys", () => {
     expect(MAX_COLUMN_EXTENTS).toBe(MAX_PLACEMENTS);
-    expect(MAX_COLUMN_EXTENTS).toBe(168);
+    expect(MAX_COLUMN_EXTENTS).toBe(186);
+  });
+
+  // M7 7A3 criterion 5: ADR 0124 gave wall B wall A's 6300 mm run, which moves SEC-002's request cap.
+  // Pinned as literals so the budget cannot drift with a derivation nobody re-reads: 168 placements
+  // and 337 290 bytes before it; the empty-column cap already took the longer run and does not move.
+  it("pins the four caps ADR 0124 sized, as numbers", () => {
+    expect({
+      MAX_EMPTY_COLUMNS,
+      MAX_PLACEMENTS,
+      MAX_COLUMN_EXTENTS,
+      MAX_DESIGN_BYTES,
+    }).toStrictEqual({
+      MAX_EMPTY_COLUMNS: 1262,
+      MAX_PLACEMENTS: 186,
+      MAX_COLUMN_EXTENTS: 186,
+      MAX_DESIGN_BYTES: 349_656,
+    });
   });
 
   // The cap-left-behind mutant: leaving `MAX_DESIGN_BYTES` at 248 576 refuses the largest document
@@ -546,7 +563,7 @@ describe("the caps", () => {
       (MAX_DESIGN_BYTES - MAX_PLACEMENTS * 512 - 1024) /
       (MAX_EMPTY_COLUMNS + MAX_COLUMN_EXTENTS);
 
-    expect(MAX_DESIGN_BYTES).toBe(337_290);
+    expect(MAX_DESIGN_BYTES).toBe(349_656);
     expect(perEntryBytes).toBe(175);
   });
 

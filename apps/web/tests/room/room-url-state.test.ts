@@ -486,7 +486,8 @@ describe("room URL state domain hand-off", () => {
     [900, 2200, 2200],
     [2100, 1000, 3900],
     [1500, 1600, 2500],
-    [6300, 5100, 3900],
+    // The approved corner: 6000 mm per wall since M7 7A3 (ADR 0120 Amendment B2).
+    [6000, 6000, 3900],
   ])(
     "accepts the exact L boundary %d × %d × %d",
     (wallAMm, wallBMm, heightMm) => {
@@ -555,7 +556,7 @@ describe("room URL state domain hand-off", () => {
       parseRoomUrlState({
         shape: "L",
         wallA: "0.899",
-        wallB: "5.101",
+        wallB: "6.001",
         height: "2.199",
         direction: "left",
       }),
@@ -564,7 +565,7 @@ describe("room URL state domain hand-off", () => {
       input: {
         shape: "L",
         wallAMm: 899,
-        wallBMm: 5101,
+        wallBMm: 6001,
         heightMm: 2199,
         cornerDirection: "left",
       },

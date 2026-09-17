@@ -56,6 +56,7 @@ const ODD_EDGE_ROOM: DesignRoom = {
   depthMm: 1802,
   heightMm: 2599,
 };
+/** The pre-7A3 approved corner, kept on purpose: the shell is engine-level and this room storable. */
 const LARGEST_ROOM: DesignRoom = {
   shape: "L",
   widthMm: 6300,
@@ -704,7 +705,8 @@ describe("the shell filled through the store, then partly emptied: the panel fol
         max: APPROVED_ROOM_POLICY.heightBounds.maxMm,
       }),
     });
-    const edges = [900, 918, 919, 920, 1718, 1719, 1720, 1721, 3560, 6300].map(
+    // 6000 is the approved wall A maximum since M7 7A3 (ADR 0120 Amendment B2).
+    const edges = [900, 918, 919, 920, 1718, 1719, 1720, 1721, 3560, 6000].map(
       (widthMm): [DesignRoom] => [
         { shape: "L", widthMm, depthMm: 2000, heightMm: 2600 },
       ],

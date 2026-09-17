@@ -91,6 +91,7 @@ const NEVER_GENERATED_UPPERS = ["wall-lift", "open-shelf"];
  *  every one, so criterion 5's *"nothing outside P1 moves"* is what they assert, field by field,
  *  against 7D3's recording. */
 const UNMOVED_WITNESS_ROOMS: readonly DesignRoom[] = [
+  // Recorded under the pre-7A3 rectangle and kept: the recording is frozen, not the policy (M7 7A3).
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
   { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2600 },
   { shape: "L", widthMm: 5700, depthMm: 4100, heightMm: 2600 },

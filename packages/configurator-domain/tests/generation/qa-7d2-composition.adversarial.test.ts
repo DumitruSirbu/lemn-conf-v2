@@ -308,6 +308,7 @@ describe("7D2 pure planning and exact cut transitions", () => {
   });
 
   it("sweeps every one-millimetre wall value against cut, drop, storage, and remainder edges", () => {
+    // The pre-7A3 approved rectangle, kept on purpose: the composer is swept, not the policy (M7 7A3).
     const wallAValues = [
       900, 1499, 1500, 2099, 2100, 2699, 2700, 3299, 3300, 6300,
     ];
@@ -428,6 +429,7 @@ describe("7D2 planned shell and leftover invariants", () => {
     { shape: "L", widthMm: 2100, depthMm: 3500, heightMm: 2200 },
     { shape: "L", widthMm: 2101, depthMm: 3501, heightMm: 2599 },
     KITCHEN_L_DESIGN.room,
+    // The pre-7A3 approved corner, kept on purpose: the planner is judged, not the policy (M7 7A3).
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 3900 },
   ] satisfies readonly DesignRoom[])(
     "tiles every planned body boundary, with only the documented free-end merge in %o",
@@ -563,6 +565,7 @@ describe("7D2 command and log truth", () => {
   it.each([
     { shape: "L", widthMm: 900, depthMm: 2300, heightMm: 2200 },
     KITCHEN_L_DESIGN.room,
+    // The pre-7A3 approved corner, kept on purpose: the command log is judged, not the policy (M7 7A3).
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2599 },
   ] satisfies readonly DesignRoom[])(
     "accounts for every composed placement and every command exactly once in %o",

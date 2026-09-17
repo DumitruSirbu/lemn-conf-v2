@@ -99,7 +99,8 @@ const NARROWER_OWNER_POLICY: RoomPolicy = {
   heightBounds: { minMm: 2100, maxMm: 2900 },
 };
 
-/** Every minimum below the engine's: accepts rooms the engine's limits refuse. */
+/** Every minimum below the engine's: accepts rooms the engine's limits refuse. Its maxima are an
+ *  invented policy's and not the approved one's; only the minima are this fixture's subject. */
 const WIDER_OWNER_POLICY: RoomPolicy = {
   approval: "owner-approved",
   buildableShapes: {

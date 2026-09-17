@@ -560,6 +560,7 @@ describe("buildLShellDesign — the offer list and the command agree on every op
     { ...KITCHEN_L_DESIGN.room },
     { shape: "L", widthMm: 900, depthMm: 1000, heightMm: 2200 },
     { shape: "L", widthMm: 1702, depthMm: 1802, heightMm: 2599 },
+    // The pre-7A3 approved corner, kept on purpose: the shell is engine-level and this is storable.
     { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 3900 },
   ];
 

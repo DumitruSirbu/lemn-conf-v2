@@ -154,7 +154,7 @@ const FINISH_MATERIAL_KEY_PREFIX = "finish:";
  *
  * Derived rather than picked. A finish is a **per-placement** choice, so the most distinct colours
  * a supported room can wear at one time is one per placement, and `MAX_PLACEMENTS` is the domain's
- * own count of those (168 today, against 26 in the shipped seeded kitchen). A memo of that size
+ * own count of those (against 26 in the shipped seeded kitchen). A memo of that size
  * therefore has room for every colour a room is actually wearing; what a drag across the picker
  * pushes out of it are the intermediate colours the pointer passed through, and a live colour that
  * is pushed out is rebuilt the next time its body re-signs.

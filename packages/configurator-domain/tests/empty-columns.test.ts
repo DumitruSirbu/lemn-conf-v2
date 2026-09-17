@@ -120,6 +120,7 @@ describe("DesignSchema.emptyColumns", () => {
   });
 
   it("caps the array at the distinct column keys two walls can present", () => {
+    // 6300 is the longer run's, and since ADR 0124 both runs are 6300, so the value did not move.
     expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 2);
   });
 });

@@ -16,8 +16,9 @@ import {
   type RoomSearchParams,
 } from "@/room/room-url-state";
 
-const APPROVED_WALL_A_MM = fc.integer({ min: 900, max: 6300 });
-const APPROVED_WALL_B_MM = fc.integer({ min: 1000, max: 5100 });
+// 6000 mm per wall since M7 7A3 (ADR 0120 Amendment B2).
+const APPROVED_WALL_A_MM = fc.integer({ min: 900, max: 6000 });
+const APPROVED_WALL_B_MM = fc.integer({ min: 1000, max: 6000 });
 const APPROVED_HEIGHT_MM = fc.integer({ min: 2200, max: 3900 });
 const SWEEP_RUNS = 1000;
 

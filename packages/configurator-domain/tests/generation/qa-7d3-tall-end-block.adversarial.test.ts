@@ -287,6 +287,7 @@ describe("exactly one oven, read off the built kitchen", () => {
   it("carries one oven-bearing body in every generated kitchen, in both arms", () => {
     const arms = { withATower: 0, withoutOne: 0 };
     let generated = 0;
+    // The pre-7A3 approved rectangle, kept on purpose: generation is swept, not the policy (M7 7A3).
     for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
       for (const depthMm of [1000, 1450, 1700, 2600, 5100]) {
         const result = generate(roomOf(widthMm, depthMm));
@@ -324,6 +325,7 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
   // policy, and a `2 → 1` step reachable only at some other wall B would be invisible to it.
   it("never steps down except from one column to none, over every sampled wall B", () => {
     const steps = new Map<string, number>();
+    // The pre-7A3 approved wall B list, kept as measured (M7 7A3): wall B 5101–6000 is not sampled.
     for (const depthMm of [1000, 1200, 1600, 1700, 2300, 3100, 4200, 5100]) {
       let previous = blockOf(planFor(roomOf(900, depthMm))).length;
       for (let widthMm = 901; widthMm <= 6300; widthMm += 1) {
@@ -353,6 +355,7 @@ describe("the centring hazard across the whole absorb window", () => {
   it("leaves the tower's opening at 600, the run flush, and no column resized, at every remainder in the window", () => {
     const remaindersSeen = new Set<number>();
     let roomsInTheWindow = 0;
+    // The pre-7A3 approved rectangle, kept on purpose: the planner is swept, not the policy (M7 7A3).
     for (const depthMm of [1700, 2400, 3000, 4100, 5100]) {
       for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
         const room = roomOf(widthMm, depthMm);

@@ -181,6 +181,7 @@ describe("where the seeded run's end happens to land back on screen", () => {
     },
   );
 
+  // 6300 is storable and past the approved 6000 mm on purpose (M7 7A3): a camera measurement.
   it("brings the whole panel inside the viewport only in the longest rooms", () => {
     expect(
       panelUnderPereteA(seededRoomWithWallA(6300)).farthestEdgePx,

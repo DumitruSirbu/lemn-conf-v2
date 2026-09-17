@@ -30,9 +30,9 @@ const L_BOUNDS = required(
   "the approved L bounds",
 );
 
-/** ADR 0108 Amendment B's owner-approved bounds: 900–6300 along wall A, 1000–5100 along wall B,
- *  2200–3900 high. Read from the policy rather than restated, so a wave that moves one moves every
- *  sweep with it. */
+/** The owner-approved bounds: 900–6000 along wall A, 1000–6000 along wall B (ADR 0120 Amendment B2,
+ *  applied in M7 7A3), 2200–3900 high. Read from the policy rather than restated, so a wave that moves
+ *  one moves every sweep with it. */
 export const APPROVED_WALL_A = L_BOUNDS.wallA;
 export const APPROVED_WALL_B = L_BOUNDS.wallB;
 export const APPROVED_HEIGHT = APPROVED_ROOM_POLICY.heightBounds;

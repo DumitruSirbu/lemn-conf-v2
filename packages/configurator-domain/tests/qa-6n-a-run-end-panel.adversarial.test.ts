@@ -114,8 +114,8 @@ function seatWith(...extras: readonly PlacementRecord[]): number | undefined {
 }
 
 describe("only wall A's own bodies contest wall A's seat", () => {
-  // A wall-B body at 3.51 m along wall B is reachable: `MAX_ROOM_DEPTH_MM` is 5100, so wall B can
-  // be half again as long as the seeded 2920 mm room's. Dropping the `wall` filter in the veto
+  // A wall-B body at 3.51 m along wall B is reachable: `MAX_ROOM_DEPTH_MM` is 6300, so wall B can
+  // be more than twice as long as the seeded 2920 mm room's. Dropping the `wall` filter in the veto
   // would hide wall A's finished end for a column standing on the opposite wall.
   const VETOING_BANDS: readonly Band[] = ["column", "wall", "top"];
 

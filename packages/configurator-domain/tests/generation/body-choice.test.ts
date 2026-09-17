@@ -137,6 +137,7 @@ const BLOCK_SIZE_WITNESSES: readonly DesignRoom[] = [
   { shape: "L", widthMm: 3300, depthMm: 1600, heightMm: 2600 },
   { shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2600 },
   { shape: "L", widthMm: 4000, depthMm: 3000, heightMm: 2600 },
+  // Past the approved 6000 mm on purpose (M7 7A3): a planner witness, not a policy room.
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
 ];
 

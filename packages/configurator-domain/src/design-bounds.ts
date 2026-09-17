@@ -17,10 +17,11 @@ import { LEVELS, MIN_SPAN_M } from "./void-engine.js";
  *
  * **These stopped being "the room shell the scene actually builds" in M7 wave 7H**, which made the
  * drawn shell a function of the room the customer entered. The wording moved; the **values must
- * not**. `MAX_ROOM_*` below are 1.5x them, and the owner-approved maxima in
- * `room/approved-room-policy.ts` — 6300 / 5100 / 3900 — are exactly those three, so these numbers
- * are load-bearing under owner-approved product data. Deriving the shell from `MAX_ROOM_*` would
- * close the circle the other way round.
+ * not**. `MAX_ROOM_*` below are 1.5x them — both horizontal bounds 1.5x the **longer** side since
+ * ADR 0124 — and the owner-approved maxima in `room/approved-room-policy.ts` must sit at or under
+ * them, which `approved-room-policy.test.ts` guards. Deriving the shell from `MAX_ROOM_*` would close
+ * the circle the other way round, and deriving `MAX_ROOM_*` from the approved policy would make that
+ * guard unable to fail.
  */
 const SCENE_SHELL_WIDTH_MM = 4200;
 const SCENE_SHELL_DEPTH_MM = 3400;
@@ -38,10 +39,10 @@ const SCENE_SHELL_HEIGHT_MM = 2600;
  *
  *  **What follows for the numbers below.** The 1.5x no longer stands for anything the engine needs:
  *  nothing in `packages/three-adapter/src` reads `MAX_ROOM_*`, `SCENE_SHELL_*` or any room ceiling,
- *  and the shell is correct at every room in the approved policy and beyond it. The maxima are now
- *  **free product numbers** resting on the owner's approval alone (ADR 0120's Q-B, answered
- *  2026-09-16). They keep their values because that approval is what holds them, not because this
- *  factor still derives them. */
+ *  and the shell is correct at every room in the approved policy and beyond it. The product maxima
+ *  are **owner-approved literals** in `room/approved-room-policy.ts` (ADR 0120 Amendment B2: 6000 mm
+ *  per wall); what this factor still sizes is the storage ceiling those literals are guarded
+ *  against, which is why it keeps a margin over them rather than equalling them. */
 const ROOM_HEADROOM_FACTOR = 1.5;
 
 /**
@@ -52,9 +53,18 @@ const ROOM_HEADROOM_FACTOR = 1.5;
  * `10000 × 10000 × 10000` room accepted cabinets ten metres along either wall and eight metres in
  * the air, because the only operative ceiling was `MAX_DESIGN_DIMENSION_MM`. Bounding the room is
  * what turns containment back into a real limit.
+ *
+ * **Width and depth are one number on purpose — do not "restore" the 4200 / 3400 asymmetry.** Wall A
+ * walks the width and wall B the depth, and ADR 0120 D1 made the two entered numbers the same kind
+ * of quantity: the run the customer wants furnished. The asymmetry was the seeded shell's
+ * proportions, not a fact about either wall, and it left wall B's storage ceiling under the owner's
+ * 6000 mm ruling (ADR 0124). **Never derive it from `APPROVED_ROOM_POLICY`** — see the shell's
+ * comment above.
  */
-export const MAX_ROOM_WIDTH_MM = SCENE_SHELL_WIDTH_MM * ROOM_HEADROOM_FACTOR;
-export const MAX_ROOM_DEPTH_MM = SCENE_SHELL_DEPTH_MM * ROOM_HEADROOM_FACTOR;
+const MAX_ROOM_RUN_MM =
+  Math.max(SCENE_SHELL_WIDTH_MM, SCENE_SHELL_DEPTH_MM) * ROOM_HEADROOM_FACTOR;
+export const MAX_ROOM_WIDTH_MM = MAX_ROOM_RUN_MM;
+export const MAX_ROOM_DEPTH_MM = MAX_ROOM_RUN_MM;
 export const MAX_ROOM_HEIGHT_MM = SCENE_SHELL_HEIGHT_MM * ROOM_HEADROOM_FACTOR;
 
 /**
@@ -99,12 +109,12 @@ export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
  *  declared elsewhere, so no arithmetic here is a judgement call. Review finding F2 moved the wall
  *  runs from `MAX_DESIGN_DIMENSION_MM` to the room bounds, which is what they always meant.
  *
- *  Today that is `(floor(6300/200) + floor(5100/200)) × 3 = 168`, against 26 in the shipped seeded
- *  kitchen.
+ *  Today that is `(floor(6300/200) + floor(6300/200)) × 3 = 186` (168 before ADR 0124 gave wall B
+ *  wall A's run), against 26 in the shipped seeded kitchen.
  *
  *  **Containment is no longer what the validation seam enforces.** Since ADR 0069 a body past the
  *  end of its wall is a mark rather than a refusal, so a centre may reach `MAX_DESIGN_DIMENSION_MM`
- *  and the same packing gives 300 non-overlapping placements against this cap of 168. The cap
+ *  and the same packing gives 300 non-overlapping placements against this cap of 186. The cap
  *  therefore now binds slightly before the domain's own rules would — deliberately, and two orders
  *  of magnitude outside any design this product produces. */
 export const MAX_PLACEMENTS =

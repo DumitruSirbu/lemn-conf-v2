@@ -716,8 +716,9 @@ interface WallSpan {
 /**
  * Sorted per wall and swept, not compared pairwise.
  *
- * At the caps this document may carry that is 1262 empty columns and 168 extents against 168
- * placements, including the overwhelming majority that carry neither array. Sorting once and keeping
+ * At the caps this document may carry that is `MAX_EMPTY_COLUMNS` empty columns and
+ * `MAX_COLUMN_EXTENTS` extents against `MAX_PLACEMENTS` placements, including the overwhelming
+ * majority that carry neither array. Sorting once and keeping
  * only the spans still open at the current coordinate makes an honest document linear in its own
  * size, which is what lets the caps bound the derivation rather than merely bound the document.
  *

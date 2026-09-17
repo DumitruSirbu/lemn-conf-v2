@@ -167,6 +167,8 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
   });
 });
 
+// The headline rooms were approved when 7D4 named them and sit past the 6000 mm M7 7A3 ruled; they are
+// kept on purpose, because the composer is judged here, not the policy.
 describe("criterion 1 — the two drawer rows at the wave's two headline rooms", () => {
   const BLOCK_AT_THE_FREE_END = [
     ["tall-oven-tower", 600, 4500, 5100],

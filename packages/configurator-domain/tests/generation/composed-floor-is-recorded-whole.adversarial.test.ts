@@ -16,7 +16,7 @@
 // **The sweep is over the whole approved L**, on one grid, and is deliberately not narrowed to where
 // the strip was found — the wall A entered lengths 1 510–1 700 carry every one of the 4 413, and a
 // sweep shaped around that answer would prove only that the answer was copied correctly. Measured at
-// 10 mm over all 222 351 admitted rooms the symptom set was 4 413 rooms, all on wall A and all with
+// 10 mm over all 222 351 rooms the pre-7A3 policy admitted, the symptom set was 4 413 rooms, all on wall A and all with
 // the strip against the corner; **21 of them fall on this file's 100 mm grid**, which is the arm that
 // makes it fail. The height is held at one value because the strip is a floor fact — the run, the
 // corner body and the wall row's origin do not move with the ceiling — so sweeping it would multiply
@@ -144,12 +144,13 @@ describe("every composed kitchen on the approved grid", () => {
     }
 
     // The count is asserted beside the verdict so that a sweep which silently stopped composing
-    // anything cannot pass by having found no offender.
+    // anything cannot pass by having found no offender. 2202 before M7 7A3 moved both wall maxima to
+    // 6000 mm; the grid follows the policy, so it gained wall B 5100–6000 and lost wall A 6100–6300.
     expect({
       composed,
       offending: offenders.length,
       first: offenders.slice(0, 5),
-    }).toEqual({ composed: 2202, offending: 0, first: [] });
+    }).toEqual({ composed: 2544, offending: 0, first: [] });
   });
 });
 

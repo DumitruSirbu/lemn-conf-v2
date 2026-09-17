@@ -167,10 +167,12 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
   });
 
   it("never grows past three columns however long the wall is", () => {
+    // A storable room past the approved 6000 mm on purpose (M7 7A3): the claim is the composer's.
     expect(blockOf(planFor(roomOf(6300, 5100, 3900)))).toHaveLength(3);
   });
 
   it("composes one oven tower innermost with door columns outboard, contiguous at the free end", () => {
+    // 6300 is past the approved 6000 mm on purpose (M7 7A3): the composer is judged, not the policy.
     for (const wallAMm of [3300, 3900, 4500, 6300]) {
       const plan = planFor(roomOf(wallAMm, 1700, 2600));
       const block = blockOf(plan);
@@ -212,6 +214,7 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     // wall is re-derived from the room's two entered numbers, so this and the composer agree only if
     // both read the wider-wall rule the same way.
     const arms = { onWallA: 0, onWallB: 0 };
+    // The pre-7A3 approved corner, kept on purpose: the composer is judged here, not the policy.
     for (const wallAMm of [3300, 3900, 4500, 6300]) {
       for (const wallBMm of [1000, 1600, 1700, 3000, 5100]) {
         const room = roomOf(wallAMm, wallBMm, 2600);
@@ -297,6 +300,7 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
     const dips: string[] = [];
     let previous = blockOf(planFor(roomOf(900, 1700, 2600))).length;
     let refusedInTheWindow = 0;
+    // Swept to the storable 6300 rather than the approved 6000 on purpose (M7 7A3): a composer claim.
     for (let wallAMm = 901; wallAMm <= 6300; wallAMm += 1) {
       const plan = planFor(roomOf(wallAMm, 1700, 2600));
       const size = blockOf(plan).length;
