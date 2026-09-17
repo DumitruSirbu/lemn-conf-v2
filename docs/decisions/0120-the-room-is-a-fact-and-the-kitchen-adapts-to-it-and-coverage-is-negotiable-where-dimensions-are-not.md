@@ -1398,3 +1398,14 @@ possible outcome for a relaxation and the easiest one to misread as an oversight
 | [ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | Record a foreseeable problem with its trigger and build nothing. | **Applied once and by the book** (E4): the 4-metre branch is named, its trigger stated as *when Q-7D8-2 is answered the other way*, and **no code is written for it.** |
 | [ADR 0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) | Re-read a claim at HEAD before asserting it. | **Applied to the one claim that would have wasted this amendment.** *"C2 is still open"* was re-read at `5c915f8` in three places (E1) rather than taken from the brief that commissioned this slice. |
 | [ADR 0121](0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md) | A thing is identified by what it is, never by what correlates with it; measure a rule stated in a quantity **split by that quantity**. | **This amendment is its first instance being closed.** 0121's *Consequences* says *"`chooseWallCut` remains an open obligation with no wave"* (line 331 at `5c915f8`), and its index row in `README.md` says *"still unfixed and owned by no wave"*. **Both are out of date from this date, and this is the record that dates them.** Decision 5 is what E2's two-split instrument implements. |
+
+## Pointer — 2026-09-17: the wire-bound consequence of Amendment B2 is recorded in ADR 0124
+
+Applying Amendment B2's owner-ruled 6000 mm per wall to `approved-room-policy.ts` alone would let a
+room pass Step 1 and then be silently refused by `DesignRoomSchema`, because `design-bounds.ts`'s
+`MAX_ROOM_DEPTH_MM` is 5100 — derived from the seeded scene shell, not from Amendment B2 or from
+anything about kitchens. **This record's rulings are unchanged and this is a pointer, not an
+amendment**: the wire-bound fix, its cost (`MAX_DESIGN_BYTES` +3.67 %, a SEC-002 request-cap change)
+and the product consequence it sizes (a withdrawn band of 1 980 rooms, an admitted band of 7 380) are
+in [ADR 0124](0124-the-wall-maxima-move-together-and-one-number-not-two.md), M7 wave 7A3 slice S0. Code
+lands in slice S2.

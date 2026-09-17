@@ -14483,7 +14483,19 @@ still holding, and this wave is a second test of it.
 
 ### Owner and coordinator questions
 
-**Q-7A3-1 — the owner's, and it gates S3 alone.** The owner's words for the remedy, 2026-09-15:
+> **ANSWERED — 2026-09-17.** All three questions below are settled. **Q-7A3-1** was put to the owner
+> as *"the room fields should ask for the length of cabinets the customer wants on each wall. You
+> suggested a tooltip, but a customer who never taps it will still type the full wall length. Which
+> should the fields use?"* — options offered: hint + tooltip (recommended), hint only, tooltip only,
+> rewrite the labels. **The owner answered (b) + (a): an always-visible hint line above the length
+> fields, with the owner's own tooltip on top.** S3 is therefore **ungated**, and **Q-7A3-2 is moot**
+> — there is no unanswered question left for it to hold S3 open against. **Q-7A3-3 is ruled by the
+> coordinator, 2026-09-17: its own ADR** — [ADR 0124](../decisions/0124-the-wall-maxima-move-together-and-one-number-not-two.md)
+> — per this plan's own recommendation below. **Slice S0 is discharged by ADR 0124.** The plan's
+> dependency — *"7A3 does not dispatch until 7D8 closes"* — is satisfied: 7D8's close-out is committed
+> at `b80ab97`. The three questions below are kept, struck in place, for the record of what was asked.
+
+~~**Q-7A3-1 — the owner's, and it gates S3 alone.**~~ The owner's words for the remedy, 2026-09-15:
 *"this can be solved simple with a tooltip that will mention clear what size they should insert the
 wanted lenght of cabinets on specific wall."* **The instrument is put back, and the ruling is not
 reinterpreted here.** Three instruments exist, and the frames constrain the choice:
@@ -14501,16 +14513,19 @@ requires a tap, and it will not ship (c) without the owner's word, because that 
 **The question in one sentence: may the field group carry a short always-visible line saying the
 number is the length of cabinets you want on that wall — with or without the tooltip on top?**
 
-**Q-7A3-2 — the coordinator's, not blocking.** If Q-7A3-1 is unanswered when S2 closes, does S3
+~~**Q-7A3-2 — the coordinator's, not blocking.** If Q-7A3-1 is unanswered when S2 closes, does S3
 detach to 7F2 (which already owes the 1C refusal sentence and would then own both Step-1 copy
 obligations), or does the wave hold open? **Recommendation: detach.** S0–S2 are a complete, shippable
-change with no copy in them, and a wave held open on a question is a wave nobody can close.
+change with no copy in them, and a wave held open on a question is a wave nobody can close.~~ **Moot
+as of 2026-09-17: Q-7A3-1 was answered, so there is nothing for S3 to detach from.**
 
-**Q-7A3-3 — the coordinator's, and it may be answered by fiat.** ADR 0120 already carries amendments
+~~**Q-7A3-3 — the coordinator's, and it may be answered by fiat.** ADR 0120 already carries amendments
 A–E and shares its letters with ADR 0110 in a way ADR 0120 Amendment E itself flags as a reader
 hazard. Does S0's record go in as **ADR 0120 Amendment F**, or as its own ADR? **Recommendation: its
-own ADR.** Its subject is a *wire bound*, not the room ruling, and it will be cited from
-`design-bounds.ts` rather than from the room code.
+own ADR.**~~ **Ruled by the coordinator, 2026-09-17: its own ADR**, per this plan's own
+recommendation — [ADR 0124](../decisions/0124-the-wall-maxima-move-together-and-one-number-not-two.md).
+Its subject is a *wire bound*, not the room ruling, and it is cited from `design-bounds.ts` rather
+than from the room code.
 
 ### Verification
 
