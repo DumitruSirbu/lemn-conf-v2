@@ -23,6 +23,10 @@ signal — a diff that reports "identical", a lint or format probe that reports 
 returns nothing — use `rtk proxy <command>`. Filtered output has falsely reported all four.
 Instances and the parsing trap: `docs/best-practices/ci-and-local-gates.md`, *The `rtk` proxy*.
 
+**A present value can be wrong too, so the test is what you will do with the output, not whether you
+expect it to be empty:** any command whose output you are about to assert, cite or act on runs as
+`rtk proxy`. See `docs/WORKFLOW.md`, **R9**.
+
 ## Diagnostics
 
 ```bash

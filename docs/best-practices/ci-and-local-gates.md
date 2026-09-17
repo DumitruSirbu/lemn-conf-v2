@@ -60,12 +60,26 @@ investigation instead of prolonging it.
 - `diff a b` returned **`[ok] Files are identical`** for two files differing on three lines, one of
   them a load-bearing ADR citation. `rtk proxy diff a b` showed the divergence (2026-09-11).
 - An `eslint --stdin` probe that flagged a real error came back as **`ESLint: No issues found`**.
-- A `prettier --check` over `docs/` reported **passing** on files it would have restyled.
+- ~~A `prettier --check` over `docs/` reported **passing** on files it would have restyled.~~
+  **WITHDRAWN 2026-09-17 — this was never an rtk failure, and it is R5's.** `.prettierignore:3` is
+  `docs/`, added in the **initial commit** `e56f207` (2026-08-25) — the same day this instance was
+  recorded. **Real Prettier exits 0 over `docs/` too, reading nothing**, so the observed "passing" was
+  correct output about an empty set, not a filtered summary. The bullet's premise — *"files it would
+  have restyled"* — is false: Prettier would have restyled none of them. Found by the scribe adding
+  the Rules section, which reported the misattribution rather than inheriting it. **It moves to
+  `../WORKFLOW.md` R5, where it is the earliest known instance — three weeks before the behaviour was
+  identified, sitting in the evidence list that justifies a different rule.**
 - A `grep -E 'a|b'` alternation returned **nothing** where both alternatives matched.
 
 So: **run it as `rtk proxy <cmd>` whenever the *absence* of content is the signal** — is this a
 duplicate, did content survive a move, do two copies agree, does this file lint clean. Brief
-dispatched agents to do the same. Separately, rtk reformats `grep -n` output, so a pipeline doing
+dispatched agents to do the same.
+
+**That heuristic is necessary and not sufficient**, sharpened 2026-09-17: the filter also returns
+*present* values that are wrong — a count of **1** unpushed commit where the true count was 0, and a
+commit summary in place of a diff. Both would have passed the "expect it to be empty" test and been
+believed. The binding question is whether you are about to **assert, cite or act on** the output, not
+whether you expect it to be empty; those instances are in `../WORKFLOW.md`, **R9**. Separately, rtk reformats `grep -n` output, so a pipeline doing
 `awk -F: '{print $1}'` gets the **path** rather than the line number; anything parsing grep output
 needs `rtk proxy` too.
 
