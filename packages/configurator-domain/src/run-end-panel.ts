@@ -91,11 +91,17 @@ const PANEL_HALF_THICKNESS_M = RUN_END_PANEL_THICKNESS_M / 2;
  *  it, and a base-height end panel finishes nothing against a 2200 mm body. So the run's end is
  *  still read from base placements alone, and every other wall-A body can only veto.
  *
- *  **The second veto is the wall's own end** (ADR 0045 Amendment A, owner: *"No panel when run hits
- *  wall"*): a panel whose outer face would pass wall A's end is not drawn — a fitter closes that gap
- *  with a filler strip. Equality fits, as everywhere else (ADR 0083 decision 3), so a run ending
- *  exactly the panel's gap and slab short of the wall keeps it. `room` is required rather than
- *  optional: a call without it would be a veto that silently never fires. */
+ *  **The second veto is the end of wall A's entered length** (ADR 0045 Amendment A, owner: *"No panel
+ *  when run hits wall"*): a panel whose outer face would pass `wallLengthMm("A", room)` is not drawn.
+ *  That number is not a physical wall. It is the stretch the customer asked to furnish, and the whole
+ *  of what the product knows about that wall (ADR 0120 Amendments C1 and D1), so nothing is modelled
+ *  past it — no wall to butt against and no gap to fill. The authority is the owner's ruling alone,
+ *  re-confirmed on those terms: a run that stops there gets no finished panel (ADR 0120 Amendment D2,
+ *  *"no panel needed"*). The reason once written here, a fitter's filler strip against the wall,
+ *  assumed a wall the product never learns; D2 found it false and kept the behaviour, so do not read
+ *  the veto's correctness off that reason. Equality fits, as everywhere else (ADR 0083 decision 3), so
+ *  a run ending exactly the panel's gap and slab short of that end keeps it. `room` is required rather
+ *  than optional: a call without it would be a veto that silently never fires. */
 export function runEndPanelSeatM(
   records: readonly PlacementRecord[],
   room: DesignRoom,
