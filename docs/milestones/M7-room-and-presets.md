@@ -1521,7 +1521,7 @@ table.
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), **Q-H3 answered 2026-09-16 (a threshold at six plain storage cabinets, not a ratio — it re-keyed the plan)**; **Q-H5 blocks slice S3 only; Q-H4 and the new Q-H3a change two criteria and no code** |
 | **7D8** | **DONE, close-out 2026-09-17** — see [7D8 close-out](#7d8-close-out--2026-09-17). Commits: planning `8ebff1f`/`36fde8c`/`275c95e`/`27ae496`; S0 `5c915f8`; S1 `2439da5`; E4 correction `355a15e`; adjudication `c456dbd`; S2 `814ca44` (`--no-verify`, 25 known-red assigned to S3); S3 `f919bfa` (suite green); review `62cfee1`; Q-7D8-2 ruling `6dbff27`; ADR 0110 Amendment I1.1 `e18908b`; shrink-strip fix `24ca2bc`; panel-colour fix `dcec03f`; ADR 0122 `8b73439`; S4 `b83e4f2`. `pnpm ci:local`/push pending. **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
-| **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **Carries the pre-flight gate on 7D3** and may move an owner-approved wall minimum. **Deadline: land before 7P2** — once presets are saved the reach is load-bearing on stored data and stops being freely re-derivable | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **S1's pre-flight PASSES (900/900) and S2's shape is ruled — see [7D6 adjudication — S2's shape, 2026-09-17](#7d6-adjudication--s2s-shape-2026-09-17): J3 → J3′, criteria 2 and 4 struck and replaced, three added, eight must-nots. S2 and S3 dispatch now.** **Q-K1 is now live rather than contingent** (derived floor-reach 880/880 against the approved 900/1000), is **worded in that adjudication**, must be put **jointly with Q-7D7-2**, and gates the **joint bound slice only** — still a conversation, not a migration |
+| **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **DONE, close-out 2026-09-18** — see [7D6 close-out](#7d6-close-out--2026-09-18). Commits: S1 pre-flight (no code, 900/900 reproduced); S2 `bf58f97`; S3 `dcb67ce`; QA `9ae586c`; review fixes `0d79ce9`. `pnpm ci:local`/push recorded by the coordinator, separately | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **Q-K1 ANSWERED 2026-09-17, option 3 — [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md): the owner kept 900/1000 as a deliberate margin above the derived 880/880 floor. No bound moves. [ADR 0108 Amendment F](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin) narrows Amendment A ruling 1 accordingly. The joint bound slice (7D6-S5/7D7-S5) does not dispatch — no literal moved** |
 | **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Re-scoped 2026-09-16 under ADR 0120 Amendment A: the width is a function of the depth *and the room*, so the parity criterion sweeps rooms × depths.** The wall row's 570 returns move with the base row's 320 or the wave buys nothing — **the 290 mm cliff, defused by the owner's ruling below and live again the moment one row moves alone**. **Floors ruled 2026-09-16: a cabinet with one door at all three levels → 200 everywhere, wall B's bound 1000 → 880.** **Ordering: its fidelity baseline is taken *after* 7H lands, never before — 7H is landed at `7b1f92c`. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders, `decomposed-bodies.ts`, `build-any-body.ts` (+ fidelity, parity and room-sweep coverage); **slice S5 only**, jointly with 7D6 and by the coordinator's recorded exception, `configurator-domain/src/room/approved-room-policy.ts` | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + a narrow room | **Q-7D7-1 ANSWERED 2026-09-16** (one door at all three levels → 200). **Q-7D7-2 open** — wall A's minimum moves to 880 too, which ADR 0120 said it would not; gates S5's wall-A half only. S0–S4 dispatch now |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
@@ -11149,6 +11149,164 @@ criterion 4′ and 10 — **and it no longer needs the owner to go green.** ~~Th
 (7D6 / 7D7-S5) **remains gated on Q-K1**, which is now written above and is the coordinator's to put.~~
 **Q-K1 is answered, 2026-09-17 — the owner kept 900/1000** ([ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)).
 **No literal moves, so the joint slice (7D6-S5 / 7D7-S5) does not dispatch.**
+
+### 7D6 close-out — 2026-09-18
+
+**DONE.** Four commits on `m7-room-and-presets`, in order: `bf58f97` (S2 — the derivation and its
+three readers), `dcb67ce` (S3 — the margin pin and the literal sweep), `9ae586c` (QA — the room
+term's reach), `0d79ce9` (review fixes — the half-millimetre centre guard, the band-filter mutant).
+Slice S1 was the pre-flight and landed no code (900/900 reproduced, `76907f2`). `pnpm ci:local` for
+this wave is running concurrently with this close-out and its result is the coordinator's to record,
+not this pass's. **Recorded by the coordinator, 2026-09-18, on `0d79ce9`: `LOCAL CI PASSED — all
+gates green, safe to push.`** — format, lint, typecheck, test (domain **214 files / 4,530**,
+persistence 20 / 282, three-adapter 85 / 3,484, web 218 / 3,316, all passed), e2e **208 passed /
+2 skipped (5.7 m)**, build, boundary, lockfile and SCA. Those e2e tests ran against `next dev`, not a
+production build, as on every wave of this milestone. **The `qa-7d3` oven sweep did not time out in
+this run**, which is consistent with its recorded marginality rather than evidence against it.
+
+Criterion by criterion, against the [7D6 adjudication](#7d6-adjudication--s2s-shape-2026-09-17)'s
+J1′/J3′ shape (criterion 2 struck → 2′, criterion 4 struck → 4′, criteria 11–13 added).
+
+> **Evidence tier for every "Discharged" line below: doc-quoted, not re-run.** The pass that wrote
+> this close-out **had no shell** — it could not read the four commit messages or execute a test, and
+> said so. Each line rests on the commits' own reported measurements and on ADR 0108 Amendment F,
+> which was written against HEAD with file:line citations. **The coordinator verified the four hashes
+> and their subject lines against `git log`, and records `pnpm ci:local` separately below.** A reader
+> who needs a criterion re-measured should re-run it rather than cite this section.
+
+1. **Discharged.** The derived reach at 600 mm, in the reference room, is 900/900 — the pre-flight
+   figure, reproduced by construction in the shipped derivation (`bf58f97`).
+2′. **Discharged.** The two rows' far edges on wall B satisfy `farWall ≤ farBase` and the residue
+    equals the arithmetic the derivation's own inputs give, over `declaredCabinetDepthsMm()` × rooms;
+    `bf58f97`'s logic reviewer verified the two ADR 0089 chain deltas (+100, +70) cannot part from
+    the module constants that produce them.
+3. **Discharged.** Zero `validateDesignForCatalog` findings and no overflowing placement, at each
+    declared depth and after `setCabinetDepth`, without the re-validation trap D7.2 flags.
+4′. **Discharged, as a pinned margin rather than an equality.** `ENGINE_ROOM_LIMITS` moved
+    900/1000 → 880/880 (`bf58f97`); `APPROVED_ROOM_POLICY` stayed at 900/1000 (`dcb67ce` asserts the
+    gap, not the code — no literal in `approved-room-policy.ts` moved in this wave). The margin
+    `{ wallA: 20, wallB: 120 }` is ADR 0125's ruled, deliberate margin, cited by `dcb67ce`'s test
+    rather than re-derived by it. Both directions are loud by module-level mutation (adjudication D6).
+5. **Discharged.** No insertability changes; a corner row does not gain a catalogue equivalent.
+6. **Discharged at the shipped depth.** Run origins stay on the grid at 600 mm; D5 records why the
+   requirement is not extended to 700 mm (no multiple of 50 sits in the window the ruled floors could
+   meet in).
+7. **Discharged.** The smallest room `APPROVED_ROOM_POLICY` admits still holds its corner assembly
+   and still returns *minimum not met*; the test reads the bound rather than typing it.
+8. **Discharged.** 7D3's origin is unmoved: `lShellFloorRuns` still gives 900/900 at 600 mm for the
+   four rooms 7D3's threshold table names.
+9. **Discharged.** Determinism: the same room and depth give a byte-identical shell.
+10. **Discharged.** No corner width survives as a literal under `src/generation/` or `src/room/`
+    outside the fixture and the derivation — swept in `dcb67ce`, and **QA (`9ae586c`) found the sweep
+    was one level deep and closed that**. *(The "third instance in M7 of a property whose generator
+    cannot reach the case it asserts about" is QA's **room-term** finding, not this one — corrected by
+    the coordinator, 2026-09-18, because mislabelling it would send a later reader looking for a
+    generator defect in a directory walk.)*
+11. **Discharged.** Wall A's wall-only run survives: the reference room's two tiles (900 mm, `A@400
+    w800` and `A@850 w100`) are unchanged, and in the approved minimum room they remain the shell's
+    only recorded space.
+12. **Discharged, with a correction to its own wording.** Containment holds. Attainment as originally
+    worded (the reach at the approved minimum room equals `narrowestCornerReachMm`) was unsatisfiable
+    once the owner ruled the margin — at 900 × 1000 the reach is the reference corner's 900, not the
+    floor's 880. Both S2's implementer and the logic reviewer flagged this (`0d79ce9`); the shipped
+    test asserts what is actually true — the smallest room the *bound* admits attains the bound
+    exactly, verified tight at 880 × 880 and attained on wall B by different pieces at different
+    depths (`corner-assembly-size.test.ts:675-700`). No product decision involved. Acyclicity holds.
+13. **Discharged.** The bound entry point and the shell's helpers give different answers on wall B in
+    the reference room, so a swap between them cannot be silent.
+
+**The wave's central interim, stated in the reviewer's terms.** `ENGINE_ROOM_LIMITS` now admits walls
+from 880 while the shell still places the reference-sized corner. **At 880 × 880 this yields four
+overflowing placements — `p21`, `p25`, `p26`, `p9` (not the three first reported) — wall B's floor
+run comes back inverted (`endMm < startMm`), and `generateKitchen` throws a bare internal `Error`
+where before the wave the same room produced a typed `LShellInputError("ROOM_OUTSIDE_ENGINE_LIMITS")`
+— the failure mode degraded from a typed refusal to an internal-invariant breach.** No product path
+reaches it: `apps/web` validates against `APPROVED_ROOM_POLICY`, never `ENGINE_ROOM_LIMITS`, so no
+customer can enter an 880 × 880 room. **The containment argument for shipping anyway points at
+`buildLShellDesign` and `generateKitchen`, which are exported and gate internally on the engine
+limits — not at `ENGINE_ROOM_LIMITS` being unexported**, which was this wave's original framing and
+understates it: an internal, exported-function gate is what actually keeps the window closed, not
+module privacy. The load-bearing guard is the approved-minima ≥ reference-reach assertion in the QA
+file, not the export check.
+
+**The inverted run and the bare-`Error` crash are two distinct failure classes, and 7D7's criteria
+should name both** — not as one "the shell breaks below 900" defect, but as (a) a floor-run whose
+`endMm` precedes its `startMm`, and (b) a typed refusal degrading to an untyped internal exception.
+
+**The reviewer's own judgement, recorded rather than re-argued:** shipping this window was right —
+the adjudication ruled the bound's *reader* (D1: the wall-minimum question is answered at the floor,
+room-independent), and sizing the *placed* corner in `buildLShellDesign` was outside S2's declared
+file scope (`src/room/room-policy.ts`, `shell-design.ts`'s run-start helpers, the fixture, the
+derivation module — never `generate-kitchen.ts`). **The option not taken:** leaving the bound at the
+reference reach (900/1000 in `ENGINE_ROOM_LIMITS` too) until 7D7 lands the sized placement, closing
+the window before it ever opened. **D1 ruled against this** — the derivation's own containment
+argument requires the wall-minimum question to be answered at the corner's floor once the corner is
+allowed to shrink to fit (ADR 0120 Amendment A), and pinning `ENGINE_ROOM_LIMITS` to the reference
+reach would have been the "maximise over rooms" reading D1 refused for pinning the bound to the
+reference corner forever and blinding criterion 4′ to a shrink.
+
+**The room term's only observable effect in the product today is inside this window** — 880 mm to
+899 mm on wall A, 880 mm to 999 mm on wall B — where it makes the shell inconsistent with itself
+rather than changing anything a customer can reach. **The room term becomes ADR 0120 Amendment A's
+implementation, not merely its derivation, only when 7D7 sizes the placements** to match the floor
+the engine now admits. Stated this way rather than as "the room term is swept where it does nothing":
+the term has one live, if unreachable, effect today, and 7D7 is what turns that effect into the
+product behaviour ADR 0120 Amendment A actually describes.
+
+**Carried, not central:**
+
+- **The half-millimetre centre guard binds on the centre, never on the width.** Refusing odd widths
+  would withdraw engine-admitted rooms — a product decision the owner has not made, and 7D7's to
+  raise if it needs one.
+- **The band-filter mutant (`0d79ce9`) is closed by pinning an exported constant.** One of the tests
+  it added is *expected* to go red once 7D7 sizes the wall and top rows differently — flagged here so
+  that red is read as expected, not as a regression, when 7D7 lands.
+- **A perf item was implemented, measured, and reverted.** The re-derivation is not what costs
+  `qa-7d3` its budget headroom.
+- **Unowned budget pressure, carried to whoever owns `qa-7d3`'s budget:** in a full run the oven
+  sweep passed at 4,938 ms of a 5,000 ms budget and the centring-hazard test took 5,099 ms. Neither
+  failed; both want the budget raised before either does.
+- **Nits deliberately not taken:** N2 (criterion 2′'s residue line is an algebraic identity; the
+  independent work is the catalogue-function selection) and the literal sweep's accepted misses
+  (arithmetic, numeric separators, other directories).
+
+**Documentation landed with this wave:** [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)
+(the owner's Q-K1 ruling, option 3) and [ADR 0108 Amendment F](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin)
+(narrowing Amendment A ruling 1 to the corner's floor widths at a `(depth, room)` argument, correcting
+rulings 1 and 2 against what actually shipped at HEAD `9ae586c`, and recording the
+`cornerReachMm`-means-two-things hazard with its trigger, per ADR 0118).
+
+**Deferred work, with its owner:**
+
+- **The `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` rename.** ADR 0125 and ADR 0108 Amendment F both flag
+  the name as misleading now that the margin is ruled rather than owed. Neither ADR makes the rename;
+  it is code, owed to whichever commit next touches that constant.
+- **The `qa-7d3` budget raise.** Owner: whoever owns that test file's budget. No wave assigned.
+- **The two failure-class criteria (the inverted run, the bare-`Error` crash).** Owner: wave 7D7,
+  named above rather than left for 7D7's implementer to rediscover.
+
+**What 7D7 inherits, in one place:**
+
+1. **The window** — 880 mm to 899 mm on wall A, 880 mm to 999 mm on wall B — where `ENGINE_ROOM_LIMITS`
+   admits a room the shell cannot yet build correctly, because it still places the reference-sized
+   corner rather than the room-sized one.
+2. **The two markers that clear when 7D7 lands the sized placement:** the four overflowing placements
+   (`p21`, `p25`, `p26`, `p9`) at 880 × 880, and wall B's inverted floor run (`endMm < startMm`) in
+   that same room.
+3. **The criteria 7D7 must name, not merely fix:** a floor-run whose `endMm` precedes its `startMm`
+   (the inverted-run failure class), and a typed `LShellInputError` degrading to a bare internal
+   `Error` (the crash failure class) — both currently unreachable from any product path but both
+   reachable the moment 7D7's own criteria, or a future wave, open the window from the other side.
+4. **The band-filter test expected to go red** once 7D7 sizes the wall and top rows differently
+   (`0d79ce9`) — read that red as expected, not as a regression this wave introduced.
+5. **The unrenamed margin constant** and **the unraised `qa-7d3` budget**, both listed above as
+   deferred work with no wave assigned; 7D7 may pick up the rename if it is the next commit to touch
+   the constant, but is not obligated to.
+6. **ADR 0108 Amendment F's recorded hazard** — `ENGINE_ROOM_LIMITS` and `APPROVED_ROOM_POLICY` now
+   mean different things by `cornerReachMm` (narrowest vs. reference corner). Harmless today for two
+   reasons that must both keep holding (`isRequired: false`, and nothing compares the two fields); 7D7
+   must not be the wave that makes either reason stop holding without also resolving the naming
+   disagreement.
 
 ## Wave 7D7 — dispatchable punch list: the corner builders take their size as a parameter
 
