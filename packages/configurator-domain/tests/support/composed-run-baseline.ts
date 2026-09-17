@@ -77,8 +77,43 @@ const MOVED_BY_THIS_WAVE = "<7D4>";
 
 const PREPARATION_ROLE = "preparation";
 
-/** The approved L policy, read from the policy rather than spelled: wall A 900-6300, wall B
- *  1000-5100, height 2200-3900, on a 1 mm grid. */
+/** The L rectangle both recordings were captured over, **spelled rather than read from
+ *  `APPROVED_ROOM_POLICY`, on purpose.** The recording's population and the product's policy are two
+ *  different things that were equal until M7 wave 7A3 moved the policy (ADR 0121 decision 2): the
+ *  rooms keyed in `7d3-composition-baseline.json` and `7d8-re-keyed-baseline.json` were drawn from
+ *  exactly these bounds, and a draw over any other rectangle reaches rooms the capture never saw.
+ *  Re-capturing over the new policy would mint post-change output into a file whose purpose is to
+ *  hold the pre-state. `composed-run-baseline.test.ts` reddens if these start following the policy. */
+const RECORDED_L_WALL_A_MIN_MM = 900;
+const RECORDED_L_WALL_A_MAX_MM = 6300;
+const RECORDED_L_WALL_B_MIN_MM = 1000;
+const RECORDED_L_WALL_B_MAX_MM = 5100;
+const RECORDED_CEILING_MIN_MM = 2200;
+const RECORDED_CEILING_MAX_MM = 3900;
+
+/** The rooms the recordings are keyed by, on a 1 mm grid. **Every property that reads a recording draws
+ *  from this one**, at `BASELINE_SEED` and `BASELINE_RUNS`; a property about a live product rule draws
+ *  from `approvedLRoom` instead. */
+export function recordedLRoom(): fc.Arbitrary<DesignRoom> {
+  return fc.record({
+    shape: fc.constant("L" as const),
+    widthMm: fc.integer({
+      min: RECORDED_L_WALL_A_MIN_MM,
+      max: RECORDED_L_WALL_A_MAX_MM,
+    }),
+    depthMm: fc.integer({
+      min: RECORDED_L_WALL_B_MIN_MM,
+      max: RECORDED_L_WALL_B_MAX_MM,
+    }),
+    heightMm: fc.integer({
+      min: RECORDED_CEILING_MIN_MM,
+      max: RECORDED_CEILING_MAX_MM,
+    }),
+  });
+}
+
+/** The approved L policy, read from the policy rather than spelled, on a 1 mm grid — so a sweep of a
+ *  live product rule follows the policy wherever it moves. Never key a recording by this draw. */
 export function approvedLRoom(): fc.Arbitrary<DesignRoom> {
   const l = APPROVED_ROOM_POLICY.buildableShapes.L;
   if (!l) throw new Error("the approved policy states no L to sweep");
@@ -307,8 +342,8 @@ export function recordedRoom(
   if (!recorded) {
     throw new Error(
       `the 7D3 baseline holds no room ${roomKey(room)}; it was captured at seed ` +
-        `${String(baseline.seed)} over ${String(baseline.runs)} runs and must be recaptured if the ` +
-        `sweep's draw changed`,
+        `${String(baseline.seed)} over ${String(baseline.runs)} runs; a property reading it must draw from ` +
+        `recordedLRoom(), and the file is NOT re-captured to fit a moved policy (M7 wave 7A3)`,
     );
   }
   return recorded;

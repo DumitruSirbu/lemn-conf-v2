@@ -43,10 +43,10 @@ import {
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import {
-  approvedLRoom,
   BASELINE_RUNS,
   BASELINE_SEED,
   canonicalPlan,
+  recordedLRoom,
   roomKey,
 } from "../support/composed-run-baseline.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
@@ -81,7 +81,7 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     const differences: string[] = [];
     const swept = new Set<string>();
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const plan = planFor(room);
         if (!isReKeyed(room, plan)) return;
         const key = roomKey(room);
@@ -109,7 +109,7 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     // description while composing a kitchen.
     const outsideTheReKey: string[] = [];
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const key = roomKey(room);
         const recorded = RECORDING.has(key);
         if (recorded !== isReKeyed(room, planFor(room))) {

@@ -47,7 +47,6 @@ import {
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import {
-  approvedLRoom,
   BASELINE_RUNS,
   BASELINE_SEED,
   canonicalModule,
@@ -58,6 +57,7 @@ import {
   digestOf,
   isMovedByThisWave,
   readComposedRunBaseline,
+  recordedLRoom,
   recordedRoom,
   recordedWitness,
   roomKey,
@@ -342,7 +342,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     const unexpected: string[] = [];
     let placed = 0;
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const plan = planFor(room);
         if (plan.minimumMet) placed += 1;
         const composed = digestOf(canonicalPlanBeyondThisWavesBodies(plan));
@@ -467,7 +467,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // fixed draw, which is a stronger statement about the recording's reach than a floor was.
     const arms = { composedSlots: 0, blockColumns: 0, wallBStorage: 0 };
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const bases = planFor(room).bases;
         const slots = bases.filter(isComposedStorageSlot);
         if (slots.length > 0) arms.composedSlots += 1;
@@ -500,7 +500,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     const unexpected: string[] = [];
     let withUppers = 0;
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const kitchen = generated(room);
         const recorded = recordedRoom(BASELINE, room).wallRow;
         if (!kitchen) {
@@ -533,7 +533,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     let hoods = 0;
     let bodiesReachingTheWallRow = 0;
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const kitchen = generated(room);
         if (!kitchen) return;
         const floorMm = wallRowFloorMm(kitchen.design);
@@ -561,7 +561,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
 
   it("generates no lift and no open shelf, and logs no width command for an upper", () => {
     fc.assert(
-      fc.property(approvedLRoom(), (room) => {
+      fc.property(recordedLRoom(), (room) => {
         const kitchen = generated(room);
         if (!kitchen) return;
 
