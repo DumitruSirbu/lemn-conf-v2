@@ -20,6 +20,10 @@
 // one of the two by 30 mm (ADR 0089's measurement), which is why the field selects between two
 // behaviours rather than labelling one. The 30 mm it leaves in wall B's top row at 700 is the
 // product's answer and not a defect to smooth away — wave 6A3's *"never a sum of widths"*.
+// **This module sizes nothing:** how *wide* a generated corner is belongs to
+// `corner-assembly-size.ts` (7D6's J1′, ADR 0120 Amendment A), and the 30 mm above is the residue
+// of a **slide** on a design whose widths are already frozen — so a corner sized for its room
+// neither removes it nor is this file's subject.
 //
 // Both reaches are read from `catalog.ts`'s own depth formulas rather than restated here, so a
 // chain and the body it is measured against cannot drift apart the way two literals agreeing at one

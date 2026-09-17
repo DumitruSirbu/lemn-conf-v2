@@ -1221,6 +1221,29 @@ describe("buildLShellDesign — the engine's own limits (R1.2)", () => {
     );
   });
 
+  /** **The smallest room the shell's own placements fit, which since wave 7D6 is no longer the
+   *  engine's minimum.** That minimum is now the reach of the *narrowest* corner the product will
+   *  build — 880 mm on both walls, a cabinet with one door at each of the three levels — while
+   *  `buildLShellDesign` still copies the reference kitchen's corner at its own size, reaching 900 on
+   *  wall A and 1000 on wall B at the deepest depth, until wave 7D7 parameterises the builders. In
+   *  the 20 mm / 120 mm window between the two the shell would place a corner past its wall, and
+   *  **no product path reaches it**: a customer's room is judged against `APPROVED_ROOM_POLICY`
+   *  (`apps/web/src/room/room-url-state.ts`), whose minima are the 900 × 1000 swept here.
+   *
+   *  Read off the policy rather than typed, so it collapses back onto the engine's own minimum in the
+   *  commit that makes the shell place a corner sized for its room. */
+  function smallestRoomTheShellPlacesItsCornerIn(): {
+    readonly widthMm: number;
+    readonly depthMm: number;
+  } {
+    const approvedL = APPROVED_ROOM_POLICY.buildableShapes.L;
+    if (!approvedL) throw new Error("the approved policy builds no L");
+    return {
+      widthMm: approvedL.wallA.minMm,
+      depthMm: approvedL.wallB.minMm,
+    };
+  }
+
   // Every ceiling the engine accepts, not a sample: the zero-height guard's edges (the wall row's
   // floor, one either side), the corner pieces' own tops, and the top row all fall inside it. Four
   // rooms per height — the smallest, both walls at their first tile seam, the reference and the
@@ -1231,7 +1254,7 @@ describe("buildLShellDesign — the engine's own limits (R1.2)", () => {
       depthMm: floorRunOriginMm("B") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
     };
     const walls = [
-      { widthMm: engineL.wallA.minMm, depthMm: engineL.wallB.minMm },
+      smallestRoomTheShellPlacesItsCornerIn(),
       seamRoom,
       { widthMm: ROOM.widthMm, depthMm: ROOM.depthMm },
       { widthMm: engineL.wallA.maxMm, depthMm: engineL.wallB.maxMm },

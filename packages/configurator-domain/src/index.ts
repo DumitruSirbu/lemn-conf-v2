@@ -252,6 +252,25 @@ export {
   type RoomValidation,
   type URoomInput,
 } from "./room/validate-room.js";
+// **How wide the corner assembly is built** (7D6's J1′, ADR 0120 Amendment A). Three entry points
+// and no fourth: `narrowestCornerReachMm` answers the *bound* and takes no room, the other two
+// answer one (depth, room), and their return types differ so the two questions cannot be confused
+// at a call site. Exported for wave 7D7's builders, which take the corner's size as a parameter
+// instead of holding it as a literal.
+export {
+  CORNER_ASSEMBLY_PIECES,
+  cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
+  narrowestCornerReachMm,
+  type CornerAssemblyPiece,
+  type CornerAssemblyQuery,
+  type CornerAssemblyWidthsMm,
+  type CornerBand,
+  type CornerFarEdge,
+  type CornerFarEdgeQuery,
+  type NarrowestCornerReach,
+  type SizedCornerPiece,
+} from "./corner-assembly-size.js";
 // The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the
 // corner that fits under its ceiling, and every free run recorded as empty space.
 export {

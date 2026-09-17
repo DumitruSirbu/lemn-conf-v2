@@ -58,6 +58,11 @@ import {
   type BodyFinishRule,
 } from "../body-finish-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
+import {
+  cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
+  type CornerAssemblyPiece,
+} from "../corner-assembly-size.js";
 import type { Design, DesignPlacement } from "../design.js";
 import {
   CARRIES_SINK,
@@ -904,40 +909,6 @@ function placement(
   return { id, wall, alongMm, y0Mm, body: { buildId, widthMm, heightMm } };
 }
 
-export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
-  placement("p0", "A", 1300, 0, "base-sink-800", 800, 820),
-  placement("p1", "A", 2000, 0, "base-dishwasher-600", 600, 820),
-  // ADR 0027: one body, not a cabinet plus an accessory standing on it. `p3` is gone and its id is
-  // not reused — ids are persisted, and a freed id that reappears meaning something else is worse
-  // than a gap in the sequence.
-  placement("p2", "A", 2600, 0, "base-hob-2drawer-600", 600, 820),
-  placement("p4", "A", 3200, 0, "base-drawer3-600", 600, 820),
-  // ADR 0025. Appended ids, out of positional order on purpose: `p0`…`p24` are persisted in real
-  // designs, so renumbering the base row to seat the corner at its head would rewrite saved data.
-  placement("p25", "A", 450, 0, "base-corner-x-900", 900, 820),
-  placement("p26", "B", 740, 0, "base-corner-return-320", 320, 820),
-  placement("p5", "B", 1200, 0, "tall-oven-tower-600", 600, 2200),
-  placement("p6", "B", 1800, 0, "tall-pantry-600", 600, 2200),
-  placement("p7", "B", 2450, 0, "fridge-free-700", 700, 1850),
-  placement("p8", "A", 300, 1500, "wall-2door-600", 600, 700),
-  placement("p9", "B", 615, 1500, "wall-corner-return-570", 570, 700),
-  placement("p10", "A", 750, 1500, "wall-1door-300", 300, 700),
-  placement("p11", "A", 1300, 1500, "wall-2door-800", 800, 700),
-  placement("p12", "A", 2000, 1500, "open-shelf-600", 600, 700),
-  placement("p13", "A", 2600, 1500, "hood-600", 600, 700),
-  placement("p14", "A", 3200, 1500, "wall-2door-600", 600, 700),
-  placement("p15", "A", 300, 2200, "wall-2door-600-top", 600, 400),
-  placement("p16", "A", 750, 2200, "wall-1door-300-top", 300, 400),
-  placement("p17", "A", 1300, 2200, "wall-2door-800-top", 800, 400),
-  placement("p18", "A", 2000, 2200, "wall-2door-600-top", 600, 400),
-  placement("p19", "A", 2600, 2200, "wall-2door-600-top", 600, 400),
-  placement("p20", "A", 3200, 2200, "wall-2door-600-top", 600, 400),
-  placement("p21", "B", 615, 2200, "wall-corner-return-570-top", 570, 400),
-  placement("p22", "B", 1200, 2200, "wall-2door-600-deep-top", 600, 400),
-  placement("p23", "B", 1800, 2200, "wall-2door-600-deep-top", 600, 400),
-  placement("p24", "B", 2450, 1850, "wall-2door-700-over-fridge", 700, 750),
-];
-
 /** Wall B's declared length, and the **one number in this room that is not a measurement**.
  *
  *  ADR 0083 decision 1. The design reference's wall-coverage panel gives wall B as 2830 mm, landed
@@ -956,20 +927,139 @@ export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
  *  so one is measured and one is chosen. */
 const WALL_B_LENGTH_MM = 2920;
 
+/** ADR 0065 §2: the two wall runs the design reference's wall-coverage panel gives — wall A
+ *  3560 mm (3520 occupied, 40 free at the run end) and wall B 2800 occupied. Wall A corroborates
+ *  against the built tree: its placements end at 3500 plus the run-end panel's 18 mm and its 1 mm
+ *  gap, the 3519 `kitchen-shell.ts` names in its own comment. Wall B's run ends at 2800 exactly at
+ *  the 600 mm cabinet depth and at 2900 at the 700 mm one, inside the length above. The room read
+ *  `3600 × 2400` until 2026-09-03, and the 2400 in particular was what made the along-wall bound
+ *  take the longer run.
+ *
+ *  **Declared above the placements because the corner's own size is derived from it** (7D6's J1′):
+ *  a corner is sized for the room it stands in, so the room is an input to four of the placements
+ *  below rather than a field beside them. */
+const KITCHEN_L_ROOM: Design["room"] = {
+  shape: "L",
+  widthMm: 3560,
+  depthMm: WALL_B_LENGTH_MM,
+  heightMm: 2600,
+};
+
+/** The reference kitchen's own corner, sized by the derivation for this room at the declared cabinet
+ *  depth (7D6's J1′, `corner-assembly-size.ts`): 900 mm on wall A, 320 on wall B's base row and 570
+ *  in each of its upper rows, all four landing flush at a **900 mm far edge on both walls** — the
+ *  figure ADR 0108 Amendment B's approved wall-A minimum was taken from.
+ *
+ *  **Derived rather than stored**, so the four widths cannot drift from the reach the room policy
+ *  and the shell's run origins read (ADR 0102: four literals agreeing at one depth always
+ *  eventually part). A corner in a narrower room is narrower; a corner in a larger one is **not**
+ *  wider — the room is a ceiling and never a target (ADR 0120 Amendment A). */
+const REFERENCE_CORNER_WIDTHS = cornerAssemblyWidthsMm({
+  cabinetDepthMm: WORKTOP_DEPTH_MM,
+  room: KITCHEN_L_ROOM,
+});
+
+/** A structural corner piece, placed at the width and centre the derivation gives it in this room:
+ *  its far edge is the assembly's reach along that wall in that row, and its centre follows from
+ *  the width, never the other way round. */
+function cornerPlacement(
+  id: string,
+  piece: CornerAssemblyPiece,
+  y0Mm: number,
+  buildId: string,
+  heightMm: number,
+): DesignPlacement {
+  const widthMm = cornerWidthMm(piece);
+  const { farEdgeMm } = cornerFarEdgeMm({
+    widths: REFERENCE_CORNER_WIDTHS,
+    cabinetDepthMm: WORKTOP_DEPTH_MM,
+    wall: piece.wall,
+    band: piece.band,
+  });
+  return placement(
+    id,
+    piece.wall,
+    farEdgeMm - widthMm / 2,
+    y0Mm,
+    buildId,
+    widthMm,
+    heightMm,
+  );
+}
+
+function cornerWidthMm(piece: CornerAssemblyPiece): number {
+  const sized = REFERENCE_CORNER_WIDTHS.pieces.find(
+    (candidate) =>
+      candidate.wall === piece.wall && candidate.band === piece.band,
+  );
+  if (sized === undefined) {
+    throw new Error(
+      `kitchen-l-design: the corner assembly stands on no wall ${piece.wall} piece in the ${piece.band} row`,
+    );
+  }
+  return sized.widthMm;
+}
+
+export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
+  placement("p0", "A", 1300, 0, "base-sink-800", 800, 820),
+  placement("p1", "A", 2000, 0, "base-dishwasher-600", 600, 820),
+  // ADR 0027: one body, not a cabinet plus an accessory standing on it. `p3` is gone and its id is
+  // not reused — ids are persisted, and a freed id that reappears meaning something else is worse
+  // than a gap in the sequence.
+  placement("p2", "A", 2600, 0, "base-hob-2drawer-600", 600, 820),
+  placement("p4", "A", 3200, 0, "base-drawer3-600", 600, 820),
+  // ADR 0025. Appended ids, out of positional order on purpose: `p0`…`p24` are persisted in real
+  // designs, so renumbering the base row to seat the corner at its head would rewrite saved data.
+  cornerPlacement(
+    "p25",
+    { wall: "A", band: "base" },
+    0,
+    "base-corner-x-900",
+    820,
+  ),
+  cornerPlacement(
+    "p26",
+    { wall: "B", band: "base" },
+    0,
+    "base-corner-return-320",
+    820,
+  ),
+  placement("p5", "B", 1200, 0, "tall-oven-tower-600", 600, 2200),
+  placement("p6", "B", 1800, 0, "tall-pantry-600", 600, 2200),
+  placement("p7", "B", 2450, 0, "fridge-free-700", 700, 1850),
+  placement("p8", "A", 300, 1500, "wall-2door-600", 600, 700),
+  cornerPlacement(
+    "p9",
+    { wall: "B", band: "wall" },
+    1500,
+    "wall-corner-return-570",
+    700,
+  ),
+  placement("p10", "A", 750, 1500, "wall-1door-300", 300, 700),
+  placement("p11", "A", 1300, 1500, "wall-2door-800", 800, 700),
+  placement("p12", "A", 2000, 1500, "open-shelf-600", 600, 700),
+  placement("p13", "A", 2600, 1500, "hood-600", 600, 700),
+  placement("p14", "A", 3200, 1500, "wall-2door-600", 600, 700),
+  placement("p15", "A", 300, 2200, "wall-2door-600-top", 600, 400),
+  placement("p16", "A", 750, 2200, "wall-1door-300-top", 300, 400),
+  placement("p17", "A", 1300, 2200, "wall-2door-800-top", 800, 400),
+  placement("p18", "A", 2000, 2200, "wall-2door-600-top", 600, 400),
+  placement("p19", "A", 2600, 2200, "wall-2door-600-top", 600, 400),
+  placement("p20", "A", 3200, 2200, "wall-2door-600-top", 600, 400),
+  cornerPlacement(
+    "p21",
+    { wall: "B", band: "top" },
+    2200,
+    "wall-corner-return-570-top",
+    400,
+  ),
+  placement("p22", "B", 1200, 2200, "wall-2door-600-deep-top", 600, 400),
+  placement("p23", "B", 1800, 2200, "wall-2door-600-deep-top", 600, 400),
+  placement("p24", "B", 2450, 1850, "wall-2door-700-over-fridge", 700, 750),
+];
+
 export const KITCHEN_L_DESIGN: Design = {
-  // ADR 0065 §2: the two wall runs the design reference's wall-coverage panel gives — wall A
-  // 3560 mm (3520 occupied, 40 free at the run end) and wall B 2800 occupied. Wall A corroborates
-  // against the built tree: its placements end at 3500 plus the run-end panel's 18 mm and its 1 mm
-  // gap, the 3519 `kitchen-shell.ts` names in its own comment. Wall B's run ends at 2800 exactly at
-  // the 600 mm cabinet depth and at 2900 at the 700 mm one, inside the length above. The room read
-  // `3600 × 2400` until 2026-09-03, and the 2400 in particular was what made the along-wall bound
-  // take the longer run.
-  room: {
-    shape: "L",
-    widthMm: 3560,
-    depthMm: WALL_B_LENGTH_MM,
-    heightMm: 2600,
-  },
+  room: KITCHEN_L_ROOM,
   presetId: null,
   settings: { cabinetDepthMm: WORKTOP_DEPTH_MM },
   placements: [...KITCHEN_L_PLACEMENTS],

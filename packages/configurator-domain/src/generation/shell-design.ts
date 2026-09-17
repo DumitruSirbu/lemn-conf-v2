@@ -37,6 +37,12 @@ import {
 import { cabinetDepthRuleOf } from "../cabinet-depth-rule.js";
 import { isValidOccurredAt } from "../commands/command-result.js";
 import {
+  CORNER_ASSEMBLY_PIECES,
+  cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
+  type CornerBand,
+} from "../corner-assembly-size.js";
+import {
   cabinetDepthMmOf,
   DesignRoomSchema,
   DesignWallSchema,
@@ -119,6 +125,21 @@ const WALL_ROW_FLOOR_MM = wholeMillimetresOf(
   "LEVELS' wall-row floor",
 );
 
+/** The corner's three rows, in §2's own order, and each row's floor read off `LEVELS`. */
+const CORNER_BANDS: readonly CornerBand[] = ["base", "wall", "top"];
+const CORNER_BAND_FLOORS_MM: Readonly<Record<CornerBand, number>> = {
+  base: wholeMillimetresOf(LEVELS[0]?.[0], "LEVELS' base-row floor"),
+  wall: WALL_ROW_FLOOR_MM,
+  top: wholeMillimetresOf(LEVELS[2]?.[0], "LEVELS' top-row floor"),
+};
+
+/** Which rows a wall-only run has to start past: the ones standing at or above its own floor.
+ *  Filtered from the grid rather than listed, so a row that moves takes this filter with it. */
+const BANDS_ABOVE_THE_WALL_ROW_FLOOR: readonly CornerBand[] =
+  CORNER_BANDS.filter(
+    (band) => CORNER_BAND_FLOORS_MM[band] >= WALL_ROW_FLOOR_MM,
+  );
+
 /** §2's last module line: no body stands above it, so no recorded space reaches past it. */
 const MODULE_GRID_TOP_MM = wholeMillimetresOf(
   Math.max(...LEVELS.map(([, topM]) => topM)),
@@ -200,7 +221,7 @@ function freeRunTiles(
   const floorSpan = floorRunSpan(wall, room);
   return [
     ...tilesOver(runs.wallOnly, {
-      startMm: wallRowStartMm(wall),
+      startMm: wallRowStartMm(wall, room),
       endMm: Math.min(floorSpan.startMm, plannedEndMm(runs.wallOnly, room)),
     }),
     ...(compositionPlan === undefined
@@ -264,31 +285,45 @@ function tileRunsOn(
 }
 
 /** A floor run starts past every structural piece on its wall, whatever row the piece stands in. */
-function floorRunStartMm(wall: DesignWall): number {
-  return farthestEdgeMm(
-    STRUCTURAL_ASSEMBLY.filter((placement) => placement.wall === wall),
-  );
+function floorRunStartMm(wall: DesignWall, room: DesignRoom): number {
+  return cornerReachMm({ wall, room }, CORNER_BANDS);
 }
 
 /** The wall and top rows start past the structural pieces that reach above the wall row's floor on
  *  that wall — at the corner itself where there are none, as over wall A's corner base. */
-function wallRowStartMm(wall: DesignWall): number {
-  return farthestEdgeMm(
-    STRUCTURAL_ASSEMBLY.filter(
-      (placement) =>
-        placement.wall === wall &&
-        placement.y0Mm + placement.body.heightMm > WALL_ROW_FLOOR_MM,
-    ),
-  );
+function wallRowStartMm(wall: DesignWall, room: DesignRoom): number {
+  return cornerReachMm({ wall, room }, BANDS_ABOVE_THE_WALL_ROW_FLOOR);
 }
 
-function farthestEdgeMm(pieces: readonly DesignPlacement[]): number {
-  return Math.max(
-    0,
-    ...pieces.map(
-      (placement) => placement.alongMm + placement.body.widthMm / 2,
-    ),
+/** How far the corner assembly reaches along one wall in the given rows — **sized for this room and
+ *  the shell's own depth** (7D6's J1′, through `corner-assembly-size.ts`' entry points 1 and 2),
+ *  where it used to be read off the reference kitchen's stored widths.
+ *
+ *  `Math.max(0, …)` over an **empty** set of bands is what answers for wall A above the base row:
+ *  the assembly stands on no wall-A piece there, so the wall row starts at the corner itself and its
+ *  run stands over the corner's base (ADR 0110 Amendment B2). That zero is load-bearing — it is the
+ *  900 mm of wall-A wall-only run, in two tiles, that the smallest admitted room's frozen map is
+ *  made of entirely. */
+function cornerReachMm(
+  on: { readonly wall: DesignWall; readonly room: DesignRoom },
+  bands: readonly CornerBand[],
+): number {
+  const widths = cornerAssemblyWidthsMm({
+    cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+    room: on.room,
+  });
+  const farEdgesMm = CORNER_ASSEMBLY_PIECES.filter(
+    (piece) => piece.wall === on.wall && bands.includes(piece.band),
+  ).map(
+    (piece) =>
+      cornerFarEdgeMm({
+        widths,
+        cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+        wall: piece.wall,
+        band: piece.band,
+      }).farEdgeMm,
   );
+  return Math.max(0, ...farEdgesMm);
 }
 
 /** What every tile of one run shares: its wall, its vertical extent and its declared source. */
@@ -332,7 +367,7 @@ export function lShellFloorRuns(room: DesignRoom): Readonly<
 function floorRunSpan(wall: DesignWall, room: DesignRoom): AlongWallSpan {
   const run = tileRunsOn(wall, room).floor;
   const physicalSpan = {
-    startMm: floorRunStartMm(wall),
+    startMm: floorRunStartMm(wall, room),
     endMm: plannedEndMm(run, room),
   };
   return {

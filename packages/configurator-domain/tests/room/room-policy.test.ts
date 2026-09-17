@@ -9,9 +9,17 @@
 // the chain reader (`alongWallPositionAtMm`), so a reader that disagreed with the built geometry
 // would move both sides together. That the reader matches built geometry at both depths is
 // `three-adapter/tests/room-composition.parity.test.ts`'s job, not this file's.
+//
+// **Wave 7D6's J1′, 2026-09-17, changed what a wall minimum is derived *from*, and this file with
+// it.** A minimum is no longer where the reference kitchen's corner ends; it is where the
+// **narrowest** corner the product will build ends, over the declared depths and taking no room
+// (`corner-assembly-size.ts`, entry point 3). The reference corner's own reach is still measured
+// here through `setCabinetDepth`, but as the *larger* figure the bound sits below — the margin
+// criterion 4′ pins and Q-K1 is about.
 import { describe, expect, it } from "vitest";
 
 import {
+  APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   declaredCabinetDepthsMm,
   findOverflowingPlacementIds,
@@ -21,6 +29,7 @@ import {
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
+  narrowestCornerReachMm,
   setCabinetDepth,
   toMillimetres,
   type Design,
@@ -95,15 +104,38 @@ describe("ENGINE_ROOM_LIMITS — never presented as the owner's", () => {
 });
 
 describe("ENGINE_ROOM_LIMITS — every bound is the constant it is derived from", () => {
-  // Equality, not a floor: a minimum derived from the other wall's corner, or from one depth only,
-  // is at least as large on one wall and turns red here on the other (Amendment A).
+  // **Restated by wave 7D6's J1′, 2026-09-17.** Until then a wall minimum was where the *reference*
+  // kitchen's corner ends, and this case asserted that equality. The generator now sizes a corner to
+  // the room it builds in (ADR 0120 Amendment A), so the binding case is the **narrowest** corner the
+  // product will build — a cabinet with one door at each of the three levels — and it is
+  // room-independent. Equality still, not a floor: the bound is `narrowestCornerReachMm`'s own answer
+  // and nothing else, and it is pinned as a literal beside it so a derivation that moves is read here
+  // as a failing figure. The reference corner's own reach is asserted below, where it is now the
+  // *larger* number.
+  it.each([
+    ["A", () => engineLWallBounds().wallA.minMm],
+    ["B", () => engineLWallBounds().wallB.minMm],
+  ] as const)(
+    "wall %s's minimum is the narrowest corner's reach at any declared cabinet depth",
+    (wall, readMinimumMm) => {
+      expect(readMinimumMm()).toBe(narrowestCornerReachMm(wall).wallMinimumMm);
+      expect(readMinimumMm()).toBe(880);
+    },
+  );
+
+  // The margin wave 7D6's criterion 4′ pins and owner question Q-K1 is about: the corner the shell
+  // still *places* is the reference one, which reaches farther than the bound on both walls. A
+  // guard that read the reference corner here would have to move the bound to stay green, which is
+  // how an owner-approved number moves without the owner.
   it.each([
     ["A", WALL_A_CORNER_IDS, () => engineLWallBounds().wallA.minMm],
     ["B", WALL_B_CORNER_IDS, () => engineLWallBounds().wallB.minMm],
   ] as const)(
-    "wall %s's minimum is the farthest its structural corner reaches at any declared cabinet depth",
+    "sits below where wall %s's own reference corner ends, at the depth that reaches farthest",
     (_wall, cornerIds, readMinimumMm) => {
-      expect(readMinimumMm()).toBe(farthestCornerEdgeAtAnyDepthMm(cornerIds));
+      expect(readMinimumMm()).toBeLessThan(
+        farthestCornerEdgeAtAnyDepthMm(cornerIds),
+      );
     },
   );
 
@@ -188,7 +220,16 @@ describe("ENGINE_ROOM_LIMITS — every room it accepts is a room a design can st
   });
 });
 
-describe("ENGINE_ROOM_LIMITS — a room at the wall minima holds its corner at every declared depth", () => {
+// **Re-pointed at the owner's minima by wave 7D6's J1′, 2026-09-17, and the reason is the subject
+// rather than the room.** This block instantiates the **reference** corner — the one
+// `buildLShellDesign` still copies at its own size until wave 7D7 parameterises the builders — so the
+// smallest room it can stand in is the smallest room the *product* admits, which is
+// `APPROVED_ROOM_POLICY`'s 900 × 1000. The engine's own minimum is now lower (880 on both walls, the
+// narrowest corner the product will build), and between the two lies a window no product path
+// reaches: a customer's room is judged against the approved policy (`apps/web/src/room/
+// room-url-state.ts`). That the derived corner fits the bound that admits it — containment and
+// attainment — is wave 7D6 criterion 12, in `tests/corner-assembly-size.test.ts`.
+describe("APPROVED_ROOM_POLICY — a room at the wall minima holds the reference corner at every declared depth", () => {
   /** The reference kitchen's corner and nothing else, in a room of the given walls, tall enough for
    *  the corner's own top row. */
   function cornerOnlyDesign(walls: {
@@ -217,7 +258,8 @@ describe("ENGINE_ROOM_LIMITS — a room at the wall minima holds its corner at e
     readonly wallAMm: number;
     readonly wallBMm: number;
   } {
-    const walls = engineLWallBounds();
+    const walls = APPROVED_ROOM_POLICY.buildableShapes.L;
+    if (!walls) throw new Error("the approved policy builds no L");
     return { wallAMm: walls.wallA.minMm, wallBMm: walls.wallB.minMm };
   }
 

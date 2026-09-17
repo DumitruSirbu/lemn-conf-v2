@@ -9,28 +9,20 @@
 //
 // Nothing it imports reaches back into `room/`: a cycle here would bind a bound to `undefined` and
 // compare every value against it silently, the failure `module-grid.ts`'s head comment records.
-import { alongWallPositionAtMm } from "../along-wall-chain-shift.js";
+import { narrowestCornerReachMm } from "../corner-assembly-size.js";
 import {
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
 } from "../design-bounds.js";
-import {
-  cabinetDepthMmOf,
-  type DesignPlacement,
-  type DesignWall,
-} from "../design.js";
-import {
-  KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
-} from "../fixtures/kitchen-l-design.js";
+// Type-only, so it is erased and adds no edge to the module graph the head comment guards.
+import type { DesignWall } from "../design.js";
 import {
   GENERATION_PRIORITIES,
   type GenerationCoreRole,
 } from "../generation/generation-priorities.js";
 import { toExactMillimetres } from "../millimetres.js";
 import { LEVELS } from "../module-grid.js";
-import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 // Type-only, so it is erased and adds no edge to the module graph the head comment guards.
 import type { RoomShape } from "./validate-room.js";
 
@@ -102,15 +94,15 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
   approval: "interim-unapproved",
   buildableShapes: {
     L: {
-      wallA: { minMm: farthestCornerEdgeMm("A"), maxMm: MAX_ROOM_WIDTH_MM },
-      wallB: { minMm: farthestCornerEdgeMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
+      wallA: { minMm: wallMinimumMm("A"), maxMm: MAX_ROOM_WIDTH_MM },
+      wallB: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
       minimumKitchen: {
         isRequired: false,
         sinkWidthMm: generatedRequiredWidthMm("sink"),
         hobWidthMm: generatedRequiredWidthMm("hob"),
         cornerReachMm: {
-          wallA: farthestCornerEdgeMm("A"),
-          wallB: farthestCornerEdgeMm("B"),
+          wallA: wallMinimumMm("A"),
+          wallB: wallMinimumMm("B"),
         },
       },
     },
@@ -134,61 +126,23 @@ function generatedRequiredWidthMm(
   return priority.widthMm;
 }
 
-/** The farthest along-wall edge the reference kitchen's structural corner reaches on `wall`, **at any
- *  declared cabinet depth**. The L has exactly one corner assembly and it is structural (ADR 0021),
- *  so a wall shorter than this cannot hold its own corner at some depth the editor offers. Wall B's
- *  corner slides out as the cabinets deepen and wall A's does not (ADR 0108 Amendment A), which the
- *  chain reader answers per placement, so no wall is branched on here. */
-function farthestCornerEdgeMm(wall: DesignWall): number {
-  const corners = structuralCornersOn(wall);
-  const farEdgesMm = offeredCabinetDepthsMm().flatMap((cabinetDepthMm) =>
-    corners.map((corner) => farEdgeAtCabinetDepthMm(corner, cabinetDepthMm)),
-  );
-  return Math.max(...farEdgesMm);
-}
-
-function structuralCornersOn(wall: DesignWall): readonly DesignPlacement[] {
-  const corners = KITCHEN_L_DESIGN.placements.filter(
-    (placement) => placement.wall === wall && isStructuralCorner(placement),
-  );
-  if (corners.length === 0) {
-    throw new Error(
-      `ENGINE_ROOM_LIMITS: the reference kitchen has no structural corner on wall ${wall} to derive the wall's minimum from`,
-    );
-  }
-  return corners;
-}
-
-function isStructuralCorner(placement: DesignPlacement): boolean {
-  return (
-    KITCHEN_L_BODY_CATALOG.get(placement.body.buildId)?.structuralReason ===
-    "corner"
-  );
-}
-
-function offeredCabinetDepthsMm(): readonly number[] {
-  const cabinetDepthsMm = declaredCabinetDepthsMm();
-  if (cabinetDepthsMm.length === 0) {
-    throw new Error(
-      "ENGINE_ROOM_LIMITS: no cabinet depth is declared to hold the wall minima at",
-    );
-  }
-  return cabinetDepthsMm;
-}
-
-/** Where `corner` ends along its wall once the kitchen is taken to `cabinetDepthMm` — the reader
- *  `setCabinetDepth` positions every body with, so the policy and the command cannot disagree. */
-function farEdgeAtCabinetDepthMm(
-  corner: DesignPlacement,
-  cabinetDepthMm: number,
-): number {
-  const centreMm = alongWallPositionAtMm({
-    placement: corner,
-    catalog: KITCHEN_L_BODY_CATALOG,
-    fromCabinetDepthMm: cabinetDepthMmOf(KITCHEN_L_DESIGN),
-    toCabinetDepthMm: cabinetDepthMm,
-  });
-  return centreMm + corner.body.widthMm / 2;
+/** The least length `wall` may have and still hold a corner at all, **at any declared cabinet
+ *  depth**. The L has exactly one corner assembly and it is structural (ADR 0021), so a wall
+ *  shorter than this cannot hold its own corner at some depth the editor offers.
+ *
+ *  **Since 7D6's J1′ that is the *narrowest* corner's reach, not the reference kitchen's.** The
+ *  generator sizes a corner to the room it builds in (ADR 0120 Amendment A), so the binding case is
+ *  the narrowest corner the product will build — a cabinet with one door at each of the three
+ *  levels — and it is room-independent, which is what keeps this bound from depending on the rooms
+ *  the bound itself admits. The derivation is `corner-assembly-size.ts`'s, whose own head comment
+ *  records why the quantifier lives in its three entry points' names.
+ *
+ *  **The approved minima are deliberately above it**: `approved-room-policy.ts` holds the owner's
+ *  900 and 1000 while this reads 880 on both walls, and that margin is pinned — not merely allowed
+ *  — by `approved-room-policy.test.ts` (ADR 0108 B1 permits a margin; only the owner may choose
+ *  one, which is M7's Q-K1). */
+function wallMinimumMm(wall: DesignWall): number {
+  return narrowestCornerReachMm(wall).wallMinimumMm;
 }
 
 /** The top of `LEVELS[0]`, the base row: below it no cabinet stands at all. */

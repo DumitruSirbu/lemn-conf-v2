@@ -22,6 +22,9 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import {
   APPROVED_ROOM_POLICY,
+  CORNER_ASSEMBLY_PIECES,
+  cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
   DesignRoomSchema,
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_HEIGHT_MM,
@@ -895,20 +898,43 @@ describe("ENGINE_ROOM_LIMITS — a wall at its minimum holds its own corner at e
     );
   }
 
+  // **Restated by wave 7D6's J1′, 2026-09-17, and the corner it is asked about is what changed.**
+  // The engine's minimum is the reach of the **narrowest** corner the product will build, sized for
+  // the room it stands in (ADR 0120 Amendment A), so the claim *"a wall at its minimum holds its own
+  // corner"* is now a claim about that corner: in a room at the minima, every piece of the assembly
+  // ends at or before its wall's end, at every offered depth. Measured against the derivation
+  // because there is no design to measure — generation never builds in that room, the approved
+  // policy refusing it (the arm below, which still measures the **reference** corner, is what covers
+  // the rooms the product does build in).
   it.each(
     declaredCabinetDepthsMm().flatMap((depthMm) => [
       [depthMm, "A" as const],
       [depthMm, "B" as const],
     ]),
   )(
-    "at a %i mm cabinet depth, wall %s's minimum reaches its structural corner's far edge",
+    "at a %i mm cabinet depth, wall %s's minimum holds the narrowest corner the product builds",
     (cabinetDepthMm, wall) => {
       const walls = lWalls(ENGINE_ROOM_LIMITS);
       const minimumMm = wall === "A" ? walls.wallA.minMm : walls.wallB.minMm;
+      const roomAtTheMinima: DesignRoom = {
+        shape: "L",
+        widthMm: walls.wallA.minMm,
+        depthMm: walls.wallB.minMm,
+        heightMm: ENGINE_ROOM_LIMITS.heightBounds.minMm,
+      };
+      const widths = cornerAssemblyWidthsMm({
+        cabinetDepthMm,
+        room: roomAtTheMinima,
+      });
 
-      expect(minimumMm).toBeGreaterThanOrEqual(
-        farthestStructuralCornerEdgeMm(atCabinetDepth(cabinetDepthMm), wall),
-      );
+      for (const piece of CORNER_ASSEMBLY_PIECES.filter(
+        (candidate) => candidate.wall === wall,
+      )) {
+        expect(
+          cornerFarEdgeMm({ widths, cabinetDepthMm, ...piece }).farEdgeMm,
+          `${piece.wall}/${piece.band}`,
+        ).toBeLessThanOrEqual(minimumMm);
+      }
     },
   );
 
