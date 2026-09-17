@@ -24,6 +24,7 @@ import { flagOf } from "@/i18n/locale-flags";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
 import { focusIndexAfter, useLocaleMenu } from "@/i18n/use-locale-menu";
+import { useDismissOnOutsidePointer } from "@/lib/use-dismiss-on-outside-pointer-or-escape";
 
 import styles from "./configure.module.css";
 
@@ -59,18 +60,7 @@ export function LocaleMenu() {
     optionRefs.current[state]?.focus();
   }, [state]);
 
-  useEffect(() => {
-    if (state === "closed") return undefined;
-    const closeOnOutsidePointer = (event: PointerEvent): void => {
-      const target = event.target;
-      if (target instanceof Node && rootRef.current?.contains(target)) return;
-      setState("closed");
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-    };
-  }, [state]);
+  useDismissOnOutsidePointer({ rootRef, isOpen, dismiss: close });
 
   function toggle(): void {
     setState(isOpen ? "closed" : menu.currentIndex);

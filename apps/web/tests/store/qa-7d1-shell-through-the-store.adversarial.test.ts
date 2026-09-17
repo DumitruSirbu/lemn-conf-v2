@@ -56,15 +56,29 @@ const ODD_EDGE_ROOM: DesignRoom = {
   depthMm: 1802,
   heightMm: 2599,
 };
-/** The pre-7A3 approved corner, kept on purpose: the shell is engine-level and this room storable. */
-const LARGEST_ROOM: DesignRoom = {
+/** The pre-7A3 approved corner, kept on purpose: the shell is engine-level and this room storable. It
+ *  is no longer the largest room — since 7A3 wall B reaches 6000 mm (ADR 0124). */
+const PRE_7A3_APPROVED_CORNER: DesignRoom = {
   shape: "L",
   widthMm: 6300,
   depthMm: 5100,
   heightMm: 3900,
 };
+/** The corner the policy approves since 7A3: both walls at their 6000 mm maximum (ADR 0124). */
+const APPROVED_CORNER: DesignRoom = {
+  shape: "L",
+  widthMm: 6000,
+  depthMm: 6000,
+  heightMm: 3900,
+};
 
-const ROOMS = [REFERENCE_ROOM, SMALLEST_ROOM, ODD_EDGE_ROOM, LARGEST_ROOM];
+const ROOMS = [
+  REFERENCE_ROOM,
+  SMALLEST_ROOM,
+  ODD_EDGE_ROOM,
+  PRE_7A3_APPROVED_CORNER,
+  APPROVED_CORNER,
+];
 
 /** **Not the shell's, and measured to be older than it.** A hood's 600 mm occupied depth reaches
  *  past wall B's corner return (330 mm in) when it hangs in the wall opening over wall A's corner,

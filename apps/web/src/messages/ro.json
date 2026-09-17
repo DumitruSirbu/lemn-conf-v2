@@ -60,15 +60,16 @@
     "lengthHelp": {
       "wallA": {
         "name": "Ce lungime introduc la Perete A?",
-        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele A. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele A. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+        "cornerText": "Lungimea pe care vrei să o ocupe dulapurile pe peretele A, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
       },
       "wallB": {
         "name": "Ce lungime introduc la Perete B?",
-        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele B. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele B, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
       },
       "wallC": {
         "name": "Ce lungime introduc la Perete C?",
-        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele C. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele C, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
       }
     },
     "heightLabel": "Înălțimea camerei",

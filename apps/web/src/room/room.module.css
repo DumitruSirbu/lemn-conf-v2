@@ -371,10 +371,7 @@
   font: 700 12.5px/1 var(--font-ui);
 }
 
-/* `.lengthsHint` is wave 7A3's hint above the wall fields, and it speaks in the corner hint's quiet
- * voice rather than a type of its own. */
-.cornerHint,
-.lengthsHint {
+.cornerHint {
   font: 400 11px/1 var(--font-ui);
   color: var(--ink-faint);
 }
@@ -457,9 +454,19 @@
   gap: 6px;
 }
 
-/* A line box of its own, so a locale whose hint wraps does not set its two lines touching. */
+/**
+ * **Wave 7A3's hint above the wall fields**, in `.cornerHint`'s quiet voice rather than a type of its
+ * own. Its line height is its own, so a locale whose hint wraps does not set two lines touching.
+ *
+ * **It leads the group at the label's distance, not the fields'.** The negative margin gives back half
+ * of `.fields`' 12 px gap, so the hint sits 6 px above the first label — the same 6 px a label sits
+ * above its box — and reads as belonging to what follows. Half of the space the U layout below wins
+ * back (7A3 defect D1).
+ */
 .lengthsHint {
-  line-height: 1.4;
+  margin-block-end: -6px;
+  font: 400 11px/1.4 var(--font-ui);
+  color: var(--ink-faint);
 }
 
 .fieldLabel {
@@ -553,6 +560,23 @@
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 12px;
+}
+
+/**
+ * **A group of four fields — a U room — draws its boxes 48 px tall rather than 54** (7A3 defect D1).
+ *
+ * Before the hint a U's column had no pixel to spare at 390 x 844: its height box ended exactly on
+ * `.dimensionsBody`'s padding edge. The hint's 15.4 px line and its gap then pushed that box 27 px
+ * under the footer, and `.dimensionsBody` clips rather than scrolls (ADR 0082 decision 2). The hint's
+ * shortened gap above returns 6 px and four boxes at 48 px return 24, which leaves 2.6 px measured
+ * slack in both locales. Frame 1B draws an L's three fields and no frame draws a U's four, so linear
+ * and L keep the frame's 54 px untouched. 48 px keeps the input 46 px tall, above the 44 px target.
+ *
+ * Counted by `.field` siblings rather than read from a shape, so the stylesheet never spells a room
+ * shape and the rule follows `requiredFieldsFor`'s list (criterion 4).
+ */
+.fields:has(> .field ~ .field ~ .field ~ .field) .fieldBox {
+  height: 48px;
 }
 
 /* `tabular-nums` is the mockups' own `.num` class (`:16`): a proportional `1` would shift the digits

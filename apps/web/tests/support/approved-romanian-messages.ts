@@ -77,19 +77,24 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // (ADR 0104; ADR 0113 decision 5). The instrument is the owner's (Q-7A3-1, 2026-09-17: an
     // always-visible hint above the wall fields plus a help control per wall), and what it says is
     // ADR 0120 Amendments C1 and D1: the number is the run the customer wants furnished, not the wall.
+    // Owner ruling 2026-09-17, same wave: in a room with a corner the length is measured from the corner,
+    // corner cabinet included. So walls B and C, which exist only there, say so; wall A says it in
+    // `cornerText` and keeps `text` for a straight room, which has no corner.
     lengthsHint: "Introdu lungimea dulapurilor dorite, nu lungimea peretelui.",
     lengthHelp: {
       wallA: {
         name: "Ce lungime introduc la Perete A?",
         text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele A. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+        cornerText:
+          "Lungimea pe care vrei să o ocupe dulapurile pe peretele A, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
       },
       wallB: {
         name: "Ce lungime introduc la Perete B?",
-        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele B. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele B, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
       },
       wallC: {
         name: "Ce lungime introduc la Perete C?",
-        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele C. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+        text: "Lungimea pe care vrei să o ocupe dulapurile pe peretele C, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
       },
     },
     heightLabel: "Înălțimea camerei",

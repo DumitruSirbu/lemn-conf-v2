@@ -23,9 +23,9 @@
 // taps anything — which is the criterion, and why a help control alone would not meet it — and a help
 // control per wall carries the longer explanation on top. Neither states a bound (ADR 0108
 // decision 3) and neither refuses anything: the refusal sentence is 7F2's.
-import type { CornerDirection } from "@lemnaria/configurator-domain";
+import type { CornerDirection, RoomShape } from "@lemnaria/configurator-domain";
 import { useTranslations } from "next-intl";
-import { type RefObject, useEffect, useId, useRef, useState } from "react";
+import { useId } from "react";
 
 import {
   carriesCornerDirection,
@@ -34,6 +34,7 @@ import {
 } from "./room-draft";
 import { requiredFieldsFor } from "./room-url-state";
 import styles from "./room.module.css";
+import { WallLengthHelp } from "./wall-length-help";
 
 export interface DimensionsFormProps {
   readonly draft: RoomDraft;
@@ -50,27 +51,50 @@ const FIELD_LABEL = {
   height: "room.heightLabel",
 } as const satisfies Readonly<Record<RoomLengthField, string>>;
 
-type WallLengthField = Exclude<RoomLengthField, "height">;
+/** The fields that are walls a customer furnishes, named rather than derived as "not the height": a
+ *  field the URL parser learns later is not taken for a wall until it is listed here. */
+const WALL_LENGTH_FIELDS = [
+  "wallA",
+  "wallB",
+  "wallC",
+] as const satisfies readonly RoomLengthField[];
 
-/** The help each wall's control opens: its accessible name and its explanation. Keyed over every wall
- *  the URL parser knows, so a wall added there is a compile error here as well — never a wall with no
- *  help (7A3 criterion 21). The height is not a run the customer furnishes, and carries none. */
+export type WallLengthField = (typeof WALL_LENGTH_FIELDS)[number];
+
+/** The one wall a straight room is entered with (`requiredFieldsFor("linear")`), and so the one wall
+ *  whose explanation also has a reading for a room with no corner. */
+type StraightRoomWall = "wallA";
+
+/** A wall's help copy. **The explanation depends on the room**: in a room that turns a corner the
+ *  length is measured from the corner, corner cabinet included (owner ruling, 2026-09-17), and a
+ *  straight room has no corner to measure from. The type demands both readings of wall A and admits
+ *  only the corner reading of the others, so neither can be forgotten or invented. */
+interface WallHelpCopy<Wall extends WallLengthField> {
+  readonly name: string;
+  readonly explanation: Wall extends StraightRoomWall
+    ? { readonly straightRoom: string; readonly cornerRoom: string }
+    : { readonly cornerRoom: string };
+}
+
+/** The help each wall's control opens. Keyed over every wall, so a wall without help is a compile
+ *  error here (7A3 criterion 21). The height is not a run the customer furnishes, and carries none. */
 export const WALL_LENGTH_HELP = {
   wallA: {
     name: "room.lengthHelp.wallA.name",
-    text: "room.lengthHelp.wallA.text",
+    explanation: {
+      straightRoom: "room.lengthHelp.wallA.text",
+      cornerRoom: "room.lengthHelp.wallA.cornerText",
+    },
   },
   wallB: {
     name: "room.lengthHelp.wallB.name",
-    text: "room.lengthHelp.wallB.text",
+    explanation: { cornerRoom: "room.lengthHelp.wallB.text" },
   },
   wallC: {
     name: "room.lengthHelp.wallC.name",
-    text: "room.lengthHelp.wallC.text",
+    explanation: { cornerRoom: "room.lengthHelp.wallC.text" },
   },
-} as const satisfies Readonly<
-  Record<WallLengthField, { readonly name: string; readonly text: string }>
->;
+} as const satisfies { readonly [Wall in WallLengthField]: WallHelpCopy<Wall> };
 
 /** Frame 1B's order: *La stânga* first and pre-selected. */
 const CORNER_DIRECTIONS = [
@@ -188,6 +212,7 @@ function LengthFields({ draft, onEnterLength }: LengthFieldsProps) {
           id={`${fieldIdPrefix}${field}`}
           field={field}
           text={draft.lengths[field].text}
+          shape={draft.shape}
           hintId={hintId}
           onEnter={onEnterLength}
         />
@@ -200,6 +225,7 @@ interface LengthFieldProps {
   readonly id: string;
   readonly field: RoomLengthField;
   readonly text: string;
+  readonly shape: RoomShape;
   readonly hintId: string;
   readonly onEnter: (field: RoomLengthField, text: string) => void;
 }
@@ -208,7 +234,14 @@ interface LengthFieldProps {
  *  focus without the customer opening anything. The help is referenced while hidden on purpose: a
  *  description is computed from hidden content, and that is what makes the explanation unconditional
  *  for a non-visual customer too. */
-function LengthField({ id, field, text, hintId, onEnter }: LengthFieldProps) {
+function LengthField({
+  id,
+  field,
+  text,
+  shape,
+  hintId,
+  onEnter,
+}: LengthFieldProps) {
   const translate = useTranslations();
   const helpId = `${id}-help`;
   const isWall = isWallLengthField(field);
@@ -219,7 +252,14 @@ function LengthField({ id, field, text, hintId, onEnter }: LengthFieldProps) {
         <label className={styles.fieldLabel} htmlFor={id}>
           {translate(FIELD_LABEL[field])}
         </label>
-        {isWall ? <WallLengthHelp wall={field} helpId={helpId} /> : null}
+        {isWall ? (
+          <WallLengthHelp
+            wall={field}
+            helpId={helpId}
+            accessibleName={translate(WALL_LENGTH_HELP[field].name)}
+            explanation={translate(explanationKeyFor(field, shape))}
+          />
+        ) : null}
       </div>
       <div className={styles.fieldBox}>
         <input
@@ -241,112 +281,17 @@ function LengthField({ id, field, text, hintId, onEnter }: LengthFieldProps) {
 }
 
 function isWallLengthField(field: RoomLengthField): field is WallLengthField {
-  return field !== "height";
+  return (WALL_LENGTH_FIELDS as readonly RoomLengthField[]).includes(field);
 }
 
-interface WallLengthHelpProps {
-  readonly wall: WallLengthField;
-  readonly helpId: string;
-}
-
-/**
- * **A toggletip, not a hover tooltip**: a real button that opens on click, tap, Enter or Space and
- * says so through `aria-expanded`, because a phone has no hover (engineering conventions: no
- * hover-only control). It closes on a second press, on Escape wherever focus is, on a pointer press
- * outside it, and when focus leaves it — so two can never be open from the keyboard at once.
- *
- * The explanation stays in the tree while closed, `hidden`, because the wall's input names it in
- * `aria-describedby`. Nothing here is an error state: no `aria-invalid`, no alert role, no red.
- */
-function WallLengthHelp({ wall, helpId }: WallLengthHelpProps) {
-  const translate = useTranslations();
-  const rootRef = useRef<HTMLSpanElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
-
-  useDismissOnOutsidePointerOrEscape({ rootRef, isOpen, setIsOpen });
-
-  return (
-    <span
-      ref={rootRef}
-      className={styles.lengthHelp}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget))
-          setIsOpen(false);
-      }}
-    >
-      <button
-        type="button"
-        className={styles.lengthHelpButton}
-        aria-label={translate(WALL_LENGTH_HELP[wall].name)}
-        aria-expanded={isOpen}
-        aria-controls={helpId}
-        data-testid={`room-length-help-${wall}`}
-        onClick={() => {
-          setIsOpen(!isOpen);
-        }}
-      >
-        <HelpGlyph />
-      </button>
-      <span
-        id={helpId}
-        className={styles.lengthHelpText}
-        hidden={!isOpen}
-        data-testid={`room-length-help-text-${wall}`}
-      >
-        {translate(WALL_LENGTH_HELP[wall].text)}
-      </span>
-    </span>
-  );
-}
-
-interface DismissalProps {
-  readonly rootRef: RefObject<HTMLElement | null>;
-  readonly isOpen: boolean;
-  readonly setIsOpen: (isOpen: boolean) => void;
-}
-
-/** Listens only while open, and never calls `stopPropagation` — the rule the application's other
- *  document-level Escape handlers share (`global-settings.tsx`'s `useEscapeToDismiss`). */
-function useDismissOnOutsidePointerOrEscape({
-  rootRef,
-  isOpen,
-  setIsOpen,
-}: DismissalProps): void {
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const closeOnOutsidePointer = (event: PointerEvent): void => {
-      const target = event.target;
-      if (target instanceof Node && rootRef.current?.contains(target)) return;
-      setIsOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [rootRef, isOpen, setIsOpen]);
-}
-
-/** An *i* in a ring, drawn in the accent ink. `aria-hidden`, because the button's name says what it
- *  opens. */
-function HelpGlyph() {
-  return (
-    <svg
-      className={styles.lengthHelpGlyph}
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="8" cy="8" r="7" stroke="var(--accent)" strokeWidth="1.5" />
-      <rect x="7.25" y="7" width="1.5" height="5" fill="var(--accent)" />
-      <rect x="7.25" y="4" width="1.5" height="1.5" fill="var(--accent)" />
-    </svg>
+/** The explanation a wall's help gives in a room of this shape. A straight room carries only wall A,
+ *  so the throw is for a wall the shape does not have — never a customer's state. */
+function explanationKeyFor(wall: WallLengthField, shape: RoomShape) {
+  const explanation = WALL_LENGTH_HELP[wall].explanation;
+  if (carriesCornerDirection(shape)) return explanation.cornerRoom;
+  if ("straightRoom" in explanation) return explanation.straightRoom;
+  throw new Error(
+    `No explanation for ${wall} in a ${shape} room: that shape has no such wall.`,
   );
 }
 

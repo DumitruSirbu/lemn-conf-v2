@@ -344,7 +344,67 @@ function pointerDownOn(target: EventTarget): void {
   dispatchOn(target, new Event("pointerdown", { bubbles: true }));
 }
 
-/** The seven leaves this wave adds, in one catalogue. */
+/**
+ * The explanation the owner's ruling of 2026-09-17 gives a wall in a room of this shape, read from the
+ * catalogue by the ruling rather than through `WALL_LENGTH_HELP`, so the table cannot supply both sides:
+ * a room that turns a corner measures every wall from it, and a straight room has only wall A.
+ */
+function explanationFor(
+  messages: typeof roMessages,
+  { wall, shape }: { readonly wall: WallField; readonly shape: RoomShape },
+): string {
+  const help = messages.room.lengthHelp;
+  if (shape === "linear") return help.wallA.text;
+  return wall === "wallA" ? help.wallA.cornerText : help[wall].text;
+}
+
+/** A press as a browser performs it: focus moves to the nearest focusable element at or above the
+ *  target, or leaves to `body` when there is none. happy-dom focuses on `pointerdown` by itself only
+ *  where it is told to, so without this a press inside a non-focusable explanation would keep the
+ *  button focused and hide the Chrome defect this models. */
+function pressLikeABrowser(target: HTMLElement): void {
+  pointerDownOn(target);
+  const focusable = target.closest("[tabindex], button, input, a[href]");
+  act(() => {
+    if (focusable instanceof HTMLElement) focusable.focus();
+    else if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
+}
+
+/** Every declaration block whose selector names `.lengthsHint`, from the stylesheet that ships. */
+function lengthsHintDeclarations(): readonly string[] {
+  return [
+    ...ROOM_STYLESHEET.matchAll(/([^{}]*\.lengthsHint\b[^{}]*)\{([^}]*)\}/g),
+  ].map((match) => match[2] ?? "");
+}
+
+/**
+ * What criterion 19 forbids the copy that says what to type to state: a number, a unit, or a word
+ * that bounds the length. Each carries a sentence it must catch. Romanian is matched with or without
+ * its diacritics — *pana la* is how a phone keyboard without them writes *până la* — and the Romanian
+ * letters are escapes, because one in a regex literal is a lint failure.
+ */
+const BOUND_WORDS: readonly {
+  readonly pattern: RegExp;
+  readonly sample: string;
+}[] = [
+  { pattern: /\d/u, sample: "6" },
+  { pattern: /(^|\P{L})(mm|мм)(\P{L}|$)/iu, sample: "6000 mm" },
+  { pattern: /max|макс/iu, sample: "Maxim" },
+  { pattern: /metr|метр/iu, sample: "metri" },
+  { pattern: /milimetr|миллиметр/iu, sample: "миллиметров" },
+  { pattern: /cel\s+mult/iu, sample: "cel mult" },
+  {
+    pattern: /p[a\u0103\u00e2\u00ee]n[a\u0103]\s+la(\P{L}|$)/iu,
+    sample: "pana la perete",
+  },
+  { pattern: /не\s+более|не\s+больше/iu, sample: "не больше стены" },
+  { pattern: /limit|лимит|ограничен/iu, sample: "ограничено" },
+];
+
+/** The leaves this wave adds, in one catalogue. */
 function lengthCopyIn(messages: typeof roMessages): readonly string[] {
   return [
     messages.room.lengthsHint,
@@ -353,21 +413,36 @@ function lengthCopyIn(messages: typeof roMessages): readonly string[] {
 }
 
 describe("a customer who taps nothing is told what number to type (7A3 criterion 17)", () => {
-  it("draws the hint above the fields, unhidden, for every shape", () => {
-    fc.assert(
-      fc.property(ANY_SHAPE, (shape) => {
-        render(createRoomDraft(shape));
-        const hint = lengthsHint();
-        const firstField = fieldFor(requiredFieldsFor(shape)[0] ?? "wallA");
+  it.each(EVERY_SHAPE)(
+    "draws the hint above the fields, unhidden, for a %s room",
+    (shape) => {
+      render(createRoomDraft(shape));
+      const hint = lengthsHint();
+      const firstField = fieldFor(requiredFieldsFor(shape)[0] ?? "wallA");
 
-        expect(hint.textContent).toBe(roMessages.room.lengthsHint);
-        expect(hint.hidden).toBe(false);
-        expect(
-          hint.compareDocumentPosition(firstField) &
-            Node.DOCUMENT_POSITION_FOLLOWING,
-        ).not.toBe(0);
-      }),
-    );
+      expect(hint.textContent).toBe(roMessages.room.lengthsHint);
+      expect(hint.hidden).toBe(false);
+      expect(
+        hint.compareDocumentPosition(firstField) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).not.toBe(0);
+    },
+  );
+
+  it("is not hidden by the stylesheet either", () => {
+    // `hidden` above is the attribute; a visually-hidden pattern in CSS would pass it and still show
+    // a sighted customer nothing.
+    const declarations = lengthsHintDeclarations();
+
+    expect(declarations.length).toBeGreaterThan(0);
+    for (const block of declarations) {
+      expect(block).not.toMatch(/display:\s*none/);
+      expect(block).not.toMatch(/visibility:\s*hidden/);
+      expect(block).not.toMatch(/opacity:\s*0(?![.\d])/);
+      expect(block).not.toMatch(/clip(-path)?:/);
+      expect(block).not.toMatch(/position:\s*absolute/);
+      expect(block).not.toMatch(/(^|[;\s])(width|height|font-size):\s*[01]px/);
+    }
   });
 
   it.each(CATALOGUES)("says it in %s", (locale, messages) => {
@@ -422,7 +497,7 @@ describe("each wall carries its own help, and the height carries none (7A3 crite
     for (const wall of wallsOf("U")) {
       const explanation = explanationControlledBy(helpButtonFor(wall));
       expect(explanation.textContent).toBe(
-        roMessages.room.lengthHelp[wall].text,
+        explanationFor(roMessages, { wall, shape: "U" }),
       );
       expect(explanation.hidden).toBe(true);
       expect(describedByIds(fieldFor(wall))).toContain(explanation.id);
@@ -440,9 +515,40 @@ describe("each wall carries its own help, and the height carries none (7A3 crite
           messages.room.lengthHelp[wall].name,
         );
         expect(explanationControlledBy(button).textContent).toBe(
-          messages.room.lengthHelp[wall].text,
+          explanationFor(messages, { wall, shape: "U" }),
         );
       }
+    },
+  );
+});
+
+describe("the explanation says the length is measured from the corner, in a room with one (owner ruling 2026-09-17)", () => {
+  it.each(EVERY_SHAPE)(
+    "gives every wall of a %s room the reading for its shape",
+    (shape) => {
+      render(createRoomDraft(shape));
+
+      for (const wall of wallsOf(shape)) {
+        expect(
+          explanationControlledBy(helpButtonFor(wall)).textContent,
+          wall,
+        ).toBe(explanationFor(roMessages, { wall, shape }));
+      }
+    },
+  );
+
+  it.each(["L", "U"] as const)(
+    "does not give wall A of a %s room the straight room's reading",
+    (shape) => {
+      // The two readings must differ, or the test above could not tell which one was chosen.
+      expect(roMessages.room.lengthHelp.wallA.cornerText).not.toBe(
+        roMessages.room.lengthHelp.wallA.text,
+      );
+      render(createRoomDraft(shape));
+
+      expect(explanationControlledBy(helpButtonFor("wallA")).textContent).toBe(
+        roMessages.room.lengthHelp.wallA.cornerText,
+      );
     },
   );
 });
@@ -478,16 +584,41 @@ describe("the help opens and closes by pointer and keyboard (owner ruling Q-7A3-
     expect(explanationControlledBy(button).hidden).toBe(true);
   });
 
-  it("closes on a pointer press outside it, and stays open on one inside its explanation", () => {
+  it("closes on a pointer press outside it", () => {
     render(createRoomDraft("L"));
     const button = helpButtonFor("wallA");
     press(button);
 
-    pointerDownOn(explanationControlledBy(button));
-    expect(button.getAttribute("aria-expanded")).toBe("true");
-
     pointerDownOn(fieldFor("wallA"));
+
     expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("stays open when a press on its explanation moves focus there from the button", () => {
+    // Review 3: Chrome sends focus to `body` from a press on a non-focusable element, and the blur
+    // that follows has no related target inside the help — so the text closed under the finger.
+    render(createRoomDraft("L"));
+    const button = helpButtonFor("wallA");
+    act(() => {
+      button.focus();
+    });
+    press(button);
+    const explanation = explanationControlledBy(button);
+
+    pressLikeABrowser(explanation);
+
+    expect(document.activeElement).toBe(explanation);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(explanation.hidden).toBe(false);
+  });
+
+  it("keeps the explanation out of the Tab order while taking focus from a press", () => {
+    render(createRoomDraft("L"));
+
+    // The attribute, not the `tabIndex` property: a span with no attribute already reads -1 there.
+    expect(
+      explanationControlledBy(helpButtonFor("wallA")).getAttribute("tabindex"),
+    ).toBe("-1");
   });
 
   it("closes when keyboard focus moves on to the field", () => {
@@ -518,13 +649,21 @@ describe("the help opens and closes by pointer and keyboard (owner ruling Q-7A3-
 
 describe("the copy that says what to type states no bound (7A3 criterion 19, ADR 0108 decision 3)", () => {
   it.each(CATALOGUES)(
-    "carries no digit, no millimetre and no maximum in %s",
+    "carries no digit, no unit and no bound word in %s",
     (_locale, messages) => {
       for (const sentence of lengthCopyIn(messages)) {
-        expect(sentence).not.toMatch(/\d/u);
-        expect(sentence).not.toMatch(/(^|\P{L})(mm|мм)(\P{L}|$)/iu);
-        expect(sentence).not.toMatch(/max|макс/iu);
+        for (const { pattern } of BOUND_WORDS) {
+          expect(sentence).not.toMatch(pattern);
+        }
       }
+    },
+  );
+
+  it.each(BOUND_WORDS)(
+    "would catch $pattern, which matches $sample",
+    ({ pattern, sample }) => {
+      // A pattern that can match nothing reports green forever, so each one is shown to fire.
+      expect(sample).toMatch(pattern);
     },
   );
 });

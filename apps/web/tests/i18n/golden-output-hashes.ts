@@ -37,6 +37,13 @@
  * **Grown again, never rebaselined, by wave 7A3 S3** (ADR 0113 decision 2) — `room.lengthsHint` and
  * the six `room.lengthHelp.*` leaves, the Step 1 copy that says the number is the run to furnish
  * (owner ruling Q-7A3-1). **Seven added and no existing hash moved.**
+ *
+ * **Grown by one and rebaselined over exactly two, in the same wave's fix round** — the owner's
+ * ruling of 2026-09-17 that in a room with a corner the length is measured from the corner, corner
+ * cabinet included. `room.lengthHelp.wallB.text` and `room.lengthHelp.wallC.text` gain that clause
+ * and move, because walls B and C exist only in a room with a corner; `room.lengthHelp.wallA.cornerText`
+ * is added, because wall A stands in a straight room too and keeps `room.lengthHelp.wallA.text`, whose
+ * hash does not move. **Two moved, one added, no others.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -714,16 +721,18 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "ff63771df164dbfdaf4e10f822bac40675197de9117bce6a26d7ae15afd8312c",
   "room.lengthHelp.wallA.name":
     "f59dc3455abaf89693b4f767601a0c89f30310e2508fc680587366da1bfc4c74",
+  "room.lengthHelp.wallA.cornerText":
+    "e31da365de218a724565d06a46c451f7e3fbfa087fd30b3573af0f6f905c1fe0",
   "room.lengthHelp.wallA.text":
     "4b1d825d422d671cc85328d60d76529e813fc2a957ddb56221cff4259fd5456e",
   "room.lengthHelp.wallB.name":
     "7f35661bbee984f9608fd74a46b9611bfa107c2bcf97d47b1c2d33fd5f7beb29",
   "room.lengthHelp.wallB.text":
-    "15c99a7cb1a1fd909850fe3a6760b5eb3043bd359fa7bb08dc2ac3aca0c39710",
+    "4962e4e9c18165a85c2eab914d2e72e45ad439eb3fd987f35705c009fce99d81",
   "room.lengthHelp.wallC.name":
     "bf17e5275ea69b6434e21b1efc654f2f5a7382267307d65b98a4b493c4cb0ee4",
   "room.lengthHelp.wallC.text":
-    "57c308f8334c18dd34dddc4c0b27db9a9cbf9d86939a059f74cf1e832b06eea0",
+    "a093a2ab04649d6501876be0a26beb21ea122d85b8e53e5ab45bc2991eeef77a",
   "room.lengthsHint":
     "a70ffb130edcd7653af7ccac3fbb8553e9874223c33717155d6f9c6798406655",
   "room.planCaption":
