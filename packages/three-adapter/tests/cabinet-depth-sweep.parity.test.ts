@@ -173,8 +173,12 @@ describe("the two corner legs move with it too, which is 5F's measured gap", () 
   // 5F's QA named first, and the X-leg is the one whose footprint is the declared depth itself
   // rather than the depth less a front overhang: it carries its 280 mm door on the *side*.
   it.each([
-    ["cornerBaseX", (kit: Kit) => kit.make.cornerBaseX()],
-    ["cornerBaseReturn", (kit: Kit) => kit.make.cornerBaseReturn()],
+    ["cornerBaseX", (kit: Kit) => kit.make.cornerBaseX(0.9)],
+    [
+      "cornerBaseReturn",
+      (kit: Kit) =>
+        kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32),
+    ],
   ] as const)("%s", (_name, build) => {
     expect(shiftMm((depthMm) => depthExtentMm(build(kitAt(depthMm))))).toBe(
       baseCabinetShiftMm(),
@@ -201,8 +205,9 @@ describe("the two corner legs move with it too, which is 5F's measured gap", () 
       // *is* the distance from that plane to its front — which is what has to line up. Their local
       // `max.z` values do not, because their origins sit at different halves.
       expect(
-        depthExtentMm(kit.make.cornerBaseReturn()) -
-          depthExtentMm(kit.make.tallPantry(0.6, 2)),
+        depthExtentMm(
+          kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32),
+        ) - depthExtentMm(kit.make.tallPantry(0.6, 2)),
       ).toBe(1);
     },
   );

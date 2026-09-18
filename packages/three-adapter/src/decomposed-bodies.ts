@@ -77,7 +77,8 @@ export function hidePushOpenHandles(group: THREE.Group): THREE.Group {
 export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
   switch (buildId) {
     case "base-corner-x-900":
-      return kit.make.cornerBaseX();
+      // S1's reference width; S3b replaces this with the placement's recorded width.
+      return kit.make.cornerBaseX(0.9);
     case "base-corner-return-320":
       // The return leg's depth is a **placement variable**, not a property of the body
       // (`kitchen-parts.ts`): it has to equal the front plane of whatever the leg butts into. In the
@@ -85,7 +86,8 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
       // depth — 0.58 at the declared 600 mm and 0.68 at 700. **Read rather than typed since M6 wave
       // 6I**: it was the literal 0.58, which built a 600 mm kitchen's leg into a 700 mm one and left
       // the seeded body 100 mm behind the run it closes, with only the depth sweep to notice.
-      return kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM);
+      // S1's reference width; S3b replaces this with the placement's recorded width.
+      return kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32);
     case "base-sink-800":
       return kit.make.baseCabinet(0.8, { doors: 2, sink: true });
     case "base-dishwasher-600":

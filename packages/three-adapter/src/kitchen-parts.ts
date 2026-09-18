@@ -110,8 +110,8 @@ export interface Builders {
   "base-sink": () => THREE.Group;
   "base-dishwasher": (widthM?: number) => THREE.Group;
   "base-dishwasher-450": () => THREE.Group;
-  "base-corner-x": () => THREE.Group;
-  "base-corner-return": () => THREE.Group;
+  "base-corner-x": (widthM?: number) => THREE.Group;
+  "base-corner-return": (widthM?: number) => THREE.Group;
   "base-corner": () => THREE.Group;
   "wall-1door": () => THREE.Group;
   "wall-2door": () => THREE.Group;
@@ -153,8 +153,8 @@ export interface Factories {
   ) => THREE.Group;
   wallLift: (W?: number, H?: number, D?: number) => THREE.Group;
   hood: (w?: number, chimneyH?: number) => THREE.Group;
-  cornerBaseX: () => THREE.Group;
-  cornerBaseReturn: (LD?: number) => THREE.Group;
+  cornerBaseX: (widthM: number) => THREE.Group;
+  cornerBaseReturn: (LD: number, widthM: number) => THREE.Group;
   dishwasherHousing: (W?: number) => THREE.Group;
   bottleCargo: (w: number) => THREE.Group;
   hobBaseWithDrawers: (w: number) => THREE.Group;
@@ -831,10 +831,10 @@ export function makeKit(options: KitOptions = {}): Kit {
   const TALL_UNIT_HEIGHT_M = 2.2,
     COLUMN_WIDTH_M = 0.6;
 
-  // Along-wall widths of the bodies wall B's run is built from. Fixed sizes, every one of them: a
-  // corner return is 320 wide and a freestanding fridge is a 700 mm machine at every cabinet depth.
-  // They are named because the run's seats are derived by butting these together rather than typed,
-  // so a reader can check `0.74 = 0.58 + 0.32/2` without opening three builders.
+  // Reference-room corner widths for the parts gallery and seeded kitchen. S2 replaces their
+  // literal neighbour seats with one butting chain; a freestanding fridge stays a 700 mm machine.
+  // The return is named so `0.74 = 0.58 + 0.32/2` can be checked without opening the builder.
+  const CORNER_X_WIDTH_M = 0.9;
   const CORNER_RETURN_WIDTH_M = 0.32;
   const UPPER_CORNER_RETURN_WIDTH_M = 0.57;
   const FREESTANDING_FRIDGE_WIDTH_M = 0.7;
@@ -1166,16 +1166,17 @@ export function makeKit(options: KitOptions = {}): Kit {
     "base-dishwasher": (W = 0.6) => dishwasherHousing(W),
     "base-dishwasher-450": () => dishwasherHousing(0.45),
 
-    "base-corner-x": () => cornerBaseX(),
-    "base-corner-return": () => cornerBaseReturn(),
+    "base-corner-x": (widthM = CORNER_X_WIDTH_M) => cornerBaseX(widthM),
+    "base-corner-return": (widthM = CORNER_RETURN_WIDTH_M) =>
+      cornerBaseReturn(CORNER_RETURN_DEPTH_M, widthM),
     // Preview only: the two independent bodies shown at their production junction.
     // Nothing is parented — each is placed exactly as buildKitchen() places it.
     "base-corner": () => {
       const g = G("corner_base_pair");
-      const x = cornerBaseX();
+      const x = cornerBaseX(CORNER_X_WIDTH_M);
       x.position.set(0.45, 0, 0.28);
       g.add(x);
-      const r = cornerBaseReturn();
+      const r = cornerBaseReturn(CORNER_RETURN_DEPTH_M, CORNER_RETURN_WIDTH_M);
       r.position.set(0.29, 0, 0.74);
       r.rotation.y = Math.PI / 2;
       g.add(r);
@@ -1915,18 +1916,22 @@ export function makeKit(options: KitOptions = {}): Kit {
    *  two legs compute their plinths differently rather than sharing one. */
   const CORNER_X_PLINTH_REAR_RECESS_M = 0.02;
 
-  // X-leg: 900 wide, and as deep as the kitchen's cabinets are. Owns the 280 mm door and the lazy
-  // susan.
+  /** The accessible front loses 40 mm to leaf clearances: 30 mm beside the perpendicular return
+   *  and 10 mm at its right edge. Their 20 mm difference seats the leaf off the front's centre. */
+  const CORNER_X_LEAF_TOTAL_CLEARANCE_M = 0.04;
+  const CORNER_X_LEAF_LEFT_MINUS_RIGHT_CLEARANCE_M = 0.02;
+
+  // X-leg: width supplied by its caller, as deep as the kitchen's cabinets. Owns a leaf sized to
+  // the accessible front and the fixed-size lazy susan.
   //
   // **Its footprint follows the cabinet-depth setting** (M6 wave 6I): a corner leg is cabinetry, and
   // 5F's QA measured it staying byte-identical while `baseCabinet` moved. Unlike a straight base it
-  // gives up no 40 mm front overhang — its front face carries a 280 mm door on the *side*, not a
+  // gives up no 40 mm front overhang — its front face carries a door on the *side*, not a
   // full-width one — so its carcass is the declared depth itself, which is where the leg's shipped
   // 0.6 against a base run's 0.56 comes from.
-  function cornerBaseX(): THREE.Group {
+  function cornerBaseX(W: number): THREE.Group {
     const g = G("corner_base_x");
-    const W = 0.9,
-      LD = cabinetDepthM; // this leg's own carcass footprint
+    const LD = cabinetDepthM; // this leg's own carcass footprint
     const cFront = LD / 2; // 0.300
     const pFront = cFront - CORNER_RECESS; // from LD, nothing else
     const pDepth = LD - CORNER_RECESS - CORNER_X_PLINTH_REAR_RECESS_M,
@@ -1944,8 +1949,8 @@ export function makeKit(options: KitOptions = {}): Kit {
       ),
     );
     // **Painted — the blind corner, and the second pale face the owner was looking at.** This leg's
-    // 900 mm front carries a **280 mm** door, so roughly 620 mm of this box's front face stood in
-    // `M.carcass`'s `#d9d8d3` beside a coloured door.
+    // 900 mm reference front carries a **280 mm** door, so roughly 620 mm of this box's front face
+    // stood in `M.carcass`'s `#d9d8d3` beside a coloured door.
     //
     // **It was first left bare**, on the concern that this box is one a door opens onto and
     // painting it would recolour an interior. Two independent mesh censuses
@@ -1969,11 +1974,21 @@ export function makeKit(options: KitOptions = {}): Kit {
       t.position.set(-0.02, PLINTH + y, -0.01);
       g.add(t);
     }
+    // The perpendicular return hides all but W - its own depth of this front. The leaf leaves
+    // 30 mm beside the return and 10 mm at the accessible right edge.
+    const accessibleFrontM = W - CORNER_RETURN_DEPTH_M;
+    // Group the total clearance with the return depth so the reference width is the exact 0.28
+    // already in the 600 mm census, without snapping other supplied widths to a grid.
+    const leafWidthM =
+      W - (CORNER_RETURN_DEPTH_M + CORNER_X_LEAF_TOTAL_CLEARANCE_M);
+    const leafX =
+      W / 2 -
+      (accessibleFrontM - CORNER_X_LEAF_LEFT_MINUS_RIGHT_CLEARANCE_M) / 2;
     g.add(
       doorSlab(
-        0.28,
+        leafWidthM,
         CARC_H - 0.01,
-        0.3,
+        leafX,
         PLINTH + CARC_H - 0.004,
         cFront + TH / 2 + 0.001,
         "left",
@@ -2027,12 +2042,11 @@ export function makeKit(options: KitOptions = {}): Kit {
   const CORNER_RETURN_WORKTOP_DEPTH_M =
     CORNER_RETURN_DEPTH_M + CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M;
 
-  // Return leg: 320 wide along its wall; depth is the PLACEMENT VARIABLE — it
+  // Return leg: width supplied by its caller; depth is the PLACEMENT VARIABLE — it
   // must equal the front plane of the neighbour it butts into (0.56 against a
   // standard base cabinet, 0.58 against a deeper tall unit).
-  function cornerBaseReturn(LD = CORNER_RETURN_DEPTH_M): THREE.Group {
+  function cornerBaseReturn(LD: number, W: number): THREE.Group {
     const g = G("corner_base_return");
-    const W = CORNER_RETURN_WIDTH_M;
     const cFront = LD / 2;
     const pFront = cFront - CORNER_RECESS; // from LD, nothing else
     const pDepth = LD - CORNER_RECESS,
@@ -2064,7 +2078,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     // through it — the two stone volumes share a face, no coplanar overlap.
     const wFront = cFront + CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M,
       wDepth = CORNER_RETURN_WORKTOP_DEPTH_M,
-      wWide = 0.27;
+      wWide = W - 0.05;
     g.add(
       box(
         wWide,
@@ -2238,7 +2252,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     // 50 mm through wall B, and their two worktops overlapped over 650 × 50 mm. Every per-body gate
     // stayed green because none of them measured composition; `room-composition.parity.test.ts` now
     // does, at both declared depths.
-    place(cornerBaseX(), 0.45, carcassDepthM / 2);
+    place(cornerBaseX(CORNER_X_WIDTH_M), 0.45, carcassDepthM / 2);
 
     // **The L-joint: where the X-leg's carcass ends and everything along wall B begins.** Its seat
     // plus half its own footprint, and its footprint is the declared cabinet depth — so the joint
@@ -2255,7 +2269,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     const cornerJointM = carcassDepthM / 2 + cabinetDepthM / 2;
     const cornerReturnAlongWallM = cornerJointM + CORNER_RETURN_WIDTH_M / 2;
     place(
-      cornerBaseReturn(),
+      cornerBaseReturn(CORNER_RETURN_DEPTH_M, CORNER_RETURN_WIDTH_M),
       CORNER_RETURN_DEPTH_M / 2,
       cornerReturnAlongWallM,
       Math.PI / 2,
