@@ -11318,7 +11318,10 @@ builder can be asked to draw it) **and on 7H, for ordering rather than for conte
 derives every floor to **200** and wall B's bound to **880**. ~~**Q-7D7-2 (wall A's minimum moves too, to
 880) is open and gates S5's wall-A half only.**~~ **Q-7D7-2 is ANSWERED 2026-09-17 — the owner kept
 900/1000** ([ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)),
-**and S5 does not dispatch: no literal moves.** S0–S4 dispatch now, ungated.
+**and S5 does not dispatch: no literal moves.** ~~S0–S4 dispatch now, ungated.~~ **Corrected
+2026-09-18, after 7D6 and S0:** S0 is recorded below. S1, S2, S3a (the missing domain
+placement), S3b (the adapter seam) and S4 dispatch in that order. None moves the approved 900/1000
+policy bounds.
 
 **This is `DEVELOPMENT-SPEC.md` §13.3 open question 6 being closed:** *"Hob and corner widths are still
 fixed in geometry; parameterising them is the remaining builder work"* (`DEVELOPMENT-SPEC.md:622`,
@@ -11334,7 +11337,12 @@ anywhere in the rule or in the criteria.** The owner has since ruled that every 
 corners included — *"if for the algorithm it's easier to resize the corner, adapt the corner cabinet…
 it's not manufactured with the fixed size"* (ADR 0120 Amendment A, 2026-09-15). Under that ruling a
 corner piece's along-wall length is a function of **the depth and the room**, so the parity criterion
-must sweep **rooms × depths**. That is a re-scope of acceptance criteria, not a detail.
+must sweep **rooms × depths**. That is a re-scope of acceptance criteria, not a detail. **Corrected
+2026-09-18:** generation authors records only at the reference **600 mm** depth
+(`generate-kitchen.ts:136,150-162`). A later `setCabinetDepth` to 700 mm **slides those records and
+keeps their widths** (ADR 0089, 7D6 J3′). The sweep is therefore generated rooms at 600, each
+rendered again after the 600→700 command, plus a separate pure builder check of declared widths at
+both depths. It is not a claim that the product generates a new 700 mm kitchen.
 
 **The distinction a later reader will otherwise take too far, and it is the whole of the guard rail.**
 The owner's operative clause names **the algorithm** as its actor. `DEVELOPMENT-SPEC.md` §13.1 —
@@ -11374,7 +11382,7 @@ plan.**
 | **L9** | source-verified | **The corner the customer sees comes from the record, through a seam that deliberately throws the width away.** `scene-sync.ts:241-242` calls `buildAnyBody(kit, record.buildId, { widthM: toMetres(record.widthMm) … })`; `build-any-body.ts:40-44` routes every non-catalogue id to `buildDecomposedBody`, **which takes no size at all** — and the module's own doc comment states that as a property of the body: *"A decomposition ignores `size`, and that is a property of the body rather than a shortcut here."* `build-any-body.test.ts` guards it. |
 | **L10** | source-verified | **The width is already carried as data on the placement, separately from the buildId.** `placement("p26", "B", 740, 0, "base-corner-return-320", 320, 820)` — the `320` after the id is `body.widthMm` (`fixtures/kitchen-l-design.ts:917-918`, `:923`, `:935`). **So no catalogue row and no buildId has to change for a corner to be a different width; one seam has to stop ignoring a field it is already handed.** |
 | **L11** | source-verified | **`room-composition.parity.test.ts` measures the reference builder, not the customer's scene.** Its `beforeAll` builds `kit.builders["kitchen-l"]()` at each declared depth (`:62-80`). The old criterion 2 therefore pointed the room sweep at the one room path the product throws away. |
-| **L12** | source-verified | **The customer path already has two harnesses, and both are in this package.** `generated-kitchen.parity.test.ts` generates with the real probe and calls `syncSolidBodies`; `generated-kitchen-minimum.boundary.test.ts` already asserts **both arms on the same room** — `validateRoomInput` accepts, `generateKitchen` succeeds, and *"places both required bodies"* checks a `sink` and a `hob` step at `status: "placed"` over `ACCEPTED_BOUNDARY_ROOMS`. **The assertion ADR 0120's paired invariant demands is not new work; it is an existing file that needs the new bound's rooms added to one array.** |
+| **L12** | source-verified | **The customer path already has two harnesses, and both are in this package.** `generated-kitchen.parity.test.ts` generates with the real probe and calls `syncSolidBodies`; `generated-kitchen-minimum.boundary.test.ts` already asserts **both arms on the same room** — `validateRoomInput` accepts, `generateKitchen` succeeds, and *"places both required bodies"* checks a `sink` and a `hob` step at `status: "placed"` over `ACCEPTED_BOUNDARY_ROOMS`. ~~The assertion ADR 0120's paired invariant demands is not new work; it is an existing file that needs the new bound's rooms added to one array.~~ **Corrected 2026-09-18:** ADR 0125 kept the approved bounds; 880 × 880 is engine-admitted, not customer-admitted, and is a shell consistency and typed-minimum-refusal case, not a sink-and-hob case. |
 | **L13** | source-verified | **Only one of the four corner bodies is frontless** — see the table immediately below. |
 | **L14** | source-verified | **`NARROWEST_CATALOG_WIDTH_MM` cannot say anything about a corner, and the reason is stronger than its head comment.** It is `Math.min` over `INSERTABLE_BODY_DEFINITIONS`' `widthRangesMm` (`design-bounds.ts:71-75`), and **no corner row is insertable** — the four carry no `catalogEquivalentId` and `resolveBuildableSizes` returns nothing for them. **The set it aggregates does not contain a corner.** |
 | **L15** | source-verified | **The project's default width floor is 300, and 200 is a three-row declared exception.** `DEFAULT_MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M)` with `MIN_WIDTH_M = 0.3` (`catalog.ts:77`, `void-engine.ts:60`); `HINGED_CABINET_MIN_WIDTH_MM = 200` on `base-cabinet`, `wall-cabinet` and the bottle cargo (`catalog.ts:151`, `:729`, `:905`). ADR 0026: *"no row inherits the exception."* |
@@ -11566,9 +11574,12 @@ Per `docs/best-practices/product-invariants.md`.
   depth and the room** (7D6's derivation). **Its depth already follows the setting and must keep doing
   so unchanged.** Nothing else scales — not the door leaves' *thickness*, not the handles, not the
   chamfers, not the plinth height, not the carousel tray's radius.
-- **Derived from the width, not left literal** (L7): the blind corner's door-leaf x, the plinth's
-  `W − 0.004`, the carcass's and worktop's `W`, and the along-wall seat of every body that butts the
-  corner on **either** wall.
+- **Derived from the width, not left literal** (L7): the blind corner's door-leaf x **and leaf
+  width** from its accessible front `W − (d − 20)`; the plinth's `W − 0.004`; the carcass's `W`;
+  **the X-leg worktop's `W` and the frontless return worktop's `W − 0.05`**, preserving its 50 mm
+  carve-out where it butts the X-leg slab; and the along-wall seat of every body that butts the
+  corner on **either** wall. At the reference 600 mm corner, the leaf remains 280 mm and the return
+  slab remains 270 mm. The leaf's thickness, handle and carousel do not scale.
 - **Structural dependencies:** the worktop runs continuously through the corner (7D3's field evidence,
   in all eight of the owner's built kitchens) and must still do so at every depth **and every swept
   room**; the run-end panel follows the records and not the corner (ADR 0045); the wall corner return's
@@ -11598,19 +11609,31 @@ mechanism: a screenshot gate is judged by a person; the census is what *"byte-id
 A criterion that says *byte-identical* and points at an artefact only an eye can compare is a criterion
 that will be declared met.
 
-**What invalidates the baseline, named so nobody has to guess:** any commit between S0 and the
-comparison that touches `packages/three-adapter/src/kitchen-parts.ts`, `kitchen-shell.ts`, `stage.ts`,
-`apps/web/scripts/fidelity-shots.mjs`, or `apps/web/src/app/internal/scene-shot/**`. **If one lands, S0
-is re-run; the baseline is not patched.**
+**What invalidates the baseline, named so nobody has to guess:** an **intervening, unrelated** edit
+to `packages/three-adapter/src/kitchen-parts.ts`, `kitchen-shell.ts`, `stage.ts`,
+`apps/web/scripts/fidelity-shots.mjs`, or `apps/web/src/app/internal/scene-shot/**` between S0 and a
+comparison. **S1/S2's intended edits to `kitchen-parts.ts` are the subject of the comparison and do
+not invalidate S0.** If an unrelated edit lands, S0 is re-run against that new pre-implementation
+state; the original baseline is not patched.
 
 **Criterion 1 gives the new derivation a free pin, already written, and it is kept:** whatever formula
 replaces the literals must return today's **900 / 320 / 570** for the reference room at 600 mm.
 
+**S0 recorded 2026-09-18 at `c6ea1bb` (visual verifier's report, not this plan edit's own run).**
+The reference-depth census of all four corner bodies is
+`/private/tmp/lemnaria-7d7-s0-c6ea1bb/corner-census-600mm.json`; the same directory holds the
+fidelity capture and `manifest.json`, outside the watched root. These are the before artefacts for
+criterion 1. The verifier also measured the 700 mm X-leg door against the perpendicular return
+carcass in `corner-door-return-700mm.json`: their bounding boxes overlap by approximately **70 ×
+710 × 18 mm**. The old prediction in risk 8 is therefore a measured defect, and S1 owns the leaf
+width and clearance test. A later comparison must state the commit and refer back to this census.
+
 ### Rulings
 
 **L-R1 — the customer's corner is `scene-sync`'s, and a wave that only fixes `buildKitchen()` is a
-no-op.** L8 and L9 together: the reference builder's 27 customer bodies are built and discarded. **The
-slice a customer can see is S3**, and S1–S2 exist to make S3 safe rather than to deliver it.
+no-op.** L8 and L9 together: the reference builder's 27 customer bodies are built and discarded.
+~~The slice a customer can see is S3.~~ **Corrected 2026-09-18:** S3a authors the room-sized record;
+S3b makes `scene-sync` draw its width. Both halves are required. S1–S2 make the adapter half safe.
 
 **L-R2 — the width arrives as `body.widthMm` on the record, and no catalogue row and no buildId
 changes.** L10. `base-corner-return-320` keeps its id even when it is not 320 wide. **Renaming it is a
@@ -11636,8 +11659,11 @@ call, recorded because the wave will otherwise be asked why.)* Amendment A licen
 Re-sizing a corner inside `setCabinetDepth` is a command-path behaviour ADR 0110 did not grant, and
 7D6's module boundary already says *"`along-wall-chain-shift.ts` is read, not rewritten… if the
 derivation makes part of the slide redundant, report it — do not remove it in this wave."* **So the
-reserve is not removed here**, and the paired invariant is satisfied by moving the reach, the reserve's
-**consumers** and the five approved numbers together in S5 — not by deleting the reserve.
+reserve is not removed here**. ~~The paired invariant is satisfied by moving the reach, the reserve's
+consumers and the five approved numbers together in S5.~~ **Corrected 2026-09-18:** S5 does not
+dispatch; the engine's room-sized placement and its run origin move together in S3a, while the
+approved policy stays at 900/1000. A zero-length run may result when the reserve consumes all space;
+it must never be represented with `endMm < startMm`.
 
 **L-R7 — every corner floor is `200`, and it is read from the catalogue rather than typed here.**
 *(The owner's rule, 2026-09-16: a cabinet with one door at all three levels.)* The implementer reads
@@ -11663,8 +11689,21 @@ minimum below the width of the blind space it has to span.
 - **The reference builder (`buildKitchen`) is a consumer, not an author.** It keeps building today's
   corner; what changes is that its five wall-A seats (L4) and its three upper-return sites (L5) stop
   being literals, so the harness can build the reference room at a non-shipped corner width.
-- **Nothing under `packages/configurator-domain` is authored here.** The width's *value* is 7D6's.
-  **Exception, named and deliberate: slice S5** — see its note.
+- ~~**Nothing under `packages/configurator-domain` is authored here.** The width's *value* is 7D6's.
+  **Exception, named and deliberate: slice S5** — see its note.~~ **Corrected 2026-09-18 after 7D6's
+  close-out:** S3a authors the *placement* from 7D6's value. `buildLShellDesign` still copies the
+  reference fixture's four structural widths and centres while `floorRunStartMm` reads room-sized
+  widths. This is why the engine's 880 mm window overflows and its floor run can invert. The same
+  `(room, 600 mm depth)` derivation must author the four stored `body.widthMm` and `alongMm` values
+  and their free-run starts. The fixture stays the reference, not the generator for another room.
+- **A whole-millimetre centre is a domain constraint, not an adapter rounding rule.** At 881 × 881,
+  the current derivation chooses an 881 mm X-leg and `cornerAlongWallCentreMm` rightly refuses its
+  440.5 mm centre. S3a chooses the **largest even whole-millimetre width at or below** each piece's
+  room-constrained width, after applying its existing floor. It leaves the unusable 1 mm at the
+  wall's far end, as `shell-design.ts` already does for odd tile spans. At 881 × 881 this gives an
+  880 mm X-leg and even wall-B returns, never a moved wall or a rounded persisted centre. Assert
+  the chosen width is still at least the one-door floor; an impossible input is refused by the
+  domain, not silently clamped by a builder.
 - **`kitchen-shell.ts`, `stage.ts` and the scene wiring are 7H's and are not touched.**
 
 ### Files, and the must-not-change set
@@ -11675,12 +11714,22 @@ signatures); `src/decomposed-bodies.ts`; `src/build-any-body.ts` (**the doc comm
 `src/index.ts` (exports only); and in `packages/three-adapter/tests/`:
 `kitchen-parts.parity.test.ts`, `room-composition.parity.test.ts`, `build-any-body.test.ts`,
 `generated-kitchen.parity.test.ts`, `generated-kitchen-minimum.boundary.test.ts`, plus one new
-room-sweep file.
+room-sweep file. **S3a also may change only**
+`packages/configurator-domain/src/generation/shell-design.ts` (four sized placements and consistent
+empty runs) and `src/corner-assembly-size.ts` (even-width selection at the room ceiling), with paired
+`tests/corner-assembly-size.test.ts`, `tests/generation/shell-design*.test.ts`,
+`tests/generation/generate-kitchen.test.ts` and
+`tests/qa-7d6-the-room-term-and-the-engine-window.adversarial.test.ts`. If a typed minimum refusal
+still needs `src/generation/generate-kitchen.ts` after the run is made non-inverted, stop, report the
+specific throw, and amend this narrow file set before editing it. S3a gets its own mini-review before
+S3b crosses into the adapter; the two slices do not become one large diff.
 
 **Must not change:** `kitchen-shell.ts`, `stage.ts`, `scene-sync.ts`, `apps/web/src/scene/**` — **7H's**;
-`packages/configurator-domain/src/**` in S1–S4; `src/catalog.ts` and the four corner rows' ids — **no
+`packages/configurator-domain/src/**` in S1, S2, S3b and S4, and outside S3a's named files;
+`src/catalog.ts` and the four corner rows' ids — **no
 row gains or loses insertability, and no buildId is renamed**; the hob's parameterisation (§13.3 q6's
-other half, out of scope); any re-baseline at 600 mm in the reference room.
+other half, out of scope); any re-baseline at 600 mm in the reference room; and the four approved
+900/1000 policy literals and `slideReserveMm`.
 
 ### Acceptance criteria
 
@@ -11690,27 +11739,48 @@ other half, out of scope); any re-baseline at 600 mm in the reference room.
    after the edit and called a baseline.
 2. *(unit — the free pin)* The derivation returns **900 / 320 / 570** for the reference room at 600 mm,
    asserted as literals. **Must not:** a test that compares the derivation only against itself.
-3. *(parity, rooms × depths — the re-scope)* For **every room in a declared sweep set** and **each**
-   declared depth, the built corner assembly's along-wall extent on each wall equals the domain's
-   authored `body.widthMm` for that room, within `room-composition.parity.test.ts`'s shared-face
-   tolerance, **measured through the `scene-sync` path and not through `builders["kitchen-l"]()`**
-   (L11). **The sweep set is declared as data in the test**, includes the approved minimum room, the
-   4000 × 4000 room ADR 0120 Amendment B B1 names as the case to optimise for, and a maximum room, and
-   **is stated in the test name**. **Must not:** a builder that agrees with the domain at 600 in the
-   reference room and drifts at 700 in a 4000 mm one — K3's defect, in the other layer.
-4. *(property, `fast-check`)* Over corner widths in `[the floor, 900]` × both declared depths **× the
-   wall and top band heights**: the blind corner's door leaf is **wholly inside** its carcass, the
-   plinth is `W − 4 mm`, the worktop spans `W`, **each piece's door count is 1** (`deriveDoorCount`),
-   and **no child mesh's bounding box crosses the carcass's side faces**. The floor is read from
-   `HINGED_CABINET_MIN_WIDTH_MM` (L-R7), never typed. **Must not:** a sweep at one band height only —
-   the catalogue's own width sweep runs at each row's `nominalHeightMm`, which is 700, so **200 × 400
-   is proven nowhere today** and the top band is the level the owner named third. **Must not:** a
-   400 mm carousel tray left inside a narrower carcass with nothing asserting it — and note the
-   arithmetic says it never happens under the ruling, since the X-leg's floor is 780, so **this arm is
-   a guard against a future narrowing rather than a live case.**
-5. *(parity)* **The base row and the wall row meet at the same along-wall figure** at every declared
-   depth **and every swept room**, and the worktop is continuous through the corner. **Must not:** a
-   visible seam or a 30 mm step at 700 mm.
+3. *(parity — the product's actual rooms × depths path)* For **every composable room in a declared
+   sweep set**, generate at **600 mm**, then render that record through `scene-sync`; separately change the same
+   design to **700 mm through `setCabinetDepth`** and render the command result. At each setting the
+   four built corner widths equal **that record's** `body.widthMm`, their seats equal the recorded
+   centres and their along-wall extents satisfy `room-composition.parity.test.ts`'s shared-face
+   tolerance. **The sweep set is declared as data in the test and named in the test name:** the
+   coupled minimum witnesses **900 × 2200 and 2100 × 1000**, 4000 × 4000 (ADR 0120 Amendment B
+   B1) and a maximum. **A second declared, shell-only set** contains the wall-bound corner 900 ×
+   1000 and the engine-only 880 × 880 and 881 × 881 rooms; test their sized shell records through
+   the scene harness without claiming a successful `generateKitchen` result. The engine-only rooms
+   never pass Step 1 validation, and none of these three is asserted to hold both required bodies.
+   **Must not:** compare a
+   600→700 command result's frozen widths against fresh `cornerAssemblyWidthsMm({700, room})`, or
+   claim `generateKitchen` has a 700 mm production path. A separate builder property may supply an
+   explicit width at 700 to prove it draws exactly the width it is handed.
+4. *(property, `fast-check`, corrected 2026-09-18)* Sweep **each piece's actual domain-admitted width
+   range at each declared depth**, including the one-door floor, the reference width and the wall
+   and top band heights (700 and 400 mm). The X-leg's total minimum is `(d − 20) + the declared
+   one-door floor` — **780 at 600, 880 at 700** today — and its one-door test reads the accessible
+   front `W − (d − 20)`, not total `W`. Its leaf width follows that front, keeping the shipped 40 mm
+   total allowance and 10 mm right inset: at the reference 600 mm room it is **280 mm at x = 300
+   mm**, and at 700 mm with W = 900 it is **180 mm**, wholly clear of the perpendicular return
+   carcass. **Assert that clearance on the door against the return carcass directly:** S0 measured an
+   approximately 70 × 710 × 18 mm collision at 700 that the ordinary overlap test excludes. The
+   X-leg worktop spans `W`; the **frontless** base return's worktop spans `W − 50 mm` and stays
+   seated against the X-leg slab (270 mm at the shipped W = 320), so the two stone volumes butt
+   without crossing. Each plinth is `W − 4 mm`, the 400 mm carousel remains contained, and no
+   child exceeds its permitted side faces except the deliberately modelled door/front overhang.
+   The X-leg and both upper returns each keep one built leaf; **the base return has zero**. Assert
+   `deriveDoorCount(one-door floor) === 1` to pin the floor, **not**
+   `deriveDoorCount(total corner width) === 1`: the shipped 570 mm upper returns already build one
+   leaf even though the ordinary-cabinet threshold would return two. The floor is read from the
+   catalogue, never typed. **Must not:** sweep only the 700 mm-high wall row; assert a full-width
+   return worktop; retain the 280 mm leaf at 700; or make the X-leg 200 mm in total.
+5. *(parity — replaces the superseded row-coincidence demand with 7D6 J3′)* On **wall B only**, the
+   wall row's far edge never passes the base row's at any declared depth and swept room. Every
+   residue is either a recorded wall-only run between `wallRowStartMm` and `floorRunStartMm`, or is
+   narrower than the narrowest body the catalogue can place there. Neither row is tuned
+   independently. **Wall A's wall-row origin remains 0.** The base worktop pieces butt through the
+   corner without interpenetration. After a 600→700 depth change, the widths stay frozen and the
+   **30 mm upper-row residue ruled by ADR 0089 remains**; neither this criterion nor visual review
+   may smooth it away or require the two rows to coincide.
 6. *(unit)* **No corner dimension is a literal in the adapter.** `0.9`, `0.32`, `0.57`, `0.45`, `1.3` and
    `0.3` (the door's x) do not appear as corner dimensions outside the builders' parameters. **Must
    not:** a builder constant "kept in sync" — L5 is that defect already shipped, and this criterion is
@@ -11723,15 +11793,18 @@ other half, out of scope); any re-baseline at 600 mm in the reference room.
    never be in that state. **A guard whose case is currently unreachable is the only kind that catches
    the regression that makes it reachable.** **Must not:** dropping the `(200, 570)` case as dead
    because the ruling covers it; or a test that narrows the base return and reports a saving the wall
-   row does not deliver.
+   row does not deliver. **The three pairs are hypothetical algebra checks, not three current
+   policies:** the actual engine floor is 880 and ADR 0125 keeps the approved wall-B minimum at 1000.
 8. *(unit — the seam, L-R3)* `buildAnyBody` honours `size.widthM` for the four corner ids and continues
    to ignore height and depth, and `build-any-body.test.ts` asserts **both halves**. **Must not:** the
    contract changed in code while its doc comment still states the old one.
-9. *(visual, 390 × 844 and desktop)* The corner is captured at **both** declared depths, in the
-   reference room **and** in one narrow room, and judged against the owner's photographs for a
-   continuous worktop. **Must not:** a capture taken inside the watched root — it resets the dev server
-   and fakes a defect.
-10. *(joint, S5 only — ADR 0120's paired invariant)* **For a room at the new bound — `880 × 880` on the
+9. *(visual, 390 × 844 and desktop)* Capture the reference room and one **approved** narrow room
+   after generation at 600 mm and again after the same design's depth command to 700 mm. Judge the
+   **base worktop's butting faces and the door's clearance from the perpendicular return** against
+   the owner's photographs and the measured S0 boxes; accept ADR 0089's 30 mm upper-row residue.
+   Engine-only 880/881 rooms use the domain/scene test harness, not a customer route that rejects
+   them. **Must not:** capture inside the watched root — it resets the dev server and fakes a defect.
+10. *(historical, **not dispatched** — S5 only; ADR 0120's paired invariant)* **For a room at the new bound — `880 × 880` on the
     ruled floors — `validateRoomInput` accepts it AND `generateKitchen` returns a design in which a
     `sink` step and a `hob` step are both `"placed"`: both arms, same room, one test** — and the built
     scene for that room has no corner body crossing a wall plane. Added to
@@ -11747,24 +11820,68 @@ other half, out of scope); any re-baseline at 600 mm in the reference room.
     re-baseline anything at 600 mm; change the hob's parameterisation, which is §13.3 q6's other half
     and is not in scope; rename a corner buildId; or give a corner row any editor-facing capability
     (L-R5).
+12. *(domain, 7D6's first failure class)* For every engine-admitted boundary room in the declared
+    sweep, including **880 × 880 and 881 × 881**, `buildLShellDesign` writes all four corner
+    placements wholly inside their respective walls, and `lShellFloorRuns` reports `startMm ≤
+    endMm` on **both** walls. The wall-only span follows the same non-inversion rule. If
+    `plannedEndMm` falls before a sized corner's run start because the depth-change reserve consumes
+    the remaining space, represent that run as **zero length at its start**, with no tile and no
+    invented buildable capacity; **even corner widths alone do not cure this inversion**. The 7D6
+    marker for four overflowing placements (`p21`, `p25`, `p26`,
+    `p9`) becomes a passing assertion rather than staying `it.fails`. **Must not:** hide a negative
+    run by dropping the test or by reducing `slideReserveMm`.
+13. *(domain, 7D6's second failure class)* For a valid engine-admitted room too small for the
+    required sink and hob, including **880 × 880**, `generateKitchen` returns its typed
+    `{ ok: false, reason: { code: "MINIMUM_NOT_MET" } }` result; it never throws a bare internal
+    `Error` while planning or tiling the now-empty floor run. A room outside `ENGINE_ROOM_LIMITS`
+    continues to receive `LShellInputError("ROOM_OUTSIDE_ENGINE_LIMITS")` at the shell boundary.
+    These are two different refusal classes; neither is a reason to make 880 × 880 customer-approved
+    or to demand sink and hob there.
+14. *(domain, exact millimetres)* Over the engine-admitted whole-millimetre room range and both
+    declared depths, each room-constrained corner width is the **largest even whole-millimetre
+    width** that fits its wall and does not exceed its reference width, subject to its own existing
+    floor. Its derived centre is a whole millimetre (and is stored only on the 600 mm generation
+    path), and its far edge does not pass the entered wall.
+    Pin **881 × 881**: the X-leg is 880, the wall-B pieces are even, and the unused 1 mm stays at
+    the wall's far end. Pin **880 × 880** and the 600 mm reference separately. **Must not:** round a
+    half-millimetre centre, silently lower the one-door floor, or change the approved 900/1000
+    policy minima.
 
 ### Slices, in dependency order — dispatched one at a time
 
-- **S0 — the baseline, and nothing is edited.** Take it per *The fidelity baseline* above and **report
-  the commit and the census before S1 is dispatched.** The tree is frozen while the visual verifier
-  captures.
+- **S0 — DONE 2026-09-18, the baseline, and nothing edited.** Capture and census at `c6ea1bb` are
+  recorded above, outside the watched root. S1 compares against that census rather than recapturing
+  it after its own change.
 - **S1 — the two builders take a width, and every call site passes today's number.** `cornerBaseX(W)`,
-  `cornerBaseReturn(LD, W)`, the door's x derived per L7. Criteria 1, 2, 4. **Zero behaviour change
-  anywhere; the census must be identical.**
+  `cornerBaseReturn(LD, W)`. Derive the X-leg's leaf width and x from its **accessible front**;
+  derive the return slab's `W − 50 mm` width and left seat. Criteria 1, 2 and 4. The **reference
+  600 mm census stays byte-identical**, while the verified 700 mm door/return collision is fixed:
+  this slice is not a claim of zero behaviour change at every depth. Do not widen a corner's total
+  width to conceal a door that needs to shrink.
 - **S2 — the literals die and the two chains become one shape.** Wall A's five seats (L4) derive by
   butting from the X-leg's width, exactly as wall B's already do (L3); the three upper-return sites (L5)
   read one value. Criterion 6. **Still byte-identical at 600 — the literals reproduce.**
-- **S3 — the scene honours the record. This is the slice a customer can see.** `buildDecomposedBody`
-  reads `size.widthM` for the four corner ids; `build-any-body.ts`'s comment and
-  `build-any-body.test.ts` change with it. Criterion 8.
-- **S4 — the room sweep and the property.** Criteria 3, 5, 7, 9. **The wave is coherent and shippable at
-  the end of S4, and it has moved nothing a customer can see — that is stated here, not discovered at
-  close-out.**
+- **S3a — the domain shell places the sized corner.** For the room and the shell's own 600 mm
+  setting, map the four structural fixture placements to `cornerAssemblyWidthsMm` and
+  `cornerAlongWallCentreMm`: preserve their ids, bands, vertical positions and buildIds while
+  replacing widths and centres. Choose even widths within the wall in
+  `corner-assembly-size.ts`, preserving the declared floor; keep floor and wall-only empty spans
+  non-inverted even where the depth-change reserve consumes all room. **Criteria 12–14 and the
+  domain half of 3.** Paired tests cover 880 × 880, 881 × 881, approved minima, the reference
+  room, both floor-run walls, wall-only runs, overflow ids, the typed `MINIMUM_NOT_MET` result and
+  outside-engine `LShellInputError`. Turn 7D6's expected-failure marker into a passing assertion.
+  **Mini-review before S3b:** four changed placement records and two failure classes cross a domain
+  boundary; a green adapter suite cannot certify them.
+- **S3b — the scene honours the record.** `buildDecomposedBody` reads `size.widthM` for the four
+  corner ids; `build-any-body.ts`'s comment and `build-any-body.test.ts` change with it. Criterion 8
+  and the scene half of 3. The customer path can then draw a room-sized record, while every
+  currently approved 600 mm room still has the reference corner width. No catalogue row or editor
+  capability changes.
+- **S4 — the room sweep, depth-command parity and visual gate.** Criteria 3–5, 7 and 9, against
+  the actual generated-at-600 → changed-to-700 path and the separate explicit-width builder
+  property. The wave is coherent and shippable at the end of S4; the approved 900/1000 bounds have
+  not moved. **Do not claim that a 700 mm corner was generated afresh, or that an engine-only room
+  is customer-enterable.**
 - ~~**S5 — the bound. Joint with 7D6, and one commit.** **Q-7D7-1 is answered, so the floors are
   settled: 200 at every level, read from `HINGED_CABINET_MIN_WIDTH_MM` (L-R7), giving wall B 880.**
   Dispatched **as one commit with 7D6's own bound slice, to one implementer**: the reach derivation,
@@ -11781,6 +11898,10 @@ other half, out of scope); any re-baseline at 600 mm in the reference room.
   wave, as it does for 7D6.
 
 #### S5 crosses a package boundary inside one slice — the coordinator's ruling, 2026-09-16
+
+**Historical rationale, not an active dispatch instruction (2026-09-18).** ADR 0125 cancelled S5;
+S3a's domain edit above sizes the shell without changing an approved bound. The future tense below
+records why a different, now-cancelled bound change had been planned.
 
 **S5 writes to `packages/configurator-domain/src/room/approved-room-policy.ts`, which every other slice
 here forbids.** The exception is deliberate and is the coordinator's, recorded so a later reader can see
@@ -11805,12 +11926,15 @@ It is honest and it is cheaper, and it leaves the invariant **unmet** with the n
 1. **A baseline taken before 7H, or against a moving tree.** Mitigated by S0's recorded commit and its
    named invalidation set. 7H is landed at `7b1f92c`, so this risk is now about *later* commits rather
    than about 7H.
-2. **The 600 mm identity is the wave's spine.** If the corner cannot be reproduced byte-for-byte at the
-   shipped depth, the derivation in 7D6 is wrong and this wave stops rather than re-baselining.
+2. **The 600 mm identity is the wave's spine.** If the reference corner cannot be reproduced
+   byte-for-byte at the shipped depth, this wave stops and diagnoses the domain/adapter mismatch
+   rather than re-baselining.
 3. **The narrowing that buys nothing** — `F_base` moved without `F_upper`, the 290 mm cliff. Criterion 7
    is the whole mitigation and it is written to fail on exactly that shape.
-4. **Zero improvement presented as progress.** S1–S4 are a capability; without S5 no customer can enter
-   a room they could not enter before. **Named in the slice list rather than discovered at close-out.**
+4. **The approved room bound stays put.** S1–S4 do not admit a new customer room because ADR 0125
+   kept 900/1000; they do repair the measured 700 mm door collision and make the engine-only shell
+   internally consistent. ~~Without S5 no customer can enter a room they could not enter before~~
+   remains historically true, but does not mean the wave has no visible 700 mm correction.
 5. **Amendment A read as licence to make corners customer-resizable.** L-R5 is a must-not for this
    reason; the ruling's actor is the algorithm and Q-A′.2 is unasked.
 6. **A number invented for a floor — now a *copied* one.** Q-7D7-1 is answered and resolves to the
@@ -11821,16 +11945,19 @@ It is honest and it is cheaper, and it leaves the invariant **unmet** with the n
    decision that *"says nothing about the builder"*, and the *"genuinely broken below its floor"* sweep
    deliberately excludes it (F5). **So a report that says "200 is where the cabinet breaks" is wrong**,
    and the owner should hear *"it is the floor you already set for a one-door cabinet"* instead.
-8. **The blind corner's door at 700 mm, and the gate that is designed not to see it.** The arithmetic
-   above predicts 60 mm of the 280 mm leaf standing in the return leg's carcass at the deeper declared
-   depth, with the carcass-overlap block excluding doors **by a documented and otherwise correct
-   rule**. **Measure it in S0 before treating it as either a defect or a phantom.**
+8. **The blind corner's door at 700 mm, and the gate that is designed not to see it.** The earlier
+   arithmetic predicted an obstruction; **S0 measured approximately 70 × 710 × 18 mm of AABB
+   overlap**, recorded above. The carcass-overlap block excludes doors by a documented rule that is
+   correct for ordinary doors but misses this perpendicular return. S1 derives the leaf width from
+   the accessible front and asserts this exact cross-body clearance.
 9. **The carousel clipped rather than dropped.** Criterion 4 exists for this. **Under the ruling it is
    unreachable** — the X-leg's floor is 780 and containment needs 440 — so the arm is a guard against a
    later narrowing, not a live case, and it is kept for that reason.
 10. **The buildId that names a width it no longer has.** *(Recorded in [ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)'s
-    shape — with its trigger, and **not built for**.)* `base-corner-return-320` will describe a 200 mm
-    body once S5 ships, and `base-corner-x-900` a 780 mm one. **Trigger:** the first design whose corner
+    shape — with its trigger, and **not built for**.)* ~~`base-corner-return-320` will describe a
+    200 mm body once S5 ships, and `base-corner-x-900` a 780 mm one.~~ **Corrected 2026-09-18:** at
+    880 × 880 in a 600 mm shell the return can be **300 mm** and the X-leg **880 mm**; the buildIds
+    retain their reference names. **Trigger:** the first design whose corner
     is not 320 wide. **Why nothing is built:** the ids are persisted, a rename is a catalogue change,
     new body types wait for beta (backlog 66), and the cost today is a confusing name and no defect.
     **If it is ever fixed, it is a rename wave with a migration, not a line in this one.**
