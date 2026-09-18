@@ -15,7 +15,8 @@
 //
 // The falsifiable form of "there is one author" is nevertheless the wider one: the **probe** can
 // build everything the **scene** can, over both families, since the scene mounts every seeded id
-// whether or not a depth change would resolve it.
+// whether or not a depth change would resolve it. Wave 7D7 S3b makes the four corner widths a
+// recorded input to this shared dispatch; other seeded decompositions still ignore size.
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
@@ -33,8 +34,18 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
+import { describeStructure, findMesh, worldBox } from "./support/structure.js";
 
 const DEFAULT_MM = 600;
+const CORNER_CASES = [
+  ["base-corner-x-900", 880, "carcass"],
+  ["base-corner-return-320", 300, "carcass"],
+  ["wall-corner-return-570", 550, "carcass_shell"],
+  ["wall-corner-return-570-top", 550, "carcass_shell"],
+] as const;
+const CORNER_BUILD_IDS = new Set<string>(
+  CORNER_CASES.map(([buildId]) => buildId),
+);
 
 /** Every id the shipped kitchen stands on. **All of them are decompositions**: M2's seeded scene is
  *  built entirely from them, and a catalogue id only appears once a customer inserts or a depth
@@ -135,5 +146,68 @@ describe("the one dispatch the scene and the probe share", () => {
     });
 
     expect(measured.seatOffsetM).toBeGreaterThan(0);
+  });
+});
+
+describe("the four structural corner widths cross the shared dispatch", () => {
+  it.each([600, 700] as const)(
+    "builds all four at non-reference widths and ignores supplied height/depth at %i mm",
+    (cabinetDepthMm) => {
+      const depthKit = makeKit({
+        createCanvas: createHeadlessCanvas,
+        cabinetDepthMm,
+        wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
+      });
+      const probeRoom = depthKit.builders["kitchen-l"]();
+      const probe = createBodyProbe(depthKit, probeRoom);
+      for (const [buildId, widthMm, carcassName] of CORNER_CASES) {
+        const widthM = toMetres(widthMm);
+        const size = { widthM, heightM: 1.23, depthM: 0.19 };
+        const built = buildAnyBody(depthKit, buildId, size);
+        const box = worldBox(built, findMesh(built, carcassName));
+        const changedOtherAxes = buildAnyBody(depthKit, buildId, {
+          widthM,
+          heightM: 0.2,
+          depthM: 1.1,
+        });
+        const measured = probe.measure({
+          ...size,
+          buildId,
+          seatedOn: "wall-plane",
+        });
+
+        expect(box.max.x - box.min.x, buildId).toBeCloseTo(widthM, 6);
+        // The return's probe excludes its plain `carcass` mesh and measures the inset
+        // plinth/counter set, whose union is 2 mm narrower than its authored carcass.
+        const measuredWidthM =
+          buildId === "base-corner-return-320" ? widthM - 0.002 : widthM;
+        expect(measured.carcassWidthM, buildId).toBeCloseTo(measuredWidthM, 6);
+        expect(describeStructure(changedOtherAxes), buildId).toStrictEqual(
+          describeStructure(built),
+        );
+      }
+    },
+  );
+
+  it("keeps every other seeded decomposition independent of all supplied size axes", () => {
+    const nonCorners = SEEDED_BUILD_IDS.filter(
+      (buildId) => !CORNER_BUILD_IDS.has(buildId),
+    );
+    expect(nonCorners.length).toBeGreaterThan(0);
+    for (const buildId of nonCorners) {
+      const first = buildAnyBody(kit, buildId, {
+        widthM: 0.25,
+        heightM: 0.3,
+        depthM: 0.2,
+      });
+      const second = buildAnyBody(kit, buildId, {
+        widthM: 1.1,
+        heightM: 1.4,
+        depthM: 0.9,
+      });
+      expect(describeStructure(second), buildId).toStrictEqual(
+        describeStructure(first),
+      );
+    }
   });
 });

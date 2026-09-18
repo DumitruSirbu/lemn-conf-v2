@@ -4,9 +4,11 @@
 // reproduces its hardcoded placement rather than a physical depth. Shared by the decomposition
 // parity test and the scene mount so the two never drift apart.
 import * as THREE from "three";
+import { KITCHEN_L_DESIGN, toMetres } from "@lemnaria/configurator-domain";
 
 import { wearsTheBodysFinishOnItsCarcassShell } from "./body-finish-surfaces.js";
 import { forEachCabinetHandleMesh } from "./cabinet-handle-meshes.js";
+import type { CatalogBodySize } from "./catalog-bodies.js";
 import { deriveKitMaterial } from "./kit-ownership.js";
 import type { Kit, KitMaterials } from "./kitchen-parts.js";
 
@@ -74,11 +76,31 @@ export function hidePushOpenHandles(group: THREE.Group): THREE.Group {
   return setHandlesVisible(group, false);
 }
 
-export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
+/** The direct two-argument reference/parity route reads the fixture's own authored width. The
+ * scene and probe pass a size through `buildAnyBody`, so their four corner arms draw the recorded
+ * width even after a depth change slides the placement without resizing it (ADR 0089). */
+function cornerWidthM(
+  buildId: string,
+  size: Pick<CatalogBodySize, "widthM"> | undefined,
+): number {
+  if (size !== undefined) return size.widthM;
+  const reference = KITCHEN_L_DESIGN.placements.find(
+    (placement) => placement.body.buildId === buildId,
+  );
+  if (reference === undefined) {
+    throw new Error(`No reference corner width for buildId "${buildId}"`);
+  }
+  return toMetres(reference.body.widthMm);
+}
+
+export function buildDecomposedBody(
+  kit: Kit,
+  buildId: string,
+  size?: Pick<CatalogBodySize, "widthM">,
+): THREE.Group {
   switch (buildId) {
     case "base-corner-x-900":
-      // S1's reference width; S3b replaces this with the placement's recorded width.
-      return kit.make.cornerBaseX(0.9);
+      return kit.make.cornerBaseX(cornerWidthM(buildId, size));
     case "base-corner-return-320":
       // The return leg's depth is a **placement variable**, not a property of the body
       // (`kitchen-parts.ts`): it has to equal the front plane of whatever the leg butts into. In the
@@ -86,8 +108,10 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
       // depth — 0.58 at the declared 600 mm and 0.68 at 700. **Read rather than typed since M6 wave
       // 6I**: it was the literal 0.58, which built a 600 mm kitchen's leg into a 700 mm one and left
       // the seeded body 100 mm behind the run it closes, with only the depth sweep to notice.
-      // S1's reference width; S3b replaces this with the placement's recorded width.
-      return kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32);
+      return kit.make.cornerBaseReturn(
+        kit.depths.cornerReturnDepthM,
+        cornerWidthM(buildId, size),
+      );
     case "base-sink-800":
       return kit.make.baseCabinet(0.8, { doors: 2, sink: true });
     case "base-dishwasher-600":
@@ -116,7 +140,7 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
     // builder makes five ordinary wall bodies nobody ruled on; see `body-finish-surfaces.ts`.
     case "wall-corner-return-570":
       return wearsTheBodysFinishOnItsCarcassShell(
-        kit.make.wallCabinet(0.57, 1),
+        kit.make.wallCabinet(cornerWidthM(buildId, size), 1),
       );
     case "wall-1door-300":
       return kit.make.wallCabinet(0.3, 1);
@@ -144,7 +168,12 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
     case "wall-corner-return-570-top":
       return hidePushOpenHandles(
         wearsTheBodysFinishOnItsCarcassShell(
-          kit.make.wallCabinet(0.57, 1, 0.4, kit.depths.wallDepthM),
+          kit.make.wallCabinet(
+            cornerWidthM(buildId, size),
+            1,
+            0.4,
+            kit.depths.wallDepthM,
+          ),
         ),
       );
     // **The two deep tops, and the only wall rows in this file that read the cabinet depth rather
