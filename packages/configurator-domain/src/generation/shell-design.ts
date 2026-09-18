@@ -38,6 +38,7 @@ import { cabinetDepthRuleOf } from "../cabinet-depth-rule.js";
 import { isValidOccurredAt } from "../commands/command-result.js";
 import {
   CORNER_ASSEMBLY_PIECES,
+  cornerAlongWallCentreMm,
   cornerAssemblyWidthsMm,
   cornerFarEdgeMm,
   type CornerBand,
@@ -160,7 +161,7 @@ export function buildLShellDesign(input: LShellDesignInput): Design {
     room: input.room,
     presetId: null,
     settings: { ...REFERENCE_KITCHEN.settings },
-    placements: cornerPiecesUnder(input.room.heightMm),
+    placements: cornerPiecesUnder(input.room),
     createdAt: input.occurredAt,
     updatedAt: input.occurredAt,
   };
@@ -210,10 +211,40 @@ function isInsideTheEngineLimits(room: DesignRoom): boolean {
 /** ADR 0110 decision 1 and ADR 0109 Amendment B's correction: a structural piece whose top is above
  *  the ceiling is not instantiated — excluded here by selection, never removed by a command, which
  *  refuses a structural body as `NOT_DELETABLE`. */
-function cornerPiecesUnder(ceilingMm: number): DesignPlacement[] {
+function cornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
+  const widths = cornerAssemblyWidthsMm({
+    cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+    room,
+  });
   return STRUCTURAL_ASSEMBLY.filter(
-    (placement) => placement.y0Mm + placement.body.heightMm <= ceilingMm,
-  ).map((placement) => ({ ...placement, body: { ...placement.body } }));
+    (placement) => placement.y0Mm + placement.body.heightMm <= room.heightMm,
+  ).map((placement) => {
+    const piece = CORNER_ASSEMBLY_PIECES.find(
+      ({ wall, band }) =>
+        wall === placement.wall &&
+        CORNER_BAND_FLOORS_MM[band] === placement.y0Mm,
+    );
+    if (piece === undefined) {
+      throw new Error(`buildLShellDesign: no corner piece for ${placement.id}`);
+    }
+    const sized = widths.pieces.find(
+      ({ wall, band }) => wall === piece.wall && band === piece.band,
+    );
+    if (sized === undefined) {
+      throw new Error(`buildLShellDesign: no width for ${placement.id}`);
+    }
+    const centre = cornerAlongWallCentreMm({
+      widths,
+      cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+      wall: piece.wall,
+      band: piece.band,
+    });
+    return {
+      ...placement,
+      alongMm: centre.alongMm,
+      body: { ...placement.body, widthMm: sized.widthMm },
+    };
+  });
 }
 
 /** One wall's free runs: the floor run from the corner's far edge to the planned end, and — where
@@ -225,10 +256,16 @@ function freeRunTiles(
 ): EmptyColumn[] {
   const runs = tileRunsOn(wall, room);
   const floorSpan = floorRunSpan(wall, room);
+  const wallOnlyStartMm = wallRowStartMm(wall, room);
   return [
+    // The reserve may leave this upper span ending before its corner origin. Record zero length
+    // there, exactly as for a spent floor run; neither span offers capacity in that case.
     ...tilesOver(runs.wallOnly, {
-      startMm: wallRowStartMm(wall, room),
-      endMm: Math.min(floorSpan.startMm, plannedEndMm(runs.wallOnly, room)),
+      startMm: wallOnlyStartMm,
+      endMm: Math.max(
+        wallOnlyStartMm,
+        Math.min(floorSpan.startMm, plannedEndMm(runs.wallOnly, room)),
+      ),
     }),
     ...(compositionPlan === undefined
       ? tilesOver(runs.floor, floorSpan)
@@ -378,7 +415,12 @@ function floorRunSpan(wall: DesignWall, room: DesignRoom): AlongWallSpan {
   };
   return {
     ...physicalSpan,
-    endMm: wholeMillimetreReachableEndMm(physicalSpan),
+    // A short wall-B run may be consumed completely by the depth-change reserve. Keep the
+    // planner's public span non-inverted, without reducing that reserve or manufacturing a tile.
+    endMm: Math.max(
+      physicalSpan.startMm,
+      wholeMillimetreReachableEndMm(physicalSpan),
+    ),
   };
 }
 

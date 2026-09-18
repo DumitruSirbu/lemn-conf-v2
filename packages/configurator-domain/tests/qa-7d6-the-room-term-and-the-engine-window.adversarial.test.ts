@@ -13,17 +13,13 @@
 //
 // **2. The engine's 880 mm window, which slice S2 recorded for review.** `ENGINE_ROOM_LIMITS` now
 // admits walls from 880 mm because the *narrowest* corner reaches 880, while `buildLShellDesign`
-// still places the **reference-sized** corner from the fixture. A room the engine admits and the
-// owner's policy does not — 880 × 880 — therefore builds a shell with three placements past their
-// wall ends. **No product path reaches it** (see *the window is out of every caller's reach* below),
-// and **wave 7D7 is where the shell places a room-sized corner**, so the invariant is asserted as an
-// `it.fails`: it runs, it names the correct behaviour, and it turns red the moment 7D7 makes it true
-// (`docs/best-practices/engineering-conventions.md`, *A deferred test has two shapes*).
+// originally placed the **reference-sized** corner from the fixture. Wave 7D7 S3a now writes the
+// room-sized width and centre and the expected-failure marker below is a passing assertion.
 //
 // **3. Two values nothing in the suite can see, added on the wave's review.** A band filter whose
 // `>=` no reach can distinguish from `>` — the wall and top rows share a catalogue row and a near
 // edge, so their far edges are equal in every room at every depth — and a corner centre that lands
-// on a half millimetre, which is unreachable from a shipped room and one odd derived width away.
+// on a half millimetre when an invalid odd width is supplied to the centre reader.
 // Both are asserted where the value is, because neither can be observed through anything built from
 // it.
 import { fc } from "@fast-check/vitest";
@@ -352,7 +348,7 @@ describe("the room enters as a ceiling, and the approved range is entirely above
 // The 880 mm window between the engine's limits and the shell's own corner
 // =================================================================================================
 
-describe("the engine admits a room the shell cannot yet furnish (7D6 S2's recorded interim)", () => {
+describe("the shell places a sized corner throughout the engine's window (7D7 S3a)", () => {
   /** The rooms the engine admits and the owner's policy does not, at the corners of that window. */
   const ENGINE_ONLY_ROOMS: readonly DesignRoom[] = [
     { shape: "L", widthMm: 880, depthMm: 880, heightMm: 2200 },
@@ -373,33 +369,20 @@ describe("the engine admits a room the shell cannot yet furnish (7D6 S2's record
     }
   });
 
-  // **Expected to fail until wave 7D7**, which is where the shell places a room-sized corner. It
-  // asserts the correct behaviour, so it turns red the moment 7D7 makes it true and the debt clears
-  // itself instead of depending on someone remembering this file.
-  //
-  // **The self-clearance is verified, not assumed** (`engineering-conventions.md`, *Verify that the
-  // mechanism self-clears*): on 2026-09-18 the sweep was pointed at the reference room instead of
-  // `ENGINE_ONLY_ROOMS`, which makes the assertion pass, and this marker went red with *Expect test
-  // to fail*; the sweep was then restored. So a green run of this file is evidence that the rooms
-  // below still overflow, and not that the marker asserts nothing.
-  it.fails(
-    "places its whole corner inside both walls of every room the engine admits (7D7)",
-    () => {
-      for (const room of ENGINE_ONLY_ROOMS) {
-        expect(
-          findOverflowingPlacementIds(
-            buildLShellDesign({ room, occurredAt: OCCURRED_AT }),
-          ),
-          JSON.stringify(room),
-        ).toStrictEqual([]);
-      }
-    },
-  );
+  // 7D6's verified self-clearing `it.fails` is flipped, not deleted, in wave 7D7 S3a.
+  it("places its whole corner inside both walls of every room the engine admits (7D7)", () => {
+    for (const room of ENGINE_ONLY_ROOMS) {
+      expect(
+        findOverflowingPlacementIds(
+          buildLShellDesign({ room, occurredAt: OCCURRED_AT }),
+        ),
+        JSON.stringify(room),
+      ).toStrictEqual([]);
+    }
+  });
 
-  // The safety half, and the one a customer stands behind: the owner's policy floors both walls at or
-  // above the **reference** corner's reach, so no room it admits reaches the window. Asserted against
-  // the reach rather than against 900 / 1000, so slice S5 moving a bound moves this with it.
-  it("floors both approved walls at or above the reference corner the shell still places", () => {
+  // The approved wall bounds remain the deliberate ADR 0125 margin above the 880 mm engine floor.
+  it("floors both approved walls at or above the reference corner", () => {
     for (const wall of ["A", "B"] as const) {
       expect(
         wallBoundsOf(APPROVED_L, wall).minMm,
@@ -443,7 +426,7 @@ describe("the engine admits a room the shell cannot yet furnish (7D6 S2's record
 });
 
 // =================================================================================================
-// The window is out of every caller's reach, and that is what keeps it an interim
+// The engine window remains outside the customer-approved entry policy
 // =================================================================================================
 
 describe("ENGINE_ROOM_LIMITS stays off the package's public surface", () => {
@@ -532,10 +515,8 @@ describe("the rows a wall-only run has to start past (7D6 QA's band-filter mutan
 // A corner centre is a whole millimetre or a refusal (the wave's review, N1)
 // =================================================================================================
 
-describe("an odd corner width is refused rather than centred on a half millimetre", () => {
-  /** A room the **engine** admits — 880 is its floor — whose wall A is odd, so the room term binds
-   *  at an odd number. No approved room reaches it: `APPROVED_ROOM_POLICY` floors wall A at 900,
-   *  above the point where the ceiling binds at all (ADR 0125). */
+describe("a corner centre stays on the whole-millimetre grid", () => {
+  /** The odd engine-admitted wall gives up its final millimetre at the far end. */
   const ODD_WALL_ROOM: DesignRoom = {
     shape: "L",
     widthMm: 881,
@@ -543,7 +524,7 @@ describe("an odd corner width is refused rather than centred on a half millimetr
     heightMm: 2200,
   };
 
-  it("derives that odd width, which is what makes a half-millimetre centre reachable", () => {
+  it("derives the largest even width in an odd-wall room", () => {
     expect(ODD_WALL_ROOM.widthMm).toBeGreaterThanOrEqual(ENGINE_L.wallA.minMm);
     expect(
       widthOf(
@@ -551,18 +532,26 @@ describe("an odd corner width is refused rather than centred on a half millimetr
         ODD_WALL_ROOM,
         SHIPPED_CABINET_DEPTH_MM,
       ),
-    ).toBe(881);
+    ).toBe(880);
   });
 
-  it("refuses the centre it would be placed on, naming the piece and the room", () => {
+  it("still refuses an injected odd width, naming the piece and the room", () => {
     const widths = cornerAssemblyWidthsMm({
       cabinetDepthMm: SHIPPED_CABINET_DEPTH_MM,
       room: ODD_WALL_ROOM,
     });
+    const withOddWidth = {
+      ...widths,
+      pieces: widths.pieces.map((piece) =>
+        piece.wall === "A" && piece.band === "base"
+          ? { ...piece, widthMm: 881 }
+          : piece,
+      ),
+    };
 
     expect(() =>
       cornerAlongWallCentreMm({
-        widths,
+        widths: withOddWidth,
         cabinetDepthMm: SHIPPED_CABINET_DEPTH_MM,
         wall: "A",
         band: "base",

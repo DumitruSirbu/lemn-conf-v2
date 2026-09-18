@@ -134,8 +134,8 @@ export function cornerAssemblyWidthsMm(
   };
 }
 
-/** `min(the reference width, what the wall can still hold)`, floored at the piece's own floor — ADR
- *  0120 Amendment A's ceiling, in that order.
+/** The largest even whole-millimetre width below the reference and wall ceilings, floored at the
+ *  piece's own floor — ADR 0120 Amendment A's ceiling and the persisted centre's millimetre grid.
  *
  *  **The room can only take width away.** A wall longer than the reference room's buys nothing: the
  *  reference corner is the one the owner approved, and a wider corner is not a better one. Stated
@@ -148,9 +148,10 @@ function widthInRoomMm(
   const wallCanHoldMm =
     wallLengthMm(piece.wall, query.room) -
     nearEdgeMm(piece, query.cabinetDepthMm);
+  const ceilingMm = Math.min(referenceWidthMm(piece), wallCanHoldMm);
   return Math.max(
     narrowestWidthMm(piece, query.cabinetDepthMm),
-    Math.min(referenceWidthMm(piece), wallCanHoldMm),
+    Math.floor(ceilingMm / 2) * 2,
   );
 }
 
@@ -175,9 +176,8 @@ export function cornerFarEdgeMm(query: CornerFarEdgeQuery): CornerFarEdge {
  *
  *  **A half-millimetre centre is refused, never rounded** (`docs/best-practices/product-invariants.md`):
  *  the persisted `Design` holds integer millimetres, and rounding one here would move the piece off
- *  the wall end its own width was derived from. Every derived width is even today — the room only
- *  binds below 900 mm, and the walls a customer may enter start at 900 / 1000 (ADR 0125) — so this
- *  fires for no shipped room; it is what stops the first odd width from being written silently. */
+ *  the wall end its own width was derived from. Width derivation now keeps every width even; this
+ *  refusal still catches an invalid width supplied through another path. */
 export function cornerAlongWallCentreMm(
   query: CornerFarEdgeQuery,
 ): CornerAlongWallCentre {
