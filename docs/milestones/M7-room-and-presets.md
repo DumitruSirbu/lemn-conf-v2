@@ -8413,6 +8413,47 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 
 ## Wave 7D5 — the plan, 2026-09-16, measured at HEAD `ffc472e`
 
+> **Current-HEAD reconciliation — 2026-09-19, measured at `7f95421`, before dispatch.** The plan
+> below remains the design record, but its figures and slice gates do **not** describe the current
+> tree after 7D8 and 7A3. 7D6 and 7D7 leave composition arithmetic unchanged; 7D8 re-keys the run,
+> and 7A3 changes the approved L rectangle from 900–6300 × 1000–5100 to **900–6000 × 1000–6000**.
+> A scratch copy of the planner was checked against the real `planKitchenComposition` over that
+> current rectangle at 10 mm and 2600 mm: **256 011 rooms swept, 245 211 placed, 0 differences** in
+> the full plan. The same checked model gives these current planning figures: at HEAD, *D* ≥ 6 is
+> **19 046 / 245 211 (7.77 %)**; after E3's conditional bottle it is **12 576 / 245 211 (5.13 %)**,
+> or **25 296 (10.32 %)** if the preparation cabinet counts. The bottle is free in **105 291** rooms,
+> costs one storage slot in **62 030**, costs a block column in **57 900**, would cost a core role in
+> **15 445**, and would refuse **4 545**; the conditional rule therefore places it in **225 221** and
+> drops it in **19 990**. These are planning measurements, not shipped-code results: S1 re-takes them
+> from its implementation before any close-out claim.
+>
+> **Dispatch boundary corrected.** The old S0 comment chore is already discharged at HEAD —
+> `run-end-panel.ts` now states the run-reading reason and cites ADR 0120 D2 — and the ADR 0091
+> pointer remains present. Before S1 changes production, capture a **new 7D5 pre-width recording**;
+> do not overwrite `7d3-composition-baseline.json` or `7d8-re-keyed-baseline.json`, which are historical
+> evidence for different transitions. **S1 (the conditional bottle) is dispatchable after that
+> capture. S2 is not yet dispatchable:** E7.1 presents candidate A (positional wherever it preserves
+> core roles and columns) and candidate C (only at *D* ≥ 6), says Q-H6 was not picked, while S2 says
+> it runs under the owner's answer and the wave table says only Q-H5 blocks. Current measurement makes
+> that contradiction material: A fires in **71 956** rooms and C in **12 086**. Ask whether the pan
+> drawer immediately before the hob is **A: placed whenever it preserves every core role and tall
+> column**, or **C: placed only where *D* ≥ 6 and it preserves them**. Do not dispatch S2 from the old
+> status sentence.
+>
+> **Q-H5 is still S3's product decision, but its old 49 % / 62 % consequence must not be put to the
+> owner.** In the current checked model, after the conditional bottle the *D* ≥ 6 population has
+> zero drawers among *D* in **490** rooms and one in **12 086**; only **191 / 12 576 (1.52 %)** retain
+> enough permitted post-hob space for S2 to leave two. Once S1 and the selected S2 condition ship,
+> re-measure the real planner and ask: **where two drawers cannot stand after the bottle without
+> spending another module, should the kitchen (a) accept one drawer, (b) add another 600 mm drawer
+> module when that consumes run capacity and may reduce the tall block, or (c) put a drawer between
+> the fridge and sink, overturning the current door-cabinet order?** S3 waits for that answer.
+>
+> **Scheduling recommendation:** lift S5 whole into **wave 7D5b — the sink-adjacent dishwasher
+> conversion**. It is width-neutral, its hard rule is adjacency across the corner, and it shares
+> neither S1/S2's run-width arithmetic nor their production-test seam. Keeping it in 7D5 would add a
+> second independent domain change after this reconciliation has already exposed a new S2 decision.
+
 **Tier: Full** (a domain rule stated in a quantity, touching the module 7D3 and 7D4 both touched):
 adversarial QA, then the logic and clean-code reviewers separately. **Visual: No** — nothing reaches
 a screen in this wave. **Owner answers: Q-H3 is ANSWERED (E1) and the answer re-keyed this plan;

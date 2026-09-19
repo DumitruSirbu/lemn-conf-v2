@@ -425,13 +425,18 @@ PASS.
 
 ## What is open right now
 
-- **M7 wave 7D7 is complete through documentation close-out `71e6ba3`; only the push remains.**
+- **M7 wave 7D7 is complete through documentation close-out `71e6ba3` and pushed through
+  `7f95421`.**
   `pnpm check` and `pnpm ci:local` are green, and the wave's QA, full review and visual gate are
-  recorded in `milestones/M7-room-and-presets.md`. The local 7D7 close-out and gate-follow-up commits
-  have not been pushed.
-  The next planned implementation wave is **7D5**; its S3
-  threshold slice still requires the owner's Q-H5 answer. 7F2 is also planned and remains the owner
-  of Step 1's 1C validation state.
+  recorded in `milestones/M7-room-and-presets.md`. **Source-verified 2026-09-19:** local HEAD and
+  `origin/m7-room-and-presets` both resolve to `7f954211874ee635fe4b2abe2eb2384ef0ab16c9`.
+  The next planned implementation wave is **7D5**. Its 2026-09-19 current-HEAD reconciliation in the
+  milestone corrects the dispatch boundary: the old S0 comment chore is already done; a new 7D5
+  pre-width recording and S1's conditional bottle are dispatchable; **S2 first needs Q-H6's A/C
+  answer**, and S3 then needs Q-H5 after the real S1/S2 planner is re-measured. The old 49 % / 62 %
+  Q-H5 figures are stale after 7D8 and 7A3 and must not be put to the owner. The reconciliation
+  recommends lifting the dishwasher into a separate 7D5b wave. 7F2 is also planned and remains the
+  owner of Step 1's 1C validation state.
 - ~~**M7 — six owner follow-up questions, F1–F6, open since 2026-09-11.**~~ **CLOSED 2026-09-11 — the
   owner answered F1–F7 the same day** (`milestones/M7-room-and-presets.md`, *Follow-up questions*),
   through a structured prompt, the option labels quoted verbatim in the milestone. F1 unblocked wave
@@ -940,14 +945,17 @@ policy, so every per-endpoint limit is application code.
 > to 10 s. Full QA, review, the 24-shot production visual gate and its precise 880 × 880 post-depth
 > containment limitation are recorded in the milestone's *7D7 close-out — 2026-09-19*.
 > **`pnpm ci:local` passed every gate: 208 E2E passed / 2 skipped, the production build generated
-> 11 pages, boundaries and lockfile passed, and the audit found no known vulnerabilities. Push
-> remains pending. The first pre-push repeat later timed out only the exhaustive shell sweep at
+> 11 pages, boundaries and lockfile passed, and the audit found no known vulnerabilities. The first
+> pre-push repeat later timed out only the exhaustive shell sweep at
 > 5.019 s against 5 s; `a9bad6b` raises that test's budget to 10 s without changing its assertions
-> or sample set, and the focused file passed 52/52.**
+> or sample set, and the focused file passed 52/52. **The subsequent push completed; source-verified
+> local and origin both at `7f95421`.**
 >
-> **The milestone stays open. Next: wave 7D5** — the drawer group astride the hob, bottle cabinet
-> and dishwasher plan already recorded in the active milestone. Its S3 threshold slice is blocked
-> on the owner's Q-H5 answer; the earlier slices remain dispatchable. 7F2 is also planned and
+> **The milestone stays open. Next: wave 7D5** — the drawer group astride the hob and bottle cabinet
+> plan already recorded in the active milestone. **Corrected by the 2026-09-19 current-HEAD plan
+> reconciliation:** capture the pre-width recording, then S1 is dispatchable; S2 needs Q-H6's A/C
+> answer, and S3 needs Q-H5 after S1/S2 are re-measured. The dishwasher is recommended for 7D5b.
+> 7F2 is also planned and
 > remains the owner of the live 1C validation state. The two non-blocking corner questions remain Q-7D7-3
 > (carousel policy) and Q-A′.2 (whether the customer may resize a generated corner); 7D7 changes
 > neither. The misleading `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` name remains an unowned cleanup.
