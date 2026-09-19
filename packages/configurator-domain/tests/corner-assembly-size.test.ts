@@ -491,6 +491,74 @@ describe("criterion 6 — the run origins at the shipped depth", () => {
 // =================================================================================================
 
 describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => {
+  it.each([
+    { baseWidthMm: 320, upperWidthMm: 570, expectedReachMm: 1000 },
+    { baseWidthMm: 200, upperWidthMm: 200, expectedReachMm: 880 },
+    { baseWidthMm: 200, upperWidthMm: 570, expectedReachMm: 970 },
+  ])(
+    "takes both wall-B rows at 700 mm: base $baseWidthMm / upper $upperWidthMm reaches $expectedReachMm",
+    async ({ baseWidthMm, upperWidthMm, expectedReachMm }) => {
+      // Hypothetical width pairs are an algebra guard, not rooms or alternative policies.
+      // The mixed pair catches a narrowed base return that leaves the upper row at 570 mm.
+      const actualWidths = widthsIn(REFERENCE_ROOM, DEEPER_CABINET_DEPTH_MM);
+      const widths: CornerAssemblyWidthsMm = {
+        ...actualWidths,
+        pieces: actualWidths.pieces.map((piece) => ({
+          ...piece,
+          widthMm:
+            piece.wall === "B"
+              ? piece.band === "base"
+                ? baseWidthMm
+                : upperWidthMm
+              : piece.widthMm,
+        })),
+      };
+      const baseFarMm = farEdgeMm(widths, { wall: "B", band: "base" });
+      const wallFarMm = farEdgeMm(widths, { wall: "B", band: "wall" });
+      const topFarMm = farEdgeMm(widths, { wall: "B", band: "top" });
+
+      expect(baseFarMm).toBe(680 + baseWidthMm);
+      expect(wallFarMm).toBe(400 + upperWidthMm);
+      expect(topFarMm).toBe(wallFarMm);
+      expect(Math.max(baseFarMm, wallFarMm, topFarMm)).toBe(expectedReachMm);
+
+      // The engine bound resolves the two catalogue floors at module load. Vary those floors
+      // here so a bound implementation that silently drops the upper row fails on 200/570.
+      vi.doMock("../src/catalog.js", async (importOriginal) => {
+        const actual =
+          await importOriginal<typeof import("../src/catalog.js")>();
+        return {
+          ...actual,
+          INSERTABLE_BODY_DEFINITIONS: actual.INSERTABLE_BODY_DEFINITIONS.map(
+            ([id, entry]) => [
+              id,
+              id === "base-cabinet"
+                ? { ...entry, minWidthMm: baseWidthMm }
+                : id === "wall-cabinet"
+                  ? { ...entry, minWidthMm: upperWidthMm }
+                  : entry,
+            ],
+          ),
+        };
+      });
+      try {
+        vi.resetModules();
+        const sizedModule = await import("../src/corner-assembly-size.js");
+        expect(sizedModule.narrowestCornerReachMm("B").wallMinimumMm).toBe(
+          expectedReachMm,
+        );
+      } finally {
+        vi.doUnmock("../src/catalog.js");
+        vi.resetModules();
+      }
+    },
+  );
+
+  it("keeps the actual engine floor at 880 mm while the approved wall-B minimum stays 1000 mm", () => {
+    expect(narrowestCornerReachMm("B").wallMinimumMm).toBe(880);
+    expect(approvedL().wallB.minMm).toBe(1000);
+  });
+
   it("is read from the bound rather than typed, and is 900 × 1000 × 2200 while the bound is unmoved", () => {
     expect(SMALLEST_APPROVED_ROOM).toStrictEqual({
       shape: "L",

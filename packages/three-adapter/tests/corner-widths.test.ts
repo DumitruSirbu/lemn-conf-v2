@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { buildDecomposedBody } from "../src/decomposed-bodies.js";
+import { buildAnyBody } from "../src/build-any-body.js";
 import { makeKit } from "../src/kitchen-parts.js";
 import { createHeadlessCanvas } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
@@ -28,6 +29,11 @@ const DECLARED_DEPTHS_MM = [600, 700] as const;
 const DOOR_ALLOWANCE_MM = 40;
 const RIGHT_INSET_MM = 10;
 const RETURN_WORKTOP_INSET_MM = 50;
+const UPPER_RETURN_REFERENCE_WIDTH_MM = 570;
+const UPPER_CORNER_BANDS = [
+  { buildId: "wall-corner-return-570", heightM: 0.7 },
+  { buildId: "wall-corner-return-570-top", heightM: 0.4 },
+] as const;
 
 const oneDoorFloorMm = (() => {
   const base = INSERTABLE_BODY_DEFINITIONS.find(
@@ -220,6 +226,55 @@ describe("the sized corner base legs", () => {
       const placedReturnTop = worldBox(room, findMesh(ret, "countertop"));
       expect(placedDoor.min.x - placedReturn.max.x).toBeGreaterThan(0.029);
       expect(placedReturnTop.min.z).toBeCloseTo(placedXTop.max.z, 6);
+    },
+  );
+});
+
+describe("the sized wall and top corner returns", () => {
+  function expectUpperReturnWidth(
+    cabinetDepthMm: number,
+    buildId: (typeof UPPER_CORNER_BANDS)[number]["buildId"],
+    heightM: number,
+    widthMm: number,
+  ): void {
+    const built = buildAnyBody(kitAt(cabinetDepthMm), buildId, {
+      widthM: widthMm / 1000,
+      heightM: 1.23,
+      depthM: 0.19,
+    });
+    const shell = worldBox(built, findMesh(built, "carcass_shell"));
+    const front = worldBox(built, findMesh(built, "door_front"));
+    expect(axisWidth(shell, "x")).toBeCloseTo(widthMm / 1000, 6);
+    expect(axisWidth(shell, "y")).toBeCloseTo(heightM, 6);
+    expect(findMeshes(built, "door_front")).toHaveLength(1);
+    expect(axisWidth(front, "x")).toBeCloseTo((widthMm - 6) / 1000, 6);
+    expect(axisWidth(front, "y")).toBeCloseTo(heightM - 0.006, 6);
+    expect(front.min.x).toBeGreaterThanOrEqual(shell.min.x);
+    expect(front.max.x).toBeLessThanOrEqual(shell.max.x);
+  }
+
+  it.each(DECLARED_DEPTHS_MM)(
+    "keeps the one-door floor and reference endpoints at %i mm depth in both upper bands",
+    (depthMm) => {
+      for (const { buildId, heightM } of UPPER_CORNER_BANDS) {
+        for (const widthMm of [
+          oneDoorFloorMm,
+          UPPER_RETURN_REFERENCE_WIDTH_MM,
+        ]) {
+          expectUpperReturnWidth(depthMm, buildId, heightM, widthMm);
+        }
+      }
+    },
+  );
+
+  propertyTest.prop([
+    fc.constantFrom(...DECLARED_DEPTHS_MM),
+    fc.constantFrom(...UPPER_CORNER_BANDS),
+    fc.integer({ min: oneDoorFloorMm, max: UPPER_RETURN_REFERENCE_WIDTH_MM }),
+  ])(
+    "draws every supplied domain-admitted upper width at its 700 or 400 mm band height",
+    (depthMm, band, widthMm) => {
+      expectUpperReturnWidth(depthMm, band.buildId, band.heightM, widthMm);
     },
   );
 });
