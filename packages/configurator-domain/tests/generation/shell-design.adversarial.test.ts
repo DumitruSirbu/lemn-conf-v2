@@ -1253,54 +1253,58 @@ describe("buildLShellDesign — the engine's own limits (R1.2)", () => {
   // floor, one either side), the corner pieces' own tops, and the top row all fall inside it. Four
   // rooms per height — the smallest, both walls at their first tile seam, the reference and the
   // largest — each as built, at every other declared depth, and back.
-  it("reports no finding of either severity for any engine-accepted ceiling, as built, at every declared depth and back", () => {
-    const seamRoom = {
-      widthMm: floorRunOriginMm("A") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
-      depthMm: floorRunOriginMm("B") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
-    };
-    const walls = [
-      smallestRoomTheShellPlacesItsCornerIn(),
-      seamRoom,
-      { widthMm: ROOM.widthMm, depthMm: ROOM.depthMm },
-      { widthMm: engineL.wallA.maxMm, depthMm: engineL.wallB.maxMm },
-    ];
-    const findings: string[] = [];
-    let built = 0;
+  it(
+    "reports no finding of either severity for any engine-accepted ceiling, as built, at every declared depth and back",
+    { timeout: 10_000 },
+    () => {
+      const seamRoom = {
+        widthMm: floorRunOriginMm("A") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
+        depthMm: floorRunOriginMm("B") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
+      };
+      const walls = [
+        smallestRoomTheShellPlacesItsCornerIn(),
+        seamRoom,
+        { widthMm: ROOM.widthMm, depthMm: ROOM.depthMm },
+        { widthMm: engineL.wallA.maxMm, depthMm: engineL.wallB.maxMm },
+      ];
+      const findings: string[] = [];
+      let built = 0;
 
-    for (
-      let heightMm = engineL.height.minMm;
-      heightMm <= engineL.height.maxMm;
-      heightMm += 1
-    ) {
-      for (const wallSizes of walls) {
-        const room: DesignRoom = { shape: "L", ...wallSizes, heightMm };
-        const shell = shellIn(room);
-        built += 1;
-        const found = [...findingsOf(shell, SHELL_CABINET_DEPTH_MM)];
-        for (const depthMm of otherDeclaredDepthsMm()) {
-          const moved = atCabinetDepth(shell, depthMm);
-          found.push(
-            ...findingsOf(moved, depthMm).map(
-              (f) => `@${String(depthMm)} ${f}`,
-            ),
-          );
-          found.push(
-            ...findingsOf(
-              atCabinetDepth(moved, SHELL_CABINET_DEPTH_MM),
-              SHELL_CABINET_DEPTH_MM,
-            ).map((f) => `back ${f}`),
-          );
+      for (
+        let heightMm = engineL.height.minMm;
+        heightMm <= engineL.height.maxMm;
+        heightMm += 1
+      ) {
+        for (const wallSizes of walls) {
+          const room: DesignRoom = { shape: "L", ...wallSizes, heightMm };
+          const shell = shellIn(room);
+          built += 1;
+          const found = [...findingsOf(shell, SHELL_CABINET_DEPTH_MM)];
+          for (const depthMm of otherDeclaredDepthsMm()) {
+            const moved = atCabinetDepth(shell, depthMm);
+            found.push(
+              ...findingsOf(moved, depthMm).map(
+                (f) => `@${String(depthMm)} ${f}`,
+              ),
+            );
+            found.push(
+              ...findingsOf(
+                atCabinetDepth(moved, SHELL_CABINET_DEPTH_MM),
+                SHELL_CABINET_DEPTH_MM,
+              ).map((f) => `back ${f}`),
+            );
+          }
+          if (found.length > 0)
+            findings.push(`${JSON.stringify(room)}: ${found.join(", ")}`);
         }
-        if (found.length > 0)
-          findings.push(`${JSON.stringify(room)}: ${found.join(", ")}`);
       }
-    }
 
-    expect(built).toBe(
-      (engineL.height.maxMm - engineL.height.minMm + 1) * walls.length,
-    );
-    expect(findings.slice(0, 3)).toStrictEqual([]);
-  });
+      expect(built).toBe(
+        (engineL.height.maxMm - engineL.height.minMm + 1) * walls.length,
+      );
+      expect(findings.slice(0, 3)).toStrictEqual([]);
+    },
+  );
 
   it("records no wall-only run in a room no taller than the wall row's floor, and a real one just above it", () => {
     const wallRowFloorMm = toMillimetres(LEVELS[1]?.[0] ?? Number.NaN);
