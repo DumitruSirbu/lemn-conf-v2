@@ -185,6 +185,14 @@
 > and this pass had no shell: the eight hashes and every figure above are reported unless the
 > close-out marks them verified at HEAD. Full close-out below.
 >
+> **Updated 2026-09-19: wave 7D7 is DONE.** Plan `552cd74`; S1 `f861306`; S2 `6311f65`; S3a
+> `009ab05`; S3b `49627f9`; S4 `8618129`; gate-timeout follow-up `5c1cd33`. The room-sized corner is
+> recorded by the 600 mm generation path, rendered from its stored width and kept frozen by the
+> 600 → 700 mm depth command. The reference room remains 900 / 320 / 570, the engine's derived floor
+> remains 880 / 880, and the approved minima remain 900 / 1000 under ADR 0125; S5 was cancelled.
+> `pnpm check` passed after the exhaustive oven sweep received a 10 s budget. `pnpm ci:local` and
+> push remain pending. Full close-out below.
+>
 > **Revised 2026-09-11 by the architect, on branch `m7-room-and-presets` from `main` at `995ad03`**
 > (M6 and M6B have both shipped; M6B merged as PR #8). The sections written before M6/M6B are kept;
 > what the code has since made stale is struck in place and dated. **New, below the original plan:**
@@ -1522,7 +1530,7 @@ table.
 | **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), **Q-H3 answered 2026-09-16 (a threshold at six plain storage cabinets, not a ratio — it re-keyed the plan)**; **Q-H5 blocks slice S3 only; Q-H4 and the new Q-H3a change two criteria and no code** |
 | **7D8** | **DONE, close-out 2026-09-17** — see [7D8 close-out](#7d8-close-out--2026-09-17). Commits: planning `8ebff1f`/`36fde8c`/`275c95e`/`27ae496`; S0 `5c915f8`; S1 `2439da5`; E4 correction `355a15e`; adjudication `c456dbd`; S2 `814ca44` (`--no-verify`, 25 known-red assigned to S3); S3 `f919bfa` (suite green); review `62cfee1`; Q-7D8-2 ruling `6dbff27`; ADR 0110 Amendment I1.1 `e18908b`; shrink-strip fix `24ca2bc`; panel-colour fix `dcec03f`; ADR 0122 `8b73439`; S4 `b83e4f2`. `pnpm ci:local`/push pending. **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **DONE, close-out 2026-09-18** — see [7D6 close-out](#7d6-close-out--2026-09-18). Commits: S1 pre-flight (no code, 900/900 reproduced); S2 `bf58f97`; S3 `dcb67ce`; QA `9ae586c`; review fixes `0d79ce9`. `pnpm ci:local`/push recorded by the coordinator, separately | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **Q-K1 ANSWERED 2026-09-17, option 3 — [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md): the owner kept 900/1000 as a deliberate margin above the derived 880/880 floor. No bound moves. [ADR 0108 Amendment F](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin) narrows Amendment A ruling 1 accordingly. The joint bound slice (7D6-S5/7D7-S5) does not dispatch — no literal moved** |
-| **7D7** | The corner **builders** take their size as a parameter — `DEVELOPMENT-SPEC.md` §13.3 open question 6, corner half only. **Re-scoped 2026-09-16 under ADR 0120 Amendment A: the width is a function of the depth *and the room*, so the parity criterion sweeps rooms × depths.** The wall row's 570 returns move with the base row's 320 or the wave buys nothing — **the 290 mm cliff, defused by the owner's ruling below and live again the moment one row moves alone**. **Floors ruled 2026-09-16: a cabinet with one door at all three levels → 200 everywhere, wall B's bound 1000 → 880.** **Ordering: its fidelity baseline is taken *after* 7H lands, never before — 7H is landed at `7b1f92c`. Deadline: before 7P2**, with 7D6 | `packages/three-adapter` corner builders, `decomposed-bodies.ts`, `build-any-body.ts` (+ fidelity, parity and room-sweep coverage); **slice S5 only**, jointly with 7D6 and by the coordinator's recorded exception, `configurator-domain/src/room/approved-room-policy.ts` | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + a narrow room | **Q-7D7-1 ANSWERED 2026-09-16** (one door at all three levels → 200). **Q-7D7-2 open** — wall A's minimum moves to 880 too, which ADR 0120 said it would not; gates S5's wall-A half only. S0–S4 dispatch now |
+| **7D7** | **DONE 2026-09-19** — the corner builders accept recorded widths; generation authors the four structural corner placements with the largest even room-fitting widths at 600 mm, and the 600 → 700 mm depth command keeps those widths frozen while sliding the recorded chains. The engine floor is **880 × 880**, while [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) keeps the customer-approved minima at **900 / 1000**; cancelled S5 did not dispatch and no policy literal moved. See [7D7 close-out](#7d7-close-out--2026-09-19). Commits: plan `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; gate-timeout follow-up `5c1cd33`. `pnpm check` is green; `pnpm ci:local` and push remain pending | `packages/configurator-domain` corner sizing/shell placement and `packages/three-adapter` corner builders/record seam, with paired adversarial coverage; **S5 cancelled** | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + approved narrow room | **Q-7D7-1 and Q-7D7-2 answered.** The one-door floor is 200; approved minima remain 900/1000. Q-7D7-3 and Q-A′.2 remain non-blocking product questions; this wave changes neither carousel policy nor editor capabilities |
 | **7E1** | `/configurator/room`, URL state, proxy, `/` → Step 1 — **DONE, `57f1e94`** | *carried* | 7A | Full | Unstyled | — |
 | **7E2** | Create the design; `/d/{id}` only after the write; back links — **DONE, `470e5c9`** | *carried*, minus the demo-URL item | 7E1 | Full + security | Light | — |
 | **7F1** | 1A shape cards; 1B fields, toggle, live plan — **DONE, `5d2ff54`** (five slices), with the visual gate's D1–D3 fixed at `852df10`; **its D4 and D5 are closed by 7F1-D45, not here** | *carried*, plus `room/metres-text.ts`, `room/room-draft.ts`, `room/plan-preview-model.ts`, `room/room-url-state.ts` (two exports), `room/room-policy.ts` + `src/index.ts` (`isShapeBuildable`), `eslint.config.mjs`, `messages/ro.json` + `ru.json` | 7A, 7E1 | Light | **Yes** | answered (F8) — all three cards drawn |
@@ -11670,7 +11678,7 @@ it must never be represented with `endMm < startMm`.
 `HINGED_CABINET_MIN_WIDTH_MM` and asserts `deriveDoorCount(floor) === 1`; **`200` does not appear as a
 literal in this wave's code or its tests.** Two reasons and both have bitten this project: the number
 is an owner product decision that may move again (F5), and a copy of it here is the
-[ADR 0028](../decisions/0028-one-derivation-one-constant.md) two-constants-agreeing-by-luck shape.
+[ADR 0028](../decisions/0028-wall-depth-is-derived-from-the-worktop.md) two-constants-agreeing-by-luck shape.
 **Must not:** a corner floor constant in `three-adapter`.
 
 **L-R8 — the X-leg's width is `(d − 20) + a one-door cabinet`, and the first term is not negotiable.**
@@ -12037,6 +12045,65 @@ builds, in the same voice as *"every cabinet is custom made"*, and reading it as
 customer drag a corner would overturn §13.1, ADR 0021 decision 1 and ADR 0025 decision 4 on the
 strength of a manufacturing rule. **L-R5 stands.** **Q-B (F6, the room maxima)** is unaffected and
 belongs in the same batch.
+
+### 7D7 close-out — 2026-09-19
+
+**DONE.** Plan `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b
+`49627f9`; S4 `8618129`; full-gate timeout follow-up `5c1cd33`. **[Git-verified at
+HEAD `5c1cd33`]** All seven commits are ancestors of HEAD and the implementation commits touch only
+the domain/adapter surfaces and paired tests named by the amended plan. `pnpm ci:local` and push have
+not run for this close-out and are not claimed.
+
+**What shipped. [Source-verified at HEAD.]** At generation's 600 mm depth,
+`cornerAssemblyWidthsMm({ cabinetDepthMm, room })` selects the largest even whole-millimetre width
+that fits each wall, does not exceed the reference piece and keeps its existing one-door floor.
+`buildLShellDesign` records those widths and whole-millimetre centres on all four structural corner
+placements, keeps floor and wall-only runs non-inverted, and a valid engine room that cannot hold the
+required sink and hob returns typed `MINIMUM_NOT_MET`. The adapter's X-leg and return builders accept
+width parameters; `buildDecomposedBody` reads each corner record's `body.widthMm`; the dependent
+wall-A and wall-B seats read the same width set. The reference room remains 900 / 320 / 570. A later
+600 → 700 mm depth command follows ADR 0089: it slides the stored design and leaves its generated
+corner widths frozen. The approved 900 / 1000 minima remain unchanged under ADR 0125; the engine's
+derived 880 / 880 floor is shell coverage, and S5 was cancelled.
+
+**Acceptance and test evidence. [Coordinator-reported unless marked Git-verified.]** Reference-room
+mesh parity remained exact against S0's 600 mm census. The declared approved-room and shell-only
+sweeps cover the reference room, 900 × 2200, 2100 × 1000, 4000 × 4000, the maximum, 900 × 1000,
+880 × 880 and 881 × 881; the scene reads the recorded widths at 600 and after the same design's
+depth command to 700. QA was green at each slice: S1 **152**, S2 **99**, S3a **281**, S3b **170**;
+S4's QA reported domain **61** plus adapter **105**, and the coordinator's final focused S4 run was
+adapter **119** plus domain **61**. **[Git-verified]** The adversarial files for all five slices and
+the explicit 880 / 881 shell witnesses are present at HEAD. The 700 mm hidden door-to-return
+clearance is held by exact geometry tests; screenshots cannot establish that hidden-box clearance
+and are not cited as its proof.
+
+**Review. [Reviewer-reported.]** Full product-logic review found no blocker. Clean-code review's
+R1.1 found the stale `seat-rule.ts` claim that `cornerBaseX()` took no arguments; S4 corrected that
+source comment, and this close-out corrects the same fixed-width wording in `docs/design/SPEC.md`.
+No finding remains open.
+
+**Visual evidence. [Visual-verifier-reported.]** A production build produced **24 inspected
+screenshots** under
+`/private/tmp/lemnaria-7d7-visual-49627f9-20260919/`: reference 3560 × 2920 and approved narrow
+900 × 2200 rooms, 390 × 844 and 1440 × 900 viewports, 600 mm and same-design 700 mm states, each in
+overview, wall A and wall B views. The run reported **0 page errors and 0 HTTP errors**; the only
+console item was the baseline report-only CSP warning. The visible worktop junctions, recorded seats
+and upper-row stagger consistent with ADR 0089 passed inspection; exact 30 mm residue is held by the
+geometry tests rather than inferred from pixels.
+
+**A precise limit on that evidence.** The engine-only 880 × 880 shell is internally contained when
+authored at 600 mm. After a 700 mm depth command it may overflow under ADR 0065, which deliberately
+marks and preserves bodies past a wall rather than moving or resizing them. S4 QA's depth-command
+case proves frozen widths, reseating and renderability; it is **not containment evidence** for that
+engine-only post-command state.
+
+**Closing gate. [Coordinator-run.]** The first `pnpm check` attempt ended on a network access failure
+and supplied no product result. Two later full-suite attempts reached the existing exhaustive oven
+sweep but exceeded its 5 s test budget at **5.189 s** and **5.398 s**; the focused test passed, and
+`5c1cd33` gave that exhaustive case a 10 s budget without reducing its assertions or sample set. The
+final full `pnpm check` passed: domain **4,570**, persistence **282**, three-adapter **3,536**, web
+**3,316**, with format, lint and typecheck green. The remaining release actions are `pnpm ci:local`
+and push.
 
 ## Wave 7F1-D45 — dispatchable punch list: Back keeps the room the customer typed
 

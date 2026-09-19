@@ -351,7 +351,15 @@ pin and the literal sweep), `9ae586c` (QA), `0d79ce9` (review fixes).** `ENGINE_
 margin. Full criterion-by-criterion record, the reviewer's own containment argument, the two
 failure-class markers (an inverted floor run, a bare-`Error` crash below the approved bound) and what
 7D7 inherits: the milestone file's *7D6 close-out — 2026-09-18*. `pnpm ci:local` and the push are
-recorded by the coordinator, separately. | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+recorded by the coordinator, separately. **Updated 2026-09-19: wave 7D7 is DONE** — plan `552cd74`,
+S1 `f861306`, S2 `6311f65`, S3a `009ab05`, S3b `49627f9`, S4 `8618129`, gate-timeout follow-up
+`5c1cd33`. Generation now records the four room-sized corner widths at 600 mm and the scene renders
+them; a later 700 mm depth command keeps those stored widths frozen under ADR 0089. The reference
+room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 keeps the approved
+minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
+persistence **282**, three-adapter **3,536** and web **3,316**. `pnpm ci:local` and push remain
+pending; the full evidence and visual limitation are in the milestone's *7D7 close-out —
+2026-09-19*. | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -416,6 +424,12 @@ PASS.
 
 ## What is open right now
 
+- **M7 wave 7D7 is complete in the local tree at `5c1cd33`; its release gate is still open.**
+  `pnpm check` is green and the wave's QA, full review and visual gate are recorded in
+  `milestones/M7-room-and-presets.md`. `pnpm ci:local` has not run for this close-out and the seven
+  local 7D7 commits have not been pushed. The next planned implementation wave is **7D5**; its S3
+  threshold slice still requires the owner's Q-H5 answer. 7F2 is also planned and remains the owner
+  of Step 1's 1C validation state.
 - ~~**M7 — six owner follow-up questions, F1–F6, open since 2026-09-11.**~~ **CLOSED 2026-09-11 — the
   owner answered F1–F7 the same day** (`milestones/M7-room-and-presets.md`, *Follow-up questions*),
   through a structured prompt, the option labels quoted verbatim in the milestone. F1 unblocked wave
@@ -910,29 +924,26 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-18. M7 wave 7D6 is DONE, close-out at `0d79ce9`.** Four commits: S2
-> `bf58f97`, S3 `dcb67ce`, QA `9ae586c`, review fixes `0d79ce9` (S1's pre-flight landed no code).
-> **Both documents this wave owed have landed: [ADR 0125](decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)**
-> (the owner's Q-K1 ruling — kept 900/1000 as a deliberate margin above the derived 880/880 floor,
-> no bound moves) **and [ADR 0108 Amendment F](decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin)**
-> (narrowing Amendment A ruling 1 to the corner's floor widths at a `(depth, room)` argument, against
-> code actually shipped at HEAD `9ae586c`, and recording the `cornerReachMm`-means-two-things hazard
-> with its trigger). **`pnpm ci:local` for this wave was running concurrently with this close-out
-> pass; its result and the push are the coordinator's to record, not claimed here.**
+> **RESUME HERE — 2026-09-19. M7 wave 7D7 is DONE at local HEAD `5c1cd33`.** Commits: plan
+> `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; exhaustive
+> oven-sweep timeout follow-up `5c1cd33`. The four corner builders now draw their recorded widths;
+> generation authors the largest even room-fitting widths and centres at 600 mm; 600 → 700 keeps
+> those widths frozen while applying ADR 0089's slide. The reference room remains 900 / 320 / 570,
+> the engine's shell floor is 880 / 880, and ADR 0125 keeps the customer-approved minima at
+> 900 / 1000. S5 was cancelled and no approved policy literal moved.
 >
-> **The milestone stays open. Next: wave 7D7** — the corner builders take their size as a parameter.
-> It inherits this wave's window (880–899 mm on wall A, 880–999 mm on wall B, where
-> `ENGINE_ROOM_LIMITS` now admits a room the shell still places with the reference-sized corner); the
-> two markers that clear when 7D7 lands the sized placement (four overflowing placements at
-> 880 × 880 — `p21`, `p25`, `p26`, `p9` — and wall B's inverted floor run, `endMm < startMm`, in that
-> same room); and the two failure-class criteria 7D7's plan must name (a floor run whose `endMm`
-> precedes its `startMm`; a typed `LShellInputError` degrading to a bare internal `Error`). It also
-> inherits a band-filter test **expected** to go red once 7D7 sizes the wall and top rows differently
-> — read that red as expected, not as a 7D7 regression. Two deferred items carry forward with no wave
-> assigned: the `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` rename (both ADRs flag the name as misleading
-> now, neither makes the rename) and the `qa-7d3` budget raise (oven sweep 4,938 ms of 5,000 ms;
-> centring-hazard test 5,099 ms, in a full run — neither failed, both want headroom). Full record:
-> the milestone file's *7D6 close-out — 2026-09-18*.
+> **Evidence:** final `pnpm check` passed — domain **4,570**, persistence **282**, three-adapter
+> **3,536**, web **3,316** — after `5c1cd33` raised only the exhaustive oven sweep's timeout from 5 s
+> to 10 s. Full QA, review, the 24-shot production visual gate and its precise 880 × 880 post-depth
+> containment limitation are recorded in the milestone's *7D7 close-out — 2026-09-19*.
+> **`pnpm ci:local` and push remain pending and are not claimed.**
+>
+> **The milestone stays open. Next: wave 7D5** — the drawer group astride the hob, bottle cabinet
+> and dishwasher plan already recorded in the active milestone. Its S3 threshold slice is blocked
+> on the owner's Q-H5 answer; the earlier slices remain dispatchable. 7F2 is also planned and
+> remains the owner of the live 1C validation state. The two non-blocking corner questions remain Q-7D7-3
+> (carousel policy) and Q-A′.2 (whether the customer may resize a generated corner); 7D7 changes
+> neither. The misleading `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` name remains an unowned cleanup.
 
 > **RESUME HERE (superseded above, kept for its detail) — 2026-09-17, later still. M7 wave 7F4b is DONE**, resolving the wave-table defect
 > open since 2026-09-15 (the row carried no DONE marker while the coordinator reported it shipped).
