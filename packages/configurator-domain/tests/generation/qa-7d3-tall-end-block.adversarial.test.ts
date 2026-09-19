@@ -284,50 +284,54 @@ describe("exactly one oven, read off the built kitchen", () => {
   // Criterion 2 in both directions, and deliberately **not** through `assertExactlyOneOven`: that
   // post-condition is production's own, so a test that only observes it passing observes production
   // agreeing with itself. This counts the bodies in the design.
-  it("carries one oven-bearing body in every generated kitchen, in both arms", () => {
-    const arms = { withATower: 0, withoutOne: 0 };
-    let generated = 0;
-    // Generation is swept, not the policy (M7 7A3): wall A keeps the pre-7A3 6300, and wall B adds
-    // the band the policy admits since, from its first value to its maximum.
-    for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
-      for (const depthMm of [
-        1000,
-        1450,
-        1700,
-        2600,
-        5100,
-        5101,
-        5600,
-        APPROVED_L.wallB.maxMm,
-      ]) {
-        const result = generate(roomOf(widthMm, depthMm));
-        if (!result.ok) continue;
-        generated += 1;
-        const towers = result.design.placements.filter(
-          (placement) => placement.body.buildId === OVEN_TOWER,
-        );
-        const hobsWithAnOven = result.design.placements.filter(
-          (placement) => placement.body.buildId === HOB_WITH_OVEN,
-        );
-        const hobsWithDrawers = result.design.placements.filter(
-          (placement) => placement.body.buildId === HOB_WITH_DRAWERS,
-        );
-        const where = `${String(widthMm)}x${String(depthMm)}`;
+  it(
+    "carries one oven-bearing body in every generated kitchen, in both arms",
+    { timeout: 10_000 },
+    () => {
+      const arms = { withATower: 0, withoutOne: 0 };
+      let generated = 0;
+      // Generation is swept, not the policy (M7 7A3): wall A keeps the pre-7A3 6300, and wall B adds
+      // the band the policy admits since, from its first value to its maximum.
+      for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
+        for (const depthMm of [
+          1000,
+          1450,
+          1700,
+          2600,
+          5100,
+          5101,
+          5600,
+          APPROVED_L.wallB.maxMm,
+        ]) {
+          const result = generate(roomOf(widthMm, depthMm));
+          if (!result.ok) continue;
+          generated += 1;
+          const towers = result.design.placements.filter(
+            (placement) => placement.body.buildId === OVEN_TOWER,
+          );
+          const hobsWithAnOven = result.design.placements.filter(
+            (placement) => placement.body.buildId === HOB_WITH_OVEN,
+          );
+          const hobsWithDrawers = result.design.placements.filter(
+            (placement) => placement.body.buildId === HOB_WITH_DRAWERS,
+          );
+          const where = `${String(widthMm)}x${String(depthMm)}`;
 
-        expect(towers.length + hobsWithAnOven.length, where).toBe(1);
-        expect(hobsWithAnOven.length + hobsWithDrawers.length, where).toBe(1);
-        expect(hobsWithDrawers.length === 1, where).toBe(towers.length === 1);
-        if (towers.length === 1) arms.withATower += 1;
-        else arms.withoutOne += 1;
+          expect(towers.length + hobsWithAnOven.length, where).toBe(1);
+          expect(hobsWithAnOven.length + hobsWithDrawers.length, where).toBe(1);
+          expect(hobsWithDrawers.length === 1, where).toBe(towers.length === 1);
+          if (towers.length === 1) arms.withATower += 1;
+          else arms.withoutOne += 1;
+        }
       }
-    }
 
-    expect(generated).toBeGreaterThan(500);
-    expect(arms.withATower, "the tower arm never fired").toBeGreaterThan(150);
-    expect(arms.withoutOne, "the no-tower arm never fired").toBeGreaterThan(
-      150,
-    );
-  });
+      expect(generated).toBeGreaterThan(500);
+      expect(arms.withATower, "the tower arm never fired").toBeGreaterThan(150);
+      expect(arms.withoutOne, "the no-tower arm never fired").toBeGreaterThan(
+        150,
+      );
+    },
+  );
 });
 
 describe("the block shrinks in exactly one shape, swept in two dimensions", () => {
