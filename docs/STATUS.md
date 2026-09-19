@@ -357,8 +357,8 @@ S1 `f861306`, S2 `6311f65`, S3a `009ab05`, S3b `49627f9`, S4 `8618129`, gate-tim
 them; a later 700 mm depth command keeps those stored widths frozen under ADR 0089. The reference
 room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 keeps the approved
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
-persistence **282**, three-adapter **3,536** and web **3,316**. `pnpm ci:local` and push remain
-pending; the full evidence and visual limitation are in the milestone's *7D7 close-out —
+persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
+gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
 2026-09-19*. | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
@@ -424,10 +424,10 @@ PASS.
 
 ## What is open right now
 
-- **M7 wave 7D7 is complete in the local tree at `5c1cd33`; its release gate is still open.**
-  `pnpm check` is green and the wave's QA, full review and visual gate are recorded in
-  `milestones/M7-room-and-presets.md`. `pnpm ci:local` has not run for this close-out and the seven
-  local 7D7 commits have not been pushed. The next planned implementation wave is **7D5**; its S3
+- **M7 wave 7D7 is complete through documentation close-out `71e6ba3`; only the push remains.**
+  `pnpm check` and `pnpm ci:local` are green, and the wave's QA, full review and visual gate are
+  recorded in `milestones/M7-room-and-presets.md`. The eight local 7D7 commits have not been pushed.
+  The next planned implementation wave is **7D5**; its S3
   threshold slice still requires the owner's Q-H5 answer. 7F2 is also planned and remains the owner
   of Step 1's 1C validation state.
 - ~~**M7 — six owner follow-up questions, F1–F6, open since 2026-09-11.**~~ **CLOSED 2026-09-11 — the
@@ -936,7 +936,9 @@ policy, so every per-endpoint limit is application code.
 > **3,536**, web **3,316** — after `5c1cd33` raised only the exhaustive oven sweep's timeout from 5 s
 > to 10 s. Full QA, review, the 24-shot production visual gate and its precise 880 × 880 post-depth
 > containment limitation are recorded in the milestone's *7D7 close-out — 2026-09-19*.
-> **`pnpm ci:local` and push remain pending and are not claimed.**
+> **`pnpm ci:local` passed every gate: 208 E2E passed / 2 skipped, the production build generated
+> 11 pages, boundaries and lockfile passed, and the audit found no known vulnerabilities. Push
+> remains pending.**
 >
 > **The milestone stays open. Next: wave 7D5** — the drawer group astride the hob, bottle cabinet
 > and dishwasher plan already recorded in the active milestone. Its S3 threshold slice is blocked
