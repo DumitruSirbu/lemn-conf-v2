@@ -352,8 +352,9 @@ margin. Full criterion-by-criterion record, the reviewer's own containment argum
 failure-class markers (an inverted floor run, a bare-`Error` crash below the approved bound) and what
 7D7 inherits: the milestone file's *7D6 close-out — 2026-09-18*. `pnpm ci:local` and the push are
 recorded by the coordinator, separately. **Updated 2026-09-19: wave 7D7 is DONE** — plan `552cd74`,
-S1 `f861306`, S2 `6311f65`, S3a `009ab05`, S3b `49627f9`, S4 `8618129`, gate-timeout follow-up
-`5c1cd33`. Generation now records the four room-sized corner widths at 600 mm and the scene renders
+S1 `f861306`, S2 `6311f65`, S3a `009ab05`, S3b `49627f9`, S4 `8618129`, gate-timeout follow-ups
+`5c1cd33` and `a9bad6b`. Generation now records the four room-sized corner widths at 600 mm and the
+scene renders
 them; a later 700 mm depth command keeps those stored widths frozen under ADR 0089. The reference
 room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 keeps the approved
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
@@ -426,7 +427,8 @@ PASS.
 
 - **M7 wave 7D7 is complete through documentation close-out `71e6ba3`; only the push remains.**
   `pnpm check` and `pnpm ci:local` are green, and the wave's QA, full review and visual gate are
-  recorded in `milestones/M7-room-and-presets.md`. The eight local 7D7 commits have not been pushed.
+  recorded in `milestones/M7-room-and-presets.md`. The local 7D7 close-out and gate-follow-up commits
+  have not been pushed.
   The next planned implementation wave is **7D5**; its S3
   threshold slice still requires the owner's Q-H5 answer. 7F2 is also planned and remains the owner
   of Step 1's 1C validation state.
@@ -924,9 +926,10 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-19. M7 wave 7D7 is DONE at local HEAD `5c1cd33`.** Commits: plan
+> **RESUME HERE — 2026-09-19. M7 wave 7D7 is DONE through local gate follow-up `a9bad6b`.** Commits: plan
 > `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; exhaustive
-> oven-sweep timeout follow-up `5c1cd33`. The four corner builders now draw their recorded widths;
+> oven-sweep timeout follow-up `5c1cd33`; exhaustive shell-sweep timeout follow-up `a9bad6b`. The
+> four corner builders now draw their recorded widths;
 > generation authors the largest even room-fitting widths and centres at 600 mm; 600 → 700 keeps
 > those widths frozen while applying ADR 0089's slide. The reference room remains 900 / 320 / 570,
 > the engine's shell floor is 880 / 880, and ADR 0125 keeps the customer-approved minima at
@@ -938,7 +941,9 @@ policy, so every per-endpoint limit is application code.
 > containment limitation are recorded in the milestone's *7D7 close-out — 2026-09-19*.
 > **`pnpm ci:local` passed every gate: 208 E2E passed / 2 skipped, the production build generated
 > 11 pages, boundaries and lockfile passed, and the audit found no known vulnerabilities. Push
-> remains pending.**
+> remains pending. The first pre-push repeat later timed out only the exhaustive shell sweep at
+> 5.019 s against 5 s; `a9bad6b` raises that test's budget to 10 s without changing its assertions
+> or sample set, and the focused file passed 52/52.**
 >
 > **The milestone stays open. Next: wave 7D5** — the drawer group astride the hob, bottle cabinet
 > and dishwasher plan already recorded in the active milestone. Its S3 threshold slice is blocked
