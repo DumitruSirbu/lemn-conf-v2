@@ -18,9 +18,10 @@
 // on its index, and which slot stands first after the hob is the composer's fact, attacked in S2's
 // and S4's suites rather than here.
 //
-// **What replaces them attacks the leaf's remaining claim**: that the ids it declares are three
-// distinct rows the catalogue will build at the width the planner plans, and that the one with no
-// caller reaches no design.
+// **What replaces them attacks the leaf's remaining claim**: that the ids it declares are distinct
+// rows the catalogue will build at the width the planner plans. The third half — that the one with
+// no caller reaches no design — expired at 7D5 S2 as it was written to, and the end of this file
+// says where its successor lives.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -52,7 +53,7 @@ const APPROVED_L = (() => {
   return shape;
 })();
 
-/** Every body id the leaf declares, including the one generation places nowhere in this wave. */
+/** Every body id the leaf declares, including the pan drawer 7D5 S2 gave its first caller. */
 const EVERY_DECLARED_BODY: readonly string[] = [
   BOTTLE_CARGO_BUILD_ID,
   DOOR_BASE_BUILD_ID,
@@ -81,10 +82,23 @@ function planFor(room: DesignRoom): KitchenCompositionPlan {
  *  the column band that the storage run did not compose (M7 wave 7D5 S1). */
 const BOTTLE_CARGO_CATALOGUE_ID = "base-bottle-cargo";
 
+/** The pan-drawer cabinet's catalogue row, spelled for the same reason. The composer reads it
+ *  immediately before the hob as a run item of its own (M7 wave 7D5 S2, ADR 0110 Amendment J1), so it
+ *  is the second storage-role body outside the column band that the storage run did not compose —
+ *  and, being one module wide, the one a width-keyed reading could not tell from a slot. */
+const PAN_DRAWER_CATALOGUE_ID = "base-panbank";
+
+/** Storage-role bodies the composer reads as run items of their own rather than as slots. */
+const ANCILLARY_CATALOGUE_IDS: ReadonlySet<string> = new Set([
+  BOTTLE_CARGO_CATALOGUE_ID,
+  PAN_DRAWER_CATALOGUE_ID,
+]);
+
 /** A module's provenance read **independently of its id**, so the predicate is never checked against
  *  itself: the block's columns are the storage-role modules the catalogue declares in the `column`
- *  band, the bottle cargo is its own catalogue row, and the storage run's slots are the rest.
- *  `fridge-free` is a column too and carries Amendment A1's own role, which excludes it from both. */
+ *  band, the bottle cargo and the pan drawer are each their own catalogue row, and the storage run's
+ *  slots are the rest. `fridge-free` is a column too and carries Amendment A1's own role, which
+ *  excludes it from both. */
 function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
   const outsideTheColumnBand = storageRole.filter(
@@ -97,8 +111,11 @@ function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
     bottleCargos: outsideTheColumnBand.filter(
       (base) => base.buildId === BOTTLE_CARGO_CATALOGUE_ID,
     ),
+    panDrawers: outsideTheColumnBand.filter(
+      (base) => base.buildId === PAN_DRAWER_CATALOGUE_ID,
+    ),
     composedSlots: outsideTheColumnBand.filter(
-      (base) => base.buildId !== BOTTLE_CARGO_CATALOGUE_ID,
+      (base) => !ANCILLARY_CATALOGUE_IDS.has(base.buildId),
     ),
   };
 }
@@ -327,11 +344,12 @@ describe("the predicate agrees with provenance over the whole approved policy", 
   it("answers true for every composed slot and false for every block column, at every block size", () => {
     const roomsByBlockSize = new Map<number, number>();
     let roomsWithAComposedSlot = 0;
+    let roomsWithAPanDrawer = 0;
 
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const plan = planFor(room);
-        const { blockColumns, bottleCargos, composedSlots } =
+        const { blockColumns, bottleCargos, panDrawers, composedSlots } =
           storageRoleModulesByBand(plan);
         const blockSize = blockColumns.length;
         roomsByBlockSize.set(
@@ -341,12 +359,18 @@ describe("the predicate agrees with provenance over the whole approved policy", 
         if (composedSlots.length > 0) {
           roomsWithAComposedSlot += 1;
         }
+        if (panDrawers.length > 0) {
+          roomsWithAPanDrawer += 1;
+        }
 
         expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
           composedSlots,
         );
         expect(blockColumns.filter(isComposedStorageSlot)).toEqual([]);
         expect(bottleCargos.filter(isComposedStorageSlot)).toEqual([]);
+        // One storage module wide and outside the column band, so it is the module a predicate keyed
+        // on role, band or width would count as a slot (7D5 S2).
+        expect(panDrawers.filter(isComposedStorageSlot)).toEqual([]);
         // The core roles are the third population the plan holds, and the one whose ids are the role
         // names themselves. A predicate that answered anything but false for them would put the sink
         // in the balance.
@@ -369,30 +393,24 @@ describe("the predicate agrees with provenance over the whole approved policy", 
     expect(roomsWithAComposedSlot).toBeGreaterThanOrEqual(
       LEAST_ROOMS_PER_BLOCK_SIZE,
     );
+    // 56 866 of 245 211 placed rooms carry one (22 %), so this floor is far under any seed's draw;
+    // it fails only when the pan-drawer arm stops being reached at all.
+    expect(roomsWithAPanDrawer).toBeGreaterThanOrEqual(
+      LEAST_ROOMS_PER_BLOCK_SIZE,
+    );
     expect(
       [...roomsByBlockSize.keys()].sort((left, right) => left - right),
     ).toEqual([0, 1, 2, 3]);
   });
 });
 
-/** Fewer rooms than the sweep above, and deliberately: this claim is about a body appearing at all,
- *  so every room is a witness and no arm can starve. Kept a sweep rather than a handful of rooms
- *  because the failure it guards is a body reaching *one* room out of thousands. */
-const ROOMS_SWEPT_FOR_THE_UNPLACED_BODY = 1_000;
-
-describe("the body kept for 7D5 reaches no design in this wave", () => {
-  it("plans the pan drawer into no module, at any room in the approved policy", () => {
-    // Criterion 6's *must not*, pinned where the constant survives. `PAN_DRAWER_BASE_BUILD_ID` is
-    // kept against 7D5's drawer group (Amendment H1) with no caller in 7D4, and a constant with no
-    // caller is exactly what a later reader reaches for — so the claim that nothing places it is
-    // asserted rather than assumed.
-    fc.assert(
-      fc.property(approvedRoom, (room) => {
-        const planned = planFor(room).bases.map((base) => base.buildId);
-
-        expect(planned).not.toContain(PAN_DRAWER_BASE_BUILD_ID);
-      }),
-      { numRuns: ROOMS_SWEPT_FOR_THE_UNPLACED_BODY },
-    );
-  });
-});
+// ---------------------------------------------------------------------------------------------
+// Retired at 7D5 S2, as it was written to be: "plans the pan drawer into no module, at any room in
+// the approved policy" (7D4 criterion 6's must-not, 7D5 criterion 5). ADR 0110 Amendment J1 (owner,
+// Q-H6 = A, 2026-09-21) places `base-panbank` immediately before the hob wherever every core role,
+// the bottle decision and every tall column survive, so the claim is now false about the product
+// rather than a defect in it. Moved, not deleted (ADR 0091 Amendment A.2): the successor asserts
+// where it stands, in how many rooms, and what it costs, per room over the approved 10 mm grid —
+// `tests/generation/pan-drawer-before-the-hob.test.ts`, "pins the pan-drawer census ...". What
+// survives here is that it is never a composed slot: the `panDrawers` group above.
+// ---------------------------------------------------------------------------------------------

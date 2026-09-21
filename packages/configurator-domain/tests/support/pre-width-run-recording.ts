@@ -1,9 +1,27 @@
 // M7 wave 7D5 pre-width recording. The file this reader opens was captured before S1 added the
 // 300 mm bottle cabinet. It records the whole canonical plan for every sampled room, rather than a
 // digest, so a later comparison can name the exact field and module that moved.
+//
+// It also holds the one classifier both pre-S1 recordings — this one and 7D8's re-keyed half — are
+// read through for rooms that stand a bottle, a pan drawer or both, so the 7D5 ruling is stated once
+// (7D5 S2: Q-H6a = A, and Q-H6b / Q-H6c, which let a pan drawer stand without the bottle).
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { expect } from "vitest";
+
+import {
+  BOTTLE_CARGO_BUILD_ID,
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  KITCHEN_L_DESIGN,
+  lShellFloorRuns,
+  type DesignRoom,
+  type KitchenCompositionPlan,
+} from "../../src/index.js";
+
+const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 
 const RECORDING_FILE = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -117,4 +135,420 @@ export function readPreWidthRunRecording(): PreWidthRunRecording {
     runs: document.runs,
     rooms,
   };
+}
+
+function moduleLine(base: {
+  readonly id: string;
+  readonly role: string;
+  readonly buildId: string;
+  readonly wall: string;
+  readonly startMm: number;
+  readonly endMm: number;
+  readonly widthMm: number;
+}): string {
+  return [
+    base.id,
+    base.role,
+    base.role === "hob" ? "<hob-body>" : base.buildId,
+    base.wall,
+    base.startMm,
+    base.endMm,
+    base.widthMm,
+  ].join("~");
+}
+
+function coreIdentity(base: {
+  readonly id: string;
+  readonly role: string;
+  readonly buildId: string;
+  readonly widthMm: number;
+}): string {
+  return [
+    base.id,
+    base.role,
+    base.role === "hob" ? "<hob-body>" : base.buildId,
+    base.widthMm,
+  ].join("~");
+}
+
+/** Exactly the width of one storage module: the pan drawer's width, and so the hob's shift. */
+const PAN_DRAWER_WIDTH_MM = 600;
+export const PAN_DRAWER_BODY = "base-panbank";
+export const STORAGE_SLOT_ID = /^storage:[AB]:\d+$/;
+const TALL_COLUMN_ID = /^column:[AB]:\d+$/;
+
+type PlanModule = RecordedPlanModule;
+
+/**
+ * A plan that stands a bottle, a pan drawer or both, against its pre-S1 recording, allowing exactly
+ * what M7 wave 7D5 changed and nothing else: S1's 300 mm bottle immediately after the hob, and S2's
+ * 600 mm pan drawer immediately before it (owner ruling 2026-09-21, Q-H6a = A; ADR 0110 Amendment J1)
+ * with the hob and the bottle shifted along their wall by its width and the hob's wall giving up
+ * outermost modules to pay for it. Every core role keeps its wall; the hob moves by exactly 600 mm
+ * where a pan drawer stands and not at all where none does; the other wall is exactly as recorded.
+ *
+ * 7D5 S2, Q-H6b / Q-H6c: a pan drawer may stand **without** the bottle — the bottle gives way to it
+ * (Q-H6b) and to every tall column its kitchen has (Q-H6c). A plan with neither is not this
+ * classifier's to read: its caller compares it to the recording exactly.
+ */
+export function assertOnlyTheBottleAndPanDrawerChanged(
+  key: string,
+  room: DesignRoom,
+  plan: KitchenCompositionPlan,
+  recordedCanonical: string,
+): void {
+  const recorded = parseRecordedCanonicalPlan(recordedCanonical);
+  expect(plan.minimumMet, `${key} minimumMet`).toBe(recorded.minimumMet);
+  expect(plan.dropped, `${key} dropped`).toEqual(recorded.dropped);
+
+  const panDrawer = panDrawerOf(key, plan);
+  const ancillaries = { panDrawer, bottle: bottleOf(key, plan, panDrawer) };
+
+  assertCoreMovedOnlyByThePanDrawer(key, plan, recorded, panDrawer);
+  assertContiguousRuns(key, room, plan);
+  assertHobWallChangedOnlyAstrideTheHob(key, plan, recorded, ancillaries);
+  assertOtherWallUnchanged(key, plan, recorded);
+}
+
+/** What 7D5 stood astride the hob: the pan drawer before it and the bottle after it, either absent. */
+interface StandingAncillaries {
+  readonly panDrawer: PlanModule | undefined;
+  readonly bottle: PlanModule | undefined;
+}
+
+/** The single bottle. Required where no pan drawer stands, because then the bottle is the only thing
+ *  7D5 changed; optional beside a pan drawer, which it gives way to (7D5 S2, Q-H6b / Q-H6c). */
+function bottleOf(
+  key: string,
+  plan: KitchenCompositionPlan,
+  panDrawer: PlanModule | undefined,
+): PlanModule | undefined {
+  const bottles = plan.bases.filter(
+    (base) => base.id === "bottle" || base.buildId === BOTTLE_CARGO_BUILD_ID,
+  );
+  const allowed = panDrawer === undefined ? [1] : [0, 1];
+  expect(allowed, `${key} bottle count`).toContain(bottles.length);
+  const [bottle] = bottles;
+  if (bottle === undefined) return undefined;
+  expect(bottle, `${key} bottle identity`).toMatchObject({
+    id: "bottle",
+    role: "storage",
+    buildId: BOTTLE_CARGO_BUILD_ID,
+    widthMm: 300,
+  });
+  return bottle;
+}
+
+/** The single pan drawer where one stands (7D5 S2), or `undefined` where none does. */
+function panDrawerOf(
+  key: string,
+  plan: KitchenCompositionPlan,
+): PlanModule | undefined {
+  const panDrawers = plan.bases.filter(
+    (base) => base.id === "pan-drawer" || base.buildId === PAN_DRAWER_BODY,
+  );
+  expect(panDrawers.length, `${key} pan drawer count`).toBeLessThanOrEqual(1);
+  const [panDrawer] = panDrawers;
+  if (panDrawer === undefined) return undefined;
+  expect(panDrawer, `${key} pan drawer identity`).toMatchObject({
+    id: "pan-drawer",
+    role: "storage",
+    buildId: PAN_DRAWER_BODY,
+    widthMm: PAN_DRAWER_WIDTH_MM,
+  });
+  return panDrawer;
+}
+
+/** Every core role keeps its identity, its wall and its position, except the hob, which moves by
+ *  exactly the pan drawer's width where a pan drawer stands and not at all where none does. */
+function assertCoreMovedOnlyByThePanDrawer(
+  key: string,
+  plan: KitchenCompositionPlan,
+  recorded: RecordedCanonicalPlan,
+  panDrawer: PlanModule | undefined,
+): void {
+  const hobShiftMm = panDrawer === undefined ? 0 : PAN_DRAWER_WIDTH_MM;
+  const currentCore = plan.bases.filter((base) => base.role !== "storage");
+  const recordedCore = recorded.bases
+    .filter((base) => base.role !== "storage")
+    .map((base) =>
+      base.role === "hob" ? shiftedAlongItsWall(base, hobShiftMm) : base,
+    );
+  expect(
+    currentCore.map(coreIdentity).sort(),
+    `${key} core identities`,
+  ).toEqual(recordedCore.map(coreIdentity).sort());
+  expect(currentCore.map(moduleLine), `${key} core geometry`).toEqual(
+    recordedCore.map(moduleLine),
+  );
+}
+
+function shiftedAlongItsWall(base: PlanModule, shiftMm: number): PlanModule {
+  return {
+    ...base,
+    startMm: base.startMm + shiftMm,
+    endMm: base.endMm + shiftMm,
+  };
+}
+
+/** On the hob's wall: everything before the pan drawer (or the hob) is exactly as recorded; the pan
+ *  drawer stands immediately before the hob and the bottle immediately after it; and what follows
+ *  keeps the recorded bodies in the recorded order, losing only outermost storage slots and columns.
+ *
+ *  **The hob's wall is assumed laid out forward, corner to free end — the suffix wall's layout.** Every
+ *  positional clause here reads *before the hob* as a lower `startMm` and *after* as a higher one. A
+ *  hob on the prefix wall, which is laid out in reverse (ADR 0110 D2), would stand its pan drawer at
+ *  the higher end and leave the hob in place, so it fails the clauses below and in
+ *  `assertCoreMovedOnlyByThePanDrawer` loudly rather than passing. Neither recording holds such a room
+ *  with a pan drawer (measured at 7D5 S2 over all 480 + 82 rooms). */
+function assertHobWallChangedOnlyAstrideTheHob(
+  key: string,
+  plan: KitchenCompositionPlan,
+  recorded: RecordedCanonicalPlan,
+  ancillaries: StandingAncillaries,
+): void {
+  const hob = hobOf(key, plan.bases);
+  const recordedHob = hobOf(key, recorded.bases);
+  assertAncillariesAstrideTheHob(key, hob, ancillaries);
+
+  const current = alongWall(plan.bases, hob.wall);
+  const before = recordedModulesBefore(recorded, recordedHob);
+  const firstChangedAt = ancillaries.panDrawer?.startMm ?? hob.startMm;
+  expect(
+    current.filter((base) => base.endMm <= firstChangedAt).map(moduleLine),
+    `${key} ${hob.wall} before the hob`,
+  ).toEqual(before.map(moduleLine));
+
+  const tail = (bases: readonly PlanModule[], after: number) =>
+    alongWall(bases, hob.wall).filter((base) => base.startMm >= after);
+  assertTailLostOnlyWhatTheAncillariesCost(`${key} ${hob.wall}`, {
+    current: tailModules(tail(plan.bases, hob.endMm)),
+    recorded: tailModules(tail(recorded.bases, recordedHob.endMm)),
+    ancillaries,
+  });
+}
+
+/** The pan drawer, where it stands, ends where the hob starts; the bottle, where it stands, starts
+ *  where the hob ends; both on the hob's wall. */
+function assertAncillariesAstrideTheHob(
+  key: string,
+  hob: PlanModule,
+  ancillaries: StandingAncillaries,
+): void {
+  if (ancillaries.bottle !== undefined) {
+    expect(ancillaries.bottle, `${key} bottle after the hob`).toMatchObject({
+      wall: hob.wall,
+      startMm: hob.endMm,
+    });
+  }
+  if (ancillaries.panDrawer !== undefined) {
+    expect(
+      ancillaries.panDrawer,
+      `${key} pan drawer before the hob`,
+    ).toMatchObject({ wall: hob.wall, endMm: hob.startMm });
+  }
+}
+
+/** The storage slots and tall columns after the hob, each in wall order, as body/width and body. */
+interface TailModules {
+  readonly slots: readonly string[];
+  readonly columns: readonly string[];
+}
+
+function tailModules(bases: readonly PlanModule[]): TailModules {
+  return {
+    slots: bases
+      .filter((base) => STORAGE_SLOT_ID.test(base.id))
+      .map((base) => `${base.buildId}/${String(base.widthMm)}`),
+    columns: bases
+      .filter((base) => TALL_COLUMN_ID.test(base.id))
+      .map((base) => base.buildId),
+  };
+}
+
+/**
+ * After the hob the wall loses only outermost slots and columns, and no more than what stands astride
+ * the hob can cost: one module for the bottle, which is narrower than one, and one more for the pan
+ * drawer, which is exactly one (logic review N5b: at most 1 + the number of pan drawers). Where a pan
+ * drawer stands the wall gave up at least one module to pay for it.
+ */
+function assertTailLostOnlyWhatTheAncillariesCost(
+  label: string,
+  tails: {
+    readonly current: TailModules;
+    readonly recorded: TailModules;
+    readonly ancillaries: StandingAncillaries;
+  },
+): void {
+  const { current, recorded, ancillaries } = tails;
+  assertOutermostLost(`${label} storage slots`, {
+    current: current.slots,
+    recorded: recorded.slots,
+  });
+  assertOutermostLost(`${label} tall columns`, {
+    current: current.columns,
+    recorded: recorded.columns,
+  });
+
+  const panDrawers = ancillaries.panDrawer === undefined ? 0 : 1;
+  const lostModules =
+    recorded.slots.length +
+    recorded.columns.length -
+    (current.slots.length + current.columns.length);
+  expect(lostModules, `${label} modules lost`).toBeLessThanOrEqual(
+    1 + panDrawers,
+  );
+  if (panDrawers === 1) {
+    expect(lostModules, `${label} paid for the pan drawer`).toBeGreaterThan(0);
+  }
+  assertThePanDrawerWasDecidedFirst(label, tails);
+}
+
+/**
+ * 7D5 S2: the pan drawer is decided first, against the core alone (ADR 0110 J1), and wins where it and
+ * the bottle cannot both stand (Q-H6b); once it stands the bottle gives way rather than a tall column
+ * (Q-H6c); where it is refused against the core alone it is tried again beside S1's bottle.
+ *
+ * The recording **is** the core alone, and it says where the pan drawer was affordable there: exactly
+ * where the hob's wall held a storage slot after the hob. A slot means the leftover reaches one module,
+ * and a block keeps its columns with one module fewer, because a block smaller than its three
+ * columns has taken every leftover module and left no slot. With no slot, the pan drawer either does
+ * not fit or costs the block a column. So:
+ *
+ * - a recorded slot: the pan drawer stands, and the block keeps every recorded column whether or not
+ *   the bottle stands beside it (Q-H6c), with the pan drawer's module the one slot lost where the
+ *   bottle gave way;
+ * - no recorded slot: a pan drawer can only be the fallback's, so it stands beside the bottle.
+ */
+function assertThePanDrawerWasDecidedFirst(
+  label: string,
+  tails: {
+    readonly current: TailModules;
+    readonly recorded: TailModules;
+    readonly ancillaries: StandingAncillaries;
+  },
+): void {
+  const { current, recorded, ancillaries } = tails;
+  const hadASlotForThePanDrawer = recorded.slots.length > 0;
+  const standsAPanDrawer = ancillaries.panDrawer !== undefined;
+  if (!hadASlotForThePanDrawer) {
+    if (standsAPanDrawer) {
+      expect(
+        ancillaries.bottle,
+        `${label} a fallback pan drawer stands beside the bottle`,
+      ).toBeDefined();
+    }
+    return;
+  }
+  expect(
+    standsAPanDrawer,
+    `${label} pan drawer decided first where the core left it a slot (J1, Q-H6b)`,
+  ).toBe(true);
+  expect(
+    current.columns.length,
+    `${label} tall columns kept once the pan drawer stands (Q-H6c)`,
+  ).toBeGreaterThanOrEqual(recorded.columns.length);
+  if (ancillaries.bottle !== undefined) return;
+  expect(
+    recorded.slots.length - current.slots.length,
+    `${label} one slot lost to a pan drawer without the bottle (Q-H6c)`,
+  ).toBeLessThanOrEqual(1);
+}
+
+/** `current` is `recorded` with zero or more of its outermost entries removed, and nothing else. */
+function assertOutermostLost(
+  label: string,
+  sequences: {
+    readonly current: readonly string[];
+    readonly recorded: readonly string[];
+  },
+): void {
+  expect(sequences.current.length, label).toBeLessThanOrEqual(
+    sequences.recorded.length,
+  );
+  expect(sequences.current, label).toEqual(
+    sequences.recorded.slice(0, sequences.current.length),
+  );
+}
+
+function recordedModulesBefore(
+  recorded: RecordedCanonicalPlan,
+  recordedHob: PlanModule,
+): readonly PlanModule[] {
+  return alongWall(recorded.bases, recordedHob.wall).filter(
+    (base) => base.endMm <= recordedHob.startMm,
+  );
+}
+
+/** The wall without the hob carries neither the bottle nor the pan drawer, so it is exactly as
+ *  recorded: every module, its floor widths and its remainder. */
+function assertOtherWallUnchanged(
+  key: string,
+  plan: KitchenCompositionPlan,
+  recorded: RecordedCanonicalPlan,
+): void {
+  const otherWall = hobOf(key, plan.bases).wall === "A" ? "B" : "A";
+  expect(
+    alongWall(plan.bases, otherWall).map(moduleLine),
+    `${key} ${otherWall} modules`,
+  ).toEqual(alongWall(recorded.bases, otherWall).map(moduleLine));
+  expect(plan.floorWidthsMm[otherWall], `${key} ${otherWall} floor`).toEqual(
+    recorded.floorWidthsMm[otherWall],
+  );
+  expect(plan.remainderMm[otherWall], `${key} ${otherWall} remainder`).toBe(
+    recorded.remainderMm[otherWall],
+  );
+}
+
+function hobOf(key: string, bases: readonly PlanModule[]): PlanModule {
+  const hob = bases.find((base) => base.role === "hob");
+  if (hob === undefined) throw new Error(`${key} composes no hob`);
+  return hob;
+}
+
+function alongWall(
+  bases: readonly PlanModule[],
+  wall: "A" | "B",
+): readonly PlanModule[] {
+  return bases
+    .filter((base) => base.wall === wall)
+    .sort((left, right) => left.startMm - right.startMm);
+}
+
+function assertContiguousRuns(
+  key: string,
+  room: DesignRoom,
+  plan: KitchenCompositionPlan,
+): void {
+  const ids = plan.bases.map((base) => base.id);
+  expect(new Set(ids).size, `${key} unique ids`).toBe(ids.length);
+  const runs = lShellFloorRuns(room);
+  for (const wall of ["A", "B"] as const) {
+    const bases = alongWall(plan.bases, wall);
+    let cursor = runs[wall].startMm;
+    for (const base of bases) {
+      expect(base.startMm, `${key} ${base.id} start`).toBe(cursor);
+      expect(base.endMm - base.startMm, `${key} ${base.id} span`).toBe(
+        base.widthMm,
+      );
+      expect(CATALOG.has(base.buildId), `${key} ${base.id} build`).toBe(true);
+      if (
+        base.role === "storage" &&
+        base.id !== "bottle" &&
+        base.id !== "pan-drawer"
+      ) {
+        expect(
+          STORAGE_SLOT_ID.test(base.id) || TALL_COLUMN_ID.test(base.id),
+          `${key} ${base.id} ancillary id`,
+        ).toBe(true);
+      }
+      cursor = base.endMm;
+    }
+    expect(plan.floorWidthsMm[wall], `${key} ${wall} floor widths`).toEqual(
+      bases.map((base) => base.widthMm),
+    );
+    expect(plan.remainderMm[wall], `${key} ${wall} remainder`).toBe(
+      runs[wall].endMm - cursor,
+    );
+  }
 }

@@ -23,6 +23,7 @@ import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
+  APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   DOOR_BASE_BUILD_ID,
@@ -31,7 +32,6 @@ import {
   generateKitchen,
   isComposedStorageSlot,
   KITCHEN_L_DESIGN,
-  PAN_DRAWER_BASE_BUILD_ID,
   replayGenerationLog,
   THREE_DRAWER_BASE_BUILD_ID,
   validateDesignForCatalog,
@@ -71,9 +71,28 @@ const ARM_FLOOR = 100;
  *  **Re-constructed for M7 wave 7D8, and the arm it draws is the physical one.** The band was
  *  900–1500 × 2800–5100 while wall B was the wall the layout reversed; after the re-key that band
  *  composed a post-hob slot on wall B in 13.0 % of its rooms. S1 spends another 300 mm after the
- *  hob, so the constructed depth band below moves to 4 400-4 700 and draws 900 rooms to retain the
- *  required hundred witnesses on both the wall-B arm and the wrong-letter wall-A control. */
+ *  hob, so the constructed depth band moved to 4 400-4 700.
+ *
+ *  **Re-constructed for M7 wave 7D5 S2, and now outside the approved policy (Q-H6a = A; ADR 0123).**
+ *  The pan drawer before the hob spends one more 600 mm module of the hob's wall, and where that wall
+ *  had room for only one more the pan drawer takes it. A post-hob slot on physical wall B now needs
+ *  5 100 mm of wall-B run — the core, the pan drawer, the bottle, one slot and the three-column
+ *  block — and wall B's run starts 100 mm from the corner further than wall A's, so it needs a wall B
+ *  of 6 100 mm where the policy stops at 6 000. The architect's census: 26 975 admitted rooms → 0.
+ *  The band below is therefore **declared**: wall A 1 600-4 000 × wall B 6 100-6 300 (6 300 is the
+ *  room schema's own limit), every room asserted to lie past the policy, and both hundreds kept at
+ *  full strength rather than lowered. Measured on a 50 × 25 mm grid of this band: 441 placed, 441
+ *  with the post-hob slot on wall B, 333 of those with a slot on wall A as well. */
 const CONSTRUCTED_WALL_B_RUNS = 900;
+
+/** The wall-A arm of the post-hob drawer, constructed for the same reason (M7 wave 7D5 S2, Q-H6a = A;
+ *  ADR 0123). Inside the approved policy that drawer now survives only at **wall A exactly 6 000 mm**
+ *  — D15.7's population fell from 56 866 rooms to 431 — so the 1 mm draw above reaches it in 6 of
+ *  1 000 runs and cannot carry the hundred on its own. The arm is still a real, admitted room: every
+ *  draw below is wall A 6 000 and any wall B the policy admits. Measured on a 50 mm grid of wall B:
+ *  101 placed, 87 composing the post-hob drawer. */
+const CONSTRUCTED_WALL_A_RUNS = 300;
+const POST_HOB_DRAWER_WALL_A_MM = 6000;
 
 /** Criterion 13 asks for 200 samples and each run composes the same room three times — twice for the
  *  determinism clause and once more through the replay. Measured: 263 of 300 placed. */
@@ -88,8 +107,10 @@ const COMPOSED_STORAGE_BODIES = [
   THREE_DRAWER_BASE_BUILD_ID,
 ];
 
-/** The pan drawer is 7D5 S2's and remains absent while S1 composes only the bottle cargo. */
-const NEVER_GENERATED_BODIES = [PAN_DRAWER_BASE_BUILD_ID];
+/** The planned id 7D5 S2 gives the pan drawer, asserted as a literal so a wrong constant and a wrong
+ *  composer cannot agree (ADR 0121 decision 3(b)). */
+const PAN_DRAWER_PLANNED_ID = "pan-drawer";
+const PAN_DRAWER_BODY = "base-panbank";
 
 interface GeneratedKitchen {
   readonly design: Design;
@@ -191,34 +212,64 @@ function isComposedSlot(module: ComposedModule): boolean {
   return isComposedStorageSlot({ id: module.plannedId });
 }
 
+/** Criteria 6 and 7 at one room: the drawer body stands in the preparation module and the first
+ *  post-hob slot and nowhere else. Answers which arm the room exercised, or nothing if refused. */
+function drawerBodiesStandWhereRuled(
+  room: DesignRoom,
+): "withDrawerSlot" | "withoutDrawerSlot" | undefined {
+  const kitchen = generated(room);
+  if (!kitchen) return undefined;
+  const modules = composedModules(kitchen);
+  const postHob = composedSlotsAfterTheHob(modules, room)[0];
+  const expected = modules
+    .filter(
+      (module) =>
+        module.role === "preparation" ||
+        module.plannedId === postHob?.plannedId,
+    )
+    .map((module) => module.plannedId);
+
+  expect(
+    modules
+      .filter((module) => module.buildId === THREE_DRAWER_BASE_BUILD_ID)
+      .map((module) => module.plannedId),
+    `${String(room.widthMm)}x${String(room.depthMm)}`,
+  ).toEqual(expected);
+  return postHob ? "withDrawerSlot" : "withoutDrawerSlot";
+}
+
+function approvedWallBMaxMm(): number {
+  const l = APPROVED_ROOM_POLICY.buildableShapes.L;
+  if (!l) throw new Error("the approved policy declares no L");
+  return l.wallB.maxMm;
+}
+
+/** An admitted room at wall A 6 000 mm — the only wall A that still composes a post-hob drawer. */
+function postHobDrawerOnWallARoom(): fc.Arbitrary<DesignRoom> {
+  return approvedLRoom().map((room) => ({
+    ...room,
+    widthMm: POST_HOB_DRAWER_WALL_A_MM,
+  }));
+}
+
 describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no third", () => {
   it("builds a drawer body in the preparation module and the first post-hob slot, and nowhere else", () => {
-    const arms = { placed: 0, withDrawerSlot: 0, withoutDrawerSlot: 0 };
-    fc.assert(
-      fc.property(approvedLRoom(), (room) => {
-        const kitchen = generated(room);
-        if (!kitchen) return;
-        arms.placed += 1;
-        const modules = composedModules(kitchen);
-        const postHob = composedSlotsAfterTheHob(modules, room)[0];
-        if (postHob) arms.withDrawerSlot += 1;
-        else arms.withoutDrawerSlot += 1;
-
-        const expected = modules
-          .filter(
-            (module) =>
-              module.role === "preparation" ||
-              module.plannedId === postHob?.plannedId,
-          )
-          .map((module) => module.plannedId);
-        expect(
-          modules
-            .filter((module) => module.buildId === THREE_DRAWER_BASE_BUILD_ID)
-            .map((module) => module.plannedId),
-        ).toEqual(expected);
-      }),
-      { numRuns: SWEEP_RUNS, seed: SWEEP_SEED },
-    );
+    // **The with-drawer arm is floored over a constructed draw since M7 wave 7D5 S2 (Q-H6a = A; ADR
+    // 0123)**: the policy-wide draw reaches it in 6 of 1 000 runs now, and the floor stays at the
+    // hundred rather than falling to what that draw happens to find. See `CONSTRUCTED_WALL_A_RUNS`.
+    const arms = { withDrawerSlot: 0, withoutDrawerSlot: 0 };
+    const countArm = (room: DesignRoom) => {
+      const arm = drawerBodiesStandWhereRuled(room);
+      if (arm) arms[arm] += 1;
+    };
+    fc.assert(fc.property(approvedLRoom(), countArm), {
+      numRuns: SWEEP_RUNS,
+      seed: SWEEP_SEED,
+    });
+    fc.assert(fc.property(postHobDrawerOnWallARoom(), countArm), {
+      numRuns: CONSTRUCTED_WALL_A_RUNS,
+      seed: SWEEP_SEED,
+    });
 
     expect(arms.withDrawerSlot).toBeGreaterThanOrEqual(ARM_FLOOR);
     expect(arms.withoutDrawerSlot).toBeGreaterThanOrEqual(ARM_FLOOR);
@@ -294,7 +345,8 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
   });
 
   it("finds the post-hob slot on wall B where the hob stands there, over a constructed arm", () => {
-    // D15.7 on physical wall B — M7 wave 7D8's P6a, 5 910 placed rooms. Wall B is the wider wall in
+    // D15.7 on physical wall B — M7 wave 7D8's P6a, 5 910 placed rooms then, 0 admitted rooms since
+    // 7D5 S2 (see `CONSTRUCTED_WALL_B_RUNS` for the declared band that replaces them). Wall B is the wider wall in
     // every room this band draws, so the run ends on it, the hob stands among its core and the slot
     // the run reaches next is wall B's **first**, with wall A's own slot read before the hob and
     // keeping its door. A lookup left on the letter `"A"` takes wall A's slot instead, and every
@@ -313,11 +365,14 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
       fc.property(
         fc.record({
           shape: fc.constant("L" as const),
-          widthMm: fc.integer({ min: 1500, max: 3000 }),
-          depthMm: fc.integer({ min: 4400, max: 4700 }),
+          widthMm: fc.integer({ min: 1600, max: 4000 }),
+          depthMm: fc.integer({ min: 6100, max: 6300 }),
           heightMm: fc.integer({ min: 2200, max: 3900 }),
         }),
         (room) => {
+          // Declared past the policy (M7 wave 7D5 S2, ADR 0123): the day the policy admits this band
+          // the arm is back in the approved draw, and this construction should be re-examined.
+          expect(room.depthMm).toBeGreaterThan(approvedWallBMaxMm());
           const kitchen = generated(room);
           if (!kitchen) return;
           const modules = composedModules(kitchen);
@@ -378,23 +433,40 @@ describe("criterion 9 — every generated module is built on the grid", () => {
     expect(composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
-  it("generates no pan drawer before 7D5 S2, at any room in the policy", () => {
+  // **Retired in M7 wave 7D5 S2: "generates no pan drawer before 7D5 S2, at any room in the policy".**
+  // It guarded the promise that no `base-panbank` would be generated until the wave that owns it, and
+  // the owner's Q-H6 = A (ADR 0110 Amendment J1) is that wave. Its ruled replacement — the pan drawer
+  // immediately before the hob, and omitted where it would cost a core role, the bottle or a column —
+  // is asserted at the composer in `pan-drawer-before-the-hob.test.ts`. What this file owes is the
+  // built half, below: nothing weaker than the guard it replaces (ADR 0091 Amendment A).
+  it("builds the pan drawer only as the planned module immediately before the hob, at one module", () => {
+    let withPanDrawer = 0;
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
         const kitchen = generated(room);
         if (!kitchen) return;
+        const modules = composedModules(kitchen);
+        const panDrawers = modules.filter(
+          (module) => module.buildId === PAN_DRAWER_BODY,
+        );
+        if (panDrawers.length === 0) return;
+        withPanDrawer += 1;
+        const read = inReadingOrder(modules, room);
+        const hobAt = read.findIndex((module) => module.role === "hob");
+        const key = `${String(room.widthMm)}x${String(room.depthMm)}`;
 
-        for (const buildId of NEVER_GENERATED_BODIES) {
-          expect(
-            kitchen.design.placements.map(
-              (placement) => placement.body.buildId,
-            ),
-            `${String(room.widthMm)}x${String(room.depthMm)}`,
-          ).not.toContain(buildId);
-        }
+        expect(
+          panDrawers.map((module) => module.plannedId),
+          key,
+        ).toEqual([PAN_DRAWER_PLANNED_ID]);
+        expect(read[hobAt - 1]?.plannedId, key).toBe(PAN_DRAWER_PLANNED_ID);
+        expect(read[hobAt - 1]?.wall, key).toBe(read[hobAt]?.wall);
+        expect(panDrawers[0]?.builtWidthMm, key).toBe(STORAGE_MODULE_WIDTH_MM);
       }),
       { numRuns: SWEEP_RUNS, seed: SWEEP_SEED },
     );
+
+    expect(withPanDrawer).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 });
 

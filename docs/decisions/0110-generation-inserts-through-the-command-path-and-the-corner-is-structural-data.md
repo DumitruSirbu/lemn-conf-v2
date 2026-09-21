@@ -2782,3 +2782,160 @@ left-aligned in the merged opening, so **D2.2's sliver warning does not apply** 
 **H5's sentence is struck above rather than rewritten**, per this record's convention for superseded
 prose (`docs/best-practices/documentation.md`). Nothing else in H5 — the cost table, the E-table
 shift, or the caveat on sampling — is affected.
+
+## Amendment K — 2026-09-21: wave 7D5 slice S2, the pan-drawer cabinet
+
+**Written for wave 7D5 slice S2, before commit. ~~QA is still measuring the shipped figures, so K5's
+population beyond the swept census is recorded as approved and dated rather than final.~~ Superseded
+later on 2026-09-21: K5 now carries QA's measured figures, reproduced by an independent census model.**
+
+### K1 — owner, Q-H6a (2026-09-21): the pan drawer takes the single remaining slot on the hob's wall, and D15.7's post-hob drawer is gone there
+
+**Owner ruling.** Where the hob's wall has room for only one more cabinet, the pan drawer takes it,
+and 7D4's post-hob `base-3drawer` slot (ADR 0110 Amendment H1, D15.7) is gone in that room. Put to the
+owner by the coordinator as **A** (the pan drawer takes the slot) against **B** (keep the post-hob
+drawer; the pan drawer stands only where both fit, a population of 431 rooms). **The owner chose A.**
+
+### K2 — owner, Q-H6b (2026-09-21): where the pan drawer and the bottle cannot both stand, the pan drawer wins
+
+**Owner ruling, verbatim:** *"this is a great example of maximaze the space usage, in this particualr
+case bottles can be plased in the middle cabinet above the pan drawer and have a entire drawer that
+can store a lot of kitchen catles."*
+
+Raised by the logic reviewer: 35 580 rooms where the bottle cabinet (Amendment J) blocked a pan drawer
+that would fit alone. **This supersedes J2's statement that slice S1's bottle decision is final**, and
+changes S1's shipped census: the bottle now stands in **184 686** rooms rather than **220 266** (K5).
+
+### K3 — coordinator ruling, owner may overturn: the pan drawer is decided first against the core alone; the S1 order governs where it is refused there
+
+The pan drawer is decided **first, against the core alone**. Where it is refused at that stage, the S1
+order applies unchanged: the bottle cabinet, then the pan drawer only where it costs that bottle
+cabinet's kitchen nothing.
+
+**Why (measured by the logic reviewer):** in every one of the **11 240** kitchens this rule reaches, the
+whole core is kept, with one free module on the hob's wall and 310–500 mm spare; against the core alone
+that stands a single oven tower with `base-hob-2drawer`. S1's bottle leaves a 10–200 mm remainder there,
+so E6.2 steps the block from one column to none. K3's kitchen is therefore **pan drawer + bottle +
+`base-hob-oven` with no tower**. The literal pan-drawer-first reading gives **bottle only**, also with no
+tower. The core alone with a tower and `base-hob-2drawer` is **not available** under S1's rule (E3/J2,
+kept by K4). Deciding the pan drawer against the core alone, before the bottle enters the arithmetic,
+keeps both cabinets wherever the room has room for both. **K3 stays marked "owner may overturn."**
+
+### K4 — owner, Q-H6c (2026-09-21): once the pan drawer stands, the bottle gives way rather than a tall column
+
+**Owner ruling.** Once the pan drawer stands, the bottle cabinet gives way before a tall column does.
+Put to the owner as pan drawer + all tall columns + no bottle, against pan drawer + bottle + one fewer
+tall column (**24 140** rooms) — **the owner chose the former.**
+
+Where no pan drawer stands, the slice S1 / Amendment E rule is unchanged: the bottle cabinet may still
+cost a tall column there.
+
+### K5 — measured by the implementer: the approved L rectangle at 10 mm / 2600 mm
+
+- **256 011** swept, **245 211** placed.
+- **Pan drawer 92 446** (one-slot 92 015 / two-slot 431, all 431 at wall A = 6000 mm). Both the pan
+  drawer and the bottle stand together in **56 866** rooms.
+- **Bottle 184 686.** Omitted **60 525** = Q-H6c (K4) 24 140 + Q-H6b (K2) 11 440 + core role 15 445 +
+  re-cut 4 955 + refuse 4 545.
+- **Differences vs `c67b4ee`:** 0 core-wall, 0 `minimumMet`/`dropped`, 0 rooms with fewer tall columns.
+- **D15.7's post-hob drawer population (measured by QA):** the one-slot / two-slot split after
+  Q-H6b/Q-H6c is **92 015 one-slot** and **431 two-slot**. The post-hob `base-3drawer` slot therefore
+  stands in **431** approved rooms, all at wall A = 6000 mm.
+- **QA's independent census (measured by QA):** pan drawer and bottle both **56 866**; pan drawer only
+  **35 580**; bottle only **127 820**; neither **24 945** (sum **245 211**). The fallback (K3) fires in
+  **11 240**. QA's independent census model agrees field-by-field with the planner on all 245 211 placed
+  rooms.
+
+### K6 — J1's "71 956" figure is struck
+
+**Measured by the logic reviewer.** 71 956 is exactly reproduced only by a model that lets the bottle
+and the pan drawer re-choose the wall cut, so core roles move walls — a model this wave does not ship.
+Against shipped slice S1 it splits as 76 421 = 56 866 legal (K5) + 18 500 moving the sink off the wider
+wall + 1 055 moving the preparation cabinet, all three of the latter forbidden by
+[ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment E. **The figure put to the owner for Q-H6 was therefore about 26 % high.** The same figure is
+struck at the same time in the M7 plan (`docs/milestones/M7-room-and-presets.md`, ~lines 8438 and 8460)
+with a pointer back to this note.
+
+### K7 — J5's `coreSurvivedWhole` clause is no longer dormant
+
+**Measured by the implementer.** The tall-end block's clause 1 (`coreSurvivedWhole`, J5) now changes
+**140** plans, all `dropped=fridge` with a pan drawer standing and no bottle, over wall A 900–3300 mm ×
+wall B 1000–3400 mm.
+
+- **Witness 900 × 3400:** sink, preparation, pan drawer, `base-hob-oven` on wall B.
+- **With the clause forced true:** sink, preparation, hob, bottle.
+
+QA is adding this witness (per [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
+decision 1). J5 above is left as written and carries a pointer to this note rather than being edited
+in place.
+
+**Measured by the logic reviewer, for the owner's information; no ruling needed.** All **1 400**
+fridge-dropped kitchens with a pan drawer have **0 columns** and `base-hob-oven`. The **140** plans this
+clause now changes differ from `c67b4ee` only by Q-H6b replacing the bottle with the pan drawer. QA
+added the **900 × 3400** witness (`tests/generation/pan-drawer-before-the-hob.test.ts`).
+
+### K8 — criterion 9 and D15.7: the physical wall-B arm empties, and coverage converts to a declared witness
+
+**Coordinator adjudication.** Slice S2 empties D15.7's physical wall-B arm inside the approved policy
+(26 975 → 0, K5/K1). The M7 plan's criterion 9 (~line 9047, 2026-09-16) posed *"retire the rule, or
+reject the candidate"* for exactly this shape of finding; it is resolved by
+[ADR 0123](0123-a-ruled-behaviour-whose-population-empties-keeps-its-branch-and-converts-its-sweep-coverage-into-a-declared-witness.md)'s
+third route — **keep the branch, and convert its sweep coverage to a declared witness.** Wall B is
+covered instead by the declared room **4100 × 6100**, which stands outside the approved policy and is
+asserted as such by the tests that draw it.
+
+[ADR 0123](0123-a-ruled-behaviour-whose-population-empties-keeps-its-branch-and-converts-its-sweep-coverage-into-a-declared-witness.md)
+decision 3 reads coverage as **"never sought by widening a sweep."** Two tests do sweep a declared band
+past the approved policy — `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (~lines 459–470)
+and `qa-7d4-composed-bodies.adversarial.test.ts` (~lines 368–370), over wall A 1600–4000 mm × wall B
+6100–6300 mm — and each drawn room in that sweep asserts, in the test's own words, that it lies outside
+the approved policy. **Adjudication: a declared, explicitly out-of-policy band satisfies decision 3's
+intent**, because it cannot silently widen the admitted population — the band is named and flagged as
+outside it, not folded into the swept range as if it were inside. Recorded here as a clarification of
+ADR 0123, with the reciprocal one-line pointer placed in that record.
+
+### K9 — earlier-wave restatements in slice S2, in J4's form
+
+Listed as QA reported them; QA's own close-out entry restates them with final figures:
+
+- **Retired guards:** `qa-7d4-body-choice.adversarial.test.ts` "plans the pan drawer into no module",
+  `qa-7d4-composed-bodies.adversarial.test.ts` "generates no pan drawer before 7D5 S2".
+- **Provenance helpers** identify the pan drawer by id.
+- **`qa-7d3` gains a separate 600 mm pan-drawer branch.**
+- **D15.7 witnesses moved** to 6000 × 4100 / 4100 × 6100.
+- **Criterion 1 at 6300 × 4700 / 6300 × 5100** now reads a single post-hob drawer.
+- **Three-arm floor:** wall A 300 → 40; the wall-B floor is removed in favour of the K8 declared
+  witness.
+- **`qa-7d8`:** 7b's declared runs widened by 600 mm; 7c's floor moves 2000 → 80 in-policy plus 100 over
+  the declared band.
+- **`qa-7d4-nothing-but-the-body-moved.adversarial.test.ts`:** 3348 × 3831 × 2778 re-pinned; arm floors
+  pinned exact (91; `wallBStorage` 55).
+- **The generate-kitchen resize witness** moved to 4401 × 1700 × 2000.
+- **The recorded-plan classifier** widened.
+- **7D3 criterion 12** restated a second time (the hob shift is now attributed to the pan drawer only).
+
+**Further re-pins after Q-H6b/Q-H6c, measured by QA:**
+
+- **`body-choice.test.ts` criterion 22 tally:** bottle 4 → 3, pan drawer 1 → 2 (3300 × 1600 drops its
+  fridge, and Q-H6b stands the pan drawer).
+- **`pan-drawer-before-the-hob.test.ts`:**
+  - the reversed-wall 3399 mm tests now keep the pan drawer and omit the bottle;
+  - new 3099 mm contrast;
+  - the census is rewritten to model the pan drawer first, the fallback (K3), and Q-H6c (K4);
+  - new witnesses: Q-H6b 3350 × 1700 / 1700 × 3600, Q-H6c 5100 × 1700 / 1700 × 5200, fallback
+    3650 × 1700 / 1700 × 3800, and J5 900 × 3400 (K7).
+- **`qa-7d5-bottle-cargo`:**
+  - the census's bottle figure moves 220 266 → 184 686, with Q-H6b and Q-H6c omission categories;
+  - the remainder-500 bottle-last merge is now unreachable in-policy at every ceiling (Q-H6b takes that
+    room instead). The in-policy merge rows move to remainder 300 (3300 × 1700, 900 × 4100), and the
+    500 mm cap is covered off-policy at a 2199 mm ceiling for plan and shell only (4100 × 1700,
+    900 × 4900). This also qualifies J7's claim.
+- **Recorded-plan classifier:** widened to admit a pan drawer without a bottle, with a new
+  `assertThePanDrawerWasDecidedFirst` and a bound of modules lost ≤ 1 + pan drawers. Counts:
+  - 7D5 recording: bottle 312 / pan drawer 210 / pan drawer only 78 / exact 90;
+  - 7D8 recording: 18 / 57 / 11 / 7.
+- **`qa-7d4-nothing-but` criteria 2 and 21:** pan-drawer-only rooms are compared after undoing exactly
+  the ruled change (remove the pan drawer, move the hob and following modules back 600 mm, restore the
+  outermost slot; swap the hood/upper pair back in the wall row). All undone plans and rows hash
+  byte-for-byte to 7D3's recording.

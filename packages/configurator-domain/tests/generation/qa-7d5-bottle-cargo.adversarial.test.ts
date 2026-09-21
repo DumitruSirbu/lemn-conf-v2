@@ -1,6 +1,8 @@
 // M7 wave 7D5 S1 — the bottle cargo is optional to the core kitchen. This file derives the
 // pre-S1 core-selection answer from run capacities and the public priority list; it does not ask the
-// S1 implementation whether omitting the cargo was necessary.
+// S1 implementation whether omitting the cargo was necessary. Since S2 the bottle also gives way to
+// the pan drawer (ADR 0110 Q-H6b) and, once the pan drawer stands, to a tall column (Q-H6c); both are
+// derived here from the same capacities and 7D3's own block rule.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -23,12 +25,15 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "../../src/index.js";
+import { planTallEndBlock } from "../../src/generation/tall-end-rule.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { facesOf, openingIntervalOf } from "../support/shell-design.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const GRID_STEP_MM = 10;
 const BOTTLE_WIDTH_MM = 300;
+const PAN_DRAWER_WIDTH_MM = 600;
+const STORAGE_MODULE_MM = 600;
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
@@ -139,6 +144,97 @@ function firstUnconditionalBottleAttempt(
   return undefined;
 }
 
+/** Why a bottle whose core fits it in place is omitted anyway: Q-H6b where the pan drawer, decided
+ *  first against the core alone, leaves no room for it, and Q-H6c where the bottle would fit beside
+ *  it but cost a tall column. `undefined` where the pan drawer could not have been decided first — the
+ *  fallback then decides the bottle first, and an omission there is a fault. */
+function bottleGaveWayTo(
+  room: DesignRoom,
+  core: { readonly kept?: CoreAttempt; readonly cut?: number },
+): "the pan drawer" | "a tall column" | undefined {
+  const { kept, cut } = core;
+  if (kept === undefined || cut === undefined) return undefined;
+  const capacities = capacitiesByReadingRole(room);
+  const widthsMm = kept.map((item) => item.widthMm);
+  const hobAt = kept.findIndex((item) => item.role === "hob");
+  const isCoreWhole = kept.length === GENERATION_PRIORITIES.length;
+  const columns = (run: DerivedRun) =>
+    tallColumnsOf(run, { room, capacities, isCoreWhole });
+  const coreRun = { widthsMm, cut, hobAt };
+  const panDrawer = {
+    widthsMm: [
+      ...widthsMm.slice(0, hobAt),
+      PAN_DRAWER_WIDTH_MM,
+      ...widthsMm.slice(hobAt),
+    ],
+    cut: hobAt < cut ? cut + 1 : cut,
+    hobAt: hobAt + 1,
+  };
+  if (
+    !fitsInPlace(panDrawer, capacities) ||
+    columns(panDrawer) < columns(coreRun)
+  ) {
+    return undefined;
+  }
+  const both = {
+    widthsMm: [...panDrawer.widthsMm, BOTTLE_WIDTH_MM],
+    cut:
+      panDrawer.cut === panDrawer.widthsMm.length
+        ? panDrawer.cut + 1
+        : panDrawer.cut,
+    hobAt: panDrawer.hobAt,
+  };
+  if (!fitsInPlace(both, capacities)) return "the pan drawer";
+  return columns(both) < columns(panDrawer) ? "a tall column" : undefined;
+}
+
+interface DerivedRun {
+  readonly widthsMm: readonly number[];
+  readonly cut: number;
+  readonly hobAt: number;
+}
+
+function suffixFreeMm(
+  run: DerivedRun,
+  capacities: { readonly suffix: number },
+): number {
+  return (
+    capacities.suffix -
+    run.widthsMm.slice(run.cut).reduce((sum, widthMm) => sum + widthMm, 0)
+  );
+}
+
+function fitsInPlace(
+  run: DerivedRun,
+  capacities: { readonly prefix: number; readonly suffix: number },
+): boolean {
+  const prefixMm = run.widthsMm
+    .slice(0, run.cut)
+    .reduce((sum, widthMm) => sum + widthMm, 0);
+  return prefixMm <= capacities.prefix && suffixFreeMm(run, capacities) >= 0;
+}
+
+/** 7D3's block on the suffix wall's free end, counted by its own rule. */
+function tallColumnsOf(
+  run: DerivedRun,
+  context: {
+    readonly room: DesignRoom;
+    readonly capacities: { readonly suffix: number };
+    readonly isCoreWhole: boolean;
+  },
+): number {
+  const freeMm = suffixFreeMm(run, context.capacities);
+  return planTallEndBlock({
+    coreSurvivedWhole: context.isCoreWhole,
+    hobStandsOnTheFreeEndWall: run.hobAt >= run.cut,
+    freeEndStorageCount: Math.floor(freeMm / STORAGE_MODULE_MM),
+    freeEndRemainderMm: freeMm % STORAGE_MODULE_MM,
+    roomHeightMm: context.room.heightMm,
+    hobWithItsOwnOvenBuildId: "base-hob-oven",
+    declared: DECLARED_COLUMNS,
+  }).columns.length;
+}
+
 function alongTheWall(
   plan: KitchenCompositionPlan,
   wall: DesignWall,
@@ -187,6 +283,29 @@ function coreRolesOffTheirPreS1Wall(
   });
 }
 
+/** The merge row below pins 300 mm as the widest remainder a last-on-its-wall bottle shares an
+ *  opening with; this is what keeps that row the boundary rather than an example. */
+const WIDEST_REACHABLE_MERGED_REMAINDER_MM = 300;
+const WIDEST_MERGED_OPENING_MM = 800;
+
+function isLastOnItsWallMergingPast300Mm(
+  plan: KitchenCompositionPlan,
+): boolean {
+  const bottle = plan.bases.find((base) => base.id === "bottle");
+  if (!bottle) return false;
+  const lastEndOnWall = Math.max(
+    ...plan.bases
+      .filter((base) => base.wall === bottle.wall)
+      .map((base) => base.endMm),
+  );
+  const remainderMm = plan.remainderMm[bottle.wall];
+  return (
+    bottle.endMm === lastEndOnWall &&
+    remainderMm > WIDEST_REACHABLE_MERGED_REMAINDER_MM &&
+    bottle.widthMm + remainderMm <= WIDEST_MERGED_OPENING_MM
+  );
+}
+
 describe("7D5 S1 — the conditional bottle cargo", () => {
   it("preserves every pre-S1 kitchen and core role across the approved 10 mm rectangle", () => {
     const l = APPROVED_ROOM_POLICY.buildableShapes.L;
@@ -199,10 +318,13 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       omittedForCoreRole: 0,
       omittedForRefusal: 0,
       omittedForReCut: 0,
+      omittedForThePanDrawer: 0,
+      omittedForATallColumn: 0,
       wrongCore: [] as string[],
       wrongOrder: [] as string[],
       coreOffItsWall: [] as string[],
       duplicateBottle: [] as string[],
+      lastOnItsWallMergingPast300Mm: [] as string[],
       includedByArm: { aWider: 0, bWider: 0, equal: 0 },
     };
 
@@ -255,6 +377,9 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           const hobAt = reading.findIndex((base) => base.role === "hob");
           const bottleAt = reading.findIndex((base) => base.id === "bottle");
           if (bottleAt !== hobAt + 1) census.wrongOrder.push(key);
+          if (isLastOnItsWallMergingPast300Mm(plan)) {
+            census.lastOnItsWallMergingPast300Mm.push(key);
+          }
           if (widthMm > depthMm) census.includedByArm.aWider += 1;
           else if (depthMm > widthMm) census.includedByArm.bWider += 1;
           else census.includedByArm.equal += 1;
@@ -272,26 +397,42 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           // which would move a core role to the other wall.
           census.omittedForReCut += 1;
         } else {
-          census.wrongCore.push(
-            `${key}: bottle omitted although the same core fits`,
+          // S2: the core fits the bottle in place, so only the pan drawer standing may explain it.
+          const reason = bottleGaveWayTo(room, expected);
+          const hasPanDrawer = plan.bases.some(
+            (base) => base.id === "pan-drawer",
           );
+          if (reason === undefined || !hasPanDrawer) {
+            census.wrongCore.push(
+              `${key}: bottle omitted although the same core fits`,
+            );
+          } else if (reason === "the pan drawer") {
+            census.omittedForThePanDrawer += 1;
+          } else {
+            census.omittedForATallColumn += 1;
+          }
         }
       }
     }
 
+    // S1's own three omissions are unchanged since `c67b4ee`; the two S2 added are the 35 580 rooms
+    // whose bottle became a pan drawer.
     const { includedByArm, ...totals } = census;
     expect(totals).toEqual({
       swept: 256_011,
       placed: 245_211,
-      bottleIncluded: 220_266,
-      bottleOmitted: 24_945,
+      bottleIncluded: 184_686,
+      bottleOmitted: 60_525,
       omittedForCoreRole: 15_445,
       omittedForRefusal: 4_545,
       omittedForReCut: 4_955,
+      omittedForThePanDrawer: 11_440,
+      omittedForATallColumn: 24_140,
       wrongCore: [],
       wrongOrder: [],
       coreOffItsWall: [],
       duplicateBottle: [],
+      lastOnItsWallMergingPast300Mm: [],
     });
     expect(includedByArm.aWider).toBeGreaterThan(0);
     expect(includedByArm.bWider).toBeGreaterThan(0);
@@ -378,19 +519,21 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     );
   });
 
-  // The merge cap is inclusive: a 300 mm tile plus a 500 mm run-end remainder is one 800 mm
-  // (`MAX_EMPTY_COLUMN_WIDTH_MM`) opening at the bottle's start, so the bottle is inserted into an
-  // opening wider than itself. The non-merging neighbour is 502, not 501: the floor run's planned end
-  // moves in 2 mm steps (3501 x 1700 plans the same 500 mm remainder as 3500 x 1700), so a 501 mm
-  // remainder is unreachable through a room. Both mirrors, so no wall letter decides it.
+  // A bottle standing last on its wall shares one floor opening with the run-end remainder whenever
+  // the two together reach no further than 800 mm (`MAX_EMPTY_COLUMN_WIDTH_MM`), so the bottle is
+  // inserted into an opening wider than itself. Since S2 the widest such remainder any approved room
+  // reaches is 300 mm: a hob wall with 500 mm left past the bottle had 800 mm past the core alone, and
+  // there the pan drawer stands instead (Q-H6b). The inclusive 500 mm cap is kept below, off-policy.
+  // The non-merging neighbour is 502, not 501: the floor run's planned end moves in 2 mm steps, so a
+  // 501 mm remainder is unreachable through a room. Both mirrors, so no wall letter decides it.
   it.each([
     {
-      name: "wall A, remainder 500 merges into one 800 mm opening",
-      room: { shape: "L", widthMm: 3500, depthMm: 1700, heightMm: 2600 },
+      name: "wall A, remainder 300 merges into one 600 mm opening",
+      room: { shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2600 },
       wall: "A",
       bottleStartMm: 2700,
-      remainderMm: 500,
-      trailingOpenings: [{ startMm: 2700, endMm: 3500 }],
+      remainderMm: 300,
+      trailingOpenings: [{ startMm: 2700, endMm: 3300 }],
     },
     {
       name: "wall A, remainder 502 stays a separate opening",
@@ -404,12 +547,12 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       ],
     },
     {
-      name: "wall B, remainder 500 merges into one 800 mm opening",
-      room: { shape: "L", widthMm: 1500, depthMm: 4300, heightMm: 2600 },
+      name: "wall B, remainder 300 merges into one 600 mm opening",
+      room: { shape: "L", widthMm: 900, depthMm: 4100, heightMm: 2600 },
       wall: "B",
       bottleStartMm: 3400,
-      remainderMm: 500,
-      trailingOpenings: [{ startMm: 3400, endMm: 4200 }],
+      remainderMm: 300,
+      trailingOpenings: [{ startMm: 3400, endMm: 4000 }],
     },
     {
       name: "wall B, remainder 502 stays a separate opening",
@@ -469,6 +612,57 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       expect(
         result.log.steps.find((step) => step.id === "bottle"),
       ).toMatchObject({ status: "placed", buildId: "base-bottle-cargo" });
+    },
+  );
+  // The inclusive cap itself, 300 + 500 = 800 mm in one opening, is reachable only where no block can
+  // stand to refuse the pan drawer the bottle-first order: a ceiling 1 mm below the 2200 mm column,
+  // which the approved policy's 2200 mm floor excludes. A planner and shell witness, past the policy on
+  // purpose (M7 7A3); `generateKitchen` is not asked, because its own invariant check rejects a room
+  // lower than the fridge it places (PLACEMENT_ABOVE_ROOM).
+  it.each([
+    {
+      name: "wall A, 4100 x 1700",
+      room: { shape: "L", widthMm: 4100, depthMm: 1700, heightMm: 2199 },
+      wall: "A",
+      bottleStartMm: 3300,
+      trailingOpenings: [{ startMm: 3300, endMm: 4100 }],
+    },
+    {
+      name: "wall B, 900 x 4900",
+      room: { shape: "L", widthMm: 900, depthMm: 4900, heightMm: 2199 },
+      wall: "B",
+      bottleStartMm: 4000,
+      trailingOpenings: [{ startMm: 4000, endMm: 4800 }],
+    },
+  ] as const)(
+    "merges the last-on-its-wall cargo with a 500 mm remainder into one 800 mm opening, $name",
+    ({ room, wall, bottleStartMm, trailingOpenings }) => {
+      const plan = planFor(room);
+      const bottle = plan.bases.find((base) => base.id === "bottle");
+      const lastEndOnWall = Math.max(
+        ...plan.bases
+          .filter((base) => base.wall === wall)
+          .map((base) => base.endMm),
+      );
+      expect(room.heightMm).toBeLessThan(DECLARED_COLUMNS.columnHeightMm);
+      expect(bottle).toMatchObject({ wall, startMm: bottleStartMm });
+      expect(bottle?.endMm).toBe(lastEndOnWall);
+      expect(plan.remainderMm[wall]).toBe(500);
+
+      const shell = buildLShellDesign({
+        room,
+        occurredAt: OCCURRED_AT,
+        compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
+      });
+      expect(
+        facesOf(shell)
+          .voids.filter(
+            (opening) =>
+              opening.wall === wall && Math.round(opening.y0 * 1000) === 0,
+          )
+          .map(openingIntervalOf)
+          .filter((interval) => interval.startMm >= bottleStartMm),
+      ).toEqual(trailingOpenings);
     },
   );
 });

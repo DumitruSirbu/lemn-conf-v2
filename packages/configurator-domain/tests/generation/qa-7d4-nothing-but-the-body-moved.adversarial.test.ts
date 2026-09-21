@@ -46,6 +46,7 @@ import {
   type DesignRoom,
   type GenerationLog,
   type KitchenCompositionPlan,
+  type PlannedGenerationBase,
 } from "../../src/index.js";
 import {
   BASELINE_RUNS,
@@ -69,7 +70,10 @@ import {
   createFakeProbeFactory,
   createLeaseLedger,
 } from "../support/fake-probe.js";
-import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
+import {
+  PAN_DRAWER_BODY,
+  parseRecordedCanonicalPlan,
+} from "../support/pre-width-run-recording.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -141,27 +145,35 @@ const RE_KEYED_WITNESSES = [
     ],
   },
   {
-    // A composed storage slot on **each** wall, which is where a slot lookup on the wrong letter has
-    // somewhere wrong to land: the drawer after the hob stands on wall B, the wider wall, while wall
-    // A's two slots keep their doors. **Moved from 3367 x 3506 in M7 wave 7D5 S1**, where the bottle
-    // now takes wall B's only slot and the room no longer has the shape this witness names; this room
-    // is drawn by the same recorded sweep and keeps a slot on wall B after the bottle.
-    name: "a composed slot on each wall (3348 x 3831)",
+    // Composed slots on the narrower wall and the drawer group astride the hob on the wider one.
+    // **Moved from 3367 x 3506 in M7 wave 7D5 S1**, where the bottle took wall B's only slot.
+    //
+    // **Re-pinned in M7 wave 7D5 S2, and the subject it was chosen for has left this room (owner
+    // ruling Q-H6a = A; ADR 0123).** Until S2 wall B's one remaining module after the bottle was the
+    // post-hob drawer slot, so a slot lookup on the wrong letter had somewhere wrong to land here. The
+    // pan drawer now stands immediately before the hob and takes that module, so wall B holds no
+    // composed slot and the post-hob drawer is gone — the rule's own answer, not a regression. No
+    // recorded room can carry that subject any more: its physical-wall-B population is 0 across the
+    // approved policy. It is witnessed past the policy, declared, in `drawer-rows.test.ts` (D15.7,
+    // 4100 x 6100) and `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (7c). This pin
+    // keeps the room as what it now is: every core module where S1 left it, the pan drawer between
+    // the preparation cabinet and the hob, and the hob and bottle one module further along.
+    name: "the pan drawer takes wall B's last module (3348 x 3831)",
     room: { shape: "L", widthMm: 3348, depthMm: 3831, heightMm: 2778 },
     plan: [
       "minimumMet=true",
       "cut=3",
       "dropped=",
       "remainder=548/130",
-      "floorWidths=600,600,700/600,600,600,300,600",
+      "floorWidths=600,600,700/600,600,600,600,300",
       "storage:A:0~storage~base-cabinet~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "fridge~fridge~fridge-free~A~2100~2800~700",
       "sink~sink~base-sink~B~900~1500~600",
       "preparation~preparation~base-3drawer~B~1500~2100~600",
-      "hob~hob~base-hob-oven~B~2100~2700~600",
-      "bottle~storage~base-bottle-cargo~B~2700~3000~300",
-      "storage:B:0~storage~base-3drawer~B~3000~3600~600",
+      "pan-drawer~storage~base-panbank~B~2100~2700~600",
+      "hob~hob~base-hob-oven~B~2700~3300~600",
+      "bottle~storage~base-bottle-cargo~B~3300~3600~300",
     ],
   },
   {
@@ -334,6 +346,105 @@ function comparedWithTheRecording(room: DesignRoom): {
   };
 }
 
+function hasPanDrawer(plan: KitchenCompositionPlan): boolean {
+  return plan.bases.some((base) => base.buildId === PAN_DRAWER_BODY);
+}
+
+/** One storage module: the pan drawer's width, and so the width of the slot it took. */
+const PAN_DRAWER_WIDTH_MM = 600;
+
+/**
+ * **7D5 S2, criterion 2 restated under owner rulings Q-H6b and Q-H6c.** Where the pan drawer stands
+ * without the bottle, the plan is 7D3's with exactly one change: a 600 mm pan drawer immediately
+ * before the hob, the hob and every slot after it one module further along, and the hob's wall's
+ * outermost slot gone to pay for it — never a tall column (Q-H6c), because the bottle gave way
+ * instead. This undoes that change and nothing else, so the result hashing to 7D3's recorded digest
+ * proves every other field of the plan unmoved; any other difference, or a pan drawer paid for some
+ * other way, leaves the digest unequal and the room reported.
+ *
+ * It reads the hob's wall forward, corner to free end, as the suffix wall is laid out; a hob on the
+ * reversed prefix wall would be undone wrongly and reported rather than passed.
+ */
+function withThePanDrawerUndone(plan: KitchenCompositionPlan): {
+  readonly plan: KitchenCompositionPlan;
+  readonly restoredSlotId: string;
+} {
+  const hob = plan.bases.find((base) => base.role === "hob");
+  if (hob === undefined) throw new Error("a pan-drawer plan composes no hob");
+  const slotsAfterTheHob = plan.bases.filter(
+    (base) =>
+      base.wall === hob.wall &&
+      isComposedStorageSlot(base) &&
+      base.startMm >= hob.endMm,
+  );
+  const lastShifted = slotsAfterTheHob.at(-1) ?? hob;
+  const restoredSlot: PlannedGenerationBase = {
+    id: `storage:${hob.wall}:${String(slotsAfterTheHob.length)}`,
+    role: "storage",
+    buildId: DOOR_BASE_BUILD_ID,
+    wall: hob.wall,
+    startMm: lastShifted.endMm - PAN_DRAWER_WIDTH_MM,
+    endMm: lastShifted.endMm,
+    widthMm: PAN_DRAWER_WIDTH_MM,
+  };
+  const shifted = (base: PlannedGenerationBase): PlannedGenerationBase =>
+    base === hob || slotsAfterTheHob.includes(base)
+      ? {
+          ...base,
+          startMm: base.startMm - PAN_DRAWER_WIDTH_MM,
+          endMm: base.endMm - PAN_DRAWER_WIDTH_MM,
+        }
+      : base;
+  const bases = plan.bases.flatMap((base) => {
+    if (base.buildId === PAN_DRAWER_BODY) return [];
+    return base === lastShifted
+      ? [shifted(base), restoredSlot]
+      : [shifted(base)];
+  });
+  const floorWidths = bases
+    .filter((base) => base.wall === hob.wall)
+    .sort((left, right) => left.startMm - right.startMm)
+    .map((base) => base.widthMm);
+  return {
+    plan: {
+      ...plan,
+      bases,
+      floorWidthsMm: { ...plan.floorWidthsMm, [hob.wall]: floorWidths },
+    },
+    restoredSlotId: restoredSlot.id,
+  };
+}
+
+/**
+ * **7D5 S2, criterion 21 restated under Q-H6b and Q-H6c.** The wall row moved in those rooms because
+ * the bases beneath it did, and in one way only: 7D3's hood over the hob and upper over the slot after
+ * it are now an upper over the pan drawer and the hood one module further along. No upper was added,
+ * lost or re-bodied. This swaps that one adjacent pair back — the hood to the pan drawer's opening,
+ * the pan drawer's upper renamed to the restored slot's and stood where the hood was — and touches
+ * nothing else, so the result hashing to 7D3's recorded row proves every other character unmoved.
+ */
+function wallRowWithThePanDrawerUndone(
+  row: string,
+  restoredSlotId: string,
+): string {
+  const steps = row.split("|");
+  const at = steps.findIndex((step) => step.startsWith("upper:pan-drawer~"));
+  const upper = steps[at]?.split("~");
+  const hood = steps[at + 1]?.split("~");
+  if (upper === undefined || hood?.[0] !== "hood:hob") return row;
+  const restoredUpper = [...upper];
+  const hoodBack = [...hood];
+  restoredUpper[0] = `upper:${restoredSlotId}`;
+  restoredUpper[WALL_ROW_ALONG_FIELD] = hood[WALL_ROW_ALONG_FIELD] ?? "";
+  hoodBack[WALL_ROW_ALONG_FIELD] = upper[WALL_ROW_ALONG_FIELD] ?? "";
+  steps.splice(at, 2, hoodBack.join("~"), restoredUpper.join("~"));
+  return steps.join("|");
+}
+
+/** Where `canonicalWallRow` spells a placed step's `alongMm`: id, step body, status, placed body,
+ *  wall, then along. */
+const WALL_ROW_ALONG_FIELD = 5;
+
 describe("criterion 2 — this wave moves a body's identity and nothing else", () => {
   it("composes 7D3's plan to the millimetre wherever 7D8 did not re-key the run", () => {
     // **This is the comparison working, not the recording going stale, and the split is the whole
@@ -353,6 +464,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     let placed = 0;
     let bottleNormalized = 0;
     let bottleWithDrawer = 0;
+    const panDrawerUndone = { outsideTheReKey: 0, moved: 0 };
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
         const plan = planFor(room);
@@ -384,7 +496,17 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
             unexpected.push(`${roomKey(room)} invalid drawer identity`);
           }
         } else {
-          const composed = digestOf(canonicalPlanBeyondThisWavesBodies(plan));
+          // 7D5 S2 / Q-H6b / Q-H6c: a pan drawer standing without the bottle is undone before the
+          // comparison, and only that — see `withThePanDrawerUndone`.
+          const standsAPanDrawer = hasPanDrawer(plan);
+          if (standsAPanDrawer && movedByTheReKey) panDrawerUndone.moved += 1;
+          else if (standsAPanDrawer) panDrawerUndone.outsideTheReKey += 1;
+          const beforeThePanDrawer = standsAPanDrawer
+            ? withThePanDrawerUndone(plan).plan
+            : plan;
+          const composed = digestOf(
+            canonicalPlanBeyondThisWavesBodies(beforeThePanDrawer),
+          );
           const recorded = recordedRoom(BASELINE, room).plan;
           if ((composed !== recorded) !== movedByTheReKey) {
             unexpected.push(
@@ -408,6 +530,10 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     });
     expect(bottleNormalized).toBeGreaterThan(0);
     expect(bottleWithDrawer).toBeGreaterThan(0);
+    // 7D5 S2 (Q-H6b / Q-H6c): the rooms whose pan drawer stands without the bottle, all of them
+    // reached — 12 of this draw outside the re-key, whose undone plan must hash to 7D3's, and 7 inside
+    // it, whose undone plan must still differ. Exact, because the draw is the recording's.
+    expect(panDrawerUndone).toEqual({ outsideTheReKey: 12, moved: 7 });
   });
 
   it.each(UNMOVED_WITNESS_ROOMS)(
@@ -566,8 +692,10 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // deterministic grid rather than a draw:
     // `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts`, *stands every composed drawer on
     // the wider entered wall* — 8 615 swept plans, 2 343 composing a drawer, and at least 100 of
-    // them holding a composed slot on each wall. What is asserted here is the exact split of this
-    // fixed draw, which is a stronger statement about the recording's reach than a floor was.
+    // them holding a composed slot on each wall. (Since M7 wave 7D5 S2 that hundred is held over a
+    // declared band past the policy, because no admitted room keeps it — ADR 0123; see 7c there.)
+    // What is asserted here is the exact split of this fixed draw, which is a stronger statement
+    // about the recording's reach than a floor was.
     //
     // **M7 wave 7D5 S1 moves it from 62 to 59, and only by the bottle's own cost.** Where the 300 mm
     // cargo after the hob is paid for by wall B's one composed slot the arm loses that room; where it
@@ -595,9 +723,17 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
     );
 
-    expect(arms.composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
+    // **M7 wave 7D5 S2 (Q-H6a = A; ADR 0123) moves two of these, and only by the pan drawer's own
+    // cost.** The pan drawer before the hob spends one 600 mm module of the hob's wall, and where that
+    // module was a room's last composed slot the room leaves the arm: composed slots 110 at 7D5 S1 →
+    // 91 in this draw, wall-B storage 59 → 55 (both measured against S1's source). The draw cannot be widened (it is the recording's), so the composed-slot
+    // hundred is re-sited rather than lowered: it is asserted at full strength over the policy-wide
+    // 1 000-run draw in `qa-7d4-composed-bodies.adversarial.test.ts`, *gives every other composed slot
+    // the door body* (two or more slots, at least 100). What is asserted here is this fixed draw's
+    // exact reach, as the wall-B arm already was.
+    expect(arms.composedSlots).toBe(91);
     expect(arms.blockColumns).toBeGreaterThanOrEqual(ARM_FLOOR);
-    expect(arms.wallBStorage).toBe(59);
+    expect(arms.wallBStorage).toBe(55);
   });
 });
 
@@ -611,6 +747,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     const arms = { outsideTheReKey: 0, moved: 0, refused: 0 };
     const unexpected: string[] = [];
     let withUppers = 0;
+    let panDrawerRowsUndone = 0;
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
         const kitchen = generated(room);
@@ -641,7 +778,19 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
             );
           }
         } else {
-          const composed = digestOf(canonicalWallRow(kitchen));
+          // 7D5 S2 / Q-H6b / Q-H6c: where the pan drawer stands without the bottle the wall row moved
+          // with the bases beneath it, and only so — see `wallRowWithThePanDrawerUndone`.
+          const row = canonicalWallRow(kitchen);
+          const standsAPanDrawer = hasPanDrawer(kitchen.log.plan);
+          if (standsAPanDrawer) panDrawerRowsUndone += 1;
+          const composed = digestOf(
+            standsAPanDrawer
+              ? wallRowWithThePanDrawerUndone(
+                  row,
+                  withThePanDrawerUndone(kitchen.log.plan).restoredSlotId,
+                )
+              : row,
+          );
           if ((composed !== recorded) !== movedByTheReKey) {
             unexpected.push(
               `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
@@ -656,6 +805,8 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     expect(withUppers).toBeGreaterThanOrEqual(PLACED_ROOMS_FLOOR);
     // Exact, for the reason the sibling sweep above gives: the draw is fixed by the recording.
     expect(arms).toEqual({ outsideTheReKey: 127, moved: 82, refused: 31 });
+    // 7D5 S2: the same 12 + 7 pan-drawer-without-bottle rooms as criterion 2's sweep above.
+    expect(panDrawerRowsUndone).toBe(19);
   });
 
   it("stands a hood over every hob and nothing over a body that reaches the wall row", () => {

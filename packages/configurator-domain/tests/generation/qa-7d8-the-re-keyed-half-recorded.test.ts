@@ -33,6 +33,11 @@
 // **7D5 followed those rules.** The comparison below still reaches current output: rooms without a
 // bottle remain whole-plan exact, while bottle rooms compare every core module field to this
 // recording and independently validate the complete physical row published around the new cargo.
+// Restated for 7D5 S2 (owner ruling 2026-09-21, Q-H6a = A): bottle rooms now go through the same
+// classifier as the 7D5 pre-width recording, which also allows the 600 mm pan drawer immediately
+// before the hob, the hob shifted by exactly its width where it stands, and the hob's wall losing
+// outermost modules — and pins everything else, including the wall without the hob, to this file.
+// 904x4523x2478 is the room that first reddened here: its hob moved from 2800 to 3400 on wall B.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -53,7 +58,7 @@ import {
   recordedLRoom,
   roomKey,
 } from "../support/composed-run-baseline.js";
-import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
+import { assertOnlyTheBottleAndPanDrawerChanged } from "../support/pre-width-run-recording.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { readReKeyedRunRecording } from "../support/re-keyed-run-recording.js";
 
@@ -82,6 +87,8 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
   it("regresses current output against every recorded re-keyed plan", () => {
     let exact = 0;
     let bottleNormalized = 0;
+    let panDrawerNormalized = 0;
+    let panDrawerWithoutBottle = 0;
     for (const [key, recorded] of RECORDING) {
       const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
       if (
@@ -94,81 +101,33 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
       const room: DesignRoom = { shape: "L", widthMm, depthMm, heightMm };
       const plan = planFor(room);
       expect(isReKeyed(room, plan), key).toBe(true);
-      const bottle = plan.bases.find((base) => base.id === "bottle");
-      if (!bottle) {
+      const hasBottle = plan.bases.some((base) => base.id === "bottle");
+      const hasPanDrawer = plan.bases.some((base) => base.id === "pan-drawer");
+      if (!hasBottle && !hasPanDrawer) {
         exact += 1;
         expect(canonicalPlan(plan), key).toBe(recorded);
       } else {
-        bottleNormalized += 1;
-        const before = parseRecordedCanonicalPlan(recorded);
-        expect(plan.minimumMet, `${key} minimumMet`).toBe(before.minimumMet);
-        expect(plan.dropped, `${key} dropped`).toEqual(before.dropped);
-        expect(bottle, `${key} bottle`).toMatchObject({
-          role: "storage",
-          buildId: "base-bottle-cargo",
-          widthMm: 300,
-        });
-        // The wall and the span are in the line because they are what ADR 0120 Amendment E protects:
-        // the bottle is appended only where it leaves the core's cut, so no core role may change wall
-        // or move along it. Only the hob's body may change, when the bottle costs the oven tower.
-        const coreLine = (base: {
-          readonly id: string;
-          readonly role: string;
-          readonly buildId: string;
-          readonly wall: string;
-          readonly startMm: number;
-          readonly endMm: number;
-          readonly widthMm: number;
-        }) =>
-          [
-            base.id,
-            base.role,
-            base.role === "hob" ? "<hob-body>" : base.buildId,
-            base.wall,
-            base.startMm,
-            base.endMm,
-            base.widthMm,
-          ].join("~");
-        expect(
-          plan.bases
-            .filter((base) => base.role !== "storage")
-            .map(coreLine)
-            .sort(),
-          `${key} core`,
-        ).toEqual(
-          before.bases
-            .filter((base) => base.role !== "storage")
-            .map(coreLine)
-            .sort(),
-        );
-
-        const runs = lShellFloorRuns(room);
-        for (const wall of ["A", "B"] as const) {
-          const bases = plan.bases
-            .filter((base) => base.wall === wall)
-            .sort((left, right) => left.startMm - right.startMm);
-          let cursor = runs[wall].startMm;
-          for (const base of bases) {
-            expect(base.startMm, `${key} ${base.id} start`).toBe(cursor);
-            expect(base.endMm - base.startMm, `${key} ${base.id} span`).toBe(
-              base.widthMm,
-            );
-            cursor = base.endMm;
-          }
-          expect(plan.floorWidthsMm[wall], `${key} ${wall} widths`).toEqual(
-            bases.map((base) => base.widthMm),
-          );
-          expect(plan.remainderMm[wall], `${key} ${wall} remainder`).toBe(
-            runs[wall].endMm - cursor,
-          );
-        }
+        if (hasBottle) bottleNormalized += 1;
+        if (hasPanDrawer) panDrawerNormalized += 1;
+        if (hasPanDrawer && !hasBottle) panDrawerWithoutBottle += 1;
+        // 7D5 S2 / Q-H6a = A: the pan drawer before the hob shifts the hob and the bottle by 600 mm
+        // and costs the hob's wall its outermost module; the shared classifier allows exactly that.
+        // Q-H6b / Q-H6c: it may stand without the bottle, which then gave way to it and to the block.
+        assertOnlyTheBottleAndPanDrawerChanged(key, room, plan, recorded);
       }
     }
 
+    // 7D5 S2, Q-H6b / Q-H6c: 7 rooms that stood a bottle alone now stand the pan drawer alone
+    // (903x4299x2419 first among them: its hob moved from 2800 to 3400 on wall B and the drawer slot
+    // after it is gone). Bottle rooms 64 → 57, pan-drawer rooms 4 → 11; the exact arm keeps its 18.
     expect(RECORDING.size).toBe(RE_KEYED_ROOMS);
-    expect(exact).toBeGreaterThan(0);
-    expect(bottleNormalized).toBeGreaterThan(0);
-    expect(exact + bottleNormalized).toBe(RE_KEYED_ROOMS);
+    expect(exact).toBe(18);
+    expect(bottleNormalized).toBe(57);
+    expect(panDrawerNormalized).toBe(11);
+    expect(panDrawerWithoutBottle).toBe(7);
+    expect(exact + bottleNormalized + panDrawerWithoutBottle).toBe(
+      RE_KEYED_ROOMS,
+    );
   });
 
   it("records only rooms the re-key moved, and every one of them", () => {

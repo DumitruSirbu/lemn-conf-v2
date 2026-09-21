@@ -98,6 +98,12 @@ branch — the population had genuinely emptied, re-sited to a declared witness 
 `drawer-rows.test.ts`). It supplies the test for telling the two apart and the two remedies; it does
 not supply the answer for a future instance.
 
+**Clarification, 2026-09-21 (M7 wave 7D5 slice S2, coordinator adjudication).** A declared witness that
+sweeps an explicitly out-of-policy band, and asserts on every drawn room that it lies outside the
+approved policy, satisfies decision 3's *"never sought by widening a sweep"* — it does not silently
+enlarge the admitted population, because the band is named and flagged as outside it. Detail and the
+citing tests: [ADR 0110 Amendment K, K8](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-k--2026-09-21-wave-7d5-slice-s2).
+
 ## Alternatives considered
 
 **Fail the wave when a criterion's named population reads zero, unconditionally.** Rejected: it would

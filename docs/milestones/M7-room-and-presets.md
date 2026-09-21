@@ -8435,7 +8435,9 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > capture. S2 is not yet dispatchable:** E7.1 presents candidate A (positional wherever it preserves
 > core roles and columns) and candidate C (only at *D* ≥ 6), says Q-H6 was not picked, while S2 says
 > it runs under the owner's answer and the wave table says only Q-H5 blocks. Current measurement makes
-> that contradiction material: A fires in **71 956** rooms and C in **12 086**. Ask whether the pan
+> that contradiction material: A fires in ~~**71 956**~~ rooms **(struck 2026-09-21, ADR 0110 K6 — the
+> figure is reproduced only by a model that lets core roles move walls; S2's owner-approved census is
+> ADR 0110 K5)** and C in **12 086**. Ask whether the pan
 > drawer immediately before the hob is **A: placed whenever it preserves every core role and tall
 > column**, or **C: placed only where *D* ≥ 6 and it preserves them**. Do not dispatch S2 from the old
 > status sentence.
@@ -8457,8 +8459,9 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > **Record, before commit — 2026-09-21.** Slice S1 landed with the core-preserving fix described
 > below and is recorded in full at [ADR 0110 Amendment J](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-j--2026-09-21-wave-7d5-slice-s1-the-bottle-cabinet-ships-and-q-h6-is-answered).
 > **Q-H6 = A** (owner ruling, 2026-09-21): the second drawer cabinet is positional — placed wherever
-> it preserves every core role and tall column — which unblocks S2; candidate A fires in **71 956**
-> rooms. **S1's shipped rule** stands only where every kept core role stays on the wall it has
+> it preserves every core role and tall column — which unblocks S2; candidate A fires in
+> ~~**71 956**~~ rooms **(struck 2026-09-21, ADR 0110 K6 — see the correction above)**. **S1's shipped
+> rule** stands only where every kept core role stays on the wall it has
 > without the bottle cabinet (ADR 0120 Amendment E); a logic review found the first implementation
 > re-cut the core in 4 955 rooms and it was fixed before commit. Census over the approved L rectangle
 > at 10 mm / 2600 mm (QA test, measured): swept 256 011, placed 245 211 (unchanged vs HEAD), bottle
@@ -8468,6 +8471,23 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > `coreSurvivedWhole` clause is now dormant (0 plans change if hard-wired true) rather than retired;
 > S2 must re-measure it. The reference room's hob falls back from `base-hob-2drawer` to
 > `base-hob-oven` (25 recorded rooms across two recordings). **S1's own close-out entry is not yet
+> written** — this note only reconciles the plan at commit time.
+>
+> **Record, before commit — 2026-09-21, slice S2 (the pan-drawer cabinet).** Recorded in full at
+> [ADR 0110 Amendment K](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-k--2026-09-21-wave-7d5-slice-s2-the-pan-drawer-cabinet).
+> **Q-H6a/b/c answered by the owner:** the pan drawer takes the hob wall's last free slot over D15.7's
+> post-hob drawer (Q-H6a); where the pan drawer and the bottle cabinet cannot both stand, the pan
+> drawer wins (Q-H6b, superseding J2's "S1's bottle decision is final"); once the pan drawer stands, the
+> bottle gives way before a tall column does (Q-H6c). The pan drawer is decided first against the core
+> alone (coordinator ruling, owner may overturn) so the S1 bottle order still governs where the pan
+> drawer is refused there. Measured (QA still finalising): 256 011 swept, 245 211 placed; pan drawer
+> 92 446, bottle 184 686 (down from S1's 220 266); 0 core-wall / `minimumMet` / `dropped` differences,
+> 0 rooms with fewer tall columns. **J1's "71 956" figure is struck** (ADR 0110 Amendment K6) — it is
+> reproduced only by a model that lets core roles move walls, which this wave does not ship; struck at
+> both citations below (~lines 8438 and 8460) with a pointer to K6. J5's `coreSurvivedWhole` clause is
+> no longer dormant: it now changes 140 plans (ADR 0110 K7). Criterion 9's D15.7 physical wall-B arm is
+> resolved under ADR 0123's third route — kept, coverage converted to a declared witness at 4100 × 6100
+> (ADR 0110 K8; see the dated note at criterion 9 below). **S2's own close-out entry is not yet
 > written** — this note only reconciles the plan at commit time.
 
 **Tier: Full** (a domain rule stated in a quantity, touching the module 7D3 and 7D4 both touched):
@@ -9055,6 +9075,14 @@ behaviour standing, the check must stay green.**
    green suite.** *(E9. This criterion is the strongest argument on the table for candidate C, and it
    is an engineering argument rather than an owner one, so it is put to the owner as a consequence and
    not as the reason.)*
+
+   **Resolved, 2026-09-21 (wave 7D5 slice S2, coordinator adjudication; ADR 0110 Amendment K8).** The
+   physical wall-B arm empties to 0 inside the approved policy under the shipped Q-H6 rule. Rather than
+   retiring the rule or rejecting the candidate, it is kept under
+   [ADR 0123](../decisions/0123-a-ruled-behaviour-whose-population-empties-keeps-its-branch-and-converts-its-sweep-coverage-into-a-declared-witness.md)'s
+   third route: coverage converts to a declared witness at **4100 × 6100**, outside the approved policy
+   and asserted as such by the tests that draw it (`qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts`,
+   `qa-7d4-composed-bodies.adversarial.test.ts`). See ADR 0110 K8 and the reciprocal pointer in ADR 0123.
 
 10. *(unit)* **`run-end-panel.ts:94-98` states a reason that is true at HEAD.** A grep for
     *"filler strip"* in `packages/configurator-domain/src/` returns nothing. **Must not:** the

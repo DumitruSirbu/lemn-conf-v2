@@ -29,8 +29,10 @@ import {
   findOverflowingPlacementIds,
   generateKitchen,
   GENERATION_PRIORITIES,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
+  PAN_DRAWER_BASE_BUILD_ID,
   planKitchenComposition,
   planLeftover,
   THREE_DRAWER_BASE_BUILD_ID,
@@ -110,7 +112,9 @@ function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
     .filter(
       (base) =>
         base.wall === wall &&
-        (base.role !== "storage" || base.buildId === BOTTLE_CARGO_BUILD_ID),
+        (base.role !== "storage" ||
+          base.buildId === BOTTLE_CARGO_BUILD_ID ||
+          base.buildId === PAN_DRAWER_BASE_BUILD_ID),
     )
     .reduce((sum, base) => sum + base.widthMm, 0);
   return planLeftover(run.endMm - run.startMm - fixedRunWidthMm);
@@ -217,6 +221,20 @@ describe("no body is silently planned over its own module", () => {
           if (base.buildId === BOTTLE_CARGO_BUILD_ID) {
             expect(declared, label).toBeDefined();
             expect(base.widthMm, label).toBe(300);
+            continue;
+          }
+          if (base.buildId === PAN_DRAWER_BASE_BUILD_ID) {
+            // **Added by 7D5 S2 as a branch of its own, not by widening the slot pair below.** The
+            // pan drawer is a run item the composer reads before the hob (ADR 0110 Amendment J1),
+            // not a body a composed slot takes, so putting `base-panbank` into the pair would let a
+            // slot silently take it and stay green — and so would this branch, were it not to refuse
+            // a composed slot's id. This file's subject is the width, and the width is one storage
+            // module. Where it stands, in which rooms and at what cost is asserted per
+            // room in `tests/generation/pan-drawer-before-the-hob.test.ts` (the census), per ADR 0091
+            // Amendment A.2 — this branch is not authority for any of that.
+            expect(declared, label).toBeDefined();
+            expect(isComposedStorageSlot(base), label).toBe(false);
+            expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
             continue;
           }
           if (declared?.band !== "column") {

@@ -229,12 +229,15 @@ describe("generateKitchen", () => {
   it("plans wall A to its reachable odd-span end before allowing the final storage resize", () => {
     // Remainder exactly 200 on purpose: the resized slot ends 200 mm short of the run end, which is the
     // inclusive edge of the final fit-body resize allowance. The bottle after the hob shifts the slot
-    // by 300 mm (M7 wave 7D5 S1), so the room moved from 3501 to keep that edge.
+    // by 300 mm (M7 wave 7D5 S1), so the room moved from 3501 to 3801 to keep that edge. The pan drawer
+    // before the hob (7D5 S2, owner ruling Q-H6a = A) then took 3801's only storage slot, so the room
+    // moved again by its 600 mm, to 4401. The ceiling dropped to 2000 because at 2200 a 4401 wall A
+    // stands the 7D3 tall block in the slot this test is about.
     const room: DesignRoom = {
       shape: "L",
-      widthMm: 3801,
+      widthMm: 4401,
       depthMm: 1700,
-      heightMm: 2200,
+      heightMm: 2000,
     };
     const result = generate(room);
 
@@ -242,9 +245,12 @@ describe("generateKitchen", () => {
     if (!result.ok) return;
     expect(lShellFloorRuns(room).A).toMatchObject({
       startMm: 900,
-      endMm: 3800,
+      endMm: 4400,
     });
     expect(result.log.plan.remainderMm.A).toBe(200);
+    expect(
+      result.log.plan.bases.find((base) => base.id === "pan-drawer"),
+    ).toMatchObject({ wall: "A", startMm: 2100, endMm: 2700 });
     const storage = result.log.plan.bases.find(
       (base) => base.id === "storage:A:0",
     );
@@ -252,8 +258,8 @@ describe("generateKitchen", () => {
       role: "storage",
       widthMm: 600,
       wall: "A",
-      startMm: 3000,
-      endMm: 3600,
+      startMm: 3600,
+      endMm: 4200,
     });
     const resizes = result.log.commands.filter(
       (command) => command.type === "set_width",

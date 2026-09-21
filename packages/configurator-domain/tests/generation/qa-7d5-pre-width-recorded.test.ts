@@ -1,6 +1,12 @@
 // M7 wave 7D5 pre-width capture. This comparison was introduced and run while production was still
 // at e808f1c, before S1 added a 300 mm bottle cabinet. Every row is a whole canonical plan: body ids,
 // roles, walls, positions, widths, the cut, dropped roles, remainders and floor widths.
+//
+// Restated for M7 wave 7D5 S2 (owner ruling 2026-09-21, Q-H6a = A; ADR 0110 Amendment J1). The
+// classifier used to allow only S1's bottle. It now allows exactly what the pan drawer does as well:
+// a 600 mm `base-panbank` immediately before the hob, the hob and the bottle shifted along their wall
+// by that width, and the hob's wall giving up outermost modules to pay for it. The recording is not
+// re-captured (plan risk 2): it stays the pre-S1 truth, and every other field is still pinned to it.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,8 +22,10 @@ import {
 } from "../../src/index.js";
 import { canonicalPlan, roomKey } from "../support/composed-run-baseline.js";
 import {
-  parseRecordedCanonicalPlan,
+  assertOnlyTheBottleAndPanDrawerChanged,
+  PAN_DRAWER_BODY,
   readPreWidthRunRecording,
+  STORAGE_SLOT_ID,
 } from "../support/pre-width-run-recording.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -70,101 +78,6 @@ const CORRUPTION_CASES: readonly (readonly [
     },
   ],
 ];
-function moduleLine(base: {
-  readonly id: string;
-  readonly role: string;
-  readonly buildId: string;
-  readonly wall: string;
-  readonly startMm: number;
-  readonly endMm: number;
-  readonly widthMm: number;
-}): string {
-  return [
-    base.id,
-    base.role,
-    base.role === "hob" ? "<hob-body>" : base.buildId,
-    base.wall,
-    base.startMm,
-    base.endMm,
-    base.widthMm,
-  ].join("~");
-}
-
-function coreIdentity(base: {
-  readonly id: string;
-  readonly role: string;
-  readonly buildId: string;
-  readonly widthMm: number;
-}): string {
-  return [
-    base.id,
-    base.role,
-    base.role === "hob" ? "<hob-body>" : base.buildId,
-    base.widthMm,
-  ].join("~");
-}
-
-function assertOnlyTheBottleChanged(
-  key: string,
-  room: DesignRoom,
-  plan: KitchenCompositionPlan,
-  recordedCanonical: string,
-): void {
-  const recorded = parseRecordedCanonicalPlan(recordedCanonical);
-  expect(plan.minimumMet, `${key} minimumMet`).toBe(recorded.minimumMet);
-  expect(plan.dropped, `${key} dropped`).toEqual(recorded.dropped);
-
-  const bottle = plan.bases.filter((base) => base.id === "bottle");
-  expect(bottle, `${key} bottle identity`).toEqual([
-    expect.objectContaining({
-      id: "bottle",
-      role: "storage",
-      buildId: BOTTLE_CARGO_BUILD_ID,
-      widthMm: 300,
-    }),
-  ]);
-
-  const currentCore = plan.bases.filter((base) => base.role !== "storage");
-  const recordedCore = recorded.bases.filter((base) => base.role !== "storage");
-  expect(
-    currentCore.map(coreIdentity).sort(),
-    `${key} core identities`,
-  ).toEqual(recordedCore.map(coreIdentity).sort());
-  expect(currentCore.map(moduleLine), `${key} core geometry`).toEqual(
-    recordedCore.map(moduleLine),
-  );
-
-  const ids = plan.bases.map((base) => base.id);
-  expect(new Set(ids).size, `${key} unique ids`).toBe(ids.length);
-  const runs = lShellFloorRuns(room);
-  for (const wall of ["A", "B"] as const) {
-    const bases = plan.bases
-      .filter((base) => base.wall === wall)
-      .sort((left, right) => left.startMm - right.startMm);
-    let cursor = runs[wall].startMm;
-    for (const base of bases) {
-      expect(base.startMm, `${key} ${base.id} start`).toBe(cursor);
-      expect(base.endMm - base.startMm, `${key} ${base.id} span`).toBe(
-        base.widthMm,
-      );
-      expect(CATALOG.has(base.buildId), `${key} ${base.id} build`).toBe(true);
-      if (base.role === "storage" && base.id !== "bottle") {
-        expect(
-          /^(storage|column):[AB]:\d+$/.test(base.id),
-          `${key} ${base.id} ancillary id`,
-        ).toBe(true);
-      }
-      cursor = base.endMm;
-    }
-    expect(plan.floorWidthsMm[wall], `${key} ${wall} floor widths`).toEqual(
-      bases.map((base) => base.widthMm),
-    );
-    expect(plan.remainderMm[wall], `${key} ${wall} remainder`).toBe(
-      runs[wall].endMm - cursor,
-    );
-  }
-}
-
 function roomFromKey(key: string): DesignRoom {
   const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
   if (
@@ -186,6 +99,8 @@ describe("the whole plan before 7D5's width change", () => {
   it("keeps the exact pre-S1 plan for every room where S1 omits the bottle", () => {
     let exactNoBottleComparisons = 0;
     let normalizedBottleComparisons = 0;
+    let panDrawerComparisons = 0;
+    let panDrawerWithoutBottleComparisons = 0;
     for (const [key, recorded] of RECORDING.rooms) {
       const room = roomFromKey(key);
       expect(roomKey(room)).toBe(key);
@@ -198,17 +113,112 @@ describe("the whole plan before 7D5's width change", () => {
       const hasBottle = plan.bases.some(
         (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
       );
-      if (hasBottle) {
-        normalizedBottleComparisons += 1;
-        assertOnlyTheBottleChanged(key, room, plan, recorded);
+      const hasPanDrawer = plan.bases.some(
+        (base) => base.buildId === PAN_DRAWER_BODY,
+      );
+      if (hasBottle || hasPanDrawer) {
+        if (hasBottle) normalizedBottleComparisons += 1;
+        if (hasPanDrawer) panDrawerComparisons += 1;
+        if (hasPanDrawer && !hasBottle) panDrawerWithoutBottleComparisons += 1;
+        assertOnlyTheBottleAndPanDrawerChanged(key, room, plan, recorded);
       } else {
         exactNoBottleComparisons += 1;
         expect(composed, key).toBe(recorded);
       }
     }
 
+    // 7D5 S2, Q-H6b / Q-H6c: the pan drawer is decided first and the bottle gives way to it and to
+    // the block, so 78 rooms that stood a bottle alone now stand the pan drawer alone. They leave
+    // the bottle arm (390 → 312) for the classifier's pan-drawer-without-bottle arm, and no room
+    // joins or leaves the exact arm — the 90 without either are what S1 left whole.
     expect(exactNoBottleComparisons).toBe(90);
-    expect(normalizedBottleComparisons).toBe(390);
+    expect(normalizedBottleComparisons).toBe(312);
+    expect(panDrawerComparisons).toBe(210);
+    expect(panDrawerWithoutBottleComparisons).toBe(78);
+    expect(
+      exactNoBottleComparisons +
+        normalizedBottleComparisons +
+        panDrawerWithoutBottleComparisons,
+    ).toBe(RECORDING.runs);
+  });
+
+  // 7D5 S2 / Q-H6a: witnesses that the pan-drawer arm of the classifier is not vacuous. Each mutation
+  // keeps both runs contiguous, so it is the pan-drawer clauses rather than the structure that reject it.
+  it.each(PAN_DRAWER_CORRUPTION_CASES)(
+    "rejects a pan-drawer room where %s",
+    (_, rejectingClause, mutate) => {
+      const { key, room, recorded, plan } =
+        firstPanDrawerRoomWithASlotAfterTheHob();
+      mutate(plan);
+
+      expect(() => {
+        assertOnlyTheBottleAndPanDrawerChanged(
+          key,
+          room,
+          plan as unknown as KitchenCompositionPlan,
+          recorded,
+        );
+      }).toThrow(rejectingClause);
+    },
+  );
+
+  // 7D5 S2 / Q-H6b / Q-H6c: witnesses that the arm admitting a pan drawer without the bottle is still
+  // strict. Each mutation keeps both runs contiguous — floor widths and remainder follow the module
+  // removed — so the clause named is what rejects it.
+  it("rejects a pan drawer without the bottle whose block lost a tall column (Q-H6c)", () => {
+    const { key, room, recorded, plan } = firstRoomWhere(
+      (bases) =>
+        !bases.some((base) => base.id === "bottle") &&
+        bases.some((base) => base.id === "pan-drawer") &&
+        bases.some((base) => base.role === "storage" && isTallColumn(base)),
+    );
+    removeOutermostModulesOfTheHobWall(plan, 1);
+
+    expect(() => {
+      assertOnlyTheBottleAndPanDrawerChanged(
+        key,
+        room,
+        plan as unknown as KitchenCompositionPlan,
+        recorded,
+      );
+    }).toThrow(/tall columns kept once the pan drawer stands/);
+  });
+
+  it("rejects a bottle alone that cost the hob's wall two modules (N5b)", () => {
+    const { key, room, recorded, plan } = firstRoomWhere(
+      (bases) =>
+        bases.some((base) => base.id === "bottle") &&
+        !bases.some((base) => base.id === "pan-drawer") &&
+        modulesAfterTheHob(bases) >= 2,
+    );
+    removeOutermostModulesOfTheHobWall(plan, 2);
+
+    expect(() => {
+      assertOnlyTheBottleAndPanDrawerChanged(
+        key,
+        room,
+        plan as unknown as KitchenCompositionPlan,
+        recorded,
+      );
+    }).toThrow(/modules lost/);
+  });
+
+  it("rejects a plan with neither a bottle nor a pan drawer rather than reading it", () => {
+    const { key, room, recorded, plan } = firstRoomWhere(
+      (bases) =>
+        bases.some((base) => base.id === "bottle") &&
+        !bases.some((base) => base.id === "pan-drawer"),
+    );
+    plan.bases = plan.bases.filter((base) => base.id !== "bottle");
+
+    expect(() => {
+      assertOnlyTheBottleAndPanDrawerChanged(
+        key,
+        room,
+        plan as unknown as KitchenCompositionPlan,
+        recorded,
+      );
+    }).toThrow(/bottle count/);
   });
 
   it.each(CORRUPTION_CASES)(
@@ -235,7 +245,7 @@ describe("the whole plan before 7D5's width change", () => {
       mutate(plan);
 
       expect(() => {
-        assertOnlyTheBottleChanged(
+        assertOnlyTheBottleAndPanDrawerChanged(
           key,
           room,
           plan as unknown as KitchenCompositionPlan,
@@ -273,6 +283,169 @@ interface MutablePlan {
     endMm: number;
     widthMm: number;
   }[];
+}
+
+type MutableBase = MutablePlan["bases"][number];
+
+const PAN_DRAWER_CORRUPTION_CASES: readonly (readonly [
+  string,
+  RegExp,
+  (plan: MutablePlan) => void,
+])[] = [
+  [
+    "the hob moved 600 mm with no pan drawer standing",
+    /core geometry/,
+    (plan: MutablePlan): void => {
+      const panDrawer = baseWithId(plan, "pan-drawer");
+      // Re-indexed from a slot the composer wrote on the same wall, so this file never spells the
+      // slot-id convention itself (7D4 criterion 22's guard counts every test that does).
+      const slotOnTheSameWall = plan.bases.find(
+        (base) => base.wall === panDrawer.wall && STORAGE_SLOT_ID.test(base.id),
+      );
+      if (slotOnTheSameWall === undefined) {
+        throw new Error("the witness has no slot on the pan drawer's wall");
+      }
+      panDrawer.id = slotOnTheSameWall.id.replace(/\d+$/, "99");
+      panDrawer.buildId = "base-3drawer";
+    },
+  ],
+  [
+    "the pan drawer stands after the hob instead of before it",
+    /core geometry/,
+    (plan: MutablePlan): void => {
+      const panDrawer = baseWithId(plan, "pan-drawer");
+      const hob = baseWithRole(plan, "hob");
+      const hobStartMm = hob.startMm;
+      hob.startMm = panDrawer.startMm;
+      hob.endMm = hob.startMm + hob.widthMm;
+      panDrawer.startMm = hob.endMm;
+      panDrawer.endMm = panDrawer.startMm + panDrawer.widthMm;
+      expect(panDrawer.endMm).toBe(hobStartMm + hob.widthMm);
+    },
+  ],
+  [
+    "the first storage slot after the hob changed its body",
+    /storage slots/,
+    (plan: MutablePlan): void => {
+      const hob = baseWithRole(plan, "hob");
+      const slot = plan.bases
+        .filter((base) => base.wall === hob.wall)
+        .filter((base) => STORAGE_SLOT_ID.test(base.id))
+        .sort((left, right) => left.startMm - right.startMm)[0];
+      if (slot === undefined) throw new Error("the witness has no slot");
+      slot.buildId =
+        slot.buildId === "base-cabinet" ? "base-3drawer" : "base-cabinet";
+    },
+  ],
+  [
+    "the pan drawer is a second one",
+    /pan drawer count/,
+    (plan: MutablePlan): void => {
+      const hob = baseWithRole(plan, "hob");
+      const slot = plan.bases.find(
+        (base) => base.wall === hob.wall && STORAGE_SLOT_ID.test(base.id),
+      );
+      if (slot === undefined) throw new Error("the witness has no slot");
+      slot.buildId = PAN_DRAWER_BODY;
+    },
+  ],
+];
+
+function firstPanDrawerRoomWithASlotAfterTheHob(): {
+  readonly key: string;
+  readonly room: DesignRoom;
+  readonly recorded: string;
+  readonly plan: MutablePlan;
+} {
+  for (const [key, recorded] of RECORDING.rooms) {
+    const room = roomFromKey(key);
+    const plan = planKitchenComposition({
+      room,
+      runs: lShellFloorRuns(room),
+      columns: DECLARED_COLUMNS,
+    });
+    const hob = plan.bases.find((base) => base.role === "hob");
+    const hasPanDrawer = plan.bases.some((base) => base.id === "pan-drawer");
+    const hasSlotAfterTheHob = plan.bases.some(
+      (base) => base.wall === hob?.wall && STORAGE_SLOT_ID.test(base.id),
+    );
+    if (hasPanDrawer && hasSlotAfterTheHob) {
+      const mutable = structuredClone(plan) as unknown as MutablePlan;
+      return { key, room, recorded, plan: mutable };
+    }
+  }
+  throw new Error("the recording has no pan-drawer room with a storage slot");
+}
+
+/** The first recorded room whose current plan's bases satisfy `isWanted`, with a mutable copy. */
+function firstRoomWhere(
+  isWanted: (bases: KitchenCompositionPlan["bases"]) => boolean,
+): {
+  readonly key: string;
+  readonly room: DesignRoom;
+  readonly recorded: string;
+  readonly plan: MutablePlan;
+} {
+  for (const [key, recorded] of RECORDING.rooms) {
+    const room = roomFromKey(key);
+    const plan = planKitchenComposition({
+      room,
+      runs: lShellFloorRuns(room),
+      columns: DECLARED_COLUMNS,
+    });
+    if (isWanted(plan.bases)) {
+      const mutable = structuredClone(plan) as unknown as MutablePlan;
+      return { key, room, recorded, plan: mutable };
+    }
+  }
+  throw new Error(
+    "the 7D5 pre-width recording holds no room of the witnessed shape",
+  );
+}
+
+function isTallColumn(base: { readonly buildId: string }): boolean {
+  return CATALOG.get(base.buildId)?.band === "column";
+}
+
+function modulesAfterTheHob(bases: KitchenCompositionPlan["bases"]): number {
+  const hob = bases.find((base) => base.role === "hob");
+  return bases.filter(
+    (base) =>
+      base.wall === hob?.wall &&
+      base.startMm >= hob.endMm &&
+      base.id !== "bottle",
+  ).length;
+}
+
+/** Drops the `count` outermost modules of the hob's wall and keeps the run contiguous: its floor
+ *  widths lose their last entries and its remainder gains their width. */
+function removeOutermostModulesOfTheHobWall(
+  plan: MutablePlan,
+  count: number,
+): void {
+  const wall = baseWithRole(plan, "hob").wall;
+  const outermost = plan.bases
+    .filter((base) => base.wall === wall)
+    .sort((left, right) => right.startMm - left.startMm)
+    .slice(0, count);
+  plan.bases = plan.bases.filter((base) => !outermost.includes(base));
+  plan.floorWidthsMm[wall].splice(-count, count);
+  plan.remainderMm[wall] += outermost.reduce(
+    (sum, base) => sum + base.widthMm,
+    0,
+  );
+}
+
+function baseWithId(plan: MutablePlan, id: string): MutableBase {
+  const base = plan.bases.find((candidate) => candidate.id === id);
+  if (!base) throw new Error(`the mutation witness composes no ${id}`);
+  return base;
+}
+
+function baseWithRole(plan: MutablePlan, role: string): MutableBase {
+  const base = plan.bases.find((candidate) => candidate.role === role);
+  if (!base) throw new Error(`the mutation witness composes no ${role}`);
+  return base;
 }
 
 function firstBase(plan: MutablePlan): MutablePlan["bases"][number] {

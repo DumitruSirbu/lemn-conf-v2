@@ -84,9 +84,9 @@ describe("criterion 6 — a storage slot has two bodies to take, and the pan dra
   });
 
   it("leaves the pan drawer outside the pair, so no storage slot can take it in this wave", () => {
-    // Kept as a declaration against 7D5's drawer group (Amendment H1) and placed by nothing here.
-    // Pinned at the one site that names it, because the constant surviving with no caller is
-    // exactly what makes a later reader reach for it.
+    // 7D5 S2 gave the constant its caller (ADR 0110 Amendment J1), and it is a run item of its own
+    // read immediately before the hob — never a body a storage slot is given. That placement is
+    // asserted in `pan-drawer-before-the-hob.test.ts`; what stays true here is the pair's edge.
     expect(BODIES_A_STORAGE_SLOT_MAY_TAKE).not.toContain(
       PAN_DRAWER_BASE_BUILD_ID,
     );
@@ -155,10 +155,22 @@ function planFor(room: DesignRoom) {
  *  the column band that the storage run did not compose (M7 wave 7D5 S1). */
 const BOTTLE_CARGO_CATALOGUE_ID = "base-bottle-cargo";
 
+/** The pan-drawer cabinet's catalogue row, spelled for the same reason as the cargo's. It is the
+ *  second storage-role body outside the column band that the storage run did not compose: the
+ *  composer reads it immediately before the hob as a run item of its own (M7 wave 7D5 S2, ADR 0110
+ *  Amendment J1), so a slot set built by exclusion would otherwise sweep it in. */
+const PAN_DRAWER_CATALOGUE_ID = "base-panbank";
+
+/** Storage-role bodies the composer reads as run items of their own rather than as slots. */
+const ANCILLARY_CATALOGUE_IDS: ReadonlySet<string> = new Set([
+  BOTTLE_CARGO_CATALOGUE_ID,
+  PAN_DRAWER_CATALOGUE_ID,
+]);
+
 /** A module's provenance found **independently of its id**, so the two sides of every assertion
  *  below come from different sources: the block's columns are the storage-role modules the catalogue
- *  declares in the `column` band, the bottle cargo is its own catalogue row, and the storage run's are
- *  the rest. `fridge-free` is a column too and is
+ *  declares in the `column` band, the bottle cargo and the pan drawer are each their own catalogue
+ *  row, and the storage run's are the rest. `fridge-free` is a column too and is
  *  excluded by its role, which is Amendment A1's and not the block's. */
 function storageRoleModulesByBand(plan: ReturnType<typeof planFor>) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
@@ -172,8 +184,11 @@ function storageRoleModulesByBand(plan: ReturnType<typeof planFor>) {
     bottleCargos: outsideTheColumnBand.filter(
       (base) => base.buildId === BOTTLE_CARGO_CATALOGUE_ID,
     ),
+    panDrawers: outsideTheColumnBand.filter(
+      (base) => base.buildId === PAN_DRAWER_CATALOGUE_ID,
+    ),
     composedSlots: outsideTheColumnBand.filter(
-      (base) => base.buildId !== BOTTLE_CARGO_CATALOGUE_ID,
+      (base) => !ANCILLARY_CATALOGUE_IDS.has(base.buildId),
     ),
   };
 }
@@ -193,14 +208,16 @@ describe("criterion 22 — one predicate separates the storage run's slots from 
     let composedSlotsSeen = 0;
     let blockColumnsSeen = 0;
     let bottleCargosSeen = 0;
+    let panDrawersSeen = 0;
 
     for (const room of BLOCK_SIZE_WITNESSES) {
       const plan = planFor(room);
-      const { blockColumns, bottleCargos, composedSlots } =
+      const { blockColumns, bottleCargos, panDrawers, composedSlots } =
         storageRoleModulesByBand(plan);
       composedSlotsSeen += composedSlots.length;
       blockColumnsSeen += blockColumns.length;
       bottleCargosSeen += bottleCargos.length;
+      panDrawersSeen += panDrawers.length;
 
       expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
         composedSlots,
@@ -209,12 +226,28 @@ describe("criterion 22 — one predicate separates the storage run's slots from 
       // The bottle carries the storage role and stands outside the column band, so it is the module a
       // predicate keyed on role and band would sweep in; the storage run did not compose it.
       expect(bottleCargos.filter(isComposedStorageSlot)).toEqual([]);
+      // The pan drawer is the same shape of trap as the bottle, one storage module wide besides — so
+      // a predicate keyed on role, band or width would call it a slot. The composer placed it.
+      expect(panDrawers.filter(isComposedStorageSlot)).toEqual([]);
     }
 
-    expect({ composedSlotsSeen, blockColumnsSeen, bottleCargosSeen }).toEqual({
-      composedSlotsSeen: 12,
+    // 7D5 S2 moved the composed-slot count from 12 to 11: the 6300 x 4700 witness gives its hob's
+    // wall one 600 mm module to the pan drawer (ADR 0110 Amendment J1, Q-H6 = A). Q-H6b then moved
+    // one bottle to a pan drawer: 3300 x 1600 drops its fridge, so its wall A run of 2400 mm holds the
+    // 1800 mm core with either the 600 mm pan drawer or the 300 mm bottle but not both (2700 mm), and
+    // the pan drawer is decided first. Its 300 mm remainder becomes 0; no slot moves. Counted
+    // separately, so a pan drawer that the predicate — or this file's grouping — mistook for a slot
+    // moves two numbers rather than hiding in one.
+    expect({
+      composedSlotsSeen,
+      blockColumnsSeen,
+      bottleCargosSeen,
+      panDrawersSeen,
+    }).toEqual({
+      composedSlotsSeen: 11,
       blockColumnsSeen: 6,
-      bottleCargosSeen: 4,
+      bottleCargosSeen: 3,
+      panDrawersSeen: 2,
     });
   });
 

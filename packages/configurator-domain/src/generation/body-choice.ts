@@ -26,9 +26,11 @@
 // (H6); the bottle cabinet and the second drawer cabinet are 7D5's, and both are width changes.
 //
 // **The second question this module answers is *whose module is this?*** After wave 7D3 the storage
-// **role** has two referents: the storage run's slots, and the full-height columns of the block at
-// wall A's free end, which carry `role: "storage"` deliberately so frame 1F's row set does not move
-// (ADR 0110 E5.2). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
+// **role** has four referents: the storage run's composed slots (`storage:<wall>:<n>`), the
+// full-height columns of the block at the suffix wall's free end (Amendment I: the block follows the
+// run, not the letter A), which carry `role: "storage"` deliberately so frame 1F's row set does not
+// move (ADR 0110 E5.2), and since wave 7D5 the bottle cabinet (`bottle`) and the pan drawer
+// (`pan-drawer`). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
 // of them and one scoped by width on 14.9 % — in both cases against output that is **correct**, so
 // the failure presents as a defect in a closed wave. A slot is therefore identified by **what
 // composed it**; `isComposedStorageSlot` is the only answer to that question, and this is the only
@@ -52,18 +54,23 @@ export const DOOR_BASE_BUILD_ID = "base-cabinet";
 export const THREE_DRAWER_BASE_BUILD_ID = "base-3drawer";
 
 /** The fixed-width cargo that stands immediately after the hob in the reading order when the same
- * core kitchen still fits. Its offered widths remain catalogue data; this leaf names only the body
- * chosen by the composer. */
+ * core kitchen, and the pan drawer where it stood, still fit (ADR 0110 Q-H6b). Once the pan drawer
+ * stands, the bottle gives way rather than cost that kitchen a tall column (Q-H6c). Its offered widths
+ * remain catalogue data; this leaf names only the body chosen by the composer. */
 export const BOTTLE_CARGO_BUILD_ID = "base-bottle-cargo";
 
 /** Two deep pan drawers — a genuinely different product from the three-drawer base rather than the
  *  same row at another size, which is what lets the drawer group carry two types.
  *
- *  **Generation places it nowhere in this wave and it is kept anyway**, reversing ADR 0110 G7's
- *  ruling that a constant with no reader is dead configuration. G7 was right while the rule composed
- *  one drawer per kitchen; under the owner's run order the drawer group astride the hob takes a
- *  second member (H1), and 7D5 is the wave that places it. **ADR 0118 is not violated**: the caller
- *  is a planned wave behind a dated owner ruling, not a hazard someone imagined. */
+ *  **It stands immediately before the hob in the reading order, on the hob's wall**, wherever that
+ *  keeps every core role on its wall and costs no tall column against the run it is decided against
+ *  (the core alone, or in ADR 0110 K3's fallback the bottle kitchen) — `generation-priorities.ts` composes
+ *  it there under the owner's Q-H6 = A (ADR 0110 Amendment J1, wave 7D5 slice S2) — and where it
+ *  and the bottle cabinet cannot both stand, it wins (ADR 0110 Q-H6b: bottles fit in the cabinet
+ *  above it, while a whole deep drawer holds far more). ~~Generation places it nowhere in this wave
+ *  and it is kept anyway~~ — 7D4's note, retired rather than deleted: it reversed ADR 0110 G7's
+ *  ruling that a constant with no reader is dead configuration, on the promise that the drawer group
+ *  astride the hob takes a second member (H1), and that promise is now kept. */
 export const PAN_DRAWER_BASE_BUILD_ID = "base-panbank";
 
 /** The id `storagePriorities` writes for a module the storage run composed. Declared here because
@@ -77,7 +84,8 @@ export interface ComposedModuleIdentity {
 }
 
 /**
- * Did the **storage run** compose this module, as opposed to the tall-end block?
+ * Did the **storage run** compose this module, as opposed to a tall-end block column, the bottle
+ * cabinet or the pan drawer — the other three modules that carry `role: "storage"`?
  *
  * **Neither the role nor the width can answer this**, and both look as though they can: a block
  * column carries `role: "storage"` by ADR 0110 E5.2, and E6.2 lets its outermost column absorb the

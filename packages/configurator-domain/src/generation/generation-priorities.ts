@@ -3,6 +3,7 @@ import { wallLengthMm } from "../queries/overflowing-placements.js";
 import {
   BOTTLE_CARGO_BUILD_ID,
   DOOR_BASE_BUILD_ID,
+  PAN_DRAWER_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
@@ -10,6 +11,7 @@ import {
   planTallEndBlock,
   type DeclaredColumnSizes,
   type PlannedTallColumn,
+  type TallEndPlan,
 } from "./tall-end-rule.js";
 
 export type GenerationCoreRole = "fridge" | "sink" | "preparation" | "hob";
@@ -88,21 +90,45 @@ export const GENERATION_PRIORITIES: readonly GenerationPriority[] = [
 /** ADR 0110 Amendment H1: the 300 mm cargo follows the hob in the reading order. It is an optional
  * member of the run rather than a core role: the planner omits it when the same kept core cannot fit,
  * and places it only where every kept core role stays on the wall it has without the bottle (ADR 0120
- * Amendment E). With the whole core on the prefix wall it stands on the hob's wall or not at all,
- * because the owner's order reads it right after the hob and ADR 0110 Amendment J3 (the reversed-wall
- * ruling) accepts that it costs that wall one storage slot — a population empty in the approved range.
- * The catalogue remains the authority for the row's offered 200/300 mm set; 300 mm here is the
- * owner-ruled module the generated run chooses, just as the priorities above choose their widths.
+ * Amendment E). Where the pan drawer stood against the core alone, the bottle is decided after it and
+ * gives way to it (ADR 0110 Q-H6b) and to every tall column the pan-drawer kitchen has (Q-H6c: a pan
+ * drawer and the whole block over a bottle and one column fewer). Everywhere else S1's rule holds and
+ * it may still cost a storage slot or a tall column (E3, J2). With the whole core on the prefix wall
+ * it stands on the hob's wall or not at all, because the owner's order reads it right after the hob
+ * and ADR 0110 Amendment J3 (the reversed-wall ruling) accepts that it costs that wall one storage
+ * slot — a population empty in the approved range. The catalogue remains the authority for the row's
+ * offered 200/300 mm set; 300 mm here is the owner-ruled module the generated run chooses, just as the
+ * priorities above choose their widths.
  *
  * Standing last on its wall is safe even when the trailing run-end remainder merges with the bottle's
  * tile into one wider floor opening: `plannedVoid` in `generate-kitchen.ts` accepts an
  * opening at the same start whose end reaches at least the body's end, and a trailing remainder only
- * extends the opening's end, never moves its start. */
+ * extends the opening's end, never moves its start. That argument now carries weight only outside the
+ * approved policy: inside it, Q-H6b stands the pan drawer where a 500 mm remainder would have been, so
+ * the widest in-policy merge is 300 mm. */
 const BOTTLE_CARGO: GenerationAncillaryRunItem = {
   id: "bottle",
   role: "storage",
   buildId: BOTTLE_CARGO_BUILD_ID,
   widthMm: 300,
+};
+
+/** ADR 0110 Amendment J1 (Q-H6 = A) and Q-H6b (owner rulings 2026-09-21): two deep pan drawers stand
+ * immediately before the hob in the reading order, on the hob's own wall, wherever that keeps every
+ * kept core role on the wall it has without it and reduces no tall column, both measured against the
+ * run it is decided against: the core alone, or, in the ADR 0110 K3 fallback, S1's bottle kitchen.
+ * Nothing else gates it — no drawer count and no proportion (Amendment G6, H7). It is one storage
+ * module wide, so the leftover rule's 600 mm grid is what it takes from, and where it takes the hob
+ * wall's only slot the drawer slot after the hob is gone. It is decided **before** the bottle, against
+ * the run without it, and wins where the two cannot both stand: bottles fit in the cabinet above it,
+ * while a whole deep drawer holds far more (Q-H6b); nor does the bottle then take a tall column from
+ * it (Q-H6c). Where it is refused against the core alone, it is tried again after S1's bottle, and
+ * stands where it costs that bottle kitchen nothing, so a room that holds both keeps both. */
+const PAN_DRAWER: GenerationAncillaryRunItem = {
+  id: "pan-drawer",
+  role: "storage",
+  buildId: PAN_DRAWER_BASE_BUILD_ID,
+  widthMm: STORAGE_BODY_WIDTH_MM,
 };
 
 /** The hob body that carries its own oven, which is what a kitchen keeps whenever no oven tower
@@ -175,8 +201,10 @@ export function planKitchenComposition(input: {
     const cut = chooseWallCut(kept, capacityByRole);
     if (cut === undefined) continue;
 
-    const run = withBottleWhereTheCoreStays(kept, cut, capacityByRole);
-    return builtPlan({ ...input, walls, kept, ...run });
+    return planWithPanDrawerThenBottle(
+      { basis: { ...input, walls, kept }, capacityMm: capacityByRole },
+      { ordered: kept, cut },
+    );
   }
 
   return {
@@ -189,34 +217,161 @@ export function planKitchenComposition(input: {
   };
 }
 
-/** The kept core with the bottle appended across a cut that leaves every kept role on the wall it
- *  had without the bottle, or the kept core alone where no such cut fits. Testing those cuts directly,
- *  rather than asking `chooseWallCut` to re-prefer one, is what lets a bottle stand when the whole
- *  core is on the prefix wall; and no core role can be refused, dropped or carried off the wider wall
- *  by it (ADR 0120 Amendment E). */
-function withBottleWhereTheCoreStays(
-  kept: readonly GenerationPriority[],
-  coreCut: number,
-  capacityMm: WallCapacities,
-): { readonly ordered: readonly GenerationRunItem[]; readonly cut: number } {
-  const withBottle = [...kept, BOTTLE_CARGO];
-  const cut = bottleCutsKeepingTheCoreInPlace(kept.length, coreCut).find(
-    (candidate) => fitsAcrossTheCorner(withBottle, candidate, capacityMm),
-  );
-  return cut === undefined
-    ? { ordered: kept, cut: coreCut }
-    : { ordered: withBottle, cut };
+/** Which run a plan is composed from, and what it is composed against. */
+interface CompositionContext {
+  readonly basis: PlanBasis;
+  readonly capacityMm: WallCapacities;
 }
 
-/** The bottle is the last item read, so the core cut always leaves the core in place. Where that cut
- *  takes every kept role onto the prefix wall, the only cut offered stands the bottle there too, on
- *  the hob's wall (ADR 0110 Amendments H1 and J3); the core cut would put it alone at the other
- *  wall's corner — next in reading order but not beside the hob — so it is omitted instead. */
-function bottleCutsKeepingTheCoreInPlace(
-  keptCount: number,
-  coreCut: number,
-): readonly number[] {
-  return coreCut === keptCount ? [keptCount + 1] : [coreCut];
+/** The pan drawer is decided first, against the kept core alone. Where it stands there, the bottle
+ *  follows only where it costs that kitchen no tall column — so where the two cannot both stand the
+ *  pan drawer wins (ADR 0110 Q-H6b), and it keeps the block (Q-H6c). Where it does not, S1's bottle
+ *  is decided first and the pan drawer is tried beside it (coordinator ruling on Q-H6b's scope). */
+function planWithPanDrawerThenBottle(
+  context: CompositionContext,
+  core: RunLayout,
+): KitchenCompositionPlan {
+  const panDrawerFirst = withPanDrawerWhereNothingIsLost(context, core);
+  const run = hasPanDrawer(panDrawerFirst)
+    ? withBottleWhereNoColumnIsLost(context, panDrawerFirst)
+    : withPanDrawerWhereNothingIsLost(
+        context,
+        withBottleWhereTheCoreStays(core, context.capacityMm),
+      );
+  return builtPlan({ ...context.basis, ...run });
+}
+
+function hasPanDrawer(run: RunLayout): boolean {
+  return run.ordered.includes(PAN_DRAWER);
+}
+
+/** The run with `PAN_DRAWER` read immediately before the hob where `isPanDrawerAffordable` holds
+ *  against it, and the run unchanged otherwise. Only the cut that keeps every other item on its wall
+ *  is offered: a pan drawer that fits only by re-cutting the core would carry a role across the
+ *  corner. */
+function withPanDrawerWhereNothingIsLost(
+  context: CompositionContext,
+  without: RunLayout,
+): RunLayout {
+  const withPanDrawer = withPanDrawerBeforeTheHob(without);
+  return isPanDrawerAffordable(context, { withPanDrawer, without })
+    ? withPanDrawer
+    : without;
+}
+
+/**
+ * **The pan drawer's condition, and the one place it is stated** (ADR 0110 Amendment J1, candidate
+ * A): it stands where it fits in place and the tall block keeps every column it has without it. Every
+ * core role keeping its wall is guaranteed by the in-place construction, not checked here (ADR 0093
+ * decision 1). The fit is tested first because a run that overflows its wall has no leftover to plan.
+ * Candidate C would be one more conjunct — *D* ≥ 6 — and the owner refused it.
+ */
+function isPanDrawerAffordable(
+  context: CompositionContext,
+  runs: { readonly withPanDrawer: RunLayout; readonly without: RunLayout },
+): boolean {
+  const { withPanDrawer, without } = runs;
+  return (
+    fitsAcrossTheCorner(
+      withPanDrawer.ordered,
+      withPanDrawer.cut,
+      context.capacityMm,
+    ) && costsNoTallColumn(context.basis, { candidate: withPanDrawer, without })
+  );
+}
+
+/** Does the candidate run's tall-end block keep every column the run without its addition has? Read
+ *  only on runs already known to fit, because a run that overflows its wall has no leftover to plan. */
+function costsNoTallColumn(
+  basis: PlanBasis,
+  runs: { readonly candidate: RunLayout; readonly without: RunLayout },
+): boolean {
+  return (
+    tallColumnCountOf(basis, runs.candidate) >=
+    tallColumnCountOf(basis, runs.without)
+  );
+}
+
+function tallColumnCountOf(basis: PlanBasis, run: RunLayout): number {
+  return tallEndBlockOf({ ...basis, ...run }).columns.length;
+}
+
+/** `PAN_DRAWER` inserted immediately before the hob in the reading order, on the hob's side of the
+ *  cut: where the hob reads on the prefix wall the cut moves one item later so the pan drawer stays
+ *  there with it, and every other item keeps its wall either way. */
+function withPanDrawerBeforeTheHob(run: RunLayout): RunLayout {
+  const hobAt = run.ordered.findIndex((item) => item.role === HOB_ROLE);
+  return {
+    ordered: [
+      ...run.ordered.slice(0, hobAt),
+      PAN_DRAWER,
+      ...run.ordered.slice(hobAt),
+    ],
+    cut: hobAt < run.cut ? run.cut + 1 : run.cut,
+  };
+}
+
+/** S1's bottle: the kept core with the bottle appended across a cut that leaves every kept role on
+ *  the wall it had without the bottle, or the core unchanged where that cut does not fit. Testing
+ *  that cut directly, rather than asking `chooseWallCut` to re-prefer one, is what lets a bottle stand
+ *  when the whole core is on the prefix wall; and no core role can be refused, dropped or carried off
+ *  the wider wall by it (ADR 0120 Amendment E). */
+function withBottleWhereTheCoreStays(
+  run: RunLayout,
+  capacityMm: WallCapacities,
+): RunLayout {
+  const withBottle = withBottleAfterTheHob(run);
+  return isBottleAffordable(withBottle, capacityMm) ? withBottle : run;
+}
+
+/** The pan-drawer run with the bottle appended after the hob where
+ *  `isBottleAffordableBesideThePanDrawer` holds, and the run unchanged otherwise. */
+function withBottleWhereNoColumnIsLost(
+  context: CompositionContext,
+  without: RunLayout,
+): RunLayout {
+  const withBottle = withBottleAfterTheHob(without);
+  return isBottleAffordableBesideThePanDrawer(context, { withBottle, without })
+    ? withBottle
+    : without;
+}
+
+/** **The bottle's condition once the pan drawer stands** (ADR 0110 Q-H6c): S1's own condition, and
+ *  the tall block keeps every column the pan-drawer kitchen has — the owner chose the pan drawer and
+ *  the whole block over the pan drawer, a bottle and one column fewer. */
+function isBottleAffordableBesideThePanDrawer(
+  context: CompositionContext,
+  runs: { readonly withBottle: RunLayout; readonly without: RunLayout },
+): boolean {
+  const { withBottle, without } = runs;
+  return (
+    isBottleAffordable(withBottle, context.capacityMm) &&
+    costsNoTallColumn(context.basis, { candidate: withBottle, without })
+  );
+}
+
+/** **S1's bottle condition, and the one place it is stated** (ADR 0110 Amendments J2 and J3): it
+ *  stands where its in-place cut fits. On its own it may cost a storage slot or a tall column (E3), so
+ *  neither is compared here — only `isBottleAffordableBesideThePanDrawer` adds the column (Q-H6c);
+ *  every earlier item keeping its wall is guaranteed by the construction. */
+function isBottleAffordable(
+  withBottle: RunLayout,
+  capacityMm: WallCapacities,
+): boolean {
+  return fitsAcrossTheCorner(withBottle.ordered, withBottle.cut, capacityMm);
+}
+
+/** The bottle is the last item read, and the hob the last before it, so the run's own cut always
+ *  leaves every earlier item in place. Where that cut takes the whole run onto the prefix wall, the
+ *  bottle stands there too, on the hob's wall (ADR 0110 Amendments H1 and J3); the run's cut would put
+ *  it alone at the other wall's corner — next in reading order but not beside the hob — so where the
+ *  prefix wall cannot take it, it is omitted instead. */
+function withBottleAfterTheHob(run: RunLayout): RunLayout {
+  const isWholeRunOnThePrefixWall = run.cut === run.ordered.length;
+  return {
+    ordered: [...run.ordered, BOTTLE_CARGO],
+    cut: isWholeRunOnThePrefixWall ? run.cut + 1 : run.cut,
+  };
 }
 
 /** Where the reading order splits between the two walls, in free run millimetres and never in wall
@@ -262,47 +417,33 @@ interface GenerationAncillaryRunItem {
   readonly widthMm: number;
 }
 
-function builtPlan(args: {
+/** Everything a plan is built from except how the run is read and cut across the corner. */
+interface PlanBasis {
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
   readonly columns: DeclaredColumnSizes;
   readonly walls: ReadingOrderWalls;
   readonly kept: readonly GenerationPriority[];
+}
+
+/** The run in reading order and where it splits: `ordered.slice(0, cut)` reads on the prefix wall. */
+interface RunLayout {
   readonly ordered: readonly GenerationRunItem[];
   readonly cut: number;
-}): KitchenCompositionPlan {
+}
+
+function builtPlan(args: PlanBasis & RunLayout): KitchenCompositionPlan {
   const { room, runs, kept, ordered, walls } = args;
   const onThePrefixWall = ordered.slice(0, args.cut);
   const onTheSuffixWall = ordered.slice(args.cut);
-  const hobStandsOnTheSuffixWall = onTheSuffixWall.some(
-    (item) => item.role === HOB_ROLE,
+  const hobStandsOnTheSuffixWall = includesTheHob(onTheSuffixWall);
+  const prefixLeftover = planLeftover(
+    runWidth(runs[walls.prefix]) - sumWidths(onThePrefixWall),
   );
-  const leftovers = {
-    prefix: planLeftover(
-      runWidth(runs[walls.prefix]) - sumWidths(onThePrefixWall),
-    ),
-    suffix: planLeftover(
-      runWidth(runs[walls.suffix]) - sumWidths(onTheSuffixWall),
-    ),
-  };
-
-  // ADR 0110 Amendment E, stage 3, as Amendment I re-points it: the block takes the **suffix** wall's
-  // outermost leftover modules — whichever physical wall that is, and the owner ruled it may be wall
-  // B — and the hob's build id follows from the same answer. Core selection and the leftover count
-  // above are what 7D2 made them (E5.1, E5.2); only the identity of those outermost modules changes,
-  // and in the absorb window one width with it.
-  const tallEnd = planTallEndBlock({
-    coreSurvivedWhole: kept.length === GENERATION_PRIORITIES.length,
-    hobStandsOnTheFreeEndWall: hobStandsOnTheSuffixWall,
-    freeEndStorageCount: leftovers.suffix.storageCount,
-    freeEndRemainderMm: leftovers.suffix.remainderMm,
-    roomHeightMm: room.heightMm,
-    hobWithItsOwnOvenBuildId: hobWithItsOwnOvenBuildId(),
-    declared: args.columns,
-  });
+  const tallEnd = tallEndBlockOf(args);
 
   const slotCounts = keyedOnWalls(walls, {
-    prefix: leftovers.prefix.storageCount,
+    prefix: prefixLeftover.storageCount,
     suffix: tallEnd.storageCount,
   });
   const drawerSlot = firstStorageSlotAfterTheHob({
@@ -349,10 +490,39 @@ function builtPlan(args: {
     ).map((item) => item.role),
     minimumMet: true,
     remainderMm: keyedOnWalls(walls, {
-      prefix: leftovers.prefix.remainderMm,
+      prefix: prefixLeftover.remainderMm,
       suffix: tallEnd.remainderMm,
     }),
   };
+}
+
+/**
+ * ADR 0110 Amendment E, stage 3, as Amendment I re-points it: the block takes the **suffix** wall's
+ * outermost leftover modules — whichever physical wall that is, and the owner ruled it may be wall B
+ * — and the hob's build id follows from the same answer. Core selection and the leftover count are
+ * what 7D2 made them (E5.1, E5.2); only the identity of those outermost modules changes, and in the
+ * absorb window one width with it. Also read on its own through `tallColumnCountOf`, which
+ * `costsNoTallColumn` uses to compare the block's column count with and without a candidate — for
+ * both `isPanDrawerAffordable` and `isBottleAffordableBesideThePanDrawer`.
+ */
+function tallEndBlockOf(args: PlanBasis & RunLayout): TallEndPlan {
+  const onTheSuffixWall = args.ordered.slice(args.cut);
+  const suffixLeftover = planLeftover(
+    runWidth(args.runs[args.walls.suffix]) - sumWidths(onTheSuffixWall),
+  );
+  return planTallEndBlock({
+    coreSurvivedWhole: args.kept.length === GENERATION_PRIORITIES.length,
+    hobStandsOnTheFreeEndWall: includesTheHob(onTheSuffixWall),
+    freeEndStorageCount: suffixLeftover.storageCount,
+    freeEndRemainderMm: suffixLeftover.remainderMm,
+    roomHeightMm: args.room.heightMm,
+    hobWithItsOwnOvenBuildId: hobWithItsOwnOvenBuildId(),
+    declared: args.columns,
+  });
+}
+
+function includesTheHob(items: readonly GenerationRunItem[]): boolean {
+  return items.some((item) => item.role === HOB_ROLE);
 }
 
 /**

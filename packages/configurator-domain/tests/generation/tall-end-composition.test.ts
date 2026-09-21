@@ -101,6 +101,23 @@ function coreShapeOf(plan: KitchenCompositionPlan) {
     }));
 }
 
+/** The pan drawer's own width (7D5 S2), and so the only distance the block may move the hob. */
+const PAN_DRAWER_WIDTH_MM = 600;
+
+function panDrawerCountOf(plan: KitchenCompositionPlan): number {
+  return plan.bases.filter((base) => base.buildId === "base-panbank").length;
+}
+
+function shiftedBy<
+  Span extends { readonly startMm: number; readonly endMm: number },
+>(span: Span, shiftMm: number): Span {
+  return {
+    ...span,
+    startMm: span.startMm + shiftMm,
+    endMm: span.endMm + shiftMm,
+  };
+}
+
 /**
  * The wall the run ends on, and the wall the block therefore stands at the free end of: the **wider
  * entered wall**, and wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I,
@@ -317,21 +334,39 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
 });
 
 describe("what the block must not disturb (criteria 12, 13)", () => {
-  it("leaves the surviving core, the dropped list and the wall cut exactly where 7D2 put them", () => {
+  // Second restatement of 7D3 criterion 12 (the first was 7D5 S1, ADR 0110 Amendment J4). 7D5 S2 (owner
+  // ruling 2026-09-21, Q-H6a = A): with no block the 600 mm pan drawer before the hob takes the
+  // module the block would have stood in, and the block never gives a column up for it, so the hob
+  // may stand exactly one pan drawer later in the rule-refused plan. Every core role still keeps its
+  // wall — so the cut is unchanged — and `dropped` is unchanged; no other core position may move.
+  it("leaves the surviving core, the dropped list and the wall cut where 7D2 put them, but for the pan drawer's shift of the hob", () => {
     let withABlock = 0;
+    let panDrawerOnlyWithoutTheBlock = 0;
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const withTheRule = planFor(room);
         const withoutIt = planFor(room, NO_ROOM_IS_TALL_ENOUGH);
         if (blockOf(withTheRule).length > 0) withABlock += 1;
+        const hobShiftMm =
+          PAN_DRAWER_WIDTH_MM *
+          (panDrawerCountOf(withTheRule) - panDrawerCountOf(withoutIt));
+        if (hobShiftMm !== 0) panDrawerOnlyWithoutTheBlock += 1;
 
         expect(withTheRule.minimumMet).toBe(withoutIt.minimumMet);
         expect(withTheRule.dropped).toEqual(withoutIt.dropped);
-        expect(coreShapeOf(withTheRule)).toEqual(coreShapeOf(withoutIt));
+        expect(coreShapeOf(withTheRule)).toEqual(
+          coreShapeOf(withoutIt).map((core) =>
+            core.role === "hob" ? shiftedBy(core, hobShiftMm) : core,
+          ),
+        );
       }),
       { numRuns: 300 },
     );
     expect(withABlock).toBeGreaterThanOrEqual(100);
+    expect(
+      panDrawerOnlyWithoutTheBlock,
+      "the pan-drawer arm never fired",
+    ).toBeGreaterThanOrEqual(50);
   });
 
   it("takes whole leftover modules and reports the bare wall the run actually leaves", () => {
