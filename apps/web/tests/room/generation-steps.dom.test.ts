@@ -381,6 +381,24 @@ describe("the not-placed row keeps the drawing R10 describes", () => {
 });
 
 /**
+ * **7D5b defect W7** — the compose body scrolls vertically and never horizontally.
+ *
+ * Russian at 390 x 844 outgrows the space above the fixed footer, and under `overflow: hidden` the
+ * rule paragraph was cut off and unreachable. happy-dom does no layout, so the overflow itself is the
+ * visual gate's to measure; what this guards is the declaration that makes it reachable, and the
+ * horizontal refusal of ADR 0082 decision 2 that a bare `overflow-y: auto` would silently drop.
+ */
+describe("the compose body scrolls vertically and only vertically (W7)", () => {
+  it("lets content taller than the space above the footer scroll into view", () => {
+    expect(declarationsFor("\\.composeBody")).toMatch(/overflow-y:\s*auto;/);
+  });
+
+  it("refuses a horizontal scroller", () => {
+    expect(declarationsFor("\\.composeBody")).toMatch(/overflow-x:\s*hidden;/);
+  });
+});
+
+/**
  * **QA finding F4** — the two states 1F reaches with no tap behind them are the two a live region
  * exists for, and the save-failed one is the one that also needs an action.
  *

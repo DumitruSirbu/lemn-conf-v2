@@ -644,13 +644,26 @@
  * darkened from the mockups' `#7d7a72` for WCAG AA on 2026-09-03, and the surfaces are the tokens
  * the frame's hexes are the source of.
  */
+
+/**
+ * **The composition scrolls vertically when it outgrows the space above the fixed footer** (7D5b
+ * defect W7). Russian at 390 x 844 with the fridge dropped wraps two rows and adds the dropped-roles
+ * sentence: the body's content measured 757 px against 709, and under `overflow: hidden` the rule
+ * paragraph was cut off with no way to reach it. The remedy is the one the owner chose for frame 1C
+ * (Q-7F2-2): the column scrolls, the footer stays put, nothing is removed or compressed.
+ *
+ * Both axes are declared because a lone `overflow-y: auto` computes `overflow-x` to `auto` as well,
+ * and ADR 0082 decision 2 refuses a horizontal scroller. `min-height: 0` is not declared: a flex item
+ * that is a scroll container already has an automatic minimum height of zero, so `flex: 1` bounds it.
+ */
 .composeBody {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 16px;
   padding: 20px 18px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .composeIntro {
