@@ -230,15 +230,34 @@
 
 /* ── Sub-state 1B (frame `:114-186`) ──────────────────────────────────────────────────────────── */
 
-/* The frame's own column (`:114`). `overflow: hidden` rather than a scroller: ADR 0082 decision 2
- * refuses `overflow-x: auto|scroll`, and the frame clips too. */
+/**
+ * The frame's own column (`:114`), **scrolling vertically when 1C outgrows it** — owner ruling
+ * Q-7F2-2 (a), the remedy `.composeBody` already carries (7D5b W7). A reason adds 64 px to its field
+ * and the note 18 px, against 2.6 px of slack in a U and 63 px in an L at 1B (7F2 S0), so under the
+ * frame's `overflow: hidden` a refused field or *Continuă*'s explanation would be cut off with no way
+ * to reach it. The column scrolls, the footer stays put, and nothing is removed or compressed.
+ *
+ * Both axes are declared because a lone `overflow-y: auto` computes `overflow-x` to `auto` as well,
+ * and ADR 0082 decision 2 refuses a horizontal scroller.
+ *
+ * **1C's surface colours are declared here**, where every surface that uses them sits: the pale fill
+ * of a refused field and of a reason, the reason's dark red ink, and the white of its `!` badge (frame
+ * 1C `:226`, `:228-229`). The red itself is the global `--refusal`. The column's gap is named so the
+ * empty status region can give exactly that much back.
+ */
 .dimensionsBody {
+  --dimensions-gap: 16px;
+  --refusal-surface: #fdf3f3;
+  --refusal-ink: #8f2020;
+  --refusal-badge-ink: #fff;
+
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--dimensions-gap);
   padding: 20px 18px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* The three shapes again, compressed (`:116-131`). The chip is 71 px tall, so the 44 px target is
@@ -330,10 +349,10 @@
  * instead of widening the document — the refusal ADR 0082 decision 2 states.
  */
 .planBox {
-  /* Frame 1C's red wall and its label (`Mobil.dc.html:210-211`), the frame's own `#dc2626` — the
-   * same red `editor-panel.module.css` marks a refusal with. Declared once: `plan-preview.tsx`
-   * fills a marked bar from it and the label below is set in it. */
-  --plan-wall-issue: #dc2626;
+  /* Frame 1C's red wall and its label (`Mobil.dc.html:210-211`), the global `--refusal` — the red a
+   * refused field and its reason are set in too. Published here under the plan's own name:
+   * `plan-preview.tsx` fills a marked bar from it and the label below is set in it. */
+  --plan-wall-issue: var(--refusal);
 
   position: relative;
   background: var(--paper);
@@ -611,6 +630,67 @@
   flex: 0 0 auto;
   font: 400 13px/1 var(--font-ui);
   color: var(--ink-faint);
+}
+
+/**
+ * **Frame 1C's refused field** (`:224-226`): the label in red, and the box on the pale fill with a
+ * 2 px red border. **Painted from `aria-invalid`, never from a class of its own**, so a field cannot
+ * be red without a screen reader being told it is invalid — and at 1B, where nothing carries the
+ * attribute, nothing is red (7F1 criterion 10).
+ */
+.field:has(.fieldValue[aria-invalid="true"]) .fieldLabel {
+  color: var(--refusal);
+}
+
+.fieldBox:has(> .fieldValue[aria-invalid="true"]) {
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+/**
+ * **1C's status region** — the room's reason and the note, announced politely (`room-screen.tsx`).
+ * It is in the tree from 1B on, empty, so an announcement fires when its content changes. Empty, it
+ * gives back the column's gap in front of it: a U's column has 2.6 px to spare at 1B (7F2 S0),
+ * and a box with nothing in it must not spend a gap.
+ */
+.oneCStatus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dimensions-gap);
+}
+
+.oneCStatus:empty {
+  margin-block-start: calc(-1 * var(--dimensions-gap));
+}
+
+/**
+ * **Frame 1C's reason box** (`:227-230`), beside its field and, for a reason about the whole room,
+ * below the fields. The frame's `!` badge is drawn by the stylesheet with an empty alternative text,
+ * so the sentence a screen reader reads through `aria-describedby` is the reason and nothing else.
+ */
+.reason {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 11px 12px;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--refusal-ink);
+  background: var(--refusal-surface);
+  border-radius: 10px;
+}
+
+.reason::before {
+  content: "!";
+  content: "!" / "";
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: var(--refusal-badge-ink);
+  text-align: center;
+  background: var(--refusal);
+  border-radius: 50%;
 }
 
 /* The frame's two-control footer (`:180-185`). `Înapoi` is 96 px wide and `Continuă` takes the rest. */

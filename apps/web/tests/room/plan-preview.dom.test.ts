@@ -73,6 +73,11 @@ const roomStylesheet = readFileSync(
   "utf8",
 );
 
+const globalStylesheet = readFileSync(
+  resolve(import.meta.dirname, "../../src/app/globals.css"),
+  "utf8",
+);
+
 /** Frame 1B's box as the card paints it (`:134`), border included. The figure is the frame's, and it
  *  is stated here so that the component's own `PLAN_BOX` has something to be *smaller than*. */
 const PAINTED_BOX_WIDTH_PX = 320;
@@ -388,7 +393,10 @@ describe("a wall the room refuses is painted red and reads its short reason (7F2
   }
 
   it("declares the frame's red once, on the plan box, for the bar and its label to share", () => {
-    expect(roomStylesheet).toContain("--plan-wall-issue: #dc2626;");
+    // Amended by 7F2 S3 (S2 review finding R1.3): the red is hoisted to the global `--refusal`, which
+    // the plan box publishes under its own name and a refused field and its reason share.
+    expect(globalStylesheet).toContain("--refusal: #dc2626;");
+    expect(roomStylesheet).toContain("--plan-wall-issue: var(--refusal);");
     expect(roomStylesheet).toMatch(
       /\.planWallLabel\[data-marked="true"\] \{\s*color: var\(--plan-wall-issue\);/,
     );

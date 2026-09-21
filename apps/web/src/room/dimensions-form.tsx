@@ -18,9 +18,13 @@
 // reading of that parser; a `maxLength` truncates a paste into a room nobody entered; and a
 // placeholder would put an example figure in the box.
 //
-// **Nothing is painted as an error.** At 1B a field that does not yet read as a length is a field
-// still to be filled, not a wrong one (criterion 10): no `aria-invalid`, no message, no red. The
-// reasons beside a field are wave 7F2's, and their copy is frame 1C's.
+// **Nothing is painted as an error at 1B.** A field that does not yet read as a length is a field
+// still to be filled, not a wrong one (7F1 criterion 10): no `aria-invalid`, no message, no red.
+// **At 1C a field the room refuses carries its reason beside it** (wave 7F2, frame 1C `:224-231`):
+// the reason is linked by `aria-describedby` after the hint and the help, and the input carries
+// `aria-invalid`. The red is painted **from** that attribute (`room.module.css`), so nothing can be
+// red that a screen reader is not told is invalid. Which fields, and which sentence, is the issue
+// model's answer; the screen decides when it shows.
 //
 // **The wall fields say what number to type, twice** (wave 7A3, owner ruling Q-7A3-1). The number is
 // the run the customer wants furnished, not the wall (ADR 0120 Amendments C1 and D1), and the labels
@@ -37,12 +41,16 @@ import {
   type RoomDraft,
   type RoomLengthField,
 } from "./room-draft";
+import type { RoomFieldReason, RoomIssueMessageKey } from "./room-issue-model";
 import { requiredFieldsFor } from "./room-url-state";
 import styles from "./room.module.css";
 import { WallLengthHelp } from "./wall-length-help";
 
 export interface DimensionsFormProps {
   readonly draft: RoomDraft;
+  /** The reasons 1C shows beside their fields (`RoomIssueView.fieldReasons`). None until the screen
+   *  passes them, which is 1B's state. */
+  readonly fieldReasons?: readonly RoomFieldReason[];
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
   readonly onChooseCorner: (direction: CornerDirection) => void;
 }
@@ -117,8 +125,11 @@ const CORNER_GROUP_NAME = "room-corner-direction";
 const CORNER_GLYPH_VIEWBOX = { width: 60, height: 44 } as const;
 const CORNER_GLYPH_SIZE = { widthPx: 36, heightPx: 26 } as const;
 
+const NO_FIELD_REASONS: readonly RoomFieldReason[] = [];
+
 export function DimensionsForm({
   draft,
+  fieldReasons = NO_FIELD_REASONS,
   onEnterLength,
   onChooseCorner,
 }: DimensionsFormProps) {
@@ -133,7 +144,11 @@ export function DimensionsForm({
           onChoose={onChooseCorner}
         />
       ) : null}
-      <LengthFields draft={draft} onEnterLength={onEnterLength} />
+      <LengthFields
+        draft={draft}
+        fieldReasons={fieldReasons}
+        onEnterLength={onEnterLength}
+      />
     </>
   );
 }
@@ -192,12 +207,17 @@ function CornerToggle({ chosen, onChoose }: CornerToggleProps) {
 
 interface LengthFieldsProps {
   readonly draft: RoomDraft;
+  readonly fieldReasons: readonly RoomFieldReason[];
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
 }
 
 /** One field per wall of the chosen shape, plus the height — and the list is the URL parser's own,
  *  so a U's third field costs nothing and is never a hand-written branch (criterion 4). */
-function LengthFields({ draft, onEnterLength }: LengthFieldsProps) {
+function LengthFields({
+  draft,
+  fieldReasons,
+  onEnterLength,
+}: LengthFieldsProps) {
   const translate = useTranslations();
   const fieldIdPrefix = useId();
   const hintId = useId();
@@ -219,6 +239,7 @@ function LengthFields({ draft, onEnterLength }: LengthFieldsProps) {
           text={draft.lengths[field].text}
           shape={draft.shape}
           hintId={hintId}
+          reasonKeys={reasonKeysFor(field, fieldReasons)}
           onEnter={onEnterLength}
         />
       ))}
@@ -232,24 +253,31 @@ interface LengthFieldProps {
   readonly text: string;
   readonly shape: RoomShape;
   readonly hintId: string;
+  /** This field's 1C reasons; empty at 1B and on every field the room does not refuse. */
+  readonly reasonKeys: readonly RoomIssueMessageKey[];
   readonly onEnter: (field: RoomLengthField, text: string) => void;
 }
 
 /** A wall's input is described by the hint and by its own help, so a screen reader announces both on
  *  focus without the customer opening anything. The help is referenced while hidden on purpose: a
  *  description is computed from hidden content, and that is what makes the explanation unconditional
- *  for a non-visual customer too. */
+ *  for a non-visual customer too. At 1C the reason is described last, after what the field asks for. */
 function LengthField({
   id,
   field,
   text,
   shape,
   hintId,
+  reasonKeys,
   onEnter,
 }: LengthFieldProps) {
   const translate = useTranslations();
   const helpId = `${id}-help`;
   const isWall = isWallLengthField(field);
+  const reasonIds = reasonKeys.map(
+    (_, index) => `${id}-reason-${String(index)}`,
+  );
+  const describedBy = [...(isWall ? [hintId, helpId] : []), ...reasonIds];
 
   return (
     <div className={styles.field}>
@@ -273,7 +301,10 @@ function LengthField({
           inputMode="numeric"
           className={styles.fieldValue}
           value={text}
-          aria-describedby={isWall ? `${hintId} ${helpId}` : undefined}
+          aria-describedby={
+            describedBy.length > 0 ? describedBy.join(" ") : undefined
+          }
+          aria-invalid={reasonKeys.length > 0 ? true : undefined}
           data-testid={`room-length-${field}`}
           onChange={(event) => {
             onEnter(field, event.target.value);
@@ -283,8 +314,27 @@ function LengthField({
           {translate("room.unitMillimetres")}
         </span>
       </div>
+      {reasonKeys.map((messageKey, index) => (
+        <p
+          key={messageKey}
+          id={reasonIds[index]}
+          className={styles.reason}
+          data-testid={`room-length-reason-${field}`}
+        >
+          {translate(messageKey)}
+        </p>
+      ))}
     </div>
   );
+}
+
+function reasonKeysFor(
+  field: RoomLengthField,
+  fieldReasons: readonly RoomFieldReason[],
+): readonly RoomIssueMessageKey[] {
+  return fieldReasons
+    .filter((reason) => reason.field === field)
+    .map((reason) => reason.messageKey);
 }
 
 function isWallLengthField(field: RoomLengthField): field is WallLengthField {

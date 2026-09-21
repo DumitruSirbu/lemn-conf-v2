@@ -77,6 +77,11 @@ import {
 } from "@/room/room-url-state";
 
 import roMessages from "../../src/messages/ro.json";
+import {
+  DEPART_TO_PRESETS,
+  DEPART_TO_SHAPES,
+  DepartureProbe,
+} from "../support/departure-probe";
 
 /** Wide enough that a transition between two readings of a length cannot hide between examples. */
 const SWEEP_RUNS = 500;
@@ -375,8 +380,19 @@ let screenProps: RoomScreenProps;
 let echoesEveryWrite = true;
 let theWithheldEcho: string | undefined;
 
+/** Whether `arriveAt` re-renders the departure probe rather than the screen (7F2 criterion 13). */
+let mountsTheDepartureProbe = false;
+
 function render(search: string): void {
   screenProps = {};
+  mountsTheDepartureProbe = false;
+  arriveAt(search);
+}
+
+/** The departure sequences' arrival: the sync and its departure over this query, with no screen
+ *  around them — see `tests/support/departure-probe.ts` for why they moved. */
+function renderTheDepartureProbe(search: string): void {
+  mountsTheDepartureProbe = true;
   arriveAt(search);
 }
 
@@ -396,7 +412,11 @@ function arriveAt(search: string): void {
 
 function theScreen(): ReactElement {
   return createElement(NextIntlClientProvider, {
-    children: createElement(RoomScreen, screenProps),
+    children: mountsTheDepartureProbe
+      ? createElement(DepartureProbe, {
+          seedShape: roomShapeInQuery(queryOf(browser.search)) ?? "L",
+        })
+      : createElement(RoomScreen, screenProps),
     locale: "ro",
     messages: roMessages,
     timeZone: "Europe/Chisinau",
@@ -488,6 +508,7 @@ beforeEach(() => {
   browser.replace.mockClear();
   echoesEveryWrite = true;
   theWithheldEcho = undefined;
+  mountsTheDepartureProbe = false;
   browser.replace.mockImplementation((href: string) => {
     if (echoesEveryWrite) {
       arriveAt(searchOf(href));
@@ -785,26 +806,22 @@ describe("hostile arrivals the screen must survive without writing twice", () =>
 // ---------------------------------------------------------------------------------------------
 
 /**
- * **The height is 2,10 m so the completed draft is one the validator refuses** (amended by wave
- * 7F4a). The screen stays at sub-state **1B** throughout this block — the echoes are withheld, so
- * `wallA` never reaches the URL — and what the height changes is the **draft**: filled in, it
- * describes a room below the approved 2 200 mm ceiling.
+ * **Driven on the departure probe, not on the screen** (re-homed by wave 7F2, criterion 13). Every
+ * sequence here leads with *Continuă* and then needs a second tap or a keystroke, so the form has to
+ * survive the first tap. On a room the domain accepts it does not — the tap starts sub-state 1F in
+ * the same commit (7F4a) — and from 7F2 a room the domain refuses has no active *Continuă* to tap
+ * (ADR 0120 decision 4). `tests/support/departure-probe.ts` runs the same `useRoomQuerySync` and the
+ * same `departTo`, with a button per destination; each test's push count and flushed URL are
+ * unchanged, and so is `room-query-sync.ts`.
  *
- * Every field still reads as a length, so *Continuă* is enabled and the departure machine below is
- * driven exactly as it was. What the refusal buys is that **no composition starts**.
- *
- * **Why that is needed, and it is a finding rather than a detail.** From 7F4a on, tapping *Continuă*
- * on a draft the domain *accepts* replaces the form with sub-state 1F in the same commit — so every
- * sequence here, all of which **lead with *Continuă***, lost the second tap they depend on: there is
- * no *Continuă* and no *Înapoi* left to tap, and no field to type into. The gestures are unperformable
- * rather than merely untested, and this fixture drives the same machine where they can still be
- * performed.
+ * **The fixture is unchanged too**, 2,10 m ceiling and all, so every URL asserted below is the one it
+ * always was. The refusal it was chosen for no longer matters: the probe composes nothing.
  *
  * **The mirror image is reachable and is covered elsewhere.** A sequence *led* by *Înapoi* still has a
  * form to tap in, and the second tap may be a *Continuă* that arms a departure **and** starts a run.
- * That interaction did not exist before this wave; it is pinned in
+ * That interaction did not exist before 7F4a; it is pinned in
  * `tests/room/room-composition.dom.test.ts` under *"a departure in flight, with a composition beside
- * it"*. `room-query-sync.ts` itself is untouched by 7F4a.
+ * it"*.
  */
 const A_ROOM_MISSING_WALL_A = "shape=L&wallB=2.92&height=2.1&direction=left";
 const THE_FLUSHED_ROOM =
@@ -815,12 +832,12 @@ describe("the departure state machine, over sequences rather than single taps", 
     // A double tap is the ordinary impatient gesture, and the departure is a ref rather than state:
     // if the second tap armed a second departure without replacing the first, the echo would push
     // twice and the customer would land two entries deep.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
 
-    click("room-continue");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
+    click(DEPART_TO_PRESETS);
     deliverTheEcho();
 
     expect(browser.push).toHaveBeenCalledTimes(1);
@@ -830,12 +847,12 @@ describe("the departure state machine, over sequences rather than single taps", 
   it("leaves by the second button when the two taps disagree about where to go", () => {
     // *Continuă* then *Înapoi* before either flush lands. Both flush the same text, so the second
     // tap re-arms over the first and the destination the customer asked for last is the one taken.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
 
-    click("room-continue");
-    click("room-back");
+    click(DEPART_TO_PRESETS);
+    click(DEPART_TO_SHAPES);
     deliverTheEcho();
 
     expect(browser.push).toHaveBeenCalledTimes(1);
@@ -853,13 +870,13 @@ describe("the departure state machine, over sequences rather than single taps", 
     // **What this test pins is the half that is ours:** the second tap must re-arm over the first
     // and wait on the newer text. A departure that kept the first arming would wait for a query the
     // router has thrown away, and the primary button would do nothing at all.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
 
     type("wallA", "3567");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
     deliverTheEcho();
 
     expect(browser.push).toHaveBeenCalledTimes(1);
@@ -871,13 +888,13 @@ describe("the departure state machine, over sequences rather than single taps", 
   it("recovers from a flush that never lands when the customer taps again", () => {
     // The resting place the module names: a dropped flush leaves the departure armed, and the next
     // tap re-issues it. Asserted so *"the next tap resolves it"* is a test rather than a comment.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
     dropTheWithheldWrite();
 
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
     deliverTheEcho();
 
     expect(browser.push).toHaveBeenCalledTimes(1);
@@ -888,10 +905,10 @@ describe("the departure state machine, over sequences rather than single taps", 
     // The suppression rule's full cost, stated rather than left to be discovered: it is not one
     // character. Until the flush lands — or the customer taps again — nothing typed reaches the
     // URL, so a reload in that window restores the flushed room and not the typed one.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
     browser.replace.mockClear();
 
     type("wallA", "3567");
@@ -927,10 +944,10 @@ describe("the departure state machine, over sequences rather than single taps", 
     // leave *from*, so they are sent where they asked to go. Written down so a later reader does
     // not add a second discriminator here — the plan forbids exactly that on the read side, and the
     // same argument applies.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
 
     arriveAt("shape=L&wallA=3.56&wallB=2.92&height=2.1&direction=left");
 
@@ -941,10 +958,10 @@ describe("the departure state machine, over sequences rather than single taps", 
   it("writes nothing more once a departure has been disarmed by an unrelated room", () => {
     // I2 and the disarm rule together: after a traversal the only write owed is the new room's own
     // canonicalising one, and the query the customer navigated away from must never be written.
-    render(A_ROOM_MISSING_WALL_A);
+    renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
     browser.replace.mockClear();
 
     arriveAt("shape=U&wallA=4.2&wallB=3.1&wallC=2.18&height=2.5");

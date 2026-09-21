@@ -25,10 +25,15 @@
 // traversal came to draw 1A under a 1B URL (defect D5). `useSearchParams` is therefore the single
 // authority here: the sub-state, the marked fields and the shape branch all derive from it, and the
 // route hands this component no parse to disagree with.
+//
+// **One exception, and it is deliberate: sub-state 1C's surfaces read the draft** (wave 7F2
+// addition 1, criterion 4). The URL trails the draft by the settle interval, so a reason read off it
+// would wait on a router round trip to appear and to clear. The reasons, the red wall, the note and
+// *Continuă*'s inactive state are the parse of the draft's own canonical query — the question
+// `roomInDraft` asks — and the markers on `<main>` stay the URL's.
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
-  type DesignRoom,
   type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
@@ -59,8 +64,13 @@ import { GenerationSteps } from "./generation-steps";
 import { PLAN_BOX, PlanPreview } from "./plan-preview";
 import { derivePlanPreview } from "./plan-preview-model";
 import {
-  canonicalRoomQuery,
-  queryEntriesOf,
+  canContinueFrom,
+  draftStateOf,
+  presentOneC,
+  roomInDraft,
+} from "./one-c-surfaces";
+import { OneCStatus } from "./one-c-status";
+import {
   queryFromSearchParams,
   roomShapeInState,
   useRoomQuerySync,
@@ -68,7 +78,6 @@ import {
 import { useGeneration, type GenerationRun } from "./use-generation";
 import styles from "./room.module.css";
 import {
-  missingLengthFields,
   withCornerDirection,
   withEnteredText,
   withRoomShape,
@@ -76,6 +85,7 @@ import {
 } from "./room-draft";
 import { parseRoomUrlState } from "./room-url-state";
 import { ShapeChips, ShapePicker } from "./shape-picker";
+import { useTypingPause } from "./use-typing-pause";
 
 export interface RoomScreenProps {
   /** The policy the cards are offered against. Defaulted rather than threaded through the page, so
@@ -262,6 +272,20 @@ interface DimensionsStepProps {
 function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
   const translate = useTranslations();
   const { draft, setDraft, departTo } = useRoomQuerySync(seedShape);
+  const { typing, noteKeystroke, noteEdit, endPause } = useTypingPause(draft);
+  const draftState = draftStateOf(draft);
+  const { surfaces: oneC, isContinueActive: canContinue } = presentOneC({
+    draft,
+    draftState,
+    policy,
+    typing,
+  });
+  const noteId = useId();
+
+  function edit(nextDraft: RoomDraft): void {
+    noteEdit({ before: draft, after: nextDraft });
+    setDraft(nextDraft);
+  }
 
   /**
    * **The one place generation is started from, and it is an event handler** (ruling R15).
@@ -273,11 +297,21 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
    * The departure still flushes exactly as it did before this wave (criterion 24): the query the
    * customer leaves behind is written first, and the push that follows lands on the URL already
    * showing. Composition is added **beside** that, not in place of it.
+   *
+   * **Over a room the domain refuses, the tap leaves nothing and shows why** (coordinator ruling,
+   * 2026-09-22). Mid-burst the button can still be held active over a draft that is already 1C; a
+   * tap there ends the pause, so the reasons, the red wall, the note and the inactive button appear
+   * at once — and it calls no `departTo`, because the departure would flush and push the refused
+   * query as a history entry. A disabled button fires nothing at all (7F2 criterion 5).
    */
   function continueFromLengths(): void {
+    const room = roomInDraft(draftState);
+    if (room === undefined || !canContinueFrom(draft, policy)) {
+      endPause();
+      return;
+    }
     departTo("presets");
-    const room = roomInDraft(draft);
-    if (room !== undefined) run.compose(room);
+    run.compose(room);
   }
 
   if (run.state.phase !== "idle") {
@@ -296,18 +330,29 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
         <ShapeChips
           chosenShape={draft.shape}
           onChoose={(chosen) => {
-            setDraft(withRoomShape(draft, chosen));
+            edit(withRoomShape(draft, chosen));
           }}
         />
-        <PlanPreview plan={derivePlanPreview(draft, PLAN_BOX)} />
+        <PlanPreview
+          plan={derivePlanPreview(draft, PLAN_BOX)}
+          markedWalls={oneC.markedWalls}
+        />
         <DimensionsForm
           draft={draft}
+          fieldReasons={oneC.fieldReasons}
           onEnterLength={(field, text) => {
-            setDraft(withEnteredText(draft, { field, text }));
+            const typed = withEnteredText(draft, { field, text });
+            noteKeystroke({ before: draft, after: typed });
+            setDraft(typed);
           }}
           onChooseCorner={(direction) => {
-            setDraft(withCornerDirection(draft, direction));
+            edit(withCornerDirection(draft, direction));
           }}
+        />
+        <OneCStatus
+          roomReasons={oneC.roomReasons}
+          isNoteShown={oneC.isNoteShown}
+          noteId={noteId}
         />
       </div>
       <div className={styles.dimensionsFooter}>
@@ -324,7 +369,10 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
         <button
           type="button"
           className={styles.cta}
-          disabled={!canContinueFrom(draft, policy)}
+          disabled={!canContinue}
+          // By the note alone: `presentOneC` shows the note only while this button is inactive
+          // (review R1.7), so no second condition is needed.
+          aria-describedby={oneC.isNoteShown ? noteId : undefined}
           data-testid="room-continue"
           onClick={continueFromLengths}
         >
@@ -333,38 +381,4 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
       </div>
     </>
   );
-}
-
-/** *Continuă* leads on once the shape can be built and every field the shape asks for reads as a
- *  length. Neither half is a bound: whether the lengths are **allowed** is `validateRoomInput`'s
- *  question, its reasons are wave 7F2's surface, and nothing here duplicates either. */
-function canContinueFrom(draft: RoomDraft, policy: RoomPolicy): boolean {
-  return (
-    isShapeBuildable(draft.shape, policy) &&
-    missingLengthFields(draft).length === 0
-  );
-}
-
-/**
- * **The room a composition runs for: the draft's, read through the parser the URL is read with.**
- *
- * The draft is put into its canonical query and that query is parsed, so this asks the *same*
- * question of the same authority the address bar is answered by — a room reaches sub-state 1D here
- * exactly when it would reach it from a URL, with no second reading of what a valid room is.
- *
- * **Why the draft and not `useSearchParams`, which is what the screen branches on everywhere else.**
- * The URL trails the draft by the settle interval, so within 400 ms of a keystroke the query is a
- * room the customer has already moved past — or, at 1B, no room at all — while `departTo` is at that
- * moment flushing the draft to the address bar. Generating from the live query there would compose
- * the previous room, or silently compose nothing and leave *Continuă* dead for those 400 ms. This is
- * the query the URL is about to hold, which is the one the customer asked for.
- *
- * `undefined` for a room the domain refuses: that is sub-state 1C, the tap is the departure alone,
- * and the sentence the customer reads there is wave 7F2's (ruling R16).
- */
-function roomInDraft(draft: RoomDraft): DesignRoom | undefined {
-  const state = parseRoomUrlState(
-    queryEntriesOf(canonicalRoomQuery(draft).toString()),
-  );
-  return state.substate === "1D" ? state.room : undefined;
 }

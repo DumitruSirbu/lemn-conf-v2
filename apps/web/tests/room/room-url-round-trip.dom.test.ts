@@ -67,6 +67,7 @@ import {
 } from "@/room/room-url-state";
 
 import roMessages from "../../src/messages/ro.json";
+import { DEPART_TO_PRESETS, DepartureProbe } from "../support/departure-probe";
 
 /** Criterion 7 asks for at least 500 cases; a render each is what makes them cost anything. */
 const SWEEP_RUNS = 500;
@@ -79,11 +80,10 @@ const THE_BACK_LINK =
 /** What the link's fields show: whole millimetres, the notation the customer types (ADR 0126). */
 const THE_BACK_LINK_FIELDS = { wallA: "3560", wallB: "2920", height: "2600" };
 
-/** The same room with a ceiling below the approved 2 200 mm minimum, so the **completed draft** is
- *  one the domain refuses: every field reads as a length and *Continuă* is enabled, and no
- *  composition starts. (The screen itself stays at 1B — the echo is withheld, so `wallA` never
- *  reaches the URL.) Used by the one test whose gesture needs a field to still be there after the
- *  tap — see its own note. */
+/** The same room with a ceiling below the approved 2 200 mm minimum. Chosen, before wave 7F2, so that
+ *  *Continuă* could be tapped with no composition taking the form away; since 7F2 the one test that
+ *  uses it runs on the departure probe instead (criterion 13), and the fixture is kept unchanged so
+ *  the URL it asserts is the one it always was. */
 const A_REFUSED_ROOM_MISSING_WALL_A =
   "shape=L&wallB=2.92&height=2.1&direction=left";
 
@@ -135,9 +135,20 @@ function queryOf(search: string): RoomSearchParams {
   );
 }
 
+/** Whether `arriveAt` re-renders the departure probe rather than the screen (7F2 criterion 13). */
+let mountsTheDepartureProbe = false;
+
 /** A fresh arrival. The route hands the screen nothing (ruling R9), so the browser's URL is the
  *  whole of it. */
 function render(search: string): void {
+  mountsTheDepartureProbe = false;
+  arriveAt(search);
+}
+
+/** The sync and its departure over this query, with no screen around them — see
+ *  `tests/support/departure-probe.ts` for why a departure sequence moved there. */
+function renderTheDepartureProbe(search: string): void {
+  mountsTheDepartureProbe = true;
   arriveAt(search);
 }
 
@@ -156,7 +167,9 @@ function arriveAt(search: string): void {
  *  query — the failure mode the double exists to avoid. */
 function theScreen(): ReactElement {
   return createElement(NextIntlClientProvider, {
-    children: createElement(RoomScreen, screenProps),
+    children: mountsTheDepartureProbe
+      ? createElement(DepartureProbe, { seedShape: "L" })
+      : createElement(RoomScreen, screenProps),
     locale: "ro",
     messages: roMessages,
     timeZone: "Europe/Chisinau",
@@ -590,15 +603,14 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     // stray character beats a primary button that did nothing**, and on a phone the tap blurs the
     // field first, so the input this costs is rarer than the one it fixes.
     //
-    // **The room's ceiling is 2,10 m on purpose** (amended by wave 7F4a). The approved minimum is
-    // 2 200 mm, so the completed draft is one the domain refuses: *Continuă* is enabled and departs
-    // exactly as before, and no composition starts. From 7F4a on, tapping *Continuă* on a draft the
-    // domain *accepts* replaces the form with sub-state 1F in the same commit — and then there is no
-    // field left to type the late keystroke into, which is the gesture this test is about.
-    render(`?${A_REFUSED_ROOM_MISSING_WALL_A}`);
+    // **Driven on the departure probe** (re-homed by wave 7F2, criterion 13). The gesture needs a
+    // field left to type into after the tap. On a room the domain accepts, *Continuă* replaces the
+    // form with sub-state 1F in the same commit (7F4a); on one it refuses, *Continuă* is inactive
+    // (7F2, ADR 0120 decision 4). The probe runs the same sync and the same `departTo("presets")`.
+    renderTheDepartureProbe(`?${A_REFUSED_ROOM_MISSING_WALL_A}`);
     withholdTheEcho();
     type("wallA", "3560");
-    click("room-continue");
+    click(DEPART_TO_PRESETS);
 
     type("wallA", "3567");
     settle();

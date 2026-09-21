@@ -118,6 +118,8 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
       liveText: ourOwnWrite,
     });
 
+    // **Identity, not equality, and load-bearing beyond this module:** `use-typing-pause.ts` tells our
+    // own echo from an arrival by this very object, so a copy here would end every burst on its echo.
     expect(reconciled.draft).toBe(halfTyped);
     expect(lengthShown(reconciled.draft, "wallA")).toBe("3,6");
     expect(reconciled.lastSeenText).toBe(ourOwnWrite);
