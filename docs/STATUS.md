@@ -360,7 +360,7 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**, planned next. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -931,7 +931,40 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-21. M7 wave 7D5 is DONE and pushed.** Commits: S1 `c67b4ee` (bottle
+> **RESUME HERE — 2026-09-21, later still. M7 wave 7D5b is DONE and pushed; 7F2 is next.** Commits,
+> in order: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW
+> `f6e3730` (pushed, local and origin verified matching); the W7 fix committed just after `f6e3730`
+> and pushed with the close-out. Gates at `f6e3730`, run by the coordinator: `pnpm check` — domain
+> 228 / 4,866, persistence 20 / 282, three-adapter 92 / 3,553, web 220 / 3,401; `pnpm ci:local` —
+> `LOCAL CI PASSED — all gates green, safe to push.`, e2e 208 passed in 5.6 minutes, build, boundary,
+> lockfile and SCA all PASS; pre-push hook passed. Final composition (approved L, 10 mm, three
+> ceilings): a dishwasher in **196,621** placed kitchens (M1 141,261; (e) 24,160; (b) 18,200; (d)
+> 2,600; (c) 10,400), **48,590** without one; **156,886** oven-tower rooms; **367,428** columns;
+> **173,691** bottles; **92,446** pan drawers; **5,725** threshold drawers. Every room has ≥ 1 oven;
+> `minimumMet` / `dropped` / core-wall changes are **0**. S0b changed **5,260** rooms; the reference
+> room ends `hob-2drawer · tower · 260 mm bare`; J6 is reversed. Owner rulings (Q-DW1/2/3, the drawer
+> beside the sink, tower-over-bottle narrowed, at least one oven, the tower as a last resort only
+> with the hob's oven, across-the-corner) and coordinator rulings (M10 precedence, the fallback
+> reading, the W7 remedy) are all in [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle)
+> (M1–M16). Two defects were found and fixed before commit: S2's (d) cost a door cabinet on 1,356
+> declared runs (M14); S1 left an unreachable drawer guard (removed). **Visual gate, production
+> build, 390 × 844, touch: all seven witness rooms PASS.** One defect found in that gate — **W7**: in
+> ru, the sixth row plus wrapped rows pushed the 1F rule paragraph under the fixed footer,
+> unreachable by scroll. Fixed by making `.composeBody` scroll vertically only, footer fixed
+> (applies the owner's Q-7F2-2 remedy as a coordinator ruling); re-verified reachable, ro and the
+> reference room unchanged, no horizontal scroll. Stated limits: the kit has no open-door state, so
+> M13's corner-door judgement is on closed geometry (derived clearances recorded for the owner's
+> information only); the editor was not run in ru for rooms 4–6; no real device. About 18 dev-database
+> design rows were left by the visual runs. Obligations carried forward: `.dimensionsBody` (frame
+> 1B/1C) still clips — that is 7F2's; the *Vedere generală* chip's no-op re-tap is filed in
+> `docs/BACKLOG.md`. Full close-out: [`milestones/M7-room-and-presets.md`, *7D5b close-out —
+> 2026-09-21*](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21). **Next: wave 7F2 — 1C
+> validation state, shape refusal, the wall marked red — see
+> [`milestones/M7-room-and-presets.md`, *Wave 7F2 — the plan*](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21).
+> All owner and coordinator questions are answered (Q-7F2-1…4 = (a); C-7F2-1/2/3 ruled); S0 is
+> dispatchable.**
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-21. M7 wave 7D5 is DONE and pushed.** Commits: S1 `c67b4ee` (bottle
 > cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Local and origin
 > both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed —
 > domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316;

@@ -3276,3 +3276,7 @@ The owner's own reference room, **4650 × 1000**, sits inside this band.
 wording as `catalog.entries.base-dishwasher` in both Romanian and Russian, but the copy lock guards
 only the Romanian side, so the Russian pair can drift with no gate catching it. **Recorded as a known
 coupling; not fixed in this wave.**
+
+**Wave 7D5b shipped, 2026-09-21 — the close-out, gate figures and commit hashes are recorded in
+[`docs/milestones/M7-room-and-presets.md`, *7D5b close-out — 2026-09-21*](../milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21),
+not restated here.**

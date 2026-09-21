@@ -1702,3 +1702,12 @@ which the owner's principle forbids.
 
 **No owner, no phase yet.** Whether the editor should refuse the edit, warn, or do nothing is an
 open product question for a later wave; M7 wave 7D5b records the gap and does not close it.
+
+## 71. Re-tapping the selected *Vedere generală* chip does not reset the camera — RECORDED 2026-09-21, NO OWNER, NO PHASE
+
+**Observed by the M7 wave 7D5b visual gate** (production build, 390 × 844, touch, 2026-09-21): after
+orbiting the editor's camera, tapping the *Vedere generală* chip that is already selected leaves the
+view where it was instead of returning to the overview. The gate's `*-700-overview.png` captures
+stayed top-down because of it (`testing-reports/7d5b/`, gitignored). Outside wave 7D5b's scope — no
+camera or chip code changed in it. Whether re-selecting the current view should reset the camera is
+an open product question; nothing asserts either behaviour today.

@@ -101,6 +101,7 @@ status corrections, in one of these two files:
 | 69 | Two gate runs against one test database corrupt its migration ledger | open.md — observed 2026-09-18 on wave 7D6's push; environmental, wave 7T's subject, not scheduled |
 | 68 | A large wood-decor run-end panel shows a visible grain tiling seam | open.md — observed 2026-09-17 in M7 wave 7D8's visual check of `dcec03f`, not compared against a pre-fix build, owner question, not built, not scheduled |
 | 70 | The editor allows a kitchen with no oven | open.md — owner principle recorded 2026-09-21 (ADR 0110 Amendment M, M12), no owner, no phase yet |
+| 71 | Re-tapping the selected *Vedere generală* chip does not reset the camera | open.md — seen by the 7D5b visual gate, 2026-09-21; no owner, no phase |
 
 ## 2026-09-06 audit note
 

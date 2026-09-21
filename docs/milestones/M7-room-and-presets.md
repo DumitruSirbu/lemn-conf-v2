@@ -1530,7 +1530,7 @@ table.
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table. **DONE, close-out 2026-09-21** — see [7D5 close-out](#7d5-close-out--2026-09-21). Commits: S1 `c67b4ee` (bottle), S2 `17df3f5` (pan drawer), S3 `dd7a25b` (threshold drawer). **Re-baselines 7D3's block-threshold table and restates its criterion 12; the dishwasher is lifted to 7D5b** | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/generation/optional-run-items.ts` (new), `src/generation/run-layout.ts` (new), `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | **Yes**, close-out — 6 witness rooms, all PASS | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), Q-H3 (2026-09-16), Q-H6/Q-H6a/b/c (2026-09-21, J1/K1/K2/K4), **Q-H5 = a third drawer after the hob (2026-09-21, L1)** |
-| **7D5b** | The sink-adjacent dishwasher, lifted whole out of 7D5, plus the owner's tower-over-bottle change to 7D5's bottle rule. **PLANNED, next — see [Wave 7D5b — the plan](#wave-7d5b--the-plan-2026-09-21-measured-at-head-ec6aca9). All owner questions answered 2026-09-21; S0 dispatchable.** Slices S0 → S0b (tower over bottle) → S1 (M1 conversion + (e) drawer swap, dishwasher first) → S2 ((b) pantry → (d) bottle → (c) oven tower, last) → SW (frame 1F row) → S3. Measured plan: a dishwasher in **196 621 / 245 211** placed kitchens, zero-oven kitchens **0** | `src/generation/optional-run-items.ts`, `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/generation/dishwasher-beside-the-sink.ts` (new), `src/index.ts`; SW: `apps/web/src/room/generation-model.ts`, `apps/web/src/messages/{ro,ru}.json`, `ro.d.json.ts` | 7D5 | Full (SW Light) | **Yes** | answered — Q-DW1 = (e) + (b) + (d), then (c) last and only where the hob carries the oven; Q-DW2 = dishwasher first; Q-DW3 = converted + 1F row; which drawer = *the one beside the sink*; tower over bottle, narrowed to the 5 260 rooms that lose no pan drawer; 1F label owner-approved (2026-09-21) |
+| **7D5b** | The sink-adjacent dishwasher, lifted whole out of 7D5, plus the owner's tower-over-bottle change to 7D5's bottle rule. **DONE, close-out 2026-09-21** — see [7D5b close-out](#7d5b-close-out--2026-09-21). Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730`; W7 fix committed just after `f6e3730`. `f6e3730` pushed and verified against origin; the W7 fix is pushed with the close-out. Final: a dishwasher in **196,621 / 245,211** placed kitchens, zero-oven kitchens **0** | `src/generation/optional-run-items.ts`, `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/generation/dishwasher-beside-the-sink.ts` (new), `src/index.ts`; SW: `apps/web/src/room/generation-model.ts`, `apps/web/src/messages/{ro,ru}.json`, `ro.d.json.ts` | 7D5 | Full (SW Light) | **Yes** | answered — Q-DW1 = (e) + (b) + (d), then (c) last and only where the hob carries the oven; Q-DW2 = dishwasher first; Q-DW3 = converted + 1F row; which drawer = *the one beside the sink*; tower over bottle, narrowed to the 5 260 rooms that lose no pan drawer; 1F label owner-approved (2026-09-21) |
 | **7D8** | **DONE, close-out 2026-09-17** — see [7D8 close-out](#7d8-close-out--2026-09-17). Commits: planning `8ebff1f`/`36fde8c`/`275c95e`/`27ae496`; S0 `5c915f8`; S1 `2439da5`; E4 correction `355a15e`; adjudication `c456dbd`; S2 `814ca44` (`--no-verify`, 25 known-red assigned to S3); S3 `f919bfa` (suite green); review `62cfee1`; Q-7D8-2 ruling `6dbff27`; ADR 0110 Amendment I1.1 `e18908b`; shrink-strip fix `24ca2bc`; panel-colour fix `dcec03f`; ADR 0122 `8b73439`; S4 `b83e4f2`. `pnpm ci:local`/push pending. **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **DONE, close-out 2026-09-18** — see [7D6 close-out](#7d6-close-out--2026-09-18). Commits: S1 pre-flight (no code, 900/900 reproduced); S2 `bf58f97`; S3 `dcb67ce`; QA `9ae586c`; review fixes `0d79ce9`. `pnpm ci:local`/push recorded by the coordinator, separately | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **Q-K1 ANSWERED 2026-09-17, option 3 — [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md): the owner kept 900/1000 as a deliberate margin above the derived 880/880 floor. No bound moves. [ADR 0108 Amendment F](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin) narrows Amendment A ruling 1 accordingly. The joint bound slice (7D6-S5/7D7-S5) does not dispatch — no literal moved** |
 | **7D7** | **DONE 2026-09-19** — the corner builders accept recorded widths; generation authors the four structural corner placements with the largest even room-fitting widths at 600 mm, and the 600 → 700 mm depth command keeps those widths frozen while sliding the recorded chains. The engine floor is **880 × 880**, while [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) keeps the customer-approved minima at **900 / 1000**; cancelled S5 did not dispatch and no policy literal moved. See [7D7 close-out](#7d7-close-out--2026-09-19). Commits: plan `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; gate-timeout follow-ups `5c1cd33` and `a9bad6b`; close-out `71e6ba3`. `pnpm check` and `pnpm ci:local` are green; push remains pending | `packages/configurator-domain` corner sizing/shell placement and `packages/three-adapter` corner builders/record seam, with paired adversarial coverage; **S5 cancelled** | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + approved narrow room | **Q-7D7-1 and Q-7D7-2 answered.** The one-door floor is 200; approved minima remain 900/1000. Q-7D7-3 and Q-A′.2 remain non-blocking product questions; this wave changes neither carousel policy nor editor capabilities |
@@ -1550,7 +1550,7 @@ table.
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes. **DEFERRED PAST M8**, by 7B's derivation — it adapts what 7B matched, so it cannot precede it | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
 | **7A3** | **The wall maxima become 6000 mm each, and the field says what number to type — DONE, close-out 2026-09-17.** See [7A3 close-out](#7a3-close-out--2026-09-17). Commits: S0 (ADR 0124) `6c8a1bc`; S1 (`recordedLRoom` split + guard) `71aae6d`; S2 (policy 6000/6000, `MAX_ROOM_DEPTH_MM` 6300) `1fac007`; S2 QA (4 new qa-7a3 files) `cbd04a8`; S2 review fixes (new corner suites, wall-B sweeps to 6000) `2898b14`; S3 (hint line + per-wall help, copy lock) `c0d74dc`; S3 fixes (U-room clip, corner clause, shared dismiss hook) `b7b3941`; S3 D2 (help button placement, 44px non-overlap guard) `6bc1b44`. `pnpm ci:local`/push **pending at the time of writing; the coordinator records it separately.** | `src/room/approved-room-policy.ts`, `src/design-bounds.ts`; then `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json` + `ru.json` | **7D8 closed** (its re-keyed arm governs 91.0 % of the rooms this wave admits). Not in flight with 7D5, 7D6 or 7D7 | **Full** (domain bound + a wire bound) | **Yes**, slice S3 only | **Two owner rulings recorded 2026-09-17** — see *Owner questions for M7* for the dated entries: the corner clause, and help-button placement option (a) |
-| **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
+| **7F2** | 1C validation state, incl. *minimum not met* — **PLANNED, next — see [Wave 7F2 — the plan](#wave-7f2--the-plan-2026-09-21). All owner and coordinator questions answered 2026-09-21 (Q-7F2-1…4 = (a); C-7F2-1/2/3 ruled).** | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | answered — Q-7F2-1…4 = (a); the Q-7F2-2 remedy already applied to frame 1F by 7D5b's W7 fix |
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
 | ↳ | **Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more | | | | | |
@@ -10066,6 +10066,516 @@ The draft below is kept for its provenance and is not the record of decision.**
     S2.
   - **The 7T record gap.**
 - **For the visual gate:** the corner clearance (risk 2) and the Russian row's width (W7).
+
+### 7D5b close-out — 2026-09-21
+
+**DONE. Commits, in order: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`;
+S2 `09cea46`; SW `f6e3730`.** `f6e3730` was pushed, and the coordinator verified local and origin
+match. The W7 fix (below) is committed just after `f6e3730` (`git log -1`) and is pushed with this
+close-out.
+
+**Gates at `f6e3730`, run by the coordinator.** `pnpm check`: domain 228 / 4,866, persistence 20 /
+282, three-adapter 92 / 3,553, web 220 / 3,401. `pnpm ci:local`: `LOCAL CI PASSED — all gates
+green, safe to push.`; e2e 208 passed in 5.6 minutes; build, boundary, lockfile and SCA all PASS.
+The pre-push hook passed.
+
+**Every criterion, against the plan.** Final measured composition (approved L, 10 mm, three
+ceilings) —
+
+| Item | Rooms |
+| --- | --- |
+| Dishwashers | 196,621 |
+| — M1 | 141,261 |
+| — (e) | 24,160 |
+| — (b) | 18,200 |
+| — (d) | 2,600 |
+| — (c) | 10,400 |
+| Without a dishwasher | 48,590 |
+| Oven-tower rooms | 156,886 |
+| Columns | 367,428 |
+| Bottles | 173,691 |
+| Pan drawers | 92,446 |
+| Threshold drawers | 5,725 |
+
+Every room has **≥ 1 oven**. There are **0** `minimumMet` / `dropped` / core-wall changes. **S0b
+changed 5,260 rooms.** The reference room ends **`hob-2drawer · tower · 260 mm bare`**. **J6 is
+reversed.**
+
+**Superseded criteria and the earlier plan's draft rulings** are struck by the written
+[ADR 0110, Amendment M](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle)
+(**M1–M16**), not restated here — the plan's own draft amendment inside this file is provenance
+only, as the plan itself already says.
+
+**Owner rulings this wave** (Amendment M): Q-DW1/2/3, the drawer "beside the sink", tower-over-bottle
+narrowed (M11), at least one oven (M12), the tower as a last resort only with the hob's oven (M7),
+and across-the-corner (M13). **Coordinator rulings:** M10's precedence, the fallback reading, and
+the W7 remedy below. All recorded in Amendment M.
+
+**Defects found and fixed before commit:**
+
+- **S2's (d) cost a door cabinet on 1,356 declared runs (M14)**, fixed by
+  `givesUpExactlyTheRuledBody` before commit.
+- **S1 left an unreachable drawer guard**, removed.
+
+**Visual gate** (production build, 390 × 844, touch): **all seven witness rooms PASS** — reference
+3560 × 2920; 1500 × 2800 across the corner; (e) 900 × 3400; (c) 4650 × 1000 with 350 mm bare; (b)
+900 × 5000; (d) 900 × 4700; none 1500 × 3500. The dishwasher reads as an integrated decor door; the
+pan drawer shows two deep drawers.
+
+**W7 defect found:** in ru, 1500 × 2800 and 900 × 3400, the sixth row plus wrapped rows pushed the
+1F rule paragraph under the fixed footer, where it could not be scrolled (757 / 709). **Fixed by
+making `.composeBody` scroll vertically only** (`overflow-y: auto; overflow-x: hidden`), footer
+fixed. This applies the owner's Q-7F2-2 remedy (see the 7F2 plan below) as a **coordinator ruling**.
+Re-verified: the paragraph is reachable at 683–737 after a touch swipe, including save-failed; ro
+and the reference room are unchanged; no horizontal scroll. The ru dishwasher row wraps to two
+lines; ro stays on one.
+
+Screenshots are in `testing-reports/7d5b/` (gitignored).
+
+**Stated limits.** The kit has no open-door state (`three-adapter/src/body-finish-surfaces.ts:59`),
+so M13's door was judged on closed geometry. Derived from positions: the corner unit's door hinge is
+about 10 mm from the dishwasher, so the corner door opens at most about 90° with the dishwasher door
+down, and the open dishwasher door sits about 300 mm to the side of the sink — recorded **for the
+owner's information**, since the owner already chose to keep across-the-corner. At 700 mm depth the
+corner door narrows to about 180 mm. The editor was not run in ru for rooms 4–6. No real device was
+used.
+
+**Database side effect:** about 18 dev-database design rows were created by the visual runs (ids in
+the verifier report); not deleted.
+
+**Obligations carried to later work:**
+
+- `.dimensionsBody` (frame 1B/1C) still clips; that is **7F2's** (see the 7F2 plan below).
+- **Incidental finding:** tapping the already-selected *Vedere generală* chip does not reset the
+  camera. Recorded in `docs/BACKLOG.md` via `docs/backlog/open.md`.
+
+## Wave 7F2 — the plan, 2026-09-21
+
+**Inserted from the coordinator's scratchpad draft once 7D5b's S3 closed**, per that draft's own
+header. Source: written at HEAD `f6e3730`, evidence labelled **[measured]** / **[source-verified]**
+/ **[inference]** as marked throughout — see *How it was measured* below.
+
+> **How it was measured.** `packages/configurator-domain/src` and five files from `apps/web/src/room`
+> (`plan-preview-model.ts`, `room-draft.ts`, `room-url-state.ts`, `metres-text.ts`, `parse-metres.ts`)
+> were copied into `scratchpad/probe/` and bundled with the repository's own esbuild 0.28.2 (domain
+> aliased to the copied source, not to `dist/`, which `ci:local` may be rewriting). The probe is
+> `scratchpad/probe/probe.ts`. **`git status` at `f6e3730` shows only `.claude/agents/*` modified**,
+> so the copies are source-identical to HEAD [source-verified]. **Cross-check:** the probe's accepted
+> count over the approved L rectangle at 10 mm and a 2600 mm ceiling is **245 211 of 256 011**, which
+> is exactly 7D5's recorded *"256 011 swept, 245 211 placed"* (ADR 0110 K5/L5) [measured].
+
+### Owner and coordinator rulings, 2026-09-21
+
+**Q-7F2-1 = (a), the table as drafted.** The owner approved all drafted ro/ru leaves in session.
+
+**Q-7F2-2 = (a): the dimensions column scrolls vertically, the footer stays fixed, nothing removed.**
+The W7 fix in the 7D5b close-out above already applies this remedy to frame 1F.
+
+**Q-7F2-3 = (a): the plan draws nothing until every wall of the chosen shape is typed.**
+
+**Q-7F2-4 = (a): "Scrie lungimea în metri." / "Введи длину в метрах." shown once the field loses
+focus.**
+
+**Coordinator rulings, per the plan's own recommendations:**
+
+- **C-7F2-1** — a reason is derived from the typed input, appears after a 400 ms typing pause, and
+  clears on the fixing keystroke.
+- **C-7F2-2** — *Continuă* is inactive at 1C, and the 8 tests that drove the dead tap move to
+  another harness (criterion 13), none deleted.
+- **C-7F2-3** — the two 7J findings (the `room-url-state.ts:109-113` throw and the `generation-steps.tsx:197-203`
+  wall-B summary line) are recorded for 7J's planner, not touched here.
+
+### 1. What 7F2 must build, from the record
+
+Every obligation below is quoted from where it was recorded. Nothing here is new scope.
+
+**The row (revised wave table, `M7-room-and-presets.md:1553-1554`) [source-verified]:**
+
+> | **7F2** | 1C validation state, incl. *minimum not met* | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | — |
+> | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field |
+
+**The carried criteria (`:1078-1082`) [source-verified]:**
+
+> **7F2:** the reason sits beside its field (`aria-describedby`), the plan marks the offending wall red,
+> *"Presetele apar după ce toate valorile sunt valide."* is shown. *Property over every issue code, both
+> locales:* the resolved message contains **no digit and no code**. The U refusal names no internal
+> reason. ~~Until Q5, no message suggests the linear shape.~~ **Superseded 2026-09-11 (Q5):** the
+> suggestion is shown once wave 7J makes linear buildable, and not before.
+
+**The additions (`:1906-1945`) [source-verified]:**
+
+1. *"**1C is a live state reached by typing** … 7F2's reasons must appear **and clear** as they type, not
+   only on a commit. **And they are the client's, not the server's** … 7F2 must not wait on a server
+   render for a reason to appear or clear."*
+2. *"**7F2 owes the refusal sentence for a shape that is not buildable.** 7F1 ships all three cards with
+   *Continuă* disabled on `linear` and `U` and **no sentence saying why** … The U refusal still names no
+   internal reason, and no message suggests the linear shape until 7J makes it buildable."*
+3. *"A defect 7F1-D45's closing visual gate found and did not fix …: **selecting the U chip while `wallC`
+   is empty leaves the plan preview drawing the L plan** … The surface is 7F2's."*
+4. *"**Must not: remove a control 7F1 shipped, because frame 1C does not draw it.** The shape chips and
+   the corner toggle **survive into 1C** and are asserted present there. 1C *adds* the reasons beside
+   their fields and the red wall, and removes nothing."*
+5. *"**7F2 (add):** *minimum not met* is shown at 1C with a room-level reason, no digit and no code, and
+   no wall marked red."*
+
+**Obligations recorded elsewhere that land here [source-verified]:**
+
+6. **ADR 0120 decision 3** (*"Binds wave 7F2's copy"*): *"A refusal may state a floor; it may never ask
+   for millimetres … the sentence at 1C says **what this room cannot hold**, never 'make wall B 100 mm
+   longer.'"*
+7. **ADR 0120 Amendment C / D** (*"What survives all three answers"*): *"**Decision 3 + C1's noun
+   constraint on the 1C sentence** — Untouched and sharpened by D1. The refusal talks about the stretch
+   the customer asked to furnish."* And C1: *"'This wall is too short' is false under the run reading."*
+8. **ADR 0120 decision 4 / F5**: *"`canContinueFrom` enables *Continuă* for a 1C room and the tap
+   silently does nothing. This is a known gap assigned to 7F2."*
+9. **7F4a close-out** (`:2876-2879`): *"A room the domain refuses still gives a silent dead tap. 1C's
+   surface is 7F2's, and of the five dead-tap rooms the visual gate found, **2,20 × 0,90 refuses for a
+   different reason than the other four** — `WALL_TOO_SHORT` … rather than the coupled
+   `ROOM_TOO_SMALL_FOR_KITCHEN`."*
+10. **ADR 0110, corner section** (`0110:446-449`): *"The honest sentence is therefore 'what there is no
+    space for is the sink and the hob, after the corner has taken its 900 mm' — never 'there is no space
+    for a corner cabinet'."* (Its digit is dropped by ADR 0108 decision 3; its shape binds
+    `ROOM_TOO_SMALL_FOR_KITCHEN`'s copy.)
+11. **7F1 R3 / F8** (`:3938-3968`): the refusal is 7F2's, and *"the two refused cards are not alike"* —
+    *Liniară* is owner-approved and arrives in 7J; *U* is M7B.
+
+**Stale pointers in the brief, settled here so the dispatch does not inherit them:**
+
+- **Q-7A3-2 is moot and carries nothing.** `:16548`: *"S3 is therefore **ungated**, and **Q-7A3-2 is
+  moot**."* 7A3's field copy shipped at `c0d74dc`/`b7b3941`; 7F2 inherits no 7A3 copy obligation
+  [source-verified]. What 7A3 *did* hand over is criterion 20: *"**The refusal sentence is not written.**
+  7F2 owns it."*
+- **"Q5 interim"** on the old row (`:924`) is dead: Q5 was answered 2026-09-11 (`:328-333`).
+- **The approved room policy is ADR 0108 (Amendments B, D, E, F), not ADR 0110.**
+  `approved-room-policy.ts:1` cites *"ADR 0108 Amendment B"* [source-verified]. ADR 0110 bears on 7F2
+  only through item 10 above and R16 (`MINIMUM_NOT_MET` is unreachable from 1D). ADR 0124 moved the
+  maxima to 6000/6000 (`approved-room-policy.ts:13-24`); ADR 0125 keeps the minima at 900/1000. Neither
+  asks anything of 7F2 beyond *"no bound reaches a surface"*.
+
+#### What the tree does today, at 1B/1C [measured unless marked]
+
+| Probe | Result |
+| --- | --- |
+| L rooms, walls 100–7000 mm at 10 mm, ceiling 2600 (477 481 rooms) | ok **245 211**; `wallB:WALL_TOO_LONG` 51 100; `wallA:WALL_TOO_LONG` 50 100; `wallB:WALL_TOO_SHORT` 45 990; `wallA:WALL_TOO_SHORT` 40 080; `shape:ROOM_TOO_SMALL_FOR_KITCHEN` **10 800**; A-long+B-long 10 000; A-long+B-short 9 000; A-short+B-long 8 000; A-short+B-short 7 200 |
+| Inside the approved rectangle (A 900–6000, B 1000–6000, 10 mm, 256 011 rooms) | ok 245 211; **`ROOM_TOO_SMALL_FOR_KITCHEN` 10 800 (4.22 %)** — the only code reachable in-rectangle at a valid ceiling |
+| `ROOM_TOO_SMALL` split by the wider wall | A wider **4 770**; B wider **5 970**; equal **60** |
+| Witnesses | 2200×900 → `wallB:WALL_TOO_SHORT`; 900×1000 → `ROOM_TOO_SMALL`; 3600×450 → `wallB:WALL_TOO_SHORT` (frame 1C's example); 3600×2400×2100 → `HEIGHT_TOO_LOW`; ×4000 → `HEIGHT_TOO_HIGH`; 6001×2400 → `wallA:WALL_TOO_LONG`; 800×800×2000 → **three** issues (A short, B short, height low) |
+| U, all fields filled | 1C, `shape:SHAPE_NOT_BUILDABLE` only (fields are not judged — ADR 0108 decision 2) |
+| linear, all fields filled | 1C, `shape:SHAPE_NOT_BUILDABLE` only |
+| `wallB=abc` / `wallB=0` / `wallB=2.4005` | **1B**, `markedFields: ["wallB"]`, no issue — silent (see Q-7F2-4) |
+| Partial-draft plans vs another shape's complete plan (`derivePlanPreview`, byte-compared as JSON) | **U{A,B} ≡ L{A,B} IDENTICAL**; **U{A} ≡ linear{A} IDENTICAL**; **L{A} ≡ linear{A} IDENTICAL**; U{A,C} differs (draws A and C) |
+
+**Two consequences the record has not yet drawn:**
+
+- **The U-chip defect is one member of a class of three**, and 7F1 *asserts* one of the other two:
+  `plan-preview-model.test.ts:665` — *"draws wall A alone from the first readable keystroke"* — is the
+  L{A} ≡ linear case [source-verified]. Fixing only the recorded U{A,B} case leaves the class standing;
+  fixing the class amends a 7F1 test. That is Q-7F2-3.
+- **`VALUE_MISSING` and `VALUE_NOT_WHOLE_MILLIMETRES` cannot reach 1C.** `parseRoomUrlState` sends any
+  field that does not parse to 1B as a marked field (`room-url-state.ts:83-97`), so `validateRoomInput`
+  only ever sees whole positive millimetres [source-verified; P3 measured]. The reachable 1C codes are
+  six: `SHAPE_NOT_BUILDABLE`, `ROOM_TOO_SMALL_FOR_KITCHEN`, `WALL_TOO_SHORT`, `WALL_TOO_LONG`,
+  `HEIGHT_TOO_LOW`, `HEIGHT_TOO_HIGH`.
+
+### 2. Tier, visual flag, goal, scope, module boundaries
+
+**Tier: Light** (the row's own tier; UI assembly against a settled contract): adversarial QA, then **one**
+combined logic + clean-code reviewer. **Escalation trigger, named in advance:** if re-homing the eight
+departure tests (criterion 13) turns out to need an edit to `room-query-sync.ts`, stop — that file is a
+7F1-D45 state machine and the wave becomes Full for that slice. **The reviewer brief names ADR 0120
+decisions 3–4 and Amendment C1** as the intent to check copy against, because the copy is the only place
+the owner's ruling becomes observable (ADR 0120 decision 4's own words).
+
+**Visual: Yes** — 390 × 844, touch, **production build**, **both locales** (ru is the longer, and 1C's
+vertical budget is the risk). The verifier owns the frozen tree for the run.
+
+**Goal.** Give sub-state 1C its customer surface on mobile: a human reason beside each offending field,
+the offending wall red on the plan, a room-level reason for *minimum not met*, the refusal sentence for
+a shape that cannot be built, frame 1C's note, and *Continuă* inactive exactly when the room is refused —
+**all derived on the client, as the customer types.**
+
+**In scope:** the six reachable codes' copy and placement; the shape refusal at 1A, 1B and 1C; the red
+wall; the incomplete-plan defect class (per Q-7F2-3); *Continuă* at 1C; the note; the linear-suggestion
+hook 7J switches on (section 8).
+
+**Out, named so nobody drifts:**
+
+- **The desktop line** — D1C's *Sugestii* card and `validation-suggestion.tsx` are **7L's**.
+- **Making linear buildable** (7J) or U (M7B). **Any edit under `packages/`** — no new issue code, no new
+  field, no bound moved. If an implementer believes a code is missing, **stop and report**.
+- **The field labels** (*Perete A* etc.) — 7A3 shipped the hint and help; ADR 0120 D's *"this label has no
+  wave"* item is not taken here.
+- **1D/1E, 1F** and anything in `generation-model.ts`, `generation-steps.tsx`, `use-generation.ts`
+  (7D5b's SW is in those files — see section 7).
+- **The locale-menu extraction** (R5's deferred wave).
+- **Mid-field reasons for unreadable text** unless Q-7F2-4 says otherwise.
+
+#### Module boundaries
+
+**Domain — read only.** 7F2 calls, and never re-implements: `validateRoomInput` (through
+`parseRoomUrlState`, as `roomInDraft` already does at `room-screen.tsx:365-370`), `isShapeBuildable`, and
+the types `RoomIssue`, `RoomIssueCode`, `RoomField`. `APPROVED_ROOM_POLICY` stays the screen's default
+prop and nothing more. **Must not:** read `minMm`/`maxMm`/`minimumKitchen` anywhere under
+`apps/web/src/room` (criterion 16).
+
+**`apps/web/src/room` — presentation.** One new pure module and edits to five existing ones:
+
+| file | role | new/edit |
+| --- | --- | --- |
+| `room-issue-model.ts` | **Pure.** `(RoomUrlState-of-the-draft, policy) → RoomIssueView`: per-field reason key, room-level reason key, shape-refusal flag, marked plan walls, note visibility, linear-suggestion flag. No React, no DOM, no clock. Owns the one `Record` from code to leaf. | **new** |
+| `room-screen.tsx` | derives the view from the **draft** (not the URL); *Continuă* at 1C; the room-level reason and the note slots; the shape refusal at 1A | edit |
+| `dimensions-form.tsx` | the reason beside its field, `aria-describedby` appended, `aria-invalid` at 1C only | edit |
+| `plan-preview-model.ts` + `plan-preview.tsx` | red wall + its short label, as a **separate** pure step over the drawn plan; the incomplete-plan rule | edit |
+| `room.module.css` | the frame's reason box, red field, red bar, note; the fit decision (Q-7F2-2) | edit |
+| `messages/ro.json`, `ru.json`, `ro.d.json.ts` | the new leaves | edit |
+
+**Anchor and scale, for the plan (product-invariants).** The anchor is **adopted** from
+`room-transforms.ts` via `plan-preview-model.ts` and is not touched: corner at the drawing's origin, A
+along +X across the top, B along +Z down the side (7F1 criterion 12). **Marking is not geometry:** a
+marked wall keeps its exact rectangle; only its fill and its label change. **Scaling rule:** unchanged
+isotropic `isotropicScalePxPerMm` (owner R4). **Structural dependency:** the marked set depends on the
+issue fields only — `wallA→A`, `wallB→B`, `wallC→C`; `height`, `shape` → none. Reflection
+(`direction: "right"`) must carry the mark with the wall, never with the screen side.
+
+### 3. Slices (≤ 5 items each), with owners
+
+All slices touch `room.module.css` or `room-screen.tsx`, so they are **sequential**, one dispatch at a
+time, the tree frozen between them. Production-file counts exclude paired tests.
+
+**S0 — measure before building. Owner: visual verifier (+ QA for the census). No production file.**
+Dispatch only after 7D5b S3 closes and port 4320 is free.
+1. Production build, 390 × 844, ro and ru: measure `.dimensionsBody`'s vertical slack at 1B for linear,
+   L and U (the 7A3 method, `room-length-fields-fit.e2e.spec.ts`). **Feeds Q-7F2-2.**
+2. Capture 1C today for the witness rooms in criterion 14 (the "before" set).
+3. Reproduce the U-chip plan defect and the two sibling cases (P2 above) on screen.
+4. Census, by `rtk proxy grep`: every test that clicks `room-continue` over a draft the domain refuses.
+   **Expected: 8** — seven in `qa-7f1-d45-convergence.adversarial.test.ts:822-969` (fixture
+   `A_ROOM_MISSING_WALL_A`, ceiling 2,10) and one in `room-url-round-trip.dom.test.ts:588-619`
+   (`A_REFUSED_ROOM_MISSING_WALL_A`) [source-verified]. A different count is a finding about this plan.
+
+**S1 — the issue model and the copy. Owner: implementer (web). 4 production files. Ungated** (copy ships
+as drafted interim, the 7F4a/Q7F4-1 precedent: the answer to Q-7F2-1 is a message-file edit).
+1. `room-issue-model.ts` (new) with its properties (criteria 1, 2, 3, 9's model arm, 10's model arm, 11).
+2. `ro.json`, `ru.json`, `ro.d.json.ts`: the leaves in section 5.
+3. Copy lock + golden fixtures/hashes, same commit, keys named, citing ADR 0113 decision 2 **and** marking
+   the frame-1C departure (criterion 15).
+4. The reachability guard: a property that `VALUE_MISSING` / `VALUE_NOT_WHOLE_MILLIMETRES` never reach
+   1C, so the `Record` can exclude them by a named type and turn red the day one becomes reachable.
+
+**S2 — the red wall (marking only). Owner: implementer (web). 2 production files. Ungated.**
+1. `plan-preview-model.ts`: `markPlanWalls(plan, markedWalls)` — a second pure step; `derivePlanPreview`'s
+   signature and every existing property unchanged.
+2. `plan-preview.tsx`: the red fill and the short label for a marked wall.
+3. Properties: geometry byte-identical marked vs unmarked; the mark survives reflection (criterion 7).
+
+**S3 — 1C on the form. Owner: implementer (web). 3 production files. Gated on Q-7F2-2 (layout) and
+C-7F2-1/C-7F2-2 (coordinator).**
+1. `room-screen.tsx`: derive `RoomIssueView` from the draft; the room-level reason slot; the note;
+   `canContinueFrom` asks the parser (the same `roomInDraft` question), so 1C is inactive.
+2. `dimensions-form.tsx`: reason beside field, `aria-describedby` = hint + help + reason, `aria-invalid`.
+3. `room.module.css`: frame 1C's reason box, red field, and the fit per Q-7F2-2.
+4. **Re-home the eight departure tests** (criterion 13) onto a harness that does not need an enabled
+   *Continuă* over a refused draft. None deleted, no assertion weakened.
+5. Extend `room-length-fields-fit.e2e.spec.ts` to 1C's worst case (criterion 14's fit arm).
+
+**S4 — the shape refusal. Owner: implementer (web). 2–3 production files. Ungated** (wording is Q-7F2-1's,
+a message edit).
+1. `room-screen.tsx` `ShapeStep`: the refusal under the cards when a refused card is chosen at 1A.
+2. The same sentence under the chips at 1B/1C, `aria-describedby` from the radiogroup.
+3. The linear-suggestion hook (section 8), with its negative arm asserted.
+4. `room.module.css` for both slots.
+
+**S5 — the incomplete plan. Owner: implementer (web). 1–2 production files. Gated on Q-7F2-3.**
+1. `plan-preview-model.ts` per the answer; the 7F1 test at `plan-preview-model.test.ts:665` is **amended in
+   the same commit and named in its message** if the answer is (a) — never silently edited.
+2. Criterion 8's property.
+
+**(S5b — only if Q-7F2-4 answers "yes"):** the unreadable-text reason on blur, in `dimensions-form.tsx`.
+
+**Then:** adversarial QA over S1–S5 (tree frozen) → one combined review → the visual gate → the scribe's
+close-out. `pnpm check` before every commit (ADR 0110 L7's lesson); `pnpm ci:local` before the push.
+
+**Dispatchable without any answer:** S0, S1, S2, S4. **Needs an answer:** S3 (Q-7F2-2 and the two
+coordinator questions), S5 (Q-7F2-3), S5b (Q-7F2-4).
+
+### 4. Acceptance criteria
+
+Each names its **discriminating population** (ADR 0121 decision 5) and **sabotage in both directions** —
+a mutation the criterion must catch that *over*-fires and one that *under*-fires. *Property* = fast-check,
+stated range, **≥ 100 samples per arm** where it branches.
+
+1. **Reasons are exactly the parser's 1C, per field.** *Property* over L drafts, walls 100–7000 mm and
+   ceilings 1000–5000 mm on a 1 mm grid, split by constructed arbitraries into the arms of the measured
+   table (ok, A-short, B-short, both-short, A-long, B-long, mixed, too-small, height-low, height-high):
+   the fields carrying a reason equal `{issue.field}` of `parseRoomUrlState(canonicalRoomQuery(draft))`
+   when it is 1C, and are empty otherwise. **Discriminating population:** the mixed arms (27 200 of 477 481
+   at 10 mm [measured]) — a model that returns only the first issue passes every single-issue arm.
+   **Sabotage ↑:** hand-written `wallB < 1000` → a fabricated policy moving wall B's minimum reddens it.
+   **Sabotage ↓:** return `issues.slice(0, 1)` → the mixed arms redden.
+2. **No digit, no code, and not one generic sentence.** For every reachable code × both locales × every
+   `wall` argument: the resolved message matches none of `/\p{Nd}/u`, `/[A-Z]{2,}_[A-Z_]+/`, `/\bmm\b/`.
+   **And** the six codes resolve to **six different strings** per locale. **Sabotage ↑:** an ICU `{minMm}`
+   or a leaf reading *"1 000"* → red. **Sabotage ↓:** every code mapped to one *"Valoare invalidă"* → the
+   distinctness arm reddens (the no-digit arm alone would pass it).
+3. **Minimum not met is a room-level reason, and nothing else.** For `ROOM_TOO_SMALL_FOR_KITCHEN`: the
+   room-level slot carries its reason; **no** field has `aria-invalid` or a field reason; **no** wall is
+   red. **Population:** 10 800 rooms at 10 mm, **both** halves of the wider-wall split (A 4 770 / B 5 970
+   [measured]) sampled ≥ 100 each. **Sabotage ↑:** mark both walls red for `field: "shape"` → red.
+   **Sabotage ↓:** render only per-field reasons (the code is on `shape`, so nothing shows) → red.
+4. **Live, and the client's.** Typing the digit that makes a room invalid shows its reason **without any
+   router call having happened** (the navigation spy reads 0 at the moment the reason is asserted), and
+   typing the digit that makes it valid clears it — with the echo **withheld**, so a URL-derived
+   implementation cannot pass. Timing follows C-7F2-1: *recommended*, appear once typing has paused for
+   `URL_SETTLE_MS`, clear on the keystroke. **Discriminating case:** the ceiling typed `2` on the way to
+   `2,6` (2000 mm, `HEIGHT_TOO_LOW` for one keystroke). **Sabotage ↑:** derive from the draft with no
+   pause → the `2` keystroke paints a reason → red. **Sabotage ↓:** derive from `useSearchParams` → with
+   the echo withheld the reason never appears → red.
+5. ***Continuă* is inactive exactly at 1C.** *Property:* enabled ⇔ `roomInDraft(draft) !== undefined`
+   (1D), over criterion 1's arms plus refused shapes. A tap on the inactive CTA issues **no** navigation
+   and **no** `compose`. **Sabotage ↑:** disable on any draft with a marked field → 1D arm reddens.
+   **Sabotage ↓:** keep 7F1's `canContinueFrom` → every 1C arm reddens. *(Frame 1C draws it inactive,
+   `Mobil.dc.html:245`; ADR 0120 decision 4.)*
+6. **Accessibility is attached, not painted.** At 1C each offending input's `aria-describedby` lists the
+   hint, the help and the reason **in that order**, and carries `aria-invalid="true"`; no other input
+   does. **7F1 criterion 10 holds unedited:** `?shape=L` shows zero `aria-invalid`, zero reasons, no red.
+   **Sabotage ↑:** `aria-invalid` on every marked field at 1B → criterion 10's test reddens.
+   **Sabotage ↓:** a reason rendered with no `aria-describedby` link → red.
+7. **The offending wall is red, and only it.** Marked walls = `{A,B,C}` ∩ mapped issue fields; height,
+   shape and room-level issues mark none. The marked wall's label is its short reason (frame 1C
+   *"B prea scurt"*); other labels are unchanged. *Property:* the marked plan's rectangles are
+   **byte-identical** to the unmarked plan's; reflecting a marked plan keeps the mark on the same wall id.
+   **Population:** both directions × A-only / B-only / both. **Sabotage ↑:** mark by array index → the
+   `right` direction arm reddens. **Sabotage ↓:** mark nothing for `WALL_TOO_LONG` → red.
+8. **The plan never draws another shape** (per Q-7F2-3). *Property:* for every shape and every **proper**
+   subset of its required walls, the drawing differs from every other shape's complete drawing at the same
+   values. **Measured today: 3 violations** (U{A,B}≡L, U{A}≡linear, L{A}≡linear). **Sabotage ↑:** return
+   `empty` for every draft → 7F1's complete-room properties redden. **Sabotage ↓:** fix only U{A,B} →
+   L{A}≡linear keeps it red.
+9. **The shape refusal is the policy's, everywhere the shape is chosen.** Shown ⇔
+   `!isShapeBuildable(chosen, policy)`, at 1A (a card chosen) and at 1B/1C (a chip chosen), **independent
+   of the fields**. Its resolved text matches none of a banned-word list naming an internal reason
+   (ro/ru: *implementat, dezvoltare, versiune, eroare, cod* / *реализ, разработ, верси, ошибк, код*) and
+   suggests no shape. Under the R8 fabricated policy (ADR 0116's helper) a second shape's refusal
+   **disappears with no component edit**. **Sabotage ↑:** `shape !== "L"` → fabricated arm reddens.
+   **Sabotage ↓:** show it only at 1C → the 1A arm reddens.
+10. **No linear suggestion before 7J, and the switch is the domain's.** Under `APPROVED_ROOM_POLICY` the
+    suggestion is absent for every code and shape. The gate is *"the same entry as a straight room on
+    wall A validates"* — `validateRoomInput({shape:"linear", wallAMm, heightMm}, policy).ok` — asked of the
+    domain, never of a bound. **Sabotage ↑:** gate `true` → red today. **Sabotage ↓ is 7J's** (a gate stuck
+    at `false` cannot be caught until linear validates) — handed over in section 8 by name.
+11. **The note is 1C's.** *"Presetele apar după ce toate valorile sunt valide."* shows at 1C and never at
+    1A, 1B or 1D. **Sabotage ↑:** show it at 1B → red. **Sabotage ↓:** show it only for field codes → the
+    too-small arm reddens.
+12. **1C removes nothing.** At 1C the chips (3) and, for L/U, the corner toggle are present and operable.
+    **Sabotage:** a frame-literal 1C that drops either → red. *(`:1926-1941`, ADR 0104 decision 1.)*
+13. **The eight departure tests keep their claims.** Each of the 8 (S0's census) still asserts its push
+    count and flushed URL, on a harness that does not rely on an enabled *Continuă* over a refused draft.
+    None deleted, none weakened; the departure double-tap guard mutated → still red.
+    **`room-query-sync.ts` unedited** (else stop — the escalation trigger in section 2).
+14. **Visual gate, 390 × 844, ro and ru, production build.** Witness rooms: 3,60×0,45×2,60 (frame 1C);
+    0,90×2,16×2,20 (`room-screen.dom.test.ts`'s 1C fixture, too-small); 2,20×0,90 (7F4a's odd one out);
+    0,80×0,80×2,00 (three reasons — the vertical worst case); 3,60×2,40×4,00; U chip with *Perete C*
+    empty; U fully filled; linear. Each: every field and *Continuă* reachable (the fits e2e extended to
+    1C), no horizontal overflow, 44 px targets (ADR 0104 decision 5's `elementFromPoint` mechanism), red
+    wall visible and on the right side after mirroring. **The note, the chips and the toggle are expected
+    — not findings.**
+15. **Copy lock and golden.** Every new ro leaf is in `approved-romanian-messages.ts` and the golden
+    manifest in the same commit; **no existing hash moves** (7D5b SW's `room.compose.dishwasher` included).
+    The commit and the close-out name the frame-1C departure (section 5) against ADR 0104's sweep.
+16. **No bound under `apps/web/src/room`.** No read of `minMm`, `maxMm`, `minimumKitchen` or
+    `cornerReachMm` in the directory; the 3600/2400/2600 lint ban and its gate-on-the-gate stay green
+    unedited.
+17. **The noun is the run, not the wall** (ADR 0120 C1). No field reason's ro/ru text asserts that the
+    *wall* is short or long (`/perete(le)?\b[^.]*\b(scurt|lung)/i`, `/стен[аы]\b[^.]*\b(коротк|длинн)/i`).
+    **Sabotage:** the frame's *"Acest perete este mai scurt…"* verbatim → red.
+
+**Must not change (a change is a finding):** `packages/**`; `room-url-state.ts`; `room-query-sync.ts`;
+`parse-metres.ts`; `generation-model.ts`, `generation-steps.tsx`, `use-generation.ts`; the four 7F1-frozen
+tests (`room-url-state.test.ts`, `qa-7e2-room-href.adversarial.test.ts`, `parse-metres*.test.ts`); existing
+golden hashes; `src/app/configurator/configure/**` (R5).
+
+### 5. New copy — ADOPTED 2026-09-21 (Q-7F2-1 = (a))
+
+Every leaf below is approved as drafted (Q-7F2-1). Russian uses the informal *ты*, matching
+`room.lengthsHint` (*"Введи…"*). Every string was checked by eye for a digit: none carries one.
+
+**Why frame 1C's sentence does not ship as written [source-verified]:** *"Acest perete este mai scurt decât
+putem susține. Mărește valoarea sau alege o formă liniară."* fails twice — **"Acest perete"** is the noun
+ADR 0120 C1 rules false (*"'This wall is too short' is false under the run reading"*), and **"alege o formă
+liniară"** suggests a shape that is not buildable until 7J (`:1082`, `:1917`).
+
+| key | ro | ru | source |
+| --- | --- | --- | --- |
+| `room.issue.wallTooShort` | Lungimea aceasta e mai mică decât putem mobila. Mărește valoarea. | Эта длина меньше, чем мы можем обставить. Увеличь значение. | frame 1C, noun corrected (C1) |
+| `room.issue.wallTooLong` | Lungimea aceasta e mai mare decât putem mobila. Introdu doar porțiunea pe care vrei dulapuri. | Эта длина больше, чем мы можем обставить. Введи только ту часть, где нужны шкафы. | drafted; the remedy is ADR 0120 D1's *"type a smaller number"* |
+| `room.issue.heightTooLow` | La înălțimea aceasta nu încap dulapurile de sus. Verifică valoarea. | При такой высоте не помещаются верхние шкафы. Проверь значение. | drafted; the reason is `approved-room-policy.ts:34-36`'s own |
+| `room.issue.heightTooHigh` | Înălțimea aceasta e mai mare decât putem construi. Verifică valoarea. | Эта высота больше, чем мы можем построить. Проверь значение. | drafted |
+| `room.issue.roomTooSmall` | Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi. | При таких длинах после углового шкафа не остаётся места для мойки и варочной панели. Увеличь одну из длин. | ADR 0110's *"honest sentence"*, digit removed |
+| `room.issue.shapeNotBuildable` | Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă. | Для этой формы мы пока не можем предложить кухню. Выбери другую форму. | drafted (Q-7F2-1 (b) offers an alternative — not chosen) |
+| `room.issue.orChooseLinear` | Sau alege o formă liniară. | Или выбери линейную форму. | frame 1C's own clause; **rendered only once 7J makes it true** |
+| `room.planWallIssue.tooShort` | {wall} prea scurt | {wall} слишком короткая | frame 1C (*"B prea scurt"*) |
+| `room.planWallIssue.tooLong` | {wall} prea lung | {wall} слишком длинная | drafted, mirrors the frame |
+| `room.presetsAfterValid` | Presetele apar după ce toate valorile sunt valide. | Пресеты появятся, когда все значения будут верными. | frame 1C, **as written** |
+| `room.issue.unreadable` *(Q-7F2-4 = yes)* | Scrie lungimea în metri. | Введи длину в метрах. | drafted |
+
+**One flag for the owner's eye, not a question:** the note says *presets* appear, and in M7 the customer
+goes on to 1F, whose title is *Preset* and whose notice says no preset fits (`room.compose.noPresetNotice`)
+[source-verified]. Read together the frames stay coherent, so the note ships as written.
+
+### 6. Questions — ANSWERED 2026-09-21
+
+**Q-7F2-1, Q-7F2-2, Q-7F2-3 and Q-7F2-4 are all answered (a), matching the plan's own recommendation in
+each case** — see *Owner and coordinator rulings* above for the record of each choice and its
+consequence (S3 unblocked by Q-7F2-2; S5 unblocked by Q-7F2-3; S5b unblocked by Q-7F2-4).
+
+**C-7F2-1, C-7F2-2 and C-7F2-3 are ruled** — see *Owner and coordinator rulings* above.
+
+### 7. Collision with 7D5b
+
+**Resolved: 7D5b closed first.** 7D5b's S3 (visual gate, W7 fix and close-out) landed and pushed before
+this plan's S0 dispatches, so the sequencing this section originally called for is now moot. The shared
+files (message trio, copy lock, golden hashes, `room.module.css`, this milestone file, `docs/STATUS.md`,
+ADR 0104) are 7D5b's own and are no longer in flight.
+
+### 8. What 7J needs from 7F2
+
+7J's row: *"the 1C/D1C suggestion to switch to a straight kitchen appears"*, and R8/criterion 3: *"7J
+changes nothing under `apps/web/src/room`"* [source-verified]. So 7F2 must leave a surface that switches on
+**from the domain alone**:
+
+1. **The linear suggestion is pre-wired and off.** `room.issue.orChooseLinear` is in the catalogues and the
+   lock, rendered after a field or room reason **iff** the same entry validates as a straight room on
+   wall A (criterion 10). Today that is never true, because `validateRoomInput` refuses every non-L input
+   (`validate-room.ts:76`). **7J owes the positive arm** — *a gate stuck at `false` is invisible until
+   linear validates* — and the handover names that test by name.
+2. **The shape refusal keys on `isShapeBuildable`**, so *Liniară*'s refusal disappears when 7J adds the
+   bounds, with no edit (criterion 9's fabricated arm proves it).
+3. **The model is total over the reachable codes, with a compile guard.** If 7J needs a new `RoomIssueCode`,
+   `room-issue-model.ts` stops compiling — which is correct, and which **breaks 7J's "nothing under
+   `src/room`" claim**. The handover says so rather than letting 7J discover it.
+4. **The plan's marking and the incomplete-plan rule are shape-agnostic** (field → wall mapping,
+   `requiredFieldsFor`), so a linear 1C marks wall A with no edit.
+5. **C-7F2-3's two findings** go into 7J's plan: the 1D throw and the 1F summary's wall B.
+
+### Risks, ranked
+
+| # | risk | why this rank | mitigation |
+| --- | --- | --- | --- |
+| R1 | **A reason pushes a field under the footer**, and the column clips it: the customer cannot reach the field they are told to fix. Invisible to every unit test — 7A3's D1 was exactly this and nothing failed. | Most likely and worst: 2.6 px of U slack [source-verified]. | Q-7F2-2 before S3; S0 measures; criterion 14 extends the fits e2e to 1C. |
+| R2 | **The 8 departure tests are "fixed" by deletion**, or by an edit to `room-query-sync.ts`. | They test a 7F1-D45 state machine whose defects were found only in a production build. | Criterion 13; the escalation trigger. |
+| R3 | **The frame's sentence ships verbatim** — it is right there and reads as fidelity. | It breaks ADR 0120 C1 and the Q5 ruling at once. | Criterion 17's pattern; Q-7F2-1; the reviewer brief names C1. |
+| R4 | **Reasons read from the URL**, because R9 made `useSearchParams` the authority for the sub-state. | Every existing marker reads the URL; copying the pattern is the natural move. | Criterion 4 withholds the echo. |
+| R5 | **The U fix lands alone** and the class stays. | The record names only the U case. | Criterion 8 over every proper subset. |
+| R6 | **A bound leaks** through a "helpful" hint. | ADR 0108 decision 3; the owner's own frame caption. | Criteria 2 and 16. |
+| R7 | **This plan's figures are quoted as settled.** They are at `f6e3730`, 10 mm, one ceiling; the slack figures are inference. | ADR 0119. | S0 re-measures; the close-out re-takes rather than transcribes. |
+
+### Verification
+
+Per slice: the web suite (`cd apps/web && pnpm exec vitest run`), `typecheck`, `lint`, whole-tree
+`format:check`; `pnpm check` before each commit. Then adversarial QA (tree frozen), one combined review,
+the production-build visual gate at 390 × 844 in both locales, and `pnpm ci:local` before the push —
+**read from its verdict line, not an exit code.** The traversal e2e and the fits e2e run against `next dev`
+inside `ci:local` (`playwright.config.ts:15`); **the production claim is the visual gate's, and CI's.**
 
 ## Wave 7D8 — the plan, 2026-09-16: the run follows the wider wall
 
