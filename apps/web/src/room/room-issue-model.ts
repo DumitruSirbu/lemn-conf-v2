@@ -16,7 +16,11 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { parseMillimetres } from "./parse-millimetres";
-import type { PlanWallId } from "./plan-preview-model";
+import type {
+  MarkedPlanWall,
+  PlanWallId,
+  PlanWallIssueLabelKey,
+} from "./plan-preview-model";
 import type { RoomDraft, RoomLengthField } from "./room-draft";
 import { requiredFieldsFor, type RoomUrlState } from "./room-url-state";
 
@@ -53,16 +57,22 @@ export const ROOM_ISSUE_MESSAGE_KEYS = {
 export type RoomIssueMessageKey =
   (typeof ROOM_ISSUE_MESSAGE_KEYS)[ReachableRoomIssueCode];
 
-/** Frame 1C's plan label (*"B prea scurt"*). Only a wall's own length codes can mark a wall. */
+/** The plan's input contract, re-exported so a caller of this model reads its whole output from here.
+ *  Defined by the plan, which consumes it: the dependency runs one way, issue model to plan. */
+export type { MarkedPlanWall, PlanWallIssueLabelKey };
+
+/** The codes that mark a wall: a wall's own length, and nothing else. */
+type WallLengthIssueCode = Extract<
+  ReachableRoomIssueCode,
+  "WALL_TOO_SHORT" | "WALL_TOO_LONG"
+>;
+
+/** Frame 1C's plan label (*"B prea scurt"*). `satisfies` holds it total over the codes that mark a
+ *  wall and to the plan's own label keys. */
 const PLAN_WALL_ISSUE_LABEL_KEYS = {
   WALL_TOO_SHORT: "room.planWallIssue.tooShort",
   WALL_TOO_LONG: "room.planWallIssue.tooLong",
-} as const;
-
-type WallLengthIssueCode = keyof typeof PLAN_WALL_ISSUE_LABEL_KEYS;
-
-export type PlanWallIssueLabelKey =
-  (typeof PLAN_WALL_ISSUE_LABEL_KEYS)[WallLengthIssueCode];
+} as const satisfies Record<WallLengthIssueCode, PlanWallIssueLabelKey>;
 
 /** The refusal beside the shape choice at 1A, 1B and 1C — the same leaf the domain's code names. */
 export const SHAPE_REFUSAL_MESSAGE_KEY =
@@ -94,11 +104,6 @@ export interface RoomIssueInput {
 export interface RoomFieldReason {
   readonly field: RoomLengthField;
   readonly messageKey: RoomIssueMessageKey;
-}
-
-export interface MarkedPlanWall {
-  readonly wall: PlanWallId;
-  readonly labelKey: PlanWallIssueLabelKey;
 }
 
 export interface RoomIssueView {

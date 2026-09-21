@@ -29,6 +29,18 @@ import { requiredFieldsFor } from "./room-url-state";
 
 export type PlanWallId = "A" | "B" | "C";
 
+/** Frame 1C's short reasons for a wall (*"B prea scurt"*): the leaves a marked wall's label may name. */
+export type PlanWallIssueLabelKey =
+  | "room.planWallIssue.tooShort"
+  | "room.planWallIssue.tooLong";
+
+/** A wall the plan paints red, and the reason written in place of its length — `markPlanWalls`'s
+ *  input contract, which the issue model produces. */
+export interface MarkedPlanWall {
+  readonly wall: PlanWallId;
+  readonly labelKey: PlanWallIssueLabelKey;
+}
+
 /** The preview box the drawing is fitted into, in CSS pixels. **The pixels that are painted in**, not
  *  the box that is painted: a border is spent out of an element's own width under `border-box`, so
  *  the caller hands over what is left inside it (`plan-preview.tsx`). */
@@ -67,6 +79,9 @@ export interface PlanWallRect {
    *  it is decided **against the other bars** — a label the renderer placed on its own would have
    *  only one wall's rectangle to go on. */
   readonly labelPx: PlanWallLabelPx;
+  /** Frame 1C's short reason (*"B prea scurt"*), written in place of the length on a wall the room
+   *  refuses. Only `markPlanWalls` sets it, so its presence *is* the mark; absent on every other wall. */
+  readonly issueLabelKey?: PlanWallIssueLabelKey;
 }
 
 export interface DrawnPlanPreview {
@@ -139,6 +154,10 @@ const MIRRORED_CORNER_DIRECTION: CornerDirection = "right";
  *  screen. Every other wall a plan draws runs down it. */
 const WALL_ACROSS_THE_SCREEN: PlanWallId = "A";
 
+/** The wall the anchor sends along +Z out of the corner itself (`placeLeftWall`); the others that run
+ *  down the screen stand at the far end of wall A. */
+const WALL_DOWN_FROM_THE_CORNER: PlanWallId = "B";
+
 const DRAWABLE_WALLS: readonly {
   readonly wall: PlanWallId;
   readonly field: RoomLengthField;
@@ -192,6 +211,51 @@ export function reflectPlanPreview(plan: PlanPreview): PlanPreview {
       yPx: plan.cornerPx.yPx,
     },
     walls: plan.walls.map((wall) => reflectWall(wall, plan.boxPx)),
+  };
+}
+
+/**
+ * Frame 1C's red wall, as a **second pure step over the drawn plan** (wave 7F2 criterion 7). Marking
+ * is not geometry: a marked wall keeps its exact rectangle and its label's anchor, and gains only the
+ * reason written in place of its length. A mark finds its wall by **id**, never by array index or by
+ * side, so a mirrored plan carries it on the same wall; a mark for a wall the plan does not draw is
+ * dropped with nothing drawn for it. Marks are set **exactly**: a wall the list does not name comes
+ * back unmarked, even from a plan that was marked before.
+ */
+export function markPlanWalls(
+  plan: PlanPreview,
+  markedWalls: readonly MarkedPlanWall[],
+): PlanPreview {
+  if (plan.kind === "empty") return plan;
+  return {
+    ...plan,
+    walls: plan.walls.map((wall) => withIssueMark(wall, markedWalls)),
+  };
+}
+
+function withIssueMark(
+  wall: PlanWallRect,
+  markedWalls: readonly MarkedPlanWall[],
+): PlanWallRect {
+  const mark = markedWalls.find((marked) => marked.wall === wall.wall);
+  return mark === undefined
+    ? withoutIssueMark(wall)
+    : { ...withoutIssueMark(wall), issueLabelKey: mark.labelKey };
+}
+
+/** The wall as `derivePlanPreview` drew it, whatever an earlier marking set on it: marks are set
+ *  exactly, so a plan marked again with fewer marks loses the ones it no longer names. Rebuilt field
+ *  by field, in the drawing's own order, so an unmarked wall serialises byte for byte as drawn. */
+function withoutIssueMark(wall: PlanWallRect): PlanWallRect {
+  if (wall.issueLabelKey === undefined) return wall;
+  return {
+    wall: wall.wall,
+    lengthMm: wall.lengthMm,
+    xPx: wall.xPx,
+    yPx: wall.yPx,
+    widthPx: wall.widthPx,
+    heightPx: wall.heightPx,
+    labelPx: wall.labelPx,
   };
 }
 
@@ -370,23 +434,65 @@ function aboveTheWall(bar: PlanWallBar): PlanWallLabelPx {
  * stands at the drawing's right edge, so "always to the right of the bar" put *"C · 1200 mm"* past the
  * box and the customer saw three walls and two labels. The obstructions counted are only the bars
  * that actually cross the line the label is written on, so a wall stopping short of it is not read
- * as one.
+ * as one. **A bar blocks a side as soon as it reaches past the wall's edge on that side**, not only
+ * when it lies wholly beyond it: a U with a very short wall A draws B and C overlapping, and a label
+ * sent towards the bar it overlaps was printed on it (7F2 S2).
  */
 function besideTheWall(
   bar: PlanWallBar,
   bars: readonly PlanWallBar[],
   box: PlanBox,
 ): PlanWallLabelPx {
-  const topPx = bar.yPx + bar.heightPx / 2 - PLAN_LABEL_LINE_PX / 2;
+  const topPx = lineBesideTheWallTopPx(bar, box);
   const crossing = bars.filter((other) => crossesTheLine(other, topPx));
-  const towardsTheRight =
-    freeToTheRightPx(bar, crossing, box) >= freeToTheLeftPx(bar, crossing);
+  const towardsTheRight = sharesItsBarWithAnother(bar, crossing)
+    ? isTheFarWall(bar)
+    : freeToTheRightPx(bar, crossing, box) >= freeToTheLeftPx(bar, crossing);
 
   return {
     xPx: insideTheBoxPx(anchorBesidePx(bar, towardsTheRight), box),
     topPx,
     alignment: towardsTheRight ? "leftAligned" : "rightAligned",
   };
+}
+
+/**
+ * The line beside a wall that runs down the screen: centred on the bar, but **never starting above
+ * the bar's own top**, which is where the wall across the screen ends. A bar drawn shorter than the
+ * line is tall — wall B typed at 100 mm beside a 3600 mm wall A comes out under 9 px — would
+ * otherwise centre the line up into wall A's bar, and a label beside B would be printed over A
+ * (7F2 S2 QA finding 1). Held inside the box as well, so the floor never pushes a line off its
+ * bottom. Decided from the bars and the line height only, never from the text.
+ */
+function lineBesideTheWallTopPx(bar: PlanWallBar, box: PlanBox): number {
+  const centredTopPx = bar.yPx + bar.heightPx / 2 - PLAN_LABEL_LINE_PX / 2;
+  const flooredAtTheBarTopPx = Math.max(centredTopPx, bar.yPx);
+  return Math.min(flooredAtTheBarTopPx, box.heightPx - PLAN_LABEL_LINE_PX);
+}
+
+/**
+ * **Two walls drawn on one bar.** A U whose wall A draws no wider than a wall is thick puts wall C
+ * exactly where wall B is, and neither blocks a side of the other — so both labels took the same
+ * anchor and were printed over each other (7F2 S2 review, R1.1). The tie is broken by the walls'
+ * ids, following the anchor rather than the pixels: B, which leaves the corner, is labelled on the
+ * corner's outside, and C on the far side. This layout is the left-turning one, so a mirrored plan
+ * carries each label with its wall.
+ */
+function sharesItsBarWithAnother(
+  bar: PlanWallBar,
+  crossing: readonly PlanWallBar[],
+): boolean {
+  return crossing.some(
+    (other) =>
+      other.wall !== bar.wall &&
+      other.xPx === bar.xPx &&
+      other.widthPx === bar.widthPx,
+  );
+}
+
+/** Every wall but the one leaving the corner down the screen stands on the far side of the drawing. */
+function isTheFarWall(bar: PlanWallBar): boolean {
+  return bar.wall !== WALL_DOWN_FROM_THE_CORNER;
 }
 
 function anchorBesidePx(bar: PlanWallBar, towardsTheRight: boolean): number {
@@ -400,8 +506,8 @@ function freeToTheLeftPx(
   crossing: readonly PlanWallBar[],
 ): number {
   const edgesPx = crossing
-    .filter((other) => rightEdgePx(other) <= bar.xPx)
-    .map(rightEdgePx);
+    .filter((other) => other.xPx < bar.xPx)
+    .map((other) => Math.min(rightEdgePx(other), bar.xPx));
   return bar.xPx - Math.max(0, ...edgesPx);
 }
 
@@ -411,8 +517,8 @@ function freeToTheRightPx(
   box: PlanBox,
 ): number {
   const edgesPx = crossing
-    .filter((other) => other.xPx >= rightEdgePx(bar))
-    .map((other) => other.xPx);
+    .filter((other) => rightEdgePx(other) > rightEdgePx(bar))
+    .map((other) => Math.max(other.xPx, rightEdgePx(bar)));
   return Math.min(box.widthPx, ...edgesPx) - rightEdgePx(bar);
 }
 

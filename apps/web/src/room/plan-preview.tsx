@@ -11,11 +11,17 @@
 // **The picture is `aria-hidden` and the labels are real text beside it** (the copy obligation's
 // third deliberate absence): a screen reader reads *"A · 3600 mm"* rather than a drafted description
 // of a drawing.
+//
+// **Frame 1C's red wall is marked, never drawn** (wave 7F2 criterion 7): `markPlanWalls` sets a
+// reason on the walls the room refuses, and this renderer paints that wall red and writes the reason
+// where its length was. The rectangle is the one `derivePlanPreview` placed, untouched.
 import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 
 import {
   PLAN_LABEL_LINE_PX,
+  markPlanWalls,
+  type MarkedPlanWall,
   type PlanBox,
   type PlanLabelAlignment,
   type PlanPreview as PlanPreviewModel,
@@ -26,7 +32,16 @@ import styles from "./room.module.css";
 
 export interface PlanPreviewProps {
   readonly plan: PlanPreviewModel;
+  /** The walls frame 1C draws red (`RoomIssueView.markedWalls`). None until the screen passes them. */
+  readonly markedWalls?: readonly MarkedPlanWall[];
 }
+
+const NO_MARKED_WALLS: readonly MarkedPlanWall[] = [];
+
+/** A wall's paint: the frame's accent (`:135`), or frame 1C's red (`:210-211`) on a wall the room refuses.
+ *  The red is published by `.planBox` as `--plan-wall-issue`, so the bar and its label share one. */
+const WALL_FILL = "var(--accent)";
+const MARKED_WALL_FILL = "var(--plan-wall-issue)";
 
 /** Frame 1B's own box as it is *painted* (`:134`): 104 px tall, and as wide as the card leaves it on
  *  a 390 px screen — the body's 18 px insets and the card's 16 px padding and 1 px border, taken off
@@ -56,8 +71,12 @@ const PLAN_BOX_METRICS = {
   "--plan-label-line": `${String(PLAN_LABEL_LINE_PX)}px`,
 } as CSSProperties;
 
-export function PlanPreview({ plan }: PlanPreviewProps) {
+export function PlanPreview({
+  plan: drawnPlan,
+  markedWalls = NO_MARKED_WALLS,
+}: PlanPreviewProps) {
   const translate = useTranslations();
+  const plan = markPlanWalls(drawnPlan, markedWalls);
 
   return (
     <div className={styles.planCard} data-testid="room-plan">
@@ -83,7 +102,7 @@ export function PlanPreview({ plan }: PlanPreviewProps) {
   );
 }
 
-function PlanDrawing({ plan }: PlanPreviewProps) {
+function PlanDrawing({ plan }: { readonly plan: PlanPreviewModel }) {
   const walls = plan.kind === "drawn" ? plan.walls : [];
 
   return (
@@ -103,7 +122,8 @@ function PlanDrawing({ plan }: PlanPreviewProps) {
           width={wall.widthPx}
           height={wall.heightPx}
           rx="2"
-          fill="var(--accent)"
+          fill={isMarked(wall) ? MARKED_WALL_FILL : WALL_FILL}
+          data-marked={isMarked(wall)}
         />
       ))}
     </svg>
@@ -112,7 +132,8 @@ function PlanDrawing({ plan }: PlanPreviewProps) {
 
 /** The wall's letter and its whole millimetres, joined by the catalogue's own template: both are ICU
  *  arguments, so the number's form and the unit are the locale's to place and this component never
- *  spells either. Millimetres, the unit the customer types (ADR 0126). */
+ *  spells either. Millimetres, the unit the customer types (ADR 0126). A marked wall reads its short
+ *  reason instead, which names the wall and carries no digit (ADR 0120 decision 3). */
 function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
   const translate = useTranslations();
 
@@ -121,13 +142,20 @@ function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
       className={styles.planWallLabel}
       style={labelPositionFor(wall.labelPx)}
       data-testid={`room-plan-label-${wall.wall}`}
+      data-marked={isMarked(wall)}
     >
-      {translate("room.planWallLabel", {
-        wall: wall.wall,
-        millimetres: wall.lengthMm,
-      })}
+      {wall.issueLabelKey === undefined
+        ? translate("room.planWallLabel", {
+            wall: wall.wall,
+            millimetres: wall.lengthMm,
+          })
+        : translate(wall.issueLabelKey, { wall: wall.wall })}
     </span>
   );
+}
+
+function isMarked(wall: PlanWallRect): boolean {
+  return wall.issueLabelKey !== undefined;
 }
 
 /** The label's own box, hung off the anchor the model placed. **Nothing here decides where a label

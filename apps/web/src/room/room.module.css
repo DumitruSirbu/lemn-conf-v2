@@ -330,6 +330,11 @@
  * instead of widening the document — the refusal ADR 0082 decision 2 states.
  */
 .planBox {
+  /* Frame 1C's red wall and its label (`Mobil.dc.html:210-211`), the frame's own `#dc2626` — the
+   * same red `editor-panel.module.css` marks a refusal with. Declared once: `plan-preview.tsx`
+   * fills a marked bar from it and the label below is set in it. */
+  --plan-wall-issue: #dc2626;
+
   position: relative;
   background: var(--paper);
   border: var(--plan-box-border) solid var(--line-soft);
@@ -353,6 +358,10 @@
   font-variant-numeric: tabular-nums;
   color: var(--ink-muted);
   white-space: nowrap;
+}
+
+.planWallLabel[data-marked="true"] {
+  color: var(--plan-wall-issue);
 }
 
 .corner {

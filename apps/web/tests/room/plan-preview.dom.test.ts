@@ -28,6 +28,7 @@ import {
   derivePlanPreview,
   type DrawnPlanPreview,
   type PlanBox,
+  type MarkedPlanWall,
   type PlanWallId,
 } from "@/room/plan-preview-model";
 import {
@@ -39,7 +40,11 @@ import {
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
-import type { Catalogue, CatalogueLocale } from "../support/catalogues";
+import {
+  translatorFor,
+  type Catalogue,
+  type CatalogueLocale,
+} from "../support/catalogues";
 
 const A_PRODUCT_LOCALE: CatalogueLocale = "ro";
 
@@ -341,4 +346,87 @@ describe("a label reads its wall's whole millimetres (ADR 0126, criterion S1b-9)
       );
     },
   );
+});
+
+// Wave 7F2 slice S2, criterion 7's paint: `markPlanWalls` proves the mark moves no pixel; this proves
+// the card paints it — the red the stylesheet declares on the marked bar, and the reason written
+// where the length was — and paints nothing red on a wall that carries no mark.
+describe("a wall the room refuses is painted red and reads its short reason (7F2 criterion 7)", () => {
+  /** Frame 1C's own example (`Mobil.dc.html:195-247`), in millimetres: wall B too short. */
+  const FRAME_ONE_C_ROOM: RoomMm = { wallAMm: 3600, wallBMm: 450 };
+  const WALL_B_TOO_SHORT: readonly MarkedPlanWall[] = [
+    { wall: "B", labelKey: "room.planWallIssue.tooShort" },
+  ];
+
+  function renderMarked(
+    locale: CatalogueLocale,
+    messages: Catalogue,
+    markedWalls: readonly MarkedPlanWall[],
+  ): void {
+    const plan = derivePlanPreview(draftFor(FRAME_ONE_C_ROOM), PLAN_BOX);
+    act(() => {
+      root.render(
+        createElement(NextIntlClientProvider, {
+          children: createElement(PlanPreview, { plan, markedWalls }),
+          locale,
+          messages,
+          timeZone: "Europe/Chisinau",
+        }),
+      );
+    });
+  }
+
+  function barOf(wallId: PlanWallId): Element {
+    const plan = derivePlanPreview(draftFor(FRAME_ONE_C_ROOM), PLAN_BOX);
+    if (plan.kind !== "drawn")
+      throw new Error("the frame-1C room draws no plan");
+    const index = plan.walls.findIndex((drawn) => drawn.wall === wallId);
+    const bar = paintedBars()[index];
+    if (bar === undefined)
+      throw new Error(`the card paints no bar for ${wallId}`);
+    return bar;
+  }
+
+  it("declares the frame's red once, on the plan box, for the bar and its label to share", () => {
+    expect(roomStylesheet).toContain("--plan-wall-issue: #dc2626;");
+    expect(roomStylesheet).toMatch(
+      /\.planWallLabel\[data-marked="true"\] \{\s*color: var\(--plan-wall-issue\);/,
+    );
+  });
+
+  it.each(LABEL_LOCALES)(
+    "paints wall B red and writes its short reason in its label, in %s",
+    (locale, messages) => {
+      renderMarked(locale, messages, WALL_B_TOO_SHORT);
+
+      expect(barOf("B").getAttribute("fill")).toBe("var(--plan-wall-issue)");
+      expect(labelAt("B").dataset.marked).toBe("true");
+      expect(labelAt("B").textContent).toBe(
+        translatorFor(locale, messages)("room.planWallIssue.tooShort", {
+          wall: "B",
+        }),
+      );
+      expect(labelAt("B").textContent).not.toMatch(/\p{Nd}/u);
+    },
+  );
+
+  it.each(LABEL_LOCALES)(
+    "leaves the unmarked wall A in the accent, reading its length, in %s",
+    (locale, messages, unit) => {
+      renderMarked(locale, messages, WALL_B_TOO_SHORT);
+
+      expect(barOf("A").getAttribute("fill")).toBe("var(--accent)");
+      expect(labelAt("A").dataset.marked).toBe("false");
+      expect(labelAt("A").textContent).toBe(`A \u00B7 3600 ${unit}`);
+    },
+  );
+
+  it("paints no wall red when no mark is passed", () => {
+    renderMarked(A_PRODUCT_LOCALE, roMessages, []);
+
+    for (const bar of paintedBars()) {
+      expect(bar.getAttribute("fill")).toBe("var(--accent)");
+    }
+    expect(labelAt("B").textContent).toBe("B \u00B7 450 mm");
+  });
 });

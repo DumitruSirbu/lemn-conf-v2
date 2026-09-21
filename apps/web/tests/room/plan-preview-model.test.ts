@@ -49,12 +49,14 @@ const FLOAT_TOLERANCE_PX = 1e-9;
  *  this is the shipped example — the swept boxes below are what the containment claim rests on. */
 const FRAME_PREVIEW_BOX: PlanBox = { widthPx: 318, heightPx: 102 };
 
-/** The widest a wall label was measured at in the browser: *"C · 1,20 m"* came out 51,4 px at the
- *  screen's own bold 11 px, and 60 leaves the Russian catalogue and a wider digit room. It is an
- *  observation about type rather than a layout input — the model measures no text and is handed none
- *  — and it lives here so that a drawing which stops leaving room for a label fails before a
- *  customer meets one. */
-const WIDEST_WALL_LABEL_PX = 60;
+/** The widest a wall label was measured at in the browser, at the screen's own `700 11px Helvetica`
+ *  in Chromium (7F2 S2 QA, 2026-09-22): the millimetre label *"A · 3600 mm"* is 64,2 px, and frame
+ *  1C's Russian reason *"B слишком короткая"* is 116,6 px — the widest text a wall's label can hold.
+ *  (The 60 px this replaced was measured on the metre label *"C · 1,20 m"*, 51,4 px, before ADR 0126
+ *  and before a label could carry a reason.) It is an observation about type rather than a layout
+ *  input — the model measures no text and is handed none — and it lives here so that a drawing which
+ *  stops leaving room for a label fails before a customer meets one. */
+const WIDEST_WALL_LABEL_PX = 117;
 
 interface RectPx {
   readonly leftPx: number;
@@ -363,6 +365,28 @@ describe("derivePlanPreview — no bar is ever painted over a label", () => {
     );
   });
 
+  // Wave 7F2 S2 QA finding 1: a wall drawn shorter than a label's line is tall — B typed at 100 mm
+  // beside a 3600 mm wall A — centred its label's line up into wall A's bar. Approved rooms never
+  // draw a bar that short in this box, so the population is every wall a field can hold on the way
+  // to a room, from its first digit.
+  it.each(EVERY_CORNER)(
+    "keeps every label clear of every bar in a %s-turning L typed with any walls from 1 mm",
+    (direction) => {
+      const anyTypedWallMm = fc.integer({ min: 1, max: 7000 });
+      fc.assert(
+        fc.property(anyTypedWallMm, anyTypedWallMm, (wallAMm, wallBMm) => {
+          const plan = drawnPlan(
+            turned(lDraftFor({ wallAMm, wallBMm }), direction),
+            FRAME_PREVIEW_BOX,
+          );
+
+          expect(labelsOverBarsIn(plan)).toEqual([]);
+        }),
+        { numRuns: SWEEP_RUNS, examples: [[3600, 100]] },
+      );
+    },
+  );
+
   it.each(EVERY_CORNER)(
     "keeps every label clear of every bar in a %s-turning U",
     (direction) => {
@@ -405,6 +429,116 @@ describe("derivePlanPreview — no bar is ever painted over a label", () => {
 // 6,30 x 1,20 x 1,20 m wall C's label resolved to x 325 → 376 in a box 318 wide: three walls drawn,
 // two labels visible. U is not continuable yet, but the side a label goes on is the same logic for
 // every wall that runs down the screen.
+/** Every pair of a plan's labels whose lines overlap, at the widest label a wall can carry. */
+function labelsOverLabelsIn(plan: DrawnPlanPreview): readonly string[] {
+  return plan.walls.flatMap((one, index) =>
+    plan.walls
+      .slice(index + 1)
+      .filter((other) =>
+        overlaps(labelRectPx(one.labelPx), labelRectPx(other.labelPx)),
+      )
+      .map((other) => `${one.wall}'s label over ${other.wall}'s`),
+  );
+}
+
+interface TypedUWallsMm {
+  readonly wallAMm: number;
+  readonly wallBMm: number;
+  readonly wallCMm: number;
+}
+
+function typedUDraft(
+  { wallAMm, wallBMm, wallCMm }: TypedUWallsMm,
+  direction: CornerDirection,
+): RoomDraft {
+  const typed = (
+    [
+      ["wallA", wallAMm],
+      ["wallB", wallBMm],
+      ["wallC", wallCMm],
+    ] as const
+  ).reduce<RoomDraft>(
+    (draft, [field, millimetres]) =>
+      withEnteredText(draft, { field, text: String(millimetres) }),
+    createRoomDraft("U"),
+  );
+  return turned(typed, direction);
+}
+
+/** B and C drawn on one bar: wall A no wider than a wall is thick, so C stands exactly where B does. */
+function drawsBAndCOnOneBar(plan: DrawnPlanPreview): boolean {
+  return (
+    wall(plan, "B").xPx === wall(plan, "C").xPx &&
+    wall(plan, "B").widthPx === wall(plan, "C").widthPx
+  );
+}
+
+/** A U typed from its first digit with a wall A short enough, against B and C, to draw no wider than
+ *  a wall is thick at this box's scale — the population where B and C coincide. */
+const aUWithBAndCOnOneBar: fc.Arbitrary<TypedUWallsMm> = fc
+  .record({
+    wallAMm: fc.integer({ min: 1, max: 400 }),
+    wallBMm: fc.integer({ min: 1, max: 7000 }),
+    wallCMm: fc.integer({ min: 1, max: 7000 }),
+  })
+  .filter((walls) =>
+    drawsBAndCOnOneBar(
+      drawnPlan(typedUDraft(walls, "left"), FRAME_PREVIEW_BOX),
+    ),
+  );
+
+// Wave 7F2 S2 review, R1.1: a U whose wall A draws no wider than a wall is thick puts C exactly on
+// B's bar, neither blocked a side of the other, and both labels took one anchor. The tie is broken by
+// wall id, following the anchor: B on the corner's outside, C on the far side.
+describe("derivePlanPreview — two walls drawn on one bar are labelled on opposite sides", () => {
+  it.each(EVERY_CORNER)(
+    "keeps every label's line clear of every other label's in a %s-turning U whose B and C coincide",
+    (direction) => {
+      fc.assert(
+        fc.property(aUWithBAndCOnOneBar, (walls) => {
+          const plan = drawnPlan(
+            typedUDraft(walls, direction),
+            FRAME_PREVIEW_BOX,
+          );
+
+          expect(labelsOverLabelsIn(plan)).toEqual([]);
+        }),
+        {
+          numRuns: SWEEP_RUNS,
+          examples: [
+            [{ wallAMm: 3, wallBMm: 2400, wallCMm: 2400 }],
+            [{ wallAMm: 36, wallBMm: 2400, wallCMm: 2400 }],
+            [{ wallAMm: 360, wallBMm: 2400, wallCMm: 2400 }],
+            [{ wallAMm: 360, wallBMm: 2400, wallCMm: 2300 }],
+          ],
+        },
+      );
+    },
+  );
+
+  it("writes B's label on the corner's outside and C's on the far side, in the left-turning plan", () => {
+    const plan = drawnPlan(
+      typedUDraft({ wallAMm: 3, wallBMm: 2400, wallCMm: 2400 }, "left"),
+      FRAME_PREVIEW_BOX,
+    );
+
+    expect(wall(plan, "B").labelPx.alignment).toBe("rightAligned");
+    expect(wall(plan, "C").labelPx.alignment).toBe("leftAligned");
+  });
+
+  it("carries each label with its wall through the mirror", () => {
+    const walls = { wallAMm: 360, wallBMm: 2400, wallCMm: 2300 };
+    const left = drawnPlan(typedUDraft(walls, "left"), FRAME_PREVIEW_BOX);
+
+    expect(drawnPlan(typedUDraft(walls, "right"), FRAME_PREVIEW_BOX)).toEqual(
+      reflectPlanPreview(left),
+    );
+    expect(wall(asDrawn(reflectPlanPreview(left)), "B").labelPx.alignment).toBe(
+      "leftAligned",
+    );
+  });
+});
+
 describe("derivePlanPreview — no label is ever written off the box", () => {
   it("turns a U's far-wall label into the room rather than off the right edge", () => {
     const plan = drawnPlan(
