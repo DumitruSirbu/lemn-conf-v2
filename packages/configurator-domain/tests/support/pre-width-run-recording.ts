@@ -11,6 +11,13 @@
 // never a width change. `planBeforeTheDishwasher` admits exactly that — M1's one door cabinet beside
 // the sink re-identified in place, or (e)'s two drawer cabinets re-identified in place — and hands the
 // rest of the plan to the comparisons below unchanged, so everything else stays exact.
+//
+// 7D5b S2 / ADR 0110 M7/M10: where S1 stood no dishwasher it is traded in directly after the sink for
+// (b) one pantry column, (d) the bottle or (c) the oven tower, which is a width change on the sink's
+// wall. `planBeforeTheDishwasher` undoes exactly that — the dishwasher out, every module after it on
+// the sink's wall back by its 600 mm, the one body restored where the ruling says it stood — which
+// recovers S1's plan, and then applies S1's own undo to it. A trade that moved anything else leaves a
+// plan the exact comparisons below reject.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -240,16 +247,53 @@ const DISHWASHER_WIDTH_MM = 600;
 const DOOR_BODY = "base-cabinet";
 const PREPARATION_BODY = "base-3drawer";
 
+/** 7D5b S2 / ADR 0110 M7/M10: the three trades, by the body the run gave up. */
+export type DishwasherTrade = "(b)" | "(d)" | "(c)";
+
 /** How a plan stood its dishwasher, for a caller that counts the arms. */
-export type DishwasherArm = "none" | "M1" | "(e)";
+export type DishwasherArm = "none" | "M1" | "(e)" | DishwasherTrade;
 
 /** Which arm stood the plan's dishwasher, read off what stands: (e) where the pan drawer carries the
- *  preparation role, M1 where a dishwasher stands otherwise. */
+ *  preparation role; a trade where the dishwasher is read directly after the sink on the hob's wall,
+ *  laid out forward (M1 converts a composed slot, which never stands between the sink and the hob);
+ *  M1 otherwise. 7D5b S2: which trade is read off the sink's wall — (c) where no column stands and
+ *  the hob carries the oven, (d) where columns stand and no bottle does, (b) where both stand. A (b)
+ *  room without a bottle would read as (d) and then fail the exact comparisons rather than pass;
+ *  the approved population holds none (every (b) room keeps its bottle, measured at 7D5b S2). */
 export function dishwasherArmOf(plan: KitchenCompositionPlan): DishwasherArm {
-  if (!plan.bases.some((base) => base.buildId === DISHWASHER_BODY)) {
-    return "none";
-  }
-  return plan.bases.some(isPanDrawerCarryingThePreparation) ? "(e)" : "M1";
+  const dishwasher = plan.bases.find(
+    (base) => base.buildId === DISHWASHER_BODY,
+  );
+  if (dishwasher === undefined) return "none";
+  if (plan.bases.some(isPanDrawerCarryingThePreparation)) return "(e)";
+  return isReadDirectlyAfterTheSink(plan.bases, dishwasher)
+    ? tradeReadOffTheWall(plan.bases, dishwasher.wall)
+    : "M1";
+}
+
+function isReadDirectlyAfterTheSink(
+  bases: readonly PlanModule[],
+  dishwasher: PlanModule,
+): boolean {
+  const sink = bases.find((base) => base.role === "sink");
+  const hob = bases.find((base) => base.role === "hob");
+  return (
+    sink !== undefined &&
+    sink.wall === dishwasher.wall &&
+    hob?.wall === dishwasher.wall &&
+    dishwasher.startMm === sink.endMm
+  );
+}
+
+function tradeReadOffTheWall(
+  bases: readonly PlanModule[],
+  wall: "A" | "B",
+): DishwasherTrade {
+  const standsAColumn = bases.some(
+    (base) => base.wall === wall && TALL_COLUMN_ID.test(base.id),
+  );
+  if (!standsAColumn) return "(c)";
+  return bases.some((base) => base.id === "bottle") ? "(b)" : "(d)";
 }
 
 /**
@@ -291,14 +335,255 @@ export function planBeforeTheDishwasher(
     `${key} dishwasher beside the sink`,
   ).toBe(true);
 
+  const arm = dishwasherArmOf(plan);
+  if (arm === "(b)" || arm === "(d)" || arm === "(c)") {
+    // 7D5b S2 / ADR 0110 M7/M10: undone to S1's plan, which then takes S1's own undo (none stood).
+    const undone = withTheDishwasherTradeUndone(plan);
+    if (undone.kind === "unruled") {
+      expect.fail(`${key} ${undone.reason}`);
+    }
+    return planBeforeTheDishwasher(key, undone.plan, recordedCanonical);
+  }
   const restore =
-    dishwasherArmOf(plan) === "(e)"
+    arm === "(e)"
       ? drawerSwapUndone(key, plan, dishwasher)
       : doorCabinetRestored(key, {
           dishwasher,
           recorded: parseRecordedCanonicalPlan(recordedCanonical),
         });
   return { ...plan, bases: plan.bases.map(restore) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// 7D5b S2 / ADR 0110 M7/M10 — a traded dishwasher, undone to the plan S1 composed.
+// ---------------------------------------------------------------------------------------------
+
+const TRADED_DISHWASHER_WIDTH_MM = 600;
+const BOTTLE_WIDTH_MM = 300;
+const COLUMN_WIDTH_MM = 600;
+const PANTRY_BODY = "tall-pantry";
+const OVEN_TOWER_BODY = "tall-oven-tower";
+const HOB_WITH_ITS_OWN_OVEN = "base-hob-oven";
+const HOB_WITH_DRAWERS = "base-hob-2drawer";
+
+/** What undoing a trade found: the plan S1 composed, and each restored module's shift along its wall
+ *  (current `startMm` minus S1's), for a caller whose wall row stands over the same modules. */
+export type TradeUndo =
+  | {
+      readonly kind: DishwasherTrade;
+      readonly plan: KitchenCompositionPlan;
+      readonly shiftedMm: ReadonlyMap<string, number>;
+    }
+  | { readonly kind: "unruled"; readonly reason: string };
+
+/**
+ * **7D5b S2 / ADR 0110 M7/M10.** The dishwasher traded in directly after the sink, undone: it is taken
+ * out and every module after it on the sink's wall is drawn back by its 600 mm; then the one body the
+ * ruling names is stood back where it stood —
+ *
+ * - **(b)** a pantry column past the block's outermost, which gives back the width E6.2 let it absorb
+ *   and returns to one module: the remainder does not move;
+ * - **(d)** the 300 mm bottle directly after the hob, everything past it drawn back only 300 mm, and
+ *   the remainder 300 mm wider — the freed 300 mm the dishwasher had filled;
+ * - **(c)** the 600 mm oven tower as the block's only column, past the last module, and the hob back on
+ *   its drawers (`base-hob-2drawer`), since a tower stands again (E4): the remainder does not move.
+ *
+ * A trade the rulings do not account for — no hob on the sink's wall, a (b) whose wall does not end in
+ * a column, a (c) whose hob kept its drawers — is answered `unruled`. Anything else it moved, it moved
+ * in the undone plan too, where the caller's exact comparison names it.
+ */
+export function withTheDishwasherTradeUndone(
+  plan: KitchenCompositionPlan,
+): TradeUndo {
+  const dishwasher = plan.bases.find(
+    (base) => base.buildId === DISHWASHER_BODY,
+  );
+  const arm = dishwasherArmOf(plan);
+  if (
+    dishwasher === undefined ||
+    (arm !== "(b)" && arm !== "(d)" && arm !== "(c)")
+  ) {
+    return { kind: "unruled", reason: `no traded dishwasher (${arm})` };
+  }
+  const wall = dishwasher.wall;
+  const beyond = plannedAlongWall(plan.bases, wall).filter(
+    (base) => base.startMm >= dishwasher.endMm,
+  );
+  const restored =
+    arm === "(b)"
+      ? pantryColumnRestored(beyond, wall)
+      : arm === "(d)"
+        ? bottleRestored(beyond)
+        : ovenTowerRestored(beyond, wall);
+  if (typeof restored === "string") {
+    return { kind: "unruled", reason: `${arm} ${restored}` };
+  }
+  const bases = inThePlansOwnOrder(plan.bases, {
+    dishwasher,
+    beyond,
+    restored: restored.bases,
+  });
+  const remainderMm = {
+    ...plan.remainderMm,
+    [wall]: plan.remainderMm[wall] + restored.remainderGainedMm,
+  };
+  return {
+    kind: arm,
+    plan: {
+      ...plan,
+      bases,
+      remainderMm,
+      floorWidthsMm: {
+        ...plan.floorWidthsMm,
+        [wall]: alongWall(bases, wall).map((base) => base.widthMm),
+      },
+    },
+    shiftedMm: new Map(
+      restored.bases.flatMap((base) => {
+        const current = beyond.find((module) => module.id === base.id);
+        return current === undefined
+          ? []
+          : [[base.id, current.startMm - base.startMm] as const];
+      }),
+    ),
+  };
+}
+
+/** `alongWall` for the composer's own modules, whose type the restored plan keeps. */
+function plannedAlongWall(
+  bases: readonly PlannedGenerationBase[],
+  wall: "A" | "B",
+): readonly PlannedGenerationBase[] {
+  return bases
+    .filter((base) => base.wall === wall)
+    .sort((left, right) => left.startMm - right.startMm);
+}
+
+/** The plan's bases in the order the composer wrote them — the order every exact comparison reads —
+ *  with the dishwasher out, each drawn-back module in its own place, and the restored body written
+ *  directly after the module it stands after along the wall. */
+function inThePlansOwnOrder(
+  bases: readonly PlannedGenerationBase[],
+  trade: {
+    readonly dishwasher: PlannedGenerationBase;
+    readonly beyond: readonly PlannedGenerationBase[];
+    readonly restored: readonly PlannedGenerationBase[];
+  },
+): readonly PlannedGenerationBase[] {
+  const isNew = (base: PlannedGenerationBase) =>
+    !trade.beyond.some((module) => module.id === base.id);
+  const restoredAfter = new Map(
+    trade.restored.flatMap((base, at) =>
+      isNew(base) ? [[trade.restored[at - 1]?.id, base] as const] : [],
+    ),
+  );
+  return bases.flatMap((base) => {
+    if (base === trade.dishwasher) return [];
+    if (!trade.beyond.includes(base)) return [base];
+    const drawnBackBase = trade.restored.find(
+      (module) => module.id === base.id,
+    );
+    const followedBy = restoredAfter.get(base.id);
+    return [drawnBackBase ?? base, ...(followedBy ? [followedBy] : [])];
+  });
+}
+
+interface RestoredRun {
+  readonly bases: readonly PlannedGenerationBase[];
+  readonly remainderGainedMm: number;
+}
+
+function drawnBack(
+  base: PlannedGenerationBase,
+  byMm: number,
+): PlannedGenerationBase {
+  return { ...base, startMm: base.startMm - byMm, endMm: base.endMm - byMm };
+}
+
+function pantryColumnRestored(
+  beyond: readonly PlannedGenerationBase[],
+  wall: "A" | "B",
+): RestoredRun | string {
+  const outermost = beyond.at(-1);
+  const columns = beyond.filter((base) => TALL_COLUMN_ID.test(base.id));
+  if (outermost === undefined || !columns.includes(outermost)) {
+    return "the sink's wall does not end in a column";
+  }
+  const bases = beyond.map((base) => {
+    const back = drawnBack(base, TRADED_DISHWASHER_WIDTH_MM);
+    return base === outermost
+      ? {
+          ...back,
+          endMm: back.startMm + COLUMN_WIDTH_MM,
+          widthMm: COLUMN_WIDTH_MM,
+        }
+      : back;
+  });
+  const lastEndMm = bases.at(-1)?.endMm ?? 0;
+  const pantry: PlannedGenerationBase = {
+    id: `column:${wall}:${String(columns.length)}`,
+    role: "storage",
+    buildId: PANTRY_BODY,
+    wall,
+    startMm: lastEndMm,
+    endMm: lastEndMm + outermost.widthMm,
+    widthMm: outermost.widthMm,
+  };
+  return { bases: [...bases, pantry], remainderGainedMm: 0 };
+}
+
+function bottleRestored(
+  beyond: readonly PlannedGenerationBase[],
+): RestoredRun | string {
+  const hob = beyond.find((base) => base.role === "hob");
+  if (hob === undefined) return "no hob after the dishwasher";
+  const upToTheHob = beyond
+    .filter((base) => base.startMm <= hob.startMm)
+    .map((base) => drawnBack(base, TRADED_DISHWASHER_WIDTH_MM));
+  const hobEndMm = hob.endMm - TRADED_DISHWASHER_WIDTH_MM;
+  const bottle: PlannedGenerationBase = {
+    id: "bottle",
+    role: "storage",
+    buildId: BOTTLE_CARGO_BUILD_ID,
+    wall: hob.wall,
+    startMm: hobEndMm,
+    endMm: hobEndMm + BOTTLE_WIDTH_MM,
+    widthMm: BOTTLE_WIDTH_MM,
+  };
+  const pastTheHob = beyond
+    .filter((base) => base.startMm > hob.startMm)
+    .map((base) =>
+      drawnBack(base, TRADED_DISHWASHER_WIDTH_MM - BOTTLE_WIDTH_MM),
+    );
+  return {
+    bases: [...upToTheHob, bottle, ...pastTheHob],
+    remainderGainedMm: TRADED_DISHWASHER_WIDTH_MM - BOTTLE_WIDTH_MM,
+  };
+}
+
+function ovenTowerRestored(
+  beyond: readonly PlannedGenerationBase[],
+  wall: "A" | "B",
+): RestoredRun | string {
+  const hob = beyond.find((base) => base.role === "hob");
+  if (hob?.buildId !== HOB_WITH_ITS_OWN_OVEN) {
+    return `hob ${hob?.buildId ?? "absent"} does not carry the oven`;
+  }
+  const bases = beyond.map((base) => {
+    const back = drawnBack(base, TRADED_DISHWASHER_WIDTH_MM);
+    return base === hob ? { ...back, buildId: HOB_WITH_DRAWERS } : back;
+  });
+  const lastEndMm = bases.at(-1)?.endMm ?? 0;
+  const tower: PlannedGenerationBase = {
+    id: `column:${wall}:0`,
+    role: "storage",
+    buildId: OVEN_TOWER_BODY,
+    wall,
+    startMm: lastEndMm,
+    endMm: lastEndMm + COLUMN_WIDTH_MM,
+    widthMm: COLUMN_WIDTH_MM,
+  };
+  return { bases: [...bases, tower], remainderGainedMm: 0 };
 }
 
 function isPanDrawerCarryingThePreparation(base: PlanModule): boolean {

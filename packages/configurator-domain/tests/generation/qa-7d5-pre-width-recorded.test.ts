@@ -12,6 +12,12 @@
 // admits the threshold drawer: one 600 mm `base-3drawer` under its own id, read after the hob — in
 // the bottle's place or right after the bottle — costing the hob's wall one outermost module and at
 // most one tall column. The arm counts below move only by the rooms that drawer now stands in.
+//
+// 7D5b S2 / ADR 0110 M7/M10: the classifier also admits a traded dishwasher — read directly after the
+// sink, every module after it on the sink's wall 600 mm further along, and exactly one body given up:
+// (b) a pantry column, (d) the bottle, whose 300 mm the remainder gave, or (c) the oven tower, with the
+// hob taking the oven. It undoes the trade to S1's plan and then S1's own dishwasher, and every arm
+// below is chosen on that undone plan, so a (d) room is read with the bottle it stood at S1.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -31,6 +37,7 @@ import {
   dishwasherArmOf,
   PAN_DRAWER_BODY,
   planBeforeTheDishwasher,
+  parseRecordedCanonicalPlan,
   readPreWidthRunRecording,
   STORAGE_SLOT_ID,
   THRESHOLD_DRAWER_ID,
@@ -100,8 +107,17 @@ const TOWER_KEPT_OVER_THE_BOTTLE_ROOMS = [
 ];
 
 /** 7D5b S1 / ADR 0110 M1/M2/M9: how the 480 recorded rooms stand their dishwasher at S1, measured
- *  here — every arm reached, so the admission is not vacuous on either rule. */
-const DISHWASHER_ARMS = { none: 189, M1: 205, "(e)": 86 };
+ *  here — every arm reached, so the admission is not vacuous on either rule. 7D5b S2 / ADR 0110
+ *  M7/M10: of S1's 189 rooms without one, 62 now trade for it — 31 by (b), 2 by (d), 29 by (c) — and
+ *  every one undoes to S1's plan and is then compared exactly; 127 stay without (was `none: 189`). */
+const DISHWASHER_ARMS = {
+  none: 127,
+  M1: 205,
+  "(e)": 86,
+  "(b)": 31,
+  "(d)": 2,
+  "(c)": 29,
+};
 
 function roomFromKey(key: string): DesignRoom {
   const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
@@ -129,7 +145,14 @@ describe("the whole plan before 7D5's width change", () => {
     let thresholdDrawerComparisons = 0;
     let thresholdDrawerWithoutTheBottleComparisons = 0;
     const towerKeptOverTheBottleRooms: string[] = [];
-    const dishwasherArms = { none: 0, M1: 0, "(e)": 0 };
+    const dishwasherArms = {
+      none: 0,
+      M1: 0,
+      "(e)": 0,
+      "(b)": 0,
+      "(d)": 0,
+      "(c)": 0,
+    };
     for (const [key, recorded] of RECORDING.rooms) {
       const room = roomFromKey(key);
       expect(roomKey(room)).toBe(key);
@@ -141,16 +164,17 @@ describe("the whole plan before 7D5's width change", () => {
       // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher re-identifies one module (M1) or two ((e)) in
       // place; undone first, so every arm below compares the rest of the plan exactly as before.
       dishwasherArms[dishwasherArmOf(plan)] += 1;
-      const composed = canonicalPlan(
-        planBeforeTheDishwasher(key, plan, recorded),
-      );
-      const hasBottle = plan.bases.some(
+      // 7D5b S2 / ADR 0110 M7/M10: the arms are read on the plan before the dishwasher — identical to
+      // `plan` in every S1 arm, and S1's plan in a traded room (the bottle back after a (d) trade).
+      const beforeTheDishwasher = planBeforeTheDishwasher(key, plan, recorded);
+      const composed = canonicalPlan(beforeTheDishwasher);
+      const hasBottle = beforeTheDishwasher.bases.some(
         (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
       );
-      const hasPanDrawer = plan.bases.some(
+      const hasPanDrawer = beforeTheDishwasher.bases.some(
         (base) => base.buildId === PAN_DRAWER_BODY,
       );
-      const hasThresholdDrawer = plan.bases.some(
+      const hasThresholdDrawer = beforeTheDishwasher.bases.some(
         (base) => base.id === THRESHOLD_DRAWER_ID,
       );
       if (hasThresholdDrawer) thresholdDrawerComparisons += 1;
@@ -190,6 +214,9 @@ describe("the whole plan before 7D5's width change", () => {
     // leave the pan-drawer-without-bottle arm (106 -> 96) for the bottle arm (278 -> 288); the other 8
     // give their module back to a tall column and keep their arm. The exact arm and the pan-drawer
     // arm are unchanged, and the dishwasher itself moves no room between arms.
+    //
+    // 7D5b S2 / ADR 0110 M7/M10: the arms are chosen on the plan with its trade undone, so the 62
+    // traded rooms keep the arms they had at S1 and every count above is unchanged.
     expect([...towerKeptOverTheBottleRooms].sort()).toEqual(
       [...TOWER_KEPT_OVER_THE_BOTTLE_ROOMS].sort(),
     );
@@ -341,6 +368,23 @@ describe("the whole plan before 7D5's width change", () => {
     },
   );
 
+  it.each(TRADE_CORRUPTION_CASES)(
+    "rejects a traded-dishwasher room where %s",
+    (_, rejectingClause, witness) => {
+      const { key, room, recorded, plan } = firstRoomWhere(witness.isWanted);
+      witness.mutate(plan);
+
+      expect(() => {
+        assertOnlyTheBottleAndPanDrawerChanged(
+          key,
+          room,
+          plan as unknown as KitchenCompositionPlan,
+          recorded,
+        );
+      }).toThrow(rejectingClause);
+    },
+  );
+
   it.each(CORRUPTION_CASES)(
     "rejects unrelated %s corruption in the bottle arm",
     (_, mutate) => {
@@ -472,7 +516,10 @@ const PAN_DRAWER_CORRUPTION_CASES: readonly (readonly [
 ];
 
 interface ThresholdDrawerWitness {
-  readonly isWanted: (bases: KitchenCompositionPlan["bases"]) => boolean;
+  readonly isWanted: (
+    bases: KitchenCompositionPlan["bases"],
+    recorded: string,
+  ) => boolean;
   readonly mutate: (plan: MutablePlan) => void;
 }
 
@@ -642,8 +689,11 @@ const DISHWASHER_CORRUPTION_CASES: readonly (readonly [
     },
   ],
   [
+    // 7D5b S2 / ADR 0110 M7/M10: was rejected by /M1 converted a composed slot/. With no pan drawer
+    // carrying the preparation role, a dishwasher read directly after the sink now reads as a trade,
+    // and its undo is refused where the preparation role went missing.
     "(e) left the pan drawer its own id and no module the preparation role",
-    /M1 converted a composed slot/,
+    /core identities/,
     {
       isWanted: isDrawerSwapRoom,
       mutate: (plan) => {
@@ -660,6 +710,104 @@ const DISHWASHER_CORRUPTION_CASES: readonly (readonly [
       isWanted: (bases) => dishwasherOf(bases) !== undefined,
       mutate: (plan) => {
         plan.bases.push({ ...baseWithId(plan, "dishwasher") });
+      },
+    },
+  ],
+];
+
+// 7D5b S2 / ADR 0110 M7/M10: witnesses that the trade admission is strict — it admits one 600 mm
+// dishwasher directly after the sink, the modules after it one module along, and exactly one body
+// given up, and nothing else. Each mutation keeps both runs contiguous, so the clause named rejects it.
+function isTradedAs(
+  trade: "(b)" | "(d)" | "(c)",
+): (bases: KitchenCompositionPlan["bases"]) => boolean {
+  return (bases) =>
+    dishwasherArmOf({ bases } as KitchenCompositionPlan) === trade;
+}
+
+const TRADE_CORRUPTION_CASES: readonly (readonly [
+  string,
+  RegExp,
+  ThresholdDrawerWitness,
+])[] = [
+  [
+    // The recording predates the bottle, and 7D5 lets the bottle cost the hob's wall one outermost
+    // module — so a second column lost reads as the bottle's cost wherever S1's bottle cost none
+    // (the 11 (b) rooms that keep two columns; measured, the classifier admits the mutation there).
+    // The witness is a room whose bottle already spent it at S1 (17 of the 31: recorded three
+    // columns, S1 two, one left after (b)); the second column (b) gives up there is the tower, and
+    // the undo refuses a trade that left the hob without its oven.
+    "(b) gave up two columns, not one",
+    /does not carry the oven/,
+    {
+      isWanted: (bases, recorded) =>
+        isTradedAs("(b)")(bases) &&
+        parseRecordedCanonicalPlan(recorded).bases.filter((base) =>
+          TALL_COLUMN.test(base.id),
+        ).length ===
+          bases.filter((base) => TALL_COLUMN.test(base.id)).length + 2,
+      mutate: (plan) => {
+        removeOutermostModulesOfTheHobWall(plan, 1);
+      },
+    },
+  ],
+  [
+    "(d) gave up the oven tower as well as the bottle",
+    /does not carry the oven/,
+    {
+      isWanted: isTradedAs("(d)"),
+      mutate: (plan) => {
+        removeOutermostModulesOfTheHobWall(plan, 1);
+      },
+    },
+  ],
+  [
+    "(c) took the tower and left the hob on its drawers",
+    /does not carry the oven/,
+    {
+      isWanted: isTradedAs("(c)"),
+      mutate: (plan) => {
+        baseWithRole(plan, "hob").buildId = "base-hob-2drawer";
+      },
+    },
+  ],
+  [
+    "the modules after the dishwasher moved 300 mm, not 600",
+    /dishwasher identity/,
+    {
+      isWanted: isTradedAs("(c)"),
+      mutate: (plan) => {
+        const dishwasher = baseWithId(plan, "dishwasher");
+        const wall = dishwasher.wall;
+        for (const base of plan.bases) {
+          if (base.wall === wall && base.startMm >= dishwasher.endMm) {
+            base.startMm -= 300;
+            base.endMm -= 300;
+          }
+        }
+        dishwasher.widthMm = 300;
+        dishwasher.endMm = dishwasher.startMm + 300;
+        plan.remainderMm[wall] += 300;
+        plan.floorWidthsMm[wall] = plan.bases
+          .filter((base) => base.wall === wall)
+          .sort((left, right) => left.startMm - right.startMm)
+          .map((base) => base.widthMm);
+      },
+    },
+  ],
+  [
+    "the dishwasher stands after the preparation cabinet, not directly after the sink",
+    /dishwasher beside the sink/,
+    {
+      isWanted: isTradedAs("(b)"),
+      mutate: (plan) => {
+        const dishwasher = baseWithId(plan, "dishwasher");
+        const preparation = baseWithRole(plan, "preparation");
+        const dishwasherStartMm = dishwasher.startMm;
+        dishwasher.startMm = preparation.startMm;
+        dishwasher.endMm = dishwasher.startMm + dishwasher.widthMm;
+        preparation.startMm = dishwasherStartMm;
+        preparation.endMm = preparation.startMm + preparation.widthMm;
       },
     },
   ],
@@ -693,7 +841,10 @@ function firstPanDrawerRoomWithASlotAfterTheHob(): {
 
 /** The first recorded room whose current plan's bases satisfy `isWanted`, with a mutable copy. */
 function firstRoomWhere(
-  isWanted: (bases: KitchenCompositionPlan["bases"]) => boolean,
+  isWanted: (
+    bases: KitchenCompositionPlan["bases"],
+    recorded: string,
+  ) => boolean,
 ): {
   readonly key: string;
   readonly room: DesignRoom;
@@ -707,7 +858,7 @@ function firstRoomWhere(
       runs: lShellFloorRuns(room),
       columns: DECLARED_COLUMNS,
     });
-    if (isWanted(plan.bases)) {
+    if (isWanted(plan.bases, recorded)) {
       const mutable = structuredClone(plan) as unknown as MutablePlan;
       return { key, room, recorded, plan: mutable };
     }

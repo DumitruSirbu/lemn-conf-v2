@@ -30,11 +30,19 @@
 //       return withTheDishwasherLeafSwitchable(await importOriginal());
 //     });
 //
-// and `beforeS1(compose)` runs `compose` with the leaf returning its plan untouched. Every final plan the
-// composer returns is `planOf` of some run, so that **is** the S0b tree, whole — the threshold drawer
-// decided on a dishwasher-free *D* included — and `qa-7d5b-post-tower-recorded` proves it byte for byte
-// against the recording captured at S0b. With the switch on, the wrapper calls the real leaf and records
-// every plan it was handed, read back through `plansTheLeafRead()`.
+// and `beforeS1(compose)` runs `compose` with the leaf returning its plan untouched **and S2's trades
+// switched off**. Every final plan the composer returns is `planOf` of some run, so that **is** the S0b
+// tree, whole — the threshold drawer decided on a dishwasher-free *D* included — and
+// `qa-7d5b-post-tower-recorded` proves it byte for byte against the recording captured at S0b. With the
+// switch on, the wrapper calls the real leaf and records every plan it was handed, read back through
+// `plansTheLeafRead()`.
+//
+// **Since S2 the leaf's `hasADishwasher` is also the trades' gate** (`dishwasher-trades.ts` trades a
+// dishwasher in only where `planOf(run)` has none). With the leaf off no `planOf` has one, so without a
+// second switch every S0b figure would carry S2's trades. The mock therefore answers `hasADishwasher`
+// `true` to its importers while the trades are off — the leaf's own internal call is untouched — which
+// is exactly "the trades are never tried". `withS1Alone(compose)` switches the trades off and leaves the
+// leaf on: the planner as it stood at S1 (`f116b1c`), before S2.
 //
 // **The run items spelled here are the owner's rulings as data, not the composer's constants** (ADR
 // 0121 decision 3(b)): a pan drawer is a 600 mm `base-panbank` read immediately before the hob, and
@@ -61,6 +69,7 @@ export interface RecordedComposition {
 let recorded: RecordedComposition | undefined;
 let isTheLeafSwitchable = false;
 let isTheLeafOff = false;
+let areTheTradesOff = false;
 let readByTheLeaf: KitchenCompositionPlan[] = [];
 
 /** The module under the mock: the real one, with its entry point recording what it was called with. */
@@ -96,7 +105,8 @@ export function forgetTheLastComposition(): void {
 // ---------------------------------------------------------------------------------------------
 
 /** The leaf's module under the mock: the real leaf while the switch is on, the identity inside
- *  `beforeS1`. */
+ *  `beforeS1`; and `hasADishwasher` answering `true` to S2's trade gate inside `beforeS1` and
+ *  `withS1Alone`, so no trade is tried there. */
 export function withTheDishwasherLeafSwitchable(
   real: typeof DishwasherLeaf,
 ): typeof DishwasherLeaf {
@@ -106,22 +116,52 @@ export function withTheDishwasherLeafSwitchable(
     readByTheLeaf.push(plan);
     return real.withTheDishwasherBesideTheSink(plan);
   };
-  return { ...real, withTheDishwasherBesideTheSink: switchable };
+  const tradeGate: typeof real.hasADishwasher = (plan) =>
+    areTheTradesOff || real.hasADishwasher(plan);
+  return {
+    ...real,
+    withTheDishwasherBesideTheSink: switchable,
+    hasADishwasher: tradeGate,
+  };
 }
 
-/** `compose`'s answer from the planner as it stood before S1 — S0b's tree. Throws where the leaf's mock
- *  is not installed, because the answer would then silently be S1's. */
+/** `compose`'s answer from the planner as it stood before S1 — S0b's tree: the leaf and S2's trades both
+ *  off. Throws where the leaf's mock is not installed, because the answer would then silently be live. */
 export function beforeS1<T>(compose: () => T): T {
+  return withTheSwitches(
+    { isTheLeafOff: true, areTheTradesOff: true },
+    compose,
+  );
+}
+
+/** `compose`'s answer from the planner as it stood at S1 (`f116b1c`), before S2: the leaf on, the
+ *  trades off. */
+export function withS1Alone<T>(compose: () => T): T {
+  return withTheSwitches(
+    { isTheLeafOff: false, areTheTradesOff: true },
+    compose,
+  );
+}
+
+function withTheSwitches<T>(
+  switches: {
+    readonly isTheLeafOff: boolean;
+    readonly areTheTradesOff: boolean;
+  },
+  compose: () => T,
+): T {
   if (!isTheLeafSwitchable) {
     throw new Error(
-      "beforeS1 needs the dishwasher leaf's mock: without it the plan would carry S1's dishwasher",
+      "an earlier planner needs the dishwasher leaf's mock: without it the plan would be the live one",
     );
   }
-  isTheLeafOff = true;
+  isTheLeafOff = switches.isTheLeafOff;
+  areTheTradesOff = switches.areTheTradesOff;
   try {
     return compose();
   } finally {
     isTheLeafOff = false;
+    areTheTradesOff = false;
   }
 }
 

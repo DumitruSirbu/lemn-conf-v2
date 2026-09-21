@@ -12,6 +12,7 @@ import {
   APPROVED_ROOM_POLICY,
   BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
+  DISHWASHER_BUILD_ID,
   cabinetDepthMmOf,
   declaredColumnSizes,
   generateKitchen,
@@ -93,23 +94,62 @@ function blockOf(plan: KitchenCompositionPlan) {
 /** 7D5b S1 / ADR 0110 M1/M2/M9: where (e) swapped the drawer cabinets, the preparation role is read
  *  where the preparation cabinet stood — the dishwasher's module — because M9 moves the role onto the
  *  pan drawer by identity alone. So the shape compared is the core as composed, before that swap. */
-function coreShapeOf(plan: KitchenCompositionPlan) {
+function coreShapeOf(plan: KitchenCompositionPlan, room: DesignRoom) {
   const dishwasher = plan.bases.find(
-    (base) => base.buildId === "base-dishwasher",
+    (base) => base.buildId === DISHWASHER_BUILD_ID,
   );
   const swappedInto = isDrawerSwapped(plan) ? dishwasher : undefined;
+  const traded = tradedDishwasherOf(plan, room);
   return plan.bases
     .filter((base) => base.role !== "storage")
     .map((base) => {
       const stood =
         base.role === "preparation" && swappedInto ? swappedInto : base;
-      return {
+      const core = {
         role: base.role,
         wall: stood.wall,
         startMm: stood.startMm,
         endMm: stood.endMm,
       };
+      return traded && isBeyond(core, traded)
+        ? shiftedBy(core, -DISHWASHER_WIDTH_MM)
+        : core;
     });
+}
+
+/** 7D5b S2 / ADR 0110 M7/M10: whether a core module stands beyond the traded dishwasher on its wall —
+ *  one of the bodies the trade shifted one module along the sink's wall. */
+function isBeyond(
+  core: { readonly wall: DesignWall; readonly startMm: number },
+  traded: PlannedBase,
+): boolean {
+  return core.wall === traded.wall && core.startMm >= traded.endMm;
+}
+
+/** The dishwasher's planned width as a literal (ADR 0121 decision 3(b)), and so the one distance a
+ *  trade may shift the sink's wall. */
+const DISHWASHER_WIDTH_MM = 600;
+
+/**
+ * 7D5b S2 / ADR 0110 M7/M10: the dishwasher S2 traded in, told from S1's by where it stands. A traded
+ * dishwasher is a run item read directly after the sink, so on the free-end wall it starts where the sink
+ * ends; S1's M1 conversions never stand on the free-end wall, and (e)'s is marked by the pan drawer
+ * carrying the preparation role. Measured over the approved L at 10 mm and 2600 mm against the tree with
+ * S2 switched off: this signature finds exactly the 18 200 (b), 2 600 (d) and 10 400 (c) rooms.
+ */
+function tradedDishwasherOf(
+  plan: KitchenCompositionPlan,
+  room: DesignRoom,
+): PlannedBase | undefined {
+  const wall = freeEndWallOf(room);
+  const sink = plan.bases.find((base) => base.role === "sink");
+  if (!sink || sink.wall !== wall || isDrawerSwapped(plan)) return undefined;
+  return plan.bases.find(
+    (base) =>
+      base.buildId === DISHWASHER_BUILD_ID &&
+      base.wall === wall &&
+      base.startMm === sink.endMm,
+  );
 }
 
 /** (e)'s mark on a plan: the pan drawer carrying the preparation role (ADR 0110 M7(e), M9). */
@@ -118,6 +158,10 @@ function isDrawerSwapped(plan: KitchenCompositionPlan): boolean {
     (base) => base.buildId === "base-panbank" && base.role === "preparation",
   );
 }
+
+/** 7D5b S2: 12 % of the rule-planned approved L at 50 mm carries a traded dishwasher; 300 draws delivered
+ *  31-39 over 8 unseeded runs, floored well below. */
+const TRADED_SHIFT_ARM_FLOOR = 10;
 
 /** The pan drawer's own width (7D5 S2), and so the only distance the block may move the hob. */
 const PAN_DRAWER_WIDTH_MM = 600;
@@ -191,6 +235,14 @@ const THRESHOLD_DRAWER_MOST_COLUMNS = 1;
 const THRESHOLD_ARM_FLOOR = 30;
 const THRESHOLD_ARM_DRAWS = 16_000;
 
+/** 7D5b S2 / ADR 0110 M7/M10: against the free end with its module handed back, a traded dishwasher
+ *  costs one column in every one of its 31 200 rooms (approved L, 10 mm, 2600 mm). */
+const COLUMNS_A_TRADED_DISHWASHER_COSTS = 1;
+/** 12.7 % of placed rooms carry a traded dishwasher, 4.2 % a (c) one. Measured over 8 unseeded runs of
+ *  16 000 draws: 2 022-2 079 and 652-704; floored far below both. */
+const TRADED_DISHWASHER_ARM_FLOOR = 300;
+const TOWER_TRADED_ARM_FLOOR = 200;
+
 function thresholdDrawerWidthOf(plan: KitchenCompositionPlan): number {
   return plan.bases
     .filter((base) => base.id === THRESHOLD_DRAWER_ID)
@@ -205,11 +257,13 @@ function freeEndBesideTheThresholdDrawerOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
 ) {
+  const traded = tradedDishwasherOf(plan, room);
   return freeEndBeside(plan, {
     room,
     isStanding: (base) =>
       isRunModuleBesideTheThresholdDrawer(base) ||
-      base.id === THRESHOLD_DRAWER_ID,
+      base.id === THRESHOLD_DRAWER_ID ||
+      base === traded,
   });
 }
 
@@ -219,9 +273,25 @@ function freeEndWithoutTheThresholdDrawerOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
 ) {
+  const traded = tradedDishwasherOf(plan, room);
   return freeEndBeside(plan, {
     room,
-    isStanding: isRunModuleBesideTheThresholdDrawer,
+    isStanding: (base) =>
+      isRunModuleBesideTheThresholdDrawer(base) || base === traded,
+  });
+}
+
+/** 7D5b S2 / ADR 0110 M7/M10: the free end with the traded dishwasher's module handed back — the block
+ *  the kitchen would have had without the trade, the threshold drawer still standing. */
+function freeEndWithoutTheTradedDishwasherOf(
+  plan: KitchenCompositionPlan,
+  room: DesignRoom,
+) {
+  return freeEndBeside(plan, {
+    room,
+    isStanding: (base) =>
+      isRunModuleBesideTheThresholdDrawer(base) ||
+      base.id === THRESHOLD_DRAWER_ID,
   });
 }
 
@@ -269,6 +339,15 @@ describe("the threshold and the block's size (criterion 6)", () => {
     // 7D5 S3 / Q-H5 (owner ruling 2026-09-21): restated for the threshold drawer. The block is E3 on the
     // free end the run leaves beside that drawer, and against the block the drawer's module would
     // have given it, the drawer costs at most the one column the owner sanctions.
+    //
+    // 7D5b S2 / ADR 0110 M7/M10: restated for the traded dishwasher, which is a run module read after
+    // the sink and never a leftover module (4202 x 1000: E3's four clauses hold on the run without it,
+    // and it stands 0 columns because (c) traded the lone tower). The four clauses are read on the free
+    // end beside it; against the block its module would have given back, it costs exactly one column
+    // wherever it stands — the pantry column (b), the lone tower (c), or, in (d), the column the 300 mm
+    // the bottle gave up could not pay for — and never one where no traded dishwasher stands. Where the
+    // column it cost was the block's last, the hob carries the oven (M12). Measured exact against the
+    // approved L at 10 mm and 2600 mm: 31 200 traded rooms, every one costing one column.
     const arms = {
       none: 0,
       dropped: 0,
@@ -279,6 +358,7 @@ describe("the threshold and the block's size (criterion 6)", () => {
       three: 0,
     };
     let thresholdDrawerCostAColumn = 0;
+    const tradedDishwasher = { costAColumn: 0, tookTheLastColumn: 0 };
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const plan = planFor(room);
@@ -295,6 +375,24 @@ describe("the threshold and the block's size (criterion 6)", () => {
           thresholdDrawerWidthOf(plan) > 0 ? THRESHOLD_DRAWER_MOST_COLUMNS : 0,
         );
         if (withTheDrawersModule > size) thresholdDrawerCostAColumn += 1;
+
+        const withTheDishwashersModule = expectedBlockSize(
+          plan,
+          room,
+          freeEndWithoutTheTradedDishwasherOf(plan, room),
+        );
+        const isTraded = tradedDishwasherOf(plan, room) !== undefined;
+        expect(withTheDishwashersModule - size, where).toBe(
+          isTraded ? COLUMNS_A_TRADED_DISHWASHER_COSTS : 0,
+        );
+        if (isTraded) tradedDishwasher.costAColumn += 1;
+        if (isTraded && size === 0) {
+          tradedDishwasher.tookTheLastColumn += 1;
+          expect(
+            plan.bases.find((base) => base.role === "hob")?.buildId,
+            where,
+          ).toBe(HOB_WITH_OVEN);
+        }
 
         if (plan.dropped.length > 0) arms.dropped += size === 0 ? 1 : 0;
         if (
@@ -328,6 +426,15 @@ describe("the threshold and the block's size (criterion 6)", () => {
       thresholdDrawerCostAColumn,
       "no sample saw the threshold drawer cost a column",
     ).toBeGreaterThanOrEqual(THRESHOLD_ARM_FLOOR);
+    // 7D5b S2 / ADR 0110 M7/M10: both arms of the trade's restatement, or it is idle.
+    expect(
+      tradedDishwasher.costAColumn,
+      "no sample stood a traded dishwasher",
+    ).toBeGreaterThanOrEqual(TRADED_DISHWASHER_ARM_FLOOR);
+    expect(
+      tradedDishwasher.tookTheLastColumn,
+      "no sample saw (c) take the lone tower",
+    ).toBeGreaterThanOrEqual(TOWER_TRADED_ARM_FLOOR);
   });
 });
 
@@ -453,10 +560,18 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
   // 4 368 rooms of the approved L at 50 mm and ceilings 2200 / 2600 / 3900, every one of them this
   // class and no other. The role's move is identity-only (M9), so `coreShapeOf` reads the preparation
   // role at the module the preparation cabinet stood in, and every position is still asserted.
+  //
+  // Fourth restatement, 7D5b S2 / ADR 0110 M7/M10. Counterexample 4502 x 1000 x 2200: with the rule the
+  // dishwasher takes the lone tower by (c) and stands directly after the sink, so the preparation
+  // cabinet and the hob stand one 600 mm module further along wall A than in the rule-refused plan,
+  // which has no block to trade and so no dishwasher. That is the ruled shift, and it is allowed only
+  // beyond a traded dishwasher, on its wall: `coreShapeOf` hands those modules back by exactly its
+  // width, and every other position is still asserted.
   it("leaves the surviving core, the dropped list and the wall cut where 7D2 put them, but for the pan drawer's shift of the hob", () => {
     let withABlock = 0;
     let panDrawerOnlyWithoutTheBlock = 0;
     let drawerSwapOnOneSideOnly = 0;
+    let shiftedByATradedDishwasher = 0;
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const withTheRule = planFor(room);
@@ -468,11 +583,16 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
         if (hobShiftMm !== 0) panDrawerOnlyWithoutTheBlock += 1;
         if (isDrawerSwapped(withTheRule) !== isDrawerSwapped(withoutIt))
           drawerSwapOnOneSideOnly += 1;
+        const traded = tradedDishwasherOf(withTheRule, room);
+        if (traded) {
+          shiftedByATradedDishwasher += 1;
+          expect(traded.endMm - traded.startMm).toBe(DISHWASHER_WIDTH_MM);
+        }
 
         expect(withTheRule.minimumMet).toBe(withoutIt.minimumMet);
         expect(withTheRule.dropped).toEqual(withoutIt.dropped);
-        expect(coreShapeOf(withTheRule)).toEqual(
-          coreShapeOf(withoutIt).map((core) =>
+        expect(coreShapeOf(withTheRule, room)).toEqual(
+          coreShapeOf(withoutIt, room).map((core) =>
             core.role === "hob" ? shiftedBy(core, hobShiftMm) : core,
           ),
         );
@@ -490,6 +610,11 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
       drawerSwapOnOneSideOnly,
       "no sample swapped the drawer cabinets on one side only",
     ).toBeGreaterThanOrEqual(20);
+    // 7D5b S2 / ADR 0110 M7/M10: the ruled shift's own arm, or the restated `coreShapeOf` is idle.
+    expect(
+      shiftedByATradedDishwasher,
+      "no sample stood a traded dishwasher",
+    ).toBeGreaterThanOrEqual(TRADED_SHIFT_ARM_FLOOR);
   });
 
   it("takes whole leftover modules and reports the bare wall the run actually leaves", () => {

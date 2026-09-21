@@ -3250,3 +3250,29 @@ from S0b**. In **1,200** of the 24,160 (e) rooms, `dropped` is `["fridge"]`, car
 from S0b's pre-state — (e) neither adds to nor clears it. The wording at this record's own E6
 ("`dropped` stays honest") is unaffected by this correction: honesty about an unchanged list is not a
 claim that the list is empty.
+
+**M14 — defect found and fixed before commit, wave 7D5b slice S2 review, 2026-09-21.** S2's first
+build of trade **(d)** could also cost a composed door cabinet when the sink stood on the reversed
+wall — not only the bottle it was meant to cost. **Found independently by two QA agents.** Declared
+runs: **1,356**, over 6000 × 5000 and 5000 × 6000 at ceiling 2200 mm, run widths 0–8000 mm at 50 mm
+steps. **0 approved rooms** — the defect never reached the approved L rectangle. Witness:
+**6000 × 6000 × 2200**, run A **900**, run B **1800**.
+
+**Fixed before commit by `givesUpExactlyTheRuledBody`**, which requires that every trade lose
+**exactly** its ruled body, per wall — so (d) can no longer also take a door cabinet by accident.
+**Measured after the fix: 0 defective runs**, and the approved L rectangle's census is unchanged.
+
+**M15 — the (c)/(d) edge, measured, logic review, 2026-09-21.** At 1 mm: **3900 × 1700** is **(d)**
+(`hob-2drawer · tower`, 0 bare); **3901–4100 × 1700** is **(c)** (`hob-oven · bottle`, 301–500 mm
+bare). **Cause: Amendment E, decision E6.2's lone-tower 1 → 0 step.** With the bottle removed the
+tower cannot absorb the resulting 10–200 mm gap on its own.
+
+**The bare remainder is inherited, not new.** All **5,200** (c) rooms that keep the bottle already
+carried that same remainder past the tower in slice S1's plan — e.g. S1's own **3900 × 1700**
+(`bottle · tower · 300 mm bare`) and **4650 × 1000** (**350 mm**). **No owner question is needed.**
+The owner's own reference room, **4650 × 1000**, sits inside this band.
+
+**M16 — a copy coupling, logic review, 2026-09-21.** `room.compose.dishwasher` carries the same
+wording as `catalog.entries.base-dishwasher` in both Romanian and Russian, but the copy lock guards
+only the Romanian side, so the Russian pair can drift with no gate catching it. **Recorded as a known
+coupling; not fixed in this wave.**

@@ -40,6 +40,17 @@ const DOOR_COLUMN = "tall-pantry";
 const HOB_WITH_DRAWERS = "base-hob-2drawer";
 const HOB_WITH_OVEN = "base-hob-oven";
 const BOTTLE_WIDTH_MM = 300;
+const DISHWASHER = "base-dishwasher";
+
+/**
+ * 7D5b S2 / ADR 0110 M7/M10: the wall B the block rule's subjects are witnessed at. From 2300 to 3300 mm
+ * S1's leaf has already placed the dishwasher across the corner wherever a module affords the block, so
+ * none of S2's trades is tried and the block is the tall-end rule's alone — measured over wall A 900-6300
+ * at 1 mm: 0 rooms differ from the tree with S2 switched off. At 1700, where 7D3 measured the table, the
+ * trades reach every step (1 200 of the 5 401 rooms), so the table moved there to be kept and its S2
+ * exceptions are asserted in their own describe below.
+ */
+const WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM = 2600;
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -115,8 +126,22 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     // From 3300 S1's bottle would take the only oven tower with no pan drawer depending on it, so
     // the tower stands and the bottle is omitted; at 3299 the core leaves no module and the bottle
     // stands, the hob carrying its own oven.
-    const withABlock = planFor(roomOf(3300, 1700, 2600));
-    const withoutOne = planFor(roomOf(3299, 1700, 2600));
+    // 7D5b S2 / ADR 0110 M7/M10: witnessed at wall B 2600, was 1700. At 3300 x 1700 the dishwasher now
+    // takes the tower by (c); the same edge stands here, where S1 seated the dishwasher on wall B on both
+    // sides of it, so no trade is tried. 1700's edge is asserted as the trade it now is, below.
+    const withABlock = planFor(
+      roomOf(3300, WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM, 2600),
+    );
+    const withoutOne = planFor(
+      roomOf(3299, WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM, 2600),
+    );
+    for (const plan of [withABlock, withoutOne]) {
+      expect(
+        plan.bases
+          .filter((base) => base.buildId === DISHWASHER)
+          .map((base) => base.wall),
+      ).toEqual(["B"]);
+    }
 
     expect(blockOf(withABlock).map((base) => base.buildId)).toEqual([
       OVEN_TOWER,
@@ -143,7 +168,8 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     const declaredCoreWidthMm = GENERATION_PRIORITIES.filter(
       (priority) => priority.role !== "fridge",
     ).reduce((sum, priority) => sum + priority.widthMm, 0);
-    const wallBHoldingTheFridge = 1700;
+    // 7D5b S2 / ADR 0110 M7/M10: was 1700, where (c) now trades the first tower for the dishwasher.
+    const wallBHoldingTheFridge = WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM;
     const firstAffordingWallAMm = (() => {
       for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
         const room = roomOf(widthMm, wallBHoldingTheFridge, 2600);
@@ -163,29 +189,33 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     // Pinned as a literal so a declared width that moves fails on the number (criterion 7).
     expect(firstAffordingWallAMm).toBe(3300);
     expect(
-      blockOf(planFor(roomOf(firstAffordingWallAMm, 1700, 2600))),
+      blockOf(
+        planFor(roomOf(firstAffordingWallAMm, wallBHoldingTheFridge, 2600)),
+      ),
     ).toHaveLength(1);
     expect(
-      blockOf(planFor(roomOf(firstAffordingWallAMm - 1, 1700, 2600))),
+      blockOf(
+        planFor(roomOf(firstAffordingWallAMm - 1, wallBHoldingTheFridge, 2600)),
+      ),
     ).toEqual([]);
   });
 
   it("steps to two columns and then to three where the measured table says", () => {
-    const sizeAt = (wallAMm: number, wallBMm = 1700) =>
-      blockOf(planFor(roomOf(wallAMm, wallBMm, 2600))).length;
+    const sizeAt = (wallAMm: number) =>
+      blockOf(
+        planFor(
+          roomOf(wallAMm, WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM, 2600),
+        ),
+      ).length;
 
     // 7D5b S0b / ADR 0110 M11: the two- and three-column steps keep S1's values — there the bottle
     // stands beside the tower and costs it nothing, so M11 does not reach them. Only the first
     // column moves, back to the core's own edge (the one-column rows above and below).
+    // 7D5b S2 / ADR 0110 M7/M10: the same 4200 / 4800 steps, witnessed at wall B 2600 (was 1700, where
+    // (b) now trades a pantry column at 4200-4201 and 4402-4799). The all-on-wall-A rows that stood
+    // here at wall B 1600 are every one of them a trade now, and are asserted as such below.
     expect([sizeAt(4199), sizeAt(4200)]).toEqual([1, 2]);
     expect([sizeAt(4799), sizeAt(4800)]).toEqual([2, 3]);
-    // Wall B too short to hold the fridge, so wall A carries the whole reading order: the whole core
-    // is 2 500 mm, so its first module is at a 3 100 mm run, a 4 000 mm wall A (was 4299 / 4300,
-    // where S1's bottle took the tower; 4299 now stands the tower too).
-    expect([sizeAt(3999, 1600), sizeAt(4000, 1600)]).toEqual([0, 1]);
-    expect(sizeAt(4299, 1600)).toBe(1);
-    expect([sizeAt(4899, 1600), sizeAt(4900, 1600)]).toEqual([1, 2]);
-    expect([sizeAt(5499, 1600), sizeAt(5500, 1600)]).toEqual([2, 3]);
   });
 
   it("never grows past three columns however long the wall is", () => {
@@ -195,8 +225,11 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
 
   it("composes one oven tower innermost with door columns outboard, contiguous at the free end", () => {
     // 6300 is past the approved 6000 mm on purpose (M7 7A3): the composer is judged, not the policy.
+    // 7D5b S2 / ADR 0110 M7/M10: at wall B 2600, was 1700 — at 3600 x 1700 (c) now takes the tower.
     for (const wallAMm of [3600, 4200, 4800, 6300]) {
-      const plan = planFor(roomOf(wallAMm, 1700, 2600));
+      const plan = planFor(
+        roomOf(wallAMm, WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM, 2600),
+      );
       const block = blockOf(plan);
       const where = `wall A ${String(wallAMm)}`;
 
@@ -293,8 +326,11 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
 
   it("absorbs nothing past the merge ceiling, and never inside a column's own width bound", () => {
     const bound = DECLARED_COLUMNS.doorColumnWidthMm;
+    // 7D5b S2 / ADR 0110 M7/M10: at wall B 2600, was 1700, where (b), (c) and (d) reach this range.
     for (let wallAMm = 3900; wallAMm <= 4500; wallAMm += 1) {
-      const plan = planFor(roomOf(wallAMm, 1700, 2600));
+      const plan = planFor(
+        roomOf(wallAMm, WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM, 2600),
+      );
       const block = blockOf(plan);
       if (block.length === 0) continue;
       const outermost = block.at(-1);
@@ -319,12 +355,16 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
     // The single leftover module at a remainder inside the merge window: the tower is fixed-width
     // and there is nothing inboard of it to absorb with, so no block stands and the wall composes
     // exactly as it did before the wave.
+    // 7D5b S2 / ADR 0110 M7/M10: swept at wall B 2600, was 1700. At 1700 the sweep now also meets
+    // (b)'s 2 -> 1 at 4402; that and every other step the trades make are the ruled exceptions asserted
+    // below, and here, where no trade is tried, the rule's own shape is still exactly `1 -> 0`.
+    const wallBMm = WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM;
     const dips: string[] = [];
-    let previous = blockOf(planFor(roomOf(900, 1700, 2600))).length;
+    let previous = blockOf(planFor(roomOf(900, wallBMm, 2600))).length;
     let refusedInTheWindow = 0;
     // Swept to the storable 6300 rather than the approved 6000 on purpose (M7 7A3): a composer claim.
     for (let wallAMm = 901; wallAMm <= 6300; wallAMm += 1) {
-      const plan = planFor(roomOf(wallAMm, 1700, 2600));
+      const plan = planFor(roomOf(wallAMm, wallBMm, 2600));
       const size = blockOf(plan).length;
       if (size < previous) dips.push(`${String(previous)}->${String(size)}`);
       if (size === 0 && plan.remainderMm.A > 0 && plan.remainderMm.A <= 200) {
@@ -338,16 +378,27 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
   });
 
   it("leaves the refused single-module wall composed exactly as the leftover rule alone would", () => {
+    // 7D5b S2 / ADR 0110 M7/M10: searched at wall B 2600, was 1700. At 1700 the first room this search
+    // found is now 3600, which is a (c) room — no block because the dishwasher took the tower, not
+    // because E6.2 refused it — and it passed only because the dishwasher's module counts as the one
+    // storage module the leftover rule would give. At 2600 the first is 3602, E6.2's own refusal.
+    const wallBMm = WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM;
     const refused = (() => {
       for (let wallAMm = 3600; wallAMm <= 4199; wallAMm += 1) {
-        const plan = planFor(roomOf(wallAMm, 1700, 2600));
+        const plan = planFor(roomOf(wallAMm, wallBMm, 2600));
         if (blockOf(plan).length === 0 && plan.remainderMm.A > 0) {
           return { wallAMm, plan };
         }
       }
       throw new Error("no wall A refuses a lone tower inside the merge window");
     })();
-    const room = roomOf(refused.wallAMm, 1700, 2600);
+    const room = roomOf(refused.wallAMm, wallBMm, 2600);
+    expect(refused.wallAMm).toBe(3602);
+    expect(
+      refused.plan.bases.filter(
+        (base) => base.wall === "A" && base.buildId === DISHWASHER,
+      ),
+    ).toEqual([]);
     const run = lShellFloorRuns(room).A;
     const coreWidthMm = refused.plan.bases
       .filter(
@@ -374,9 +425,144 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
   });
 });
 
+describe("7D5b S2 — the block table where the dishwasher is traded in (ADR 0110 M7/M10)", () => {
+  // 7D5b S2 / ADR 0110 M7/M10: the ruled exceptions to the table above, each read where 7D3 measured it.
+  // Where S1 placed no dishwasher the run may give up, in order, one pantry column (b), the bottle (d),
+  // or the oven tower where it is the block's only column (c), and the dishwasher stands directly after
+  // the sink, shifting the sink's wall one module. (c) can only fire where a block of one would stand,
+  // so the dishwasher's first appearance is where the run first affords the module.
+
+  it("gives wall B 1700's first module to the dishwasher by (c), and stands the tower from 3900 beside a (d) dishwasher", () => {
+    const planAt = (wallAMm: number) => planFor(roomOf(wallAMm, 1700, 2600));
+
+    expect(featuresOf(planAt(3299))).toEqual({
+      columns: [],
+      hob: HOB_WITH_OVEN,
+      dishwasher: "none",
+      hasBottle: true,
+    });
+    expect(featuresOf(planAt(3300))).toEqual({
+      columns: [],
+      hob: HOB_WITH_OVEN,
+      dishwasher: "A [1500, 2100]",
+      hasBottle: false,
+    });
+    expect(wallASpansOf(planAt(3300))).toEqual([
+      "base-sink [900, 1500]",
+      "base-dishwasher [1500, 2100]",
+      "base-3drawer [2100, 2700]",
+      "base-hob-oven [2700, 3300]",
+    ]);
+    expect(featuresOf(planAt(3899)).columns).toEqual([]);
+    expect(featuresOf(planAt(3900))).toEqual({
+      columns: [OVEN_TOWER],
+      hob: HOB_WITH_DRAWERS,
+      dishwasher: "A [1500, 2100]",
+      hasBottle: false,
+    });
+  });
+
+  it("records every all-on-wall-A row of the old table as the trade that now decides it", () => {
+    // Wall B 1600 cannot seat the fridge, so wall A carries the whole order; the old rows were
+    // 3999 / 4000 -> 0 / 1, 4299 -> 1, 4899 / 4900 -> 1 / 2 and 5499 / 5500 -> 2 / 3. Every wall B under
+    // 1700 is reached by the trades, so the rows are restated rather than moved.
+    const rowAt = (wallAMm: number) => {
+      const plan = planFor(roomOf(wallAMm, 1600, 2600));
+      const { columns, dishwasher } = featuresOf(plan);
+      return `${String(wallAMm)}: ${String(columns.length)} columns, dishwasher ${dishwasher}`;
+    };
+
+    expect(
+      [3999, 4000, 4299, 4600, 4899, 4900, 5499, 5500, 5800].map(rowAt),
+    ).toEqual([
+      "3999: 0 columns, dishwasher none",
+      // (c): the first afforded module, the tower's, goes to the dishwasher (was 1).
+      "4000: 0 columns, dishwasher A [2200, 2800]",
+      "4299: 0 columns, dishwasher A [2200, 2800]",
+      // (d): the bottle goes and the tower stays.
+      "4600: 1 columns, dishwasher A [2200, 2800]",
+      "4899: 1 columns, dishwasher A [2200, 2800]",
+      // (b): a pantry column goes (was 2 from 4900, 3 from 5500).
+      "4900: 1 columns, dishwasher A [2200, 2800]",
+      "5499: 1 columns, dishwasher A [2200, 2800]",
+      "5500: 2 columns, dishwasher A [2200, 2800]",
+      // S1's drawer swap (e): no trade, and the full block of three stands.
+      "5800: 3 columns, dishwasher A [2200, 2800]",
+    ]);
+  });
+
+  it("steps down at wall B 1700 only where a trade moves: (b)'s 2 -> 1 and (c)'s 1 -> 0 after (d)", () => {
+    // The exact attribution the sweep at 2600 cannot show. (b)'s step lands in the room where a
+    // dishwasher first stands, one step after a room with none, and keeps the oven tower innermost.
+    // (c)'s step is not a dishwasher appearing: the room before already stood one by (d), keeping the
+    // tower and giving up the bottle; one millimetre on, the lone tower could not absorb the 2 mm that
+    // (d) would leave (E6.2), so (d) no longer fits and (c) gives up the tower and keeps the bottle.
+    const dips: string[] = [];
+    let previous = planFor(roomOf(900, 1700, 2600));
+    for (let wallAMm = 901; wallAMm <= 6300; wallAMm += 1) {
+      const plan = planFor(roomOf(wallAMm, 1700, 2600));
+      const before = featuresOf(previous);
+      const after = featuresOf(plan);
+      if (after.columns.length < before.columns.length) {
+        dips.push(
+          `${String(wallAMm)}: [${before.columns.join()}] -> [${after.columns.join()}], ` +
+            `dishwasher ${before.dishwasher} -> ${after.dishwasher}, ` +
+            `bottle ${String(before.hasBottle)} -> ${String(after.hasBottle)}, hob ${after.hob}`,
+        );
+      }
+      previous = plan;
+    }
+
+    expect(dips).toEqual([
+      `3902: [${OVEN_TOWER}] -> [], dishwasher A [1500, 2100] -> A [1500, 2100], ` +
+        `bottle false -> true, hob ${HOB_WITH_OVEN}`,
+      `4402: [${OVEN_TOWER},${DOOR_COLUMN}] -> [${OVEN_TOWER}], dishwasher none -> A [1500, 2100], ` +
+        `bottle true -> true, hob ${HOB_WITH_DRAWERS}`,
+    ]);
+  });
+
+  it("gives up the old ceiling witness's tower to (c), and the hob carries the oven", () => {
+    const plan = planFor(roomOf(3600, 1700, DECLARED_COLUMNS.columnHeightMm));
+
+    expect(featuresOf(plan)).toEqual({
+      columns: [],
+      hob: HOB_WITH_OVEN,
+      dishwasher: "A [1500, 2100]",
+      hasBottle: true,
+    });
+  });
+});
+
+/** The block rule's outputs and the trade's marks, read off a plan with literal spans. */
+function featuresOf(plan: ReturnType<typeof planFor>) {
+  const dishwasher = plan.bases.find((base) => base.buildId === DISHWASHER);
+  return {
+    columns: blockOf(plan).map((base) => base.buildId),
+    hob: plan.bases.find((base) => base.role === "hob")?.buildId ?? "none",
+    dishwasher: dishwasher
+      ? `${dishwasher.wall} [${String(dishwasher.startMm)}, ${String(dishwasher.endMm)}]`
+      : "none",
+    hasBottle: plan.bases.some(
+      (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
+    ),
+  };
+}
+
+function wallASpansOf(plan: ReturnType<typeof planFor>): readonly string[] {
+  return alongWallA(plan).map(
+    (base) =>
+      `${base.buildId} [${String(base.startMm)}, ${String(base.endMm)}]`,
+  );
+}
+
 describe("the ceiling clause (criterion 14)", () => {
   it("stands a column in a room exactly as tall as it is, with nothing reported above the room", () => {
-    const room = roomOf(3600, 1700, DECLARED_COLUMNS.columnHeightMm);
+    // 7D5b S2 / ADR 0110 M7/M10: at wall B 2600, was 1700, where (c) now takes the tower at 3600.
+    const room = roomOf(
+      3600,
+      WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM,
+      DECLARED_COLUMNS.columnHeightMm,
+    );
     const result = generate(room);
 
     expect(placementsOf(result.design, OVEN_TOWER)).toHaveLength(1);
@@ -395,7 +581,11 @@ describe("the ceiling clause (criterion 14)", () => {
     // a 2199 mm ceiling in every room, block or no block. This clause is what stops a column from
     // being planned and then refused at insert time, which is a failure of a different kind.
     const plan = planFor(
-      roomOf(3600, 1700, DECLARED_COLUMNS.columnHeightMm - 1),
+      roomOf(
+        3600,
+        WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM,
+        DECLARED_COLUMNS.columnHeightMm - 1,
+      ),
     );
 
     expect(blockOf(plan)).toEqual([]);

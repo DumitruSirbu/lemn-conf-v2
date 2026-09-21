@@ -230,24 +230,32 @@ describe("7D2 pure planning and exact cut transitions", () => {
   // it to 3599 / 3600 because the bottle took the tower from 3300 to 3599; M11 keeps the tower there
   // (no pan drawer depends on the bottle), so 3599 now stands one column (was none) and 3600 is where
   // the bottle rejoins beside it. Re-measured 1 mm at a time: 3299 is the last width with no column.
+  //
+  // 7D5b S2 / ADR 0110 M7/M10: at 1700 x 2200 the dishwasher now takes the first afforded module's tower
+  // by (c) from 3300 (was 1 column at 3300, 3599 and 3600), and the block's first column stands at
+  // 3900, beside a (d) dishwasher. Re-measured 1 mm at a time: 3899 is the last width with no column.
+  // The subject is unchanged — the cut is deterministic on both sides of the tower threshold — and the
+  // rows now also say whether a dishwasher stands, so a trade that moved the threshold fails here.
   it.each([
     [
       { shape: "L", widthMm: 2700, depthMm: 1699, heightMm: 2200 },
       ["fridge"],
+      undefined,
       undefined,
     ],
     [
       { shape: "L", widthMm: 2700, depthMm: 1700, heightMm: 2200 },
       [],
       undefined,
+      undefined,
     ],
-    [{ shape: "L", widthMm: 3299, depthMm: 1700, heightMm: 2200 }, [], 0],
-    [{ shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2200 }, [], 1],
-    [{ shape: "L", widthMm: 3599, depthMm: 1700, heightMm: 2200 }, [], 1],
-    [{ shape: "L", widthMm: 3600, depthMm: 1700, heightMm: 2200 }, [], 1],
+    [{ shape: "L", widthMm: 3299, depthMm: 1700, heightMm: 2200 }, [], 0, 0],
+    [{ shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2200 }, [], 0, 1],
+    [{ shape: "L", widthMm: 3899, depthMm: 1700, heightMm: 2200 }, [], 0, 1],
+    [{ shape: "L", widthMm: 3900, depthMm: 1700, heightMm: 2200 }, [], 1, 1],
   ] as const)(
     "keeps the two-wall cut deterministic at %o",
-    (room, dropped, blockColumns) => {
+    (room, dropped, blockColumns, dishwashers) => {
       const first = planKitchenComposition({
         columns: DECLARED_COLUMNS,
         room,
@@ -263,6 +271,11 @@ describe("7D2 pure planning and exact cut transitions", () => {
       expect(first.dropped).toEqual(dropped);
       if (blockColumns !== undefined) {
         expect(first.bases.filter(isTallColumn)).toHaveLength(blockColumns);
+      }
+      if (dishwashers !== undefined) {
+        expect(
+          first.bases.filter((base) => base.buildId === "base-dishwasher"),
+        ).toHaveLength(dishwashers);
       }
     },
   );
@@ -331,8 +344,11 @@ describe("7D2 pure planning and exact cut transitions", () => {
     // 5299 / 5300 a storage edge inside that band.
     // 7D5b S0b / ADR 0110 M11: 3299 / 3300 is the block edge again; 3599 / 3600 stays as the edge
     // where the bottle rejoins beside the tower.
+    // 7D5b S2 / ADR 0110 M7/M10: 3899 / 3900 added, the first column at wall B 1700 now that (c) takes
+    // the tower from 3300 to 3899 there; 3299 / 3300 stays as the edge where the dishwasher first stands.
     const wallAValues = [
-      900, 1499, 1500, 2099, 2100, 2699, 2700, 3299, 3300, 3599, 3600, 6300,
+      900, 1499, 1500, 2099, 2100, 2699, 2700, 3299, 3300, 3599, 3600, 3899,
+      3900, 6300,
     ];
     const wallBValues = [
       1000, 1599, 1600, 1699, 1700, 2199, 2200, 2299, 2300, 2799, 2800, 2899,
@@ -415,7 +431,8 @@ describe("7D2 pure planning and exact cut transitions", () => {
       }
     }
     // 7D5b S0b: two more wall A values of 5 001 wall B millimetres each (was 168 832).
-    expect(checked).toBe(178_834);
+    // 7D5b S2: two more again, 3899 and 3900 (was 178 834).
+    expect(checked).toBe(188_836);
     expect(failures.slice(0, 20)).toEqual([]);
 
     // 7D5b S0b / ADR 0110 M11: the all-on-B block edge is back at 4099 / 4100 (S1 had moved it to
@@ -440,8 +457,35 @@ describe("7D2 pure planning and exact cut transitions", () => {
         heightMm: 2200,
       }),
     });
+    // 7D5b S2 / ADR 0110 M7/M10: 4100 is now where the dishwasher first stands, by (c) — the tower the
+    // core first affords is traded and the hob carries the oven (was 1 column at 4100) — and the all-on-B
+    // tower first stands at 4700, beside a (d) dishwasher.
     expect(storageBefore.bases.filter(isTallColumn)).toHaveLength(0);
-    expect(storageAt.bases.filter(isTallColumn)).toHaveLength(1);
+    expect(storageAt.bases.filter(isTallColumn)).toHaveLength(0);
+    expect(
+      [storageBefore, storageAt].map(
+        (plan) =>
+          plan.bases.filter((base) => base.buildId === "base-dishwasher")
+            .length,
+      ),
+    ).toEqual([0, 1]);
+    expect(storageAt.bases.find((base) => base.role === "hob")?.buildId).toBe(
+      "base-hob-oven",
+    );
+    const allOnBTowerEdge = [4699, 4700].map((depthMm) => {
+      const room: DesignRoom = {
+        shape: "L",
+        widthMm: 900,
+        depthMm,
+        heightMm: 2200,
+      };
+      return planKitchenComposition({
+        columns: DECLARED_COLUMNS,
+        room,
+        runs: lShellFloorRuns(room),
+      }).bases.filter(isTallColumn).length;
+    });
+    expect(allOnBTowerEdge).toEqual([0, 1]);
   });
 });
 

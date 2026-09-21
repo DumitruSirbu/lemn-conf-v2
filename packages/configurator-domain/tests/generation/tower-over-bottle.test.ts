@@ -65,6 +65,7 @@ import {
   lastComposition,
   planBeforeS0b,
   whatS1sBottleCost,
+  withS1Alone,
   type RecordedComposition,
 } from "../support/composition-context-capture.js";
 import { towerOverBottleChangeBetween } from "../support/pre-tower-run-recording.js";
@@ -197,17 +198,43 @@ describe("7D5b S0b — the oven tower is kept over S1's bottle where no pan draw
     [3560, 2920],
     [900, 4100],
   ])(
-    "%i x %i with S1, live: the wall M11 decided is the one S0b built",
+    "%i x %i with S1 alone: the wall M11 decided is the one S0b built",
     (widthMm, depthMm) => {
       const afterS0b = beforeS1(() => planFor(widthMm, depthMm));
       const hobWall = afterS0b.bases.find((base) => base.role === "hob")?.wall;
       if (hobWall === undefined) throw new Error("no hob");
 
-      expect(wallAsBuilt(planFor(widthMm, depthMm), hobWall)).toEqual(
-        wallAsBuilt(afterS0b, hobWall),
-      );
+      expect(
+        wallAsBuilt(
+          withS1Alone(() => planFor(widthMm, depthMm)),
+          hobWall,
+        ),
+      ).toEqual(wallAsBuilt(afterS0b, hobWall));
     },
   );
+
+  it("3560 x 2920 with S2, live: still the wall M11 decided — its dishwasher is M1's, across the corner", () => {
+    const afterS0b = beforeS1(() => planFor(3560, 2920));
+
+    expect(wallAsBuilt(planFor(3560, 2920), "A")).toEqual(
+      wallAsBuilt(afterS0b, "A"),
+    );
+  });
+
+  // S1 finds no module to convert beside the sink here, so S2 trades: no pantry column and no bottle
+  // stand, and the lone tower goes (c), the hob taking the oven. M11 had already dropped the bottle.
+  it("900 x 4100 with S2, live: (c) takes the tower M11 kept, the hob carries the oven, nothing bare", () => {
+    const plan = planFor(900, 4100);
+
+    expect(wallAsBuilt(plan, "B")).toEqual([
+      "fridge/fridge-free [900, 1600]",
+      "sink/base-sink [1600, 2200]",
+      "dishwasher/base-dishwasher [2200, 2800]",
+      "preparation/base-3drawer [2800, 3400]",
+      "hob/base-hob-oven [3400, 4000]",
+    ]);
+    expect(plan.remainderMm.B).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------

@@ -20,6 +20,11 @@
 // an M1 room one cabinet over the threshold was re-derived: the same subject, both mirrors, in a room
 // where *D* still reaches six once the dishwasher is out of it. The rooms the witnesses left are the
 // order's own witnesses (`adds none at D = 5`).
+//
+// 7D5b S2 / ADR 0110 M7/M10: where S1 stood no dishwasher it is traded in directly after the sink for
+// (b) a pantry column, (d) the bottle or (c) the oven tower, still before this rule. A trade changes the
+// run this rule reads, so the declared-run sweep is re-derived below, and the K3 rows moved to rooms no
+// trade reaches.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -435,6 +440,7 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
       placed: 0,
       refusedWhereNothingFits: 0,
       refusedWhereTheBottlesPlaceFits: [] as string[],
+      tradedDishwasher: 0,
     };
     for (const entered of [room, { ...room, widthMm: 5000, depthMm: 6000 }]) {
       for (let a = 0; a <= DECLARED_SWEEP_MAX_MM; a += DECLARED_SWEEP_STEP_MM) {
@@ -446,6 +452,7 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
           census.runs += 1;
           const runLengthsMm = { A: a, B: b };
           const plan = planForDeclaredRuns(entered, runLengthsMm);
+          if (standsATradedDishwasher(plan)) census.tradedDishwasher += 1;
           if (hasModule(plan, THRESHOLD_DRAWER_ID)) {
             census.placed += 1;
             continue;
@@ -477,12 +484,87 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
     // threshold (placed 7 332 -> 6 732, the implementer's figure) and 768 fewer short runs are refused
     // where nothing fits (5 928 -> 5 160). The subject is unmoved: no run is refused where the bottle's
     // place would fit.
+    //
+    // 7D5b S2 / ADR 0110 M7/M10: 1 248 runs trade for their dishwasher, and no trade adds or removes
+    // a threshold drawer (placed 6 732, as at S1) or moves a refusal (5 160, as at S1): a trade gives
+    // up only the body the ruling names, never a composed door cabinet, so *D* is what S1 counted. (The
+    // first S2 build also traded in 1 356 runs where the sink stands on the reversed wall and the
+    // bottle on the other, paying the dishwasher with a door cabinet — 2 604 traded, 5 016 refused —
+    // which `givesUpExactlyTheRuledBody` now refuses; the test after this one pins that.) The subject
+    // is unmoved: no run is refused where the bottle's place would fit.
     expect(census).toEqual({
       runs: 51_842,
       placed: 6_732,
       refusedWhereNothingFits: 5_160,
       refusedWhereTheBottlesPlaceFits: [],
+      tradedDishwasher: 1_248,
     });
+  });
+});
+
+// 7D5b S2 / ADR 0110 M7/M10 — the trades give up exactly the body the ruling names: (b) one pantry
+// column, (d) the bottle — *"the freed 300 mm fills a 300 mm remainder on the same wall"* — or (c) the
+// oven tower (plan B1: *"(d) costs exactly the bottle"*). Every one of those bodies stands on the hob's
+// wall, so a traded dishwasher standing on another wall was paid for by something else. Found by QA
+// against the first S2 build: where the sink stands on the wall read in reverse and the bottle on the
+// other, (d) took the bottle — freeing nothing where the dishwasher stands — and a door cabinet on the
+// sink's wall paid the 600 mm, in 1 356 of these declared runs (0 in the approved L). Fixed in
+// `optional-run-items.ts` (`givesUpExactlyTheRuledBody`); these tests keep it fixed.
+describe("7D5b S2 — a traded dishwasher gives up only the body the ruling names (declared runs)", () => {
+  const room: DesignRoom = {
+    shape: "L",
+    widthMm: 6000,
+    depthMm: 5000,
+    heightMm: 2200,
+  };
+
+  it("stands every traded dishwasher on the wall of the body it was traded for, over declared runs at 50 mm", () => {
+    const offTheTradedBodysWall: string[] = [];
+    let traded = 0;
+    for (const entered of [room, { ...room, widthMm: 5000, depthMm: 6000 }]) {
+      for (let a = 0; a <= DECLARED_SWEEP_MAX_MM; a += DECLARED_SWEEP_STEP_MM) {
+        for (
+          let b = 0;
+          b <= DECLARED_SWEEP_MAX_MM;
+          b += DECLARED_SWEEP_STEP_MM
+        ) {
+          const plan = planForDeclaredRuns(entered, { A: a, B: b });
+          if (!standsATradedDishwasher(plan)) continue;
+          traded += 1;
+          const hob = plan.bases.find((base) => base.role === "hob");
+          const dishwasher = plan.bases.find(
+            (base) => base.buildId === DISHWASHER_BODY,
+          );
+          if (dishwasher?.wall !== hob?.wall)
+            offTheTradedBodysWall.push(
+              `${String(entered.widthMm)}x${String(entered.depthMm)} A${String(a)}/B${String(b)}`,
+            );
+        }
+      }
+    }
+
+    // 7D5b S2: 1 248 since the fix (was 2 604, of which 1 356 were the defect's).
+    expect(traded).toBe(1_248);
+    expect({
+      runs: offTheTradedBodysWall.length,
+      first: offTheTradedBodysWall.slice(0, 3),
+    }).toEqual({ runs: 0, first: [] });
+  });
+
+  // The smallest run the defect reached. Wall B is read in reverse and holds sink, preparation and one door cabinet;
+  // wall A holds the hob and the bottle. Without a dishwasher the door cabinet stands (S1's plan);
+  // with a traded one it must still stand, because no ruling lets a door cabinet pay for it.
+  it("keeps wall B's door cabinet whether or not a dishwasher is traded in, runs A 900 / B 1800", () => {
+    const plan = planForDeclaredRuns(room, { A: 900, B: 1800 });
+    const dishwasher = plan.bases.find(
+      (base) => base.buildId === DISHWASHER_BODY,
+    );
+    const hob = plan.bases.find((base) => base.role === "hob");
+
+    expect(plan.bases.filter(isComposedStorageSlot)).toHaveLength(1);
+    expect(dishwasher === undefined || dishwasher.wall === hob?.wall).toBe(
+      true,
+    );
   });
 });
 
@@ -516,6 +598,26 @@ function columnsWithThePanDrawerInTheBottlesPlace(
   }).columns.length;
 }
 
+/** 7D5b S2 / ADR 0110 M7/M10: a dishwasher read directly after the sink with the run's next item —
+ *  not a composed slot — directly after it on the same wall stands among the items, where only a trade
+ *  inserts one (M1 converts a slot; (e) moves the preparation role onto the pan drawer). */
+function standsATradedDishwasher(plan: KitchenCompositionPlan): boolean {
+  const reading = inReadingOrder(plan);
+  const at = reading.findIndex((base) => base.buildId === DISHWASHER_BODY);
+  const readNext = reading[at + 1];
+  const isDrawerSwap = plan.bases.some(
+    (base) => base.buildId === PAN_DRAWER_BODY && base.role === "preparation",
+  );
+  return (
+    at > 0 &&
+    !isDrawerSwap &&
+    reading[at - 1]?.role === "sink" &&
+    readNext !== undefined &&
+    readNext.wall === reading[at]?.wall &&
+    !isComposedStorageSlot(readNext)
+  );
+}
+
 describe("7D5 — a bottle-only kitchen stays bottle-only (the owner withdrew the K3 refinement)", () => {
   // 7D5b S0b / ADR 0110 M11: the two "no block" rows (900 x 4100, 3300 x 1700) now keep their oven
   // tower and stand no bottle. No bottle-only kitchen without a block is left that the refinement
@@ -524,10 +626,16 @@ describe("7D5 — a bottle-only kitchen stays bottle-only (the owner withdrew th
   // move to one-column kitchens, where the bottle costs an outer pantry column only (outside M11)
   // and the pan drawer in its place would keep that column — so the withdrawn refinement would act,
   // and its absence is what each row asserts.
+  //
+  // 7D5b S2 / ADR 0110 M7/M10: the one-column rows were 900 x 4700 and 3900 x 1700. Neither has a door
+  // cabinet beside the sink, so the dishwasher is traded in for the bottle ((d); 900 x 4700 is plan
+  // B5's (d) witness) and there is no bottle left to keep. 2200 x 4000 and 3900 x 2300 are the same
+  // subject — one column, the bottle after the hob, and the pan drawer in its place keeping that
+  // column — in rooms whose dishwasher M1 converts, so no trade reaches them; the rows assert that too.
   it.each([
     { name: "wall B wider, two columns", room: roomOf(4600, 4610) },
-    { name: "wall B wider, one column", room: roomOf(900, 4700) },
-    { name: "wall A wider, one column", room: roomOf(3900, 1700) },
+    { name: "wall B wider, one column", room: roomOf(2200, 4000) },
+    { name: "wall A wider, one column", room: roomOf(3900, 2300) },
   ])(
     "keeps the bottle after the hob and stands no pan drawer, $name",
     ({ room }) => {
@@ -538,6 +646,23 @@ describe("7D5 — a bottle-only kitchen stays bottle-only (the owner withdrew th
       ).toBeGreaterThanOrEqual(tallColumnsOf(plan).length);
       expect(hasModule(plan, BOTTLE_ID)).toBe(true);
       expect(hasModule(plan, PAN_DRAWER_ID)).toBe(false);
+      expect(plan.bases.some((base) => base.buildId === PAN_DRAWER_BODY)).toBe(
+        false,
+      );
+      expect(standsATradedDishwasher(plan)).toBe(false);
+    },
+  );
+
+  it.each([
+    { name: "wall B wider, one column", room: roomOf(2200, 4000) },
+    { name: "wall A wider, one column", room: roomOf(3900, 2300) },
+  ])(
+    "is a one-column witness the refinement would have changed, $name",
+    ({ room }) => {
+      const plan = planFor(room);
+
+      expect(tallColumnsOf(plan)).toEqual(["tall-oven-tower"]);
+      expect(columnsWithThePanDrawerInTheBottlesPlace(plan)).toBe(1);
     },
   );
 });

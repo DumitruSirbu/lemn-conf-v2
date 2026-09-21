@@ -32,6 +32,7 @@ import {
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
 import type {
+  GenerationAncillaryRunItem,
   GenerationCoreRole,
   KitchenCompositionPlan,
   PlannedGenerationBase,
@@ -44,6 +45,16 @@ export const DISHWASHER_PLANNED_WIDTH_MM = 600;
 
 /** Its own id, so `isComposedStorageSlot` answers false for it and *D* never counts it (M2). */
 const DISHWASHER_ID = "dishwasher";
+
+/** The same module as a run item, for S2's trades (ADR 0110 M7 (b), (d), (c)): `dishwasher-trades.ts`
+ *  stands it in the run directly after the sink, so this leaf stays the one place that knows what a
+ *  dishwasher is. */
+export const DISHWASHER_RUN_ITEM: GenerationAncillaryRunItem = {
+  id: DISHWASHER_ID,
+  role: "storage",
+  buildId: DISHWASHER_BUILD_ID,
+  widthMm: DISHWASHER_PLANNED_WIDTH_MM,
+};
 
 const SINK_ROLE: GenerationCoreRole = "sink";
 const PREPARATION_ROLE: GenerationCoreRole = "preparation";
@@ -75,8 +86,14 @@ export function withTheDishwasherBesideTheSink(
   return swap === undefined ? plan : withDrawersSwapped(plan, swap);
 }
 
-function hasADishwasher(plan: KitchenCompositionPlan): boolean {
-  return plan.bases.some((base) => base.buildId === DISHWASHER_BUILD_ID);
+/** Whether the plan already carries its dishwasher — this leaf's conversion or one of S2's trades. */
+export function hasADishwasher(plan: KitchenCompositionPlan): boolean {
+  return plan.bases.some(isTheDishwasher);
+}
+
+/** Keyed on the body (ADR 0121): the dishwasher is what stands, whichever rule stood it. */
+export function isTheDishwasher(base: PlannedGenerationBase): boolean {
+  return base.buildId === DISHWASHER_BUILD_ID;
 }
 
 /** **ADR 0110 M1** (owner, Q-DW3): a plain door cabinet the storage run composed, at the dishwasher's

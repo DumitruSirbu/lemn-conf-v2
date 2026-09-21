@@ -129,6 +129,29 @@ function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
  *  wrong composer cannot agree. */
 const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
 
+/** 7D5b S2 / ADR 0110 M7/M10: E3's input with every run module the composer stood read as standing —
+ *  `freeEndOf` above predates the traded dishwasher, whose module the leftover rule never gives. */
+function freeEndBesideEveryRunModuleOf(
+  plan: KitchenCompositionPlan,
+  room: DesignRoom,
+) {
+  const wall = freeEndWallOf(room);
+  const run = lShellFloorRuns(room)[wall];
+  const traded = tradedDishwasherOf(plan, room);
+  const standingWidthMm = plan.bases
+    .filter(
+      (base) =>
+        base.wall === wall &&
+        (base.role !== "storage" ||
+          base.buildId === BOTTLE_CARGO_BUILD_ID ||
+          base.buildId === PAN_DRAWER_BASE_BUILD_ID ||
+          base.id === THRESHOLD_DRAWER_PLANNED_ID ||
+          base === traded),
+    )
+    .reduce((sum, base) => sum + base.widthMm, 0);
+  return planLeftover(run.endMm - run.startMm - standingWidthMm);
+}
+
 /** Q-H5's price is one tall column at most (owner, 2026-09-21), and in the approved policy the only
  *  block it is paid from is the full one: 3 -> 2. */
 const FULL_BLOCK_COLUMNS = 3;
@@ -156,6 +179,99 @@ function isAColumnPaidForByANewThresholdDrawer(step: BlockStepDown): boolean {
       FULL_BLOCK_COLUMNS - COLUMNS_A_THRESHOLD_DRAWER_MAY_COST &&
     step.thresholdDrawersBefore === 0 &&
     step.thresholdDrawersAfter === 1
+  );
+}
+
+/**
+ * 7D5b S2 / ADR 0110 M7/M10: the dishwasher S2 traded in, told from S1's by where it stands. A traded
+ * dishwasher is a run item read directly after the sink, so on the free-end wall it starts where the sink
+ * ends; S1's M1 conversions never stand on the free-end wall, and (e)'s is marked by the pan drawer
+ * carrying the preparation role. Measured over the approved L at 10 mm and 2600 mm against the tree with
+ * S2 switched off: this signature finds exactly the 18 200 (b), 2 600 (d) and 10 400 (c) rooms.
+ */
+function tradedDishwasherOf(plan: KitchenCompositionPlan, room: DesignRoom) {
+  const wall = freeEndWallOf(room);
+  const sink = plan.bases.find((base) => base.role === "sink");
+  const isDrawerSwapped = plan.bases.some(
+    (base) =>
+      base.buildId === PAN_DRAWER_BASE_BUILD_ID && base.role === "preparation",
+  );
+  if (!sink || sink.wall !== wall || isDrawerSwapped) return undefined;
+  return plan.bases.find(
+    (base) =>
+      base.buildId === DISHWASHER_BUILD_ID &&
+      base.wall === wall &&
+      base.startMm === sink.endMm,
+  );
+}
+
+function hasBottle(plan: KitchenCompositionPlan): boolean {
+  return plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID);
+}
+
+function hobBodyOf(plan: KitchenCompositionPlan): string | undefined {
+  return plan.bases.find((base) => base.role === "hob")?.buildId;
+}
+
+/** Two neighbouring rooms either side of one step down the block, and the rooms they are. */
+interface RoomsAcrossAStep {
+  readonly before: {
+    readonly plan: KitchenCompositionPlan;
+    readonly room: DesignRoom;
+  };
+  readonly after: {
+    readonly plan: KitchenCompositionPlan;
+    readonly room: DesignRoom;
+  };
+}
+
+/** 7D5b S2 / ADR 0110 M7(b): a pantry column paid for by a dishwasher that stands in the room where one
+ *  first stands — the room before had none at all — keeping at least the oven tower innermost, and the
+ *  hob its drawers. */
+function isAPantryColumnTakenByANewDishwasher(
+  rooms: RoomsAcrossAStep,
+): boolean {
+  const { before, after } = rooms;
+  const columnsAfter = blockOf(after.plan);
+  return (
+    blockOf(before.plan).length - columnsAfter.length === 1 &&
+    columnsAfter[0]?.buildId === OVEN_TOWER &&
+    hobBodyOf(after.plan) === HOB_WITH_DRAWERS &&
+    !before.plan.bases.some((base) => base.buildId === DISHWASHER_BUILD_ID) &&
+    tradedDishwasherOf(after.plan, after.room) !== undefined
+  );
+}
+
+/** 7D5b S2 / ADR 0110 M7(c), M10: the lone oven tower taken by the dishwasher where (d) no longer fits —
+ *  the room before stood its traded dishwasher in the bottle's place beside the tower; this one gives the
+ *  bottle back, gives up the tower, and the hob carries the oven. */
+function isTheTowerTakenWhereTheBottleTradeStops(
+  rooms: RoomsAcrossAStep,
+): boolean {
+  const { before, after } = rooms;
+  return (
+    blockOf(before.plan).length === 1 &&
+    blockOf(after.plan).length === 0 &&
+    tradedDishwasherOf(before.plan, before.room) !== undefined &&
+    !hasBottle(before.plan) &&
+    tradedDishwasherOf(after.plan, after.room) !== undefined &&
+    hasBottle(after.plan) &&
+    hobBodyOf(after.plan) === HOB_WITH_OVEN
+  );
+}
+
+/** E6.2's own refusal: a lone tower cannot take a merged opening, so the block falls from one column to
+ *  none and the wall keeps a bare remainder inside the window — with no traded dishwasher either side. */
+function isALoneTowerRefusedInTheWindow(rooms: RoomsAcrossAStep): boolean {
+  const { before, after } = rooms;
+  const remainderMm = after.plan.remainderMm[freeEndWallOf(after.room)];
+  return (
+    blockOf(before.plan).length === 1 &&
+    blockOf(after.plan).length === 0 &&
+    remainderMm > 0 &&
+    remainderMm <= 200 &&
+    tradedDishwasherOf(before.plan, before.room) === undefined &&
+    tradedDishwasherOf(after.plan, after.room) === undefined
   );
 }
 
@@ -402,9 +518,18 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
     // the block one tall column — 9 600 rooms of the approved 10 mm grid step 3 → 2 for it. That step
     // is sanctioned only as 3 -> 2, only into the room where exactly one `threshold-drawer` first
     // stands (its neighbour had none); every other step down that is not `1 -> 0` still fails. Was: `steps.filter(step => !step.startsWith("1->0"))` equal to `[]`.
+    //
+    // **7D5b S2 / ADR 0110 M7/M10, restated narrowly again.** The dishwasher's trades add two ruled
+    // steps, each attributed exactly: (b)'s one pantry column, only into the room where a traded
+    // dishwasher first stands and the oven tower stays innermost (5102 x 1000/1200/1600, 4402 x 1700);
+    // and (c)'s `1 -> 0`, only where (d)'s dishwasher beside the tower gives way to (c)'s beside the
+    // bottle (4602 x 1000/1200/1600, 3902 x 1700). And `1 -> 0` itself is no longer sanctioned bare: it
+    // must be E6.2's refusal — remainder inside the window, no traded dishwasher either side — or (c).
+    // Was: `!(previous === 1 && size === 0)` accepted any `1 -> 0`.
     const steps = new Map<string, number>();
     const unsanctioned: string[] = [];
     let paidForByAThresholdDrawer = 0;
+    const tradeSteps = { pantryColumn: 0, ovenTower: 0, loneTowerRefused: 0 };
     // Wall B reaches the policy's maximum, through the band M7 7A3 admitted from 5101.
     for (const depthMm of [
       1000,
@@ -420,12 +545,16 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
       5600,
       APPROVED_L.wallB.maxMm,
     ]) {
-      const firstPlan = planFor(roomOf(900, depthMm));
+      const firstRoom = roomOf(900, depthMm);
+      const firstPlan = planFor(firstRoom);
       let previous = blockOf(firstPlan).length;
       let previousDrawers = thresholdDrawersOf(firstPlan).length;
+      let previousRoom = { plan: firstPlan, room: firstRoom };
       for (let widthMm = 901; widthMm <= 6300; widthMm += 1) {
-        const plan = planFor(roomOf(widthMm, depthMm));
+        const room = roomOf(widthMm, depthMm);
+        const plan = planFor(room);
         const size = blockOf(plan).length;
+        const rooms = { before: previousRoom, after: { plan, room } };
         const drawers = thresholdDrawersOf(plan).length;
         if (size < previous) {
           const step = `${String(previous)}->${String(size)} at wallB ${String(depthMm)}`;
@@ -438,7 +567,13 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
           };
           if (isAColumnPaidForByANewThresholdDrawer(stepDown)) {
             paidForByAThresholdDrawer += 1;
-          } else if (!(previous === 1 && size === 0)) {
+          } else if (isAPantryColumnTakenByANewDishwasher(rooms)) {
+            tradeSteps.pantryColumn += 1;
+          } else if (isTheTowerTakenWhereTheBottleTradeStops(rooms)) {
+            tradeSteps.ovenTower += 1;
+          } else if (isALoneTowerRefusedInTheWindow(rooms)) {
+            tradeSteps.loneTowerRefused += 1;
+          } else {
             unsanctioned.push(
               `${step} at wallA ${String(widthMm)}, threshold drawers ${String(previousDrawers)} -> ${String(drawers)}`,
             );
@@ -446,10 +581,18 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
         }
         previous = size;
         previousDrawers = drawers;
+        previousRoom = { plan, room };
       }
     }
 
     expect(unsanctioned).toEqual([]);
+    // 7D5b S2 / ADR 0110 M7/M10: each sanctioned shape reached, pinned so a trade that stops (or starts)
+    // stepping the block in these twelve wall B sweeps fails on the count.
+    expect(tradeSteps).toEqual({
+      pantryColumn: 4,
+      ovenTower: 4,
+      loneTowerRefused: 4,
+    });
     expect(
       paidForByAThresholdDrawer,
       "the sweep never reached a threshold drawer paying for a column, so Q-H5's arm is unasserted",
@@ -462,6 +605,73 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
 });
 
 describe("the centring hazard across the whole absorb window", () => {
+  // **7D5's owed absorb-window re-measurement, re-taken at 7D5b S2 / ADR 0110 M7/M10** (M7 plan, 7D5b
+  // slice S2: *"7D5's owed absorb-window re-measurement … bind[s] here"*). The window is the rooms where
+  // E3 would stand a block — no core role dropped, a leftover module at the free end — and the free end's
+  // remainder is `0 < r <= 200`, so E6 / E6.2 decides it: the outermost door column takes the merged
+  // opening (block of two or three), or a lone fixed-width tower cannot and the block falls to none.
+  //
+  // The free end is read beside every run module the composer stood — the core, the bottle, the pan and
+  // threshold drawers, and a traded dishwasher. **S2 moves no room into or out of the window**: its
+  // dishwasher takes one whole 600 mm module, so the remainder is unchanged; measured identical against
+  // the tree with S2 switched off (74 700 / 64 300 / 10 400), and at 2200 and 3900 mm ceilings. What S2
+  // moves is inside it: 5 200 window rooms carry a (b) dishwasher, each a three-column block now two.
+  // Not comparable with 7D5 E6's 39 530 / 53 320, which counted wall A's remainder over the pre-7A3
+  // rectangle before 7D8 re-keyed the run and before 7A3 widened the policy.
+  it("pins the window at the approved L's 10 mm grid: 74 700 rooms, 64 300 absorbed, 10 400 lone towers refused", () => {
+    const census = {
+      placed: 0,
+      inTheWindow: 0,
+      absorbedByTheOutermostColumn: 0,
+      loneTowerRefused: 0,
+      blockStandingWithoutAnAbsorb: 0,
+      withATradedDishwasher: 0,
+    };
+    for (
+      let widthMm = APPROVED_L.wallA.minMm;
+      widthMm <= APPROVED_L.wallA.maxMm;
+      widthMm += 10
+    ) {
+      for (
+        let depthMm = APPROVED_L.wallB.minMm;
+        depthMm <= APPROVED_L.wallB.maxMm;
+        depthMm += 10
+      ) {
+        const room = roomOf(widthMm, depthMm);
+        const plan = planFor(room);
+        if (!plan.minimumMet) continue;
+        census.placed += 1;
+        const leftover = freeEndBesideEveryRunModuleOf(plan, room);
+        const isInTheWindow =
+          plan.dropped.length === 0 &&
+          leftover.storageCount >= 1 &&
+          leftover.remainderMm > 0 &&
+          leftover.remainderMm <= 200;
+        if (!isInTheWindow) continue;
+        census.inTheWindow += 1;
+        if (tradedDishwasherOf(plan, room)) census.withATradedDishwasher += 1;
+        const block = blockOf(plan);
+        const outermost = block.at(-1);
+        if (!outermost) {
+          if (leftover.storageCount === 1) census.loneTowerRefused += 1;
+        } else if (outermost.widthMm > DECLARED_COLUMNS.columnWidthMm) {
+          census.absorbedByTheOutermostColumn += 1;
+        } else {
+          census.blockStandingWithoutAnAbsorb += 1;
+        }
+      }
+    }
+
+    expect(census).toEqual({
+      placed: 245_211,
+      inTheWindow: 74_700,
+      absorbedByTheOutermostColumn: 64_300,
+      loneTowerRefused: 10_400,
+      blockStandingWithoutAnAbsorb: 0,
+      withATradedDishwasher: 5_200,
+    });
+  }, 30_000);
+
   // Criterion 8 / risk 1. The wave pins 4000 x 3000 as its witness; the window is `0 < r <= 200` and
   // covers about a third of eligible rooms. A merge that fired at one remainder and not another, or
   // that left the run short of the wall's reachable end, is invisible to a single witness.

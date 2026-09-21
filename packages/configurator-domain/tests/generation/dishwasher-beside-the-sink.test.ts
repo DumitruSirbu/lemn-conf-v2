@@ -16,6 +16,12 @@
 // and not an aggregate. The arms are read off the live plan independently of the classifier: which
 // wall the dishwasher shares with the sink, and whether a pan drawer carries the preparation role.
 // Every invariant is a per-room list asserted empty.
+//
+// **Restated for S2 (ADR 0110 Amendment M7 (b), (d), (c), M10).** Since S2 the live planner trades a
+// dishwasher in where this leaf placed none, so S1's figures are no longer the live planner's. The
+// census and the witness S2 reaches (4650 x 1000) read **S1's plan**: the planner with the leaf on and
+// S2's trades switched off (`withS1Alone`). The live figures — S1's rooms plus S2's trades — are
+// `dishwasher-trades.test.ts`'s census.
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
@@ -37,7 +43,10 @@ import {
 } from "../../src/index.js";
 import { withTheDishwasherBesideTheSink } from "../../src/generation/dishwasher-beside-the-sink.js";
 import { canonicalPlan } from "../support/composed-run-baseline.js";
-import { beforeS1 } from "../support/composition-context-capture.js";
+import {
+  beforeS1,
+  withS1Alone,
+} from "../support/composition-context-capture.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   dishwasherChangeBetween,
@@ -214,8 +223,8 @@ describe("omission, not displacement", () => {
     ]);
   });
 
-  it("never takes a lone drawer cabinet: the owner's nearest room keeps its 3-drawer and gets no dishwasher (4650 x 1000)", () => {
-    const plan = planFor(4650, 1000);
+  it("never takes a lone drawer cabinet: the owner's nearest room keeps its 3-drawer and gets no dishwasher from S1 alone (4650 x 1000)", () => {
+    const plan = withS1Alone(() => planFor(4650, 1000));
 
     expect(dishwashersIn(plan)).toEqual([]);
     expect(wallAsBuilt(plan, "A")).toEqual([
@@ -225,6 +234,19 @@ describe("omission, not displacement", () => {
       "hob/hob/base-hob-2drawer [2800, 3400]",
       "bottle/storage/base-bottle-cargo [3400, 3700]",
       "column:A:0/storage/tall-oven-tower [3700, 4300]",
+    ]);
+  });
+
+  it("gets its dishwasher live from S2's (c), still never from the lone 3-drawer (4650 x 1000)", () => {
+    const plan = planFor(4650, 1000);
+
+    expect(wallAsBuilt(plan, "A")).toEqual([
+      "fridge/fridge/fridge-free [900, 1600]",
+      "sink/sink/base-sink [1600, 2200]",
+      "dishwasher/storage/base-dishwasher [2200, 2800]",
+      "preparation/preparation/base-3drawer [2800, 3400]",
+      "hob/hob/base-hob-oven [3400, 4000]",
+      "bottle/storage/base-bottle-cargo [4000, 4300]",
     ]);
   });
 });
@@ -304,7 +326,7 @@ describe("the witnesses the plan names that the rules above do not reach", () =>
 });
 
 // ---------------------------------------------------------------------------------------------
-// QA's census: every placed room, S1 against S0b.
+// QA's census: every placed room, S1 alone (S2's trades off) against S0b.
 // ---------------------------------------------------------------------------------------------
 
 const CEILINGS_MM = [2200, 2600, 3900] as const;
@@ -370,7 +392,7 @@ type InvariantName =
   | "remainderOfAModuleOrMore"
   | "dOfSixShortOfDrawers";
 
-describe("7D5b S1 — QA's census over the approved L rectangle, 10 mm, at 2200, 2600 and 3900 mm", () => {
+describe("7D5b S1 — QA's census over the approved L rectangle, 10 mm, at 2200, 2600 and 3900 mm, S2's trades off", () => {
   const censusByCeiling = new Map<number, DishwasherCensus>();
 
   beforeAll(() => {
@@ -504,6 +526,7 @@ interface ComparedRoom {
   readonly where: string;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
   readonly afterS0b: KitchenCompositionPlan;
+  /** S1's plan: the leaf on, S2's trades off. Named `live` because it was, until S2. */
   readonly live: KitchenCompositionPlan;
 }
 
@@ -515,7 +538,7 @@ function countTheRoom(census: DishwasherCensus, room: DesignRoom): void {
     where: `${String(room.widthMm)}x${String(room.depthMm)}`,
     runs,
     afterS0b: beforeS1(compose),
-    live: compose(),
+    live: withS1Alone(compose),
   };
   if (compared.live.minimumMet !== compared.afterS0b.minimumMet) {
     census.invariants.refusedDifferentlyThanS0b.push(compared.where);

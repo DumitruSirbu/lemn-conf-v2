@@ -632,3 +632,232 @@ function abutsOnItsWall(
 function sinkOf(plan: RecordedCanonicalPlan): RecordedPlanModule | undefined {
   return plan.bases.find((base) => base.role === SINK_ROLE);
 }
+
+// ---------------------------------------------------------------------------------------------
+// The trades S2 may make to S1's plan (ADR 0110 Amendment M7 (b), (d), (c), M10, M12).
+// ---------------------------------------------------------------------------------------------
+
+/** How a live plan relates to S1's plan for the same room (the leaf on, S2's trades off). */
+export type DishwasherTrade =
+  | "unchanged"
+  | "(b): one pantry column traded"
+  | "(d): the bottle traded"
+  | "(c): the oven tower traded, the hob given its oven"
+  | "changed otherwise";
+
+/** Each trade by the body it frees on the sink's wall, and the exact bodies it gives up and adds, as
+ *  sorted multisets. */
+interface TradedBodies {
+  readonly freed: string;
+  readonly givenUp: readonly string[];
+  readonly added: readonly string[];
+}
+
+const TRADES_BY_BODIES: readonly (readonly [DishwasherTrade, TradedBodies])[] =
+  [
+    [
+      "(b): one pantry column traded",
+      {
+        freed: PANTRY_BODY,
+        givenUp: [PANTRY_BODY],
+        added: [DISHWASHER_IDENTITY.buildId],
+      },
+    ],
+    [
+      "(d): the bottle traded",
+      {
+        freed: BOTTLE_BODY,
+        givenUp: [BOTTLE_BODY],
+        added: [DISHWASHER_IDENTITY.buildId],
+      },
+    ],
+    [
+      "(c): the oven tower traded, the hob given its oven",
+      {
+        freed: OVEN_TOWER_BODY,
+        givenUp: [HOB_WITH_DRAWERS_BODY, OVEN_TOWER_BODY],
+        added: [DISHWASHER_IDENTITY.buildId, HOB_WITH_OVEN_BODY],
+      },
+    ],
+  ];
+
+/**
+ * Classifies the live plan against S1's, both in `canonicalPlan` form. A trade is named only where the
+ * live plan is S1's with exactly this done: one dishwasher (its own id, role and 600 mm width) stands
+ * directly beyond the sink on the sink's wall; every module between the sink and the body given up is
+ * S1's module 600 mm further along, the hob changing only its body and only in (c); the modules on the
+ * sink's other side and on the other wall, `minimumMet` and `dropped` are S1's exactly; and the bodies
+ * given up and added are exactly the trade's. Anything more or less is "changed otherwise".
+ */
+export function dishwasherTradeBetween(plans: {
+  readonly afterS1: string;
+  readonly live: string;
+}): DishwasherTrade {
+  if (plans.afterS1 === plans.live) return "unchanged";
+  const afterS1 = parseRecordedCanonicalPlan(plans.afterS1);
+  const live = parseRecordedCanonicalPlan(plans.live);
+  const matched = tradeByBodies(afterS1, live);
+  if (matched === undefined) return "changed otherwise";
+  const [trade, bodies] = matched;
+  const isHobReBodied =
+    trade === "(c): the oven tower traded, the hob given its oven";
+  const shape = { freed: bodies.freed, isHobReBodied };
+  return isTheDishwasherInsertedAfterTheSink({ afterS1, live }, shape)
+    ? trade
+    : "changed otherwise";
+}
+
+/** Where the live plan's bodies are the trade's, what the trade frees and whether it re-bodies the hob. */
+interface TradeShape {
+  readonly freed: string;
+  readonly isHobReBodied: boolean;
+}
+
+interface ComparedPlans {
+  readonly afterS1: RecordedCanonicalPlan;
+  readonly live: RecordedCanonicalPlan;
+}
+
+function tradeByBodies(
+  afterS1: RecordedCanonicalPlan,
+  live: RecordedCanonicalPlan,
+): (typeof TRADES_BY_BODIES)[number] | undefined {
+  const givenUp = bodiesOnlyIn(afterS1, live);
+  const added = bodiesOnlyIn(live, afterS1);
+  return TRADES_BY_BODIES.find(
+    ([, bodies]) =>
+      bodies.givenUp.join() === givenUp.join() &&
+      bodies.added.join() === added.join(),
+  );
+}
+
+/** The multiset `plan`'s bodies less `other`'s, sorted. */
+function bodiesOnlyIn(
+  plan: RecordedCanonicalPlan,
+  other: RecordedCanonicalPlan,
+): readonly string[] {
+  const remaining = other.bases.map((base) => base.buildId);
+  const only: string[] = [];
+  for (const base of plan.bases) {
+    const at = remaining.indexOf(base.buildId);
+    if (at < 0) only.push(base.buildId);
+    else remaining.splice(at, 1);
+  }
+  return only.sort();
+}
+
+function isTheDishwasherInsertedAfterTheSink(
+  { afterS1, live }: ComparedPlans,
+  shape: TradeShape,
+): boolean {
+  const dishwashers = live.bases.filter(
+    (base) => base.buildId === DISHWASHER_IDENTITY.buildId,
+  );
+  const [dishwasher] = dishwashers;
+  const sink = sinkOf(live);
+  const sinkBefore = sinkOf(afterS1);
+  if (
+    dishwashers.length !== 1 ||
+    dishwasher === undefined ||
+    sink === undefined ||
+    sinkBefore === undefined ||
+    !isTheOwnersDishwasher(dishwasher) ||
+    !abutsOnItsWall(dishwasher, sink) ||
+    JSON.stringify(sink) !== JSON.stringify(sinkBefore) ||
+    afterS1.minimumMet !== live.minimumMet ||
+    afterS1.dropped.join() !== live.dropped.join()
+  ) {
+    return false;
+  }
+  const shiftMm =
+    dishwasher.startMm === sink.endMm
+      ? DISHWASHER_WIDTH_MM
+      : -DISHWASHER_WIDTH_MM;
+  return (
+    isEveryModuleOffTheShiftedSideKept(afterS1, live, { sink, shiftMm }) &&
+    isTheShiftedSideShiftedUpToTheBodyGivenUp(
+      { afterS1, live },
+      { sink, shiftMm, ...shape },
+    )
+  );
+}
+
+function isTheOwnersDishwasher(base: RecordedPlanModule): boolean {
+  return (
+    base.id === DISHWASHER_IDENTITY.id &&
+    base.role === DISHWASHER_IDENTITY.role &&
+    base.widthMm === DISHWASHER_WIDTH_MM
+  );
+}
+
+interface ShiftedSide {
+  readonly sink: RecordedPlanModule;
+  readonly shiftMm: number;
+}
+
+/** The other wall, and the sink's wall on the side away from the dishwasher, are S1's exactly. */
+function isEveryModuleOffTheShiftedSideKept(
+  afterS1: RecordedCanonicalPlan,
+  live: RecordedCanonicalPlan,
+  side: ShiftedSide,
+): boolean {
+  const offTheSide = (plan: RecordedCanonicalPlan) =>
+    JSON.stringify(
+      plan.bases.filter((base) => !isOnTheShiftedSide(base, side)),
+    );
+  return offTheSide(afterS1) === offTheSide(live);
+}
+
+function isOnTheShiftedSide(
+  base: RecordedPlanModule,
+  { sink, shiftMm }: ShiftedSide,
+): boolean {
+  if (base.wall !== sink.wall) return false;
+  return shiftMm > 0 ? base.startMm >= sink.endMm : base.endMm <= sink.startMm;
+}
+
+/** Read from the sink outward on the shifted side: S1's modules, up to the first module of the body the
+ *  trade frees, stand in the live plan 600 mm further along, each with its own id, role, body and width
+ *  — the hob's body alone may differ, and only in (c). */
+function isTheShiftedSideShiftedUpToTheBodyGivenUp(
+  { afterS1, live }: ComparedPlans,
+  side: ShiftedSide & TradeShape,
+): boolean {
+  const fromTheSink = (plan: RecordedCanonicalPlan) =>
+    plan.bases
+      .filter((base) => isOnTheShiftedSide(base, side))
+      .sort((left, right) =>
+        side.shiftMm > 0
+          ? left.startMm - right.startMm
+          : right.startMm - left.startMm,
+      );
+  const before = fromTheSink(afterS1);
+  const [dishwasher, ...after] = fromTheSink(live);
+  if (dishwasher?.buildId !== DISHWASHER_IDENTITY.buildId) return false;
+  const freedAt = before.findIndex((base) => base.buildId === side.freed);
+  if (freedAt < 0) return false;
+  const kept = before.slice(0, freedAt);
+  return kept.every((base, index) =>
+    isTheSameModuleShifted(base, after[index], side),
+  );
+}
+
+function isTheSameModuleShifted(
+  before: RecordedPlanModule,
+  after: RecordedPlanModule | undefined,
+  side: ShiftedSide & TradeShape,
+): boolean {
+  if (after === undefined) return false;
+  const expectedBody =
+    side.isHobReBodied && before.role === HOB_ROLE
+      ? HOB_WITH_OVEN_BODY
+      : before.buildId;
+  return (
+    after.id === before.id &&
+    after.role === before.role &&
+    after.buildId === expectedBody &&
+    after.widthMm === before.widthMm &&
+    after.startMm === before.startMm + side.shiftMm &&
+    after.endMm === before.endMm + side.shiftMm
+  );
+}

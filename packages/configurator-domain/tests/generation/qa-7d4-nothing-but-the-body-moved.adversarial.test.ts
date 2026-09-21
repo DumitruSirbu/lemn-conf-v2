@@ -71,8 +71,10 @@ import {
   createLeaseLedger,
 } from "../support/fake-probe.js";
 import {
+  dishwasherArmOf,
   PAN_DRAWER_BODY,
   parseRecordedCanonicalPlan,
+  withTheDishwasherTradeUndone,
 } from "../support/pre-width-run-recording.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
@@ -235,20 +237,27 @@ const RE_KEYED_WITNESSES = [
     //    recording holds as composed storage slots are a tall oven tower and a pantry column — and
     //    the hob carries drawers instead of its own oven, because a tower stands. Since M7 wave 7D5
     //    S1 the 300 mm bottle after the hob costs the pantry column and the tower remains.
+    //
+    // **Re-pinned for 7D5b S2 / ADR 0110 M7/M10: this is plan B5's (d) witness.** No door cabinet
+    // stands beside the sink, (b) has no pantry to take, so the dishwasher is traded for the bottle: it
+    // is read directly after the sink, the preparation cabinet, the hob and the tower one module
+    // further along (the tower 300 mm, the bottle's width less), and the freed 300 mm fills the 300 mm
+    // remainder. Was: remainder 0/300, floor widths /700,600,600,600,300,600, preparation 2200-2800,
+    // hob 2800-3400, the bottle 3400-3700 and the tower 3700-4300.
     name: "the whole kitchen on one wall (900 x 4700)",
     room: { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
     plan: [
       "minimumMet=true",
       "cut=4",
       "dropped=",
-      "remainder=0/300",
-      "floorWidths=/700,600,600,600,300,600",
+      "remainder=0/0",
+      "floorWidths=/700,600,600,600,600,600",
       "fridge~fridge~fridge-free~B~900~1600~700",
       "sink~sink~base-sink~B~1600~2200~600",
-      "preparation~preparation~base-3drawer~B~2200~2800~600",
-      "hob~hob~base-hob-2drawer~B~2800~3400~600",
-      "bottle~storage~base-bottle-cargo~B~3400~3700~300",
-      "column:B:0~storage~tall-oven-tower~B~3700~4300~600",
+      "dishwasher~storage~base-dishwasher~B~2200~2800~600",
+      "preparation~preparation~base-3drawer~B~2800~3400~600",
+      "hob~hob~base-hob-2drawer~B~3400~4000~600",
+      "column:B:0~storage~tall-oven-tower~B~4000~4600~600",
     ],
   },
 ] as const satisfies readonly {
@@ -683,12 +692,21 @@ const PREPARATION_PLANNED_ID = "preparation";
 const COMPOSED_SLOT_ID_PREFIX = "storage:";
 
 /** What undoing the dishwasher found, the plan without it, and the planned ids it renamed (the id the
- *  plan carries now → the id it carried before S1), which the wall row's step ids follow. */
+ *  plan carries now → the id it carried before S1), which the wall row's step ids follow. 7D5b S2 /
+ *  ADR 0110 M7/M10: a traded dishwasher is undone too, and each module it moved carries its shift
+ *  along the wall (now minus before), which the uppers over it follow. */
 type DishwasherUndo =
   | {
-      readonly kind: "none" | "doorCabinet" | "drawerSwap";
+      readonly kind:
+        | "none"
+        | "doorCabinet"
+        | "drawerSwap"
+        | "(b)"
+        | "(d)"
+        | "(c)";
       readonly plan: KitchenCompositionPlan;
       readonly renamedIds: ReadonlyMap<string, string>;
+      readonly shiftedMm: ReadonlyMap<string, number>;
     }
   | { readonly kind: "unruled"; readonly reason: string };
 
@@ -713,7 +731,7 @@ function withTheDishwasherUndone(plan: KitchenCompositionPlan): DishwasherUndo {
   );
   const [dishwasher] = dishwashers;
   if (dishwasher === undefined) {
-    return { kind: "none", plan, renamedIds: new Map() };
+    return { kind: "none", plan, renamedIds: new Map(), shiftedMm: new Map() };
   }
   const unruled = whyTheDishwasherIsUnruled(plan, dishwashers);
   if (unruled !== undefined) return { kind: "unruled", reason: unruled };
@@ -721,6 +739,19 @@ function withTheDishwasherUndone(plan: KitchenCompositionPlan): DishwasherUndo {
   const preparation = plan.bases.find((base) => base.role === "preparation");
   if (preparation?.buildId === PAN_DRAWER_BODY) {
     return withTheDrawerSwapUndone(plan, { dishwasher, preparation });
+  }
+  // 7D5b S2 / ADR 0110 M7/M10: a dishwasher read directly after the sink on the hob's wall is a
+  // trade, never M1's converted slot; it is undone to S1's plan, where S1 stood none.
+  const arm = dishwasherArmOf(plan);
+  if (arm === "(b)" || arm === "(d)" || arm === "(c)") {
+    const traded = withTheDishwasherTradeUndone(plan);
+    if (traded.kind === "unruled") return traded;
+    return {
+      kind: traded.kind,
+      plan: traded.plan,
+      renamedIds: new Map(),
+      shiftedMm: traded.shiftedMm,
+    };
   }
   return withTheDoorCabinetRestored(plan, dishwasher);
 }
@@ -787,6 +818,7 @@ function withTheDoorCabinetRestored(
       bases: plan.bases.map((base) => (base === dishwasher ? restored : base)),
     },
     renamedIds: new Map([[DISHWASHER_PLANNED_ID, slotId]]),
+    shiftedMm: new Map(),
   };
 }
 
@@ -829,25 +861,46 @@ function withTheDrawerSwapUndone(
       [DISHWASHER_PLANNED_ID, PREPARATION_PLANNED_ID],
       [PREPARATION_PLANNED_ID, PAN_DRAWER_PLANNED_ID],
     ]),
+    shiftedMm: new Map(),
   };
 }
 
 /** Criterion 21's half of the undo: an upper's step id names the base it stands over, so every upper
- *  over a renamed base takes the name that base had. Renamed simultaneously, since (e) swaps two. */
+ *  over a renamed base takes the name that base had. Renamed simultaneously, since (e) swaps two.
+ *  7D5b S2 / ADR 0110 M7/M10: a traded dishwasher's own upper goes with it, and every upper or hood
+ *  over a module the trade moved is drawn back by that module's shift; nothing else is touched. */
 function wallRowWithTheDishwasherUndone(
   row: string,
-  renamedIds: ReadonlyMap<string, string>,
+  undo: {
+    readonly renamedIds: ReadonlyMap<string, string>;
+    readonly shiftedMm: ReadonlyMap<string, number>;
+    readonly isTraded: boolean;
+  },
 ): string {
   return row
     .split("|")
+    .filter(
+      (step) =>
+        !undo.isTraded || !step.startsWith(`upper:${DISHWASHER_PLANNED_ID}~`),
+    )
     .map((step) => {
       const [stepId = "", ...rest] = step.split("~");
       const [kind, ...baseId] = stepId.split(":");
-      const renamed = renamedIds.get(baseId.join(":"));
+      const shiftedMm = undo.shiftedMm.get(baseId.join(":"));
+      if (shiftedMm !== undefined) return drawnBackAlong(step, shiftedMm);
+      const renamed = undo.renamedIds.get(baseId.join(":"));
       if (kind !== "upper" || renamed === undefined) return step;
       return [`upper:${renamed}`, ...rest].join("~");
     })
     .join("|");
+}
+
+function drawnBackAlong(step: string, shiftedMm: number): string {
+  const fields = step.split("~");
+  const alongMm = Number(fields[WALL_ROW_ALONG_FIELD]);
+  if (fields[2] !== "placed" || Number.isNaN(alongMm)) return step;
+  fields[WALL_ROW_ALONG_FIELD] = String(alongMm - shiftedMm);
+  return fields.join("~");
 }
 
 /** E1's threshold as the owner stated it (ADR 0110 wave 7D5, Q-H5): the plain cabinets — composed
@@ -919,7 +972,13 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       columnGaveWayBesideTheBottle: 0,
       columnGaveWayWithoutIt: 0,
     };
-    const dishwasherUndone = { doorCabinet: 0, drawerSwap: 0 };
+    const dishwasherUndone = {
+      doorCabinet: 0,
+      drawerSwap: 0,
+      "(b)": 0,
+      "(d)": 0,
+      "(c)": 0,
+    };
     let thresholdDrawersWithheldByM2 = 0;
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
@@ -1040,7 +1099,18 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // converted door slot and 32 by M7(e)'s drawer swap — and every one undoes, identity only, to a
     // plan that hashes to 7D3's recording (or, re-keyed, still differs from it). Exact: the draw is
     // the recording's.
-    expect(dishwasherUndone).toEqual({ doorCabinet: 87, drawerSwap: 32 });
+    // 7D5b S2 / ADR 0110 M7/M10: 29 more stand a traded dishwasher — (b) 14, (d) 2, (c) 13 — and each
+    // is undone to S1's plan (the dishwasher out, the sink's wall drawn back 600 mm, the one body it
+    // gave up restored), which then takes the same path S1's plan took. The four bottle-less (c) rooms
+    // outside the re-key (4289 x 1004 x 3896 among them) hash to 7D3's recording byte for byte. Was
+    // `{ doorCabinet: 87, drawerSwap: 32 }`.
+    expect(dishwasherUndone).toEqual({
+      doorCabinet: 87,
+      drawerSwap: 32,
+      "(b)": 14,
+      "(d)": 2,
+      "(c)": 13,
+    });
   });
 
   it.each(UNMOVED_WITNESS_ROOMS)(
@@ -1342,7 +1412,11 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
           if (dishwasherUndo.kind !== "none") dishwasherRowsUndone += 1;
           const rowBeforeTheDishwasher = wallRowWithTheDishwasherUndone(
             canonicalWallRow(kitchen),
-            dishwasherUndo.renamedIds,
+            {
+              renamedIds: dishwasherUndo.renamedIds,
+              shiftedMm: dishwasherUndo.shiftedMm,
+              isTraded: ["(b)", "(d)", "(c)"].includes(dishwasherUndo.kind),
+            },
           );
           const row = standsAThresholdDrawer
             ? wallRowWithTheThresholdDrawerUndone(rowBeforeTheDishwasher)
@@ -1379,7 +1453,10 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     expect(thresholdDrawerRowsUndone).toBe(0);
     // 7D5b S1 / ADR 0110 M1/M8/M9: bottle-less rooms whose row was compared with its dishwasher undone.
     // Exact, the draw being the recording's: 24 of the rooms outside the bottle branch stand one.
-    expect(dishwasherRowsUndone).toBe(24);
+    // 7D5b S2 / ADR 0110 M7/M10: 24 -> 28. The four bottle-less (c) rooms of criterion 2's sweep are
+    // compared with the trade undone: the dishwasher's upper removed and every upper and hood over
+    // the moved modules drawn back 600 mm, and each row then hashes to 7D3's.
+    expect(dishwasherRowsUndone).toBe(28);
   });
 
   it("stands a hood over every hob and nothing over a body that reaches the wall row", () => {

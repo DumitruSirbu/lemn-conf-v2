@@ -24,7 +24,14 @@
 // M11 room, so HEAD's shape is also S0b's (`qa-7d5b-post-tower-recorded` compares the two recordings).
 // Each is followed by S1's live shape, spans unchanged. 1500 x 3500 and 4650 x 1000, which S1 must not
 // reach, are still read live.
-import { describe, expect, it } from "vitest";
+//
+// **Restated for S2 (ADR 0110 Amendment M7 (b), (d), (c), M10).** S2 trades a dishwasher in where S1
+// placed none, and reaches two witnesses S1 left: 900 x 4100 (the tower M11 kept goes, (c)) and
+// 4650 x 1000 (the owner's nearest room, (c)). Their S0b and S1 shapes are now read from the planner
+// with the later slices switched off — `beforeS1` (S0b: no leaf, no trades) and `withS1Alone` (the leaf,
+// no trades), both proved against the post-tower recording by `qa-7d5b-post-tower-recorded` — and each
+// is followed by its live S2 shape.
+import { describe, expect, it, vi } from "vitest";
 
 import {
   amountForBody,
@@ -41,8 +48,22 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "../../src/index.js";
+import {
+  beforeS1,
+  withS1Alone,
+} from "../support/composition-context-capture.js";
 import { readPreTowerRunRecording } from "../support/pre-tower-run-recording.js";
 import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
+
+vi.mock(
+  "../../src/generation/dishwasher-beside-the-sink.js",
+  async (importOriginal) => {
+    const { withTheDishwasherLeafSwitchable } = await import(
+      "../support/composition-context-capture.js"
+    );
+    return withTheDishwasherLeafSwitchable(await importOriginal());
+  },
+);
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -151,11 +172,38 @@ describe("7D5b S0 — E7's witnesses: what S1's bottle cost at HEAD (recorded), 
   });
 
   it("900 x 4100 after S0b: hob-2drawer and the oven tower, with nothing bare", () => {
-    const plan = planFor(900, 4100);
+    const plan = beforeS1(() => planFor(900, 4100));
 
     expect(wallAsBuilt(plan, "B").slice(-2)).toEqual([
       "base-hob-2drawer [2800, 3400]",
       "tall-oven-tower [3400, 4000]",
+    ]);
+    expect(plan.remainderMm.B).toBe(0);
+  });
+
+  it("900 x 4100 with S1 alone: no dishwasher, the S0b wall unchanged", () => {
+    const plan = withS1Alone(() => planFor(900, 4100));
+
+    expect(wallAsBuilt(plan, "B")).toEqual(
+      wallAsBuilt(
+        beforeS1(() => planFor(900, 4100)),
+        "B",
+      ),
+    );
+    expect(plan.bases.map((base) => base.buildId)).not.toContain(
+      "base-dishwasher",
+    );
+  });
+
+  it("900 x 4100 with S2, live: (c) — the dishwasher after the sink, the tower gone, the hob carrying the oven", () => {
+    const plan = planFor(900, 4100);
+
+    expect(wallAsBuilt(plan, "B")).toEqual([
+      "fridge-free [900, 1600]",
+      "base-sink [1600, 2200]",
+      "base-dishwasher [2200, 2800]",
+      "base-3drawer [2800, 3400]",
+      "base-hob-oven [3400, 4000]",
     ]);
     expect(plan.remainderMm.B).toBe(0);
   });
@@ -277,7 +325,14 @@ describe("7D5b S0 — E6's witnesses: the drawer cabinets where no door cabinet 
   });
 
   it("4650 x 1000, the owner's nearest room: one drawer cabinet, the oven tower standing, no pan drawer — and S1 leaves it", () => {
-    const plan = planFor(4650, 1000);
+    const plan = withS1Alone(() => planFor(4650, 1000));
+
+    expect(wallAsBuilt(plan, "A")).toEqual(
+      wallAsBuilt(
+        beforeS1(() => planFor(4650, 1000)),
+        "A",
+      ),
+    );
 
     expect(wallAsBuilt(plan, "A")).toEqual([
       "fridge-free [900, 1600]",
@@ -286,6 +341,20 @@ describe("7D5b S0 — E6's witnesses: the drawer cabinets where no door cabinet 
       "base-hob-2drawer [2800, 3400]",
       "base-bottle-cargo [3400, 3700]",
       "tall-oven-tower [3700, 4300]",
+    ]);
+    expect(drawerCabinetsIn(plan)).toEqual(["preparation/base-3drawer"]);
+  });
+
+  it("4650 x 1000 with S2, live: (c) — the 3-drawer and the bottle kept, the tower traded for the dishwasher", () => {
+    const plan = planFor(4650, 1000);
+
+    expect(wallAsBuilt(plan, "A")).toEqual([
+      "fridge-free [900, 1600]",
+      "base-sink [1600, 2200]",
+      "base-dishwasher [2200, 2800]",
+      "base-3drawer [2800, 3400]",
+      "base-hob-oven [3400, 4000]",
+      "base-bottle-cargo [4000, 4300]",
     ]);
     expect(drawerCabinetsIn(plan)).toEqual(["preparation/base-3drawer"]);
   });

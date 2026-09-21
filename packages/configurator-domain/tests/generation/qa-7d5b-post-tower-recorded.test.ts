@@ -22,6 +22,12 @@
 // asserted exactly**: the planner with S1's leaf switched off (`beforeS1`) must reproduce every recorded
 // plan byte for byte, which is what every pre-state model in 7D5b's other suites rests on.
 //
+// **Restated for S2 (ADR 0110 Amendment M7 (b), (d), (c), M10).** The S1 classes above are now read
+// from **S1's plan** — the planner with the leaf on and S2's trades switched off (`withS1Alone`) — because
+// the live planner also trades a dishwasher in where S1 placed none. The live planner is compared with
+// S1's below, room by room, by `dishwasherTradeBetween`: it equals S1's plan or differs by exactly one
+// trade.
+//
 // **Recording against recording.** The post-tower draw is the pre-tower draw — the same seed, run count
 // and witnesses — so the two are compared below with no planner in the loop: they differ in exactly
 // M11's rooms, by M11's change, and nowhere else. That half stays true whatever S1 does to the live
@@ -40,16 +46,21 @@ import {
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import { canonicalPlan, roomKey } from "../support/composed-run-baseline.js";
-import { beforeS1 } from "../support/composition-context-capture.js";
+import {
+  beforeS1,
+  withS1Alone,
+} from "../support/composition-context-capture.js";
 import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
 import {
   dishwasherChangeBetween,
+  dishwasherTradeBetween,
   readPostTowerRunRecording,
   readPreTowerRunRecording,
   roomFromRecordedKey,
   towerOverBottleChangeBetween,
   type CornerEnds,
   type DishwasherChange,
+  type DishwasherTrade,
   type TowerOverBottleChange,
 } from "../support/pre-tower-run-recording.js";
 
@@ -82,7 +93,8 @@ function cornerEndsOf(room: DesignRoom): CornerEnds {
   return { A: runs.A.startMm, B: runs.B.startMm };
 }
 
-/** Each recorded room's S1 change: the live plan against the plan recorded after S0b. */
+/** Each recorded room's S1 change: S1's plan — the leaf on, S2's trades off — against the plan
+ *  recorded after S0b. */
 function changesAgainstTheRecording(
   recorded: ReadonlyMap<string, string>,
 ): ReadonlyMap<string, DishwasherChange> {
@@ -91,7 +103,7 @@ function changesAgainstTheRecording(
       const room = roomFromRecordedKey(key);
       const change = dishwasherChangeBetween({
         before,
-        after: canonicalPlan(planFor(room)),
+        after: withS1Alone(() => canonicalPlan(planFor(room))),
         cornerEndMm: cornerEndsOf(room),
       });
       return [key, change];
@@ -99,19 +111,35 @@ function changesAgainstTheRecording(
   );
 }
 
-function countsOf(
-  changes: ReadonlyMap<string, DishwasherChange>,
-): Partial<Record<DishwasherChange, number>> {
-  const counts: Partial<Record<DishwasherChange, number>> = {};
+/** Each recorded room's S2 trade: the live plan against S1's. */
+function tradesAgainstS1(
+  recorded: ReadonlyMap<string, string>,
+): ReadonlyMap<string, DishwasherTrade> {
+  return new Map(
+    [...recorded.keys()].map((key) => {
+      const room = roomFromRecordedKey(key);
+      const trade = dishwasherTradeBetween({
+        afterS1: withS1Alone(() => canonicalPlan(planFor(room))),
+        live: canonicalPlan(planFor(room)),
+      });
+      return [key, trade];
+    }),
+  );
+}
+
+function countsOf<Change extends string>(
+  changes: ReadonlyMap<string, Change>,
+): Partial<Record<Change, number>> {
+  const counts: Partial<Record<Change, number>> = {};
   for (const change of changes.values()) {
     counts[change] = (counts[change] ?? 0) + 1;
   }
   return counts;
 }
 
-function roomsWith(
-  changes: ReadonlyMap<string, DishwasherChange>,
-  wanted: DishwasherChange,
+function roomsWith<Change extends string>(
+  changes: ReadonlyMap<string, Change>,
+  wanted: Change,
 ): readonly string[] {
   return [...changes]
     .filter(([, change]) => change === wanted)
@@ -187,7 +215,7 @@ describe("the whole plan after 7D5b's tower-over-bottle change (S1's pre-state)"
     expect(differing.map(([key]) => key)).toEqual([]);
   });
 
-  it("differs from the live planner in 277 drawn rooms, each by one of S1's changes alone, and equals it in the other 203", () => {
+  it("differs from S1's planner in 277 drawn rooms, each by one of S1's changes alone, and equals it in the other 203", () => {
     const changes = changesAgainstTheRecording(POST_TOWER.rooms);
 
     expect(countsOf(changes)).toEqual({
@@ -263,6 +291,37 @@ describe("the whole plan after 7D5b's tower-over-bottle change (S1's pre-state)"
       "900x5000x2600": "unchanged",
       "3600x2400x2600": "M1: a door cabinet across the corner converted",
       "900x4400x2600": "unchanged",
+    });
+  });
+
+  it("differs live from S1's plan in 56 drawn rooms, each by one of S2's trades alone: 34 (b) and 22 (c)", () => {
+    const trades = tradesAgainstS1(POST_TOWER.rooms);
+
+    expect(countsOf(trades)).toEqual({
+      unchanged: 424,
+      "(b): one pantry column traded": 34,
+      "(c): the oven tower traded, the hob given its oven": 22,
+    });
+  });
+
+  it("puts every witness S2 reaches in its trade: (b) 900 x 5000, (d) 900 x 4700, (c) 900 x 4100, 4650 x 1000 and 900 x 4400", () => {
+    expect(Object.fromEntries(tradesAgainstS1(POST_TOWER.witnesses))).toEqual({
+      "3560x2920x2600": "unchanged",
+      "900x4100x2600": "(c): the oven tower traded, the hob given its oven",
+      "900x4410x2600": "unchanged",
+      "2100x2200x2600": "unchanged",
+      "1500x2800x2600": "unchanged",
+      "1500x3500x2600": "unchanged",
+      "1510x2800x2600": "unchanged",
+      "900x3400x2600": "unchanged",
+      "6000x1700x2600": "unchanged",
+      "4650x1000x2600": "(c): the oven tower traded, the hob given its oven",
+      "4600x5200x2600": "unchanged",
+      "4600x5800x2600": "unchanged",
+      "900x4700x2600": "(d): the bottle traded",
+      "900x5000x2600": "(b): one pantry column traded",
+      "3600x2400x2600": "unchanged",
+      "900x4400x2600": "(c): the oven tower traded, the hob given its oven",
     });
   });
 

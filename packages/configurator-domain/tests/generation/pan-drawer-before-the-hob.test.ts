@@ -19,6 +19,12 @@
 // it. The census derives it too — M1's door cabinet beside the sink, else (e)'s drawer swap — and
 // counts *D* on the kitchen it leaves. In (e) rooms the pan drawer carries the preparation id and
 // role, so it is looked up by its body, never by `pan-drawer`.
+//
+// 7D5b S2 / ADR 0110 M7/M10: where S1 stood no dishwasher, it is traded in for (b) one pantry column,
+// then (d) the bottle, then (c) the oven tower, directly after the sink — before the threshold drawer.
+// The census derives the three trades from capacities and 7D3's block rule in that precedence, each
+// in the contract's own terms: the named body goes and nothing else — no composed slot, no drawer
+// cabinet, no other column (plan B1/B2).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -480,7 +486,8 @@ interface DerivedItem {
     | GenerationCoreRole
     | "pan-drawer"
     | "bottle"
-    | typeof THRESHOLD_DRAWER_ID;
+    | typeof THRESHOLD_DRAWER_ID
+    | typeof DISHWASHER_ID;
   readonly widthMm: number;
 }
 
@@ -734,15 +741,17 @@ function plainCabinetsCountingTheDishwasherOf(
 
 /** 7D5b S1 / ADR 0110 M1/M2/M9: *D* on the kitchen whose dishwasher is already decided. M1's dishwasher
  *  is a door cabinet that is no longer a composed slot, so *D* loses one; (e)'s pan drawer now carries
- *  the preparation id, so *D* loses it and its drawer with it. */
+ *  the preparation id, so *D* loses it and its drawer with it. 7D5b S2 / ADR 0110 M7/M10: a traded
+ *  dishwasher is a module of its own and was never a slot, so *D* loses nothing for it. */
 function plainCabinetsOf(
   run: DerivedRun,
   basis: DerivationBasis,
 ): PlainCabinetCount {
   const before = plainCabinetsCountingTheDishwasherOf(run, basis);
   const { decision } = derivedDishwasherOf(run, basis);
+  const tookAPlainCabinet = decision !== "none" && decision !== TRADED_IN;
   return {
-    count: before.count - (decision === "none" ? 0 : 1),
+    count: before.count - (tookAPlainCabinet ? 1 : 0),
     drawers: before.drawers - (decision === DRAWER_SWAP ? 1 : 0),
   };
 }
@@ -768,9 +777,13 @@ type DishwasherDecision =
   | "none"
   | "M1, on the sink's wall"
   | "M1, across the corner"
-  | typeof DRAWER_SWAP;
+  | typeof DRAWER_SWAP
+  | typeof TRADED_IN;
 
 const DRAWER_SWAP = "(e), the drawer swap";
+/** 7D5b S2 / ADR 0110 M7/M10: a dishwasher standing in the run directly after the sink, for a body
+ *  the run gave up. Which body is the derivation's to say; the plan shows only where it stands. */
+const TRADED_IN = "S2, traded in after the sink";
 
 interface DerivedDishwasher {
   readonly decision: DishwasherDecision;
@@ -807,11 +820,13 @@ function derivedSlotsOf(run: DerivedRun, basis: DerivationBasis): DerivedSlots {
   return { prefix, suffix, drawerSlot: readAfterTheHob[0] };
 }
 
-/** M1 where a composed door slot abuts the sink, else (e) where the swap is open, else none. */
+/** M1 where a composed door slot abuts the sink, else (e) where the swap is open, else none — and a
+ *  run that already carries S2's traded dishwasher as an item answers that (7D5b S2). */
 function derivedDishwasherOf(
   run: DerivedRun,
   basis: DerivationBasis,
 ): DerivedDishwasher {
+  if (indexOfKind(run, DISHWASHER_ID) >= 0) return { decision: TRADED_IN };
   const slots = derivedSlotsOf(run, basis);
   const doorSlot = doorSlotBesideTheSink(run, slots);
   if (doorSlot !== undefined) return doorSlot;
@@ -903,6 +918,99 @@ function drawerCabinetsOfRun(run: DerivedRun, slots: DerivedSlots): number {
       item.kind === THRESHOLD_DRAWER_ID,
   ).length;
   return drawerItems + (slots.drawerSlot === undefined ? 0 : 1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 7D5b S2 / ADR 0110 M7/M10 — the trades, derived. Where S1 stood no dishwasher, one 600 mm dishwasher
+// is read directly after the sink on the sink's side of the cut, and the run gives up in exchange, in
+// M10's precedence: (b) exactly one pantry column, keeping the block; (d) exactly the bottle, the block
+// unchanged; (c) exactly the oven tower, the block's only column, so the hob takes the oven (E4, M12).
+// Each is refused unless the named body is the only thing that goes: every composed slot on both walls
+// stays, and so every drawer cabinet does (M8 / D7). Written from the contract, not from
+// `optional-run-items.ts`: a trade that paid for the dishwasher with anything else disagrees here.
+// ---------------------------------------------------------------------------------------------
+
+type DishwasherTrade =
+  | "(b) a pantry column"
+  | "(d) the bottle"
+  | "(c) the oven tower";
+
+interface DerivedTrade {
+  readonly run: DerivedRun;
+  readonly trade: DishwasherTrade;
+}
+
+/** S2 on the kitchen S2 of 7D5 decided, or `undefined` where S1 stood a dishwasher or no trade holds. */
+function derivedDishwasherTrade(
+  run: DerivedRun,
+  basis: DerivationBasis,
+): DerivedTrade | undefined {
+  if (derivedDishwasherOf(run, basis).decision !== "none") return undefined;
+  const columnsBefore = columnCountOf(run, basis);
+  const besideTheSink = withTheDishwasherAfterTheSink(run);
+  const candidates: readonly (DerivedTrade & { readonly holds: boolean })[] = [
+    {
+      trade: "(b) a pantry column",
+      run: besideTheSink,
+      holds:
+        columnCountOf(besideTheSink, basis) === columnsBefore - 1 &&
+        columnCountOf(besideTheSink, basis) > 0,
+    },
+    {
+      trade: "(d) the bottle",
+      run: withTheDishwasherAfterTheSink(withoutTheBottle(run)),
+      holds:
+        run.items.some((item) => item.kind === "bottle") &&
+        columnCountOf(
+          withTheDishwasherAfterTheSink(withoutTheBottle(run)),
+          basis,
+        ) === columnsBefore,
+    },
+    {
+      trade: "(c) the oven tower",
+      run: besideTheSink,
+      holds: columnsBefore === 1 && columnCountOf(besideTheSink, basis) === 0,
+    },
+  ];
+  const taken = candidates.find(
+    (candidate) =>
+      candidate.holds &&
+      fitsAcrossTheCorner(candidate.run, basis.capacities) &&
+      keepsEveryComposedSlot(candidate.run, { before: run, basis }),
+  );
+  return taken && { run: taken.run, trade: taken.trade };
+}
+
+function withTheDishwasherAfterTheSink(run: DerivedRun): DerivedRun {
+  const sinkAt = indexOfKind(run, "sink");
+  return {
+    items: [
+      ...run.items.slice(0, sinkAt + 1),
+      { kind: DISHWASHER_ID, widthMm: DISHWASHER_WIDTH_MM },
+      ...run.items.slice(sinkAt + 1),
+    ],
+    cut: sinkAt < run.cut ? run.cut + 1 : run.cut,
+  };
+}
+
+function withoutTheBottle(run: DerivedRun): DerivedRun {
+  const bottleAt = indexOfKind(run, "bottle");
+  if (bottleAt < 0) return run;
+  return {
+    items: run.items.filter((_, index) => index !== bottleAt),
+    cut: bottleAt < run.cut ? run.cut - 1 : run.cut,
+  };
+}
+
+/** The contract's *"exactly its own body"*: the traded run keeps the composed slots of both walls, so
+ *  no door cabinet and no drawer slot pays for the dishwasher. */
+function keepsEveryComposedSlot(
+  candidate: DerivedRun,
+  context: { readonly before: DerivedRun; readonly basis: DerivationBasis },
+): boolean {
+  const after = derivedSlotsOf(candidate, context.basis);
+  const before = derivedSlotsOf(context.before, context.basis);
+  return after.prefix === before.prefix && after.suffix === before.suffix;
 }
 
 /** H1's order: the threshold drawer is read last, after the hob and after the bottle. */
@@ -1028,7 +1136,8 @@ function summaryOfDerived(
       .flatMap((item, index): [string, DesignWall][] =>
         item.kind === "bottle" ||
         item.kind === "pan-drawer" ||
-        item.kind === THRESHOLD_DRAWER_ID
+        item.kind === THRESHOLD_DRAWER_ID ||
+        item.kind === DISHWASHER_ID
           ? []
           : [
               [
@@ -1100,10 +1209,30 @@ function dishwasherDecisionOfPlan(
     (base) => base.buildId === PAN_DRAWER_BODY && base.role === "preparation",
   );
   if (isDrawerSwap) return DRAWER_SWAP;
+  if (isReadAmongTheItemsAfterTheSink(plan, dishwasher)) return TRADED_IN;
   const sink = plan.bases.find((base) => base.role === "sink");
   return dishwasher.wall === sink?.wall
     ? "M1, on the sink's wall"
     : "M1, across the corner";
+}
+
+/** 7D5b S2 / ADR 0110 M7/M10: a dishwasher read directly after the sink with the run's next item —
+ *  not a composed slot — directly after it on the same wall stands among the items, where only a trade
+ *  inserts one. M1's converted slot stands between the items and the corner, so what is read after it
+ *  is another slot or the other wall; (e) is answered before this is asked. */
+function isReadAmongTheItemsAfterTheSink(
+  plan: KitchenCompositionPlan,
+  dishwasher: PlannedGenerationBase,
+): boolean {
+  const reading = inReadingOrder(plan);
+  const at = reading.indexOf(dishwasher);
+  const readNext = reading[at + 1];
+  return (
+    reading[at - 1]?.role === "sink" &&
+    readNext !== undefined &&
+    readNext.wall === dishwasher.wall &&
+    !isComposedStorageSlot(readNext)
+  );
 }
 
 /** 7D5b S1 / ADR 0110 M1/M2/M9: where the dishwasher is not what the owner's rulings stand — one
@@ -1367,6 +1496,12 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       thresholdDecisions: emptyThresholdCensus(),
       thresholdDrawerBesideThePanDrawer: 0,
       columnToTheThresholdDrawerAgainstS1: 0,
+      columnToTheDishwasherAgainstS1: 0,
+      dishwasherTrades: emptyTradeCensus(),
+      towerKeptThenTraded: emptyTradeCensus(),
+      tradeFaults: [] as string[],
+      kitchensWithoutAnOven: [] as string[],
+      remaindersOfAModuleOrMore: [] as string[],
       refusedDisagreements: [] as string[],
       disagreementsWithS2: [] as string[],
       lossesAgainstS1: [] as string[],
@@ -1414,7 +1549,10 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
         census.placed += 1;
         const { basis, core } = derived;
         const s2 = derivedS2(core, basis);
-        const threshold = derivedThreshold(s2.run, basis);
+        // 7D5b S2 / ADR 0110 M7/M10: the trade is decided on 7D5's kitchen, before the threshold
+        // drawer (M2, *"dishwasher first"*), and the threshold drawer on the kitchen it leaves.
+        const traded = derivedDishwasherTrade(s2.run, basis);
+        const threshold = derivedThreshold(traded?.run ?? s2.run, basis);
         const dishwasher = derivedDishwasherOf(threshold.run, basis);
         const isSwapped = dishwasher.decision === DRAWER_SWAP;
         const s1 = summaryOfDerived(derivedS1Run(core, basis), basis);
@@ -1434,11 +1572,31 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
         const columnsItMayCost = actual.hasThresholdDrawer
           ? OWNERS_MOST_COLUMNS_FOR_THE_THRESHOLD_DRAWER
           : 0;
-        const losses = lossesAgainstS1(actual, s1, columnsItMayCost);
+        // 7D5b S2 / ADR 0110 M7/M10: (b) and (c) each give the dishwasher exactly one column, which
+        // the owner allows as the threshold drawer's one is allowed; (d) gives none.
+        const columnsTheTradeMayCost =
+          traded !== undefined && traded.trade !== "(d) the bottle" ? 1 : 0;
+        const losses = lossesAgainstS1(
+          actual,
+          s1,
+          columnsItMayCost + columnsTheTradeMayCost,
+        );
         if (losses.length > 0)
           census.lossesAgainstS1.push(`${where}: ${losses.join("; ")}`);
-        if (actual.columnBodies.length < s1.columnBodies.length)
-          census.columnToTheThresholdDrawerAgainstS1 += 1;
+        if (actual.columnBodies.length < s1.columnBodies.length) {
+          if (traded === undefined)
+            census.columnToTheThresholdDrawerAgainstS1 += 1;
+          else census.columnToTheDishwasherAgainstS1 += 1;
+        }
+        if (traded !== undefined) {
+          census.dishwasherTrades[traded.trade] += 1;
+          countTheTradeAgainstTheKitchenBeforeIt(census.tradeFaults, {
+            where,
+            trade: traded.trade,
+            before: decidedByS2,
+            after: actual,
+          });
+        }
 
         if (s2.decision === "pan-drawer-beside-s1-bottle")
           census.panDrawerBesideS1Bottle += 1;
@@ -1450,7 +1608,13 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
           census.s1BottleBecamePanDrawerOnly += 1;
         if (s2.decision === "tower-kept-over-the-bottle") {
           census.towerKeptOverTheBottle += 1;
-          const faults = towerKeptOverTheBottleFaults(actual, s1);
+          // 7D5b S2 / ADR 0110 M7(c): M11 kept the tower over the bottle, and where no door cabinet
+          // then stood free the dishwasher took that tower last of all. M11's faults are read on the
+          // kitchen M11 decided; the finished one is the derivation's (`disagreementsWithS2`).
+          const towerKeptFor = traded === undefined ? actual : decidedByS2;
+          if (traded !== undefined)
+            census.towerKeptThenTraded[traded.trade] += 1;
+          const faults = towerKeptOverTheBottleFaults(towerKeptFor, s1);
           if (faults.length > 0)
             census.towerKeptOverTheBottleFaults.push(
               `${where}: ${faults.join("; ")}`,
@@ -1458,6 +1622,16 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
         }
         countKitchenShape(census.decidedByS2, decidedByS2);
         countKitchenShape(census.finished, actual);
+        // 7D5b S2 / ADR 0110 M12 (B1c) and plan E1's counters, over every placed kitchen: at least
+        // one oven — a tower, or the hob's own — and no run-end remainder of a whole module.
+        const hasAnOven =
+          actual.columnBodies.includes("tall-oven-tower") ||
+          actual.hobBody === HOB_WITH_ITS_OWN_OVEN;
+        if (!hasAnOven) census.kitchensWithoutAnOven.push(where);
+        if (
+          Object.values(plan.remainderMm).some((mm) => mm >= STORAGE_MODULE_MM)
+        )
+          census.remaindersOfAModuleOrMore.push(where);
         if (actual.hasBottle) census.totals.bottles += 1;
         if (actual.columnBodies.includes("tall-oven-tower"))
           census.totals.ovenTowerRooms += 1;
@@ -1546,6 +1720,16 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
     // costs a column against S1 in 2 590 rooms (was 9 600): 2 100 after the bottle, 490 after the
     // hob. Totals: bottles 173 231 -> 176 291, columns 389 018 -> 396 028, oven-tower rooms 167 286.
     // Matched against the implementer's measurement at `4e88ae0` + S1 (plan E1-E3, E6).
+    //
+    // 7D5b S2 / ADR 0110 M7/M10: the trades are derived above and every room's plan agrees with the
+    // derivation (`disagreementsWithS2` stays empty). Of S1's 79 790 kitchens without a dishwasher,
+    // 31 200 trade for one — (b) 18 200, (d) 2 600, (c) 10 400 — and 48 590 stay without (plan E1). No
+    // trade moves a threshold drawer, a pan drawer or S2's own decisions. (d) moves 2 600 finished
+    // kitchens from bottleOnly to neither (122 560 -> 119 960, 30 205 -> 32 805). Against the
+    // `c67b4ee` kitchen the dishwasher now costs a column in 26 000 rooms: every (b) and (c) room but
+    // the 2 600 (c) rooms whose tower M11 had kept over S1's bottle. Totals: bottles 176 291 ->
+    // 173 691, columns 396 028 -> 367 428, oven-tower rooms 167 286 -> 156 886. B1c: no kitchen ends
+    // without an oven, and no remainder reaches a module.
     expect(census).toEqual({
       swept: 256_011,
       placed: 245_211,
@@ -1562,8 +1746,8 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       finished: {
         bothStand: 53_731,
         panDrawerOnly: 38_715,
-        bottleOnly: 122_560,
-        neither: 30_205,
+        bottleOnly: 119_960,
+        neither: 32_805,
       },
       panDrawerBesideS1Bottle: 11_240,
       bottleGaveWayToThePanDrawer: 11_440,
@@ -1571,7 +1755,7 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       s1BottleBecamePanDrawerOnly: 35_580,
       towerKeptOverTheBottle: 5_260,
       towerKeptOverTheBottleFaults: [],
-      totals: { bottles: 176_291, ovenTowerRooms: 167_286, columns: 396_028 },
+      totals: { bottles: 173_691, ovenTowerRooms: 156_886, columns: 367_428 },
       thresholdDrawer: 5_725,
       thresholdDecisions: {
         "not short of drawers": 239_486,
@@ -1585,6 +1769,20 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       },
       thresholdDrawerBesideThePanDrawer: 5_725,
       columnToTheThresholdDrawerAgainstS1: 2_590,
+      columnToTheDishwasherAgainstS1: 26_000,
+      dishwasherTrades: {
+        "(b) a pantry column": 18_200,
+        "(d) the bottle": 2_600,
+        "(c) the oven tower": 10_400,
+      },
+      towerKeptThenTraded: {
+        "(b) a pantry column": 0,
+        "(d) the bottle": 0,
+        "(c) the oven tower": 2_600,
+      },
+      tradeFaults: [],
+      kitchensWithoutAnOven: [],
+      remaindersOfAModuleOrMore: [],
       refusedDisagreements: [],
       disagreementsWithS2: [],
       lossesAgainstS1: [],
@@ -1599,10 +1797,11 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       drawerCountFaults: [],
       twoSlotClassOffWallA6000: [],
       dishwasher: {
-        none: 79_790,
+        none: 48_590,
         "M1, on the sink's wall": 1_055,
         "M1, across the corner": 140_206,
         [DRAWER_SWAP]: 24_160,
+        [TRADED_IN]: 31_200,
       },
       drawerSwapByDrawerCabinets: { two: 24_100, three: 60, more: 0 },
       dishwasherPlacementFaults: [],
@@ -1639,7 +1838,55 @@ function emptyDishwasherCensus(): Record<DishwasherDecision, number> {
     "M1, on the sink's wall": 0,
     "M1, across the corner": 0,
     [DRAWER_SWAP]: 0,
+    [TRADED_IN]: 0,
   };
+}
+
+function emptyTradeCensus(): Record<DishwasherTrade, number> {
+  return {
+    "(b) a pantry column": 0,
+    "(d) the bottle": 0,
+    "(c) the oven tower": 0,
+  };
+}
+
+/** 7D5b S2 / ADR 0110 M7/M10/M12, read off the finished plan against the kitchen before the trade:
+ *  (b) one pantry column fewer, the tower and the hob's body kept; (d) the bottle gone, every column
+ *  and the hob's body kept; (c) the tower gone with no column left, and the hob carrying the oven
+ *  (owner: *"only if hub is with oven"*). Everything else in the kitchen is the derivation's. */
+function countTheTradeAgainstTheKitchenBeforeIt(
+  faults: string[],
+  room: {
+    readonly where: string;
+    readonly trade: DishwasherTrade;
+    readonly before: KitchenSummary;
+    readonly after: KitchenSummary;
+  },
+): void {
+  const { before, after } = room;
+  const found: string[] = [];
+  const columnsLostToIt =
+    before.columnBodies.length - after.columnBodies.length;
+  const keepsTheTower = after.columnBodies[0] === "tall-oven-tower";
+  if (room.trade === "(b) a pantry column") {
+    if (columnsLostToIt !== 1 || !keepsTheTower) found.push("not one pantry");
+    if (after.hobBody !== before.hobBody) found.push("hob body moved");
+    if (after.hasBottle !== before.hasBottle) found.push("bottle moved");
+  }
+  if (room.trade === "(d) the bottle") {
+    if (!before.hasBottle || after.hasBottle) found.push("not the bottle");
+    if (columnsLostToIt !== 0) found.push("a column moved");
+    if (after.hobBody !== before.hobBody) found.push("hob body moved");
+  }
+  if (room.trade === "(c) the oven tower") {
+    if (JSON.stringify(before.columnBodies) !== '["tall-oven-tower"]')
+      found.push(`before ${JSON.stringify(before.columnBodies)}`);
+    if (after.columnBodies.length !== 0) found.push("a column stands");
+    if (after.hobBody !== HOB_WITH_ITS_OWN_OVEN) found.push("no oven");
+    if (after.hasBottle !== before.hasBottle) found.push("bottle moved");
+  }
+  if (after.dishwasher !== TRADED_IN) found.push(`read as ${after.dishwasher}`);
+  if (found.length > 0) faults.push(`${room.where}: ${found.join("; ")}`);
 }
 
 /** The dishwasher part of the census: which answer the derivation gave (the plan must agree, through

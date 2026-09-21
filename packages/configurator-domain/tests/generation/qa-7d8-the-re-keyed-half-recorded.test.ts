@@ -103,7 +103,14 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     let panDrawerNormalized = 0;
     let panDrawerWithoutBottle = 0;
     const towerKeptOverTheBottleRooms: string[] = [];
-    const dishwasherArms = { none: 0, M1: 0, "(e)": 0 };
+    const dishwasherArms = {
+      none: 0,
+      M1: 0,
+      "(e)": 0,
+      "(b)": 0,
+      "(d)": 0,
+      "(c)": 0,
+    };
     for (const [key, recorded] of RECORDING) {
       const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
       if (
@@ -159,7 +166,18 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     );
     // 7D5b S1 / ADR 0110 M1/M2/M9: measured here; every arm is admitted and then compared exactly, and
     // no room changes arm above. None of the 82 stands a threshold drawer at S1 (measured).
-    expect(dishwasherArms).toEqual({ none: 43, M1: 33, "(e)": 6 });
+    // 7D5b S2 / ADR 0110 M7/M10: of S1's 43 rooms without a dishwasher, 7 now trade for one — (b) 2,
+    // (c) 5, and (d) none in this recording (the pre-width recording holds its (d) rooms) — and each
+    // undoes to S1's plan before the arms above are chosen, so no room changes arm. Was
+    // `{ none: 43, M1: 33, "(e)": 6 }`.
+    expect(dishwasherArms).toEqual({
+      none: 36,
+      M1: 33,
+      "(e)": 6,
+      "(b)": 2,
+      "(d)": 0,
+      "(c)": 5,
+    });
   });
 
   it("records only rooms the re-key moved, and every one of them", () => {

@@ -1,5 +1,7 @@
 // M7 wave 7D5 — the run's optional members after the core: the bottle cargo, the pan drawer and the
 // threshold drawer, and the owner's rulings on when each stands (ADR 0110 Amendments H1, J, K and L).
+// Since wave 7D5b S2 the dishwasher's trade is decided between the bottle and the threshold drawer; its
+// rule lives in `dishwasher-trades.ts` (ADR 0110 Amendment M7, M10), and this module only places it.
 //
 // Every decision here appends to, or inserts into, a run whose core `generation-priorities.ts`
 // already chose and cut, on that run's own cut, so no core role is ever dropped or carried across the
@@ -12,6 +14,7 @@ import {
   PAN_DRAWER_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
+import { withTheDishwasherTradedIn } from "./dishwasher-trades.js";
 import { STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
   fitsAcrossTheCorner,
@@ -122,8 +125,9 @@ export interface CompositionContext {
  *  follows only where it costs that kitchen no tall column — so where the two cannot both stand the
  *  pan drawer wins (ADR 0110 Q-H6b), and it keeps the block (Q-H6c). Where it does not, S1's bottle
  *  is decided first and the pan drawer is tried beside it (coordinator ruling on Q-H6b's scope), and
- *  the bottle is omitted where it alone would take the oven tower (M11). Only
- *  once both are decided is the threshold drawer (Q-H5) decided, on the plan they leave. */
+ *  the bottle is omitted where it alone would take the oven tower (M11). Once both are decided, the
+ *  dishwasher is traded in where S1's leaf placed none (M7, M10), and only then is the threshold
+ *  drawer (Q-H5) decided, on the plan they leave (M2, *"dishwasher first"*). */
 export function planWithPanDrawerThenBottle(
   context: CompositionContext,
   core: RunLayout,
@@ -132,7 +136,11 @@ export function planWithPanDrawerThenBottle(
   const run = hasPanDrawer(panDrawerFirst)
     ? withBottleWhereNoColumnIsLost(context, panDrawerFirst)
     : withS1sBottleThenThePanDrawer(context, core);
-  return planWithThresholdDrawer(context, run);
+  const tradeRuns = { run, withoutTheBottle: withoutTheBottle(run) };
+  return planWithThresholdDrawer(
+    context,
+    withTheDishwasherTradedIn(context, tradeRuns),
+  );
 }
 
 function hasPanDrawer(run: RunLayout): boolean {

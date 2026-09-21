@@ -5,6 +5,11 @@
 // derived here from the same capacities and 7D3's own block rule. Since S3 (ADR 0110 Q-H5, owner
 // ruling 2026-09-21) the bottle also gives way to the threshold drawer, but only where the drawer in
 // its place costs the kitchen no tall column; that, too, is derived from capacities rather than asked.
+//
+// 7D5b S2 / ADR 0110 M7/M10: where no door cabinet stands free beside the sink, the dishwasher is read
+// directly after the sink and may take, in order, (b) a pantry column, (d) the bottle, (c) the oven
+// tower. (d) is a new reason a bottle is omitted, derived below from the same capacities and 7D3's own
+// block rule: (b) could not stand on the bottle's kitchen, and (d) keeps every column.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -38,6 +43,9 @@ const PAN_DRAWER_WIDTH_MM = 600;
 const STORAGE_MODULE_MM = 600;
 const THRESHOLD_DRAWER_WIDTH_MM = 600;
 const PAN_DRAWER_BODY = "base-panbank";
+/** 7D5b S2 / ADR 0110 M7: the traded dishwasher's body and width, literals as every body here. */
+const DISHWASHER_BODY = "base-dishwasher";
+const DISHWASHER_WIDTH_MM = 600;
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
@@ -264,6 +272,102 @@ function thresholdDrawerTookTheBottlesPlace(
   );
 }
 
+/** 7D5b S2 / ADR 0110 M7(d), M10: the bottle gave way to a traded dishwasher. The kitchen the bottle
+ *  stood in — the kept core, the pan drawer before the hob where one stands, the bottle last — could
+ *  not take the dishwasher after the sink for exactly one pantry column ((b): it does not fit, or it
+ *  costs no column or the last one), and without the bottle it takes it keeping every column ((d)).
+ *  Asked only where the plan's dishwasher stands among the items after the sink, where S1 stands none. */
+function bottleWasTradedForTheDishwasher(
+  room: DesignRoom,
+  context: {
+    readonly core: { readonly kept?: CoreAttempt; readonly cut?: number };
+    readonly plan: KitchenCompositionPlan;
+  },
+): boolean {
+  const { kept, cut } = context.core;
+  if (kept === undefined || cut === undefined) return false;
+  if (!isADishwasherReadAmongTheItemsAfterTheSink(context.plan)) return false;
+  const capacities = capacitiesByReadingRole(room);
+  const isCoreWhole = kept.length === GENERATION_PRIORITIES.length;
+  const columns = (run: DerivedRun) =>
+    tallColumnsOf(run, { room, capacities, isCoreWhole });
+  const sinkAt = kept.findIndex((item) => item.role === "sink");
+  const keptCore: DerivedRun = {
+    widthsMm: kept.map((item) => item.widthMm),
+    cut,
+    hobAt: kept.findIndex((item) => item.role === "hob"),
+  };
+  const hasPanDrawer = context.plan.bases.some(
+    (base) => base.buildId === PAN_DRAWER_BODY,
+  );
+  const beforeTheBottle = hasPanDrawer
+    ? withPanDrawerBeforeTheHob(keptCore)
+    : keptCore;
+  const bottleKitchen = appendedLast(beforeTheBottle, BOTTLE_WIDTH_MM);
+  const forAPantry = withTheDishwasherAfterTheSink(bottleKitchen, sinkAt);
+  const isThePantryTradeOpen =
+    fitsInPlace(forAPantry, capacities) &&
+    columns(forAPantry) === columns(bottleKitchen) - 1 &&
+    columns(forAPantry) > 0;
+  const forTheBottle = withTheDishwasherAfterTheSink(beforeTheBottle, sinkAt);
+  return (
+    fitsInPlace(bottleKitchen, capacities) &&
+    !isThePantryTradeOpen &&
+    fitsInPlace(forTheBottle, capacities) &&
+    columns(forTheBottle) === columns(bottleKitchen)
+  );
+}
+
+/** 7D5b S2: the 600 mm dishwasher read directly after the sink, on the sink's side of the cut. */
+function withTheDishwasherAfterTheSink(
+  run: DerivedRun,
+  sinkAt: number,
+): DerivedRun {
+  return {
+    widthsMm: [
+      ...run.widthsMm.slice(0, sinkAt + 1),
+      DISHWASHER_WIDTH_MM,
+      ...run.widthsMm.slice(sinkAt + 1),
+    ],
+    cut: sinkAt < run.cut ? run.cut + 1 : run.cut,
+    hobAt: sinkAt < run.hobAt ? run.hobAt + 1 : run.hobAt,
+  };
+}
+
+/** 7D5b S2 / ADR 0110 M7/M10: a dishwasher read directly after the sink with the next item — not a
+ *  composed slot — directly after it on the same wall. Only a trade inserts one among the items; S1's
+ *  M1 converts a slot, and (e) the preparation cabinet, which the pan drawer's preparation role names. */
+function isADishwasherReadAmongTheItemsAfterTheSink(
+  plan: KitchenCompositionPlan,
+): boolean {
+  const reading = inReadingOrder(plan);
+  const at = reading.findIndex((base) => base.buildId === DISHWASHER_BODY);
+  const readNext = reading[at + 1];
+  const isDrawerSwap = plan.bases.some(
+    (base) => base.buildId === PAN_DRAWER_BODY && base.role === "preparation",
+  );
+  return (
+    at > 0 &&
+    !isDrawerSwap &&
+    reading[at - 1]?.role === "sink" &&
+    readNext !== undefined &&
+    readNext.wall === reading[at]?.wall &&
+    !isComposedStorageSlot(readNext)
+  );
+}
+
+/** 7D5b S2 / ADR 0110 M7(c): the oven tower traded for the dishwasher — a traded dishwasher, no column
+ *  standing, and the oven under the hob. */
+function isTheOvenTowerTradedForTheDishwasher(
+  plan: KitchenCompositionPlan,
+): boolean {
+  return (
+    isADishwasherReadAmongTheItemsAfterTheSink(plan) &&
+    !plan.bases.some((base) => base.id.startsWith("column:")) &&
+    plan.bases.some((base) => base.buildId === "base-hob-oven")
+  );
+}
+
 /** J1: immediately before the hob, on the hob's side of the cut. */
 function withPanDrawerBeforeTheHob(run: DerivedRun): DerivedRun {
   return {
@@ -384,7 +488,10 @@ function coreRolesOffTheirPreS1Wall(
 /** The merge rows below pin 298 mm as the widest remainder a last-on-its-wall bottle shares an
  *  opening with; this is what keeps those rows the boundary rather than an example. 7D5b S0b / ADR
  *  0110 M11: was 300 — a bottle last with 300 mm or more past it left 600 mm past the core, where the
- *  tower is now kept over it; measured over every approved room at 1 mm, 298 is the widest left. */
+ *  tower is now kept over it; measured over every approved room at 1 mm, 298 is the widest left.
+ *  7D5b S2 / ADR 0110 M7/M10: except beside a dishwasher that took the oven tower ((c)), where the
+ *  tower's own remainder is left past the bottle; the census counts those apart, and at 10 mm they
+ *  reach 500 mm — the 800 mm cap. The 1 mm figure was not re-taken for them. */
 const WIDEST_REACHABLE_MERGED_REMAINDER_MM = 298;
 const WIDEST_MERGED_OPENING_MM = 800;
 
@@ -422,6 +529,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       omittedForATallColumn: 0,
       omittedForTheThresholdDrawer: 0,
       omittedForTheOvenTower: 0,
+      omittedForTheDishwasher: 0,
+      mergingPastTheWidestReachableBesideATradedOvenTower: 0,
       wrongCore: [] as string[],
       wrongOrder: [] as string[],
       coreOffItsWall: [] as string[],
@@ -479,8 +588,14 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           const hobAt = reading.findIndex((base) => base.role === "hob");
           const bottleAt = reading.findIndex((base) => base.id === "bottle");
           if (bottleAt !== hobAt + 1) census.wrongOrder.push(key);
+          // 7D5b S2 / ADR 0110 M7(c): where the dishwasher took the oven tower, the bottle it stood
+          // before is last on its wall again with the tower's run-end remainder past it, 310-500 mm at
+          // 10 mm, which merges into one opening of at most 800 mm. Counted apart, because 298 mm
+          // stays the widest everywhere else.
           if (isLastOnItsWallMergingPastTheWidestReachable(plan)) {
-            census.lastOnItsWallMergingPastTheWidestReachable.push(key);
+            if (isTheOvenTowerTradedForTheDishwasher(plan))
+              census.mergingPastTheWidestReachableBesideATradedOvenTower += 1;
+            else census.lastOnItsWallMergingPastTheWidestReachable.push(key);
           }
           if (widthMm > depthMm) census.includedByArm.aWider += 1;
           else if (depthMm > widthMm) census.includedByArm.bWider += 1;
@@ -506,9 +621,11 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           const hasPanDrawer = plan.bases.some(
             (base) => base.buildId === PAN_DRAWER_BODY,
           );
-          const hasOvenTower = plan.bases.some(
-            (base) => base.buildId === "tall-oven-tower",
-          );
+          // 7D5b S2 / ADR 0110 M7(c): M11's tower may since have been traded for the dishwasher, the
+          // last resort, which leaves the kitchen M11 decided otherwise as it was (2 600 rooms).
+          const hasOvenTower =
+            plan.bases.some((base) => base.buildId === "tall-oven-tower") ||
+            isTheOvenTowerTradedForTheDishwasher(plan);
           if (
             reason === undefined &&
             !hasPanDrawer &&
@@ -517,6 +634,12 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           ) {
             // 7D5b S0b / ADR 0110 M11: the bottle alone would have taken the only oven tower.
             census.omittedForTheOvenTower += 1;
+          } else if (
+            reason === undefined &&
+            bottleWasTradedForTheDishwasher(room, { core: expected, plan })
+          ) {
+            // 7D5b S2 / ADR 0110 M7(d): the bottle was traded for the dishwasher.
+            census.omittedForTheDishwasher += 1;
           } else if (
             reason === undefined &&
             thresholdDrawerTookTheBottlesPlace(room, { core: expected, plan })
@@ -545,12 +668,17 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     // excludes it, so in 3 060 rooms the drawer no longer takes the bottle's place and the bottle is
     // back (6 195 -> 3 135; 173 231 -> 176 291 included, 71 980 -> 68 920 omitted, plan E3). No other
     // category moves, once the pan drawer is found by body in the 24 160 (e) rooms.
+    // 7D5b S2 / ADR 0110 M7/M10: (d) trades the bottle for the dishwasher in 2 600 rooms, a new
+    // omission category (176 291 -> 173 691 included, 68 920 -> 71 520 omitted); M11's 5 260 are
+    // unmoved, 2 600 of them since traded under (c). And (c) leaves the bottle last on its wall with
+    // the tower's remainder past it in 5 200 rooms, merging past the 298 mm the rows below pin — each
+    // one a traded tower; no other bottle does.
     const { includedByArm, ...totals } = census;
     expect(totals).toEqual({
       swept: 256_011,
       placed: 245_211,
-      bottleIncluded: 176_291,
-      bottleOmitted: 68_920,
+      bottleIncluded: 173_691,
+      bottleOmitted: 71_520,
       omittedForCoreRole: 15_445,
       omittedForRefusal: 4_545,
       omittedForReCut: 4_955,
@@ -558,6 +686,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       omittedForATallColumn: 24_140,
       omittedForTheThresholdDrawer: 3_135,
       omittedForTheOvenTower: 5_260,
+      omittedForTheDishwasher: 2_600,
+      mergingPastTheWidestReachableBesideATradedOvenTower: 5_200,
       wrongCore: [],
       wrongOrder: [],
       coreOffItsWall: [],

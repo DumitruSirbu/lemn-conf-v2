@@ -61,6 +61,12 @@
 //   candidate's — rather than a finished plan, in which M1 has already converted the door slot and a
 //   tie could no longer be seen.
 //
+// **Restated for S2 (ADR 0110 Amendment M7 (b), (d), (c), M10).** S2 trades a dishwasher in after the
+// pan-drawer and bottle decision, where S1 placed none, so the finished live plan is no longer `planOf`
+// of the decided run in the traded rooms. `beforeS1` now switches S2's trades off as well as the leaf,
+// so S0b's plan is S0b's again; the decision restatement is checked on S1's plan (`withS1Alone`), and
+// a live mismatch is allowed only in a room S2 traded in — one whose live plan differs from S1's.
+//
 // Every body, id and width is a literal (ADR 0121 decision 3(b)), and a composed storage slot is
 // reached through `isComposedStorageSlot`, never through its id.
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -89,6 +95,7 @@ import {
   planBeforeS0b,
   plansTheLeafRead,
   whatS1sBottleCost,
+  withS1Alone,
   type BottleCost,
   type DecidedBeforeTheThresholdDrawer,
   type RecordedComposition,
@@ -188,8 +195,14 @@ interface Census {
   /** Read off S0b's plan: the planner with S1's leaf switched off. */
   afterS0b: KitchenTotals & { dishwashers: number };
   /** The pan-drawer/bottle decision restated through the context; must equal the finished plan wherever
-   *  no threshold drawer was added — on S0b's plan, and on the live plan with S1. */
-  reconstructionMismatches: { afterS0b: string[]; live: string[] };
+   *  no threshold drawer was added — on S0b's plan and on S1's; and on the live plan wherever S2 traded
+   *  nothing in, `liveTraded` counting the rooms where it did. */
+  reconstructionMismatches: {
+    afterS0b: string[];
+    afterS1: string[];
+    liveOutsideATrade: string[];
+    liveTraded: number;
+  };
   besideTheSink: {
     sameWall: number;
     acrossTheCorner: number;
@@ -300,12 +313,17 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     expect(differing).toEqual([]);
   });
 
-  it("re-states the pan-drawer and bottle decision exactly, S0b's M11 included, on S0b's plan and on the live plan with S1, so the models below ask the right run", () => {
+  it("re-states the pan-drawer and bottle decision exactly, S0b's M11 included, on S0b's plan, on S1's, and live wherever S2 traded nothing in, so the models below ask the right run", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(
         census.reconstructionMismatches,
         `${String(ceilingMm)} mm`,
-      ).toEqual({ afterS0b: [], live: [] });
+      ).toEqual({
+        afterS0b: [],
+        afterS1: [],
+        liveOutsideATrade: [],
+        liveTraded: 31_200,
+      });
     }
   });
 
@@ -593,7 +611,9 @@ interface RoomReading {
   readonly plan: KitchenCompositionPlan;
   /** S0b's plan: the planner with S1's leaf switched off, proved against the post-tower recording. */
   readonly planAfterS0b: KitchenCompositionPlan;
-  /** The live planner's plan, with S1. */
+  /** S1's plan: the leaf on, S2's trades off. */
+  readonly planAfterS1: KitchenCompositionPlan;
+  /** The live planner's plan, with S1 and S2. */
   readonly livePlan: KitchenCompositionPlan;
   /** Every plan the live S1 leaf was handed while composing `livePlan`. */
   readonly leafRead: readonly KitchenCompositionPlan[];
@@ -638,6 +658,7 @@ function readingOf(room: DesignRoom): RoomReading | undefined {
   const compose = () =>
     planKitchenComposition({ room, runs, columns: DECLARED_COLUMNS });
   const planAfterS0b = beforeS1(compose);
+  const planAfterS1 = withS1Alone(compose);
   forgetTheLastComposition();
   const livePlan = compose();
   if (!livePlan.minimumMet) return undefined;
@@ -649,6 +670,7 @@ function readingOf(room: DesignRoom): RoomReading | undefined {
     runs,
     plan: planBeforeS0b(composition, planAfterS0b),
     planAfterS0b,
+    planAfterS1,
     livePlan,
     leafRead: plansTheLeafRead(),
     composition,
@@ -702,15 +724,20 @@ function recordTheReconstructionFaults(
   reading: RoomReading,
   beforeTheThresholdDrawerAfterS0b: KitchenCompositionPlan,
 ): void {
-  const { composition, decided, livePlan, planAfterS0b, where } = reading;
+  const { composition, decided, livePlan, planAfterS0b, planAfterS1, where } =
+    reading;
   const faults = census.reconstructionMismatches;
   if (isAReconstructionFault(beforeTheThresholdDrawerAfterS0b, planAfterS0b)) {
     faults.afterS0b.push(where);
   }
-  if (
-    isAReconstructionFault(composition.context.planOf(decided.run), livePlan)
-  ) {
-    faults.live.push(where);
+  const planOfTheDecidedRun = () => composition.context.planOf(decided.run);
+  if (isAReconstructionFault(withS1Alone(planOfTheDecidedRun), planAfterS1)) {
+    faults.afterS1.push(where);
+  }
+  const isTraded = JSON.stringify(livePlan) !== JSON.stringify(planAfterS1);
+  if (isTraded) faults.liveTraded += 1;
+  if (isAReconstructionFault(planOfTheDecidedRun(), livePlan) && !isTraded) {
+    faults.liveOutsideATrade.push(where);
   }
 }
 
@@ -1231,7 +1258,12 @@ function emptyCensus(): Census {
       panDrawerBodiesInThePreparationRole: 0,
     },
     afterS0b: { dishwashers: 0, ...emptyKitchenTotals() },
-    reconstructionMismatches: { afterS0b: [], live: [] },
+    reconstructionMismatches: {
+      afterS0b: [],
+      afterS1: [],
+      liveOutsideATrade: [],
+      liveTraded: 0,
+    },
     besideTheSink: {
       sameWall: 0,
       acrossTheCorner: 0,
