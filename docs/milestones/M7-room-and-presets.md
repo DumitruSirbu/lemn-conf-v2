@@ -10815,6 +10815,301 @@ note, and *Continuă*'s inactive state — never the reason alone.**
    *Continuă* over a refused draft. None deleted, no assertion weakened.
 5. Extend `room-length-fields-fit.e2e.spec.ts` to 1C's worst case (criterion 14's fit arm).
 
+#### S3b — a typed digit is lost to a late URL echo. Planned 2026-09-22 at HEAD `f4f775d`
+
+**Owner: implementer (web); the record: scribe. Tier: Full** (it edits `room-query-sync.ts`, the
+7F1-D45 state machine that section 2 names as this wave's escalation trigger). **Visual: no; e2e: yes,
+real timers.** **Owner questions: none** (see S3b.9). **Order:** S3 (done) → **S3b** → S4 → S5 → S5b.
+S3b touches no file S4 touches, but the tree is frozen between slices as usual.
+
+> **How it was measured.** Commits `f4f775d` and `89fb4ec` were exported with `git archive` into the
+> session scratchpad, installed with `pnpm install --offline --frozen-lockfile` and built with
+> `build:deps`; nothing ran in the working tree, whose `git status` showed only `.claude/agents/*`
+> modified before and after. Browser runs: Playwright 1.62.1 chromium, 390 × 844, `isMobile`,
+> `hasTouch`, locale `ro`, three trials per cadence, against `next dev` and against `next build` +
+> `next start`. DOM runs: vitest over the S3 QA harness's pattern (`RoomScreen` over a mocked router,
+> echoes withheld and delivered by hand). **A scratch prototype of the recommended rule was also built
+> and measured** (below, marked *prototype*). It is evidence that the rule works and which tests it
+> touches. It is **not** a patch to hand the implementer, who writes the slice from this plan.
+
+##### S3b.0 — classification
+
+**Mainly a contract gap in 7F1-D45's reconciliation rule. The code implements that rule exactly.**
+Rule 2 (*"if `liveText === draftText`, this is our own write echoing back … else the customer is in a
+different room"*, the D45 section below) compares an arriving query against the **current** draft
+only. `reconcileRoomDraft` does exactly that (`room-query-sync.ts:316-334`, the echo test at `:324`)
+[source-verified]. So an echo of a write the draft has since moved past is read as a traversal and
+re-seeds the draft.
+
+**It is also a test-fidelity problem, which is why no suite caught it.** Every harness does one of two
+things. Either it echoes a `replace` synchronously, inside the timer callback, or it delivers a
+withheld echo before the next keystroke. Neither can produce *keystroke, then the echo of an older
+write*. **And a correct harness can still hide it.** A single `act(() => vi.advanceTimersByTime(2000))`
+batches the late echo's render with the next settle. By the time React renders, `useSearchParams`
+already reads the newer query, so the older one is never observed. A fast-check property built that
+way **passed 300 runs against HEAD's rule** [measured]. Advancing the clock in steps of 5 ms or less,
+each in its own `act`, fails it at once, with the counterexample *gap 400 ms, echo delay 0 ms*
+[measured]. **The e2e suite has already met it and worked around it.** `room-to-editor.qa.e2e.spec.ts:55-56`:
+*"Waited on rather than typed straight through: the first debounced sync rewrites this entry with the
+corner direction, and a keystroke landing mid-settle on a slow runner races that write."*
+[source-verified]. That is this defect, filed as flakiness.
+
+##### S3b.1 — what the tree does, measured
+
+**QA's report reproduces.** In a real browser, fill `3` into wall A, wait *d*, press `6`, wait 1.5 s.
+Each cell reads field | `wallA` in the URL, the same in all three trials:
+
+| *d* (ms) | 300 | 350 | 380 | 385 | 390 | 395 | 400 | 405 | 410 | 415 | 420 | 425 | 430 | 435–600 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `f4f775d`, `next dev` | 36 | 36 | 36 | **3** ×2 of 3 | **3** | **3** | — | **3** | — | — | **3** | **3** ×1 of 3 | **3** | 36 |
+| `f4f775d`, production | 36 | — | 36 | — | **3** ×2 of 3 | **3** | **3** | **3** | **3** | 36 | 36 | — | 36 | 36 |
+| `89fb4ec`, `next dev` | 36 | 36 | 36 | — | — | **3,00** | — | **3,00** | — | — | **3,00** | — | — | 36 |
+
+*A dash means the cadence was not run. Every bold cell ends with the URL at the older write
+(`wallA=0.003`, or `wallA=3` at `89fb4ec`) [measured].*
+
+**The window is the write's own round trip.** It opens at the settle, about 400 ms after the
+keystroke, and it closes when the `replace` commits. In `next dev` the window was about 385–430 ms,
+with the server answering the RSC request in about 17 ms by its own log. In the production build
+it was about 390–410 ms [measured]. **Both runs were on localhost.** On a phone network the window
+is the settle plus the real RSC round trip, so it widens with latency [inference].
+
+**A second variant is the more common one: the first keystroke after 1B appears.** The first sync
+canonicalises the entry (it writes `direction=left`, 7F1 criterion 18). A digit typed during that
+write's round trip is wiped. Production build at `f4f775d`: open 1A, choose L, *Continuă*, wait
+*d*, press `3`. The field ends **empty** and the URL ends at `?shape=L&direction=left` for 3 of 3
+trials at *d* = 380 and 390 ms, and for 2 of 3 at 400 ms. It holds `3` at 0–350 and at 410–450 ms
+[measured].
+
+**DOM repro, both commits** [measured]. Withhold echoes, type `3`, advance 400 ms, type `36`, then
+`arriveAt(<the written query>)`. The field reads **`3`** at `f4f775d` and **`3,00`** at `89fb4ec`. The
+loop then settles on the re-seeded room: exactly one `replace` was ever issued. The control arm,
+where the echo arrives before the second keystroke, keeps `36` at both commits.
+
+**It predates 7F2: it is 7F1-D45's.** It reproduces at `89fb4ec`, the last commit before S1, in the
+browser and in the DOM [measured]. Between `89fb4ec` and `f4f775d` the only change to
+`room-query-sync.ts` is C-S1b-3's `locale` removal and two comment rewordings; the reconciliation
+logic is unchanged [source-verified, `git diff 89fb4ec f4f775d`]. **Why it matters now:** S1b made
+every length four digits typed one at a time (ADR 0126), and S3 put a 1C surface on each prefix. A
+cadence near 400 ms is ordinary typing, and a re-seed now also ends the typing burst
+(`use-typing-pause.ts`), so the lost digit arrives with its 1C reasons shown at once [inference].
+
+##### S3b.2 — the approaches, and how each one fails
+
+| | approach | how it fails | verdict |
+| --- | --- | --- | --- |
+| **(a)** | **Remember every write not yet echoed**: a list of written texts. An arrival equal to any of them is our own echo. | **A real traversal that lands on a query equal to a pending write is read as an echo.** The draft is kept, and the write effect then writes the draft into the entry just landed on. Next discards the pending write when the traversal is dispatched (`app-router-instance.js:146-160`, quoted in the D45 section), so that arrival can only be the traversal. **A departure breaks without a guard.** The flush's text can equal an in-flight write. If a stray digit follows the tap, the flush echo is then kept as ours, the write effect sees `liveText !== draftText` in the commit where the departure pushes, and D45's named failure follows: *Înapoi* silently does nothing (the D45 section's load-bearing trigger paragraph). The prototype shows it: with the guard removed, one `replace` fires after the push [measured]. | **Recommended, with three guards (S3b.3).** |
+| (a1) | (a) with one slot: remember the latest write only. | **The React commit race.** An older write can commit in Next's state before a newer one is dispatched and still render after it. The single slot now holds the newer text, so the older echo re-seeds and the newer echo then passes as an echo of the re-seeded draft. The digit is lost once more [inference]. | Rejected. The list costs nothing more. |
+| (b) | **An arrival epoch or sequence from the router.** | Next exposes none for search-param navigations. `router.bfcacheId` stays the same for search-param-only navigations *and* for back/forward, and D45 already rejected it on the docs' own words (`use-router.md:50`, `:180`). `history.state` (`__NA`, `__PRIVATE_NEXTJS_INTERNALS_TREE`) is private, and it is written in an effect after commit (`app-router.js:44-68`). So during render it is stale in exactly the window this defect lives in. | Rejected. It couples to internals and is wrong in the race it exists for. |
+| (c) | **Compare against the draft's history within the burst.** | A strict superset of (a): it adds texts that were never written and so can never echo. Every addition widens the false-echo surface for a traversal and buys nothing. It also couples the URL loop to `use-typing-pause.ts`'s idea of a burst, which is a presentation clock. | Rejected. |
+| (d) | **Classify by cause**: an arrival after a `popstate` is a traversal, any other is an echo. | It replaces D45's content rule rather than extending it. The accepted residue changes, which this slice must not do. Any URL change that is not a `popstate` and not ours (a future push to a room query while the step is mounted) would be kept as an echo and overwritten. | Rejected as the rule. **Kept as one of (a)'s guards**, in the only direction that is safe: a `popstate` may empty the in-flight list, which returns the rule to D45's, and never classify anything by itself. |
+| (e) | **Serialise writes**: arm no new write until the last one echoes. | It fixes nothing. The keystroke still lands during the round trip, and the echo still differs from `draftText`. | Rejected. |
+
+**Ordering under React 19, which every option has to survive.** Two facts are source-verified:
+`router.replace` enters Next's action queue inside `startTransition`, and the RSC fetch is
+asynchronous. A `setState` made in the settle's timer callback, before the `replace`, lands at
+default priority. So the registration commits before any echo can render [inference from React's
+lane order]. In the prototype, the synchronous-echo harness, the worst order, stayed green, and
+swapping the two calls reddened nothing [measured]. So the order is not load-bearing, and it is not
+a criterion. For a `popstate`, Next dispatches the restore from its own `popstate` listener inside
+`startTransition` (`app-router.js:284-298`). React treats `popstate` as a discrete event and renders a
+transition started within one eagerly (`shouldAttemptEagerTransition`, `react-dom-client.development.js`)
+[source-verified]. Our clearing listener runs in the same event dispatch, so its update is processed
+no later than the traversal it announces [inference]. **Out-of-order echoes cannot happen.**
+Navigations commit in dispatch order, and a newer dispatch discards a pending older one
+(`app-router-instance.js:146-160`, source-verified). If one ever did arrive out of order, the rule
+below reads it as a traversal, which is today's behaviour.
+
+##### S3b.3 — the rule, stated to be implemented
+
+**Four values now, not three.** `liveText`, `draftText` and `lastSeenText` are unchanged. The new one
+is **the writes still in flight**: an ordered list of the query texts the settle has dispatched whose
+echo has not yet been observed. It is reconciliation state beside `lastSeenText`, held in React state
+rather than a ref, because the reconciliation reads it **during render**.
+
+1. `liveText === lastSeenText`: nothing to do, as today. The list is untouched.
+2. Otherwise the URL changed, and `lastSeenText` follows it. Then:
+   - **`liveText === draftText`**: our echo, or D45's accepted residue, **exactly as today**. The draft
+     is kept, **as the same object**. The list keeps only the writes dispatched after the newest entry
+     equal to `liveText`, and is emptied if there is none.
+   - **`liveText` equals a write in the list (new)**: **a late echo of our own write.** The draft is
+     kept, **as the same object**, and the list is pruned the same way: that write and every older one
+     go, because Next can no longer commit them. The write effect then sees `liveText !== draftText`
+     and writes the draft once, after `URL_SETTLE_MS` counted from this arrival.
+   - **Otherwise**: a traversal. The draft is re-seeded as today, and the list is emptied.
+3. **A write joins the list when the settle dispatches it**, and only then. **The flush never joins it.**
+4. **Arming a departure empties the list.** From the tap onwards the flush's echo is classified exactly
+   as D45 classifies it, and the departure path is unchanged, byte for byte. This is the guard for
+   D45's trigger paragraph.
+5. **A `popstate` empties the list.** After a traversal no write of ours can still commit, so the rule
+   becomes D45's own until the next write. This guard never re-seeds anything D45 keeps: the
+   `liveText === draftText` branch does not read the list.
+
+**Why this is not the *"second discriminator"* D45 forbids.** That prohibition is about chasing the
+residue: telling a Back that lands on `draftText` apart from an echo. It is forbidden because every
+candidate re-seeds on an echo somewhere. This rule does the opposite. It leaves the `draftText` branch
+alone and turns re-seeds into keeps only for texts this screen itself wrote. D45's trigger condition,
+*"any edit that lets the write effect see `liveText !== draftText` in the same commit as a departure
+push"*, cannot fire. Rule 4 empties the list before any flush echo can arrive, so in that commit the
+new branch cannot be taken. S3b-6 asserts this, and the prototype's sabotage of rule 4 fails it
+[measured].
+
+**Accepted consequences, stated so review does not file them:**
+
+- **After a late echo, the URL lags the field by one more settle.** The field shows `36` while the
+  URL still reads `0.003`, until one `replace` lands. This is D45's *"a URL that lags the field by a
+  beat"*, and it is not a finding.
+- **Accepted limit 1 at `URL_SETTLE_MS` grows by the late echo's round trip, in this path only.** A
+  Back gesture taken after a late echo can lose the tail typed since that echo. That is still at
+  most a few characters, never a room, and still never on a reload. `URL_SETTLE_MS` stays **400**
+  (Q-D45-3).
+
+**Structure, for the clean-code reviewer.** `reconcileRoomDraft` stays pure and total. Its input and
+output each gain the list. Its body stays under 20 lines, so the pruning is extracted into a named
+helper. `useReconciledRoomDraft` owns the list and hands `useRoomDeparture` two commands: record a
+write, forget all writes. The setter from `useState` is stable, so neither command needs a ref. The
+`popstate` listener lives in the sync module. `room-screen.tsx:141-144`'s own listener, which clears a
+composition run, is a different rule and stays where it is.
+
+##### S3b.4 — punch items (5)
+
+1. **`apps/web/src/room/room-query-sync.ts`.** Rules 2–5. The module header's *"three values"* becomes
+   four. `reconcileRoomDraft`'s doc gains the late-echo branch. The residue paragraph and the
+   `URL_SETTLE_MS` doc gain the two accepted consequences above. **Nothing else in the file moves**
+   (the fence is in section 4's amended list).
+2. **`apps/web/tests/room/room-query-sync.test.ts`.** The pure-rule table and properties for S3b-3
+   (iii), S3b-4, S3b-5 (unit arm) and S3b-7. The existing `reconcile` helper passes an empty list. The
+   same one-field change is made at `qa-7f1-d45-convergence.adversarial.test.ts:168`, which is not a
+   frozen file, and is **named in the commit message**. The prototype needed exactly these two edits
+   for the 42 files and 1 502 tests under `tests/room` to stay green [measured].
+3. **New `apps/web/tests/room/room-late-echo.dom.test.ts`.** S3b-1, S3b-2, S3b-3 (ii), S3b-5 (burst
+   arm) and S3b-6, over the S3 QA harness's pattern. The router double honours Next's discard rule and
+   can also deliver the commit-race order. The clock is advanced in steps of 5 ms or less, each in
+   its own `act`.
+4. **New `apps/web/tests/e2e/room-late-echo.e2e.spec.ts`.** S3b-8, with real timers.
+5. **The record (scribe).** A dated pointer under the D45 section's *reconciliation rule* and under its
+   residue/trigger paragraph, pointing here. Section 4 criterion 13's *"`room-query-sync.ts`
+   unedited"* is read with the 2026-09-22 exception. And STATUS.
+
+##### S3b.5 — acceptance criteria
+
+Each criterion names its sabotage in both directions: **↓**, the defect comes back; **↑**, the fix
+overreaches. *Property* means fast-check with at least 100 runs per arm.
+
+- **S3b-1 — no typed digit is lost around the settle (DOM, property).** Sequences of 2–5 keystrokes,
+  each appending one digit to wall A, or alternating wall A and the height. Gaps are drawn from
+  **350–500 ms**, echo delay from **0–300 ms**, jittered per write. Two delivery orders: *superseded
+  write dropped* (Next's rule) and *commit race* (an older echo still arrives, before the newer one).
+  After a final 2 s: every field reads exactly what was typed, the URL equals
+  `canonicalRoomQuery(draft)`, and the `replace` count never exceeds one per settle. **Fidelity rule,
+  part of the criterion:** the test must fail against HEAD's rule. A harness that advances the clock
+  in one `act` passes HEAD [measured] and is not a witness. **↓** HEAD's rule, with no late-echo
+  branch: red (prototype counterexample `[[400], 0, false]`, [measured]). **↑** Treat every arrival
+  as an echo: S3b-3 reddens, as do the existing re-seed cases in `room-query-sync.test.ts`.
+- **S3b-2 — the first keystroke after 1B appears survives the canonicalising write (DOM).** Arrive at
+  `?shape=L`, advance 400 ms (the write of `direction=left` is dispatched and its echo withheld), type
+  `3`, deliver the echo. The field reads `3`, and the next settle writes `wallA=0.003`. **↓** HEAD's
+  rule: the field is empty, as the browser measurement above shows. **↑** As S3b-1.
+- **S3b-3 — a traversal still re-seeds, including mid-burst.** (i) D45's table in
+  `room-query-sync.test.ts` passes **unedited** apart from the helper's empty list. (ii) DOM: with a
+  write in flight and the draft moved, a `popstate` followed by an arrival **equal to the in-flight
+  write** re-seeds: the field reads the arrived room's `3`, not `36`. (iii) Unit property: for any list
+  and any arrival that is neither in it nor equal to `draftText`, the draft is re-seeded and the list
+  comes back empty. **↓** Drop the `popstate` guard: (ii) reddens, since the prototype kept `36`
+  [measured]. **↑** Let a `popstate` force a re-seed even on `draftText`: S3b-4 reddens.
+- **S3b-4 — D45's accepted residue is unchanged.** An arrival equal to `draftText` keeps the draft
+  object and any unparsed text (`"3,6"`). That holds with the list empty or not, and with or without
+  a `popstate` first. `qa-7f1-d45-convergence`'s *"the echo keeps a draft"* property holds with only
+  its call site changed. **↑** Make the `draftText` branch consult the list or the `popstate` flag:
+  red. **↓** Re-seed on a `draftText` arrival whose text is not in the list: I1's existing case
+  reddens.
+- **S3b-5 — identity, and the burst survives a late echo.** Unit: the late-echo branch returns the
+  input draft with `toBe`, beside the comment at `room-query-sync.test.ts:121`. DOM: a late echo in
+  mid-burst leaves every 1C surface as it was at the burst's start, because `use-typing-pause.ts:78`
+  compares by identity. **↓** Return a copy (`{ ...draft }`): the `toBe` check reddens and the burst
+  ends on the echo. **↑** Return the same object on a traversal: S3b-3 reddens.
+- **S3b-6 — the departure is exactly D45's.** DOM: a write `X` is in flight. Tap *Înapoi* (the flush
+  also carries `X`), type a stray digit, deliver `X`. Then there is exactly **one** push, **no**
+  `replace` afterwards over 1.5 s, and the field is re-seeded to `X`'s room: the stray digit is lost,
+  which is accepted limit 2. Section 4 criterion 13's eight departure tests and D45 criterion 22's
+  four arms pass **unedited**. **↓** Omit rule 4: a `replace` follows the push, the prototype read
+  `laterReplaces: 1` and field `36`, and nothing existing catches it [measured]. That is D45's dead
+  *Înapoi*. **↑** Also empty the list on every keystroke: S3b-1 reddens.
+- **S3b-7 — the list is bounded and the loop settles (unit, property).** Over random interleavings of
+  dispatched writes and in-order arrivals: after any arrival, no entry at or older than it remains; a
+  traversal leaves the list empty; the list never holds more entries than writes dispatched since the
+  last arrival. Criterion 21's at-most-one-`replace` settles with one more arm: after a late echo,
+  exactly one `replace` carrying `draftText`, and none in the following interval. **↓** Remove only
+  the matched entry and keep the older ones: the "no older entry remains" arm reddens. **↑** Empty the
+  whole list on a late echo: the commit-race arm of S3b-1 reddens (the newer echo arrives into an
+  empty list after the draft moved again).
+- **S3b-8 — real timers, real router (e2e).** (i) Wall A: fill `3`, wait *d*, press `6`, for
+  *d* ∈ {350, 380, 390, 395, 400, 405, 410, 415, 420, 430, 450, 500}. Assertions **poll**: the URL
+  reaches `wallA=0.036` and the field reads `36`, and it still reads `36` once the URL has settled.
+  (ii) The first keystroke after 1B appears, for *d* ∈ {350, 380, 390, 400, 410}. The waits are the
+  stimulus, never the synchronisation. D45 criterion 23's *"no fixed wait standing in for the flush"*
+  still holds. `room-traversal.qa.e2e.spec.ts` and `room-to-editor.qa.e2e.spec.ts` pass **unedited**.
+  **↓** HEAD's rule: (i) reddens at 395–410 ms in production and at 390–420 ms in dev, 3 of 3 trials
+  [measured], and (ii) at 380–390 ms [measured]. **↑** Carried by the unit and DOM arms. No e2e can
+  aim a Forward inside a 20 ms round trip.
+
+**Must not:** any edit to the four 7F1-frozen tests; any change to `URL_SETTLE_MS`,
+`use-typing-pause.ts`, `canonicalRoomQuery`, `roomDraftFromQuery`, the effect order, or I5's
+flush/observe/push steps beyond rule 4's one call; a `window.history.*` call (the lint ban); a ref read
+during render; a fixed delay anywhere in production code.
+
+##### S3b.6 — review tier and brief
+
+**Full: adversarial QA over the frozen tree, then a logic reviewer and a clean-code reviewer in
+parallel.**
+
+- **Logic.** Check the rule against [ADR 0111](../decisions/0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md)
+  decision 3 (*"Back restores it, a reload keeps it"*). Check it against the D45 section below: R9;
+  rules 1–2; I1–I6; the residue **and its load-bearing trigger paragraph**, which is the thing to
+  break; Q-D45-3; the accepted limit. Check [ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md):
+  its decision 5 fence governed S1b only, and S3b has its own. Check
+  [ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md):
+  a dropped write that never echoes, and a bfcache page restore, are recorded, not built for. Check
+  [ADR 0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)
+  decision 5: the discriminating population is *keystroke inside the round trip*, and that is what
+  S3b-1's ranges aim at. First question to ask: **can the new branch be taken in the commit where a
+  departure pushes?**
+- **Clean code.** Check the names (the list's name must say *written and not yet seen*). Check that
+  `reconcileRoomDraft` stays at 20 lines or fewer, with the pruning extracted and named. Check
+  command/query separation for the two commands. Check that there is no flag argument. Check that the
+  comments give the why: the discard rule the pruning mirrors, and why the flush never joins the
+  list.
+- **Evidence** ([ADR 0119](../decisions/0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md)).
+  Every Next or React source line cited above is re-read at the installed versions before it is
+  relied on.
+
+##### S3b.7 — visual and e2e
+
+**No visual arm:** no pixel changes. **The e2e arm is required and runs with real timers** (S3b-8).
+Locally it runs against `next dev` inside `ci:local`. **The production claim is CI's**, as D45 risk 5
+and criterion 23 require. The prototype's production-build runs were green: S3b-8 (i) 36 of 36,
+(ii) 33 of 33, and D45's traversal and I5 flows, one run each [measured]. That is evidence for the
+plan, not a verdict for the slice.
+
+##### S3b.8 — risks
+
+| # | risk | mitigation |
+| --- | --- | --- |
+| R-S3b-1 | **The departure regresses silently.** Rule 4 is one line, no existing test fails without it [measured], and the failure is D45's dead *Înapoi* on a slow network. | S3b-6 with its ↓ sabotage. The logic brief's first question. |
+| R-S3b-2 | **A harness that cannot see the defect.** One `act` over a long advance passes HEAD's rule [measured]. | S3b-1's fidelity rule: the test is shown red against HEAD before it is trusted. |
+| R-S3b-3 | **Widening into D45's forbidden discriminator**: someone "tidies" the `draftText` branch to consult the list or `popstate`. | S3b-4 in both directions, and the *why this is not* paragraph copied into the module's doc. |
+| R-S3b-4 | **The traversal-onto-an-in-flight-write case is only asserted in the DOM.** It needs a Forward within one round trip. | Accepted. The `popstate` ordering is source-verified above, and the DOM arm is its witness. |
+| R-S3b-5 | **S3's QA sequence model** (`qa-7f2-s3-one-c.adversarial.dom.test.ts:1058-1075`, `arriveReseeding`) encodes D45's rule. | It passed unedited with the prototype [measured]. If it reddens under the real slice, **stop and report**: do not edit the model to match. |
+
+##### S3b.9 — owner questions
+
+**None.** This is a defect fix. The customer's typed input was being discarded, against ADR 0111
+decision 3 and D45's own I3 (*"typing never re-seeds"*). No copy, no bound and no visible behaviour
+changes other than the lost digit being kept. **One question for the coordinator, not the owner,
+which gates nothing:** the convergence loop's rule has lived only in milestone prose since D45, and
+this is its first amendment. Should the close-out lift it into an ADR, or is the dated pointer
+(item 5) enough?
+
 **S4 — the shape refusal. Owner: implementer (web). 2–3 production files. Ungated** (wording is Q-7F2-1's,
 a message edit).
 1. `room-screen.tsx` `ShapeStep`: the refusal under the cards when a refused card is chosen at 1A.
@@ -10945,6 +11240,19 @@ hashes **except the keys S1b names in its commit**; `src/app/configurator/config
 is ruled (b) instead of (a), `room-url-state.ts`, all of `parse-metres.ts`, `room-query-sync.ts` and the
 four frozen tests leave this list, and that must be written here as a further dated amendment.*
 
+**Must not change: further amended 2026-09-22 for slice S3b, a defect fix under the coordinator's
+dispatch, with no owner ruling needed.** The 2026-09-21 list stands, with one exception:
+**`room-query-sync.ts` may change in S3b only, and only in the reconciliation's echo rule and what that
+rule needs.** That means the in-flight write list, its registration when the settle dispatches, its
+emptying when a departure arms and on `popstate`, and the doc comments that state those rules (S3b.3).
+**Outside that fence, stop and report:** `URL_SETTLE_MS`'s value; the write effect's conditions; the
+departure's flush/observe/push steps (I5) beyond the one emptying call; `canonicalRoomQuery`,
+`roomDraftFromQuery`, `queryFromSearchParams`, `queryEntriesOf`; and the order the effects are
+declared in. **Criterion 13's *"`room-query-sync.ts` unedited"* is read with this exception.** Its
+eight departure tests stay unedited. **Tests S3b may edit:** `room-query-sync.test.ts`, plus the
+single call site at `qa-7f1-d45-convergence.adversarial.test.ts:168`, named in the commit message. It
+may also add new files. The four 7F1-frozen tests stay unedited.
+
 ### 5. New copy — ADOPTED 2026-09-21 (Q-7F2-1 = (a))
 
 Every leaf below is approved as drafted (Q-7F2-1). Russian uses the informal *ты*, matching
@@ -11030,6 +11338,31 @@ Per slice: the web suite (`cd apps/web && pnpm exec vitest run`), `typecheck`, `
 the production-build visual gate at 390 × 844 in both locales, and `pnpm ci:local` before the push —
 **read from its verdict line, not an exit code.** The traversal e2e and the fits e2e run against `next dev`
 inside `ci:local` (`playwright.config.ts:15`); **the production claim is the visual gate's, and CI's.**
+
+### Pending for close-out, recorded 2026-09-22
+
+These are notes for the scribe's close-out of 7F2. They are not in S3b's scope, and they are
+written here so they are not lost. They are relayed from the coordinator's dispatch unless marked.
+
+1. **S2 changed label placement.** In an approved-range U room, only the label's side changes. In an
+   L room with B ≤ 241 mm, only `topPx` changes. The close-out records both as deliberate.
+2. **Wide-U facing labels overlap, and did before 7F2** (e.g. 4000 × 2400 × 2400). Goes to
+   `docs/BACKLOG.md`.
+3. **S3 review R1.6: a second field problem is not re-announced while the note is showing.** Goes to
+   `docs/BACKLOG.md`. It needs copy.
+4. **Coordinator ruling, 2026-09-22, on F2:** a tap held over a refused draft ends the pause and does
+   not depart (`room-screen.tsx`'s `continueFromLengths` doc records it). The coordinator reports that
+   the premise of its own 2026-09-21 extension of C-7F2-1 was wrong. The scribe annotates that
+   premise sentence in S1b's *what S2 to S5b must change* block (*"*Continuă* already acts only on a
+   flushed valid room"*) rather than deleting it.
+5. **Criterion 7's sabotage ↑ does not hold.** The S2 plan claims *"mark by array index → the `right`
+   direction arm reddens"*. It does not, because index and id agree in every reachable plan. The
+   close-out corrects criterion 7's text and names a sabotage that does redden.
+6. **S1b's review round and its S1b-11 visual gate are unrecorded.** Fold S1b-11's captures into the
+   wave's final visual gate and record the review round in the close-out.
+7. *(Added by the S3b planner.)* **`room-to-editor.qa.e2e.spec.ts:55-56`'s workaround wait** was this
+   late-echo defect, filed as a slow-runner race (S3b.0). It stays, because it is harmless. Its
+   comment should say what it was once S3b lands.
 
 ## Wave 7D8 — the plan, 2026-09-16: the run follows the wider wall
 
