@@ -1684,3 +1684,21 @@ browser-level witness that the mark's wash is not a raycast target, because ther
 on screen to tap through. The adapter's suite still holds that claim at unit level. Building this
 makes the running-scene half assertable again, and the spec carries a tripwire — `MIN_MARK_PIXELS`,
 kept at its measured 2 000 — that turns red the day a marked body is framed again.
+
+## 70. The editor allows a kitchen with no oven — RECORDED 2026-09-21, NO OWNER, NO PHASE
+
+**Owner principle** ([ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+Amendment M, M12, 2026-09-21): *"only one oven is not correct, at least one oven is correct, a
+kitchen can have multiple ovens, but at least one is a must."*
+
+**What is true in the code, source-verified at M7 wave 7D5b's planning HEAD.** Generation enforces
+this through `assertExactlyOneOven` (`packages/configurator-domain/src/generation/generate-kitchen.ts:646-658`),
+which is stricter than the principle — it throws unless a generated kitchen carries **exactly one**
+oven, never zero and never two — and is kept deliberately, because generation always composes
+exactly one oven by construction. The **editor** — `validate-design.ts`, `src/commands/` and
+`src/queries/` — has **no oven-count rule of any kind**, so a customer's own edits (removing the
+hob's oven and never adding a tall oven tower, for instance) can reach a kitchen with zero ovens,
+which the owner's principle forbids.
+
+**No owner, no phase yet.** Whether the editor should refuse the edit, warn, or do nothing is an
+open product question for a later wave; M7 wave 7D5b records the gap and does not close it.

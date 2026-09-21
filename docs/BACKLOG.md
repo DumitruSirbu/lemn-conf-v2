@@ -100,6 +100,7 @@ status corrections, in one of these two files:
 | 67 | Tapping the overflow warning should move the camera to the marked body | open.md — wanted by the owner 2026-09-16 (M7 wave 7H, Q7H-8), not built, not scheduled. **Recorded as *66* when first written and corrected here the same day** — 66 was already the tall-body gap above, cited by number in ADR 0110, ADR 0117 and `milestones/M7-room-and-presets.md` |
 | 69 | Two gate runs against one test database corrupt its migration ledger | open.md — observed 2026-09-18 on wave 7D6's push; environmental, wave 7T's subject, not scheduled |
 | 68 | A large wood-decor run-end panel shows a visible grain tiling seam | open.md — observed 2026-09-17 in M7 wave 7D8's visual check of `dcec03f`, not compared against a pre-fix build, owner question, not built, not scheduled |
+| 70 | The editor allows a kitchen with no oven | open.md — owner principle recorded 2026-09-21 (ADR 0110 Amendment M, M12), no owner, no phase yet |
 
 ## 2026-09-06 audit note
 

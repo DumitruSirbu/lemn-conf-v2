@@ -1530,7 +1530,7 @@ table.
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
 | **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table. **DONE, close-out 2026-09-21** — see [7D5 close-out](#7d5-close-out--2026-09-21). Commits: S1 `c67b4ee` (bottle), S2 `17df3f5` (pan drawer), S3 `dd7a25b` (threshold drawer). **Re-baselines 7D3's block-threshold table and restates its criterion 12; the dishwasher is lifted to 7D5b** | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/generation/optional-run-items.ts` (new), `src/generation/run-layout.ts` (new), `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | **Yes**, close-out — 6 witness rooms, all PASS | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), Q-H3 (2026-09-16), Q-H6/Q-H6a/b/c (2026-09-21, J1/K1/K2/K4), **Q-H5 = a third drawer after the hob (2026-09-21, L1)** |
-| **7D5b** | The sink-adjacent dishwasher conversion, lifted whole out of 7D5 (recommendation in the 7D5 plan; confirmed in the 7D5 close-out). **PLANNED, next.** Owner answers so far: Q-DW2 = dishwasher first, Q-DW3 = converted + 1F row; **Q-DW1 open** | `src/generation/generation-priorities.ts`, `src/generation/optional-run-items.ts` | 7D5 | Full | Probably | Q-DW1 open; Q-DW2, Q-DW3 answered |
+| **7D5b** | The sink-adjacent dishwasher, lifted whole out of 7D5, plus the owner's tower-over-bottle change to 7D5's bottle rule. **PLANNED, next — see [Wave 7D5b — the plan](#wave-7d5b--the-plan-2026-09-21-measured-at-head-ec6aca9). All owner questions answered 2026-09-21; S0 dispatchable.** Slices S0 → S0b (tower over bottle) → S1 (M1 conversion + (e) drawer swap, dishwasher first) → S2 ((b) pantry → (d) bottle → (c) oven tower, last) → SW (frame 1F row) → S3. Measured plan: a dishwasher in **196 621 / 245 211** placed kitchens, zero-oven kitchens **0** | `src/generation/optional-run-items.ts`, `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/generation/dishwasher-beside-the-sink.ts` (new), `src/index.ts`; SW: `apps/web/src/room/generation-model.ts`, `apps/web/src/messages/{ro,ru}.json`, `ro.d.json.ts` | 7D5 | Full (SW Light) | **Yes** | answered — Q-DW1 = (e) + (b) + (d), then (c) last and only where the hob carries the oven; Q-DW2 = dishwasher first; Q-DW3 = converted + 1F row; which drawer = *the one beside the sink*; tower over bottle, narrowed to the 5 260 rooms that lose no pan drawer; 1F label owner-approved (2026-09-21) |
 | **7D8** | **DONE, close-out 2026-09-17** — see [7D8 close-out](#7d8-close-out--2026-09-17). Commits: planning `8ebff1f`/`36fde8c`/`275c95e`/`27ae496`; S0 `5c915f8`; S1 `2439da5`; E4 correction `355a15e`; adjudication `c456dbd`; S2 `814ca44` (`--no-verify`, 25 known-red assigned to S3); S3 `f919bfa` (suite green); review `62cfee1`; Q-7D8-2 ruling `6dbff27`; ADR 0110 Amendment I1.1 `e18908b`; shrink-strip fix `24ca2bc`; panel-colour fix `dcec03f`; ADR 0122 `8b73439`; S4 `b83e4f2`. `pnpm ci:local`/push pending. **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **DONE, close-out 2026-09-18** — see [7D6 close-out](#7d6-close-out--2026-09-18). Commits: S1 pre-flight (no code, 900/900 reproduced); S2 `bf58f97`; S3 `dcb67ce`; QA `9ae586c`; review fixes `0d79ce9`. `pnpm ci:local`/push recorded by the coordinator, separately | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **Q-K1 ANSWERED 2026-09-17, option 3 — [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md): the owner kept 900/1000 as a deliberate margin above the derived 880/880 floor. No bound moves. [ADR 0108 Amendment F](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin) narrows Amendment A ruling 1 accordingly. The joint bound slice (7D6-S5/7D7-S5) does not dispatch — no literal moved** |
 | **7D7** | **DONE 2026-09-19** — the corner builders accept recorded widths; generation authors the four structural corner placements with the largest even room-fitting widths at 600 mm, and the 600 → 700 mm depth command keeps those widths frozen while sliding the recorded chains. The engine floor is **880 × 880**, while [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) keeps the customer-approved minima at **900 / 1000**; cancelled S5 did not dispatch and no policy literal moved. See [7D7 close-out](#7d7-close-out--2026-09-19). Commits: plan `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; gate-timeout follow-ups `5c1cd33` and `a9bad6b`; close-out `71e6ba3`. `pnpm check` and `pnpm ci:local` are green; push remains pending | `packages/configurator-domain` corner sizing/shell placement and `packages/three-adapter` corner builders/record seam, with paired adversarial coverage; **S5 cancelled** | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + approved narrow room | **Q-7D7-1 and Q-7D7-2 answered.** The one-door floor is 200; approved minima remain 900/1000. Q-7D7-3 and Q-A′.2 remain non-blocking product questions; this wave changes neither carousel policy nor editor capabilities |
@@ -9335,6 +9335,692 @@ in the QA record; not deleted by this pass.
 `5c1a6aa` on 2026-09-16 (per the milestone's own 7T section), but neither this wave table nor
 `docs/STATUS.md` records it as shipped. Flagged as a gap in `docs/STATUS.md`; this pass did not
 verify `5c1a6aa` against `git log` and claims no more than what the milestone text itself states.
+
+## Wave 7D5b — the plan, 2026-09-21, measured at HEAD `ec6aca9`
+
+> **How it was measured.** Every figure comes from a scratch `tsc` build of
+> `packages/configurator-domain/src/` taken at `dd7a25b`. **`ec6aca9` changes no file under
+> `packages/` or `apps/`**: `git diff --stat dd7a25b ec6aca9 -- packages apps` is empty. So the
+> build is source-identical to this HEAD **[source-verified]**.
+>
+> The scratch copy adds the rules planned below, behind switches. With every switch off, it
+> reproduces ADR 0110 K5 and L5 exactly: 256 011 swept, 245 211 placed, 92 446 pan drawers,
+> 178 491 bottles and 15 795 threshold drawers.
+>
+> **Scope of every figure.** All figures are over the approved L rectangle at 10 mm, and are
+> identical at 2200, 2600 and 3900 mm ceilings unless stated. Labels:
+>
+> - **[measured]**: read from the scratch build.
+> - **[source-verified]**: read from the tree or the record at this HEAD.
+> - **[inference]**: argued, not measured.
+>
+> **Every owner question is answered (2026-09-21). No product question is open.** S0 is
+> dispatchable. The instruments are scratch-only and are not repository code; S0 re-takes every
+> figure from its own suites.
+
+### What the owner ruled, 2026-09-21
+
+These rulings enter [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+as **Amendment M**, written 2026-09-21, before any code — see the ADR's own Amendment M rather than
+*Amendment M, the record S0 writes* below, which is this plan's draft of it and is now superseded by
+the written amendment.
+
+| Question | The owner's answer | Consequence |
+| --- | --- | --- |
+| **Q-DW2**, the order | *"Dishwasher first"* | Core → pan drawer → bottle → **dishwasher** → threshold drawer, and *D* excludes the dishwasher. The option text named only the third drawer, so the preparation cabinet, the pan drawer and the bottle stay ahead of the dishwasher (the coordinator's reading). |
+| **Q-DW3**, the model and 1F | *"Converted, with 1F row"* | The dishwasher is a **storage-role** body, which reverses ADR 0110 F12's *"core role"*. Frame 1F gains a dishwasher row. |
+| **Q-DW1**, when no door cabinet is free | **(e) the drawer swap + (b) a pantry column + (d) the bottle**. Then, last of all, **(c) the oven tower**: *"dishwasher should replace a oven tower if there is no place to keep both and only if hub is with oven"* | Four trades, in S1 and S2. (c) applies only where the hob then carries the oven (`base-hob-oven`, ADR 0110 E4), so the kitchen keeps at least one oven. |
+| **(e)**, which drawer cabinet | *"the one beside the sink"*, chosen from the preview *sink · DISHWASHER · pan-drawer · hob* | Variant (i), modelled with no core-role loss (E6). |
+| **Precedence** | **Coordinator ruling; the owner may overturn it:** (e), then (b), then (d), then (c). | Tall cabinets are kept wherever a worktop trade exists. (c) comes last, which is the coordinator's reading of *"no place to keep both"* (E8). |
+| **The 1F label** | ro **Nișă mașină de spălat vase** / ru **Ниша для посудомоечной машины**, approved in session | O1-class copy, recorded as owner-approved. |
+| **Tower over bottle** | *"where the bottle cabinet would leave a bare gap that the oven tower could have filled, keep the tower and drop the bottle"* | A change to 7D5's bottle rule, planned as its own slice, **S0b** (E7). |
+| **… except where the pan drawer depends on it** | *"if you have hub + oven you rarely need second oven, so oven tower should b replaced, otherwise oven is a must in any kitche"*, clarified as *"only one oven is not correct, at least one oven is correct, a kitchen can have multiple ovens, but at least one is a must"* | S0b is narrowed to the **5 260** rooms where no pan drawer is lost. Principle M12 is recorded. |
+
+This also answers the 7D5 close-out's open product concern: the reference room's bare 560 mm
+after the bottle cabinet is closed by S0b.
+
+**Tiers and visual gate:**
+
+- **S0b, S1 and S2: Full.** Each is a domain rule under owner rulings, and each restates earlier
+  waves' assertions.
+- **SW: Light.** It is UI assembly plus copy. The coordinator may raise it to Full, because W3 is a
+  rule about what the customer is told.
+- **Visual gate: yes**, for S0b, S1, S2 and SW.
+
+### E1 — the headline, stage by stage [measured]
+
+| Figure | HEAD | After S0b | After S1 | **Final (after S2)** |
+| --- | ---: | ---: | ---: | ---: |
+| Kitchens with a dishwasher | 0 | 0 | 165 421 | **196 621 (80.2 %)** |
+| — door cabinet converted (M1) | — | — | 141 261 | 141 261 |
+| — (e) drawer swap | — | — | 24 160 | 24 160 |
+| — (b) a pantry column | — | — | — | 18 200 |
+| — (d) the bottle | — | — | — | 2 600 |
+| — (c) the oven tower, with the oven moving under the hob | — | — | — | 10 400 |
+| Kitchens still without one | 245 211 | 245 211 | 79 790 | **48 590** |
+| Rooms with an oven tower | 162 026 | 167 286 | 167 286 | **156 886** |
+| Tall columns, total | 383 758 | 389 018 | 396 028 | **367 428** |
+| Bottles | 178 491 | 173 231 | 176 291 | **173 691** |
+| `base-panbank` bodies | 92 446 | 92 446 | 92 446 | **92 446** |
+| — of which carry the preparation role ((e)) | 0 | 0 | 24 160 | 24 160 |
+| Threshold drawers | 15 795 | 15 795 | 5 725 | **5 725** |
+
+The pipeline ran end to end with invariant counters, and **every one reads 0 at every stage**:
+
+- two dishwashers in one room;
+- **a kitchen with zero ovens**;
+- a room whose oven count is not one;
+- a room that loses its oven tower other than through (c);
+- a (c) room whose hob is anything but `base-hob-oven`;
+- a preparation role absent but not reported in `dropped`;
+- a remainder of 600 mm or more;
+- *D* ≥ 6 and short of drawers;
+- a swap that leaves no drawer cabinet.
+
+**The owner's nearest room, 4650 × 1000, gets its dishwasher from (c), the last resort.** It is
+unchanged through S0b and S1. The final kitchen is *fridge · sink · dishwasher · 3-drawer ·
+hob-with-oven · bottle*. Its oven tower goes and the oven moves under the hob (E6).
+
+### E2 — M1: a door cabinet already beside the sink [measured]
+
+**Where M1 fires: 141 261 rooms**, in two arms:
+
+- **1 055** on the sink's own wall (witness **2100 × 2200**);
+- **140 206** across the corner (witness **1500 × 2800**);
+- **0** in both arms at once, so the tie population is empty.
+
+The same rooms are found under both orders, after S0b, and on the core-only plan. So the pan drawer
+and the bottle never create or remove a free door cabinet beside the sink.
+
+**Every conversion stands on the narrower (prefix) wall:** 69 341 on wall B and 71 920 on wall A.
+**A rule written with the letter `B` would be wrong in 71 920 rooms.**
+
+**Where a door cabinet exists but is not beside the sink: 5 120 rooms** (witness **1500 × 3500**).
+M1 must not convert those.
+
+**The rule of thumb in metres, as put to the owner:**
+
+| Shorter wall | Longer wall | Dishwasher with no trade |
+| --- | --- | --- |
+| ≥ 2.3 m | ≥ 2.8 m | 135 141 of 135 141 |
+| 2.2–2.3 m | ≥ 2.8 m | 3 210 of 6 420 |
+| ≥ 2.3 m | < 2.8 m | 455 of 2 500 |
+| < 2.2 m | any | 2 000 of 100 050 |
+
+**Why the thresholds fall there [inference].** The shorter wall needs the corner, the dishwasher
+and the fridge. The longer wall needs the corner, the sink, a drawer cabinet and the hob.
+
+### E3 — the order: dishwasher first (Q-DW2) [measured]
+
+*D* counts `storage:` slots plus the pan and threshold drawers. The dishwasher is not a `storage:`
+slot, so it falls outside *D*. That is the mechanism by which *"third drawer only if still room"*
+bites.
+
+**The effect: 10 070 of the 15 795 threshold drawers go.** The same 10 070 go with or without S0b.
+In those rooms the kitchen regains:
+
+- **a tall column in 7 010** (block 2 → 3), of which 3 410 have no bottle and 3 600 keep their
+  bottle both ways;
+- **the bottle in 3 060**, where L2 step 1 had put the threshold drawer in its place.
+
+**Nothing else moves in them.** The prefix wall, the sink, the preparation cabinet, the pan drawer
+and the hob are byte-identical.
+
+**Where the third drawer now survives:** only where both walls are about 5.2 m or more.
+
+**Witnesses:**
+
+- **4600 × 5200**: after the hob, `threshold | tower | pantry` becomes `tower | pantry | pantry`.
+- **4600 × 5800**: the bottle returns.
+
+**The earlier rulings, checked against this order:**
+
+| Ruling | Result |
+| --- | --- |
+| E1, H1, L1 | Hold. |
+| L2, L3 | Hold, and bind fewer rooms. |
+| Q-H6b, Q-H6c | Untouched. |
+| E4 (one oven), A4 (at most 599 mm bare) | Hold. |
+| **D7** | **Narrowed by the owner** (M2 and M8). |
+
+### E4 — the free-end resize path, and E5 — the quote
+
+**E4.** An M1 conversion lands on the last base of its wall in 1 400 rooms: **1 260** with a
+1–200 mm remainder (witness **1510 × 2800**) and **140** with none. `base-dishwasher` is discrete
+(`{450, 600}`), so it resolves to 600 in a 610–800 mm opening and never enters the free-end resize
+branch **[source-verified: `generate-kitchen.ts:444-458`, `insert-fit.ts:396-410`]**.
+
+**No (e), (b) or (d) dishwasher is ever last on its wall [measured].**
+
+**E5.** The two bodies price as follows:
+
+- `base-cabinet` at 600 mm: **396 000 minor** **[source-verified]**;
+- `base-dishwasher` at 600 mm: **320 000 minor** **[source-verified]**.
+
+So an M1 conversion is **−76 000 minor** **[inference, arithmetic]**, except in the 1 260 merge
+rooms and the 10 070 re-planned rooms. The (e), (b) and (d) trades change other lines, and QA
+derives each from the price book.
+
+**Two close-out claims would be wrong:** *"+320 000 per kitchen"* (F12's framing) and *"−76 000 per
+converted kitchen"*.
+
+### E6 — (e), the drawer swap: variant (i) without a core-role loss [measured]
+
+**Eligibility.** 24 160 rooms have no free door cabinet and at least two drawer cabinets:
+
+- **24 100** with two: the preparation 3-drawer plus the pan drawer (witness **900 × 3400**);
+- **60** with three: those two plus a post-hob drawer slot (witness **6000 × 1700**);
+- **none** with four.
+
+In every one of these rooms:
+
+- the drawer cabinet beside the sink is the preparation cabinet;
+- the pan drawer stands directly beyond it, on the same wall;
+- there is no threshold drawer.
+
+So "the threshold drawer first" (variant (iii)) never differs from (i).
+
+**The model: the preparation role moves one module toward the hob, and the bodies stay where they
+are.**
+
+| Module, in spatial order | Before | After (e) |
+| --- | --- | --- |
+| the one beside the sink | id `preparation`, role `preparation`, `base-3drawer` | id `dishwasher`, role `storage`, `base-dishwasher` |
+| the next one along | id `pan-drawer`, role `storage`, `base-panbank` | id `preparation`, role `preparation`, **`base-panbank`** |
+
+The kitchen reads **sink · dishwasher · pan-drawer cabinet · hob**, which is the preview the owner
+chose. The change is **identity-only**: no width, position, remainder, column, bottle or hob body
+moves.
+
+**Why this model and not the obvious one:**
+
+- **It keeps the core role.** The preparation role still stands, so `dropped` stays honest.
+- **Frame 1F still reads right.** It shows *Blat de lucru · 600 — inclus*. `generateKitchen` looks
+  up each core role's planned base by role and inserts that base, with its own `buildId`
+  **[source-verified: the `GENERATION_PRIORITIES` loop and `plannedByRole` in
+  `generate-kitchen.ts`]**. So the preparation step is a placed `base-panbank`.
+- **What is lost is the 3-drawer body**, and that is the owner's choice.
+- **The rejected model lies twice.** Re-identifying the 3-drawer and leaving `pan-drawer` as it is
+  leaves no preparation base, while `dropped` stays empty and 1F reads *Blat de lucru — nu poate fi
+  inclus* with no reason. Carrying role `preparation` on a `base-dishwasher` lies about the body.
+- **Counting follows from it.** Pan-drawer counts must be keyed on the body `base-panbank`, per
+  [ADR 0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md).
+  Counted by the id `pan-drawer`, they undercount by 24 160.
+
+**The owner's nearest room, 4650 × 1000 (a 3.75 m run after the corner).** None of (e), (b) or (d)
+reaches it:
+
+- **(e):** it has one drawer cabinet. A pan drawer would cost the oven tower, so there is none.
+- **(b):** there is no pantry column.
+- **(d):** removing the bottle frees 650 mm. A dishwasher would leave 50 mm beside a lone oven tower,
+  which cannot absorb it (E6.2's `1 → 0` step **[source-verified: `tall-end-rule.ts`,
+  `outermostColumnOf`]**). The tower would then go, which is (c), not (d).
+
+**(c) reaches it.** The final kitchen is *fridge · sink · dishwasher · 3-drawer · hob-with-oven ·
+bottle*: the 3-drawer and the bottle stay, and the oven moves under the hob. That matches the owner's
+answer: no place for both, and the hob carries the oven.
+
+### E7 — the tower over the bottle, narrowed by the owner (S0b) [measured]
+
+**The rule.** S1's bottle is omitted where standing it would remove the oven tower **and** no pan
+drawer stands because of it. S1's bottle is the path where the pan drawer did not stand against the
+core alone.
+
+**Equivalently:** the tower is kept over the bottle only where keeping it removes no pan drawer.
+
+**Why the rule needs no gap threshold [inference, arithmetic].** Where the bottle costs the tower, it
+always leaves 300–599 mm the tower could have filled. So the owner's *"bare gap"* is a consequence of
+the cost, not an extra condition.
+
+**Its effect: exactly 5 260 rooms change.** In every one, the bottle goes, the tower returns and the
+hob becomes `base-hob-2drawer`. Nothing else changes: no pan drawer, threshold drawer or
+dishwasher is gained or lost.
+
+| Room | HEAD | After S0b |
+| --- | --- | --- |
+| **3560 × 2920** (the reference room) | wall A ends `hob-oven · bottle [2700, 3000] · 560 mm bare` | `hob-2drawer · oven tower [2700, 3300] · 260 mm bare` |
+| **900 × 4100** | `hob-oven · bottle · 300 mm bare` | `hob-2drawer · tower · 0` |
+
+**What stays as it is.** The 11 240 rooms where the bottle also carried a pan drawer keep
+*pan drawer · hob-with-oven · bottle*, as at HEAD. Their hob carries the oven, and the owner ruled
+that the pan drawer wins there. Witness: **900 × 4410**.
+
+**Rejected: "the bottle never costs any tall column."** That would change 57 900 rooms, including
+41 400 where the bottle costs only an outer pantry column. The owner's words name the oven tower.
+
+**Its effect on the earlier record:**
+
+- **J6 is reversed in the 5 260 rooms.** The reference room gets its tower back.
+- **K3's after-the-bottle fallback is untouched.**
+- **Q-H6b, Q-H6c, L2 and L3 are unchanged.**
+- **The 7D2 block-threshold rows that J4 moved to 3599 / 3600 mm are re-measured**, because the
+  tower returns in exactly the rooms that move came from.
+
+**How S0b interacts with the dishwasher:**
+
+- **M1 and (e) are unaffected**: 141 261 and 24 160.
+- **(d) reaches 2 600 rooms.**
+- **In 2 600 of its 5 260 rooms, (c) later takes the tower S0b kept** (witness **900 × 4100**).
+  Against HEAD, those kitchens have traded the bottle for the dishwasher and kept the hob's oven
+  [measured]. The run has no room for all three of bottle, tower and dishwasher.
+
+### E8 — (b), (d) and (c), after (e) [measured]
+
+(b), (d) and (c) are tried only where M1 and (e) placed nothing, in that order. Each is a run-level
+candidate:
+
+- The dishwasher is inserted directly after the sink, or else directly before it, on the sink's side
+  of the cut.
+- It reuses J1's and L2's fit-and-column-budget machinery.
+- It is kept only if the dishwasher stands **adjacent to the sink** and **no drawer cabinet is lost**.
+- For (b) and (d), **the hob body must also be unchanged**.
+- For (c), **the tower must be the block's only column**, and the hob must become `base-hob-oven`.
+
+| Trade | Rooms | What it costs | What moves |
+| --- | ---: | --- | --- |
+| **(b) a pantry column** | **18 200** | one pantry column: 10 400 rooms go from 2 to 1 column, 7 800 from 3 to 2. **The oven tower always stays.** | The bodies between the sink and the freed module shift 600 mm along the sink's wall. Remainders are unchanged. |
+| **(d) the bottle** | **2 600** | the bottle; the oven tower always stays | The bodies after the sink shift 600 mm. Witness **900 × 4700**. |
+| **(c) the oven tower** | **10 400** | the oven tower, in every one of these rooms the block's only column; **the hob becomes `base-hob-oven` in all 10 400** | The bodies after the sink shift 600 mm. The bottle is never touched. Shorter wall 0.9–2.29 m, longer wall 3.3–4.9 m. Witnesses **900 × 4100**, **4650 × 1000**. |
+
+**Precedence decides who gives up what:**
+
+- **12 500 rooms** could be reached by either (e) or (b). (b) alone reaches 30 700; after (e) it
+  reaches 18 200.
+- **2 600 rooms** could be reached by either (d) or (c). The total is the same either way (196 621).
+  - **With (d) before (c)**, the plan's order, those 2 600 give up the bottle and keep the tower.
+  - **With (c) before (d)**, (c) would take 13 000 and (d) none, leaving 2 600 more rooms without
+    their tower (154 286 oven-tower rooms instead of 156 886).
+- **Keeping (c) last is the coordinator's reading** of *"if there is no place to keep both"*: the
+  tower goes only when no other trade places the dishwasher.
+
+**48 590 rooms stay without a dishwasher.** Witness for (b): **900 × 5000**.
+
+### M12 — at least one oven, and a guard that is stricter on purpose
+
+**The principle, owner, 2026-09-21:** *"only one oven is not correct, at least one oven is correct,
+a kitchen can have multiple ovens, but at least one is a must."*
+
+**The generation guard.** `generateKitchen`'s `assertExactlyOneOven`
+(`packages/configurator-domain/src/generation/generate-kitchen.ts:646-658`, called at `:383`)
+throws unless a generated kitchen carries **exactly one** of `base-hob-oven` and `tall-oven-tower`
+**[source-verified]**.
+
+- **It is stricter than the principle, and deliberately so.** Generation composes one oven by
+  construction: the block and the hob's body are decided together (ADR 0110 E4). The guard's real
+  job is to catch **zero** ovens, a programming error.
+- **It still holds for everything 7D5b composes**, (c) included: oven count other than one, **0
+  rooms**, and zero ovens, **0 rooms** **[measured]**. Every (c) room ends with `base-hob-oven` and
+  no tower.
+- **It is recorded as a known, deliberate over-constraint of generation, not a defect. 7D5b changes
+  no code for it.**
+- **What would change it [inference]:** a later wave that generates two ovens would relax the guard
+  to *"at least one"*, and must say so in its plan.
+
+**The editor.** `validate-design.ts`, `src/commands/` and `src/queries/` contain **no oven-count
+rule of any kind** **[source-verified: `grep -i oven` over those paths returns nothing]**.
+
+- The editor permits two ovens, which the principle allows.
+- It also permits **zero**, which the principle forbids.
+- **Recorded here as an observation, not scoped into 7D5b.** Whether the editor should refuse or
+  warn on a kitchen with no oven is a product question for a later wave.
+
+### The goal, and what is out
+
+**The goal, in order:**
+
+1. **S0b:** keep the oven tower where 7D5's bottle took it and no pan drawer depends on the bottle.
+2. **S1, M1:** where a door cabinet already abuts the sink, convert it to a 600 mm
+   `base-dishwasher`.
+3. **S1, (e):** otherwise, where at least two drawer cabinets stand, the one beside the sink becomes
+   the dishwasher, by variant (i) (E6).
+4. **S2:** otherwise, (b) a pantry column, then (d) the bottle, then, last, (c) the oven tower,
+   where the hob then carries the oven.
+5. **The order:** all of this is decided after the pan drawer and the bottle, and before the
+   threshold drawer.
+6. **SW:** frame 1F shows *Nișă mașină de spălat vase* as *inclus* or *nu poate fi inclus*.
+
+**Out of scope:**
+
+- **(c) anywhere but last, or where the hob would not carry the oven.** Building it that way is a
+  finding.
+- The 450 mm slimline dishwasher.
+- The corner body, the top row, the wall row and `chooseWallCut`.
+- The *"whenever it fits" about mechanisms* relay.
+- Explanatory copy under a *nu poate fi inclus* row.
+- Relaxing `assertExactlyOneOven`, and any editor oven rule (M12).
+
+### Module boundaries
+
+- **`optional-run-items.ts` (S0b, S2).**
+  - **S0b** changes S1's bottle path in `planWithPanDrawerThenBottle`. The bottle is omitted where
+    `tallColumnCountOf` falls from at least 1 to 0 **and** `withPanDrawerWhereNothingIsLost` would
+    not place a pan drawer after it. It never tests a column's `buildId`: the tower is the block's
+    innermost column (E12.2), so *block 1 → 0* **is** *tower lost*.
+  - **S2** adds the (b), (d) and (c) candidates, in that precedence, after the leaf and before
+    `planWithThresholdDrawer`'s test.
+  - No new fit arithmetic.
+- **New leaf `src/generation/dishwasher-beside-the-sink.ts` (S1).** It is pure: a plan in, a plan
+  out.
+  - It makes **one** re-identification: M1, or else (e).
+  - It reads adjacency from spatial order and **never** a wall letter.
+  - It imports nothing from `tall-end-rule.ts`, `leftover-rule.ts` or `optional-run-items.ts`.
+  - The dishwasher gets id `dishwasher`, **never a `storage:` id**. That prefix is Q-DW2's mechanism:
+    a `storage:` id silently rebuilds the post-pass kitchen.
+  - (e) moves id and role `preparation` onto the adjacent `pan-drawer` module.
+  - It declines where a dishwasher already stands.
+- **`generation-priorities.ts` (S1).** One call site: `compositionContextFor`'s `planOf` becomes
+  *build, then apply the leaf*.
+  - Every plan the threshold rule reads then carries its dishwasher.
+  - The pan-drawer and bottle decisions never call `planOf` **[source-verified]**, so they are not
+    affected.
+  - The alternative, two call sites inside `planWithThresholdDrawer`, is acceptable if named.
+- **`body-choice.ts` (S1):** `DISHWASHER_BUILD_ID`.
+- **`src/index.ts` (S1):** exports `DISHWASHER_BUILD_ID` and the dishwasher's planned width by name
+  (ADR 0110 F13; ADR 0102).
+- **SW only:**
+  - `apps/web/src/room/generation-model.ts`;
+  - `generation-steps.tsx`, only if the label key needs it;
+  - `apps/web/src/messages/{ro,ru}.json` and `ro.d.json.ts`;
+  - the copy lock and the golden manifest.
+- **Not edited:** `run-layout.ts`, `tall-end-rule.ts`, `leftover-rule.ts`, `generate-kitchen.ts`,
+  `catalog.ts`, `sample-price-book.ts`, `packages/three-adapter/src/**`. **An edit to any of them is
+  a finding.**
+
+**Structural dependencies:**
+
+- **Anchors.** Adjacency is anchored on the sink's planned `[startMm, endMm]` and on each wall's
+  corner end.
+- **Where each dishwasher stands.** An M1 or (e) dishwasher inherits its module's span exactly. A
+  (b), (d) or (c) dishwasher stands at the sink's end, with its wall's chain shifted by one module.
+- **S0b** moves only the suffix wall's modules after the hob.
+- **Depth.** After a 600 → 700 mm depth change (ADR 0089), every dishwasher slides with its chain,
+  and none is a corner body.
+
+### Slices, each with an owner and a tier
+
+**The order is S0 → S0b → S1 → S2 → SW → S3.**
+
+- **S0b may push on its own.**
+- **S1, S2 and SW land in one push.** Between them, *Depozitare* would read *inclus* on a dishwasher
+  alone.
+
+**S0: the pre-state and the record.** Owners: QA and the scribe. No production file.
+
+1. Capture **`7d5b-pre-tower`** against this HEAD by the `composed-run-baseline.ts` method. Do not
+   overwrite the three existing recordings.
+2. Re-take E1–E8 from the real planner at 10 mm and at 2200, 2600 and 3900 mm. A divergence is a
+   finding about this plan.
+3. Add a guard test on M1's tie population: **0**.
+4. **ADR 0110 Amendment M is written (2026-09-21, before S0 dispatches, on the owner's explicit
+   request), so this step is already discharged when S0 opens.**
+
+**S0b: the tower over the bottle.** Owner: implementer. Tier: **Full**.
+
+- **File:** `optional-run-items.ts` only.
+- **Recording:** QA captures **`7d5b-post-tower`**, which is S1's pre-state.
+- **Restatements, in ADR 0110 J4's form:**
+  - J2's bottle census, and J6's recorded rooms;
+  - the 7D2 block-threshold rows;
+  - L5 and L6's bottle and column totals;
+  - `qa-7d5-bottle-cargo`;
+  - the recorded-plan classifier;
+  - both three-adapter parity suites.
+
+**S1: M1 and (e), dishwasher first.** Owner: implementer. Tier: **Full**.
+
+- **Files:** the leaf, `body-choice.ts`, `generation-priorities.ts` and `src/index.ts`, plus a
+  doc-comment-only edit to `optional-run-items.ts`.
+- **Restatements:**
+  - 7D4's door-body assertions;
+  - `qa-7d4-nothing-but-the-body-moved` criteria 2 and 21, which need an undo normalisation;
+  - **7D5 S3's threshold census, 15 795 → 5 725, a restatement and not a regression**, together
+    with L6's totals;
+  - every assertion that the preparation body is `base-3drawer`, restated for the 24 160 (e) rooms;
+  - pan-drawer counts, re-keyed on the body;
+  - the classifier;
+  - the parity suites.
+- **`pnpm check` runs before every commit** (ADR 0110 L7).
+
+**S2: (b), (d) and (c).** Owner: implementer. Tier: **Full**.
+
+- **File:** `optional-run-items.ts`.
+- **Restatements:**
+  - L6's column and bottle totals;
+  - 7D3's block-size table;
+  - **7D3's oven-tower census**, down 10 400 through (c);
+  - 7D3's *"the hob follows the block"* witnesses wherever (c) changes them.
+- 7D5's owed absorb-window re-measurement and L3's independent re-witness bind here. The close-out
+  says whether each is discharged or carried.
+
+**SW: frame 1F's dishwasher row.** Owner: implementer (web). Tier: **Light**.
+
+- **Six rows:** fridge, sink, preparation, hob, **dishwasher**, storage.
+- **The dishwasher row:**
+  - its extent is a width taken from S1's export;
+  - it reads `placed` iff a placed step's `buildId` equals `DISHWASHER_BUILD_ID`, and `pending`
+    before the call;
+  - **the storage row excludes it.**
+- **The label leaf is `room.compose.dishwasher`.** It is not a `GenerationBaseRole` key, and it
+  reuses the existing status words.
+- **The header comments in `generation-model.ts` are rewritten.** Two of them are now false: *"five
+  rows"*, and *"a `dishwasher` added to `GenerationBaseRole` is a compile error"*. 7F4's *"row set
+  does not move"* is restated, not quietly edited.
+- **Copy, O1-class, in one commit:** `ro.json`, `ru.json`, `ro.d.json.ts` mirrored by hand, the
+  copy lock, and new golden fixtures, with no existing hash moving.
+  - The commit and Amendment M3 record **both strings as owner-approved in session, 2026-09-21**,
+    citing [ADR 0113](../decisions/0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)
+    decision 2 and ADR 0107's precedent.
+
+**S3: close-out.** Owners: QA, the visual reviewer and the scribe.
+
+- The visual gate: C11, T6 and W7.
+- `pnpm check`, then `pnpm ci:local` before the push.
+- The close-out states each criterion's population, grid, ceiling, denominator and sabotage
+  direction (ADR 0121 decision 3).
+
+### Acceptance criteria — S0b
+
+- **T1** *(sweep)* **Exactly 5 260 rooms change.** In each, the bottle goes, the oven tower returns
+  and the hob becomes `base-hob-2drawer`. No other body changes.
+  - Witnesses: **3560 × 2920** and **900 × 4100**.
+  - **(a)** Remove the rule → red on 3560 × 2920.
+  - **Must not:** key on `buildId === "tall-oven-tower"` rather than on the block's column count.
+- **T2** *(sweep; the owner's narrowing)* **The 11 240 rooms whose bottle carries a pan drawer are
+  byte-identical to the pre-state.** Witness: **900 × 4410**.
+  - **(a)** Drop the pan-drawer condition → red: 16 500 rooms change and 11 240 pan drawers are lost.
+- **T3** *(sweep; the boundary)* **Every bottle that costs only a pantry column still stands: 41 400
+  rooms.**
+  - **(a)** Implement *"never any column"* → red: 57 900 bottles are lost.
+- **T4** *(sweep)* The totals are:
+  - bottles **173 231**;
+  - oven-tower rooms **167 286**;
+  - columns **389 018**;
+  - pan drawers **92 446**;
+  - threshold drawers **15 795**;
+  - **0** rooms lose a tower;
+  - one oven everywhere;
+  - no remainder of 600 mm or more;
+  - the same at all three ceilings.
+- **T5** *(sweep)* **The pan-drawer-first path is byte-identical** to the pre-state.
+- **T6** *(visual, 390 × 844, at 600 and 700 mm depth)* **3560 × 2920**: the tower returns, with
+  260 mm bare.
+
+### Acceptance criteria — S1
+
+Every criterion is discharged in both directions:
+
+- **(a)** Remove the behaviour and keep the correlate: the check goes red.
+- **(b)** Move the correlate and keep the behaviour: the check stays green.
+
+All figures are measured on top of S0b.
+
+1. **Every dishwasher abuts the sink:** 165 421 after S1, and 196 621 after S2.
+   - Discriminating: the 1 055 same-wall rooms (**2100 × 2200**), the 140 206 across-the-corner rooms
+     (**1500 × 2800**) and the 24 160 (e) rooms (**900 × 3400**).
+   - **(a)** Delete the same-wall arm → red.
+   - **(b)** Rename the id → green.
+2. **Omission, not displacement.** A room with no dishwasher equals the pre-state. Discriminating:
+   the 5 120 rooms with a door cabinet elsewhere (**1500 × 3500**).
+3. **Width-neutral, except where Q-DW2 re-plans.**
+   - **Part A:** outside the 10 070 rooms, only the modules the leaf re-identified differ (two in
+     (e) rooms). **0 other differences [measured].**
+   - **Part B:** in the 10 070, the threshold drawer is gone, and either one column is back (7 010,
+     **4600 × 5200**) or the bottle is back with the suffix remainder +300 mm (3 060,
+     **4600 × 5800**).
+4. **The drawer rules.**
+   - M1 never replaces a drawer cabinet, the bottle, a column, the fridge or a core role.
+   - (e) fires only with at least two drawer cabinets and leaves at least one: **24 100** rooms with
+     two, **60** with three.
+   - **(a)** Drop the "at least two" guard and let a lone preparation cabinet become the dishwasher
+     → red on **4650 × 1000** at S1: no drawer cabinet is left, and no base carries the preparation
+     role.
+   - **(b)** Change `PAN_DRAWER_BASE_BUILD_ID`'s value in a scratch build → green, because the check
+     reads bodies from literals (ADR 0121 decision 4).
+5. **The order (Q-DW2).**
+   - Threshold drawers **5 725**, each standing in a room that had one; 10 070 are lost.
+   - **No room with *D* ≥ 6 is short of drawers**, with *D* counted without the dishwasher.
+   - **(a)** Apply the leaf as a post-pass → red: 15 795.
+   - **(a)** Give the dishwasher a `storage:` id → red: 15 795.
+6. **(e) keeps the core role.** In all 24 160 (e) rooms, a `preparation` base on `base-panbank`
+   stands directly beyond the dishwasher, `dropped` is unchanged, and through `generateKitchen` the
+   preparation step reads `placed`.
+   - **(a)** Re-identify the 3-drawer and leave `pan-drawer` as it is → red.
+   - **Must not:** role `preparation` on a `base-dishwasher`.
+7. **The merge case.** In the 1 260 merge rooms (**1510 × 2800**), generation does not throw and the
+   dishwasher is 600 mm with no `set_width`.
+8. **The empty tie.** The tie population is 0 at all three ceilings, and the leaf has no ranking
+   branch.
+9. **Price.** An M1 conversion outside the merge rooms and the 10 070 costs exactly −76 000 minor.
+   Every other trade is derived from the price book, line by line.
+10. **The wall row.** Uppers are unchanged over M1 and (e) modules.
+11. **Visual** (390 × 844, at 600 and 700 mm depth). The rooms are **3560 × 2920**, **3600 × 2400**,
+    **2100 × 2200**, **1510 × 2800**, **900 × 3400**, **900 × 4400** and **4600 × 5200**.
+    - Checked: the dishwasher door against the corner assembly, and the 700 mm slide.
+
+### Acceptance criteria — S2
+
+- **B1** *(sweep)* **(b) places 18 200, (d) 2 600 and (c) 10 400**, each only where every earlier
+  trade placed none.
+  - (b) costs exactly one pantry column, and (d) costs exactly the bottle; neither costs the oven
+    tower.
+  - (c) costs exactly the oven tower, and only where it is the block's only column.
+  - Oven-tower rooms end at **156 886**.
+  - **(a)** Try (b) before (e) → red: the (e) count falls.
+  - **(a)** Try (c) before (d) → red: (c) takes 13 000 and oven-tower rooms fall to 154 286.
+- **B1c** *(sweep, the owner's condition on (c))* **Every (c) room ends with `base-hob-oven`, and no
+  kitchen anywhere ends with zero ovens.** Both populations are 10 400 and 245 211 respectively, and
+  both counters read 0.
+  - **(a)** Let (c) fire where the block has a pantry column outboard of the tower → red.
+  - **Must not:** a (c) room whose hob stays `base-hob-2drawer`. That kitchen has no oven.
+- **B2** *(sweep)* The hob body is unchanged in every (b) and (d) room, and no drawer cabinet is lost.
+- **B3** *(sweep)* **E1's invariant counters are all 0**, and **48 590** rooms remain without a
+  dishwasher.
+- **B4** *(witness)* **4650 × 1000 gets its dishwasher from (c)**: *fridge · sink · dishwasher ·
+  3-drawer · hob-with-oven · bottle*. The 3-drawer and the bottle stay.
+  - **(a)** Classify it as (d) → red.
+- **B5** *(visual)* The witnesses are **900 × 5000** ((b)), **900 × 4700** ((d)) and **4650 × 1000**
+  ((c)). The visual reviewer checks that the oven is under the hob and no tower stands.
+
+### Acceptance criteria — SW
+
+- **W1** Six rows, in the fixed order, pending and resolved alike. The dishwasher's pending extent
+  equals its resolved extent.
+- **W2** The dishwasher row reads `placed` exactly where the plan holds a dishwasher.
+  - **(a)** Key the row on role `"storage"` → red.
+  - **(b)** Rename the step id → green.
+- **W3** **Depozitare excludes the dishwasher.** Discriminating: the **12 865** rooms where the
+  dishwasher is the only storage-role base **[measured, final]**; witness **1500 × 2800**.
+  - **(a)** Keep the dishwasher in the aggregate → red.
+- **W4** The dropped-roles sentence never names the dishwasher. In (e) rooms, *Blat de lucru* reads
+  **inclus** (**900 × 3400**).
+- **W5** `apps/web/src/**` spells neither `"base-dishwasher"` nor the row's `600`.
+- **W6** Catalogue parity, the copy lock, the golden manifest (new fixtures only) and `ro.d.json.ts`
+  are all green. The commit records both strings as owner-approved.
+- **W7** *(visual, production build, 390 × 844, ro and ru)*
+  - Six rows fit above the footer.
+  - **The Russian row *Ниша для посудомоечной машины · 600* is checked for truncation at 390 px** in
+    both the *включено* and *нельзя включить* states, and so is the Romanian row. Truncation goes to
+    the owner, not to an agent's copy edit.
+  - Witnesses:
+    - **3600 × 2400**;
+    - **900 × 4400**, which reads *nu poate fi inclus*: dashed, `−`, no strike-through;
+    - **1500 × 2800**;
+    - **900 × 3400**.
+- **W8** Amendment M3 exists before SW commits, and ADR 0104's sweep row names the six-row departure.
+
+### Risks, ranked
+
+1. **The widest restatement surface in M7.** S0b, S1 and S2 each move 7D5's pinned censuses.
+   *Mitigation:* every restatement is listed in its commit and in Amendment M, and `pnpm check` runs
+   per commit.
+2. **The corner clearance of an M1 dishwasher.** 99.25 % of them stand beside the corner assembly.
+   *Mitigation:* C11. A clash goes to the owner.
+3. **Two mechanisms each hang on one identifier:**
+   - the `storage:` prefix, guarded by C5;
+   - (e)'s role move, guarded by C6.
+
+   Pan-drawer counts keyed on the id undercount by 24 160.
+4. **S1 without SW misleads the customer.** *Mitigation:* S1, S2 and SW go out in one push.
+5. **A late 7D5 fix moves the pre-state.** *Mitigation:* S0 re-captures; the recording is never
+   patched.
+6. **The headline will be quoted.** The honest wording: *"four kitchens in five get a dishwasher
+   beside the sink; none gives up its last drawer cabinet or its last oven for one; the oven tower
+   goes only as a last resort, and then the oven moves under the hob."*
+
+### Amendment M, the record S0 writes into ADR 0110
+
+**Superseded 2026-09-21: this section is the plan's own draft, written before code and before the
+owner's request that every 7D5b rule be recorded. The actual amendment — written the same day, ahead
+of this plan's own S0 step 4 — is [ADR 0110, Amendment M](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle).
+The draft below is kept for its provenance and is not the record of decision.**
+
+- **M1 — F12 reversed** (Q-DW3). The dishwasher is a storage-role conversion.
+  - F12's *"+320 000 per kitchen"* and its *"block table moves by one module"* are struck.
+  - Adjacency, and *omission rather than displacement*, stand.
+- **M2 — dishwasher first** (Q-DW2). This is the coordinator's reading of the option text.
+  - *D* excludes the dishwasher.
+  - D7 is narrowed for the threshold drawer.
+  - L1 and E1 are restated, with −10 070 threshold drawers, +7 010 columns and +3 060 bottles.
+- **M3 — frame 1F's row.** The owner-approved label.
+  - The six-row departure from the mockup, under ADR 0104.
+  - The storage row excludes the dishwasher.
+  - 7F4's claim is restated.
+- **M4 — F12's discrepancy of record is closed.**
+- **M5 — the *"whenever it fits" about mechanisms* relay does not bind** this wave.
+- **M6 — the owner's own kitchen, restated verbatim**, beside D7's 3700 mm record.
+- **M7 — Q-DW1 answered:** (e) + (b) + (d), then (c).
+  - (c) comes **last**, and **only where the hob then carries the oven**.
+  - The owner's words are recorded: *"when you have 3 even 2 drawert cabinets dishawasher can take
+    place of one"*, and *"dishwasher should replace a oven tower if there is no place to keep both
+    and only if hub is with oven"*.
+  - (c) was earlier declined, and is now allowed under these two conditions.
+- **M8 — D7 and F5 narrowed.**
+  - D7: at least one drawer cabinet always stays.
+  - F5: in (e) rooms, the preparation body is `base-panbank`.
+- **M9 — (e)'s model** (E6). This is the coordinator's modelling; the result is the one the owner
+  saw.
+- **M10 — precedence (e) → (b) → (d) → (c).** A coordinator ruling that the owner may overturn.
+  - Putting (c) last is the coordinator's reading of *"no place to keep both"*.
+  - The measured difference against (c) before (d): 2 600 rooms that keep their tower and give up the
+    bottle instead.
+- **M11 — the tower over the bottle, narrowed** (E7). Both owner quotes are recorded.
+  - J6 is reversed in 5 260 rooms; K3 is unchanged.
+- **M12 — at least one oven** (see *M12* above).
+  - The generation guard is recorded as a deliberate over-constraint.
+  - **The zero-oven counter is an S2 criterion (B1c).**
+  - The editor's missing rule is recorded as an observation.
+
+### What is still open
+
+**No product question is open.** Three things remain:
+
+- **For a later wave, not 7D5b:** whether the editor should refuse or warn on a kitchen with no oven
+  (M12).
+- **Carried from the 7D5 close-out:**
+  - 7D5's owed absorb-window and block-table re-measurements, and L3's re-witness, now bind S0b and
+    S2.
+  - **The 7T record gap.**
+- **For the visual gate:** the corner clearance (risk 2) and the Russian row's width (W7).
 
 ## Wave 7D8 — the plan, 2026-09-16: the run follows the wider wall
 

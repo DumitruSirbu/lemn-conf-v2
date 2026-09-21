@@ -3095,3 +3095,128 @@ The S1 (`c67b4ee`) and S2 (`17df3f5`) commits were each made after running only 
 three-adapter suite was red at both commits — **1 test at S1, 4 more at S2** — found during S3's QA and
 restated in L6 above rather than at the commit that broke them. Neither commit was pushed, so nothing
 shared was ever broken. **Future slices run the repo-wide `pnpm check` before commit.**
+
+## Amendment M — 2026-09-21: wave 7D5b, the dishwasher, and the oven principle
+
+**Written before code, on the owner's explicit request that these rulings be recorded.** The plan
+is [`docs/milestones/M7-room-and-presets.md`, *Wave 7D5b*](../milestones/M7-room-and-presets.md#wave-7d5b--the-plan-2026-09-21-measured-at-head-ec6aca9);
+all figures below are quoted from that plan's E1–E8, measured over the approved L rectangle at
+10 mm, identical at 2200 / 2600 / 3900 mm ceilings unless stated (**measured by the architect,
+scratch `tsc` build of `packages/configurator-domain/src/` at `dd7a25b`, source-identical to
+`ec6aca9`**). No code has been written for this wave; nothing here is *coordinator ruling* unless
+labelled so.
+
+**M1 — *owner ruling*, Q-DW3 ("Converted, with 1F row").** The dishwasher is a **storage-role**
+conversion of an existing door cabinet, not a core role. This **reverses this record's own Amendment F12's
+"core role"** statement (see Amendment F above). F12's *"+320 000 per kitchen"* and its
+*"block table moves by one module"* are struck.
+
+**M2 — *owner ruling*, Q-DW2 ("Dishwasher first").** The dishwasher is decided before the
+threshold (third) drawer: core → pan drawer → bottle → **dishwasher** → threshold drawer. The
+preparation cabinet, the pan drawer and the bottle stay ahead of the dishwasher — ***coordinator's
+reading*** of the option text, which named only the third drawer. *D* (the drawer count the
+threshold rule tests) excludes the dishwasher. Amendment D7's *"drawers have higher priority"* is
+**narrowed** to this order. **Measured:** threshold drawers fall from **15,795 to 5,725** once the
+dishwasher is decided first.
+
+**M3 — *owner ruling*, the 1F label, approved in session.** Frame 1F gains a dishwasher row,
+labelled **ro "Nișă mașină de spălat vase"** / **ru "Ниша для посудомоечной машины"** — the owner's
+choice, over the short form, made in session. Status reuses the existing *inclus* / *nu poate fi
+inclus* words. This **departs from the approved mockup** (five rows), so it is recorded under
+[ADR 0104](0104-a-mockup-departure-is-recorded-not-silently-corrected.md) as a sixth row. The
+storage row **excludes** the dishwasher. The visual gate must check the Russian label for
+truncation at 390 px, in both status states.
+
+**M4 — *coordinator ruling*.** This record's own Amendment F12 discrepancy — its stated
+*"+320 000 per kitchen"* and *"block table moves by one module"* — is closed by M1's reversal; both
+sentences are struck rather than silently edited.
+
+**M5 — *coordinator ruling*.** The *"whenever it fits" about mechanisms* relay does not bind this
+wave.
+
+**M6 — *owner ruling*, restated verbatim.** *"in my particular kitchen 3.75 m one line…"* — the
+owner's own kitchen, cited by the plan beside Amendment D7's 3700 mm record. See the plan's E6 for
+the full witness: the owner's nearest room, **4650 × 1000**, reaches its dishwasher only through
+M7's clause (c), the last resort, with the final kitchen *fridge · sink · dishwasher · 3-drawer ·
+hob-with-oven · bottle*.
+
+**M7 — *owner ruling*, Q-DW1.** Where no door cabinet stands free beside the sink, the dishwasher
+may take, in order:
+
+- **(e)** a drawer cabinet — only where **two or more** drawer cabinets exist. Owner, verbatim:
+  *"when you have 3 even 2 drawert cabinets dishawasher can take place of one"*;
+- **(b)** a pantry column;
+- **(d)** the bottle cabinet;
+- **(c)** the oven tower — **only as a last resort, and only where the hob then carries the oven**
+  (`base-hob-oven`). Owner, verbatim: *"dishwasher should replace a oven tower if there is no place
+  to keep both and only if hub is with oven."*
+
+(c) was **first excluded** by this record's Amendment E (no second oven without the tower), and is
+now **allowed** under these two conditions.
+
+**M8 — *owner ruling* + *coordinator model*.** The drawer that goes under (e) is **"the one beside
+the sink"** — the owner's own words, chosen from the preview *sink · DISHWASHER · pan-drawer ·
+hob*. It is modelled **without a core-role loss**: the preparation role moves one module toward the
+hob, onto the pan-drawer module's body (`base-panbank`), and the dishwasher takes the 3-drawer's
+former module and its `base-dishwasher` body. This record's own Amendment D7 ("at least one drawer
+cabinet always stays") and Amendment F5 (the preparation body) are **narrowed** accordingly: D7 to
+"at least one drawer cabinet always stays after (e)", F5 to "in (e) rooms, the preparation body is
+`base-panbank`".
+
+**M9 — *coordinator model*, owner-seen.** (e)'s identity-only re-modelling (M8) is the
+coordinator's construction; the owner saw and accepted its result (the preview), not its
+mechanism. **Eligible rooms: 24,160** — 24,100 with exactly two drawer cabinets (preparation +
+pan drawer) and 60 with three (plus a post-hob drawer slot); none with four.
+
+**M10 — *coordinator ruling, owner may overturn***. Precedence among M7's trades: **(e) → (b) →
+(d) → (c)**. Reason: keep the tall cabinets standing wherever a worktop trade (a pantry column or
+the bottle) exists to take the dishwasher instead; (c) is placed last because it is the coordinator's
+reading of the owner's *"no place to keep both"* — the tower goes only when nothing else can hold
+the dishwasher. **Measured:** with (c) tried before (d), the total dishwasher count is unchanged
+(196,621) but **2,600 more oven towers are lost** — 154,286 oven-tower rooms instead of 156,886.
+
+**M11 — *owner ruling*, narrowed by the owner the same session.** Where standing the bottle cabinet
+would remove the oven tower, leaving a bare gap the tower could have filled (e.g. **560 mm** in the
+reference room **3560 × 2920**), the rule keeps the tower and drops the bottle instead. **Narrowed
+by the owner:** this applies only where the tower is the kitchen's only oven **and** no pan drawer
+depends on it. Owner, verbatim: *"if you have hub + oven you rarely need second oven, so oven tower
+should b replaced, otherwise oven is a must in any kitche."* **Measured: 5,260 rooms change.** The
+reference room ends *hob-2drawer · oven tower · 260 mm bare*; the 11,240 rooms where the bottle also
+carries a pan drawer are unchanged. This **reverses** this record's own Amendment J6 (the reference
+room's lost tower) in those 5,260 rooms, and **narrows** Amendment K3 (the after-the-bottle
+fallback) only as far as this rule states — K3 itself is otherwise untouched.
+
+**M12 — *owner principle*.** *"only one oven is not correct, at least one oven is correct, a
+kitchen can have multiple ovens, but at least one is a must."*
+
+- Generation's `assertExactlyOneOven` (`packages/configurator-domain/src/generation/generate-kitchen.ts:646-658`,
+  called at `:383`) is **stricter** than this principle: it throws unless a generated kitchen
+  carries **exactly one** oven. This is recorded as a **deliberate over-constraint**, kept because
+  generation always composes exactly one oven by construction (this record's Amendment E4); the
+  guard's real job is to catch zero ovens, a programming error.
+- The editor (`validate-design.ts`, `src/commands/`, `src/queries/`) has **no oven-count rule of
+  any kind** [source-verified: those paths return nothing to a search for "oven"], so a customer
+  can reach a kitchen with **zero** ovens through the editor, which the owner's principle forbids.
+  **This is out of scope for wave 7D5b**; it is recorded in `docs/BACKLOG.md`.
+
+**Measured headline, final state after the full wave** (*measured by the architect, approved L,
+10 mm, identical at 2200 / 2600 / 3900 mm*):
+
+| | Final |
+| --- | ---: |
+| kitchens with a dishwasher | 196,621 (80.2 %) |
+| — M1 (converted door cabinet) | 141,261 |
+| — (e) | 24,160 |
+| — (b) | 18,200 |
+| — (d) | 2,600 |
+| — (c) | 10,400 |
+| kitchens without a dishwasher | 48,590 |
+| oven-tower rooms | 156,886 |
+| bottles | 173,691 |
+| `base-panbank` bodies (pan drawers) | 92,446 |
+| threshold drawers | 5,725 |
+
+Invariant counters, all measured **0**: two dishwashers in one room, a kitchen with zero ovens, a
+room whose oven count is not one, a room that loses its oven tower other than through (c), a (c)
+room whose hob is not `base-hob-oven`, a missing preparation role not reported in `dropped`, a
+remainder of 600 mm or more, *D* ≥ 6 short of drawers, a swap that leaves no drawer cabinet.
