@@ -255,6 +255,36 @@ function namedMeshAlongWidthM(
   return placement.wall === "A" ? size.x : size.z;
 }
 
+const TOWER_ROOM = {
+  shape: "L",
+  widthMm: 6300,
+  depthMm: 4700,
+  heightMm: 2600,
+} satisfies Design["room"];
+
+type BoughtWidthCheck = readonly [
+  buildId: string,
+  meshName: string,
+  expectedM: number,
+];
+
+function expectBoughtWidths(
+  rendered: RenderedDesign,
+  checks: readonly BoughtWidthCheck[],
+): void {
+  for (const [buildId, meshName, expectedM] of checks) {
+    const renderedBody = placementBodies(rendered).find(
+      ({ placement }) => placement.body.buildId === buildId,
+    );
+    expect(renderedBody, `${buildId} is present`).toBeDefined();
+    if (!renderedBody) continue;
+    expect(
+      namedMeshAlongWidthM(renderedBody.body, renderedBody.placement, meshName),
+      `${buildId} ${meshName}`,
+    ).toBeCloseTo(expectedM, Math.abs(Math.log10(DIMENSION_EPSILON_M)));
+  }
+}
+
 describe("7D2 generated kitchens against the real Three adapter", () => {
   it.each(ROOMS)(
     "has zero findings, exact upper relationships, wall seats, and no shell intersections in %o",
@@ -296,31 +326,29 @@ describe("7D2 generated kitchens against the real Three adapter", () => {
   it("keeps the real fridge, sink, hob, oven, and hood at their bought widths", () => {
     const rendered = render(generated(KITCHEN_L_DESIGN.room));
     try {
-      // The reference room now plans a block at wall A's free end, so its oven stands in the tower
-      // and its hob carries drawers (ADR 0110 Amendment E4). Both bodies are still measured at the
-      // widths they are bought at: the substitution changes which carcass holds the oven, never a
-      // width.
-      const checks = [
+      // ADR 0110 J6 (7D5 S1): the bottle cabinet takes the reference room's block module, so its hob
+      // is `base-hob-oven` again and the oven stands under the cooktop, not in a tower. Was
+      // `base-hob-2drawer`/`cooktop_glass` and `tall-oven-tower`/`oven_front` (Amendment E4); the
+      // tower's bought width moved to the room below that still plans one.
+      expectBoughtWidths(rendered, [
         ["fridge-free", "fridge_body", 0.7],
         ["base-sink", "bowl_floor", 0.56],
-        ["base-hob-2drawer", "cooktop_glass", 0.59],
-        ["tall-oven-tower", "oven_front", 0.596],
+        ["base-hob-oven", "cooktop_glass", 0.59],
+        ["base-hob-oven", "oven_front", 0.596],
         ["hood", "hood_canopy", 0.6],
-      ] as const;
-      for (const [buildId, meshName, expectedM] of checks) {
-        const renderedBody = placementBodies(rendered).find(
-          ({ placement }) => placement.body.buildId === buildId,
-        );
-        expect(renderedBody, `${buildId} is present`).toBeDefined();
-        if (!renderedBody) continue;
-        expect(
-          namedMeshAlongWidthM(
-            renderedBody.body,
-            renderedBody.placement,
-            meshName,
-          ),
-        ).toBeCloseTo(expectedM, Math.abs(Math.log10(DIMENSION_EPSILON_M)));
-      }
+      ]);
+    } finally {
+      disposeKit(rendered.kit, rendered.room);
+    }
+  });
+
+  it("keeps the tall oven tower's oven at its bought width where the plan still stands a tower", () => {
+    // ADR 0110 J6 (7D5 S1): moved here from the reference room, which lost its tower to the bottle.
+    // 6300 x 4700 is past the approved 6000 mm on purpose (M7 7A3), a storable room whose tall-end
+    // block keeps `tall-oven-tower`.
+    const rendered = render(generated(TOWER_ROOM));
+    try {
+      expectBoughtWidths(rendered, [["tall-oven-tower", "oven_front", 0.596]]);
     } finally {
       disposeKit(rendered.kit, rendered.room);
     }

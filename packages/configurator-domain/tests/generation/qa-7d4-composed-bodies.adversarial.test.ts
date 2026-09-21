@@ -112,6 +112,25 @@ const COMPOSED_STORAGE_BODIES = [
 const PAN_DRAWER_PLANNED_ID = "pan-drawer";
 const PAN_DRAWER_BODY = "base-panbank";
 
+/** 7D5 S3 / Q-H5: the threshold drawer's planned id, a literal for the same reason. */
+const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
+
+/** E1's threshold as the owner stated it (ADR 0110 wave 7D5, Q-H5): *D*, the plain cabinets —
+ *  composed slots, the pan drawer and the threshold drawer; never the preparation cabinet, the bottle
+ *  or a column — reaches six, and fewer than two of them are drawers. */
+const LARGE_RUN_PLAIN_CABINET_COUNT = 6;
+const LARGE_RUN_DRAWER_COUNT = 2;
+
+/** The bodies that count as drawers among *D*. */
+const DRAWER_CABINET_BODIES: ReadonlySet<string> = new Set([
+  THREE_DRAWER_BASE_BUILD_ID,
+  PAN_DRAWER_BODY,
+]);
+
+/** The threshold drawer is sampled in 6.4 % of the approved grid's placed rooms (15 795 of 245 211);
+ *  measured at `SWEEP_SEED` over the criteria 6/7 sweep's two draws: 74 rooms. */
+const THRESHOLD_DRAWER_FLOOR = 30;
+
 interface GeneratedKitchen {
   readonly design: Design;
   readonly log: GenerationLog;
@@ -212,20 +231,58 @@ function isComposedSlot(module: ComposedModule): boolean {
   return isComposedStorageSlot({ id: module.plannedId });
 }
 
+/**
+ * 7D5 S3 / Q-H5: the one threshold drawer the owner ruled, where the ruling stands — exactly one
+ * module with that planned id, a 600 mm storage module, in a kitchen whose *other* plain cabinets
+ * already reach E1's six with fewer than two drawers among them. Any other third drawer body, a
+ * second threshold drawer, or one standing where *D* was five, is not ruled and is not returned.
+ */
+function ruledThresholdDrawer(
+  modules: readonly ComposedModule[],
+): ComposedModule | undefined {
+  const thresholdDrawers = modules.filter(
+    (module) => module.plannedId === THRESHOLD_DRAWER_PLANNED_ID,
+  );
+  const [thresholdDrawer] = thresholdDrawers;
+  if (thresholdDrawers.length !== 1 || thresholdDrawer === undefined) {
+    return undefined;
+  }
+  const otherPlainCabinets = modules.filter(
+    (module) =>
+      isComposedSlot(module) || module.plannedId === PAN_DRAWER_PLANNED_ID,
+  );
+  const drawersAmongThem = otherPlainCabinets.filter((module) =>
+    DRAWER_CABINET_BODIES.has(module.buildId),
+  );
+  const isRuled =
+    thresholdDrawer.role === "storage" &&
+    thresholdDrawer.plannedWidthMm === STORAGE_MODULE_WIDTH_MM &&
+    otherPlainCabinets.length >= LARGE_RUN_PLAIN_CABINET_COUNT &&
+    drawersAmongThem.length < LARGE_RUN_DRAWER_COUNT;
+  return isRuled ? thresholdDrawer : undefined;
+}
+
 /** Criteria 6 and 7 at one room: the drawer body stands in the preparation module and the first
- *  post-hob slot and nowhere else. Answers which arm the room exercised, or nothing if refused. */
-function drawerBodiesStandWhereRuled(
-  room: DesignRoom,
-): "withDrawerSlot" | "withoutDrawerSlot" | undefined {
+ *  post-hob slot and nowhere else — and, since 7D5 S3 / Q-H5, in the ruled threshold drawer. Answers
+ *  which arm the room exercised and whether it stood that drawer, or nothing if refused. */
+function drawerBodiesStandWhereRuled(room: DesignRoom):
+  | {
+      readonly arm: "withDrawerSlot" | "withoutDrawerSlot";
+      readonly standsARuledThresholdDrawer: boolean;
+    }
+  | undefined {
   const kitchen = generated(room);
   if (!kitchen) return undefined;
   const modules = composedModules(kitchen);
   const postHob = composedSlotsAfterTheHob(modules, room)[0];
+  const thresholdDrawer = ruledThresholdDrawer(modules);
+  // 7D5 S3 / Q-H5. Was: the preparation module and the first post-hob slot, and nothing else.
   const expected = modules
     .filter(
       (module) =>
         module.role === "preparation" ||
-        module.plannedId === postHob?.plannedId,
+        module.plannedId === postHob?.plannedId ||
+        module === thresholdDrawer,
     )
     .map((module) => module.plannedId);
 
@@ -235,7 +292,10 @@ function drawerBodiesStandWhereRuled(
       .map((module) => module.plannedId),
     `${String(room.widthMm)}x${String(room.depthMm)}`,
   ).toEqual(expected);
-  return postHob ? "withDrawerSlot" : "withoutDrawerSlot";
+  return {
+    arm: postHob ? "withDrawerSlot" : "withoutDrawerSlot",
+    standsARuledThresholdDrawer: thresholdDrawer !== undefined,
+  };
 }
 
 function approvedWallBMaxMm(): number {
@@ -258,9 +318,12 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
     // 0123)**: the policy-wide draw reaches it in 6 of 1 000 runs now, and the floor stays at the
     // hundred rather than falling to what that draw happens to find. See `CONSTRUCTED_WALL_A_RUNS`.
     const arms = { withDrawerSlot: 0, withoutDrawerSlot: 0 };
+    let thresholdDrawersRuled = 0;
     const countArm = (room: DesignRoom) => {
-      const arm = drawerBodiesStandWhereRuled(room);
-      if (arm) arms[arm] += 1;
+      const outcome = drawerBodiesStandWhereRuled(room);
+      if (!outcome) return;
+      arms[outcome.arm] += 1;
+      if (outcome.standsARuledThresholdDrawer) thresholdDrawersRuled += 1;
     };
     fc.assert(fc.property(approvedLRoom(), countArm), {
       numRuns: SWEEP_RUNS,
@@ -273,6 +336,10 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
 
     expect(arms.withDrawerSlot).toBeGreaterThanOrEqual(ARM_FLOOR);
     expect(arms.withoutDrawerSlot).toBeGreaterThanOrEqual(ARM_FLOOR);
+    // 7D5 S3 / Q-H5: the third drawer body's one ruled arm, reached rather than assumed.
+    expect(thresholdDrawersRuled).toBeGreaterThanOrEqual(
+      THRESHOLD_DRAWER_FLOOR,
+    );
   });
 
   it("gives every other composed slot the door body, asserted along each wall", () => {

@@ -445,6 +445,233 @@ function wallRowWithThePanDrawerUndone(
  *  wall, then along. */
 const WALL_ROW_ALONG_FIELD = 5;
 
+/** 7D5 S3 / Q-H5: the threshold drawer's and the bottle's planned ids, spelled as literals so a wrong
+ *  constant and a wrong composer cannot agree. */
+const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
+const BOTTLE_PLANNED_ID = "bottle";
+const BOTTLE_WIDTH_MM = 300;
+
+/** The column a threshold drawer's price is paid in: the block's outermost, which beyond the tower is
+ *  always a pantry (ADR 0110 E5). */
+const RESTORED_COLUMN_BODY = "tall-pantry";
+
+/** ADR 0110 E: a block is at most three columns. Q-H5's two prices split on it exactly — over the
+ *  approved 10 mm grid the bottle gave way in the 6 195 threshold-drawer rooms whose block is whole,
+ *  and a column (3 → 2) in the 9 600 whose block is not (owner's measurement, 2026-09-21). */
+const WHOLE_BLOCK_COLUMNS = 3;
+
+/** What undoing Q-H5 found in a plan, and the plan 7D5 S2 composed before it. */
+type ThresholdDrawerUndo =
+  | { readonly kind: "none"; readonly plan: KitchenCompositionPlan }
+  | {
+      readonly kind: "bottleGaveWay" | "columnGaveWay";
+      readonly plan: KitchenCompositionPlan;
+    }
+  | { readonly kind: "unruled"; readonly reason: string };
+
+/**
+ * **7D5 S3 / Q-H5 (owner ruling 2026-09-21), criteria 2 and 21 restated.** Where the plain cabinets
+ * reach six with fewer than two drawers, one 600 mm `threshold-drawer` stands after the hob — in the
+ * bottle's place where that costs no tall column, and otherwise after the bottle at the cost of the
+ * block's outermost column. This undoes exactly that and nothing else, returning the plan S2 composed:
+ * the drawer removed, and either the 300 mm bottle stood back in its opening with the block drawn
+ * 300 mm back toward it, or the block drawn 600 mm back with its outermost column restored. What that
+ * plan then goes through is S2's own normalisation, unchanged — so a room S2 would have hashed to
+ * 7D3's recording is still hashed, byte for byte.
+ *
+ * A threshold drawer the ruling does not account for — a second one, one not standing immediately
+ * after the hob or the bottle, one not followed directly by the block, or one whose price cannot be
+ * restored as one column — is answered `unruled` and reported, never undone.
+ */
+function withTheThresholdDrawerUndone(
+  plan: KitchenCompositionPlan,
+): ThresholdDrawerUndo {
+  const thresholdDrawers = plan.bases.filter(
+    (base) => base.id === THRESHOLD_DRAWER_PLANNED_ID,
+  );
+  const [thresholdDrawer] = thresholdDrawers;
+  if (thresholdDrawer === undefined) return { kind: "none", plan };
+  const unruled = whyTheThresholdDrawerIsUnruled(plan, thresholdDrawers);
+  if (unruled !== undefined) return { kind: "unruled", reason: unruled };
+
+  const columns = blockColumnsOn(plan, thresholdDrawer.wall);
+  const standsABottle = plan.bases.some(
+    (base) => base.id === BOTTLE_PLANNED_ID,
+  );
+  if (!standsABottle && columns.length === WHOLE_BLOCK_COLUMNS) {
+    return {
+      kind: "bottleGaveWay",
+      plan: withTheBottleRestored(plan, thresholdDrawer),
+    };
+  }
+  if (columns.length === 0 || columns.length + 1 > WHOLE_BLOCK_COLUMNS) {
+    return {
+      kind: "unruled",
+      reason: `threshold drawer beside a ${String(columns.length)}-column block cannot have cost one column`,
+    };
+  }
+  return {
+    kind: "columnGaveWay",
+    plan: withTheOutermostColumnRestored(plan, thresholdDrawer),
+  };
+}
+
+/** The ruling's shape, checked before anything is undone: one drawer, `base-3drawer`, one module wide,
+ *  read immediately after the hob or the bottle and immediately before the block, if any. */
+function whyTheThresholdDrawerIsUnruled(
+  plan: KitchenCompositionPlan,
+  thresholdDrawers: readonly PlannedGenerationBase[],
+): string | undefined {
+  const [thresholdDrawer] = thresholdDrawers;
+  if (thresholdDrawers.length !== 1 || thresholdDrawer === undefined) {
+    return `${String(thresholdDrawers.length)} threshold drawers`;
+  }
+  if (
+    thresholdDrawer.role !== "storage" ||
+    thresholdDrawer.buildId !== THREE_DRAWER_BASE_BUILD_ID ||
+    thresholdDrawer.widthMm !== DECLARED_COLUMNS.columnWidthMm
+  ) {
+    return `threshold drawer identity ${canonicalModule(thresholdDrawer)}`;
+  }
+  const readBefore = plan.bases.find(
+    (base) =>
+      base.wall === thresholdDrawer.wall &&
+      base.endMm === thresholdDrawer.startMm,
+  );
+  if (readBefore?.role !== "hob" && readBefore?.id !== BOTTLE_PLANNED_ID) {
+    return `threshold drawer read after ${readBefore?.id ?? "nothing"}`;
+  }
+  const firstColumn = blockColumnsOn(plan, thresholdDrawer.wall)[0];
+  if (firstColumn && firstColumn.startMm !== thresholdDrawer.endMm) {
+    return "threshold drawer not read immediately before the block";
+  }
+  return undefined;
+}
+
+/** The block's columns on one wall, corner outward: the storage-role modules the catalogue declares
+ *  in its `column` band, which excludes the fridge by role. */
+function blockColumnsOn(
+  plan: KitchenCompositionPlan,
+  wall: PlannedGenerationBase["wall"],
+): readonly PlannedGenerationBase[] {
+  return plan.bases
+    .filter(
+      (base) =>
+        base.wall === wall &&
+        base.role === "storage" &&
+        CATALOG.get(base.buildId)?.band === "column",
+    )
+    .sort((left, right) => left.startMm - right.startMm);
+}
+
+/** Q-H5's first price undone: the bottle back in the drawer's opening, and the block drawn back by the
+ *  difference with its outermost column at one module. The slack that frees is 300 mm or more, past
+ *  E6.2's 200 mm absorb window, so it is the wall's remainder. */
+function withTheBottleRestored(
+  plan: KitchenCompositionPlan,
+  thresholdDrawer: PlannedGenerationBase,
+): KitchenCompositionPlan {
+  const drawnBackMm = thresholdDrawer.widthMm - BOTTLE_WIDTH_MM;
+  const columns = blockColumnsOn(plan, thresholdDrawer.wall);
+  const outermost = columns.at(-1);
+  const absorbedMm =
+    outermost === undefined
+      ? 0
+      : outermost.widthMm - DECLARED_COLUMNS.columnWidthMm;
+  const bottle: PlannedGenerationBase = {
+    id: BOTTLE_PLANNED_ID,
+    role: "storage",
+    buildId: BOTTLE_CARGO_BUILD_ID,
+    wall: thresholdDrawer.wall,
+    startMm: thresholdDrawer.startMm,
+    endMm: thresholdDrawer.startMm + BOTTLE_WIDTH_MM,
+    widthMm: BOTTLE_WIDTH_MM,
+  };
+  const bases = plan.bases.map((base) => {
+    if (base === thresholdDrawer) return bottle;
+    if (!columns.includes(base)) return base;
+    const startMm = base.startMm - drawnBackMm;
+    const widthMm =
+      base === outermost ? DECLARED_COLUMNS.columnWidthMm : base.widthMm;
+    return { ...base, startMm, endMm: startMm + widthMm, widthMm };
+  });
+  return withFloorWidthsRecomputed(
+    {
+      ...plan,
+      bases,
+      remainderMm: {
+        ...plan.remainderMm,
+        [thresholdDrawer.wall]:
+          plan.remainderMm[thresholdDrawer.wall] + absorbedMm + drawnBackMm,
+      },
+    },
+    thresholdDrawer.wall,
+  );
+}
+
+/** Q-H5's second price undone: the block drawn back by one module into the drawer's opening, and the
+ *  column it cost restored at its outer end — carrying the outermost column's width, which E6.2 lets
+ *  absorb the run-end remainder, so the remainder itself does not move. */
+function withTheOutermostColumnRestored(
+  plan: KitchenCompositionPlan,
+  thresholdDrawer: PlannedGenerationBase,
+): KitchenCompositionPlan {
+  const columns = blockColumnsOn(plan, thresholdDrawer.wall);
+  const outermost = columns.at(-1);
+  const bases = plan.bases.flatMap((base) => {
+    if (base === thresholdDrawer) return [];
+    if (!columns.includes(base)) return [base];
+    const startMm = base.startMm - thresholdDrawer.widthMm;
+    if (base !== outermost) {
+      return [
+        { ...base, startMm, endMm: base.endMm - thresholdDrawer.widthMm },
+      ];
+    }
+    const drawnBack = {
+      ...base,
+      startMm,
+      endMm: startMm + DECLARED_COLUMNS.columnWidthMm,
+      widthMm: DECLARED_COLUMNS.columnWidthMm,
+    };
+    const restored: PlannedGenerationBase = {
+      id: `column:${thresholdDrawer.wall}:${String(columns.length)}`,
+      role: "storage",
+      buildId: RESTORED_COLUMN_BODY,
+      wall: thresholdDrawer.wall,
+      startMm: drawnBack.endMm,
+      endMm: drawnBack.endMm + base.widthMm,
+      widthMm: base.widthMm,
+    };
+    return [drawnBack, restored];
+  });
+  return withFloorWidthsRecomputed({ ...plan, bases }, thresholdDrawer.wall);
+}
+
+function withFloorWidthsRecomputed(
+  plan: KitchenCompositionPlan,
+  wall: PlannedGenerationBase["wall"],
+): KitchenCompositionPlan {
+  const floorWidths = plan.bases
+    .filter((base) => base.wall === wall)
+    .sort((left, right) => left.startMm - right.startMm)
+    .map((base) => base.widthMm);
+  return {
+    ...plan,
+    floorWidthsMm: { ...plan.floorWidthsMm, [wall]: floorWidths },
+  };
+}
+
+/** 7D5 S3 / Q-H5, criterion 21: where a column paid for the threshold drawer, the wall row gained
+ *  exactly the drawer's own upper and nothing else — the column it cost reached the wall row and
+ *  stood none. This removes that one step, so the result hashing to 7D3's recorded row (through S2's
+ *  pan-drawer swap where one stands) proves every other character unmoved. */
+function wallRowWithTheThresholdDrawerUndone(row: string): string {
+  return row
+    .split("|")
+    .filter((step) => !step.startsWith(`upper:${THRESHOLD_DRAWER_PLANNED_ID}~`))
+    .join("|");
+}
+
 describe("criterion 2 — this wave moves a body's identity and nothing else", () => {
   it("composes 7D3's plan to the millimetre wherever 7D8 did not re-key the run", () => {
     // **This is the comparison working, not the recording going stale, and the split is the whole
@@ -465,13 +692,33 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     let bottleNormalized = 0;
     let bottleWithDrawer = 0;
     const panDrawerUndone = { outsideTheReKey: 0, moved: 0 };
+    const thresholdDrawerUndone = {
+      bottleGaveWay: 0,
+      columnGaveWayBesideTheBottle: 0,
+      columnGaveWayWithoutIt: 0,
+    };
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
-        const plan = planFor(room);
-        if (plan.minimumMet) placed += 1;
+        const composedPlan = planFor(room);
+        if (composedPlan.minimumMet) placed += 1;
+        // 7D5 S3 / Q-H5: the threshold drawer is undone first, returning S2's plan — which the rest of
+        // this property then normalises exactly as it did before S3. See `withTheThresholdDrawerUndone`.
+        const undone = withTheThresholdDrawerUndone(composedPlan);
+        if (undone.kind === "unruled") {
+          unexpected.push(`${roomKey(room)} ${undone.reason}`);
+          return;
+        }
+        const plan = undone.plan;
         const hasBottle = plan.bases.some(
           (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
         );
+        if (undone.kind === "bottleGaveWay") {
+          thresholdDrawerUndone.bottleGaveWay += 1;
+        } else if (undone.kind === "columnGaveWay" && hasBottle) {
+          thresholdDrawerUndone.columnGaveWayBesideTheBottle += 1;
+        } else if (undone.kind === "columnGaveWay") {
+          thresholdDrawerUndone.columnGaveWayWithoutIt += 1;
+        }
         const movedByTheReKey = reKeyedByWave7D8(room, plan);
         if (movedByTheReKey) arms.moved += 1;
         else if (isWallBWider(room)) arms.wallBWiderButRefused += 1;
@@ -534,6 +781,15 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // reached — 12 of this draw outside the re-key, whose undone plan must hash to 7D3's, and 7 inside
     // it, whose undone plan must still differ. Exact, because the draw is the recording's.
     expect(panDrawerUndone).toEqual({ outsideTheReKey: 12, moved: 7 });
+    // 7D5 S3 / Q-H5: the eight threshold-drawer rooms of this draw, all outside the re-key. With the
+    // drawer undone the S2 split above is exactly what it was — the two where a column gave way and
+    // no bottle stands are among the 12, and now hash to 7D3's recording through the pan-drawer undo;
+    // the six others stand a bottle again and take the bottle branch, as they did at S2.
+    expect(thresholdDrawerUndone).toEqual({
+      bottleGaveWay: 4,
+      columnGaveWayBesideTheBottle: 2,
+      columnGaveWayWithoutIt: 2,
+    });
   });
 
   it.each(UNMOVED_WITNESS_ROOMS)(
@@ -748,6 +1004,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     const unexpected: string[] = [];
     let withUppers = 0;
     let panDrawerRowsUndone = 0;
+    let thresholdDrawerRowsUndone = 0;
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
         const kitchen = generated(room);
@@ -758,7 +1015,14 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
             unexpected.push(`${roomKey(room)} refused`);
           return;
         }
-        const hasBottle = kitchen.log.plan.bases.some(
+        // 7D5 S3 / Q-H5: S2's plan first, as in criterion 2's sweep above.
+        const undone = withTheThresholdDrawerUndone(kitchen.log.plan);
+        if (undone.kind === "unruled") {
+          unexpected.push(`${roomKey(room)} ${undone.reason}`);
+          return;
+        }
+        const planBeforeTheThresholdDrawer = undone.plan;
+        const hasBottle = planBeforeTheThresholdDrawer.bases.some(
           (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
         );
         if (wallRowSteps(kitchen).length > 0) withUppers += 1;
@@ -780,14 +1044,21 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
         } else {
           // 7D5 S2 / Q-H6b / Q-H6c: where the pan drawer stands without the bottle the wall row moved
           // with the bases beneath it, and only so — see `wallRowWithThePanDrawerUndone`.
-          const row = canonicalWallRow(kitchen);
-          const standsAPanDrawer = hasPanDrawer(kitchen.log.plan);
+          // 7D5 S3 / Q-H5: only a column-paid threshold drawer reaches this branch — where the bottle
+          // gave way it stands again above — and its one upper is removed before S2's swap.
+          const standsAThresholdDrawer = undone.kind === "columnGaveWay";
+          if (standsAThresholdDrawer) thresholdDrawerRowsUndone += 1;
+          const row = standsAThresholdDrawer
+            ? wallRowWithTheThresholdDrawerUndone(canonicalWallRow(kitchen))
+            : canonicalWallRow(kitchen);
+          const standsAPanDrawer = hasPanDrawer(planBeforeTheThresholdDrawer);
           if (standsAPanDrawer) panDrawerRowsUndone += 1;
           const composed = digestOf(
             standsAPanDrawer
               ? wallRowWithThePanDrawerUndone(
                   row,
-                  withThePanDrawerUndone(kitchen.log.plan).restoredSlotId,
+                  withThePanDrawerUndone(planBeforeTheThresholdDrawer)
+                    .restoredSlotId,
                 )
               : row,
           );
@@ -807,6 +1078,8 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     expect(arms).toEqual({ outsideTheReKey: 127, moved: 82, refused: 31 });
     // 7D5 S2: the same 12 + 7 pan-drawer-without-bottle rooms as criterion 2's sweep above.
     expect(panDrawerRowsUndone).toBe(19);
+    // 7D5 S3 / Q-H5: criterion 2's two column-paid, bottle-less threshold-drawer rooms.
+    expect(thresholdDrawerRowsUndone).toBe(2);
   });
 
   it("stands a hood over every hob and nothing over a body that reaches the wall row", () => {

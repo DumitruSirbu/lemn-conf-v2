@@ -2,7 +2,9 @@
 // pre-S1 core-selection answer from run capacities and the public priority list; it does not ask the
 // S1 implementation whether omitting the cargo was necessary. Since S2 the bottle also gives way to
 // the pan drawer (ADR 0110 Q-H6b) and, once the pan drawer stands, to a tall column (Q-H6c); both are
-// derived here from the same capacities and 7D3's own block rule.
+// derived here from the same capacities and 7D3's own block rule. Since S3 (ADR 0110 Q-H5, owner
+// ruling 2026-09-21) the bottle also gives way to the threshold drawer, but only where the drawer in
+// its place costs the kitchen no tall column; that, too, is derived from capacities rather than asked.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -34,6 +36,7 @@ const GRID_STEP_MM = 10;
 const BOTTLE_WIDTH_MM = 300;
 const PAN_DRAWER_WIDTH_MM = 600;
 const STORAGE_MODULE_MM = 600;
+const THRESHOLD_DRAWER_WIDTH_MM = 600;
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
@@ -188,6 +191,68 @@ function bottleGaveWayTo(
   return columns(both) < columns(panDrawer) ? "a tall column" : undefined;
 }
 
+/** 7D5 S3 / Q-H5: does the threshold drawer stand in the bottle's place, and would that place have
+ *  cost the kitchen no tall column? The kitchen the bottle stood in is the kept core with the pan
+ *  drawer (where one stands) before the hob and the bottle after it, on the pre-S1 cut; the drawer
+ *  in its place is that kitchen with the 300 mm bottle swapped for a 600 mm module. */
+function thresholdDrawerTookTheBottlesPlace(
+  room: DesignRoom,
+  context: {
+    readonly core: { readonly kept?: CoreAttempt; readonly cut?: number };
+    readonly plan: KitchenCompositionPlan;
+  },
+): boolean {
+  const { kept, cut } = context.core;
+  if (kept === undefined || cut === undefined) return false;
+  const reading = inReadingOrder(context.plan);
+  const hobAt = reading.findIndex((base) => base.role === "hob");
+  if (reading[hobAt + 1]?.id !== "threshold-drawer") return false;
+  const capacities = capacitiesByReadingRole(room);
+  const isCoreWhole = kept.length === GENERATION_PRIORITIES.length;
+  const columns = (run: DerivedRun) =>
+    tallColumnsOf(run, { room, capacities, isCoreWhole });
+  const hasPanDrawer = context.plan.bases.some(
+    (base) => base.id === "pan-drawer",
+  );
+  const keptCore: DerivedRun = {
+    widthsMm: kept.map((item) => item.widthMm),
+    cut,
+    hobAt: kept.findIndex((item) => item.role === "hob"),
+  };
+  const beforeTheLast = hasPanDrawer
+    ? withPanDrawerBeforeTheHob(keptCore)
+    : keptCore;
+  const withTheBottle = appendedLast(beforeTheLast, BOTTLE_WIDTH_MM);
+  const inItsPlace = appendedLast(beforeTheLast, THRESHOLD_DRAWER_WIDTH_MM);
+  return (
+    fitsInPlace(withTheBottle, capacities) &&
+    fitsInPlace(inItsPlace, capacities) &&
+    columns(inItsPlace) >= columns(withTheBottle)
+  );
+}
+
+/** J1: immediately before the hob, on the hob's side of the cut. */
+function withPanDrawerBeforeTheHob(run: DerivedRun): DerivedRun {
+  return {
+    widthsMm: [
+      ...run.widthsMm.slice(0, run.hobAt),
+      PAN_DRAWER_WIDTH_MM,
+      ...run.widthsMm.slice(run.hobAt),
+    ],
+    cut: run.hobAt < run.cut ? run.cut + 1 : run.cut,
+    hobAt: run.hobAt + 1,
+  };
+}
+
+/** H1 and J3: read last, on the prefix wall only where the whole run already is. */
+function appendedLast(run: DerivedRun, widthMm: number): DerivedRun {
+  return {
+    widthsMm: [...run.widthsMm, widthMm],
+    cut: run.cut === run.widthsMm.length ? run.cut + 1 : run.cut,
+    hobAt: run.hobAt,
+  };
+}
+
 interface DerivedRun {
   readonly widthsMm: readonly number[];
   readonly cut: number;
@@ -320,6 +385,7 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       omittedForReCut: 0,
       omittedForThePanDrawer: 0,
       omittedForATallColumn: 0,
+      omittedForTheThresholdDrawer: 0,
       wrongCore: [] as string[],
       wrongOrder: [] as string[],
       coreOffItsWall: [] as string[],
@@ -402,7 +468,13 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           const hasPanDrawer = plan.bases.some(
             (base) => base.id === "pan-drawer",
           );
-          if (reason === undefined || !hasPanDrawer) {
+          if (
+            reason === undefined &&
+            thresholdDrawerTookTheBottlesPlace(room, { core: expected, plan })
+          ) {
+            // 7D5 S3 / Q-H5: the bottle gave way because the drawer in its place costs no column.
+            census.omittedForTheThresholdDrawer += 1;
+          } else if (reason === undefined || !hasPanDrawer) {
             census.wrongCore.push(
               `${key}: bottle omitted although the same core fits`,
             );
@@ -416,18 +488,20 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     }
 
     // S1's own three omissions are unchanged since `c67b4ee`; the two S2 added are the 35 580 rooms
-    // whose bottle became a pan drawer.
+    // whose bottle became a pan drawer. 7D5 S3 / Q-H5 adds a sixth: 6 195 rooms whose bottle the
+    // threshold drawer took the place of (184 686 -> 178 491 included).
     const { includedByArm, ...totals } = census;
     expect(totals).toEqual({
       swept: 256_011,
       placed: 245_211,
-      bottleIncluded: 184_686,
-      bottleOmitted: 60_525,
+      bottleIncluded: 178_491,
+      bottleOmitted: 66_720,
       omittedForCoreRole: 15_445,
       omittedForRefusal: 4_545,
       omittedForReCut: 4_955,
       omittedForThePanDrawer: 11_440,
       omittedForATallColumn: 24_140,
+      omittedForTheThresholdDrawer: 6_195,
       wrongCore: [],
       wrongOrder: [],
       coreOffItsWall: [],
@@ -439,9 +513,13 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     expect(includedByArm.equal).toBeGreaterThan(0);
   }, 20_000);
 
+  // 7D5 S3 / Q-H5: 4700 x 6000, the wall-B-wider row, now stands the threshold drawer in the bottle's
+  // place (its *D* is six with the pan drawer the only drawer), so there is no bottle whose identity
+  // to read. The row moved to 4500 x 6000 — still wall B wider, still a bottle beside a pan drawer
+  // and a three-column block — and the room it left is pinned below as what it now is.
   it.each([
     { shape: "L", widthMm: 6000, depthMm: 4700, heightMm: 2600 },
-    { shape: "L", widthMm: 4700, depthMm: 6000, heightMm: 2600 },
+    { shape: "L", widthMm: 4500, depthMm: 6000, heightMm: 2600 },
     { shape: "L", widthMm: 6000, depthMm: 6000, heightMm: 2600 },
   ] as const)(
     "keeps the bottle out of composed-storage identity in %o",
@@ -458,6 +536,29 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       expect(bottle ? isComposedStorageSlot(bottle) : undefined).toBe(false);
     },
   );
+
+  it("gives the bottle's place to the threshold drawer, not a composed slot, at 4700 x 6000", () => {
+    const plan = planFor({
+      shape: "L",
+      widthMm: 4700,
+      depthMm: 6000,
+      heightMm: 2600,
+    });
+    const reading = inReadingOrder(plan);
+    const hobAt = reading.findIndex((base) => base.role === "hob");
+    const afterTheHob = reading[hobAt + 1];
+
+    expect(plan.bases.some((base) => base.id === "bottle")).toBe(false);
+    expect(afterTheHob).toMatchObject({
+      id: "threshold-drawer",
+      role: "storage",
+      buildId: "base-3drawer",
+      widthMm: THRESHOLD_DRAWER_WIDTH_MM,
+    });
+    expect(afterTheHob ? isComposedStorageSlot(afterTheHob) : undefined).toBe(
+      false,
+    );
+  });
 
   it.each([
     { shape: "L", widthMm: 1500, depthMm: 2800, heightMm: 2600 },

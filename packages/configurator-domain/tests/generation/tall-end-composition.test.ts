@@ -131,26 +131,88 @@ function freeEndWallOf(room: DesignRoom): DesignWall {
 }
 
 function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
-  const wall = freeEndWallOf(room);
-  const run = lShellFloorRuns(room)[wall];
-  const coreWidthMm = plan.bases
-    .filter(
-      (base) =>
-        base.wall === wall &&
-        (base.role !== "storage" || base.buildId === BOTTLE_CARGO_BUILD_ID),
-    )
+  return freeEndBeside(plan, { room, isStanding: isCoreOrBottle });
+}
+
+type PlannedBase = KitchenCompositionPlan["bases"][number];
+
+function isCoreOrBottle(base: PlannedBase): boolean {
+  return base.role !== "storage" || base.buildId === BOTTLE_CARGO_BUILD_ID;
+}
+
+/** The leftover the free-end wall's run leaves beside the modules `isStanding` names. */
+function freeEndBeside(
+  plan: KitchenCompositionPlan,
+  args: {
+    readonly room: DesignRoom;
+    readonly isStanding: (base: PlannedBase) => boolean;
+  },
+) {
+  const wall = freeEndWallOf(args.room);
+  const run = lShellFloorRuns(args.room)[wall];
+  const standingWidthMm = plan.bases
+    .filter((base) => base.wall === wall && args.isStanding(base))
     .reduce((sum, base) => sum + base.widthMm, 0);
-  return planLeftover(run.endMm - run.startMm - coreWidthMm);
+  return planLeftover(run.endMm - run.startMm - standingWidthMm);
+}
+
+/** 7D5 S3 / Q-H5 (owner ruling 2026-09-21): the threshold drawer is a module of the run, read after the
+ *  hob, and never a leftover module the block may take — the owner sanctions it costing one column. */
+const THRESHOLD_DRAWER_ID = "threshold-drawer";
+const PAN_DRAWER_ID = "pan-drawer";
+const THRESHOLD_DRAWER_MOST_COLUMNS = 1;
+/** 7D5 S3: measured at 80-96 of 4000 unseeded draws over 8 runs; set well below so a seed cannot trip
+ *  it, while a composer that stopped standing the drawer still fails. */
+const THRESHOLD_ARM_FLOOR = 30;
+
+function thresholdDrawerWidthOf(plan: KitchenCompositionPlan): number {
+  return plan.bases
+    .filter((base) => base.id === THRESHOLD_DRAWER_ID)
+    .reduce((sum, base) => sum + base.widthMm, 0);
+}
+
+/** The free end E3 reads: what the run leaves beside every module it stood, the pan drawer and the
+ *  threshold drawer included. 7D5 S3 / Q-H5: `freeEndOf` counts the pan drawer's module as leftover,
+ *  which was the same answer while the pan drawer never cost a column (J1); beside a threshold drawer
+ *  that cost one, it is not, so both drawers are read here as the run modules they are. */
+function freeEndBesideTheThresholdDrawerOf(
+  plan: KitchenCompositionPlan,
+  room: DesignRoom,
+) {
+  return freeEndBeside(plan, {
+    room,
+    isStanding: (base) =>
+      isRunModuleBesideTheThresholdDrawer(base) ||
+      base.id === THRESHOLD_DRAWER_ID,
+  });
+}
+
+/** 7D5 S3 / Q-H5: the free end the threshold drawer's module is handed back to — the block the
+ *  kitchen would have had without it. */
+function freeEndWithoutTheThresholdDrawerOf(
+  plan: KitchenCompositionPlan,
+  room: DesignRoom,
+) {
+  return freeEndBeside(plan, {
+    room,
+    isStanding: isRunModuleBesideTheThresholdDrawer,
+  });
+}
+
+function isRunModuleBesideTheThresholdDrawer(base: PlannedBase): boolean {
+  return isCoreOrBottle(base) || base.id === PAN_DRAWER_ID;
 }
 
 /** E3's four clauses and E6.2's one refusal, restated from the ADR's own inputs — the declared
- *  column sizes and ADR 0052's ceiling on an empty column — rather than from the rule's code. */
+ *  column sizes and ADR 0052's ceiling on an empty column — rather than from the rule's code.
+ *  `leftover` is the free end the block is decided on: 7D5 S3 / Q-H5 reads it beside the threshold
+ *  drawer, and `freeEndWithoutTheThresholdDrawerOf` gives the block it would have had. */
 function expectedBlockSize(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
+  leftover = freeEndBesideTheThresholdDrawerOf(plan, room),
 ): number {
   const hob = plan.bases.find((base) => base.role === "hob");
-  const leftover = freeEndOf(plan, room);
   const qualifies =
     plan.dropped.length === 0 &&
     hob?.wall === freeEndWallOf(room) &&
@@ -177,6 +239,10 @@ describe("the threshold and the block's size (criterion 6)", () => {
     // `tall-end-rule.test.ts`, `hobStandsOnTheFreeEndWall: false` — ADR 0091 Amendment A, coverage
     // moved rather than dropped. The `qualifies` expression above still reads it, so a composer that
     // stopped honouring it fails on the size rather than on an arm count.
+    //
+    // 7D5 S3 / Q-H5 (owner ruling 2026-09-21): restated for the threshold drawer. The block is E3 on the
+    // free end the run leaves beside that drawer, and against the block the drawer's module would
+    // have given it, the drawer costs at most the one column the owner sanctions.
     const arms = {
       none: 0,
       dropped: 0,
@@ -186,14 +252,23 @@ describe("the threshold and the block's size (criterion 6)", () => {
       two: 0,
       three: 0,
     };
+    let thresholdDrawerCostAColumn = 0;
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const plan = planFor(room);
         if (!plan.minimumMet) return;
         const size = blockOf(plan).length;
-        expect(size, `${String(room.widthMm)}x${String(room.depthMm)}`).toBe(
-          expectedBlockSize(plan, room),
+        const where = `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
+        expect(size, where).toBe(expectedBlockSize(plan, room));
+        const withTheDrawersModule = expectedBlockSize(
+          plan,
+          room,
+          freeEndWithoutTheThresholdDrawerOf(plan, room),
         );
+        expect(withTheDrawersModule - size, where).toBeLessThanOrEqual(
+          thresholdDrawerWidthOf(plan) > 0 ? THRESHOLD_DRAWER_MOST_COLUMNS : 0,
+        );
+        if (withTheDrawersModule > size) thresholdDrawerCostAColumn += 1;
 
         if (plan.dropped.length > 0) arms.dropped += size === 0 ? 1 : 0;
         if (
@@ -222,6 +297,11 @@ describe("the threshold and the block's size (criterion 6)", () => {
     // hob off the free-end wall would mean criterion 1 had stopped holding and the re-sited clause
     // above had become reachable from a room again.
     expect(hobOffTheFreeEndWall).toBe(0);
+    // 7D5 S3 / Q-H5: the sanctioned cost must be sampled, or the restatement above is idle.
+    expect(
+      thresholdDrawerCostAColumn,
+      "no sample saw the threshold drawer cost a column",
+    ).toBeGreaterThanOrEqual(THRESHOLD_ARM_FLOOR);
   });
 });
 

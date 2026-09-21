@@ -94,17 +94,32 @@ const ANCILLARY_CATALOGUE_IDS: ReadonlySet<string> = new Set([
   PAN_DRAWER_CATALOGUE_ID,
 ]);
 
-/** A module's provenance read **independently of its id**, so the predicate is never checked against
- *  itself: the block's columns are the storage-role modules the catalogue declares in the `column`
- *  band, the bottle cargo and the pan drawer are each their own catalogue row, and the storage run's
- *  slots are the rest. `fridge-free` is a column too and carries Amendment A1's own role, which
- *  excludes it from both. */
+/** 7D5 S3 / Q-H5: the threshold drawer's planned id, spelled as a literal for the reason the two
+ *  catalogue ids above are — so a wrong constant and a wrong composer cannot agree. */
+const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
+
+/** A module's provenance read **independently of the predicate's own reading of its id**, so the
+ *  predicate is never checked against itself: the block's columns are the storage-role modules the
+ *  catalogue declares in the `column` band, the bottle cargo and the pan drawer are each their own
+ *  catalogue row, and the storage run's slots are the rest. `fridge-free` is a column too and carries
+ *  Amendment A1's own role, which excludes it from both.
+ *
+ *  **7D5 S3 / Q-H5: the threshold drawer is the one module told apart by its planned id**, because
+ *  nothing else separates it from a slot — it is the first post-hob slot's own `base-3drawer` row,
+ *  600 mm, storage role, outside the column band. The id is the literal above rather than the
+ *  predicate's convention, and the sweep floors the group, so a composer that gave it a slot id
+ *  empties this group and fails the floor instead of passing as a slot. */
 function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
   const outsideTheColumnBand = storageRole.filter(
-    (base) => CATALOG.get(base.buildId)?.band !== "column",
+    (base) =>
+      CATALOG.get(base.buildId)?.band !== "column" &&
+      base.id !== THRESHOLD_DRAWER_PLANNED_ID,
   );
   return {
+    thresholdDrawers: storageRole.filter(
+      (base) => base.id === THRESHOLD_DRAWER_PLANNED_ID,
+    ),
     blockColumns: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band === "column",
     ),
@@ -339,18 +354,27 @@ const approvedRoom = fc.record({
  *  that stops reaching an arm fails here instead of passing quietly. */
 const ROOMS_SWEPT = 3_000;
 const LEAST_ROOMS_PER_BLOCK_SIZE = 100;
+/** 7D5 S3 / Q-H5: 6.4 % of the approved grid predicts about 190 at this count, and one unseeded run
+ *  drew 214. Set under a quarter of that, because this sweep takes no seed. */
+const LEAST_ROOMS_WITH_A_THRESHOLD_DRAWER = 50;
 
 describe("the predicate agrees with provenance over the whole approved policy", () => {
   it("answers true for every composed slot and false for every block column, at every block size", () => {
     const roomsByBlockSize = new Map<number, number>();
     let roomsWithAComposedSlot = 0;
     let roomsWithAPanDrawer = 0;
+    let roomsWithAThresholdDrawer = 0;
 
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const plan = planFor(room);
-        const { blockColumns, bottleCargos, panDrawers, composedSlots } =
-          storageRoleModulesByBand(plan);
+        const {
+          blockColumns,
+          bottleCargos,
+          panDrawers,
+          thresholdDrawers,
+          composedSlots,
+        } = storageRoleModulesByBand(plan);
         const blockSize = blockColumns.length;
         roomsByBlockSize.set(
           blockSize,
@@ -362,6 +386,9 @@ describe("the predicate agrees with provenance over the whole approved policy", 
         if (panDrawers.length > 0) {
           roomsWithAPanDrawer += 1;
         }
+        if (thresholdDrawers.length > 0) {
+          roomsWithAThresholdDrawer += 1;
+        }
 
         expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
           composedSlots,
@@ -371,6 +398,10 @@ describe("the predicate agrees with provenance over the whole approved policy", 
         // One storage module wide and outside the column band, so it is the module a predicate keyed
         // on role, band or width would count as a slot (7D5 S2).
         expect(panDrawers.filter(isComposedStorageSlot)).toEqual([]);
+        // 7D5 S3 / Q-H5: the fourth storage-role module the storage run did not compose, and the one
+        // that wears a slot's body and width exactly. One at most, and never a slot.
+        expect(thresholdDrawers.filter(isComposedStorageSlot)).toEqual([]);
+        expect(thresholdDrawers.length).toBeLessThanOrEqual(1);
         // The core roles are the third population the plan holds, and the one whose ids are the role
         // names themselves. A predicate that answered anything but false for them would put the sink
         // in the balance.
@@ -397,6 +428,12 @@ describe("the predicate agrees with provenance over the whole approved policy", 
     // it fails only when the pan-drawer arm stops being reached at all.
     expect(roomsWithAPanDrawer).toBeGreaterThanOrEqual(
       LEAST_ROOMS_PER_BLOCK_SIZE,
+    );
+    // 7D5 S3 / Q-H5: 15 795 of 245 211 placed rooms on the approved 10 mm grid stand one (6.4 %).
+    // Floored so the group above cannot be empty — which is what a threshold drawer given a slot id
+    // would make it.
+    expect(roomsWithAThresholdDrawer).toBeGreaterThanOrEqual(
+      LEAST_ROOMS_WITH_A_THRESHOLD_DRAWER,
     );
     expect(
       [...roomsByBlockSize.keys()].sort((left, right) => left - right),

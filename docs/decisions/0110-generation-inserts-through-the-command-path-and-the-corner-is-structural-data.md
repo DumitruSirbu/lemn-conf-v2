@@ -2939,3 +2939,155 @@ Listed as QA reported them; QA's own close-out entry restates them with final fi
   the ruled change (remove the pan drawer, move the hob and following modules back 600 mm, restore the
   outermost slot; swap the hood/upper pair back in the wall row). All undone plans and rows hash
   byte-for-byte to 7D3's recording.
+
+## Amendment L — 2026-09-21: wave 7D5 slice S3, the threshold drawer
+
+**Written for wave 7D5 slice S3, before commit.**
+
+### L1 — owner, Q-H5 (2026-09-21): the third drawer, not a recount of the second
+
+The question put to the owner: in kitchens with *D* ≥ 6 under the adopted reading — E1's *D* as
+written, the preparation cabinet **not** counted — 15,986 of 245,211 placed rooms (6.5 %), is prep +
+pan drawer the owner's *"2 are drawers"*, or does the owner want a third module? **The figure shown to
+the owner in the question was the prep-counting reading instead** — 28,896 of the same population
+(about 1 in 9) — which is the reading Q-H3a leaves open and not the one this amendment adopts.
+
+**The owner chose "add a third drawer":** a 600 mm `base-3drawer` after the hob, following
+Amendment H1's order — *"hub => bottle cabinets (if space for a large number of cabinets, the drawer
+cabinet)"*.
+
+**Offered alternatives, both refused:**
+
+1. Prep + pan drawer, no change — recommended by the architect.
+3. A drawer between the fridge and the sink — refused because it would overturn Amendment H2.
+
+**The *D* reading the owner answered under, recorded as the coordinator's reading:** E1's *D* as
+written, re-measured at S1/S2's HEAD (`17df3f5`) — `storage:` slots plus the drawer module in the group
+astride the hob (i.e. the pan drawer counts, plus the threshold drawer once it exists); the
+preparation cabinet does **not** count. **Q-H3a — whether the preparation cabinet counts — is thereby
+answered implicitly as "no", as the coordinator's reading; the owner answered the kitchen the
+coordinator described, not the counting question directly, and no agent may later quote this as the
+owner's own words on Q-H3a.**
+
+### L2 — owner (2026-09-21): the bottle is replaced only where removing it is what makes room for the drawer
+
+**Quoted verbatim:**
+
+> *"as I understand there is place to fit an entire drawer cabinet that has 600mm instead a bottle
+> cabinet that has only 300. In this case drawer cabinet wins, but if there is enough place to have a
+> bottle cabinet is should be kept and not replaced. You mentioned earlier a scenarion on narrow kitchen
+> that if the bottle cabinet is removed a new drawer cabinet fits. This is the only scenarion when
+> bottle cabinet should be replaced."*
+
+**Consequence: a proposed K3 refinement — the pan drawer standing in the bottle's place wherever that
+keeps the columns — is REJECTED.** The bottle cabinet gives way to the threshold drawer only in the
+narrow-kitchen shape the owner names, not more broadly.
+
+**A coordinator error is recorded plainly.** The coordinator first quoted this population to the owner
+as approximately **490 rooms**. The actual figure, at `17df3f5`, is **34,220** placed rooms; 490 was
+only the *D* ≥ 6 subset the coordinator was working from, misquoted as the whole.
+
+**K3's fallback stands as shipped at `17df3f5`**, unedited by this amendment.
+
+### L3 — owner (2026-09-21): the threshold drawer may cost at most one tall column
+
+The threshold drawer may cost the kitchen at most one tall column. Where placing it would cost two
+columns, the kitchen keeps its columns and gets no third drawer. In code:
+`THRESHOLD_DRAWER_MOST_COLUMNS_IT_MAY_COST = 1`.
+
+~~**This limit binds nowhere in the approved policy, measured.** It is witnessed instead by declared
+runs on 6000 × 5000 × 2200: witness A at wall A 3350 mm and 3300 mm, witness B at wall A 4300 mm.~~
+**Restated 2026-09-21, S3 close-out (L4's clean-code split and the branch below made this witness
+worth re-measuring):** the implementer measured **2,397,024 declared runs** and found no fitting
+candidate that would stand in the bottle's place at a cost of two columns; every refusal in that
+sweep was a no-fit, never the one-column limit. The one-column limit only decides between candidates
+2 and 3 below, and — measured — never on its own refuses a drawer that would otherwise fit, in any
+run swept. **QA is re-witnessing this figure independently; its result is appended to L6.**
+
+### L4 — the rule as built (implementer, source)
+
+- **Coordinator ruling, 2026-09-21 — the removed "in the bottle's place, costing a column" branch is
+  restored as a third candidate.** A logic review (measured) found it reachable on declared runs: at
+  6000 × 5000 × 2200 with wall A 3350 and wall B 4300, "after the bottle" costs both columns while "in
+  the bottle's place" costs only one — and the owner's L2 (*"if the bottle cabinet is removed a new
+  drawer cabinet fits … the only scenario when bottle cabinet should be replaced"*) together with L3's
+  one-column limit means the drawer takes the bottle's place there, not after it. **The order is now:**
+  1. the bottle's place, at no cost;
+  2. after the bottle, at ≤ 1 column;
+  3. the bottle's place, at ≤ 1 column.
+  It is **unreachable in the approved policy**: 0 differences over 1,792,077 rooms at 7 heights (logic
+  reviewer, measured), and 0 differences over the approved L at 2200 / 2600 / 3900 (implementer,
+  measured).
+- **Id `threshold-drawer`, role `storage`.** It is not a composed slot; `isComposedStorageSlot` answers
+  `false` for it.
+- ~~**Two candidate branches that never fire were removed, per ADR 0093 decision 1:** "after the bottle
+  at no cost" — structurally unreachable, because a run short of drawers has no slot after its hob —
+  and "in the bottle's place, costing a column".~~ **Corrected above**: only "after the bottle at no
+  cost" was removed, and it stays removed — structurally unreachable, because a run short of drawers
+  has no slot after its hob. "In the bottle's place, costing a column" was wrongly removed alongside it
+  and is restored as candidate 3.
+
+### L4a — clean-code split, S3
+
+`generation-priorities.ts` grew past its shape carrying the bottle, pan-drawer and threshold-drawer
+decisions alongside core selection. S3 splits it in place, changing no behaviour: the new
+`optional-run-items.ts` holds the bottle, pan-drawer and threshold-drawer decisions; the new (internal)
+`run-layout.ts` holds the shared types and helpers those three use; `generation-priorities.ts` keeps
+core selection, `builtPlan`, the tall-end block and spatial layout. **The public API is unchanged**:
+**328** runtime export keys from `src/index.ts`, identical before and after the split, measured. The
+three affordability checks — bottle, pan drawer, threshold drawer — are unified as one function,
+`isAffordableWithinColumnBudget`, called with a budget of 0 for the pan drawer and the bottle and 1 for
+the threshold drawer.
+
+### L5 — measured by the implementer, approved L, 10 mm / 2600 mm, against `17df3f5`
+
+- **245,211 placed, unchanged.**
+- **Threshold drawer in 15,795 rooms.** The bottle gave way in **6,195** of them (all with columns
+  kept). A tall column gave way (3 → 2) in **9,600**; of those, **5,700** keep the bottle and **3,900**
+  had none.
+- ***D* ≥ 6 rooms: 15,986; none still short** (of the threshold drawer, under the L1 reading).
+- **Pan drawer 92,446, unchanged. Bottle 178,491** (was 184,686 after S2). **Both together: 50,671.**
+- **Tall-column losses: exactly 9,600, all 3 → 2.** `minimumMet`, `dropped` and core-wall differences:
+  **0**.
+- **J5 live in 140**, as K7 records — unchanged by this slice.
+- **Criterion 3/4 and E8.1's figures in the milestone are superseded by this measurement**; struck in
+  place there with a pointer to this note.
+
+### L6 — earlier-wave restatements in slice S3, measured by QA (comment tag `7D5 S3 / Q-H5`)
+
+- **S2 census.** New `finished` totals: both drawers **50,671**; pan drawer only **41,775**; bottle
+  only **127,820**; neither **24,945**. Threshold decisions: **6,195** take the bottle's place, **5,700**
+  stand after the bottle for the cost of a column, **3,900** stand after the hob for the cost of a
+  column. Per-room lists: empty. The 5200 × 5500 witness row moves to **4500 × 5500**.
+- **S1 census.** Bottle **184,686 → 178,491**, with a new "threshold drawer took its place" category
+  (**6,195**). The identity witness row moves from 4700 × 6000 to **4500 × 6000**; **4700 × 6000** is
+  now pinned as a threshold-drawer room instead.
+- **Recorded-plan classifier.** Now admits one threshold drawer. Arm counts: bottle **312 → 284**, pan
+  without bottle **78 → 106**, threshold **40**, threshold without bottle **33**. **5** new mutation
+  witnesses.
+- **7D3 criterion 6.** Restated for the drawer's one-column cost: a false counterexample at
+  4600 × 5200 × 2200 is fixed by counting the pan drawer's module.
+- **`qa-7d3`.** The "1 → 0 only" column-loss sweep now also allows exactly one column lost where a
+  threshold drawer arrives.
+- **`qa-7d4` predicate.** The threshold drawer is identified by id, with a floor of ≥ 50 rooms.
+- **`qa-7d4` criteria 6/7.** A third drawer body is allowed only when it is a ruled `threshold-drawer`,
+  with a floor of ≥ 30 rooms.
+- **`qa-7d4` criteria 2/21.** A new undo normalisation for the threshold drawer; undone plans hash
+  byte-for-byte to 7D3.
+- **Three-adapter parity (S2's, missed at the S2 commit).** Pan-drawer bodies must equal the plan's
+  `pan-drawer` modules. The drawer-slot witness moves from 1500 × 3400 to **4100 × 6100** (K8's
+  declared room). New: a K1 counter-case at 1500 × 3400, and a threshold-drawer render check at
+  5100 × 4700.
+- **Three-adapter 7D2 reference-room widths (S1's, missed at the S1 commit).** `base-hob-2drawer` and
+  the tall-oven-tower rows become `base-hob-oven` rows under J6; the tower's width is checked at
+  6300 × 4700.
+
+**The 2,397,024-run witness for L3 (above) is QA's to re-witness independently; QA's figure, once
+run, is appended here rather than superseding the implementer's.**
+
+### L7 — a coordinator process error at S1 and S2, recorded plainly
+
+The S1 (`c67b4ee`) and S2 (`17df3f5`) commits were each made after running only the domain suite. The
+three-adapter suite was red at both commits — **1 test at S1, 4 more at S2** — found during S3's QA and
+restated in L6 above rather than at the commit that broke them. Neither commit was pushed, so nothing
+shared was ever broken. **Future slices run the repo-wide `pnpm check` before commit.**

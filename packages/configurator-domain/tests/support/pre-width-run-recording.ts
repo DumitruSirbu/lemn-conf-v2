@@ -4,7 +4,8 @@
 //
 // It also holds the one classifier both pre-S1 recordings — this one and 7D8's re-keyed half — are
 // read through for rooms that stand a bottle, a pan drawer or both, so the 7D5 ruling is stated once
-// (7D5 S2: Q-H6a = A, and Q-H6b / Q-H6c, which let a pan drawer stand without the bottle).
+// (7D5 S2: Q-H6a = A, and Q-H6b / Q-H6c, which let a pan drawer stand without the bottle; 7D5 S3:
+// Q-H5, the threshold drawer after the hob, in the bottle's place or after it).
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -174,6 +175,12 @@ function coreIdentity(base: {
 /** Exactly the width of one storage module: the pan drawer's width, and so the hob's shift. */
 const PAN_DRAWER_WIDTH_MM = 600;
 export const PAN_DRAWER_BODY = "base-panbank";
+/** 7D5 S3 / Q-H5: the threshold drawer's own id, its body and its one module's width. */
+export const THRESHOLD_DRAWER_ID = "threshold-drawer";
+const THRESHOLD_DRAWER_BODY = "base-3drawer";
+const THRESHOLD_DRAWER_WIDTH_MM = 600;
+/** Owner ruling on Q-H5, 2026-09-21: the threshold drawer may cost one tall column and no more. */
+const THRESHOLD_DRAWER_MOST_COLUMNS = 1;
 export const STORAGE_SLOT_ID = /^storage:[AB]:\d+$/;
 const TALL_COLUMN_ID = /^column:[AB]:\d+$/;
 
@@ -190,6 +197,11 @@ type PlanModule = RecordedPlanModule;
  * 7D5 S2, Q-H6b / Q-H6c: a pan drawer may stand **without** the bottle — the bottle gives way to it
  * (Q-H6b) and to every tall column its kitchen has (Q-H6c). A plan with neither is not this
  * classifier's to read: its caller compares it to the recording exactly.
+ *
+ * 7D5 S3, Q-H5 (owner ruling 2026-09-21): a 600 mm `base-3drawer` threshold drawer may stand after the
+ * hob, read either where the bottle would stand (the bottle then absent) or right after the bottle,
+ * and it may cost the hob's wall one outermost module and at most one tall column beyond what the pan
+ * drawer and the bottle cost. Nothing else it admits.
  */
 export function assertOnlyTheBottleAndPanDrawerChanged(
   key: string,
@@ -202,7 +214,12 @@ export function assertOnlyTheBottleAndPanDrawerChanged(
   expect(plan.dropped, `${key} dropped`).toEqual(recorded.dropped);
 
   const panDrawer = panDrawerOf(key, plan);
-  const ancillaries = { panDrawer, bottle: bottleOf(key, plan, panDrawer) };
+  const thresholdDrawer = thresholdDrawerOf(key, plan);
+  const ancillaries = {
+    panDrawer,
+    thresholdDrawer,
+    bottle: bottleOf(key, plan, { panDrawer, thresholdDrawer }),
+  };
 
   assertCoreMovedOnlyByThePanDrawer(key, plan, recorded, panDrawer);
   assertContiguousRuns(key, room, plan);
@@ -210,23 +227,28 @@ export function assertOnlyTheBottleAndPanDrawerChanged(
   assertOtherWallUnchanged(key, plan, recorded);
 }
 
-/** What 7D5 stood astride the hob: the pan drawer before it and the bottle after it, either absent. */
+/** What 7D5 stood astride the hob: the pan drawer before it, the bottle after it and the threshold
+ *  drawer after that (7D5 S3), each possibly absent. */
 interface StandingAncillaries {
   readonly panDrawer: PlanModule | undefined;
   readonly bottle: PlanModule | undefined;
+  readonly thresholdDrawer: PlanModule | undefined;
 }
 
-/** The single bottle. Required where no pan drawer stands, because then the bottle is the only thing
- *  7D5 changed; optional beside a pan drawer, which it gives way to (7D5 S2, Q-H6b / Q-H6c). */
+/** The single bottle. Required where neither drawer stands, because then the bottle is the only thing
+ *  7D5 changed; optional beside a pan drawer, which it gives way to (7D5 S2, Q-H6b / Q-H6c), and
+ *  beside a threshold drawer, which may take its place (7D5 S3, Q-H5). */
 function bottleOf(
   key: string,
   plan: KitchenCompositionPlan,
-  panDrawer: PlanModule | undefined,
+  drawers: Pick<StandingAncillaries, "panDrawer" | "thresholdDrawer">,
 ): PlanModule | undefined {
   const bottles = plan.bases.filter(
     (base) => base.id === "bottle" || base.buildId === BOTTLE_CARGO_BUILD_ID,
   );
-  const allowed = panDrawer === undefined ? [1] : [0, 1];
+  const mayGiveWay =
+    drawers.panDrawer !== undefined || drawers.thresholdDrawer !== undefined;
+  const allowed = mayGiveWay ? [0, 1] : [1];
   expect(allowed, `${key} bottle count`).toContain(bottles.length);
   const [bottle] = bottles;
   if (bottle === undefined) return undefined;
@@ -257,6 +279,27 @@ function panDrawerOf(
     widthMm: PAN_DRAWER_WIDTH_MM,
   });
   return panDrawer;
+}
+
+/** The single threshold drawer where one stands (7D5 S3, Q-H5), or `undefined` where none does. It is
+ *  found by id alone, because its body is the composed drawer slot's body too. */
+function thresholdDrawerOf(
+  key: string,
+  plan: KitchenCompositionPlan,
+): PlanModule | undefined {
+  const drawers = plan.bases.filter((base) => base.id === THRESHOLD_DRAWER_ID);
+  expect(drawers.length, `${key} threshold drawer count`).toBeLessThanOrEqual(
+    1,
+  );
+  const [drawer] = drawers;
+  if (drawer === undefined) return undefined;
+  expect(drawer, `${key} threshold drawer identity`).toMatchObject({
+    id: THRESHOLD_DRAWER_ID,
+    role: "storage",
+    buildId: THRESHOLD_DRAWER_BODY,
+    widthMm: THRESHOLD_DRAWER_WIDTH_MM,
+  });
+  return drawer;
 }
 
 /** Every core role keeps its identity, its wall and its position, except the hob, which moves by
@@ -347,6 +390,16 @@ function assertAncillariesAstrideTheHob(
       `${key} pan drawer before the hob`,
     ).toMatchObject({ wall: hob.wall, endMm: hob.startMm });
   }
+  if (ancillaries.thresholdDrawer !== undefined) {
+    // 7D5 S3 / Q-H5: read after the hob — in the bottle's place, or right after the bottle.
+    expect(
+      ancillaries.thresholdDrawer,
+      `${key} threshold drawer after the hob or the bottle`,
+    ).toMatchObject({
+      wall: hob.wall,
+      startMm: ancillaries.bottle?.endMm ?? hob.endMm,
+    });
+  }
 }
 
 /** The storage slots and tall columns after the hob, each in wall order, as body/width and body. */
@@ -371,6 +424,9 @@ function tailModules(bases: readonly PlanModule[]): TailModules {
  * the hob can cost: one module for the bottle, which is narrower than one, and one more for the pan
  * drawer, which is exactly one (logic review N5b: at most 1 + the number of pan drawers). Where a pan
  * drawer stands the wall gave up at least one module to pay for it.
+ *
+ * 7D5 S3 / Q-H5: the threshold drawer is one module. In the bottle's place it spends the bottle's
+ * module; after the bottle it costs one more. Either way the wall paid at least one for it.
  */
 function assertTailLostOnlyWhatTheAncillariesCost(
   label: string,
@@ -391,15 +447,26 @@ function assertTailLostOnlyWhatTheAncillariesCost(
   });
 
   const panDrawers = ancillaries.panDrawer === undefined ? 0 : 1;
+  const thresholdDrawerAfterTheBottle =
+    ancillaries.thresholdDrawer !== undefined &&
+    ancillaries.bottle !== undefined
+      ? 1
+      : 0;
   const lostModules =
     recorded.slots.length +
     recorded.columns.length -
     (current.slots.length + current.columns.length);
   expect(lostModules, `${label} modules lost`).toBeLessThanOrEqual(
-    1 + panDrawers,
+    1 + panDrawers + thresholdDrawerAfterTheBottle,
   );
   if (panDrawers === 1) {
     expect(lostModules, `${label} paid for the pan drawer`).toBeGreaterThan(0);
+  }
+  if (ancillaries.thresholdDrawer !== undefined) {
+    expect(
+      lostModules,
+      `${label} paid for the threshold drawer`,
+    ).toBeGreaterThanOrEqual(panDrawers + 1);
   }
   assertThePanDrawerWasDecidedFirst(label, tails);
 }
@@ -419,6 +486,10 @@ function assertTailLostOnlyWhatTheAncillariesCost(
  *   the bottle stands beside it (Q-H6c), with the pan drawer's module the one slot lost where the
  *   bottle gave way;
  * - no recorded slot: a pan drawer can only be the fallback's, so it stands beside the bottle.
+ *
+ * 7D5 S3 / Q-H5: the threshold drawer is decided after both, and may cost that kitchen one column and
+ * one module; where it took the bottle's place the bottle is simply absent, so the fallback's bottle
+ * may be a threshold drawer instead.
  */
 function assertThePanDrawerWasDecidedFirst(
   label: string,
@@ -431,10 +502,11 @@ function assertThePanDrawerWasDecidedFirst(
   const { current, recorded, ancillaries } = tails;
   const hadASlotForThePanDrawer = recorded.slots.length > 0;
   const standsAPanDrawer = ancillaries.panDrawer !== undefined;
+  const thresholdDrawers = ancillaries.thresholdDrawer === undefined ? 0 : 1;
   if (!hadASlotForThePanDrawer) {
     if (standsAPanDrawer) {
       expect(
-        ancillaries.bottle,
+        ancillaries.bottle ?? ancillaries.thresholdDrawer,
         `${label} a fallback pan drawer stands beside the bottle`,
       ).toBeDefined();
     }
@@ -447,12 +519,14 @@ function assertThePanDrawerWasDecidedFirst(
   expect(
     current.columns.length,
     `${label} tall columns kept once the pan drawer stands (Q-H6c)`,
-  ).toBeGreaterThanOrEqual(recorded.columns.length);
+  ).toBeGreaterThanOrEqual(
+    recorded.columns.length - THRESHOLD_DRAWER_MOST_COLUMNS * thresholdDrawers,
+  );
   if (ancillaries.bottle !== undefined) return;
   expect(
     recorded.slots.length - current.slots.length,
     `${label} one slot lost to a pan drawer without the bottle (Q-H6c)`,
-  ).toBeLessThanOrEqual(1);
+  ).toBeLessThanOrEqual(1 + thresholdDrawers);
 }
 
 /** `current` is `recorded` with zero or more of its outermost entries removed, and nothing else. */
@@ -535,7 +609,8 @@ function assertContiguousRuns(
       if (
         base.role === "storage" &&
         base.id !== "bottle" &&
-        base.id !== "pan-drawer"
+        base.id !== "pan-drawer" &&
+        base.id !== THRESHOLD_DRAWER_ID
       ) {
         expect(
           STORAGE_SLOT_ID.test(base.id) || TALL_COLUMN_ID.test(base.id),

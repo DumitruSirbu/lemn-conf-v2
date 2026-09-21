@@ -114,10 +114,47 @@ function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
         base.wall === wall &&
         (base.role !== "storage" ||
           base.buildId === BOTTLE_CARGO_BUILD_ID ||
-          base.buildId === PAN_DRAWER_BASE_BUILD_ID),
+          base.buildId === PAN_DRAWER_BASE_BUILD_ID ||
+          // 7D5 S3 / Q-H5: a fixed run item too. Only the storage count moved without it — one
+          // 600 mm module leaves the remainder this file asserts unchanged — but the input is E3's.
+          base.id === THRESHOLD_DRAWER_PLANNED_ID),
     )
     .reduce((sum, base) => sum + base.widthMm, 0);
   return planLeftover(run.endMm - run.startMm - fixedRunWidthMm);
+}
+
+/** 7D5 S3 / Q-H5: the threshold drawer's planned id, spelled as a literal so a wrong constant and a
+ *  wrong composer cannot agree. */
+const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
+
+/** Q-H5's price is one tall column at most (owner, 2026-09-21), and in the approved policy the only
+ *  block it is paid from is the full one: 3 -> 2. */
+const FULL_BLOCK_COLUMNS = 3;
+const COLUMNS_A_THRESHOLD_DRAWER_MAY_COST = 1;
+
+function thresholdDrawersOf(plan: KitchenCompositionPlan) {
+  return plan.bases.filter((base) => base.id === THRESHOLD_DRAWER_PLANNED_ID);
+}
+
+/** One step down the block between neighbouring rooms, and the threshold drawers either side of it. */
+interface BlockStepDown {
+  readonly fromColumns: number;
+  readonly toColumns: number;
+  readonly thresholdDrawersBefore: number;
+  readonly thresholdDrawersAfter: number;
+}
+
+/** 7D5 S3 / Q-H5: the one step down the block may take besides `1 -> 0` — the full block losing
+ *  exactly one column, in the room where a threshold drawer first stands. A room that already held
+ *  the drawer has no new drawer to pay for a column it loses. */
+function isAColumnPaidForByANewThresholdDrawer(step: BlockStepDown): boolean {
+  return (
+    step.fromColumns === FULL_BLOCK_COLUMNS &&
+    step.toColumns ===
+      FULL_BLOCK_COLUMNS - COLUMNS_A_THRESHOLD_DRAWER_MAY_COST &&
+    step.thresholdDrawersBefore === 0 &&
+    step.thresholdDrawersAfter === 1
+  );
 }
 
 const approvedRoom = fc.record({
@@ -344,7 +381,13 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
   // Criterion 22. The wave's own sweep holds wall B at 1700; the `1 → 0` claim is about the whole
   // policy, and a `2 → 1` step reachable only at some other wall B would be invisible to it.
   it("never steps down except from one column to none, over every sampled wall B", () => {
+    // **7D5 S3 / Q-H5, restated narrowly** (owner ruling 2026-09-21): the threshold drawer may cost
+    // the block one tall column — 9 600 rooms of the approved 10 mm grid step 3 → 2 for it. That step
+    // is sanctioned only as 3 -> 2, only into the room where exactly one `threshold-drawer` first
+    // stands (its neighbour had none); every other step down that is not `1 -> 0` still fails. Was: `steps.filter(step => !step.startsWith("1->0"))` equal to `[]`.
     const steps = new Map<string, number>();
+    const unsanctioned: string[] = [];
+    let paidForByAThresholdDrawer = 0;
     // Wall B reaches the policy's maximum, through the band M7 7A3 admitted from 5101.
     for (const depthMm of [
       1000,
@@ -360,20 +403,40 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
       5600,
       APPROVED_L.wallB.maxMm,
     ]) {
-      let previous = blockOf(planFor(roomOf(900, depthMm))).length;
+      const firstPlan = planFor(roomOf(900, depthMm));
+      let previous = blockOf(firstPlan).length;
+      let previousDrawers = thresholdDrawersOf(firstPlan).length;
       for (let widthMm = 901; widthMm <= 6300; widthMm += 1) {
-        const size = blockOf(planFor(roomOf(widthMm, depthMm))).length;
+        const plan = planFor(roomOf(widthMm, depthMm));
+        const size = blockOf(plan).length;
+        const drawers = thresholdDrawersOf(plan).length;
         if (size < previous) {
           const step = `${String(previous)}->${String(size)} at wallB ${String(depthMm)}`;
           steps.set(step, (steps.get(step) ?? 0) + 1);
+          const stepDown = {
+            fromColumns: previous,
+            toColumns: size,
+            thresholdDrawersBefore: previousDrawers,
+            thresholdDrawersAfter: drawers,
+          };
+          if (isAColumnPaidForByANewThresholdDrawer(stepDown)) {
+            paidForByAThresholdDrawer += 1;
+          } else if (!(previous === 1 && size === 0)) {
+            unsanctioned.push(
+              `${step} at wallA ${String(widthMm)}, threshold drawers ${String(previousDrawers)} -> ${String(drawers)}`,
+            );
+          }
         }
         previous = size;
+        previousDrawers = drawers;
       }
     }
 
+    expect(unsanctioned).toEqual([]);
     expect(
-      [...steps.keys()].filter((step) => !step.startsWith("1->0")),
-    ).toEqual([]);
+      paidForByAThresholdDrawer,
+      "the sweep never reached a threshold drawer paying for a column, so Q-H5's arm is unasserted",
+    ).toBeGreaterThan(0);
     expect(
       [...steps.values()].reduce((sum, count) => sum + count, 0),
       "the sweep found no step down at all, so it proves nothing about their shape",

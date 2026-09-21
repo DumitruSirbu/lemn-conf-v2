@@ -7,6 +7,11 @@
 // a 600 mm `base-panbank` immediately before the hob, the hob and the bottle shifted along their wall
 // by that width, and the hob's wall giving up outermost modules to pay for it. The recording is not
 // re-captured (plan risk 2): it stays the pre-S1 truth, and every other field is still pinned to it.
+//
+// Restated again for M7 wave 7D5 S3 (owner ruling 2026-09-21, ADR 0110 Q-H5). The classifier also
+// admits the threshold drawer: one 600 mm `base-3drawer` under its own id, read after the hob — in
+// the bottle's place or right after the bottle — costing the hob's wall one outermost module and at
+// most one tall column. The arm counts below move only by the rooms that drawer now stands in.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,6 +31,7 @@ import {
   PAN_DRAWER_BODY,
   readPreWidthRunRecording,
   STORAGE_SLOT_ID,
+  THRESHOLD_DRAWER_ID,
 } from "../support/pre-width-run-recording.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -101,6 +107,8 @@ describe("the whole plan before 7D5's width change", () => {
     let normalizedBottleComparisons = 0;
     let panDrawerComparisons = 0;
     let panDrawerWithoutBottleComparisons = 0;
+    let thresholdDrawerComparisons = 0;
+    let thresholdDrawerWithoutTheBottleComparisons = 0;
     for (const [key, recorded] of RECORDING.rooms) {
       const room = roomFromKey(key);
       expect(roomKey(room)).toBe(key);
@@ -116,7 +124,13 @@ describe("the whole plan before 7D5's width change", () => {
       const hasPanDrawer = plan.bases.some(
         (base) => base.buildId === PAN_DRAWER_BODY,
       );
-      if (hasBottle || hasPanDrawer) {
+      const hasThresholdDrawer = plan.bases.some(
+        (base) => base.id === THRESHOLD_DRAWER_ID,
+      );
+      if (hasThresholdDrawer) thresholdDrawerComparisons += 1;
+      if (hasThresholdDrawer && !hasBottle)
+        thresholdDrawerWithoutTheBottleComparisons += 1;
+      if (hasBottle || hasPanDrawer || hasThresholdDrawer) {
         if (hasBottle) normalizedBottleComparisons += 1;
         if (hasPanDrawer) panDrawerComparisons += 1;
         if (hasPanDrawer && !hasBottle) panDrawerWithoutBottleComparisons += 1;
@@ -131,10 +145,26 @@ describe("the whole plan before 7D5's width change", () => {
     // the block, so 78 rooms that stood a bottle alone now stand the pan drawer alone. They leave
     // the bottle arm (390 → 312) for the classifier's pan-drawer-without-bottle arm, and no room
     // joins or leaves the exact arm — the 90 without either are what S1 left whole.
-    expect(exactNoBottleComparisons).toBe(90);
-    expect(normalizedBottleComparisons).toBe(312);
-    expect(panDrawerComparisons).toBe(210);
-    expect(panDrawerWithoutBottleComparisons).toBe(78);
+    //
+    // 7D5 S3 / Q-H5: the threshold drawer stands in 40 recorded rooms, every one beside a pan drawer
+    // (the pan-drawer arm is unchanged at 210). 33 of them stand no bottle: 28 are the drawer taking
+    // the bottle's place, and they leave the bottle arm (312 → 284) for the pan-drawer-without-bottle
+    // arm (78 → 106); the other 5 had already lost their bottle to Q-H6c. The exact arm is unchanged.
+    expect({
+      exactNoBottleComparisons,
+      normalizedBottleComparisons,
+      panDrawerComparisons,
+      panDrawerWithoutBottleComparisons,
+      thresholdDrawerComparisons,
+      thresholdDrawerWithoutTheBottleComparisons,
+    }).toEqual({
+      exactNoBottleComparisons: 90,
+      normalizedBottleComparisons: 284,
+      panDrawerComparisons: 210,
+      panDrawerWithoutBottleComparisons: 106,
+      thresholdDrawerComparisons: 40,
+      thresholdDrawerWithoutTheBottleComparisons: 33,
+    });
     expect(
       exactNoBottleComparisons +
         normalizedBottleComparisons +
@@ -220,6 +250,25 @@ describe("the whole plan before 7D5's width change", () => {
       );
     }).toThrow(/bottle count/);
   });
+
+  // 7D5 S3 / Q-H5: witnesses that the threshold-drawer arm of the classifier is not vacuous. Each
+  // mutation keeps both runs contiguous, so the clause named is what rejects it.
+  it.each(THRESHOLD_DRAWER_CORRUPTION_CASES)(
+    "rejects a threshold-drawer room where %s",
+    (_, rejectingClause, witness) => {
+      const { key, room, recorded, plan } = firstRoomWhere(witness.isWanted);
+      witness.mutate(plan);
+
+      expect(() => {
+        assertOnlyTheBottleAndPanDrawerChanged(
+          key,
+          room,
+          plan as unknown as KitchenCompositionPlan,
+          recorded,
+        );
+      }).toThrow(rejectingClause);
+    },
+  );
 
   it.each(CORRUPTION_CASES)(
     "rejects unrelated %s corruption in the bottle arm",
@@ -350,6 +399,103 @@ const PAN_DRAWER_CORRUPTION_CASES: readonly (readonly [
     },
   ],
 ];
+
+interface ThresholdDrawerWitness {
+  readonly isWanted: (bases: KitchenCompositionPlan["bases"]) => boolean;
+  readonly mutate: (plan: MutablePlan) => void;
+}
+
+function hasThresholdDrawer(bases: KitchenCompositionPlan["bases"]): boolean {
+  return bases.some((base) => base.id === THRESHOLD_DRAWER_ID);
+}
+
+function hasBottle(bases: KitchenCompositionPlan["bases"]): boolean {
+  return bases.some((base) => base.id === "bottle");
+}
+
+const THRESHOLD_DRAWER_CORRUPTION_CASES: readonly (readonly [
+  string,
+  RegExp,
+  ThresholdDrawerWitness,
+])[] = [
+  [
+    "it wears a door body",
+    /threshold drawer identity/,
+    {
+      isWanted: hasThresholdDrawer,
+      mutate: (plan) => {
+        baseWithId(plan, THRESHOLD_DRAWER_ID).buildId = "base-cabinet";
+      },
+    },
+  ],
+  [
+    "a second one stands",
+    /threshold drawer count/,
+    {
+      isWanted: hasThresholdDrawer,
+      mutate: (plan) => {
+        const drawer = baseWithId(plan, THRESHOLD_DRAWER_ID);
+        plan.bases.push({ ...drawer });
+      },
+    },
+  ],
+  [
+    "it stands before the hob instead of after it",
+    /core geometry/,
+    {
+      isWanted: (bases) => hasThresholdDrawer(bases) && !hasBottle(bases),
+      mutate: (plan) => {
+        const drawer = baseWithId(plan, THRESHOLD_DRAWER_ID);
+        const hob = baseWithRole(plan, "hob");
+        drawer.startMm = hob.startMm;
+        drawer.endMm = drawer.startMm + drawer.widthMm;
+        hob.startMm = drawer.endMm;
+        hob.endMm = hob.startMm + hob.widthMm;
+      },
+    },
+  ],
+  [
+    "it is read after a tall column rather than the hob or the bottle",
+    /threshold drawer after the hob or the bottle/,
+    {
+      isWanted: (bases) =>
+        hasThresholdDrawer(bases) &&
+        bases.some(
+          (base) =>
+            TALL_COLUMN.test(base.id) &&
+            base.widthMm === 600 &&
+            base.startMm ===
+              bases.find((drawer) => drawer.id === THRESHOLD_DRAWER_ID)?.endMm,
+        ),
+      mutate: (plan) => {
+        const drawer = baseWithId(plan, THRESHOLD_DRAWER_ID);
+        const column = plan.bases.find(
+          (base) => TALL_COLUMN.test(base.id) && base.startMm === drawer.endMm,
+        );
+        if (column === undefined) throw new Error("no column after the drawer");
+        column.startMm = drawer.startMm;
+        column.endMm = column.startMm + column.widthMm;
+        drawer.startMm = column.endMm;
+        drawer.endMm = drawer.startMm + drawer.widthMm;
+      },
+    },
+  ],
+  [
+    "it cost a second tall column",
+    /tall columns kept once the pan drawer stands/,
+    {
+      isWanted: (bases) =>
+        hasThresholdDrawer(bases) &&
+        hasBottle(bases) &&
+        bases.filter((base) => TALL_COLUMN.test(base.id)).length >= 2,
+      mutate: (plan) => {
+        removeOutermostModulesOfTheHobWall(plan, 1);
+      },
+    },
+  ],
+];
+
+const TALL_COLUMN = /^column:[AB]:\d+$/;
 
 function firstPanDrawerRoomWithASlotAfterTheHob(): {
   readonly key: string;

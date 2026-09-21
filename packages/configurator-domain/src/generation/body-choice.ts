@@ -25,12 +25,12 @@
 // and `plannedVoid` both depend on. 7D4 builds only the width-neutral half of the owner's order
 // (H6); the bottle cabinet and the second drawer cabinet are 7D5's, and both are width changes.
 //
-// **The second question this module answers is *whose module is this?*** After wave 7D3 the storage
-// **role** has four referents: the storage run's composed slots (`storage:<wall>:<n>`), the
-// full-height columns of the block at the suffix wall's free end (Amendment I: the block follows the
-// run, not the letter A), which carry `role: "storage"` deliberately so frame 1F's row set does not
-// move (ADR 0110 E5.2), and since wave 7D5 the bottle cabinet (`bottle`) and the pan drawer
-// (`pan-drawer`). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
+// **The second question this module answers is *whose module is this?*** The storage **role** has
+// five referents: the storage run's composed slots (`storage:<wall>:<n>`), the full-height columns of
+// the block at the suffix wall's free end (Amendment I: the block follows the run, not the letter A),
+// which carry `role: "storage"` deliberately so frame 1F's row set does not move (ADR 0110 E5.2), and
+// since wave 7D5 the bottle cabinet (`bottle`), the pan drawer (`pan-drawer`) and the threshold drawer
+// (`threshold-drawer`, Q-H5). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
 // of them and one scoped by width on 14.9 % — in both cases against output that is **correct**, so
 // the failure presents as a defect in a closed wave. A slot is therefore identified by **what
 // composed it**; `isComposedStorageSlot` is the only answer to that question, and this is the only
@@ -50,7 +50,8 @@ export const DOOR_BASE_BUILD_ID = "base-cabinet";
 /** Three shallow drawers. The **preparation** cabinet's body from wave 7D4 on — the cutlery reached
  *  while cutting lives in drawers within reach of the preparation surface — and the body of the one
  *  storage slot standing first after the hob in the reading order (D15.3). Both amend the *interim
- *  data* of ADR 0110 A1's reading order rather than the order itself. */
+ *  data* of ADR 0110 A1's reading order rather than the order itself. Since wave 7D5 it is also the
+ *  threshold drawer's body, the module added after the bottle where the run is long (ADR 0110 Q-H5). */
 export const THREE_DRAWER_BASE_BUILD_ID = "base-3drawer";
 
 /** The fixed-width cargo that stands immediately after the hob in the reading order when the same
@@ -64,7 +65,7 @@ export const BOTTLE_CARGO_BUILD_ID = "base-bottle-cargo";
  *
  *  **It stands immediately before the hob in the reading order, on the hob's wall**, wherever that
  *  keeps every core role on its wall and costs no tall column against the run it is decided against
- *  (the core alone, or in ADR 0110 K3's fallback the bottle kitchen) — `generation-priorities.ts` composes
+ *  (the core alone, or in ADR 0110 K3's fallback the bottle kitchen) — `optional-run-items.ts` composes
  *  it there under the owner's Q-H6 = A (ADR 0110 Amendment J1, wave 7D5 slice S2) — and where it
  *  and the bottle cabinet cannot both stand, it wins (ADR 0110 Q-H6b: bottles fit in the cabinet
  *  above it, while a whole deep drawer holds far more). ~~Generation places it nowhere in this wave
@@ -85,7 +86,8 @@ export interface ComposedModuleIdentity {
 
 /**
  * Did the **storage run** compose this module, as opposed to a tall-end block column, the bottle
- * cabinet or the pan drawer — the other three modules that carry `role: "storage"`?
+ * cabinet, the pan drawer or the threshold drawer — the other four modules that carry
+ * `role: "storage"`?
  *
  * **Neither the role nor the width can answer this**, and both look as though they can: a block
  * column carries `role: "storage"` by ADR 0110 E5.2, and E6.2 lets its outermost column absorb the

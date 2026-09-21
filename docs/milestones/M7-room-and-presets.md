@@ -8489,10 +8489,71 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > resolved under ADR 0123's third route — kept, coverage converted to a declared witness at 4100 × 6100
 > (ADR 0110 K8; see the dated note at criterion 9 below). **S2's own close-out entry is not yet
 > written** — this note only reconciles the plan at commit time.
+>
+> **Q-H5 re-measured after S1 and S2 — 2026-09-21, at `17df3f5`, before it is put to the owner.**
+> Real `planKitchenComposition` (a scratch `tsc` build of `src/` at HEAD), approved L 900–6000 ×
+> 1000–6000, 10 mm, 2600 mm: 256 011 swept, 245 211 placed; calibrated against K5 (pan drawer
+> 92 446, bottle 184 686, both 56 866, post-hob `base-3drawer` 431, all at wall A 6000 — all exact).
+> *[measured]* **E1's *D* as written** (`storage:` slots plus the drawer module in the group astride
+> the hob — i.e. the pan drawer counts; the preparation cabinet does not): *D* ≥ 6 in **15 986
+> (6.52 %)**, and **15 795 of them (98.8 %) have exactly one drawer among *D*** — the pan drawer.
+> K1 (Q-H6a) moved the single drawer from after the hob to before it; it did not add one. In all
+> 15 795 the hob's wall carries **no plain cabinet at all** after the hob — only the bottle (11 895)
+> and three tall columns (15 795) — and 5–7 door cabinets stand between the fridge and the sink.
+> **E8.1's width-neutral relabel branch is therefore empty; S3's only routes are (a) accept one,
+> (b) a third 600 mm drawer after the hob — costs the bottle in 6 195 and one tall column (3 → 2) in
+> 9 600 — or (c) a drawer between fridge and sink (15 795, width-neutral, overturns H2).** Witnesses
+> 4600 × 5200 (fails; (b) costs a column), 4600 × 5800 ((b) costs the bottle), 6000 × 4100 (meets).
+> **If the preparation cabinet also counts (Q-H3a, still unasked):** *D* ≥ 6 in 28 896 (11.78 %),
+> **26 306 (91.0 %) already meet two**, and the 2 590 that do not are exactly the rooms where the pan
+> drawer was refused for costing a tall column (Q-H6 = A); witness 4600 × 4610. **If the pan drawer
+> does not count (never asked):** 5 856, and none meet. `base-hob-2drawer` stands in 100 % of every
+> reading's *D* ≥ 6 population, so Q-H4 = *yes* satisfies every room outright. The old 49 % / 62 %
+> and E8.1's three-shape table are superseded. **S3 stays blocked on the owner; the question is now
+> whether S3 is needed at all.** Probes are scratch-only; nothing in `src/` or tests moved.
+>
+> **Record, before commit — 2026-09-21, slice S3 (the threshold drawer).** Recorded in full at
+> [ADR 0110 Amendment L](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-l--2026-09-21-wave-7d5-slice-s3-the-threshold-drawer).
+> **Q-H5 answered by the owner:** a third 600 mm `base-3drawer` after the hob (Amendment H1's order),
+> against prep + pan drawer (no change, the architect's recommendation) and a drawer between the fridge
+> and the sink (refused — it would overturn Amendment H2). The *D* reading the owner answered under
+> excludes the preparation cabinet (ADR 0110 L1), which answers Q-H3a implicitly as *no*, as the
+> coordinator's reading — not the owner's own words. **The bottle cabinet gives way to the drawer only
+> in the narrow-kitchen shape the owner names** (ADR 0110 L2, quoted verbatim there); a proposed K3
+> refinement letting the pan drawer take the bottle's place more broadly is **rejected**. **A
+> coordinator misquote is on the record**: ~490 rooms was given to the owner where the actual population
+> is **34,220**; 490 was only the *D* ≥ 6 subset. **The drawer may cost at most one tall column**
+> (`THRESHOLD_DRAWER_MOST_COLUMNS_IT_MAY_COST = 1`, ADR 0110 L3), witnessed on 6000 × 5000 × 2200 at
+> wall A 3350/3300 (arm A) and 4300 (arm B); the limit binds nowhere in the approved policy. Measured
+> against `17df3f5` (ADR 0110 L5): 245,211 placed, unchanged; threshold drawer in 15,795 rooms; bottle
+> gives way in 6,195 (all columns kept); a tall column gives way (3 → 2) in 9,600 (5,700 keep the
+> bottle, 3,900 had none); *D* ≥ 6 rooms 15,986, none still short; pan drawer 92,446 unchanged; bottle
+> 178,491 (was 184,686); both together 50,671; `minimumMet`/`dropped`/core-wall differences 0. **S3's
+> own close-out entry is not yet written** — this note only reconciles the plan at commit time.
+>
+> **Corrected 2026-09-21, before commit — the "two candidate branches removed" line above (ADR 0110
+> L4) was wrong.** Only "after the bottle at no cost" stays removed; "in the bottle's place, costing a
+> column" is restored as a third candidate (coordinator ruling), reachable but unreached in the
+> approved policy (0 differences over 1,792,077 rooms at 7 heights, and 0 over the approved L at
+> 2200/2600/3900 — ADR 0110 L4). L3's witness sentence is restated, not struck: the implementer found
+> no fitting candidate costing two columns in the bottle's place across 2,397,024 declared runs, and
+> QA is re-witnessing it independently (ADR 0110 L4, L6). `generation-priorities.ts` is split in this
+> slice into `optional-run-items.ts` and `run-layout.ts`, unchanged public API (328 export keys, ADR
+> 0110 L4a). QA's earlier-wave restatements (S2/S1 censuses, the recorded-plan classifier, 7D3
+> criterion 6, `qa-7d3`, `qa-7d4`, and both three-adapter parity suites) are recorded in full at ADR
+> 0110 L6. **A coordinator process error is on the record**: the S1 and S2 commits ran only the domain
+> suite; the three-adapter suite was red at both (1 test at S1, 4 more at S2), found by S3's QA and
+> restated in L6 rather than at the breaking commit — neither commit was pushed, and future slices run
+> `pnpm check` before commit (ADR 0110 L7).
 
 **Tier: Full** (a domain rule stated in a quantity, touching the module 7D3 and 7D4 both touched):
-adversarial QA, then the logic and clean-code reviewers separately. **Visual: No** — nothing reaches
-a screen in this wave. **Owner answers: Q-H3 is ANSWERED (E1) and the answer re-keyed this plan;
+adversarial QA, then the logic and clean-code reviewers separately. ~~**Visual: No** — nothing reaches
+a screen in this wave.~~ **Corrected 2026-09-21, S3 close-out — this was inaccurate.** There is no
+rendering-*path* change and no new body: the bottle cabinet, pan drawer and threshold drawer all
+render through existing bodies over live generation, so the reference room and every visual-fixture
+room measured are unchanged by S3. But the bottle/pan-drawer change (S1/S2) does change what a
+generated kitchen visibly shows in the rooms where it fires — so **a visual check of one witness per
+slice is owed at close-out**, not waived. **Owner answers: Q-H3 is ANSWERED (E1) and the answer re-keyed this plan;
 Q-H4 follows from it by implication and is put back as a confirmation, with the plan written for
 *no*; Q-H3a is new and is the preparation cabinet's place in the count; Q-H5 and Q-H6 are put below
 as consequences and are not picked here.**
@@ -8969,6 +9030,13 @@ rooms (criterion 6). And it must not put a drawer in a wall-B slot between the f
 make the count — **the owner's own order rules those door cabinets** (H2), and 4–5 of the six are
 there in every threshold room.
 
+> **Dated note — 2026-09-21, slice S3, as shipped.** Q-H5 is answered and this slice's shape is
+> superseded by ADR 0110 Amendment L: the owner asked for a **third** drawer (`base-3drawer` after the
+> hob), not a recount of the second, and the rule reads *D* under the L1 reading (preparation cabinet
+> excluded). The bottle cabinet gives way to it only in the narrow-kitchen shape L2 names, capped by L3
+> at one tall column. See ADR 0110 L1–L5 for the ruling and the measured figures superseding this
+> section's population and shapes.
+
 **S4 — the re-baselining.** *(Owner: implementer + QA. Tier: Full.)* 7D3's criterion 12 restated
 against 7D5's own planner **and the restatement recorded in ADR 0110** — not an edited 7D3
 assertion, which `docs/WORKFLOW.md` calls a defect. E5's block table and E6's absorb count written
@@ -9021,6 +9089,12 @@ behaviour standing, the check must stay green.**
    **(a)** delete the threshold and let the rule fire everywhere → red, on a room with *D* = 5.
    **(b)** change *which* drawer body stands in a threshold slot → green.
 
+   > **Dated note — 2026-09-21, slice S3.** Superseded by the owner's Q-H5 answer and ADR 0110
+   > Amendment L: the shipped rule adds a **third** `base-3drawer` after the hob rather than relabelling
+   > an existing plain cabinet, and is capped at costing at most one tall column (L3). Measured against
+   > `17df3f5` (L5): threshold drawer in 15,795 of the *D* ≥ 6 population of 15,986 (none still short);
+   > the figures above (48.84 % / 61.63 %, the two-reading table) are superseded — see ADR 0110 L1–L5.
+
 4. *(sweep, **branch on Q-H3a**)* **The threshold population is re-measured after the wave, not
    carried from this plan.** *D*'s mean falls from **2.028** at HEAD to **1.814** once the bottle
    cabinet stands, and the *D* ≥ 6 population falls from **9 501 (4.49 %)** to **6 411 (3.03 %)** —
@@ -9028,6 +9102,10 @@ behaviour standing, the check must stay green.**
    close-out says so rather than reporting the proportion alone (D15.5's guard). **If Q-H3a is
    answered *the preparation cabinet counts*, the population is 22 091 (10.44 %) and every figure in
    criterion 3 is re-taken over that set, not re-labelled.**
+
+   > **Dated note — 2026-09-21, slice S3.** *D*'s re-measurement at `17df3f5` (ADR 0110 L5): the
+   > *D* ≥ 6 population is 15,986 rooms and none are left short of the threshold drawer once slice S3
+   > ships — superseding the population figures above, which predate S3.
 
 5. *(unit)* **`PAN_DRAWER_BASE_BUILD_ID` has a production caller.** `body-choice.ts:54-62`'s note
    that *"generation places it nowhere in this wave"* is struck and replaced with where it now
@@ -9049,6 +9127,12 @@ behaviour standing, the check must stay green.**
    6000 × 4100 gains two fronts; the pair keeps discriminating.**
    **(a)** delete the threshold rule and leave the constants → red on 6000 × 4100.
    **(b)** swap which of `base-3drawer` / `base-panbank` stands in each slot → green.
+
+   > **Dated note — 2026-09-21, slice S3.** Superseded: the shipped rule inserts a third `base-3drawer`
+   > module (ADR 0110 L4) rather than relabelling one of the two existing shapes described above, and
+   > the bottle cabinet gives way to it only in the narrow-kitchen case (L2); a column gives way (3 → 2)
+   > in 9,600 rooms, capped at one column by L3. Witnesses at 6000 × 5000 × 2200 (arm A 3350/3300, arm B
+   > 4300) replace the reachable/unreachable pair above — see ADR 0110 L3, L5.
 
 7. *(sweep)* **The block threshold table is the one E5 measures for the chosen candidate**, re-taken
    after the slice rather than derived by adding 300 or 600 to 7D3's. **Discriminating population: the
