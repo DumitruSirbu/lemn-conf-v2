@@ -48,6 +48,12 @@
  * **Grown again, never rebaselined, by wave 7D5b slice SW** (ADR 0113 decision 2; ADR 0110
  * Amendment M3) — `room.compose.dishwasher`, frame 1F's sixth row, whose wording the owner approved
  * in session on 2026-09-21. **One added and no existing hash moved.**
+ *
+ * **Grown again, never rebaselined, by wave 7F2 slice S1** (ADR 0113 decision 2) — frame 1C's copy,
+ * owner-approved in session on 2026-09-21 (Q-7F2-1 and Q-7F2-4): the six `room.issue.*` reasons, one
+ * per issue code 1C can carry, `room.issue.unreadable`, `room.issue.orChooseLinear` (wired off until
+ * wave 7J), the two `room.planWallIssue.*` labels and `room.presetsAfterValid`. A departure from frame
+ * 1C's sentence, recorded in the copy lock. **Eleven added and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -725,6 +731,22 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "1b00450091831491e1b4128640374d6a2a3ac0ad3e84ebc083e6b5a5310803f1",
   "room.heightLabel":
     "ff63771df164dbfdaf4e10f822bac40675197de9117bce6a26d7ae15afd8312c",
+  "room.issue.heightTooHigh":
+    "3e6a99398e3aa0ec776428d1195096df8232b37a3770a8ae0e0840a428228918",
+  "room.issue.heightTooLow":
+    "25307f65aea86b45bd44b4ba2337a66faa73b28d0bab7fdfb189699430119e16",
+  "room.issue.orChooseLinear":
+    "bdd9b039fc0b9967e4fa6d8a5cd31ea2cd43de4b3fe92e9b864917a6cb917efe",
+  "room.issue.roomTooSmall":
+    "11973ac50edb81bce3a89f20f336c30261e8c1b3a274501a18f3a3ac70fb62cb",
+  "room.issue.shapeNotBuildable":
+    "628ecbc794dce0fc76080277d023a4cccc61eb782634c83d4a6af553396def0d",
+  "room.issue.unreadable":
+    "2594260754bc3e5a35d75a29a122259804517be7f6d516eb1efdae9a627fba0f",
+  "room.issue.wallTooLong":
+    "9e19b58541c57b01ae1a292bb4c9c6da6ebc6c154ef98c573fb8f5959da5f3d5",
+  "room.issue.wallTooShort":
+    "a9c20cf482fb9a645c516d47a70c92760d7c371398f96c103a282d88e78fbe08",
   "room.lengthHelp.wallA.name":
     "f59dc3455abaf89693b4f767601a0c89f30310e2508fc680587366da1bfc4c74",
   "room.lengthHelp.wallA.cornerText":
@@ -745,6 +767,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "8dc37f456be3e5385df4820512a22970029bfccee43021d3e4d6d190c5dba4f5",
   "room.planWallLabel":
     "dade5b47ac28e92b98ad73ef0ffe5263be140b1960f054c1539036405e1b1ca1",
+  "room.planWallIssue.tooLong":
+    "c0ac4ab811bd5c78132f7921697c90b638fc25e9cf7c221054f5e209262e493c",
+  "room.planWallIssue.tooShort":
+    "7c94c349fcefcb48459040e9e62eff16fc7c509d4482345cd395e57bb499044d",
+  "room.presetsAfterValid":
+    "771f54d4059e4683596180f6853994a4bd86e12620e0dee2abcbc64c58e62a5d",
   "room.shapeLead":
     "4f30d5a158a82f441223af41a0a888c31f0ab0b47164b083f04fb7a16b8a87ee",
   "room.shapeQuestion":

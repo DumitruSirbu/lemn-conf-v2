@@ -569,6 +569,8 @@ const ROOM_RENDER_ARGUMENTS: Readonly<
   "room.compose.rowLabel": { role: "Sink", extent: "600" },
   "room.compose.rowWidth": { millimetres: 600 },
   "room.compose.dropped": { roles: "Fridge" },
+  "room.planWallIssue.tooShort": { wall: "B" },
+  "room.planWallIssue.tooLong": { wall: "B" },
 };
 
 /**

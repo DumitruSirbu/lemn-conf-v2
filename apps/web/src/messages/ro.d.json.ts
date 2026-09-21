@@ -79,6 +79,21 @@ declare const messages: {
     "unitMetres": "m",
     "back": "Înapoi",
     "continue": "Continuă",
+    "issue": {
+      "wallTooShort": "Lungimea aceasta e mai mică decât putem mobila. Mărește valoarea.",
+      "wallTooLong": "Lungimea aceasta e mai mare decât putem mobila. Introdu doar porțiunea pe care vrei dulapuri.",
+      "heightTooLow": "La înălțimea aceasta nu încap dulapurile de sus. Verifică valoarea.",
+      "heightTooHigh": "Înălțimea aceasta e mai mare decât putem construi. Verifică valoarea.",
+      "roomTooSmall": "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
+      "shapeNotBuildable": "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
+      "orChooseLinear": "Sau alege o formă liniară.",
+      "unreadable": "Scrie lungimea în metri."
+    },
+    "planWallIssue": {
+      "tooShort": "{wall} prea scurt",
+      "tooLong": "{wall} prea lung"
+    },
+    "presetsAfterValid": "Presetele apar după ce toate valorile sunt valide.",
     "compose": {
       "title": "Preset",
       "heading": "Ți-o construim pe a ta",

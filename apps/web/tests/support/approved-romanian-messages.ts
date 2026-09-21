@@ -101,6 +101,42 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     unitMetres: "m",
     back: "Înapoi",
     continue: "Continuă",
+    // Sub-state 1C, wave 7F2 S1. **Owner-approved in session, 2026-09-21** (Q-7F2-1 = (a), Q-7F2-4 =
+    // (a)), and the Russian beside them in `ru.json` by the same ruling (ADR 0113 decision 2).
+    //
+    // **A departure from frame 1C, recorded against ADR 0104's sweep.** The frame's sentence —
+    // *"Acest perete este mai scurt decât putem susține. Mărește valoarea sau alege o formă
+    // liniară."* — does not ship as written: *"Acest perete"* is the noun ADR 0120 Amendment C1 rules
+    // false (the number is the run to furnish, not the wall), and *"alege o formă liniară"* suggests a
+    // shape that is not buildable until wave 7J. `wallTooShort` keeps the frame's shape with the noun
+    // corrected; the clause survives as `orChooseLinear`, **rendered only once 7J makes it true**.
+    //
+    // No leaf carries a digit, a unit or a bound (ADR 0108 decision 3, ADR 0120 decision 3): a
+    // refusal says what the room cannot hold, never how many millimetres to add. `roomTooSmall` is
+    // ADR 0110's *"honest sentence"* with its digit removed. `presetsAfterValid` is frame 1C's note,
+    // as written. `unreadable` is drafted, and shown once the field loses focus (Q-7F2-4).
+    issue: {
+      wallTooShort:
+        "Lungimea aceasta e mai mică decât putem mobila. Mărește valoarea.",
+      wallTooLong:
+        "Lungimea aceasta e mai mare decât putem mobila. Introdu doar porțiunea pe care vrei dulapuri.",
+      heightTooLow:
+        "La înălțimea aceasta nu încap dulapurile de sus. Verifică valoarea.",
+      heightTooHigh:
+        "Înălțimea aceasta e mai mare decât putem construi. Verifică valoarea.",
+      roomTooSmall:
+        "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
+      shapeNotBuildable:
+        "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
+      orChooseLinear: "Sau alege o formă liniară.",
+      unreadable: "Scrie lungimea în metri.",
+    },
+    // Frame 1C's plan label, *"B prea scurt"*; `tooLong` mirrors it.
+    planWallIssue: {
+      tooShort: "{wall} prea scurt",
+      tooLong: "{wall} prea lung",
+    },
+    presetsAfterValid: "Presetele apar după ce toate valorile sunt valide.",
     // Sub-state 1F, wave 7F4a. Frame 1F's wording used as written, with three drafted leaves called
     // out because no frame supplies them:
     //

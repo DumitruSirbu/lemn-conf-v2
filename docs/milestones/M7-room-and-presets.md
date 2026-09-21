@@ -10342,7 +10342,8 @@ issue fields only — `wallA→A`, `wallB→B`, `wallC→C`; `height`, `shape` �
 All slices touch `room.module.css` or `room-screen.tsx`, so they are **sequential**, one dispatch at a
 time, the tree frozen between them. Production-file counts exclude paired tests.
 
-**S0 — measure before building. Owner: visual verifier (+ QA for the census). No production file.**
+**S0 — measure before building. Owner: visual verifier (+ QA for the census). No production file.
+DONE except item 4's census (open, QA's — the two named files are source-verified; the other 11 files referencing `room-continue` are not yet checked; owed before S3).**
 Dispatch only after 7D5b S3 closes and port 4320 is free.
 1. Production build, 390 × 844, ro and ru: measure `.dimensionsBody`'s vertical slack at 1B for linear,
    L and U (the 7A3 method, `room-length-fields-fit.e2e.spec.ts`). **Feeds Q-7F2-2.**
@@ -10352,6 +10353,69 @@ Dispatch only after 7D5b S3 closes and port 4320 is free.
    **Expected: 8** — seven in `qa-7f1-d45-convergence.adversarial.test.ts:822-969` (fixture
    `A_ROOM_MISSING_WALL_A`, ceiling 2,10) and one in `room-url-round-trip.dom.test.ts:588-619`
    (`A_REFUSED_ROOM_MISSING_WALL_A`) [source-verified]. A different count is a finding about this plan.
+
+#### S0 measurements — 2026-09-21
+
+Measured by the visual verifier on a production build at `89fb4ec`: 390×844, touch/mobile, ro and ru.
+Screenshots are in `testing-reports/7f2-s0/` (gitignored, not committed). No database rows were
+created. Emulated Chromium only.
+
+**1. `.dimensionsBody` at 1B (criterion "Feeds Q-7F2-2").** Results are identical in ro and ru, and
+identical empty vs filled:
+
+| Shape | overflow | scrollHeight / clientHeight | Slack above the footer |
+| --- | --- | --- | --- |
+| linear | hidden | 709/709 | 227.11 px |
+| L | hidden | 709/709 | 63.11 px |
+| U | hidden | 709/709 | 2.61 px |
+
+- Body: y 48–757, padding 20/20, gap 16. Footer: 757–844 (87 px). No horizontal overflow.
+- Content heights: chips 73 px, plan card 158.5, corner toggle 63.5.
+- Fields group: L 262.89, U 323.39, linear 178.39.
+- Field rows: 72.5 px in L and linear (54 px box), 66.5 px in U (48 px box). Hint 15.39 px.
+- The plan's U ≈ 2.6 px slack holds, and L ≈ 60 is confirmed (63.11).
+
+**2. Frame 1C.** Measured from the mockup markup, `Mobil.dc.html:195-247`, rendered in isolation:
+- Reason box 58.25 px (2 lines).
+- A field row with its reason is 140.75 px against 74.5 without, so a reason adds 64.25 px.
+- Note: 18 px.
+- The drafted copy at 354 px renders at 58.25 px for every field reason and for the shape refusal.
+  `room.issue.roomTooSmall` takes **3 lines, 76.38 px**, in both locales.
+- Inferred overflow under today's `overflow: hidden` [inference, not directly measured]:
+  - L, one reason + note: ~35 px
+  - L, three reasons + note: ~164 px
+  - L, too-small + note: ~63 px
+  - U, shape refusal + note: ~106 px
+
+  So every 1C state overflows today, which confirms that the Q-7F2-2 scrolling remedy is required.
+
+**3. Wrong-shape previews.** All three are reproduced, identically in ro and ru:
+- U with A+B draws exactly L{A,B}.
+- U with A alone draws exactly linear{A}.
+- L with A alone draws exactly linear{A}.
+
+*Continuă* is disabled in each. Additional observation: L with A unreadable and B typed draws B alone
+as a vertical bar, which matches no shape's complete drawing.
+
+**4. 1C today.** Tested with an L room, typed, in ro and ru. The cases were: too short (A 0,80), too
+long (A 6,50), height too low (2,00), too small (0,90×2,16×2,20), the frame's own example
+(3,60×0,45), and three issues (0,80×0,80×2,00). In every case:
+- nothing marks the problem: no reason, no `aria-invalid`, no live region, no red on the plan;
+- *Continuă* is enabled, and tapping it is a dead tap: the URL is unchanged, `history.length` stays 2,
+  and no request is made;
+- the URL does carry the values.
+
+**5. Non-length input in wall A** ("abc", "0", "3,6005"):
+- the field keeps the text;
+- `wallA` is dropped from the URL;
+- the plan draws B alone;
+- *Continuă* is disabled;
+- no message appears, even after blur. It is completely silent.
+
+**Not verified [source-verified for the two named files only]:** the census of the 8 dead-tap tests is
+source-only for `qa-7f1-d45-convergence.adversarial.test.ts` at 826, 841, 864, 882, 899, 938, 952, and
+`room-url-round-trip.dom.test.ts:602`. The other 11 files that reference `room-continue` were not
+checked; that is QA's.
 
 **S1 — the issue model and the copy. Owner: implementer (web). 4 production files. Ungated** (copy ships
 as drafted interim, the 7F4a/Q7F4-1 precedent: the answer to Q-7F2-1 is a message-file edit).
@@ -10538,6 +10602,8 @@ files (message trio, copy lock, golden hashes, `room.module.css`, this milestone
 ADR 0104) are 7D5b's own and are no longer in flight.
 
 ### 8. What 7J needs from 7F2
+
+**Added 2026-09-21 (S1 review, measured):** under a forged policy that states `linear` or `U`, a filled room of that shape reaches 1C carrying only `SHAPE_NOT_BUILDABLE` — `roomReasons` drops it and `isShapeRefused` is false, so 1C shows the note with no reason. The cause is in the domain: `validateRoomInput` refuses every non-L room (`validate-room.ts:76`) whatever the policy states, while `isShapeBuildable` reads the policy. **When 7J states `linear`, `validateRoomInput` must stop refusing it in the same commit, or 1C goes silent.** Unreachable under `APPROVED_ROOM_POLICY` (QA's "1C is never silent" property).
 
 7J's row: *"the 1C/D1C suggestion to switch to a straight kitchen appears"*, and R8/criterion 3: *"7J
 changes nothing under `apps/web/src/room`"* [source-verified]. So 7F2 must leave a surface that switches on
