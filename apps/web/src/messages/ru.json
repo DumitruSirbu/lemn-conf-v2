@@ -89,6 +89,7 @@
         "hob": "Варочная панель и духовка",
         "storage": "Хранение"
       },
+      "dishwasher": "Ниша для посудомоечной машины",
       "rowLabel": "{role} · {extent}",
       "rowWidth": "{millimetres, number, ::group-off}",
       "storageExtent": "остальная часть стены",

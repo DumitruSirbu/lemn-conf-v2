@@ -472,7 +472,8 @@ describe("a kit that exists before the lease does (criterion 28, risk 5)", () =>
 
     expect(kitLedger()).toEqual({ built: 1, disposed: 1 });
     expect(composePhase()).toBe("composed");
-    expect(rowStatuses()).toHaveLength(5);
+    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
+    expect(rowStatuses()).toHaveLength(6);
     expect(reported).toHaveBeenCalled();
     // What held under the old behaviour and must hold under the new one: the screen settled and the
     // customer can still leave.
@@ -557,7 +558,8 @@ describe("two runs alive at once (the run token)", () => {
     expect(vi.mocked(generateKitchen)).toHaveBeenCalledTimes(2);
     expect(composePhase()).toBe("composed");
     expect(phasesSeen()).not.toContain("failed");
-    expect(rowStatuses()).toHaveLength(5);
+    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
+    expect(rowStatuses()).toHaveLength(6);
   });
 
   it("leaves the form standing when the run the customer walked away from settles", async () => {

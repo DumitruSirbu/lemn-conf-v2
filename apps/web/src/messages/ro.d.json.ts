@@ -92,6 +92,7 @@ declare const messages: {
         "hob": "Plită și cuptor",
         "storage": "Depozitare"
       },
+      "dishwasher": "Nișă mașină de spălat vase",
       "rowLabel": "{role} · {extent}",
       "rowWidth": "{millimetres, number, ::group-off}",
       "storageExtent": "restul peretelui",

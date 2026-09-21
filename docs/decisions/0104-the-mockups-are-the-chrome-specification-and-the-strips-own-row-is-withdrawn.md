@@ -519,6 +519,19 @@ in place — ADR 0082 and ADR 0094 — and neither amendment is left to be infer
   plan rather than buried in it. The narrow-desktop ladder, the wordmark, ADR 0065's sentence and the
   colour are all **ruled** (2026-09-09) and are decisions here rather than open items.
 
+## Sweep addendum, 2026-09-21 — wave 7D5b's frame 1F departure (M7, not M6, scope)
+
+Decision 1 above extends only to the configure screen's chrome and is silent about a product
+mockup outside it. This addendum is recorded here anyway, on decision 1's own doctrine — *"where a
+shipped rule disagrees with a frame, the frame wins and the shipped rule is named and withdrawn,
+not quietly reconciled"* — because M7 wave 7D5b applies that same doctrine to a departure from
+`docs/design/mockups/Lemnaria Configurator Mobil.dc.html`'s frame 1F, and this is the record this
+project's own convention points a reader at for a named mockup departure.
+
+| Record | What it says | Settled how |
+| --- | --- | --- |
+| Frame 1F, `docs/design/mockups/Lemnaria Configurator Mobil.dc.html` | The approved mockup draws **five** 1F rows: fridge, sink, preparation, hob, storage. No dishwasher row. | **Departed from, named rather than reconciled.** [ADR 0110, Amendment M, decision M3](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) — owner ruling, wave 7D5b — adds a **sixth** row between the hob and storage: a dishwasher row, labelled **ro "Nișă mașină de spălat vase"** / **ru "Ниша для посудомоечной машины"**, width **600**, status reusing the existing *inclus* / *nu poate fi inclus* words, with **no explanatory sentence**. The owner chose this wording over the short form, in session. The storage row **excludes** the dishwasher. |
+
 ## Amendment A, 2026-09-10 — two things the owner ruled against this record's own frames, after driving the built screen
 
 Both are owner rulings given in a browser, and both are recorded **here** rather than only in

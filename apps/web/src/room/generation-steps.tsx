@@ -8,10 +8,11 @@
 // composition that did not finish — are drafted rather than drawn, and `ComposeCta` is where all
 // three are decided.
 //
-// **It renders what the model publishes and decides nothing.** The five rows, their extents and their
-// statuses are `generation-model.ts`'s; this file turns each role and each status into the leaf that
-// names it and draws the frame around them. No role's label is spelled at a call site, because a role
-// added to `GENERATION_PRIORITIES` must fail to compile rather than render a key at a customer.
+// **It renders what the model publishes and decides nothing.** The six rows (the sixth, the
+// dishwasher, by wave 7D5b and ADR 0110 Amendment M3), their extents and their statuses are
+// `generation-model.ts`'s; this file turns each row and each status into the leaf that names it and
+// draws the frame around them. No row's label is spelled at a call site, because a role added to
+// `GENERATION_PRIORITIES` must fail to compile rather than render a key at a customer.
 //
 // **Nothing here is sequenced** (ruling R12). `generateKitchen` is one synchronous call returning a
 // finished log, so the list is either wholly pending or wholly resolved; no row has a timer, no row
@@ -43,6 +44,7 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   droppedRolesIn,
   GENERATION_ROLE_MESSAGE_KEY,
+  GENERATION_ROW_MESSAGE_KEY,
   GENERATION_STATUS_MESSAGE_KEY,
   type GenerationRow,
   type GenerationRowStatus,
@@ -305,7 +307,7 @@ function StepList({ rows }: { readonly rows: readonly GenerationRow[] }) {
       </span>
       <ul className={styles.composeRows} data-testid="room-compose-rows">
         {rows.map((row) => (
-          <StepRow key={row.role} row={row} />
+          <StepRow key={row.id} row={row} />
         ))}
       </ul>
     </div>
@@ -318,7 +320,7 @@ function StepRow({ row }: { readonly row: GenerationRow }) {
   return (
     <li
       className={classNames(styles.composeRow, ROW_STATUS_CLASS[row.status])}
-      data-testid={`room-compose-row-${row.role}`}
+      data-testid={`room-compose-row-${row.id}`}
       data-compose-status={row.status}
     >
       {/* The mark is drawn by the stylesheet and named by the status beside it, so it carries no
@@ -326,10 +328,10 @@ function StepRow({ row }: { readonly row: GenerationRow }) {
       <span className={styles.composeRowGlyph} aria-hidden="true" />
       <span
         className={styles.composeRowName}
-        data-testid={`room-compose-name-${row.role}`}
+        data-testid={`room-compose-name-${row.id}`}
       >
         {translate("room.compose.rowLabel", {
-          role: translate(GENERATION_ROLE_MESSAGE_KEY[row.role]),
+          role: translate(GENERATION_ROW_MESSAGE_KEY[row.id]),
           extent:
             row.extent.kind === "restOfWall"
               ? translate("room.compose.storageExtent")
@@ -340,7 +342,7 @@ function StepRow({ row }: { readonly row: GenerationRow }) {
       </span>
       <span
         className={styles.composeRowStatus}
-        data-testid={`room-compose-status-${row.role}`}
+        data-testid={`room-compose-status-${row.id}`}
       >
         {translate(GENERATION_STATUS_MESSAGE_KEY[row.status])}
       </span>

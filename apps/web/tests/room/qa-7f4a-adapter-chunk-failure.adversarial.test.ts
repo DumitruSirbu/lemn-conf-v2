@@ -121,7 +121,8 @@ describe("the adapter chunk cannot be fetched (criterion 35)", () => {
     });
     // The pending list is on the glass first, exactly as it is for a run that will succeed: the
     // import is awaited *after* the entry into composition, so the customer never sees a dead tap.
-    expect(elementAt("room-compose-rows").children).toHaveLength(5);
+    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
+    expect(elementAt("room-compose-rows").children).toHaveLength(6);
     await settleFailure();
 
     expect(elementAt("room-compose-notice").textContent).toContain(

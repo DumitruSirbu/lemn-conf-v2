@@ -9618,9 +9618,13 @@ that the pan drawer wins there. Witness: **900 × 4410**.
 (b), (d) and (c) are tried only where M1 and (e) placed nothing, in that order. Each is a run-level
 candidate:
 
-- The dishwasher is inserted directly after the sink, or else directly before it, on the sink's side
-  of the cut.
-- It reuses J1's and L2's fit-and-column-budget machinery.
+- The dishwasher is inserted directly after the sink, ~~or else directly before it~~ **struck,
+  2026-09-21, review: not built.** ADR 0093 decision 1 makes before and after the sink add the same
+  600 mm to the same wall, so "before" can never succeed where "after" fails; QA's sabotage of the
+  before-branch confirmed nothing exercises it.
+- ~~It reuses J1's and L2's fit-and-column-budget machinery.~~ **Corrected, 2026-09-21, review:** the
+  code checks fit plus the exact per-wall body change, via `givesUpExactlyTheRuledBody`, not a column
+  budget.
 - It is kept only if the dishwasher stands **adjacent to the sink** and **no drawer cabinet is lost**.
 - For (b) and (d), **the hob body must also be unchanged**.
 - For (c), **the tower must be the block's only column**, and the hob must become `base-hob-oven`.
@@ -9792,7 +9796,10 @@ rule of any kind** **[source-verified: `grep -i oven` over those paths returns n
 
 **S2: (b), (d) and (c).** Owner: implementer. Tier: **Full**.
 
-- **File:** `optional-run-items.ts`.
+- **Files:** `optional-run-items.ts`; **also, recorded 2026-09-21, review:**
+  `dishwasher-beside-the-sink.ts`, which gained new exports `DISHWASHER_RUN_ITEM`, `hasADishwasher`
+  and `isTheDishwasher`; and a new file, `dishwasher-trades.ts`, which the (b)/(d)/(c) trade logic
+  moved into (a clean-code split, not named in the file list above).
 - **Restatements:**
   - L6's column and bottle totals;
   - 7D3's block-size table;
@@ -9912,7 +9919,11 @@ All figures are measured on top of S0b.
    Every other trade is derived from the price book, line by line.
 10. **The wall row.** Uppers are unchanged over M1 and (e) modules.
 11. **Visual** (390 × 844, at 600 and 700 mm depth). The rooms are **3560 × 2920**, **3600 × 2400**,
-    **2100 × 2200**, **1510 × 2800**, **900 × 3400**, **900 × 4400** and **4600 × 5200**.
+    **2100 × 2200**, **1510 × 2800**, **900 × 3400**, **900 × 4400** and **4600 × 5200**. **Note,
+    2026-09-21, review: 900 × 4400 no longer names an S1 witness after S2 — S2 renders it as a (c)
+    kitchen (dishwasher from the oven tower).** The row is kept as a visual check but is no longer
+    read as S1's own witness; see W7 below for the replacement witness for the *nu poate fi inclus*
+    case.
     - Checked: the dishwasher door against the corner assembly, and the 700 mm slide.
     - **Owner-confirmed 2026-09-21 (ADR 0110 Amendment M, M13):** shown 140,206 across-the-corner
       dishwashers against 25,215 beside-the-sink ones, the owner chose **keep across the corner**.
@@ -9955,9 +9966,18 @@ All figures are measured on top of S0b.
   - **(a)** Keep the dishwasher in the aggregate → red.
 - **W4** The dropped-roles sentence never names the dishwasher. In (e) rooms, *Blat de lucru* reads
   **inclus** (**900 × 3400**).
-- **W5** `apps/web/src/**` spells neither `"base-dishwasher"` nor the row's `600`.
+- **W5** **Restated, 2026-09-21, review, scoped to the row code.** `apps/web/src/room/generation-model.ts`
+  and `generation-steps.tsx`, comments stripped, spell neither `"base-dishwasher"` nor `600`, and read
+  both from the domain. This does **not** hold repo-wide: pre-existing files from M5/M6B already spell
+  `base-dishwasher` — `apps/web/src/messages/*`, `apps/web/src/panel/cabinet-thumbnails.ts`,
+  `apps/web/src/i18n/content.ts` — so the unscoped `apps/web/src/**` reading was false before SW and is
+  struck.
 - **W6** Catalogue parity, the copy lock, the golden manifest (new fixtures only) and `ro.d.json.ts`
   are all green. The commit records both strings as owner-approved.
+  - **Known coupling, recorded 2026-09-21, review:** `room.compose.dishwasher` carries the same
+    wording as `catalog.entries.base-dishwasher` in both Romanian and Russian, but the copy lock
+    guards only the Romanian side. The two strings can drift on the Russian side with no gate to
+    catch it.
 - **W7** *(visual, production build, 390 × 844, ro and ru)*
   - Six rows fit above the footer.
   - **The Russian row *Ниша для посудомоечной машины · 600* is checked for truncation at 390 px** in
@@ -9965,7 +9985,10 @@ All figures are measured on top of S0b.
     the owner, not to an agent's copy edit.
   - Witnesses:
     - **3600 × 2400**;
-    - **900 × 4400**, which reads *nu poate fi inclus*: dashed, `−`, no strike-through;
+    - ~~**900 × 4400**, which reads *nu poate fi inclus*: dashed, `−`, no strike-through~~ **replaced,
+      2026-09-21, review: 900 × 4400 now renders as a (c) room and carries a dishwasher, so it no
+      longer reads *nu poate fi inclus*. The *nu poate fi inclus* witness is `1500 × 3500`: no
+      dishwasher, and the door cabinet stands away from the sink.**
     - **1500 × 2800**;
     - **900 × 3400**.
 - **W8** Amendment M3 exists before SW commits, and ADR 0104's sweep row names the six-row departure.

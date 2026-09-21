@@ -60,8 +60,9 @@ describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () =
     // 26 from wave 7F1's frames 1A and 1B, wave 7F4a's 20 under `room.compose.*` for 1F, wave
     // 7F4b's 2 for the hand-off that 1F's footer now performs, and wave 7A3's 8 — the hint above the
     // wall fields, each wall's help name and explanation, and wall A's second explanation for a room
-    // with a corner.
-    expect(ROOM_KEYS.length).toBe(56);
+    // with a corner. Wave 7D5b's 1 is 1F's sixth row, `room.compose.dishwasher` (ADR 0110
+    // Amendment M3).
+    expect(ROOM_KEYS.length).toBe(57);
   });
 
   it.each(ROOM_KEYS)("reads %s somewhere under src/room", (key) => {

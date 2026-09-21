@@ -1,7 +1,7 @@
 // **Adversarial QA for M7 wave 7F4a — does a row ever lie about the kitchen behind it?**
 //
 // `generation-model.test.ts` proves the fold is *total* (criterion 30) and checks two hand-picked
-// rooms against the real engine. What it does not do is ask, over **many** rooms, whether the five
+// rooms against the real engine. What it does not do is ask, over **many** rooms, whether the six
 // words the customer reads are true of the design they are about to be handed. That is this file:
 // every claim below is checked against a genuinely generated log and its design, swept across the
 // approved L rectangle rather than sampled at two points.
@@ -9,6 +9,12 @@
 // The probe is `createFakeProbeFactory` — the same one the wave's own model tests use. Criterion 34
 // is what runs the real adapter kit, in `packages/three-adapter/tests`; nothing here is a claim about
 // measured carcasses.
+//
+// **Restated by wave 7D5b slice SW, not relaxed** (ADR 0110 Amendment M3). 1F gained a sixth row, the
+// dishwasher, and the storage row stopped counting it. Every claim below now asks which *row* a step
+// belongs to rather than which role it carries, and answers from the literal body id rather than the
+// app's own constant, so a producer that changed its mind would not carry this expectation with it
+// (ADR 0121 decision 4).
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   buildLShellDesign,
@@ -16,7 +22,7 @@ import {
   GENERATION_PRIORITIES,
   type DesignRoom,
   type GenerateKitchenResult,
-  type GenerationBaseRole,
+  type GenerationStep,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -24,11 +30,25 @@ import {
   pendingGenerationRows,
   resolveGenerationRows,
   type GenerationRow,
+  type GenerationRowId,
 } from "@/room/generation-model";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-09-14T09:00:00.000Z";
+
+/** The dishwasher's body and its declared width, spelled here rather than imported: they are the
+ *  expectation, and the app's code must reach them through the domain's exports. */
+const DISHWASHER_BODY = "base-dishwasher";
+const DISHWASHER_WIDTH_MM = 600;
+
+/** The row a step is counted under — the dishwasher's for its body, and its own role's otherwise, so
+ *  a storage-role dishwasher never counts towards *Depozitare*. */
+function belongsToRow(step: GenerationStep, rowId: GenerationRowId): boolean {
+  return step.buildId === DISHWASHER_BODY
+    ? rowId === "dishwasher"
+    : step.role === rowId;
+}
 
 /** `APPROVED_ROOM_POLICY`'s own L bounds, as the numbers a customer may type. Spelled rather than
  *  read off the policy so a policy that widens does not silently widen this sweep's claims too —
@@ -66,10 +86,10 @@ function generateFor(room: DesignRoom): GenerateKitchenResult {
 
 function statusOf(
   rows: readonly GenerationRow[],
-  role: GenerationBaseRole,
+  rowId: GenerationRowId,
 ): string {
-  const row = rows.find((candidate) => candidate.role === role);
-  if (row === undefined) throw new Error(`the list draws no ${role} row`);
+  const row = rows.find((candidate) => candidate.id === rowId);
+  if (row === undefined) throw new Error(`the list draws no ${rowId} row`);
   return row.status;
 }
 
@@ -124,13 +144,13 @@ describe("a row's word against the design behind it, swept over the approved rec
       for (const row of rows) {
         const anyBodyReachedTheDesign = result.log.steps.some(
           (step) =>
-            step.role === row.role &&
+            belongsToRow(step, row.id) &&
             step.status === "placed" &&
             present.has(step.placementId),
         );
         expect(
           row.status === "placed",
-          `${row.role} in ${String(room.widthMm)} × ${String(room.depthMm)}`,
+          `${row.id} in ${String(room.widthMm)} × ${String(room.depthMm)}`,
         ).toBe(result.ok && anyBodyReachedTheDesign);
       }
     },
@@ -162,11 +182,12 @@ describe("a row's word against the design behind it, swept over the approved rec
       // measured, by replacing storage's *restul peretelui* with a 600 and watching that comparison
       // pass. Criterion 29's claim is that a **resolved** row shows the declared width, and the
       // declaration lives in the domain.
-      expect(resolved.map((row) => [row.role, row.extent])).toEqual([
+      expect(resolved.map((row) => [row.id, row.extent])).toEqual([
         ...GENERATION_PRIORITIES.map((priority) => [
           priority.role,
           { kind: "width", millimetres: priority.widthMm },
         ]),
+        ["dishwasher", { kind: "width", millimetres: DISHWASHER_WIDTH_MM }],
         ["storage", { kind: "restOfWall" }],
       ]);
       expect(resolved.map((row) => row.extent)).toEqual(
@@ -198,7 +219,7 @@ describe("the storage row's aggregate, at the transition rather than at a sample
       const present = new Set(placementLedgerFor(result).present);
       const storageBodiesInTheDesign = result.log.steps.filter(
         (step) =>
-          step.role === "storage" &&
+          belongsToRow(step, "storage") &&
           step.status === "placed" &&
           present.has(step.placementId),
       );
@@ -207,7 +228,7 @@ describe("the storage row's aggregate, at the transition rather than at a sample
         storageBodiesInTheDesign.length > 0,
       );
       // R11's aggregate: however many cabinets the leftover rule planned, there is one row.
-      expect(rows.filter((row) => row.role === "storage")).toHaveLength(1);
+      expect(rows.filter((row) => row.id === "storage")).toHaveLength(1);
     },
   );
 
@@ -231,14 +252,15 @@ describe("the storage row's aggregate, at the transition rather than at a sample
   });
 });
 
-describe("the five rows are the priorities and the aggregate, and nothing the log invents", () => {
+describe("the six rows are the priorities, the dishwasher and the aggregate, and nothing the log invents", () => {
   propertyTest.prop([anyApprovedRoom], { numRuns: SWEEP_RUNS })(
     "draws no row for a role the frame has none for, however many the log carries",
     (room) => {
       const rows = resolveGenerationRows(generateFor(room).log);
 
-      expect(rows.map((row) => row.role)).toEqual([
+      expect(rows.map((row) => row.id)).toEqual([
         ...GENERATION_PRIORITIES.map((priority) => priority.role),
+        "dishwasher",
         "storage",
       ]);
     },

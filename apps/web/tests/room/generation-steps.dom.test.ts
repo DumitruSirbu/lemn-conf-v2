@@ -41,6 +41,8 @@ import { GenerationSteps } from "@/room/generation-steps";
 import type { ActiveGenerationRun } from "@/room/use-generation";
 
 import roMessages from "../../src/messages/ro.json";
+import ruMessages from "../../src/messages/ru.json";
+import type { Catalogue, CatalogueLocale } from "../support/catalogues";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-09-14T09:00:00.000Z";
@@ -84,7 +86,24 @@ afterEach(() => {
   container.remove();
 });
 
-function renderRun(run: ActiveGenerationRun): void {
+/** A locale and the catalogue it renders with. */
+interface RenderLocale {
+  readonly locale: CatalogueLocale;
+  readonly messages: Catalogue;
+}
+
+const ROMANIAN: RenderLocale = { locale: "ro", messages: roMessages };
+// The same cast `room-composition.dom.test.ts` makes: `Catalogue` is typed from `ro.json`, and
+// catalogue parity is what holds `ru.json` to its shape.
+const RUSSIAN: RenderLocale = {
+  locale: "ru",
+  messages: ruMessages as Catalogue,
+};
+
+function renderRun(
+  run: ActiveGenerationRun,
+  { locale, messages }: RenderLocale = ROMANIAN,
+): void {
   act(() => {
     root.render(
       createElement(NextIntlClientProvider, {
@@ -93,15 +112,15 @@ function renderRun(run: ActiveGenerationRun): void {
           onBack: () => undefined,
           onRetry: () => undefined,
         }),
-        locale: "ro",
-        messages: roMessages,
+        locale,
+        messages,
         timeZone: "Europe/Chisinau",
       }),
     );
   });
 }
 
-/** The list as it is painted before `generateKitchen` is entered: five rows, all pending. */
+/** The list as it is painted before `generateKitchen` is entered: six rows, all pending. */
 function composingRun(): ActiveGenerationRun {
   return {
     phase: "composing",
@@ -115,18 +134,22 @@ function composingRun(): ActiveGenerationRun {
  *
  *  Returned as the composed member rather than the whole union, so `failedHandoffRun` can spread it
  *  and move `handoff` without the compiler losing which member it is holding. */
-function composedRun(): Extract<ActiveGenerationRun, { phase: "composed" }> {
+function composedRun(
+  room: DesignRoom = SMALLEST_ACCEPTED_ROOM,
+): Extract<ActiveGenerationRun, { phase: "composed" }> {
   const result = generateKitchen({
-    room: SMALLEST_ACCEPTED_ROOM,
+    room,
     occurredAt: OCCURRED_AT,
     probeAt: createFakeProbeFactory(),
   });
   if (!result.ok) {
-    throw new Error("the owner's smallest accepted room no longer composes");
+    throw new Error(
+      `${String(room.widthMm)} × ${String(room.depthMm)} no longer composes`,
+    );
   }
   return {
     phase: "composed",
-    room: SMALLEST_ACCEPTED_ROOM,
+    room,
     rows: resolveGenerationRows(result.log),
     design: result.design,
     log: result.log,
@@ -414,5 +437,108 @@ describe("the notice band is 1F's live region", () => {
     renderRun(failedHandoffRun());
 
     expect(document.activeElement).toBe(focusedBefore);
+  });
+});
+
+/**
+ * **Wave 7D5b slice SW: the dishwasher row, as the customer reads it** (ADR 0110 Amendment M3). A
+ * resolution assertion in both locales — the wording itself is the copy lock's — over the plan's own
+ * witnesses: **1500 × 2800** holds an M1 dishwasher, **1500 × 3500** holds none.
+ */
+describe("the dishwasher row, in both locales (7D5b SW)", () => {
+  const WITH_DISHWASHER: DesignRoom = {
+    shape: "L",
+    widthMm: 1500,
+    depthMm: 2800,
+    heightMm: 2600,
+  };
+  const WITHOUT_DISHWASHER: DesignRoom = {
+    shape: "L",
+    widthMm: 1500,
+    depthMm: 3500,
+    heightMm: 2600,
+  };
+
+  function textOf(testId: string): string {
+    const element = container.querySelector(`[data-testid="${testId}"]`);
+    if (element === null) throw new Error(`1F drew no ${testId}`);
+    return element.textContent;
+  }
+
+  function drawnRowIds(): readonly string[] {
+    return [...container.querySelectorAll("[data-compose-status]")].map(
+      (row) => row.getAttribute("data-testid") ?? "",
+    );
+  }
+
+  it("draws it fifth of six, between the hob and storage", () => {
+    renderRun(composedRun(WITH_DISHWASHER));
+
+    expect(drawnRowIds()).toEqual([
+      "room-compose-row-fridge",
+      "room-compose-row-sink",
+      "room-compose-row-preparation",
+      "room-compose-row-hob",
+      "room-compose-row-dishwasher",
+      "room-compose-row-storage",
+    ]);
+  });
+
+  it.each([
+    ["ro", ROMANIAN],
+    ["ru", RUSSIAN],
+  ] as const)(
+    "names it by its own leaf and its width in %s",
+    (_locale, catalogue) => {
+      renderRun(composedRun(WITH_DISHWASHER), catalogue);
+
+      const name = textOf("room-compose-name-dishwasher");
+      expect(name).toContain(catalogue.messages.room.compose.dishwasher);
+      expect(name).toContain("600");
+    },
+  );
+
+  it.each([
+    ["ro", ROMANIAN],
+    ["ru", RUSSIAN],
+  ] as const)(
+    "reads the placed status word where the plan holds one, in %s",
+    (_locale, catalogue) => {
+      renderRun(composedRun(WITH_DISHWASHER), catalogue);
+
+      expect(textOf("room-compose-status-dishwasher")).toBe(
+        catalogue.messages.room.compose.status.placed,
+      );
+    },
+  );
+
+  it.each([
+    ["ro", ROMANIAN],
+    ["ru", RUSSIAN],
+  ] as const)(
+    "reads the not-placed status word, with nothing beneath it, where it holds none, in %s",
+    (_locale, catalogue) => {
+      renderRun(composedRun(WITHOUT_DISHWASHER), catalogue);
+
+      expect(textOf("room-compose-status-dishwasher")).toBe(
+        catalogue.messages.room.compose.status.notPlaced,
+      );
+      // ADR 0113 decision 5: the domain publishes no reason, so the row explains nothing.
+      expect(
+        container.querySelector('[data-testid="room-compose-row-dishwasher"]')
+          ?.children,
+      ).toHaveLength(3);
+    },
+  );
+
+  it("tells storage apart from the dishwasher where the dishwasher is all the storage there is (W3)", () => {
+    renderRun(composedRun(WITH_DISHWASHER));
+
+    expect(textOf("room-compose-status-dishwasher")).toBe(
+      roMessages.room.compose.status.placed,
+    );
+    expect(textOf("room-compose-status-storage")).toBe(
+      roMessages.room.compose.status.notPlaced,
+    );
   });
 });

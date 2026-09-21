@@ -1,4 +1,5 @@
-// **Frame 1F's five rows, proven without a browser** — M7 wave 7F4a slice 1, criteria 30, 31 and 32.
+// **Frame 1F's six rows, proven without a browser** — M7 wave 7F4a slice 1, criteria 30, 31 and 32,
+// and wave 7D5b slice SW, criteria W1–W5 (the dishwasher row, ADR 0110 Amendment M3).
 //
 // The model is pure, so everything here is a fold over a `GenerationLog`. Two of the logs are
 // **really generated**, through the domain's own `generateKitchen` and this app's fake probe, because
@@ -9,7 +10,6 @@ import {
   generateKitchen,
   GENERATION_PRIORITIES,
   type DesignRoom,
-  type GenerationBaseRole,
   type GenerationLog,
   type GenerationStep,
 } from "@lemnaria/configurator-domain";
@@ -17,11 +17,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   droppedRolesIn,
-  GENERATION_ROLE_MESSAGE_KEY,
+  GENERATION_ROW_MESSAGE_KEY,
   GENERATION_STATUS_MESSAGE_KEY,
   pendingGenerationRows,
   resolveGenerationRows,
   type GenerationRow,
+  type GenerationRowId,
 } from "@/room/generation-model";
 
 import roMessages from "../../src/messages/ro.json";
@@ -59,17 +60,18 @@ function logFor(room: DesignRoom): GenerationLog {
 
 function rowFor(
   rows: readonly GenerationRow[],
-  role: GenerationBaseRole,
+  rowId: GenerationRowId,
 ): GenerationRow {
-  const row = rows.find((candidate) => candidate.role === role);
-  if (row === undefined) throw new Error(`the list draws no ${role} row`);
+  const row = rows.find((candidate) => candidate.id === rowId);
+  if (row === undefined) throw new Error(`the list draws no ${rowId} row`);
   return row;
 }
 
 describe("the row set, before any log exists (criterion 29)", () => {
-  it("draws one row per priority plus the storage row, in the domain's order", () => {
-    expect(pendingGenerationRows().map((row) => row.role)).toEqual([
+  it("draws one row per priority, then the dishwasher, then the storage row, in the domain's order", () => {
+    expect(pendingGenerationRows().map((row) => row.id)).toEqual([
       ...GENERATION_PRIORITIES.map((priority) => priority.role),
+      "dishwasher",
       "storage",
     ]);
   });
@@ -97,11 +99,9 @@ describe("the resolved row set (criteria 30, 31, 32)", () => {
   it("keeps the pending list's roles and extents exactly, so no row moves when the log lands", () => {
     const resolved = resolveGenerationRows(logFor(ROOMY_ROOM));
 
-    expect(
-      resolved.map((row) => ({ role: row.role, extent: row.extent })),
-    ).toEqual(
+    expect(resolved.map((row) => ({ id: row.id, extent: row.extent }))).toEqual(
       pendingGenerationRows().map((row) => ({
-        role: row.role,
+        id: row.id,
         extent: row.extent,
       })),
     );
@@ -142,7 +142,7 @@ describe("the resolved row set (criteria 30, 31, 32)", () => {
     ).toBeGreaterThan(0);
 
     expect(resolveGenerationRows(log)).toHaveLength(
-      GENERATION_PRIORITIES.length + 1,
+      GENERATION_PRIORITIES.length + 2,
     );
   });
 });
@@ -194,8 +194,8 @@ describe("a not-placed row is absent from the design (criterion 31)", () => {
   });
 });
 
-describe("every role the model draws is named in both catalogues (criterion 30)", () => {
-  it.each(Object.entries(GENERATION_ROLE_MESSAGE_KEY))(
+describe("every row the model draws is named in both catalogues (criterion 30)", () => {
+  it.each(Object.entries(GENERATION_ROW_MESSAGE_KEY))(
     "resolves %s to a leaf that exists",
     (_role, key) => {
       expect(leafAt(roMessages, key)).toBeTypeOf("string");
@@ -318,12 +318,12 @@ describe("the fold is total over every role and every reason (criterion 30)", ()
   );
 
   propertyTest.prop([fc.array(anyStep, { maxLength: 24 })])(
-    "answers with the same five rows, in the same order, for any log",
+    "answers with the same six rows, in the same order, for any log",
     (steps) => {
       const rows = resolveGenerationRows(logOf(steps));
 
-      expect(rows.map((row) => row.role)).toEqual(
-        pendingGenerationRows().map((row) => row.role),
+      expect(rows.map((row) => row.id)).toEqual(
+        pendingGenerationRows().map((row) => row.id),
       );
       expect(
         rows.every(
@@ -344,16 +344,151 @@ describe("the fold is total over every role and every reason (criterion 30)", ()
         logOf([refusedStep(role, code)]),
       );
 
-      const drawnRoles = new Set(placedRows.map((row) => row.role));
-      const isDrawn = drawnRoles.has(role as GenerationBaseRole);
+      const drawnRows = new Set<string>(placedRows.map((row) => row.id));
+      const isDrawn = drawnRows.has(role);
       expect(
         placedRows
           .filter((row) => row.status === "placed")
-          .map((row) => row.role),
+          .map((row) => row.id),
       ).toEqual(isDrawn ? [role] : []);
       expect(refusedRows.every((row) => row.status === "not_placed")).toBe(
         true,
       );
     },
   );
+});
+
+/**
+ * **Wave 7D5b slice SW: the dishwasher row** (ADR 0110 Amendment M3), over the plan's own witness
+ * rooms, each really generated. The body and its width are spelled here as literals rather than
+ * imported, because they are the expectation (ADR 0121 decision 4); criterion W5 bars them from
+ * `apps/web/src` only.
+ */
+describe("the dishwasher row (7D5b SW, criteria W1–W4)", () => {
+  const DISHWASHER_BODY = "base-dishwasher";
+  const DISHWASHER_WIDTH_MM = 600;
+
+  /** Criterion 1's witness for M1 across the corner, and W3's: its dishwasher is its only
+   *  storage-role body. */
+  const CONVERTED_ACROSS_THE_CORNER: DesignRoom = {
+    shape: "L",
+    widthMm: 1500,
+    depthMm: 2800,
+    heightMm: 2600,
+  };
+  /** Criterion 1's witness for (e), the drawer swap: *sink · dishwasher · pan-drawer · hob*. */
+  const DRAWER_SWAPPED: DesignRoom = {
+    shape: "L",
+    widthMm: 900,
+    depthMm: 3400,
+    heightMm: 2600,
+  };
+  /** Criterion 2's witness: a door cabinet stands, but not beside the sink, so no dishwasher. */
+  const DOOR_CABINET_ELSEWHERE: DesignRoom = {
+    shape: "L",
+    widthMm: 1500,
+    depthMm: 3500,
+    heightMm: 2600,
+  };
+
+  function placedSteps(log: GenerationLog): readonly GenerationStep[] {
+    return log.steps.filter((step) => step.status === "placed");
+  }
+
+  function holdsPlacedDishwasher(log: GenerationLog): boolean {
+    return placedSteps(log).some((step) => step.buildId === DISHWASHER_BODY);
+  }
+
+  it("draws six rows in the plan's order, pending and resolved alike (W1)", () => {
+    const expectedOrder = [
+      "fridge",
+      "sink",
+      "preparation",
+      "hob",
+      "dishwasher",
+      "storage",
+    ];
+
+    expect(pendingGenerationRows().map((row) => row.id)).toEqual(expectedOrder);
+    expect(
+      resolveGenerationRows(logFor(CONVERTED_ACROSS_THE_CORNER)).map(
+        (row) => row.id,
+      ),
+    ).toEqual(expectedOrder);
+  });
+
+  it("shows the dishwasher at 600 mm before and after the log lands (W1)", () => {
+    const expected = { kind: "width", millimetres: DISHWASHER_WIDTH_MM };
+
+    expect(rowFor(pendingGenerationRows(), "dishwasher").extent).toEqual(
+      expected,
+    );
+    expect(
+      rowFor(resolveGenerationRows(logFor(DRAWER_SWAPPED)), "dishwasher")
+        .extent,
+    ).toEqual(expected);
+  });
+
+  it.each([
+    ["an M1 conversion across the corner", CONVERTED_ACROSS_THE_CORNER],
+    ["an (e) drawer swap", DRAWER_SWAPPED],
+  ])(
+    "reads placed where the plan holds a dishwasher: %s (W2)",
+    (_case, room) => {
+      const log = logFor(room);
+      expect(holdsPlacedDishwasher(log)).toBe(true);
+
+      expect(rowFor(resolveGenerationRows(log), "dishwasher").status).toBe(
+        "placed",
+      );
+    },
+  );
+
+  it("reads not placed where the plan holds none, though storage stands (W2)", () => {
+    const log = logFor(DOOR_CABINET_ELSEWHERE);
+    // Both guards make this room discriminating: a row keyed on role `storage` would read placed here.
+    expect(holdsPlacedDishwasher(log)).toBe(false);
+    expect(placedSteps(log).some((step) => step.role === "storage")).toBe(true);
+
+    expect(rowFor(resolveGenerationRows(log), "dishwasher").status).toBe(
+      "not_placed",
+    );
+  });
+
+  it("keys the row on the body, so renaming the step id leaves it placed (W2 (b))", () => {
+    const renamed: GenerationStep = {
+      id: "renamed-by-a-later-planner",
+      role: "storage",
+      buildId: DISHWASHER_BODY,
+      status: "placed",
+      placementId: "placement:renamed",
+      commands: [],
+    };
+
+    expect(
+      rowFor(resolveGenerationRows(logOf([renamed])), "dishwasher").status,
+    ).toBe("placed");
+  });
+
+  it("leaves Depozitare not placed where the dishwasher is the only storage-role body (W3)", () => {
+    const log = logFor(CONVERTED_ACROSS_THE_CORNER);
+    const storageRoleBodies = placedSteps(log)
+      .filter((step) => step.role === "storage")
+      .map((step) => step.buildId);
+    // The discriminating guard: the room is W3's case only while this is its whole storage.
+    expect(storageRoleBodies).toEqual([DISHWASHER_BODY]);
+
+    expect(rowFor(resolveGenerationRows(log), "storage").status).toBe(
+      "not_placed",
+    );
+  });
+
+  it("keeps Blat de lucru placed in an (e) room, and never names the dishwasher as dropped (W4)", () => {
+    const log = logFor(DRAWER_SWAPPED);
+
+    expect(rowFor(resolveGenerationRows(log), "preparation").status).toBe(
+      "placed",
+    );
+    expect(droppedRolesIn(log)).not.toContain("dishwasher");
+  });
 });

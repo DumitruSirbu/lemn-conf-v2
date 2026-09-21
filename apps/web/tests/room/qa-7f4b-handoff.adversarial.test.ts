@@ -803,8 +803,9 @@ describe("a hand-off that cannot finish leaves a way forward (criterion 41)", ()
     expect(elementAt("room-compose-notice").textContent).toContain(
       roMessages.room.compose.saveFailed,
     );
-    // The composition succeeded, so the rule paragraph and the five rows are still true.
-    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(5);
+    // The composition succeeded, so the rule paragraph and the six rows are still true (six since
+    // wave 7D5b's dishwasher row, ADR 0110 Amendment M3).
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(6);
     expect(elementAt("room-compose-notice").textContent).not.toContain(
       roMessages.room.compose.failed,
     );

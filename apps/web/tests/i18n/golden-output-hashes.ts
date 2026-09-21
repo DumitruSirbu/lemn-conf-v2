@@ -44,6 +44,10 @@
  * and move, because walls B and C exist only in a room with a corner; `room.lengthHelp.wallA.cornerText`
  * is added, because wall A stands in a straight room too and keeps `room.lengthHelp.wallA.text`, whose
  * hash does not move. **Two moved, one added, no others.**
+ *
+ * **Grown again, never rebaselined, by wave 7D5b slice SW** (ADR 0113 decision 2; ADR 0110
+ * Amendment M3) — `room.compose.dishwasher`, frame 1F's sixth row, whose wording the owner approved
+ * in session on 2026-09-21. **One added and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -663,6 +667,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
   "room.compose.busy":
     "241c8d13d3518b3c04ad55b494606e9881603d46959fedbbd3551955bcc48e6b",
+  "room.compose.dishwasher":
+    "6f6d6df0ab30e50a647f955e6083a343801693e981a43f2d6bc7714c08b981ad",
   "room.compose.dropped":
     "e2e503d5f26f8329749eb2c313b0d28378b6a91e035f9b93fd5d2b106f14071d",
   "room.compose.failed":

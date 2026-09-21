@@ -152,6 +152,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         hob: "Plită și cuptor",
         storage: "Depozitare",
       },
+      // Wave 7D5b's sixth 1F row (ADR 0110 Amendment M3). **Owner-approved in session, 2026-09-21**:
+      // the owner chose this wording over the short form, and the Russian beside it in `ru.json` by the
+      // same ruling (ADR 0113 decision 2; ADR 0107's precedent for recording owner-edited copy here).
+      // A departure from the approved mockup's five rows, recorded under ADR 0104. The status beside
+      // it reuses `status.*` below, and no sentence explains *nu poate fi inclus* (ADR 0113 decision
+      // 5: the domain publishes no reason).
+      dishwasher: "Nișă mașină de spălat vase",
       rowLabel: "{role} · {extent}",
       rowWidth: "{millimetres, number, ::group-off}",
       storageExtent: "restul peretelui",

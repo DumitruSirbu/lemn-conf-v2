@@ -430,7 +430,9 @@ describe("entering composition (criteria 24, 27, 29)", () => {
     // Asserted *before* the run settles, and this is criterion 29's whole mechanism: the list is on
     // the glass while `generateKitchen` has not been entered.
     expect(vi.mocked(generateKitchen)).not.toHaveBeenCalled();
+    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
     expect(rowStatuses()).toEqual([
+      "pending",
       "pending",
       "pending",
       "pending",
@@ -477,7 +479,8 @@ describe("entering composition (criteria 24, 27, 29)", () => {
     tapContinue();
     await settleComposition();
 
-    expect(rowStatuses()).toHaveLength(5);
+    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
+    expect(rowStatuses()).toHaveLength(6);
     expect(rowStatuses()).not.toContain("pending");
   });
 });

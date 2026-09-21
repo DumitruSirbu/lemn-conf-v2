@@ -503,8 +503,9 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     await settleFailedHandoff();
 
     expect(editorPushes()).toEqual([]);
-    // The composed rows are still on the glass: the kitchen is real and only the write failed.
-    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(5);
+    // The composed rows are still on the glass: the kitchen is real and only the write failed. Six
+    // since wave 7D5b, whose dishwasher row joined the five (ADR 0110 Amendment M3).
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(6);
     expect(elementAt("room-compose-notice").textContent).toContain(
       roMessages.room.compose.saveFailed,
     );
