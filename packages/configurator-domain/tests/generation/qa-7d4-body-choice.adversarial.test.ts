@@ -27,6 +27,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptsWidthMm,
   APPROVED_ROOM_POLICY,
+  BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
@@ -53,6 +54,7 @@ const APPROVED_L = (() => {
 
 /** Every body id the leaf declares, including the one generation places nowhere in this wave. */
 const EVERY_DECLARED_BODY: readonly string[] = [
+  BOTTLE_CARGO_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
   PAN_DRAWER_BASE_BUILD_ID,
@@ -74,18 +76,29 @@ function planFor(room: DesignRoom): KitchenCompositionPlan {
   });
 }
 
+/** The 300 mm cargo's catalogue row, spelled as the catalogue spells it rather than imported from the
+ *  leaf, so the provenance below never reads production's answer. It is a storage-role body outside
+ *  the column band that the storage run did not compose (M7 wave 7D5 S1). */
+const BOTTLE_CARGO_CATALOGUE_ID = "base-bottle-cargo";
+
 /** A module's provenance read **independently of its id**, so the predicate is never checked against
  *  itself: the block's columns are the storage-role modules the catalogue declares in the `column`
- *  band, and the storage run's slots are the rest. `fridge-free` is a column too and carries Amendment
- *  A1's own role, which excludes it from both. */
+ *  band, the bottle cargo is its own catalogue row, and the storage run's slots are the rest.
+ *  `fridge-free` is a column too and carries Amendment A1's own role, which excludes it from both. */
 function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
+  const outsideTheColumnBand = storageRole.filter(
+    (base) => CATALOG.get(base.buildId)?.band !== "column",
+  );
   return {
     blockColumns: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band === "column",
     ),
-    composedSlots: storageRole.filter(
-      (base) => CATALOG.get(base.buildId)?.band !== "column",
+    bottleCargos: outsideTheColumnBand.filter(
+      (base) => base.buildId === BOTTLE_CARGO_CATALOGUE_ID,
+    ),
+    composedSlots: outsideTheColumnBand.filter(
+      (base) => base.buildId !== BOTTLE_CARGO_CATALOGUE_ID,
     ),
   };
 }
@@ -129,7 +142,9 @@ describe("every id the leaf declares names a row that can stand in a planned slo
     // failure would surface as a throw in one room and a re-tiled run in the next.
     const widthMm = plannedStorageSlotWidthMm();
 
-    for (const buildId of EVERY_DECLARED_BODY) {
+    for (const buildId of EVERY_DECLARED_BODY.filter(
+      (candidate) => candidate !== BOTTLE_CARGO_BUILD_ID,
+    )) {
       const row = CATALOG.get(buildId);
       if (!row) {
         throw new Error(`the catalogue declares no row ${buildId}`);
@@ -145,6 +160,14 @@ describe("every id the leaf declares names a row that can stand in a planned slo
         buildsAtThePlannedWidth: body ? acceptsWidthMm(body, widthMm) : false,
       }).toEqual({ buildId, buildsAtThePlannedWidth: true });
     }
+
+    const bottle = CATALOG.get(BOTTLE_CARGO_BUILD_ID);
+    if (!bottle) throw new Error("the catalogue declares no bottle cargo");
+    const insertableBottle = toInsertableBody(BOTTLE_CARGO_BUILD_ID, bottle);
+    expect(insertableBottle).toBeDefined();
+    expect(
+      insertableBottle ? acceptsWidthMm(insertableBottle, 300) : false,
+    ).toBe(true);
   });
 });
 
@@ -308,7 +331,8 @@ describe("the predicate agrees with provenance over the whole approved policy", 
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const plan = planFor(room);
-        const { blockColumns, composedSlots } = storageRoleModulesByBand(plan);
+        const { blockColumns, bottleCargos, composedSlots } =
+          storageRoleModulesByBand(plan);
         const blockSize = blockColumns.length;
         roomsByBlockSize.set(
           blockSize,
@@ -322,6 +346,7 @@ describe("the predicate agrees with provenance over the whole approved policy", 
           composedSlots,
         );
         expect(blockColumns.filter(isComposedStorageSlot)).toEqual([]);
+        expect(bottleCargos.filter(isComposedStorageSlot)).toEqual([]);
         // The core roles are the third population the plan holds, and the one whose ids are the role
         // names themselves. A predicate that answered anything but false for them would put the sink
         // in the balance.

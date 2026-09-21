@@ -29,6 +29,7 @@ import {
   type DesignRoom,
 } from "../../src/index.js";
 import {
+  BOTTLE_CARGO_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   isComposedStorageSlot,
   PAN_DRAWER_BASE_BUILD_ID,
@@ -135,8 +136,8 @@ describe("the leaf changes a body's identity and never its width", () => {
  *  ambiguity the predicate exists to resolve. */
 const BLOCK_SIZE_WITNESSES: readonly DesignRoom[] = [
   { shape: "L", widthMm: 3300, depthMm: 1600, heightMm: 2600 },
-  { shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2600 },
-  { shape: "L", widthMm: 4000, depthMm: 3000, heightMm: 2600 },
+  { shape: "L", widthMm: 3600, depthMm: 3000, heightMm: 2600 },
+  { shape: "L", widthMm: 4200, depthMm: 3000, heightMm: 2600 },
   // Past the approved 6000 mm on purpose (M7 7A3): a planner witness, not a policy room.
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
 ];
@@ -149,18 +150,30 @@ function planFor(room: DesignRoom) {
   });
 }
 
+/** The 300 mm cargo's catalogue row, spelled as the catalogue spells it rather than imported from the
+ *  leaf, so the provenance below never reads production's answer. It is a storage-role body outside
+ *  the column band that the storage run did not compose (M7 wave 7D5 S1). */
+const BOTTLE_CARGO_CATALOGUE_ID = "base-bottle-cargo";
+
 /** A module's provenance found **independently of its id**, so the two sides of every assertion
  *  below come from different sources: the block's columns are the storage-role modules the catalogue
- *  declares in the `column` band, and the storage run's are the rest. `fridge-free` is a column too and is
+ *  declares in the `column` band, the bottle cargo is its own catalogue row, and the storage run's are
+ *  the rest. `fridge-free` is a column too and is
  *  excluded by its role, which is Amendment A1's and not the block's. */
 function storageRoleModulesByBand(plan: ReturnType<typeof planFor>) {
   const storageRole = plan.bases.filter((base) => base.role === "storage");
+  const outsideTheColumnBand = storageRole.filter(
+    (base) => CATALOG.get(base.buildId)?.band !== "column",
+  );
   return {
     blockColumns: storageRole.filter(
       (base) => CATALOG.get(base.buildId)?.band === "column",
     ),
-    composedSlots: storageRole.filter(
-      (base) => CATALOG.get(base.buildId)?.band !== "column",
+    bottleCargos: outsideTheColumnBand.filter(
+      (base) => base.buildId === BOTTLE_CARGO_CATALOGUE_ID,
+    ),
+    composedSlots: outsideTheColumnBand.filter(
+      (base) => base.buildId !== BOTTLE_CARGO_CATALOGUE_ID,
     ),
   };
 }
@@ -179,22 +192,29 @@ describe("criterion 22 — one predicate separates the storage run's slots from 
   it("answers true for every module the storage run composed and false for every block column", () => {
     let composedSlotsSeen = 0;
     let blockColumnsSeen = 0;
+    let bottleCargosSeen = 0;
 
     for (const room of BLOCK_SIZE_WITNESSES) {
       const plan = planFor(room);
-      const { blockColumns, composedSlots } = storageRoleModulesByBand(plan);
+      const { blockColumns, bottleCargos, composedSlots } =
+        storageRoleModulesByBand(plan);
       composedSlotsSeen += composedSlots.length;
       blockColumnsSeen += blockColumns.length;
+      bottleCargosSeen += bottleCargos.length;
 
       expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
         composedSlots,
       );
       expect(blockColumns.filter(isComposedStorageSlot)).toEqual([]);
+      // The bottle carries the storage role and stands outside the column band, so it is the module a
+      // predicate keyed on role and band would sweep in; the storage run did not compose it.
+      expect(bottleCargos.filter(isComposedStorageSlot)).toEqual([]);
     }
 
-    expect({ composedSlotsSeen, blockColumnsSeen }).toEqual({
+    expect({ composedSlotsSeen, blockColumnsSeen, bottleCargosSeen }).toEqual({
       composedSlotsSeen: 12,
       blockColumnsSeen: 6,
+      bottleCargosSeen: 4,
     });
   });
 
@@ -390,14 +410,15 @@ describe("criterion 20 clause 1 — body-choice.ts is the only module that decla
     ]);
   });
 
-  it.each(["base-dishwasher", "base-bottle-cargo"])(
-    "does not name %s anywhere under src/generation",
-    (buildId) => {
-      // Both are 7D5's, and both are width changes (D11, D15.2). Spelled here rather than imported
-      // because there is deliberately no constant to import.
-      expect(generationModulesNaming(buildId)).toEqual([]);
-    },
-  );
+  it("names the bottle cargo in the body-choice leaf and nowhere else", () => {
+    expect(generationModulesNaming(BOTTLE_CARGO_BUILD_ID)).toEqual([
+      "body-choice.ts",
+    ]);
+  });
+
+  it("does not name the dishwasher anywhere under src/generation", () => {
+    expect(generationModulesNaming("base-dishwasher")).toEqual([]);
+  });
 });
 
 describe("criterion 20 clause 2 — the depth source is pinned, not excluded by filename", () => {

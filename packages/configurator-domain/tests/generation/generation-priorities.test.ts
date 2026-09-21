@@ -7,6 +7,7 @@ import {
   cabinetDepthMmOf,
   declaredColumnSizes,
   GENERATION_PRIORITIES,
+  isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
   MAX_GENERATED_LEFTOVER_MM,
@@ -69,7 +70,7 @@ describe("planKitchenComposition", () => {
       { role: "preparation", wall: "A", startMm: 1500, endMm: 2100 },
       { role: "hob", wall: "A", startMm: 2100, endMm: 2700 },
     ]);
-    expect(plan.remainderMm).toEqual({ A: 260, B: 20 });
+    expect(plan.remainderMm).toEqual({ A: 560, B: 20 });
   });
 
   it("declares the ruled order and widths as data", () => {
@@ -254,13 +255,25 @@ describe("planKitchenComposition", () => {
           if (!plan.minimumMet) return;
           for (const wall of ["A", "B"] as const) {
             const bases = plan.bases.filter((base) => base.wall === wall);
-            const coreWidthMm = bases
-              .filter((base) => base.role !== "storage")
+            const fixedRunWidthMm = bases
+              .filter(
+                (base) =>
+                  !isComposedStorageSlot(base) &&
+                  !(
+                    base.role === "storage" &&
+                    CATALOG.get(base.buildId)?.band === "column"
+                  ),
+              )
               .reduce((sum, base) => sum + base.widthMm, 0);
             const finalLeftoverMm =
-              runs[wall].endMm - runs[wall].startMm - coreWidthMm;
+              runs[wall].endMm - runs[wall].startMm - fixedRunWidthMm;
             expect(
-              bases.filter((base) => base.role === "storage"),
+              bases.filter(
+                (base) =>
+                  isComposedStorageSlot(base) ||
+                  (base.role === "storage" &&
+                    CATALOG.get(base.buildId)?.band === "column"),
+              ),
             ).toHaveLength(Math.floor(finalLeftoverMm / 600));
             // Still the leftover rule's modulo, **less the one millimetre count E6.2 takes out of
             // it**: where the block's outermost column is the `'fit'` door column, it is planned at

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   acceptsWidthMm,
+  BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
   buildLShellDesign,
   cabinetDepthMmOf,
@@ -221,8 +222,8 @@ describe("7D2 pure planning and exact cut transitions", () => {
   it.each([
     [{ shape: "L", widthMm: 2700, depthMm: 1699, heightMm: 2200 }, ["fridge"]],
     [{ shape: "L", widthMm: 2700, depthMm: 1700, heightMm: 2200 }, []],
-    [{ shape: "L", widthMm: 3299, depthMm: 1700, heightMm: 2200 }, []],
-    [{ shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2200 }, []],
+    [{ shape: "L", widthMm: 3599, depthMm: 1700, heightMm: 2200 }, []],
+    [{ shape: "L", widthMm: 3600, depthMm: 1700, heightMm: 2200 }, []],
   ] as const)("keeps the two-wall cut deterministic at %o", (room, dropped) => {
     const first = planKitchenComposition({
       columns: DECLARED_COLUMNS,
@@ -237,14 +238,20 @@ describe("7D2 pure planning and exact cut transitions", () => {
 
     expect(second).toStrictEqual(first);
     expect(first.dropped).toEqual(dropped);
-    if (room.widthMm === 3299) {
+    if (room.widthMm === 3599) {
       expect(
-        first.bases.filter((base) => base.role === "storage"),
+        first.bases.filter(
+          (base) =>
+            base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
+        ),
       ).toHaveLength(0);
     }
-    if (room.widthMm === 3300) {
+    if (room.widthMm === 3600) {
       expect(
-        first.bases.filter((base) => base.role === "storage"),
+        first.bases.filter(
+          (base) =>
+            base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
+        ),
       ).toHaveLength(1);
     }
   });
@@ -312,7 +319,7 @@ describe("7D2 pure planning and exact cut transitions", () => {
     // past its pre-7A3 5100 to the 6000 the policy admits since — 5101 the first admitted value,
     // 5299 / 5300 a storage edge inside that band.
     const wallAValues = [
-      900, 1499, 1500, 2099, 2100, 2699, 2700, 3299, 3300, 6300,
+      900, 1499, 1500, 2099, 2100, 2699, 2700, 3599, 3600, 6300,
     ];
     const wallBValues = [
       1000, 1599, 1600, 1699, 1700, 2199, 2200, 2299, 2300, 2799, 2800, 2899,
@@ -399,32 +406,45 @@ describe("7D2 pure planning and exact cut transitions", () => {
 
     const storageBefore = planKitchenComposition({
       columns: DECLARED_COLUMNS,
-      room: { shape: "L", widthMm: 900, depthMm: 4099, heightMm: 2200 },
+      room: { shape: "L", widthMm: 900, depthMm: 4399, heightMm: 2200 },
       runs: lShellFloorRuns({
         shape: "L",
         widthMm: 900,
-        depthMm: 4099,
+        depthMm: 4399,
         heightMm: 2200,
       }),
     });
     const storageAt = planKitchenComposition({
       columns: DECLARED_COLUMNS,
-      room: { shape: "L", widthMm: 900, depthMm: 4100, heightMm: 2200 },
+      room: { shape: "L", widthMm: 900, depthMm: 4400, heightMm: 2200 },
       runs: lShellFloorRuns({
         shape: "L",
         widthMm: 900,
-        depthMm: 4100,
+        depthMm: 4400,
         heightMm: 2200,
       }),
     });
     expect(
-      storageBefore.bases.filter((base) => base.role === "storage"),
+      storageBefore.bases.filter(
+        (base) =>
+          base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
+      ),
     ).toHaveLength(0);
     expect(
-      storageAt.bases.filter((base) => base.role === "storage"),
+      storageAt.bases.filter(
+        (base) =>
+          base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
+      ),
     ).toHaveLength(1);
   });
 });
+
+/** How far a merged run-end opening may reach past a 600 mm module: its 800 mm empty-column cap
+ *  less the module. */
+const MODULE_TILE_MERGE_OVERHANG_MM = 200;
+/** The same cap less the 300 mm bottle, which is the only narrower body that can stand last on a
+ *  wall (M7 wave 7D5 E4): 300 + 500 is still one opening. */
+const BOTTLE_TILE_MERGE_OVERHANG_MM = 500;
 
 describe("7D2 planned shell and leftover invariants", () => {
   it.each([
@@ -468,7 +488,11 @@ describe("7D2 planned shell and leftover invariants", () => {
         if (!coveringTile) throw new Error(`${base.id} has no shell column`);
         const overhangMm = interval(coveringTile).endMm - base.endMm;
         expect(overhangMm).toBeGreaterThanOrEqual(0);
-        expect(overhangMm).toBeLessThanOrEqual(200);
+        expect(overhangMm, base.id).toBeLessThanOrEqual(
+          base.buildId === BOTTLE_CARGO_BUILD_ID
+            ? BOTTLE_TILE_MERGE_OVERHANG_MM
+            : MODULE_TILE_MERGE_OVERHANG_MM,
+        );
         if (overhangMm > 0) {
           expect(base.endMm).toBe(
             Math.max(

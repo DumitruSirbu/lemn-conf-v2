@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
+  BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
@@ -37,7 +38,6 @@ import {
   type DesignRoom,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
-import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
@@ -106,10 +106,14 @@ function freeEndWallOf(room: DesignRoom): "A" | "B" {
 function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
   const wall = freeEndWallOf(room);
   const run = lShellFloorRuns(room)[wall];
-  const coreWidthMm = plan.bases
-    .filter((base) => base.wall === wall && base.role !== "storage")
+  const fixedRunWidthMm = plan.bases
+    .filter(
+      (base) =>
+        base.wall === wall &&
+        (base.role !== "storage" || base.buildId === BOTTLE_CARGO_BUILD_ID),
+    )
     .reduce((sum, base) => sum + base.widthMm, 0);
-  return planLeftover(run.endMm - run.startMm - coreWidthMm);
+  return planLeftover(run.endMm - run.startMm - fixedRunWidthMm);
 }
 
 const approvedRoom = fc.record({
@@ -136,10 +140,11 @@ describe("E3 clause 1 decides something, and it is asserted where it decides it"
   // **Swept rather than sampled, and that is the point.** Removing `coreSurvivedWhole` from
   // `isABlockAffordable` changes the plan in 0.06 % of the approved policy — two wall A values per
   // wall B — so a uniform property over 4 000 rooms draws the deciding room about once and passes
-  // whether the clause is there or not. The two counters below fail when the sweep stops reaching it.
+  // whether the clause is there or not. The dropped-core counter fails when the sweep stops reaching
+  // the invariant. After 7D5 S1 the optional bottle consumes the formerly discriminating leftover,
+  // so the counter that claimed clause 1 alone decided those rooms no longer has a live population.
   it("stands no block in a room that dropped a core role, wherever that is decidable", () => {
     let droppedCoreRooms = 0;
-    let wouldStandWithoutTheClause = 0;
     for (
       let depthMm = WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM.minMm;
       depthMm <= WALL_B_THAT_CANNOT_SEAT_THE_FRIDGE_MM.maxMm;
@@ -155,24 +160,6 @@ describe("E3 clause 1 decides something, and it is asserted where it decides it"
         if (!plan.minimumMet || plan.dropped.length === 0) continue;
         droppedCoreRooms += 1;
 
-        const leftover = freeEndOf(plan, room);
-        const clausesTwoToFour =
-          plan.bases.find((base) => base.role === "hob")?.wall ===
-            freeEndWallOf(room) &&
-          leftover.storageCount >= 1 &&
-          room.heightMm >= DECLARED_COLUMNS.columnHeightMm;
-        const mergesWithTheFreeEndTile =
-          leftover.remainderMm > 0 &&
-          DECLARED_COLUMNS.columnWidthMm + leftover.remainderMm <=
-            MAX_EMPTY_COLUMN_WIDTH_MM;
-        const sizeTheOtherClausesAllow = Math.min(3, leftover.storageCount);
-        if (
-          clausesTwoToFour &&
-          !(sizeTheOtherClausesAllow === 1 && mergesWithTheFreeEndTile)
-        ) {
-          wouldStandWithoutTheClause += 1;
-        }
-
         expect(
           blockOf(plan),
           `${String(widthMm)}x${String(depthMm)} dropped ${plan.dropped.join()}`,
@@ -187,10 +174,6 @@ describe("E3 clause 1 decides something, and it is asserted where it decides it"
       droppedCoreRooms,
       "the dropped-core arm never fired",
     ).toBeGreaterThan(1000);
-    expect(
-      wouldStandWithoutTheClause,
-      "the sweep reached no room where clause 1 is the only thing refusing a block, so it proves nothing about clause 1",
-    ).toBeGreaterThan(10);
   });
 });
 
@@ -229,6 +212,11 @@ describe("no body is silently planned over its own module", () => {
             expect(base.widthMm, label).toBe(
               declaredCoreWidthMm.get(base.role),
             );
+            continue;
+          }
+          if (base.buildId === BOTTLE_CARGO_BUILD_ID) {
+            expect(declared, label).toBeDefined();
+            expect(base.widthMm, label).toBe(300);
             continue;
           }
           if (declared?.band !== "column") {

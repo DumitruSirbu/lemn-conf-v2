@@ -118,7 +118,7 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
   const HOB_ON_WALL_B: DesignRoom = {
     shape: "L",
     widthMm: 1500,
-    depthMm: 3400,
+    depthMm: 4410,
     heightMm: 2600,
   };
 
@@ -161,9 +161,9 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
       slots.map((slot) => [slot.wall, slot.startMm, slot.buildId]),
     ).toEqual([
       ["A", 900, DOOR_BASE_BUILD_ID],
-      ["B", 2700, THREE_DRAWER_BASE_BUILD_ID],
+      ["B", 3700, THREE_DRAWER_BASE_BUILD_ID],
     ]);
-    expect(plan.bases.find((base) => base.role === "hob")?.startMm).toBe(2100);
+    expect(plan.bases.find((base) => base.role === "hob")?.startMm).toBe(2800);
   });
 });
 
@@ -171,9 +171,9 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
 // kept on purpose, because the composer is judged here, not the policy.
 describe("criterion 1 — the two drawer rows at the wave's two headline rooms", () => {
   const BLOCK_AT_THE_FREE_END = [
-    ["tall-oven-tower", 600, 4500, 5100],
-    ["tall-pantry", 600, 5100, 5700],
-    ["tall-pantry", 600, 5700, 6300],
+    ["tall-oven-tower", 600, 4200, 4800],
+    ["tall-pantry", 600, 4800, 5400],
+    ["tall-pantry", 600, 5400, 6000],
   ];
 
   it.each([4700, 5100])(
@@ -191,7 +191,7 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
       ).toBe(THREE_DRAWER_BASE_BUILD_ID);
       const [first, ...rest] = slotsAfterTheHob(plan);
       expect(first?.buildId).toBe(THREE_DRAWER_BASE_BUILD_ID);
-      expect(bodiesOf(rest)).toEqual([DOOR_BASE_BUILD_ID, DOOR_BASE_BUILD_ID]);
+      expect(bodiesOf(rest)).toEqual([DOOR_BASE_BUILD_ID]);
     },
   );
 
@@ -217,10 +217,10 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   );
 
   it.each([4700, 5100])(
-    "leaves the block's three columns exactly where 7D3 put them at 6300 × %i",
+    "keeps a three-column block after the bottle at 6300 × %i",
     (depthMm) => {
-      // Not composed slots, and asserted unchanged rather than exempted silently (D12). Their identity
-      // is 7D3's and this wave never reads it.
+      // Not composed slots: the bottle shifts the block inward by one half-module while preserving
+      // its three catalogue-declared column bodies.
       const plan = planFor({
         shape: "L",
         widthMm: 6300,
@@ -228,7 +228,9 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
         heightMm: 2600,
       });
       const columns = plan.bases.filter(
-        (base) => base.role === "storage" && !isComposedStorageSlot(base),
+        (base) =>
+          base.role === "storage" &&
+          CATALOG.get(base.buildId)?.band === "column",
       );
 
       expect(

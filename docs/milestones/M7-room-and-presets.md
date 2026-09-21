@@ -8453,6 +8453,22 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > conversion**. It is width-neutral, its hard rule is adjacency across the corner, and it shares
 > neither S1/S2's run-width arithmetic nor their production-test seam. Keeping it in 7D5 would add a
 > second independent domain change after this reconciliation has already exposed a new S2 decision.
+>
+> **Record, before commit — 2026-09-21.** Slice S1 landed with the core-preserving fix described
+> below and is recorded in full at [ADR 0110 Amendment J](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-j--2026-09-21-wave-7d5-slice-s1-the-bottle-cabinet-ships-and-q-h6-is-answered).
+> **Q-H6 = A** (owner ruling, 2026-09-21): the second drawer cabinet is positional — placed wherever
+> it preserves every core role and tall column — which unblocks S2; candidate A fires in **71 956**
+> rooms. **S1's shipped rule** stands only where every kept core role stays on the wall it has
+> without the bottle cabinet (ADR 0120 Amendment E); a logic review found the first implementation
+> re-cut the core in 4 955 rooms and it was fixed before commit. Census over the approved L rectangle
+> at 10 mm / 2600 mm (QA test, measured): swept 256 011, placed 245 211 (unchanged vs HEAD), bottle
+> included 220 266, omitted 24 945 = would cost a core role 15 445 + would refuse 4 545 + would
+> re-cut the core 4 955 — 0 `minimumMet`/`dropped` differences vs HEAD. **These supersede this
+> section's own 225 221 / 19 990 reconciliation figures above.** The tall-end block's
+> `coreSurvivedWhole` clause is now dormant (0 plans change if hard-wired true) rather than retired;
+> S2 must re-measure it. The reference room's hob falls back from `base-hob-2drawer` to
+> `base-hob-oven` (25 recorded rooms across two recordings). **S1's own close-out entry is not yet
+> written** — this note only reconciles the plan at commit time.
 
 **Tier: Full** (a domain rule stated in a quantity, touching the module 7D3 and 7D4 both touched):
 adversarial QA, then the logic and clean-code reviewers separately. **Visual: No** — nothing reaches

@@ -51,6 +51,11 @@ export const DOOR_BASE_BUILD_ID = "base-cabinet";
  *  data* of ADR 0110 A1's reading order rather than the order itself. */
 export const THREE_DRAWER_BASE_BUILD_ID = "base-3drawer";
 
+/** The fixed-width cargo that stands immediately after the hob in the reading order when the same
+ * core kitchen still fits. Its offered widths remain catalogue data; this leaf names only the body
+ * chosen by the composer. */
+export const BOTTLE_CARGO_BUILD_ID = "base-bottle-cargo";
+
 /** Two deep pan drawers — a genuinely different product from the three-drawer base rather than the
  *  same row at another size, which is what lets the drawer group carry two types.
  *

@@ -2192,9 +2192,11 @@ left standing as a live warning.
 
 **Merge-safe in this position.** D2.2's own rule is that a 300 mm cargo survives **iff both neighbours
 are at least 500 mm**. Here they are the hob (600) and either a storage cabinet or a block column (600).
-**Both clear it**, and this is the one position D2.2 measured as surviving. **The unsafe case is a cargo
-with nothing outboard of it**, where its neighbour is the bare remainder — so **7D5 asserts the
-neighbours, not the cargo.**
+**Both clear it**, and this is the one position D2.2 measured as surviving. ~~The unsafe case is a cargo
+with nothing outboard of it, where its neighbour is the bare remainder — so 7D5 asserts the
+neighbours, not the cargo.~~ **Superseded — see J7.** Wave 7D5 slice S1 ships a configuration in which
+the bottle cabinet may itself stand last on its wall, with nothing outboard of it, and measurement
+shows that case safe too.
 
 > **A caveat on this record's own arithmetic, stated so it is not later quoted as a finding.** The model
 > behind H3 and H5 adds a module by shortening wall A by the same amount, so it cannot sample wall A
@@ -2659,3 +2661,124 @@ thing the owner was shown and accepted.
 | [0108](0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md) Amendment B | **Unchanged.** No bound moves, and the minimum kitchen is not reopened (F11). |
 | [0109](0109-a-preset-is-a-recipe-document-and-is-listed-only-if-the-product-would-never-mark-it.md), [0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md) | **Not reached, and they are where the withdrawn lift goes.** A preset may carry any body the editor can insert, including `wall-lift` and `open-shelf`, which generation never produces (F9, ADR 0117 decision 6). |
 | [0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md) | **Unchanged.** What a generated kitchen draws is still bounded by the catalogue, and no appliance is sold by this amendment. |
+
+## Amendment J — 2026-09-21: wave 7D5 slice S1, the bottle cabinet ships, and Q-H6 is answered
+
+**Written for wave 7D5 slice S1, before commit.** Amendment H (H1, H5) proposed the bottle cabinet
+and its threshold table; this amendment records what slice S1 actually shipped, an owner ruling that
+unblocks slice S2, a coordinator ruling on one population Amendment I's mirror opens, the restatement
+of every earlier wave's assertion S1 touches, and one clause of the tall-end rule going dormant.
+
+### J1 — Q-H6 = A: the second drawer cabinet is positional, not gated at *D* ≥ 6
+
+**Owner ruling, 2026-09-21 (Q-H6, put by the coordinator as candidate A against candidate C at wave
+7D5's E7.1):** the 600 mm `PAN_DRAWER_BASE_BUILD_ID` — two deep pan drawers immediately before the
+hob — is placed **wherever it preserves every core role and every tall column**, not only where the
+owner's *D* ≥ 6 proportion applies. **This unblocks slice S2**, which E7.1 had left waiting on this
+choice. Measured at E7.1: candidate A fires in **71 956 rooms** under the shipped S1 bottle cabinet
+(the plan's own pre-S1 figure was 84 291; S1's fix to the core-preserving population, J2 below, moves
+it). Candidate C, the threshold-only reading, is refused per E7.1's own recommendation against
+candidate B and remains unbuilt.
+
+### J2 — slice S1 as shipped: the bottle cabinet's core-preserving rule, and a defect found and fixed before commit
+
+**The rule.** The 300 mm `base-bottle-cargo` stands immediately after the hob in reading order
+(Amendment H1's order, E3's conditional remedy), and is composed only where every core role the plan
+would otherwise keep **stays on the wall it has without the bottle** — [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment E's rule that the sink and the hob stand on the wider wall governs which wall that is.
+
+**A logic review found the first implementation re-cut the core in 4 955 rooms** — the sink moved off
+the wider wall when the bottle cabinet's width shifted the wall cut, with witnesses **1500×2800,
+2861×2849, 2956×2824**. **Fixed before commit.**
+
+**Census over the approved L rectangle at 10 mm / 2600 mm (QA test, measured):**
+
+| | Rooms |
+| --- | ---: |
+| Swept | 256 011 |
+| Placed (unchanged vs HEAD) | 245 211 |
+| Bottle included | 220 266 |
+| Bottle omitted | 24 945 |
+| — would cost a core role | 15 445 |
+| — would refuse the kitchen | 4 545 |
+| — would re-cut the core (the found-and-fixed defect) | 4 955 |
+
+**0 `minimumMet` / `dropped` differences against HEAD.** These figures **supersede the wave plan's
+reconciliation numbers of 225 221 placed-with-bottle / 19 990 dropped**, which were taken before the
+core-preserving fix and before this census.
+
+### J3 — coordinator ruling on the reversed (prefix) wall: the bottle is tried only on the hob's wall, at the cost of one reversed-wall storage slot, and is omitted rather than retried elsewhere if it does not fit
+
+**Coordinator ruling (option B), 2026-09-21 — marked as the coordinator's, not the owner's, and the
+owner may overturn it.** Where the whole core stands on the reversed (prefix) wall under
+[ADR 0110 Amendment I](#amendment-i--2026-09-17-the-block-follows-the-run-not-the-letter-a-and-a1s-order-survives-its-own-mirror)'s
+mirror, the bottle cabinet is tried **only on the hob's wall**, immediately after the hob, **even at
+the cost of one reversed-wall storage slot** — consistent with Amendment H1's order and with E3's
+"costs one storage slot" outcome. **It is tried on the hob's wall only: if it does not fit there it is
+omitted**, rather than being retried by falling back onto the other wall's corner or by breaking the
+reading order.
+
+**The population is empty in the approved range**: wave 7D8's finding that *"no room composes the
+hob onto the reversed wall"* still holds after this wave. **7D8's 7b witness was restated** with
+wider declared runs (wall A 900–5000, wall B 1000–5100) so that two storage slots return to the
+witness and the descending-index subject is still discriminated — the witness's population was not
+otherwise reachable at the approved policy's original bounds.
+
+### J4 — earlier-wave restatements this wave's obligation reaches (`docs/WORKFLOW.md`: an unrecorded edit to an earlier wave's assertion is a defect)
+
+Each of these is an edit to an assertion a prior wave shipped, restated rather than silently changed:
+
+- **7D3 criterion 12** (`tall-end-composition.test.ts`): the storage count now excludes the bottle
+  cabinet.
+- **Tall-end block thresholds**: `tall-end-block.test.ts`'s 3300 / 3900 / 4500 mm move to
+  **3600 / 4200 / 4800 mm**, matching Amendment H's H5 table.
+- **7D2 cut rows**: 3299/3300 mm move to **3599/3600 mm**; the overhang allowance is **500 mm for the
+  bottle cabinet only** (200 mm for every other body).
+- **7D4 criterion 2**: its witnesses are restated, and the `wallBStorage` arm moves **58 → 59**.
+- **7D4 predicate checks** now derive composed slots independently and exclude the bottle cabinet.
+- **7D8 re-keyed witnesses**: the whole-with-3367×3506 witness is replaced by
+  **3348×3831×2778** — the bottle takes its only wall-B slot in that room.
+- **`drawer-rows.test.ts` witnesses**: **1500×3400 → 1500×4410**; **900×4700** loses its pantry
+  column to the bottle cabinet.
+
+### J5 — the tall-end block's `coreSurvivedWhole` clause is dormant, not retired
+
+**Measured by the logic reviewer:** hard-wiring the tall-end block's clause 1 (`coreSurvivedWhole`)
+true changes **0 plans** over the approved sweep and over a wider 8000×8000 grid. The arithmetic
+reason: with 700/600/300 mm module widths, whenever the fridge is dropped the free-end wall has
+under 600 mm left after the core plus the bottle cabinet, so the clause never has a case to discharge
+where it would matter.
+
+**Per [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
+decision 1, a rule no test can fail is not a shipped rule.** The clause is recorded here as **dormant, not retired**: it stays in
+code, and its trigger for revival is named so the next wave that reaches it does not have to
+re-derive it — **S2's added 600 mm pan-drawer module changes the core's width, and the bottle
+cabinet being omitted changes it again.** Wave S2 must re-measure the clause once it lands; the
+qa-7d3 counter test that had witnessed the clause firing was removed as part of this wave, since it
+witnessed a case the clause can no longer reach.
+
+### J6 — the visible consequence: the reference room loses its oven tower
+
+**The reference room's hob changes from `base-hob-2drawer` to `base-hob-oven`** — the bottle cabinet
+takes the block's module (E3's "costs a block column" outcome) — and this recurs in **25 recorded
+rooms (18 + 7 across the two recordings)**, each of which falls back from `base-hob-2drawer` to
+`base-hob-oven` under this wave.
+
+### J7 — H5's "unsafe case" sentence is superseded: the bottle may itself stand last on its wall
+
+**Measured by the logic reviewer, 2026-09-21.** H5 asserted that a 300 mm cargo with nothing outboard
+of it — its neighbour the bare remainder — is the unsafe case, and that 7D5 therefore asserts the
+neighbours rather than the cargo. **Slice S1 ships a configuration where the bottle cabinet may stand
+last on its wall**, relying on `plannedVoid` (`packages/configurator-domain/src/generation/generate-kitchen.ts:599`,
+called at lines 408 and 504) matching on the same start and accepting a wider end, so that a trailing
+run-end remainder merges with the bottle's own tile up to the inclusive 800 mm cap
+([ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md)).
+
+**Measured: 41 298 approved rooms place the bottle last with a remainder of 1–500 mm.**
+`generateKitchen` was run over 1 050 kitchens covering those configurations at wall lengths 2200 /
+2600 / 3000 mm: **0 throws, 0 bottles misplaced, 0 base width/position mismatches.** The body is
+left-aligned in the merged opening, so **D2.2's sliver warning does not apply** to this case.
+
+**H5's sentence is struck above rather than rewritten**, per this record's convention for superseded
+prose (`docs/best-practices/documentation.md`). Nothing else in H5 — the cost table, the E-table
+shift, or the caveat on sampling — is affected.

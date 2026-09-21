@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
+  BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
@@ -116,7 +117,11 @@ function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
   const wall = freeEndWallOf(room);
   const run = lShellFloorRuns(room)[wall];
   const coreWidthMm = plan.bases
-    .filter((base) => base.wall === wall && base.role !== "storage")
+    .filter(
+      (base) =>
+        base.wall === wall &&
+        (base.role !== "storage" || base.buildId === BOTTLE_CARGO_BUILD_ID),
+    )
     .reduce((sum, base) => sum + base.widthMm, 0);
   return planLeftover(run.endMm - run.startMm - coreWidthMm);
 }
@@ -349,7 +354,9 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
         expect(
           plan.bases.filter(
             (base) =>
-              base.wall === freeEndWallOf(room) && base.role === "storage",
+              base.wall === freeEndWallOf(room) &&
+              base.role === "storage" &&
+              base.buildId !== BOTTLE_CARGO_BUILD_ID,
           ),
         ).toHaveLength(leftover.storageCount);
 

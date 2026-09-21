@@ -80,9 +80,8 @@ describe("generateKitchen", () => {
             placement.alongMm + placement.body.widthMm / 2,
           ],
       );
-    // The reference room plans a block at wall A's free end, so the hob carries drawers and the
-    // oven stands in the tower (ADR 0110 Amendment E4). Its width, tile and position are unchanged:
-    // both hob bodies are discrete 600 mm, which is what makes the substitution shell-neutral.
+    // The bottle uses the reference room's former block module, so the hob keeps its own oven. Its
+    // width, tile and position remain the ruled 600 mm at [2100, 2700].
     //
     // **The preparation body moved in 7D4 S2 and its position did not**: Amendment F5 makes it
     // `base-3drawer`, the cutlery reached while cutting being within reach of the preparation
@@ -91,7 +90,7 @@ describe("generateKitchen", () => {
     expect(named).toEqual([
       ["base-sink", "A", 900, 1500],
       ["base-3drawer", "A", 1500, 2100],
-      ["base-hob-2drawer", "A", 2100, 2700],
+      ["base-hob-oven", "A", 2100, 2700],
     ]);
     expect(bases.length).toBeGreaterThan(4);
     expect(
@@ -228,9 +227,12 @@ describe("generateKitchen", () => {
   });
 
   it("plans wall A to its reachable odd-span end before allowing the final storage resize", () => {
+    // Remainder exactly 200 on purpose: the resized slot ends 200 mm short of the run end, which is the
+    // inclusive edge of the final fit-body resize allowance. The bottle after the hob shifts the slot
+    // by 300 mm (M7 wave 7D5 S1), so the room moved from 3501 to keep that edge.
     const room: DesignRoom = {
       shape: "L",
-      widthMm: 3501,
+      widthMm: 3801,
       depthMm: 1700,
       heightMm: 2200,
     };
@@ -240,7 +242,7 @@ describe("generateKitchen", () => {
     if (!result.ok) return;
     expect(lShellFloorRuns(room).A).toMatchObject({
       startMm: 900,
-      endMm: 3500,
+      endMm: 3800,
     });
     expect(result.log.plan.remainderMm.A).toBe(200);
     const storage = result.log.plan.bases.find(
@@ -250,8 +252,8 @@ describe("generateKitchen", () => {
       role: "storage",
       widthMm: 600,
       wall: "A",
-      startMm: 2700,
-      endMm: 3300,
+      startMm: 3000,
+      endMm: 3600,
     });
     const resizes = result.log.commands.filter(
       (command) => command.type === "set_width",
@@ -537,13 +539,7 @@ describe("generateKitchen", () => {
     expect(result.log.steps.find((step) => step.id === "fridge")?.status).toBe(
       "placed",
     );
-    // The fridge is no longer the only body the rule suppresses an upper above: the reference room
-    // plans a block at wall A's free end, and its oven tower reaches the same wall row. That the
-    // rule finds it without being told its name is exactly what reading the declared height buys.
-    expect(basesAboveWallRow({ result, catalog })).toEqual([
-      "column:A:0",
-      "fridge",
-    ]);
+    expect(basesAboveWallRow({ result, catalog })).toEqual(["fridge"]);
     expect(
       result.log.steps.filter((step) => step.id.endsWith(":fridge")),
     ).toEqual([]);

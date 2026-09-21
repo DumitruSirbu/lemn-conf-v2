@@ -1,6 +1,7 @@
 import type { DesignRoom, DesignWall } from "../design.js";
 import { wallLengthMm } from "../queries/overflowing-placements.js";
 import {
+  BOTTLE_CARGO_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
@@ -84,6 +85,26 @@ export const GENERATION_PRIORITIES: readonly GenerationPriority[] = [
   { role: "hob", buildId: "base-hob-oven", widthMm: 600, required: true },
 ];
 
+/** ADR 0110 Amendment H1: the 300 mm cargo follows the hob in the reading order. It is an optional
+ * member of the run rather than a core role: the planner omits it when the same kept core cannot fit,
+ * and places it only where every kept core role stays on the wall it has without the bottle (ADR 0120
+ * Amendment E). With the whole core on the prefix wall it stands on the hob's wall or not at all,
+ * because the owner's order reads it right after the hob and ADR 0110 Amendment J3 (the reversed-wall
+ * ruling) accepts that it costs that wall one storage slot — a population empty in the approved range.
+ * The catalogue remains the authority for the row's offered 200/300 mm set; 300 mm here is the
+ * owner-ruled module the generated run chooses, just as the priorities above choose their widths.
+ *
+ * Standing last on its wall is safe even when the trailing run-end remainder merges with the bottle's
+ * tile into one wider floor opening: `plannedVoid` in `generate-kitchen.ts` accepts an
+ * opening at the same start whose end reaches at least the body's end, and a trailing remainder only
+ * extends the opening's end, never moves its start. */
+const BOTTLE_CARGO: GenerationAncillaryRunItem = {
+  id: "bottle",
+  role: "storage",
+  buildId: BOTTLE_CARGO_BUILD_ID,
+  widthMm: 300,
+};
+
 /** The hob body that carries its own oven, which is what a kitchen keeps whenever no oven tower
  *  stands in it (ADR 0110 E4). Read from the priorities rather than restated, so the substitution
  *  and the reading order cannot name two different hobs. */
@@ -146,13 +167,16 @@ export function planKitchenComposition(input: {
     ),
   ];
 
+  const capacityByRole = {
+    prefix: capacities[walls.prefix],
+    suffix: capacities[walls.suffix],
+  };
   for (const kept of attempts) {
-    const cut = chooseWallCut(kept, {
-      prefix: capacities[walls.prefix],
-      suffix: capacities[walls.suffix],
-    });
+    const cut = chooseWallCut(kept, capacityByRole);
     if (cut === undefined) continue;
-    return builtPlan({ ...input, walls, kept, cut });
+
+    const run = withBottleWhereTheCoreStays(kept, cut, capacityByRole);
+    return builtPlan({ ...input, walls, kept, ...run });
   }
 
   return {
@@ -165,20 +189,46 @@ export function planKitchenComposition(input: {
   };
 }
 
+/** The kept core with the bottle appended across a cut that leaves every kept role on the wall it
+ *  had without the bottle, or the kept core alone where no such cut fits. Testing those cuts directly,
+ *  rather than asking `chooseWallCut` to re-prefer one, is what lets a bottle stand when the whole
+ *  core is on the prefix wall; and no core role can be refused, dropped or carried off the wider wall
+ *  by it (ADR 0120 Amendment E). */
+function withBottleWhereTheCoreStays(
+  kept: readonly GenerationPriority[],
+  coreCut: number,
+  capacityMm: WallCapacities,
+): { readonly ordered: readonly GenerationRunItem[]; readonly cut: number } {
+  const withBottle = [...kept, BOTTLE_CARGO];
+  const cut = bottleCutsKeepingTheCoreInPlace(kept.length, coreCut).find(
+    (candidate) => fitsAcrossTheCorner(withBottle, candidate, capacityMm),
+  );
+  return cut === undefined
+    ? { ordered: kept, cut: coreCut }
+    : { ordered: withBottle, cut };
+}
+
+/** The bottle is the last item read, so the core cut always leaves the core in place. Where that cut
+ *  takes every kept role onto the prefix wall, the only cut offered stands the bottle there too, on
+ *  the hob's wall (ADR 0110 Amendments H1 and J3); the core cut would put it alone at the other
+ *  wall's corner — next in reading order but not beside the hob — so it is omitted instead. */
+function bottleCutsKeepingTheCoreInPlace(
+  keptCount: number,
+  coreCut: number,
+): readonly number[] {
+  return coreCut === keptCount ? [keptCount + 1] : [coreCut];
+}
+
 /** Where the reading order splits between the two walls, in free run millimetres and never in wall
  *  letters: the cut is a feasibility answer about two run lengths, and which physical wall holds
  *  each of them was decided before this was called (ADR 0120 E3). */
 function chooseWallCut(
-  kept: readonly GenerationPriority[],
-  capacityMm: { readonly prefix: number; readonly suffix: number },
+  kept: readonly GenerationRunItem[],
+  capacityMm: WallCapacities,
 ): number | undefined {
   const preferred = kept[0]?.role === "fridge" ? 1 : 0;
   const candidates = Array.from({ length: kept.length + 1 }, (_, cut) => cut)
-    .filter(
-      (cut) =>
-        sumWidths(kept.slice(0, cut)) <= capacityMm.prefix &&
-        sumWidths(kept.slice(cut)) <= capacityMm.suffix,
-    )
+    .filter((cut) => fitsAcrossTheCorner(kept, cut, capacityMm))
     .sort((left, right) =>
       Math.abs(left - preferred) === Math.abs(right - preferred)
         ? left - right
@@ -187,17 +237,43 @@ function chooseWallCut(
   return candidates[0];
 }
 
+interface WallCapacities {
+  readonly prefix: number;
+  readonly suffix: number;
+}
+
+function fitsAcrossTheCorner(
+  readingOrder: readonly GenerationRunItem[],
+  cut: number,
+  capacityMm: WallCapacities,
+): boolean {
+  return (
+    sumWidths(readingOrder.slice(0, cut)) <= capacityMm.prefix &&
+    sumWidths(readingOrder.slice(cut)) <= capacityMm.suffix
+  );
+}
+
+type GenerationRunItem = GenerationPriority | GenerationAncillaryRunItem;
+
+interface GenerationAncillaryRunItem {
+  readonly id: string;
+  readonly role: "storage";
+  readonly buildId: string;
+  readonly widthMm: number;
+}
+
 function builtPlan(args: {
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
   readonly columns: DeclaredColumnSizes;
   readonly walls: ReadingOrderWalls;
   readonly kept: readonly GenerationPriority[];
+  readonly ordered: readonly GenerationRunItem[];
   readonly cut: number;
 }): KitchenCompositionPlan {
-  const { room, runs, kept, walls } = args;
-  const onThePrefixWall = kept.slice(0, args.cut);
-  const onTheSuffixWall = kept.slice(args.cut);
+  const { room, runs, kept, ordered, walls } = args;
+  const onThePrefixWall = ordered.slice(0, args.cut);
+  const onTheSuffixWall = ordered.slice(args.cut);
   const hobStandsOnTheSuffixWall = onTheSuffixWall.some(
     (item) => item.role === HOB_ROLE,
   );
@@ -304,12 +380,19 @@ interface WidthItem {
 
 /** ADR 0110 E4: the hob wears whichever body the tall-end rule chose, wherever the wall cut put it.
  *  Every other priority carries its own declared id. */
-function asWidthItem(item: GenerationPriority, hobBuildId: string): WidthItem {
-  return {
-    role: item.role,
-    buildId: item.role === HOB_ROLE ? hobBuildId : item.buildId,
-    widthMm: item.widthMm,
-  };
+function asWidthItem(item: GenerationRunItem, hobBuildId: string): WidthItem {
+  return item.role === "storage"
+    ? {
+        id: item.id,
+        role: item.role,
+        buildId: item.buildId,
+        widthMm: item.widthMm,
+      }
+    : {
+        role: item.role,
+        buildId: item.role === HOB_ROLE ? hobBuildId : item.buildId,
+        widthMm: item.widthMm,
+      };
 }
 
 /** A column stands exactly where the leftover rule was going to stand a storage cabinet, and it is

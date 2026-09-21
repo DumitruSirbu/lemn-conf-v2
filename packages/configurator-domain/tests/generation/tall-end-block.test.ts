@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
@@ -38,6 +39,7 @@ const OVEN_TOWER = "tall-oven-tower";
 const DOOR_COLUMN = "tall-pantry";
 const HOB_WITH_DRAWERS = "base-hob-2drawer";
 const HOB_WITH_OVEN = "base-hob-oven";
+const BOTTLE_WIDTH_MM = 300;
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -109,8 +111,8 @@ function setWidthTargets(log: GenerationLog): readonly string[] {
 
 describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
   it("stands one oven tower where the run first affords a module, and none a millimetre below", () => {
-    const withABlock = planFor(roomOf(3300, 1700, 2600));
-    const withoutOne = planFor(roomOf(3299, 1700, 2600));
+    const withABlock = planFor(roomOf(3600, 1700, 2600));
+    const withoutOne = planFor(roomOf(3599, 1700, 2600));
 
     expect(blockOf(withABlock).map((base) => base.buildId)).toEqual([
       OVEN_TOWER,
@@ -126,7 +128,7 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
   it("computes that boundary pair from the run and the declared widths, not from the number", () => {
     const declaredCoreWidthMm = GENERATION_PRIORITIES.filter(
       (priority) => priority.role !== "fridge",
-    ).reduce((sum, priority) => sum + priority.widthMm, 0);
+    ).reduce((sum, priority) => sum + priority.widthMm, BOTTLE_WIDTH_MM);
     const wallBHoldingTheFridge = 1700;
     const firstAffordingWallAMm = (() => {
       for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
@@ -145,7 +147,7 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     })();
 
     // Pinned as a literal so a declared width that moves fails on the number (criterion 7).
-    expect(firstAffordingWallAMm).toBe(3300);
+    expect(firstAffordingWallAMm).toBe(3600);
     expect(
       blockOf(planFor(roomOf(firstAffordingWallAMm, 1700, 2600))),
     ).toHaveLength(1);
@@ -158,12 +160,12 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     const sizeAt = (wallAMm: number, wallBMm = 1700) =>
       blockOf(planFor(roomOf(wallAMm, wallBMm, 2600))).length;
 
-    expect([sizeAt(3899), sizeAt(3900)]).toEqual([1, 2]);
-    expect([sizeAt(4499), sizeAt(4500)]).toEqual([2, 3]);
+    expect([sizeAt(4199), sizeAt(4200)]).toEqual([1, 2]);
+    expect([sizeAt(4799), sizeAt(4800)]).toEqual([2, 3]);
     // Wall B too short to hold the fridge, so wall A carries the whole reading order.
-    expect([sizeAt(3999, 1600), sizeAt(4000, 1600)]).toEqual([0, 1]);
-    expect([sizeAt(4599, 1600), sizeAt(4600, 1600)]).toEqual([1, 2]);
-    expect([sizeAt(5199, 1600), sizeAt(5200, 1600)]).toEqual([2, 3]);
+    expect([sizeAt(4299, 1600), sizeAt(4300, 1600)]).toEqual([0, 1]);
+    expect([sizeAt(4899, 1600), sizeAt(4900, 1600)]).toEqual([1, 2]);
+    expect([sizeAt(5499, 1600), sizeAt(5500, 1600)]).toEqual([2, 3]);
   });
 
   it("never grows past three columns however long the wall is", () => {
@@ -173,7 +175,7 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
 
   it("composes one oven tower innermost with door columns outboard, contiguous at the free end", () => {
     // 6300 is past the approved 6000 mm on purpose (M7 7A3): the composer is judged, not the policy.
-    for (const wallAMm of [3300, 3900, 4500, 6300]) {
+    for (const wallAMm of [3600, 4200, 4800, 6300]) {
       const plan = planFor(roomOf(wallAMm, 1700, 2600));
       const block = blockOf(plan);
       const where = `wall A ${String(wallAMm)}`;
@@ -215,7 +217,7 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     // both read the wider-wall rule the same way.
     const arms = { onWallA: 0, onWallB: 0 };
     // The pre-7A3 approved corner, kept on purpose: the composer is judged here, not the policy.
-    for (const wallAMm of [3300, 3900, 4500, 6300]) {
+    for (const wallAMm of [3600, 4200, 4800, 6300]) {
       for (const wallBMm of [1000, 1600, 1700, 3000, 5100]) {
         const room = roomOf(wallAMm, wallBMm, 2600);
         const runs = lShellFloorRuns(room);
@@ -241,14 +243,14 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
 
 describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
   it("gives the block a flush free end at a 100 mm remainder, with no resize command", () => {
-    const room = roomOf(4000, 3000, 2600);
+    const room = roomOf(4300, 3000, 2600);
     const plan = planFor(room);
     const result = generate(room);
     const run = lShellFloorRuns(room).A;
 
     // E6.2, not E6's original absorb: the outermost body of a block of two is the `'fit'` door
     // column, and it takes the merged opening by being planned at 600 + 100.
-    expect(plan.floorWidthsMm.A).toEqual([600, 600, 600, 600, 700]);
+    expect(plan.floorWidthsMm.A).toEqual([600, 600, 600, 300, 600, 700]);
     expect(plan.remainderMm.A).toBe(0);
     expect(blockOf(plan).map((base) => [base.buildId, base.widthMm])).toEqual([
       [OVEN_TOWER, 600],
@@ -317,7 +319,7 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
 
   it("leaves the refused single-module wall composed exactly as the leftover rule alone would", () => {
     const refused = (() => {
-      for (let wallAMm = 3300; wallAMm <= 3899; wallAMm += 1) {
+      for (let wallAMm = 3600; wallAMm <= 4199; wallAMm += 1) {
         const plan = planFor(roomOf(wallAMm, 1700, 2600));
         if (blockOf(plan).length === 0 && plan.remainderMm.A > 0) {
           return { wallAMm, plan };
@@ -328,16 +330,23 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
     const room = roomOf(refused.wallAMm, 1700, 2600);
     const run = lShellFloorRuns(room).A;
     const coreWidthMm = refused.plan.bases
-      .filter((base) => base.wall === "A" && base.role !== "storage")
+      .filter(
+        (base) =>
+          base.wall === "A" &&
+          (base.role !== "storage" || base.buildId === BOTTLE_CARGO_BUILD_ID),
+      )
       .reduce((sum, base) => sum + base.widthMm, 0);
     const leftover = planLeftover(run.endMm - run.startMm - coreWidthMm);
 
     expect(
       refused.plan.floorWidthsMm.A.filter((widthMm) => widthMm !== 600),
-    ).toEqual([]);
+    ).toEqual([BOTTLE_WIDTH_MM]);
     expect(
       refused.plan.bases.filter(
-        (base) => base.wall === "A" && base.role === "storage",
+        (base) =>
+          base.wall === "A" &&
+          base.role === "storage" &&
+          base.buildId !== BOTTLE_CARGO_BUILD_ID,
       ),
     ).toHaveLength(leftover.storageCount);
     expect(refused.plan.remainderMm.A).toBe(leftover.remainderMm);
@@ -347,7 +356,7 @@ describe("the merge hazard and the absorb (criteria 8, 9, 22)", () => {
 
 describe("the ceiling clause (criterion 14)", () => {
   it("stands a column in a room exactly as tall as it is, with nothing reported above the room", () => {
-    const room = roomOf(3300, 1700, DECLARED_COLUMNS.columnHeightMm);
+    const room = roomOf(3600, 1700, DECLARED_COLUMNS.columnHeightMm);
     const result = generate(room);
 
     expect(placementsOf(result.design, OVEN_TOWER)).toHaveLength(1);
@@ -366,7 +375,7 @@ describe("the ceiling clause (criterion 14)", () => {
     // a 2199 mm ceiling in every room, block or no block. This clause is what stops a column from
     // being planned and then refused at insert time, which is a failure of a different kind.
     const plan = planFor(
-      roomOf(3300, 1700, DECLARED_COLUMNS.columnHeightMm - 1),
+      roomOf(3600, 1700, DECLARED_COLUMNS.columnHeightMm - 1),
     );
 
     expect(blockOf(plan)).toEqual([]);

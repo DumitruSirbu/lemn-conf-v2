@@ -70,11 +70,10 @@ const ARM_FLOOR = 100;
  *
  *  **Re-constructed for M7 wave 7D8, and the arm it draws is the physical one.** The band was
  *  900–1500 × 2800–5100 while wall B was the wall the layout reversed; after the re-key that band
- *  composes a post-hob slot on wall B in 13.0 % of its rooms — 32 of 300 draws, under the hundred
- *  risk 14's table asks for. Measured over the band below, 1 500-3 000 x 3 300-3 600 and 451 801
- *  rooms: **63.9 % put the drawer on wall B and 37.5 % hold a composed slot on wall A as well**,
- *  which is the arm a lookup left on the wrong letter would land in. */
-const CONSTRUCTED_WALL_B_RUNS = 600;
+ *  composed a post-hob slot on wall B in 13.0 % of its rooms. S1 spends another 300 mm after the
+ *  hob, so the constructed depth band below moves to 4 400-4 700 and draws 900 rooms to retain the
+ *  required hundred witnesses on both the wall-B arm and the wrong-letter wall-A control. */
+const CONSTRUCTED_WALL_B_RUNS = 900;
 
 /** Criterion 13 asks for 200 samples and each run composes the same room three times — twice for the
  *  determinism clause and once more through the replay. Measured: 263 of 300 placed. */
@@ -89,9 +88,8 @@ const COMPOSED_STORAGE_BODIES = [
   THREE_DRAWER_BASE_BUILD_ID,
 ];
 
-/** ADR 0026 keeps the bottle cargo out of a generated kitchen: it is discrete {200, 300} and fits no
- *  tile this generator plans (G7). The pan drawer is S1b's, kept for 7D5 and placed nowhere here. */
-const NEVER_GENERATED_BODIES = ["base-bottle-cargo", PAN_DRAWER_BASE_BUILD_ID];
+/** The pan drawer is 7D5 S2's and remains absent while S1 composes only the bottle cargo. */
+const NEVER_GENERATED_BODIES = [PAN_DRAWER_BASE_BUILD_ID];
 
 interface GeneratedKitchen {
   readonly design: Design;
@@ -316,7 +314,7 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
         fc.record({
           shape: fc.constant("L" as const),
           widthMm: fc.integer({ min: 1500, max: 3000 }),
-          depthMm: fc.integer({ min: 3300, max: 3600 }),
+          depthMm: fc.integer({ min: 4400, max: 4700 }),
           heightMm: fc.integer({ min: 2200, max: 3900 }),
         }),
         (room) => {
@@ -380,7 +378,7 @@ describe("criterion 9 — every generated module is built on the grid", () => {
     expect(composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
-  it("generates no bottle cargo and no pan drawer, at any room in the policy", () => {
+  it("generates no pan drawer before 7D5 S2, at any room in the policy", () => {
     fc.assert(
       fc.property(approvedLRoom(), (room) => {
         const kitchen = generated(room);

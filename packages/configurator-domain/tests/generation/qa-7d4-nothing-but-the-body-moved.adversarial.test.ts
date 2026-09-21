@@ -28,6 +28,7 @@ import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
+  BOTTLE_CARGO_BUILD_ID,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   createBodyProbeLease,
@@ -68,6 +69,7 @@ import {
   createFakeProbeFactory,
   createLeaseLedger,
 } from "../support/fake-probe.js";
+import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -129,33 +131,37 @@ const RE_KEYED_WITNESSES = [
       "minimumMet=true",
       "cut=2",
       "dropped=",
-      "remainder=88/596",
-      "floorWidths=600,700/600,600",
+      "remainder=88/296",
+      "floorWidths=600,700/600,600,300",
       "sink~sink~base-sink~A~900~1500~600",
       "fridge~fridge~fridge-free~A~1500~2200~700",
       "preparation~preparation~base-3drawer~B~900~1500~600",
       "hob~hob~base-hob-oven~B~1500~2100~600",
+      "bottle~storage~base-bottle-cargo~B~2100~2400~300",
     ],
   },
   {
     // A composed storage slot on **each** wall, which is where a slot lookup on the wrong letter has
     // somewhere wrong to land: the drawer after the hob stands on wall B, the wider wall, while wall
-    // A's two slots keep their doors.
-    name: "a composed slot on each wall (3367 x 3506)",
-    room: { shape: "L", widthMm: 3367, depthMm: 3506, heightMm: 3715 },
+    // A's two slots keep their doors. **Moved from 3367 x 3506 in M7 wave 7D5 S1**, where the bottle
+    // now takes wall B's only slot and the room no longer has the shape this witness names; this room
+    // is drawn by the same recorded sweep and keeps a slot on wall B after the bottle.
+    name: "a composed slot on each wall (3348 x 3831)",
+    room: { shape: "L", widthMm: 3348, depthMm: 3831, heightMm: 2778 },
     plan: [
       "minimumMet=true",
       "cut=3",
       "dropped=",
-      "remainder=566/106",
-      "floorWidths=600,600,700/600,600,600,600",
+      "remainder=548/130",
+      "floorWidths=600,600,700/600,600,600,300,600",
       "storage:A:0~storage~base-cabinet~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "fridge~fridge~fridge-free~A~2100~2800~700",
       "sink~sink~base-sink~B~900~1500~600",
       "preparation~preparation~base-3drawer~B~1500~2100~600",
       "hob~hob~base-hob-oven~B~2100~2700~600",
-      "storage:B:0~storage~base-3drawer~B~2700~3300~600",
+      "bottle~storage~base-bottle-cargo~B~2700~3000~300",
+      "storage:B:0~storage~base-3drawer~B~3000~3600~600",
     ],
   },
   {
@@ -168,8 +174,8 @@ const RE_KEYED_WITNESSES = [
       "minimumMet=true",
       "cut=3",
       "dropped=",
-      "remainder=448/464",
-      "floorWidths=600,600,600,700/600,600,600,600,600,600",
+      "remainder=448/0",
+      "floorWidths=600,600,600,700/600,600,600,300,600,600,764",
       "storage:A:0~storage~base-cabinet~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "storage:A:2~storage~base-cabinet~A~2100~2700~600",
@@ -177,9 +183,10 @@ const RE_KEYED_WITNESSES = [
       "sink~sink~base-sink~B~900~1500~600",
       "preparation~preparation~base-3drawer~B~1500~2100~600",
       "hob~hob~base-hob-2drawer~B~2100~2700~600",
-      "column:B:0~storage~tall-oven-tower~B~2700~3300~600",
-      "column:B:1~storage~tall-pantry~B~3300~3900~600",
-      "column:B:2~storage~tall-pantry~B~3900~4500~600",
+      "bottle~storage~base-bottle-cargo~B~2700~3000~300",
+      "column:B:0~storage~tall-oven-tower~B~3000~3600~600",
+      "column:B:1~storage~tall-pantry~B~3600~4200~600",
+      "column:B:2~storage~tall-pantry~B~4200~4964~764",
     ],
   },
   {
@@ -192,10 +199,11 @@ const RE_KEYED_WITNESSES = [
       "minimumMet=true",
       "cut=2",
       "dropped=fridge,preparation",
-      "remainder=12/582",
-      "floorWidths=/600,600",
+      "remainder=12/282",
+      "floorWidths=/600,600,300",
       "sink~sink~base-sink~B~900~1500~600",
       "hob~hob~base-hob-oven~B~1500~2100~600",
+      "bottle~storage~base-bottle-cargo~B~2100~2400~300",
     ],
   },
   {
@@ -209,21 +217,22 @@ const RE_KEYED_WITNESSES = [
     // 2. **The block followed the run onto wall B** (ADR 0110 Amendment I; 7D8 criterion 10). The hob
     //    now ends the run on the free-end wall, which is E3's clause 2, so the two modules the
     //    recording holds as composed storage slots are a tall oven tower and a pantry column — and
-    //    the hob carries drawers instead of its own oven, because a tower stands.
+    //    the hob carries drawers instead of its own oven, because a tower stands. Since M7 wave 7D5
+    //    S1 the 300 mm bottle after the hob costs the pantry column and the tower remains.
     name: "the whole kitchen on one wall (900 x 4700)",
     room: { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
     plan: [
       "minimumMet=true",
       "cut=4",
       "dropped=",
-      "remainder=0/0",
-      "floorWidths=/700,600,600,600,600,600",
+      "remainder=0/300",
+      "floorWidths=/700,600,600,600,300,600",
       "fridge~fridge~fridge-free~B~900~1600~700",
       "sink~sink~base-sink~B~1600~2200~600",
       "preparation~preparation~base-3drawer~B~2200~2800~600",
       "hob~hob~base-hob-2drawer~B~2800~3400~600",
-      "column:B:0~storage~tall-oven-tower~B~3400~4000~600",
-      "column:B:1~storage~tall-pantry~B~4000~4600~600",
+      "bottle~storage~base-bottle-cargo~B~3400~3700~300",
+      "column:B:0~storage~tall-oven-tower~B~3700~4300~600",
     ],
   },
 ] as const satisfies readonly {
@@ -342,20 +351,46 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     const arms = { outsideTheReKey: 0, moved: 0, wallBWiderButRefused: 0 };
     const unexpected: string[] = [];
     let placed = 0;
+    let bottleNormalized = 0;
+    let bottleWithDrawer = 0;
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
         const plan = planFor(room);
         if (plan.minimumMet) placed += 1;
-        const composed = digestOf(canonicalPlanBeyondThisWavesBodies(plan));
-        const recorded = recordedRoom(BASELINE, room).plan;
+        const hasBottle = plan.bases.some(
+          (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
+        );
         const movedByTheReKey = reKeyedByWave7D8(room, plan);
         if (movedByTheReKey) arms.moved += 1;
         else if (isWallBWider(room)) arms.wallBWiderButRefused += 1;
         else arms.outsideTheReKey += 1;
-        if ((composed !== recorded) !== movedByTheReKey) {
-          unexpected.push(
-            `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
+        if (hasBottle) {
+          bottleNormalized += 1;
+          const bottles = plan.bases.filter((base) => base.id === "bottle");
+          const bottle = bottles[0];
+          if (
+            bottles.length !== 1 ||
+            bottle?.role !== "storage" ||
+            bottle.buildId !== BOTTLE_CARGO_BUILD_ID ||
+            bottle.widthMm !== 300
+          ) {
+            unexpected.push(`${roomKey(room)} invalid bottle identity`);
+          }
+          const drawers = plan.bases.filter(
+            (base) => base.buildId === THREE_DRAWER_BASE_BUILD_ID,
           );
+          if (drawers.length > 0) bottleWithDrawer += 1;
+          if (drawers.some((drawer) => !isMovedByThisWave(drawer))) {
+            unexpected.push(`${roomKey(room)} invalid drawer identity`);
+          }
+        } else {
+          const composed = digestOf(canonicalPlanBeyondThisWavesBodies(plan));
+          const recorded = recordedRoom(BASELINE, room).plan;
+          if ((composed !== recorded) !== movedByTheReKey) {
+            unexpected.push(
+              `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
+            );
+          }
         }
       }),
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
@@ -371,19 +406,60 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       moved: 82,
       wallBWiderButRefused: 23,
     });
+    expect(bottleNormalized).toBeGreaterThan(0);
+    expect(bottleWithDrawer).toBeGreaterThan(0);
   });
 
   it.each(UNMOVED_WITNESS_ROOMS)(
     "renders back to 7D3's own plan once the door body is restored, in %o",
     (room) => {
-      // The sweep above says a plan is unchanged; this says **what changed and to what**, field by
-      // field, at the rooms this wave's rulings name. Restoring the door body to the two modules the
-      // wave may re-body must reproduce 7D3's recorded plan exactly — which proves in one assertion
-      // that no other field moved, that no other build id moved, and that both modules were door
-      // cabinets before this wave.
-      expect(canonicalPlanWithTheDoorBodyRestored(planFor(room))).toBe(
-        recordedWitness(BASELINE, room),
-      );
+      const plan = planFor(room);
+      if (plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID)) {
+        const recorded = parseRecordedCanonicalPlan(
+          recordedWitness(BASELINE, room),
+        );
+        const identity = (base: {
+          readonly id: string;
+          readonly role: string;
+          readonly buildId: string;
+          readonly widthMm: number;
+        }) => [base.id, base.role, base.buildId, base.widthMm].join("~");
+        expect(
+          plan.bases
+            .filter((base) => base.role !== "storage")
+            .map((base) =>
+              identity({
+                ...base,
+                buildId: isMovedByThisWave(base)
+                  ? DOOR_BASE_BUILD_ID
+                  : base.buildId,
+              }),
+            )
+            .sort(),
+        ).toEqual(
+          recorded.bases
+            .filter((base) => base.role !== "storage")
+            .map((base) =>
+              identity({
+                ...base,
+                buildId:
+                  base.role === "preparation" || base.id.startsWith("storage:")
+                    ? DOOR_BASE_BUILD_ID
+                    : base.buildId,
+              }),
+            )
+            .sort(),
+        );
+      } else {
+        // The sweep above says a plan is unchanged; this says **what changed and to what**, field by
+        // field, at the rooms this wave's rulings name. Restoring the door body to the two modules the
+        // wave may re-body must reproduce 7D3's recorded plan exactly — which proves in one assertion
+        // that no other field moved, that no other build id moved, and that both modules were door
+        // cabinets before this wave.
+        expect(canonicalPlanWithTheDoorBodyRestored(plan)).toBe(
+          recordedWitness(BASELINE, room),
+        );
+      }
     },
   );
 
@@ -394,14 +470,36 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       // deliberately, so a rule that reached its subject by role would sweep the block in and read
       // 7D3's correct output as this wave's defect. Each module the wave may **not** move is looked
       // for in 7D3's recording with all seven of its fields at once.
-      const recorded = recordedWitness(BASELINE, room);
-      const untouchable = planFor(room).bases.filter(
-        (base) => !isMovedByThisWave(base),
-      );
+      const plan = planFor(room);
+      if (plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID)) {
+        const recorded = parseRecordedCanonicalPlan(
+          recordedWitness(BASELINE, room),
+        );
+        const recordedUntouchableBodies = recorded.bases
+          .filter(
+            (base) =>
+              base.role === "hob" ||
+              (base.role === "storage" && base.id.startsWith("column:")),
+          )
+          .map((base) => [base.id, base.role, base.buildId, base.widthMm]);
+        const currentUntouchableBodies = plan.bases
+          .filter(
+            (base) =>
+              base.role === "hob" ||
+              (base.role === "storage" && base.id.startsWith("column:")),
+          )
+          .map((base) => [base.id, base.role, base.buildId, base.widthMm]);
+        expect(currentUntouchableBodies).toEqual(recordedUntouchableBodies);
+      } else {
+        const recorded = recordedWitness(BASELINE, room);
+        const untouchable = plan.bases.filter(
+          (base) => !isMovedByThisWave(base),
+        );
 
-      expect(untouchable.length).toBeGreaterThan(0);
-      for (const base of untouchable) {
-        expect(recorded, base.id).toContain(canonicalModule(base));
+        expect(untouchable.length).toBeGreaterThan(0);
+        for (const base of untouchable) {
+          expect(recorded, base.id).toContain(canonicalModule(base));
+        }
       }
     },
   );
@@ -437,6 +535,10 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       // again has to say so here. `canonicalPlanWithTheDoorBodyRestored` is deliberately **not**
       // used: the masking that makes the recording comparable across 7D4's body change would hide
       // half of what these witnesses exist to show.
+      //
+      // **Re-pinned for M7 wave 7D5 S1.** Every core module stands exactly where 7D8 pinned it; the
+      // only change is the 300 mm bottle immediately after the hob, paid for by the run-end
+      // remainder, a storage slot, or a block column (ADR 0120 Amendment E keeps the cut).
       expect(canonicalPlan(planFor(room)).split("|")).toEqual(plan);
     },
   );
@@ -466,6 +568,12 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // the wider entered wall* — 8 615 swept plans, 2 343 composing a drawer, and at least 100 of
     // them holding a composed slot on each wall. What is asserted here is the exact split of this
     // fixed draw, which is a stronger statement about the recording's reach than a floor was.
+    //
+    // **M7 wave 7D5 S1 moves it from 62 to 59, and only by the bottle's own cost.** Where the 300 mm
+    // cargo after the hob is paid for by wall B's one composed slot the arm loses that room; where it
+    // is paid for by a block column the leftover can seat a slot and the arm gains one. No core role
+    // changes wall or position in this draw (checked against `7d8-re-keyed-baseline.json` and
+    // `7d5-pre-width-baseline.json`), because the bottle is appended only where the core's cut holds.
     const arms = { composedSlots: 0, blockColumns: 0, wallBStorage: 0 };
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
@@ -475,7 +583,10 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
         if (slots.some((slot) => slot.wall === "B")) arms.wallBStorage += 1;
         if (
           bases.some(
-            (base) => base.role === "storage" && !isComposedStorageSlot(base),
+            (base) =>
+              base.role === "storage" &&
+              !isComposedStorageSlot(base) &&
+              CATALOG.get(base.buildId)?.band === "column",
           )
         ) {
           arms.blockColumns += 1;
@@ -486,7 +597,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
 
     expect(arms.composedSlots).toBeGreaterThanOrEqual(ARM_FLOOR);
     expect(arms.blockColumns).toBeGreaterThanOrEqual(ARM_FLOOR);
-    expect(arms.wallBStorage).toBe(62);
+    expect(arms.wallBStorage).toBe(59);
   });
 });
 
@@ -510,15 +621,32 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
             unexpected.push(`${roomKey(room)} refused`);
           return;
         }
+        const hasBottle = kitchen.log.plan.bases.some(
+          (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
+        );
         if (wallRowSteps(kitchen).length > 0) withUppers += 1;
         const movedByTheReKey = reKeyedByWave7D8(room, kitchen.log.plan);
         if (movedByTheReKey) arms.moved += 1;
         else arms.outsideTheReKey += 1;
-        const composed = digestOf(canonicalWallRow(kitchen));
-        if ((composed !== recorded) !== movedByTheReKey) {
-          unexpected.push(
-            `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
+        if (hasBottle) {
+          const attempted = new Set(
+            wallRowSteps(kitchen).map((step) => step.id),
           );
+          for (const base of kitchen.log.plan.bases) {
+            const reachesTheWallRow =
+              declaredHeightMm(base.buildId) > wallRowFloorMm(kitchen.design);
+            const upperId = `${base.role === "hob" ? "hood" : "upper"}:${base.id}`;
+            expect(attempted.has(upperId), `${roomKey(room)} ${upperId}`).toBe(
+              !reachesTheWallRow,
+            );
+          }
+        } else {
+          const composed = digestOf(canonicalWallRow(kitchen));
+          if ((composed !== recorded) !== movedByTheReKey) {
+            unexpected.push(
+              `${roomKey(room)} ${movedByTheReKey ? "should have moved" : "should not have moved"}`,
+            );
+          }
         }
       }),
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },

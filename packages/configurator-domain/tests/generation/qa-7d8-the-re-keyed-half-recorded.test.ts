@@ -29,6 +29,10 @@
 // - The recording covers the **plan** and not the wall row, and only the rooms whose wall B is wider
 //   and whose kitchen the composer accepts. It says nothing about the other 158 rooms of the draw;
 //   7D3's recording still holds those and is still the stricter instrument there.
+//
+// **7D5 followed those rules.** The comparison below still reaches current output: rooms without a
+// bottle remain whole-plan exact, while bottle rooms compare every core module field to this
+// recording and independently validate the complete physical row published around the new cargo.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -49,6 +53,7 @@ import {
   recordedLRoom,
   roomKey,
 } from "../support/composed-run-baseline.js";
+import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { readReKeyedRunRecording } from "../support/re-keyed-run-recording.js";
 
@@ -74,33 +79,96 @@ function isReKeyed(room: DesignRoom, plan: KitchenCompositionPlan): boolean {
 }
 
 describe("the re-keyed half of the recorded draw, recorded whole", () => {
-  it("composes every recorded room exactly as the recording holds it", () => {
-    // Collected and asserted after the sweep rather than inside it, for the reason its sibling gives:
-    // a failing property shrinks toward rooms the capture never saw, and the throw from a missing
-    // room would stand over the top of the real counterexample.
-    const differences: string[] = [];
-    const swept = new Set<string>();
-    fc.assert(
-      fc.property(recordedLRoom(), (room) => {
-        const plan = planFor(room);
-        if (!isReKeyed(room, plan)) return;
-        const key = roomKey(room);
-        swept.add(key);
-        const composed = canonicalPlan(plan);
-        if (composed !== RECORDING.get(key)) {
-          differences.push(
-            `${key}\n  composed ${composed}\n  recorded ${String(RECORDING.get(key))}`,
+  it("regresses current output against every recorded re-keyed plan", () => {
+    let exact = 0;
+    let bottleNormalized = 0;
+    for (const [key, recorded] of RECORDING) {
+      const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
+      if (
+        widthMm === undefined ||
+        depthMm === undefined ||
+        heightMm === undefined
+      ) {
+        throw new Error(`the 7D8 recording holds an invalid key ${key}`);
+      }
+      const room: DesignRoom = { shape: "L", widthMm, depthMm, heightMm };
+      const plan = planFor(room);
+      expect(isReKeyed(room, plan), key).toBe(true);
+      const bottle = plan.bases.find((base) => base.id === "bottle");
+      if (!bottle) {
+        exact += 1;
+        expect(canonicalPlan(plan), key).toBe(recorded);
+      } else {
+        bottleNormalized += 1;
+        const before = parseRecordedCanonicalPlan(recorded);
+        expect(plan.minimumMet, `${key} minimumMet`).toBe(before.minimumMet);
+        expect(plan.dropped, `${key} dropped`).toEqual(before.dropped);
+        expect(bottle, `${key} bottle`).toMatchObject({
+          role: "storage",
+          buildId: "base-bottle-cargo",
+          widthMm: 300,
+        });
+        // The wall and the span are in the line because they are what ADR 0120 Amendment E protects:
+        // the bottle is appended only where it leaves the core's cut, so no core role may change wall
+        // or move along it. Only the hob's body may change, when the bottle costs the oven tower.
+        const coreLine = (base: {
+          readonly id: string;
+          readonly role: string;
+          readonly buildId: string;
+          readonly wall: string;
+          readonly startMm: number;
+          readonly endMm: number;
+          readonly widthMm: number;
+        }) =>
+          [
+            base.id,
+            base.role,
+            base.role === "hob" ? "<hob-body>" : base.buildId,
+            base.wall,
+            base.startMm,
+            base.endMm,
+            base.widthMm,
+          ].join("~");
+        expect(
+          plan.bases
+            .filter((base) => base.role !== "storage")
+            .map(coreLine)
+            .sort(),
+          `${key} core`,
+        ).toEqual(
+          before.bases
+            .filter((base) => base.role !== "storage")
+            .map(coreLine)
+            .sort(),
+        );
+
+        const runs = lShellFloorRuns(room);
+        for (const wall of ["A", "B"] as const) {
+          const bases = plan.bases
+            .filter((base) => base.wall === wall)
+            .sort((left, right) => left.startMm - right.startMm);
+          let cursor = runs[wall].startMm;
+          for (const base of bases) {
+            expect(base.startMm, `${key} ${base.id} start`).toBe(cursor);
+            expect(base.endMm - base.startMm, `${key} ${base.id} span`).toBe(
+              base.widthMm,
+            );
+            cursor = base.endMm;
+          }
+          expect(plan.floorWidthsMm[wall], `${key} ${wall} widths`).toEqual(
+            bases.map((base) => base.widthMm),
+          );
+          expect(plan.remainderMm[wall], `${key} ${wall} remainder`).toBe(
+            runs[wall].endMm - cursor,
           );
         }
-      }),
-      { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
-    );
+      }
+    }
 
-    expect(differences).toEqual([]);
-    expect(swept.size).toBe(RE_KEYED_ROOMS);
-    // And the recording holds no room the sweep no longer reaches, so a plan that stopped composing
-    // shows up as a shrinking population rather than as a row nobody reads.
-    expect([...RECORDING.keys()].filter((key) => !swept.has(key))).toEqual([]);
+    expect(RECORDING.size).toBe(RE_KEYED_ROOMS);
+    expect(exact).toBeGreaterThan(0);
+    expect(bottleNormalized).toBeGreaterThan(0);
+    expect(exact + bottleNormalized).toBe(RE_KEYED_ROOMS);
   });
 
   it("records only rooms the re-key moved, and every one of them", () => {

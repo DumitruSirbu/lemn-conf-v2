@@ -247,12 +247,19 @@ describe("7b — the descending slot path, declared at the composer's boundary",
   // room, and `lShellFloorRuns`'s own answer for each room is asserted to differ, so the day the
   // policy widens far enough to derive these runs itself this witness does not quietly become a
   // duplicate of the sweep.
+  //
+  // **Restated in M7 7D5 S1.** The runs were 900–4600 / 900–1400 and mirror. Once the 300 mm bottle
+  // cargo stands on the hob's wall immediately after the hob in reading order (ADR 0110 Amendment
+  // H1, coordinator ruling option B), it takes one reversed-wall storage slot there — an accepted E3
+  // outcome — and those runs return a single slot, which cannot tell a descending index from an
+  // ascending one. The reversed wall's run is widened by 400 mm so two slots return alongside the
+  // bottle and the subject, the drawer at the highest slot index, stays discriminating.
   const DECLARED_ARMS = [
     {
       name: "wall B wider, so wall A is read in reverse",
       room: { shape: "L", widthMm: 1500, depthMm: 4000, heightMm: 2600 },
       runs: {
-        A: { wall: "A", startMm: 900, endMm: 4600 },
+        A: { wall: "A", startMm: 900, endMm: 5000 },
         B: { wall: "B", startMm: 900, endMm: 1400 },
       },
       reversedWall: "A",
@@ -262,7 +269,7 @@ describe("7b — the descending slot path, declared at the composer's boundary",
       room: { shape: "L", widthMm: 4000, depthMm: 1500, heightMm: 2600 },
       runs: {
         A: { wall: "A", startMm: 900, endMm: 1400 },
-        B: { wall: "B", startMm: 1000, endMm: 4700 },
+        B: { wall: "B", startMm: 1000, endMm: 5100 },
       },
       reversedWall: "B",
     },
@@ -281,20 +288,25 @@ describe("7b — the descending slot path, declared at the composer's boundary",
         isComposedStorageSlot,
       );
       const hob = plan.bases.find((base) => base.role === "hob");
+      const bottle = plan.bases.find((base) => base.id === "bottle");
 
       // The declared design: the hob stands on the wall the run reads **first**, which is the state
       // no admitted room produces.
       expect(hob?.wall).toBe(reversedWall);
+      expect(bottle?.wall).toBe(reversedWall);
       expect(slots).toHaveLength(2);
       // The slots stand corner-outward and the run reads this wall the other way, so the drawer is
-      // the **outermost** of them — the one against the hob — and the slot against the corner keeps
+      // the **outermost** of them — the one nearest the hob — and the slot against the corner keeps
       // its door. Under a count that ascended with the wall instead, the two bodies would swap and
-      // every width, position, remainder and provenance in this plan would be unchanged.
+      // every width, position, remainder and provenance in this plan would be unchanged. Since 7D5
+      // S1 the bottle stands between that slot and the hob, so the slot touches the bottle and the
+      // bottle touches the hob.
       expect(slots.map((slot) => slot.buildId)).toEqual([
         DOOR_BASE_BUILD_ID,
         THREE_DRAWER_BASE_BUILD_ID,
       ]);
-      expect(slots.at(-1)?.endMm).toBe(hob?.startMm);
+      expect(slots.at(-1)?.endMm).toBe(bottle?.startMm);
+      expect(bottle?.endMm).toBe(hob?.startMm);
     },
   );
 
@@ -327,7 +339,7 @@ describe("7c — the slot lookup names its wall by layout role and never by lett
   const DRAWER_ON_THE_WIDER_WALL: DesignRoom = {
     shape: "L",
     widthMm: 1500,
-    depthMm: 3400,
+    depthMm: 4410,
     heightMm: 2600,
   };
 
@@ -339,7 +351,7 @@ describe("7c — the slot lookup names its wall by layout role and never by lett
       slots.map((slot) => [slot.wall, slot.startMm, slot.buildId]),
     ).toEqual([
       ["A", 900, DOOR_BASE_BUILD_ID],
-      ["B", 2700, THREE_DRAWER_BASE_BUILD_ID],
+      ["B", 3700, THREE_DRAWER_BASE_BUILD_ID],
     ]);
   });
 
