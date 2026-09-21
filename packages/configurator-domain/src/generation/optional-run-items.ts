@@ -29,7 +29,8 @@ import {
  * Amendment E). Where the pan drawer stood against the core alone, the bottle is decided after it and
  * gives way to it (ADR 0110 Q-H6b) and to every tall column the pan-drawer kitchen has (Q-H6c: a pan
  * drawer and the whole block over a bottle and one column fewer). Everywhere else S1's rule holds and
- * it may still cost a storage slot or a tall column (E3, J2). With the whole core on the prefix wall
+ * it may still cost a storage slot or a tall column (E3, J2) — but not the oven tower where no pan
+ * drawer stands beside it (M11). With the whole core on the prefix wall
  * it stands on the hob's wall or not at all, because the owner's order reads it right after the hob
  * and ADR 0110 Amendment J3 (the reversed-wall ruling) accepts that it costs that wall one storage
  * slot — a population empty in the approved range. The catalogue remains the authority for the row's
@@ -118,7 +119,8 @@ export interface CompositionContext {
 /** The pan drawer is decided first, against the kept core alone. Where it stands there, the bottle
  *  follows only where it costs that kitchen no tall column — so where the two cannot both stand the
  *  pan drawer wins (ADR 0110 Q-H6b), and it keeps the block (Q-H6c). Where it does not, S1's bottle
- *  is decided first and the pan drawer is tried beside it (coordinator ruling on Q-H6b's scope). Only
+ *  is decided first and the pan drawer is tried beside it (coordinator ruling on Q-H6b's scope), and
+ *  the bottle is omitted where it alone would take the oven tower (M11). Only
  *  once both are decided is the threshold drawer (Q-H5) decided, on the plan they leave. */
 export function planWithPanDrawerThenBottle(
   context: CompositionContext,
@@ -127,15 +129,44 @@ export function planWithPanDrawerThenBottle(
   const panDrawerFirst = withPanDrawerWhereNothingIsLost(context, core);
   const run = hasPanDrawer(panDrawerFirst)
     ? withBottleWhereNoColumnIsLost(context, panDrawerFirst)
-    : withPanDrawerWhereNothingIsLost(
-        context,
-        withBottleWhereTheCoreStays(core, context.capacityMm),
-      );
+    : withS1sBottleThenThePanDrawer(context, core);
   return planWithThresholdDrawer(context, run);
 }
 
 function hasPanDrawer(run: RunLayout): boolean {
   return run.ordered.includes(PAN_DRAWER);
+}
+
+/** The ADR 0110 K3 fallback, where the pan drawer was refused against the core alone: S1's bottle,
+ *  then the pan drawer beside it — unless the oven tower is kept over that bottle (M11), in which
+ *  case the run is the core, on which the pan drawer was already refused. */
+function withS1sBottleThenThePanDrawer(
+  context: CompositionContext,
+  core: RunLayout,
+): RunLayout {
+  const bottleKitchen = withPanDrawerWhereNothingIsLost(
+    context,
+    withBottleWhereTheCoreStays(core, context.capacityMm),
+  );
+  const runs = { bottleKitchen, core };
+  return isTheOvenTowerKeptOverTheBottle(context, runs) ? core : bottleKitchen;
+}
+
+/** **ADR 0110 Amendment M11** (owner ruling 2026-09-21, narrowed the same session): where S1's bottle
+ *  would take the kitchen's oven tower, *"keep the tower and drop the bottle"* — but only where no pan
+ *  drawer depends on that bottle, since there the hob carries the oven and the pan drawer wins. The
+ *  tower is the block's innermost column (E12.2), so a block falling from at least one column to none
+ *  **is** the tower lost; no `buildId` is read. */
+function isTheOvenTowerKeptOverTheBottle(
+  context: CompositionContext,
+  runs: { readonly bottleKitchen: RunLayout; readonly core: RunLayout },
+): boolean {
+  const hasATallColumn = (run: RunLayout) => context.tallColumnCountOf(run) > 0;
+  return (
+    !hasPanDrawer(runs.bottleKitchen) &&
+    hasATallColumn(runs.core) &&
+    !hasATallColumn(runs.bottleKitchen)
+  );
 }
 
 /**

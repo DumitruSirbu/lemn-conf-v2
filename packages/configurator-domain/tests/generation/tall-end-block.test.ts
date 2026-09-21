@@ -111,8 +111,12 @@ function setWidthTargets(log: GenerationLog): readonly string[] {
 
 describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
   it("stands one oven tower where the run first affords a module, and none a millimetre below", () => {
-    const withABlock = planFor(roomOf(3600, 1700, 2600));
-    const withoutOne = planFor(roomOf(3599, 1700, 2600));
+    // 7D5b S0b / ADR 0110 M11: the edge is back at 3299 / 3300 (S1 had moved it to 3599 / 3600).
+    // From 3300 S1's bottle would take the only oven tower with no pan drawer depending on it, so
+    // the tower stands and the bottle is omitted; at 3299 the core leaves no module and the bottle
+    // stands, the hob carrying its own oven.
+    const withABlock = planFor(roomOf(3300, 1700, 2600));
+    const withoutOne = planFor(roomOf(3299, 1700, 2600));
 
     expect(blockOf(withABlock).map((base) => base.buildId)).toEqual([
       OVEN_TOWER,
@@ -121,14 +125,24 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     expect(alongWallA(withABlock).at(-1)?.buildId).toBe(OVEN_TOWER);
     expect(hobOf(withABlock).buildId).toBe(HOB_WITH_DRAWERS);
 
+    expect(
+      withABlock.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID),
+    ).toBe(false);
+
     expect(blockOf(withoutOne)).toEqual([]);
     expect(hobOf(withoutOne).buildId).toBe(HOB_WITH_OVEN);
+    expect(
+      withoutOne.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID),
+    ).toBe(true);
   });
 
   it("computes that boundary pair from the run and the declared widths, not from the number", () => {
+    // 7D5b S0b / ADR 0110 M11: the bottle no longer counts against the first module. Where the core
+    // alone affords one, the tower is kept over the bottle (no pan drawer depends on it there), so
+    // the boundary is the core's own — `BOTTLE_WIDTH_MM` was added here from 7D5 S1 until M11.
     const declaredCoreWidthMm = GENERATION_PRIORITIES.filter(
       (priority) => priority.role !== "fridge",
-    ).reduce((sum, priority) => sum + priority.widthMm, BOTTLE_WIDTH_MM);
+    ).reduce((sum, priority) => sum + priority.widthMm, 0);
     const wallBHoldingTheFridge = 1700;
     const firstAffordingWallAMm = (() => {
       for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
@@ -147,7 +161,7 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     })();
 
     // Pinned as a literal so a declared width that moves fails on the number (criterion 7).
-    expect(firstAffordingWallAMm).toBe(3600);
+    expect(firstAffordingWallAMm).toBe(3300);
     expect(
       blockOf(planFor(roomOf(firstAffordingWallAMm, 1700, 2600))),
     ).toHaveLength(1);
@@ -160,10 +174,16 @@ describe("the block at wall A's free end (criteria 1, 20, 21)", () => {
     const sizeAt = (wallAMm: number, wallBMm = 1700) =>
       blockOf(planFor(roomOf(wallAMm, wallBMm, 2600))).length;
 
+    // 7D5b S0b / ADR 0110 M11: the two- and three-column steps keep S1's values — there the bottle
+    // stands beside the tower and costs it nothing, so M11 does not reach them. Only the first
+    // column moves, back to the core's own edge (the one-column rows above and below).
     expect([sizeAt(4199), sizeAt(4200)]).toEqual([1, 2]);
     expect([sizeAt(4799), sizeAt(4800)]).toEqual([2, 3]);
-    // Wall B too short to hold the fridge, so wall A carries the whole reading order.
-    expect([sizeAt(4299, 1600), sizeAt(4300, 1600)]).toEqual([0, 1]);
+    // Wall B too short to hold the fridge, so wall A carries the whole reading order: the whole core
+    // is 2 500 mm, so its first module is at a 3 100 mm run, a 4 000 mm wall A (was 4299 / 4300,
+    // where S1's bottle took the tower; 4299 now stands the tower too).
+    expect([sizeAt(3999, 1600), sizeAt(4000, 1600)]).toEqual([0, 1]);
+    expect(sizeAt(4299, 1600)).toBe(1);
     expect([sizeAt(4899, 1600), sizeAt(4900, 1600)]).toEqual([1, 2]);
     expect([sizeAt(5499, 1600), sizeAt(5500, 1600)]).toEqual([2, 3]);
   });

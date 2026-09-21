@@ -9,6 +9,13 @@
 //
 // The census of each population is `qa-7d5b-s0-pre-state-census.adversarial.test.ts`; this file is
 // the room-level evidence. Every body, id and position is a literal (ADR 0121 decision 3(b)).
+//
+// **Restated for S0b (ADR 0110 Amendment M11, narrowed).** S0b keeps the oven tower in two of these
+// rooms, so their HEAD shape can no longer be read off the live planner: E7's reference room and
+// 900 x 4100 now read HEAD's shape **from the pre-tower recording** (`7d5b-pre-tower-baseline.json`,
+// captured at `acb7b6f`), and assert the live post-S0b shape beside it. Every other witness here is
+// untouched by S0b — the full-grid comparison and the recordings agree that only M11's rooms moved —
+// so it is still read live, and is S1's to restate where S1 moves it.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,10 +33,13 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "../../src/index.js";
+import { readPreTowerRunRecording } from "../support/pre-tower-run-recording.js";
+import { parseRecordedCanonicalPlan } from "../support/pre-width-run-recording.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 const WITNESS_CEILING_MM = 2600;
+const PRE_TOWER = readPreTowerRunRecording();
 const DRAWER_CABINET_BODIES: ReadonlySet<string> = new Set([
   "base-3drawer",
   "base-panbank",
@@ -49,9 +59,15 @@ function planFor(widthMm: number, depthMm: number): KitchenCompositionPlan {
   });
 }
 
+/** What a wall reading needs of a module, so a recorded plan reads the same way as a live one. */
+type WallModule = Pick<
+  PlannedGenerationBase,
+  "id" | "buildId" | "wall" | "startMm" | "endMm"
+>;
+
 /** A wall's modules corner outward as `body [start, end]`, composed slots marked as such. */
 function wallAsBuilt(
-  plan: KitchenCompositionPlan,
+  plan: { readonly bases: readonly WallModule[] },
   wall: DesignWall,
 ): readonly string[] {
   return plan.bases
@@ -63,7 +79,7 @@ function wallAsBuilt(
     );
 }
 
-function describedBody(base: PlannedGenerationBase): string {
+function describedBody(base: WallModule): string {
   return isComposedStorageSlot(base) ? `slot ${base.buildId}` : base.buildId;
 }
 
@@ -76,37 +92,75 @@ function drawerCabinetsIn(plan: KitchenCompositionPlan): readonly string[] {
     });
 }
 
-describe("7D5b S0 — E7's witnesses: what S1's bottle costs at HEAD", () => {
-  it("3560 x 2920, the reference room: wall A ends hob-with-oven, bottle [2700, 3000] and 560 mm bare, with no tower", () => {
-    const plan = planFor(3560, 2920);
+/** HEAD `acb7b6f`'s plan for a witness at 2600 mm, as the pre-tower recording holds it. */
+function recordedAtHead(widthMm: number, depthMm: number) {
+  const key = `${String(widthMm)}x${String(depthMm)}x${String(WITNESS_CEILING_MM)}`;
+  const recorded = PRE_TOWER.witnesses.get(key);
+  if (recorded === undefined) {
+    throw new Error(`the 7D5b pre-tower recording holds no witness ${key}`);
+  }
+  return parseRecordedCanonicalPlan(recorded);
+}
 
-    expect(wallAsBuilt(plan, "A")).toEqual([
+describe("7D5b S0 — E7's witnesses: what S1's bottle cost at HEAD (recorded), and what S0b makes of it (live)", () => {
+  it("3560 x 2920, the reference room: at HEAD wall A ended hob-with-oven, bottle [2700, 3000] and 560 mm bare, with no tower", () => {
+    const atHead = recordedAtHead(3560, 2920);
+
+    expect(wallAsBuilt(atHead, "A")).toEqual([
       "base-sink [900, 1500]",
       "base-3drawer [1500, 2100]",
       "base-hob-oven [2100, 2700]",
       "base-bottle-cargo [2700, 3000]",
     ]);
-    expect(plan.remainderMm.A).toBe(560);
+    expect(atHead.remainderMm.A).toBe(560);
   });
 
-  it("900 x 4100: hob-with-oven, bottle and 300 mm bare, with no tower", () => {
-    const plan = planFor(900, 4100);
+  it("3560 x 2920 after S0b: hob-2drawer, the oven tower [2700, 3300] and 260 mm bare", () => {
+    const plan = planFor(3560, 2920);
 
-    expect(wallAsBuilt(plan, "B").slice(-2)).toEqual([
+    expect(wallAsBuilt(plan, "A")).toEqual([
+      "base-sink [900, 1500]",
+      "base-3drawer [1500, 2100]",
+      "base-hob-2drawer [2100, 2700]",
+      "tall-oven-tower [2700, 3300]",
+    ]);
+    expect(plan.remainderMm.A).toBe(260);
+  });
+
+  it("900 x 4100: at HEAD hob-with-oven, bottle and 300 mm bare, with no tower", () => {
+    const atHead = recordedAtHead(900, 4100);
+
+    expect(wallAsBuilt(atHead, "B").slice(-2)).toEqual([
       "base-hob-oven [2800, 3400]",
       "base-bottle-cargo [3400, 3700]",
     ]);
-    expect(plan.remainderMm.B).toBe(300);
+    expect(atHead.remainderMm.B).toBe(300);
+    expect(atHead.bases.some((base) => base.buildId.startsWith("tall-"))).toBe(
+      false,
+    );
   });
 
-  it("900 x 4410: pan drawer, hob-with-oven and bottle — the pan drawer stands because of the bottle", () => {
-    const plan = planFor(900, 4410);
+  it("900 x 4100 after S0b: hob-2drawer and the oven tower, with nothing bare", () => {
+    const plan = planFor(900, 4100);
 
-    expect(wallAsBuilt(plan, "B").slice(-3)).toEqual([
+    expect(wallAsBuilt(plan, "B").slice(-2)).toEqual([
+      "base-hob-2drawer [2800, 3400]",
+      "tall-oven-tower [3400, 4000]",
+    ]);
+    expect(plan.remainderMm.B).toBe(0);
+  });
+
+  it("900 x 4410: pan drawer, hob-with-oven and bottle — the pan drawer stands because of the bottle, at HEAD and after S0b alike", () => {
+    const expected = [
       "base-panbank [2800, 3400]",
       "base-hob-oven [3400, 4000]",
       "base-bottle-cargo [4000, 4300]",
-    ]);
+    ];
+
+    expect(wallAsBuilt(recordedAtHead(900, 4410), "B").slice(-3)).toEqual(
+      expected,
+    );
+    expect(wallAsBuilt(planFor(900, 4410), "B").slice(-3)).toEqual(expected);
   });
 });
 

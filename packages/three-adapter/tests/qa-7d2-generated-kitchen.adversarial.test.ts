@@ -262,6 +262,15 @@ const TOWER_ROOM = {
   heightMm: 2600,
 } satisfies Design["room"];
 
+/** 7D5b S0b / ADR 0110 M11: one millimetre below the width where the core first affords the oven
+ *  tower, so S1's bottle stands and the hob keeps its own oven — the reference room no longer does. */
+const HOB_WITH_OVEN_ROOM = {
+  shape: "L",
+  widthMm: 3299,
+  depthMm: 1700,
+  heightMm: 2600,
+} satisfies Design["room"];
+
 type BoughtWidthCheck = readonly [
   buildId: string,
   meshName: string,
@@ -326,17 +335,40 @@ describe("7D2 generated kitchens against the real Three adapter", () => {
   it("keeps the real fridge, sink, hob, oven, and hood at their bought widths", () => {
     const rendered = render(generated(KITCHEN_L_DESIGN.room));
     try {
-      // ADR 0110 J6 (7D5 S1): the bottle cabinet takes the reference room's block module, so its hob
-      // is `base-hob-oven` again and the oven stands under the cooktop, not in a tower. Was
-      // `base-hob-2drawer`/`cooktop_glass` and `tall-oven-tower`/`oven_front` (Amendment E4); the
-      // tower's bought width moved to the room below that still plans one.
+      // 7D5b S0b / ADR 0110 M11 reverses J6 here: S1's bottle would take the reference room's only
+      // oven tower with no pan drawer beside it, so the tower is kept and the bottle omitted. The hob
+      // carries drawers again and the oven stands in the tower (Amendment E4), as before 7D5 S1. The
+      // `base-hob-oven` checks J6 put here moved to `HOB_WITH_OVEN_ROOM`, which still plans one.
       expectBoughtWidths(rendered, [
         ["fridge-free", "fridge_body", 0.7],
         ["base-sink", "bowl_floor", 0.56],
-        ["base-hob-oven", "cooktop_glass", 0.59],
-        ["base-hob-oven", "oven_front", 0.596],
+        ["base-hob-2drawer", "cooktop_glass", 0.59],
+        ["tall-oven-tower", "oven_front", 0.596],
         ["hood", "hood_canopy", 0.6],
       ]);
+      expect(
+        placementBodies(rendered).some(
+          ({ placement }) => placement.body.buildId === "base-hob-oven",
+        ),
+      ).toBe(false);
+    } finally {
+      disposeKit(rendered.kit, rendered.room);
+    }
+  });
+
+  it("keeps the hob's own oven at its bought width where the plan still stands the hob with an oven", () => {
+    // 7D5b S0b / ADR 0110 M11: moved here from the reference room, which has its tower back.
+    const rendered = render(generated(HOB_WITH_OVEN_ROOM));
+    try {
+      expectBoughtWidths(rendered, [
+        ["base-hob-oven", "cooktop_glass", 0.59],
+        ["base-hob-oven", "oven_front", 0.596],
+      ]);
+      expect(
+        placementBodies(rendered).some(
+          ({ placement }) => placement.body.buildId === "tall-oven-tower",
+        ),
+      ).toBe(false);
     } finally {
       disposeKit(rendered.kit, rendered.room);
     }

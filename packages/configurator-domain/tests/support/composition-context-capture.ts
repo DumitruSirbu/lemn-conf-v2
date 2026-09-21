@@ -1,4 +1,4 @@
-// M7 wave 7D5b slice S0 — the real composer's own answers for runs it never chose, read at HEAD.
+// M7 wave 7D5b slices S0 and S0b — the real composer's own answers for runs it never chose.
 //
 // **Why a capture rather than a derivation.** 7D5b's figures ask counterfactual questions about one
 // room — *how many tall columns would the block keep without the bottle?*, *what would the plan be
@@ -17,7 +17,7 @@
 //     });
 //
 // The wrapper calls the real function with the real arguments and returns its result untouched, so
-// every plan the file composes is HEAD's. What it adds is one assignment, read back through
+// every plan the file composes is the live planner's. What it adds is one assignment, read back through
 // `lastComposition()` straight after `planKitchenComposition` returns, with
 // `forgetTheLastComposition()` called before each room so a refused room cannot read the last one's.
 //
@@ -34,6 +34,7 @@ import type {
   GenerationAncillaryRunItem,
   RunLayout,
 } from "../../src/generation/run-layout.js";
+import type { KitchenCompositionPlan } from "../../src/index.js";
 
 /** One placed room's composition, as the composer handed it to the optional-items decision. */
 export interface RecordedComposition {
@@ -140,17 +141,26 @@ export function standsAtNoColumn(
   );
 }
 
-/** How HEAD decided the pan drawer and the bottle, and the run it decided before the threshold drawer. */
+/** How the composer decided the pan drawer and the bottle, and the run it decided before the threshold
+ *  drawer — today's decision (with S0b) beside HEAD `acb7b6f`'s (without it). */
 export interface DecidedBeforeTheThresholdDrawer {
   /** J1 / Q-H6b: the pan drawer stood against the core alone. Otherwise S1's bottle was decided first
    *  (the K3 fallback). */
   readonly isPanDrawerDecidedFirst: boolean;
+  /** ADR 0110 M11 (S0b): on the K3 fallback, S1's bottle was omitted because it alone would take the
+   *  block's oven tower (block ≥ 1 → 0) and no pan drawer stood beside it. A statement about this
+   *  decision, not the finished plan: a later threshold drawer may still take the kept tower. */
+  readonly isTheOvenTowerKeptOverTheBottle: boolean;
+  /** The run the composer decides today. */
   readonly run: RunLayout;
+  /** The run `acb7b6f` decided, before S0b: `run` everywhere but where the tower was kept, where it is
+   *  S1's bottle kitchen. The pre-state models read it; nothing live does. */
+  readonly runBeforeS0b: RunLayout;
 }
 
-/** HEAD's pan-drawer and bottle decision, restated as a question to the composer's context. The
- *  census proves it right, room by room: `planOf(run)` must equal HEAD's plan wherever no threshold
- *  drawer was added after it. */
+/** The composer's pan-drawer and bottle decision, restated as a question to its context. The census
+ *  proves it right, room by room: `planOf(run)` must equal the live plan wherever no threshold drawer
+ *  was added after it; and `planOf(runBeforeS0b)` is proved to be HEAD's by the pre-tower recording. */
 export function decidedBeforeTheThresholdDrawer(
   composition: RecordedComposition,
 ): DecidedBeforeTheThresholdDrawer {
@@ -164,11 +174,47 @@ export function decidedBeforeTheThresholdDrawer(
       candidate: both,
       without: panDrawerFirst,
     });
+    const run = isBothStanding ? both : panDrawerFirst;
     return {
       isPanDrawerDecidedFirst: true,
-      run: isBothStanding ? both : panDrawerFirst,
+      isTheOvenTowerKeptOverTheBottle: false,
+      run,
+      runBeforeS0b: run,
     };
   }
+  const bottleKitchen = s1sBottleThenThePanDrawerBeforeS0b(composition);
+  const isTheOvenTowerKeptOverTheBottle =
+    !hasThePanDrawer(bottleKitchen) &&
+    columnsKeptBy(composition, core) > 0 &&
+    columnsKeptBy(composition, bottleKitchen) === 0;
+  return {
+    isPanDrawerDecidedFirst: false,
+    isTheOvenTowerKeptOverTheBottle,
+    run: isTheOvenTowerKeptOverTheBottle ? core : bottleKitchen,
+    runBeforeS0b: bottleKitchen,
+  };
+}
+
+/** HEAD `acb7b6f`'s plan for a room the live planner placed: the live plan, except where S0b kept the
+ *  tower, where HEAD stood S1's bottle kitchen. **Exact only where HEAD's threshold rule added nothing to
+ *  that kitchen**, which every caller must show, and proved against the pre-tower recording by
+ *  `qa-7d5b-s0-pre-state-census`. */
+export function planBeforeS0b(
+  composition: RecordedComposition,
+  livePlan: KitchenCompositionPlan,
+): KitchenCompositionPlan {
+  const decided = decidedBeforeTheThresholdDrawer(composition);
+  return decided.isTheOvenTowerKeptOverTheBottle
+    ? composition.context.planOf(decided.runBeforeS0b)
+    : livePlan;
+}
+
+/** The K3 fallback as HEAD built it: S1's bottle where it fits, then the pan drawer beside it where
+ *  that costs the bottle kitchen no column. */
+function s1sBottleThenThePanDrawerBeforeS0b(
+  composition: RecordedComposition,
+): RunLayout {
+  const { core } = composition;
   const bottleFirst = fitsOnItsCut(composition, withTheBottleLast(core))
     ? withTheBottleLast(core)
     : core;
@@ -177,16 +223,18 @@ export function decidedBeforeTheThresholdDrawer(
     candidate: beside,
     without: bottleFirst,
   });
-  return {
-    isPanDrawerDecidedFirst: false,
-    run: isBesideStanding ? beside : bottleFirst,
-  };
+  return isBesideStanding ? beside : bottleFirst;
 }
 
-/** What S1's bottle cost the block, where it did. */
+function hasThePanDrawer(run: RunLayout): boolean {
+  return run.ordered.some((item) => item.buildId === PAN_DRAWER_ITEM.buildId);
+}
+
+/** What S1's bottle, stood on the core, costs the block — a counterfactual, so the answer is the same
+ *  before and after S0b; S0b decides only what is done about it. */
 export type BottleCost = "nothing" | "an outer column" | "the oven tower";
 
-/** Only where HEAD decided S1's bottle before the pan drawer (the K3 fallback) can the bottle cost a
+/** Only where S1's bottle is decided before the pan drawer (the K3 fallback) can the bottle cost a
  *  column: where the pan drawer went first, Q-H6c keeps every column. The block's innermost column is
  *  the oven tower (E12.2), so a block that falls to no column has lost the tower. */
 export function whatS1sBottleCost(

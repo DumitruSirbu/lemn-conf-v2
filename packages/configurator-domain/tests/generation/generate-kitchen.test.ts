@@ -80,8 +80,10 @@ describe("generateKitchen", () => {
             placement.alongMm + placement.body.widthMm / 2,
           ],
       );
-    // The bottle uses the reference room's former block module, so the hob keeps its own oven. Its
-    // width, tile and position remain the ruled 600 mm at [2100, 2700].
+    // 7D5b S0b / ADR 0110 M11: S1's bottle would take the reference room's only oven tower and no pan
+    // drawer depends on it, so the bottle is omitted and the tower stands at [2700, 3300]; the hob
+    // carries drawers again (E4). Its width, tile and position remain the ruled 600 mm at [2100, 2700]
+    // — was `base-hob-oven` beside a bottle from 7D5 S1 until M11.
     //
     // **The preparation body moved in 7D4 S2 and its position did not**: Amendment F5 makes it
     // `base-3drawer`, the cutlery reached while cutting being within reach of the preparation
@@ -90,8 +92,13 @@ describe("generateKitchen", () => {
     expect(named).toEqual([
       ["base-sink", "A", 900, 1500],
       ["base-3drawer", "A", 1500, 2100],
-      ["base-hob-oven", "A", 2100, 2700],
+      ["base-hob-2drawer", "A", 2100, 2700],
     ]);
+    expect(
+      result.log.plan.bases
+        .filter((base) => base.id === "bottle" || base.id.startsWith("column:"))
+        .map((base) => [base.buildId, base.wall, base.startMm, base.endMm]),
+    ).toEqual([["tall-oven-tower", "A", 2700, 3300]]);
     expect(bases.length).toBeGreaterThan(4);
     expect(
       result.design.placements.some(
@@ -545,9 +552,18 @@ describe("generateKitchen", () => {
     expect(result.log.steps.find((step) => step.id === "fridge")?.status).toBe(
       "placed",
     );
-    expect(basesAboveWallRow({ result, catalog })).toEqual(["fridge"]);
+    // 7D5b S0b / ADR 0110 M11: the fridge is again not the only body the rule suppresses an upper
+    // above — the reference room's oven tower is back and reaches the same wall row. The subject is
+    // unchanged: the fridge's wall row stays empty, found from the declared height, never the name.
+    expect(basesAboveWallRow({ result, catalog })).toEqual([
+      "column:A:0",
+      "fridge",
+    ]);
     expect(
       result.log.steps.filter((step) => step.id.endsWith(":fridge")),
+    ).toEqual([]);
+    expect(
+      result.log.steps.filter((step) => step.id.endsWith(":column:A:0")),
     ).toEqual([]);
     expect(uppersOverTallBodies({ result, catalog })).toEqual([]);
     expect(upperMismatches({ result, catalog })).toEqual([]);

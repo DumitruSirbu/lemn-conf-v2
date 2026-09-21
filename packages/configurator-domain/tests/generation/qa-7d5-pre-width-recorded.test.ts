@@ -84,6 +84,19 @@ const CORRUPTION_CASES: readonly (readonly [
     },
   ],
 ];
+/** 7D5b S0b / ADR 0110 M11: the recorded rooms where S1's bottle alone would have taken the only
+ *  oven tower. The tower is kept and the bottle omitted, which is the pre-S1 plan exactly — so they
+ *  are asserted whole against the recording, not normalised. Measured against a scratch copy with M11
+ *  removed: these six, and only these, leave the bottle arm. */
+const TOWER_KEPT_OVER_THE_BOTTLE_ROOMS = [
+  "3565x2788x2602",
+  "3584x2811x2911",
+  "3628x3684x2835",
+  "4213x1000x2207",
+  "4288x1010x2665",
+  "909x4332x3621",
+];
+
 function roomFromKey(key: string): DesignRoom {
   const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
   if (
@@ -109,6 +122,7 @@ describe("the whole plan before 7D5's width change", () => {
     let panDrawerWithoutBottleComparisons = 0;
     let thresholdDrawerComparisons = 0;
     let thresholdDrawerWithoutTheBottleComparisons = 0;
+    const towerKeptOverTheBottleRooms: string[] = [];
     for (const [key, recorded] of RECORDING.rooms) {
       const room = roomFromKey(key);
       expect(roomKey(room)).toBe(key);
@@ -138,6 +152,8 @@ describe("the whole plan before 7D5's width change", () => {
       } else {
         exactNoBottleComparisons += 1;
         expect(composed, key).toBe(recorded);
+        if (TOWER_KEPT_OVER_THE_BOTTLE_ROOMS.includes(key))
+          towerKeptOverTheBottleRooms.push(key);
       }
     }
 
@@ -150,6 +166,19 @@ describe("the whole plan before 7D5's width change", () => {
     // (the pan-drawer arm is unchanged at 210). 33 of them stand no bottle: 28 are the drawer taking
     // the bottle's place, and they leave the bottle arm (312 → 284) for the pan-drawer-without-bottle
     // arm (78 → 106); the other 5 had already lost their bottle to Q-H6c. The exact arm is unchanged.
+    //
+    // 7D5b S0b / ADR 0110 M11: six recorded rooms leave the bottle arm (284 → 278) for the exact arm
+    // (90 → 96). Each keeps its oven tower over S1's bottle with no pan drawer beside it, and that is
+    // the pre-S1 plan whole — the tower, `base-hob-2drawer`, every remainder — so the exact comparison
+    // above is the classifier for them and no normalisation is widened. Every other arm is unchanged.
+    expect([...towerKeptOverTheBottleRooms].sort()).toEqual(
+      [...TOWER_KEPT_OVER_THE_BOTTLE_ROOMS].sort(),
+    );
+    for (const key of TOWER_KEPT_OVER_THE_BOTTLE_ROOMS) {
+      const recorded = RECORDING.rooms.get(key) ?? "";
+      expect(recorded, key).toContain("tall-oven-tower");
+      expect(recorded, key).toContain("base-hob-2drawer");
+    }
     expect({
       exactNoBottleComparisons,
       normalizedBottleComparisons,
@@ -158,8 +187,8 @@ describe("the whole plan before 7D5's width change", () => {
       thresholdDrawerComparisons,
       thresholdDrawerWithoutTheBottleComparisons,
     }).toEqual({
-      exactNoBottleComparisons: 90,
-      normalizedBottleComparisons: 284,
+      exactNoBottleComparisons: 96,
+      normalizedBottleComparisons: 278,
       panDrawerComparisons: 210,
       panDrawerWithoutBottleComparisons: 106,
       thresholdDrawerComparisons: 40,

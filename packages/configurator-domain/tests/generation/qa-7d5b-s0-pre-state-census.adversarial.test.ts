@@ -21,6 +21,30 @@
 // bottles, 48 590 without). They need S2's insertion and shift, which is S2's to build and S2's QA to
 // measure.
 //
+// **Restated for S0b (ADR 0110 Amendment M11, narrowed), which changes 5 260 rooms per ceiling and so
+// takes HEAD's plan out of the live planner's reach.** Each assertion now says which plan it reads:
+//
+// - **Re-pointed at the recording: every HEAD figure.** They are read off **HEAD's plan,
+//   reconstructed**: the live plan, except in the rooms where the restated decision says S0b kept the
+//   tower, where it is the composer's own plan of the run HEAD decided there (S1's bottle kitchen). The
+//   reconstruction is proved to be HEAD's output, byte for byte, **only on the 496 rooms the pre-tower
+//   recording holds** (480 drawn, 16 witnesses, captured at `acb7b6f`; the first test below). Over the
+//   other ~245 000 placed rooms per ceiling the "HEAD column" is that reconstruction, not a measurement
+//   of HEAD: where the restatement of M11 is false it **is** the live plan, so a production change
+//   outside M11's rooms would move the HEAD figures and the live ones together, and no room-by-room
+//   comparison here would name it. What would catch it is aggregate: E1's HEAD column, E2, E4, E6 and
+//   E7's populations are still pinned to the figures S0 took from the live planner at `acb7b6f`,
+//   before S0b existed, so a change that moves any of those counts goes red; a change that moves none
+//   of them is caught only by the recordings' 496 rooms. The full-grid HEAD-against-S0b diff (5 260
+//   rooms per ceiling, no other room changed) is a scratch measurement by the implementer and QA, not a
+//   test here.
+// - **Live, restated to post-S0b figures:** the reconstruction check of the composer's decision (now
+//   with M11 in it), E1's post-S0b column, E7's post-S0b outcome by room (which replaces the old
+//   *"the hob is not the oven"* list, now 5 260 rooms by design), T3's outcome for the 41 400
+//   outer-column rooms M11 must leave alone, S0b's own census (which replaces the
+//   S0b model: `columnsRegained` is now the live plan against HEAD's), the dishwasher-first model (which
+//   was already modelled on top of S0b, and now reads the live plan), and E2's tie guard.
+//
 // Every body, id and width is a literal (ADR 0121 decision 3(b)), and a composed storage slot is
 // reached through `isComposedStorageSlot`, never through its id.
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -40,14 +64,22 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "../../src/index.js";
+import { canonicalPlan } from "../support/composed-run-baseline.js";
 import {
   decidedBeforeTheThresholdDrawer,
   forgetTheLastComposition,
   lastComposition,
+  planBeforeS0b,
   whatS1sBottleCost,
   type BottleCost,
+  type DecidedBeforeTheThresholdDrawer,
   type RecordedComposition,
 } from "../support/composition-context-capture.js";
+import {
+  readPreTowerRunRecording,
+  roomFromRecordedKey,
+  towerOverBottleChangeBetween,
+} from "../support/pre-tower-run-recording.js";
 
 vi.mock(
   "../../src/generation/optional-run-items.js",
@@ -124,7 +156,10 @@ interface KitchenTotals {
 }
 
 interface Census {
+  /** Read off HEAD's plan, reconstructed (see the header). */
   head: HeadTotals;
+  /** Read off the live plan, after S0b. */
+  live: KitchenTotals & { dishwashers: number };
   /** HEAD's pan-drawer/bottle decision restated through the context; must equal HEAD's plan. */
   reconstructionMismatches: string[];
   besideTheSink: {
@@ -158,16 +193,21 @@ interface Census {
     theOvenTowerWithNoPanDrawer: number;
     theOvenTowerBesideAPanDrawer: number;
     theOvenTowerButTheHobIsNotOven: string[];
+    /** The same rooms, live after S0b: `tower kept|tower gone, <hob body>, pan drawer|no pan drawer`. */
+    afterS0b: Record<string, number>;
+    /** The outer-column rooms, live after S0b, against the composer's plan of the core alone:
+     *  `bottle stands|no bottle, <n> pantry lost, <n> oven tower lost`. */
+    anOuterColumnAfterS0b: Record<string, number>;
   };
-  towerOverBottleModel: {
+  towerOverBottle: {
     rooms: number;
     hobBodies: Record<string, number>;
     columnsRegained: Record<number, number>;
     anythingElseChanged: string[];
+    headWouldHaveAddedAThresholdDrawer: string[];
     shortOfDrawersWithoutTheBottle: string[];
     remainderOfAModuleOrMore: string[];
     roomsWithoutAnOvenTower: string[];
-    totals: KitchenTotals;
   };
   dishwasherFirstModel: {
     converted: number;
@@ -210,7 +250,24 @@ function eachCeiling(): readonly (readonly [number, Census])[] {
 // ---------------------------------------------------------------------------------------------
 
 describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", () => {
-  it("re-states HEAD's pan-drawer and bottle decision exactly, so the models below ask the right run", () => {
+  // The re-pointing every HEAD figure below rests on. Refused rooms are included: S0b must not move
+  // them, and the reconstruction reads them as the live planner's.
+  it("reconstructs HEAD's plan exactly in every room and witness the pre-tower recording holds", () => {
+    const recording = readPreTowerRunRecording();
+    const recorded = [...recording.rooms, ...recording.witnesses];
+
+    const differing = recorded
+      .filter(
+        ([key, plan]) =>
+          canonicalPlan(headPlanFor(roomFromRecordedKey(key))) !== plan,
+      )
+      .map(([key]) => key);
+
+    expect(recorded).toHaveLength(496);
+    expect(differing).toEqual([]);
+  });
+
+  it("re-states the live pan-drawer and bottle decision exactly, S0b's M11 included, so the models below ask the right run", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(
         census.reconstructionMismatches,
@@ -219,7 +276,7 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  it("E1 — HEAD's column: no dishwasher, and 7D5's totals as L5 pinned them", () => {
+  it("E1 — HEAD's column, re-pointed: no dishwasher, and 7D5's totals as L5 pinned them", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(census.head, `${String(ceilingMm)} mm`).toEqual({
         swept: 256_011,
@@ -230,6 +287,19 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
         bottles: 178_491,
         panDrawerBodies: 92_446,
         panDrawerBodiesInThePreparationRole: 0,
+        thresholdDrawers: 15_795,
+      });
+    }
+  });
+
+  it("E1 — the post-S0b column, live: 5 260 oven-tower rooms and columns more, 5 260 bottles fewer, nothing else", () => {
+    for (const [ceilingMm, census] of eachCeiling()) {
+      expect(census.live, `${String(ceilingMm)} mm`).toEqual({
+        dishwashers: 0,
+        ovenTowerRooms: 167_286,
+        tallColumns: 389_018,
+        bottles: 173_231,
+        panDrawerBodies: 92_446,
         thresholdDrawers: 15_795,
       });
     }
@@ -253,8 +323,9 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
   });
 
   // S1 criterion 8's population, guarded from S0 on: a free door cabinet on **both** sides of the sink
-  // would need a ranking the owner never gave, and the leaf is specified with no ranking branch.
-  it("E2 — the tie population is empty: no room has a free door cabinet on both sides of the sink", () => {
+  // would need a ranking the owner never gave, and the leaf is specified with no ranking branch. Read
+  // off the live plan, which is the plan S1's leaf will read.
+  it("E2 — the tie population is empty, live: no room has a free door cabinet on both sides of the sink", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(census.besideTheSink.both, `${String(ceilingMm)} mm`).toEqual([]);
     }
@@ -353,9 +424,28 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  it("E7 — S1's bottle costs a column in 57 900 rooms: the oven tower in 16 500 (5 260 with no pan drawer, 11 240 beside one), an outer column only in 41 400", () => {
+  it("E7 — S1's bottle costs a column in 57 900 rooms: the oven tower in 16 500 (5 260 with no pan drawer, 11 240 beside one), an outer column only in 41 400; at HEAD the hob carried the oven in all 16 500", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
-      expect(census.bottleCost, `${String(ceilingMm)} mm`).toEqual({
+      const {
+        anyColumn,
+        anOuterColumnOnly,
+        theOvenTower,
+        theOvenTowerWithNoPanDrawer,
+        theOvenTowerBesideAPanDrawer,
+        theOvenTowerButTheHobIsNotOven,
+      } = census.bottleCost;
+
+      expect(
+        {
+          anyColumn,
+          anOuterColumnOnly,
+          theOvenTower,
+          theOvenTowerWithNoPanDrawer,
+          theOvenTowerBesideAPanDrawer,
+          theOvenTowerButTheHobIsNotOven,
+        },
+        `${String(ceilingMm)} mm`,
+      ).toEqual({
         anyColumn: 57_900,
         anOuterColumnOnly: 41_400,
         theOvenTower: 16_500,
@@ -366,28 +456,42 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  it("E7 / S0b T1 and T4, modelled — 5 260 rooms change: the bottle goes, one column (the tower) returns, the hob loses its oven, nothing else moves", () => {
+  it("E7 after S0b, live — of the 16 500, the 5 260 without a pan drawer keep the tower with hob-2drawer; the 11 240 beside one still lose it, the hob carrying the oven", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
-      expect(census.towerOverBottleModel, `${String(ceilingMm)} mm`).toEqual({
-        rooms: 5_260,
-        hobBodies: { "base-hob-2drawer": 5_260 },
-        columnsRegained: { 1: 5_260 },
-        anythingElseChanged: [],
-        shortOfDrawersWithoutTheBottle: [],
-        remainderOfAModuleOrMore: [],
-        roomsWithoutAnOvenTower: [],
-        totals: {
-          ovenTowerRooms: 167_286,
-          tallColumns: 389_018,
-          bottles: 173_231,
-          panDrawerBodies: 92_446,
-          thresholdDrawers: 15_795,
-        },
+      expect(census.bottleCost.afterS0b, `${String(ceilingMm)} mm`).toEqual({
+        "tower kept, base-hob-2drawer, no pan drawer": 5_260,
+        "tower gone, base-hob-oven, pan drawer": 11_240,
       });
     }
   });
 
-  it("E3 / S1, modelled on top of S0b — dishwasher first costs 10 070 threshold drawers and gains none", () => {
+  it("E7 after S0b, live — T3: the 41 400 rooms where S1's bottle costs an outer column still stand the bottle, one pantry short of the core alone, the oven tower kept", () => {
+    for (const [ceilingMm, census] of eachCeiling()) {
+      expect(
+        census.bottleCost.anOuterColumnAfterS0b,
+        `${String(ceilingMm)} mm`,
+      ).toEqual({
+        "bottle stands, 1 pantry lost, 0 oven tower lost": 41_400,
+      });
+    }
+  });
+
+  it("E7 / S0b T1 and T4, live — 5 260 rooms change against HEAD: the bottle goes, one column (the tower) returns, the hob loses its oven, nothing else moves", () => {
+    for (const [ceilingMm, census] of eachCeiling()) {
+      expect(census.towerOverBottle, `${String(ceilingMm)} mm`).toEqual({
+        rooms: 5_260,
+        hobBodies: { "base-hob-2drawer": 5_260 },
+        columnsRegained: { 1: 5_260 },
+        anythingElseChanged: [],
+        headWouldHaveAddedAThresholdDrawer: [],
+        shortOfDrawersWithoutTheBottle: [],
+        remainderOfAModuleOrMore: [],
+        roomsWithoutAnOvenTower: [],
+      });
+    }
+  });
+
+  it("E3 / S1, modelled on the live post-S0b plan — dishwasher first costs 10 070 threshold drawers and gains none", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(census.dishwasherFirstModel, `${String(ceilingMm)} mm`).toEqual({
         converted: 141_261,
@@ -434,44 +538,80 @@ function censusAt(ceilingMm: number): Census {
   return census;
 }
 
-/** Everything one room contributes, read at HEAD and from its composer's context. */
+/** Everything one room contributes: HEAD's plan, the live plan, and its composer's context. */
 interface RoomReading {
   readonly where: string;
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  /** HEAD `acb7b6f`'s plan, reconstructed (`planBeforeS0b`) and proved against the pre-tower recording;
+   *  exact because `countTowerOverBottle` shows HEAD's threshold rule added nothing where it differs. */
   readonly plan: KitchenCompositionPlan;
+  /** The live planner's plan, after S0b. */
+  readonly livePlan: KitchenCompositionPlan;
   readonly composition: RecordedComposition;
+  readonly decided: DecidedBeforeTheThresholdDrawer;
 }
 
 function countRoom(census: Census, room: DesignRoom): void {
+  const reading = readingOf(room);
+  if (!reading) return;
+  const { composition, decided, plan, livePlan } = reading;
+  census.head.placed += 1;
+  countHeadTotals(census.head, plan);
+  addKitchenTotals(census.live, livePlan);
+  census.live.dishwashers += countOf(
+    livePlan,
+    (base) => base.buildId === DISHWASHER_BODY,
+  );
+  const beforeTheThresholdDrawer = composition.context.planOf(decided.run);
+  recordAReconstructionFault(census, reading, beforeTheThresholdDrawer);
+  countBesideTheSink(
+    census,
+    reading,
+    composition.context.planOf(decided.runBeforeS0b),
+  );
+  countTheTie(census, reading);
+  countDrawerSwapEligibility(census, reading);
+  countBottleCost(census, reading, whatS1sBottleCost(composition));
+  countTowerOverBottle(census, reading);
+  countDishwasherFirstModel(census, reading, {
+    beforeTheThresholdDrawer,
+    finished: livePlan,
+  });
+}
+
+/** The room's reading, or `undefined` where the live planner refuses it. */
+function readingOf(room: DesignRoom): RoomReading | undefined {
   forgetTheLastComposition();
   const runs = lShellFloorRuns(room);
-  const plan = planKitchenComposition({
+  const livePlan = planKitchenComposition({
     room,
     runs,
     columns: DECLARED_COLUMNS,
   });
-  if (!plan.minimumMet) return;
-  const reading: RoomReading = {
+  if (!livePlan.minimumMet) return undefined;
+  const composition = lastComposition();
+  const decided = decidedBeforeTheThresholdDrawer(composition);
+  return {
     where: `${String(room.widthMm)}x${String(room.depthMm)}`,
     room,
     runs,
-    plan,
-    composition: lastComposition(),
+    plan: planBeforeS0b(composition, livePlan),
+    livePlan,
+    composition,
+    decided,
   };
-  census.head.placed += 1;
-  countHeadTotals(census.head, plan);
-  const beforeTheThresholdDrawer = planBeforeTheThresholdDrawer(reading);
-  recordAReconstructionFault(census, reading, beforeTheThresholdDrawer);
-  countBesideTheSink(census, reading, beforeTheThresholdDrawer);
-  countDrawerSwapEligibility(census, reading);
-  const bottleCost = whatS1sBottleCost(reading.composition);
-  countBottleCost(census, reading, bottleCost);
-  const afterTowerOverBottle = towerOverBottleModelPlan(reading, bottleCost);
-  countTowerOverBottleModel(census, reading, afterTowerOverBottle);
-  countDishwasherFirstModel(census, reading, {
-    beforeTheThresholdDrawer: afterTowerOverBottle ?? beforeTheThresholdDrawer,
-    finished: afterTowerOverBottle ?? plan,
+}
+
+/** HEAD's plan for any room, refused ones included — what the recording is compared against. */
+function headPlanFor(room: DesignRoom): KitchenCompositionPlan {
+  const reading = readingOf(room);
+  if (reading) return reading.plan;
+  forgetTheLastComposition();
+  return planKitchenComposition({
+    room,
+    runs: lShellFloorRuns(room),
+    columns: DECLARED_COLUMNS,
   });
 }
 
@@ -502,27 +642,20 @@ function addKitchenTotals(
   );
 }
 
-/** HEAD's plan before Q-H5 decided the threshold drawer, asked of the composer. Where HEAD added no
- *  threshold drawer it **is** HEAD's plan, and any difference is recorded as a reconstruction fault. */
-function planBeforeTheThresholdDrawer(
-  reading: RoomReading,
-): KitchenCompositionPlan {
-  const { composition } = reading;
-  const decided = decidedBeforeTheThresholdDrawer(composition);
-  return composition.context.planOf(decided.run);
-}
-
+/** The live plan before Q-H5 decided the threshold drawer, asked of the composer. Where the live
+ *  planner added no threshold drawer it **is** the live plan, and any difference is recorded as a
+ *  reconstruction fault. */
 function recordAReconstructionFault(
   census: Census,
   reading: RoomReading,
   beforeTheThresholdDrawer: KitchenCompositionPlan,
 ): void {
-  const { plan, where } = reading;
-  const hasThresholdDrawer = plan.bases.some(
+  const { livePlan, where } = reading;
+  const hasThresholdDrawer = livePlan.bases.some(
     (base) => base.id === THRESHOLD_DRAWER_ID,
   );
   const isSamePlan =
-    JSON.stringify(beforeTheThresholdDrawer) === JSON.stringify(plan);
+    JSON.stringify(beforeTheThresholdDrawer) === JSON.stringify(livePlan);
   if (!hasThresholdDrawer && !isSamePlan) {
     census.reconstructionMismatches.push(where);
   }
@@ -544,7 +677,6 @@ function countBesideTheSink(
   const beside = census.besideTheSink;
   if (sameWall) beside.sameWall += 1;
   if (acrossTheCorner) beside.acrossTheCorner += 1;
-  if (sameWall && acrossTheCorner) beside.both.push(where);
   countMetreBand(census, room, converted !== undefined);
   compareTheConvertedRoom(census, reading, {
     beforeTheThresholdDrawer,
@@ -560,6 +692,16 @@ function countBesideTheSink(
   if (converted.wall !== narrowerWallOf(room))
     beside.offTheNarrowerWall.push(where);
   countConvertedAtTheFreeEnd(census, plan, converted, where);
+}
+
+function countTheTie(census: Census, reading: RoomReading): void {
+  const { livePlan, runs, where } = reading;
+  if (
+    doorCabinetBesideTheSinkOnItsWall(livePlan) &&
+    doorCabinetAcrossTheCornerFromTheSink(livePlan, runs)
+  ) {
+    census.besideTheSink.both.push(where);
+  }
 }
 
 function compareTheConvertedRoom(
@@ -755,6 +897,9 @@ function countBottleCost(
   bottleCost.anyColumn += 1;
   if (cost === "an outer column") {
     bottleCost.anOuterColumnOnly += 1;
+    const outcome = outerColumnOutcomeAfterS0b(reading);
+    bottleCost.anOuterColumnAfterS0b[outcome] =
+      (bottleCost.anOuterColumnAfterS0b[outcome] ?? 0) + 1;
     return;
   }
   bottleCost.theOvenTower += 1;
@@ -764,55 +909,69 @@ function countBottleCost(
   if (hobOf(plan).buildId !== HOB_WITH_OVEN_BODY) {
     bottleCost.theOvenTowerButTheHobIsNotOven.push(where);
   }
+  const outcome = outcomeAfterS0b(reading.livePlan);
+  bottleCost.afterS0b[outcome] = (bottleCost.afterS0b[outcome] ?? 0) + 1;
+}
+
+/** M11 must leave the outer-column arm alone: the bottle still stands, and against the composer's plan of
+ *  the core alone the block has lost one pantry and no oven tower. */
+function outerColumnOutcomeAfterS0b(reading: RoomReading): string {
+  const { livePlan, composition } = reading;
+  const onTheCoreAlone = composition.context.planOf(composition.core);
+  const bottle = hasBody(livePlan, BOTTLE_BODY) ? "bottle stands" : "no bottle";
+  const lostOf = (buildId: string) =>
+    countOf(onTheCoreAlone, (base) => base.buildId === buildId) -
+    countOf(livePlan, (base) => base.buildId === buildId);
+  return `${bottle}, ${String(lostOf(PANTRY_BODY))} pantry lost, ${String(lostOf(OVEN_TOWER_BODY))} oven tower lost`;
+}
+
+function outcomeAfterS0b(livePlan: KitchenCompositionPlan): string {
+  const tower = hasBody(livePlan, OVEN_TOWER_BODY)
+    ? "tower kept"
+    : "tower gone";
+  const panDrawer = hasBody(livePlan, PAN_DRAWER_BODY)
+    ? "pan drawer"
+    : "no pan drawer";
+  return `${tower}, ${hobOf(livePlan).buildId}, ${panDrawer}`;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The S0b model: where the bottle took the oven tower and no pan drawer stands beside it, the plan is
-// the one the composer makes of the core alone (the pan drawer was already refused against it).
+// S0b, live: where the bottle took the oven tower and no pan drawer stands beside it, the live plan is
+// the one the composer makes of the core alone, and it differs from HEAD's by M11's change only.
 // ---------------------------------------------------------------------------------------------
 
-/** The modelled S0b plan where the rule changes the room, or `undefined` where it does not. */
-function towerOverBottleModelPlan(
-  reading: RoomReading,
-  bottleCost: BottleCost,
-): KitchenCompositionPlan | undefined {
-  const { plan, composition } = reading;
-  const isChanged =
-    bottleCost === "the oven tower" && !hasBody(plan, PAN_DRAWER_BODY);
-  return isChanged ? composition.context.planOf(composition.core) : undefined;
-}
-
-function countTowerOverBottleModel(
-  census: Census,
-  reading: RoomReading,
-  changed: KitchenCompositionPlan | undefined,
-): void {
-  const { plan, where } = reading;
-  const model = census.towerOverBottleModel;
-  addKitchenTotals(model.totals, changed ?? plan);
-  if (changed === undefined) return;
-  const after = changed;
-  model.rooms += 1;
-  const hobBody = hobOf(after).buildId;
-  model.hobBodies[hobBody] = (model.hobBodies[hobBody] ?? 0) + 1;
-  const regained = countOf(after, isTall) - countOf(plan, isTall);
-  model.columnsRegained[regained] = (model.columnsRegained[regained] ?? 0) + 1;
+function countTowerOverBottle(census: Census, reading: RoomReading): void {
+  const { plan, livePlan, where } = reading;
+  const before = canonicalPlan(plan);
+  const after = canonicalPlan(livePlan);
+  if (before === after) return;
+  const towerCensus = census.towerOverBottle;
+  towerCensus.rooms += 1;
+  const hobBody = hobOf(livePlan).buildId;
+  towerCensus.hobBodies[hobBody] = (towerCensus.hobBodies[hobBody] ?? 0) + 1;
+  const regained = countOf(livePlan, isTall) - countOf(plan, isTall);
+  towerCensus.columnsRegained[regained] =
+    (towerCensus.columnsRegained[regained] ?? 0) + 1;
+  const change = towerOverBottleChangeBetween({ before, after });
   if (
-    bodiesBesidesBottleTowerAndHob(after) !==
-    bodiesBesidesBottleTowerAndHob(plan)
+    change !== "the oven tower kept over the bottle" ||
+    bodiesBesidesBottleTowerAndHob(livePlan) !==
+      bodiesBesidesBottleTowerAndHob(plan)
   ) {
-    model.anythingElseChanged.push(where);
+    towerCensus.anythingElseChanged.push(where);
   }
-  if (isShortOfTheOwnersDrawers(after))
-    model.shortOfDrawersWithoutTheBottle.push(where);
+  if (isShortOfTheOwnersDrawers(plan))
+    towerCensus.headWouldHaveAddedAThresholdDrawer.push(where);
+  if (isShortOfTheOwnersDrawers(livePlan))
+    towerCensus.shortOfDrawersWithoutTheBottle.push(where);
   if (
-    after.remainderMm.A >= ONE_MODULE_MM ||
-    after.remainderMm.B >= ONE_MODULE_MM
+    livePlan.remainderMm.A >= ONE_MODULE_MM ||
+    livePlan.remainderMm.B >= ONE_MODULE_MM
   ) {
-    model.remainderOfAModuleOrMore.push(where);
+    towerCensus.remainderOfAModuleOrMore.push(where);
   }
-  if (!hasBody(after, OVEN_TOWER_BODY))
-    model.roomsWithoutAnOvenTower.push(where);
+  if (!hasBody(livePlan, OVEN_TOWER_BODY))
+    towerCensus.roomsWithoutAnOvenTower.push(where);
 }
 
 /** Every module but the bottle, the columns and the hob, with its position: what S0b may not move. */
@@ -990,6 +1149,7 @@ function emptyCensus(): Census {
       ...emptyKitchenTotals(),
       panDrawerBodiesInThePreparationRole: 0,
     },
+    live: { dishwashers: 0, ...emptyKitchenTotals() },
     reconstructionMismatches: [],
     besideTheSink: {
       sameWall: 0,
@@ -1028,16 +1188,18 @@ function emptyCensus(): Census {
       theOvenTowerWithNoPanDrawer: 0,
       theOvenTowerBesideAPanDrawer: 0,
       theOvenTowerButTheHobIsNotOven: [],
+      afterS0b: {},
+      anOuterColumnAfterS0b: {},
     },
-    towerOverBottleModel: {
+    towerOverBottle: {
       rooms: 0,
       hobBodies: {},
       columnsRegained: {},
       anythingElseChanged: [],
+      headWouldHaveAddedAThresholdDrawer: [],
       shortOfDrawersWithoutTheBottle: [],
       remainderOfAModuleOrMore: [],
       roomsWithoutAnOvenTower: [],
-      totals: emptyKitchenTotals(),
     },
     dishwasherFirstModel: {
       converted: 0,

@@ -70,7 +70,15 @@ describe("planKitchenComposition", () => {
       { role: "preparation", wall: "A", startMm: 1500, endMm: 2100 },
       { role: "hob", wall: "A", startMm: 2100, endMm: 2700 },
     ]);
-    expect(plan.remainderMm).toEqual({ A: 560, B: 20 });
+    // 7D5b S0b / ADR 0110 M11: the bottle would take the only oven tower with no pan drawer beside it,
+    // so the tower [2700, 3300] stands instead and wall A's remainder is 3560 - 3300 = 260 (was 560
+    // behind the bottle [2700, 3000] from 7D5 S1 until M11).
+    expect(
+      plan.bases
+        .filter((body) => body.id === "bottle" || body.id.startsWith("column:"))
+        .map(({ buildId, startMm, endMm }) => [buildId, startMm, endMm]),
+    ).toEqual([["tall-oven-tower", 2700, 3300]]);
+    expect(plan.remainderMm).toEqual({ A: 260, B: 20 });
   });
 
   it("declares the ruled order and widths as data", () => {

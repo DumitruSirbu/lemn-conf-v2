@@ -456,7 +456,8 @@ interface DerivationBasis {
 type S2Decision =
   | "pan-drawer-first"
   | "pan-drawer-beside-s1-bottle"
-  | "pan-drawer-refused";
+  | "pan-drawer-refused"
+  | "tower-kept-over-the-bottle";
 
 interface DerivedS2 {
   readonly run: DerivedRun;
@@ -597,7 +598,9 @@ function derivedS1Run(core: DerivedRun, basis: DerivationBasis): DerivedRun {
 }
 
 /** S2: the pan drawer first against the core alone, then the bottle beside it where no column is
- *  lost; where the pan drawer is refused there, S1's bottle first and the pan drawer beside it. */
+ *  lost; where the pan drawer is refused there, S1's bottle first and the pan drawer beside it —
+ *  unless, with no pan drawer beside it, S1's bottle would leave the core's block no column at all,
+ *  in which case the tower is kept and the bottle omitted (7D5b S0b / ADR 0110 M11). */
 function derivedS2(core: DerivedRun, basis: DerivationBasis): DerivedS2 {
   const panDrawerFirst = withPanDrawerBeforeTheHob(core);
   if (standsWithoutLoss(panDrawerFirst, core, basis)) {
@@ -613,9 +616,22 @@ function derivedS2(core: DerivedRun, basis: DerivationBasis): DerivedS2 {
   }
   const s1 = derivedS1Run(core, basis);
   const beside = withPanDrawerBeforeTheHob(s1);
-  return standsWithoutLoss(beside, s1, basis)
-    ? { run: beside, decision: "pan-drawer-beside-s1-bottle" }
+  if (standsWithoutLoss(beside, s1, basis)) {
+    return { run: beside, decision: "pan-drawer-beside-s1-bottle" };
+  }
+  return isTheTowerTakenByTheBottleAlone(s1, core, basis)
+    ? { run: core, decision: "tower-kept-over-the-bottle" }
     : { run: s1, decision: "pan-drawer-refused" };
+}
+
+/** 7D5b S0b / ADR 0110 M11, derived from the column count alone: the core's block stands at least
+ *  one column (its innermost is the oven tower, E12.2) and S1's bottle leaves it none. */
+function isTheTowerTakenByTheBottleAlone(
+  s1: DerivedRun,
+  core: DerivedRun,
+  basis: DerivationBasis,
+): boolean {
+  return columnCountOf(core, basis) > 0 && columnCountOf(s1, basis) === 0;
 }
 
 /** Why a bottle S1 would have stood is missing beside the pan drawer, or `undefined` where S1 would
@@ -910,6 +926,28 @@ function lossesAgainstS1(
   return losses;
 }
 
+/** 7D5b S0b / ADR 0110 M11 on the finished plan, against S1's kitchen: the bottle is out, no pan
+ *  drawer stands, exactly one column returns and it is the oven tower, and the hob loses its oven. */
+function towerKeptOverTheBottleFaults(
+  plan: KitchenSummary,
+  s1: KitchenSummary,
+): readonly string[] {
+  const faults: string[] = [];
+  if (!s1.hasBottle) faults.push("S1 stood no bottle");
+  if (plan.hasBottle) faults.push("the bottle stands");
+  if (plan.hasPanDrawer) faults.push("a pan drawer stands");
+  if (plan.columnBodies.length !== s1.columnBodies.length + 1)
+    faults.push(`${String(plan.columnBodies.length)} columns`);
+  if (plan.columnBodies[0] !== "tall-oven-tower")
+    faults.push(`innermost ${String(plan.columnBodies[0])}`);
+  if (
+    plan.hobBody !== "base-hob-2drawer" ||
+    s1.hobBody !== HOB_WITH_ITS_OWN_OVEN
+  )
+    faults.push(`hob ${String(s1.hobBody)} -> ${String(plan.hobBody)}`);
+  return faults;
+}
+
 /** The drawer group astride the hob: the preparation cabinet where kept, the pan drawer, the
  *  post-hob drawer slot where one survives, and the threshold drawer where one stands (7D5 S3). */
 function drawerCountFault(
@@ -1016,6 +1054,9 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       bottleGaveWayToThePanDrawer: 0,
       bottleGaveWayToATallColumn: 0,
       s1BottleBecamePanDrawerOnly: 0,
+      towerKeptOverTheBottle: 0,
+      towerKeptOverTheBottleFaults: [] as string[],
+      totals: { bottles: 0, ovenTowerRooms: 0, columns: 0 },
       thresholdDrawer: 0,
       thresholdDecisions: emptyThresholdCensus(),
       thresholdDrawerBesideThePanDrawer: 0,
@@ -1090,8 +1131,20 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
           census.bottleGaveWayToATallColumn += 1;
         if (s1.hasBottle && decidedByS2.hasPanDrawer && !decidedByS2.hasBottle)
           census.s1BottleBecamePanDrawerOnly += 1;
+        if (s2.decision === "tower-kept-over-the-bottle") {
+          census.towerKeptOverTheBottle += 1;
+          const faults = towerKeptOverTheBottleFaults(actual, s1);
+          if (faults.length > 0)
+            census.towerKeptOverTheBottleFaults.push(
+              `${where}: ${faults.join("; ")}`,
+            );
+        }
         countKitchenShape(census.decidedByS2, decidedByS2);
         countKitchenShape(census.finished, actual);
+        if (actual.hasBottle) census.totals.bottles += 1;
+        if (actual.columnBodies.includes("tall-oven-tower"))
+          census.totals.ovenTowerRooms += 1;
+        census.totals.columns += actual.columnBodies.length;
 
         census.thresholdDecisions[threshold.decision] += 1;
         const isTheBottleGivenWay =
@@ -1142,6 +1195,12 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
     // no bottle, each of those 9 600 for exactly the one column the owner allows — and no room at
     // D >= 6 is left short of its two drawers. L2 (QA, 7D5 S3): in every one of the 6 195 rooms the
     // bottle gave way, the drawer read after it would have cost a tall column; none was free.
+    //
+    // 7D5b S0b / ADR 0110 M11: derived, then matched against the implementer's measurement. In 5 260
+    // rooms of the K3 fallback with no pan drawer, S1's bottle would have left the block no column;
+    // the tower is kept and the bottle omitted. Each moves from bottleOnly to neither (was 127 820 /
+    // 24 945), in S2's kitchen and in the finished one alike, and nothing else in the census moves.
+    // The totals: bottles 178 491 -> 173 231, oven-tower rooms 167 286, columns 389 018.
     expect(census).toEqual({
       swept: 256_011,
       placed: 245_211,
@@ -1152,19 +1211,22 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       decidedByS2: {
         bothStand: 56_866,
         panDrawerOnly: 35_580,
-        bottleOnly: 127_820,
-        neither: 24_945,
+        bottleOnly: 122_560,
+        neither: 30_205,
       },
       finished: {
         bothStand: 50_671,
         panDrawerOnly: 41_775,
-        bottleOnly: 127_820,
-        neither: 24_945,
+        bottleOnly: 122_560,
+        neither: 30_205,
       },
       panDrawerBesideS1Bottle: 11_240,
       bottleGaveWayToThePanDrawer: 11_440,
       bottleGaveWayToATallColumn: 24_140,
       s1BottleBecamePanDrawerOnly: 35_580,
+      towerKeptOverTheBottle: 5_260,
+      towerKeptOverTheBottleFaults: [],
+      totals: { bottles: 173_231, ovenTowerRooms: 167_286, columns: 389_018 },
       thresholdDrawer: 15_795,
       thresholdDecisions: {
         "not short of drawers": 229_416,

@@ -39,6 +39,7 @@ import {
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CORE_ORDER = ["fridge", "sink", "preparation", "hob"] as const;
+const TALL_BODY_PREFIX = "tall-";
 
 /** What `generateKitchen` reads off the catalogue and hands the planner (ADR 0110 E, wave 7D3). */
 const DECLARED_COLUMNS = declaredColumnSizes(
@@ -117,6 +118,12 @@ function spatialCoreOrder(
         : left.placement.alongMm - right.placement.alongMm;
     })
     .map(({ role }) => role);
+}
+
+/** A tall column, told by its body: counting storage-role bodies instead would also count a pan drawer
+ *  standing in the column's place. */
+function isTallColumn(base: { readonly buildId: string }): boolean {
+  return base.buildId.startsWith(TALL_BODY_PREFIX);
 }
 
 function baseSteps(steps: readonly GenerationStep[]) {
@@ -219,42 +226,46 @@ describe("7D2 pure planning and exact cut transitions", () => {
     },
   );
 
+  // 7D5b S0b / ADR 0110 M11: the block's first column is back at the pre-S1 edge, 3299 / 3300. S1 moved
+  // it to 3599 / 3600 because the bottle took the tower from 3300 to 3599; M11 keeps the tower there
+  // (no pan drawer depends on the bottle), so 3599 now stands one column (was none) and 3600 is where
+  // the bottle rejoins beside it. Re-measured 1 mm at a time: 3299 is the last width with no column.
   it.each([
-    [{ shape: "L", widthMm: 2700, depthMm: 1699, heightMm: 2200 }, ["fridge"]],
-    [{ shape: "L", widthMm: 2700, depthMm: 1700, heightMm: 2200 }, []],
-    [{ shape: "L", widthMm: 3599, depthMm: 1700, heightMm: 2200 }, []],
-    [{ shape: "L", widthMm: 3600, depthMm: 1700, heightMm: 2200 }, []],
-  ] as const)("keeps the two-wall cut deterministic at %o", (room, dropped) => {
-    const first = planKitchenComposition({
-      columns: DECLARED_COLUMNS,
-      room,
-      runs: lShellFloorRuns(room),
-    });
-    const second = planKitchenComposition({
-      columns: DECLARED_COLUMNS,
-      room,
-      runs: lShellFloorRuns(room),
-    });
+    [
+      { shape: "L", widthMm: 2700, depthMm: 1699, heightMm: 2200 },
+      ["fridge"],
+      undefined,
+    ],
+    [
+      { shape: "L", widthMm: 2700, depthMm: 1700, heightMm: 2200 },
+      [],
+      undefined,
+    ],
+    [{ shape: "L", widthMm: 3299, depthMm: 1700, heightMm: 2200 }, [], 0],
+    [{ shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2200 }, [], 1],
+    [{ shape: "L", widthMm: 3599, depthMm: 1700, heightMm: 2200 }, [], 1],
+    [{ shape: "L", widthMm: 3600, depthMm: 1700, heightMm: 2200 }, [], 1],
+  ] as const)(
+    "keeps the two-wall cut deterministic at %o",
+    (room, dropped, blockColumns) => {
+      const first = planKitchenComposition({
+        columns: DECLARED_COLUMNS,
+        room,
+        runs: lShellFloorRuns(room),
+      });
+      const second = planKitchenComposition({
+        columns: DECLARED_COLUMNS,
+        room,
+        runs: lShellFloorRuns(room),
+      });
 
-    expect(second).toStrictEqual(first);
-    expect(first.dropped).toEqual(dropped);
-    if (room.widthMm === 3599) {
-      expect(
-        first.bases.filter(
-          (base) =>
-            base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
-        ),
-      ).toHaveLength(0);
-    }
-    if (room.widthMm === 3600) {
-      expect(
-        first.bases.filter(
-          (base) =>
-            base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
-        ),
-      ).toHaveLength(1);
-    }
-  });
+      expect(second).toStrictEqual(first);
+      expect(first.dropped).toEqual(dropped);
+      if (blockColumns !== undefined) {
+        expect(first.bases.filter(isTallColumn)).toHaveLength(blockColumns);
+      }
+    },
+  );
 
   it("reads the narrower wall from its free end and keeps the core order across fillers", () => {
     // The reference room is 3 560 × 2 800, so wall B is the narrower one and the run reads it first —
@@ -318,8 +329,10 @@ describe("7D2 pure planning and exact cut transitions", () => {
     // The composer is swept, not the policy (M7 7A3): wall A keeps the pre-7A3 6300, and wall B runs
     // past its pre-7A3 5100 to the 6000 the policy admits since — 5101 the first admitted value,
     // 5299 / 5300 a storage edge inside that band.
+    // 7D5b S0b / ADR 0110 M11: 3299 / 3300 is the block edge again; 3599 / 3600 stays as the edge
+    // where the bottle rejoins beside the tower.
     const wallAValues = [
-      900, 1499, 1500, 2099, 2100, 2699, 2700, 3599, 3600, 6300,
+      900, 1499, 1500, 2099, 2100, 2699, 2700, 3299, 3300, 3599, 3600, 6300,
     ];
     const wallBValues = [
       1000, 1599, 1600, 1699, 1700, 2199, 2200, 2299, 2300, 2799, 2800, 2899,
@@ -401,41 +414,34 @@ describe("7D2 pure planning and exact cut transitions", () => {
         check({ shape: "L", widthMm, depthMm, heightMm: 2599 });
       }
     }
-    expect(checked).toBe(168_832);
+    // 7D5b S0b: two more wall A values of 5 001 wall B millimetres each (was 168 832).
+    expect(checked).toBe(178_834);
     expect(failures.slice(0, 20)).toEqual([]);
 
+    // 7D5b S0b / ADR 0110 M11: the all-on-B block edge is back at 4099 / 4100 (S1 had moved it to
+    // 4399 / 4400); from 4100 the tower stands where the bottle alone used to take it.
     const storageBefore = planKitchenComposition({
       columns: DECLARED_COLUMNS,
-      room: { shape: "L", widthMm: 900, depthMm: 4399, heightMm: 2200 },
+      room: { shape: "L", widthMm: 900, depthMm: 4099, heightMm: 2200 },
       runs: lShellFloorRuns({
         shape: "L",
         widthMm: 900,
-        depthMm: 4399,
+        depthMm: 4099,
         heightMm: 2200,
       }),
     });
     const storageAt = planKitchenComposition({
       columns: DECLARED_COLUMNS,
-      room: { shape: "L", widthMm: 900, depthMm: 4400, heightMm: 2200 },
+      room: { shape: "L", widthMm: 900, depthMm: 4100, heightMm: 2200 },
       runs: lShellFloorRuns({
         shape: "L",
         widthMm: 900,
-        depthMm: 4400,
+        depthMm: 4100,
         heightMm: 2200,
       }),
     });
-    expect(
-      storageBefore.bases.filter(
-        (base) =>
-          base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
-      ),
-    ).toHaveLength(0);
-    expect(
-      storageAt.bases.filter(
-        (base) =>
-          base.role === "storage" && base.buildId !== BOTTLE_CARGO_BUILD_ID,
-      ),
-    ).toHaveLength(1);
+    expect(storageBefore.bases.filter(isTallColumn)).toHaveLength(0);
+    expect(storageAt.bases.filter(isTallColumn)).toHaveLength(1);
   });
 });
 

@@ -444,16 +444,56 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
   });
 });
 
+/** The block the withdrawn K3 refinement would have left: the pan drawer standing in the bottle's
+ *  place, 600 mm where the bottle took 300, on the hob's wall (the free-end wall in every approved
+ *  room). Derived from the run and 7D3's own rule, not asked of the composer. */
+function columnsWithThePanDrawerInTheBottlesPlace(
+  plan: KitchenCompositionPlan,
+): number {
+  const hob = plan.bases.find((base) => base.role === "hob");
+  if (!hob) throw new Error("the plan stands no hob");
+  const run = lShellFloorRuns(plan.room)[hob.wall];
+  const standingMm = plan.bases
+    .filter(
+      (base) =>
+        base.wall === hob.wall &&
+        !base.id.startsWith("column:") &&
+        !isComposedStorageSlot(base),
+    )
+    .reduce((sum, base) => sum + base.widthMm, 0);
+  const freeMm = run.endMm - run.startMm - standingMm - BOTTLE_WIDTH_MM;
+  if (freeMm < 0) return -1;
+  return planTallEndBlock({
+    coreSurvivedWhole: plan.dropped.length === 0,
+    hobStandsOnTheFreeEndWall: true,
+    freeEndStorageCount: Math.floor(freeMm / THRESHOLD_DRAWER_WIDTH_MM),
+    freeEndRemainderMm: freeMm % THRESHOLD_DRAWER_WIDTH_MM,
+    roomHeightMm: plan.room.heightMm,
+    hobWithItsOwnOvenBuildId: "base-hob-oven",
+    declared: DECLARED_COLUMNS,
+  }).columns.length;
+}
+
 describe("7D5 — a bottle-only kitchen stays bottle-only (the owner withdrew the K3 refinement)", () => {
+  // 7D5b S0b / ADR 0110 M11: the two "no block" rows (900 x 4100, 3300 x 1700) now keep their oven
+  // tower and stand no bottle. No bottle-only kitchen without a block is left that the refinement
+  // would change: with no column, a pan drawer in the bottle's place either does not fit or stood
+  // first against the core, and where the core had a tower the bottle took, M11 keeps it. The rows
+  // move to one-column kitchens, where the bottle costs an outer pantry column only (outside M11)
+  // and the pan drawer in its place would keep that column — so the withdrawn refinement would act,
+  // and its absence is what each row asserts.
   it.each([
     { name: "wall B wider, two columns", room: roomOf(4600, 4610) },
-    { name: "wall B wider, no block", room: roomOf(900, 4100) },
-    { name: "wall A wider, no block", room: roomOf(3300, 1700) },
+    { name: "wall B wider, one column", room: roomOf(900, 4700) },
+    { name: "wall A wider, one column", room: roomOf(3900, 1700) },
   ])(
     "keeps the bottle after the hob and stands no pan drawer, $name",
     ({ room }) => {
       const plan = planFor(room);
 
+      expect(
+        columnsWithThePanDrawerInTheBottlesPlace(plan),
+      ).toBeGreaterThanOrEqual(tallColumnsOf(plan).length);
       expect(hasModule(plan, BOTTLE_ID)).toBe(true);
       expect(hasModule(plan, PAN_DRAWER_ID)).toBe(false);
     },

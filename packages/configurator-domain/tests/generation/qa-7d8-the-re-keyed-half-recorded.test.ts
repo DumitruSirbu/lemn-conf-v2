@@ -71,6 +71,15 @@ const RECORDING = readReKeyedRunRecording();
  *  drifted rather than that the population did. */
 const RE_KEYED_ROOMS = 82;
 
+/** 7D5b S0b / ADR 0110 M11: the recorded re-keyed rooms whose bottle alone would have taken the only
+ *  oven tower. The tower is kept and the bottle omitted, which is the recorded plan exactly. Measured
+ *  against a scratch copy with M11 removed: these three, and only these, leave the bottle arm. */
+const TOWER_KEPT_OVER_THE_BOTTLE_ROOMS = [
+  "2590x3616x2210",
+  "908x4370x2201",
+  "909x4359x2201",
+];
+
 function planFor(room: DesignRoom): KitchenCompositionPlan {
   return planKitchenComposition({
     room,
@@ -89,6 +98,7 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     let bottleNormalized = 0;
     let panDrawerNormalized = 0;
     let panDrawerWithoutBottle = 0;
+    const towerKeptOverTheBottleRooms: string[] = [];
     for (const [key, recorded] of RECORDING) {
       const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
       if (
@@ -106,6 +116,8 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
       if (!hasBottle && !hasPanDrawer) {
         exact += 1;
         expect(canonicalPlan(plan), key).toBe(recorded);
+        if (TOWER_KEPT_OVER_THE_BOTTLE_ROOMS.includes(key))
+          towerKeptOverTheBottleRooms.push(key);
       } else {
         if (hasBottle) bottleNormalized += 1;
         if (hasPanDrawer) panDrawerNormalized += 1;
@@ -120,9 +132,16 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     // 7D5 S2, Q-H6b / Q-H6c: 7 rooms that stood a bottle alone now stand the pan drawer alone
     // (903x4299x2419 first among them: its hob moved from 2800 to 3400 on wall B and the drawer slot
     // after it is gone). Bottle rooms 64 → 57, pan-drawer rooms 4 → 11; the exact arm keeps its 18.
+    //
+    // 7D5b S0b / ADR 0110 M11: three rooms keep their oven tower over S1's bottle, with no pan drawer
+    // beside it. That is the recorded plan whole, so they leave the bottle arm (57 → 54) for the exact
+    // arm (18 → 21) and are compared field for field; the pan-drawer arms do not move.
+    expect([...towerKeptOverTheBottleRooms].sort()).toEqual(
+      [...TOWER_KEPT_OVER_THE_BOTTLE_ROOMS].sort(),
+    );
     expect(RECORDING.size).toBe(RE_KEYED_ROOMS);
-    expect(exact).toBe(18);
-    expect(bottleNormalized).toBe(57);
+    expect(exact).toBe(21);
+    expect(bottleNormalized).toBe(54);
     expect(panDrawerNormalized).toBe(11);
     expect(panDrawerWithoutBottle).toBe(7);
     expect(exact + bottleNormalized + panDrawerWithoutBottle).toBe(
