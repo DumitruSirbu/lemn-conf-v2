@@ -32,6 +32,7 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
+  DISHWASHER_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   isComposedStorageSlot,
   KITCHEN_L_DESIGN,
@@ -59,6 +60,9 @@ const EVERY_DECLARED_BODY: readonly string[] = [
   DOOR_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
   PAN_DRAWER_BASE_BUILD_ID,
+  // 7D5b S1 / ADR 0110 M1/M8/M9: the leaf now declares the dishwasher, and it stands in a planned
+  // 600 mm module, so it is held to the same distinct-row and planned-width questions.
+  DISHWASHER_BUILD_ID,
 ];
 
 function roomOf(widthMm: number, depthMm: number, heightMm = 2600): DesignRoom {
@@ -88,10 +92,16 @@ const BOTTLE_CARGO_CATALOGUE_ID = "base-bottle-cargo";
  *  and, being one module wide, the one a width-keyed reading could not tell from a slot. */
 const PAN_DRAWER_CATALOGUE_ID = "base-panbank";
 
+/** 7D5b S1 / ADR 0110 M1/M8/M9: the dishwasher's catalogue row, spelled for the same reason. It keeps
+ *  the span, role and band of the door slot (M1) or preparation 3-drawer (M7(e)) it re-identifies,
+ *  so only its own row tells it apart — and *D* must never count it (M2). */
+const DISHWASHER_CATALOGUE_ID = "base-dishwasher";
+
 /** Storage-role bodies the composer reads as run items of their own rather than as slots. */
 const ANCILLARY_CATALOGUE_IDS: ReadonlySet<string> = new Set([
   BOTTLE_CARGO_CATALOGUE_ID,
   PAN_DRAWER_CATALOGUE_ID,
+  DISHWASHER_CATALOGUE_ID,
 ]);
 
 /** 7D5 S3 / Q-H5: the threshold drawer's planned id, spelled as a literal for the reason the two
@@ -128,6 +138,9 @@ function storageRoleModulesByBand(plan: KitchenCompositionPlan) {
     ),
     panDrawers: outsideTheColumnBand.filter(
       (base) => base.buildId === PAN_DRAWER_CATALOGUE_ID,
+    ),
+    dishwashers: outsideTheColumnBand.filter(
+      (base) => base.buildId === DISHWASHER_CATALOGUE_ID,
     ),
     composedSlots: outsideTheColumnBand.filter(
       (base) => !ANCILLARY_CATALOGUE_IDS.has(base.buildId),
@@ -357,6 +370,9 @@ const LEAST_ROOMS_PER_BLOCK_SIZE = 100;
 /** 7D5 S3 / Q-H5: 6.4 % of the approved grid predicts about 190 at this count, and one unseeded run
  *  drew 214. Set under a quarter of that, because this sweep takes no seed. */
 const LEAST_ROOMS_WITH_A_THRESHOLD_DRAWER = 50;
+/** 7D5b S1 / ADR 0110 M1/M8/M9: most placed rooms stand one; floored at the per-block-size floor so
+ *  an empty dishwasher group — what a dishwasher given a slot id or a slot body would make — fails. */
+const LEAST_ROOMS_WITH_A_DISHWASHER = LEAST_ROOMS_PER_BLOCK_SIZE;
 
 describe("the predicate agrees with provenance over the whole approved policy", () => {
   it("answers true for every composed slot and false for every block column, at every block size", () => {
@@ -364,6 +380,7 @@ describe("the predicate agrees with provenance over the whole approved policy", 
     let roomsWithAComposedSlot = 0;
     let roomsWithAPanDrawer = 0;
     let roomsWithAThresholdDrawer = 0;
+    let roomsWithADishwasher = 0;
 
     fc.assert(
       fc.property(approvedRoom, (room) => {
@@ -373,6 +390,7 @@ describe("the predicate agrees with provenance over the whole approved policy", 
           bottleCargos,
           panDrawers,
           thresholdDrawers,
+          dishwashers,
           composedSlots,
         } = storageRoleModulesByBand(plan);
         const blockSize = blockColumns.length;
@@ -389,6 +407,9 @@ describe("the predicate agrees with provenance over the whole approved policy", 
         if (thresholdDrawers.length > 0) {
           roomsWithAThresholdDrawer += 1;
         }
+        if (dishwashers.length > 0) {
+          roomsWithADishwasher += 1;
+        }
 
         expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
           composedSlots,
@@ -402,6 +423,13 @@ describe("the predicate agrees with provenance over the whole approved policy", 
         // that wears a slot's body and width exactly. One at most, and never a slot.
         expect(thresholdDrawers.filter(isComposedStorageSlot)).toEqual([]);
         expect(thresholdDrawers.length).toBeLessThanOrEqual(1);
+        // 7D5b S1 / ADR 0110 M1/M8/M9: the fifth, and the one that inherits a composed slot's span,
+        // role and band under M1. One at most, never a slot, and always under its own planned id.
+        expect(dishwashers.filter(isComposedStorageSlot)).toEqual([]);
+        expect(dishwashers.length).toBeLessThanOrEqual(1);
+        expect(dishwashers.map((base) => base.id)).toEqual(
+          dishwashers.map(() => "dishwasher"),
+        );
         // The core roles are the third population the plan holds, and the one whose ids are the role
         // names themselves. A predicate that answered anything but false for them would put the sink
         // in the balance.
@@ -434,6 +462,9 @@ describe("the predicate agrees with provenance over the whole approved policy", 
     // would make it.
     expect(roomsWithAThresholdDrawer).toBeGreaterThanOrEqual(
       LEAST_ROOMS_WITH_A_THRESHOLD_DRAWER,
+    );
+    expect(roomsWithADishwasher).toBeGreaterThanOrEqual(
+      LEAST_ROOMS_WITH_A_DISHWASHER,
     );
     expect(
       [...roomsByBlockSize.keys()].sort((left, right) => left - right),

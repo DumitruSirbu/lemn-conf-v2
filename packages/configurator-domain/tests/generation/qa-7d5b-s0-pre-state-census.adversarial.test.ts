@@ -45,6 +45,22 @@
 //   S0b model: `columnsRegained` is now the live plan against HEAD's), the dishwasher-first model (which
 //   was already modelled on top of S0b, and now reads the live plan), and E2's tie guard.
 //
+// **Restated for S1 (ADR 0110 Amendment M1, M2), which adds the dishwasher to `planOf` and so to every
+// plan the live planner returns.** Nothing here measures S1 (`dishwasher-beside-the-sink.test.ts` does).
+// Every figure keeps its figure and changes only the plan it is read from:
+//
+// - **S0b's plan** is the planner with S1's leaf switched off (`beforeS1`, `composition-context-capture`),
+//   proved byte for byte against the post-tower recording by `qa-7d5b-post-tower-recorded`. What the
+//   header above calls *live, post-S0b* — E1's post-S0b column, E7's outcomes, T3, S0b's census and
+//   the dishwasher-first model — reads it, as do the composer's counterfactual plans (`planOf`) those
+//   figures ask for.
+// - **HEAD's plan** is reconstructed on S0b's plan (`planBeforeS0b`), and proved against the pre-tower
+//   recording as before.
+// - **Live, with S1**: the decision restatement is checked a second time on the live plan, and **E2's
+//   tie guard reads every plan the live leaf was handed** — the final run's and each threshold
+//   candidate's — rather than a finished plan, in which M1 has already converted the door slot and a
+//   tie could no longer be seen.
+//
 // Every body, id and width is a literal (ADR 0121 decision 3(b)), and a composed storage slot is
 // reached through `isComposedStorageSlot`, never through its id.
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -66,10 +82,12 @@ import {
 } from "../../src/index.js";
 import { canonicalPlan } from "../support/composed-run-baseline.js";
 import {
+  beforeS1,
   decidedBeforeTheThresholdDrawer,
   forgetTheLastComposition,
   lastComposition,
   planBeforeS0b,
+  plansTheLeafRead,
   whatS1sBottleCost,
   type BottleCost,
   type DecidedBeforeTheThresholdDrawer,
@@ -88,6 +106,15 @@ vi.mock(
       "../support/composition-context-capture.js"
     );
     return withTheCompositionRecorded(await importOriginal());
+  },
+);
+vi.mock(
+  "../../src/generation/dishwasher-beside-the-sink.js",
+  async (importOriginal) => {
+    const { withTheDishwasherLeafSwitchable } = await import(
+      "../support/composition-context-capture.js"
+    );
+    return withTheDishwasherLeafSwitchable(await importOriginal());
   },
 );
 
@@ -158,14 +185,20 @@ interface KitchenTotals {
 interface Census {
   /** Read off HEAD's plan, reconstructed (see the header). */
   head: HeadTotals;
-  /** Read off the live plan, after S0b. */
-  live: KitchenTotals & { dishwashers: number };
-  /** HEAD's pan-drawer/bottle decision restated through the context; must equal HEAD's plan. */
-  reconstructionMismatches: string[];
+  /** Read off S0b's plan: the planner with S1's leaf switched off. */
+  afterS0b: KitchenTotals & { dishwashers: number };
+  /** The pan-drawer/bottle decision restated through the context; must equal the finished plan wherever
+   *  no threshold drawer was added — on S0b's plan, and on the live plan with S1. */
+  reconstructionMismatches: { afterS0b: string[]; live: string[] };
   besideTheSink: {
     sameWall: number;
     acrossTheCorner: number;
+    /** Live: rooms where a plan the S1 leaf was handed had a free door slot on both arms at once. */
     both: string[];
+    /** Live, the guard's reach: rooms where a plan the leaf was handed had a free door slot on the
+     *  sink's own wall, and across the corner. */
+    leafReadASameWallSlot: number;
+    leafReadAnAcrossTheCornerSlot: number;
     converted: number;
     onWallA: number;
     onWallB: number;
@@ -267,12 +300,12 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     expect(differing).toEqual([]);
   });
 
-  it("re-states the live pan-drawer and bottle decision exactly, S0b's M11 included, so the models below ask the right run", () => {
+  it("re-states the pan-drawer and bottle decision exactly, S0b's M11 included, on S0b's plan and on the live plan with S1, so the models below ask the right run", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(
         census.reconstructionMismatches,
         `${String(ceilingMm)} mm`,
-      ).toEqual([]);
+      ).toEqual({ afterS0b: [], live: [] });
     }
   });
 
@@ -292,9 +325,9 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  it("E1 — the post-S0b column, live: 5 260 oven-tower rooms and columns more, 5 260 bottles fewer, nothing else", () => {
+  it("E1 — the post-S0b column, S1's leaf switched off: 5 260 oven-tower rooms and columns more, 5 260 bottles fewer, nothing else", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
-      expect(census.live, `${String(ceilingMm)} mm`).toEqual({
+      expect(census.afterS0b, `${String(ceilingMm)} mm`).toEqual({
         dishwashers: 0,
         ovenTowerRooms: 167_286,
         tallColumns: 389_018,
@@ -323,11 +356,23 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
   });
 
   // S1 criterion 8's population, guarded from S0 on: a free door cabinet on **both** sides of the sink
-  // would need a ranking the owner never gave, and the leaf is specified with no ranking branch. Read
-  // off the live plan, which is the plan S1's leaf will read.
-  it("E2 — the tie population is empty, live: no room has a free door cabinet on both sides of the sink", () => {
+  // would need a ranking the owner never gave, and the leaf has no ranking branch. Read off **every plan
+  // the live leaf was handed** — a finished plan has had its door slot converted already, so a tie in it
+  // would read as none. The two arms' reach is pinned beside it: the guard sees each arm in the rooms
+  // E2 counts, so an empty tie list is not an empty input.
+  it("E2 — the tie population is empty, live: no plan the S1 leaf reads has a free door cabinet on both sides of the sink", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
-      expect(census.besideTheSink.both, `${String(ceilingMm)} mm`).toEqual([]);
+      const { both, leafReadASameWallSlot, leafReadAnAcrossTheCornerSlot } =
+        census.besideTheSink;
+
+      expect(
+        { both, leafReadASameWallSlot, leafReadAnAcrossTheCornerSlot },
+        `${String(ceilingMm)} mm`,
+      ).toEqual({
+        both: [],
+        leafReadASameWallSlot: 1_055,
+        leafReadAnAcrossTheCornerSlot: 140_206,
+      });
     }
   });
 
@@ -491,7 +536,7 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  it("E3 / S1, modelled on the live post-S0b plan — dishwasher first costs 10 070 threshold drawers and gains none", () => {
+  it("E3 / S1, modelled on S0b's plan (the leaf switched off) — dishwasher first costs 10 070 threshold drawers and gains none", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(census.dishwasherFirstModel, `${String(ceilingMm)} mm`).toEqual({
         converted: 141_261,
@@ -538,7 +583,7 @@ function censusAt(ceilingMm: number): Census {
   return census;
 }
 
-/** Everything one room contributes: HEAD's plan, the live plan, and its composer's context. */
+/** Everything one room contributes: HEAD's plan, S0b's plan, the live plan, and its composer's context. */
 interface RoomReading {
   readonly where: string;
   readonly room: DesignRoom;
@@ -546,8 +591,12 @@ interface RoomReading {
   /** HEAD `acb7b6f`'s plan, reconstructed (`planBeforeS0b`) and proved against the pre-tower recording;
    *  exact because `countTowerOverBottle` shows HEAD's threshold rule added nothing where it differs. */
   readonly plan: KitchenCompositionPlan;
-  /** The live planner's plan, after S0b. */
+  /** S0b's plan: the planner with S1's leaf switched off, proved against the post-tower recording. */
+  readonly planAfterS0b: KitchenCompositionPlan;
+  /** The live planner's plan, with S1. */
   readonly livePlan: KitchenCompositionPlan;
+  /** Every plan the live S1 leaf was handed while composing `livePlan`. */
+  readonly leafRead: readonly KitchenCompositionPlan[];
   readonly composition: RecordedComposition;
   readonly decided: DecidedBeforeTheThresholdDrawer;
 }
@@ -555,20 +604,22 @@ interface RoomReading {
 function countRoom(census: Census, room: DesignRoom): void {
   const reading = readingOf(room);
   if (!reading) return;
-  const { composition, decided, plan, livePlan } = reading;
+  const { composition, decided, plan, planAfterS0b } = reading;
   census.head.placed += 1;
   countHeadTotals(census.head, plan);
-  addKitchenTotals(census.live, livePlan);
-  census.live.dishwashers += countOf(
-    livePlan,
+  addKitchenTotals(census.afterS0b, planAfterS0b);
+  census.afterS0b.dishwashers += countOf(
+    planAfterS0b,
     (base) => base.buildId === DISHWASHER_BODY,
   );
-  const beforeTheThresholdDrawer = composition.context.planOf(decided.run);
-  recordAReconstructionFault(census, reading, beforeTheThresholdDrawer);
+  const beforeTheThresholdDrawer = beforeS1(() =>
+    composition.context.planOf(decided.run),
+  );
+  recordTheReconstructionFaults(census, reading, beforeTheThresholdDrawer);
   countBesideTheSink(
     census,
     reading,
-    composition.context.planOf(decided.runBeforeS0b),
+    beforeS1(() => composition.context.planOf(decided.runBeforeS0b)),
   );
   countTheTie(census, reading);
   countDrawerSwapEligibility(census, reading);
@@ -576,19 +627,19 @@ function countRoom(census: Census, room: DesignRoom): void {
   countTowerOverBottle(census, reading);
   countDishwasherFirstModel(census, reading, {
     beforeTheThresholdDrawer,
-    finished: livePlan,
+    finished: planAfterS0b,
   });
 }
 
-/** The room's reading, or `undefined` where the live planner refuses it. */
+/** The room's reading, or `undefined` where the planner refuses it. The live plan is composed last, so
+ *  the recorded composition and the leaf's inputs are the live planner's. */
 function readingOf(room: DesignRoom): RoomReading | undefined {
-  forgetTheLastComposition();
   const runs = lShellFloorRuns(room);
-  const livePlan = planKitchenComposition({
-    room,
-    runs,
-    columns: DECLARED_COLUMNS,
-  });
+  const compose = () =>
+    planKitchenComposition({ room, runs, columns: DECLARED_COLUMNS });
+  const planAfterS0b = beforeS1(compose);
+  forgetTheLastComposition();
+  const livePlan = compose();
   if (!livePlan.minimumMet) return undefined;
   const composition = lastComposition();
   const decided = decidedBeforeTheThresholdDrawer(composition);
@@ -596,8 +647,10 @@ function readingOf(room: DesignRoom): RoomReading | undefined {
     where: `${String(room.widthMm)}x${String(room.depthMm)}`,
     room,
     runs,
-    plan: planBeforeS0b(composition, livePlan),
+    plan: planBeforeS0b(composition, planAfterS0b),
+    planAfterS0b,
     livePlan,
+    leafRead: plansTheLeafRead(),
     composition,
     decided,
   };
@@ -607,7 +660,6 @@ function readingOf(room: DesignRoom): RoomReading | undefined {
 function headPlanFor(room: DesignRoom): KitchenCompositionPlan {
   const reading = readingOf(room);
   if (reading) return reading.plan;
-  forgetTheLastComposition();
   return planKitchenComposition({
     room,
     runs: lShellFloorRuns(room),
@@ -642,23 +694,37 @@ function addKitchenTotals(
   );
 }
 
-/** The live plan before Q-H5 decided the threshold drawer, asked of the composer. Where the live
- *  planner added no threshold drawer it **is** the live plan, and any difference is recorded as a
- *  reconstruction fault. */
-function recordAReconstructionFault(
+/** The plan before Q-H5 decided the threshold drawer, asked of the composer — before S1 and live.
+ *  Where the planner added no threshold drawer it **is** the finished plan, and any difference is
+ *  recorded as a reconstruction fault. */
+function recordTheReconstructionFaults(
   census: Census,
   reading: RoomReading,
-  beforeTheThresholdDrawer: KitchenCompositionPlan,
+  beforeTheThresholdDrawerAfterS0b: KitchenCompositionPlan,
 ): void {
-  const { livePlan, where } = reading;
-  const hasThresholdDrawer = livePlan.bases.some(
+  const { composition, decided, livePlan, planAfterS0b, where } = reading;
+  const faults = census.reconstructionMismatches;
+  if (isAReconstructionFault(beforeTheThresholdDrawerAfterS0b, planAfterS0b)) {
+    faults.afterS0b.push(where);
+  }
+  if (
+    isAReconstructionFault(composition.context.planOf(decided.run), livePlan)
+  ) {
+    faults.live.push(where);
+  }
+}
+
+function isAReconstructionFault(
+  beforeTheThresholdDrawer: KitchenCompositionPlan,
+  finished: KitchenCompositionPlan,
+): boolean {
+  const hasThresholdDrawer = finished.bases.some(
     (base) => base.id === THRESHOLD_DRAWER_ID,
   );
-  const isSamePlan =
-    JSON.stringify(beforeTheThresholdDrawer) === JSON.stringify(livePlan);
-  if (!hasThresholdDrawer && !isSamePlan) {
-    census.reconstructionMismatches.push(where);
-  }
+  return (
+    !hasThresholdDrawer &&
+    JSON.stringify(beforeTheThresholdDrawer) !== JSON.stringify(finished)
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -680,7 +746,9 @@ function countBesideTheSink(
   countMetreBand(census, room, converted !== undefined);
   compareTheConvertedRoom(census, reading, {
     beforeTheThresholdDrawer,
-    onTheCoreAlone: composition.context.planOf(composition.core),
+    onTheCoreAlone: beforeS1(() =>
+      composition.context.planOf(composition.core),
+    ),
   });
   if (converted === undefined) {
     if (plan.bases.some(isDoorCabinet)) beside.doorCabinetElsewhere += 1;
@@ -695,13 +763,22 @@ function countBesideTheSink(
 }
 
 function countTheTie(census: Census, reading: RoomReading): void {
-  const { livePlan, runs, where } = reading;
-  if (
-    doorCabinetBesideTheSinkOnItsWall(livePlan) &&
-    doorCabinetAcrossTheCornerFromTheSink(livePlan, runs)
-  ) {
-    census.besideTheSink.both.push(where);
-  }
+  const { leafRead, runs, where } = reading;
+  const beside = census.besideTheSink;
+  const sameWall = leafRead.some(
+    (plan) => doorCabinetBesideTheSinkOnItsWall(plan) !== undefined,
+  );
+  const acrossTheCorner = leafRead.some(
+    (plan) => doorCabinetAcrossTheCornerFromTheSink(plan, runs) !== undefined,
+  );
+  if (sameWall) beside.leafReadASameWallSlot += 1;
+  if (acrossTheCorner) beside.leafReadAnAcrossTheCornerSlot += 1;
+  const isATie = leafRead.some(
+    (plan) =>
+      doorCabinetBesideTheSinkOnItsWall(plan) !== undefined &&
+      doorCabinetAcrossTheCornerFromTheSink(plan, runs) !== undefined,
+  );
+  if (isATie) beside.both.push(where);
 }
 
 function compareTheConvertedRoom(
@@ -909,68 +986,72 @@ function countBottleCost(
   if (hobOf(plan).buildId !== HOB_WITH_OVEN_BODY) {
     bottleCost.theOvenTowerButTheHobIsNotOven.push(where);
   }
-  const outcome = outcomeAfterS0b(reading.livePlan);
+  const outcome = outcomeAfterS0b(reading.planAfterS0b);
   bottleCost.afterS0b[outcome] = (bottleCost.afterS0b[outcome] ?? 0) + 1;
 }
 
 /** M11 must leave the outer-column arm alone: the bottle still stands, and against the composer's plan of
  *  the core alone the block has lost one pantry and no oven tower. */
 function outerColumnOutcomeAfterS0b(reading: RoomReading): string {
-  const { livePlan, composition } = reading;
-  const onTheCoreAlone = composition.context.planOf(composition.core);
-  const bottle = hasBody(livePlan, BOTTLE_BODY) ? "bottle stands" : "no bottle";
+  const { planAfterS0b, composition } = reading;
+  const onTheCoreAlone = beforeS1(() =>
+    composition.context.planOf(composition.core),
+  );
+  const bottle = hasBody(planAfterS0b, BOTTLE_BODY)
+    ? "bottle stands"
+    : "no bottle";
   const lostOf = (buildId: string) =>
     countOf(onTheCoreAlone, (base) => base.buildId === buildId) -
-    countOf(livePlan, (base) => base.buildId === buildId);
+    countOf(planAfterS0b, (base) => base.buildId === buildId);
   return `${bottle}, ${String(lostOf(PANTRY_BODY))} pantry lost, ${String(lostOf(OVEN_TOWER_BODY))} oven tower lost`;
 }
 
-function outcomeAfterS0b(livePlan: KitchenCompositionPlan): string {
-  const tower = hasBody(livePlan, OVEN_TOWER_BODY)
+function outcomeAfterS0b(planAfterS0b: KitchenCompositionPlan): string {
+  const tower = hasBody(planAfterS0b, OVEN_TOWER_BODY)
     ? "tower kept"
     : "tower gone";
-  const panDrawer = hasBody(livePlan, PAN_DRAWER_BODY)
+  const panDrawer = hasBody(planAfterS0b, PAN_DRAWER_BODY)
     ? "pan drawer"
     : "no pan drawer";
-  return `${tower}, ${hobOf(livePlan).buildId}, ${panDrawer}`;
+  return `${tower}, ${hobOf(planAfterS0b).buildId}, ${panDrawer}`;
 }
 
 // ---------------------------------------------------------------------------------------------
-// S0b, live: where the bottle took the oven tower and no pan drawer stands beside it, the live plan is
-// the one the composer makes of the core alone, and it differs from HEAD's by M11's change only.
+// S0b: where the bottle took the oven tower and no pan drawer stands beside it, S0b's plan is the one
+// the composer makes of the core alone, and it differs from HEAD's by M11's change only.
 // ---------------------------------------------------------------------------------------------
 
 function countTowerOverBottle(census: Census, reading: RoomReading): void {
-  const { plan, livePlan, where } = reading;
+  const { plan, planAfterS0b, where } = reading;
   const before = canonicalPlan(plan);
-  const after = canonicalPlan(livePlan);
+  const after = canonicalPlan(planAfterS0b);
   if (before === after) return;
   const towerCensus = census.towerOverBottle;
   towerCensus.rooms += 1;
-  const hobBody = hobOf(livePlan).buildId;
+  const hobBody = hobOf(planAfterS0b).buildId;
   towerCensus.hobBodies[hobBody] = (towerCensus.hobBodies[hobBody] ?? 0) + 1;
-  const regained = countOf(livePlan, isTall) - countOf(plan, isTall);
+  const regained = countOf(planAfterS0b, isTall) - countOf(plan, isTall);
   towerCensus.columnsRegained[regained] =
     (towerCensus.columnsRegained[regained] ?? 0) + 1;
   const change = towerOverBottleChangeBetween({ before, after });
   if (
     change !== "the oven tower kept over the bottle" ||
-    bodiesBesidesBottleTowerAndHob(livePlan) !==
+    bodiesBesidesBottleTowerAndHob(planAfterS0b) !==
       bodiesBesidesBottleTowerAndHob(plan)
   ) {
     towerCensus.anythingElseChanged.push(where);
   }
   if (isShortOfTheOwnersDrawers(plan))
     towerCensus.headWouldHaveAddedAThresholdDrawer.push(where);
-  if (isShortOfTheOwnersDrawers(livePlan))
+  if (isShortOfTheOwnersDrawers(planAfterS0b))
     towerCensus.shortOfDrawersWithoutTheBottle.push(where);
   if (
-    livePlan.remainderMm.A >= ONE_MODULE_MM ||
-    livePlan.remainderMm.B >= ONE_MODULE_MM
+    planAfterS0b.remainderMm.A >= ONE_MODULE_MM ||
+    planAfterS0b.remainderMm.B >= ONE_MODULE_MM
   ) {
     towerCensus.remainderOfAModuleOrMore.push(where);
   }
-  if (!hasBody(livePlan, OVEN_TOWER_BODY))
+  if (!hasBody(planAfterS0b, OVEN_TOWER_BODY))
     towerCensus.roomsWithoutAnOvenTower.push(where);
 }
 
@@ -1149,12 +1230,14 @@ function emptyCensus(): Census {
       ...emptyKitchenTotals(),
       panDrawerBodiesInThePreparationRole: 0,
     },
-    live: { dishwashers: 0, ...emptyKitchenTotals() },
-    reconstructionMismatches: [],
+    afterS0b: { dishwashers: 0, ...emptyKitchenTotals() },
+    reconstructionMismatches: { afterS0b: [], live: [] },
     besideTheSink: {
       sameWall: 0,
       acrossTheCorner: 0,
       both: [],
+      leafReadASameWallSlot: 0,
+      leafReadAnAcrossTheCornerSlot: 0,
       converted: 0,
       onWallA: 0,
       onWallB: 0,

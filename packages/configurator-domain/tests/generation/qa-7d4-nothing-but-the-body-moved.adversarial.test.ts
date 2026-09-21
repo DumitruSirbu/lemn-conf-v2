@@ -166,7 +166,9 @@ const RE_KEYED_WITNESSES = [
       "dropped=",
       "remainder=548/130",
       "floorWidths=600,600,700/600,600,600,600,300",
-      "storage:A:0~storage~base-cabinet~A~900~1500~600",
+      // 7D5b S1 / ADR 0110 M1: was `storage:A:0~storage~base-cabinet~…`. Wall A's first slot from the
+      // corner faces the sink across it, so M1 converts it; span, role and every other line unmoved.
+      "dishwasher~storage~base-dishwasher~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "fridge~fridge~fridge-free~A~2100~2800~700",
       "sink~sink~base-sink~B~900~1500~600",
@@ -188,7 +190,9 @@ const RE_KEYED_WITNESSES = [
       "dropped=",
       "remainder=448/0",
       "floorWidths=600,600,600,700/600,600,600,300,600,600,764",
-      "storage:A:0~storage~base-cabinet~A~900~1500~600",
+      // 7D5b S1 / ADR 0110 M1: was `storage:A:0~storage~base-cabinet~…`, converted across the corner
+      // as in the room above; nothing else in this plan moved.
+      "dishwasher~storage~base-dishwasher~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "storage:A:2~storage~base-cabinet~A~2100~2700~600",
       "fridge~fridge~fridge-free~A~2700~3400~700",
@@ -333,7 +337,9 @@ function comparedWithTheRecording(room: DesignRoom): {
   readonly composed: string;
   readonly recorded: string;
 } {
-  const plan = planFor(room);
+  // 7D5b S1 / ADR 0110 M1/M8/M9: compared before the dishwasher, so an inequality here is the re-key's
+  // and never the dishwasher's own re-identification.
+  const plan = planBeforeTheDishwasher(planFor(room));
   if (BASELINE.witnesses.has(roomKey(room))) {
     return {
       composed: canonicalPlanWithTheDoorBodyRestored(plan),
@@ -665,6 +671,222 @@ function withFloorWidthsRecomputed(
  *  exactly the drawer's own upper and nothing else — the column it cost reached the wall row and
  *  stood none. This removes that one step, so the result hashing to 7D3's recorded row (through S2's
  *  pan-drawer swap where one stands) proves every other character unmoved. */
+// ---------------------------------------------------------------------------------------------
+// 7D5b S1 / ADR 0110 M1/M8/M9 — the dishwasher, undone before anything else is compared.
+// ---------------------------------------------------------------------------------------------
+
+/** The dishwasher's planned id and body, literals so a wrong constant and a wrong leaf cannot agree. */
+const DISHWASHER_PLANNED_ID = "dishwasher";
+const DISHWASHER_BODY = "base-dishwasher";
+const PAN_DRAWER_PLANNED_ID = "pan-drawer";
+const PREPARATION_PLANNED_ID = "preparation";
+const COMPOSED_SLOT_ID_PREFIX = "storage:";
+
+/** What undoing the dishwasher found, the plan without it, and the planned ids it renamed (the id the
+ *  plan carries now → the id it carried before S1), which the wall row's step ids follow. */
+type DishwasherUndo =
+  | {
+      readonly kind: "none" | "doorCabinet" | "drawerSwap";
+      readonly plan: KitchenCompositionPlan;
+      readonly renamedIds: ReadonlyMap<string, string>;
+    }
+  | { readonly kind: "unruled"; readonly reason: string };
+
+/**
+ * **7D5b S1 / ADR 0110 M1/M8/M9, criteria 2 and 21 restated.** The dishwasher is a re-identification
+ * and never a width change, so undoing it touches identity only:
+ *
+ * - **M1** — a 600 mm composed door slot beside the sink became `dishwasher`. It goes back to
+ *   `base-cabinet` under the slot id it had: `storage:<wall>:<n>`, where *n* counts the composed
+ *   slots standing before it on its wall from the corner, as the storage run numbers them.
+ * - **M7(e)** — the preparation 3-drawer beside the sink became `dishwasher` and the pan drawer beyond
+ *   it took the preparation id and role (M9). The dishwasher goes back to the preparation 3-drawer,
+ *   and the pan drawer back to `pan-drawer`, role `storage`, still `base-panbank`.
+ *
+ * Every span, remainder and floor width is left as composed: the result hashing to the recording is
+ * what proves S1 moved nothing else. A dishwasher the rulings do not account for — a second one, one
+ * at another width or role, one not beside the sink — is answered `unruled` and reported.
+ */
+function withTheDishwasherUndone(plan: KitchenCompositionPlan): DishwasherUndo {
+  const dishwashers = plan.bases.filter(
+    (base) => base.buildId === DISHWASHER_BODY,
+  );
+  const [dishwasher] = dishwashers;
+  if (dishwasher === undefined) {
+    return { kind: "none", plan, renamedIds: new Map() };
+  }
+  const unruled = whyTheDishwasherIsUnruled(plan, dishwashers);
+  if (unruled !== undefined) return { kind: "unruled", reason: unruled };
+
+  const preparation = plan.bases.find((base) => base.role === "preparation");
+  if (preparation?.buildId === PAN_DRAWER_BODY) {
+    return withTheDrawerSwapUndone(plan, { dishwasher, preparation });
+  }
+  return withTheDoorCabinetRestored(plan, dishwasher);
+}
+
+function whyTheDishwasherIsUnruled(
+  plan: KitchenCompositionPlan,
+  dishwashers: readonly PlannedGenerationBase[],
+): string | undefined {
+  const [dishwasher] = dishwashers;
+  if (dishwashers.length !== 1 || dishwasher === undefined) {
+    return `${String(dishwashers.length)} dishwashers`;
+  }
+  if (
+    dishwasher.id !== DISHWASHER_PLANNED_ID ||
+    dishwasher.role !== "storage" ||
+    dishwasher.widthMm !== DECLARED_COLUMNS.columnWidthMm
+  ) {
+    return `dishwasher identity ${canonicalModule(dishwasher)}`;
+  }
+  const sink = plan.bases.find((base) => base.role === "sink");
+  if (sink === undefined || !standsBeside(plan, [dishwasher, sink])) {
+    return "dishwasher not beside the sink";
+  }
+  return undefined;
+}
+
+/** Abutting along one wall, or each the first module from the corner on its own wall. */
+function standsBeside(
+  plan: KitchenCompositionPlan,
+  [one, other]: readonly [PlannedGenerationBase, PlannedGenerationBase],
+): boolean {
+  if (one.wall === other.wall) {
+    return one.endMm === other.startMm || other.endMm === one.startMm;
+  }
+  const isFirstFromTheCorner = (base: PlannedGenerationBase) =>
+    plan.bases.every(
+      (candidate) =>
+        candidate.wall !== base.wall || candidate.startMm >= base.startMm,
+    );
+  return isFirstFromTheCorner(one) && isFirstFromTheCorner(other);
+}
+
+function withTheDoorCabinetRestored(
+  plan: KitchenCompositionPlan,
+  dishwasher: PlannedGenerationBase,
+): DishwasherUndo {
+  const slotsBeforeIt = plan.bases.filter(
+    (base) =>
+      base.wall === dishwasher.wall &&
+      base.id.startsWith(COMPOSED_SLOT_ID_PREFIX) &&
+      base.startMm < dishwasher.startMm,
+  );
+  const slotId = `${COMPOSED_SLOT_ID_PREFIX}${dishwasher.wall}:${String(slotsBeforeIt.length)}`;
+  const restored: PlannedGenerationBase = {
+    ...dishwasher,
+    id: slotId,
+    role: "storage",
+    buildId: DOOR_BASE_BUILD_ID,
+  };
+  return {
+    kind: "doorCabinet",
+    plan: {
+      ...plan,
+      bases: plan.bases.map((base) => (base === dishwasher ? restored : base)),
+    },
+    renamedIds: new Map([[DISHWASHER_PLANNED_ID, slotId]]),
+  };
+}
+
+function withTheDrawerSwapUndone(
+  plan: KitchenCompositionPlan,
+  modules: {
+    readonly dishwasher: PlannedGenerationBase;
+    readonly preparation: PlannedGenerationBase;
+  },
+): DishwasherUndo {
+  const { dishwasher, preparation } = modules;
+  if (
+    preparation.id !== PREPARATION_PLANNED_ID ||
+    dishwasher.wall !== preparation.wall ||
+    !standsBeside(plan, [dishwasher, preparation])
+  ) {
+    return {
+      kind: "unruled",
+      reason: `pan-drawer preparation ${canonicalModule(preparation)} not beyond the dishwasher`,
+    };
+  }
+  const bases = plan.bases.map((base) => {
+    if (base === dishwasher) {
+      return {
+        ...base,
+        id: PREPARATION_PLANNED_ID,
+        role: "preparation" as const,
+        buildId: THREE_DRAWER_BASE_BUILD_ID,
+      };
+    }
+    if (base === preparation) {
+      return { ...base, id: PAN_DRAWER_PLANNED_ID, role: "storage" as const };
+    }
+    return base;
+  });
+  return {
+    kind: "drawerSwap",
+    plan: { ...plan, bases },
+    renamedIds: new Map([
+      [DISHWASHER_PLANNED_ID, PREPARATION_PLANNED_ID],
+      [PREPARATION_PLANNED_ID, PAN_DRAWER_PLANNED_ID],
+    ]),
+  };
+}
+
+/** Criterion 21's half of the undo: an upper's step id names the base it stands over, so every upper
+ *  over a renamed base takes the name that base had. Renamed simultaneously, since (e) swaps two. */
+function wallRowWithTheDishwasherUndone(
+  row: string,
+  renamedIds: ReadonlyMap<string, string>,
+): string {
+  return row
+    .split("|")
+    .map((step) => {
+      const [stepId = "", ...rest] = step.split("~");
+      const [kind, ...baseId] = stepId.split(":");
+      const renamed = renamedIds.get(baseId.join(":"));
+      if (kind !== "upper" || renamed === undefined) return step;
+      return [`upper:${renamed}`, ...rest].join("~");
+    })
+    .join("|");
+}
+
+/** E1's threshold as the owner stated it (ADR 0110 wave 7D5, Q-H5): the plain cabinets — composed
+ *  slots, the pan drawer and the threshold drawer — reach six with fewer than two drawers among them.
+ *  Asked of a plan with its dishwasher undone, it names the rooms where 7D5 S3 stood a threshold
+ *  drawer and M2's *"dishwasher first"* now withholds it. */
+const LARGE_RUN_PLAIN_CABINET_COUNT = 6;
+const LARGE_RUN_DRAWER_COUNT = 2;
+
+function wouldHaveStoodAThresholdDrawer(
+  planWithoutTheDishwasher: KitchenCompositionPlan,
+): boolean {
+  const plainCabinets = planWithoutTheDishwasher.bases.filter(
+    (base) =>
+      isComposedStorageSlot(base) ||
+      base.id === PAN_DRAWER_PLANNED_ID ||
+      base.id === THRESHOLD_DRAWER_PLANNED_ID,
+  );
+  const drawers = plainCabinets.filter(
+    (base) =>
+      base.buildId === THREE_DRAWER_BASE_BUILD_ID ||
+      base.buildId === PAN_DRAWER_BODY,
+  );
+  return (
+    plainCabinets.length >= LARGE_RUN_PLAIN_CABINET_COUNT &&
+    drawers.length < LARGE_RUN_DRAWER_COUNT
+  );
+}
+
+/** The plan as S2/S3 composed it, before S1's dishwasher, with the undo's own verdict. Throws on an
+ *  unruled dishwasher only where the caller has nowhere to report it (the named witnesses). */
+function planBeforeTheDishwasher(
+  plan: KitchenCompositionPlan,
+): KitchenCompositionPlan {
+  const undone = withTheDishwasherUndone(plan);
+  if (undone.kind === "unruled") throw new Error(undone.reason);
+  return undone.plan;
+}
+
 function wallRowWithTheThresholdDrawerUndone(row: string): string {
   return row
     .split("|")
@@ -697,6 +919,8 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       columnGaveWayBesideTheBottle: 0,
       columnGaveWayWithoutIt: 0,
     };
+    const dishwasherUndone = { doorCabinet: 0, drawerSwap: 0 };
+    let thresholdDrawersWithheldByM2 = 0;
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
         const composedPlan = planFor(room);
@@ -708,7 +932,21 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
           unexpected.push(`${roomKey(room)} ${undone.reason}`);
           return;
         }
-        const plan = undone.plan;
+        // 7D5b S1 / ADR 0110 M1/M8/M9: then the dishwasher, identity only — see
+        // `withTheDishwasherUndone`. M2's re-plan needs no undo of its own: deciding the dishwasher
+        // first only withholds threshold drawers, and a withheld drawer leaves S2's plan standing.
+        const dishwasherUndo = withTheDishwasherUndone(undone.plan);
+        if (dishwasherUndo.kind === "unruled") {
+          unexpected.push(`${roomKey(room)} ${dishwasherUndo.reason}`);
+          return;
+        }
+        if (dishwasherUndo.kind !== "none") {
+          dishwasherUndone[dishwasherUndo.kind] += 1;
+        }
+        const plan = dishwasherUndo.plan;
+        if (undone.kind === "none" && wouldHaveStoodAThresholdDrawer(plan)) {
+          thresholdDrawersWithheldByM2 += 1;
+        }
         const hasBottle = plan.bases.some(
           (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
         );
@@ -785,17 +1023,32 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // drawer undone the S2 split above is exactly what it was — the two where a column gave way and
     // no bottle stands are among the 12, and now hash to 7D3's recording through the pan-drawer undo;
     // the six others stand a bottle again and take the bottle branch, as they did at S2.
+    //
+    // **7D5b S1 / ADR 0110 M2 re-plans all eight of them, and the undo above is no longer reached in
+    // this draw.** Was `{ bottleGaveWay: 4, columnGaveWayBesideTheBottle: 2, columnGaveWayWithoutIt:
+    // 2 }`. Each of the eight had *D* exactly six with one drawer; M1 converts a door slot beside the
+    // sink in every one, *D* excludes the dishwasher (M2), so *D* is five and the drawer is withheld —
+    // and a withheld drawer leaves S2's plan, which then hashes to 7D3's through the dishwasher undo.
+    // The eight are counted back below from the undone plan, so this zero cannot be an empty draw.
     expect(thresholdDrawerUndone).toEqual({
-      bottleGaveWay: 4,
-      columnGaveWayBesideTheBottle: 2,
-      columnGaveWayWithoutIt: 2,
+      bottleGaveWay: 0,
+      columnGaveWayBesideTheBottle: 0,
+      columnGaveWayWithoutIt: 0,
     });
+    expect(thresholdDrawersWithheldByM2).toBe(8);
+    // 7D5b S1 / ADR 0110 M1/M8/M9: 119 of the 209 placed rooms stand a dishwasher — 87 by M1's
+    // converted door slot and 32 by M7(e)'s drawer swap — and every one undoes, identity only, to a
+    // plan that hashes to 7D3's recording (or, re-keyed, still differs from it). Exact: the draw is
+    // the recording's.
+    expect(dishwasherUndone).toEqual({ doorCabinet: 87, drawerSwap: 32 });
   });
 
   it.each(UNMOVED_WITNESS_ROOMS)(
     "renders back to 7D3's own plan once the door body is restored, in %o",
     (room) => {
-      const plan = planFor(room);
+      // 7D5b S1 / ADR 0110 M1/M8/M9: the dishwasher is undone first (identity only), so the door body
+      // is restored over the plan S1 re-identified. Was `planFor(room)` directly.
+      const plan = planBeforeTheDishwasher(planFor(room));
       if (plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID)) {
         const recorded = parseRecordedCanonicalPlan(
           recordedWitness(BASELINE, room),
@@ -852,7 +1105,11 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       // deliberately, so a rule that reached its subject by role would sweep the block in and read
       // 7D3's correct output as this wave's defect. Each module the wave may **not** move is looked
       // for in 7D3's recording with all seven of its fields at once.
-      const plan = planFor(room);
+      //
+      // 7D5b S1 / ADR 0110 M1/M8/M9: read over the plan with its dishwasher undone. The dishwasher is
+      // not a module `isMovedByThisWave` names, so read raw it is sought in 7D3's recording under an id
+      // 7D3 never composed; undone, it is the door slot it was.
+      const plan = planBeforeTheDishwasher(planFor(room));
       if (plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID)) {
         const recorded = parseRecordedCanonicalPlan(
           recordedWitness(BASELINE, room),
@@ -958,12 +1215,28 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // is paid for by a block column the leftover can seat a slot and the arm gains one. No core role
     // changes wall or position in this draw (checked against `7d8-re-keyed-baseline.json` and
     // `7d5-pre-width-baseline.json`), because the bottle is appended only where the core's cut holds.
-    const arms = { composedSlots: 0, blockColumns: 0, wallBStorage: 0 };
+    const arms = {
+      composedSlots: 0,
+      composedSlotsBeforeTheDishwasher: 0,
+      blockColumns: 0,
+      wallBStorage: 0,
+      wallBStorageBeforeTheDishwasher: 0,
+    };
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
-        const bases = planFor(room).bases;
+        const composedPlan = planFor(room);
+        const bases = composedPlan.bases;
         const slots = bases.filter(isComposedStorageSlot);
         if (slots.length > 0) arms.composedSlots += 1;
+        const slotsBeforeTheDishwasher = planBeforeTheDishwasher(
+          composedPlan,
+        ).bases.filter(isComposedStorageSlot);
+        if (slotsBeforeTheDishwasher.length > 0) {
+          arms.composedSlotsBeforeTheDishwasher += 1;
+        }
+        if (slotsBeforeTheDishwasher.some((slot) => slot.wall === "B")) {
+          arms.wallBStorageBeforeTheDishwasher += 1;
+        }
         if (slots.some((slot) => slot.wall === "B")) arms.wallBStorage += 1;
         if (
           bases.some(
@@ -987,9 +1260,19 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     // 1 000-run draw in `qa-7d4-composed-bodies.adversarial.test.ts`, *gives every other composed slot
     // the door body* (two or more slots, at least 100). What is asserted here is this fixed draw's
     // exact reach, as the wall-B arm already was.
-    expect(arms.composedSlots).toBe(91);
+    //
+    // **7D5b S1 / ADR 0110 M1 moves it again, 91 → 70, and only by the dishwasher's own conversion.**
+    // In 21 rooms of this draw the storage run's one composed slot is the 600 mm door cabinet beside
+    // the sink — across the corner, or along the sink's wall — and M1 re-identifies it as the
+    // dishwasher, so the room holds no composed slot any more. The second number proves it: with the
+    // dishwasher undone the arm is S2's 91 again, so no slot was lost any other way.
+    expect(arms.composedSlots).toBe(70);
+    expect(arms.composedSlotsBeforeTheDishwasher).toBe(91);
     expect(arms.blockColumns).toBeGreaterThanOrEqual(ARM_FLOOR);
-    expect(arms.wallBStorage).toBe(55);
+    // 7D5b S1 / ADR 0110 M1: 55 → 45 for the same reason — in ten rooms wall B's only composed slot is
+    // the one beside the sink — and 55 again with the dishwasher undone.
+    expect(arms.wallBStorage).toBe(45);
+    expect(arms.wallBStorageBeforeTheDishwasher).toBe(55);
   });
 });
 
@@ -1005,6 +1288,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     let withUppers = 0;
     let panDrawerRowsUndone = 0;
     let thresholdDrawerRowsUndone = 0;
+    let dishwasherRowsUndone = 0;
     fc.assert(
       fc.property(recordedLRoom(), (room) => {
         const kitchen = generated(room);
@@ -1021,7 +1305,14 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
           unexpected.push(`${roomKey(room)} ${undone.reason}`);
           return;
         }
-        const planBeforeTheThresholdDrawer = undone.plan;
+        // 7D5b S1 / ADR 0110 M1/M8/M9: then the dishwasher, as in criterion 2's sweep. Its upper names
+        // the base beneath it, so the row takes the renamed ids back below; nothing else in it moves.
+        const dishwasherUndo = withTheDishwasherUndone(undone.plan);
+        if (dishwasherUndo.kind === "unruled") {
+          unexpected.push(`${roomKey(room)} ${dishwasherUndo.reason}`);
+          return;
+        }
+        const planBeforeTheThresholdDrawer = dishwasherUndo.plan;
         const hasBottle = planBeforeTheThresholdDrawer.bases.some(
           (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
         );
@@ -1048,9 +1339,14 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
           // gave way it stands again above — and its one upper is removed before S2's swap.
           const standsAThresholdDrawer = undone.kind === "columnGaveWay";
           if (standsAThresholdDrawer) thresholdDrawerRowsUndone += 1;
+          if (dishwasherUndo.kind !== "none") dishwasherRowsUndone += 1;
+          const rowBeforeTheDishwasher = wallRowWithTheDishwasherUndone(
+            canonicalWallRow(kitchen),
+            dishwasherUndo.renamedIds,
+          );
           const row = standsAThresholdDrawer
-            ? wallRowWithTheThresholdDrawerUndone(canonicalWallRow(kitchen))
-            : canonicalWallRow(kitchen);
+            ? wallRowWithTheThresholdDrawerUndone(rowBeforeTheDishwasher)
+            : rowBeforeTheDishwasher;
           const standsAPanDrawer = hasPanDrawer(planBeforeTheThresholdDrawer);
           if (standsAPanDrawer) panDrawerRowsUndone += 1;
           const composed = digestOf(
@@ -1078,8 +1374,12 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
     expect(arms).toEqual({ outsideTheReKey: 127, moved: 82, refused: 31 });
     // 7D5 S2: the same 12 + 7 pan-drawer-without-bottle rooms as criterion 2's sweep above.
     expect(panDrawerRowsUndone).toBe(19);
-    // 7D5 S3 / Q-H5: criterion 2's two column-paid, bottle-less threshold-drawer rooms.
-    expect(thresholdDrawerRowsUndone).toBe(2);
+    // 7D5 S3 / Q-H5: criterion 2's two column-paid, bottle-less threshold-drawer rooms — **0 since
+    // 7D5b S1**: M2 withholds every threshold drawer of this draw (see criterion 2's sweep). Was 2.
+    expect(thresholdDrawerRowsUndone).toBe(0);
+    // 7D5b S1 / ADR 0110 M1/M8/M9: bottle-less rooms whose row was compared with its dishwasher undone.
+    // Exact, the draw being the recording's: 24 of the rooms outside the bottle branch stand one.
+    expect(dishwasherRowsUndone).toBe(24);
   });
 
   it("stands a hood over every hob and nothing over a body that reaches the wall row", () => {

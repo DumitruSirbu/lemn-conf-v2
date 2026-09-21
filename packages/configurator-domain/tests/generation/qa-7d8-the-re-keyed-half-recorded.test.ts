@@ -58,7 +58,11 @@ import {
   recordedLRoom,
   roomKey,
 } from "../support/composed-run-baseline.js";
-import { assertOnlyTheBottleAndPanDrawerChanged } from "../support/pre-width-run-recording.js";
+import {
+  assertOnlyTheBottleAndPanDrawerChanged,
+  dishwasherArmOf,
+  planBeforeTheDishwasher,
+} from "../support/pre-width-run-recording.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { readReKeyedRunRecording } from "../support/re-keyed-run-recording.js";
 
@@ -99,6 +103,7 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     let panDrawerNormalized = 0;
     let panDrawerWithoutBottle = 0;
     const towerKeptOverTheBottleRooms: string[] = [];
+    const dishwasherArms = { none: 0, M1: 0, "(e)": 0 };
     for (const [key, recorded] of RECORDING) {
       const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
       if (
@@ -109,8 +114,13 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
         throw new Error(`the 7D8 recording holds an invalid key ${key}`);
       }
       const room: DesignRoom = { shape: "L", widthMm, depthMm, heightMm };
-      const plan = planFor(room);
-      expect(isReKeyed(room, plan), key).toBe(true);
+      const composed = planFor(room);
+      expect(isReKeyed(room, composed), key).toBe(true);
+      // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher re-identifies one module in place (M1) or two
+      // ((e), which gives the pan drawer the preparation id). Undone before the arms are chosen, so an
+      // (e) room is read as the pan-drawer room it is and everything else is compared exactly.
+      dishwasherArms[dishwasherArmOf(composed)] += 1;
+      const plan = planBeforeTheDishwasher(key, composed, recorded);
       const hasBottle = plan.bases.some((base) => base.id === "bottle");
       const hasPanDrawer = plan.bases.some((base) => base.id === "pan-drawer");
       if (!hasBottle && !hasPanDrawer) {
@@ -125,7 +135,7 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
         // 7D5 S2 / Q-H6a = A: the pan drawer before the hob shifts the hob and the bottle by 600 mm
         // and costs the hob's wall its outermost module; the shared classifier allows exactly that.
         // Q-H6b / Q-H6c: it may stand without the bottle, which then gave way to it and to the block.
-        assertOnlyTheBottleAndPanDrawerChanged(key, room, plan, recorded);
+        assertOnlyTheBottleAndPanDrawerChanged(key, room, composed, recorded);
       }
     }
 
@@ -147,6 +157,9 @@ describe("the re-keyed half of the recorded draw, recorded whole", () => {
     expect(exact + bottleNormalized + panDrawerWithoutBottle).toBe(
       RE_KEYED_ROOMS,
     );
+    // 7D5b S1 / ADR 0110 M1/M2/M9: measured here; every arm is admitted and then compared exactly, and
+    // no room changes arm above. None of the 82 stands a threshold drawer at S1 (measured).
+    expect(dishwasherArms).toEqual({ none: 43, M1: 33, "(e)": 6 });
   });
 
   it("records only rooms the re-key moved, and every one of them", () => {

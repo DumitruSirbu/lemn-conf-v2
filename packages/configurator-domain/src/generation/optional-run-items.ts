@@ -42,7 +42,7 @@ import {
  * opening at the same start whose end reaches at least the body's end, and a trailing remainder only
  * extends the opening's end, never moves its start. That argument now carries weight only outside the
  * approved policy: inside it, Q-H6b stands the pan drawer where a 500 mm remainder would have been, so
- * the widest in-policy merge is 300 mm. */
+ * the widest in-policy merge is 298 mm. */
 const BOTTLE_CARGO: GenerationAncillaryRunItem = {
   id: "bottle",
   role: "storage",
@@ -100,6 +100,8 @@ const DRAWER_MODULE_IDS: ReadonlySet<string> = new Set([
   PAN_DRAWER.id,
   THRESHOLD_DRAWER.id,
 ]);
+
+const STORAGE_ROLE: PlannedGenerationBase["role"] = "storage";
 
 /** The bodies that count as drawers among *D*. */
 const DRAWER_CABINET_BUILD_IDS: ReadonlySet<string> = new Set([
@@ -178,7 +180,9 @@ function isTheOvenTowerKeptOverTheBottle(
  * The bottle gives way only where removing it is what lets the drawer fit within its column budget
  * (L2); otherwise the drawer stands after the bottle at the cost of at most one column, and where
  * every candidate would cost two it is not added (L3). It never costs a core role or moves one across
- * the corner: every candidate appends to the decided run on that run's own cut.
+ * the corner: every candidate appends to the decided run on that run's own cut. Every plan it reads
+ * from `planOf` already carries its dishwasher, which is not a plain cabinet, so *D* excludes it
+ * (ADR 0110 Amendment M2, *"dishwasher first"*).
  */
 function planWithThresholdDrawer(
   context: CompositionContext,
@@ -273,8 +277,14 @@ function isShortOfDrawers(
   return drawers.length < LARGE_RUN_DRAWER_COUNT;
 }
 
+/** Keyed on the storage role, never on the body: in (e) rooms the pan drawer IS the preparation
+ *  cabinet (id and role `preparation`, ADR 0110 M9), and E1 says *D* never counts the preparation
+ *  cabinet. Re-keying *D* on the pan-drawer body would count it. */
 function isPlainCabinet(base: PlannedGenerationBase): boolean {
-  return isComposedStorageSlot(base) || DRAWER_MODULE_IDS.has(base.id);
+  return (
+    base.role === STORAGE_ROLE &&
+    (isComposedStorageSlot(base) || DRAWER_MODULE_IDS.has(base.id))
+  );
 }
 
 /** `THRESHOLD_DRAWER` read last, after the hob and after the bottle where one stands (H1's order). */

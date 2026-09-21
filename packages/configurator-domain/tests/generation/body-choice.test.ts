@@ -30,6 +30,7 @@ import {
 } from "../../src/index.js";
 import {
   BOTTLE_CARGO_BUILD_ID,
+  DISHWASHER_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   isComposedStorageSlot,
   PAN_DRAWER_BASE_BUILD_ID,
@@ -161,10 +162,17 @@ const BOTTLE_CARGO_CATALOGUE_ID = "base-bottle-cargo";
  *  Amendment J1), so a slot set built by exclusion would otherwise sweep it in. */
 const PAN_DRAWER_CATALOGUE_ID = "base-panbank";
 
+/** 7D5b S1 / ADR 0110 M1/M8/M9: the dishwasher's catalogue row, spelled for the same reason as the
+ *  cargo's. It is the third storage-role body outside the column band the storage run did not
+ *  compose as it stands: M1 re-identifies a 600 mm door slot beside the sink as it, and a
+ *  predicate keyed on role, band or width would still call it a slot. */
+const DISHWASHER_CATALOGUE_ID = "base-dishwasher";
+
 /** Storage-role bodies the composer reads as run items of their own rather than as slots. */
 const ANCILLARY_CATALOGUE_IDS: ReadonlySet<string> = new Set([
   BOTTLE_CARGO_CATALOGUE_ID,
   PAN_DRAWER_CATALOGUE_ID,
+  DISHWASHER_CATALOGUE_ID,
 ]);
 
 /** A module's provenance found **independently of its id**, so the two sides of every assertion
@@ -186,6 +194,9 @@ function storageRoleModulesByBand(plan: ReturnType<typeof planFor>) {
     ),
     panDrawers: outsideTheColumnBand.filter(
       (base) => base.buildId === PAN_DRAWER_CATALOGUE_ID,
+    ),
+    dishwashers: outsideTheColumnBand.filter(
+      (base) => base.buildId === DISHWASHER_CATALOGUE_ID,
     ),
     composedSlots: outsideTheColumnBand.filter(
       (base) => !ANCILLARY_CATALOGUE_IDS.has(base.buildId),
@@ -209,15 +220,22 @@ describe("criterion 22 — one predicate separates the storage run's slots from 
     let blockColumnsSeen = 0;
     let bottleCargosSeen = 0;
     let panDrawersSeen = 0;
+    let dishwashersSeen = 0;
 
     for (const room of BLOCK_SIZE_WITNESSES) {
       const plan = planFor(room);
-      const { blockColumns, bottleCargos, panDrawers, composedSlots } =
-        storageRoleModulesByBand(plan);
+      const {
+        blockColumns,
+        bottleCargos,
+        panDrawers,
+        dishwashers,
+        composedSlots,
+      } = storageRoleModulesByBand(plan);
       composedSlotsSeen += composedSlots.length;
       blockColumnsSeen += blockColumns.length;
       bottleCargosSeen += bottleCargos.length;
       panDrawersSeen += panDrawers.length;
+      dishwashersSeen += dishwashers.length;
 
       expect(composedSlots.filter(isComposedStorageSlot)).toEqual(
         composedSlots,
@@ -229,6 +247,9 @@ describe("criterion 22 — one predicate separates the storage run's slots from 
       // The pan drawer is the same shape of trap as the bottle, one storage module wide besides — so
       // a predicate keyed on role, band or width would call it a slot. The composer placed it.
       expect(panDrawers.filter(isComposedStorageSlot)).toEqual([]);
+      // 7D5b S1 / ADR 0110 M1/M8/M9: the dishwasher keeps a converted slot's role, band and span, so
+      // it is the sharpest form of the trap. Only its own id keeps it out of *D* (M2).
+      expect(dishwashers.filter(isComposedStorageSlot)).toEqual([]);
     }
 
     // 7D5 S2 moved the composed-slot count from 12 to 11: the 6300 x 4700 witness gives its hob's
@@ -238,16 +259,23 @@ describe("criterion 22 — one predicate separates the storage run's slots from 
     // the pan drawer is decided first. Its 300 mm remainder becomes 0; no slot moves. Counted
     // separately, so a pan drawer that the predicate — or this file's grouping — mistook for a slot
     // moves two numbers rather than hiding in one.
+    //
+    // 7D5b S1 / ADR 0110 M1/M8/M9: 11 composed slots become 7 slots and 4 dishwashers. Every one of
+    // the four witnesses converts one 600 mm door slot beside the sink under M1; none takes (e), so
+    // the pan-drawer count holds at 2. The sum is conserved (7 + 4 = 11): a re-identification, never a
+    // module added or removed.
     expect({
       composedSlotsSeen,
       blockColumnsSeen,
       bottleCargosSeen,
       panDrawersSeen,
+      dishwashersSeen,
     }).toEqual({
-      composedSlotsSeen: 11,
+      composedSlotsSeen: 7,
       blockColumnsSeen: 6,
       bottleCargosSeen: 3,
       panDrawersSeen: 2,
+      dishwashersSeen: 4,
     });
   });
 
@@ -425,6 +453,14 @@ function generationModulesNaming(buildId: string): readonly string[] {
   );
 }
 
+/** Modules that mention an exported identifier by name, as a whole word. */
+function generationModulesReading(identifier: string): readonly string[] {
+  const asAWord = new RegExp(`\\b${identifier}\\b`);
+  return generationModules().filter((basename) =>
+    asAWord.test(generationSourceOf(basename)),
+  );
+}
+
 describe("criterion 20 clause 1 — body-choice.ts is the only module that declares a composed body", () => {
   it.each([THREE_DRAWER_BASE_BUILD_ID, PAN_DRAWER_BASE_BUILD_ID])(
     "names %s in that leaf and nowhere else under src/generation",
@@ -449,8 +485,17 @@ describe("criterion 20 clause 1 — body-choice.ts is the only module that decla
     ]);
   });
 
-  it("does not name the dishwasher anywhere under src/generation", () => {
-    expect(generationModulesNaming("base-dishwasher")).toEqual([]);
+  // 7D5b S1 / ADR 0110 M1/M8/M9: the plan now requires the dishwasher's body id in the leaf. It is
+  // written down once, in body-choice.ts, and read by name only there and in the one module that
+  // decides where the dishwasher stands — a third reader is how a second placement rule starts.
+  it("names the dishwasher only in body-choice.ts and the dishwasher leaf", () => {
+    expect(generationModulesNaming(DISHWASHER_BUILD_ID)).toEqual([
+      "body-choice.ts",
+    ]);
+    expect(generationModulesReading("DISHWASHER_BUILD_ID")).toEqual([
+      "body-choice.ts",
+      "dishwasher-beside-the-sink.ts",
+    ]);
   });
 });
 

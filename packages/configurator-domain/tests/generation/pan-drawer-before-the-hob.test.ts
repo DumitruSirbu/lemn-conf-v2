@@ -14,6 +14,11 @@
 // decisions counted on the kitchen S2 decided before it. The owner's third candidate — the bottle's
 // place for one column, where keeping the bottle would cost two — is not derived here: the approved
 // policy never reaches it, and its declared-run witnesses are in `threshold-drawer-after-the-hob`.
+//
+// 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher is decided before the threshold drawer and *D* excludes
+// it. The census derives it too — M1's door cabinet beside the sink, else (e)'s drawer swap — and
+// counts *D* on the kitchen it leaves. In (e) rooms the pan drawer carries the preparation id and
+// role, so it is looked up by its body, never by `pan-drawer`.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -53,6 +58,12 @@ const OWNERS_PLAIN_CABINET_THRESHOLD = 6;
 const OWNERS_DRAWER_COUNT = 2;
 const OWNERS_MOST_COLUMNS_FOR_THE_THRESHOLD_DRAWER = 1;
 const TALL_BODIES = new Set(["tall-oven-tower", "tall-pantry"]);
+/** 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher's body and id, and the id the preparation role carries
+ *  onto the pan drawer in an (e) swap. Literals, for the same reason as every body above. */
+const DISHWASHER_BODY = "base-dishwasher";
+const DISHWASHER_ID = "dishwasher";
+const DISHWASHER_WIDTH_MM = 600;
+const PREPARATION_ID = "preparation";
 
 function roomOf(widthMm: number, depthMm: number): DesignRoom {
   return { shape: "L", widthMm, depthMm, heightMm: 2600 };
@@ -98,6 +109,29 @@ function inReadingOrder(
 
 function panDrawersIn(plan: KitchenCompositionPlan): number {
   return plan.bases.filter((base) => base.buildId === PAN_DRAWER_BODY).length;
+}
+
+/** 7D5b S1 / ADR 0110 M7(e), M9: where no door cabinet stands beside the sink, the dishwasher takes
+ *  the preparation 3-drawer's module and the preparation id and role move one module along onto the
+ *  pan drawer, which keeps its body — so the pan drawer is found by body here, never by id. Read off
+ *  the two modules before the hob, so a swap that stood anywhere else fails. */
+function expectTheDrawerSwapBeforeTheHob(plan: KitchenCompositionPlan): void {
+  const reading = inReadingOrder(plan);
+  const hobAt = reading.findIndex((base) => base.role === "hob");
+
+  expect(reading[hobAt - 2]).toMatchObject({
+    id: DISHWASHER_ID,
+    role: "storage",
+    buildId: DISHWASHER_BODY,
+    widthMm: DISHWASHER_WIDTH_MM,
+  });
+  expect(reading[hobAt - 1]).toMatchObject({
+    id: PREPARATION_ID,
+    role: "preparation",
+    buildId: PAN_DRAWER_BODY,
+    widthMm: PAN_DRAWER_WIDTH_MM,
+  });
+  expect(plan.dropped).not.toContain("preparation");
 }
 
 describe("7D5 S2 — the pan drawer reads immediately before the hob", () => {
@@ -211,10 +245,16 @@ describe("7D5 S2 — where the hob's wall has room for one more cabinet, the pan
   // arm, the same reading and the same three columns — where *D* stays below the owner's six, so the
   // S2 subject is asserted whole rather than in part. 5200 x 5500 is now a threshold witness in
   // `threshold-drawer-after-the-hob.test.ts`.
+  //
+  // 7D5b S1 / ADR 0110 M1/M2/M9: the no-block arm's witness was 3602 x 1700 until (e) gave it a
+  // dishwasher in the preparation 3-drawer's module — its wall B holds the fridge and no door cabinet,
+  // so the kitchen keeps one drawer cabinet, not two, and this subject no longer holds there. It moved
+  // to 3602 x 2300: the same wall A, arm and reading, where wall B's extra 600 mm stands a door cabinet
+  // across the corner from the sink for M1 to convert, so the drawer group is untouched.
   it.each([
     {
-      name: "3602 x 1700, wall A wider, no block",
-      room: roomOf(3602, 1700),
+      name: "3602 x 2300, wall A wider, no block",
+      room: roomOf(3602, 2300),
       hob: "base-hob-oven",
       afterTheBottle: [],
     },
@@ -315,6 +355,11 @@ describe("7D5 S2 — the hob on the wall read in reverse", () => {
     { name: "wall B read in reverse", room: roomOf(4000, 1500), prefix: "B" },
   ] as const;
 
+  // 7D5b S1 / ADR 0110 M1/M2/M9: the whole run stands on the prefix wall with no door cabinet, and the
+  // preparation 3-drawer and the pan drawer are its two drawer cabinets, so (e) swaps them: the
+  // dishwasher stands in the 3-drawer's module beside the sink and the pan drawer carries the
+  // preparation id and role. The subject survives — the pan drawer's body is still read immediately
+  // before the hob on the reversed wall — and the swap is now witnessed on a wall laid out in reverse.
   it.each(MIRRORS)(
     "reads the pan drawer immediately before the hob, on the hob's wall, $name",
     ({ room, prefix }) => {
@@ -324,24 +369,24 @@ describe("7D5 S2 — the hob on the wall read in reverse", () => {
         columns: DECLARED_COLUMNS,
       });
       const reading = inReadingOrder(plan);
-      const hobAt = reading.findIndex((base) => base.role === "hob");
 
       expect(readingWallsOf(room).prefix).toBe(prefix);
       expect(plan.dropped).toEqual([]);
       expect(reading.map((base) => [base.buildId, base.wall])).toEqual([
         ["fridge-free", prefix],
         ["base-sink", prefix],
-        [THREE_DRAWER_BODY, prefix],
+        [DISHWASHER_BODY, prefix],
         [PAN_DRAWER_BODY, prefix],
         ["base-hob-oven", prefix],
         [BOTTLE_BODY, prefix],
       ]);
-      expect(reading[hobAt - 1]?.id).toBe(PAN_DRAWER_ID);
+      expectTheDrawerSwapBeforeTheHob(plan);
     },
   );
 
   // One millimetre short of room for both, the core fits with either but not with the two together,
   // so this is Q-H6b on the reversed wall: the pan drawer is decided first and the bottle gives way.
+  // 7D5b S1 / ADR 0110 M1/M2/M9: then (e) swaps the two drawer cabinets, as in the row above.
   it.each(MIRRORS)(
     "keeps the pan drawer and omits the bottle one millimetre short of room for both, $name",
     ({ room, prefix }) => {
@@ -362,10 +407,11 @@ describe("7D5 S2 — the hob on the wall read in reverse", () => {
       ).toEqual([
         ["fridge-free", prefix],
         ["base-sink", prefix],
-        [THREE_DRAWER_BODY, prefix],
+        [DISHWASHER_BODY, prefix],
         [PAN_DRAWER_BODY, prefix],
         ["base-hob-oven", prefix],
       ]);
+      expectTheDrawerSwapBeforeTheHob(plan);
     },
   );
 
@@ -663,38 +709,200 @@ interface DerivedThreshold {
   readonly decision: ThresholdDecision;
 }
 
-/** E1's *D* and its drawers on a derived run: the composed slots on both walls, the one slot read
- *  first after the hob being the drawer (D15.3), plus the pan drawer and the threshold drawer. The
- *  preparation cabinet, the bottle and the columns are not counted. */
-function plainCabinetsOf(
+interface PlainCabinetCount {
+  readonly count: number;
+  readonly drawers: number;
+}
+
+/** E1's *D* and its drawers on a derived run as 7D5 counted it, before the dishwasher existed: the
+ *  composed slots on both walls, the one slot read first after the hob being the drawer (D15.3), plus
+ *  the pan drawer and the threshold drawer. The preparation cabinet, the bottle and the columns are
+ *  not counted. Kept to measure what the owner's *"dishwasher first"* (M2) took away. */
+function plainCabinetsCountingTheDishwasherOf(
   run: DerivedRun,
   basis: DerivationBasis,
-): { readonly count: number; readonly drawers: number } {
-  const prefixSlots = Math.floor(
-    freeMmOn(run, "prefix", basis.capacities) / STORAGE_MODULE_MM,
-  );
-  const suffixSlots = tallBlockOf(run, basis).storageCount;
-  const isHobOnTheSuffix = hobIndexOf(run) >= run.cut;
-  const slotsReadAfterTheHob = isHobOnTheSuffix
-    ? suffixSlots
-    : prefixSlots + suffixSlots;
+): PlainCabinetCount {
+  const slots = derivedSlotsOf(run, basis);
   const drawerModules = run.items.filter(
     (item) => item.kind === "pan-drawer" || item.kind === THRESHOLD_DRAWER_ID,
   ).length;
   return {
-    count: prefixSlots + suffixSlots + drawerModules,
-    drawers: Math.min(1, slotsReadAfterTheHob) + drawerModules,
+    count: slots.prefix + slots.suffix + drawerModules,
+    drawers: (slots.drawerSlot === undefined ? 0 : 1) + drawerModules,
   };
 }
 
-function isShortOfTheOwnersDrawers(
+/** 7D5b S1 / ADR 0110 M1/M2/M9: *D* on the kitchen whose dishwasher is already decided. M1's dishwasher
+ *  is a door cabinet that is no longer a composed slot, so *D* loses one; (e)'s pan drawer now carries
+ *  the preparation id, so *D* loses it and its drawer with it. */
+function plainCabinetsOf(
   run: DerivedRun,
   basis: DerivationBasis,
-): boolean {
-  const { count, drawers } = plainCabinetsOf(run, basis);
+): PlainCabinetCount {
+  const before = plainCabinetsCountingTheDishwasherOf(run, basis);
+  const { decision } = derivedDishwasherOf(run, basis);
+  return {
+    count: before.count - (decision === "none" ? 0 : 1),
+    drawers: before.drawers - (decision === DRAWER_SWAP ? 1 : 0),
+  };
+}
+
+function isShortOfTheOwnersDrawers({
+  count,
+  drawers,
+}: PlainCabinetCount): boolean {
   return (
     count >= OWNERS_PLAIN_CABINET_THRESHOLD && drawers < OWNERS_DRAWER_COUNT
   );
+}
+
+// ---------------------------------------------------------------------------------------------
+// 7D5b S1 / ADR 0110 M1/M2/M9 — the dishwasher, derived from the run's own layout rather than asked of
+// the composer. Each wall stands its modules contiguous from the corner: the prefix wall its composed
+// slots (index 0 at the corner) and then its reading-order items reversed; the suffix wall its items
+// in reading order, then its slots (index 0 first), then the block. Two modules abut where they are
+// neighbours on one wall, and face each other across the corner where each is first from it.
+// ---------------------------------------------------------------------------------------------
+
+type DishwasherDecision =
+  | "none"
+  | "M1, on the sink's wall"
+  | "M1, across the corner"
+  | typeof DRAWER_SWAP;
+
+const DRAWER_SWAP = "(e), the drawer swap";
+
+interface DerivedDishwasher {
+  readonly decision: DishwasherDecision;
+  /** The side whose composed door slot M1 converted; `undefined` for (e) and for none. */
+  readonly convertedSlotSide?: ReadingSide | undefined;
+}
+
+interface SlotPosition {
+  readonly side: ReadingSide;
+  readonly index: number;
+}
+
+/** A derived run's composed slots on each side, and the one the owner's order makes the drawer: the
+ *  first read after the hob (D15.7) — the prefix wall's highest index where the hob reads on it,
+ *  otherwise the suffix wall's first. */
+interface DerivedSlots {
+  readonly prefix: number;
+  readonly suffix: number;
+  readonly drawerSlot: SlotPosition | undefined;
+}
+
+function derivedSlotsOf(run: DerivedRun, basis: DerivationBasis): DerivedSlots {
+  const prefix = Math.floor(
+    freeMmOn(run, "prefix", basis.capacities) / STORAGE_MODULE_MM,
+  );
+  const suffix = tallBlockOf(run, basis).storageCount;
+  const isHobOnTheSuffix = hobIndexOf(run) >= run.cut;
+  const readAfterTheHob: SlotPosition[] = [
+    ...(isHobOnTheSuffix || prefix === 0
+      ? []
+      : [{ side: "prefix" as const, index: prefix - 1 }]),
+    ...(suffix === 0 ? [] : [{ side: "suffix" as const, index: 0 }]),
+  ];
+  return { prefix, suffix, drawerSlot: readAfterTheHob[0] };
+}
+
+/** M1 where a composed door slot abuts the sink, else (e) where the swap is open, else none. */
+function derivedDishwasherOf(
+  run: DerivedRun,
+  basis: DerivationBasis,
+): DerivedDishwasher {
+  const slots = derivedSlotsOf(run, basis);
+  const doorSlot = doorSlotBesideTheSink(run, slots);
+  if (doorSlot !== undefined) return doorSlot;
+  return isTheDrawerSwapOpen(run, slots)
+    ? { decision: DRAWER_SWAP }
+    : { decision: "none" };
+}
+
+function indexOfKind(run: DerivedRun, kind: DerivedItem["kind"]): number {
+  return run.items.findIndex((item) => item.kind === kind);
+}
+
+function sideOf(run: DerivedRun, index: number): ReadingSide {
+  return index < run.cut ? "prefix" : "suffix";
+}
+
+/** **M1**: the slots that can abut the sink. On the prefix wall, the sink nearest the corner abuts
+ *  the slot nearest the items (the highest index) — or, with no slot there, faces the suffix wall's
+ *  first module across the corner, a slot only where no item reads on the suffix. As the suffix
+ *  wall's first item, it faces the prefix wall's first module, which is slot 0 wherever one stands.
+ *  The drawer slot is not a door cabinet. */
+function doorSlotBesideTheSink(
+  run: DerivedRun,
+  slots: DerivedSlots,
+): DerivedDishwasher | undefined {
+  const sinkAt = indexOfKind(run, "sink");
+  const isNearestTheCornerOnThePrefix = sinkAt === run.cut - 1;
+  const isFirstOnTheSuffix = sinkAt === run.cut;
+  const isNothingReadOnTheSuffix = run.cut === run.items.length;
+  const candidates: {
+    readonly slot: SlotPosition;
+    readonly decision: DishwasherDecision;
+  }[] = [];
+  if (isNearestTheCornerOnThePrefix && slots.prefix > 0)
+    candidates.push({
+      slot: { side: "prefix", index: slots.prefix - 1 },
+      decision: "M1, on the sink's wall",
+    });
+  if (
+    isNearestTheCornerOnThePrefix &&
+    slots.prefix === 0 &&
+    isNothingReadOnTheSuffix &&
+    slots.suffix > 0
+  )
+    candidates.push({
+      slot: { side: "suffix", index: 0 },
+      decision: "M1, across the corner",
+    });
+  if (isFirstOnTheSuffix && slots.prefix > 0)
+    candidates.push({
+      slot: { side: "prefix", index: 0 },
+      decision: "M1, across the corner",
+    });
+  const door = candidates.find(
+    ({ slot }) =>
+      slot.side !== slots.drawerSlot?.side ||
+      slot.index !== slots.drawerSlot.index,
+  );
+  return door && { decision: door.decision, convertedSlotSide: door.slot.side };
+}
+
+/** **M7(e)**: at least two drawer cabinets, the preparation 3-drawer beside the sink (along its wall,
+ *  or across the corner where the sink is the prefix wall's first module), and the pan drawer
+ *  directly beyond it on the same wall. */
+function isTheDrawerSwapOpen(run: DerivedRun, slots: DerivedSlots): boolean {
+  const sinkAt = indexOfKind(run, "sink");
+  const preparationAt = indexOfKind(run, "preparation");
+  const panDrawerAt = preparationAt + 1;
+  if (preparationAt !== sinkAt + 1) return false;
+  const isPreparationBesideTheSink =
+    sideOf(run, sinkAt) === sideOf(run, preparationAt) || slots.prefix === 0;
+  const isPanDrawerBeyondIt =
+    run.items[panDrawerAt]?.kind === "pan-drawer" &&
+    sideOf(run, panDrawerAt) === sideOf(run, preparationAt);
+  return (
+    isPreparationBesideTheSink &&
+    isPanDrawerBeyondIt &&
+    drawerCabinetsOfRun(run, slots) >= OWNERS_DRAWER_COUNT
+  );
+}
+
+/** Every drawer cabinet a derived run stands, by what it is: the preparation cabinet, the pan drawer,
+ *  the threshold drawer and the drawer slot. */
+function drawerCabinetsOfRun(run: DerivedRun, slots: DerivedSlots): number {
+  const drawerItems = run.items.filter(
+    (item) =>
+      item.kind === "preparation" ||
+      item.kind === "pan-drawer" ||
+      item.kind === THRESHOLD_DRAWER_ID,
+  ).length;
+  return drawerItems + (slots.drawerSlot === undefined ? 0 : 1);
 }
 
 /** H1's order: the threshold drawer is read last, after the hob and after the bottle. */
@@ -729,12 +937,15 @@ function columnsLost(
 
 /** Q-H5 on the kitchen S2 decided: the bottle gives way only where that alone lets the drawer stand
  *  at no column's cost; otherwise the drawer is read after the bottle (or the hob) where it costs at
- *  most one column; otherwise the kitchen stays as S2 decided it. */
+ *  most one column; otherwise the kitchen stays as S2 decided it. 7D5b S1 / ADR 0110 M2: *D* is
+ *  counted on the kitchen with its dishwasher decided; `countPlainCabinets` is swapped only to
+ *  measure the order M2 replaced. */
 function derivedThreshold(
   s2: DerivedRun,
   basis: DerivationBasis,
+  countPlainCabinets = plainCabinetsOf,
 ): DerivedThreshold {
-  if (!isShortOfTheOwnersDrawers(s2, basis)) {
+  if (!isShortOfTheOwnersDrawers(countPlainCabinets(s2, basis))) {
     return { run: s2, decision: "not short of drawers" };
   }
   const hasBottle = s2.items.some((item) => item.kind === "bottle");
@@ -797,6 +1008,8 @@ interface KitchenSummary {
   readonly hobBody: string | undefined;
   readonly composedSlots: Readonly<Record<ReadingSide, number>>;
   readonly remainderMm: Readonly<Record<ReadingSide, number>>;
+  /** 7D5b S1 / ADR 0110 M1/M2/M9: which of the owner's two answers stood the dishwasher, if either. */
+  readonly dishwasher: DishwasherDecision;
 }
 
 function summaryOfDerived(
@@ -806,6 +1019,9 @@ function summaryOfDerived(
   const block = tallBlockOf(run, basis);
   const prefixFreeMm = freeMmOn(run, "prefix", basis.capacities);
   const kinds = run.items.map((item) => item.kind);
+  const dishwasher = derivedDishwasherOf(run, basis);
+  const convertedOn = (side: ReadingSide) =>
+    dishwasher.convertedSlotSide === side ? 1 : 0;
   return {
     dropped: basis.dropped,
     wallOfRole: run.items
@@ -828,13 +1044,15 @@ function summaryOfDerived(
     columnBodies: block.columns.map((column) => column.buildId),
     hobBody: block.hobBuildId,
     composedSlots: {
-      prefix: Math.floor(prefixFreeMm / STORAGE_MODULE_MM),
-      suffix: block.storageCount,
+      prefix:
+        Math.floor(prefixFreeMm / STORAGE_MODULE_MM) - convertedOn("prefix"),
+      suffix: block.storageCount - convertedOn("suffix"),
     },
     remainderMm: {
       prefix: prefixFreeMm % STORAGE_MODULE_MM,
       suffix: block.remainderMm,
     },
+    dishwasher: dishwasher.decision,
   };
 }
 
@@ -865,7 +1083,87 @@ function summaryOfPlan(plan: KitchenCompositionPlan): KitchenSummary {
       prefix: plan.remainderMm[walls.prefix],
       suffix: plan.remainderMm[walls.suffix],
     },
+    dishwasher: dishwasherDecisionOfPlan(plan),
   };
+}
+
+/** Which answer the plan's dishwasher is, read off what stands: (e) where the pan drawer carries the
+ *  preparation role, otherwise M1 by the dishwasher's wall against the sink's. */
+function dishwasherDecisionOfPlan(
+  plan: KitchenCompositionPlan,
+): DishwasherDecision {
+  const dishwasher = plan.bases.find(
+    (base) => base.buildId === DISHWASHER_BODY,
+  );
+  if (dishwasher === undefined) return "none";
+  const isDrawerSwap = plan.bases.some(
+    (base) => base.buildId === PAN_DRAWER_BODY && base.role === "preparation",
+  );
+  if (isDrawerSwap) return DRAWER_SWAP;
+  const sink = plan.bases.find((base) => base.role === "sink");
+  return dishwasher.wall === sink?.wall
+    ? "M1, on the sink's wall"
+    : "M1, across the corner";
+}
+
+/** 7D5b S1 / ADR 0110 M1/M2/M9: where the dishwasher is not what the owner's rulings stand — one
+ *  600 mm `base-dishwasher` under its own id and the storage role, never a composed slot, abutting the
+ *  sink along its wall or facing it across the corner; and in (e), the pan drawer carrying the one
+ *  preparation role, abutting the dishwasher on its wall. */
+function dishwasherPlacementFaults(
+  plan: KitchenCompositionPlan,
+): readonly string[] {
+  const dishwashers = plan.bases.filter(
+    (base) => base.buildId === DISHWASHER_BODY || base.id === DISHWASHER_ID,
+  );
+  const [dishwasher] = dishwashers;
+  if (dishwasher === undefined) return [];
+  const faults: string[] = [];
+  if (dishwashers.length !== 1)
+    faults.push(`${String(dishwashers.length)} dishwashers`);
+  if (dishwasher.id !== DISHWASHER_ID) faults.push(`id ${dishwasher.id}`);
+  if (dishwasher.buildId !== DISHWASHER_BODY) faults.push(dishwasher.buildId);
+  if (dishwasher.role !== "storage") faults.push(`role ${dishwasher.role}`);
+  if (dishwasher.widthMm !== DISHWASHER_WIDTH_MM)
+    faults.push(`${String(dishwasher.widthMm)} mm`);
+  if (isComposedStorageSlot(dishwasher)) faults.push("reads as a slot");
+  const sink = plan.bases.find((base) => base.role === "sink");
+  if (sink === undefined || !isBeside(plan, [dishwasher, sink]))
+    faults.push("not beside the sink");
+  if (dishwasherDecisionOfPlan(plan) !== DRAWER_SWAP) return faults;
+  const preparations = plan.bases.filter((base) => base.role === "preparation");
+  const [preparation] = preparations;
+  if (preparations.length !== 1 || preparation?.buildId !== PAN_DRAWER_BODY)
+    faults.push("the preparation role is not the pan drawer's alone");
+  if (preparation?.id !== PREPARATION_ID)
+    faults.push(`preparation id ${String(preparation?.id)}`);
+  if (preparation === undefined || !abutsAlongItsWall(preparation, dishwasher))
+    faults.push("the pan drawer does not abut the dishwasher");
+  return faults;
+}
+
+type PlannedPair = readonly [PlannedGenerationBase, PlannedGenerationBase];
+
+function isBeside(plan: KitchenCompositionPlan, pair: PlannedPair): boolean {
+  const [one, other] = pair;
+  const isFirstFromTheCorner = (base: PlannedGenerationBase) =>
+    alongTheWall(plan, base.wall)[0] === base;
+  return (
+    abutsAlongItsWall(one, other) ||
+    (one.wall !== other.wall &&
+      isFirstFromTheCorner(one) &&
+      isFirstFromTheCorner(other))
+  );
+}
+
+function abutsAlongItsWall(
+  one: PlannedGenerationBase,
+  other: PlannedGenerationBase,
+): boolean {
+  return (
+    one.wall === other.wall &&
+    (one.endMm === other.startMm || one.startMm === other.endMm)
+  );
 }
 
 /** Every field in which two summaries differ, named. */
@@ -883,10 +1181,14 @@ function differences(
     );
 }
 
-/** Where the pan drawer itself is not what J1 places: one module, its own id, before the hob. */
+/** Where the pan drawer itself is not what J1 places: one module, its own id, before the hob.
+ *  7D5b S1 / ADR 0110 M1/M2/M9: in a room the derivation swaps under (e), its id is the preparation
+ *  role's, so the id expected is the derivation's answer rather than the plan's. */
 function panDrawerPlacementFaults(
   plan: KitchenCompositionPlan,
+  isSwappedForTheDishwasher: boolean,
 ): readonly string[] {
+  const expectedId = isSwappedForTheDishwasher ? PREPARATION_ID : PAN_DRAWER_ID;
   const reading = inReadingOrder(plan);
   const hobAt = reading.findIndex((base) => base.role === "hob");
   const beforeTheHob = reading[hobAt - 1];
@@ -895,7 +1197,7 @@ function panDrawerPlacementFaults(
     faults.push(`${String(panDrawersIn(plan))} pan drawers`);
   if (beforeTheHob?.buildId !== PAN_DRAWER_BODY)
     faults.push("not read before the hob");
-  if (beforeTheHob?.id !== PAN_DRAWER_ID)
+  if (beforeTheHob?.id !== expectedId)
     faults.push(`id ${String(beforeTheHob?.id)}`);
   if (beforeTheHob && isComposedStorageSlot(beforeTheHob))
     faults.push("reads as a slot");
@@ -949,16 +1251,20 @@ function towerKeptOverTheBottleFaults(
 }
 
 /** The drawer group astride the hob: the preparation cabinet where kept, the pan drawer, the
- *  post-hob drawer slot where one survives, and the threshold drawer where one stands (7D5 S3). */
+ *  post-hob drawer slot where one survives, and the threshold drawer where one stands (7D5 S3).
+ *  7D5b S1 / ADR 0110 M1/M2/M9: less the 3-drawer an (e) swap gave the dishwasher, where the
+ *  derivation swaps. */
 function drawerCountFault(
   plan: KitchenCompositionPlan,
-  drawerSlots: number,
+  group: { readonly drawerSlots: number; readonly isSwapped: boolean },
 ): string | undefined {
+  const { drawerSlots } = group;
   const preparation = plan.dropped.includes("preparation") ? 0 : 1;
   const thresholdDrawers = plan.bases.filter(
     (base) => base.id === THRESHOLD_DRAWER_ID,
   ).length;
-  const expected = preparation + 1 + drawerSlots + thresholdDrawers;
+  const swapped = group.isSwapped ? 1 : 0;
+  const expected = preparation + 1 + drawerSlots + thresholdDrawers - swapped;
   return drawerSlots > 1 || drawerCabinetsIn(plan) !== expected
     ? `${String(drawerCabinetsIn(plan))} drawer cabinets, not ${String(expected)}`
     : undefined;
@@ -1074,6 +1380,15 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       leftShortOfDrawers: [] as string[],
       drawerCountFaults: [] as string[],
       twoSlotClassOffWallA6000: [] as string[],
+      dishwasher: emptyDishwasherCensus(),
+      drawerSwapByDrawerCabinets: { two: 0, three: 0, more: 0 },
+      dishwasherPlacementFaults: [] as string[],
+      theDishwasherFirst: {
+        thresholdDrawersItRemoved: 0,
+        aColumnReturned: 0,
+        theBottleReturned: 0,
+        thresholdDrawersItAdded: [] as string[],
+      },
     };
 
     for (
@@ -1100,6 +1415,8 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
         const { basis, core } = derived;
         const s2 = derivedS2(core, basis);
         const threshold = derivedThreshold(s2.run, basis);
+        const dishwasher = derivedDishwasherOf(threshold.run, basis);
+        const isSwapped = dishwasher.decision === DRAWER_SWAP;
         const s1 = summaryOfDerived(derivedS1Run(core, basis), basis);
         const decidedByS2 = summaryOfDerived(s2.run, basis);
         const actual = summaryOfPlan(plan);
@@ -1170,10 +1487,26 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
             );
         }
         if (isLeftShortOfDrawers(plan)) census.leftShortOfDrawers.push(where);
+        countTheDishwasher(census, {
+          where,
+          plan,
+          threshold,
+          dishwasher: dishwasher.decision,
+          beforeTheDishwasherOrder: derivedThreshold(
+            s2.run,
+            basis,
+            plainCabinetsCountingTheDishwasherOf,
+          ),
+          drawerCabinets: drawerCabinetsOfRun(
+            threshold.run,
+            derivedSlotsOf(threshold.run, basis),
+          ),
+          basis,
+        });
         if (!actual.hasPanDrawer) continue;
 
         census.panDrawer += 1;
-        const faults = panDrawerPlacementFaults(plan);
+        const faults = panDrawerPlacementFaults(plan, isSwapped);
         if (faults.length > 0)
           census.placementFaults.push(`${where}: ${faults.join("; ")}`);
         const drawerSlots = composedDrawerSlotsIn(plan).length;
@@ -1181,7 +1514,7 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
         if (drawerSlots === 1) census.twoSlotClass += 1;
         if (drawerSlots === 1 && widthMm !== APPROVED_L.wallA.maxMm)
           census.twoSlotClassOffWallA6000.push(where);
-        const drawerFault = drawerCountFault(plan, drawerSlots);
+        const drawerFault = drawerCountFault(plan, { drawerSlots, isSwapped });
         if (drawerFault)
           census.drawerCountFaults.push(`${where}: ${drawerFault}`);
       }
@@ -1201,6 +1534,18 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
     // the tower is kept and the bottle omitted. Each moves from bottleOnly to neither (was 127 820 /
     // 24 945), in S2's kitchen and in the finished one alike, and nothing else in the census moves.
     // The totals: bottles 178 491 -> 173 231, oven-tower rooms 167 286, columns 389 018.
+    //
+    // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher is derived from the run's own layout, and every
+    // room's plan agrees with it through the summary (`disagreementsWithS2` stays empty). M1 converts
+    // a door cabinet beside the sink in 141 261 rooms — 1 055 on the sink's wall, 140 206 across the
+    // corner — and (e) swaps the drawer cabinets in 24 160 more (24 100 with two, 60 with three);
+    // 79 790 stand none. M2: *D* is counted with the dishwasher decided, so 10 070 of 7D5's 15 795
+    // threshold drawers go and none is added — 7 010 give their module back to a tall column and
+    // 3 060 give the bottle its place back (in-the-bottle's-place 6 195 -> 3 135, and the finished
+    // kitchen's bothStand / panDrawerOnly move by exactly those 3 060). The threshold drawer now
+    // costs a column against S1 in 2 590 rooms (was 9 600): 2 100 after the bottle, 490 after the
+    // hob. Totals: bottles 173 231 -> 176 291, columns 389 018 -> 396 028, oven-tower rooms 167 286.
+    // Matched against the implementer's measurement at `4e88ae0` + S1 (plan E1-E3, E6).
     expect(census).toEqual({
       swept: 256_011,
       placed: 245_211,
@@ -1215,8 +1560,8 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
         neither: 30_205,
       },
       finished: {
-        bothStand: 50_671,
-        panDrawerOnly: 41_775,
+        bothStand: 53_731,
+        panDrawerOnly: 38_715,
         bottleOnly: 122_560,
         neither: 30_205,
       },
@@ -1226,20 +1571,20 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       s1BottleBecamePanDrawerOnly: 35_580,
       towerKeptOverTheBottle: 5_260,
       towerKeptOverTheBottleFaults: [],
-      totals: { bottles: 173_231, ovenTowerRooms: 167_286, columns: 389_018 },
-      thresholdDrawer: 15_795,
+      totals: { bottles: 176_291, ovenTowerRooms: 167_286, columns: 396_028 },
+      thresholdDrawer: 5_725,
       thresholdDecisions: {
-        "not short of drawers": 229_416,
-        "in the bottle's place": 6_195,
-        "after the bottle, for a column": 5_700,
-        "after the hob, for a column": 3_900,
+        "not short of drawers": 239_486,
+        "in the bottle's place": 3_135,
+        "after the bottle, for a column": 2_100,
+        "after the hob, for a column": 490,
         "after the hob, at no cost": 0,
         "after the bottle, at no cost": 0,
         "refused, it would cost two columns": 0,
         "refused, it does not fit": 0,
       },
-      thresholdDrawerBesideThePanDrawer: 15_795,
-      columnToTheThresholdDrawerAgainstS1: 9_600,
+      thresholdDrawerBesideThePanDrawer: 5_725,
+      columnToTheThresholdDrawerAgainstS1: 2_590,
       refusedDisagreements: [],
       disagreementsWithS2: [],
       lossesAgainstS1: [],
@@ -1247,12 +1592,26 @@ describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600
       thresholdPlacementFaults: [],
       inTheBottlesPlaceWhereKeepingItWasFree: [],
       keepingTheBottleInTheBottlesPlaceRooms: {
-        costsAColumn: 6_195,
+        costsAColumn: 3_135,
         doesNotFit: 0,
       },
       leftShortOfDrawers: [],
       drawerCountFaults: [],
       twoSlotClassOffWallA6000: [],
+      dishwasher: {
+        none: 79_790,
+        "M1, on the sink's wall": 1_055,
+        "M1, across the corner": 140_206,
+        [DRAWER_SWAP]: 24_160,
+      },
+      drawerSwapByDrawerCabinets: { two: 24_100, three: 60, more: 0 },
+      dishwasherPlacementFaults: [],
+      theDishwasherFirst: {
+        thresholdDrawersItRemoved: 10_070,
+        aColumnReturned: 7_010,
+        theBottleReturned: 3_060,
+        thresholdDrawersItAdded: [],
+      },
     });
   }, 60_000);
 });
@@ -1274,11 +1633,86 @@ function countKitchenShape(
   if (!kitchen.hasBottle && !kitchen.hasPanDrawer) counts.neither += 1;
 }
 
+function emptyDishwasherCensus(): Record<DishwasherDecision, number> {
+  return {
+    none: 0,
+    "M1, on the sink's wall": 0,
+    "M1, across the corner": 0,
+    [DRAWER_SWAP]: 0,
+  };
+}
+
+/** The dishwasher part of the census: which answer the derivation gave (the plan must agree, through
+ *  the summary), how many drawer cabinets an (e) room had to give one up, what the plan stood, and
+ *  what the owner's *"dishwasher first"* (M2) changed against the order 7D5 used. */
+function countTheDishwasher(
+  census: {
+    readonly dishwasher: Record<DishwasherDecision, number>;
+    readonly drawerSwapByDrawerCabinets: {
+      two: number;
+      three: number;
+      more: number;
+    };
+    readonly dishwasherPlacementFaults: string[];
+    readonly theDishwasherFirst: {
+      thresholdDrawersItRemoved: number;
+      aColumnReturned: number;
+      theBottleReturned: number;
+      readonly thresholdDrawersItAdded: string[];
+    };
+  },
+  room: {
+    readonly where: string;
+    readonly plan: KitchenCompositionPlan;
+    readonly threshold: DerivedThreshold;
+    readonly beforeTheDishwasherOrder: DerivedThreshold;
+    readonly dishwasher: DishwasherDecision;
+    readonly drawerCabinets: number;
+    readonly basis: DerivationBasis;
+  },
+): void {
+  census.dishwasher[room.dishwasher] += 1;
+  if (room.dishwasher === DRAWER_SWAP) {
+    const swaps = census.drawerSwapByDrawerCabinets;
+    if (room.drawerCabinets === 2) swaps.two += 1;
+    else if (room.drawerCabinets === 3) swaps.three += 1;
+    else swaps.more += 1;
+  }
+  const faults = dishwasherPlacementFaults(room.plan);
+  if (faults.length > 0)
+    census.dishwasherPlacementFaults.push(
+      `${room.where}: ${faults.join("; ")}`,
+    );
+
+  const hasDrawer = (run: DerivedRun) =>
+    run.items.some((item) => item.kind === THRESHOLD_DRAWER_ID);
+  const hasBottle = (run: DerivedRun) =>
+    run.items.some((item) => item.kind === "bottle");
+  const now = room.threshold.run;
+  const before = room.beforeTheDishwasherOrder.run;
+  const first = census.theDishwasherFirst;
+  if (hasDrawer(now) && !hasDrawer(before))
+    first.thresholdDrawersItAdded.push(room.where);
+  if (!hasDrawer(before) || hasDrawer(now)) return;
+  first.thresholdDrawersItRemoved += 1;
+  if (columnCountOf(now, room.basis) > columnCountOf(before, room.basis))
+    first.aColumnReturned += 1;
+  if (hasBottle(now) && !hasBottle(before)) first.theBottleReturned += 1;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Witnesses for the owner's Q-H6b and Q-H6c, the coordinator's fallback and ADR 0110 J5, each read
 // in full and each with its precondition stated as arithmetic on the room's own run, so a witness
 // that stopped discriminating goes red at the precondition rather than passing quietly.
 // ---------------------------------------------------------------------------------------------
+//
+// 7D5b S1 / ADR 0110 M1/M2/M9: every room below holds the fridge alone (or nothing) on its narrower
+// wall, so no door cabinet stands beside the sink, and its two drawer cabinets are the preparation
+// 3-drawer and the pan drawer beyond it. (e) swaps them in every row: the dishwasher stands in the
+// 3-drawer's module and the pan drawer carries the preparation id and role. Each subject — which of
+// the pan drawer, the bottle and the columns stand, and where — is untouched by that identity-only
+// change, so each row is restated in place with the dishwasher present, and its precondition is
+// unchanged because no width moves.
 
 const CORE_ON_THE_HOB_WALL_MM = 1800;
 
@@ -1339,13 +1773,16 @@ describe("7D5 S2 — Q-H6b: where the pan drawer and the bottle cannot both stan
         CORE_ON_THE_HOB_WALL_MM + PAN_DRAWER_WIDTH_MM + BOTTLE_WIDTH_MM,
       );
 
-      expect(readingOf(planFor(room))).toEqual([
+      const plan = planFor(room);
+
+      expect(readingOf(plan)).toEqual([
         ["fridge-free", fridge],
         ["base-sink", hobWall],
-        [THREE_DRAWER_BODY, hobWall],
+        [DISHWASHER_BODY, hobWall],
         [PAN_DRAWER_BODY, hobWall],
         [HOB_WITH_ITS_OWN_OVEN, hobWall],
       ]);
+      expectTheDrawerSwapBeforeTheHob(plan);
     },
   );
 });
@@ -1377,16 +1814,19 @@ describe("7D5 S2 — Q-H6c: once the pan drawer stands, the bottle gives way rat
         2,
       );
 
-      expect(readingOf(planFor(room))).toEqual([
+      const plan = planFor(room);
+
+      expect(readingOf(plan)).toEqual([
         ["fridge-free", fridge],
         ["base-sink", hobWall],
-        [THREE_DRAWER_BODY, hobWall],
+        [DISHWASHER_BODY, hobWall],
         [PAN_DRAWER_BODY, hobWall],
         ["base-hob-2drawer", hobWall],
         ["tall-oven-tower", hobWall],
         ["tall-pantry", hobWall],
         ["tall-pantry", hobWall],
       ]);
+      expectTheDrawerSwapBeforeTheHob(plan);
     },
   );
 });
@@ -1419,14 +1859,17 @@ describe("7D5 S2 — the fallback: refused against the core alone, the pan drawe
         coreFreeMm - BOTTLE_WIDTH_MM - PAN_DRAWER_WIDTH_MM,
       ).toBeGreaterThanOrEqual(0);
 
-      expect(readingOf(planFor(room))).toEqual([
+      const plan = planFor(room);
+
+      expect(readingOf(plan)).toEqual([
         ["fridge-free", fridge],
         ["base-sink", hobWall],
-        [THREE_DRAWER_BODY, hobWall],
+        [DISHWASHER_BODY, hobWall],
         [PAN_DRAWER_BODY, hobWall],
         [HOB_WITH_ITS_OWN_OVEN, hobWall],
         [BOTTLE_BODY, hobWall],
       ]);
+      expectTheDrawerSwapBeforeTheHob(plan);
     },
   );
 });
@@ -1451,11 +1894,12 @@ describe("7D5 S2 — ADR 0110 J5: a kitchen without its fridge gets no block, an
       ]),
     ).toEqual([
       ["base-sink", "B", 900, 1500],
-      [THREE_DRAWER_BODY, "B", 1500, 2100],
+      [DISHWASHER_BODY, "B", 1500, 2100],
       [PAN_DRAWER_BODY, "B", 2100, 2700],
       [HOB_WITH_ITS_OWN_OVEN, "B", 2700, 3300],
     ]);
     expect(plan.remainderMm).toEqual({ A: 0, B: 0 });
+    expectTheDrawerSwapBeforeTheHob(plan);
   });
 
   it("is a witness only because the clause is what refuses the block", () => {

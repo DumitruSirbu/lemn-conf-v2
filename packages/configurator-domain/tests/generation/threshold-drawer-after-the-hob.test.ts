@@ -12,6 +12,14 @@
 // Catalogue ids are literals rather than the domain's constants, so a wrong constant and a wrong
 // composer cannot agree (ADR 0121 decision 3(b)). *D* is re-derived here from ids, not asked of the
 // composer.
+//
+// 7D5b S1 / ADR 0110 M1/M2/M9 — *"dishwasher first"*: the dishwasher is decided before this rule, and
+// *D* excludes it. M1's dishwasher is a door cabinet that is no longer a composed slot, so wherever M1
+// converts one *D* is one lower than 7D5 counted it; (e)'s pan drawer carries the preparation id and
+// leaves *D*. 10 070 of the 15 795 threshold drawers go (plan E3), so every 7D5 witness below that was
+// an M1 room one cabinet over the threshold was re-derived: the same subject, both mirrors, in a room
+// where *D* still reaches six once the dishwasher is out of it. The rooms the witnesses left are the
+// order's own witnesses (`adds none at D = 5`).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -41,6 +49,7 @@ const BOTTLE_ID = "bottle";
 const THREE_DRAWER_BODY = "base-3drawer";
 const THRESHOLD_DRAWER_WIDTH_MM = 600;
 const PAN_DRAWER_BODY = "base-panbank";
+const DISHWASHER_BODY = "base-dishwasher";
 const BOTTLE_BODY = "base-bottle-cargo";
 const OWNERS_PLAIN_CABINET_THRESHOLD = 6;
 const OWNERS_DRAWER_COUNT = 2;
@@ -130,9 +139,13 @@ function drawersAmong(cabinets: readonly PlannedGenerationBase[]): number {
 }
 
 describe("7D5 S3 — the threshold drawer: the bottle gives way before a tall column", () => {
+  // 7D5b S1 / ADR 0110 M1/M2/M9: were 4600 x 5800 and 5700 x 4700. M1 takes a door cabinet across the
+  // corner in both, *D* falls from six to five and the drawer goes (4600 x 5800 gets its bottle back,
+  // plan E3). Wall B's extra 600 mm restores the sixth cabinet: 5200 x 5800 and 5700 x 5300 are the
+  // same subject — the bottle's place, three columns kept — with the dishwasher standing.
   it.each([
-    { name: "wall B wider", room: roomOf(4600, 5800) },
-    { name: "wall A wider", room: roomOf(5700, 4700) },
+    { name: "wall B wider", room: roomOf(5200, 5800) },
+    { name: "wall A wider", room: roomOf(5700, 5300) },
   ])(
     "reads hob, then the drawer where the bottle stood, and keeps three columns, $name",
     ({ room }) => {
@@ -155,8 +168,8 @@ describe("7D5 S3 — the threshold drawer: the bottle gives way before a tall co
   );
 
   it.each([
-    { name: "wall B wider", room: roomOf(4600, 5800) },
-    { name: "wall A wider", room: roomOf(5700, 4700) },
+    { name: "wall B wider", room: roomOf(5200, 5800) },
+    { name: "wall A wider", room: roomOf(5700, 5300) },
   ])(
     "stands on the hob's wall under its own id, which is not a composed storage slot, $name",
     ({ room }) => {
@@ -176,9 +189,13 @@ describe("7D5 S3 — the threshold drawer: the bottle gives way before a tall co
 });
 
 describe("7D5 S3 — the threshold drawer: where the bottle giving way is not enough, one column goes", () => {
+  // 7D5b S1 / ADR 0110 M1/M2/M9: were 4600 x 5200 and 5200 x 4700, now M2's witnesses below (the
+  // drawer became a column: `threshold | tower | pantry` reads `tower | pantry | pantry`). 5200 x 5250
+  // and 5350 x 5300 have one more door cabinet across the corner, so *D* is six again with the
+  // dishwasher out of it, and S2 left them the pan drawer, no bottle and three columns.
   it.each([
-    { name: "wall B wider", room: roomOf(4600, 5200) },
-    { name: "wall A wider", room: roomOf(5200, 4700) },
+    { name: "wall B wider", room: roomOf(5200, 5250) },
+    { name: "wall A wider", room: roomOf(5350, 5300) },
   ])(
     "reads the drawer after the hob and keeps two of three columns, $name",
     ({ room }) => {
@@ -196,9 +213,11 @@ describe("7D5 S3 — the threshold drawer: where the bottle giving way is not en
   );
 
   // 5200 x 5500 is the wall-B-wider mirror (QA, 7D5 S3); it was S2's block-arm witness until this rule
-  // gave it a drawer after the bottle.
+  // gave it a drawer after the bottle. 7D5b S1 / ADR 0110 M1/M2/M9: 5200 x 5500 keeps its drawer with
+  // the dishwasher standing (five door cabinets and the pan drawer are still six); the wall-A row was
+  // 5400 x 4700, where M1 leaves *D* at five, and moved to 5400 x 5300.
   it.each([
-    { name: "wall A wider, 5400 x 4700", room: roomOf(5400, 4700) },
+    { name: "wall A wider, 5400 x 5300", room: roomOf(5400, 5300) },
     { name: "wall B wider, 5200 x 5500", room: roomOf(5200, 5500) },
   ])(
     "keeps the bottle where the drawer costs the same column without it, reading hob, bottle, drawer, $name",
@@ -220,18 +239,32 @@ describe("7D5 S3 — the threshold drawer: where the bottle giving way is not en
 });
 
 describe("7D5 S3 — no threshold drawer outside the owner's threshold", () => {
+  // 7D5b S1 / ADR 0110 M1/M2/M9: were 4000 x 5200 and 5100 x 4100, where M1 now leaves *D* at four.
+  // 4600 x 5200 and 5200 x 4700 are *D* = 5 with the dishwasher decided first, and each is also the
+  // owner's *"dishwasher first"* witness: counted with the door cabinet the dishwasher took, *D* would
+  // be six with one drawer, and 7D5 stood a threshold drawer in both.
   it.each([
-    { name: "wall B wider", room: roomOf(4000, 5200) },
-    { name: "wall A wider", room: roomOf(5100, 4100) },
+    { name: "wall B wider", room: roomOf(4600, 5200) },
+    { name: "wall A wider", room: roomOf(5200, 4700) },
   ])("adds none at D = 5, $name", ({ room }) => {
     const plan = planFor(room);
+    const plainCabinets = plainCabinetsBeforeTheRule(plan);
+    const dishwasher = plan.bases.find(
+      (base) => base.buildId === DISHWASHER_BODY,
+    );
 
-    expect(plainCabinetsBeforeTheRule(plan)).toHaveLength(5);
+    expect(plainCabinets).toHaveLength(5);
+    expect(dishwasher).toMatchObject({ id: "dishwasher", widthMm: 600 });
+    expect(dishwasher && isComposedStorageSlot(dishwasher)).toBe(false);
+    expect(plainCabinets.length + 1).toBe(OWNERS_PLAIN_CABINET_THRESHOLD);
+    expect(drawersAmong(plainCabinets)).toBeLessThan(OWNERS_DRAWER_COUNT);
     expect(hasModule(plan, THRESHOLD_DRAWER_ID)).toBe(false);
   });
 
-  it("adds none where D = 6 already has two drawers, 6000 x 4100", () => {
-    const plan = planFor(roomOf(6000, 4100));
+  // 7D5b S1 / ADR 0110 M1/M2/M9: was 6000 x 4100, where M1 leaves *D* at five; 6000 x 4700 is the
+  // first wall B at which the two-slot class reaches six again with the dishwasher out of it.
+  it("adds none where D = 6 already has two drawers, 6000 x 4700", () => {
+    const plan = planFor(roomOf(6000, 4700));
     const plainCabinets = plainCabinetsBeforeTheRule(plan);
 
     expect(plainCabinets).toHaveLength(6);
@@ -261,6 +294,11 @@ function planForDeclaredRuns(
 // the third candidate — the drawer in the bottle's place for one column — so its witnesses are declared
 // runs in a 6000 x 5000 x 2200 room, where wall A is wider and so carries the hob and the block.
 //
+// 7D5b S1 / ADR 0110 M1/M2/M9: wall B's declared run was 4300 mm. M1 now converts the door cabinet
+// facing the sink across the corner, so *D* there fell from six to five and every witness below lost
+// its subject. Wall B's run is 4900 mm: one more door cabinet, *D* six again with the dishwasher out of
+// it, and the hob's wall — where every candidate is decided — exactly as it was.
+//
 // **What L3's one-column limit decides (QA, 7D5 S3, measured in a scratch copy).** It refuses no
 // drawer on its own: over 3 849 606 declared runs (both walls 0-8000 mm at 10 mm, both reading
 // orientations, ceilings 2199 / 2200 / 3900) a candidate that fit never cost more than one column in
@@ -276,7 +314,7 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
     depthMm: 5000,
     heightMm: 2200,
   };
-  const prefixRunMm = 4300;
+  const prefixRunMm = 4900;
 
   /** The hob's wall's core and pan drawer — the items every candidate keeps — measured off the plan. */
   function fixedRunOnTheHobsWallMm(plan: KitchenCompositionPlan): number {
@@ -320,7 +358,7 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
     };
   }
 
-  it("stands the drawer in the bottle's place for one column where keeping the bottle would cost both, runs A 3350 / B 4300", () => {
+  it("stands the drawer in the bottle's place for one column where keeping the bottle would cost both, runs A 3350 / B 4900", () => {
     const plan = planForDeclaredRuns(room, { A: 3350, B: prefixRunMm });
     const plainCabinets = plainCabinetsBeforeTheRule(plan);
 
@@ -355,7 +393,7 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
     });
   });
 
-  it("keeps the bottle and stands the drawer after it where that costs a single column, runs A 3300 / B 4300", () => {
+  it("keeps the bottle and stands the drawer after it where that costs a single column, runs A 3300 / B 4900", () => {
     const hobWallRunMm = 3300;
     const plan = planForDeclaredRuns(room, { A: hobWallRunMm, B: prefixRunMm });
 
@@ -374,7 +412,7 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
     expect(tallColumnsOf(plan)).toEqual(["tall-oven-tower"]);
   });
 
-  it("refuses the drawer where it fits nowhere, even in the bottle's place, runs A 2350 / B 4300", () => {
+  it("refuses the drawer where it fits nowhere, even in the bottle's place, runs A 2350 / B 4900", () => {
     const hobWallRunMm = 2350;
     const plan = planForDeclaredRuns(room, { A: hobWallRunMm, B: prefixRunMm });
     const plainCabinets = plainCabinetsBeforeTheRule(plan);
@@ -435,10 +473,14 @@ describe("7D5 S3 — the threshold drawer on declared runs: at most one tall col
     }
 
     // Measured at 7D5 S3 (QA, 2026-09-21), and matched by the scratch copy's own candidate log.
+    // 7D5b S1 / ADR 0110 M1/M2/M9: with the dishwasher out of *D*, 600 runs no longer reach the
+    // threshold (placed 7 332 -> 6 732, the implementer's figure) and 768 fewer short runs are refused
+    // where nothing fits (5 928 -> 5 160). The subject is unmoved: no run is refused where the bottle's
+    // place would fit.
     expect(census).toEqual({
       runs: 51_842,
-      placed: 7_332,
-      refusedWhereNothingFits: 5_928,
+      placed: 6_732,
+      refusedWhereNothingFits: 5_160,
       refusedWhereTheBottlesPlaceFits: [],
     });
   });
@@ -605,13 +647,16 @@ describe(`7D5 S3 — the threshold drawer over the approved L at ${String(SWEEP_
 
     // Measured at 7D5 S3 (QA, 2026-09-21). Every threshold drawer stands beside a pan drawer and a
     // block of two or three columns; none is left short and none stands outside the owner's rule.
+    // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher is decided first and *D* excludes it, so 655 -> 241
+    // (the implementer's figure): 427 -> 157 read right after the hob, 228 -> 84 after the bottle, and
+    // 384 / 271 -> 102 / 139 by two and three columns. Every clause list stays empty.
     expect(census).toEqual({
       swept: 10_403,
-      placed: 655,
-      inTheBottlesPlaceOrAfterAHobWithoutOne: 427,
-      afterTheBottle: 228,
-      besideThePanDrawer: 655,
-      byTallColumns: [0, 0, 384, 271],
+      placed: 241,
+      inTheBottlesPlaceOrAfterAHobWithoutOne: 157,
+      afterTheBottle: 84,
+      besideThePanDrawer: 241,
+      byTallColumns: [0, 0, 102, 139],
       misplaced: [],
       notShortBeforeTheRule: [],
       leftShortOfDrawers: [],

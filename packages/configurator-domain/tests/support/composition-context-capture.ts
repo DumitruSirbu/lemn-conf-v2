@@ -21,10 +21,26 @@
 // `lastComposition()` straight after `planKitchenComposition` returns, with
 // `forgetTheLastComposition()` called before each room so a refused room cannot read the last one's.
 //
+// **Since S1 the composer's `planOf` carries the dishwasher** (ADR 0110 Amendment M2), so a counterfactual
+// asked of it is a post-S1 answer. Every figure here that models an earlier state — HEAD `acb7b6f`'s plan
+// and S0b's — is asked **before S1**: a second mock makes the leaf switchable,
+//
+//     vi.mock("../../src/generation/dishwasher-beside-the-sink.js", async (importOriginal) => {
+//       const { withTheDishwasherLeafSwitchable } = await import("../support/composition-context-capture.js");
+//       return withTheDishwasherLeafSwitchable(await importOriginal());
+//     });
+//
+// and `beforeS1(compose)` runs `compose` with the leaf returning its plan untouched. Every final plan the
+// composer returns is `planOf` of some run, so that **is** the S0b tree, whole — the threshold drawer
+// decided on a dishwasher-free *D* included — and `qa-7d5b-post-tower-recorded` proves it byte for byte
+// against the recording captured at S0b. With the switch on, the wrapper calls the real leaf and records
+// every plan it was handed, read back through `plansTheLeafRead()`.
+//
 // **The run items spelled here are the owner's rulings as data, not the composer's constants** (ADR
 // 0121 decision 3(b)): a pan drawer is a 600 mm `base-panbank` read immediately before the hob, and
 // the bottle a 300 mm `base-bottle-cargo` read last. The planner never sees them except through the
 // runs this file asks it about.
+import type * as DishwasherLeaf from "../../src/generation/dishwasher-beside-the-sink.js";
 import type * as OptionalRunItems from "../../src/generation/optional-run-items.js";
 import type {
   CompositionContext,
@@ -43,6 +59,9 @@ export interface RecordedComposition {
 }
 
 let recorded: RecordedComposition | undefined;
+let isTheLeafSwitchable = false;
+let isTheLeafOff = false;
+let readByTheLeaf: KitchenCompositionPlan[] = [];
 
 /** The module under the mock: the real one, with its entry point recording what it was called with. */
 export function withTheCompositionRecorded(
@@ -66,9 +85,50 @@ export function lastComposition(): RecordedComposition {
   return recorded;
 }
 
-/** Forgets any recorded composition. Call it before composing each room. */
+/** Forgets any recorded composition and every plan the leaf read. Call it before composing each room. */
 export function forgetTheLastComposition(): void {
   recorded = undefined;
+  readByTheLeaf = [];
+}
+
+// ---------------------------------------------------------------------------------------------
+// S1's leaf, switchable: the planner before S1 is the planner with the leaf returning its plan.
+// ---------------------------------------------------------------------------------------------
+
+/** The leaf's module under the mock: the real leaf while the switch is on, the identity inside
+ *  `beforeS1`. */
+export function withTheDishwasherLeafSwitchable(
+  real: typeof DishwasherLeaf,
+): typeof DishwasherLeaf {
+  isTheLeafSwitchable = true;
+  const switchable: typeof real.withTheDishwasherBesideTheSink = (plan) => {
+    if (isTheLeafOff) return plan;
+    readByTheLeaf.push(plan);
+    return real.withTheDishwasherBesideTheSink(plan);
+  };
+  return { ...real, withTheDishwasherBesideTheSink: switchable };
+}
+
+/** `compose`'s answer from the planner as it stood before S1 — S0b's tree. Throws where the leaf's mock
+ *  is not installed, because the answer would then silently be S1's. */
+export function beforeS1<T>(compose: () => T): T {
+  if (!isTheLeafSwitchable) {
+    throw new Error(
+      "beforeS1 needs the dishwasher leaf's mock: without it the plan would carry S1's dishwasher",
+    );
+  }
+  isTheLeafOff = true;
+  try {
+    return compose();
+  } finally {
+    isTheLeafOff = false;
+  }
+}
+
+/** Every plan the live leaf was handed since `forgetTheLastComposition` — the final run's and each
+ *  threshold-drawer candidate's, built but not yet given a dishwasher. */
+export function plansTheLeafRead(): readonly KitchenCompositionPlan[] {
+  return readByTheLeaf;
 }
 
 const PAN_DRAWER_ITEM: GenerationAncillaryRunItem = {
@@ -159,8 +219,9 @@ export interface DecidedBeforeTheThresholdDrawer {
 }
 
 /** The composer's pan-drawer and bottle decision, restated as a question to its context. The census
- *  proves it right, room by room: `planOf(run)` must equal the live plan wherever no threshold drawer
- *  was added after it; and `planOf(runBeforeS0b)` is proved to be HEAD's by the pre-tower recording. */
+ *  proves it right, room by room: `planOf(run)` must equal the finished plan wherever no threshold drawer
+ *  was added after it, before S1 and live alike; and `planOf(runBeforeS0b)`, asked before S1, is proved
+ *  to be HEAD's by the pre-tower recording. */
 export function decidedBeforeTheThresholdDrawer(
   composition: RecordedComposition,
 ): DecidedBeforeTheThresholdDrawer {
@@ -195,18 +256,18 @@ export function decidedBeforeTheThresholdDrawer(
   };
 }
 
-/** HEAD `acb7b6f`'s plan for a room the live planner placed: the live plan, except where S0b kept the
- *  tower, where HEAD stood S1's bottle kitchen. **Exact only where HEAD's threshold rule added nothing to
- *  that kitchen**, which every caller must show, and proved against the pre-tower recording by
- *  `qa-7d5b-s0-pre-state-census`. */
+/** HEAD `acb7b6f`'s plan for a room S0b's planner placed: S0b's plan (`planAfterS0b`, composed inside
+ *  `beforeS1`), except where S0b kept the tower, where HEAD stood S1's bottle kitchen, composed before S1
+ *  too. **Exact only where HEAD's threshold rule added nothing to that kitchen**, which every caller must
+ *  show, and proved against the pre-tower recording by `qa-7d5b-s0-pre-state-census`. */
 export function planBeforeS0b(
   composition: RecordedComposition,
-  livePlan: KitchenCompositionPlan,
+  planAfterS0b: KitchenCompositionPlan,
 ): KitchenCompositionPlan {
   const decided = decidedBeforeTheThresholdDrawer(composition);
   return decided.isTheOvenTowerKeptOverTheBottle
-    ? composition.context.planOf(decided.runBeforeS0b)
-    : livePlan;
+    ? beforeS1(() => composition.context.planOf(decided.runBeforeS0b))
+    : planAfterS0b;
 }
 
 /** The K3 fallback as HEAD built it: S1's bottle where it fits, then the pan drawer beside it where

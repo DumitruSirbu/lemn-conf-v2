@@ -8,10 +8,12 @@ import {
   createBodyProbeLease,
   declaredCabinetDepthsMm,
   derivePlacementRecords,
+  DISHWASHER_BUILD_ID,
   findOverflowingPlacementIds,
   generateKitchen,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
+  PAN_DRAWER_BASE_BUILD_ID,
   replayGenerationLog,
   setCabinetDepth,
   toInsertableBody,
@@ -255,9 +257,32 @@ describe("generateKitchen", () => {
       endMm: 4400,
     });
     expect(result.log.plan.remainderMm.A).toBe(200);
+    // 7D5b S1 / ADR 0110 M1/M8/M9: this room holds no door slot beside the sink, so M7(e) swaps the
+    // drawers — the dishwasher takes the preparation 3-drawer's module and the pan drawer carries the
+    // preparation id and role (M9). The pan drawer is therefore found by its body, not by its id; its
+    // span is unchanged.
     expect(
-      result.log.plan.bases.find((base) => base.id === "pan-drawer"),
-    ).toMatchObject({ wall: "A", startMm: 2100, endMm: 2700 });
+      result.log.plan.bases.find(
+        (base) => base.buildId === PAN_DRAWER_BASE_BUILD_ID,
+      ),
+    ).toMatchObject({
+      id: "preparation",
+      role: "preparation",
+      wall: "A",
+      startMm: 2100,
+      endMm: 2700,
+    });
+    expect(
+      result.log.plan.bases.find(
+        (base) => base.buildId === DISHWASHER_BUILD_ID,
+      ),
+    ).toMatchObject({
+      id: "dishwasher",
+      role: "storage",
+      wall: "A",
+      startMm: 1500,
+      endMm: 2100,
+    });
     const storage = result.log.plan.bases.find(
       (base) => base.id === "storage:A:0",
     );

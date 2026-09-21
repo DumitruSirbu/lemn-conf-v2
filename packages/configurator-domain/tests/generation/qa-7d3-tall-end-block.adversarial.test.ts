@@ -25,6 +25,8 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
+  DISHWASHER_BUILD_ID,
+  DISHWASHER_PLANNED_WIDTH_MM,
   DOOR_BASE_BUILD_ID,
   findOverflowingPlacementIds,
   generateKitchen,
@@ -272,6 +274,21 @@ describe("no body is silently planned over its own module", () => {
             expect(declared, label).toBeDefined();
             expect(isComposedStorageSlot(base), label).toBe(false);
             expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
+            continue;
+          }
+          if (base.buildId === DISHWASHER_BUILD_ID) {
+            // 7D5b S1 / ADR 0110 M1/M8/M9: **a declared branch of its own, not a third member of the
+            // slot pair below**, for the pan drawer's reason. The dishwasher re-identifies a module
+            // already planned beside the sink (a 600 mm door slot under M1, the preparation 3-drawer
+            // under M7(e)) and never changes its width; adding it to the pair would let any composed
+            // slot silently take it. So it must refuse a composed slot's id, and stand at the one width
+            // the catalogue's discrete list offers the generator.
+            expect(declared, label).toBeDefined();
+            expect(isComposedStorageSlot(base), label).toBe(false);
+            expect(base.id, label).toBe("dishwasher");
+            expect(base.widthMm, label).toBe(DISHWASHER_PLANNED_WIDTH_MM);
+            expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
+            expect(declared?.widthFlex, label).toContain(base.widthMm);
             continue;
           }
           if (declared?.band !== "column") {

@@ -37,6 +37,7 @@ const BOTTLE_WIDTH_MM = 300;
 const PAN_DRAWER_WIDTH_MM = 600;
 const STORAGE_MODULE_MM = 600;
 const THRESHOLD_DRAWER_WIDTH_MM = 600;
+const PAN_DRAWER_BODY = "base-panbank";
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
@@ -242,8 +243,9 @@ function thresholdDrawerTookTheBottlesPlace(
   const isCoreWhole = kept.length === GENERATION_PRIORITIES.length;
   const columns = (run: DerivedRun) =>
     tallColumnsOf(run, { room, capacities, isCoreWhole });
+  // 7D5b S1 / ADR 0110 M1/M2/M9: by body; (e) re-identifies the pan drawer as the preparation.
   const hasPanDrawer = context.plan.bases.some(
-    (base) => base.id === "pan-drawer",
+    (base) => base.buildId === PAN_DRAWER_BODY,
   );
   const keptCore: DerivedRun = {
     widthsMm: kept.map((item) => item.widthMm),
@@ -499,8 +501,10 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
         } else {
           // S2: the core fits the bottle in place, so only the pan drawer standing may explain it.
           const reason = bottleGaveWayTo(room, expected);
+          // 7D5b S1 / ADR 0110 M1/M2/M9: by body, because in an (e) room the pan drawer carries the
+          // preparation id (24 160 rooms, which read as wrongCore when it was looked up by id).
           const hasPanDrawer = plan.bases.some(
-            (base) => base.id === "pan-drawer",
+            (base) => base.buildId === PAN_DRAWER_BODY,
           );
           const hasOvenTower = plan.bases.some(
             (base) => base.buildId === "tall-oven-tower",
@@ -537,18 +541,22 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     // threshold drawer took the place of (184 686 -> 178 491 included). 7D5b S0b / ADR 0110 M11 adds
     // a seventh: 5 260 rooms of the K3 fallback, no pan drawer, where S1's bottle would have taken the
     // only oven tower (178 491 -> 173 231 included, 66 720 -> 71 980 omitted); no other category moves.
+    // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher is decided before the threshold drawer and *D*
+    // excludes it, so in 3 060 rooms the drawer no longer takes the bottle's place and the bottle is
+    // back (6 195 -> 3 135; 173 231 -> 176 291 included, 71 980 -> 68 920 omitted, plan E3). No other
+    // category moves, once the pan drawer is found by body in the 24 160 (e) rooms.
     const { includedByArm, ...totals } = census;
     expect(totals).toEqual({
       swept: 256_011,
       placed: 245_211,
-      bottleIncluded: 173_231,
-      bottleOmitted: 71_980,
+      bottleIncluded: 176_291,
+      bottleOmitted: 68_920,
       omittedForCoreRole: 15_445,
       omittedForRefusal: 4_545,
       omittedForReCut: 4_955,
       omittedForThePanDrawer: 11_440,
       omittedForATallColumn: 24_140,
-      omittedForTheThresholdDrawer: 6_195,
+      omittedForTheThresholdDrawer: 3_135,
       omittedForTheOvenTower: 5_260,
       wrongCore: [],
       wrongOrder: [],
@@ -564,7 +572,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
   // 7D5 S3 / Q-H5: 4700 x 6000, the wall-B-wider row, now stands the threshold drawer in the bottle's
   // place (its *D* is six with the pan drawer the only drawer), so there is no bottle whose identity
   // to read. The row moved to 4500 x 6000 — still wall B wider, still a bottle beside a pan drawer
-  // and a three-column block — and the room it left is pinned below as what it now is.
+  // and a three-column block — and the room it left is pinned below as what it now is. (7D5b S1 / ADR
+  // 0110 M1/M2/M9: 4700 x 6000 stands its bottle again; the threshold row below moved to 5200 x 6000.)
   it.each([
     { shape: "L", widthMm: 6000, depthMm: 4700, heightMm: 2600 },
     { shape: "L", widthMm: 4500, depthMm: 6000, heightMm: 2600 },
@@ -585,10 +594,13 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     },
   );
 
-  it("gives the bottle's place to the threshold drawer, not a composed slot, at 4700 x 6000", () => {
+  // 7D5b S1 / ADR 0110 M1/M2/M9: was 4700 x 6000. M1 converts its door cabinet across the corner, *D*
+  // falls to five with the dishwasher out of it, and the bottle is back. 5200 x 6000 — the same wall B
+  // wider arm — has one more door cabinet, so the threshold drawer still takes the bottle's place.
+  it("gives the bottle's place to the threshold drawer, not a composed slot, at 5200 x 6000", () => {
     const plan = planFor({
       shape: "L",
-      widthMm: 4700,
+      widthMm: 5200,
       depthMm: 6000,
       heightMm: 2600,
     });

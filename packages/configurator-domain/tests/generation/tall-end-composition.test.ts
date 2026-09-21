@@ -90,15 +90,33 @@ function blockOf(plan: KitchenCompositionPlan) {
   );
 }
 
+/** 7D5b S1 / ADR 0110 M1/M2/M9: where (e) swapped the drawer cabinets, the preparation role is read
+ *  where the preparation cabinet stood — the dishwasher's module — because M9 moves the role onto the
+ *  pan drawer by identity alone. So the shape compared is the core as composed, before that swap. */
 function coreShapeOf(plan: KitchenCompositionPlan) {
+  const dishwasher = plan.bases.find(
+    (base) => base.buildId === "base-dishwasher",
+  );
+  const swappedInto = isDrawerSwapped(plan) ? dishwasher : undefined;
   return plan.bases
     .filter((base) => base.role !== "storage")
-    .map((base) => ({
-      role: base.role,
-      wall: base.wall,
-      startMm: base.startMm,
-      endMm: base.endMm,
-    }));
+    .map((base) => {
+      const stood =
+        base.role === "preparation" && swappedInto ? swappedInto : base;
+      return {
+        role: base.role,
+        wall: stood.wall,
+        startMm: stood.startMm,
+        endMm: stood.endMm,
+      };
+    });
+}
+
+/** (e)'s mark on a plan: the pan drawer carrying the preparation role (ADR 0110 M7(e), M9). */
+function isDrawerSwapped(plan: KitchenCompositionPlan): boolean {
+  return plan.bases.some(
+    (base) => base.buildId === "base-panbank" && base.role === "preparation",
+  );
 }
 
 /** The pan drawer's own width (7D5 S2), and so the only distance the block may move the hob. */
@@ -162,8 +180,16 @@ const THRESHOLD_DRAWER_ID = "threshold-drawer";
 const PAN_DRAWER_ID = "pan-drawer";
 const THRESHOLD_DRAWER_MOST_COLUMNS = 1;
 /** 7D5 S3: measured at 80-96 of 4000 unseeded draws over 8 runs; set well below so a seed cannot trip
- *  it, while a composer that stopped standing the drawer still fails. */
+ *  it, while a composer that stopped standing the drawer still fails.
+ *
+ *  7D5b S1 / ADR 0110 M1/M2/M9: the population shrank, not the instrument's need. With the dishwasher
+ *  decided first and out of *D*, the threshold drawer costs a column against S1 in 2 590 rooms of the
+ *  approved L at 10 mm and 2600 mm, where it cost one in 9 600 (27 %; the census in
+ *  `pan-drawer-before-the-hob.test.ts`), and 4000 draws now reached 15-34 over 20 unseeded runs. The
+ *  sample is raised to `THRESHOLD_ARM_DRAWS`, which reached 82-120 over 20 unseeded runs, and the floor
+ *  is left where it was rather than cut to fit a thinner sample (ADR 0091 Amendment A). */
 const THRESHOLD_ARM_FLOOR = 30;
+const THRESHOLD_ARM_DRAWS = 16_000;
 
 function thresholdDrawerWidthOf(plan: KitchenCompositionPlan): number {
   return plan.bases
@@ -285,7 +311,7 @@ describe("the threshold and the block's size (criterion 6)", () => {
         if (size === 2) arms.two += 1;
         if (size === 3) arms.three += 1;
       }),
-      { numRuns: 4000 },
+      { numRuns: THRESHOLD_ARM_DRAWS },
     );
 
     // A property that never samples an arm proves nothing about it.
@@ -419,9 +445,18 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
   // module the block would have stood in, and the block never gives a column up for it, so the hob
   // may stand exactly one pan drawer later in the rule-refused plan. Every core role still keeps its
   // wall — so the cut is unchanged — and `dropped` is unchanged; no other core position may move.
+  //
+  // Third restatement, 7D5b S1 / ADR 0110 M1/M2/M9. The property's counterexample is (e): where the
+  // rule-refused plan stands the pan drawer (the block is what refuses it) and has no door cabinet
+  // beside the sink, the drawer swap moves the preparation role one module along onto the pan drawer,
+  // while the plan with the block stands no pan drawer and so no swap — 900 x 4100 x 2200 first among
+  // 4 368 rooms of the approved L at 50 mm and ceilings 2200 / 2600 / 3900, every one of them this
+  // class and no other. The role's move is identity-only (M9), so `coreShapeOf` reads the preparation
+  // role at the module the preparation cabinet stood in, and every position is still asserted.
   it("leaves the surviving core, the dropped list and the wall cut where 7D2 put them, but for the pan drawer's shift of the hob", () => {
     let withABlock = 0;
     let panDrawerOnlyWithoutTheBlock = 0;
+    let drawerSwapOnOneSideOnly = 0;
     fc.assert(
       fc.property(approvedRoom, (room) => {
         const withTheRule = planFor(room);
@@ -431,6 +466,8 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
           PAN_DRAWER_WIDTH_MM *
           (panDrawerCountOf(withTheRule) - panDrawerCountOf(withoutIt));
         if (hobShiftMm !== 0) panDrawerOnlyWithoutTheBlock += 1;
+        if (isDrawerSwapped(withTheRule) !== isDrawerSwapped(withoutIt))
+          drawerSwapOnOneSideOnly += 1;
 
         expect(withTheRule.minimumMet).toBe(withoutIt.minimumMet);
         expect(withTheRule.dropped).toEqual(withoutIt.dropped);
@@ -447,6 +484,12 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
       panDrawerOnlyWithoutTheBlock,
       "the pan-drawer arm never fired",
     ).toBeGreaterThanOrEqual(50);
+    // 7D5b S1 / ADR 0110 M1/M2/M9: the counterexample's own arm, or the restated `coreShapeOf` is idle.
+    // Measured at 35-49 of 300 unseeded draws over 20 runs; floored well below that.
+    expect(
+      drawerSwapOnOneSideOnly,
+      "no sample swapped the drawer cabinets on one side only",
+    ).toBeGreaterThanOrEqual(20);
   });
 
   it("takes whole leftover modules and reports the bare wall the run actually leaves", () => {

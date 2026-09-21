@@ -6,6 +6,11 @@
 // read through for rooms that stand a bottle, a pan drawer or both, so the 7D5 ruling is stated once
 // (7D5 S2: Q-H6a = A, and Q-H6b / Q-H6c, which let a pan drawer stand without the bottle; 7D5 S3:
 // Q-H5, the threshold drawer after the hob, in the bottle's place or after it).
+//
+// 7D5b S1 / ADR 0110 M1/M2/M9: both recordings predate the dishwasher, and it is a re-identification,
+// never a width change. `planBeforeTheDishwasher` admits exactly that — M1's one door cabinet beside
+// the sink re-identified in place, or (e)'s two drawer cabinets re-identified in place — and hands the
+// rest of the plan to the comparisons below unchanged, so everything else stays exact.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +25,7 @@ import {
   lShellFloorRuns,
   type DesignRoom,
   type KitchenCompositionPlan,
+  type PlannedGenerationBase,
 } from "../../src/index.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -206,9 +212,10 @@ type PlanModule = RecordedPlanModule;
 export function assertOnlyTheBottleAndPanDrawerChanged(
   key: string,
   room: DesignRoom,
-  plan: KitchenCompositionPlan,
+  composed: KitchenCompositionPlan,
   recordedCanonical: string,
 ): void {
+  const plan = planBeforeTheDishwasher(key, composed, recordedCanonical);
   const recorded = parseRecordedCanonicalPlan(recordedCanonical);
   expect(plan.minimumMet, `${key} minimumMet`).toBe(recorded.minimumMet);
   expect(plan.dropped, `${key} dropped`).toEqual(recorded.dropped);
@@ -225,6 +232,170 @@ export function assertOnlyTheBottleAndPanDrawerChanged(
   assertContiguousRuns(key, room, plan);
   assertHobWallChangedOnlyAstrideTheHob(key, plan, recorded, ancillaries);
   assertOtherWallUnchanged(key, plan, recorded);
+}
+
+const DISHWASHER_BODY = "base-dishwasher";
+const DISHWASHER_ID = "dishwasher";
+const DISHWASHER_WIDTH_MM = 600;
+const DOOR_BODY = "base-cabinet";
+const PREPARATION_BODY = "base-3drawer";
+
+/** How a plan stood its dishwasher, for a caller that counts the arms. */
+export type DishwasherArm = "none" | "M1" | "(e)";
+
+/** Which arm stood the plan's dishwasher, read off what stands: (e) where the pan drawer carries the
+ *  preparation role, M1 where a dishwasher stands otherwise. */
+export function dishwasherArmOf(plan: KitchenCompositionPlan): DishwasherArm {
+  if (!plan.bases.some((base) => base.buildId === DISHWASHER_BODY)) {
+    return "none";
+  }
+  return plan.bases.some(isPanDrawerCarryingThePreparation) ? "(e)" : "M1";
+}
+
+/**
+ * **7D5b S1 / ADR 0110 M1/M2/M9.** The plan as it stood before its dishwasher was decided, having
+ * asserted that the dishwasher is only what the owner ruled: one 600 mm `base-dishwasher` under its own
+ * id and the storage role, abutting the sink along its wall or facing it across the corner, and either
+ *
+ * - **M1**: a composed door cabinet re-identified in place — the recording must hold a 600 mm composed
+ *   slot with the door body at exactly the dishwasher's wall and span, and that module is restored
+ *   (the M1 module never stands on the hob's wall past the hob, the only stretch 7D5 moved); or
+ * - **(e)**: the preparation 3-drawer re-identified in place, and the pan drawer abutting it carrying
+ *   the preparation id and role on its own body — restored as the preparation cabinet and the
+ *   `pan-drawer` module.
+ *
+ * Nothing moves in either, so every span, width, remainder and floor width is handed on as composed,
+ * and a restored module that is not what the recording holds fails the exact comparisons after this.
+ * The plan is returned unchanged where no dishwasher stands.
+ */
+export function planBeforeTheDishwasher(
+  key: string,
+  plan: KitchenCompositionPlan,
+  recordedCanonical: string,
+): KitchenCompositionPlan {
+  const dishwashers = plan.bases.filter(
+    (base) => base.buildId === DISHWASHER_BODY || base.id === DISHWASHER_ID,
+  );
+  expect(dishwashers.length, `${key} dishwasher count`).toBeLessThanOrEqual(1);
+  const [dishwasher] = dishwashers;
+  if (dishwasher === undefined) return plan;
+  expect(dishwasher, `${key} dishwasher identity`).toMatchObject({
+    id: DISHWASHER_ID,
+    role: "storage",
+    buildId: DISHWASHER_BODY,
+    widthMm: DISHWASHER_WIDTH_MM,
+  });
+  const sink = plan.bases.find((base) => base.role === "sink");
+  expect(
+    sink !== undefined && isBeside(plan.bases, [dishwasher, sink]),
+    `${key} dishwasher beside the sink`,
+  ).toBe(true);
+
+  const restore =
+    dishwasherArmOf(plan) === "(e)"
+      ? drawerSwapUndone(key, plan, dishwasher)
+      : doorCabinetRestored(key, {
+          dishwasher,
+          recorded: parseRecordedCanonicalPlan(recordedCanonical),
+        });
+  return { ...plan, bases: plan.bases.map(restore) };
+}
+
+function isPanDrawerCarryingThePreparation(base: PlanModule): boolean {
+  return base.buildId === PAN_DRAWER_BODY && base.role === "preparation";
+}
+
+/** M1: the door cabinet the recording holds at the dishwasher's own wall and span. Its id is read
+ *  from the recording rather than spelled here, so this file never writes the slot-id convention
+ *  (7D4 criterion 22); what is asserted is that the module was a door cabinet the storage run
+ *  composed, one module wide. */
+function doorCabinetRestored(
+  key: string,
+  context: {
+    readonly dishwasher: PlannedGenerationBase;
+    readonly recorded: RecordedCanonicalPlan;
+  },
+): (base: PlannedGenerationBase) => PlannedGenerationBase {
+  const { dishwasher, recorded } = context;
+  const convertedFrom = recorded.bases.find(
+    (base) =>
+      base.wall === dishwasher.wall &&
+      base.startMm === dishwasher.startMm &&
+      base.endMm === dishwasher.endMm,
+  );
+  expect(
+    convertedFrom !== undefined && STORAGE_SLOT_ID.test(convertedFrom.id),
+    `${key} M1 converted a composed slot`,
+  ).toBe(true);
+  expect(convertedFrom, `${key} M1 converted a door cabinet`).toMatchObject({
+    role: "storage",
+    buildId: DOOR_BODY,
+    widthMm: DISHWASHER_WIDTH_MM,
+  });
+  const doorCabinet = {
+    ...dishwasher,
+    id: convertedFrom?.id ?? dishwasher.id,
+    buildId: DOOR_BODY,
+  };
+  return (base) => (base === dishwasher ? doorCabinet : base);
+}
+
+/** (e): the preparation cabinet the dishwasher was, and the pan drawer that carries its role. */
+function drawerSwapUndone(
+  key: string,
+  plan: KitchenCompositionPlan,
+  dishwasher: PlannedGenerationBase,
+): (base: PlannedGenerationBase) => PlannedGenerationBase {
+  const preparations = plan.bases.filter((base) => base.role === "preparation");
+  expect(preparations.length, `${key} one preparation role`).toBe(1);
+  const [panDrawer] = preparations;
+  expect(panDrawer, `${key} (e) pan drawer identity`).toMatchObject({
+    id: "preparation",
+    buildId: PAN_DRAWER_BODY,
+    widthMm: PAN_DRAWER_WIDTH_MM,
+  });
+  expect(
+    panDrawer !== undefined && abutsAlongItsWall(panDrawer, dishwasher),
+    `${key} (e) pan drawer beyond the dishwasher`,
+  ).toBe(true);
+  const preparationCabinet: PlannedGenerationBase = {
+    ...dishwasher,
+    id: "preparation",
+    role: "preparation",
+    buildId: PREPARATION_BODY,
+  };
+  return (base) => {
+    if (base === dishwasher) return preparationCabinet;
+    return base === panDrawer
+      ? { ...base, id: "pan-drawer", role: "storage" }
+      : base;
+  };
+}
+
+/** Two modules abut along one wall, or face each other across the corner as each wall's first.
+ *  These "beside the sink" helpers undo the leaf so older assertions keep working, and are deliberately
+ *  independent of production and of the pre-tower classifier: a shared helper would let one bug corrupt
+ *  both sides of the comparison. */
+function isBeside(
+  bases: readonly PlanModule[],
+  pair: readonly [PlanModule, PlanModule],
+): boolean {
+  const [one, other] = pair;
+  const isFirstFromTheCorner = (base: PlanModule) =>
+    alongWall(bases, base.wall)[0] === base;
+  return (
+    abutsAlongItsWall(one, other) ||
+    (one.wall !== other.wall &&
+      isFirstFromTheCorner(one) &&
+      isFirstFromTheCorner(other))
+  );
+}
+
+function abutsAlongItsWall(one: PlanModule, other: PlanModule): boolean {
+  return (
+    one.wall === other.wall &&
+    (one.endMm === other.startMm || one.startMm === other.endMm)
+  );
 }
 
 /** What 7D5 stood astride the hob: the pan drawer before it, the bottle after it and the threshold

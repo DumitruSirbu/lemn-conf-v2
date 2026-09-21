@@ -285,6 +285,7 @@ export {
 } from "./generation/shell-design.js";
 export * from "./generation/leftover-rule.js";
 export * from "./generation/body-choice.js";
+export { DISHWASHER_PLANNED_WIDTH_MM } from "./generation/dishwasher-beside-the-sink.js";
 export * from "./generation/generation-priorities.js";
 export * from "./generation/generate-kitchen.js";
 export * from "./commands/reconcile-command-result.js";

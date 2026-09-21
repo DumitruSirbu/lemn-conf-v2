@@ -28,7 +28,9 @@ import {
 import { canonicalPlan, roomKey } from "../support/composed-run-baseline.js";
 import {
   assertOnlyTheBottleAndPanDrawerChanged,
+  dishwasherArmOf,
   PAN_DRAWER_BODY,
+  planBeforeTheDishwasher,
   readPreWidthRunRecording,
   STORAGE_SLOT_ID,
   THRESHOLD_DRAWER_ID,
@@ -97,6 +99,10 @@ const TOWER_KEPT_OVER_THE_BOTTLE_ROOMS = [
   "909x4332x3621",
 ];
 
+/** 7D5b S1 / ADR 0110 M1/M2/M9: how the 480 recorded rooms stand their dishwasher at S1, measured
+ *  here — every arm reached, so the admission is not vacuous on either rule. */
+const DISHWASHER_ARMS = { none: 189, M1: 205, "(e)": 86 };
+
 function roomFromKey(key: string): DesignRoom {
   const [widthMm, depthMm, heightMm] = key.split("x").map(Number);
   if (
@@ -123,6 +129,7 @@ describe("the whole plan before 7D5's width change", () => {
     let thresholdDrawerComparisons = 0;
     let thresholdDrawerWithoutTheBottleComparisons = 0;
     const towerKeptOverTheBottleRooms: string[] = [];
+    const dishwasherArms = { none: 0, M1: 0, "(e)": 0 };
     for (const [key, recorded] of RECORDING.rooms) {
       const room = roomFromKey(key);
       expect(roomKey(room)).toBe(key);
@@ -131,7 +138,12 @@ describe("the whole plan before 7D5's width change", () => {
         runs: lShellFloorRuns(room),
         columns: DECLARED_COLUMNS,
       });
-      const composed = canonicalPlan(plan);
+      // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher re-identifies one module (M1) or two ((e)) in
+      // place; undone first, so every arm below compares the rest of the plan exactly as before.
+      dishwasherArms[dishwasherArmOf(plan)] += 1;
+      const composed = canonicalPlan(
+        planBeforeTheDishwasher(key, plan, recorded),
+      );
       const hasBottle = plan.bases.some(
         (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
       );
@@ -171,6 +183,13 @@ describe("the whole plan before 7D5's width change", () => {
     // (90 → 96). Each keeps its oven tower over S1's bottle with no pan drawer beside it, and that is
     // the pre-S1 plan whole — the tower, `base-hob-2drawer`, every remainder — so the exact comparison
     // above is the classifier for them and no normalisation is widened. Every other arm is unchanged.
+    //
+    // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher is decided before the threshold drawer and *D*
+    // excludes it, so 18 of the 40 recorded threshold drawers go (40 -> 22; 33 -> 20 without the
+    // bottle). In 10 of them the drawer had taken the bottle's place and the bottle is back, so they
+    // leave the pan-drawer-without-bottle arm (106 -> 96) for the bottle arm (278 -> 288); the other 8
+    // give their module back to a tall column and keep their arm. The exact arm and the pan-drawer
+    // arm are unchanged, and the dishwasher itself moves no room between arms.
     expect([...towerKeptOverTheBottleRooms].sort()).toEqual(
       [...TOWER_KEPT_OVER_THE_BOTTLE_ROOMS].sort(),
     );
@@ -188,17 +207,20 @@ describe("the whole plan before 7D5's width change", () => {
       thresholdDrawerWithoutTheBottleComparisons,
     }).toEqual({
       exactNoBottleComparisons: 96,
-      normalizedBottleComparisons: 278,
+      normalizedBottleComparisons: 288,
       panDrawerComparisons: 210,
-      panDrawerWithoutBottleComparisons: 106,
-      thresholdDrawerComparisons: 40,
-      thresholdDrawerWithoutTheBottleComparisons: 33,
+      panDrawerWithoutBottleComparisons: 96,
+      thresholdDrawerComparisons: 22,
+      thresholdDrawerWithoutTheBottleComparisons: 20,
     });
     expect(
       exactNoBottleComparisons +
         normalizedBottleComparisons +
         panDrawerWithoutBottleComparisons,
     ).toBe(RECORDING.runs);
+    // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher arms, every one of them admitted by
+    // `planBeforeTheDishwasher` and then compared exactly.
+    expect(dishwasherArms).toEqual(DISHWASHER_ARMS);
   });
 
   // 7D5 S2 / Q-H6a: witnesses that the pan-drawer arm of the classifier is not vacuous. Each mutation
@@ -284,6 +306,26 @@ describe("the whole plan before 7D5's width change", () => {
   // mutation keeps both runs contiguous, so the clause named is what rejects it.
   it.each(THRESHOLD_DRAWER_CORRUPTION_CASES)(
     "rejects a threshold-drawer room where %s",
+    (_, rejectingClause, witness) => {
+      const { key, room, recorded, plan } = firstRoomWhere(witness.isWanted);
+      witness.mutate(plan);
+
+      expect(() => {
+        assertOnlyTheBottleAndPanDrawerChanged(
+          key,
+          room,
+          plan as unknown as KitchenCompositionPlan,
+          recorded,
+        );
+      }).toThrow(rejectingClause);
+    },
+  );
+
+  // 7D5b S1 / ADR 0110 M1/M2/M9: witnesses that the dishwasher admission is strict — it admits one
+  // module re-identified in place beside the sink (M1) or two ((e)), and nothing else. Each mutation
+  // keeps both runs contiguous, so the clause named is what rejects it.
+  it.each(DISHWASHER_CORRUPTION_CASES)(
+    "rejects a dishwasher room where %s",
     (_, rejectingClause, witness) => {
       const { key, room, recorded, plan } = firstRoomWhere(witness.isWanted);
       witness.mutate(plan);
@@ -525,6 +567,103 @@ const THRESHOLD_DRAWER_CORRUPTION_CASES: readonly (readonly [
 ];
 
 const TALL_COLUMN = /^column:[AB]:\d+$/;
+
+function dishwasherOf(bases: KitchenCompositionPlan["bases"]) {
+  return bases.find((base) => base.buildId === "base-dishwasher");
+}
+
+function isDrawerSwapRoom(bases: KitchenCompositionPlan["bases"]): boolean {
+  return bases.some(
+    (base) => base.buildId === PAN_DRAWER_BODY && base.role === "preparation",
+  );
+}
+
+/** An M1 room whose dishwasher's wall holds a composed slot not beside the sink, so the two can
+ *  trade places without either run losing its contiguity. */
+function farthestSlotFromTheDishwasher(bases: KitchenCompositionPlan["bases"]) {
+  const dishwasher = dishwasherOf(bases);
+  return bases
+    .filter(
+      (base) =>
+        base.wall === dishwasher?.wall &&
+        STORAGE_SLOT_ID.test(base.id) &&
+        Math.abs(base.startMm - dishwasher.startMm) > 600,
+    )
+    .sort(
+      (left, right) =>
+        Math.abs(right.startMm - (dishwasher?.startMm ?? 0)) -
+        Math.abs(left.startMm - (dishwasher?.startMm ?? 0)),
+    )[0];
+}
+
+const DISHWASHER_CORRUPTION_CASES: readonly (readonly [
+  string,
+  RegExp,
+  ThresholdDrawerWitness,
+])[] = [
+  [
+    "M1 converted a door cabinet that is not beside the sink",
+    /dishwasher beside the sink/,
+    {
+      isWanted: (bases) =>
+        !isDrawerSwapRoom(bases) &&
+        farthestSlotFromTheDishwasher(bases) !== undefined,
+      mutate: (plan) => {
+        const dishwasher = baseWithId(plan, "dishwasher");
+        const slot = farthestSlotFromTheDishwasher(
+          plan.bases as unknown as KitchenCompositionPlan["bases"],
+        );
+        const far = plan.bases.find((base) => base.id === slot?.id);
+        if (far === undefined) throw new Error("no slot to trade places with");
+        const dishwasherSpan = [dishwasher.startMm, dishwasher.endMm] as const;
+        [dishwasher.startMm, dishwasher.endMm] = [far.startMm, far.endMm];
+        [far.startMm, far.endMm] = dishwasherSpan;
+      },
+    },
+  ],
+  [
+    "the dishwasher wears a door body under its own id",
+    /dishwasher identity/,
+    {
+      isWanted: (bases) => dishwasherOf(bases) !== undefined,
+      mutate: (plan) => {
+        baseWithId(plan, "dishwasher").buildId = "base-cabinet";
+      },
+    },
+  ],
+  [
+    "the dishwasher carries the preparation role (the model E6 rejected)",
+    /dishwasher identity/,
+    {
+      isWanted: isDrawerSwapRoom,
+      mutate: (plan) => {
+        baseWithId(plan, "dishwasher").role = "preparation";
+      },
+    },
+  ],
+  [
+    "(e) left the pan drawer its own id and no module the preparation role",
+    /M1 converted a composed slot/,
+    {
+      isWanted: isDrawerSwapRoom,
+      mutate: (plan) => {
+        const panDrawer = baseWithRole(plan, "preparation");
+        panDrawer.id = "pan-drawer";
+        panDrawer.role = "storage";
+      },
+    },
+  ],
+  [
+    "a second dishwasher stands",
+    /dishwasher count/,
+    {
+      isWanted: (bases) => dishwasherOf(bases) !== undefined,
+      mutate: (plan) => {
+        plan.bases.push({ ...baseWithId(plan, "dishwasher") });
+      },
+    },
+  ],
+];
 
 function firstPanDrawerRoomWithASlotAfterTheHob(): {
   readonly key: string;

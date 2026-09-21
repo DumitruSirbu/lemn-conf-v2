@@ -112,6 +112,11 @@ const COMPOSED_STORAGE_BODIES = [
 const PAN_DRAWER_PLANNED_ID = "pan-drawer";
 const PAN_DRAWER_BODY = "base-panbank";
 
+/** 7D5b S1 / ADR 0110 M1/M8/M9: the dishwasher's planned id and body, literals for the same reason. */
+const DISHWASHER_PLANNED_ID = "dishwasher";
+const DISHWASHER_BODY = "base-dishwasher";
+const PREPARATION_PLANNED_ID = "preparation";
+
 /** 7D5 S3 / Q-H5: the threshold drawer's planned id, a literal for the same reason. */
 const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
 
@@ -130,6 +135,9 @@ const DRAWER_CABINET_BODIES: ReadonlySet<string> = new Set([
 /** The threshold drawer is sampled in 6.4 % of the approved grid's placed rooms (15 795 of 245 211);
  *  measured at `SWEEP_SEED` over the criteria 6/7 sweep's two draws: 74 rooms. */
 const THRESHOLD_DRAWER_FLOOR = 30;
+
+/** 7D5b S1 / ADR 0110 M9: (e) rooms are 24 160 of 245 211 placed (9.9 %). */
+const E_SWAP_FLOOR = 10;
 
 interface GeneratedKitchen {
   readonly design: Design;
@@ -262,6 +270,37 @@ function ruledThresholdDrawer(
   return isRuled ? thresholdDrawer : undefined;
 }
 
+/**
+ * 7D5b S1 / ADR 0110 M1/M8/M9: the preparation module's body, asserted as M8 narrows F5. It is the
+ * 3-drawer, except in an M7(e) room, where the dishwasher took the 3-drawer's module and the
+ * preparation id and role moved onto the pan drawer beyond it — so the body is `base-panbank`, the
+ * dishwasher is read immediately before it, and it is the kitchen's only pan drawer. Answers whether
+ * the room was an (e) room.
+ */
+function preparationBodyIsRuled(
+  modules: readonly ComposedModule[],
+  room: DesignRoom,
+): boolean {
+  const key = `${String(room.widthMm)}x${String(room.depthMm)}`;
+  const preparation = modules.find((module) => module.role === "preparation");
+  if (!preparation) return false;
+  expect([THREE_DRAWER_BASE_BUILD_ID, PAN_DRAWER_BODY], key).toContain(
+    preparation.buildId,
+  );
+  if (preparation.buildId !== PAN_DRAWER_BODY) return false;
+
+  const read = inReadingOrder(modules, room);
+  const preparationAt = read.indexOf(preparation);
+  expect(read[preparationAt - 1]?.plannedId, key).toBe(DISHWASHER_PLANNED_ID);
+  expect(read[preparationAt - 1]?.buildId, key).toBe(DISHWASHER_BODY);
+  expect(read[preparationAt - 1]?.wall, key).toBe(preparation.wall);
+  expect(
+    modules.filter((module) => module.buildId === PAN_DRAWER_BODY),
+    key,
+  ).toEqual([preparation]);
+  return true;
+}
+
 /** Criteria 6 and 7 at one room: the drawer body stands in the preparation module and the first
  *  post-hob slot and nowhere else — and, since 7D5 S3 / Q-H5, in the ruled threshold drawer. Answers
  *  which arm the room exercised and whether it stood that drawer, or nothing if refused. */
@@ -269,6 +308,7 @@ function drawerBodiesStandWhereRuled(room: DesignRoom):
   | {
       readonly arm: "withDrawerSlot" | "withoutDrawerSlot";
       readonly standsARuledThresholdDrawer: boolean;
+      readonly isAnESwapRoom: boolean;
     }
   | undefined {
   const kitchen = generated(room);
@@ -276,11 +316,14 @@ function drawerBodiesStandWhereRuled(room: DesignRoom):
   const modules = composedModules(kitchen);
   const postHob = composedSlotsAfterTheHob(modules, room)[0];
   const thresholdDrawer = ruledThresholdDrawer(modules);
+  const isAnESwapRoom = preparationBodyIsRuled(modules, room);
   // 7D5 S3 / Q-H5. Was: the preparation module and the first post-hob slot, and nothing else.
+  // 7D5b S1 / ADR 0110 M1/M8/M9: the preparation module holds the 3-drawer except in an (e) room,
+  // where it is the pan drawer (checked above) and the 3-drawer it had is now the dishwasher.
   const expected = modules
     .filter(
       (module) =>
-        module.role === "preparation" ||
+        (module.role === "preparation" && !isAnESwapRoom) ||
         module.plannedId === postHob?.plannedId ||
         module === thresholdDrawer,
     )
@@ -295,6 +338,7 @@ function drawerBodiesStandWhereRuled(room: DesignRoom):
   return {
     arm: postHob ? "withDrawerSlot" : "withoutDrawerSlot",
     standsARuledThresholdDrawer: thresholdDrawer !== undefined,
+    isAnESwapRoom,
   };
 }
 
@@ -319,11 +363,13 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
     // hundred rather than falling to what that draw happens to find. See `CONSTRUCTED_WALL_A_RUNS`.
     const arms = { withDrawerSlot: 0, withoutDrawerSlot: 0 };
     let thresholdDrawersRuled = 0;
+    let eSwapRooms = 0;
     const countArm = (room: DesignRoom) => {
       const outcome = drawerBodiesStandWhereRuled(room);
       if (!outcome) return;
       arms[outcome.arm] += 1;
       if (outcome.standsARuledThresholdDrawer) thresholdDrawersRuled += 1;
+      if (outcome.isAnESwapRoom) eSwapRooms += 1;
     };
     fc.assert(fc.property(approvedLRoom(), countArm), {
       numRuns: SWEEP_RUNS,
@@ -340,6 +386,9 @@ describe("criteria 6 and 7 — the two drawer bodies a kitchen gets, and no thir
     expect(thresholdDrawersRuled).toBeGreaterThanOrEqual(
       THRESHOLD_DRAWER_FLOOR,
     );
+    // 7D5b S1 / ADR 0110 M8/M9: the (e) arm is reached, so the preparation-body branch is exercised.
+    // 24 160 of 245 211 placed rooms (9.9 %) per M9; floored at a tenth of this draw's expectation.
+    expect(eSwapRooms).toBeGreaterThanOrEqual(E_SWAP_FLOOR);
   });
 
   it("gives every other composed slot the door body, asserted along each wall", () => {
@@ -522,12 +571,20 @@ describe("criterion 9 — every generated module is built on the grid", () => {
         const hobAt = read.findIndex((module) => module.role === "hob");
         const key = `${String(room.widthMm)}x${String(room.depthMm)}`;
 
-        expect(
-          panDrawers.map((module) => module.plannedId),
-          key,
-        ).toEqual([PAN_DRAWER_PLANNED_ID]);
-        expect(read[hobAt - 1]?.plannedId, key).toBe(PAN_DRAWER_PLANNED_ID);
+        // 7D5b S1 / ADR 0110 M1/M8/M9: was *its planned id is `pan-drawer`*. The pan drawer is found
+        // by its body; in an (e) room it carries the preparation id and role (M9) and the dishwasher
+        // is read immediately before it, where the 3-drawer stood.
+        expect(panDrawers, key).toHaveLength(1);
+        const [panDrawer] = panDrawers;
+        expect([PAN_DRAWER_PLANNED_ID, PREPARATION_PLANNED_ID], key).toContain(
+          panDrawer?.plannedId,
+        );
+        expect(read[hobAt - 1], key).toBe(panDrawer);
         expect(read[hobAt - 1]?.wall, key).toBe(read[hobAt]?.wall);
+        if (panDrawer?.plannedId === PREPARATION_PLANNED_ID) {
+          expect(panDrawer.role, key).toBe("preparation");
+          expect(read[hobAt - 2]?.plannedId, key).toBe(DISHWASHER_PLANNED_ID);
+        }
         expect(panDrawers[0]?.builtWidthMm, key).toBe(STORAGE_MODULE_WIDTH_MM);
       }),
       { numRuns: SWEEP_RUNS, seed: SWEEP_SEED },

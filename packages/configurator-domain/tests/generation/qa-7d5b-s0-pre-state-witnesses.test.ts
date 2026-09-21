@@ -16,6 +16,14 @@
 // captured at `acb7b6f`), and assert the live post-S0b shape beside it. Every other witness here is
 // untouched by S0b — the full-grid comparison and the recordings agree that only M11's rooms moved —
 // so it is still read live, and is S1's to restate where S1 moves it.
+//
+// **Restated for S1 (ADR 0110 Amendment M1, M2, M7(e)).** S1 moves seven of these witnesses — the door
+// slot beside the sink becomes the dishwasher (2100 x 2200, 1500 x 2800, 1510 x 2800), the preparation
+// 3-drawer does (900 x 3400, 6000 x 1700), and the threshold drawer is re-planned away (4600 x 5200,
+// 4600 x 5800) — so their HEAD shape is now read **from the pre-tower recording** too; none of them is an
+// M11 room, so HEAD's shape is also S0b's (`qa-7d5b-post-tower-recorded` compares the two recordings).
+// Each is followed by S1's live shape, spans unchanged. 1500 x 3500 and 4650 x 1000, which S1 must not
+// reach, are still read live.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -83,7 +91,9 @@ function describedBody(base: WallModule): string {
   return isComposedStorageSlot(base) ? `slot ${base.buildId}` : base.buildId;
 }
 
-function drawerCabinetsIn(plan: KitchenCompositionPlan): readonly string[] {
+function drawerCabinetsIn(plan: {
+  readonly bases: readonly WallModule[];
+}): readonly string[] {
   return plan.bases
     .filter((base) => DRAWER_CABINET_BODIES.has(base.buildId))
     .map((base) => {
@@ -165,21 +175,35 @@ describe("7D5b S0 — E7's witnesses: what S1's bottle cost at HEAD (recorded), 
 });
 
 describe("7D5b S0 — E2 and E4's witnesses: a door cabinet beside the sink, or not", () => {
-  it("2100 x 2200: the door cabinet stands beside the sink on the sink's own wall", () => {
-    expect(wallAsBuilt(planFor(2100, 2200), "A")).toEqual([
+  it("2100 x 2200: at HEAD the door cabinet stood beside the sink on the sink's own wall", () => {
+    expect(wallAsBuilt(recordedAtHead(2100, 2200), "A")).toEqual([
       "slot base-cabinet [900, 1500]",
       "base-sink [1500, 2100]",
     ]);
   });
 
-  it("1500 x 2800: the sink starts wall B's corner end and the door cabinet wall A's, across the corner", () => {
+  it("2100 x 2200 with S1: that door cabinet is the dishwasher, in its span", () => {
+    expect(wallAsBuilt(planFor(2100, 2200), "A")).toEqual([
+      "base-dishwasher [900, 1500]",
+      "base-sink [1500, 2100]",
+    ]);
+  });
+
+  it("1500 x 2800: at HEAD the sink started wall B's corner end and the door cabinet wall A's, across the corner", () => {
+    const atHead = recordedAtHead(1500, 2800);
+
+    expect(wallAsBuilt(atHead, "A")).toEqual(["slot base-cabinet [900, 1500]"]);
+    expect(wallAsBuilt(atHead, "B")[0]).toBe("base-sink [900, 1500]");
+  });
+
+  it("1500 x 2800 with S1: the door cabinet across the corner is the dishwasher", () => {
     const plan = planFor(1500, 2800);
 
-    expect(wallAsBuilt(plan, "A")).toEqual(["slot base-cabinet [900, 1500]"]);
+    expect(wallAsBuilt(plan, "A")).toEqual(["base-dishwasher [900, 1500]"]);
     expect(wallAsBuilt(plan, "B")[0]).toBe("base-sink [900, 1500]");
   });
 
-  it("1500 x 3500: a door cabinet stands, but the fridge, not the sink, is across the corner from it", () => {
+  it("1500 x 3500: a door cabinet stands, but the fridge, not the sink, is across the corner from it — and S1 leaves it", () => {
     const plan = planFor(1500, 3500);
 
     expect(wallAsBuilt(plan, "A")).toEqual(["slot base-cabinet [900, 1500]"]);
@@ -189,44 +213,70 @@ describe("7D5b S0 — E2 and E4's witnesses: a door cabinet beside the sink, or 
     ]);
   });
 
-  it("1510 x 2800: the door cabinet beside the sink is the last module on its wall, with 10 mm bare after it", () => {
+  it("1510 x 2800: at HEAD the door cabinet beside the sink was the last module on its wall, with 10 mm bare after it", () => {
+    const atHead = recordedAtHead(1510, 2800);
+
+    expect(wallAsBuilt(atHead, "A")).toEqual(["slot base-cabinet [900, 1500]"]);
+    expect(atHead.remainderMm.A).toBe(10);
+  });
+
+  it("1510 x 2800 with S1: the dishwasher in that span, the 10 mm still bare", () => {
     const plan = planFor(1510, 2800);
 
-    expect(wallAsBuilt(plan, "A")).toEqual(["slot base-cabinet [900, 1500]"]);
+    expect(wallAsBuilt(plan, "A")).toEqual(["base-dishwasher [900, 1500]"]);
     expect(plan.remainderMm.A).toBe(10);
   });
 });
 
 describe("7D5b S0 — E6's witnesses: the drawer cabinets where no door cabinet is beside the sink", () => {
-  it("900 x 3400: two — the preparation 3-drawer beside the sink and the pan drawer directly beyond it", () => {
-    const plan = planFor(900, 3400);
+  it("900 x 3400: at HEAD two — the preparation 3-drawer beside the sink and the pan drawer directly beyond it", () => {
+    const atHead = recordedAtHead(900, 3400);
 
-    expect(wallAsBuilt(plan, "B")).toEqual([
+    expect(wallAsBuilt(atHead, "B")).toEqual([
       "base-sink [900, 1500]",
       "base-3drawer [1500, 2100]",
       "base-panbank [2100, 2700]",
       "base-hob-oven [2700, 3300]",
     ]);
-    expect(drawerCabinetsIn(plan)).toEqual([
+    expect(drawerCabinetsIn(atHead)).toEqual([
       "preparation/base-3drawer",
       "pan-drawer/base-panbank",
     ]);
   });
 
-  it("6000 x 1700: three — those two and the drawer slot after the hob", () => {
-    const plan = planFor(6000, 1700);
+  it("900 x 3400 with S1: the 3-drawer is the dishwasher and the pan drawer carries the preparation", () => {
+    const plan = planFor(900, 3400);
 
-    expect(drawerCabinetsIn(plan)).toEqual([
+    expect(wallAsBuilt(plan, "B")).toEqual([
+      "base-sink [900, 1500]",
+      "base-dishwasher [1500, 2100]",
+      "base-panbank [2100, 2700]",
+      "base-hob-oven [2700, 3300]",
+    ]);
+    expect(drawerCabinetsIn(plan)).toEqual(["preparation/base-panbank"]);
+  });
+
+  it("6000 x 1700: at HEAD three — those two and the drawer slot after the hob", () => {
+    const atHead = recordedAtHead(6000, 1700);
+
+    expect(drawerCabinetsIn(atHead)).toEqual([
       "preparation/base-3drawer",
       "pan-drawer/base-panbank",
       "slot/base-3drawer",
     ]);
-    expect(plan.bases.some((base) => base.buildId === "base-cabinet")).toBe(
+    expect(atHead.bases.some((base) => base.buildId === "base-cabinet")).toBe(
       false,
     );
   });
 
-  it("4650 x 1000, the owner's nearest room: one drawer cabinet, the oven tower standing, no pan drawer", () => {
+  it("6000 x 1700 with S1: two stay — the pan drawer as the preparation and the slot after the hob", () => {
+    expect(drawerCabinetsIn(planFor(6000, 1700))).toEqual([
+      "preparation/base-panbank",
+      "slot/base-3drawer",
+    ]);
+  });
+
+  it("4650 x 1000, the owner's nearest room: one drawer cabinet, the oven tower standing, no pan drawer — and S1 leaves it", () => {
     const plan = planFor(4650, 1000);
 
     expect(wallAsBuilt(plan, "A")).toEqual([
@@ -241,9 +291,9 @@ describe("7D5b S0 — E6's witnesses: the drawer cabinets where no door cabinet 
   });
 });
 
-describe("7D5b S0 — E3's witnesses: the threshold drawer at HEAD", () => {
-  it("4600 x 5200: after the hob, threshold drawer, oven tower, pantry", () => {
-    expect(wallAsBuilt(planFor(4600, 5200), "B").slice(-4)).toEqual([
+describe("7D5b S0 — E3's witnesses: the threshold drawer at HEAD, and what dishwasher-first makes of it", () => {
+  it("4600 x 5200: at HEAD, after the hob, threshold drawer, oven tower, pantry", () => {
+    expect(wallAsBuilt(recordedAtHead(4600, 5200), "B").slice(-4)).toEqual([
       "base-hob-2drawer [2700, 3300]",
       "base-3drawer [3300, 3900]",
       "tall-oven-tower [3900, 4500]",
@@ -251,15 +301,40 @@ describe("7D5b S0 — E3's witnesses: the threshold drawer at HEAD", () => {
     ]);
   });
 
-  it("4600 x 5800: the threshold drawer stands in the bottle's place", () => {
+  it("4600 x 5200 with S1: after the hob, oven tower, pantry, pantry — the threshold drawer gone", () => {
+    const plan = planFor(4600, 5200);
+
+    expect(wallAsBuilt(plan, "B").slice(-4)).toEqual([
+      "base-hob-2drawer [2700, 3300]",
+      "tall-oven-tower [3300, 3900]",
+      "tall-pantry [3900, 4500]",
+      "tall-pantry [4500, 5100]",
+    ]);
+    expect(plan.bases.some((base) => base.id === "threshold-drawer")).toBe(
+      false,
+    );
+  });
+
+  it("4600 x 5800: at HEAD the threshold drawer stood in the bottle's place", () => {
+    const atHead = recordedAtHead(4600, 5800);
+
+    expect(
+      atHead.bases.find((base) => base.id === "threshold-drawer"),
+    ).toMatchObject({ wall: "B", startMm: 3300, endMm: 3900 });
+    expect(
+      atHead.bases.some((base) => base.buildId === "base-bottle-cargo"),
+    ).toBe(false);
+  });
+
+  it("4600 x 5800 with S1: the bottle is back at [3300, 3600] and the threshold drawer gone", () => {
     const plan = planFor(4600, 5800);
 
     expect(
-      plan.bases.find((base) => base.id === "threshold-drawer"),
-    ).toMatchObject({ wall: "B", startMm: 3300, endMm: 3900 });
-    expect(
-      plan.bases.some((base) => base.buildId === "base-bottle-cargo"),
-    ).toBe(false);
+      plan.bases.find((base) => base.buildId === "base-bottle-cargo"),
+    ).toMatchObject({ wall: "B", startMm: 3300, endMm: 3600 });
+    expect(plan.bases.some((base) => base.id === "threshold-drawer")).toBe(
+      false,
+    );
   });
 });
 

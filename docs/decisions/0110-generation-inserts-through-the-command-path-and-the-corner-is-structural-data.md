@@ -1719,9 +1719,11 @@ recorded where they were worked out; the wave that builds them is not this one.
   neither)*. **No new threshold:** the existing attempt ladder already computes *"whenever it fits"*.
 - **The drop order gains a member and Amendment C's F3 is extended, not overturned.** The ruled
   relation is the owner's — **drawers beat the dishwasher**, and their own 3700 mm kitchen kept the
-  fridge and gave up the dishwasher. **Where it lands in the ladder is the coordinator's derivation
+  fridge and gave up the dishwasher. ~~**Where it lands in the ladder is the coordinator's derivation
   from that relation:** leftover storage, then the dishwasher, then the fridge, then the preparation
-  cabinet; sink and hob never. **Every relative order C ruled is preserved and the new member is
+  cabinet; sink and hob never.~~ **Struck 2026-09-21, wave 7D5b S1 review: once the dishwasher is not
+  a core role (Amendment M, M1), it is not on the core-role drop ladder at all — there is no rung for
+  it to occupy.** **Every relative order C ruled is preserved and the new member is
   inserted between two of them**, which is what stops this from silently overturning an owner ruling.
 - **One honest wrinkle.** Because the dishwasher takes a leftover module, the trade in an L with
   leftover *can* be a dishwasher against one storage drawer slot. **The owner's example is not that
@@ -3220,3 +3222,31 @@ Invariant counters, all measured **0**: two dishwashers in one room, a kitchen w
 room whose oven count is not one, a room that loses its oven tower other than through (c), a (c)
 room whose hob is not `base-hob-oven`, a missing preparation role not reported in `dropped`, a
 remainder of 600 mm or more, *D* ≥ 6 short of drawers, a swap that leaves no drawer cabinet.
+
+**M13 — owner ruling, 2026-09-21, wave 7D5b slice S1 review.** Shown two candidate placements for a
+generated dishwasher relative to the sink and the corner cabinet:
+
+- **140,206 of 165,421** S1 dishwashers stand **across the corner** from the sink — on the other
+  wall, with the corner cabinet between them. Witness **1500 × 2800**: the two stand about 300 mm
+  apart at right angles, and the open door reaches in front of the corner cabinet.
+- Only **25,215** stand directly beside the sink on its own wall.
+
+**The owner chose "Keep across the corner."** This **reconfirms this record's own F12** — *"either
+side of the sink, across the corner counts"* — rather than narrowing it. **The visual gate's
+criterion 11 must specifically check the open dishwasher door against the sink front and the corner
+unit's own opening**, not merely against the corner assembly's footprint (risk 2 in the plan).
+
+**M9 addition — recorded for wave 7D5b's logic review.** *D* (the drawer count the threshold rule
+tests) keeps excluding the preparation cabinet in (e) rooms, because after (e)'s re-identification
+the pan-drawer module carries **both** the preparation id/role and the `base-panbank` body — there is
+only ever one drawer body standing there, not two. Re-keying *D* to count the preparation module a
+second time by its role, rather than once by its body, would break E1's headline census (F12,
+ADR 0121 decision 3: **a thing is identified by what it is**). The census's `base-panbank` count is
+kept keyed **by body**, deliberately, and *D* is not re-derived from it.
+
+**Correction — 2026-09-21, wave 7D5b slice S1 review.** Wherever this record or the wave plan asserts
+that `dropped` is **empty** in the 24,160 (e) rooms, that is corrected to `dropped` is **unchanged
+from S0b**. In **1,200** of the 24,160 (e) rooms, `dropped` is `["fridge"]`, carried over unchanged
+from S0b's pre-state — (e) neither adds to nor clears it. The wording at this record's own E6
+("`dropped` stays honest") is unaffected by this correction: honesty about an unchanged list is not a
+claim that the list is empty.

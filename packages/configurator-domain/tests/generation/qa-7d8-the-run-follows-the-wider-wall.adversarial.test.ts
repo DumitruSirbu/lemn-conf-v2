@@ -34,6 +34,7 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
+  DISHWASHER_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   GENERATION_PRIORITIES,
   isComposedStorageSlot,
@@ -324,17 +325,28 @@ describe("7b — the descending slot path, declared at the composer's boundary",
       // M7 wave 7D5 S2 (Q-H6a = A). Read backwards, *before the hob* is spatially **past** it, away
       // from the corner: a composer that inserted the pan drawer by spatial position rather than by
       // reading order would stand it between the bottle and the hob instead.
+      //
+      // **7D5b S1 / ADR 0110 M7(e), M8, M9.** These declared runs hold three drawer cabinets — the
+      // preparation 3-drawer, the pan drawer and the drawer slot — and no door slot beside the sink,
+      // so (e) swaps: the dishwasher takes the preparation 3-drawer's module and the pan drawer carries
+      // the preparation id and role. Was `panDrawer.id === "pan-drawer"` and the preparation read two
+      // before the hob; the pan drawer is now found by its body, the module read before it is the
+      // dishwasher, and the sink is read immediately before that. Every span is unchanged.
       const plan = planFor(room, runs);
       const read = inReadingOrder(plan);
       const hobAt = read.findIndex((base) => base.role === "hob");
       const hob = read[hobAt];
       const panDrawer = read[hobAt - 1];
 
-      expect(panDrawer?.id).toBe("pan-drawer");
       expect(panDrawer?.buildId).toBe("base-panbank");
+      expect(panDrawer?.id).toBe("preparation");
+      expect(panDrawer?.role).toBe("preparation");
       expect(panDrawer?.wall).toBe(reversedWall);
       expect(panDrawer?.startMm).toBe(hob?.endMm);
-      expect(read[hobAt - 2]?.role).toBe("preparation");
+      expect(read[hobAt - 2]?.id).toBe("dishwasher");
+      expect(read[hobAt - 2]?.buildId).toBe(DISHWASHER_BUILD_ID);
+      expect(read[hobAt - 2]?.startMm).toBe(panDrawer?.endMm);
+      expect(read[hobAt - 3]?.role).toBe("sink");
     },
   );
 
@@ -382,8 +394,16 @@ describe("7c — the slot lookup names its wall by layout role and never by lett
   };
 
   it("gives the drawer to the wider wall's slot while the narrower wall's slots keep their doors", () => {
+    // **7D5b S1 / ADR 0110 M1.** Was five slots, the first `["A", 900, door]`. Wall A's first module
+    // from the corner faces the sink across it, so M1 re-identified it as the dishwasher: it leaves
+    // the slot list, is asserted beside the sink below, and the four slots the run reads before the
+    // hob on the narrower wall keep their doors — the subject a letter-keyed lookup would break.
     const plan = planFor(DRAWER_ON_THE_WIDER_WALL);
     const slots = plan.bases.filter(isComposedStorageSlot);
+    const dishwasher = plan.bases.find(
+      (base) => base.buildId === DISHWASHER_BUILD_ID,
+    );
+    const sink = plan.bases.find((base) => base.role === "sink");
 
     expect(DRAWER_ON_THE_WIDER_WALL.depthMm).toBeGreaterThan(
       approvedWallBMaxMm(),
@@ -391,12 +411,18 @@ describe("7c — the slot lookup names its wall by layout role and never by lett
     expect(
       slots.map((slot) => [slot.wall, slot.startMm, slot.buildId]),
     ).toEqual([
-      ["A", 900, DOOR_BASE_BUILD_ID],
       ["A", 1500, DOOR_BASE_BUILD_ID],
       ["A", 2100, DOOR_BASE_BUILD_ID],
       ["A", 2700, DOOR_BASE_BUILD_ID],
       ["B", 3600, THREE_DRAWER_BASE_BUILD_ID],
     ]);
+    expect([dishwasher?.id, dishwasher?.wall, dishwasher?.startMm]).toEqual([
+      "dishwasher",
+      "A",
+      900,
+    ]);
+    // Across the corner: each is the first module from the corner on its own wall.
+    expect([sink?.wall, sink?.startMm]).toEqual(["B", 900]);
   });
 
   it("declares its wall-B band wholly past the approved policy, and every room in it placed", () => {

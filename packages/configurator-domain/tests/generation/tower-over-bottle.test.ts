@@ -35,6 +35,13 @@
 // A full-grid diff of HEAD's and S0b's plans on two scratch builds, which found the same 5 260 rooms
 // per ceiling and 0 other changed rooms, is a **scratch measurement** by the implementer and QA, not a
 // test in this repository; nothing here re-runs it.
+//
+// **Restated for S1 (ADR 0110 Amendment M1, M2, M7(e)).** S1's leaf re-identifies a module beside the
+// sink in 165 421 rooms and re-plans the threshold drawer in 10 070, so the live planner is no longer
+// S0b's. Everything here that is S0b's — the census, and each witness's *"on M11's path"* layout — is
+// read from **S0b's plan**: the planner with S1's leaf switched off (`beforeS1`), proved byte for byte
+// against the post-tower recording by `qa-7d5b-post-tower-recorded`. Where S1 moves a witness, its live
+// layout is asserted beside it: 900 x 4410 is an (e) room.
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -52,6 +59,7 @@ import {
 } from "../../src/index.js";
 import { canonicalPlan } from "../support/composed-run-baseline.js";
 import {
+  beforeS1,
   decidedBeforeTheThresholdDrawer,
   forgetTheLastComposition,
   lastComposition,
@@ -68,6 +76,15 @@ vi.mock(
       "../support/composition-context-capture.js"
     );
     return withTheCompositionRecorded(await importOriginal());
+  },
+);
+vi.mock(
+  "../../src/generation/dishwasher-beside-the-sink.js",
+  async (importOriginal) => {
+    const { withTheDishwasherLeafSwitchable } = await import(
+      "../support/composition-context-capture.js"
+    );
+    return withTheDishwasherLeafSwitchable(await importOriginal());
   },
 );
 
@@ -120,7 +137,7 @@ beforeEach(() => {
 
 describe("7D5b S0b — the oven tower is kept over S1's bottle where no pan drawer depends on it", () => {
   it("3560 x 2920, the reference room: wall A ends hob-2drawer, oven tower [2700, 3300] and 260 mm bare", () => {
-    const plan = planFor(3560, 2920);
+    const plan = beforeS1(() => planFor(3560, 2920));
 
     expectS1sBottleToCostTheOvenTower();
     expect(wallAsBuilt(plan, "A")).toEqual([
@@ -133,7 +150,7 @@ describe("7D5b S0b — the oven tower is kept over S1's bottle where no pan draw
   });
 
   it("900 x 4100: wall B ends hob-2drawer and the oven tower, with nothing bare", () => {
-    const plan = planFor(900, 4100);
+    const plan = beforeS1(() => planFor(900, 4100));
 
     expectS1sBottleToCostTheOvenTower();
     expect(wallAsBuilt(plan, "B")).toEqual([
@@ -147,7 +164,7 @@ describe("7D5b S0b — the oven tower is kept over S1's bottle where no pan draw
   });
 
   it("900 x 4410, the K3 fallback: the pan drawer stands beside the bottle, so the bottle keeps the tower's place", () => {
-    const plan = planFor(900, 4410);
+    const plan = beforeS1(() => planFor(900, 4410));
 
     expectS1sBottleToCostTheOvenTower();
     expect(wallAsBuilt(plan, "B")).toEqual([
@@ -160,6 +177,37 @@ describe("7D5b S0b — the oven tower is kept over S1's bottle where no pan draw
     ]);
     expect(plan.remainderMm.B).toBe(10);
   });
+
+  // S1 leaves every body and span M11 decided here; (e) re-identifies the two drawer cabinets only.
+  it("900 x 4410 with S1, live: the same bodies and spans, the dishwasher beside the sink and the preparation on the pan drawer", () => {
+    const plan = planFor(900, 4410);
+
+    expect(wallAsBuilt(plan, "B")).toEqual([
+      "fridge/fridge-free [900, 1600]",
+      "sink/base-sink [1600, 2200]",
+      "dishwasher/base-dishwasher [2200, 2800]",
+      "preparation/base-panbank [2800, 3400]",
+      "hob/base-hob-oven [3400, 4000]",
+      "bottle/base-bottle-cargo [4000, 4300]",
+    ]);
+    expect(plan.remainderMm.B).toBe(10);
+  });
+
+  it.each([
+    [3560, 2920],
+    [900, 4100],
+  ])(
+    "%i x %i with S1, live: the wall M11 decided is the one S0b built",
+    (widthMm, depthMm) => {
+      const afterS0b = beforeS1(() => planFor(widthMm, depthMm));
+      const hobWall = afterS0b.bases.find((base) => base.role === "hob")?.wall;
+      if (hobWall === undefined) throw new Error("no hob");
+
+      expect(wallAsBuilt(planFor(widthMm, depthMm), hobWall)).toEqual(
+        wallAsBuilt(afterS0b, hobWall),
+      );
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -178,7 +226,7 @@ const TALL_BODY_PREFIX = "tall-";
 interface TowerOverBottleCensus {
   /** Rooms where the restated decision says the tower was kept over the bottle. */
   keptByTheDecision: number;
-  /** Rooms whose live plan differs from HEAD's reconstruction — which is the live plan itself wherever the
+  /** Rooms whose S0b plan differs from HEAD's reconstruction — which is S0b's plan itself wherever the
    *  restated decision did not keep the tower, so this cannot count a change outside M11's rooms. */
   changed: number;
   /** Each changed room's difference, spelled from the two plans rather than from the rule. */
@@ -188,7 +236,7 @@ interface TowerOverBottleCensus {
   /** A changed room that was not on M11's path: the K3 fallback, S1's bottle taking the oven tower,
    *  and no pan drawer. */
   offTheRulesPath: string[];
-  /** A live plan with no threshold drawer that is not the composer's plan of the decided run. */
+  /** An S0b plan with no threshold drawer that is not the composer's plan (before S1) of the decided run. */
   liveDecisionMismatches: string[];
   /** A changed room where HEAD's threshold rule would have read the bottle kitchen short of drawers,
    *  so the reconstruction would not be HEAD's whole plan. */
@@ -261,31 +309,34 @@ function towerOverBottleCensusAt(ceilingMm: number): TowerOverBottleCensus {
   return census;
 }
 
+/** One room, read before S1: S0b's plan, and HEAD's reconstructed on it. */
 function countTheRoom(census: TowerOverBottleCensus, room: DesignRoom): void {
   forgetTheLastComposition();
-  const livePlan = planKitchenComposition({
-    room,
-    runs: lShellFloorRuns(room),
-    columns: DECLARED_COLUMNS,
-  });
-  if (!livePlan.minimumMet) return;
+  const planAfterS0b = beforeS1(() =>
+    planKitchenComposition({
+      room,
+      runs: lShellFloorRuns(room),
+      columns: DECLARED_COLUMNS,
+    }),
+  );
+  if (!planAfterS0b.minimumMet) return;
   const where = `${String(room.widthMm)}x${String(room.depthMm)}`;
   const composition = lastComposition();
   const decided = decidedBeforeTheThresholdDrawer(composition);
-  addTotals(census, livePlan);
+  addTotals(census, planAfterS0b);
   if (decided.isTheOvenTowerKeptOverTheBottle) census.keptByTheDecision += 1;
   if (
-    !hasThresholdDrawer(livePlan) &&
-    canonicalPlan(composition.context.planOf(decided.run)) !==
-      canonicalPlan(livePlan)
+    !hasThresholdDrawer(planAfterS0b) &&
+    canonicalPlan(beforeS1(() => composition.context.planOf(decided.run))) !==
+      canonicalPlan(planAfterS0b)
   ) {
     census.liveDecisionMismatches.push(where);
   }
   countTheChange(census, {
     where,
     composition,
-    livePlan,
-    headPlan: planBeforeS0b(composition, livePlan),
+    planAfterS0b,
+    headPlan: planBeforeS0b(composition, planAfterS0b),
   });
 }
 
@@ -294,16 +345,16 @@ function countTheChange(
   room: {
     readonly where: string;
     readonly composition: RecordedComposition;
-    readonly livePlan: KitchenCompositionPlan;
+    readonly planAfterS0b: KitchenCompositionPlan;
     readonly headPlan: KitchenCompositionPlan;
   },
 ): void {
-  const { where, composition, livePlan, headPlan } = room;
+  const { where, composition, planAfterS0b, headPlan } = room;
   const before = canonicalPlan(headPlan);
-  const after = canonicalPlan(livePlan);
+  const after = canonicalPlan(planAfterS0b);
   if (before === after) return;
   census.changed += 1;
-  const shape = shapeOfTheChange(headPlan, livePlan);
+  const shape = shapeOfTheChange(headPlan, planAfterS0b);
   census.byShape[shape] = (census.byShape[shape] ?? 0) + 1;
   if (
     towerOverBottleChangeBetween({ before, after }) !==

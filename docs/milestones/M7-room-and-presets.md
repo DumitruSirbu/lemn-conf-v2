@@ -9375,6 +9375,7 @@ the written amendment.
 | **The 1F label** | ro **Nișă mașină de spălat vase** / ru **Ниша для посудомоечной машины**, approved in session | O1-class copy, recorded as owner-approved. |
 | **Tower over bottle** | *"where the bottle cabinet would leave a bare gap that the oven tower could have filled, keep the tower and drop the bottle"* | A change to 7D5's bottle rule, planned as its own slice, **S0b** (E7). |
 | **… except where the pan drawer depends on it** | *"if you have hub + oven you rarely need second oven, so oven tower should b replaced, otherwise oven is a must in any kitche"*, clarified as *"only one oven is not correct, at least one oven is correct, a kitchen can have multiple ovens, but at least one is a must"* | S0b is narrowed to the **5 260** rooms where no pan drawer is lost. Principle M12 is recorded. |
+| **Added 2026-09-21, S1 review — dishwasher vs. sink adjacency site** | Shown 140,206 across-the-corner dishwashers (witness **1500 × 2800**) against 25,215 beside-the-sink ones, the owner chose **"Keep across the corner."** | **Reconfirms** ADR 0110 F12's *"either side of the sink, across the corner counts"*; recorded as ADR 0110 Amendment M, **M13**. The visual gate (criterion 11) must check the open door against the sink front and the corner unit's opening. |
 
 This also answers the 7D5 close-out's open product concern: the reference room's bare 560 mm
 after the bottle cabinet is closed by S0b.
@@ -9540,9 +9541,17 @@ moves.
   **[source-verified: the `GENERATION_PRIORITIES` loop and `plannedByRole` in
   `generate-kitchen.ts`]**. So the preparation step is a placed `base-panbank`.
 - **What is lost is the 3-drawer body**, and that is the owner's choice.
+- **Recorded for the logic reviewer, 2026-09-21 (ADR 0110 Amendment M, M9 addition): *D* keeps
+  excluding the preparation cabinet in (e) rooms.** After (e)'s re-identification the pan-drawer
+  module carries both the preparation id/role and the `base-panbank` body — one drawer body, not
+  two — so re-keying *D* on the body would double-count it and break E1. The census's `base-panbank`
+  count stays keyed by body, deliberately, and *D* is not re-derived from it.
 - **The rejected model lies twice.** Re-identifying the 3-drawer and leaving `pan-drawer` as it is
-  leaves no preparation base, while `dropped` stays empty and 1F reads *Blat de lucru — nu poate fi
-  inclus* with no reason. Carrying role `preparation` on a `base-dishwasher` lies about the body.
+  leaves no preparation base, while `dropped` stays empty **in that rejected model** and 1F reads
+  *Blat de lucru — nu poate fi inclus* with no reason (this sentence describes the rejected model's
+  own failure, not the shipped one — see criterion 6 for the shipped model's `dropped`, which is
+  unchanged from S0b and non-empty in 1,200 of the 24,160 (e) rooms). Carrying role `preparation` on
+  a `base-dishwasher` lies about the body.
 - **Counting follows from it.** Pan-drawer counts must be keyed on the body `base-panbank`, per
   [ADR 0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md).
   Counted by the id `pan-drawer`, they undercount by 24 160.
@@ -9865,15 +9874,23 @@ All figures are measured on top of S0b.
    - **Part A:** outside the 10 070 rooms, only the modules the leaf re-identified differ (two in
      (e) rooms). **0 other differences [measured].**
    - **Part B:** in the 10 070, the threshold drawer is gone, and either one column is back (7 010,
-     **4600 × 5200**) or the bottle is back with the suffix remainder +300 mm (3 060,
-     **4600 × 5800**).
+     **4600 × 5200**) or the bottle is back — ~~with the suffix remainder +300 mm (3 060,
+     **4600 × 5800**)~~ **corrected 2026-09-21, S1 review:** +300 mm in **660** rooms; +310…+500 mm
+     in **2,400** (120 rooms per 10 mm step), where S0b's outer pantry column had absorbed 10–200 mm,
+     which no longer fits under the 800 mm column ceiling once the bottle returns (ADR 0110 E6.2);
+     all of these remainders stay **under 599 mm** (Amendment A4). Witness unchanged: **4600 × 5800**.
 4. **The drawer rules.**
    - M1 never replaces a drawer cabinet, the bottle, a column, the fridge or a core role.
    - (e) fires only with at least two drawer cabinets and leaves at least one: **24 100** rooms with
      two, **60** with three.
-   - **(a)** Drop the "at least two" guard and let a lone preparation cabinet become the dishwasher
+   - ~~**(a)** Drop the "at least two" guard and let a lone preparation cabinet become the dishwasher
      → red on **4650 × 1000** at S1: no drawer cabinet is left, and no base carries the preparation
-     role.
+     role.~~ **Corrected 2026-09-21, S1 review: this sabotage is wrong and is withdrawn.** The
+     "at-least-two" guard could never decide this case — 4650 × 1000 has exactly one drawer cabinet
+     either way — and the guard itself is being removed under ADR 0093 decision 1. **Restated
+     sabotage: (a)** Drop the **pan-drawer-beyond requirement** (that the pan drawer stands directly
+     beyond the drawer cabinet beside the sink) → red. Caught by
+     `dishwasher-beside-the-sink.test.ts` and by the census invariant `aDrawerCabinetStoodAndNoneIsLeft`.
    - **(b)** Change `PAN_DRAWER_BASE_BUILD_ID`'s value in a scratch build → green, because the check
      reads bodies from literals (ADR 0121 decision 4).
 5. **The order (Q-DW2).**
@@ -9882,8 +9899,9 @@ All figures are measured on top of S0b.
    - **(a)** Apply the leaf as a post-pass → red: 15 795.
    - **(a)** Give the dishwasher a `storage:` id → red: 15 795.
 6. **(e) keeps the core role.** In all 24 160 (e) rooms, a `preparation` base on `base-panbank`
-   stands directly beyond the dishwasher, `dropped` is unchanged, and through `generateKitchen` the
-   preparation step reads `placed`.
+   stands directly beyond the dishwasher, `dropped` is unchanged (**not asserted empty**: 1,200 of
+   the 24,160 carry `dropped = ["fridge"]`, unchanged from S0b — ADR 0110 Amendment M correction,
+   2026-09-21), and through `generateKitchen` the preparation step reads `placed`.
    - **(a)** Re-identify the 3-drawer and leave `pan-drawer` as it is → red.
    - **Must not:** role `preparation` on a `base-dishwasher`.
 7. **The merge case.** In the 1 260 merge rooms (**1510 × 2800**), generation does not throw and the
@@ -9896,6 +9914,10 @@ All figures are measured on top of S0b.
 11. **Visual** (390 × 844, at 600 and 700 mm depth). The rooms are **3560 × 2920**, **3600 × 2400**,
     **2100 × 2200**, **1510 × 2800**, **900 × 3400**, **900 × 4400** and **4600 × 5200**.
     - Checked: the dishwasher door against the corner assembly, and the 700 mm slide.
+    - **Owner-confirmed 2026-09-21 (ADR 0110 Amendment M, M13):** shown 140,206 across-the-corner
+      dishwashers against 25,215 beside-the-sink ones, the owner chose **keep across the corner**.
+      This gate must specifically check the open dishwasher door against **the sink front and the
+      corner unit's own opening**, not merely the corner assembly's footprint.
 
 ### Acceptance criteria — S2
 

@@ -4,6 +4,7 @@ import {
   DOOR_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
+import { withTheDishwasherBesideTheSink } from "./dishwasher-beside-the-sink.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
   planWithPanDrawerThenBottle,
@@ -163,14 +164,22 @@ export function planKitchenComposition(input: {
   };
 }
 
-/** The composer's answers the optional run items are decided against, bound to one kept core. */
+/** The composer's answers the optional run items are decided against, bound to one kept core.
+ *
+ *  **Every plan `planOf` builds carries its dishwasher** (ADR 0110 Amendment M2, the owner's
+ *  *"dishwasher first"*): the threshold drawer is the only reader of `planOf`, so it tests *D* on a
+ *  kitchen whose dishwasher is already decided, and its own candidate plan is given one in turn. The pan
+ *  drawer and the bottle never read a plan — only fit and `tallColumnCountOf` — so they stay decided
+ *  ahead of it. Applied after the plan is built rather than as a post-pass on the result, which would
+ *  let the threshold drawer be decided as though the converted door cabinet still stood. */
 function compositionContextFor(
   basis: PlanBasis,
   capacityMm: WallCapacities,
 ): CompositionContext {
   return {
     capacityMm,
-    planOf: (run) => builtPlan({ ...basis, ...run }),
+    planOf: (run) =>
+      withTheDishwasherBesideTheSink(builtPlan({ ...basis, ...run })),
     tallColumnCountOf: (run) => tallColumnCountOf(basis, run),
   };
 }

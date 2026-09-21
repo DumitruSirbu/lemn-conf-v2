@@ -34,10 +34,12 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
+  DISHWASHER_BUILD_ID,
   DOOR_BASE_BUILD_ID,
   isComposedStorageSlot,
   KITCHEN_L_DESIGN,
   lShellFloorRuns,
+  PAN_DRAWER_BASE_BUILD_ID,
   planKitchenComposition,
   THREE_DRAWER_BASE_BUILD_ID,
   type DesignRoom,
@@ -109,6 +111,22 @@ function bodiesOf(bases: readonly PlannedGenerationBase[]): readonly string[] {
   return bases.map((base) => base.buildId);
 }
 
+/** 7D5b S1 / ADR 0110 M1/M8/M9: the one module the dishwasher leaf re-identified, read by its body. */
+function dishwasherOf(plan: KitchenCompositionPlan): PlannedGenerationBase {
+  const dishwashers = plan.bases.filter(
+    (base) => base.buildId === DISHWASHER_BUILD_ID,
+  );
+  if (dishwashers.length !== 1 || !dishwashers[0])
+    throw new Error(
+      `expected one dishwasher, found ${String(dishwashers.length)}`,
+    );
+  return dishwashers[0];
+}
+
+function isTheSink(base: PlannedGenerationBase | undefined): boolean {
+  return base?.role === "sink";
+}
+
 describe("D15.7 — the slot after the hob is found in the reading order and not along one wall", () => {
   // The witness that separates *after the hob in the reading order* from *the first slot on a named
   // wall*. The run starts at the narrower wall's free end, reads that wall's slots, crosses the corner
@@ -137,13 +155,15 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
       name: "hob on wall A, 6000 x 4100",
       room: { shape: "L", widthMm: 6000, depthMm: 4100, heightMm: 2600 },
       hobWall: "A",
+      // 7D5b S1 / ADR 0110 M1/M8/M9: wall B's first slot, at 900, faces the sink across the corner,
+      // so M1 made it the dishwasher; it leaves this list and is asserted below as `dishwasherAt`.
       slots: [
         ["A", 3600, THREE_DRAWER_BASE_BUILD_ID],
-        ["B", 900, DOOR_BASE_BUILD_ID],
         ["B", 1500, DOOR_BASE_BUILD_ID],
         ["B", 2100, DOOR_BASE_BUILD_ID],
         ["B", 2700, DOOR_BASE_BUILD_ID],
       ],
+      dishwasherAt: ["B", 900, 1500],
       hobStartMm: 2700,
     },
     {
@@ -151,12 +171,12 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
       room: { shape: "L", widthMm: 4100, depthMm: 6100, heightMm: 2600 },
       hobWall: "B",
       slots: [
-        ["A", 900, DOOR_BASE_BUILD_ID],
         ["A", 1500, DOOR_BASE_BUILD_ID],
         ["A", 2100, DOOR_BASE_BUILD_ID],
         ["A", 2700, DOOR_BASE_BUILD_ID],
         ["B", 3600, THREE_DRAWER_BASE_BUILD_ID],
       ],
+      dishwasherAt: ["A", 900, 1500],
       hobStartMm: 2700,
     },
   ] as const satisfies readonly {
@@ -164,6 +184,7 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
     readonly room: DesignRoom;
     readonly hobWall: DesignWall;
     readonly slots: readonly (readonly [DesignWall, number, string])[];
+    readonly dishwasherAt: readonly [DesignWall, number, number];
     readonly hobStartMm: number;
   }[];
 
@@ -196,7 +217,7 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
 
   it.each(D15_7_WITNESSES)(
     "leaves every slot the run read before the hob a door, though one is a wall's first slot, $name",
-    ({ room, slots, hobStartMm }) => {
+    ({ room, slots, dishwasherAt, hobStartMm }) => {
       // The same disagreement seen spatially, and the form that fails loudest under the wrong rule: an
       // implementation that sought the slot on the **narrower** wall — or on a fixed letter — finds a
       // slot the run read before the hob and gives it the drawer, while the widths, the count, the
@@ -220,6 +241,15 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
           )
           .map((slot) => [slot.wall, slot.startMm, slot.buildId]),
       ).toEqual(slots);
+      // 7D5b S1 / ADR 0110 M1/M8/M9: the narrower wall's **first** slot — the one a wall-scoped rule
+      // would have drawered — is now the dishwasher, a module read before the hob that took neither
+      // drawer body. The run reads it immediately before crossing to the sink.
+      const dishwasher = dishwasherOf(plan);
+      const read = inReadingOrder(plan);
+      expect([dishwasher.wall, dishwasher.startMm, dishwasher.endMm]).toEqual(
+        dishwasherAt,
+      );
+      expect(isTheSink(read[read.indexOf(dishwasher) + 1])).toBe(true);
       expect(plan.bases.find((base) => base.role === "hob")?.startMm).toBe(
         hobStartMm,
       );
@@ -297,8 +327,12 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
     "leaves every slot the run reads before the hob a door at 6300 × %i",
     (depthMm) => {
       // The second drawer of the owner's group stands left of the hob — 7D5 S2's pan drawer, a width
-      // change (D15.2) that is not a composed slot, so it does not appear in this list. These five
-      // are wall B's, which the order names as *the door cabinet between fridge and sink* (H2).
+      // change (D15.2) that is not a composed slot, so it does not appear in this list. These are
+      // wall B's, which the order names as *the door cabinet between fridge and sink* (H2).
+      //
+      // 7D5b S1 / ADR 0110 M1/M8/M9: 7D4 read five doors here. Wall B's first slot faces the sink
+      // across the corner and M1 made it the dishwasher, so four doors remain, and the fifth module is
+      // asserted as the dishwasher the run reads last before the sink — never a drawer.
       const plan = planFor({
         shape: "L",
         widthMm: 6300,
@@ -310,7 +344,11 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
 
       expect(
         bodiesOf(read.slice(0, hobAt).filter(isComposedStorageSlot)),
-      ).toEqual(Array.from({ length: 5 }, () => DOOR_BASE_BUILD_ID));
+      ).toEqual(Array.from({ length: 4 }, () => DOOR_BASE_BUILD_ID));
+      const dishwasherAt = read.indexOf(dishwasherOf(plan));
+      expect(dishwasherAt).toBeGreaterThanOrEqual(0);
+      expect(dishwasherAt).toBeLessThan(hobAt);
+      expect(isTheSink(read[dishwasherAt + 1])).toBe(true);
     },
   );
 
@@ -364,6 +402,11 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   );
 });
 
+// 7D5b S1 / ADR 0110 M1/M8/M9: the boundary room's one composed slot faces the sink across the corner,
+// so M1 made it the dishwasher. The merge subject is kept **in the same room, on the dishwasher's
+// module**: the re-identification keeps the span the merge stepped back, so the module still stands
+// at one module inside the 698 mm opening, now under a discrete-width body — the harder case the
+// buildability test below was written against.
 describe("criterion 10 — the free-end merge still lands on a body that can take it", () => {
   const MERGE_BOUNDARY: DesignRoom = {
     shape: "L",
@@ -374,11 +417,16 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
 
   it("inserts wall B's one slot into the merged opening and steps it back to one module", () => {
     const plan = planFor(MERGE_BOUNDARY);
-    const slots = plan.bases.filter(isComposedStorageSlot);
+    const dishwasher = dishwasherOf(plan);
 
-    expect(
-      slots.map((slot) => [slot.wall, slot.startMm, slot.endMm, slot.widthMm]),
-    ).toEqual([["B", 900, 1500, STORAGE_MODULE_WIDTH_MM]]);
+    expect(plan.bases.filter(isComposedStorageSlot)).toEqual([]);
+    expect([
+      dishwasher.wall,
+      dishwasher.startMm,
+      dishwasher.endMm,
+      dishwasher.widthMm,
+    ]).toEqual(["B", 900, 1500, STORAGE_MODULE_WIDTH_MM]);
+    expect(dishwasher.role).toBe("storage");
     expect(plan.remainderMm.B).toBe(98);
   });
 
@@ -386,23 +434,32 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
     // Read off the catalogue entry rather than asserted by name: a `fixedWidth` or discrete-width
     // row dropped into the merged 698 mm opening would move a tile boundary the merge and
     // `plannedVoid` both depend on, whichever body the rule assigned.
+    //
+    // 7D5b S1 / ADR 0110 M1/M8/M9: was `widthFlex === "fit"` on the door slot. The dishwasher is a
+    // discrete-width row, so buildable means its declared widths include the planned 600 — not the
+    // merged 698 the opening would otherwise offer it.
     const plan = planFor(MERGE_BOUNDARY);
-    const slot = plan.bases.find(isComposedStorageSlot);
-    if (!slot)
-      throw new Error("the merge boundary room composed no storage slot");
+    const dishwasher = dishwasherOf(plan);
+    const widthFlex = CATALOG.get(dishwasher.buildId)?.widthFlex;
 
-    expect(CATALOG.get(slot.buildId)?.widthFlex).toBe("fit");
+    expect(Array.isArray(widthFlex)).toBe(true);
+    expect(widthFlex).toContain(dishwasher.widthMm);
+    expect(widthFlex).not.toContain(dishwasher.widthMm + plan.remainderMm.B);
   });
 
-  it("leaves it a door, because the run reads it before the hob", () => {
+  it("leaves it undrawered — now the dishwasher — because the run reads it before the hob", () => {
     // Wall B's slot stands between the fridge's end of the run and the corner; the hob is on wall A,
     // past the corner. Under *the same wall, further along* there is no candidate at all here — the
     // two definitions agree only by accident, and this pins which one produced the answer.
+    //
+    // 7D5b S1 / ADR 0110 M1/M8/M9: was `[DOOR_BASE_BUILD_ID]` over composed slots; the module is now
+    // the dishwasher, read before the hob, and no drawer body reached it.
     const plan = planFor(MERGE_BOUNDARY);
+    const read = inReadingOrder(plan);
+    const hobAt = read.findIndex((base) => base.role === "hob");
 
-    expect(bodiesOf(plan.bases.filter(isComposedStorageSlot))).toEqual([
-      DOOR_BASE_BUILD_ID,
-    ]);
+    expect(dishwasherOf(plan).buildId).toBe(DISHWASHER_BUILD_ID);
+    expect(read.indexOf(dishwasherOf(plan))).toBeLessThan(hobAt);
     expect(slotsAfterTheHob(plan)).toEqual([]);
   });
 });
@@ -511,19 +568,46 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
     }
   });
 
+  // 7D5b S1 / ADR 0110 M1/M8/M9: was *the preparation body is always `base-3drawer`*. Under M7(e) the
+  // dishwasher takes the preparation 3-drawer beside the sink and the preparation id and role move
+  // onto the pan drawer directly beyond it (M9), whose body stays `base-panbank` (M8 narrows F5/D7).
+  // The drawer body is kept; which of the two is the rule's, not the room's: a pan-drawer prep only
+  // with the dishwasher abutting it where the 3-drawer stood, and no second pan drawer.
   it("makes the preparation cabinet a drawer body wherever it is placed, at one module", () => {
     let placed = 0;
+    let swapped = 0;
     for (const plan of SWEPT_PLANS) {
       const preparation = plan.bases.find(
         (base) => base.role === "preparation",
       );
       if (!preparation) continue;
       placed += 1;
+      const label = `${String(plan.room.widthMm)}x${String(plan.room.depthMm)}`;
 
-      expect(preparation.buildId).toBe(THREE_DRAWER_BASE_BUILD_ID);
+      expect(
+        [THREE_DRAWER_BASE_BUILD_ID, PAN_DRAWER_BASE_BUILD_ID],
+        label,
+      ).toContain(preparation.buildId);
       expect(preparation.widthMm).toBe(STORAGE_MODULE_WIDTH_MM);
+      if (preparation.buildId === PAN_DRAWER_BASE_BUILD_ID) {
+        swapped += 1;
+        const dishwasher = dishwasherOf(plan);
+        expect(dishwasher.wall, label).toBe(preparation.wall);
+        expect(
+          dishwasher.endMm === preparation.startMm ||
+            dishwasher.startMm === preparation.endMm,
+          label,
+        ).toBe(true);
+        expect(
+          plan.bases.filter(
+            (base) => base.buildId === PAN_DRAWER_BASE_BUILD_ID,
+          ),
+          label,
+        ).toEqual([preparation]);
+      }
     }
 
     expect(placed).toBeGreaterThanOrEqual(1000);
+    expect(swapped, "no (e) room reached on this grid").toBeGreaterThan(0);
   });
 });

@@ -26,11 +26,11 @@
 // (H6); the bottle cabinet and the second drawer cabinet are 7D5's, and both are width changes.
 //
 // **The second question this module answers is *whose module is this?*** The storage **role** has
-// five referents: the storage run's composed slots (`storage:<wall>:<n>`), the full-height columns of
+// six referents: the storage run's composed slots (`storage:<wall>:<n>`), the full-height columns of
 // the block at the suffix wall's free end (Amendment I: the block follows the run, not the letter A),
 // which carry `role: "storage"` deliberately so frame 1F's row set does not move (ADR 0110 E5.2), and
 // since wave 7D5 the bottle cabinet (`bottle`), the pan drawer (`pan-drawer`) and the threshold drawer
-// (`threshold-drawer`, Q-H5). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
+// (`threshold-drawer`, Q-H5), and since wave 7D5b the dishwasher (`dishwasher`, Amendment M1). Measured over 211 551 placed rooms, a rule scoped by that role is wrong on 32.8 %
 // of them and one scoped by width on 14.9 % — in both cases against output that is **correct**, so
 // the failure presents as a defect in a closed wave. A slot is therefore identified by **what
 // composed it**; `isComposedStorageSlot` is the only answer to that question, and this is the only
@@ -74,6 +74,12 @@ export const BOTTLE_CARGO_BUILD_ID = "base-bottle-cargo";
  *  astride the hob takes a second member (H1), and that promise is now kept. */
 export const PAN_DRAWER_BASE_BUILD_ID = "base-panbank";
 
+/** The integrated dishwasher's niche. Since wave 7D5b it takes a module already standing beside the
+ *  sink — a plain door cabinet, or else the preparation 3-drawer — under its own id, as a storage-role
+ *  conversion rather than a core role (ADR 0110 Amendment M1, M7(e)); `dishwasher-beside-the-sink.ts`
+ *  decides where. */
+export const DISHWASHER_BUILD_ID = "base-dishwasher";
+
 /** The id `storagePriorities` writes for a module the storage run composed. Declared here because
  *  the predicate below is the one reader of it (wave 7D4 criterion 22). */
 const COMPOSED_STORAGE_ID_PREFIX = "storage:";
@@ -86,7 +92,7 @@ export interface ComposedModuleIdentity {
 
 /**
  * Did the **storage run** compose this module, as opposed to a tall-end block column, the bottle
- * cabinet, the pan drawer or the threshold drawer — the other four modules that carry
+ * cabinet, the pan drawer, the threshold drawer or the dishwasher — the other five modules that carry
  * `role: "storage"`?
  *
  * **Neither the role nor the width can answer this**, and both look as though they can: a block

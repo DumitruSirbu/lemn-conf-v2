@@ -12,6 +12,11 @@
 // `towerOverBottleChangeBetween` (`pre-tower-run-recording.ts`), which S0b's post-tower recording is
 // read through as well. The recording itself is never re-captured to make this pass (plan risk 5).
 //
+// **Restated for S1 (ADR 0110 Amendment M1, M2, M7(e)).** S1 adds the dishwasher to the live plan, so the
+// plan these comparisons hold against HEAD's recording is **S0b's**: the planner with S1's leaf switched
+// off (`beforeS1`), itself proved byte for byte against the post-tower recording by
+// `qa-7d5b-post-tower-recorded`. How S1 then differs from S0b is that file's classifier, not this one's.
+//
 // **The draw is checked for reach, not trusted for it.** A 480-room draw holds each of S0b's
 // populations a handful of times, so the counts of each class are pinned below, read from the
 // composer's own context at HEAD; and the plan's witness rooms are recorded whole beside the draw.
@@ -30,6 +35,7 @@ import {
 } from "../../src/index.js";
 import { canonicalPlan, roomKey } from "../support/composed-run-baseline.js";
 import {
+  beforeS1,
   forgetTheLastComposition,
   lastComposition,
   whatS1sBottleCost,
@@ -53,6 +59,15 @@ vi.mock(
     return withTheCompositionRecorded(await importOriginal());
   },
 );
+vi.mock(
+  "../../src/generation/dishwasher-beside-the-sink.js",
+  async (importOriginal) => {
+    const { withTheDishwasherLeafSwitchable } = await import(
+      "../support/composition-context-capture.js"
+    );
+    return withTheDishwasherLeafSwitchable(await importOriginal());
+  },
+);
 
 const DECLARED_COLUMNS = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
@@ -61,8 +76,8 @@ const RECORDING = readPreTowerRunRecording();
 const PAN_DRAWER_BODY = "base-panbank";
 
 /** How S0b is to treat a room. The cost of S1's bottle is a counterfactual asked of the composer's
- *  context, so it reads the same before and after S0b; the pan drawer is read off the live plan, and
- *  S0b neither adds nor removes one. */
+ *  context, so it reads the same before and after S0b; the pan drawer is read off S0b's plan, and S0b
+ *  neither adds nor removes one. */
 type TowerOverBottleClass =
   | "refused"
   | "S0b changes it: the bottle took the tower, no pan drawer"
@@ -70,17 +85,20 @@ type TowerOverBottleClass =
   | "S0b keeps it: the bottle took an outer column only"
   | "S0b keeps it: the bottle took no column";
 
-function planFor(room: DesignRoom): KitchenCompositionPlan {
-  return planKitchenComposition({
-    room,
-    runs: lShellFloorRuns(room),
-    columns: DECLARED_COLUMNS,
-  });
+/** S0b's plan: the planner with S1's leaf switched off. */
+function planAfterS0bFor(room: DesignRoom): KitchenCompositionPlan {
+  return beforeS1(() =>
+    planKitchenComposition({
+      room,
+      runs: lShellFloorRuns(room),
+      columns: DECLARED_COLUMNS,
+    }),
+  );
 }
 
 function classOf(room: DesignRoom): TowerOverBottleClass {
   forgetTheLastComposition();
-  const plan = planFor(room);
+  const plan = planAfterS0bFor(room);
   if (!plan.minimumMet) return "refused";
   const cost = whatS1sBottleCost(lastComposition());
   if (cost === "nothing") return "S0b keeps it: the bottle took no column";
@@ -111,7 +129,7 @@ function changesAgainstTheRecording(
       key,
       towerOverBottleChangeBetween({
         before,
-        after: canonicalPlan(planFor(roomFromRecordedKey(key))),
+        after: canonicalPlan(planAfterS0bFor(roomFromRecordedKey(key))),
       }),
     ]),
   );
