@@ -10,8 +10,8 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { formatMetresForDisplay } from "@/room/metres-text";
 import { parseMetresToMillimetres } from "@/room/parse-metres";
+import { parseMillimetres } from "@/room/parse-millimetres";
 import {
   carriesCornerDirection,
   createRoomDraft,
@@ -27,10 +27,6 @@ import { requiredFieldsFor } from "@/room/room-url-state";
 const SWEEP_RUNS = 500;
 
 const ROOM_SHAPES: readonly RoomShape[] = ["linear", "L", "U"];
-
-/** The product's source locale, used here only because a stored length has to be shown in some
- *  locale; `metres-text.test.ts` owns the claim about the separator itself. */
-const A_PRODUCT_LOCALE = "ro";
 
 function approvedWallBounds(): MillimetreBounds {
   const walls = APPROVED_ROOM_POLICY.buildableShapes.L;
@@ -78,28 +74,45 @@ describe("createRoomDraft", () => {
 });
 
 describe("withEnteredText", () => {
-  it("keeps a half-typed value exactly as it was typed, and reads it as no length", () => {
+  it("keeps text that is not whole millimetres exactly as it was typed, and reads it as no length", () => {
     const draft = withEnteredText(createRoomDraft("L"), {
       field: "wallA",
-      text: "3,",
+      text: "3,6",
     });
 
-    expect(draft.lengths.wallA).toEqual({ text: "3,", millimetres: undefined });
+    expect(draft.lengths.wallA).toEqual({
+      text: "3,6",
+      millimetres: undefined,
+    });
   });
 
   it("reads a readable value to the exact millimetre", () => {
     const draft = withEnteredText(createRoomDraft("L"), {
       field: "wallA",
-      text: "3,56",
+      text: "3560",
     });
 
-    expect(draft.lengths.wallA).toEqual({ text: "3,56", millimetres: 3560 });
+    expect(draft.lengths.wallA).toEqual({ text: "3560", millimetres: 3560 });
+  });
+
+  it("reads typed digits as millimetres, never as metres (ADR 0126)", () => {
+    const shortWall = withEnteredText(createRoomDraft("L"), {
+      field: "wallA",
+      text: "3",
+    });
+    const typedRoom = withEnteredText(createRoomDraft("L"), {
+      field: "wallA",
+      text: "3600",
+    });
+
+    expect(shortWall.lengths.wallA.millimetres).toBe(3);
+    expect(typedRoom.lengths.wallA.millimetres).toBe(3600);
   });
 
   it("changes one field and leaves the others where they were", () => {
     const typed = withEnteredText(
-      withEnteredText(createRoomDraft("L"), { field: "wallA", text: "3,56" }),
-      { field: "wallB", text: "2,92" },
+      withEnteredText(createRoomDraft("L"), { field: "wallA", text: "3560" }),
+      { field: "wallB", text: "2920" },
     );
 
     expect(typed.lengths.wallA.millimetres).toBe(3560);
@@ -107,10 +120,10 @@ describe("withEnteredText", () => {
     expect(typed.lengths.height).toEqual({ text: "", millimetres: undefined });
   });
 
-  it("agrees with the parser about every text a field can hold", () => {
+  it("agrees with the millimetre parser about every text a field can hold", () => {
     fc.assert(
       fc.property(fc.string(), (text) => {
-        const parsed = parseMetresToMillimetres(text);
+        const parsed = parseMillimetres(text);
         const length = withEnteredText(createRoomDraft("L"), {
           field: "wallA",
           text,
@@ -126,7 +139,7 @@ describe("withEnteredText", () => {
   it("returns a new draft and edits nothing in the one it was given", () => {
     const before = deepFrozen(createRoomDraft("L"));
 
-    const after = withEnteredText(before, { field: "wallA", text: "3,56" });
+    const after = withEnteredText(before, { field: "wallA", text: "3560" });
 
     expect(after).not.toBe(before);
     expect(before.lengths.wallA).toEqual({ text: "", millimetres: undefined });
@@ -140,11 +153,10 @@ describe("withStoredLength", () => {
         const length = withStoredLength(createRoomDraft("L"), {
           field: "wallA",
           millimetres,
-          locale: A_PRODUCT_LOCALE,
         }).lengths.wallA;
 
         expect(length.millimetres).toBe(millimetres);
-        expect(parseMetresToMillimetres(length.text)).toEqual({
+        expect(parseMillimetres(length.text)).toEqual({
           ok: true,
           mm: millimetres,
         });
@@ -153,14 +165,17 @@ describe("withStoredLength", () => {
     );
   });
 
-  it("shows it in the customer's own notation rather than the wire's", () => {
+  it("shows it as the whole millimetres the customer types, never as the wire's metres", () => {
     const length = withStoredLength(createRoomDraft("L"), {
       field: "wallA",
       millimetres: 3560,
-      locale: A_PRODUCT_LOCALE,
     }).lengths.wallA;
 
-    expect(length.text).toBe(formatMetresForDisplay(3560, A_PRODUCT_LOCALE));
+    expect(length.text).toBe("3560");
+    expect(parseMetresToMillimetres(length.text)).not.toEqual({
+      ok: true,
+      mm: 3560,
+    });
   });
 
   it("leaves the draft it was given untouched", () => {
@@ -169,7 +184,6 @@ describe("withStoredLength", () => {
     withStoredLength(before, {
       field: "wallA",
       millimetres: 3560,
-      locale: A_PRODUCT_LOCALE,
     });
 
     expect(before.lengths.wallA.text).toBe("");
@@ -180,7 +194,7 @@ describe("withRoomShape", () => {
   it("keeps what the customer already typed when they change the card", () => {
     const typed = withEnteredText(createRoomDraft("L"), {
       field: "wallA",
-      text: "3,56",
+      text: "3560",
     });
 
     const relinearised = withRoomShape(typed, "linear");
@@ -200,7 +214,7 @@ describe("withCornerDirection", () => {
   it("turns the corner without touching a length", () => {
     const typed = withEnteredText(createRoomDraft("L"), {
       field: "wallA",
-      text: "3,56",
+      text: "3560",
     });
 
     const turned = withCornerDirection(typed, "right");

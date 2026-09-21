@@ -7,7 +7,8 @@
 //   traversal this is the entry's own query; after our own write it is what we wrote.
 // - **`draftText`** — `canonicalRoomQuery(draft).toString()`: the shape, every field that already
 //   reads as a length, and the direction for the shapes that carry one. No raw draft text ever
-//   reaches it, so a half-typed *"3,"* cannot come back from a reload as a value nobody entered.
+//   reaches it, so text that is not whole millimetres (*"3,6"*) cannot come back from a reload as a
+//   value nobody entered.
 // - **`lastSeenText`** — the `liveText` already reconciled against. It is what tells *the URL
 //   changed* apart from *the draft changed*, which comparing the first two alone cannot do.
 //
@@ -22,7 +23,6 @@
 // settle interval is what keeps a customer filling three fields to a handful of requests while a
 // per-keystroke write would spend one on every digit.
 import type { RoomShape } from "@lemnaria/configurator-domain";
-import { useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -133,9 +133,8 @@ function useReconciledRoomDraft({
   liveQuery,
   liveText,
 }: ReconciliationInputs): ReconciledRoomDraft {
-  const locale = useLocale();
   const [draft, setDraft] = useState<RoomDraft>(() =>
-    roomDraftFromQuery(seedShape, liveQuery, locale),
+    roomDraftFromQuery(seedShape, liveQuery),
   );
   const [lastSeenText, setLastSeenText] = useState(liveText);
 
@@ -144,7 +143,6 @@ function useReconciledRoomDraft({
     lastSeenText,
     liveQuery,
     liveText,
-    locale,
   });
   if (reconciled.lastSeenText !== lastSeenText) {
     setLastSeenText(reconciled.lastSeenText);
@@ -311,7 +309,7 @@ function useRoomNavigation(): RoomNavigation {
  *      re-seeded from the query they actually hold.
  *
  * **One residue, accepted and bounded** (Wave 7F1-D45): a Back landing on a URL that happens to
- * equal the current `draftText` is read as an echo, so text that never parsed as a length (*"3,"*)
+ * equal the current `draftText` is read as an echo, so text that is not whole millimetres (*"3,6"*)
  * stays in its field. The room shown and the URL still agree. A second discriminator to chase it
  * re-seeds on an echo somewhere, which is the defect that matters.
  */
@@ -320,7 +318,6 @@ export function reconcileRoomDraft({
   lastSeenText,
   liveQuery,
   liveText,
-  locale,
 }: RoomReconciliationInputs): RoomReconciliation {
   if (liveText === lastSeenText) return { draft, lastSeenText };
   const draftText = canonicalRoomQuery(draft).toString();
@@ -331,7 +328,7 @@ export function reconcileRoomDraft({
   // only what the query no longer answers for.
   const shape = roomShapeInQuery(liveQuery) ?? draft.shape;
   return {
-    draft: roomDraftFromQuery(shape, liveQuery, locale),
+    draft: roomDraftFromQuery(shape, liveQuery),
     lastSeenText: liveText,
   };
 }
@@ -341,7 +338,6 @@ export interface RoomReconciliationInputs {
   readonly lastSeenText: string;
   readonly liveQuery: RoomSearchParams;
   readonly liveText: string;
-  readonly locale: string;
 }
 
 export interface RoomReconciliation {
@@ -378,8 +374,8 @@ export function queryFromSearchParams(
  * order, with `metresTextForUrl`'s own wire form, and nothing else.
  *
  * **A field that does not yet parse is simply absent.** That is the 1B-with-a-marked-field state
- * `parseRoomUrlState` already produces, so no raw draft text ever reaches the query and a half-typed
- * *"3,"* cannot come back from a reload as a value the customer never entered.
+ * `parseRoomUrlState` already produces, so no raw draft text ever reaches the query and text that is
+ * not whole millimetres (*"3,6"*) cannot come back from a reload as a value the customer never entered.
  */
 export function canonicalRoomQuery(draft: RoomDraft): URLSearchParams {
   const params = new URLSearchParams();
@@ -398,15 +394,15 @@ export function canonicalRoomQuery(draft: RoomDraft): URLSearchParams {
   return params;
 }
 
-/** The draft a URL arrives as: every field the shape asks for that the query already answers, shown
- *  in the customer's own notation, and the corner the query names or frame 1B's pre-selected left. */
+/** The draft a URL arrives as: every field the shape asks for that the query already answers,
+ *  refilled as the whole millimetres the field takes (ADR 0126), and the corner the query names or
+ *  frame 1B's pre-selected left. */
 export function roomDraftFromQuery(
   shape: RoomShape,
   query: RoomSearchParams,
-  locale: string,
 ): RoomDraft {
   const withLengths = requiredFieldsFor(shape).reduce(
-    (draft, field) => withLengthFromQuery(draft, field, query[field], locale),
+    (draft, field) => withLengthFromQuery(draft, field, query[field]),
     createRoomDraft(shape),
   );
   const direction = singleValue(query.direction);
@@ -436,11 +432,10 @@ function withLengthFromQuery(
   draft: RoomDraft,
   field: RoomLengthField,
   value: RoomSearchParams[string],
-  locale: string,
 ): RoomDraft {
   const parsed = parseMetresToMillimetres(singleValue(value) ?? "");
   return parsed.ok
-    ? withStoredLength(draft, { field, millimetres: parsed.mm, locale })
+    ? withStoredLength(draft, { field, millimetres: parsed.mm })
     : draft;
 }
 

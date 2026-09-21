@@ -15,6 +15,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { fc } from "@fast-check/vitest";
 import { APPROVED_ROOM_POLICY } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement } from "react";
@@ -37,8 +38,28 @@ import {
 } from "@/room/room-draft";
 
 import roMessages from "../../src/messages/ro.json";
+import ruMessages from "../../src/messages/ru.json";
+import type { Catalogue, CatalogueLocale } from "../support/catalogues";
 
-const A_PRODUCT_LOCALE = "ro";
+const A_PRODUCT_LOCALE: CatalogueLocale = "ro";
+
+/** A render each; enough to cross every digit count the swept range has. */
+const LABEL_SWEEP_RUNS = 100;
+
+/** Criterion S1b-9's range: every whole millimetre a field can hold on the way to a room, far past
+ *  what the policy approves, because the plan is drawn from whatever the customer has typed so far. */
+const LABEL_SWEEP_MM = { min: 1, max: 9_000_000 } as const;
+
+/** Mid-typing labels the sweep must reach whatever it happens to draw: a digit too many, and one. */
+const MID_TYPING_WALLS: [number, number][] = [[27_005, 3]];
+
+/** Each product locale, its catalogue, and the unit its label must end on — spelled here rather than
+ *  read from the catalogue, so a label template that lost its unit could not agree with itself. */
+const LABEL_LOCALES = [
+  ["ro", roMessages, "mm"],
+  // `Catalogue` is typed from `ro.json`; catalogue parity is what holds `ru.json` to its shape.
+  ["ru", ruMessages as Catalogue, "\u043C\u043C"],
+] as const;
 
 /** Read by path rather than through `new URL(…, import.meta.url)`: under `happy-dom` the module URL
  *  is not a `file:` one (`room-url-round-trip.dom.test.ts:166-168`). */
@@ -80,7 +101,7 @@ function everyExtremeRoom(): readonly (readonly [string, RoomMm])[] {
       "the deepest approved room",
       { wallAMm: walls.wallA.minMm, wallBMm: walls.wallB.maxMm },
     ],
-    ["an ordinary 2,50 x 5,00 m kitchen", AN_ORDINARY_KITCHEN],
+    ["an ordinary 2500 x 5000 mm kitchen", AN_ORDINARY_KITCHEN],
   ];
 }
 
@@ -92,7 +113,7 @@ function draftFor(room: RoomMm): RoomDraft {
   ];
   return lengths.reduce<RoomDraft>(
     (draft, [field, millimetres]) =>
-      withStoredLength(draft, { field, millimetres, locale: A_PRODUCT_LOCALE }),
+      withStoredLength(draft, { field, millimetres }),
     createRoomDraft("L"),
   );
 }
@@ -100,7 +121,11 @@ function draftFor(room: RoomMm): RoomDraft {
 let container: HTMLDivElement;
 let root: Root;
 
-function render(room: RoomMm): DrawnPlanPreview {
+function render(
+  room: RoomMm,
+  locale: CatalogueLocale = A_PRODUCT_LOCALE,
+  messages: Catalogue = roMessages,
+): DrawnPlanPreview {
   const plan = derivePlanPreview(draftFor(room), PLAN_BOX);
   if (plan.kind !== "drawn") {
     throw new Error("the room under test was expected to draw a plan");
@@ -109,8 +134,8 @@ function render(room: RoomMm): DrawnPlanPreview {
     root.render(
       createElement(NextIntlClientProvider, {
         children: createElement(PlanPreview, { plan }),
-        locale: A_PRODUCT_LOCALE,
-        messages: roMessages,
+        locale,
+        messages,
         timeZone: "Europe/Chisinau",
       }),
     );
@@ -291,4 +316,29 @@ describe("a label is hung off the anchor the model placed, and nowhere else", ()
       9,
     );
   });
+});
+
+describe("a label reads its wall's whole millimetres (ADR 0126, criterion S1b-9)", () => {
+  it.each(LABEL_LOCALES)(
+    "writes every wall from 1 to 9 000 000 mm as its digits and the unit, with no separator, in %s",
+    (locale, messages, unit) => {
+      fc.assert(
+        fc.property(
+          fc.integer(LABEL_SWEEP_MM),
+          fc.integer(LABEL_SWEEP_MM),
+          (wallAMm, wallBMm) => {
+            render({ wallAMm, wallBMm }, locale, messages);
+
+            expect(labelAt("A").textContent).toBe(
+              `A \u00B7 ${String(wallAMm)} ${unit}`,
+            );
+            expect(labelAt("B").textContent).toBe(
+              `B \u00B7 ${String(wallBMm)} ${unit}`,
+            );
+          },
+        ),
+        { numRuns: LABEL_SWEEP_RUNS, examples: MID_TYPING_WALLS },
+      );
+    },
+  );
 });

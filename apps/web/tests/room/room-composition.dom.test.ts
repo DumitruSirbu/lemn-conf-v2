@@ -344,7 +344,7 @@ describe("a departure in flight, with a composition beside it", () => {
   it("lets the primary tap override an armed back tap and compose the room it flushed", async () => {
     render();
     // The draft moves ahead of the URL, so `departTo` arms and waits rather than pushing at once.
-    typeIntoLengthField("wallA", "4,3");
+    typeIntoLengthField("wallA", "4300");
 
     tapFormBack();
     tapContinue();
@@ -367,7 +367,7 @@ describe("a departure in flight, with a composition beside it", () => {
 
   it("resolves a departure armed by the primary tap after the customer has left 1F", async () => {
     render();
-    typeIntoLengthField("wallA", "4,3");
+    typeIntoLengthField("wallA", "4300");
 
     tapContinue();
     await settleComposition();
@@ -511,13 +511,14 @@ describe("the top bar in composition (criterion 25)", () => {
 describe("the body is replaced, not hidden (criterion 26)", () => {
   it("removes the form from the DOM and restores the draft exactly on the back control", async () => {
     render();
-    // A notation the URL does not carry — `canonicalRoomQuery` writes `4.2`, the customer typed
-    // this. It survives only if nothing re-seeded the draft from the query, which is the claim.
+    // A notation the refill would not reproduce — `canonicalRoomQuery` writes `4.2`, which comes back
+    // as *"4200"*, and the customer typed a leading zero (ADR 0126). It survives only if nothing
+    // re-seeded the draft from the query, which is the claim.
     //
     // **Why not text that never parsed at all**: an L asks for three lengths, and a field that does
     // not read as a length puts the room back at 1B, where there is no room to compose. The
     // unparsed-residue half of criterion 26 is unreachable from 1F by construction.
-    typeIntoLengthField("wallA", "4,200");
+    typeIntoLengthField("wallA", "04200");
 
     tapContinue();
     await settleComposition();
@@ -528,7 +529,7 @@ describe("the body is replaced, not hidden (criterion 26)", () => {
 
     tapComposeBack();
 
-    expect(lengthField("wallA").value).toBe("4,200");
+    expect(lengthField("wallA").value).toBe("04200");
     expect(maybeAt("room-compose")).toBe(null);
   });
 });

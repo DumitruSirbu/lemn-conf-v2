@@ -472,7 +472,7 @@ describe("each room in the URL is entered afresh", () => {
 
     render(separatorInsideWallB);
 
-    expect(lengthField("wallA").value).toBe("3,56");
+    expect(lengthField("wallA").value).toBe("3560");
   });
 });
 
@@ -506,7 +506,7 @@ describe("the sub-state the screen marks is the live query's (criterion 19)", ()
 
     expect(screenElement().getAttribute("data-room-substate")).toBe("1D");
     expect(screenElement().getAttribute("data-marked-fields")).toBe("");
-    expect(lengthField("wallA").value).toBe("3,60");
+    expect(lengthField("wallA").value).toBe("3600");
   });
 });
 

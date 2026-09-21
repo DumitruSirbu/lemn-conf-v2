@@ -9,12 +9,11 @@
 // it in a second place is how a 2D plan comes to disagree with the 3D room it produces.
 //
 // **The picture is `aria-hidden` and the labels are real text beside it** (the copy obligation's
-// third deliberate absence): a screen reader reads *"A · 3,60 m"* rather than a drafted description
+// third deliberate absence): a screen reader reads *"A · 3600 mm"* rather than a drafted description
 // of a drawing.
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 
-import { formatMetresForDisplay } from "./metres-text";
 import {
   PLAN_LABEL_LINE_PX,
   type PlanBox,
@@ -111,11 +110,11 @@ function PlanDrawing({ plan }: PlanPreviewProps) {
   );
 }
 
-/** The wall's letter and its length, joined by the catalogue's own template: both are ICU arguments,
- *  so the separator and the unit are the locale's to place and this component never spells either. */
+/** The wall's letter and its whole millimetres, joined by the catalogue's own template: both are ICU
+ *  arguments, so the number's form and the unit are the locale's to place and this component never
+ *  spells either. Millimetres, the unit the customer types (ADR 0126). */
 function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
   const translate = useTranslations();
-  const locale = useLocale();
 
   return (
     <span
@@ -125,7 +124,7 @@ function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
     >
       {translate("room.planWallLabel", {
         wall: wall.wall,
-        metres: formatMetresForDisplay(wall.lengthMm, locale),
+        millimetres: wall.lengthMm,
       })}
     </span>
   );

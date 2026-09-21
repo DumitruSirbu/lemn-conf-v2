@@ -1,7 +1,9 @@
-// Wave 7F1 criterion 8: the customer sees a decimal comma and the URL keeps a dot, and neither form
-// may lose a millimetre. The two are swept rather than sampled because the trailing-zero strip and
-// the three-digit pad are per-value transitions: `3060` written as *"3,60"* reads back as 3600, a
-// room the customer never entered and one a hand-picked example would not catch.
+// Wave 7F1 criterion 8: the URL keeps metres with a dot, and the wire form may not lose a millimetre.
+// Swept rather than sampled because the trailing-zero strip and the three-digit pad are per-value
+// transitions: `3060` written as *"3.6"* reads back as 3600, a room the customer never entered and one
+// a hand-picked example would not catch. Since ADR 0126 the customer reads and types whole
+// millimetres, so the metre reading form and its tests are gone: `parse-millimetres.test.ts` owns the
+// field's notation, and `room-query-sync.test.ts` its round trip through this wire form.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -9,16 +11,10 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { routing } from "@/i18n/routing";
-import { formatMetresForDisplay, metresTextForUrl } from "@/room/metres-text";
+import { metresTextForUrl } from "@/room/metres-text";
 import { parseMetresToMillimetres } from "@/room/parse-metres";
 
 const SWEEP_RUNS = 1000;
-
-/** Neither a product locale nor a locale this application serves: it is the probe that tells a
- *  derived separator from a comma somebody typed into the formatter, because `ro` and `ru` happen
- *  to agree and so cannot distinguish the two. */
-const A_DECIMAL_POINT_LOCALE = "en-GB";
 
 /** Every length a field can legitimately hold, read off the approved policy rather than restated,
  *  so the sweep cannot drift from the bounds the customer is judged against. */
@@ -39,68 +35,6 @@ function approvedLWalls() {
 function everyMillimetreIn(bounds: MillimetreBounds): fc.Arbitrary<number> {
   return fc.integer({ min: bounds.minMm, max: bounds.maxMm });
 }
-
-describe("the locales a length is written for", () => {
-  // `describe.each` over an empty list would report a vacuous pass for the whole criterion.
-  it("is more than one, which is why no separator may be written by hand", () => {
-    expect(routing.locales.length).toBeGreaterThan(1);
-  });
-});
-
-describe.each(routing.locales)(
-  "formatMetresForDisplay — a field shown in %s",
-  (locale) => {
-    it.each(LENGTH_FIELDS)(
-      "reads back to the exact millimetre for every approved length of %s",
-      (_field, bounds) => {
-        fc.assert(
-          fc.property(everyMillimetreIn(bounds), (mm) => {
-            expect(
-              parseMetresToMillimetres(formatMetresForDisplay(mm, locale)),
-            ).toEqual({ ok: true, mm });
-          }),
-          { numRuns: SWEEP_RUNS },
-        );
-      },
-    );
-
-    it.each(LENGTH_FIELDS)(
-      "reads back at both ends of %s's range, which the sweep reaches only by chance",
-      (_field, bounds) => {
-        for (const mm of [bounds.minMm, bounds.maxMm]) {
-          expect(
-            parseMetresToMillimetres(formatMetresForDisplay(mm, locale)),
-          ).toEqual({ ok: true, mm });
-        }
-      },
-    );
-  },
-);
-
-describe("formatMetresForDisplay — the separator is the locale's own", () => {
-  it("writes a comma in Romanian and a point where the locale declares one", () => {
-    expect(formatMetresForDisplay(3600, "ro")).toBe("3,60");
-    expect(formatMetresForDisplay(3600, A_DECIMAL_POINT_LOCALE)).toBe("3.60");
-  });
-});
-
-describe("formatMetresForDisplay — the frame's two decimals, and the third when it is needed", () => {
-  // `3060` beside `3600` is the pair that matters: a formatter that stripped the middle zero would
-  // draw them alike and silently widen the room by 540 mm.
-  it.each([
-    [2600, "2,60"],
-    [3000, "3,00"],
-    [3600, "3,60"],
-    [3560, "3,56"],
-    [3060, "3,06"],
-    [3006, "3,006"],
-    [3565, "3,565"],
-    [900, "0,90"],
-  ] as const)("shows %i mm as %s and reads it back", (mm, shown) => {
-    expect(formatMetresForDisplay(mm, "ro")).toBe(shown);
-    expect(parseMetresToMillimetres(shown)).toEqual({ ok: true, mm });
-  });
-});
 
 describe("metresTextForUrl — a wire value, in no locale at all", () => {
   it.each(LENGTH_FIELDS)(

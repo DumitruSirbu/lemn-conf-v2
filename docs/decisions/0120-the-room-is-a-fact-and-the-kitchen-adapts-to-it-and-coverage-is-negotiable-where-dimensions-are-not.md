@@ -6,7 +6,10 @@ principle and finds one place where the shipped product sits against it, and tha
 back to the owner rather than changed here, because the alternative it points at was already refused
 by an owner ruling: [ADR 0036](0036-a-declared-dimension-is-the-finished-cabinet.md) decision 5, via
 [ADR 0108](0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md)
-Amendment A.)
+Amendment A. **2026-09-21 — see [ADR 0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)**,
+which clarifies decision 3: *"never ask for millimetres"* forbids asking the customer for an
+**amount** — a quantity such as *"100 mm longer"* — never the **entry unit** the customer is told to
+type in.)
 Date: 2026-09-15
 Type: Decision (owner ruling) + Finding (audit)
 Milestone: M7 — binds wave **7F2**'s copy immediately; opens one owner question batch. Cross-cutting

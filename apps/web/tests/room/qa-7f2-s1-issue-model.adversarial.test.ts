@@ -10,6 +10,11 @@
 // It also pins the §5 copy **literally in both locales** — the Russian is held by nothing else, the gap
 // 7D5b found — classifies unreadable text against the parser's own acceptance rules, and fuzzes real
 // query strings through `room-url-state` to look for a draft that makes the model throw.
+//
+// **Amended by wave 7F2 S1b (ADR 0126).** The fields take whole millimetres, so typed lengths below are
+// digit strings, and S1's claim *"unreadable is exactly the text the URL parser refuses"* is false by
+// design now: unreadable is the text the **field's** parser, `parseMillimetres`, refuses. The URL keeps
+// its metres, so every query literal here is unchanged.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -24,7 +29,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { metresTextForUrl } from "@/room/metres-text";
-import { parseMetresToMillimetres } from "@/room/parse-metres";
+import { parseMillimetres } from "@/room/parse-millimetres";
 import {
   createRoomDraft,
   withCornerDirection,
@@ -78,7 +83,7 @@ interface LRoomMm {
 function lDraft(room: LRoomMm, direction: CornerDirection): RoomDraft {
   const typed = (["wallA", "wallB", "height"] as const).reduce(
     (draft, field) =>
-      withEnteredText(draft, { field, text: metresTextForUrl(room[field]) }),
+      withEnteredText(draft, { field, text: String(room[field]) }),
     createRoomDraft("L"),
   );
   return withCornerDirection(typed, direction);
@@ -429,9 +434,10 @@ const APPROVED_SECTION_5_COPY: Readonly<
     ro: "Presetele apar după ce toate valorile sunt valide.",
     ru: "Пресеты появятся, когда все значения будут верными.",
   },
+  // Replaced by wave 7F2 S1b (owner, 2026-09-21; ADR 0126): the fields take whole millimetres.
   "room.issue.unreadable": {
-    ro: "Scrie lungimea în metri.",
-    ru: "Введи длину в метрах.",
+    ro: "Scrie valoarea în milimetri, doar cu cifre.",
+    ru: "Введи значение в миллиметрах, только цифрами.",
   },
 };
 /* eslint-enable no-restricted-syntax */
@@ -566,7 +572,7 @@ describe("the linear suggestion is catalogued and never surfaced under the appro
     const anyText = fc.oneof(
       fc.constant(""),
       fc.string({ maxLength: 10 }),
-      fc.integer({ min: 1, max: 20_000 }).map(metresTextForUrl),
+      fc.integer({ min: 1, max: 20_000 }).map(String),
     );
     fc.assert(
       fc.property(
@@ -592,7 +598,10 @@ describe("the linear suggestion is catalogued and never surfaced under the appro
   });
 
   it("is off even for a filled straight room, which is the shape the suggestion names", () => {
-    const draft = draftWithTexts("linear", { wallA: "3,6", height: "2,6" });
+    const draft = draftWithTexts("linear", {
+      wallA: "3600",
+      height: "2600",
+    });
 
     expect(viewOfDraft(draft).isLinearSuggested).toBe(false);
   });
@@ -622,7 +631,10 @@ describe("the shape refusal follows whichever policy the screen is handed", () =
         fc.constantFrom(...ROOM_SHAPES),
         (stated, chosen) => {
           const policy = policyStating(stated);
-          const draft = draftWithTexts(chosen, { wallA: "2,2", wallB: "2" });
+          const draft = draftWithTexts(chosen, {
+            wallA: "2200",
+            wallB: "2000",
+          });
 
           const view = deriveRoomIssueView({
             draft,
@@ -665,53 +677,76 @@ function isBlank(text: string): boolean {
   return text.trim() === "";
 }
 
+/** Each text, and whether a length field holding it is unreadable. Since S1b (ADR 0126) a field reads
+ *  whole millimetres, so every metre spelling — *"3.60"*, *" 3,6 "* — is unreadable here, though the
+ *  URL still reads it; the whitespace rows keep their subject with a millimetre value inside. */
 const EDGE_TEXTS: readonly (readonly [string, string, boolean])[] = [
   ["a word", "abc", true],
-  ["a word with a length in it", "abc3,6", true],
+  ["a word with a length in it", "abc3600", true],
   ["the plan's zero", "0", true],
-  ["a dot decimal", "3.60", false],
+  ["zero spelled with three digits", "000", true],
+  ["a whole-millimetre length", "3600", false],
+  ["a leading zero", "03600", false],
+  ["a readable length far below any bound", "3", false],
+  ["a dot decimal, the metre habit", "3.60", true],
+  ["a comma decimal, the metre habit", "3,6", true],
   ["a comma decimal with a unit", "3,60 m", true],
-  ["surrounding spaces", " 3,6 ", false],
-  ["a tab and a newline around it", "\t3,6\n", false],
-  ["a no-break space around it", " 3,6 ", false],
+  ["a millimetre length with its unit", "3600mm", true],
+  ["surrounding spaces", " 3600 ", false],
+  ["a tab and a newline around it", "\t3600\n", false],
+  ["a no-break space around it", "\u00A03600\u00A0", false],
   ["a negative number", "-1", true],
   ["an explicit plus sign", "+3", true],
   ["an exponent", "1e3", true],
-  ["Arabic-Indic digits", "٣", true],
-  ["full-width digits", "３,６", true],
+  ["Arabic-Indic digits", "\u0663", true],
+  ["full-width digits", "\uFF13\uFF16\uFF10\uFF10", true],
   ["a thousands separator", "3 600", true],
   ["two separators", "3,6,0", true],
   ["a trailing separator", "3,", true],
   ["a leading separator", ",6", true],
   ["zero spelled with decimals", "0,000", true],
-  ["zero past the millimetre", "0,0000", true],
   ["a sub-millimetre digit", "3,6005", true],
-  ["trailing zeros past the millimetre", "3,60000000", false],
+  ["trailing zeros past the millimetre", "3,60000000", true],
   ["a length past 2^53 millimetres", "9".repeat(20), true],
-  ["a very long valid length", `3,6${"0".repeat(10_000)}`, false],
+  ["a very long valid length", `${"0".repeat(10_000)}3600`, false],
+  ["a very long metre length", `3,6${"0".repeat(10_000)}`, true],
   ["a very long garbage string", "x".repeat(10_000), true],
   ["NaN", "NaN", true],
   ["Infinity", "Infinity", true],
   ["hex", "0x10", true],
 ];
 
-describe("unreadable text is exactly the text the URL parser refuses, and never blank text", () => {
+describe("unreadable text is exactly the text the field's millimetre parser refuses, and never blank text", () => {
   it.each(EDGE_TEXTS)(
-    "classifies %s as the parser does, in every L field",
+    "classifies %s as the millimetre parser does, in every L field",
     (_, text, isUnreadable) => {
       for (const field of ["wallA", "wallB", "height"] as const) {
         const draft = draftWithTexts("L", {
-          wallA: "3,6",
-          wallB: "2,4",
-          height: "2,6",
+          wallA: "3600",
+          wallB: "2400",
+          height: "2600",
           [field]: text,
         });
 
         const view = viewOfDraft(draft);
 
-        expect(urlParserRefuses(field, text)).toBe(isUnreadable);
+        expect(!parseMillimetres(text).ok).toBe(isUnreadable);
         expect(view.unreadableFields).toEqual(isUnreadable ? [field] : []);
       }
+    },
+  );
+
+  it.each(["3,6", "3.60"])(
+    "reports %j unreadable in a field although the URL parser still reads it (S1b-6)",
+    (text) => {
+      const draft = draftWithTexts("L", {
+        wallA: text,
+        wallB: "2400",
+        height: "2600",
+      });
+
+      expect(urlParserRefuses("wallA", text)).toBe(false);
+      expect(viewOfDraft(draft).unreadableFields).toEqual(["wallA"]);
     },
   );
 
@@ -720,6 +755,7 @@ describe("unreadable text is exactly the text the URL parser refuses, and never 
       fc.string({ maxLength: 12 }),
       fc.string({ unit: "grapheme", maxLength: 6 }),
       fc.stringMatching(/^\s*[-+]?\d{0,3}([.,]\d{0,6})?(e\d)?\s*m?\s*$/),
+      fc.stringMatching(/^\s*0{0,3}\d{1,5}\s*(mm)?$/),
     );
     fc.assert(
       fc.property(
@@ -729,8 +765,7 @@ describe("unreadable text is exactly the text the URL parser refuses, and never 
           const view = viewOfDraft(draftWithTexts(shape, texts));
           const expected = requiredFieldsFor(shape).filter(
             (field) =>
-              !isBlank(texts[field]) &&
-              !parseMetresToMillimetres(texts[field]).ok,
+              !isBlank(texts[field]) && !parseMillimetres(texts[field]).ok,
           );
 
           expect(view.unreadableFields).toEqual(expected);
@@ -768,9 +803,9 @@ describe("unreadable text is exactly the text the URL parser refuses, and never 
 
   it("keeps an unreadable field out of 1C: the room is 1B, with no reason and no note", () => {
     const draft = draftWithTexts("L", {
-      wallA: "0,80",
+      wallA: "800",
       wallB: "abc",
-      height: "2",
+      height: "2000",
     });
 
     const view = viewOfDraft(draft);
@@ -786,8 +821,6 @@ describe("unreadable text is exactly the text the URL parser refuses, and never 
 // ---------------------------------------------------------------------------------------------
 // Task 5 — reachability: no real draft makes the model throw
 // ---------------------------------------------------------------------------------------------
-
-const LOCALES = ["ro", "ru"] as const;
 
 /** Mostly lengths a customer could type, so the fuzz spends its runs in 1C and 1D where the model
  *  can throw; the rest is garbage, zero and blanks, which must fall to 1B without throwing. */
@@ -836,10 +869,10 @@ describe("no draft a real address can produce makes the model throw", () => {
   it("derives a view for every fuzzed query, read both as the address bar and as the draft", () => {
     let reachedOneC = 0;
     fc.assert(
-      fc.property(roomQuery, fc.constantFrom(...LOCALES), (query, locale) => {
+      fc.property(roomQuery, (query) => {
         const urlState = parseRoomUrlState(query);
         const shape = urlState.substate === "1A" ? "L" : shapeOf(urlState);
-        const draft = roomDraftFromQuery(shape, query, locale);
+        const draft = roomDraftFromQuery(shape, query);
         const draftState = stateOfDraft(draft);
         if (draftState.substate === "1C") reachedOneC += 1;
         const view = deriveRoomIssueView({
@@ -889,10 +922,10 @@ describe("no draft a real address can produce makes the model throw", () => {
         fc.constantFrom(...DIRECTIONS),
         (shape, mm, direction) => {
           const texts = {
-            wallA: metresTextForUrl(mm.wallA),
-            wallB: metresTextForUrl(mm.wallB),
-            wallC: metresTextForUrl(mm.wallC),
-            height: metresTextForUrl(mm.height),
+            wallA: String(mm.wallA),
+            wallB: String(mm.wallB),
+            wallC: String(mm.wallC),
+            height: String(mm.height),
           };
           const draft = withCornerDirection(
             draftWithTexts(shape, texts),

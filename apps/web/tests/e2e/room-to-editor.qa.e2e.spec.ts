@@ -31,12 +31,9 @@ const THE_EMPTY_L_ROOM = `${ROOM}?shape=L&direction=left`;
  *  rather than the generator's boundary — `minimum-kitchen.test.ts` owns that. */
 const THE_TYPED_ROOM = `${ROOM}?shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left`;
 
-const AS_TYPED = { wallA: "3,56", wallB: "4,25", height: "2,7" } as const;
-
-/** The same lengths as the fields render them after a genuine re-seed from the URL: `2,7` comes back
- *  `2,70`, which is `roomDraftFromQuery`'s canonical two-decimal notation and not drift.
- *  `room-traversal.qa.e2e.spec.ts` carries the same note for the same reason. */
-const AS_RESTORED = { wallA: "3,56", wallB: "4,25", height: "2,70" } as const;
+/** The same room as the customer types it: whole millimetres, digits only (ADR 0126). A re-seed from
+ *  the URL refills exactly these digits, so the fields read the same after the round trip. */
+const AS_TYPED = { wallA: "3560", wallB: "4250", height: "2700" } as const;
 
 /** Every design this spec causes to be minted, deleted in `afterAll` — ADR 0006's rule that a suite
  *  minting rows removes them. The id is read off the URL the hand-off navigated to, because nothing
@@ -87,7 +84,7 @@ test("a composed kitchen opens in the editor, and the editor leads back to the r
 
   await expect(page).toHaveURL(THE_TYPED_ROOM);
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");
-  await expectFields(page, AS_RESTORED);
+  await expectFields(page, AS_TYPED);
 });
 
 /** The screen, and the marker the sub-state is read off. */

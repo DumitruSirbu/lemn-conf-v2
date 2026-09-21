@@ -56,7 +56,6 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-import { parseMetresToMillimetres } from "@/room/parse-metres";
 import { URL_SETTLE_MS } from "@/room/room-query-sync";
 import { RoomScreen, type RoomScreenProps } from "@/room/room-screen";
 import {
@@ -77,7 +76,8 @@ const SWEEP_RUNS = 500;
  *  field existed to read it out of. */
 const THE_BACK_LINK =
   "?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left";
-const THE_BACK_LINK_FIELDS = { wallA: "3,56", wallB: "2,92", height: "2,60" };
+/** What the link's fields show: whole millimetres, the notation the customer types (ADR 0126). */
+const THE_BACK_LINK_FIELDS = { wallA: "3560", wallB: "2920", height: "2600" };
 
 /** The same room with a ceiling below the approved 2 200 mm minimum, so the **completed draft** is
  *  one the domain refuses: every field reads as a length and *Continuă* is enabled, and no
@@ -308,18 +308,10 @@ describe("a stored room lands in the fields to the millimetre (criterion 7)", ()
         const href = roomHrefFromDesignRoom(room);
         render(href.slice(href.indexOf("?")));
 
-        expect(parseMetresToMillimetres(fieldFor("wallA").value)).toEqual({
-          ok: true,
-          mm: room.widthMm,
-        });
-        expect(parseMetresToMillimetres(fieldFor("wallB").value)).toEqual({
-          ok: true,
-          mm: room.depthMm,
-        });
-        expect(parseMetresToMillimetres(fieldFor("height").value)).toEqual({
-          ok: true,
-          mm: room.heightMm,
-        });
+        // Since ADR 0126 the field shows the whole millimetres themselves (criterion S1b-5).
+        expect(fieldFor("wallA").value).toBe(String(room.widthMm));
+        expect(fieldFor("wallB").value).toBe(String(room.depthMm));
+        expect(fieldFor("height").value).toBe(String(room.heightMm));
         expect(cornerControl("left").checked).toBe(true);
       }),
       { numRuns: SWEEP_RUNS },
@@ -327,8 +319,8 @@ describe("a stored room lands in the fields to the millimetre (criterion 7)", ()
   });
 
   it("puts the editor's own back link into the fields, digit for digit", () => {
-    // The concrete case beside the property. 2,60 keeps its second decimal and 3,56 does not grow a
-    // third: a formatter that rounded or padded differently would still satisfy a round trip.
+    // The concrete case beside the property. The wire's 2.6 comes back as 2600 and 3.56 as 3560: a
+    // refill that padded or dropped a zero would still satisfy a round trip through the metre parser.
     render(THE_BACK_LINK);
 
     expect(fieldFor("wallA").value).toBe(THE_BACK_LINK_FIELDS.wallA);
@@ -362,9 +354,9 @@ describe("the URL is the room's only store (criterion 9)", () => {
   it("writes the canonical query the domain's own serialiser would write", () => {
     render("?shape=L");
 
-    type("wallA", "3,56");
-    type("wallB", "2,92");
-    type("height", "2,60");
+    type("wallA", "3560");
+    type("wallB", "2920");
+    type("height", "2600");
     settle();
 
     const input: ParsedRoomInput = {
@@ -378,12 +370,12 @@ describe("the URL is the room's only store (criterion 9)", () => {
   });
 
   it("keeps a field that does not read as a length out of the query", () => {
-    // *"3,"* is on its way to a value, and the parser's own answer to a query without `wallA` is
-    // 1B with the field marked — which is exactly the state the customer is in. No raw draft text
-    // ever reaches the URL.
+    // *"3,6"* — the metre habit — is not whole millimetres, and the parser's own answer to a query
+    // without `wallA` is 1B with the field marked — which is exactly the state the customer is in.
+    // No raw draft text ever reaches the URL.
     render("?shape=L");
 
-    type("wallA", "3,");
+    type("wallA", "3,6");
     settle();
 
     expect(new URLSearchParams(addressBar()).has("wallA")).toBe(false);
@@ -406,7 +398,7 @@ describe("the URL is the room's only store (criterion 9)", () => {
   it("carries no unknown key out of the one it arrived with", () => {
     render("?shape=L&utm_source=newsletter&wallA=3.56");
 
-    type("wallB", "2,92");
+    type("wallB", "2920");
     settle();
 
     expect([...new URLSearchParams(addressBar()).keys()]).toEqual([
@@ -419,9 +411,9 @@ describe("the URL is the room's only store (criterion 9)", () => {
 
   it("restores every field byte-identically from the query it wrote", () => {
     render("?shape=L");
-    type("wallA", "3,56");
-    type("wallB", "2,92");
-    type("height", "2,60");
+    type("wallA", "3560");
+    type("wallB", "2920");
+    type("height", "2600");
     settle();
     const written = addressBar();
 
@@ -444,7 +436,7 @@ describe("the plan redraws on every keystroke, locally (criterion 11)", () => {
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     const before = drawnWallAWidthPx();
 
-    type("wallA", "4,56");
+    type("wallA", "4560");
 
     expect(browser.push).not.toHaveBeenCalled();
     expect(browser.replace).not.toHaveBeenCalled();
@@ -456,8 +448,8 @@ describe("the plan redraws on every keystroke, locally (criterion 11)", () => {
     // and only the number of calls tells the two apart.
     render("?shape=L");
 
-    type("wallA", "3,5");
-    type("wallA", "3,56");
+    type("wallA", "356");
+    type("wallA", "3560");
     settle();
 
     expect(browser.replace).toHaveBeenCalledTimes(1);
@@ -480,28 +472,32 @@ describe("the plan redraws on every keystroke, locally (criterion 11)", () => {
 
 describe("re-seed on a different room; never on our own echo (criterion 20)", () => {
   it("leaves a typed value exactly as typed when the write comes back", () => {
-    // I3 and I1 at their sharpest. *"3,5"* and *"3,50"* are the same room, so a re-seed on the echo
-    // would be invisible to every URL assertion in this file and would still rewrite the field
-    // under the caret 400 ms after the customer stopped typing.
+    // I3 and I1 at their sharpest. *"03500"* and *"3500"* are the same room, so a re-seed on the
+    // echo would be invisible to every URL assertion in this file and would still rewrite the field
+    // under the caret 400 ms after the customer stopped typing. A leading zero is normalised only by
+    // a refill from the URL, never by our own echo (ADR 0126).
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
 
-    type("wallA", "3,5");
+    type("wallA", "03500");
     settle();
 
-    expect(addressBar()).toContain("wallA=3.5");
-    expect(fieldFor("wallA").value).toBe("3,5");
+    // Read as the parameter itself: `wallA=3.5` is a substring of the arriving `wallA=3.56`, so a
+    // `toContain` would pass over a write that never happened.
+    expect(new URLSearchParams(addressBar()).get("wallA")).toBe("3.5");
+    expect(fieldFor("wallA").value).toBe("03500");
   });
 
   it("leaves text that is not yet a length standing after the write", () => {
-    // The residue this design accepts, stated as the behaviour it protects: *"3,"* reaches no query
-    // and must survive the write that drops it, because the customer is still typing it.
+    // The residue this design accepts, stated as the behaviour it protects: *"3,6"* reaches no query
+    // and must survive the write that drops it, because it is what the customer typed — refused,
+    // never stripped (ADR 0126).
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
 
-    type("wallA", "3,");
+    type("wallA", "3,6");
     settle();
 
     expect(new URLSearchParams(addressBar()).has("wallA")).toBe(false);
-    expect(fieldFor("wallA").value).toBe("3,");
+    expect(fieldFor("wallA").value).toBe("3,6");
   });
 
   it("re-seeds every field, the shape and the direction when another room arrives", () => {
@@ -514,8 +510,8 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
       "?shape=U&wallA=4.2&wallB=3.1&wallC=2.18&height=2.5&direction=right",
     );
 
-    expect(fieldFor("wallA").value).toBe("4,20");
-    expect(fieldFor("wallC").value).toBe("2,18");
+    expect(fieldFor("wallA").value).toBe("4200");
+    expect(fieldFor("wallC").value).toBe("2180");
     expect(cornerControl("right").checked).toBe(true);
   });
 
@@ -541,7 +537,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
 
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
     expect(browser.replace).toHaveBeenCalledTimes(1);
@@ -555,7 +551,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
   it("pushes once the flush comes back", () => {
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
     deliverTheEcho();
@@ -573,7 +569,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     // from, so this is the reported defect step for step rather than its class.
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
-    type("wallA", "3,56");
+    type("wallA", "3560");
 
     click("room-back");
 
@@ -601,10 +597,10 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     // field left to type the late keystroke into, which is the gesture this test is about.
     render(`?${A_REFUSED_ROOM_MISSING_WALL_A}`);
     withholdTheEcho();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
-    type("wallA", "3,567");
+    type("wallA", "3567");
     settle();
 
     expect(browser.replace).toHaveBeenCalledTimes(1);
@@ -615,7 +611,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     expect(browser.push).toHaveBeenCalledWith(
       "/ro/configurator/room?shape=L&wallA=3.56&wallB=2.92&height=2.1&direction=left",
     );
-    expect(fieldFor("wallA").value).toBe("3,56");
+    expect(fieldFor("wallA").value).toBe("3560");
   });
 
   it("still canonicalises a room that arrives while a departure is in flight", () => {
@@ -625,7 +621,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     // it and the customer would sit on a URL with no `direction`.
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
     arriveAt("?shape=L&wallA=4.2&wallB=3.1&height=2.5");
@@ -644,7 +640,7 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
     // no longer the URL of the entry they are looking at.
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
     arriveAt("?shape=L&wallA=4.2&wallB=3.1&height=2.5&direction=right");

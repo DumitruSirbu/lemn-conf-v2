@@ -43,7 +43,7 @@ export interface PlanPointPx {
 }
 
 /** Which of a label's own edges its anchor names. The model places a point and says which way the
- *  text grows from it, and **never a width**: how wide *"A · 3,60 m"* comes out is a font's, a
+ *  text grows from it, and **never a width**: how wide *"A · 3600 mm"* comes out is a font's, a
  *  locale's and a translation's to decide, and this module measures no text. */
 export type PlanLabelAlignment = "centred" | "leftAligned" | "rightAligned";
 
@@ -110,8 +110,8 @@ export const PLAN_LABEL_GAP_PX = 5;
  * — whatever the room measures, and however wide the text turns out to be.
  *
  * A label written *under* wall A instead shares the band the walls running down the screen occupy,
- * and no anchor can save it there: at 2,50 x 5,00 m the label is wider than wall A is long, so wall
- * B's bar ran through *"A · 2,50 m"* for its full height.
+ * and no anchor can save it there: at 2500 x 5000 mm the label is wider than wall A is long, so
+ * wall B's bar ran through *"A · 2500 mm"* for its full height.
  */
 export const PLAN_LABEL_LANE_PX = PLAN_LABEL_LINE_PX + PLAN_LABEL_GAP_PX;
 
@@ -234,8 +234,8 @@ function belowTheLabelLane(originPx: PlanPointPx): PlanPointPx {
 
 /**
  * **One isotropic scale for both axes** (criterion 12), and this wave's single deliberate departure
- * from frames 1A and 1B (ruling R4): the frame draws wall A at 250 px for 3,60 m and wall B at 50 px
- * for 2,40 m — two scales — which would draw a 6,0 x 1,0 m room as a square. The scale is the
+ * from frames 1A and 1B (ruling R4): the frame draws wall A at 250 px for 3600 mm and wall B at 50
+ * px for 2400 mm — two scales — which would draw a 6000 x 1000 mm room as a square. The scale is the
  * largest that leaves the whole room inside the **region** on both axes, and it is arithmetic
  * nowhere else in this module: if the frame's literal proportions are ruled for instead, this
  * function is the only thing that moves.
@@ -367,7 +367,7 @@ function aboveTheWall(bar: PlanWallBar): PlanWallLabelPx {
  * where the drawing leaves space there (frame 1B `:138`), the box's own margin where it does not.
  *
  * Choosing the side is the fix for a label written into pixels that do not exist: a U's far wall
- * stands at the drawing's right edge, so "always to the right of the bar" put *"C · 1,20 m"* past the
+ * stands at the drawing's right edge, so "always to the right of the bar" put *"C · 1200 mm"* past the
  * box and the customer saw three walls and two labels. The obstructions counted are only the bars
  * that actually cross the line the label is written on, so a wall stopping short of it is not read
  * as one.

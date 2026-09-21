@@ -29,22 +29,16 @@ const ROOM = "/ro/configurator/room";
 const THE_EMPTY_L_ROOM = `${ROOM}?shape=L&direction=left`;
 
 /** The room this spec types, as the URL holds it once typing has settled. Metres are written with a
- *  dot on the wire and read with a comma in the Romanian field — one room, two notations, and
+ *  dot on the wire and the field takes whole millimetres (ADR 0126) — one room, two notations, and
  *  `metresTextForUrl` is the only place that crossing happens. */
 const THE_TYPED_ROOM = `${ROOM}?shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left`;
 
-const AS_TYPED = { wallA: "3,56", wallB: "4,25", height: "2,7" } as const;
+/** The room as the customer types it, and as the fields render it after a traversal: a re-seed from
+ *  the URL refills exactly these digits (ADR 0126), so there is no notation drift to allow for. */
+const AS_TYPED = { wallA: "3560", wallB: "4250", height: "2700" } as const;
 
-/**
- * The same room as the fields render it **after** a traversal, and the one difference is expected.
- *
- * A height typed `2,7` comes back `2,70` while the URL still says `height=2.7`. That is
- * `roomDraftFromQuery`'s canonical two-decimal notation on a genuine re-seed — the customer left
- * 1B, so the form unmounted, and what mounts on Back is the room the URL describes rather than the
- * keystrokes that produced it. The room and the URL agree; only the trailing zero is new. **Asserted
- * as expected here so it is not reported later as drift.**
- */
-const AS_RESTORED = { wallA: "3,56", wallB: "4,25", height: "2,70" } as const;
+/** A height one digit short of 2600 mm: what the field holds just before the last keystroke. */
+const HEIGHT_BEFORE_LAST_DIGIT = "260";
 
 // The screen's own Back control is *Înapoi*; the title names it in English because a Romanian
 // literal belongs in `src/messages/*.json` and a test name is not a negative claim about wording.
@@ -89,7 +83,7 @@ test("the screen's Back, then the browser's, returns the typed room (D4) at the 
   // own cache self-corrects. A screen that believed the server's parse drew 1A here, under a URL
   // describing a complete room.
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");
-  await expectFields(page, AS_RESTORED);
+  await expectFields(page, AS_TYPED);
 
   // Forward, then Back again: both hold, so the first Back was not a one-off re-render.
   await page.goForward();
@@ -100,7 +94,7 @@ test("the screen's Back, then the browser's, returns the typed room (D4) at the 
 
   await expect(page).toHaveURL(THE_TYPED_ROOM);
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");
-  await expectFields(page, AS_RESTORED);
+  await expectFields(page, AS_TYPED);
 });
 
 test("a tap inside the settle interval leaves the last digit in the entry behind (I5)", async ({
@@ -121,21 +115,25 @@ test("a tap inside the settle interval leaves the last digit in the entry behind
 
   await typeLength(page, "wallA", AS_TYPED.wallA);
   await typeLength(page, "wallB", AS_TYPED.wallB);
-  await typeLength(page, "height", AS_TYPED.height);
-  await expect(page).toHaveURL(THE_TYPED_ROOM);
+  await typeLength(page, "height", HEIGHT_BEFORE_LAST_DIGIT);
+  await expect(page).toHaveURL(
+    `${ROOM}?shape=L&wallA=3.56&wallB=4.25&height=0.26&direction=left`,
+  );
 
   const height = lengthField(page, "height");
   await height.press("End");
-  await height.pressSequentially("5");
+  await height.pressSequentially("0");
   await page.getByTestId("room-back").click();
   await expect(page).toHaveURL(ROOM);
 
   await page.goBack();
 
+  // The appended digit completes an ordinary 2600 mm height, so the entry left behind is a valid
+  // room; had the digit been dropped, this URL would still read `height=0.26`.
   await expect(page).toHaveURL(
-    `${ROOM}?shape=L&wallA=3.56&wallB=4.25&height=2.75&direction=left`,
+    `${ROOM}?shape=L&wallA=3.56&wallB=4.25&height=2.6&direction=left`,
   );
-  await expect(lengthField(page, "height")).toHaveValue("2,75");
+  await expect(lengthField(page, "height")).toHaveValue("2600");
 });
 
 /** The screen, and the marker the sub-state is read off. It lives on the screen rather than on the

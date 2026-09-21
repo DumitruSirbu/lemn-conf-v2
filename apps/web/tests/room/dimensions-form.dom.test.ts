@@ -152,27 +152,31 @@ describe("one field per wall of the chosen shape, plus the height (criterion 4)"
   });
 });
 
-describe("every length field is a text field with a decimal keypad (criterion 5)", () => {
+describe("every length field is a text field with a numeric keypad (criterion 5, amended by ADR 0126)", () => {
   it("carries the attributes the frame's box depicts", () => {
     render(createRoomDraft("L"));
 
     for (const field of requiredFieldsFor("L")) {
       const input = fieldFor(field);
       expect(input.getAttribute("type")).toBe("text");
-      expect(input.getAttribute("inputmode")).toBe("decimal");
+      expect(input.getAttribute("inputmode")).toBe("numeric");
       expect(input.id).not.toBe("");
     }
   });
 
   it("carries none of the attributes that would re-read a length", () => {
-    // `type="number"` refuses a comma on several locales and reports a float; a `pattern` would be a
-    // second authority on what a length may look like, which is `parse-metres.ts`'s alone.
+    // `type="number"` draws spinners and reports a float; a `pattern` would be a second authority on
+    // what a length may look like, which is `parse-millimetres.ts`'s alone; a `maxLength` truncates a
+    // paste into a room nobody entered; a placeholder would put an example figure in the box
+    // (criterion S1b-7).
     render(createRoomDraft("U"));
 
     for (const input of fieldsInTheTree()) {
       expect(input.getAttribute("type")).not.toBe("number");
       expect(input.hasAttribute("step")).toBe(false);
       expect(input.hasAttribute("pattern")).toBe(false);
+      expect(input.hasAttribute("maxlength")).toBe(false);
+      expect(input.hasAttribute("placeholder")).toBe(false);
     }
   });
 
@@ -183,7 +187,7 @@ describe("every length field is a text field with a decimal keypad (criterion 5)
 
       for (const field of requiredFieldsFor("L")) {
         expect(fieldFor(field).parentElement?.textContent).toBe(
-          messages.room.unitMetres,
+          messages.room.unitMillimetres,
         );
       }
     },
@@ -246,16 +250,19 @@ describe("a field still to be filled is not a field painted wrong (criterion 10)
     expect(container.querySelectorAll("[aria-invalid]").length).toBe(0);
   });
 
-  it("keeps a half-typed value under the caret and still paints nothing", () => {
-    // *"3,"* is on its way to being a length. It neither disappears nor is corrected, and it is not
-    // an error: at 1B an unreadable field is the ordinary state on the way to a value.
-    render(
-      withEnteredText(createRoomDraft("L"), { field: "wallA", text: "3," }),
-    );
+  it.each(["3,", "3,6", "3600mm"])(
+    "keeps %j, which is not whole millimetres, under the caret and still paints nothing",
+    (text) => {
+      // *"3,6"* — the metre habit — is not a length since ADR 0126, and *"3,"* is the pre-S1b case this
+      // test was written for (a value half-typed). Neither disappears nor is stripped to *"36"* / *"3"*,
+      // and neither is painted as an error: at 1B an unreadable field is the ordinary state on the way
+      // to a value.
+      render(withEnteredText(createRoomDraft("L"), { field: "wallA", text }));
 
-    expect(fieldFor("wallA").value).toBe("3,");
-    expect(container.querySelectorAll("[aria-invalid]").length).toBe(0);
-  });
+      expect(fieldFor("wallA").value).toBe(text);
+      expect(container.querySelectorAll("[aria-invalid]").length).toBe(0);
+    },
+  );
 
   it("shows the corner at left when the URL named none", () => {
     // Ruling R6's third layer. The parser still *marks* an absent `direction` — that is

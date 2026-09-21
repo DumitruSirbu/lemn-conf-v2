@@ -54,6 +54,14 @@
  * per issue code 1C can carry, `room.issue.unreadable`, `room.issue.orChooseLinear` (wired off until
  * wave 7J), the two `room.planWallIssue.*` labels and `room.presetsAfterValid`. A departure from frame
  * 1C's sentence, recorded in the copy lock. **Eleven added and no existing hash moved.**
+ *
+ * **Rebaselined over exactly three, with one leaf renamed, by wave 7F2 slice S1b** (ADR 0126; ADR 0113
+ * decision 2) — the owner's ruling of 2026-09-21 that Step 1's lengths are typed and shown in whole
+ * millimetres. `room.issue.unreadable` moves to the approved millimetre sentence; `room.planWallLabel`
+ * and `room.compose.roomSummary` move because they now render whole millimetres through ICU's
+ * `::group-off` number form with the unit *mm*; and `room.unitMetres` is removed and replaced by
+ * `room.unitMillimetres`, the box's new suffix. **Three moved, one renamed, no others** — the count of
+ * fixtures is unchanged.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -696,7 +704,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.role.storage":
     "cb18c899f3227071b5f242aacd6f90a6c56afc0744daa32771a6946d4c5844b7",
   "room.compose.roomSummary":
-    "5ccc144058c31e3bebda4b596109497edc51db67506b4059e9179d258f4592d2",
+    "06065b68375cce3c5819420945aecfb25e48f7f57fba6d780bdf635dc77c5f15",
   "room.compose.rowLabel":
     "4d23f6e72dbf5825d76c75e692b6f3771038943e7899c38c93cb9a9040bc8d32",
   "room.compose.rowWidth":
@@ -742,7 +750,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.issue.shapeNotBuildable":
     "628ecbc794dce0fc76080277d023a4cccc61eb782634c83d4a6af553396def0d",
   "room.issue.unreadable":
-    "2594260754bc3e5a35d75a29a122259804517be7f6d516eb1efdae9a627fba0f",
+    "e513d50c33a80043f27f317772e7cca043b44ef751dd816f4f4bd63a99c9e299",
   "room.issue.wallTooLong":
     "9e19b58541c57b01ae1a292bb4c9c6da6ebc6c154ef98c573fb8f5959da5f3d5",
   "room.issue.wallTooShort":
@@ -766,7 +774,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.planCaption":
     "8dc37f456be3e5385df4820512a22970029bfccee43021d3e4d6d190c5dba4f5",
   "room.planWallLabel":
-    "dade5b47ac28e92b98ad73ef0ffe5263be140b1960f054c1539036405e1b1ca1",
+    "614b5f112027663ae7071d5fe3e99dfd69d482a66fe3d093f6f6123c8928eb73",
   "room.planWallIssue.tooLong":
     "c0ac4ab811bd5c78132f7921697c90b638fc25e9cf7c221054f5e209262e493c",
   "room.planWallIssue.tooShort":
@@ -797,8 +805,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
   "room.title":
     "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
-  "room.unitMetres":
-    "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a",
+  "room.unitMillimetres":
+    "8fa1dddd53606ceb933c5c6a12e714ed41e11d37a2b7bc48e91d15b54171d033",
   "room.wallLabel.wallA":
     "093642fdd3ae144d6efee42eefcf43c9154528c47e2d692700ef8ff3481de870",
   "room.wallLabel.wallB":

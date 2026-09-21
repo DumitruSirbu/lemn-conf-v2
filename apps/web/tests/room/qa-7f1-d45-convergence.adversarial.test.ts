@@ -15,7 +15,9 @@
 // - **the departure state machine as a sequence rather than as four arms** — two taps, a tap with a
 //   keystroke between them, a tap a traversal overtakes, and a flush that never lands;
 // - **`ru`**, which the wave's gate records as not exercised: idempotence and the flush's
-//   byte-identical round trip both rest on a locale-dependent format, and both suites render `ro`.
+//   byte-identical round trip both rested on a locale-dependent format, and both suites render `ro`.
+//   Since wave 7F2 S1b (ADR 0126) a field shows whole millimetres and the draft takes no locale, so
+//   only the href builder's prefix is still swept over both.
 //
 // **Every guard here was falsified against a deliberate break in `room-query-sync.ts` before it was
 // kept**; the break each one catches is named on the test.
@@ -85,8 +87,8 @@ const SCREEN_SWEEP_RUNS = 200;
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
 /** Every locale `routing.ts` declares, read from it rather than restated — the wave's gate records
- *  `ru` as unexercised, and both the idempotence property and the flush's byte-identical round trip
- *  read a decimal separator the locale decides. A third locale is covered the day it is added. */
+ *  `ru` as unexercised, and the flush's byte-identical round trip goes through a builder that prefixes
+ *  the locale. A third locale is covered the day it is added. */
 const EVERY_LOCALE = routing.locales;
 
 const ROOM_PATHNAME = "/configurator/room";
@@ -99,9 +101,9 @@ function canonicalTextOf(draft: RoomDraft): string {
   return canonicalRoomQuery(draft).toString();
 }
 
-function draftFrom(search: string, locale: string): RoomDraft {
+function draftFrom(search: string): RoomDraft {
   const query = queryOf(search);
-  return roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query, locale);
+  return roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -118,13 +120,18 @@ const ANY_DRAFT: fc.Arbitrary<RoomDraft> = fc
       fc.tuple(
         fc.constantFrom("wallA", "wallB", "wallC", "height"),
         fc.oneof(
-          fc.constantFrom("3,", "3,56", "3,560", "0,001", "", " ", "-1", "0"),
-          fc
-            .integer({ min: 1, max: 9_999_999 })
-            .map(
-              (mm) =>
-                `${String(Math.floor(mm / 1000))},${String(mm % 1000).padStart(3, "0")}`,
-            ),
+          fc.constantFrom(
+            "3,",
+            "3,56",
+            "3560",
+            "03560",
+            "1",
+            "",
+            " ",
+            "-1",
+            "0",
+          ),
+          fc.integer({ min: 1, max: 9_999_999 }).map(String),
         ),
       ),
       { maxLength: 4 },
@@ -150,33 +157,28 @@ describe("the echo keeps a draft, and what it keeps is only what nobody can see"
     // millimetres in every field the shape asks for, same corner for the shapes that turn one. Only
     // the notation a field shows may differ, and only where the URL carries no value at all.
     fc.assert(
-      fc.property(
-        ANY_DRAFT,
-        fc.constantFrom(...EVERY_LOCALE),
-        (draft, locale) => {
-          const ourOwnWrite = canonicalTextOf(draft);
+      fc.property(ANY_DRAFT, (draft) => {
+        const ourOwnWrite = canonicalTextOf(draft);
 
-          const kept = reconcileRoomDraft({
-            draft,
-            lastSeenText: "shape=bogus",
-            liveQuery: queryOf(ourOwnWrite),
-            liveText: ourOwnWrite,
-            locale,
-          }).draft;
-          const reseeded = draftFrom(ourOwnWrite, locale);
+        const kept = reconcileRoomDraft({
+          draft,
+          lastSeenText: "shape=bogus",
+          liveQuery: queryOf(ourOwnWrite),
+          liveText: ourOwnWrite,
+        }).draft;
+        const reseeded = draftFrom(ourOwnWrite);
 
-          expect(kept).toBe(draft);
-          expect(kept.shape).toBe(reseeded.shape);
-          for (const field of requiredFieldsFor(kept.shape)) {
-            expect(kept.lengths[field].millimetres).toBe(
-              reseeded.lengths[field].millimetres,
-            );
-          }
-          if (carriesCornerDirection(kept.shape)) {
-            expect(kept.cornerDirection).toBe(reseeded.cornerDirection);
-          }
-        },
-      ),
+        expect(kept).toBe(draft);
+        expect(kept.shape).toBe(reseeded.shape);
+        for (const field of requiredFieldsFor(kept.shape)) {
+          expect(kept.lengths[field].millimetres).toBe(
+            reseeded.lengths[field].millimetres,
+          );
+        }
+        if (carriesCornerDirection(kept.shape)) {
+          expect(kept.cornerDirection).toBe(reseeded.cornerDirection);
+        }
+      }),
       { numRuns: SWEEP_RUNS },
     );
   });
@@ -188,17 +190,16 @@ describe("the echo keeps a draft, and what it keeps is only what nobody can see"
     // It is invisible while the shape does not ask for it, so it is not a second residue class.
     const uRoom = draftFrom(
       "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",
-      "ro",
     );
     const asAnL: RoomDraft = { ...uRoom, shape: "L" };
 
     expect(canonicalTextOf(asAnL)).not.toContain("wallC");
-    expect(asAnL.lengths.wallC.text).toBe("2,18");
+    expect(asAnL.lengths.wallC.text).toBe("2180");
   });
 });
 
 // ---------------------------------------------------------------------------------------------
-// Idempotence and the flush's round trip, over both locales and the parser's own limits
+// Idempotence and the flush's round trip, at the parser's own limits and through both locales' paths
 // ---------------------------------------------------------------------------------------------
 
 /** Lengths at the transitions rather than in the middle of a range: the smallest millimetre, the
@@ -244,28 +245,25 @@ const ANY_ARRIVING_QUERY = fc.record({
   direction: fc.constantFrom("left", "right", "LEFT", "sideways", ""),
 });
 
-describe("the loop settles once in either locale, and at the parser's own limits", () => {
+describe("the loop settles once, at the parser's own limits", () => {
   it("writes a query that reading and writing again reproduces exactly", () => {
-    // Criterion 21's property, widened on the two axes the wave's own sweep pins: the locale is
-    // `ro` there and the lengths are ordinary. A locale whose decimal separator the parser could
-    // not read back would make every field drop out of the canonical query on the *second* pass,
-    // and the screen would issue a navigation every settle interval, for ever.
+    // Criterion 21's property, widened on the axis the wave's own sweep pins: the lengths there are
+    // ordinary. A refill the parser could not read back would make every field drop out of the
+    // canonical query on the *second* pass, and the screen would issue a navigation every settle
+    // interval, for ever. (The locale axis this once swept is gone: since ADR 0126 the refill writes
+    // whole millimetres and takes no locale.)
     fc.assert(
       fc.property(
         ANY_ARRIVING_QUERY,
         fc.constantFrom(...EVERY_SHAPE),
-        fc.constantFrom(...EVERY_LOCALE),
-        (query, fallbackShape, locale) => {
+        (query, fallbackShape) => {
           const shape = roomShapeInQuery(query) ?? fallbackShape;
 
-          const once = canonicalTextOf(
-            roomDraftFromQuery(shape, query, locale),
-          );
+          const once = canonicalTextOf(roomDraftFromQuery(shape, query));
           const twice = canonicalTextOf(
             roomDraftFromQuery(
               roomShapeInQuery(queryOf(once)) ?? fallbackShape,
               queryOf(once),
-              locale,
             ),
           );
 
@@ -283,10 +281,9 @@ describe("the loop settles once in either locale, and at the parser's own limits
       fc.property(
         ANY_ARRIVING_QUERY,
         fc.constantFrom(...EVERY_SHAPE),
-        fc.constantFrom(...EVERY_LOCALE),
-        (query, fallbackShape, locale) => {
+        (query, fallbackShape) => {
           const shape = roomShapeInQuery(query) ?? fallbackShape;
-          const draft = roomDraftFromQuery(shape, query, locale);
+          const draft = roomDraftFromQuery(shape, query);
           const written = new URLSearchParams(canonicalTextOf(draft));
 
           for (const field of requiredFieldsFor(shape)) {
@@ -296,11 +293,8 @@ describe("the loop settles once in either locale, and at the parser's own limits
               expect(inTheField).toBeUndefined();
             } else {
               expect(
-                roomDraftFromQuery(
-                  shape,
-                  { shape, [field]: inTheQuery },
-                  locale,
-                ).lengths[field].millimetres,
+                roomDraftFromQuery(shape, { shape, [field]: inTheQuery })
+                  .lengths[field].millimetres,
               ).toBe(inTheField);
             }
           }
@@ -322,9 +316,7 @@ describe("the loop settles once in either locale, and at the parser's own limits
         fc.constantFrom(...EVERY_LOCALE),
         (query, fallbackShape, locale) => {
           const shape = roomShapeInQuery(query) ?? fallbackShape;
-          const flushed = canonicalTextOf(
-            roomDraftFromQuery(shape, query, locale),
-          );
+          const flushed = canonicalTextOf(roomDraftFromQuery(shape, query));
 
           const href = getPathname({
             href: { pathname: ROOM_PATHNAME, query: queryEntriesOf(flushed) },
@@ -623,7 +615,7 @@ describe("criterion 21 over queries nobody would write on purpose", () => {
           expect(resting).toBe(new URLSearchParams(search).toString());
           return;
         }
-        expect(canonicalTextOf(draftFrom(resting, "ro"))).toBe(resting);
+        expect(canonicalTextOf(draftFrom(resting))).toBe(resting);
         expect([...new URLSearchParams(resting).keys()]).toEqual(
           [...canonicalKeysFor(shape)].filter((key) =>
             new URLSearchParams(resting).has(key),
@@ -780,7 +772,7 @@ describe("hostile arrivals the screen must survive without writing twice", () =>
     settle();
     settle();
 
-    expect(fieldFor("wallA").value).toBe("3,56");
+    expect(fieldFor("wallA").value).toBe("3560");
     expect(restingQuery()).toBe(
       "shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left",
     );
@@ -825,7 +817,7 @@ describe("the departure state machine, over sequences rather than single taps", 
     // twice and the customer would land two entries deep.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
 
     click("room-continue");
     click("room-continue");
@@ -840,7 +832,7 @@ describe("the departure state machine, over sequences rather than single taps", 
     // tap re-arms over the first and the destination the customer asked for last is the one taken.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
 
     click("room-continue");
     click("room-back");
@@ -863,10 +855,10 @@ describe("the departure state machine, over sequences rather than single taps", 
     // router has thrown away, and the primary button would do nothing at all.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
-    type("wallA", "3,567");
+    type("wallA", "3567");
     click("room-continue");
     deliverTheEcho();
 
@@ -881,7 +873,7 @@ describe("the departure state machine, over sequences rather than single taps", 
     // tap re-issues it. Asserted so *"the next tap resolves it"* is a test rather than a comment.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
     dropTheWithheldWrite();
 
@@ -898,13 +890,13 @@ describe("the departure state machine, over sequences rather than single taps", 
     // URL, so a reload in that window restores the flushed room and not the typed one.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
     browser.replace.mockClear();
 
-    type("wallA", "3,567");
+    type("wallA", "3567");
     settle();
-    type("height", "2,8");
+    type("height", "2800");
     settle();
 
     expect(browser.replace).not.toHaveBeenCalled();
@@ -937,7 +929,7 @@ describe("the departure state machine, over sequences rather than single taps", 
     // same argument applies.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
 
     arriveAt("shape=L&wallA=3.56&wallB=2.92&height=2.1&direction=left");
@@ -951,7 +943,7 @@ describe("the departure state machine, over sequences rather than single taps", 
     // canonicalising one, and the query the customer navigated away from must never be written.
     render(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
-    type("wallA", "3,56");
+    type("wallA", "3560");
     click("room-continue");
     browser.replace.mockClear();
 
@@ -974,7 +966,7 @@ describe("a traversal beats a pending write (I2)", () => {
     // when a traversal overtakes it, and what must **not** happen is the worse outcome — the timer
     // firing anyway and stamping the old room's query onto the entry the customer has just reached.
     render("shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
-    type("wallA", "4,56");
+    type("wallA", "4560");
 
     arriveAt("shape=L&wallA=1.2&wallB=1.3&height=2.4&direction=right");
     settle();
@@ -984,7 +976,7 @@ describe("a traversal beats a pending write (I2)", () => {
     expect(restingQuery()).toBe(
       "shape=L&wallA=1.2&wallB=1.3&height=2.4&direction=right",
     );
-    expect(fieldFor("wallA").value).toBe("1,20");
+    expect(fieldFor("wallA").value).toBe("1200");
   });
 
   it("draws the dimensions step exactly when the live query names a room", () => {
@@ -1018,7 +1010,7 @@ describe("a traversal beats a pending write (I2)", () => {
     // I6 after a departure rather than on arrival: the back button's own entry is the bare pathname,
     // and a settle that rewrote it would undo the navigation 400 ms after the customer made it.
     render("shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
-    type("wallA", "4,56");
+    type("wallA", "4560");
 
     arriveAt("");
     settle();
@@ -1048,9 +1040,9 @@ describe("the sub-state markers read the live query and lag the field by the set
     // e2e that asserted a marker without first waiting on the URL fails here instead of flaking.
     render("shape=L&wallB=2.92&height=2.6&direction=left");
 
-    type("wallA", "3,56");
+    type("wallA", "3560");
 
-    expect(fieldFor("wallA").value).toBe("3,56");
+    expect(fieldFor("wallA").value).toBe("3560");
     expect(theScreenMarkers().markedFields).toContain("wallA");
 
     settle();
@@ -1072,7 +1064,7 @@ describe("the sub-state markers read the live query and lag the field by the set
     });
 
     expect(theScreenMarkers().roomSubstate).not.toBe("1A");
-    expect(fieldFor("wallA").value).toBe("3,56");
+    expect(fieldFor("wallA").value).toBe("3560");
 
     settle();
 

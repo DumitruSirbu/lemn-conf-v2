@@ -49,7 +49,7 @@ declare const messages: {
     },
     "dimensionsLater": "Dimensiunile se cer după ce alegi forma.",
     "planCaption": "Plan de sus · previzualizare",
-    "planWallLabel": "{wall} · {metres} m",
+    "planWallLabel": "{wall} · {millimetres, number, ::group-off} mm",
     "cornerQuestion": "Încotro merge cotul?",
     "cornerHint": "nu se deduce din lățimi",
     "cornerLeft": "La stânga",
@@ -76,7 +76,7 @@ declare const messages: {
       }
     },
     "heightLabel": "Înălțimea camerei",
-    "unitMetres": "m",
+    "unitMillimetres": "mm",
     "back": "Înapoi",
     "continue": "Continuă",
     "issue": {
@@ -87,7 +87,7 @@ declare const messages: {
       "roomTooSmall": "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
       "shapeNotBuildable": "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
       "orChooseLinear": "Sau alege o formă liniară.",
-      "unreadable": "Scrie lungimea în metri."
+      "unreadable": "Scrie valoarea în milimetri, doar cu cifre."
     },
     "planWallIssue": {
       "tooShort": "{wall} prea scurt",
@@ -97,7 +97,7 @@ declare const messages: {
     "compose": {
       "title": "Preset",
       "heading": "Ți-o construim pe a ta",
-      "roomSummary": "{shape} · {wallA} × {wallB} m · h {height} m",
+      "roomSummary": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm",
       "noPresetNotice": "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
       "stepsLabel": "Ce este inclus, în ordinea priorității",
       "role": {

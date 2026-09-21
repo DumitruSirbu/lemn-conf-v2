@@ -18,7 +18,6 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { metresTextForUrl } from "@/room/metres-text";
 import {
   createRoomDraft,
   withCornerDirection,
@@ -102,9 +101,9 @@ function lDraft(room: LRoomMm, direction: CornerDirection = "left"): RoomDraft {
   return draftTyped({
     shape: "L",
     texts: {
-      wallA: metresTextForUrl(room.wallA),
-      wallB: metresTextForUrl(room.wallB),
-      height: metresTextForUrl(room.height),
+      wallA: String(room.wallA),
+      wallB: String(room.wallB),
+      height: String(room.height),
     },
     direction,
   });
@@ -439,7 +438,9 @@ describe("the walls marked on the plan are the refused wall fields, by id", () =
 // ---------------------------------------------------------------------------------------------
 
 describe("text that does not read as a length is reported apart from the domain's reasons", () => {
-  const UNREADABLE_TEXTS = ["abc", "0", "3,6005"] as const;
+  // Wave 7F2 S1b (ADR 0126) amends this block: a field reads whole millimetres, so the metre habit —
+  // *"3,6"*, *"3.60"* — is unreadable now, where S1 read it as a length.
+  const UNREADABLE_TEXTS = ["abc", "0", "3,6", "3.60", "3600mm"] as const;
   const L_FIELDS = ["wallA", "wallB", "height"] as const;
 
   it.each(
@@ -447,7 +448,12 @@ describe("text that does not read as a length is reported apart from the domain'
       UNREADABLE_TEXTS.map((text) => [field, text] as const),
     ),
   )("reports %s holding %j as unreadable, and nothing else", (field, text) => {
-    const texts = { wallA: "2,2", wallB: "2", height: "2,5", [field]: text };
+    const texts = {
+      wallA: "2200",
+      wallB: "2000",
+      height: "2500",
+      [field]: text,
+    };
     const draft = draftTyped({ shape: "L", texts });
 
     const view = viewOf(draft);
@@ -467,6 +473,25 @@ describe("text that does not read as a length is reported apart from the domain'
     },
   );
 
+  it("does not report a leading zero as unreadable: it is one reading of a digit string", () => {
+    const view = viewOf(draftTyped({ shape: "L", texts: { wallA: "03600" } }));
+
+    expect(view.unreadableFields).toEqual([]);
+  });
+
+  it("does not report a readable length out of range as unreadable: the domain's reason is 1C's", () => {
+    const draft = draftTyped({
+      shape: "L",
+      texts: { wallA: "3", wallB: "2000", height: "2500" },
+    });
+
+    const view = viewOf(draft);
+
+    expect(view.unreadableFields).toEqual([]);
+    expect(stateOfDraft(draft).substate).toBe("1C");
+    expect(view.fieldReasons.map((reason) => reason.field)).toContain("wallA");
+  });
+
   it("ignores text in a field the chosen shape does not ask for", () => {
     const view = viewOf(draftTyped({ shape: "L", texts: { wallC: "abc" } }));
 
@@ -485,10 +510,10 @@ describe("text that does not read as a length is reported apart from the domain'
 describe("the shape refusal is the policy's answer for the chosen shape, whatever the fields hold", () => {
   const FIELD_STATES: readonly [string, TypedRoom["texts"]][] = [
     ["no field typed", {}],
-    ["some fields typed", { wallA: "2,2" }],
+    ["some fields typed", { wallA: "2200" }],
     [
       "every field typed",
-      { wallA: "2,2", wallB: "2", wallC: "2", height: "2,5" },
+      { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
     ],
   ];
 
@@ -518,7 +543,7 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
   it("stops refusing a shape the moment a policy states it, with no other change", () => {
     const draft = draftTyped({
       shape: "U",
-      texts: { wallA: "2,2", wallB: "2", wallC: "2", height: "2,5" },
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
     });
 
     const view = viewOf(draft, policyAlsoStating("U"));
@@ -531,7 +556,7 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     (shape) => {
       const draft = draftTyped({
         shape,
-        texts: { wallA: "2,2", wallB: "2", wallC: "2", height: "2,5" },
+        texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
       });
 
       const view = viewOf(draft);
@@ -570,7 +595,7 @@ describe("no straight kitchen is suggested while the domain builds none", () => 
     (shape) => {
       const draft = draftTyped({
         shape,
-        texts: { wallA: "2,2", wallB: "2", wallC: "2", height: "2,5" },
+        texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
       });
 
       expect(viewOf(draft).isLinearSuggested).toBe(false);
@@ -594,7 +619,7 @@ describe("frame 1C's note shows at 1C and at no other sub-state", () => {
       "a refused shape",
       draftTyped({
         shape: "U",
-        texts: { wallA: "2", wallB: "2", wallC: "2", height: "2,5" },
+        texts: { wallA: "2000", wallB: "2000", wallC: "2000", height: "2500" },
       }),
     ],
   ] as const)("shows it for %s", (_, draft) => {
@@ -603,7 +628,7 @@ describe("frame 1C's note shows at 1C and at no other sub-state", () => {
   });
 
   it.each([
-    ["1B", draftTyped({ shape: "L", texts: { wallA: "2,2" } })],
+    ["1B", draftTyped({ shape: "L", texts: { wallA: "2200" } })],
     ["1D", lDraft({ wallA: 3000, wallB: 2000, height: 2500 })],
   ] as const)("hides it at %s", (substate, draft) => {
     expect(stateOfDraft(draft).substate).toBe(substate);
@@ -635,7 +660,7 @@ describe("frame 1C's note shows at 1C and at no other sub-state", () => {
 describe("the two codes the model's table excludes never reach 1C", () => {
   const anyText = fc.oneof(
     fc.string({ maxLength: 8 }),
-    fc.integer({ min: 0, max: 9_000_000 }).map(metresTextForUrl),
+    fc.integer({ min: 0, max: 9_000_000 }).map(String),
     fc.stringMatching(/^\d{1,2}[.,]\d{1,6}$/),
   );
 

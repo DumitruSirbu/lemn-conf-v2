@@ -15,7 +15,7 @@ import {
   type RoomPolicy,
 } from "@lemnaria/configurator-domain";
 
-import { parseMetresToMillimetres } from "./parse-metres";
+import { parseMillimetres } from "./parse-millimetres";
 import type { PlanWallId } from "./plan-preview-model";
 import type { RoomDraft, RoomLengthField } from "./room-draft";
 import { requiredFieldsFor, type RoomUrlState } from "./room-url-state";
@@ -74,7 +74,8 @@ export const ONE_C_NOTE_MESSAGE_KEY = "room.presetsAfterValid";
 /** Frame 1C's own clause, kept for the day wave 7J makes a straight kitchen true (section 8). */
 export const LINEAR_SUGGESTION_MESSAGE_KEY = "room.issue.orChooseLinear";
 
-/** Text in a field that does not read as a length (Q-7F2-4). Shown once the field loses focus. */
+/** Text in a field that does not read as whole millimetres (Q-7F2-4, ADR 0126). Shown once the field
+ *  loses focus. */
 export const UNREADABLE_LENGTH_MESSAGE_KEY = "room.issue.unreadable";
 
 /** The plan's wall for each wall field — the structural dependency the red wall follows. */
@@ -177,9 +178,11 @@ function planWallLabelKeyOf(issue: RoomIssue): PlanWallIssueLabelKey {
   return PLAN_WALL_ISSUE_LABEL_KEYS[issue.code];
 }
 
+/** Asked of the field's own parser, never the URL's: since ADR 0126 a field reads whole millimetres,
+ *  so *"3,6"* is unreadable here even though the metre wire would read it. */
 function unreadableFieldsOf(draft: RoomDraft): readonly RoomLengthField[] {
   return requiredFieldsFor(draft.shape).filter((field) => {
-    const parsed = parseMetresToMillimetres(draft.lengths[field].text);
+    const parsed = parseMillimetres(draft.lengths[field].text);
     return !parsed.ok && parsed.reason !== "empty";
   });
 }

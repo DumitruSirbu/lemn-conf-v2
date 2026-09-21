@@ -62,7 +62,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     dimensionsLater: "Dimensiunile se cer după ce alegi forma.",
     planCaption: "Plan de sus · previzualizare",
-    planWallLabel: "{wall} · {metres} m",
+    // Wave 7F2 S1b (ADR 0126, owner ruling Q-S1b-1 = a, 2026-09-21): the plan's label and 1F's room
+    // summary read whole millimetres, the unit the fields take, in the editor's own number form. A
+    // departure from frame 1B's *"A · 3,60 m"*, recorded against ADR 0104.
+    planWallLabel: "{wall} · {millimetres, number, ::group-off} mm",
     cornerQuestion: "Încotro merge cotul?",
     cornerHint: "nu se deduce din lățimi",
     cornerLeft: "La stânga",
@@ -98,7 +101,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       },
     },
     heightLabel: "Înălțimea camerei",
-    unitMetres: "m",
+    // The box's suffix since ADR 0126: the fields take whole millimetres, where frame 1B draws *m*.
+    unitMillimetres: "mm",
     back: "Înapoi",
     continue: "Continuă",
     // Sub-state 1C, wave 7F2 S1. **Owner-approved in session, 2026-09-21** (Q-7F2-1 = (a), Q-7F2-4 =
@@ -114,7 +118,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // No leaf carries a digit, a unit or a bound (ADR 0108 decision 3, ADR 0120 decision 3): a
     // refusal says what the room cannot hold, never how many millimetres to add. `roomTooSmall` is
     // ADR 0110's *"honest sentence"* with its digit removed. `presetsAfterValid` is frame 1C's note,
-    // as written. `unreadable` is drafted, and shown once the field loses focus (Q-7F2-4).
+    // as written. `unreadable` is shown once the field loses focus (Q-7F2-4); its wording is wave 7F2
+    // S1b's (owner, 2026-09-21), replacing S1's metre sentence when the fields became whole millimetres
+    // (ADR 0126). It spells the unit out and never abbreviates it — ADR 0126 records why naming the
+    // entry unit is not *asking for millimetres* under ADR 0120 decision 3.
     issue: {
       wallTooShort:
         "Lungimea aceasta e mai mică decât putem mobila. Mărește valoarea.",
@@ -129,7 +136,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       shapeNotBuildable:
         "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
       orChooseLinear: "Sau alege o formă liniară.",
-      unreadable: "Scrie lungimea în metri.",
+      unreadable: "Scrie valoarea în milimetri, doar cu cifre.",
     },
     // Frame 1C's plan label, *"B prea scurt"*; `tooLong` mirrors it.
     planWallIssue: {
@@ -177,7 +184,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     compose: {
       title: "Preset",
       heading: "Ți-o construim pe a ta",
-      roomSummary: "{shape} · {wallA} × {wallB} m · h {height} m",
+      roomSummary:
+        "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm",
       noPresetNotice:
         "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
       stepsLabel: "Ce este inclus, în ordinea priorității",

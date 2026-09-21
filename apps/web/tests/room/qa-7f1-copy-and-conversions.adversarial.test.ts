@@ -9,20 +9,21 @@
 // the scar ruling R7 exists to avoid.
 //
 // **The conversions half.** `metres-text.test.ts` sweeps the **approved policy's** ranges. Neither
-// converter is confined to them: `formatMetresForDisplay` is called on whatever the URL holds
-// (`room-screen.tsx`'s `withLengthFromQuery`) and on whatever the plan is drawing
-// (`plan-preview.tsx`'s wall label), and both of those accept any length `parse-metres.ts` accepts.
-// So the round trip is swept over the range the parser actually admits, not the range the policy
-// approves — the gap between the two is where a stale link or a customer typing past the maximum
-// lands.
+// conversion is confined to them: the refill (`room-query-sync.ts`'s `withLengthFromQuery`) runs on
+// whatever the URL holds, and it accepts any length `parse-metres.ts` accepts. So the round trip is
+// swept over the range the parser actually admits, not the range the policy approves — the gap
+// between the two is where a stale link or a customer typing past the maximum lands. Since wave 7F2
+// S1b (ADR 0126) the field shows whole millimetres, so what is swept is the wire's metres coming back
+// as the field's digits; the metre display formatter this half once swept is gone.
 import { fc } from "@fast-check/vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { routing } from "@/i18n/routing";
-import { formatMetresForDisplay, metresTextForUrl } from "@/room/metres-text";
+import { metresTextForUrl } from "@/room/metres-text";
 import { parseMetresToMillimetres } from "@/room/parse-metres";
+import { parseMillimetres } from "@/room/parse-millimetres";
+import { roomDraftFromQuery } from "@/room/room-query-sync";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
@@ -30,8 +31,8 @@ import { catalogueLeaves, type Catalogue } from "../support/catalogues";
 
 const SWEEP_RUNS = 2000;
 
-/** Far past any room and still a length the parser accepts, which is the point: the formatter has no
- *  bound of its own and a test confined to the policy's would not say so. */
+/** Far past any room and still a length the parser accepts, which is the point: the conversions have
+ *  no bound of their own and a test confined to the policy's would not say so. */
 const A_LENGTH_NO_ROOM_REACHES_MM = 9_000_000;
 
 /** Every module the room screen is built from, as `[name, source]`. */
@@ -63,7 +64,8 @@ describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () =
     // with a corner. Wave 7D5b's 1 is 1F's sixth row, `room.compose.dishwasher` (ADR 0110
     // Amendment M3). Wave 7F2 S1's 11 are frame 1C's: six reasons, one per reachable issue code, the
     // unreadable-length reason (Q-7F2-4), the linear suggestion wired off until 7J, the plan wall's two
-    // short labels, and the note.
+    // short labels, and the note. Wave 7F2 S1b (ADR 0126) swaps one for one: `room.unitMetres` is
+    // removed and `room.unitMillimetres` added, so the count does not move.
     expect(ROOM_KEYS.length).toBe(68);
   });
 
@@ -115,23 +117,27 @@ describe("no owner-approved sentence is pinned twice (ruling R7)", () => {
   });
 });
 
+/** What a wall field shows once the wire's `wallA` has been read back into it. */
+function refilledWallA(wire: string): string {
+  return roomDraftFromQuery("L", { shape: "L", wallA: wire }).lengths.wallA
+    .text;
+}
+
 describe("the conversions hold past the approved policy's ranges (criteria 7 and 8)", () => {
-  it.each(routing.locales)(
-    "reads a field back to the exact millimetre in %s, for every length the parser admits",
-    (locale) => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 1, max: A_LENGTH_NO_ROOM_REACHES_MM }),
-          (mm) => {
-            expect(
-              parseMetresToMillimetres(formatMetresForDisplay(mm, locale)),
-            ).toEqual({ ok: true, mm });
-          },
-        ),
-        { numRuns: SWEEP_RUNS },
-      );
-    },
-  );
+  it("refills a field that reads back to the exact millimetre, for every length the parser admits", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: A_LENGTH_NO_ROOM_REACHES_MM }),
+        (mm) => {
+          const shown = refilledWallA(metresTextForUrl(mm));
+
+          expect(shown).toBe(String(mm));
+          expect(parseMillimetres(shown)).toEqual({ ok: true, mm });
+        },
+      ),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
 
   it("keeps the wire form free of a comma at every one of those lengths", () => {
     fc.assert(
@@ -148,40 +154,37 @@ describe("the conversions hold past the approved policy's ranges (criteria 7 and
     );
   });
 
-  it.each(routing.locales)(
-    "never writes a group separator into a field in %s",
-    (locale) => {
-      // `Intl` groups thousands, and a grouped *"1 200,00"* is `notANumber` to the parser — the room
-      // would come back empty from its own URL. The formatter builds the digit string itself and
-      // only asks the locale for its separator, which is what this asserts stayed true.
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 1_000_000, max: A_LENGTH_NO_ROOM_REACHES_MM }),
-          (mm) => {
-            expect(formatMetresForDisplay(mm, locale)).toMatch(/^\d+[.,]\d+$/u);
-          },
-        ),
-        { numRuns: SWEEP_RUNS },
-      );
-    },
-  );
+  it("never writes a group separator into a field", () => {
+    // `Intl` groups thousands, and a grouped *"1 200 000"* is `notDigits` to the field's parser — the
+    // room would come back unreadable from its own URL. The refill writes the digit string itself,
+    // which is what this asserts stayed true.
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1_000_000, max: A_LENGTH_NO_ROOM_REACHES_MM }),
+        (mm) => {
+          expect(refilledWallA(metresTextForUrl(mm))).toMatch(/^\d+$/u);
+        },
+      ),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
 
   it.each([
-    [1, "0,001"],
-    [10, "0,01"],
-    [100, "0,10"],
-    [999, "0,999"],
-    [1000, "1,00"],
-    [1001, "1,001"],
-    [1010, "1,01"],
-    [1100, "1,10"],
+    [1, "0.001", "1"],
+    [10, "0.01", "10"],
+    [100, "0.1", "100"],
+    [999, "0.999", "999"],
+    [1000, "1", "1000"],
+    [1001, "1.001", "1001"],
+    [1010, "1.01", "1010"],
+    [1100, "1.1", "1100"],
   ] as const)(
-    "shows %i mm as %s, where the pad and the strip meet",
-    (mm, shown) => {
-      // The transitions the trailing-zero strip and the two-decimal pad share a boundary at. Every
-      // one of these is a millimetre apart from a value that formats differently.
-      expect(formatMetresForDisplay(mm, "ro")).toBe(shown);
-      expect(parseMetresToMillimetres(shown)).toEqual({ ok: true, mm });
+    "carries %i mm as %s on the wire and shows it as %s, where the pad and the strip meet",
+    (mm, wire, shown) => {
+      // The transitions the wire's trailing-zero strip and three-digit pad share a boundary at. Every
+      // one of these is a millimetre apart from a value that is written differently.
+      expect(metresTextForUrl(mm)).toBe(wire);
+      expect(refilledWallA(wire)).toBe(shown);
     },
   );
 });

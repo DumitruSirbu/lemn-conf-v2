@@ -544,13 +544,12 @@ export const CONTENT_FIXTURES: readonly GoldenFixture[] = [
 
 /** **Step 1's leaves, and the arguments each ICU one is rendered with.**
  *
- *  `room.planWallLabel` was wave 7F1's only ICU leaf here: the frame draws *"A · 3,60 m"*, and both
- *  the wall letter and the already-formatted metres arrive as arguments — the formatter owns the
- *  separator (M7 criterion 8), so the fixture passes a formatted string and never a number.
+ *  `room.planWallLabel` was wave 7F1's only ICU leaf here. Since wave 7F2 S1b (ADR 0126) it reads
+ *  *"A · 3600 mm"*: the wall letter and the whole millimetres arrive as arguments and ICU writes the
+ *  number with `::group-off`, so the fixture passes a number, as the screen does.
  *
- *  Wave 7F4a's four are sub-state 1F's, and they keep that rule: a length reaches
- *  `room.compose.roomSummary` already written in the customer's own notation, and the only raw number
- *  in the group is `room.compose.rowWidth`'s millimetres, which is a body's declared width and is
+ *  Wave 7F4a's four are sub-state 1F's. `room.compose.roomSummary` takes its three lengths the same
+ *  way since S1b, and `room.compose.rowWidth`'s millimetres are a body's declared width, also
  *  formatted by ICU itself.
  *
  *  **The argument *values* here are neutral tokens rather than the words the screen passes.** They
@@ -559,12 +558,12 @@ export const CONTENT_FIXTURES: readonly GoldenFixture[] = [
 const ROOM_RENDER_ARGUMENTS: Readonly<
   Record<string, Readonly<Record<string, string | number>>>
 > = {
-  "room.planWallLabel": { wall: "A", metres: "3,60" },
+  "room.planWallLabel": { wall: "A", millimetres: 3600 },
   "room.compose.roomSummary": {
     shape: "L",
-    wallA: "3,60",
-    wallB: "2,40",
-    height: "2,60",
+    wallA: 3600,
+    wallB: 2400,
+    height: 2600,
   },
   "room.compose.rowLabel": { role: "Sink", extent: "600" },
   "room.compose.rowWidth": { millimetres: 600 },

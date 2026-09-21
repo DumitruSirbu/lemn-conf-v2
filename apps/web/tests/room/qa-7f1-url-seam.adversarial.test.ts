@@ -55,6 +55,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 
 import { parseMetresToMillimetres } from "@/room/parse-metres";
+import { parseMillimetres } from "@/room/parse-millimetres";
 import { URL_SETTLE_MS } from "@/room/room-query-sync";
 import { RoomScreen, type RoomScreenProps } from "@/room/room-screen";
 import {
@@ -208,14 +209,15 @@ function addressBar(): string {
   return window.location.search;
 }
 
-/** What the fields say, in whole millimetres, for the shape the URL names. `undefined` where a field
- *  stands empty or holds text on its way to a value. */
+/** What the fields say, in whole millimetres, for the shape the URL names — read by the field's own
+ *  parser, since a field takes whole millimetres (ADR 0126). `undefined` where a field stands empty
+ *  or holds text that is not a length. */
 function millimetresShown(
   shape: RoomShape,
 ): Readonly<Record<string, number | undefined>> {
   return Object.fromEntries(
     requiredFieldsFor(shape).map((field) => {
-      const parsed = parseMetresToMillimetres(fieldFor(field).value);
+      const parsed = parseMillimetres(fieldFor(field).value);
       return [field, parsed.ok ? parsed.mm : undefined];
     }),
   );
@@ -320,13 +322,13 @@ describe("the query and the fields never disagree about the room (criteria 7 and
   });
 
   it("keeps the zero inside a length rather than trailing it", () => {
-    // Criterion 7's formatting edge, read off the screen rather than off the formatter: 3060 mm must
-    // show as 3,06. Drawn as 3,60 it parses back as a room 540 mm wider than the one that was stored.
+    // Criterion 7's formatting edge, read off the screen rather than off the refill: the wire's 3.06
+    // must show as 3060. Drawn as 3600 it would be a room 540 mm wider than the one that was stored.
     render("?shape=L&wallA=3.06&wallB=2.92&height=2.6&direction=left");
     settle();
 
-    expect(fieldFor("wallA").value).toBe("3,06");
-    expect(parseMetresToMillimetres(fieldFor("wallA").value)).toEqual({
+    expect(fieldFor("wallA").value).toBe("3060");
+    expect(parseMillimetres(fieldFor("wallA").value)).toEqual({
       ok: true,
       mm: 3060,
     });
@@ -368,7 +370,7 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
       expect(fieldFor("wallA").value).toBe("");
       expect(new URLSearchParams(addressBar()).has("wallA")).toBe(false);
       // The room is still the one the URL names, and the rest of it survives untouched.
-      expect(fieldFor("wallB").value).toBe("2,92");
+      expect(fieldFor("wallB").value).toBe("2920");
     },
   );
 
@@ -425,7 +427,7 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
   it.each(EVERY_SHAPE)("draws exactly %s's field set and no other", (shape) => {
     render(`?shape=${shape}`);
 
-    const drawn = [...container.querySelectorAll("input[inputmode='decimal']")]
+    const drawn = [...container.querySelectorAll("input[inputmode='numeric']")]
       .map((input) => input.getAttribute("data-testid"))
       .map((testId) => (testId ?? "").replace("room-length-", ""));
 
@@ -441,7 +443,7 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
     );
     settle();
 
-    expect(fieldFor("wallC").value).toBe("2,18");
+    expect(fieldFor("wallC").value).toBe("2180");
     expect([...new URLSearchParams(addressBar()).keys()]).toEqual([
       "shape",
       "wallA",
@@ -554,7 +556,7 @@ describe("what the CTA pushes is what serialiseRoomInput would write (criterion 
     // flush has been observed coming back. Cancelling the timer instead would leave the entry
     // behind holding 2,92, which is defect D4 on the fastest customer path.
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
-    type("wallB", "2,4");
+    type("wallB", "2400");
 
     act(() => {
       continueButton().click();

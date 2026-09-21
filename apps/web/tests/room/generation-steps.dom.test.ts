@@ -23,6 +23,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { fc } from "@fast-check/vitest";
 import {
   generateKitchen,
   type DesignRoom,
@@ -559,4 +560,55 @@ describe("the dishwasher row, in both locales (7D5b SW)", () => {
       roMessages.room.compose.status.notPlaced,
     );
   });
+});
+
+/**
+ * **Wave 7F2 S1b: 1F's room summary reads the whole millimetres the customer typed** (ADR 0126,
+ * criterion S1b-9). The unit is spelled here rather than read from the catalogue, so a template that
+ * lost it, or a number form that grouped thousands (*"3 560"* in `ru` without `::group-off`), could
+ * not agree with itself.
+ */
+describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", () => {
+  const SUMMARY_SWEEP_RUNS = 100;
+  const LARGEST_SWEPT_MM = 9_000_000;
+
+  function summaryText(): string {
+    const summary = container.querySelector(
+      '[data-testid="room-compose-summary"]',
+    );
+    if (summary === null) throw new Error("1F drew no room summary");
+    return summary.textContent;
+  }
+
+  it.each([
+    ["ro", ROMANIAN, "mm"],
+    ["ru", RUSSIAN, "\u043C\u043C"],
+  ] as const)(
+    "writes each length as its digits and the unit, with no separator, in %s",
+    (_locale, catalogue, unit) => {
+      const lengthMm = fc.integer({ min: 1, max: LARGEST_SWEPT_MM });
+      fc.assert(
+        fc.property(
+          lengthMm,
+          lengthMm,
+          lengthMm,
+          (widthMm, depthMm, heightMm) => {
+            renderRun(
+              {
+                phase: "failed",
+                room: { shape: "L", widthMm, depthMm, heightMm },
+              },
+              catalogue,
+            );
+
+            expect(summaryText()).toBe(
+              `${catalogue.messages.room.shapes.L.short} \u00B7 ${String(widthMm)} \u00D7 ` +
+                `${String(depthMm)} ${unit} \u00B7 h ${String(heightMm)} ${unit}`,
+            );
+          },
+        ),
+        { numRuns: SUMMARY_SWEEP_RUNS },
+      );
+    },
+  );
 });

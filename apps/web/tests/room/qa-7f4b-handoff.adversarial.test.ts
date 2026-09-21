@@ -76,7 +76,6 @@ import { generateKitchen } from "@lemnaria/configurator-domain";
 
 // The production formatter, so the expected figures are the locale's own notation rather than a
 // separator spelled here — the same rule the catalogue reads under.
-import { formatMetresForDisplay } from "@/room/metres-text";
 import { RoomScreen } from "@/room/room-screen";
 
 import roMessages from "../../src/messages/ro.json";
@@ -728,11 +727,12 @@ describe("the written document is the composed one (criterion 43)", () => {
     // The run **carries** its room rather than reading it back, so the line above the list keeps
     // describing the kitchen being written. The two rooms share no wall length, so a summary that
     // tracked the address bar would swap every figure in the sentence.
+    // The summary shows whole millimetres since ADR 0126.
     const summary = elementAt("room-compose-summary").textContent;
-    expect(summary).toContain(formatMetresForDisplay(4200, "ro"));
-    expect(summary).toContain(formatMetresForDisplay(3000, "ro"));
-    expect(summary).not.toContain(formatMetresForDisplay(5400, "ro"));
-    expect(summary).not.toContain(formatMetresForDisplay(3600, "ro"));
+    expect(summary).toContain("4200");
+    expect(summary).toContain("3000");
+    expect(summary).not.toContain("5400");
+    expect(summary).not.toContain("3600");
 
     await release(held);
   });

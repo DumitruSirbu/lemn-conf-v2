@@ -49,7 +49,6 @@ import {
   type GenerationRow,
   type GenerationRowStatus,
 } from "./generation-model";
-import { formatMetresForDisplay } from "./metres-text";
 import styles from "./room.module.css";
 import type { ActiveGenerationRun } from "./use-generation";
 
@@ -186,20 +185,19 @@ function ComposeCta({
   );
 }
 
-/** Frame 1F's one-line room, in the customer's own notation. The metres are formatted **before** they
- *  reach the message, exactly as `room.planWallLabel`'s are: the separator is the locale's rule and a
- *  digit is never concatenated into a sentence. */
+/** Frame 1F's one-line room, in the whole millimetres the customer typed (ADR 0126). The numbers are
+ *  ICU arguments, exactly as `room.planWallLabel`'s are, so their form is the catalogue's and a digit
+ *  is never concatenated into a sentence. */
 function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
-  const locale = useLocale();
 
   return (
     <span className={styles.composeSummary} data-testid="room-compose-summary">
       {translate("room.compose.roomSummary", {
         shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
-        wallA: formatMetresForDisplay(room.widthMm, locale),
-        wallB: formatMetresForDisplay(room.depthMm, locale),
-        height: formatMetresForDisplay(room.heightMm, locale),
+        wallA: room.widthMm,
+        wallB: room.depthMm,
+        height: room.heightMm,
       })}
     </span>
   );
@@ -374,8 +372,8 @@ function DroppedRoles({ log }: { readonly log: GenerationLog }) {
   return (
     <p className={styles.composeDropped} data-testid="room-compose-dropped">
       {translate("room.compose.dropped", {
-        // Joined by the locale's own list rule rather than by a comma written here — the same reason
-        // the decimal separator is derived in `metres-text.ts` and never spelled.
+        // Joined by the locale's own list rule rather than by a comma written here: a list separator is
+        // the locale's to decide (ADR 0095 decision 3), and this product runs in two.
         roles: new Intl.ListFormat(locale).format(
           dropped.map((role) => translate(GENERATION_ROLE_MESSAGE_KEY[role])),
         ),

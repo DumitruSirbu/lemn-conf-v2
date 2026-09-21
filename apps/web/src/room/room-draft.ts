@@ -4,13 +4,13 @@
 // (ADR 0108 decision 1), and a draft that answered the same question would be a second authority on
 // it.
 //
-// Millimetres inward: text enters through `parse-metres.ts` and leaves through `metres-text.ts`, the
-// one place either conversion is written (ADR 0108 decision 4). A field's `millimetres` is always
-// derived from its own `text`, so the two cannot drift apart into a room the customer never entered.
+// Millimetres inward: a field's text is whole millimetres, digits only, and enters through
+// `parse-millimetres.ts`, the one place that reading is written (ADR 0108 decision 4, notation per
+// ADR 0126). A field's `millimetres` is always derived from its own `text`, so the two cannot drift
+// apart into a room the customer never entered. The URL's metres are `room-query-sync.ts`'s concern.
 import type { CornerDirection, RoomShape } from "@lemnaria/configurator-domain";
 
-import { formatMetresForDisplay } from "./metres-text";
-import { parseMetresToMillimetres } from "./parse-metres";
+import { parseMillimetres } from "./parse-millimetres";
 import { requiredFieldsFor } from "./room-url-state";
 
 /** The length fields a room can be entered with, taken from the URL parser's own list rather than
@@ -21,7 +21,8 @@ export interface RoomDraftLength {
   /** Exactly what the field shows, including a half-typed value. */
   readonly text: string;
   /** Whole millimetres, or `undefined` while the text is empty or not yet a readable length. An
-   *  unreadable field is 1B's ordinary state on the way to a value, not an error (criterion 10). */
+   *  unreadable field stays at 1B and is not painted as an error (criterion 10); its message is shown on
+   *  blur (Q-7F2-4). */
   readonly millimetres: number | undefined;
 }
 
@@ -43,11 +44,10 @@ export interface EnteredLength {
 }
 
 /** A length arriving from somewhere that already counts millimetres: the query string, or a room a
- *  design stored. The locale decides the separator the field shows it with. */
+ *  design stored. */
 export interface StoredLength {
   readonly field: RoomLengthField;
   readonly millimetres: number;
-  readonly locale: string;
 }
 
 const EMPTY_LENGTH: RoomDraftLength = { text: "", millimetres: undefined };
@@ -82,8 +82,8 @@ export function withCornerDirection(
   return { ...draft, cornerDirection };
 }
 
-/** A keystroke. The text is kept exactly as typed, so a value on its way to being readable —
- *  *"3,"* — neither disappears nor is corrected under the caret. */
+/** A keystroke. The text is kept exactly as typed — a value that does not read as a length, *"3,6"*,
+ *  is neither stripped nor corrected under the caret (ADR 0126). */
 export function withEnteredText(
   draft: RoomDraft,
   entered: EnteredLength,
@@ -91,18 +91,14 @@ export function withEnteredText(
   return withLengthText(draft, entered.field, entered.text);
 }
 
-/** A length that already exists lands in its field in the customer's own notation. It is written as
- *  text and read back, rather than carried across as a number, so the field and the millimetres it
- *  reports can never disagree. */
+/** A length that already exists lands in its field as the whole millimetres the customer types. It
+ *  is written as text and read back, rather than carried across as a number, so the field and the
+ *  millimetres it reports can never disagree. */
 export function withStoredLength(
   draft: RoomDraft,
   stored: StoredLength,
 ): RoomDraft {
-  return withLengthText(
-    draft,
-    stored.field,
-    formatMetresForDisplay(stored.millimetres, stored.locale),
-  );
+  return withLengthText(draft, stored.field, String(stored.millimetres));
 }
 
 /** The fields this shape asks for that do not yet read as a length. At 1B these are the fields still
@@ -136,6 +132,6 @@ function withLengthText(
 }
 
 function millimetresIn(text: string): number | undefined {
-  const parsed = parseMetresToMillimetres(text);
+  const parsed = parseMillimetres(text);
   return parsed.ok ? parsed.mm : undefined;
 }

@@ -30,14 +30,13 @@ import {
 import {
   createRoomDraft,
   withCornerDirection,
+  withEnteredText,
   withStoredLength,
   type RoomDraft,
   type RoomLengthField,
 } from "@/room/room-draft";
 
 const SWEEP_RUNS = 500;
-
-const A_PRODUCT_LOCALE = "ro";
 
 /** A pixel budget for arithmetic that has been through a scale and a centring division. It is far
  *  below the half device pixel criterion 12 allows, and well above a double's rounding. */
@@ -143,7 +142,7 @@ function draftWith(
 ): RoomDraft {
   return lengths.reduce<RoomDraft>(
     (draft, [field, millimetres]) =>
-      withStoredLength(draft, { field, millimetres, locale: A_PRODUCT_LOCALE }),
+      withStoredLength(draft, { field, millimetres }),
     createRoomDraft(shape),
   );
 }
@@ -634,6 +633,31 @@ describe("derivePlanPreview — a pure function of the draft and the box", () =>
 
         expect(JSON.stringify(derivePlanPreview(draft, box))).toBe(
           JSON.stringify(derivePlanPreview(draft, box)),
+        );
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it("draws the same plan from typed digits as from the same millimetres stored (ADR 0126, S1b-10)", () => {
+    // S1b changes the notation a field is typed in and never the geometry: the anchor, the scale and
+    // the field-to-wall dependency read the draft's millimetres only.
+    fc.assert(
+      fc.property(everyApprovedLRoom(), everyPreviewBox(), (room, box) => {
+        const typed = (
+          [
+            ["wallA", room.wallAMm],
+            ["wallB", room.wallBMm],
+            ["height", APPROVED_ROOM_POLICY.heightBounds.minMm],
+          ] as const
+        ).reduce<RoomDraft>(
+          (draft, [field, millimetres]) =>
+            withEnteredText(draft, { field, text: String(millimetres) }),
+          createRoomDraft("L"),
+        );
+
+        expect(JSON.stringify(derivePlanPreview(typed, box))).toBe(
+          JSON.stringify(derivePlanPreview(lDraftFor(room), box)),
         );
       }),
       { numRuns: SWEEP_RUNS },

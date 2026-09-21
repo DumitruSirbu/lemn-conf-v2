@@ -10,10 +10,15 @@
 // `canonical ∘ draftFrom` is a **fixed point**, swept below over queries the parser accepts and
 // queries it refuses alike.
 import { fc } from "@fast-check/vitest";
-import type { RoomShape } from "@lemnaria/configurator-domain";
+import {
+  APPROVED_ROOM_POLICY,
+  type MillimetreBounds,
+  type RoomShape,
+} from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { getPathname } from "@/i18n/navigation";
+import { metresTextForUrl } from "@/room/metres-text";
 import {
   canonicalRoomQuery,
   queryEntriesOf,
@@ -27,11 +32,15 @@ import {
   type RoomDraft,
   type RoomLengthField,
 } from "@/room/room-draft";
-import type { RoomSearchParams } from "@/room/room-url-state";
+import {
+  parseRoomUrlState,
+  type RoomSearchParams,
+} from "@/room/room-url-state";
 
 /** Criterion 21 asks for at least 500 cases. */
 const SWEEP_RUNS = 500;
 
+/** The locale the href builder prefixes; the draft itself takes none since ADR 0126. */
 const LOCALE = "ro";
 
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
@@ -39,7 +48,7 @@ const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 /** A room the customer could be looking at, as a query and as the draft that query reads into. */
 function draftOf(search: string): RoomDraft {
   const query = queryOf(search);
-  return roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query, LOCALE);
+  return roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query);
 }
 
 /** A query as the browser hands it over: a repeated key stays an array, because that is what
@@ -63,7 +72,6 @@ function reconcile(input: {
     lastSeenText: input.lastSeenText,
     liveQuery: queryOf(input.liveText),
     liveText: input.liveText,
-    locale: LOCALE,
   });
 }
 
@@ -81,7 +89,7 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
     // reconciled against and does nothing at all.
     const typing = withEnteredText(draftOf(A_TYPED_L_ROOM), {
       field: "wallA",
-      text: "3,5",
+      text: "3500",
     });
 
     const reconciled = reconcile({
@@ -95,11 +103,12 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
   });
 
   it("keeps the draft, and text that is not yet a length, when our own write echoes back", () => {
-    // I1. *"3,"* is on its way to a value and is nowhere in the canonical query, so the write that
-    // comes back cannot carry it — which is exactly why the echo must not re-seed the field.
+    // I1. *"3,6"* — the metre habit — is not whole millimetres and is nowhere in the canonical query,
+    // so the write that comes back cannot carry it — which is exactly why the echo must not re-seed
+    // the field.
     const halfTyped = withEnteredText(draftOf("shape=L&height=2.6"), {
       field: "wallA",
-      text: "3,",
+      text: "3,6",
     });
     const ourOwnWrite = canonicalTextOf(halfTyped);
 
@@ -110,7 +119,7 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
     });
 
     expect(reconciled.draft).toBe(halfTyped);
-    expect(lengthShown(reconciled.draft, "wallA")).toBe("3,");
+    expect(lengthShown(reconciled.draft, "wallA")).toBe("3,6");
     expect(reconciled.lastSeenText).toBe(ourOwnWrite);
   });
 
@@ -129,8 +138,8 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
 
     expect(reconciled.draft.shape).toBe("U");
     expect(reconciled.draft.cornerDirection).toBe("right");
-    expect(lengthShown(reconciled.draft, "wallA")).toBe("4,20");
-    expect(lengthShown(reconciled.draft, "wallC")).toBe("2,18");
+    expect(lengthShown(reconciled.draft, "wallA")).toBe("4200");
+    expect(lengthShown(reconciled.draft, "wallC")).toBe("2180");
     expect(reconciled.lastSeenText).toBe(theRoomBackLandsOn);
   });
 
@@ -158,7 +167,7 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
     });
 
     expect(lengthShown(reconciled.draft, "wallA")).toBe("");
-    expect(lengthShown(reconciled.draft, "height")).toBe("2,60");
+    expect(lengthShown(reconciled.draft, "height")).toBe("2600");
   });
 });
 
@@ -225,14 +234,11 @@ describe("the loop settles, and it settles once (criterion 21)", () => {
         (query, fallbackShape) => {
           const shape = roomShapeInQuery(query) ?? fallbackShape;
 
-          const once = canonicalTextOf(
-            roomDraftFromQuery(shape, query, LOCALE),
-          );
+          const once = canonicalTextOf(roomDraftFromQuery(shape, query));
           const twice = canonicalTextOf(
             roomDraftFromQuery(
               roomShapeInQuery(queryOf(once)) ?? fallbackShape,
               queryOf(once),
-              LOCALE,
             ),
           );
 
@@ -250,7 +256,7 @@ describe("the loop settles, and it settles once (criterion 21)", () => {
     fc.assert(
       fc.property(ANY_ARRIVING_QUERY, (query) => {
         const shape = roomShapeInQuery(query) ?? "L";
-        const arrived = roomDraftFromQuery(shape, query, LOCALE);
+        const arrived = roomDraftFromQuery(shape, query);
         const written = canonicalTextOf(arrived);
 
         const echo = reconcile({
@@ -266,6 +272,111 @@ describe("the loop settles, and it settles once (criterion 21)", () => {
       }),
       { numRuns: SWEEP_RUNS },
     );
+  });
+});
+
+/** Every whole millimetre any approved wall or ceiling can take, from the smallest bound to the
+ *  largest, read off the policy rather than restated. */
+function approvedLengthRange(): MillimetreBounds {
+  const walls = APPROVED_ROOM_POLICY.buildableShapes.L;
+  if (walls === undefined) {
+    throw new Error("the approved policy states no L walls to sweep");
+  }
+  const bounds = [walls.wallA, walls.wallB, APPROVED_ROOM_POLICY.heightBounds];
+  return {
+    minMm: Math.min(...bounds.map((bound) => bound.minMm)),
+    maxMm: Math.max(...bounds.map((bound) => bound.maxMm)),
+  };
+}
+
+/** The widest value criterion S1b-4's property sweeps: nine kilometres, far past any room. */
+const LARGEST_ROUND_TRIPPED_MM = 9_000_000;
+
+const L_ROOM_FIELDS: readonly RoomLengthField[] = ["wallA", "wallB", "height"];
+
+/** `mm` typed into `field` of an L draft, carried to the URL, and read back as a reload would. */
+function typedThenReloaded(field: RoomLengthField, text: string) {
+  const typed = withEnteredText(draftOf("shape=L"), { field, text });
+  const query = canonicalRoomQuery(typed);
+  const reloaded = roomDraftFromQuery("L", queryOf(query.toString()));
+  return { wire: query.get(field), shown: lengthShown(reloaded, field) };
+}
+
+describe("whole millimetres in the field, metres on the wire (ADR 0126, criteria S1b-3 and S1b-4)", () => {
+  it("round-trips every approved length exactly, in every L field", () => {
+    const { minMm, maxMm } = approvedLengthRange();
+    const drifted: string[] = [];
+    for (let mm = minMm; mm <= maxMm; mm += 1) {
+      for (const field of L_ROOM_FIELDS) {
+        const { wire, shown } = typedThenReloaded(field, String(mm));
+        if (wire !== metresTextForUrl(mm) || shown !== String(mm)) {
+          drifted.push(`${field}=${String(mm)} → ${String(wire)} → ${shown}`);
+        }
+      }
+    }
+
+    expect(maxMm).toBeGreaterThan(minMm);
+    expect(drifted).toEqual([]);
+  });
+
+  it(`round-trips any whole millimetre up to ${String(LARGEST_ROUND_TRIPPED_MM)}, past every bound`, () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: LARGEST_ROUND_TRIPPED_MM }),
+        fc.constantFrom(...L_ROOM_FIELDS),
+        (mm, field) => {
+          expect(typedThenReloaded(field, String(mm))).toEqual({
+            wire: metresTextForUrl(mm),
+            shown: String(mm),
+          });
+        },
+      ),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it("writes a typed 3560 as the metres the wire has always carried", () => {
+    expect(typedThenReloaded("wallA", "3560")).toEqual({
+      wire: "3.56",
+      shown: "3560",
+    });
+  });
+
+  it("normalises a typed leading zero only through the URL round trip", () => {
+    expect(typedThenReloaded("wallA", "03600")).toEqual({
+      wire: "3.6",
+      shown: "3600",
+    });
+  });
+
+  it("puts nothing on the wire for text that is not whole millimetres", () => {
+    expect(typedThenReloaded("wallA", "3,6")).toEqual({
+      wire: null,
+      shown: "",
+    });
+  });
+});
+
+describe("a link written before ADR 0126 still means what it meant (criterion S1b-3)", () => {
+  it("reads a bare integer on the wire as whole metres, and refills it as millimetres", () => {
+    const oldLink = "shape=L&wallA=4&wallB=2.4&height=2.6&direction=left";
+
+    const arrived = draftOf(oldLink);
+
+    expect(L_ROOM_FIELDS.map((field) => lengthShown(arrived, field))).toEqual([
+      "4000",
+      "2400",
+      "2600",
+    ]);
+    expect(parseRoomUrlState(queryOf(canonicalTextOf(arrived))).substate).toBe(
+      "1D",
+    );
+  });
+
+  it("still reads an old link's decimal comma", () => {
+    const arrived = draftOf("shape=L&wallA=3,6&wallB=2.4&height=2.6");
+
+    expect(arrived.lengths.wallA).toEqual({ text: "3600", millimetres: 3600 });
   });
 });
 
@@ -306,9 +417,7 @@ describe("a flushed query comes back byte-identical (the departure's premise)", 
     fc.assert(
       fc.property(ANY_ARRIVING_QUERY, (query) => {
         const shape = roomShapeInQuery(query) ?? "L";
-        const flushed = canonicalTextOf(
-          roomDraftFromQuery(shape, query, LOCALE),
-        );
+        const flushed = canonicalTextOf(roomDraftFromQuery(shape, query));
 
         const cameBack = queryTextComingBackFrom(
           theHrefTheSyncWouldAskFor(flushed),

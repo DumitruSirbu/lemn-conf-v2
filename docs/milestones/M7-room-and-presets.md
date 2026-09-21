@@ -10173,8 +10173,9 @@ The W7 fix in the 7D5b close-out above already applies this remedy to frame 1F.
 
 **Q-7F2-3 = (a): the plan draws nothing until every wall of the chosen shape is typed.**
 
-**Q-7F2-4 = (a): "Scrie lungimea în metri." / "Введи длину в метрах." shown once the field loses
-focus.**
+**Q-7F2-4 = (a): ~~"Scrie lungimea în metri." / "Введи длину в метрах."~~ shown once the field loses
+focus.** *The timing stands; the wording is withdrawn by the owner's 2026-09-21 millimetre-entry ruling —
+see slice S1b, whose O1 copy replaces it.*
 
 **Coordinator rulings, per the plan's own recommendations:**
 
@@ -10184,6 +10185,35 @@ focus.**
   another harness (criterion 13), none deleted.
 - **C-7F2-3** — the two 7J findings (the `room-url-state.ts:109-113` throw and the `generation-steps.tsx:197-203`
   wall-B summary line) are recorded for 7J's planner, not touched here.
+
+**Slice S1b — the room's lengths are typed in whole millimetres. Ruled 2026-09-21; recorded in
+[ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md).** Owner ruling,
+verbatim: *"you should allow only number insertion, I think best in mm, than meters do not have the
+comma or dot separation of the integer and float."* All four length fields (wall A, wall B, wall C,
+ceiling height) are typed in whole millimetres, digits only; the URL keeps metres.
+
+- **C-S1b-1 = ruled (a).** The URL keeps metres; only the field's parser changes. `wallA=4` still
+  means 4 m in an existing link.
+- **C-S1b-2 = ruled.** Refuse invalid input and keep it verbatim, never strip it. Leading zeros
+  accepted; no `maxLength`, no `pattern`. "Unreadable" = non-empty text the entry parser refuses
+  (`"abc"`, `"3,6"`, `"3600mm"`, `"0"`); empty is not unreadable; a readable out-of-range value
+  reaches the domain and 1C as usual.
+- **C-S1b-3 = ruled.** The unused `locale` parameter is removed from the refill thread, fenced to
+  that one change in `room-query-sync.ts`.
+- **C-S1b-4 = ruled.** The record is a new ADR, [0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md),
+  not an amendment to ADR 0108 or ADR 0120.
+- **Q-S1b-1 = ruled (a).** Millimetres are shown everywhere a length displays: the plan labels and
+  frame 1F's summary, e.g. *"A · 3560 mm"*, no thousands separator, matching the editor's
+  `{…, number, ::group-off} mm` convention. `formatMetresForDisplay` is deleted.
+- **Q-S1b-2 = ruled (a).** The hint (`room.lengthsHint`) stays as it is; the `mm` suffix in each
+  field is enough.
+- **The unreadable message, owner-approved 2026-09-21**, replacing S1's committed *"Scrie lungimea în
+  metri." / "Введи длину в метрах."*: **"Scrie valoarea în milimetri, doar cu cifre." / "Введи
+  значение в миллиметрах, только цифрами."** — see §5 below.
+- **New unit label, owner-approved:** `room.unitMillimetres` = "mm" / "мм", replacing `room.unitMetres`.
+
+ADR 0126 also clarifies ADR 0120 decision 3: "never ask for millimetres" forbids asking the customer
+for an *amount*, not naming the entry unit in words; no issue sentence uses the "mm"/"мм" abbreviation.
 
 ### 1. What 7F2 must build, from the record
 
@@ -10426,6 +10456,346 @@ as drafted interim, the 7F4a/Q7F4-1 precedent: the answer to Q-7F2-1 is a messag
 4. The reachability guard: a property that `VALUE_MISSING` / `VALUE_NOT_WHOLE_MILLIMETRES` never reach
    1C, so the `Record` can exclude them by a named type and turn red the day one becomes reachable.
 
+**S1b — Step 1 lengths are typed in whole millimetres. Planned 2026-09-21 at HEAD `731a338`, by owner
+ruling. Owner: implementer (web); ADR and record: scribe. Tier: Full (see below). Visual: Yes. Gated on
+Q-S1b-1 for item 4 only, and on the O1 copy below for item 3.**
+
+> **Owner ruling, 2026-09-21** (asked whether the unreadable-input message should be reworded):
+> *"you should allow only number insertion, I think best in mm, than meters do not have the comma or
+> dot separation of the integer and float."* Then: **all four fields (wall A, B, C, ceiling height)
+> are typed in whole millimetres, digits only** (e.g. 3600, 2600), on a numeric keypad with no comma
+> or dot; and **it lands inside 7F2 now, before S3 and S5b**, so 1C's messages are built once, for mm.
+
+Probes: `scratchpad/s1b/probe.ts` (today's parser over the inputs S1b re-classifies, and the wire
+round trip over 1–9 000 000 mm) and `scratchpad/s1b/census.py` (the test census in item 5 below), run
+at `731a338` with `git status` showing only `.claude/agents/*` modified [measured].
+
+#### S1b.0 — what the tree does today [source-verified at `731a338` unless marked]
+
+**Entry.** One parser serves both the field and the URL: `parse-metres.ts` `parseMetresToMillimetres`
+(`/^(\d+)(?:[.,](\d+))?$/`, trimmed, whole-millimetre digit arithmetic, refusals `empty` /
+`notANumber` / `notWholeMillimetres` / `notPositive`). Its callers are `room-draft.ts:139`
+(`millimetresIn`, the field's reading), `room-url-state.ts:202` (`parseLength`, the URL's),
+`room-query-sync.ts:441` (`withLengthFromQuery`, the refill) and `room-issue-model.ts:182`
+(`unreadableFieldsOf`, S1's). The input is `type="text"` `inputMode="decimal"`
+(`dimensions-form.tsx:267-268`); the box's suffix is `room.unitMetres` = *"m"* / *"м"* (`:277`). The
+hint `room.lengthsHint` = *"Introdu lungimea dulapurilor dorite, nu lungimea peretelui."* / *"Введи
+длину, которую займут шкафы, а не длину стены."* names **no unit**. There is no placeholder.
+
+**What a customer following the ruling gets today [measured]:** `"3600"` reads as **3 600 000 mm**,
+and `"03600"` and `"3600.0"` likewise — a 3.6 km wall, `WALL_TOO_LONG` at 1C. `"3"` reads as 3000 mm.
+So mm typed into today's form is not refused as unreadable; it is **misread**.
+
+**URL.** Metres with a dot, trailing zeros dropped: `metresTextForUrl` (`metres-text.ts:27-32`),
+written by `serialiseRoomInput` (`room-url-state.ts:123-138`) and `canonicalRoomQuery`
+(`room-query-sync.ts:384-398`); e.g. `?shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left`. The
+wire round trip `parse(metresTextForUrl(mm)) === mm` holds for **every** mm in 1–9 000 000, 0
+mismatches [measured]. **A bare integer is metres on the wire today:** `wallA=4` reads 4000 mm
+[measured].
+
+**Where a length is shown back to the customer:**
+
+| surface | code | today |
+| --- | --- | --- |
+| the field, refilled from a URL (reload, Back, traversal) | `roomDraftFromQuery` → `withStoredLength` → `formatMetresForDisplay(mm, locale)` (`room-draft.ts:97-106`) | *"3,56"*; a typed *"2,7"* comes back *"2,70"* (the drift both e2e specs assert as expected) |
+| the editor's *‹ Cameră* / *Înapoi* and the load-error start-over | `roomHrefFromDesignRoom` (`room-url-state.ts:145-162`, called from `configure-screen.tsx:50`) → metre URL → the refill above | same |
+| the plan's wall labels | `plan-preview.tsx:126-129`, `room.planWallLabel` = `{wall} · {metres} m` / `… м` | *"A · 3,60 m"* |
+| frame 1F's one-line room | `generation-steps.tsx:190-205` `RoomSummary`, `room.compose.roomSummary` = `{shape} · {wallA} × {wallB} m · h {height} m` | *"L · 3,56 × 4,25 m · h 2,70 m"* |
+
+**ADR 0114's resume never reads a room query:** `/` and `/configurator/configure` answer a 307 to
+`/[locale]/d/{id}` or send the visitor to Step 1 (ADR 0114 decision 4). The room query is reached only
+by a typed/bookmarked/shared `/configurator/room?…` link and by `roomHrefFromDesignRoom`, which is
+recomputed from the stored `DesignRoom` (mm) on every render.
+
+**Which record owns "entry is metres".** **ADR 0108 decision 4** — *"Parsing the displayed metres
+(*"3,60"*) is a form-boundary job in `apps/web`, done once, on the digit string"*. Its rule (whole or
+refused, at the form boundary, on the digit string, never a float) survives; only its notation
+changes. ADR 0111 decision 3 owns the URL (*"lives in `/configurator/room`'s query string"*) and names
+no unit. 7F1's criterion 5 (`:1067`, `:3508`: `inputmode="decimal"`, the unit *m*) is milestone prose
+for a closed wave. ADR 0120 decision 3 (*"it may never ask for millimetres"*) is about a **quantity**
+(*"never 'make wall B 100 mm longer'"*), not the entry unit — but a reviewer reading its words will
+flag an unreadable message that says *milimetri*, so the new ADR says so explicitly.
+
+**The must-not list overturned.** Section 4's list names `room-url-state.ts`, `room-query-sync.ts`,
+`parse-metres.ts`, `generation-steps.tsx` and *"existing golden hashes"* as must-not-change for 7F2.
+**S1b overturns part of that list by the owner's ruling**, and the amended list is written at the end
+of section 4. Under C-S1b-1's recommendation the overturn is narrower than it first appears:
+`room-url-state.ts` and `parse-metres.ts`'s **code** stay frozen, and so do all four 7F1-frozen tests.
+
+#### S1b decisions
+
+**C-S1b-1 (coordinator) — the URL. Recommended: (a), keep metres on the wire.**
+
+- **(a) Keep metres on the wire; only the field changes notation.** `parse-metres.ts` becomes the URL's
+  parser alone; a new `parse-millimetres.ts` is the field's. Every link ever written still means what it
+  meant; `serialiseRoomInput`, `canonicalRoomQuery`, `roomHrefFromDesignRoom` and 7E2's pinned sweep
+  are untouched; ~260 URL literals in 15 test files stay as they are (item 5). Cost: two notations — the
+  address bar says `3.56` while the field says `3560`. `metres-text.ts:24-25` already rules the URL *"a
+  wire value and not a reading surface"*, so the cost is one the record accepted in 7E2.
+- **(b) Switch the wire to mm and parse old metre links backward-compatibly.** **Unsound as stated:** a
+  bare integer is ambiguous — `wallA=4` is 4000 mm under today's links [measured] and 4 mm under the new
+  form. Resolving it needs a discriminator nobody has ruled on: a heuristic (*"below N it is metres"* —
+  an invented bound, ADR 0108 decision 3's hazard), or new keys (`wallAMm=`) with the old ones kept
+  forever. Either way `room-url-state.ts`, `room-query-sync.ts` and the four frozen tests are rewritten,
+  and the escalation trigger in section 2 fires for a change the customer cannot see.
+- **(c) Mm on the wire and drop old links.** Breaks every saved or shared room link. Rejected.
+
+**C-S1b-2 (coordinator) — what the field accepts. Recommended: refuse, never strip.**
+
+- **Accepted:** after trimming surrounding whitespace, one or more ASCII digits `[0-9]` whose value is a
+  positive safe integer. **Leading zeros are accepted** (`"03600"` is 3600 — a digit string with one
+  reading) and are normalised only by a refill from the URL.
+- **Refused, text kept verbatim:** any other character — comma, dot, space inside, sign, exponent,
+  letters, a unit (`"3600mm"`), non-ASCII digits (`"٣٦٠٠"`, `"３６００"`). The field shows exactly what was
+  typed (`room-draft.ts:85-86`'s invariant) and S5b's message explains it on blur.
+- **Why not strip non-digits** [measured]: stripping turns the habitual metre entry into a different,
+  readable room — `"3,6"` → 36 mm, `"3,60"` → 360 mm, `"2.7"` → 27 mm — and `"3.600"` → 3600 by
+  coincidence. That is *"a millimetre that moved in conversion is a room the customer did not enter"*
+  (`parse-metres.ts:3-4`), done silently. Prevention is the keypad's job (`inputMode="numeric"`), not a
+  filter's; some Android numeric keyboards still offer `,` `.` `-`, which is exactly where the refusal
+  message earns its place.
+- **No `maxLength`, no `pattern`, no placeholder.** `maxLength` truncates a paste silently (a room not
+  entered) and is a hand-written bound under `src/room` (criterion 16's spirit). `pattern` would be a
+  second reading of the parser (`dimensions-form.tsx:11-14`). A numeric placeholder is a digit and, for
+  3600/2400/2600, a banned frame literal. Length is refused only where the value stops being a safe
+  integer (16+ digits), as `parse-metres.ts:49-50` does today.
+- **What "unreadable" means now:** non-empty text the entry parser refuses — `"abc"`, `"3,6"`, `"3.6"`,
+  `"3 600"`, `"3600mm"`, `"0"`, `"000"`. **Empty is not unreadable** (unchanged). `"0"` stays refused as
+  `notPositive` by the entry parser itself, because the wire and the domain both refuse a zero length;
+  accepting it would put a draft value on the URL that the reader drops. Readable-but-refused values
+  (`"3"`, `"36"`, `"99999"`) are **not** unreadable: they reach 1C through the domain as
+  `WALL_TOO_SHORT` / `WALL_TOO_LONG` / `HEIGHT_*`.
+- Named for the record, not ruled: a customer who types `3` meaning three metres gets 3 mm and a
+  too-short reason, not an unreadable one. No heuristic reinterprets it (it would be an invented bound);
+  the `mm` suffix and the reason are the answer. The visual gate captures it (criterion S1b-11).
+
+**Q-S1b-1 (owner, product-visible) — do the plan labels and frame 1F show millimetres too?**
+Recommended: **(a)**.
+
+- **(a) Yes — every length Step 1 shows is whole millimetres, no grouping separator:** *"A · 3560 mm"*,
+  *"L · 3560 × 4250 mm · h 2700 mm"*. One unit on the screen the customer is typing into, and the
+  editor's own convention already: every editor size is `{…Mm, number, ::group-off} mm`
+  (`ro.json:128`, `:151`, `:178`, …). `formatMetresForDisplay` then has no caller and is deleted.
+- **(b) No — entry is mm, display stays metres.** The plan reads *"A · 3,56 m"* beside a field reading
+  *"3560"*: a second unit to cross-check against, and the frames' own notation (`Mobil.dc.html` draws
+  *"3,60 m"*). Zero change to three approved leaves.
+
+Either way frames 1B/1C (*"3,60"* in the box, unit *m*) are departed from for the field; (a) departs
+for the labels too. Both are named against ADR 0104's sweep in the commit and the ADR.
+
+**Q-S1b-2 (owner, copy) — does the hint name the unit?** Recommended: **(a)**.
+
+- **(a) No; the unit is in every field's box** (*mm* where *m* stands today). `room.lengthsHint` — owner
+  approved in 7A3 (Q-7A3-1) — does not move, and it cannot start wrapping before S3 makes the column
+  scroll (item risk R-S1b-3).
+- **(b) Yes**, with the wording in the O1 table below, which is no longer than today's line in either
+  locale.
+
+**C-S1b-3 (coordinator) — `locale` after the refill stops using it. Recommended: remove the thread.**
+A refill of `String(mm)` needs no locale, so `StoredLength.locale`, `roomDraftFromQuery`'s `locale`,
+`RoomReconciliationInputs.locale` and the `useLocale()` in `useReconciledRoomDraft` become dead. Leaving
+them is a dead parameter on an exported interface; removing them edits `room-query-sync.ts`, which is
+the pre-named escalation trigger. **Ruling offered:** remove, and fence it — **the `room-query-sync.ts`
+diff contains only the removal of the `locale` thread and the one import swap in
+`withLengthFromQuery` if any; any other hunk is a stop-and-report.** The D45 suites lose an argument
+and no claim. This is why S1b is **Full** tier.
+
+**C-S1b-4 (coordinator) — the record. Recommended: a new ADR 0126, not an amendment.**
+*"Step 1 lengths are typed in whole millimetres, digits only, and the URL keeps its metre wire form."*
+It amends **ADR 0108 decision 4**'s notation (its rule stands) with a status-line pointer in 0108;
+leaves **ADR 0111 decision 3** intact; **clarifies ADR 0120 decision 3** (the entry unit named in words
+in the unreadable message is not *asking for millimetres*; the abbreviation stays banned from every
+issue sentence); records the frames-1B/1C departure against **ADR 0104**; and records C-S1b-1…3 with
+their alternatives. ADR 0120 is the wrong home (it is about what a room *is*), and ADR 0108 already
+carries six amendments. 0126 is unclaimed at `731a338` [source-verified: no `0126` anywhere under `docs/`].
+
+#### S1b copy — O1, every entry a PROPOSAL for the owner
+
+Checked by eye: no digit in any leaf. Russian keeps the informal *ты*. **S1's committed
+`room.issue.unreadable` must change** — the owner has already said *"Scrie lungimea în metri."* is wrong
+for them, and it is the one S1 leaf S1b moves.
+
+| key | ro (proposal) | ru (proposal) | note |
+| --- | --- | --- | --- |
+| `room.issue.unreadable` **(replaces S1's)** | Scrie valoarea în milimetri, doar cu cifre. | Введи значение в миллиметрах, только цифрами. | *valoarea* / *значение*, because the height field is not a *lungime*, and the other reasons already say *Verifică valoarea* |
+| ↳ alternative | Scrie doar cifre, în milimetri. | Введи только цифры, в миллиметрах. | the coordinator's example; shorter, reads as a keyboard instruction |
+| `room.unitMillimetres` **(new; `room.unitMetres` removed)** | mm | мм | the box's suffix; a unit label, not an issue sentence |
+| `room.lengthsHint` *(only if Q-S1b-2 = b)* | Introdu în milimetri lungimea dulapurilor, nu a peretelui. | Введи в миллиметрах длину шкафов, а не стены. | 58 / 45 characters against today's 59 / 52, so it should not wrap where today's does not [inference — S1b's fits run measures it] |
+| `room.planWallLabel` *(only if Q-S1b-1 = a)* | {wall} · {millimetres, number, ::group-off} mm | {wall} · {millimetres, number, ::group-off} мм | the editor's number form |
+| `room.compose.roomSummary` *(only if Q-S1b-1 = a)* | {shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm | {shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} мм · h {height, number, ::group-off} мм | leaves C-7F2-3's linear wall-B finding for 7J, untouched |
+
+#### S1b items (≤ 5)
+
+1. **`parse-millimetres.ts` (new, pure)** — `parseMillimetres(text): MillimetresParse` with refusals
+   `empty` / `notDigits` / `notPositive` / `notSafeInteger`, C-S1b-2's grammar, digit-string arithmetic
+   like its sibling. Its unit and property tests (criteria S1b-1, S1b-2).
+2. **The field reads mm** — `room-draft.ts`: `millimetresIn` and `withStoredLength` (writes `String(mm)`,
+   no locale) switch to the entry form; `room-issue-model.ts` `unreadableFieldsOf` asks the entry parser;
+   `room-query-sync.ts` per C-S1b-3's fence. `parse-metres.ts` and `metres-text.ts`: **header comments
+   only**, so they stop saying the field shows metres (no code line in the diff of either).
+3. **The form** — `dimensions-form.tsx`: `inputMode="numeric"`, suffix `room.unitMillimetres`, the file's
+   header comment re-stated; `ro.json`, `ru.json`, `ro.d.json.ts`; copy lock + golden fixtures/hashes in
+   the same commit, **the moved and removed keys named in the commit message**, citing ADR 0113
+   decision 2 and ADR 0126.
+4. **Display (per Q-S1b-1)** — if (a): `plan-preview.tsx` `PlanWallLabel` and `generation-steps.tsx`
+   `RoomSummary` pass whole mm to the ICU number form; `formatMetresForDisplay` and its tests deleted;
+   nothing else in `generation-steps.tsx` (the C-7F2-3 wall-B line stays for 7J). If (b): no change, and
+   criterion S1b-9 asserts none.
+5. **Tests re-expressed and the record** — the census below, S1's two test files amended **by name in
+   the commit** (never silently), both e2e specs; the scribe writes ADR 0126, the 0108 status pointer, and
+   the must-not list amendment.
+
+#### S1b acceptance criteria
+
+*Property* = fast-check, **≥ 100 samples per arm**. Each names its discriminating case and sabotage
+both ways (↑ over-fires / over-refuses, ↓ under-fires / under-refuses).
+
+- **S1b-1 — the grammar, exactly.** *Property:* for every `n` in 1…2^53−1 (and densely 1…20 000),
+  `parseMillimetres(String(n))` and `parseMillimetres("0".repeat(k) + String(n))` (k ≤ 3) and the same
+  with surrounding ASCII/no-break whitespace read `n`; any non-empty trimmed text containing a code unit
+  outside `[0-9]` is refused and never `empty`; `""` and whitespace are `empty`; `"0"`/`"000"` are
+  `notPositive`; 16+ digits past 2^53 are refused without throwing, and a 10 000-character string
+  resolves in < 50 ms. **Discriminating:** `"3,6"`, `"3.6"`, `"3600.0"`, `"3 600"`, `"٣٦٠٠"`, `"３６００"`,
+  `"+3600"`, `"-3600"`, `"1e3"`, `"0x10"`, `"3600mm"`. **Sabotage ↓:** reuse `parseMetresToMillimetres`
+  (`"3,6"` → 3600) → red; strip non-digits (`"3,6"` → 36) → red; `Number(text)` (`"1e3"`, `"0x10"`,
+  `"3600.0"`) → red; `/\d/u` with a Unicode digit class → red. **Sabotage ↑:** refuse leading zeros, or
+  skip the trim → red.
+- **S1b-2 — the field's millimetres are the entry parser's, never the metre parser's.** *Property:* for
+  every text, `withEnteredText(...).lengths[f].millimetres === parseMillimetres(text).mm` (undefined when
+  refused), every field, every shape. **Discriminating:** `"3"` → 3, not 3000; `"3600"` → 3600, not
+  3 600 000 [today's reading, measured]. **Sabotage ↓:** keep `millimetresIn` on the metre parser → red.
+  **Sabotage ↑:** a draft that refuses a readable value because it is out of range (a second authority,
+  ADR 0108 decision 1) → the `"3"` arm reddens.
+- **S1b-3 — the wire is unchanged, and old links still mean what they meant** (C-S1b-1 = a).
+  `room-url-state.ts` and the code of `parse-metres.ts` / `metresTextForUrl` are byte-unchanged; the four
+  7F1-frozen tests are unedited and green. *Property:* typing `String(mm)` into a field puts
+  `metresTextForUrl(mm)` on the wire (1…9 000 000). **Discriminating:** `?shape=L&wallA=4&wallB=2.4&height=2.6&direction=left`
+  refills wall A as `"4000"` and reaches 1D; typed `"3560"` writes `wallA=3.56`. **Sabotage ↓:** wire in
+  mm → the `wallA=4` link refills `"4"` / reads 4 mm → red. **Sabotage ↑:** the wire refusing an old
+  comma link `wallA=3,6` that it accepts today → red.
+- **S1b-4 — the round trip is exact, and the 2,7→2,70 drift is gone.** *Property:* for every `mm` in
+  1…9 000 000, typed `String(mm)` → `canonicalRoomQuery` → `roomDraftFromQuery` shows `String(mm)`
+  **identically in ro and ru**. The only normalisation is leading zeros (`"03600"` → `"3600"`).
+  Both e2e specs' `AS_RESTORED` becomes `AS_TYPED` and the expected-drift notes are removed.
+  **Sabotage ↓:** refill with `formatMetresForDisplay` → `"3,60"` → red; with `toLocaleString` →
+  `"3 600"` / `"3.600"`, which the entry parser then refuses → red. **Sabotage ↑:** a refill that strips
+  a typed leading zero *without* a URL round trip (under the caret) → the verbatim arm of S1b-6 reddens.
+- **S1b-5 — every refill path shows mm.** A stored `DesignRoom` of 3560 × 4250 × 2700 reached through
+  `roomHrefFromDesignRoom` (the editor's *‹ Cameră*, *Înapoi*, the start-over) and 1F's *Înapoi* refills
+  `"3560"`, `"4250"`, `"2700"` in both locales. **Sabotage:** any path left on the metre formatter → red.
+- **S1b-6 — nothing is stripped, and unreadable is the entry parser's refusal.** DOM: typing `"3,6"`
+  leaves the field showing `"3,6"`, `wallA` absent from the canonical query, the room at 1B. Model
+  *property* (restating S1's *"unreadable is exactly the text the URL parser refuses"*, which S1b makes
+  false and must amend by name): `unreadableFields` ∋ f ⇔ the field's text is non-empty and
+  `parseMillimetres` refuses it. **Discriminating:** `"3,6"` and `"3.60"` are now unreadable (readable
+  today); `"03600"` is readable; `"0"` unreadable; `""` not. **Sabotage ↓:** keep `unreadableFieldsOf` on
+  the metre parser → `"3,6"` not reported → red; an `onChange` that filters non-digits → shows `"36"` →
+  red. **Sabotage ↑:** report a leading-zero text → red.
+- **S1b-7 — the control.** Every length input is `type="text"`, `inputmode="numeric"`, with **no**
+  `pattern`, `maxLength` or `placeholder`, and its box's suffix is `room.unitMillimetres` in both locales.
+  **Sabotage:** `type="number"` (spinners, `valueAsNumber` a float) → red; `maxLength={4}` → red (a pasted
+  `"12000"` would read 1200 — a room not entered); `inputmode="decimal"` left → red. *(The on-device
+  keypad is not observable in emulated Chromium; a stated limit of the visual gate.)*
+- **S1b-8 — the copy.** `room.issue.unreadable` resolves to the approved text in both locales and still
+  passes S1's *"no digit, no code, no `mm`/`мм`"* sweep **unedited** — the unit is spelled out, never
+  abbreviated, and only this leaf and the hint (if Q-S1b-2 = b) name it. `room.unitMetres` is gone from
+  both catalogues and the lock; `room.unitMillimetres` is read under `src/room` (the 7F1 *"every leaf is
+  read"* test holds, its count adjusted by name). Golden: **the hashes that move are exactly the named
+  keys**; any other moved hash is a finding. **Sabotage:** *"Scrie valoarea în mm."* → the regex reddens.
+- **S1b-9 — display follows Q-S1b-1.** (a): *property* over mm 1…9 000 000, both locales — the plan label
+  and the 1F summary contain `String(mm)` and no decimal separator, grouping separator or *m*/*м* unit
+  standing alone; **no customer-visible leaf under `room.*` uses the metre unit.** (b): the three leaves
+  and their hashes are unchanged. **Sabotage (a):** `{millimetres, number}` without `::group-off` → *"3 560"*
+  in ru → red.
+- **S1b-10 — no bound, no frame literal, geometry untouched.** 7F2 criterion 16 and the 3600/2400/2600
+  lint ban hold **unedited**. *Property:* the plan drawn from a draft typed `String(mm)` is byte-identical
+  to the one built by `withStoredLength` at the same mm (the anchor, `isotropicScalePxPerMm` and the
+  field→wall dependency are the draft's millimetres only — S1b changes notation, never geometry).
+- **S1b-11 — visual, 390 × 844, production build, ro and ru.** Type `3600`, `2400`, `2600` in an L and
+  `3600`, `2400`, `2400`, `2600` in a U: suffix visible, no horizontal overflow, the fits e2e green, every
+  field and *Continuă* reachable (the U's 2.6 px slack is the risk until S3). Also captured, not
+  judged: `3` in wall A (3 mm), `3,6` (the metre habit), and the plan while wall A reads `36`.
+
+#### S1b — what S2 to S5b must change
+
+- **S2 (red wall):** fixtures are already mm (`withStoredLength`); under Q-S1b-1 (a) an **unmarked**
+  wall's label is mm, the marked label (*"B prea scurt"*) is unchanged.
+- **S3 (1C on the form):** criterion 4's discriminating case is restated in mm — the ceiling typed `2`,
+  `26`, `260` on the way to `2600`: **three** readable `HEIGHT_TOO_LOW` prefixes instead of one, and
+  every prefix of every valid wall is now too short (`3`, `36`, `360` → `3600`), so the 400 ms pause
+  (C-7F2-1) is load-bearing on every field, not only the ceiling. The eight departure tests (criterion
+  13) are re-expressed in mm by S1b (typed literals only; URL literals unchanged under C-S1b-1 = a) and
+  re-homed by S3 as planned. The fits e2e is re-run by S1b (suffix) and extended by S3.
+
+  **Coordinator ruling (2026-09-21), extending C-7F2-1.** Under mm entry, every partly typed wall
+  (`"3"`, `"36"`, `"360"`) is 1C, per the discriminating case above. **All 1C surfaces share the
+  400 ms typing pause and clear on the fixing keystroke**: the field reason, the red wall and its
+  label, `aria-invalid`, the note, and *Continuă*'s inactive state — all four together, on one clock.
+  Anything less would flash the wall red and flicker the CTA on every ordinary keystroke, which C-7F2-1
+  already exists to prevent for the reason alone. This is safe for the CTA specifically because
+  *Continuă* already acts only on a flushed valid room (a dead tap otherwise, until S3 makes it
+  inactive) — the pause changes when the button reads *inactive*, never what it does once tapped.
+- **S4 (shape refusal):** nothing.
+- **S5 (incomplete plan):** criterion 8 is unaffected (it is about shapes, not magnitudes). New and
+  recorded, not scoped: with every wall typed, a wall mid-typing draws at its prefix (`36` mm beside
+  2400) — an extreme proportion for one pause. S1b-11 captures it; if the owner finds it wrong, it is a
+  new question, not S5's.
+- **S5b (unreadable on blur):** timing unchanged; its copy is S1b's; its population grows — `"3,6"` /
+  `"3.6"`, the metre habit, is now its most likely member. Discriminating cases: `"3,6"`, `"3600mm"`,
+  `"abc"`, `"0"`, `"000"`, and a 17-digit string (refused as not a safe integer, `parse-metres.ts:49-50`'s
+  length refusal carried into `parse-millimetres.ts`).
+
+  **Open copy note for the owner, to be asked when S5b is built.** *"Scrie valoarea în milimetri, doar
+  cu cifre."* does not fit a customer who typed `"0"` or a 17-digit number: they did type digits, in
+  mm, and the sentence tells them to do what they already did. Not a regression — the metre message
+  it replaces had the same mismatch (a customer who typed `"0"` there was told to "scrie lungimea în
+  metri" having already written a length in metres) — but it is unresolved, and S5b is the wave that
+  should ask it.
+- **Criterion 14's witness rooms** are typed in mm (3600 × 450 × 2600; 900 × 2160 × 2200; 2200 × 900;
+  800 × 800 × 2000; 3600 × 2400 × 4000).
+- **Criterion 15** is amended: S1b's named hashes move; no other.
+
+#### S1b — the test census [measured by `census.py`, a regex census — a floor, not an exact count]
+
+| file | typed metres | field refill asserts | metre-as-draft-text builders | URL metre literals (untouched under C-S1b-1 = a) |
+| --- | --- | --- | --- | --- |
+| `room/room-url-round-trip.dom.test.ts` | 18 | 4 | — | 51 |
+| `room/qa-7f1-d45-convergence.adversarial.test.ts` | 13 | 4 | — | 102 |
+| `room/room-draft.test.ts` | 7 | — | `formatMetresForDisplay` | — |
+| `room/room-composition.dom.test.ts` | 4 | 1 | — | 6 |
+| `e2e/room-traversal.qa.e2e.spec.ts` | 5 (incl. the appended `"5"`) | 1 | — | 7 |
+| `e2e/room-to-editor.qa.e2e.spec.ts` | 3 (`AS_TYPED`, `AS_RESTORED`) | — | — | 3 |
+| `room/qa-7f1-url-seam.adversarial.test.ts` | 1 | 3 | — | 38 |
+| `room/room-query-sync.test.ts` | 1 | — | — | 18 |
+| `room/room-screen.dom.test.ts` | — | 2 (`"3,56"`, `"3,60"`) | — | (query objects, 8) |
+| `room/room-issue-model.test.ts` | 1 | — | 4 × `metresTextForUrl` | — |
+| `room/qa-7f2-s1-issue-model.adversarial.test.ts` | — | — | 7 × `metresTextForUrl`; `EDGE_TEXTS` (27 rows) reclassified | — |
+| `room/dimensions-form.dom.test.ts` | the `"3,"` case | — | `inputmode` `decimal`, `room.unitMetres` | — |
+| Q-S1b-1 = (a) only: `metres-text.test.ts`, `qa-7f1-copy-and-conversions…`, `qa-7f4b-handoff…`, `plan-preview.dom.test.ts`, golden fixtures | — | — | `formatMetresForDisplay` / label copy | — |
+
+**Roughly 12 files and ~70 literal sites to re-express under (a); ~260 URL literals in 15 files that
+stay.** Under C-S1b-1 (b) every URL literal moves as well, plus the four frozen tests.
+
+#### S1b risks
+
+| # | risk | mitigation |
+| --- | --- | --- |
+| R-S1b-1 | **The field and the wire drift apart** — two parsers, and a refill or a canonical query that reads the field text with the wire's parser (or back). The failure is a room the customer did not enter, and every unit test of one parser passes. | S1b-3 and S1b-4's round-trip properties run **through** `canonicalRoomQuery` / `roomDraftFromQuery`, not per parser. |
+| R-S1b-2 | **"Fixing" the census by converting typed literals with the wrong factor**, or by editing URL literals that should not move. | The census names both columns; the URL column must show a zero diff under (a). |
+| R-S1b-3 | **The U clips again before S3** — U slack is 2.6 px (S0) and `.dimensionsBody` still clips until S3. A wider suffix does not add height; a hint that wraps does (+15 px). | Q-S1b-2 recommends (a); S1b-11 re-runs the fits e2e in both locales. |
+| R-S1b-4 | **A wider plan label** (*"B · 3600 mm"* vs *"B · 3,60 m"*, one glyph more, `white-space: nowrap`) runs past the plan box on the mirrored side. | S1b-11 captures both directions; the lane model positions by line height only (`plan-preview-model.ts:101-122`), so this is a visual finding, not a unit one. |
+| R-S1b-5 | **ADR 0120 decision 3 read literally** by the reviewer, blocking *milimetri* in the unreadable message. | ADR 0126 states the scope before review; the reviewer brief names it. |
+
+**S1b tier: Full** — it moves the one boundary where text becomes a room (ADR 0108 decision 4), and
+C-S1b-3 edits the pre-named 7F1-D45 file. Adversarial QA, then logic **and** clean-code review. The
+reviewer brief names ADR 0108 decision 4, ADR 0120 decision 3, ADR 0126, and C-S1b-3's fence.
+
+**Deferred, with its owner: merging `metres-text.ts` into `parse-metres.ts`.** Once S1b lands, both
+modules serve the URL's metre wire format alone — one module for the wire's notation is the clean-code
+shape. **Deferred because `parse-metres.ts`'s code is frozen for 7F2 (C-S1b-1): `room-url-state.ts`
+and `parse-metres.ts` stay byte-identical, as do the four tests ADR 0111/7F1 already froze.** Owed to
+whichever wave next touches `parse-metres.ts` after 7F2 closes.
+
 **S2 — the red wall (marking only). Owner: implementer (web). 2 production files. Ungated.**
 1. `plan-preview-model.ts`: `markPlanWalls(plan, markedWalls)` — a second pure step; `derivePlanPreview`'s
    signature and every existing property unchanged.
@@ -10433,7 +10803,10 @@ as drafted interim, the 7F4a/Q7F4-1 precedent: the answer to Q-7F2-1 is a messag
 3. Properties: geometry byte-identical marked vs unmarked; the mark survives reflection (criterion 7).
 
 **S3 — 1C on the form. Owner: implementer (web). 3 production files. Gated on Q-7F2-2 (layout) and
-C-7F2-1/C-7F2-2 (coordinator).**
+C-7F2-1/C-7F2-2 (coordinator).** **C-7F2-1 is extended by the 2026-09-21 coordinator ruling above
+(*S1b — what S2 to S5b must change*): the 400 ms typing pause and its clear-on-fixing-keystroke cover
+all four 1C surfaces together — the field reason, the red wall and its label, `aria-invalid`, the
+note, and *Continuă*'s inactive state — never the reason alone.**
 1. `room-screen.tsx`: derive `RoomIssueView` from the draft; the room-level reason slot; the note;
    `canContinueFrom` asks the parser (the same `roomInDraft` question), so 1C is inactive.
 2. `dimensions-form.tsx`: reason beside field, `aria-describedby` = hint + help + reason, `aria-invalid`.
@@ -10461,6 +10834,10 @@ close-out. `pnpm check` before every commit (ADR 0110 L7's lesson); `pnpm ci:loc
 
 **Dispatchable without any answer:** S0, S1, S2, S4. **Needs an answer:** S3 (Q-7F2-2 and the two
 coordinator questions), S5 (Q-7F2-3), S5b (Q-7F2-4).
+
+**Order after 2026-09-21's owner ruling:** S1 (done) → **S1b** → S2 → S3 → S4 → S5 → S5b. S1b needs
+C-S1b-1…4 ruled and the O1 copy approved; its item 4 needs Q-S1b-1. S3 and S5b must not dispatch
+before S1b commits.
 
 ### 4. Acceptance criteria
 
@@ -10553,10 +10930,20 @@ stated range, **≥ 100 samples per arm** where it branches.
     *wall* is short or long (`/perete(le)?\b[^.]*\b(scurt|lung)/i`, `/стен[аы]\b[^.]*\b(коротк|длинн)/i`).
     **Sabotage:** the frame's *"Acest perete este mai scurt…"* verbatim → red.
 
-**Must not change (a change is a finding):** `packages/**`; `room-url-state.ts`; `room-query-sync.ts`;
+~~**Must not change (a change is a finding):** `packages/**`; `room-url-state.ts`; `room-query-sync.ts`;
 `parse-metres.ts`; `generation-model.ts`, `generation-steps.tsx`, `use-generation.ts`; the four 7F1-frozen
 tests (`room-url-state.test.ts`, `qa-7e2-room-href.adversarial.test.ts`, `parse-metres*.test.ts`); existing
-golden hashes; `src/app/configurator/configure/**` (R5).
+golden hashes; `src/app/configurator/configure/**` (R5).~~
+
+**Must not change — amended 2026-09-21 for slice S1b, by the owner's millimetre-entry ruling (a change
+outside these exceptions is a finding):** `packages/**`; `room-url-state.ts`; `parse-metres.ts` **except
+its header comment, in S1b only**; `room-query-sync.ts` **except, in S1b only, the removal of the
+`locale` thread (C-S1b-3's fence)**; `generation-model.ts`, `use-generation.ts`; `generation-steps.tsx`
+**except, in S1b only and only if Q-S1b-1 = (a), `RoomSummary`'s arguments**; the four 7F1-frozen tests
+(`room-url-state.test.ts`, `qa-7e2-room-href.adversarial.test.ts`, `parse-metres*.test.ts`); existing golden
+hashes **except the keys S1b names in its commit**; `src/app/configurator/configure/**` (R5). *If C-S1b-1
+is ruled (b) instead of (a), `room-url-state.ts`, all of `parse-metres.ts`, `room-query-sync.ts` and the
+four frozen tests leave this list, and that must be written here as a further dated amendment.*
 
 ### 5. New copy — ADOPTED 2026-09-21 (Q-7F2-1 = (a))
 
@@ -10580,7 +10967,8 @@ liniară"** suggests a shape that is not buildable until 7J (`:1082`, `:1917`).
 | `room.planWallIssue.tooShort` | {wall} prea scurt | {wall} слишком короткая | frame 1C (*"B prea scurt"*) |
 | `room.planWallIssue.tooLong` | {wall} prea lung | {wall} слишком длинная | drafted, mirrors the frame |
 | `room.presetsAfterValid` | Presetele apar după ce toate valorile sunt valide. | Пресеты появятся, когда все значения будут верными. | frame 1C, **as written** |
-| `room.issue.unreadable` *(Q-7F2-4 = yes)* | Scrie lungimea în metri. | Введи длину в метрах. | drafted |
+| `room.issue.unreadable` *(Q-7F2-4 = yes)* | ~~Scrie lungimea în metri.~~ Scrie valoarea în milimetri, doar cu cifre. | ~~Введи длину в метрах.~~ Введи значение в миллиметрах, только цифрами. | shipped in S1 (struck); **replaced, owner-approved 2026-09-21** ([ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)) — entry is mm |
+| `room.unitMillimetres` *(new, owner-approved 2026-09-21; `room.unitMetres` removed)* | mm | мм | the field's box suffix ([ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)) |
 
 **One flag for the owner's eye, not a question:** the note says *presets* appear, and in M7 the customer
 goes on to 1F, whose title is *Preset* and whose notice says no preset fits (`room.compose.noPresetNotice`)

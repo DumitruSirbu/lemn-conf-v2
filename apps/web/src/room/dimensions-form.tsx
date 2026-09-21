@@ -4,14 +4,19 @@
 // (`:164-186`).
 //
 // **The fields are real `<input>` elements**, where the frame draws a `<span class="num">` inside a
-// styled box. A static mockup cannot draw a text field; the box, its height, its inline *m* and its
+// styled box. A static mockup cannot draw a text field; the box, its height, its inline unit and its
 // tabular numerals are all the frame's, and the input is the control the frame is depicting. This is
 // recorded in the wave's plan as a **non-departure**, so it is not something to correct back.
 //
-// **`type="text"` with `inputmode="decimal"`, and nothing else.** `type="number"` refuses a comma in
-// several locales, draws spinners, and reports `valueAsNumber` as a float; a `pattern` here would be
-// a second reading of `parse-metres.ts`, which is the one authority on what a length may look like
-// (ADR 0108 decision 4).
+// **Whole millimetres, where the frame draws metres** (ADR 0126, a departure from frames 1B/1C
+// recorded against ADR 0104): the box reads *"3600"* beside *mm*, where the frame draws *"3,60"*
+// beside *m*.
+//
+// **`type="text"` with `inputmode="numeric"`, and nothing else.** The keypad is the prevention;
+// `parse-millimetres.ts` is the one authority on what a length may look like (ADR 0108 decision 4).
+// `type="number"` draws spinners and reports `valueAsNumber` as a float; a `pattern` would be a second
+// reading of that parser; a `maxLength` truncates a paste into a room nobody entered; and a
+// placeholder would put an example figure in the box.
 //
 // **Nothing is painted as an error.** At 1B a field that does not yet read as a length is a field
 // still to be filled, not a wrong one (criterion 10): no `aria-invalid`, no message, no red. The
@@ -265,7 +270,7 @@ function LengthField({
         <input
           id={id}
           type="text"
-          inputMode="decimal"
+          inputMode="numeric"
           className={styles.fieldValue}
           value={text}
           aria-describedby={isWall ? `${hintId} ${helpId}` : undefined}
@@ -274,7 +279,9 @@ function LengthField({
             onEnter(field, event.target.value);
           }}
         />
-        <span className={styles.fieldUnit}>{translate("room.unitMetres")}</span>
+        <span className={styles.fieldUnit}>
+          {translate("room.unitMillimetres")}
+        </span>
       </div>
     </div>
   );

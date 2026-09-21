@@ -1,7 +1,9 @@
-// Frame 1B's length fields show metres (*"3,60"*) and the domain judges whole millimetres, so the
-// conversion happens once, here at the form boundary (ADR 0108 decision 4). It works on the digit
-// string and never multiplies a float: `1.005 * 1000` is `1004.9999999999999`, and a millimetre that
-// moved in conversion is a room the customer did not enter.
+// The room URL carries lengths as metres (`?wallA=3.56`) and the domain judges whole millimetres, so
+// the query's reading converts once, here (ADR 0108 decision 4). Since ADR 0126 the length fields take
+// whole millimetres through `parse-millimetres.ts`; this parser reads the wire alone, and every link
+// ever written still means what it meant. It works on the digit string and never multiplies a float:
+// `1.005 * 1000` is `1004.9999999999999`, and a millimetre that moved in conversion is a room the
+// customer did not enter.
 
 /** Why a typed length is not yet a millimetre count. A code, not a sentence: the form resolves it. */
 export type MetresRefusal =
