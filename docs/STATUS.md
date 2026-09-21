@@ -33,7 +33,7 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
-Last updated: 2026-09-16. **Corrected 2026-09-11, later the same day: M6B merged to `main` via PR
+Last updated: 2026-09-21. **Corrected 2026-09-11, later the same day: M6B merged to `main` via PR
 #8 (`995ad03`), and M7 — Step 1, room and presets — is now in progress on branch
 `m7-room-and-presets`.** ~~Wave 7A shipped at `8df0d49`; see the M7 row below and the *What is open
 right now* / *What to do next* sections for the six open owner questions and the next wave.~~
@@ -360,7 +360,7 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**, planned next. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -931,7 +931,48 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-19. M7 wave 7D7 is DONE through local gate follow-up `a9bad6b`.** Commits: plan
+> **RESUME HERE — 2026-09-21. M7 wave 7D5 is DONE and pushed.** Commits: S1 `c67b4ee` (bottle
+> cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Local and origin
+> both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed —
+> domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316;
+> format, lint and typecheck green. `pnpm ci:local` printed `LOCAL CI PASSED — all gates green,
+> safe to push`, every gate PASS (format, lint, typecheck, test, e2e 208 passed / 2 skipped in
+> 5.7 minutes, build, boundary, lockfile, SCA); e2e ran against `next dev`, not a production build,
+> as on every prior wave here. The pre-push hook passed.
+>
+> **A coordinator process error is on the record, not smoothed over** (ADR 0110 L7): S1 and S2 were
+> each committed after running only the domain suite; three-adapter was red at both commits (1 test
+> at S1, 4 more at S2) and was restated in S3. Neither red commit was pushed.
+>
+> **Owner rulings this wave** (ADR 0110 Amendments J, K, L): Q-H6 = A, positional placement (J1);
+> Q-H6a/b/c, the pan drawer's priority (K1/K2/K4); Q-H5 = add a third drawer after the hob (L1), the
+> bottle gives way to it only in the narrow-kitchen shape named (L2), at most one tall column (L3).
+> **Final measured composition** (approved L, 10 mm / 2600 mm): 245,211 placed, unchanged throughout;
+> bottle 178,491; pan drawer 92,446; threshold drawer 15,795; tall-column losses (3 → 2) 9,600, all
+> in threshold-drawer rooms; 0 `minimumMet` / `dropped` / core-wall differences vs pre-wave.
+>
+> **Visual gate** (production build, 390 × 844, touch): all six witness rooms PASS — no overlaps,
+> gaps, corner clashes or new console errors. Screenshots in `testing-reports/7d5/` (gitignored).
+> Not verified: open animations, the tall-column count read visually (only from the saved design),
+> ru for rooms 2–6, editing.
+>
+> **Three items are open, none blocking:** an owner question on the reference room's bare 560 mm
+> floor-to-ceiling gap after the bottle cabinet (product concern, not a defect — consistent with
+> J6/J7); Q-DW1, still open for wave 7D5b (Q-DW2 = dishwasher first, Q-DW3 = converted + 1F row are
+> answered); and the ru editor title truncation ("Конфигур…") plus hint wrap, a side note not this
+> wave's scope. Full detail: the milestone's *7D5 close-out — 2026-09-21*.
+>
+> **Next: wave 7D5b — the sink-adjacent dishwasher conversion**, lifted whole out of 7D5 (S5). Its
+> plan is being finalised. **After it: 7F2** — 1C validation state, which remains the owner of the
+> live 1C validation state per the 7D7 entry below.
+>
+> **Record gap found while closing 7D5, left open rather than resolved here:** wave **7T**'s slice 1
+> shipped at `5c1a6aa` on 2026-09-16 per the milestone's own 7T section, but neither this file nor
+> the wave table recorded it as shipped until this pass's M7-row correction above. Not verified
+> against `git log` by this pass — flagged as a gap, not claimed as fact beyond what the milestone
+> text itself states.
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-19. M7 wave 7D7 is DONE through local gate follow-up `a9bad6b`.** Commits: plan
 > `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; exhaustive
 > oven-sweep timeout follow-up `5c1cd33`; exhaustive shell-sweep timeout follow-up `a9bad6b`. The
 > four corner builders now draw their recorded widths;

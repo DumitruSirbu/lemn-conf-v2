@@ -3053,6 +3053,10 @@ the threshold drawer.
 - **Criterion 3/4 and E8.1's figures in the milestone are superseded by this measurement**; struck in
   place there with a pointer to this note.
 
+**Wave close-out, 2026-09-21:** these figures are restated in the milestone's own
+[7D5 close-out](../milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21), which also records
+the wave's commits, gates, visual gate and the S5/dishwasher hand-off to 7D5b.
+
 ### L6 — earlier-wave restatements in slice S3, measured by QA (comment tag `7D5 S3 / Q-H5`)
 
 - **S2 census.** New `finished` totals: both drawers **50,671**; pan drawer only **41,775**; bottle

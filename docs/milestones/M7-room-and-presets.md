@@ -1529,7 +1529,8 @@ table.
 | **7D2** | Composition in the owner's order; minimum kitchen; leftover rule; step log; the row plan and shell tiled at its boundaries — **DONE, `4133cdc`** | `src/generation/generate-kitchen.ts`, `src/generation/generation-priorities.ts`, `src/generation/leftover-rule.ts`, `src/generation/shell-design.ts` (the plan argument), `src/index.ts` | 7D1 | Full | No | answered (F2, F3, F7) |
 | **7D3** | Tall units at the run ends and the oven rule: one `tall-oven-tower` at wall A's free end where the run affords it, and the hob base follows it — **DONE, `03c98dc` (S1) + `97a4913` (S2)**; it composes **a block of one to three columns**, the tower **innermost** (ADR 0110 Amendment E12.2) | `src/generation/tall-end-rule.ts` (new), `src/generation/generation-priorities.ts`, `src/generation/generate-kitchen.ts`, `src/index.ts` | 7D2 | Full | No | fully answered 2026-09-14 — the tall-unit rules, the block and its composition, the oven-beside-fridge ruling, the top-row exclusion, QT-1/QT-2/QT-6 (owner); QT-3/QT-4/QT-5 (coordinator). ADR 0110 Amendment E, E1–E12. **Dispatch gate: run wave 7D6's pre-flight first** — derive the corner reach at 600 mm and assert it is 900; if it is not, this wave's threshold table is re-measured before its criteria are written |
 | **7D4** | **A long storage run is composed, not repeated** — ~~the storage cycle, the per-kitchen sequence carried across the corner,~~ **DONE, `00152b8` … `6456a3b`** (S1b `00152b8`, S2 `9daf757`, adjudication `8be7d9a`, S4 `d89a3b6`, NUL-byte fix `a51d6ef`, review fixes `9258fa3`, ADR 0121 `c444ef9`, rename `6456a3b`). **The goal text above is struck because the owner deleted the cycle mid-wave (D14):** what shipped is **the preparation cabinet and the first storage slot after the hob in the reading order taking `base-3drawer`, every other storage slot `base-cabinet`**. **Changes which body fills a slot, and never how many slots there are or how wide they are** — measured `nonBuildIdDiff: 0` over 211 551 placed rooms | `src/generation/body-choice.ts` (new), `src/generation/generation-priorities.ts`, `src/index.ts` | **7D3** — file collision, and the block spends the free-end modules first (D0) | Full | No | **answered 2026-09-14** — R1, R2, R4, R6, R11, and the wall row withdrawn (D8). ADR 0110 **Amendment F (slice S0) is WRITTEN, 2026-09-15, F0–F15** — after S1, which F0 records. Q-7D4-1…4 are **confirmations, not gates** |
-| **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table, and the dishwasher. **Re-baselines 7D3's block-threshold table and restates its criterion 12.** **PLANNED — see [Wave 7D5 — the plan](#wave-7d5--the-plan-2026-09-16-measured-at-head-ffc472e)**, which recommends the dishwasher be lifted into its own wave (E10) | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | No | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), **Q-H3 answered 2026-09-16 (a threshold at six plain storage cabinets, not a ratio — it re-keyed the plan)**; **Q-H5 blocks slice S3 only; Q-H4 and the new Q-H3a change two criteria and no code** |
+| **7D5** | ~~**The run gains the two bodies that take width**: the dishwasher (600 mm, adjacent to the sink, across the corner counting) and the bottle cargo (300 mm, after the hob).~~ **RE-SCOPED 2026-09-16 to the owner's whole run order — the drawer group astride the hob**: bottle cabinet (300 mm, right of the hob), second drawer cabinet (600 mm, left of it), the third drawer clause, the re-measured block table. **DONE, close-out 2026-09-21** — see [7D5 close-out](#7d5-close-out--2026-09-21). Commits: S1 `c67b4ee` (bottle), S2 `17df3f5` (pan drawer), S3 `dd7a25b` (threshold drawer). **Re-baselines 7D3's block-threshold table and restates its criterion 12; the dishwasher is lifted to 7D5b** | `src/generation/generation-priorities.ts`, `src/generation/body-choice.ts`, `src/generation/optional-run-items.ts` (new), `src/generation/run-layout.ts` (new), `src/run-end-panel.ts` (one comment) | **7D4**, and 7D3 through it | Full | **Yes**, close-out — 6 witness rooms, all PASS | answered — Q-D1 twice (2026-09-14, and the corner clause 2026-09-15), Q-H3 (2026-09-16), Q-H6/Q-H6a/b/c (2026-09-21, J1/K1/K2/K4), **Q-H5 = a third drawer after the hob (2026-09-21, L1)** |
+| **7D5b** | The sink-adjacent dishwasher conversion, lifted whole out of 7D5 (recommendation in the 7D5 plan; confirmed in the 7D5 close-out). **PLANNED, next.** Owner answers so far: Q-DW2 = dishwasher first, Q-DW3 = converted + 1F row; **Q-DW1 open** | `src/generation/generation-priorities.ts`, `src/generation/optional-run-items.ts` | 7D5 | Full | Probably | Q-DW1 open; Q-DW2, Q-DW3 answered |
 | **7D8** | **DONE, close-out 2026-09-17** — see [7D8 close-out](#7d8-close-out--2026-09-17). Commits: planning `8ebff1f`/`36fde8c`/`275c95e`/`27ae496`; S0 `5c915f8`; S1 `2439da5`; E4 correction `355a15e`; adjudication `c456dbd`; S2 `814ca44` (`--no-verify`, 25 known-red assigned to S3); S3 `f919bfa` (suite green); review `62cfee1`; Q-7D8-2 ruling `6dbff27`; ADR 0110 Amendment I1.1 `e18908b`; shrink-strip fix `24ca2bc`; panel-colour fix `dcec03f`; ADR 0122 `8b73439`; S4 `b83e4f2`. `pnpm ci:local`/push pending. **The run follows the wider wall.** The owner's *"on wider wall you always place the sink and hub, and fridge you place on narrower wall"* (ADR 0120 Amendment C) is **not implemented**: `chooseWallCut` is keyed on **wall A**, which correlates with *wider* in most accepted rooms and **inverts whenever it does not** — the hob is on the wider wall in **100.0 %** of A-wider rooms and **21.2 %** of B-wider ones, and the fridge on the narrower wall in **0.0 %** of the B-wider rooms that have one. **This is NOT a comparator fix and no comparator fix exists** (E0.2): the wall carrying the reading order's **prefix** becomes a function of the entered wall lengths instead of the constant `PREFIX_WALL = "B"`. **Changes 38.95 % of placed rooms — 0.00 % of A-wider and 100.00 % of B-wider — and flips `minimumMet` in none.** **PLANNED — see [Wave 7D8 — the plan](#wave-7d8--the-plan-2026-09-16-the-run-follows-the-wider-wall)**, which recommends this wave run **before 7D5** and gives the argument (E8) | `src/generation/generation-priorities.ts`; `src/generation/tall-end-rule.ts` (a rename and a comment); `tests/generation/7d3-composition-baseline.json` **re-captured** | **7D4** (shipped). **Not in flight with 7D5 or 7D7** | Full | **Probably** — risk R7, the run-end panel | **RULED 2026-09-16 and the wave is UNBLOCKED end to end — S0, S1 and S2 are all dispatchable now.** ~~Q-7D8-1 gates slice S1(a) and therefore S2~~: the owner ruled **both** halves — **the block follows the run and may stand on wall B** (144 866 blocks, 47 175 on B, nobody losing one, against 12 900 losing one if confined; **ADR 0110 Amendment E's *"nowhere else"* is overturned**), and **the mirrored reading direction is accepted** (*"sometimes the arrangement is in mirror…"* — A1 **restated**, not broken). **Q-7D8-2 remains genuinely open, gates nothing and changes one criterion and no code** (may the rule cost a cabinet — **the ladder wins by default and no preparation-cabinet drop is planned**) |
 | **7D6** | The corner's along-wall reach is **derived from the cabinet depth** instead of carried as the fixture's 900 / 320 / 570 literals — the owner's *"correct shape and size"*. **DONE, close-out 2026-09-18** — see [7D6 close-out](#7d6-close-out--2026-09-18). Commits: S1 pre-flight (no code, 900/900 reproduced); S2 `bf58f97`; S3 `dcb67ce`; QA `9ae586c`; review fixes `0d79ce9`. `pnpm ci:local`/push recorded by the coordinator, separately | `src/room/room-policy.ts`, `src/generation/shell-design.ts` (run-start helpers), `src/fixtures/kitchen-l-design.ts` (corner widths), a new pure derivation module, `src/index.ts` | 7D1 (shipped) | **Full** | No | **Q-K1 ANSWERED 2026-09-17, option 3 — [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md): the owner kept 900/1000 as a deliberate margin above the derived 880/880 floor. No bound moves. [ADR 0108 Amendment F](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md#amendment-f--2026-09-18-amendment-a-ruling-1-is-narrowed-to-the-corners-floor-widths-at-a-depth-room-argument-and-the-approved-9001000-are-recorded-as-adr-0125s-deliberate-margin) narrows Amendment A ruling 1 accordingly. The joint bound slice (7D6-S5/7D7-S5) does not dispatch — no literal moved** |
 | **7D7** | **DONE 2026-09-19** — the corner builders accept recorded widths; generation authors the four structural corner placements with the largest even room-fitting widths at 600 mm, and the 600 → 700 mm depth command keeps those widths frozen while sliding the recorded chains. The engine floor is **880 × 880**, while [ADR 0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) keeps the customer-approved minima at **900 / 1000**; cancelled S5 did not dispatch and no policy literal moved. See [7D7 close-out](#7d7-close-out--2026-09-19). Commits: plan `552cd74`; S1 `f861306`; S2 `6311f65`; S3a `009ab05`; S3b `49627f9`; S4 `8618129`; gate-timeout follow-ups `5c1cd33` and `a9bad6b`; close-out `71e6ba3`. `pnpm check` and `pnpm ci:local` are green; push remains pending | `packages/configurator-domain` corner sizing/shell placement and `packages/three-adapter` corner builders/record seam, with paired adversarial coverage; **S5 cancelled** | **7D6, and 7H for ordering** | **Full** (3D, fidelity gate) | **Yes**, both depths + approved narrow room | **Q-7D7-1 and Q-7D7-2 answered.** The one-door floor is 200; approved minima remain 900/1000. Q-7D7-3 and Q-A′.2 remain non-blocking product questions; this wave changes neither carousel policy nor editor capabilities |
@@ -8470,8 +8471,9 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > section's own 225 221 / 19 990 reconciliation figures above.** The tall-end block's
 > `coreSurvivedWhole` clause is now dormant (0 plans change if hard-wired true) rather than retired;
 > S2 must re-measure it. The reference room's hob falls back from `base-hob-2drawer` to
-> `base-hob-oven` (25 recorded rooms across two recordings). **S1's own close-out entry is not yet
-> written** — this note only reconciles the plan at commit time.
+> `base-hob-oven` (25 recorded rooms across two recordings). **S1's own close-out entry is now
+> written** — see the [7D5 close-out](#7d5-close-out--2026-09-21) below; this note is kept as the
+> commit-time reconciliation.
 >
 > **Record, before commit — 2026-09-21, slice S2 (the pan-drawer cabinet).** Recorded in full at
 > [ADR 0110 Amendment K](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-k--2026-09-21-wave-7d5-slice-s2-the-pan-drawer-cabinet).
@@ -8487,8 +8489,9 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > both citations below (~lines 8438 and 8460) with a pointer to K6. J5's `coreSurvivedWhole` clause is
 > no longer dormant: it now changes 140 plans (ADR 0110 K7). Criterion 9's D15.7 physical wall-B arm is
 > resolved under ADR 0123's third route — kept, coverage converted to a declared witness at 4100 × 6100
-> (ADR 0110 K8; see the dated note at criterion 9 below). **S2's own close-out entry is not yet
-> written** — this note only reconciles the plan at commit time.
+> (ADR 0110 K8; see the dated note at criterion 9 below). **S2's own close-out entry is now
+> written** — see the [7D5 close-out](#7d5-close-out--2026-09-21) below; this note is kept as the
+> commit-time reconciliation.
 >
 > **Q-H5 re-measured after S1 and S2 — 2026-09-21, at `17df3f5`, before it is put to the owner.**
 > Real `planKitchenComposition` (a scratch `tsc` build of `src/` at HEAD), approved L 900–6000 ×
@@ -8529,7 +8532,8 @@ likely to be mistaken for targets** — they are consequences of the rules, and 
 > gives way in 6,195 (all columns kept); a tall column gives way (3 → 2) in 9,600 (5,700 keep the
 > bottle, 3,900 had none); *D* ≥ 6 rooms 15,986, none still short; pan drawer 92,446 unchanged; bottle
 > 178,491 (was 184,686); both together 50,671; `minimumMet`/`dropped`/core-wall differences 0. **S3's
-> own close-out entry is not yet written** — this note only reconciles the plan at commit time.
+> own close-out entry is now written** — see the [7D5 close-out](#7d5-close-out--2026-09-21) below;
+> this note is kept as the commit-time reconciliation.
 >
 > **Corrected 2026-09-21, before commit — the "two candidate branches removed" line above (ADR 0110
 > L4) was wrong.** Only "after the bottle at no cost" stays removed; "in the bottle's place, costing a
@@ -9254,6 +9258,83 @@ criterion's close-out line names which sabotage discharged direction (a) and whi
   place a body by a positional rule. **The coordinator resolves it with the owner before S1 is
   dispatched**, or S1 ships the conditional bottle cabinet E3 measures and the relay is recorded as
   still open against S5.
+
+### 7D5 close-out — 2026-09-21
+
+**DONE. Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b`
+(threshold drawer + three-adapter restatements). Pushed 2026-09-21; local and origin both at
+`dd7a25b`, source-verified with `git rev-parse` after `git fetch`.**
+
+**Gates at `dd7a25b`.** `pnpm check` passed: domain 221 files / 4,673 tests, persistence 20 / 282,
+three-adapter 92 / 3,546, web 218 / 3,316; format, lint and typecheck all green. `pnpm ci:local`
+printed `LOCAL CI PASSED — all gates green, safe to push`, with every gate PASS — format, lint,
+typecheck, test, e2e (208 passed / 2 skipped, 5.7 minutes), build, boundary, lockfile, SCA. As in
+every prior wave on this branch, e2e ran against `next dev`, not a production build. The pre-push
+hook passed.
+
+**Process error, already on the record at [ADR 0110 L7](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#l7--a-coordinator-process-error-at-s1-and-s2-recorded-plainly):**
+S1 and S2 were each committed after running only the domain suite; three-adapter was red at both
+commits (1 test at S1, 4 more at S2) and was restated in S3. Neither red commit was pushed.
+
+**Owner rulings this wave, all recorded in Amendments J, K and L:** Q-H6 = A, positional placement
+(J1); Q-H6a/b/c, the pan drawer's priority over the D15.7 post-hob drawer, over the bottle, and
+before a tall column (K1/K2/K4); Q-H5 = add a third drawer after the hob (L1); L2, when the bottle
+gives way to it; L3, at most one column may be spent on it. Coordinator rulings: J3 (option B,
+reversed wall), K3 (the K3 refinement rejected, see L below), K8 (the D15.7 wall-B witness converts
+under ADR 0123), L4 (the "in the bottle's place, costing a column" candidate restored as reachable
+but unreached).
+
+**Criteria 3/4 and E8.1's figures above are superseded** by the final measurement at L5 (ADR 0110),
+reproduced here rather than restated: at approved L, 10 mm / 2600 mm, **245,211 placed** (unchanged
+throughout the wave); bottle **178,491**; pan drawer **92,446**; threshold drawer **15,795**;
+tall-column losses (3 → 2) **9,600, all in threshold-drawer rooms**; J5 (`coreSurvivedWhole`) live
+in **140**. **0** `minimumMet` / `dropped` / core-wall differences against pre-wave, throughout.
+
+**Criterion 9 (the D15.7 wall-B witness)** is resolved under [ADR 0123](../decisions/0123-a-ruled-behaviour-whose-population-empties-keeps-its-branch-and-converts-its-sweep-coverage-into-a-declared-witness.md)'s
+third route rather than by the population surviving inside the approved policy — see the dated
+note above and ADR 0110 K8.
+
+**S4 (re-baselining) is discharged, not skipped** — confirmed here rather than re-argued. It was
+carried out inside J4 (S1), K9 (S2) and L6 (S3): each slice's own restatement of the prior wave's
+composed-run baseline, three-adapter reference-room widths, and parity/QA suites, captured against
+that slice's own pre-state. See ADR 0110 Amendments J, K and L for the per-slice detail.
+
+**S5 (the dishwasher)** is lifted to wave **7D5b**, planned next; see the M7 row below and
+`docs/STATUS.md`'s *What to do next*.
+
+**Visual gate** (configurator-verify-visual, production build, 390 × 844, touch, 2026-09-21): **all
+six witness rooms PASS.**
+
+| Room | What it showed |
+| --- | --- |
+| 3600 × 2400 | bottle after the hob; 1F ro and ru verified |
+| 6000 × 4100 | pan drawer + bottle + third drawer, 3 drawer cabinets |
+| 3350 × 1700 | pan drawer, bottle omitted |
+| 4600 × 5800 | third drawer in the bottle's place |
+| 4600 × 5200 | third drawer, 3 → 2 columns, price 110,000 → 102,000 MDL |
+| 3560 × 2920 (reference) | bottle after `base-hob-oven`, no tower |
+
+No overlaps, gaps or corner clashes; no new console errors. Screenshots are in
+`testing-reports/7d5/` (gitignored).
+
+**Not verified by this gate:** open animations; the tall-column count in rooms 4 and 5 (read from
+the saved design, not visually counted); the ru locale for rooms 2–6; editing.
+
+**One product concern, put to the owner rather than treated as a defect:** the reference room now
+ends with a bare 560 mm floor-to-ceiling gap after the bottle cabinet (the worktop stops at the
+bottle). It is consistent with J6/J7's rulings but reads as a missing unit. Recorded as an open
+owner question, not fixed here.
+
+**Side note, not this wave's scope:** the ru editor title truncates to "Конфигур…" and its hint
+wraps.
+
+**Database side effect:** the visual run left 9 designs in the app's development database. Ids are
+in the QA record; not deleted by this pass.
+
+**Record gap found separately, while closing this wave out:** wave **7T**'s slice 1 shipped at
+`5c1a6aa` on 2026-09-16 (per the milestone's own 7T section), but neither this wave table nor
+`docs/STATUS.md` records it as shipped. Flagged as a gap in `docs/STATUS.md`; this pass did not
+verify `5c1a6aa` against `git log` and claims no more than what the milestone text itself states.
 
 ## Wave 7D8 — the plan, 2026-09-16: the run follows the wider wall
 
