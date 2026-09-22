@@ -33,8 +33,8 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
-Last updated: 2026-09-22 — **M7 wave 7F2 is DONE**; see the RESUME HERE entry under *What to do
-next* and the M7 row below. Earlier text below is kept as history.
+Last updated: 2026-09-22 — **M7 wave 7T is DONE but for the owner's CI run**; see the RESUME HERE
+entry under *What to do next* and the M7 row below. Earlier text below is kept as history.
 
 Last updated: 2026-09-21. **Corrected 2026-09-11, later the same day: M6B merged to `main` via PR
 #8 (`995ad03`), and M7 — Step 1, room and presets — is now in progress on branch
@@ -925,7 +925,43 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-22. M7 wave 7F2 is DONE.** Commits, in order: S1 `731a338`; S1b
+> **RESUME HERE — 2026-09-22. M7 wave 7T is DONE but for the owner's CI run.** Commits, in order:
+> S1 `5c1a6aa` (2026-09-16, shipped earlier, record gap closed 2026-09-22); plan (S2/S3 re-plan, the
+> 7F3 deferral, Q-7J-1) `a67dcb8`; T-J5 Amendment A `4342f31`; S2b `092d583`; S2c pieces `b3a4570`
+> (the slow-walk fix and the timer tolerance) and `3a10c50`; S3 `4a51f18`. HEAD `4a51f18` on
+> `m7-room-and-presets`; origin is at `ea8b11e`, so `a67dcb8`…`4a51f18` are unpushed — **the
+> coordinator pushes after this record.** **Gates (coordinator, doc-quoted):** `pnpm check` before
+> every commit; at `4a51f18` — domain 228 files / 4,866 tests, persistence 27 / 419, three-adapter
+> 92 / 3,553, web 242 / 4,379. **A process error is on the record, not smoothed over: `092d583` was
+> committed while `pnpm check` was red**, on the pre-existing slow-walk timeout that `b3a4570` then
+> fixed. Full close-out, criterion-by-criterion with evidence tiers:
+> [`milestones/M7-room-and-presets.md`, *7T close-out —
+> 2026-09-22*](milestones/M7-room-and-presets.md#7t-close-out--2026-09-22). New record:
+> [ADR 0128](decisions/0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md)
+> lifts the wave's lock, key and census rulings out of milestone prose, because 7P1's preset suites
+> inherit the lock next.
+>
+> **What the wave repaired:** five live persistence suites gated themselves on `DATABASE_URL`, which
+> `ci.yml` never sets, so they reported green without ever executing. They now gate on
+> `TEST_DATABASE_URL` and serialise through a declared, per-file, transaction-scoped readers–writer
+> lock, so two runners against the shared test database can no longer corrupt each other's migration
+> state (BACKLOG 69, discharged).
+>
+> **The wave is complete but for the owner's `workflow_dispatch` run of `ci.yml` on this branch.**
+> Criteria 8, 15 and 19 were re-measured by the coordinator at the closing tree `4a51f18` and are met
+> — the skip counts (13 CI-shaped, 8 announce lines with both variables unset), the `expect(`/title
+> diff (zero removed either way, the one removed line being a precondition swap, not a title), and the
+> empty production-source diff. **Criteria 1 and 18 remain owed to that CI run**, plainly, not
+> claimed — the three T4 suites' names appearing as run rather than skipped in a job log, and the full
+> job-log verdict with every resolving file's CI hold duration. **That single CI run also settles
+> 7F4b's outstanding criterion 44** ("CI is the verdict"), the same structural gap: no push to
+> `m7-room-and-presets` has ever triggered `ci.yml`.
+>
+> **Next: 7E4** (e2e and tooling off `/configurator/configure`), per the order recorded in the 7F2
+> RESUME HERE entry below and the wave table's *Recommended order* note — the preset story (7P1, 7P2,
+> 7G, 7B, 7C) and 7F3 sit past M8, and 7T was the earliest unfinished wave ahead of them.
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-22. M7 wave 7F2 is DONE.** Commits, in order: S1 `731a338`; S1b
 > `3bbbde8`; S2 `c4f59f3`; S3 `f4f775d`; S3b plan `518b7db`; S3b `c8bdc5e`; S4 `20381e7`; S5
 > `9aad164`; S5b `22279b6`. HEAD `22279b6` on `m7-room-and-presets`. **Gates (coordinator,
 > doc-quoted):** `pnpm check` before every commit; at `22279b6` — domain 228 files / 4,866 tests,

@@ -17938,6 +17938,199 @@ into an ADR once S2c ships, rather than leave them in milestone prose (ADR 0127 
 - **Nothing else:** no e2e change and no visual capture. A production file in the diff is a review
   finding (criterion 19).
 
+## 7T close-out — 2026-09-22
+
+**Written by the scribe, no shell, at HEAD `4a51f18` on `m7-room-and-presets`.** Origin is at
+`ea8b11e`; commits `a67dcb8`, `4342f31`, `092d583`, `b3a4570`, `3a10c50`, `4a51f18` are unpushed and
+this pass does not push them. S1 shipped earlier, at `5c1a6aa` (2026-09-16), and its record gap was
+already closed in the wave table (above) and in this file's 7T section.
+
+### What the wave repaired
+
+Five live persistence suites gated themselves on `Boolean(process.env["DATABASE_URL"])`.
+`ci.yml`'s `test` job deliberately never sets that variable, so the five suites reported a green job
+without ever executing — coverage that was green by never running, not by passing. They now gate on
+`TEST_DATABASE_URL` and serialise through a declared, per-file, readers–writer advisory lock
+(`test-schema-lock.ts`, T-J5 as amended), so two runners against the shared `lemn-conf-v2-staging`
+database — a laptop and CI, two agents' gates, or `ci:local` and a pre-push — can no longer corrupt
+each other's migration state. A sixth live file, the schema-status check added in S3, was built new
+under the same lock rather than repaired.
+
+### Criteria, one by one
+
+Criteria 1–6 are the original plan's (T-J1); 7–21 are the S2/S3 re-plan's, dated 2026-09-22. Tier
+follows `docs/best-practices/documentation.md`'s three-tier scale.
+
+1. *(CI — the point of the wave)* **Owed to the owner's CI run.** No push to this branch has ever
+   triggered `ci.yml` — the coordinator's own S2/S3 plan records this at `ea8b11e` (G2), and nothing
+   in this pass's reading changes it. The three T4 suites' names appearing as *run* rather than
+   *skipped* in a job log is not yet evidence anyone holds.
+2. *(report)* **Met.** S1's commit message (`5c1a6aa`) reports its full output before any remedy —
+   205 passed, 77 skipped, locally [doc-quoted, wave table]. S2c's slice likewise ran CI-shaped and
+   reported verbatim before any fix, per T-J1 (S2c item 3) [doc-quoted, plan §5].
+3. *(unit)* **Met.** `assertSafeTestDatabaseUrl` stays on every re-gated suite's path; criterion 9's
+   own test (S3, `live-test-database.test.ts`) proves the guard throws rather than silently skips
+   [source-verified: the file exists at `ea8b11e` plus S3, per T-J3 Amendment A].
+4. *(live, T-J2, superseded by 10–14)* **Met by its replacement.** T-J2's original mechanism did not
+   survive re-measurement (T-J5); criteria 10–14 below carry its intent — readers–writer,
+   transaction-scoped, per-file — and QA's rounds against them are reported clean.
+5. *(CI, T-J3, superseded by 16)* **Met by its replacement**, and narrowed by scope: `migrate:status`
+   does not run as a `ci.yml` step (T-J3 Amendment A, option (b)); the equivalent check runs as a live
+   test under the shared lock instead. See criterion 16.
+6. *(docs)* **Met.** `ci.yml:136-138`'s comment is corrected under criterion 17's narrowed reading —
+   pointing at the machine-checked census and this repository's `ci-and-local-gates.md` rather than
+   restating a count that can drift (T-J3 Amendment B ruling 3's own count correction is the reason
+   this criterion was reversed to a pointer).
+7. *(static — the gate census)* **Met.** `live-suite-census.test.ts` discovers every file under
+   `packages/persistence/tests` from disk and asserts that exactly two keep the
+   `Boolean(process.env["DATABASE_URL"])` gate — `application-role-privileges.test.ts` and
+   `write-token-schema.adversarial.test.ts` [relayed: QA's sabotage rounds, both directions, no
+   defect].
+8. *(measured — the skip count, both ways)* **Met.** [measured at `4a51f18` by the coordinator, tree
+   closing, database quiet, one runner]:
+   - **CI-shaped** — `env DATABASE_URL= MIGRATION_DATABASE_URL= VERCEL_OIDC_TOKEN= CI=true pnpm --filter @lemnaria/persistence test`:
+     exit 0, `Tests 406 passed | 13 skipped (419)`, **0** `[live-suite skipped]` lines
+     (`grep -c` returned 0) — matching the plan's own **exactly 13 skipped**.
+   - **Both variables unset** — the same command with `TEST_DATABASE_URL=` also added: exit 0,
+     `Tests 293 passed | 126 skipped (419)`, **8** `[live-suite skipped]` lines, one per live file —
+     matching the plan's own **exactly eight**.
+9. *(unit — the gate refuses rather than skips)* **Met.** S3's `live-test-database.test.ts` pins the
+   allowlist refusal by name via a dynamic import under `vi.stubEnv`, expecting
+   `/Refusing to run live database tests/` [source-verified: file exists, built in S3 per T-J3
+   Amendment B ruling 7 and the module boundary table]. **One owed item survives it, not owned by this
+   wave**: a malformed `TEST_DATABASE_URL` throws a bare `TypeError: Invalid URL` rather than a named
+   guard message (T-J3 Amendment B ruling 3); criterion 19 forbids the `src` edit that would fix it,
+   so it is recorded for the next wave touching `packages/persistence/src`.
+10. *(live — shared coexists, exclusive excludes)* **Met.** S2b/S2c's QA rounds passed with no blocker
+    [relayed]; the production literals — `lock_timeout` 180 s, hook timeout 210 s — are asserted, and
+    `hookTimeout > lockTimeout` holds.
+11. *(live — fairness)* **Met**, per S2a's measurement (A2: a later shared request queues behind a
+    queued exclusive request) [relayed, not re-run by this pass] and QA's rounds against it.
+12. *(live — no leak)* **Met.** S2a measured release at 54 ms after a killed holder, well inside the
+    5 s ceiling [relayed]; QA's `afterAll` sabotage (skip the `COMMIT`, keep the `Client` open) turns
+    red as required.
+13. *(static — the mode census, T-J7)* **Met**, at twelve rows in five classes — 3 exclusive, 3
+    shared (S3's schema-status file is the third shared row), 2 application-database, 2 lock
+    self-tests, 2 that connect nowhere [source-verified: `tests/live-suite-census.test.ts` exists,
+    per T-J5 Amendment B ruling 3 and T-J3 Amendment B's S3 addition].
+14. *(static + source)* **Met.** The lock key is not `MIGRATION_ADVISORY_LOCK_KEY`; `test-schema-lock.ts`
+    does not import `migrate.ts`; `migrate.test.ts`'s two-concurrent-runners test is cited by title
+    rather than by line, and measured byte-identical against the working tree at the time of writing
+    [doc-quoted, plan criterion 14 and its own re-measurement note].
+15. *(diff — T-J4, narrowed 2026-09-22)* **Met.** [measured at `4a51f18` by the coordinator, two
+    separate methods for the two halves the criterion asks for]: `git diff -w ea8b11e --
+    packages/persistence/tests` for the `expect(` count — **0** removed lines containing `expect(` —
+    and a grep for removed or changed `it(` / `test(` / `describe(` title lines over the same diff —
+    **0**. **The one removed test-declaration line in the whole wave is the T-J4 `it.skipIf(`
+    condition at `neon-configuration-repository.test.ts`** (the precondition swap of T-J5 Amendment B
+    ruling 4) — it is a **precondition**, not a title, so it does not count against either half of
+    this criterion. This supersedes the plan's own in-flight figure, which was taken against
+    `b3a4570` plus the implementer's then-uncommitted edits rather than against the closing tree; the
+    two agree.
+16. *(live, under C-7T-1 (b), narrowed 2026-09-22)* **Met.** `test-database-schema-status.test.ts`
+    holds the shared lock and reaches the same three functions `deploy.yml`'s gate reaches. The
+    close-out's evidence line, quoted rather than paraphrased (T-J3 Amendment A) [relayed, S3's run]:
+
+    > `[migrate:status] test (lemn-conf-v2-staging) — level`
+
+    with the ledger reading `[1, 2, 3, 4]` and all seven required `designs` columns present. The
+    reading is narrowed to the ledger plus column name/type/nullability — constraints, indexes and
+    defaults are outside it (T-J3 Amendment B ruling 1), which is R10 below, not a defect this
+    criterion introduces.
+17. *(diff, narrowed 2026-09-22 — reversed from its original demand)* **Met.** `ci.yml`'s comment
+    states the operational minimum and points at `live-suite-census.test.ts` and
+    `docs/best-practices/ci-and-local-gates.md` rather than restating a count, per the review finding
+    that the earlier draft's own count (*"six files gated on `DATABASE_URL` until 7T"*) was wrong
+    within the same wave that wrote it, because S3's schema-status file never carried that gate.
+18. *(CI — the verdict)* **Owed to the owner's CI run**, plainly, not claimed. One `workflow_dispatch`
+    of `ci.yml` on `m7-room-and-presets` must show the five (now six, with S3's file) lock-holding
+    files at 0 skipped except `neon-configuration-repository.test.ts` at exactly 1, and persistence at
+    13 skipped in total, with each resolving file's CI hold duration re-measured and any hold above
+    90 s escalated before close. **This run also discharges 7F4b's outstanding criterion 44** — the
+    same "CI is the verdict" obligation, unmet for the same structural reason (no push to this branch
+    has ever triggered `ci.yml`).
+19. *(diff)* **Met.** [measured at `4a51f18` by the coordinator]:
+    `git diff --stat ea8b11e -- packages/configurator-domain/src packages/persistence/src
+    packages/three-adapter/src apps/web/src` is **empty** — no production source changed anywhere in
+    the wave. No `.env*` file, env var, secret or provisioned resource was added, changed or removed
+    (unmeasured directly, but consistent with the empty source diff and with every ruling above, none
+    of which records such a change).
+20. *(live — the idle limit is the repository's)* **Met.** The lock helper sets
+    `SET LOCAL idle_in_transaction_session_timeout = 600s` inside its lock transaction rather than
+    inheriting the server's silent 300 s default that S2a measured killing a holder mid-file (A5)
+    [relayed].
+21. *(live — a lost lock is loud)* **Met.** The helper's `client.on("error", …)` records a lost lock,
+    and `afterAll` throws a named `TestSchemaLockLostError` naming the mode, the key and the recorded
+    cause, rather than crashing the worker or swallowing the loss [relayed, QA's terminate-backend
+    sabotage].
+
+### The measured holds, after `b3a4570`
+
+All local. **Exclusive 12.9–15.1 s, shared 7.4–10.1 s, longest observed wait 13.6 s.** [relayed,
+coordinator]. Nothing crossed the 90 s escalation line the plan sets in criterion 18 and T-J5
+Amendment A ruling 4. The 180 s bound (T-J5 Amendment A ruling 1) is therefore left as written per
+T-J5 Amendment B ruling 8 — the ratio moved because the page-size defect that inflated the earlier
+85 s shared hold was fixed in `b3a4570`, not because the ruling was wrong when it was made — and is
+still owed a re-key against a CI-measured hold once criterion 18's run exists.
+
+### Concurrency evidence
+
+Four two-runner rounds, plus one round in which a runner was killed mid-hold, all with the migration
+ledger intact afterward [relayed, coordinator]. Separately, QA ran three concurrent rounds of the
+schema-status file (S3) against `migrate.test.ts`, **6/6 green**, with the status file never observed
+reading a half-migrated schema — the claim C-7T-1 (b) was chosen for, tested against the one suite
+most able to break it (T-J3 Amendment B ruling 5) [relayed].
+
+### Residuals, with triggers and repair paths
+
+- **R8 — a hard kill inside a gap-or-drop window leaves the database looking exactly like a lock
+  failure.** Three windows forget a migration or drop a column before restoring it
+  (`migrate.test.ts`, both `neon-configuration-repository` files). A `kill -9` landing inside one,
+  with no other runner holding the test lock, leaves the ledger claiming a column that is gone, and
+  the next run fails with BACKLOG 69's own error text (`MigrationSequenceError`, or `column … does
+  not exist`) — reading as a lock that did not hold rather than as the kill it was. **Repair:**
+  `forgetAppliedMigrations(url, VERSIONS_AFTER_THE_FIRST)` then `runMigrations`, or simply run the
+  suite twice, since the restoring half re-applies. The forget-before-drop reorder folded into
+  `b3a4570` narrows this window but does not close it; recorded rather than built further, per ADR
+  0118.
+- **R9 — vitest does not cancel a timed-out test body**, so a live file's database work can outlive
+  the file's release of the lock. A statement from a dead-but-still-running test can therefore land
+  outside any lock. **Trigger:** a timeout in a live file followed by an unexplained failure in the
+  next file. Recorded, not built for.
+- **R10 — the schema-status reading carries no constraints, indexes or defaults.** QA measured that
+  dropping `0003`'s `write_token_hash_is_sha256` CHECK constraint still reports `level`, as does an
+  extra, unnamed column. Meanwhile `write-token-schema.adversarial.test.ts` asserts that same
+  constraint on the *application* database only — so the two databases are held to different
+  standards, and the weaker one is where the destructive suites run. **Trigger:** a row reaching the
+  test database that the application's own constraint would have refused, or an `0003`-shaped
+  migration whose effect no test notices. **Revisit condition:** widening the reading is a decision-
+  record change to the deploy gate's own contract, not a test-infrastructure edit, and is deliberately
+  not built here.
+
+### The process error
+
+`092d583` (S2b — the lock helper, census, self-tests) was committed while `pnpm check` was **red** —
+on the pre-existing slow-walk timeout that `b3a4570` then fixed by moving `WALK_PAGE_SIZE` back to
+100 and adding its own paging test. This is recorded in `b3a4570`'s own commit message and appears
+here per T-J5 Amendment B ruling 10, in the same form 7D5's L7 error was recorded: named plainly, not
+smoothed into the sequence of green commits around it.
+
+**Two orphan rows**, left behind by the pre-fix slow-walk timing out `backup-restore-round-trip`'s
+tests before their cleanup ran, were deleted with the owner's approval [relayed]. No `src` file and no
+migration touched them; the deletion was data cleanup on the shared test database, not a schema
+change, and is recorded here rather than left implicit in the `b3a4570` fix.
+
+### Wave table
+
+The 7T row (above, in this file) is marked **DONE-but-for-CI**. Commits, in the order the coordinator
+reports them: `5c1a6aa` (S1, 2026-09-16); `a67dcb8` (S2/S3 plan, the 7F3 deferral, Q-7J-1); `4342f31`
+(T-J5 Amendment A); `092d583` (S2b — committed while `pnpm check` was red, see above); `b3a4570` (the
+slow-walk fix and the timer tolerance, restoring `pnpm check` to green); `3a10c50` (S2c); `4a51f18`
+(S3). **What is owed, and to whom:** criteria 8, 15 and 19 were re-measured at the closing tree
+`4a51f18` by the coordinator (2026-09-22, tagged `[measured]` above) and are **met**. **Criteria 1 and
+18 remain owed to the owner's `ci.yml` dispatch** — nothing here is claimed as shipped scope that has
+not been verified against a real CI run.
+
 ## Wave 7P2 — dispatchable punch list: the authoring gate, the save, and the owner's button
 
 > **DEFERRED, AND ITS ARCHITECTURE CHURNED BEFORE IT SETTLED — 2026-09-15, the same day this was

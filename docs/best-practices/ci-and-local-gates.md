@@ -83,6 +83,15 @@ whether you expect it to be empty; those instances are in `../WORKFLOW.md`, **R9
 `awk -F: '{print $1}'` gets the **path** rather than the line number; anything parsing grep output
 needs `rtk proxy` too.
 
+**`pnpm exec vitest <anything>` can become a full test run under the hook.** During M7 wave 7T's S2a
+probe (2026-09-22), the rtk hook rewrote `pnpm exec vitest --version` into a full test run — against
+`packages/persistence`, that means a live-database run against the shared test database, not a version
+probe. Run a version or config probe of vitest through `rtk proxy`, or read
+`node_modules/vitest/package.json` directly instead of invoking the binary. Separately, when chaining
+`pnpm --filter <pkg> test` with a reporter flag, put `--reporter=…` **after** a bare `--`
+(`pnpm --filter <pkg> test -- --reporter=…`) — without it, `--reporter` is parsed by `pnpm` itself
+rather than handed to the underlying test runner.
+
 ### Never pipe a gate through `tail` or `head`
 
 A pipeline's exit status is the **last** command's. `pnpm ci:local 2>&1 | tail -60` reports `tail`'s
@@ -316,6 +325,25 @@ The `test` job needs the `TEST_DATABASE_URL` repository secret, pointing at the 
 database. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
 application database for the isolation guard to compare against. A Postgres service container is not
 usable — the driver is `@neondatabase/serverless`, which speaks HTTP/WebSocket to Neon.
+
+**Which persistence files run live, and why some do not, is a machine-checked fact — read it from
+`packages/persistence/tests/live-suite-census.test.ts`, not from this paragraph.** Before M7 wave 7T
+(2026-09-22), five live suites gated themselves on `Boolean(process.env["DATABASE_URL"])`, which this
+job never sets, so they reported a green `test` job without ever executing — the census exists to
+make that mismatch a red test rather than a silent skip. The census's own literal table is the source
+of truth for the count and the split; do not restate it here, because a second copy of a number that
+can change is a second thing to be wrong (this is why wave 7T's own draft comment, which stated a
+file count, was itself wrong within the wave that wrote it — see
+[ADR 0128](../decisions/0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md)).
+In shape rather than in number: most live files resolve `TEST_DATABASE_URL` and hold one of two lock
+modes for the file's whole run (exclusive for anything that mutates the shared ledger or schema,
+shared for anything that only reads or mints rows); two files keep the `DATABASE_URL` gate because
+they assert something true only of the *application* database; a handful of files skip by design
+under CI's environment, each with a stated reason rather than an unexplained gap. **The lock every
+live file registers into is [ADR 0128](../decisions/0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md)'s**
+— a declared, transaction-scoped readers–writer lock that stops two runners against the same shared
+Neon database (a laptop and CI, or two agents' gates) from corrupting each other's migration state,
+the failure BACKLOG 69 recorded before the lock existed.
 
 ## Mutation testing across the package boundary: `apps/web` reads `dist/`, not `src/`
 
