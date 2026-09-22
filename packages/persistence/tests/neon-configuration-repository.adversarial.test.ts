@@ -544,8 +544,8 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // **Every version from 2 upward, not only 2 and 3** (WEB-003). The runner refuses a ledger with a
 // hole in it, so forgetting 2 while a later migration stays recorded is itself the gap — it wedges
 // the shared test database rather than re-running the migration under test. Anything added after
-// 0004 belongs in this list for the same reason.
-const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4];
+// 0004 belongs in this list for the same reason. `0005` joined it for exactly that reason.
+const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5];
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -577,6 +577,7 @@ describe("the write-token migration actually executes", () => {
         "0002_add_write_token_hash.sql",
         "0003_check_write_token_hash_shape.sql",
         "0004_add_design_revision.sql",
+        "0005_add_design_visitor_hash.sql",
       ]);
 
       const columns = await writeTokenColumns();
@@ -613,5 +614,106 @@ describe("the write-token migration actually executes", () => {
       }
     },
     30_000,
+  );
+});
+
+// M7 wave 7E3a, S1: `0005_add_design_visitor_hash.sql`'s constraint and index, read back live —
+// the same argument as the write-token constraint tests above. Application code is not the only
+// path to this column (a manual insert, the restore runbook), so the guard has to be proven at the
+// database, not only in `mint`'s own validation.
+describe("0005's visitor_hash constraint and index, read back live", () => {
+  it.skipIf(!hasLiveDatabase)(
+    "refuses a degenerate hash at the database level, not only in application code",
+    async () => {
+      const sql = neon(testDatabaseUrl);
+      const degenerate = [
+        "",
+        " ",
+        "secret",
+        "z".repeat(64),
+        "A".repeat(64),
+        "a".repeat(63),
+      ];
+
+      for (const hash of degenerate) {
+        const id = `qa-visitor-hash-constraint-${String(Date.now())}-${hash.length.toString()}`;
+        await expect(
+          sql`
+            insert into designs (id, schema_version, document, visitor_hash)
+            values (${id}, 1, ${KITCHEN_L_DESIGN}, ${hash})
+          `,
+          `hash of length ${String(hash.length)}`,
+        ).rejects.toThrow(/visitor_hash_is_sha256/);
+      }
+    },
+    30_000,
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "still admits NULL, so a pre-0005 row and a restored legacy dump remain insertable",
+    async () => {
+      const id = `qa-visitor-hash-null-${String(Date.now())}`;
+      const sql = neon(testDatabaseUrl);
+      try {
+        await sql`
+          insert into designs (id, schema_version, document, visitor_hash)
+          values (${id}, 1, ${KITCHEN_L_DESIGN}, ${null})
+        `;
+        const rows = (await sql`
+          select visitor_hash from designs where id = ${id}
+        `) as { visitor_hash: string | null }[];
+        expect(rows[0]?.visitor_hash).toBeNull();
+      } finally {
+        await sql`delete from designs where id = ${id}`;
+      }
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "carries the exact index definition D3's resume query needs",
+    async () => {
+      const rows = (await neon(testDatabaseUrl)`
+        select indexdef from pg_indexes
+        where tablename = 'designs' and indexname = 'designs_visitor_hash_updated_at_idx'
+      `) as { indexdef: string }[];
+
+      expect(rows).toHaveLength(1);
+      const indexdef = rows[0]?.indexdef ?? "";
+      expect(indexdef).toContain("(visitor_hash, updated_at DESC, id DESC)");
+      expect(indexdef).toContain("WHERE (visitor_hash IS NOT NULL)");
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "plans an index scan for D3's resume query, not a sequential one",
+    async () => {
+      const sql = neon(testDatabaseUrl);
+      const probeHash = "f".repeat(64);
+      const id = `qa-visitor-hash-index-probe-${String(Date.now())}`;
+      try {
+        await sql`
+          insert into designs (id, schema_version, document, visitor_hash)
+          values (${id}, 1, ${KITCHEN_L_DESIGN}, ${probeHash})
+        `;
+
+        // A sequential scan can win the planner's cost estimate on a table this small regardless of
+        // the index, which would make the plan look right for the wrong reason. Forcing it off is
+        // what makes "an index scan was chosen" evidence about the index rather than about the
+        // table's size — the contract is that the shape supports one, not that the planner always
+        // picks it.
+        await sql`set local enable_seqscan = off`;
+        const plan = (await sql`
+          explain (format json)
+          select id from designs where visitor_hash = ${probeHash}
+          order by updated_at desc, id desc limit 1
+        `) as { "QUERY PLAN": unknown }[];
+
+        const planText = JSON.stringify(plan);
+        expect(planText).toContain("Index Scan");
+        expect(planText).toContain("designs_visitor_hash_updated_at_idx");
+      } finally {
+        await sql`delete from designs where id = ${id}`;
+      }
+    },
   );
 });

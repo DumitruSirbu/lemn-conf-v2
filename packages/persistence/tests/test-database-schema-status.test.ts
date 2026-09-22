@@ -88,6 +88,27 @@ describe(SUITE_NAME, () => {
       expectMissingTheWithheldColumn(files, reading);
     },
   );
+
+  // M7 wave 7E3a, S1: `0005_add_design_visitor_hash.sql`'s column, named on its own rather than
+  // only through the generic `arrayContaining` above — the shape the guard needs is `text`
+  // nullable, and a read-back that returned the name with the wrong shape would still pass that
+  // check while `describeDeployedSchemaStatus` correctly refused it as `columns-misshapen`.
+  it.skipIf(!hasLiveDatabase)(
+    "reads visitor_hash back as text nullable, the shape 0005 adds",
+    async () => {
+      const reading = await readDeployedSchema(testDatabaseUrl);
+
+      const visitorHash = reading.designColumns.find(
+        (column) => column.name === "visitor_hash",
+      );
+
+      expect(visitorHash).toEqual({
+        name: "visitor_hash",
+        dataType: "text",
+        isNullable: true,
+      });
+    },
+  );
 });
 
 /** The ledger half: one file on disk the database cannot have applied. */

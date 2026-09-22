@@ -116,6 +116,10 @@ export const REQUIRED_DESIGN_COLUMNS = [
   // `not null default 1`; a `revision` that is present and *nullable* is that migration half
   // applied, and `updateIfCurrent` fails against it while a name-only guard reports level.
   { name: "revision", dataType: "bigint", isNullable: false },
+  // Nullable by `0005`'s own decision, exactly as `write_token_hash` is by `0002`'s: rows written
+  // before it (ADR 0114 decision 5's pre-launch data) have no visitor to attribute them to, and
+  // requiring `not null` here would refuse a correctly migrated database.
+  { name: "visitor_hash", dataType: "text", isNullable: true },
 ] as const satisfies readonly DeployedColumnReading[];
 
 type RequiredDesignColumn = (typeof REQUIRED_DESIGN_COLUMNS)[number];

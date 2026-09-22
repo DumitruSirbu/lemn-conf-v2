@@ -165,6 +165,11 @@ interface BackupRow {
   // customer discovers it only when a save is refused. Older dumps predate the column and carry
   // `undefined`, which lands as NULL and fails closed, exactly as an unminted row does.
   write_token_hash?: string | null;
+  // Read access, since M7 wave 7E3a (ADR 0114 decision 5). A restore that drops this column brings
+  // every design back unreadable to the visitor who owns it — the id still resolves, and the "not
+  // available in this browser" page is all that loads. Older dumps predate the column the same way
+  // `write_token_hash` above does, and land as NULL for the same reason: unowned, not an error.
+  visitor_hash?: string | null;
 }
 
 async function main(): Promise<void> {
@@ -188,14 +193,16 @@ async function main(): Promise<void> {
       DesignSchema.parse(design); // belt-and-braces: migrateDesign already validates internally.
 
       await sql`
-        insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash)
+        insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
+                              visitor_hash)
         values (${row.id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${row.created_at}, ${row.updated_at},
-                ${row.write_token_hash ?? null})
+                ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
         on conflict (id) do update
           set schema_version = excluded.schema_version,
               document = excluded.document,
               updated_at = excluded.updated_at,
-              write_token_hash = excluded.write_token_hash
+              write_token_hash = excluded.write_token_hash,
+              visitor_hash = excluded.visitor_hash
       `;
       restored += 1;
     } catch (error) {
