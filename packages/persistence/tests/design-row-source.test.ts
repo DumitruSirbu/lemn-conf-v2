@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createNeonDesignRowSource } from "../src/design-row-source.js";
+import type { DesignRowSource } from "../src/design-row-source.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
 import {
@@ -21,6 +22,32 @@ if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const WRITE_TOKEN_HASH = "e".repeat(64);
 
+/** Two full pages and a short one: the walk must resume twice and stop on the short page. */
+const PAGING_ROW_COUNT = 5;
+const SMALL_PAGE_SIZE = 2;
+
+/**
+ * Narrows the production source to the rows whose id starts with `prefix`, so a walk at a tiny page
+ * size costs a few round trips instead of one per two rows of the whole shared table. The paging
+ * itself stays production's: the first page starts after `prefix` (which sorts before every id
+ * extending it), every later `afterId` is the walk's own, and the first row past the prefix ends
+ * the walk with a short page.
+ */
+function scopedToIdPrefix(
+  source: DesignRowSource,
+  prefix: string,
+): DesignRowSource {
+  return {
+    async fetchDesignPage({ afterId, pageSize }) {
+      const page = await source.fetchDesignPage({
+        afterId: afterId ?? prefix,
+        pageSize,
+      });
+      return page.filter((row) => row.id.startsWith(prefix));
+    },
+  };
+}
+
 /**
  * The backup export exists to make a restore possible, and after ADR 0019 a design's
  * `write_token_hash` *is* its edit access. A backup that omits it restores every design readable
@@ -37,6 +64,27 @@ describe(SUITE_NAME, () => {
     );
     mintedIds.push(id);
     return id;
+  }
+
+  /** Inserts rows whose ids share `prefix` and end in one digit, so their `id` order is the
+   *  insertion order under any collation. Returns the ids in that order. */
+  async function insertRowsUnderPrefix(
+    prefix: string,
+    count: number,
+  ): Promise<DesignId[]> {
+    const sql = neon(testDatabaseUrl);
+    const ids = Array.from(
+      { length: count },
+      (_, index) => `${prefix}${String(index)}`,
+    );
+    for (const id of ids) {
+      mintedIds.push(id);
+      await sql`
+        insert into designs (id, schema_version, document)
+        values (${id}, 1, ${KITCHEN_L_DESIGN})
+      `;
+    }
+    return ids;
   }
 
   async function exportedRowFor(id: DesignId) {
@@ -107,6 +155,21 @@ describe(SUITE_NAME, () => {
       for (const id of ids) {
         expect(walkedIds.filter((walked) => walked === id)).toEqual([id]);
       }
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "resumes a small-page walk from each page's last id, returning every row once and in order",
+    async () => {
+      const prefix = `qapaging${String(Date.now())}`;
+      const ids = await insertRowsUnderPrefix(prefix, PAGING_ROW_COUNT);
+
+      const walked = await readAllDesignRows(
+        scopedToIdPrefix(createNeonDesignRowSource(testDatabaseUrl), prefix),
+        SMALL_PAGE_SIZE,
+      );
+
+      expect(walked.map((row) => row.id)).toEqual(ids);
     },
   );
 

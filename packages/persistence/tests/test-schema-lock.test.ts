@@ -66,6 +66,13 @@ const POLL_INTERVAL_MS = 100;
 const SHORT_RELEASE_BOUND_MS = 500;
 /** A bounded release must reject no later than this after it starts. */
 const RELEASE_TIMEOUT_CEILING_MS = 3_000;
+/**
+ * The release deadline is a local `setTimeout`, and Node's timers have millisecond granularity
+ * while `performance.now()` is sub-millisecond, so a timer can fire a fraction of a millisecond
+ * "early" by the test's clock (499.75 ms was observed for a 500 ms bound). The lower bound still
+ * asserts "no earlier than the bound" — to within timer precision, not to a microsecond.
+ */
+const TIMER_TOLERANCE_MS = 5;
 /** What a half-open socket answers a query with. */
 const NEVER_SETTLING = new Promise<never>(() => undefined);
 
@@ -260,7 +267,9 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         mode: "exclusive",
         releaseBoundMs: SHORT_RELEASE_BOUND_MS,
       });
-      expect(waitedMs).toBeGreaterThanOrEqual(SHORT_RELEASE_BOUND_MS);
+      expect(waitedMs).toBeGreaterThanOrEqual(
+        SHORT_RELEASE_BOUND_MS - TIMER_TOLERANCE_MS,
+      );
       expect(waitedMs).toBeLessThanOrEqual(RELEASE_TIMEOUT_CEILING_MS);
     } finally {
       silence.mockRestore();

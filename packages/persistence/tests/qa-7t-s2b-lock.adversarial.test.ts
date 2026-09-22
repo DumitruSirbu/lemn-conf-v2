@@ -68,6 +68,8 @@ const POLL_INTERVAL_MS = 50;
 const RELAYED_RELEASE_BOUND_MS = 30_000;
 const RELAYED_RELEASE_HOOK_TIMEOUT_MS = 60_000;
 const SHORT_RELEASE_BOUND_MS = 1_000;
+/** Node's millisecond timers can fire a fraction of a millisecond early by `performance.now()`. */
+const TIMER_TOLERANCE_MS = 5;
 const HEALTHY_RELEASE_SAMPLE_SIZE = 10;
 /** A healthy release is one COMMIT and one close; a tenth of the bound is already ~300 round trips. */
 const HEALTHY_RELEASE_CEILING_MS = TEST_SCHEMA_LOCK_RELEASE_BOUND_MS / 10;
@@ -480,7 +482,9 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         key,
         releaseBoundMs: SHORT_RELEASE_BOUND_MS,
       });
-      expect(waitedMs).toBeGreaterThanOrEqual(SHORT_RELEASE_BOUND_MS);
+      expect(waitedMs).toBeGreaterThanOrEqual(
+        SHORT_RELEASE_BOUND_MS - TIMER_TOLERANCE_MS,
+      );
       expect(waitedMs).toBeLessThanOrEqual(SHORT_RELEASE_BOUND_MS + 2_000);
     });
 
