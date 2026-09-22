@@ -247,7 +247,6 @@ function expectInside(
 async function mintFlaggedRow(page: Page): Promise<SeededDesign> {
   const design = await mintSeededDesign(page);
   mintedDesignIds.push(design.id);
-  expect(design.id).not.toBe("");
   return design;
 }
 

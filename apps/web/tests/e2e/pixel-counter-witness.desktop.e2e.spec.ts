@@ -353,7 +353,6 @@ for (const [label, materialTierId, finish] of [
     page,
     seededDesign,
   }) => {
-    expect(seededDesign.id).not.toBe("");
     await storeAKitchenWearing(page, seededDesign, { materialTierId, finish });
     await expectEveryPlacementWears(page, seededDesign.id, finish);
     await openAndSettle(page, seededDesign);

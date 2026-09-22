@@ -63,9 +63,9 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   expect(afterFridge.spanHMm).toBe("1850");
 
   // The write path ran from a real touch: the first mutation writes rather than mints (wave 7E4
-  // G4), so the stronger claim is that a save landed and moved the revision.
-  const savedRevision = await waitForFirstSave(page, seededDesign);
-  expect(savedRevision).not.toBe(seededDesign.revision);
+  // G4), so the stronger claim is that a save landed and moved the revision —
+  // `waitForFirstSave` itself throws otherwise, so there is nothing left here to check.
+  await waitForFirstSave(page, seededDesign);
 
   // 2. Delete the unit above it — the two openings merge.
   const above = await requireInFridgeColumn(page, {

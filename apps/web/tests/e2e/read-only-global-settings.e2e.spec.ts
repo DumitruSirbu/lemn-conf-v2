@@ -37,8 +37,9 @@ test.afterAll(async () => {
 // the read-only state this file tests comes from `context.clearCookies()` on `/d/{id}`, unaffected.
 async function mintDesign(page: Page): Promise<string> {
   const { id } = await mintSeededDesign(page);
-  if (id) mintedDesignIds.push(id);
-  expect(id).not.toBe("");
+  // `mintSeededDesign` itself throws by name on an empty id (wave 7E4 Q3), so there is nothing left
+  // here to check.
+  mintedDesignIds.push(id);
   return id;
 }
 

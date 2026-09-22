@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
+import { ro } from "../support/romanian-content.e2e";
 import {
   openFridgeColumnView,
   pressPanelControl,
@@ -307,9 +308,13 @@ test("keeps the colour group unreachable on a read-only link", async ({
   // behaviour and what `read-only-global-settings.e2e.spec.ts` asserts for the other three. Held
   // here so the group this wave adds cannot become the one exception (M6-AUD-001).
   await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
+  // Pinned to the read-only sentence itself (wave 7E4 Q7), not merely to "some reason": `/./` would
+  // also pass while the trigger still carried `accessCheckingReason`, the wording a probe still in
+  // flight leaves on screen — a state this test's own `openWithoutAssertingWriteAccess` has already
+  // waited past.
   await expect(page.getByTestId("global-settings-trigger")).toHaveAttribute(
     "data-disabled-reason",
-    /./,
+    ro.panel.readOnlyReason,
   );
 });
 
@@ -327,8 +332,9 @@ test("gives a cabinet back to the kitchen's colour, and it then tracks two furth
   await expect(page.getByTestId("section-finish")).toBeVisible();
 
   await pressPanelControl(page, "finish-pal.antracit");
-  const savedRevision = await waitForFirstSave(page, seededDesign);
-  expect(savedRevision).not.toBe(seededDesign.revision);
+  // `waitForFirstSave` throws unless the stored revision moved past the seeded one, so there is
+  // nothing left here to check.
+  await waitForFirstSave(page, seededDesign);
   await expect
     .poll(async () => (await storedColour(page)).overridingFinishes)
     .toBe(1);

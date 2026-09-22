@@ -368,7 +368,6 @@ test("the near-black casing pass reaches the framebuffer on a front painted the 
   seededDesign,
 }) => {
   const finish = freeColourFinish("#ff2d2d");
-  expect(seededDesign.id).not.toBe("");
   expectTheWholeKitchenWears(
     await storeAKitchenWearing(page, seededDesign, {
       materialTierId: MDF,

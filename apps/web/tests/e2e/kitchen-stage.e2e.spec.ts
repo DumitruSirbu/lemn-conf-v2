@@ -205,10 +205,10 @@ test("tapping an empty void slot selects it at 390 x 844", async ({
   expect(fridge.metaKind).toBe("fridge_freestanding");
 
   await pressPanelControl(page, "panel-remove");
-  // The mutation writes rather than mints (wave 7E4 G4): the id is the fixture's own, and this
-  // is the stronger claim that the removal actually landed.
-  const savedRevision = await waitForFirstSave(page, seededDesign);
-  expect(savedRevision).not.toBe(seededDesign.revision);
+  // The mutation writes rather than mints (wave 7E4 G4): the id is the fixture's own, and this is
+  // the stronger claim that the removal actually landed — `waitForFirstSave` itself throws unless
+  // the stored revision moved past the seeded one, so there is nothing left here to check.
+  await waitForFirstSave(page, seededDesign);
 
   // The remove leaves the vacated void selected. Deselect first, so what the tap below proves is
   // the tap and not the command that preceded it — and so the sheet is off the scene.

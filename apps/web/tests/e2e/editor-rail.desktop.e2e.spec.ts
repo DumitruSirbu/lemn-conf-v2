@@ -13,7 +13,7 @@ import {
   SINK_CABINET_FULL_WIDTH,
   SINK_PATCH,
 } from "./support/desktop-scene-points";
-import { readSelection } from "./support/panel";
+import { readSelection, waitForFirstSave } from "./support/panel";
 import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
@@ -264,40 +264,33 @@ async function expectUnchanged(
 /**
  * **The blue counter's premise, as an executable assertion** (wave 6V work item 3).
  *
- * Read back from `GET /api/designs/{id}` — the document the scene is drawing, after the delete that
- * wrote it (wave 7E4 G4: the id is the fixture's own and a mutation writes rather than mints) —
- * rather than from `KITCHEN_L_DESIGN`, so a divergence between the fixture and what is on screen
- * shows up here instead of being assumed away. A design with no bodies would satisfy an "every
- * placement" check vacuously, so the count is asserted first.
+ * Read back from `GET /api/designs/{id}` — the document the scene is drawing — rather than from
+ * `KITCHEN_L_DESIGN`, so a divergence between the fixture and what is on screen shows up here
+ * instead of being assumed away. **The caller has already confirmed the write landed** (wave 7E4 Q5:
+ * `waitForFirstSave`, before this runs), so there is no "not stored yet" state left to fall back to
+ * — a GET that failed here would be a real defect, not a save still in flight, and is left to throw
+ * rather than answered with a value that would satisfy the checks below vacuously. A design with no
+ * bodies would satisfy an "every placement" check vacuously too, so the count is asserted first.
  */
 async function expectNoPlacementWearsAFinish(
   page: Page,
   designId: string,
 ): Promise<void> {
-  expect(
-    designId,
-    "the selection should carry the seeded design's id",
-  ).not.toBe("");
-  // Retried: the delete schedules the save, so the document reflects it here a moment before it is
-  // fetchable.
-  await expect(async () => {
-    const worn = await page.evaluate(async (id: string) => {
-      const loaded = await fetch(`/api/designs/${id}`);
-      if (!loaded.ok) return { placements: 0, finishes: ["not stored yet"] };
-      const { design } = (await loaded.json()) as {
-        design: { placements: { id: string; body: { finish?: unknown } }[] };
-      };
-      return {
-        placements: design.placements.length,
-        finishes: design.placements
-          .filter((placement) => placement.body.finish !== undefined)
-          .map((placement) => placement.id),
-      };
-    }, designId);
+  const worn = await page.evaluate(async (id: string) => {
+    const loaded = await fetch(`/api/designs/${id}`);
+    const { design } = (await loaded.json()) as {
+      design: { placements: { id: string; body: { finish?: unknown } }[] };
+    };
+    return {
+      placements: design.placements.length,
+      finishes: design.placements
+        .filter((placement) => placement.body.finish !== undefined)
+        .map((placement) => placement.id),
+    };
+  }, designId);
 
-    expect(worn.placements).toBeGreaterThan(0);
-    expect(worn.finishes).toEqual([]);
-  }).toPass({ timeout: 10_000 });
+  expect(worn.placements).toBeGreaterThan(0);
+  expect(worn.finishes).toEqual([]);
 }
 
 /** Frame D2A: with nothing selected there is no panel, and the scene has the whole width. */
@@ -473,6 +466,7 @@ test("an edit repaints the scene while the panel is still open", async ({
  */
 test("a selected void is highlighted, and is distinguishable from a selected body", async ({
   page,
+  seededDesign,
 }) => {
   await clickScene(page, SINK_CABINET_FULL_WIDTH);
   await selectInRail(page, "p0");
@@ -480,14 +474,17 @@ test("a selected void is highlighted, and is distinguishable from a selected bod
   await clickScene(page, FRIDGE);
   await selectInRail(page, "p7");
   await page.getByTestId("panel-remove").click();
-  await page.waitForTimeout(COMMAND_SETTLE_MS);
+  // Confirms the delete actually wrote (wave 7E4 Q5) before the fixture-property check below reads
+  // the document: the id is the fixture's own and no longer proves a write happened by itself
+  // (`waitForFirstSave` throws unless the stored revision moved past the seeded one).
+  await waitForFirstSave(page, seededDesign);
 
   const vacated = await readSelection(page);
   expect(vacated.selectionKind).toBe("void");
   // The blue counter below identifies the fill by its colour, so the design on screen has to be one
   // in which nothing else is blue. Asserted, not assumed — and asserted against the document the
   // scene is actually drawing rather than against the fixture it was seeded from.
-  await expectNoPlacementWearsAFinish(page, vacated.designId);
+  await expectNoPlacementWearsAFinish(page, seededDesign.id);
 
   const vacatedWhileSelected = await capturePatch(page, VACATED_FRIDGE_PATCH);
   const sinkWhileTheVoidIsSelected = await capturePatch(page, SINK_PATCH);
