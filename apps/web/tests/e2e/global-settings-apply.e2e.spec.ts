@@ -26,6 +26,10 @@ import {
 const WITHDRAWN_MATERIAL_TIER_ID = "material.withdrawn";
 const WITHDRAWN_HARDWARE_TIER_ID = "hardware.withdrawn";
 
+/** `openSeededDesign` waits for the trigger to be enabled, not for the price figure — a check taken
+ *  the instant it returns can still race the price bar's own mount (review round 1, R1.2). */
+const SCENE_SETTLE_MS = 2000;
+
 interface StoredSettings {
   readonly materialTierId: string;
   readonly hardwareTierId: string;
@@ -43,14 +47,12 @@ async function storedSettings(page: Page): Promise<StoredSettings> {
 }
 
 /** Writes whole-kitchen settings onto the seeded design through the same route the client uses, so
- *  the document under test is one the server actually accepted. A no-op when `settings` is empty —
- *  the fixture's own mint already carries nothing withdrawn. */
+ *  the document under test is one the server actually accepted. */
 async function wearSettings(
   page: Page,
   seededDesign: SeededDesign,
   settings: Record<string, string>,
 ): Promise<void> {
-  if (Object.keys(settings).length === 0) return;
   const status = await page.evaluate(
     async ({ id, chosen }) => {
       const loaded = await fetch(`/api/designs/${id}`);
@@ -110,6 +112,7 @@ for (const group of ["material", "hardware"] as const) {
   }) => {
     await wearSettings(page, seededDesign, { [settingKey]: withdrawnTierId });
     await openSeededDesign(page, seededDesign);
+    await page.waitForTimeout(SCENE_SETTLE_MS);
 
     // The state the recovery is for: the document cannot be priced, so the bar shows no figure.
     await expect(page.getByTestId("price-bar-total")).toHaveCount(0);
@@ -125,6 +128,7 @@ for (const group of ["material", "hardware"] as const) {
 
     // The reload is what makes this about the document rather than about the store's memory.
     await openSeededDesign(page, seededDesign);
+    await page.waitForTimeout(SCENE_SETTLE_MS);
     const stored = await storedSettings(page);
     expect(
       group === "material" ? stored.materialTierId : stored.hardwareTierId,
@@ -140,6 +144,7 @@ test("commits a material and a depth in one press, as one write", async ({
   // The commit half of M6-AUD-004's contract, which *is* reachable in a browser: two settings in one
   // press, one document afterwards, and both changes in it. The refusal half is below.
   await openSeededDesign(page, seededDesign);
+  await page.waitForTimeout(SCENE_SETTLE_MS);
 
   const before = await storedSettings(page);
   await openSheet(page);
@@ -159,6 +164,7 @@ test("commits a material and a depth in one press, as one write", async ({
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
 
   await openSeededDesign(page, seededDesign);
+  await page.waitForTimeout(SCENE_SETTLE_MS);
   const after = await storedSettings(page);
   expect(after.materialTierId).not.toBe(before.materialTierId);
   expect(after.cabinetDepth).not.toBe(before.cabinetDepth);

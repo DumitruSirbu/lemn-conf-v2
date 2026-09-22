@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
-import { mintSeededDesign } from "./support/seeded-design";
+import {
+  mintSeededDesign,
+  openDesignAndAwaitAccessProbe,
+} from "./support/seeded-design";
 
 /**
  * **M6-AUD-001, in a browser.** A shared link opened without the write-token cookie must not offer
@@ -25,7 +28,6 @@ import { mintSeededDesign } from "./support/seeded-design";
  */
 
 const SCENE_SETTLE_MS = 2000;
-const PROBE_TIMEOUT_MS = 15_000;
 
 const mintedDesignIds: string[] = [];
 
@@ -60,17 +62,11 @@ async function storedSettings(page: Page): Promise<{
 }
 
 /** Opens the shared link, waiting for the write-access probe on the way — every assertion below is
- *  about the answer, so racing it would test the wrong state. */
+ *  about the answer, so racing it would test the wrong state. Built on the shared
+ *  navigation-and-probe helper (review round 1, R1.3), which every `/d/{id}` caller in this suite
+ *  now shares. */
 async function openSharedLink(page: Page, designId: string): Promise<void> {
-  const probe = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      new URL(response.url()).pathname === `/api/designs/${designId}`,
-    { timeout: PROBE_TIMEOUT_MS },
-  );
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
-  await probe;
+  await openDesignAndAwaitAccessProbe(page, `/d/${designId}`, designId);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 

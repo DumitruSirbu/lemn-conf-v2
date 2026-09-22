@@ -25,6 +25,10 @@ import {
  * number it produces against the one measured before the change: **90.5 at every width**.
  */
 
+/** A viewport resize re-projects the scene over several frames; `openSeededDesign` does not wait on
+ *  that, and a box read the instant it returns can race it (review round 1, R1.2). */
+const SCENE_SETTLE_MS = 2000;
+
 /** Sub-pixel layout rounding: a centre at 719.9999 is centred. The owner's ruling is about where the
  *  box sits, and half a pixel is below what any screen can draw. */
 const HALF_A_PIXEL = 0.5;
@@ -54,6 +58,7 @@ async function openSettingsAt(
 ): Promise<Box> {
   await page.setViewportSize({ width, height: 900 });
   await openSeededDesign(page, seededDesign);
+  await page.waitForTimeout(SCENE_SETTLE_MS);
   await page.getByTestId("global-settings-trigger").click();
   await expect(page.getByTestId("global-settings-surface")).toBeVisible();
 
@@ -129,6 +134,7 @@ test.describe("the settings modal is centred in the viewport", () => {
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSeededDesign(page, seededDesign);
+    await page.waitForTimeout(SCENE_SETTLE_MS);
     await page.getByTestId("price-breakdown-trigger").click();
 
     const popover = await page

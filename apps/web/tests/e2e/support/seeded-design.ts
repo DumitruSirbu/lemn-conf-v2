@@ -64,12 +64,61 @@ export async function mintSeededDesign(
     );
   }
   if (minted.id === "" || minted.revision === "") {
+    // A non-empty id means a row was really minted even though the answer describing it is
+    // unusable — ADR 0006 still owns it, and throwing without deleting it here would leak a row
+    // this helper's own caller never gets a chance to register for cleanup.
+    if (minted.id !== "") await deleteMintedDesigns([minted.id]);
     throw new Error(
       `mintSeededDesign: POST /api/designs answered 201 with an empty id or revision ` +
         `(id: ${JSON.stringify(minted.id)}, revision: ${JSON.stringify(minted.revision)})`,
     );
   }
   return { id: minted.id, revision: minted.revision };
+}
+
+/** What `GET /api/designs/{id}` answers about this browser's write access — the one field every
+ *  caller of {@link openDesignAndAwaitAccessProbe} has read so far. */
+export interface DesignAccessProbe {
+  readonly canWrite: boolean;
+}
+
+/**
+ * Opens a design-by-link path the way a browser does — from inside the page, so cookies land in
+ * the jar under test — and returns only once the write-access probe (`GET /api/designs/{id}`) has
+ * answered, alongside the navigation's own response.
+ *
+ * **The one navigation every `/d/{id}` caller in this suite shares** (review round 1, R1.3):
+ * `openSeededDesign` below throws on the probe's answer; `read-only-panel`, `read-only-global-settings`
+ * and `global-colour`'s own read-only cases read it directly, because a disabled answer is the thing
+ * under test there rather than a reason to throw. Waits for either `<canvas>` or the WebGL-unavailable
+ * exit's own testid — both are legitimate outcomes of this route, and a caller that forces WebGL off
+ * (`webgl-unavailable-i18n`) would otherwise hang waiting for a canvas that never mounts.
+ */
+export async function openDesignAndAwaitAccessProbe(
+  page: Page,
+  path: string,
+  designId: string,
+): Promise<{
+  readonly navigation: Response | null;
+  readonly probe: DesignAccessProbe;
+}> {
+  const probeWait = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      new URL(response.url()).pathname === `/api/designs/${designId}`,
+    { timeout: PROBE_TIMEOUT_MS },
+  );
+  const navigation = await page.goto(path);
+  await Promise.race([
+    page.waitForSelector("canvas", { state: "attached" }),
+    page.waitForSelector('[data-testid="webgl-unavailable"]', {
+      state: "attached",
+    }),
+  ]);
+
+  const probeResponse = await probeWait;
+  const probe = (await probeResponse.json()) as DesignAccessProbe;
+  return { navigation, probe };
 }
 
 /**
@@ -83,11 +132,9 @@ export async function mintSeededDesign(
  * the read-only path clears cookies and drives its own navigation instead (`read-only-panel`,
  * `read-only-global-settings`), because there the disabled state is the thing under test.
  *
- * The route renders a `<canvas>` when WebGL is available and the exit's own testid
- * (`webgl-unavailable`) when it is not — both are legitimate outcomes of the same route, and
- * `webgl-unavailable-i18n` forces the second deliberately. `global-settings-trigger`, the store's
- * own observable for "the probe's answer has been applied", only exists in the first: the exit
- * renders neither it nor `GlobalSettings`, so this only waits on it when it is on screen at all.
+ * `global-settings-trigger`, the store's own observable for "the probe's answer has been applied",
+ * only exists on the WebGL-available branch: the exit renders neither it nor `GlobalSettings`, so
+ * this only waits on it when it is on screen at all.
  */
 export async function openSeededDesign(
   page: Page,
@@ -96,26 +143,15 @@ export async function openSeededDesign(
 ): Promise<Response | null> {
   const path =
     locale === undefined ? `/d/${design.id}` : `/${locale}/d/${design.id}`;
-  const probe = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      new URL(response.url()).pathname === `/api/designs/${design.id}`,
-    { timeout: PROBE_TIMEOUT_MS },
+  const { navigation, probe } = await openDesignAndAwaitAccessProbe(
+    page,
+    path,
+    design.id,
   );
-  const navigation = await page.goto(path);
-  await Promise.race([
-    page.waitForSelector("canvas", { state: "attached" }),
-    page.waitForSelector('[data-testid="webgl-unavailable"]', {
-      state: "attached",
-    }),
-  ]);
-
-  const probeResponse = await probe;
-  const { canWrite } = (await probeResponse.json()) as { canWrite: boolean };
-  if (!canWrite) {
+  if (!probe.canWrite) {
     throw new Error(
       `openSeededDesign: the write-access probe for ${design.id} answered canWrite: ` +
-        `${String(canWrite)}, wanted true`,
+        `${String(probe.canWrite)}, wanted true`,
     );
   }
 

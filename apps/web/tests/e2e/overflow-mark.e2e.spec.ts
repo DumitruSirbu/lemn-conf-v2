@@ -376,7 +376,7 @@ test("a stored overflowing design is marked in the scene and warned about, and a
   // narrowed by this point, so the fitting baseline needs its own.
   const fittingControl = await mintFittingControl(page);
   expect(fittingControl.id).not.toBe(seededDesign.id);
-  await openSeededDesign(page, fittingControl);
+  await openAndSettle(page, fittingControl);
   await expect(page.getByTestId("scene-overflow-warning")).toHaveCount(0);
   await expectNothingIsSelected(page);
   const fittingPixels = await countPixels(page, clip, MARK);
@@ -426,7 +426,7 @@ test("the warning band is pinned to the scene's bottom edge and costs the canvas
   // The fitting baseline is the same row, read **before** it is narrowed (wave 7E4 D3): nothing
   // measured here depends on the marked state, so one row serves as its own control rather than
   // needing a second mint.
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   const fittingCanvas = await canvasBox(page);
   const fittingBar = await boxOf(page, "price-bar");
 

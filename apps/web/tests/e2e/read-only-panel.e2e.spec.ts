@@ -3,7 +3,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { readSelection } from "./support/panel";
 import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
-import { mintSeededDesign } from "./support/seeded-design";
+import {
+  mintSeededDesign,
+  openDesignAndAwaitAccessProbe,
+} from "./support/seeded-design";
 
 /**
  * Wave 4C's read-only path, end to end for the first time (M4 hand-offs 2 and 3, ADR 0019
@@ -28,7 +31,6 @@ import { mintSeededDesign } from "./support/seeded-design";
  */
 
 const SCENE_SETTLE_MS = 2000;
-const PROBE_TIMEOUT_MS = 15_000;
 
 const mintedDesignIds: string[] = [];
 
@@ -40,24 +42,18 @@ test.afterAll(async () => {
 // the read-only state this file tests comes from `context.clearCookies()` on `/d/{id}`, unaffected.
 async function mintDesign(page: Page): Promise<string> {
   const { id } = await mintSeededDesign(page);
-  // Registered before it is asserted on, so a failing assertion still cleans up. `mintSeededDesign`
-  // itself throws by name on an empty id (wave 7E4 Q3), so there is nothing left here to check.
+  // `mintSeededDesign` itself throws by name on an empty id (wave 7E4 Q3), so there is nothing left
+  // here to check — the row is registered for cleanup as soon as it exists.
   mintedDesignIds.push(id);
   return id;
 }
 
 /** Opens the shared link and selects a body, waiting for the write-access probe on the way. Returns
- *  once §9's panel is on screen for a body the design's author could delete. */
+ *  once §9's panel is on screen for a body the design's author could delete. Built on the shared
+ *  navigation-and-probe helper (review round 1, R1.3), which every `/d/{id}` caller in this suite
+ *  now shares. */
 async function openAndSelect(page: Page, designId: string): Promise<void> {
-  const probe = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      new URL(response.url()).pathname === `/api/designs/${designId}`,
-    { timeout: PROBE_TIMEOUT_MS },
-  );
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
-  await probe;
+  await openDesignAndAwaitAccessProbe(page, `/d/${designId}`, designId);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 
   await tapCanvas(page, SINK_CABINET_TAP);

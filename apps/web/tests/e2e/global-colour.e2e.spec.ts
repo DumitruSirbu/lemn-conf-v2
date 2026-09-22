@@ -8,6 +8,7 @@ import {
   waitForFirstSave,
 } from "./support/panel";
 import {
+  openDesignAndAwaitAccessProbe,
   openSeededDesign,
   test,
   type SeededDesign,
@@ -65,8 +66,7 @@ async function storedColour(page: Page): Promise<StoredColour> {
 
 /**
  * Writes a colour onto the seeded design's **first** placement through the same route the client
- * uses — so the document under test is one the server actually accepted. A no-op when `entryId` is
- * `undefined`: the fixture's own mint already wears nothing.
+ * uses — so the document under test is one the server actually accepted.
  *
  * The override is written server-side rather than tapped, for this file's stated reason: the
  * invariant is about what a *later* global change does to it, and a tap that missed would make the
@@ -76,9 +76,8 @@ async function storedColour(page: Page): Promise<StoredColour> {
 async function wearColour(
   page: Page,
   seededDesign: SeededDesign,
-  entryId: string | undefined,
+  entryId: string,
 ): Promise<void> {
-  if (entryId === undefined) return;
   const status = await page.evaluate(
     async ({ id, chosenEntryId }) => {
       const loaded = await fetch(`/api/designs/${id}`);
@@ -119,21 +118,14 @@ async function wearColour(
 }
 
 /** Opens a shared link without asserting write access, the one thing `openSeededDesign` will not
- *  do — it throws on exactly the read-only answer this file's one read-only test wants. Waits for
- *  the write-access probe on the way, as `read-only-global-settings.e2e.spec.ts`'s own
- *  `openSharedLink` does, so the state below is the probe's answer rather than a race against it. */
+ *  do — it throws on exactly the read-only answer this file's one read-only test wants. Built on
+ *  the shared navigation-and-probe helper (review round 1, R1.3), which every `/d/{id}` caller in
+ *  this suite now shares. */
 async function openWithoutAssertingWriteAccess(
   page: Page,
   id: string,
 ): Promise<void> {
-  const probe = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      new URL(response.url()).pathname === `/api/designs/${id}`,
-  );
-  await page.goto(`/d/${id}`);
-  await page.waitForSelector("canvas", { state: "attached" });
-  await probe;
+  await openDesignAndAwaitAccessProbe(page, `/d/${id}`, id);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 

@@ -232,41 +232,55 @@ export function describeOpenings(
 }
 
 /** The design's own stored revision, read the same way the client repository does — a fresh `GET`,
- *  never the value a page happens to hold in memory. */
+ *  never the value a page happens to hold in memory. Throws by name on anything but `200`, rather
+ *  than parsing a body that answered the failure instead of the design. */
 export async function storedRevision(page: Page, id: string): Promise<string> {
   return page.evaluate(async (designId) => {
     const response = await fetch(`/api/designs/${designId}`, {
       credentials: "same-origin",
     });
+    if (!response.ok) {
+      throw new Error(
+        `storedRevision: GET /api/designs/${designId} answered ${String(response.status)}, wanted 200`,
+      );
+    }
     const payload = (await response.json()) as { revision: string };
     return payload.revision;
   }, id);
 }
 
 /**
- * Waits for the first save a test's edit produces to land, and returns its revision.
+ * Waits for the next save a test's edit produces to land, and returns its revision.
  *
  * On `/d/{id}` the first successful mutation **writes** — it does not mint (wave 7E4 G4): the id
  * was already fixed by the fixture's own mint, so "an id exists" proves nothing any more. This
- * polls the design's own stored revision until it has moved past `seededDesign.revision`, which
- * only a `PUT`/`PATCH` answered `200` can do — `saveAuthorized`'s whole contract refuses to move it
+ * polls the design's own stored revision until it has moved past a baseline, which only a
+ * `PUT`/`PATCH` answered `200` can do — `saveAuthorized`'s whole contract refuses to move it
  * otherwise — rather than racing a single `page.waitForResponse` against a save that may already
  * have landed by the time this is called.
+ *
+ * **The baseline is `seededDesign.revision` by default, and that is only ever the *first* save.**
+ * `seededDesign.revision` is fixed at mint time and this function never updates it, so a second call
+ * against the same design — after some other write has already moved the row past it — would find
+ * the revision already past that stale baseline and return at once, proving nothing about the write
+ * it was asked to wait for. A caller confirming a **later** save passes the revision the previous
+ * `waitForFirstSave` (or an equivalent read) returned, as `baselineRevision`.
  *
  * Throws by name if the deadline passes with the revision unmoved.
  */
 export async function waitForFirstSave(
   page: Page,
   seededDesign: SeededDesign,
+  baselineRevision: string = seededDesign.revision,
 ): Promise<string> {
   const deadline = Date.now() + SAVE_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const revision = await storedRevision(page, seededDesign.id);
-    if (BigInt(revision) > BigInt(seededDesign.revision)) return revision;
+    if (BigInt(revision) > BigInt(baselineRevision)) return revision;
     await page.waitForTimeout(SAVE_POLL_MS);
   }
   throw new Error(
     `waitForFirstSave: no save for ${seededDesign.id} moved its revision past ` +
-      `${seededDesign.revision} within ${String(SAVE_TIMEOUT_MS)}ms`,
+      `${baselineRevision} within ${String(SAVE_TIMEOUT_MS)}ms`,
   );
 }
