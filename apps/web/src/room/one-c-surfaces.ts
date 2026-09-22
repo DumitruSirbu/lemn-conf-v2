@@ -43,10 +43,15 @@ export interface OneCInputs {
   readonly typing: TypingState;
 }
 
-/** The part of 1C the form draws; the shape refusal and the unreadable reason are later slices'. */
+/** The part of 1C the form draws; the unreadable reason is a later slice's. */
 export type OneCSurfaces = Pick<
   RoomIssueView,
-  "fieldReasons" | "roomReasons" | "markedWalls" | "isNoteShown"
+  | "fieldReasons"
+  | "roomReasons"
+  | "isShapeRefused"
+  | "markedWalls"
+  | "isNoteShown"
+  | "isLinearSuggested"
 >;
 
 export interface OneCPresentation {
@@ -87,6 +92,11 @@ export function presentOneC(inputs: OneCInputs): OneCPresentation {
  * too short as *"6500"* is backspaced to *"650"* — is a new problem and waits for the pause, exactly as
  * a newly refused field does. So a reason appears on the clock, a reason the keystroke fixes goes at
  * once, and an ordinary keystroke on the way to a valid number paints nothing.
+ *
+ * **The shape refusal is not held** (slice S4): it answers the chip, never a keystroke, so it follows
+ * the draft's shape at once — a chip chosen mid-burst is refused or cleared the moment it is chosen.
+ * The linear suggestion is appended to a reason, so it shows only while a held reason does (review
+ * R1.1): a burst that turns wall B from too short to too long holds neither sentence, nor the clause.
  */
 export function stillShowing(
   now: RoomIssueView,
@@ -94,17 +104,22 @@ export function stillShowing(
 ): OneCSurfaces {
   const reasonsBefore = new Set(beforeTyping.fieldReasons.map(fieldReasonKey));
   const marksBefore = new Set(beforeTyping.markedWalls.map(markKey));
+  const fieldReasons = now.fieldReasons.filter((reason) =>
+    reasonsBefore.has(fieldReasonKey(reason)),
+  );
+  const roomReasons = now.roomReasons.filter((messageKey) =>
+    beforeTyping.roomReasons.includes(messageKey),
+  );
   return {
-    fieldReasons: now.fieldReasons.filter((reason) =>
-      reasonsBefore.has(fieldReasonKey(reason)),
-    ),
-    roomReasons: now.roomReasons.filter((messageKey) =>
-      beforeTyping.roomReasons.includes(messageKey),
-    ),
+    fieldReasons,
+    roomReasons,
     markedWalls: now.markedWalls.filter((marked) =>
       marksBefore.has(markKey(marked)),
     ),
+    isShapeRefused: now.isShapeRefused,
     isNoteShown: now.isNoteShown && beforeTyping.isNoteShown,
+    isLinearSuggested:
+      now.isLinearSuggested && fieldReasons.length + roomReasons.length > 0,
   };
 }
 

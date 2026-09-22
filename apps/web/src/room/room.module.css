@@ -7,7 +7,15 @@
  * Nothing here departs silently.
  */
 
+/* **1C's surface colours** (frame 1C `:226`, `:228-229`): the pale fill of a refused field and of a
+ * reason, the reason's dark red ink, and the white of its `!` badge. The red itself is the global
+ * `--refusal`. Declared on the screen because a reason is drawn at 1A as well as from 1B on: the shape
+ * refusal sits under the cards and under the chips (7F2 S4). */
 .screen {
+  --refusal-surface: #fdf3f3;
+  --refusal-ink: #8f2020;
+  --refusal-badge-ink: #fff;
+
   display: flex;
   flex-direction: column;
   height: 100dvh;
@@ -81,10 +89,12 @@
 }
 
 .body {
+  --column-gap: 18px;
+
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--column-gap);
   padding: 22px 18px;
   overflow: hidden;
 }
@@ -240,24 +250,29 @@
  * Both axes are declared because a lone `overflow-y: auto` computes `overflow-x` to `auto` as well,
  * and ADR 0082 decision 2 refuses a horizontal scroller.
  *
- * **1C's surface colours are declared here**, where every surface that uses them sits: the pale fill
- * of a refused field and of a reason, the reason's dark red ink, and the white of its `!` badge (frame
- * 1C `:226`, `:228-229`). The red itself is the global `--refusal`. The column's gap is named so the
- * empty status region can give exactly that much back.
+ * The column's gap is named — as 1A's `.body` names its own — so an empty status region can give
+ * exactly that much back. 1C's surface colours are the screen's (`.screen`).
  */
 .dimensionsBody {
-  --dimensions-gap: 16px;
-  --refusal-surface: #fdf3f3;
-  --refusal-ink: #8f2020;
-  --refusal-badge-ink: #fff;
+  --column-gap: 16px;
 
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--dimensions-gap);
+  gap: var(--column-gap);
   padding: 20px 18px;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/**
+ * **The shape refusal's status region** (7F2 S4), under the cards at 1A and under the chips from 1B
+ * on; its sentence is a `.reason`. It is in the tree while empty so its sentence is announced, and an
+ * empty region gives back the gap in front of it, as `.oneCStatus` does (the rule below that one).
+ */
+.shapeRefusal {
+  display: flex;
+  flex-direction: column;
 }
 
 /* The three shapes again, compressed (`:116-131`). The chip is 71 px tall, so the 44 px target is
@@ -656,26 +671,36 @@
 .oneCStatus {
   display: flex;
   flex-direction: column;
-  gap: var(--dimensions-gap);
+  gap: var(--column-gap);
 }
 
+/* Both status regions, empty, give back the gap of whichever column they stand in. */
+.shapeRefusal:empty,
 .oneCStatus:empty {
-  margin-block-start: calc(-1 * var(--dimensions-gap));
+  margin-block-start: calc(-1 * var(--column-gap));
 }
 
 /**
  * **Frame 1C's reason box** (`:227-230`), beside its field and, for a reason about the whole room,
  * below the fields. The frame's `!` badge is drawn by the stylesheet with an empty alternative text,
  * so the sentence a screen reader reads through `aria-describedby` is the reason and nothing else.
+ *
+ * Its words are shared with `.suggestion`, frame 1C's closing clause (*"sau alege o formă liniară"*,
+ * `:230`), drawn below the last reason in the reason's own ink and without its box — and only once
+ * wave 7J makes a straight kitchen buildable.
  */
+.reason,
+.suggestion {
+  margin: 0;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--refusal-ink);
+}
+
 .reason {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin: 0;
   padding: 11px 12px;
-  font: 400 12.5px/1.45 var(--font-ui);
-  color: var(--refusal-ink);
   background: var(--refusal-surface);
   border-radius: 10px;
 }

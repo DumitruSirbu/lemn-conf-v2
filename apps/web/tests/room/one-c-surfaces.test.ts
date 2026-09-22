@@ -13,6 +13,7 @@ import {
 import {
   createRoomDraft,
   withEnteredText,
+  withRoomShape,
   type RoomDraft,
   type RoomLengthField,
 } from "@/room/room-draft";
@@ -108,5 +109,67 @@ describe("presentOneC applies the rule to the draft a burst began from", () => {
     ]);
     expect(midBurst.isContinueActive).toBe(false);
     expect(paused.isContinueActive).toBe(false);
+  });
+});
+
+describe("the shape refusal answers the chip, not the clock (7F2 S4)", () => {
+  function midBurst(before: RoomDraft, now: RoomDraft) {
+    return presentOneC({
+      draft: now,
+      draftState: draftStateOf(now),
+      policy: APPROVED_ROOM_POLICY,
+      typing: typingFrom(before, now),
+    }).surfaces;
+  }
+
+  it("shows the moment a refused chip is chosen mid-burst", () => {
+    const typed = lRoom("36");
+
+    const shown = midBurst(typed, withRoomShape(typed, "U"));
+
+    expect(shown.isShapeRefused).toBe(true);
+  });
+
+  it("goes the moment the L chip is chosen mid-burst", () => {
+    const typed = withRoomShape(lRoom("36"), "U");
+
+    const shown = midBurst(typed, withRoomShape(typed, "L"));
+
+    expect(shown.isShapeRefused).toBe(false);
+  });
+});
+
+describe("the linear suggestion shows only beside a reason still showing (7F2 S4, review R1.1)", () => {
+  /** A view the domain would give once wave 7J makes a straight room validate: until then
+   *  `validateRoomInput` refuses every non-L room, so the suggestion is forced on here, over the
+   *  real model's reasons, rather than reached through a stubbed domain. */
+  function suggesting(view: RoomIssueView): RoomIssueView {
+    return { ...view, isLinearSuggested: true };
+  }
+
+  it("goes mid-burst when wall B turns from too short to too long, holding no reason", () => {
+    const tooShort = suggesting(viewOf(lRoom("3600", "450")));
+    const tooLong = suggesting(viewOf(lRoom("3600", "45000")));
+    expect(tooShort.fieldReasons.map((reason) => reason.messageKey)).toEqual([
+      "room.issue.wallTooShort",
+    ]);
+    expect(tooLong.fieldReasons.map((reason) => reason.messageKey)).toEqual([
+      "room.issue.wallTooLong",
+    ]);
+
+    const shown = stillShowing(tooLong, tooShort);
+
+    expect(shown.fieldReasons).toEqual([]);
+    expect(shown.isLinearSuggested).toBe(false);
+  });
+
+  it("stays mid-burst beside a reason the keystroke does not change", () => {
+    const before = suggesting(viewOf(lRoom("3600", "450")));
+    const now = suggesting(viewOf(lRoom("3600", "45")));
+
+    const shown = stillShowing(now, before);
+
+    expect(shown.fieldReasons).toHaveLength(1);
+    expect(shown.isLinearSuggested).toBe(true);
   });
 });

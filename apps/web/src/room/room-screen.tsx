@@ -30,7 +30,8 @@
 // addition 1, criterion 4). The URL trails the draft by the settle interval, so a reason read off it
 // would wait on a router round trip to appear and to clear. The reasons, the red wall, the note and
 // *Continuă*'s inactive state are the parse of the draft's own canonical query — the question
-// `roomInDraft` asks — and the markers on `<main>` stay the URL's.
+// `roomInDraft` asks — the shape refusal is the draft's shape, and the markers on `<main>` stay the
+// URL's.
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
@@ -84,7 +85,7 @@ import {
   type RoomDraft,
 } from "./room-draft";
 import { parseRoomUrlState } from "./room-url-state";
-import { ShapeChips, ShapePicker } from "./shape-picker";
+import { ShapeChips, ShapePicker, ShapeRefusal } from "./shape-picker";
 import { useTypingPause } from "./use-typing-pause";
 
 export interface RoomScreenProps {
@@ -203,14 +204,12 @@ function ShapeStep({ policy }: { readonly policy: RoomPolicy }) {
   const router = useRouter();
   const pathname = usePathname();
   const shapeQuestionId = useId();
+  const refusalId = useId();
   const [chosenShape, setChosenShape] = useState<RoomShape | undefined>(
     undefined,
   );
-  // The wave's one buildability question, asked of the policy and never of a shape's letter
-  // (criterion 3). Wave 7J turns the straight kitchen on by adding its approved bounds to
-  // `APPROVED_ROOM_POLICY`, and this line is what lets it do that without editing a component.
-  const canContinue =
-    chosenShape !== undefined && isShapeBuildable(chosenShape, policy);
+  const refusedShape = refusedShapeOf(chosenShape, policy);
+  const canContinue = chosenShape !== undefined && refusedShape === undefined;
 
   function continueToLengths(): void {
     if (chosenShape === undefined) return;
@@ -229,9 +228,13 @@ function ShapeStep({ policy }: { readonly policy: RoomPolicy }) {
         <ShapePicker
           chosenShape={chosenShape}
           labelledBy={shapeQuestionId}
+          describedBy={refusalIdFor(refusedShape, refusalId)}
           onChoose={setChosenShape}
         />
-        <p className={styles.note}>{translate("room.dimensionsLater")}</p>
+        <ShapeRefusal id={refusalId} refusedShape={refusedShape} />
+        <p className={styles.note} data-testid="room-dimensions-later">
+          {translate("room.dimensionsLater")}
+        </p>
       </div>
       <div className={styles.footer}>
         <button
@@ -246,6 +249,29 @@ function ShapeStep({ policy }: { readonly policy: RoomPolicy }) {
       </div>
     </>
   );
+}
+
+/**
+ * The chosen card when the policy does not build it. **The wave's one buildability question at 1A**,
+ * asked of the policy and never of a shape's letter (criterion 3, 7F2 criterion 9): wave 7J turns
+ * the straight kitchen on by adding its approved bounds to `APPROVED_ROOM_POLICY`, and this is what
+ * lets both *Continuă* and the refusal follow without editing a component.
+ */
+function refusedShapeOf(
+  chosenShape: RoomShape | undefined,
+  policy: RoomPolicy,
+): RoomShape | undefined {
+  if (chosenShape === undefined) return undefined;
+  return isShapeBuildable(chosenShape, policy) ? undefined : chosenShape;
+}
+
+/** The refusal's id while a shape is refused, which is when the shape choice is described by it — the
+ *  one wiring 1A and 1B share. */
+function refusalIdFor(
+  refusedShape: RoomShape | undefined,
+  refusalId: string,
+): string | undefined {
+  return refusedShape === undefined ? undefined : refusalId;
 }
 
 interface DimensionsStepProps {
@@ -281,6 +307,8 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
     typing,
   });
   const noteId = useId();
+  const refusalId = useId();
+  const refusedShape = oneC.isShapeRefused ? draft.shape : undefined;
 
   function edit(nextDraft: RoomDraft): void {
     noteEdit({ before: draft, after: nextDraft });
@@ -329,10 +357,12 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
       <div className={styles.dimensionsBody}>
         <ShapeChips
           chosenShape={draft.shape}
+          describedBy={refusalIdFor(refusedShape, refusalId)}
           onChoose={(chosen) => {
             edit(withRoomShape(draft, chosen));
           }}
         />
+        <ShapeRefusal id={refusalId} refusedShape={refusedShape} />
         <PlanPreview
           plan={derivePlanPreview(draft, PLAN_BOX)}
           markedWalls={oneC.markedWalls}
@@ -351,6 +381,7 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
         />
         <OneCStatus
           roomReasons={oneC.roomReasons}
+          isLinearSuggested={oneC.isLinearSuggested}
           isNoteShown={oneC.isNoteShown}
           noteId={noteId}
         />

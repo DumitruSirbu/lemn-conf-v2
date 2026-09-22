@@ -85,12 +85,21 @@ for (const locale of LOCALES) {
 /** `.dimensionsBody`'s `gap`, written out: the empty status region must give it back. */
 const COLUMN_GAP_PX = 16;
 
+/** `holdsItsFieldsAtOneB`: whether the whole 1B column fits, so a region that cost anything would push
+ *  the last field out. **Not a U's since slice S4**: its shape refusal sits under the chips from 1B on
+ *  and outgrows the U's 2.6 px of slack by design (Q-7F2-2 (a)); the fits spec measures that column
+ *  by reach instead. The region's own cost is still the first two claims, in every shape. */
 const ONE_B_AND_ONE_C = {
-  linear: { oneB: "shape=linear", oneC: null },
-  L: { oneB: "shape=L&direction=left", oneC: TOO_SMALL },
+  linear: { oneB: "shape=linear", oneC: null, holdsItsFieldsAtOneB: true },
+  L: {
+    oneB: "shape=L&direction=left",
+    oneC: TOO_SMALL,
+    holdsItsFieldsAtOneB: true,
+  },
   U: {
     oneB: "shape=U&direction=left",
     oneC: "shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left",
+    holdsItsFieldsAtOneB: false,
   },
 } as const;
 
@@ -107,10 +116,12 @@ for (const locale of LOCALES) {
         Math.abs(atOneB.statusTopPx - atOneB.fieldsBottomPx),
         JSON.stringify(atOneB),
       ).toBeLessThan(SUB_PIXEL_PX);
-      expect(
-        atOneB.columnContentBottomPx - atOneB.fieldsBottomPx,
-        JSON.stringify(atOneB),
-      ).toBeGreaterThanOrEqual(-SUB_PIXEL_PX);
+      if (rooms.holdsItsFieldsAtOneB) {
+        expect(
+          atOneB.columnContentBottomPx - atOneB.fieldsBottomPx,
+          JSON.stringify(atOneB),
+        ).toBeGreaterThanOrEqual(-SUB_PIXEL_PX);
+      }
 
       if (rooms.oneC === null) return;
       await page.goto(`/${locale}/configurator/room?${rooms.oneC}`);

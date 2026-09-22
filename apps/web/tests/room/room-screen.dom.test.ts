@@ -13,11 +13,17 @@
 //
 // Romanian is never spelled here. Every expected sentence is read out of the imported catalogue,
 // which is also what makes the two-locale pass meaningful: the same assertions run against `ru`.
-import { readFileSync } from "node:fs";
+//
+// **Wave 7F2 slice S4 lives here too** — the shape refusal at 1A, 1B and 1C and the linear-suggestion
+// hook (criteria 2, 9, 10, 12 and 16) — because its fabricated-policy arm needs this file's one ADR
+// 0116 cast, and a second copy of that cast is what the record forbids.
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
+  isShapeBuildable,
   type BuildableShapes,
   type LWallBounds,
   type RoomPolicy,
@@ -51,6 +57,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
+import { ROOM_ISSUE_MESSAGE_KEYS } from "@/room/room-issue-model";
 import { RoomScreen, type RoomScreenProps } from "@/room/room-screen";
 import {
   parseRoomUrlState,
@@ -60,6 +67,7 @@ import {
 import roMessages from "../../src/messages/ro.json";
 import {
   CATALOGUES,
+  requireLeafAt,
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
@@ -531,5 +539,347 @@ describe("the route stays a server shell (criterion 17)", () => {
     expect(code).toMatch(/from "next\/server"/);
     expect(code).not.toMatch(/^\s*["']use client["'];/m);
     expect(code).not.toMatch(/module\.css|useTranslations|useContent|useState/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Wave 7F2 slice S4 — the shape refusal, and the linear suggestion wired off
+// ---------------------------------------------------------------------------------------------
+
+const REFUSAL = "room-shape-refusal";
+const REFUSAL_STATUS = "room-shape-refusal-status";
+const LINEAR_SUGGESTION = "room-linear-suggestion";
+
+/** The policies criterion 9 is swept over: the approved one, and R8's fabrication of each refused
+ *  shape — under which that shape's refusal must go with no component edit. */
+const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
+  ["the approved policy", APPROVED_ROOM_POLICY],
+  ...REFUSED_SHAPES.map(
+    (shape) =>
+      [`a policy also stating ${shape}`, policyAlsoStating(shape)] as const,
+  ),
+];
+
+/** Every text a field can arrive holding, from the address bar: empty, a length in metres, or junk. */
+const ANY_FIELD_TEXT = fc.oneof(
+  fc.constant(""),
+  fc.stringMatching(/^[0-9]{1,2}(\.[0-9]{1,4})?$/),
+  fc.string({ maxLength: 6 }),
+);
+
+function maybeAt(testId: string): HTMLElement | null {
+  const element = container.querySelector(`[data-testid="${testId}"]`);
+  return element instanceof HTMLElement ? element : null;
+}
+
+function isRefusalShown(): boolean {
+  return maybeAt(REFUSAL) !== null;
+}
+
+function chipControl(shape: RoomShape): HTMLInputElement {
+  const control = elementAt(`room-shape-chip-control-${shape}`);
+  if (!(control instanceof HTMLInputElement)) {
+    throw new Error(`the ${shape} chip holds no control`);
+  }
+  return control;
+}
+
+function chooseChip(shape: RoomShape): void {
+  act(() => {
+    chipControl(shape).click();
+  });
+}
+
+function everyChipControl(): readonly HTMLInputElement[] {
+  return EVERY_SHAPE.map(chipControl);
+}
+
+/** A filled room of each refused shape: 1C for its shape alone (fields are not judged, ADR 0108
+ *  decision 2). */
+const FILLED: Readonly<Record<RoomShape, RoomSearchParams>> = {
+  linear: { shape: "linear", wallA: "3.6", height: "2.6" },
+  L: QUERY_FOR["1D"],
+  U: {
+    shape: "U",
+    wallA: "3.6",
+    wallB: "2.4",
+    wallC: "2.4",
+    height: "2.6",
+    direction: "left",
+  },
+};
+
+describe("the shape refusal is the policy's, at 1A (7F2 criterion 9)", () => {
+  it("draws its status region empty before any card is chosen", () => {
+    render(QUERY_FOR["1A"]);
+
+    expect(elementAt(REFUSAL_STATUS).getAttribute("role")).toBe("status");
+    expect(elementAt(REFUSAL_STATUS).childNodes).toHaveLength(0);
+  });
+
+  it.each(POLICIES)(
+    "shows under the cards exactly when the chosen shape is not buildable, under %s",
+    (_, policy) => {
+      render(QUERY_FOR["1A"], { policy });
+
+      for (const shape of EVERY_SHAPE) {
+        choose(shape);
+
+        expect(isRefusalShown(), shape).toBe(!isShapeBuildable(shape, policy));
+      }
+    },
+  );
+
+  it.each(REFUSED_SHAPES)(
+    "describes the cards' group by the refusal while %s is chosen, and by nothing once L is",
+    (shape) => {
+      render(QUERY_FOR["1A"]);
+      const group = elementAt("room-shapes");
+
+      choose(shape);
+      expect(group.getAttribute("aria-describedby")).toBe(
+        elementAt(REFUSAL).id,
+      );
+
+      choose("L");
+      expect(group.hasAttribute("aria-describedby")).toBe(false);
+    },
+  );
+
+  it("announces the refusal again when one refused card is swapped for the other", () => {
+    render(QUERY_FOR["1A"]);
+    const region = elementAt(REFUSAL_STATUS);
+    choose("linear");
+    const first = elementAt(REFUSAL);
+
+    choose("U");
+
+    expect(elementAt(REFUSAL_STATUS)).toBe(region);
+    expect(elementAt(REFUSAL)).not.toBe(first);
+  });
+});
+
+describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F2 criterion 9)", () => {
+  it.each(POLICIES)(
+    "shows under the chips exactly when the chosen shape is not buildable, under %s",
+    (_, policy) => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom(...EVERY_SHAPE),
+          fc.record({
+            wallA: ANY_FIELD_TEXT,
+            wallB: ANY_FIELD_TEXT,
+            wallC: ANY_FIELD_TEXT,
+            height: ANY_FIELD_TEXT,
+          }),
+          (shape, fields) => {
+            const query = { shape, ...fields, direction: "left" };
+            expect(parseRoomUrlState(query).substate).not.toBe("1A");
+
+            render(query, { policy });
+
+            expect(isRefusalShown()).toBe(!isShapeBuildable(shape, policy));
+          },
+        ),
+        { numRuns: 300 },
+      );
+    },
+  );
+
+  it.each(REFUSED_SHAPES)(
+    "follows a chip to %s and back at once, in the region that was already there",
+    (shape) => {
+      render(QUERY_FOR["1B"]);
+      const region = elementAt(REFUSAL_STATUS);
+      expect(region.childNodes).toHaveLength(0);
+
+      chooseChip(shape);
+      expect(elementAt(REFUSAL_STATUS)).toBe(region);
+      expect(isRefusalShown()).toBe(true);
+
+      chooseChip("L");
+      expect(isRefusalShown()).toBe(false);
+    },
+  );
+
+  it("describes only the chosen chip by the refusal while it is refused, and no chip once L is", () => {
+    // Coordinator ruling, 2026-09-22 (review R1.2): an unchosen chip — the buildable L among them —
+    // is never described by a sentence about another shape, which browse mode would read on it.
+    render(QUERY_FOR["1B"]);
+
+    chooseChip("U");
+    const refusalId = elementAt(REFUSAL).id;
+    expect(
+      everyChipControl().map((chip) => chip.getAttribute("aria-describedby")),
+    ).toEqual([null, null, refusalId]);
+
+    chooseChip("L");
+    expect(
+      everyChipControl().filter((chip) =>
+        chip.hasAttribute("aria-describedby"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("announces the refusal again when one refused chip is swapped for the other", () => {
+    render(QUERY_FOR["1B"]);
+    chooseChip("linear");
+    const first = elementAt(REFUSAL);
+
+    chooseChip("U");
+
+    expect(elementAt(REFUSAL)).not.toBe(first);
+  });
+
+  it("shows the refusal and the note for a filled U, and no room reason", () => {
+    expect(parseRoomUrlState(FILLED.U).substate).toBe("1C");
+
+    render(FILLED.U);
+
+    expect(isRefusalShown()).toBe(true);
+    expect(maybeAt("room-presets-after-valid")).not.toBe(null);
+    expect(maybeAt("room-room-reason")).toBe(null);
+  });
+});
+
+describe("the refusal's words (7F2 criteria 2 and 9)", () => {
+  /** ADR 0120 decisions 3–4: the refusal names no internal reason. */
+  const INTERNAL_REASON_WORDS: Readonly<
+    Record<CatalogueLocale, readonly string[]>
+  > = {
+    ro: ["implementat", "dezvoltare", "versiune", "eroare", "cod"],
+    ru: ["реализ", "разработ", "верси", "ошибк", "код"],
+  };
+  /** The straight kitchen's stem, which the shape leaves below spell only in the nominative. */
+  const STRAIGHT_KITCHEN_STEM: Readonly<Record<CatalogueLocale, string>> = {
+    ro: "liniar",
+    ru: "линейн",
+  };
+
+  it.each(CATALOGUES)(
+    "says why without a digit, a code, a unit or an internal reason, and suggests no shape, in %s",
+    (locale, messages) => {
+      render(QUERY_FOR["1A"], { catalogue: [locale, messages] });
+      choose("U");
+
+      const text = textAt(REFUSAL);
+      const lowered = text.toLowerCase();
+      const shapeWords = EVERY_SHAPE.flatMap((shape) => [
+        requireLeafAt(messages, `room.shapes.${shape}.name`),
+        requireLeafAt(messages, `room.shapes.${shape}.short`),
+      ]).map((word) => word.toLowerCase());
+
+      expect(text).toBe(
+        requireLeafAt(messages, "room.issue.shapeNotBuildable"),
+      );
+      expect(text).not.toMatch(/\p{Nd}/u);
+      expect(text).not.toMatch(/[A-Z]{2,}_[A-Z_]+/);
+      expect(text).not.toMatch(/\bmm\b|мм/);
+      for (const word of INTERNAL_REASON_WORDS[locale]) {
+        expect(lowered).not.toContain(word);
+      }
+      for (const word of [...shapeWords, STRAIGHT_KITCHEN_STEM[locale]]) {
+        expect(lowered).not.toContain(word);
+      }
+      expect(text).not.toMatch(/\b[LU]\b/);
+    },
+  );
+});
+
+describe("no linear suggestion before wave 7J, and the switch is the domain's (7F2 criterion 10)", () => {
+  /** One room per code 1C can carry, in the URL's metres, and one per refused shape. */
+  const WITNESSES: readonly (readonly [string, RoomSearchParams])[] = [
+    ["SHAPE_NOT_BUILDABLE", FILLED.U],
+    ["SHAPE_NOT_BUILDABLE", FILLED.linear],
+    ["ROOM_TOO_SMALL_FOR_KITCHEN", QUERY_FOR["1C"]],
+    ["WALL_TOO_SHORT", { ...QUERY_FOR["1D"], wallB: "0.45" }],
+    ["WALL_TOO_LONG", { ...QUERY_FOR["1D"], wallA: "6.5" }],
+    ["HEIGHT_TOO_LOW", { ...QUERY_FOR["1D"], height: "2" }],
+    ["HEIGHT_TOO_HIGH", { ...QUERY_FOR["1D"], height: "4" }],
+  ];
+
+  function issueCodesOf(query: RoomSearchParams): readonly string[] {
+    const state = parseRoomUrlState(query);
+    return state.substate === "1C"
+      ? state.issues.map((issue) => issue.code)
+      : [];
+  }
+
+  it("has a witness for every code 1C can carry, and each witness carries its code", () => {
+    expect(new Set(WITNESSES.map(([code]) => code))).toEqual(
+      new Set(Object.keys(ROOM_ISSUE_MESSAGE_KEYS)),
+    );
+    for (const [code, query] of WITNESSES) {
+      expect(issueCodesOf(query), code).toContain(code);
+    }
+  });
+
+  it.each(WITNESSES)(
+    "is absent at 1C for %s under the approved policy",
+    (_, query) => {
+      render(query);
+
+      expect(maybeAt("room-presets-after-valid")).not.toBe(null);
+      expect(maybeAt(LINEAR_SUGGESTION)).toBe(null);
+    },
+  );
+
+  it.each(EVERY_SHAPE)(
+    "is absent at 1B for %s under the approved policy",
+    (shape) => {
+      render({ shape, direction: "left" });
+
+      expect(maybeAt(LINEAR_SUGGESTION)).toBe(null);
+    },
+  );
+
+  it.each(WITNESSES)(
+    "stays absent at 1C for %s under a policy stating the straight kitchen, while the domain refuses it",
+    (_, query) => {
+      // **The negative arm only.** The gate is `validateRoomInput({shape: "linear", …}, policy).ok`,
+      // and `validateRoomInput` refuses every non-L room whatever the policy states
+      // (`validate-room.ts:76`), so no policy this package can build makes it true. **The positive
+      // arm is wave 7J's** (7F2 section 8, item 1): once linear validates, a filled L whose wall A
+      // is a valid straight run and whose wall B is too short must show `room-linear-suggestion`
+      // after its reason — a gate stuck at `false` is invisible until then.
+      render(query, { policy: policyAlsoStating("linear") });
+
+      expect(maybeAt(LINEAR_SUGGESTION)).toBe(null);
+    },
+  );
+});
+
+describe("1C with the refusal removes nothing (7F2 criterion 12)", () => {
+  it("keeps the three chips and the corner toggle beside the refusal, and both still work", () => {
+    render(FILLED.U);
+    expect(isRefusalShown()).toBe(true);
+    expect(everyChipControl()).toHaveLength(3);
+
+    act(() => {
+      elementAt("room-corner-control-right").click();
+    });
+    chooseChip("L");
+
+    expect(chipControl("L").checked).toBe(true);
+    expect(isRefusalShown()).toBe(false);
+    const right = elementAt("room-corner-control-right");
+    expect(right instanceof HTMLInputElement && right.checked).toBe(true);
+  });
+});
+
+describe("no bound is read under src/room (7F2 criterion 16)", () => {
+  it("reads no minimum, maximum, minimum kitchen or corner reach in any module's code", () => {
+    const roomDirectory = resolve(SOURCE_ROOT, "room");
+    const modules = readdirSync(roomDirectory).filter((entry) =>
+      /\.tsx?$/.test(entry),
+    );
+    expect(modules).toContain("room-screen.tsx");
+
+    for (const entry of modules) {
+      const code = codeOf(readFileSync(resolve(roomDirectory, entry), "utf8"));
+      expect(code, entry).not.toMatch(
+        /\b(minMm|maxMm|minimumKitchen|cornerReachMm)\b/,
+      );
+    }
   });
 });

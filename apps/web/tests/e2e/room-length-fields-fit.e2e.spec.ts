@@ -16,6 +16,12 @@
 // too short and the ceiling too low) claims what the customer needs: every field and *Continuă* can be
 // reached by scrolling, and nothing scrolls sideways.
 //
+// **Since slice S4 a straight or U room carries the shape refusal from 1B on**, under the chips and
+// independent of the fields. A U's column had 2.6 px to spare at 1B (7F2 S0) and the refusal is a
+// reason box, so a U at 1B joins 1C in the reach claim, and the strict 1B claim is kept for the two
+// shapes it still describes. A straight room's 1B keeps its slack and is measured both ways. 1A's
+// column still clips (`overflow: hidden`), so the refusal under the cards is measured where it stands.
+//
 // **A help target is measured by what it answers, not by the box it paints.** The area is found by
 // asking `elementFromPoint` over a grid around the button — the question ADR 0104 decision 5's gate
 // asks — so a pseudo-element that widens the target is counted, and a target that stole the top of a
@@ -23,6 +29,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const SHAPES = ["linear", "L", "U"] as const;
+
+/** The shapes whose 1B column has nothing to scroll: a U's refusal outgrows its 2.6 px of slack. */
+const SHAPES_FITTING_AT_ONE_B = ["linear", "L"] as const;
 
 /** Romanian is the longer hint and Russian the shorter, so the pair brackets the line the hint takes. */
 const LOCALES = ["ro", "ru"] as const;
@@ -40,7 +49,7 @@ const SCAN_MARGIN_PX = 24;
 const SUB_PIXEL_PX = 1;
 
 for (const locale of LOCALES) {
-  for (const shape of SHAPES) {
+  for (const shape of SHAPES_FITTING_AT_ONE_B) {
     test(`a ${shape} room's length fields are not clipped by 1B's column in ${locale}`, async ({
       page,
     }) => {
@@ -54,7 +63,9 @@ for (const locale of LOCALES) {
         column.contentBottomPx,
       );
     });
+  }
 
+  for (const shape of SHAPES) {
     test(`a ${shape} room's help targets are ${String(TOUCH_TARGET_PX)} px and overlap no input in ${locale}`, async ({
       page,
     }) => {
@@ -83,27 +94,65 @@ for (const locale of LOCALES) {
   }
 }
 
-/** 1C's vertical worst case, in the URL's metres: 800 x 800 mm walls under a 2000 mm ceiling — three
- *  reasons in an L (7F2 criterion 14). The U is given the same values and a third wall; the approved
- *  policy refuses its shape, so until S4 draws that refusal it shows the note alone. */
-const WORST_CASE_ONE_C = {
-  L: "shape=L&wallA=0.8&wallB=0.8&height=2&direction=left",
-  U: "shape=U&wallA=0.8&wallB=0.8&wallC=0.8&height=2&direction=left",
-} as const;
+const REFUSAL = "room-shape-refusal";
+const NOTE = "room-presets-after-valid";
+
+interface ReachWitness {
+  readonly name: string;
+  /** In the URL's metres. */
+  readonly query: string;
+  /** What must be on screen, so the reach claim below is about the state it names. */
+  readonly shown: readonly string[];
+  /** Whether the column is known to outgrow the viewport, so the reach is a claim about scrolling. */
+  readonly mustScroll: boolean;
+}
+
+/** 1C's vertical worst case: 800 x 800 mm walls under a 2000 mm ceiling — three reasons in an L (7F2
+ *  criterion 14). The U is given the same values and a third wall, and the straight room its one
+ *  wall: the approved policy refuses both shapes, so each shows the refusal and the note. And the
+ *  two refused shapes at 1B, where the refusal is all of 1C that shows. */
+const REACH_WITNESSES: readonly ReachWitness[] = [
+  {
+    name: "an L room at 1C's worst case",
+    query: "shape=L&wallA=0.8&wallB=0.8&height=2&direction=left",
+    shown: ["room-length-reason-height", NOTE],
+    // Three reasons and the note outgrow the column (7F2 S0: ~164 px).
+    mustScroll: true,
+  },
+  {
+    name: "a U room at 1C's worst case",
+    query: "shape=U&wallA=0.8&wallB=0.8&wallC=0.8&height=2&direction=left",
+    shown: [REFUSAL, NOTE],
+    mustScroll: false,
+  },
+  {
+    name: "a straight room at 1C",
+    query: "shape=linear&wallA=0.8&height=2",
+    shown: [REFUSAL, NOTE],
+    mustScroll: false,
+  },
+  {
+    name: "a U room at 1B",
+    query: "shape=U&direction=left",
+    shown: [REFUSAL],
+    mustScroll: false,
+  },
+  {
+    name: "a straight room at 1B",
+    query: "shape=linear",
+    shown: [REFUSAL],
+    mustScroll: false,
+  },
+];
 
 for (const locale of LOCALES) {
-  for (const shape of ["L", "U"] as const) {
-    test(`every field and the Continue button of a ${shape} room at 1C's worst case can be reached in ${locale}`, async ({
+  for (const witness of REACH_WITNESSES) {
+    test(`every field, the shape refusal and the Continue button of ${witness.name} can be reached in ${locale}`, async ({
       page,
     }) => {
-      await page.goto(
-        `/${locale}/configurator/room?${WORST_CASE_ONE_C[shape]}`,
-      );
-      await expect(page.getByTestId("room-presets-after-valid")).toBeVisible();
-      if (shape === "L") {
-        await expect(
-          page.getByTestId("room-length-reason-height"),
-        ).toBeVisible();
+      await page.goto(`/${locale}/configurator/room?${witness.query}`);
+      for (const testId of witness.shown) {
+        await expect(page.getByTestId(testId)).toBeVisible();
       }
 
       const column = await columnScroll(page);
@@ -117,9 +166,9 @@ for (const locale of LOCALES) {
       expect(USER_SCROLLABLE, JSON.stringify(column)).toContain(
         column.overflowY,
       );
-      if (shape === "L") {
-        // Three reasons and the note outgrow the column (7F2 S0: ~164 px), so what follows is a
-        // claim about scrolling to each target rather than about a column that happens to fit.
+      if (witness.mustScroll) {
+        // What follows is then a claim about scrolling to each target rather than about a column
+        // that happens to fit.
         expect(column.scrollHeightPx, JSON.stringify(column)).toBeGreaterThan(
           column.clientHeightPx,
         );
@@ -128,10 +177,15 @@ for (const locale of LOCALES) {
       const reachable = [
         ...(await page
           .locator(
-            "input[data-testid^='room-length-'], [data-testid^='room-length-reason-']",
+            [
+              "input[data-testid^='room-shape-chip-control-']",
+              `[data-testid='${REFUSAL}']`,
+              "input[data-testid^='room-length-']",
+              "[data-testid^='room-length-reason-']",
+              `[data-testid='${NOTE}']`,
+            ].join(", "),
           )
           .all()),
-        page.getByTestId("room-presets-after-valid"),
         page.getByTestId("room-continue"),
       ];
       for (const target of reachable) {
@@ -144,6 +198,42 @@ for (const locale of LOCALES) {
       }
     });
   }
+}
+
+for (const locale of LOCALES) {
+  for (const shape of ["linear", "U"] as const) {
+    test(`1A's column holds the refusal under the ${shape} card, the cards, the note and the Continue button without clipping in ${locale}`, async ({
+      page,
+    }) => {
+      await page.goto(`/${locale}/configurator/room`);
+      await page.getByTestId(`room-shape-card-${shape}`).click();
+      await expect(page.getByTestId(REFUSAL)).toBeVisible();
+      expect(await documentScrollsSideways(page)).toBe(false);
+
+      // Measured where each stands: 1A's column clips, and a programmatic scroll of it would hide a
+      // cut the customer's finger could never undo.
+      for (const target of [
+        ...(await page.locator("[data-testid^='room-shape-card-']").all()),
+        page.getByTestId(REFUSAL),
+        page.getByTestId("room-dimensions-later"),
+        page.getByTestId("room-continue"),
+      ]) {
+        const reach = await reachOf(target);
+        expect(reach.isTopmostAtItsCentre, JSON.stringify(reach)).toBe(true);
+        expect(reach.clippedPx, JSON.stringify(reach)).toBeLessThan(
+          SUB_PIXEL_PX,
+        );
+      }
+    });
+  }
+}
+
+async function documentScrollsSideways(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
 }
 
 /** The `overflow-y` values a touch or a wheel can scroll. */

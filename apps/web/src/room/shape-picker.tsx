@@ -7,8 +7,9 @@
 // the deliberate dead end M7 criterion 3 asserts — a card that is drawn but refused says the room is
 // understood and not yet offered, where a hidden card would say it does not exist.
 //
-// **Nothing here asks whether a shape is buildable.** That question is `isShapeBuildable`'s and it
-// is asked once, by the screen's CTA. This file draws the choice and reports it.
+// **Nothing here asks whether a shape is buildable.** That question is `isShapeBuildable`'s and the
+// screen asks it. This file draws the choice, reports it, and — told which chosen shape is refused —
+// draws the refusal under it (wave 7F2 S4, criterion 9).
 //
 // **Two drawings of one choice.** `ShapePicker` is 1A's column of cards; `ShapeChips` is 1B's row of
 // chips (`:116-131`), where the same three shapes stay changeable while the customer types. They
@@ -22,6 +23,7 @@
 import type { RoomShape } from "@lemnaria/configurator-domain";
 import { useTranslations } from "next-intl";
 
+import { SHAPE_REFUSAL_MESSAGE_KEY } from "./room-issue-model";
 import styles from "./room.module.css";
 
 export interface ShapePickerProps {
@@ -30,6 +32,8 @@ export interface ShapePickerProps {
   /** The visible question that names this group. The plan adds no invented accessible name: the
    *  heading a sighted customer reads is the one a screen reader announces (ADR 0113). */
   readonly labelledBy: string;
+  /** The refusal's id while the chosen card is refused; nothing otherwise. */
+  readonly describedBy: string | undefined;
   readonly onChoose: (shape: RoomShape) => void;
 }
 
@@ -103,6 +107,7 @@ const SHAPE_GROUP_NAME = "room-shape";
 export function ShapePicker({
   chosenShape,
   labelledBy,
+  describedBy,
   onChoose,
 }: ShapePickerProps) {
   const translate = useTranslations();
@@ -112,6 +117,7 @@ export function ShapePicker({
       className={styles.shapes}
       role="radiogroup"
       aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
       data-testid="room-shapes"
     >
       {SHAPES_IN_FRAME_ORDER.map((shape) => (
@@ -149,6 +155,9 @@ export function ShapePicker({
 export interface ShapeChipsProps {
   /** At 1B a shape is always chosen: the query names it, and that is what puts the screen here. */
   readonly chosenShape: RoomShape;
+  /** The refusal's id while the chosen chip is refused; nothing otherwise. Only the chosen chip
+   *  carries it. */
+  readonly describedBy: string | undefined;
   readonly onChoose: (shape: RoomShape) => void;
 }
 
@@ -159,8 +168,17 @@ export interface ShapeChipsProps {
  * **No `role="radiogroup"` and no group label**, unlike the cards: frame 1B draws no question over
  * this row, and the plan adds no invented accessible name for one (ADR 0113). The three radios share
  * a name, so the browser groups them and gives each its own visible label.
+ *
+ * **So the refusal is described on the chosen radio rather than on a group** (slice S4). A radiogroup
+ * needs an accessible name, and this row has no visible text to take one from; the radio is what takes
+ * focus, so it is where a screen reader reads a description. Only the chosen one carries it (review
+ * R1.2): browse mode would otherwise read a sentence about the chosen shape on the other two.
  */
-export function ShapeChips({ chosenShape, onChoose }: ShapeChipsProps) {
+export function ShapeChips({
+  chosenShape,
+  describedBy,
+  onChoose,
+}: ShapeChipsProps) {
   const translate = useTranslations();
 
   return (
@@ -177,6 +195,7 @@ export function ShapeChips({ chosenShape, onChoose }: ShapeChipsProps) {
             value={shape}
             className={styles.shapeChipControl}
             checked={shape === chosenShape}
+            aria-describedby={shape === chosenShape ? describedBy : undefined}
             data-testid={`room-shape-chip-control-${shape}`}
             onChange={() => {
               onChoose(shape);
@@ -188,6 +207,47 @@ export function ShapeChips({ chosenShape, onChoose }: ShapeChipsProps) {
           </span>
         </label>
       ))}
+    </div>
+  );
+}
+
+export interface ShapeRefusalProps {
+  /** The sentence's id, which the cards or the chips are described by. */
+  readonly id: string;
+  /** The chosen shape when the policy does not build it; nothing otherwise. */
+  readonly refusedShape: RoomShape | undefined;
+}
+
+/**
+ * **The refusal under the cards (1A) and under the chips (1B, 1C)** — frame 1C's reason box, saying
+ * the chosen shape cannot be offered and naming no internal reason (ADR 0120 decisions 3–4). It is
+ * independent of every field.
+ *
+ * **Its own polite status region, not 1C's** (`one-c-status.tsx`): it sits under the shape choice,
+ * which 1C's region below the fields cannot, and 1A has no 1C region at all. The region is drawn empty
+ * while nothing is refused, so it is in the tree before its sentence arrives. The sentence is keyed
+ * by the refused shape, so moving from one refused chip to another replaces it and is announced again
+ * rather than read as unchanged.
+ */
+export function ShapeRefusal({ id, refusedShape }: ShapeRefusalProps) {
+  const translate = useTranslations();
+
+  return (
+    <div
+      className={styles.shapeRefusal}
+      role="status"
+      data-testid="room-shape-refusal-status"
+    >
+      {refusedShape === undefined ? null : (
+        <p
+          key={refusedShape}
+          id={id}
+          className={styles.reason}
+          data-testid="room-shape-refusal"
+        >
+          {translate(SHAPE_REFUSAL_MESSAGE_KEY)}
+        </p>
+      )}
     </div>
   );
 }
