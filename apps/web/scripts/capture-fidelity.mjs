@@ -63,7 +63,10 @@ async function startServer() {
   const deadline = Date.now() + READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${BASE_URL}/configurator/configure`);
+      // The route this script actually drives (wave 7E4 D4). The spawned server already carries
+      // `SCENE_SHOT_ROUTE_FLAG` in its own environment (below), so a server that ignored the flag
+      // fails readiness loudly here instead of the capture loop below silently 404ing every shot.
+      const response = await fetch(`${BASE_URL}/internal/scene-shot`);
       if (response.ok) return server;
     } catch {
       // not listening yet

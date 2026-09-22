@@ -1,12 +1,7 @@
 import type { Design } from "@lemnaria/configurator-domain";
-import { expect, test, type Page, type Response } from "@playwright/test";
+import { expect, type Page, type Response } from "@playwright/test";
 
-import { deleteMintedDesigns } from "./support/minted-designs";
-
-interface MintedDesign {
-  readonly id: string;
-  readonly revision: string;
-}
+import { test } from "./support/seeded-design";
 
 interface LoadedDesign {
   readonly id: string;
@@ -15,44 +10,31 @@ interface LoadedDesign {
   readonly canWrite: boolean;
 }
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
+// Uses the `seededDesign` fixture (wave 7E4 D3): it already opens `/{ro,ru}/d/{id}`, so re-pointing
+// only replaces this file's own mint and its bookkeeping — the fixture's teardown now owns the row.
 test("Romanian and Russian shared links load one unchanged design identity", async ({
   page,
+  seededDesign,
 }) => {
-  await page.goto("/ro/configurator/configure");
-  const minted = await page.evaluate(async (): Promise<MintedDesign> => {
-    const response = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    if (!response.ok)
-      throw new Error(`Mint failed with ${String(response.status)}`);
-    return (await response.json()) as MintedDesign;
-  });
-  if (minted.id) mintedDesignIds.push(minted.id);
-
-  const before = await loadStoredDesign(page, minted.id);
-  expect(before.id).toBe(minted.id);
-  expect(before.revision).toBe(minted.revision);
+  const before = await loadStoredDesign(page, seededDesign.id);
+  expect(before.id).toBe(seededDesign.id);
+  expect(before.revision).toBe(seededDesign.revision);
 
   for (const locale of ["ro", "ru"] as const) {
-    const expectedApiPath = `/api/designs/${minted.id}`;
+    const expectedApiPath = `/api/designs/${seededDesign.id}`;
     const probePromise = page.waitForResponse(
       (response) =>
         response.request().method() === "GET" &&
         new URL(response.url()).pathname === expectedApiPath,
     );
 
-    const documentResponse = await page.goto(`/${locale}/d/${minted.id}`);
+    const documentResponse = await page.goto(`/${locale}/d/${seededDesign.id}`);
     if (documentResponse === null)
       throw new Error("Shared-design navigation returned no document response");
     expect(documentResponse.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe(`/${locale}/d/${minted.id}`);
+    expect(new URL(page.url()).pathname).toBe(
+      `/${locale}/d/${seededDesign.id}`,
+    );
     const nonce = assertCsp(documentResponse);
     expect(await documentNonces(page)).toEqual([nonce]);
 
@@ -63,14 +45,14 @@ test("Romanian and Russian shared links load one unchanged design identity", asy
     expect(loaded).not.toHaveProperty("locale");
 
     const debug = page.getByTestId("selection-debug");
-    await expect(debug).toHaveAttribute("data-design-id", minted.id);
+    await expect(debug).toHaveAttribute("data-design-id", seededDesign.id);
     await expect(debug).toHaveAttribute(
       "data-updated-at",
       before.design.updatedAt,
     );
   }
 
-  const after = await loadStoredDesign(page, minted.id);
+  const after = await loadStoredDesign(page, seededDesign.id);
   expect(after).toEqual(before);
 });
 

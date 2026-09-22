@@ -44,7 +44,10 @@ test("a design minted by POST is writable by PUT from the same browser, and only
   context,
   browser,
 }) => {
-  await page.goto("/configurator/configure");
+  // The mint origin (wave 7E4 D3, D1): the retired editor route is not one 7E3a leaves alone, and
+  // Step 1 keeps no database of its own to conflict with the raw `POST` this spec's own subject
+  // needs to observe directly, so the mint stays this file's own rather than `mintSeededDesign`'s.
+  await page.goto("/configurator/room");
 
   const minted = await page.evaluate(async (): Promise<MintOutcome> => {
     const response = await fetch("/api/designs", {
@@ -113,7 +116,7 @@ test("a design minted by POST is writable by PUT from the same browser, and only
   const strangerContext = await browser.newContext();
   try {
     const strangerPage = await strangerContext.newPage();
-    await strangerPage.goto("/configurator/configure");
+    await strangerPage.goto("/configurator/room");
     const forbiddenStatus = await strangerPage.evaluate(async (id: string) => {
       const response = await fetch(`/api/designs/${id}`, {
         method: "PUT",

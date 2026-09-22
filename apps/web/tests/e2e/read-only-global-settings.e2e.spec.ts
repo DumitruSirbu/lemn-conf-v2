@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { mintSeededDesign } from "./support/seeded-design";
 
 /**
  * **M6-AUD-001, in a browser.** A shared link opened without the write-token cookie must not offer
@@ -32,18 +33,12 @@ test.afterAll(async () => {
   await deleteMintedDesigns(mintedDesignIds);
 });
 
+// Re-pointed onto `mintSeededDesign` (wave 7E4 D3): the route was only an origin for `fetch`, and
+// the read-only state this file tests comes from `context.clearCookies()` on `/d/{id}`, unaffected.
 async function mintDesign(page: Page): Promise<string> {
-  await page.goto("/configurator/configure");
-  const { status, id } = await page.evaluate(async () => {
-    const response = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const payload = (await response.json()) as { id: string };
-    return { status: response.status, id: payload.id };
-  });
+  const { id } = await mintSeededDesign(page);
   if (id) mintedDesignIds.push(id);
-  expect(status).toBe(201);
+  expect(id).not.toBe("");
   return id;
 }
 

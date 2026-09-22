@@ -87,17 +87,27 @@ describe("localized room route placeholder", () => {
     );
   });
 
-  it("leaves the editor route and the two existing readiness probes on configure", () => {
+  it("leaves the editor route in place and points both readiness probes off configure", () => {
     expect(configurePageSource).toContain(
       'import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";',
     );
     expect(configurePageSource).toContain("<ConfigureScreen");
     expect(configurePageSource).not.toContain("configurator/room");
+
+    // Wave 7E4 D4: neither the e2e server's readiness poll nor the fidelity script's still names
+    // `/configurator/configure` — the editor route retires as a poll target even though its source
+    // file (asserted above) stays exactly where it is.
     expect(playwrightConfigSource).toContain(
-      "url: `${BASE_URL}/configurator/configure`",
+      "url: `${BASE_URL}/ro/d/e2e-readiness-probe`,",
     );
     expect(fidelityCaptureSource).toContain(
-      "fetch(`${BASE_URL}/configurator/configure`)",
+      "const response = await fetch(`${BASE_URL}/internal/scene-shot`);",
     );
+    // D2's gate: a route string, not `playwright.config.ts`'s own module-path import of
+    // `./src/app/configurator/configure/selection-debug-availability` (the `[^p]` excludes exactly
+    // that import's `app/` prefix).
+    const routeStringPattern = /(^|[^p])\/configurator\/configure/;
+    expect(playwrightConfigSource).not.toMatch(routeStringPattern);
+    expect(fidelityCaptureSource).not.toMatch(routeStringPattern);
   });
 });
