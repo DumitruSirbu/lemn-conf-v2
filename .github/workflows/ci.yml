@@ -128,10 +128,23 @@ jobs:
     timeout-minutes: 15
     needs: install
     env:
-      # Points at the dedicated Neon test database and nothing else. The
-      # in-repo guard (`resolveTestDatabaseUrl`) refuses to run if the
-      # resolved database name matches the one DATABASE_URL names, so a
-      # mis-set secret fails loudly instead of writing to real data.
+      # Points at the dedicated Neon test database and nothing else, and it
+      # is what the live persistence suites gate on — they ran on
+      # DATABASE_URL until M7 wave 7T, which this job never sets, so they
+      # reported green here without ever having executed. The in-repo guard
+      # (`resolveTestDatabaseUrl`) refuses to run if the resolved database
+      # name matches the one DATABASE_URL names, or if it is not on the
+      # guard's allowlist at all, so a mis-set secret fails loudly instead of
+      # writing to real data or skipping in silence.
+      #
+      # This job and a developer's gate share that one database, so the live
+      # files serialise across runners through an advisory lock each declares
+      # a mode of. Which files run, which mode each takes and which tests
+      # skip by design are checked against a table in
+      # packages/persistence/tests/live-suite-census.test.ts, and the
+      # reasoning is in docs/best-practices/ci-and-local-gates.md. Neither is
+      # restated here: a count written into a comment drifts with nothing to
+      # catch it, which is the failure this wave removed elsewhere.
       #
       # DATABASE_URL is deliberately NOT set: no application runs in CI, so
       # there is no application database for the guard to compare against,

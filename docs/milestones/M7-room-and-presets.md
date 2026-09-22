@@ -17036,6 +17036,101 @@ design question, and it is the implementer's to answer in slice 3:** the command
 `MIGRATION_DATABASE_URL` and a DDL-capable credential, and it must run **after** whatever applies
 migrations to the test database or it reports *behind* by construction.
 
+**T-J3 Amendment A — coordinator's ruling on C-7T-1, 2026-09-22: option (b). The migration-state
+check is a live test under the shared lock, not a `migrate:status` step in `ci.yml`.** The words
+*"in `ci.yml`"* above are superseded; **T-J3's purpose is not** — a gate that disagrees with the
+migration set must be a **red test** rather than a blocked deploy, and it now is.
+
+- **Why not the workflow step.** A step cannot take the test lock, so it can read **another runner's
+  half-migrated schema** and go red for a reason nobody can reproduce. Under this plan's G5 — every
+  local `pnpm test`, `ci:local` and pre-push runs the destructive suites against the same database —
+  that is not a hazard but a routine event. It would also have needed a `MIGRATION_DATABASE_URL`
+  mapping in the workflow, and with it a security reviewer.
+- **Why this is permitted rather than a workaround.** [ADR 0020](../decisions/0020-a-migration-file-is-not-an-applied-migration.md)
+  as amended by [ADR 0096](../decisions/0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md)
+  says it in as many words: *"A suite-level assertion may stand beside it; it may not be it."*
+  **`deploy.yml`'s gate is untouched and remains THE gate for a deployed environment.**
+- **What shipped** (`tests/test-database-schema-status.test.ts`) [source-verified]: the file holds
+  the **shared** lock and calls the **same three functions the deploy gate reaches** —
+  `readDeployedSchema`, `describeDeployedSchemaStatus`, `isDeployedSchemaLevel`. Its
+  **discriminating arm** synthesises one extra migration **in memory** and must report **not
+  level**, so a status function that always answered *level* fails the file.
+- **The evidence line the close-out quotes** [relayed, S3's run]:
+  `[migrate:status] test (lemn-conf-v2-staging) — level`, with the ledger reading `[1, 2, 3, 4]` and
+  the seven `designs` columns.
+- **What this does not do:** it adds no `ci.yml` step, no secret mapping and no credential. It runs
+  wherever a test database is configured, which includes CI's `test` job.
+
+**T-J3 Amendment B — what the check actually reaches, and S3's QA record. Coordinator rulings,
+2026-09-22, after S3 passed adversarial QA with no defect** [relayed for the QA runs;
+[source-verified] where a file is cited].
+
+1. **Criterion 16's wording is narrowed to the reading's reach.** It said *"the schema matches the
+   ledger"*. **The reading carries the ledger plus `designs` column names, types and nullability —
+   nothing else** ([ADR 0020](../decisions/0020-a-migration-file-is-not-an-applied-migration.md)
+   decision 2; `REQUIRED_DESIGN_COLUMNS` is **7 columns** with a `dataType` and an `isNullable`
+   each, `src/migration-status.ts:97-119`) [source-verified]. **Constraints, indexes and defaults
+   are outside it.**
+   - **Measured live by QA:** dropping `0003`'s `write_token_hash_is_sha256` CHECK constraint still
+     reports **`level`**; an extra column the application does not name also reports **`level`**
+     [relayed].
+   - **This is not a weakening, and the distinction matters:** it is **the deploy gate's own
+     reach**, unchanged. S3 put the same reading under a lock in CI; it did not invent a narrower
+     one. A criterion claiming more than the function does is how a green gate gets believed for
+     something it never checked — this wave's own subject.
+   - **What it does catch, measured by QA over every arm** [relayed]: an unrecorded file on disk →
+     **`behind`**; no ledger table → **`outside-the-ledger`**; a recorded version whose file is
+     gone, or whose checksum changed → **`diverged`**; any of the 7 required columns missing →
+     **`columns-missing`**; a required column with the wrong type or nullability →
+     **`columns-misshapen`**.
+2. **The residual, in ADR 0118's form — R10: a test database missing a constraint passes as
+   `level`.** Meanwhile `write-token-schema.adversarial.test.ts:32-38` asserts that very constraint,
+   `write_token_hash_is_sha256`, **on the application database** [source-verified] — so the two
+   databases are held to different standards, and the weaker one is where the destructive suites
+   run.
+   - **Trigger:** a row reaching the test database that the application's own constraint would have
+     refused — in practice, a live test that asserts a refusal and gets an acceptance, or an
+     `0003`-shaped migration whose effect no test notices.
+   - **Revisit condition:** when `write-token-schema.adversarial.test.ts` is re-gated onto the test
+     database (a change **this wave forbids** — its `DATABASE_URL` gate is correct, S1's finding),
+     or when a constraint is added that matters to a live suite.
+   - **Not built for**, and deliberately: widening the reading is a change to the **deploy** gate's
+     contract and belongs with a decision record, not with a test-infrastructure wave.
+3. **QA finding 2, and it is owed to `src`, not to this wave.** A **malformed** `TEST_DATABASE_URL`
+   throws a bare `TypeError: Invalid URL`, naming neither the variable nor the guard [relayed].
+   **Criterion 9's property still holds** — the failure is **loud**, not a silent skip, and loudness
+   is what the criterion asserts. The fix belongs in `src/test-database-url.ts`'s `identityOf`, and
+   **criterion 19 forbids a `src` edit here**, so it is recorded beside Amendment B ruling 9's
+   `load-env.ts` item: **two things now owed to the next wave that touches
+   `packages/persistence/src`.**
+4. **QA finding 4: `live-test-database.test.ts` sits outside the census population, and the
+   mechanism is pinned rather than guessed.** ~~It is outside because the census does not follow its
+   `await import(…)`~~ — **that reading was wrong, and the coordinator re-read the scanner on
+   2026-09-22 to settle it.** `databaseReachingFiles`
+   (`tests/support/live-suite-census-scanner.ts:139-151`) includes a file when **either** its source
+   matches `DATABASE_URL_SOURCE` **or** it imports a **connecting** support module
+   [source-verified]. **This file fails both arms:**
+   - `support/live-test-database.ts` **calls no `CONNECTION_OPENERS`** — no `neon(`, no
+     `new Client`, no `new Pool`; the grep is empty [source-verified] — so it is **not a connecting
+     module**, however it is imported. The dynamic import is therefore irrelevant to the outcome.
+   - the test **names no database-URL source**: `vi.stubEnv("TEST_DATABASE_URL", …)` passes the
+     name as a **string argument** rather than reading the variable, and `DATABASE_URL_SOURCE`
+     (`:60-61`) matches the helper identifiers or `process.env["…DATABASE_URL"]`, neither of which
+     appears [source-verified].
+
+   **So the file is outside the population because what it reaches connects nowhere** — which is the
+   right answer, and it needs no lock and no mode.
+   **The residual is the scanner's stated limits, not this file.** The census header's *"Limits,
+   stated so nobody trusts more than this proves"* still governs — URL-through-a-constant, opener
+   names outside the list, dynamic paths, collection-time code [source-verified]. **A file of this
+   shape that *did* connect through a dynamic import would still be missed**, and that is recorded
+   here as a limit of the tripwire rather than as this file's reason, so nobody reads this ruling as
+   precedent for one that connects.
+5. **For the close-out, from QA** [relayed]: **three concurrent rounds** of the schema-status file
+   against `migrate.test.ts`, **6/6 green**, and **the status file never read a half-migrated
+   schema** — which is the claim C-7T-1 (b) was chosen for, tested against the one suite most able
+   to break it.
+
 **T-J4 — nothing in this wave changes a test's assertions to make it pass.** A gate change is in
 scope; an assertion change is not, and a suite that needs one is a finding for the coordinator. **This
 is the must-not the wave exists for**: the failure mode being repaired is a test that reported success
@@ -17379,6 +17474,10 @@ comes from the coordinator's report of a run this pass did not make.
    `it.skipIf(!process.env.DATABASE_URL)`"* [source-verified]. **It is not corrected here:**
    criterion 19 forbids a `src` edit in this wave, and a comment is not worth the exception.
    Recorded so the next `src` toucher fixes it rather than believing it.
+   **A second item joined this one on 2026-09-22 (T-J3 Amendment B ruling 3):** a malformed
+   `TEST_DATABASE_URL` throws a bare `TypeError: Invalid URL` out of `identityOf`, naming neither
+   the variable nor the guard. **Two things are now owed to the next wave that edits
+   `packages/persistence/src`**, and neither is fixed here.
 10. **A coordinator process error, on the record and not smoothed over.** `092d583` was committed
     while `pnpm check` was **red** — on the pre-existing slow-walk timeout ruling 5 then fixed in
     `b3a4570`. It is recorded in `b3a4570`'s commit message [source-verified] and **must appear in
@@ -17415,7 +17514,9 @@ files~~ **eleven rows in five classes — see T-J5 Amendment B, ruling 3 (2026-0
 file that registers nothing turns the census red** — the failure this wave exists for, arriving
 through a new file instead of an old one.
 
-**C-7T-1 — the coordinator's question, which gates S3 only: where `migrate:status`'s check runs.**
+**C-7T-1 — ANSWERED 2026-09-22: (b). The record of the ruling is T-J3 Amendment A above; the
+analysis below is what it was decided from and is left unedited.** The coordinator's question, which
+gated S3 only: where `migrate:status`'s check runs.
 T-J3 said *"a `migrate:status` run in `ci.yml`"*, and left the credential to the implementer. Two
 options, re-measured:
 
@@ -17438,7 +17539,7 @@ options, re-measured:
 **Recommendation: (b).** T-J3's purpose — *"a gate that disagrees with the migration set is a **red
 CI job** rather than a blocked deploy"* — is met exactly. Only the words *"in `ci.yml`"* are not.
 **If (b) is chosen, record it as a dated amendment to T-J3** rather than letting S3's diff overturn
-it silently.
+it silently. **Chosen 2026-09-22, and that amendment is written (T-J3 Amendment A).**
 
 #### 4. Tier, visual flag, goal, scope, module boundaries
 
@@ -17567,6 +17668,27 @@ Dispatch only after C-7T-1 is answered.**
    `vi.stubEnv`, a dynamic import of `support/live-test-database.ts` under a non-allowlisted
    `TEST_DATABASE_URL`, expecting `/Refusing to run live database tests/`.
 4. `ci.yml` comments (criterion 17).
+   **Status, 2026-09-22: S3 is built, green, through adversarial QA with no defect, and its review
+   fixes are in** [relayed]. Criterion 9's test shipped as `tests/live-test-database.test.ts` and
+   the schema check as `tests/test-database-schema-status.test.ts` [source-verified that both
+   exist]. **The coordinator records S3's commits; this pass does not claim them.**
+
+   **S3's review fixes, recorded 2026-09-22 so the close-out quotes them rather than re-deriving
+   them** [relayed]:
+   - **A second discriminating arm over the same live reading** withholds `revision` and requires
+     **`columns-missing`**, with a read-back asserting all **seven** required column names are
+     present (logic R1.2). **This is the point of it:** the column half of criterion 16 was provable
+     only by a sabotage somebody then reverted, so nothing in the committed suite held it. Now the
+     file has two arms — one for the ledger, one for the columns — and each fails on its own.
+   - **The ledger arm asserts `behind` by name** and names the synthesised file (R1.3), instead of
+     asserting only that the status is not level.
+   - **`synthesisedNextMigrationFile` moves to `tests/support/`** and is `reduce`-seeded, which
+     fixes an empty-list `NaN` (R1.4, C1.2).
+   - **Criterion 9's test pins the allowlist refusal by name** (R1.5), so a different refusal
+     passing through the same path cannot satisfy it.
+   - **QA's adversarial file is committed**, by coordinator ruling on logic R1.7: **it sweeps every
+     required column**, which the older suites do not, so deleting it would lose coverage nothing
+     else carries.
 5. **At the wave's end, the CI verdict** (criterion 18): one `workflow_dispatch` of `ci.yml` on
    `m7-room-and-presets`. This is **an owner action**, because it spends the Actions allowance: the
    `e2e` legs run too, because `e2e` is gated `if: github.event_name != 'pull_request'`. **It also
@@ -17593,8 +17715,13 @@ marked (unit/live).
 8. *(measured — the skip count, both ways)* CI-shaped (`DATABASE_URL` unset, `TEST_DATABASE_URL`
    set): **exactly 13 skipped** (amended 2026-09-22, Amendment B ruling 2) — 9 + 3 from the two
    application-database files, plus the one test that needs `DATABASE_URL` as a precondition
-   (ruling 1) — and **no `[live-suite skipped]` line**. With both variables unset: every live test skips, and **each of
-   the five resolving files prints its announce line once**.
+   (ruling 1) — and **no `[live-suite skipped]` line**. With both variables unset: every live test
+   skips, and ~~**each of the five resolving files prints its announce line once**~~ **exactly eight
+   announce lines appear, one per file** (amended 2026-09-22 with S3's own file, and measured):
+   **six files resolve the test database and hold a lock** — three exclusive and three shared, the
+   third shared being `test-database-schema-status.test.ts` — **and two more resolve it and hold no
+   lock**, the lock's own self-tests. Eight files call `announceSkippedLiveSuite`
+   [source-verified].
    **Sabotage ↓:** a file that skips without announcing → one line short → fail.
 9. *(unit — the gate refuses rather than skips)* **Owned by S3 (assigned 2026-09-22, Amendment B
    ruling 7 — until then it had no test and no slice).** With `TEST_DATABASE_URL` naming a database
@@ -17635,9 +17762,15 @@ marked (unit/live).
    **Sabotage ↑:** make `afterAll` skip the `COMMIT` while keeping the `Client` open → `pg_locks`
    still shows the key after teardown → red.
 13. *(static — the mode census, T-J7)* The observed classification equals the literal table:
-    ~~three exclusive, two shared, two ungated~~ **eleven rows — 3 exclusive, 2 shared, 2
-    application-database, 2 lock self-tests (live gate, no lock) and 2 that connect nowhere**
-    (amended 2026-09-22, Amendment B ruling 3). Every destructive-pattern file registers exclusive. Every
+    ~~three exclusive, two shared, two ungated~~ ~~eleven rows — 3 exclusive, 2 shared, 2
+    application-database, 2 lock self-tests (live gate, no lock) and 2 that connect nowhere
+    (amended 2026-09-22, Amendment B ruling 3)~~ **— amended again the same day, with S3's own
+    file: twelve rows — 3 exclusive, 3 shared, 2 application-database, 2 lock self-tests (live
+    gate, no lock) and 2 that connect nowhere** [source-verified,
+    `tests/live-suite-census.test.ts`]. The table covers the database-reaching files; **the third
+    shared row is `test-database-schema-status.test.ts`**, which reads the schema and needs it
+    intact. **Neither correction is a weakening:** both follow from S3 adding a file this plan
+    always contained, and the census is what made the addition visible rather than silent. Every destructive-pattern file registers exclusive. Every
     registration sits at module scope, above the first `describe`.
     **Sabotage ↑:** register `neon-configuration-repository.adversarial.test.ts` as shared → red.
     **Sabotage ↓:** delete the registration from `design-row-source.test.ts` → red.
@@ -17669,22 +17802,55 @@ marked (unit/live).
     untouched [measured]. **If the forget-before-drop reorder (ruling 6) later reaches
     `migrate.test.ts`, it must stay clear of that test**: criterion 14 requires the region byte-
     identical, and the reorder has no business there, since that test forgets without dropping.
-16. *(live, under C-7T-1 (b))* After `runMigrations`, the test database's schema is **level** by
+16. *(live, under C-7T-1 (b); **narrowed 2026-09-22, T-J3 Amendment B ruling 1**)* After
+    `runMigrations`, the test database is **level** by
     `describeDeployedSchemaStatus(readMigrationFiles(), await readDeployedSchema(url))`, and the
     status line is quoted in the close-out.
+    **What "level" means here, and it is the deploy gate's own reach, not a narrower one:** the
+    **ledger** agrees with the files on disk, and the **7 required `designs` columns** are present
+    with the right **type and nullability** (ADR 0020 decision 2). ~~"the schema matches the
+    ledger"~~ **Constraints, indexes and defaults are outside the reading** — QA measured that
+    dropping `0003`'s CHECK constraint still reports `level`, as does an extra column. The residual
+    is R10.
     **Discriminating arm, in the same test:** the same live reading against `readMigrationFiles()`
     plus one synthesised next version reports **not level**.
     **Sabotage ↓:** a status function that always says level → the synthesised arm goes red.
     **Sabotage ↑ (QA, reverted):** add a phantom column to `REQUIRED_DESIGN_COLUMNS` → red.
     **Must not:** a `ci.yml` line mapping any secret, or any change to `deploy.yml`'s gate.
-17. *(diff)* `ci.yml:131-143` states that the live suites run on `TEST_DATABASE_URL`, which **13**
-    tests skip by design and why (amended 2026-09-22, Amendment B ruling 2), and that the suites serialise across runners through the test
-    lock. `:253-260` stays accurate. **Under (b), no non-comment line of `ci.yml` changes.**
+17. *(diff; **narrowed 2026-09-22 — coordinator's ruling on logic R1.1 and clean-code C1.1, and it
+    reverses this criterion's original demand**)* `ci.yml`'s `test`-job comment states the
+    **operational minimum**: that `TEST_DATABASE_URL` is what the live suites gate on, that they ran
+    on `DATABASE_URL` until this wave and so reported green without executing, that the guard
+    refuses an unallowlisted or application-named target, and that the live files serialise across
+    runners through the declared lock. **It must NOT restate a count or a file list.** It carries
+    **pointers to the two places that own the detail**: the machine-checked table in
+    `packages/persistence/tests/live-suite-census.test.ts`, and
+    `docs/best-practices/ci-and-local-gates.md`.
+    **Why the reversal, recorded because this criterion previously demanded the opposite:** a number
+    in a comment is tied to nothing that can fail, so it drifts in silence — **the exact failure
+    this wave exists to remove**, reproduced in a comment instead of a gate. The census table is
+    already the checked statement of which files run, which mode each takes and which tests skip by
+    design; a second copy is not evidence, it is a second thing to be wrong.
+    **The correction that prompted it, measured:** the comment written before the review said six
+    files were *"gated on `DATABASE_URL` until 7T"* — but `test-database-schema-status.test.ts` is
+    **new in this wave and never carried that gate**. The count was wrong within the same wave that
+    wrote it.
+    ~~The original wording: `ci.yml:131-143` states that the live suites run on `TEST_DATABASE_URL`,
+    which 13 tests skip by design and why (amended 2026-09-22, Amendment B ruling 2), and that the
+    suites serialise across runners through the test lock.~~ **Superseded by the paragraph above —
+    the count is exactly what must not be there.**
+    **Evidence form, unchanged:** every changed line of `ci.yml` begins with `#`; `:253-260` stays
+    accurate; **under C-7T-1 (b), no non-comment line of `ci.yml` changes.**
+    **Must not:** a pointer to a section of `docs/best-practices/ci-and-local-gates.md` that does
+    not yet carry the detail — see the scribe item in §8.
 18. *(CI — the verdict, amended 2026-09-22 — Amendment B rulings 1 and 2, because the original was
-    unmeetable)* One `ci.yml` run on the branch whose `test` log shows **four** resolving files at
-    **0 skipped** and `neon-configuration-repository.test.ts` at **exactly 1**, with persistence at
-    **13 skipped** in total. Both are quoted
-    in the close-out with the run id.
+    unmeetable; the file count corrected again the same day for S3's own file)* One `ci.yml` run on
+    the branch whose `test` log shows **five** lock-holding files at **0 skipped** and
+    `neon-configuration-repository.test.ts` at **exactly 1**, with persistence at **13 skipped** in
+    total. The two lock self-tests run there too and skip nothing. **Both figures are quoted in the
+    close-out with the run id.**
+    **The arithmetic, so it can be checked rather than trusted:** six lock-holding files, one of
+    which skips one test; the 13 are 9 + 3 from the application-database files, plus that one.
     **Must not:** a close-out on local evidence alone. A local run proves the suites pass; only the
     job log proves CI ran them.
     **Also re-measured here (T-J5 Amendment A ruling 4):** each resolving file's hold duration in CI.
@@ -17719,12 +17885,19 @@ marked (unit/live).
 | R7 | **The census drifts from the files.** | Pattern-matching source is brittle. | Two sources must agree: the literal table and the pattern. A disagreement is a red test, not a warning. |
 | R8 | **A hard kill inside a gap-or-drop window leaves the database in BACKLOG 69's exact shape**, so the next run's error reads as a lock that did not hold (Amendment B ruling 6, R1.2). | Recorded because the symptom is indistinguishable from the failure this wave removes — the cost is a wrong diagnosis, not a wrong database. | **Trigger:** `MigrationSequenceError` or `column … does not exist` **while no other runner holds the lock**. **Repair:** `forgetAppliedMigrations(url, VERSIONS_AFTER_THE_FIRST)` then `runMigrations`, or run the suite twice. Being narrowed by the forget-before-drop reorder. Not built for (ADR 0118). |
 | R9 | **A timed-out test body keeps running** — vitest does not cancel it — so its statements can land after the file has released the lock (Amendment B ruling 6, R1.8). | Same class as R8 and the same discriminator. | Recorded with its trigger: a timeout in a live file followed by an unexplained failure in the next. Not built for. |
+| R10 | **The migration-state check cannot see a missing constraint, index or default** — the test database can pass as `level` while lacking a constraint the application database is asserted to have (T-J3 Amendment B ruling 2). | Measured, and it is the deploy gate's reach rather than a defect S3 introduced. | Recorded with a trigger and a revisit condition (Amendment B ruling 2). Widening the reading is a decision-record change, not a test change. Not built for (ADR 0118). |
 
 #### 8. Questions
 
 - **Owner: none that gates a slice.** One **owner action** at the end: trigger the `ci.yml`
   dispatch (S3 item 4), which also settles 7F4b criterion 44.
-- **Coordinator: C-7T-1** (section 3), which gates S3 only. **Recommendation: (b).**
+- ~~**Coordinator: C-7T-1** (section 3), which gates S3 only. **Recommendation: (b).**~~
+  **ANSWERED 2026-09-22: (b)** — T-J3 Amendment A. **No question is open.**
+- **Pending for the scribe, second item (2026-09-22, from criterion 17's narrowing):** the
+  rationale **removed** from `ci.yml`'s comment — which files run, which mode each takes, which tests
+  skip by design and why — is folded into `docs/best-practices/ci-and-local-gates.md`'s **"CI
+  workflow shape"** section, which the comment now points at. **Owed by the close-out:** a pointer
+  to a section that does not yet carry the detail is worse than the comment that did.
 - **Pending for the scribe (T-J5 Amendment A ruling 5, 2026-09-22):** add to
   `docs/best-practices/ci-and-local-gates.md` that the rtk hook turned `pnpm exec vitest --version`
   into a full test run, so `pnpm exec vitest <anything>` can become a (live-database) test run.
