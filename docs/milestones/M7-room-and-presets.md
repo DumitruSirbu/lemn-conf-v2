@@ -1554,7 +1554,7 @@ table.
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes. **DEFERRED PAST M8 with 7B/7C — coordinator's ruling, 2026-09-22.** What is left of it is the preset list and its loading skeletons (the skeleton count is a constant over *"0, 1 and 3 fitting presets"*, criteria at the 7F3 carried line), and both read the library (7P1) and the matcher (7B/7C) — so its dependency is **not** narrower than the row states | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
 | ↳ | ~~**Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more~~ **DISCHARGED by 7F4 (coordinator, 2026-09-22):** *Continuă*'s destination moved to 7F4 (Q-D45-5), and `room-screen.tsx`'s `continueFromLengths()` now calls `departTo("presets")` and then `run.compose(room)` [source-verified at `ea8b11e`]. 7F4's seam note stands for whenever 7F3 revives: 7F3 inserts 1D/1E in front of `use-generation`'s one entry call | | | | | |
-| **7E4** | e2e and tooling off `/configurator/configure` | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs` | — | Light (tests; CI is the verdict) | No | — |
+| **7E4** | e2e and tooling off `/configurator/configure` — **planned 2026-09-23, three slices; see [Wave 7E4 — the plan](#wave-7e4--the-plan-2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | — (runner verdict needs the owner's `workflow_dispatch`) |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
@@ -1869,6 +1869,220 @@ revised the same day (Amendment B): 7E3b now lands after 7E3c**
    redirect spec (grep). The fixture's mint also sets the visitor cookie once 7E3a lands, so the
    minted design stays readable under 7E3b.
 3. Both Playwright projects pass on the runner — a local run is not the verdict for runner timing.
+
+### Wave 7E4 — the plan (2026-09-23)
+
+**Written by the architect at HEAD `b103b2a`.** Labels: **[measured]** executed in this session with
+the output read; **[source-verified]** read at `b103b2a`; **[doc-quoted]** quoted from a record;
+**[inference]** reasoned, open to challenge. Nothing was run but `git grep` and file reads.
+
+#### 1. Ground truth
+
+| # | Fact | Evidence |
+| --- | --- | --- |
+| G1 | The gate regex below matches **47 lines in 34 files**: 30 spec files, `support/panel.ts`, `playwright.config.ts:93`, `capture-fidelity.mjs:66`, `verify-surfaces.mjs:15`. `signature-flow` reaches the route only through `panel.ts`'s `openFridgeColumnView`. ADR 0111 A3's "34 `goto` calls" is out of date. | [measured] |
+| G2 | `POST /api/designs` takes no body. It mints `KITCHEN_L_DESIGN` plus the write-token cookie (`app/api/designs/route.ts`). `migrateDesign` is the identity on that document at every version (`qa-room-migration.adversarial.test.ts`, *"is identity on the seeded document at every version"*). So `/d/{id}` of a fresh mint draws **the same document** the configure page seeds (`configurator-store.ts:726`). | [source-verified] |
+| G3 | The Playwright web server **always** has a database. `playwright.config.ts` throws without `TEST_DATABASE_URL`, passes it as `DATABASE_URL` and never reuses a server. Eleven specs already mint in-page with `fetch("/api/designs", {method:"POST", credentials:"same-origin"})` and delete through `deleteMintedDesigns`. | [source-verified] |
+| G4 | `/d/{id}` hydrates with `canWrite: "checking"` and offers no edit until the client probe (`GET /api/designs/{id}`) answers (`hydrate-and-configure.tsx`). On the configure route the store starts with `designId: null` and `canWrite: true`, and **the first successful mutation mints a row**. | [source-verified] |
+| G5 | Six specs assert that minting behaviour: `editor-panel` (`before.designId === ""` at :188, `readout.designId === ""` at :210) and `waitForMintedDesignId` in `kitchen-stage`, `signature-flow` and `global-colour`. `editor-rail` and `price-footer-growth` only register the minted id for deletion. The unit witness for "mints on the first successful command" is `tests/persistence/client-write-path.test.ts:75,91,106`. | [source-verified] |
+| G6 | `capture-fidelity.mjs` **never captures the configure route**. It only polls it for readiness. Every shot is `/internal/scene-shot`, which renders with default parameters and answers 200 when the flag the script sets is on (`page.tsx`, `route-availability.ts`). | [source-verified] |
+| G7 | `verify-surfaces.mjs` is referenced by no script, no workflow and no live document (only the archived M1 plan). It asserts nothing; it writes findings for a person to read. It already drifted: it counts `a[href^="/configurator/contact"]`, but the WebGL exit's link is locale-prefixed (`/ru/configurator/contact?intent=link`, `webgl-unavailable-i18n:114`). It runs `next start` on the inherited `DATABASE_URL`, which is `.env.local`'s **application** database. | [source-verified] |
+| G8 | `tests/app/room-page.test.ts:90-102` pins both readiness lines **verbatim**, so it goes red the moment they move. | [source-verified] |
+| G9 | The configure page passes a server-translated `webglUnavailableTitleMobile`. `HydrateAndConfigure` does not pass it, so `/d/{id}` renders the same string through the client fallback (`webgl-unavailable.tsx:23`). The prop path's witness is `tests/i18n/webgl-witness.test.ts`. | [source-verified] |
+| G10 | The proxy's locale redirect, the case-variant 404 and the nested-path 404 do not depend on which allow-listed path is used (`proxy.ts` `isCustomerPath` and `hasCaseVariantLocalePrefix`). `/{locale}/d/qa-route-does-not-exist` is asserted to answer 200 with CSP (`locale-routing.qa:134`). | [source-verified] |
+| G11 | `ci.yml` runs e2e only on a push to `main` or on `workflow_dispatch`, never on a PR. Each leg has a 45-minute ceiling, and both legs share one Neon database (ADR 0105). | [source-verified] |
+
+#### 2. Decisions
+
+**D1 — The fixture.** Create `apps/web/tests/e2e/support/seeded-design.ts`. It exports three things:
+
+- **`test`**: `base.extend` with a **test-scoped** `seededDesign` fixture. Setup mints the row and
+  teardown always deletes it, including when the test fails.
+- **`mintSeededDesign(page, locale = "ro")`**: opens the mint origin `/{locale}/configurator/room`
+  (Step 1: no database, and not a route 7E3a changes) and mints from the page with the in-page
+  `fetch` described in G3. It throws by name on anything but 201.
+- **`openSeededDesign(page, design, { locale? })`**: goes to `/d/{id}`. The path is unprefixed by
+  default, as `/configurator/configure` was, so the same proxy redirect to `/ro/` runs. It then waits
+  for the canvas and the probe response, and throws by name unless the probe says `canWrite: true`.
+  It returns only once the store has applied that answer, which is observable as
+  `global-settings-trigger` enabled. The implementer confirms that observable before relying on it.
+
+**Why the mint runs in the page, not through `page.request`:** the browser's cookie jar is the one
+under test. It is also where 7E3a's `__Host-` cookie has to land. That makes criterion 2's second
+sentence true by construction, with nothing to rebuild. [inference: an `APIRequestContext` jar's
+handling of a `Secure` cookie on `http://localhost` is unmeasured. 7E3a criterion 6 measures the
+browser's.]
+
+**Why test-scoped:** each old `beforeEach` loaded a fresh seeded store. One row per test keeps that
+guarantee. A shared row would carry one test's edits into the next.
+
+**Why no database fallback:** G3 means none is needed.
+
+**D2 — What criterion 2's grep covers.** It covers **route strings**: `goto` targets, request URLs,
+readiness URLs and prose naming the route. It does **not** cover module paths such as
+`@/app/configurator/configure/configure-screen` or `./src/app/configurator/configure/…`. Those name
+the editor's source files, which stay where they are. The route retires; the directory does not.
+
+The gate, run as `rtk proxy` because an empty result is the signal:
+
+```
+git grep -nE '(^|[^p])/configurator/configure' -- apps/web/tests/e2e apps/web/playwright.config.ts apps/web/scripts packages/three-adapter/tests
+```
+
+`[^p]` excludes exactly the `app/` prefix of a module path. The expected output after the wave is
+lines from `apps/web/tests/e2e/configure-route.e2e.spec.ts` **only**. That output is also the
+positive control: it proves the regex still matches a route string. A "spec" here means a Playwright
+`*.e2e.spec.ts`.
+
+Some Vitest files and production files use the route as the route, not as a stepping stone:
+`proxy.test.ts`, `locale-menu.dom.test.ts`, `navigation.test.ts`, `locale-layout.test.ts`,
+`webgl-witness.test.ts`, `configure-room-navigation.test.ts`, `overflow-warning-loading.test.ts`, the
+contact page's `href`, and the `security-headers.ts` and `use-locale-menu.ts` comments. They assert
+or describe the route's **live** behaviour until 7E3a changes it, so **7E3a owns them**. They are out
+of scope here.
+
+**D3 — Specs whose subject is the configure route.** The rows that assert the route's own
+contract move to a new `configure-route.e2e.spec.ts`. It is the one file the gate allows, and the file
+7E3a converts from 200 to its 307 (ADR 0114 decision 4). Its header says so.
+
+| Spec | Action | Configure-specific behaviour, and how it is preserved |
+| --- | --- | --- |
+| `locale-routing.qa` test 3, the `/{ro,ru}/configurator/configure` → 200, no `location`, CSP row | **Move** verbatim to `configure-route` | This is the route's own render contract, which 7E3a changes. The source test is renamed, because *"all five"* stops being true. |
+| `locale-routing.qa` test 1, rows `configure?mode…&tag=a&tag=b` and `configure?from=malformed` | **Re-point** to `/configurator/room?…` and `/d/qa-route-does-not-exist?from=malformed`. Query strings and headers stay byte-identical. | None: locale negotiation does not depend on the path (G10). The matrix then covers the room, contact and `d` families. |
+| `locale-routing.qa` test 4, `/en/…configure`, `/RO/…configure`, `/ro/…configure/extra` | **Re-point** to `/en/configurator/room`, `/RO/configurator/room` and `/ro/configurator/contact/extra` | None (G10). `/ro/configurator/room/x` already exists, so the nested row moves to `contact`. That adds a family rather than duplicating one. |
+| `webgl-unavailable-i18n` (both tests) | **Move** to `openSeededDesign`, keeping `/ru/` explicit in test 2 | The only difference is G9's `titleMobile` source. Every `ro`/`ru` string is still asserted visible. The server-prop path stays witnessed by `webgl-witness.test.ts` until 7E3a retires it. `response.ok()` and `runtimeErrors === []` are kept as they are. |
+| `design-write-path` (the author **and** the stranger) | **Re-point the origin page** to the mint origin. The spec's own raw `POST` is **kept**. | The mint is this spec's subject: 201, cookie `Path`, `HttpOnly`, `SameSite`. It must observe the raw response, so it takes the fixture's origin and not its mint. The stranger needs only a same-origin document. |
+| `read-only-panel`, `read-only-global-settings` | **Re-point** `mintDesign` onto `mintSeededDesign` | None. The route was only an origin for `fetch`. The read-only state comes from `clearCookies()` on `/d/{id}`, which does not change. 7E3c later moves these to `/s/{token}`. |
+| `shared-design-locale-identity` | **Use** `seededDesign` | None. It already opens `/{ro,ru}/d/{id}`. |
+
+**D4 — Readiness and tooling.**
+
+- **`playwright.config.ts`** polls `${BASE_URL}/ro/d/e2e-readiness-probe`. That is the route the specs
+  now open, so a dev server compiles the editor's route before the first test. The existing comment's
+  reason still holds. It answers 200 through `DesignLoadError` (G10). The consequence is stated: a
+  dead test database now fails at readiness rather than in the first minting spec.
+  [inference: that compiling the page module compiles `ConfigureScreen`'s client graph. The
+  implementer checks that the first spec's `/d/{id}` logs no fresh compile.]
+- **`capture-fidelity.mjs`** polls `${BASE_URL}/internal/scene-shot`, the route it actually drives.
+  Because it needs the flag the script sets, a server that ignored the flag would fail readiness
+  loudly instead of capturing 404s. **The scene input is untouched by construction** (G6):
+  `fidelity-shots.mjs`, `shotUrl` and `app/internal/scene-shot/*` do not change.
+- **`verify-surfaces.mjs` is deleted.** Re-pointing it needs a minted design, and its server would
+  mint into `.env.local`'s application database, which ADR 0006 forbids (G7). It asserts nothing and
+  has already drifted. Rejected alternatives: give it the `TEST_DATABASE_URL` guard (new plumbing for
+  a tool nobody runs), or point it at Step 1 (a different surface). **The coordinator may overrule
+  this by keeping the script and adding the guard.** That is recorded here and is not a blocker.
+- **`room-page.test.ts:90-102`** is rewritten. It keeps its three configure-page assertions. It
+  asserts the two new probe lines verbatim, and asserts that neither file contains
+  `/configurator/configure`.
+
+**D5 — Translating G5's minting assertions.** On `/d/{id}` the first mutation writes. It does not
+mint. Each assertion is restated as the same claim about the route that remains, and none is dropped.
+The minting path itself stays witnessed by `client-write-path.test.ts` until 7E3a makes it
+unreachable.
+
+- `expect(designId).not.toBe("")` after a mutation becomes: a `PUT /api/designs/{seeded id}` answered
+  200, **and** the stored revision is past `seededDesign.revision`. That is at least as strong, because
+  it proves the write landed rather than that an id exists. `waitForMintedDesignId` is replaced by a
+  `waitForFirstSave` of that shape and then deleted.
+- `before.designId === ""` and `readout.designId === ""` become `=== seededDesign.id`, plus
+  *revision unchanged* on the no-edit side.
+- The `writes` collectors keep recording **every** `/api/designs` request, with no method filter.
+  They start after `openSeededDesign` has awaited the probe. If the probe's GET still lands inside a
+  quiet window, the fix is to wait for the probe earlier. **Never** filter out GET.
+- The `keepForDeletion` and minted-id bookkeeping that only ever registered the configure route's row
+  is removed, because the fixture's teardown owns that row.
+
+#### 3. Slices
+
+This wave has **no production source** (`apps/web/src`, `packages/*/src`). Its non-test files are
+`playwright.config.ts`, `capture-fidelity.mjs` and the deleted `verify-surfaces.mjs`. The test diff is
+wide (about 35 files), so it is sliced for the reviewer, with a QA mini-gate after S1 because every
+later slice builds on the fixture.
+
+| Slice | Must-fix items (≤ 5) | Files |
+| --- | --- | --- |
+| **S1: fixture, tooling, route-subject specs** | (1) D1 fixture; (2) D4 readiness, capture probe, `verify-surfaces` deletion, `room-page.test.ts`; (3) D3 `configure-route` plus the `locale-routing` re-points; (4) D3 origin re-points: `design-write-path`, both `read-only-*`, `shared-design-locale-identity`; (5) D3 `webgl-unavailable-i18n` | `support/seeded-design.ts` (new), `configure-route.e2e.spec.ts` (new), 6 specs, `playwright.config.ts`, 2 scripts, `room-page.test.ts` |
+| **S2: minting semantics** | (1) `panel.ts`: `openFridgeColumnView(page, design)`, `waitForFirstSave`, delete `waitForMintedDesignId`; (2) `editor-panel` (D5, all three sites); (3) `kitchen-stage`, `signature-flow`, `global-colour`; (4) `editor-rail.desktop`, `price-footer-growth` bookkeeping | `support/panel.ts` and 7 specs |
+| **S3: plain navigations** | (1) `cabinet-depth`, `ceiling-row-tappable`, `global-settings*` ×5; (2) `overflow-mark` ×3 (its fitting controls become the seeded design, and `mintDesign`'s origin moves); (3) `pixel-counter-witness*` ×2; (4) `price-breakdown*` ×5, `price-footer-growth`'s `beforeEach`; (5) `top-bar*` ×4, including the prose at `top-bar-pill-containment.desktop:24` reworded without the path, and the stale prose at `three-adapter/tests/qa-6m-mark-composite.adversarial.test.ts:207` | about 17 specs and 1 unit test (prose only) |
+
+**Tier: Light, confirmed.** Adversarial QA, then **one** combined reviewer. The change is plumbing
+against a settled contract, with no domain rule, endpoint, schema or production source. The reviewer's
+brief is narrow and load-bearing:
+
+- ADR 0006: every minted row is deleted, and only test-database rows are touched.
+- D5: no assertion is weakened, and G5's translations are at least as strong.
+- D2: the gate regex is honest.
+
+**Visual pass: No, confirmed.** No rendered surface changes. Every pixel constant the moved specs use
+is re-validated by those specs passing on the same document (G2).
+
+#### 4. Acceptance criteria
+
+1. **Gate.** D2's grep prints only `configure-route.e2e.spec.ts` lines. It prints at least one, so
+   the positive control holds.
+2. **No assertion removed.** Two measurements, both taken at the base before S1 and again after S3:
+   - For every project, `playwright test --list --project=<p>`: after equals before plus the
+     `configure-route` tests. Every title before is present after, except the renames this plan lists
+     (`locale-routing` test 3).
+   - Per file, `git grep -c 'expect'` over `apps/web/tests/e2e` and `room-page.test.ts`: never lower
+     after, except for moves this plan lists. Summed across source and destination, a moved file's
+     count is unchanged or higher.
+
+   No `test.skip`, `test.fixme` or `.only` is added. No timeout is raised, and `retries: 0` stays.
+3. **Zero production diff.** `git diff --stat <base> -- apps/web/src packages/*/src` is empty.
+   `fidelity-shots.mjs` and `app/internal/scene-shot/` are unchanged. `capture-fidelity.mjs` changes
+   only in `startServer`'s probe.
+4. **Fixture invariants, which QA attacks:**
+   - Two tests in one file receive different ids.
+   - A test that fails still leaves its row deleted. Check this with a `GET` returning 404 from a
+     later test, or with `deleteDesignsForTests` reporting zero rows.
+   - The opened document deep-equals `KITCHEN_L_DESIGN` (G2). This protects every pixel constant.
+   - The write-token cookie is in the **browser's** jar, scoped `Path=/api/designs/{id}`.
+   - `openSeededDesign` never returns while `canWrite` is `"checking"`.
+   - **Must not:** mint through `page.request`/`APIRequestContext`; mint anywhere the fixture's
+     teardown or a spec's `afterAll` does not delete; share one row across tests.
+5. **D5 must-nots.** No spec asserts `designId === ""`. No `writes` collector filters by method.
+   `waitForMintedDesignId` has no caller and no definition.
+6. **Readiness.**
+   - `playwright.config.ts` polls a `/ro/d/…` URL that answers 200.
+   - The first spec that opens `/d/{id}` on a cold `next dev` shows no compile of that route in the
+     server log.
+   - `pnpm build && pnpm --filter @lemnaria/web capture:fidelity` completes, captures every shot and
+     reports no console errors. This is run once in S1, and the output is quoted.
+7. **Locally green.** Both projects are green under `pnpm ci:local`. The quoted evidence is the pass
+   and skip counts against the base's (the base had 191 passed and 2 skipped at its last recorded
+   run, per `ci-and-local-gates.md`).
+8. **Runner verdict, which is criterion 3.** Pushes to this branch run no e2e (G11), so **the owner
+   dispatches `ci.yml` by `workflow_dispatch` on the branch**. The close-out records each leg's
+   wall-clock against the 45-minute ceiling. Agents do not dispatch it.
+
+#### 5. Risks
+
+- **R1: runner time.** Each test adds a mint, a dynamic `/d/{id}` render (the configure page was
+  prerendered on CI) and a probe, across roughly 175 tests. [inference: 1–2 s each, so +3 to 6 minutes
+  per leg.] If a leg lands within 5 minutes of the ceiling, that is a finding for the owner under
+  ADR 0105. It is not a reason to raise the ceiling in this wave.
+- **R2: database dependence.** Every editor spec now needs a working test database. Neon
+  compute restarts are absorbed by the server's `retryOnComputeRestart`, but a mint failure now
+  fails the spec in setup. The fixture's named error must say "mint", with the status.
+- **R3: layout drift between routes.** [source-verified] Besides `SelectionDebug`, the only `.tsx`
+  files under `src` that read `canWrite`, `designId` or `saveStatus` are `editor-panel.tsx` and
+  `global-settings.tsx`, and both read `canWrite`, which D1 settles before returning. If a tap constant misses anyway, re-find it by tapping, per `panel.ts`'s
+  own rule. Never derive it.
+- **R4: the shared database (BACKLOG 69, ADR 0105).** The e2e job still waits for `test`. The fixture
+  deletes by id only and runs no DDL and no global count, so it keeps ADR 0105's disjoint-rows
+  argument true.
+
+#### 6. Where the record and the code disagree, and owner questions
+
+- The 7E4 row's file list leaves out `verify-surfaces.mjs` (it names the route) and
+  `room-page.test.ts` (it pins the lines). Both are added to the row.
+- Criterion 1 says *"every spec … uses it"*. `design-write-path` uses the fixture's origin and not its
+  mint, because the mint is its subject (D3). `configure-route.e2e.spec.ts` asserts the route itself.
+- ADR 0111 A3 counts "34 `goto` calls". G1 is the current count.
+- **No blocking owner question.** D4's deletion is the architect's decision, and the coordinator may
+  reverse it.
 
 **7P1 — the preset store** (security reviewer dispatched)
 
