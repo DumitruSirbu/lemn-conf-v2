@@ -1556,7 +1556,7 @@ table.
 | ↳ | ~~**Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more~~ **DISCHARGED by 7F4 (coordinator, 2026-09-22):** *Continuă*'s destination moved to 7F4 (Q-D45-5), and `room-screen.tsx`'s `continueFromLengths()` now calls `departTo("presets")` and then `run.compose(room)` [source-verified at `ea8b11e`]. 7F4's seam note stands for whenever 7F3 revives: 7F3 inserts 1D/1E in front of `use-generation`'s one entry call | | | | | |
 | **7E4** | e2e and tooling off `/configurator/configure` — **DONE 2026-09-23; plan `4d65a6f`, S1 `64e8894`, S1 QA `99fd679`, S2 + Q1/Q3 `740142b`, S3 `d00212a`, QA round 2 `708d3b8`, review round 1 `734a5e3`, review round 2 `1b512bb`; see [7E4 close-out](#7e4-close-out--2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | Runner verdict still outstanding — needs the owner's `workflow_dispatch` |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
-| **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
+| **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **planned 2026-09-23, four slices: see [Wave 7E3a — the plan](#wave-7e3a--the-plan-2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
@@ -1821,6 +1821,303 @@ hold sink + hob"**; Amendment E corrects the generated widths; dispatched after 
    author cookie cannot save a preset.
 6. Local development and Playwright keep the cookie on `http://localhost` (measured in the wave, not
    assumed).
+
+### Wave 7E3a — the plan (2026-09-23)
+
+**Written by the architect at HEAD `6b82a2b`.** Labels: **[source-verified]** read at `6b82a2b`;
+**[doc-quoted]** quoted from a record or from Next 16.3.4's bundled docs
+(`apps/web/node_modules/next/dist/docs`); **[measured]** a `git grep` run in this session;
+**[inference]** reasoned, open to challenge. Nothing was built, run or applied.
+
+#### 1. Ground truth
+
+| # | Fact | Evidence |
+| --- | --- | --- |
+| G1 | `migrations/` holds `0001`–`0004`, and `readMigrationFiles` refuses a hole or a repeat. 7P1, which would have claimed `0005`, is deferred past M8 (see the note under *Recommended order*). **So this wave's file is `0005`. The row's `0006` is stale.** | [source-verified] `migration-files.ts`; [doc-quoted] |
+| G2 | `mint(design, writeTokenHash)` is one `insert`, guarded by `requireSha256Digest`. `saveAuthorized` compares the hash inside SQL. The table has 7 columns, and `REQUIRED_DESIGN_COLUMNS` restates all 7. About 18 test files call `mint(` or `POST()`. | [source-verified] `neon-configuration-repository.ts:123-141`, `migration-status.ts:97-119`; [measured] |
+| G3 | `POST /api/designs` takes no argument and reads no body. It sets only the write-token cookie (`Path=/api/designs/{id}`). A successful save calls `refreshWriteTokenCookie` and nothing else. The Step 1 mint is a `fetch` with `credentials: "same-origin"`. | [source-verified] `route.ts:22-51`, `[id]/route.ts:164`, `fetch-configuration-repository.ts:311` |
+| G4 | `/[locale]` is a page that redirects through next-intl to `/configurator/room`. The e2e expects **307, `location` exactly `/ro/configurator/room` (relative), and CSP** (`locale-routing.qa:132-135`). `/[locale]/configurator/configure/page.tsx` renders `ConfigureScreen` with a server-translated `titleMobile`. | [source-verified] |
+| G5 | `<ConfigureScreen` is mounted in exactly two files: the configure page and `HydrateAndConfigure`. The latter hydrates *during render*, so the store's `designId: null` / `canWrite: true` mint-on-first-command branch is reachable only from the configure page. | [measured] `grep -rln "<ConfigureScreen" src` |
+| G6 | Next 16: *"Setting cookies is not supported during Server Component rendering … use a Route Handler."* *"There cannot be a `route.js` file at the same route segment level as `page.js`."* Route handlers *"do not participate in layouts."* | [doc-quoted] `04-functions/cookies.md:81`, `15-route-handlers.md:39,154` |
+| G7 | `ResponseCookies.delete(name)` becomes `set({name, value: "", expires: epoch})`. `Path` defaults to `/`, and **no `Secure` is emitted**. `maxAge: 0` serialises as `Max-Age=0`. | [source-verified] `next/dist/compiled/@edge-runtime/cookies/index.js:32-47,302-305,319-330` |
+| G8 | A `__Host-` `Set-Cookie` without `Secure` (or without `Path=/`, or with a `Domain`) is ignored by the browser. **So `cookies.delete` cannot clear this cookie.** | [inference] from RFC 6265bis's prefix rules; measured by criterion 8 |
+| G9 | The proxy allow-lists `configurator/configure`. The unprefixed path is locale-redirected. `/en/...` is not locale-routed. | [source-verified] `proxy.ts:64-85` |
+| G10 | Both Playwright projects use `devices["Desktop Chrome"]` against `http://localhost:{PORT}`. **No WebKit or Firefox runs.** | [source-verified] `playwright.config.ts:20,44-66` |
+| G11 | `migration-safety.ts` recognises three shapes: `add column if not exists`, `create index if not exists`, and a `pg_constraint`-guarded `DO` block. The schema-status reading covers **no constraints or indexes** (ADR 0128 residual). | [source-verified]; [doc-quoted] |
+| G12 | The backup exports `write_token_hash` so that a restore keeps edit access, and the runbook's restore inserts it. `revision` is not exported. | [source-verified] `design-row-source.ts:14-27,82-91`; `design-db-restore.md:167-198` |
+| G13 | Since 2026-09-15 nothing deletes a design (ADR 0019's decision 7 note). The 30-day figure survives as the cookie's lifetime. | [doc-quoted] |
+| G14 | No preset-save route exists: there is no `app/api/presets`, and 7P2 is past M8. | [source-verified] `find app/api`; [doc-quoted] |
+| G15 | Route references that 7E4 D2 left to this wave, re-measured: `proxy.test.ts`, `locale-menu.dom.test.ts` (29 lines), `navigation.test.ts:55`, `locale-layout.test.ts:22-30`, `webgl-witness.test.ts:61`, `configure-room-navigation.test.ts:84` (negative), `overflow-warning-loading.test.ts:46`, contact `page.tsx:36`, the comments at `security-headers.ts:23` and `use-locale-menu.ts:19`. **D2's list missed two:** `home-navigation.test.ts` imports `[locale]/page`, and `room-page.test.ts:25,90-94` reads the configure page's source. | [measured] `git grep` |
+
+**Decision-record sweep.** Searched `docs/decisions/` for `visitor`, `__Host-`,
+`configurator/configure`, `Max-Age` and `write token`, and read the records named in the dispatch.
+
+| Record | Bearing | Settled |
+| --- | --- | --- |
+| 0114 decisions 1–4, 6, 7; Amendment E | This wave's contract | **Followed.** Decision 4's *"as server components"* is impossible under G6, so this plan records **Amendment F** (2026-09-23): the mechanism changes and the contract does not. |
+| 0114 decision 1, lifetime row | *"A longer cookie would point at a design that no longer exists"* | That premise is stale (G13). **30 days stands**, per ADR 0019's note. Not re-decided. |
+| 0114 decision 7 | *"M8's retention cron deletes the visitor hash with its row"* | Moot, because the cron is retired (G13). This is M8's to note, not this wave's. |
+| 0115 | M7 ships the cookie; profiles arrive in M8 | **Followed.** This wave does no re-binding. |
+| 0111 A1, A4, A5; decision 1 | Editor only at `/d/{id}`; the two routes become dynamic; shared-device residual; bodyless mint | **Followed.** A5 goes to the security reviewer. |
+| 0002, 0019 decision 1 | Open read superseded, implemented by 7E3b | **Untouched.** This wave gates no read. |
+| 0019 *Deliberately not fixed* | `app_designs` table-level `UPDATE` covers the credential columns | **The same accepted residual now covers `visitor_hash`.** Reported to the security reviewer, not re-decided. |
+| 0010 | Mint on first mutation | The mechanism stays in code (D8). Retiring it needs its own dated record. |
+| 0006, 0008, 0020, 0042, 0096, 0054 | Test DB only; app role holds no DDL; read back, never trust an exit code; ledger; unattended additive migrations; local dev writes to preview | **Followed** (§3). ADR 0054 makes R1 concrete. |
+| 0105, 0128 | Shared e2e database; live suites take the readers–writer lock | **Followed.** New live cases go into files that are already registered (§3). |
+| 0041, 0095 decision 4 | CSP nonce; the locale is presentation | **Followed.** The cookie carries no locale. |
+| 0112, 7P2 AU10 | The author credential is separate | Criterion 5's third clause has no endpoint (G14). **Carried to 7P2 unchanged.** |
+
+No conflict was found beyond the rows above.
+
+#### 2. Decisions
+
+**D1 — Cookie mint and refresh points** (ADR 0114 Amendment F2).
+
+- **The mint always sets the cookie.**
+  - A request that carries a **well-formed** value (exactly 43 base64url characters) reuses it, and the mint re-emits it with a fresh `Max-Age`.
+  - An absent or malformed value is replaced by `randomBytes(32).toString("base64url")`.
+- **A successful `PUT`/`PATCH` re-emits the request's own well-formed value.** It never mints one. A malformed value is left alone, and a failed save emits nothing.
+- **Nothing else sets the cookie.** That includes the resume routes, `GET /api/designs/{id}`, `/d/{id}` and Step 1. The one exception is D4's clear.
+- **Rejected: a "tight" refresh** (refresh only when the saved row's hash matches the request's). It needs a second predicate in `updateIfCurrent`, and its only benefit was matching the cookie's lifetime to retention, which G13 removed. ADR 0114 decision 1 says *"refreshed with every successful save"*.
+
+**D2 — Hashing.**
+
+- **The hash.** SHA-256, hex, over the UTF-8 cookie value, in `lib/server/visitor.ts`. This is `write-token.ts`'s own argument: a 256-bit uniform secret has no dictionary to slow down.
+  - No pepper and no new environment variable.
+  - The two-line digest is not shared with `write-token.ts`. There are two uses, below the three-use rule, and a security wave leaves the write path untouched.
+- **The repository.** It guards the visitor hash with the same 64-lowercase-hex rule as `requireSha256Digest`. The error message names no value.
+- **The mint port.** Its signature becomes one DTO, `mint({ design, writeTokenHash, visitorHash })`, so the call stays within the two-argument rule and the two hashes cannot be swapped.
+
+**D3 — Resume: query, index, failure** (ADR 0114 decision 4).
+
+- **The query.** One parameterised query:
+  `select id from designs where visitor_hash = $1 order by updated_at desc, id desc limit 1`.
+  - `id desc` breaks ties deterministically.
+  - It answers a tagged `found | none`, never `null`.
+  - The hash is compared inside SQL. Its timing reveals nothing about a 256-bit preimage.
+- **When there is no query.** A request with no cookie, or with a malformed one, issues **no query**.
+- **When the lookup fails** (a driver error after `retryOnComputeRestart`):
+  - the visitor goes to Step 1 with the cookie untouched;
+  - one `reportDesignFailure("resume", …)` line is written, carrying no value, hash or id.
+  - An outage must never erase an identity. The alternative, an error page on the entry point, was rejected.
+- **"Most recently updated" is exactly `updated_at`.** The mint's default and every save's `now()` set it, so 7F4b's orphaned write (Amendment E) is resumed with no code of its own. The `HandoffStatus.saved` state stays as shipped.
+
+**D4 — "Cleared on that response", under `__Host-`.**
+
+- **The clear.** The one `clearVisitorCookie` helper emits `Set-Cookie: __Host-lemnaria_visitor=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=lax`, with no `Domain`. It draws its attributes from the **same constant** `setVisitorCookie` uses. `cookies.delete` is never used for this name (G7, G8).
+- **When it fires.** It fires on the resume routes only, for exactly two cookie states: well-formed but matching no row, and malformed.
+
+**D5 — How `/configurator/configure` stops containing the editor** (Amendment F1).
+
+- **Both pages become Route Handlers.** `app/[locale]/page.tsx` becomes `app/[locale]/route.ts`, and `…/configurator/configure/page.tsx` becomes `…/configure/route.ts`. Each exports only `GET`, and both delegate to one `resumeVisitor(request, locale)` in `lib/server/visitor-resume.ts`.
+- **Redirect targets, identical for both routes and both locales:**
+  - `307`, `Location: /{locale}/d/{encodeURIComponent(id)}` on a match;
+  - otherwise `307`, `Location: /{locale}/configurator/room`.
+- **Response rules:**
+  - The `Location` is **relative**, which keeps G4's assertion byte-identical and never reflects the `Host` header. It carries no query string and no locale taken from the cookie.
+  - The body is empty. The headers carry `Cache-Control: private, no-store` and `Vary: Cookie`, because a cached resume would hand one visitor's design id to the next.
+  - An unsupported locale answers 404 before any cookie is read.
+- **The proxy keeps `configure` in its allow-list.** The unprefixed old path still negotiates a locale and then resumes. **So `proxy.test.ts` stays true and is unchanged.**
+- **The contact page's `href` moves to `/`.** No live link targets the retired route; the path survives only for old bookmarks.
+
+**D6 — The mint refuses cross-site requests** (Amendment F3).
+
+- **The attack.** A cross-site top-level form `POST` carries no `SameSite=Lax` cookie. Its response is a top-level navigation, and such a response *may* set a Lax cookie, so an unguarded mint would **replace a victim's identity** with a fresh one [inference: RFC 6265bis's top-level-navigation exception; QA measures it].
+- **The refusal rule.** `POST /api/designs` answers 403, sets no cookie and mints no row when either:
+  - `Sec-Fetch-Site` is present and not `same-origin`; or
+  - it is absent and `Origin` is present and not the request's own origin.
+- **Legitimate callers are unaffected.** They are the same-origin Step 1 mint and the e2e fixture. ADR 0111 decision 1's contract is unchanged for them.
+- **Out of scope:** rate limiting (SEC-001) stays in M8.
+
+**D7 — The Vitest and production references that 7E4 D2 handed over** (G15), each named:
+
+- **`proxy.test.ts` and `configure-room-navigation.test.ts:84` are kept unchanged.** Both are still true.
+- **Contact `href` → `/`**, together with `navigation.test.ts:55`.
+- **`home-navigation.test.ts` is rewritten against the route handler.** It keeps both locales and adds the resume branches.
+- **`locale-layout.test.ts`** entrypoints change from `page.tsx` to `route.ts` for the two routes. It keeps the "legacy absent" half.
+- **`room-page.test.ts`'s configure-source assertions are inverted.** The route source contains neither `ConfigureScreen` nor `app/configurator/configure`. The probe-line assertions are unchanged.
+- **The server-translated `titleMobile` path is retired.** Its only caller is deleted, which leaves the path dead.
+  - Delete the `webglUnavailableTitleMobile` prop (`configure-screen.tsx`) and `titleMobile` (`webgl-unavailable.tsx`).
+  - Delete `webgl-witness.test.ts` test 3. The removal is **listed**, not silent.
+  - Tests 1–2 and `webgl-unavailable-i18n` (both tests, on `/d/{id}`) keep the client path witnessed.
+- **The fixture pathnames in `locale-menu.dom.test.ts` and `overflow-warning-loading.test.ts` move to `/{locale}/d/qa-design`.** The menu is locale-only, and this is the route that renders it.
+- **Comments.** `use-locale-menu.ts:19`'s example drops `configure`. `security-headers.ts:23`'s list is rewritten from a **measured** `.next/prerender-manifest.json` after `next build`, never from this plan's expectation.
+- **`price-bar-layout.test.ts:35` is kept.** It is a module path (7E4 D2).
+
+**D8 — The minting path `client-write-path.test.ts` witnesses.**
+
+- **After S3 it has no route (G5).** It is **kept, and so is its test, unchanged**, because removing it rewrites ADR 0010's write path and needs a dated record of its own.
+- **Close-out obligations:**
+  - quote `grep -rln "<ConfigureScreen" src` returning only `hydrate-and-configure.tsx`;
+  - file a backlog entry: *"store mint-on-first-command branch has no route since 7E3a"*, with that trigger.
+
+**D9 — Scope boundary.**
+
+- **No read changes.** `/d/{id}` and `GET /api/designs/{id}` still serve every caller, which is 7E3b's to change. The three read-only specs pass **unchanged**.
+- **No save changes.** No save writes `visitor_hash`. Ownership is set once, at mint, and M8 re-binds.
+
+#### 3. The migration's contract — `0005_add_design_visitor_hash.sql`
+
+It has three statements, each in a shape G11 recognises:
+
+```sql
+alter table designs add column if not exists visitor_hash text;
+do $$ … if not exists (select 1 from pg_constraint where conname = 'visitor_hash_is_sha256'
+  and conrelid = 'designs'::regclass) then alter table designs add constraint visitor_hash_is_sha256
+  check (visitor_hash is null or visitor_hash ~ '^[0-9a-f]{64}$'); end if; … $$;
+create index if not exists designs_visitor_hash_updated_at_idx
+  on designs (visitor_hash, updated_at desc, id desc) where visitor_hash is not null;
+```
+
+- **The header.**
+  - It says why the column is nullable: pre-`0005` rows are unowned and never resumed, which is ADR 0114 decision 5's pre-launch data.
+  - It carries 0004's **"APPLY BEFORE THE WEB CODE THAT READS IT SHIPS"**. Every mint names the column, and so does every resume that carries a cookie.
+  - It carries the checksum-freeze warning.
+- **The schema reading.** `REQUIRED_DESIGN_COLUMNS` gains `visitor_hash text nullable`.
+- **The backup.** It exports `visitor_hash`, and the runbook's restore inserts it (G12's argument: a restore without it silently orphans every visitor's designs).
+- **Live cases go into existing registered files.** Constraint and index read-back and the index probe go in `neon-configuration-repository.adversarial.test.ts` (exclusive). The schema-status reading goes in `test-database-schema-status.test.ts` (shared). **No new live file**, so ADR 0128's census literal is unchanged. A new file would have to register a mode and change that literal.
+- **Pinned lists move to `0005`.** `migrate.test.ts:64`, `migration-files.test.ts:30`, the adversarial suite's `:579` and `migration-status.adversarial.test.ts:52` all name `0004` or `[1..4]`.
+- **Where it may be applied.** `pnpm test`'s live suites apply it to the **test database only**. That is ADR 0006's destructive target, not a deployed database.
+- **Must not:**
+  - an agent applies `0005` to `lemn-conf-v2-preview` or production, or dispatches `deploy.yml`;
+  - an agent edits `.env*` or any resource.
+- **Who applies it, and when.** The owner, to preview and then production, through `deploy.yml` or `migrate` plus `migrate:status`, **before** the branch deploys. The read-back is the evidence (ADR 0020).
+- **Editing after the first apply.** Until a deployed database has run `0005`, a review-driven edit to its bytes is allowed. The test database is then repaired with `forgetAppliedMigrations` for version 5 (0004's precedent), and the close-out records it. After that, never.
+
+#### 4. Criterion 6 — measuring `Secure` on `http://localhost`
+
+These are the steps of the new `visitor-identity.e2e.spec.ts`, run in both projects. **No `context.addCookies`** is used for this cookie: whether a planted `__Host-` cookie is accepted is not the question.
+
+1. In a fresh context, run `mintSeededDesign(page)`. Its in-page `fetch` sends a real `Set-Cookie` to Chromium over `http://localhost`.
+2. `context.cookies()` has exactly one `__Host-lemnaria_visitor` cookie, with:
+   - `secure: true`, `httpOnly: true`, `sameSite: "Lax"`, `path: "/"`;
+   - `domain: "localhost"`, host-only, with no leading dot;
+   - `expires` within ±120 s of `now + 2 592 000`.
+3. `page.goto("/ro")` ends at `/ro/d/{id}`. The redirect chain holds a 307 from `/ro`. This proves the browser **sent** the cookie back over http, not only stored it.
+4. **The positive control that the measurement can fail** is a QA sabotage run twice, and both runs must go red:
+   - the cookie is set without `secure`;
+   - `clearVisitorCookie` is swapped for `cookies.delete`. This one is criterion 8's.
+5. **Where it runs.** Locally under `next dev`, whose result the close-out quotes. On CI under the runner's server command, which needs the owner's `workflow_dispatch`, like 7E4's criterion 8.
+6. **What is not measured:** Safari and Firefox on `http://localhost` (G10). This is recorded as residual R7 and is not claimed.
+
+#### 5. Slices, tier, visual pass
+
+| Slice | Must-fix items (≤ 5) | Production files |
+| --- | --- | --- |
+| **S1: schema** | (1) `0005`, per §3; (2) `REQUIRED_DESIGN_COLUMNS`; (3) backup export plus the runbook's restore; (4) the pinned lists move to 0005; (5) live read-back of the column, constraint and index | `0005_…sql` (new), `migration-status.ts`, `design-row-source.ts` (+ `docs/runbooks/design-db-restore.md`) |
+| **S2: identity at the API** | (1) `lib/server/visitor.ts` (`server-only`): value, shape, hash, set, clear, refresh, and one attribute constant; (2) mint DTO, guard and one insert; (3) `POST`: reuse or mint, plus the cookie (D1), and D6's refusal; (4) save refresh; (5) the ~18 coupled tests updated mechanically, plus criteria 1–5's route tests and §4's e2e | `neon-configuration-repository.ts`, `visitor.ts` (new), `api/designs/route.ts`, `api/designs/[id]/route.ts` (+ `persistence/src/index.ts` only if a type must be exported) |
+| **S3: resume** | (1) the repository lookup (D3); (2) `visitor-resume.ts`; (3) both `route.ts`, with both pages deleted; (4) `"resume"` in `DesignOperation`; (5) `configure-route.e2e.spec.ts` becomes the resume matrix for both routes, and `home-navigation`, `locale-layout` and `room-page` are updated | `neon-configuration-repository.ts`, `visitor-resume.ts` (new), `[locale]/route.ts` (new), `configure/route.ts` (new), `design-failure-log.ts` |
+| **S4: residue** | (1) contact `href`; (2) the `titleMobile` prop retired (D7); (3) the two comments, from measurement; (4) the Vitest fixture re-points | contact `page.tsx`, `configure-screen.tsx`, `webgl-unavailable.tsx`, `security-headers.ts`, `use-locale-menu.ts` |
+
+- **Sequence:** S1 → **QA mini-gate**, where the security reviewer reads `0005`'s SQL before it is first applied, because its bytes freeze → S2 → S3 → S4 → full adversarial QA → review.
+- **Tier: Full + security, confirmed.** The wave touches persistence, a public endpoint, a credential and customer data. Logic and clean-code reviewers run in parallel with a **security reviewer, the same agent kept across 7E3a, 7E3c and 7E3b** (*Review continuity*).
+- **The security reviewer's brief:**
+  - D1: fixation through reuse, bounded by `__Host-`;
+  - D4: the clear;
+  - D6: identity clobbering;
+  - D3: the cache headers;
+  - the log-absence proofs;
+  - ADR 0111 A5 and the `UPDATE` residual.
+- **QA's emphasis** is cookie fixation and tossing (the 7E3 split note).
+- **Visual pass: Light, as the row says.** A production build at 390 × 844, both locales:
+  - a first visit to `/{locale}` lands on 1A;
+  - a returning visit to `/{locale}` shows the editor at `/{locale}/d/{id}` with the design drawn;
+  - `/{locale}/configurator/configure` with a cookie shows the same editor, and without one shows 1A;
+  - the contact page's back link resumes.
+  Screenshots are quoted in the close-out. No pixel constant moves.
+
+#### 6. Acceptance criteria
+
+The criteria are numbered **7E3a-A1…**. "Both routes" means `/{l}` and `/{l}/configurator/configure`, and `l ∈ {ro, ru}`.
+
+1. **Attributes (criterion 1).** The mint's `Set-Cookie` for the name carries exactly:
+   - `Path=/`, `Max-Age=2592000`, `Secure`, `HttpOnly`, `SameSite=lax`;
+   - no `Domain`, and no environment conditional on `Secure`.
+   The value matches `^[A-Za-z0-9_-]{43}$` and comes from `node:crypto`. The row's `visitor_hash` equals `sha256hex(value)`.
+2. **Set points (D1).**
+   - **The name literal** appears in one production module (`visitor.ts`), which imports `server-only`.
+   - **Where a visitor `Set-Cookie` appears, and where it never does.** Across own, foreign and absent cookies:
+     - `GET /api/designs/{id}`, `/{l}/d/{id}` and `/{l}/configurator/room` carry none;
+     - a failed save carries none (403, 409, 400, 413, 500);
+     - a successful save re-emits the request's own value, and emits nothing when the request carried none.
+3. **Mint reuse (property, `fast-check`, 1–5 mints per context).**
+   - One value is kept throughout, and every minted row carries one hash.
+   - Any malformed value (empty, 42 or 44 characters, a non-base64url character) is replaced, and the row carries the new value's hash.
+   - **The body is never read.** A request whose body stream throws when read still answers 201.
+4. **Cross-site mint (D6).**
+   - **Refused:** `Sec-Fetch-Site` set to `cross-site`, `same-site` or `none`; or `Sec-Fetch-Site` absent with a foreign `Origin`. Each answers 403, sets no cookie of either kind, and never calls `mint`.
+   - **Accepted:** `same-origin` answers 201.
+   - **QA's e2e.** A form auto-submitted from `http://127.0.0.1:{PORT}` to `localhost`'s mint leaves the jar's visitor value unchanged and adds no row. QA also records whether the attack reproduced **without** the guard.
+5. **Migration (criterion 3).**
+   - `migrate:unattended-check` classifies `0005` as additive.
+   - Contiguity holds (`0001`–`0005`).
+   - On the test database, the reading is `level` with `visitor_hash text nullable`. `pg_constraint` shows `visitor_hash_is_sha256`, and `pg_indexes` shows the index's exact definition.
+   - Inserting `''`, an uppercase digest or a 63-character digest into `visitor_hash` violates the check.
+   - With `set local enable_seqscan = off`, D3's query plans an index scan on `designs_visitor_hash_updated_at_idx`.
+   - **Must not:** any statement writes `visitor_hash` other than the mint's insert (grep: never inside `set`).
+6. **Resume matrix (criterion 4).** Both routes, both locales. Each branch is also in Vitest with a repository double.
+
+   | Cookie state | Answer |
+   | --- | --- |
+   | None | 307 to `/{l}/configurator/room`, no `Set-Cookie`, **the repository is never called** |
+   | Matches (A, then B saved later) | 307 to `/{l}/d/{B}`. After saving A: `/{l}/d/{A}` |
+   | Well-formed, matching nothing | 307 to room, plus D4's clear |
+   | Malformed | 307 to room, plus the clear. **No query** |
+   | Lookup throws | 307 to room, **no `Set-Cookie`**, one `resume` log line |
+
+   - **Every branch:** an empty body, `Cache-Control: private, no-store`, CSP present, and a relative `Location` with no query.
+   - **Isolation:** another visitor's design, or a row whose hash is null, is never returned.
+   - **`/en` and `/en/configurator/configure`:** 404, and no cookie is read.
+   - **No refresh:** resume never refreshes the cookie.
+7. **No editor (criterion 4).**
+   - Neither route ever answers 200.
+   - Neither route module imports from `app/configurator`, `store` or `components`.
+   - `<ConfigureScreen` appears only in `hydrate-and-configure.tsx`.
+8. **The clear, measured in a browser (D4).** Mint in the page, then delete the row with `deleteMintedDesigns`, then `goto("/ro")`. The page lands on room, and `context.cookies()` **no longer holds** the visitor cookie. The QA sabotage with `cookies.delete` turns this red.
+9. **Credentials (criterion 5).**
+   - A `PUT` with a matching visitor cookie and no write token answers 403, and the revision is unchanged.
+   - Opening a foreign `/d/{id}` leaves the jar's value byte-identical.
+   - The preset clause is **carried to 7P2 (G14)** and is not claimed.
+10. **Script cannot read it (criterion 2).**
+    - `document.cookie` never contains the name on `/{l}/configurator/room` (empty query, and a valid-room query) or on `/{l}/d/{id}`.
+    - In the same test, `context.cookies()` **does** hold it. That is the positive control.
+    - Grep: no `localStorage`, `sessionStorage` or `document.cookie` appears in `apps/web/src` beyond the one existing comment.
+11. **Nothing leaks into logs.** Captured console output across forced mint, save and resume failures contains neither the value nor its hash. The resume line also carries no design id.
+12. **Localhost (criterion 6).** §4, steps 1–4.
+13. **Backup.** The round-trip adversarial suite restores `visitor_hash` byte-identically. A restored row resumes.
+14. **No read change (D9).** `read-only-panel`, `read-only-global-settings`, `shared-design-locale-identity` and `design-write-path` pass with **zero diff**.
+15. **Gates.**
+    - 7E4 D2's regex still prints only `configure-route.e2e.spec.ts`.
+    - `pnpm ci:local` is green, quoting pass and skip counts against 7E4's 365 passed and 2 skipped.
+    - Per-file `expect` counts never fall except for the listed removal (D7, test 3).
+    - No `.skip`, `.only` or `.fixme` is added, and no timeout is raised.
+    - No dependency changes.
+    - The runner verdict is the owner's `workflow_dispatch`.
+
+#### 7. Risks
+
+- **R1: deploy order.**
+  - Code that lands before `0005` makes every mint answer 500 and sends cookie-bearing visitors to Step 1 (D3).
+  - **Local `pnpm dev` writes to preview (ADR 0054), so local minting breaks until the owner applies `0005` there.**
+  - The signals are `migrate:status` reporting "not level" and 0005's header. The close-out states this in the owner hand-off.
+- **R2: the test database's order.** A standalone `pnpm test:e2e` on a test database without `0005` fails every fixture mint. `ci:local` runs `test` before `e2e`, and CI's e2e waits for `test`. The remedy is to run the persistence suite first.
+- **R3: route handlers under `[locale]` beside its layout.** This is doc-quoted as permitted (G6), and S3 measures it: `next build` lists both as dynamic, and the matrix is green. **If it fails, stop and report.** A proxy-side resume is not a quiet fallback: it would put a database lookup in the proxy.
+- **R4: churn from the coupled tests** (about 18 files) can hide a dropped assertion. The guard is criterion 15's per-file counts.
+- **R5: the checksum freeze** (§3). This is also why the mini-gate after S1 exists.
+- **R6: accepted residuals, put to the security reviewer.**
+  - Shared device (ADR 0111 A5).
+  - Fixation by reuse, which needs same-host script or physical access under `__Host-`.
+  - The app role's `UPDATE` on `visitor_hash`.
+- **R7: non-Chromium local development is unmeasured** (§4.6).
+- **R8: two hops for the unprefixed path** (`/` → `/ro` → `/ro/d/{id}`). This is accepted.
+- **R9: 7E3c takes `0006`.** Contiguity makes a clash loud.
+
+#### 8. Where the records and the code disagree
+
+- **The row.** Its file is `0006` and should be `0005` (G1). Its list also leaves out `[id]/route.ts` (the save refresh), `migration-status.ts`, `design-row-source.ts`, `design-failure-log.ts`, `visitor-resume.ts`, and the S4 files. The row now points here.
+- **ADR 0114 decision 4 says *"as server components"*.** Server Components cannot set cookies (G6), so it is superseded in mechanism by **Amendment F**, dated 2026-09-23.
+- **Criterion 5's preset clause has no endpoint (G14).** 7E4 D2's list missed `home-navigation.test.ts` and `room-page.test.ts` (G15).
+- **No blocking owner question.** D6 is an engineering decision against an attack, not a product choice, so the coordinator or the security reviewer may overrule it on the record.
 
 **7E3c — the private share link** (F5 revised, *"Own browser + private share link"*, 2026-09-11;
 **security reviewer dispatched**; ADR 0114 Amendment B; lands before 7E3b)

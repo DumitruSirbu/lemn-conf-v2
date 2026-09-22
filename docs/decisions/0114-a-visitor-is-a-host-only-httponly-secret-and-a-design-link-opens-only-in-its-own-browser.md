@@ -1,6 +1,6 @@
 # ADR 0114 — A returning visitor is recognised by a host-only, HttpOnly secret, and a design's link opens only in the browser that owns it
 
-Status: ~~Accepted for the visitor cookie (owner requirement, 2026-09-11). **Proposed for read-gating** (decision 5), which changes ADR 0002 and ADR 0019 decision 1 and waits on the owner's answer to the M7 plan's follow-up **F5**. Supersedes ADR 0111 Amendment A2's pointer design.~~ ~~**Accepted in full, 2026-09-11 — the owner answered F5 "Only its own browser" (Amendment A).**~~ **Accepted in full, 2026-09-11 — the owner revised F5 the same day to "Own browser + private share link" (Amendment B, which supersedes Amendment A).** Supersedes ADR 0111 Amendment A2's pointer design; supersedes the open read of ADR 0002 and ADR 0019 decision 1. **Amendment C, 2026-09-11** — the share link is made short (12 base62 characters, ~71 bits) on the owner's later statement; how a browser becomes authorised to *edit* is being re-decided by the owner (PIN or customer profiles) and is not yet recorded. **Amendment D, 2026-09-11** — the editing half is settled by [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md): customer profiles in M8 replace the PIN; in M7 the owning browser's cookie alone authorises reading and editing.
+Status: ~~Accepted for the visitor cookie (owner requirement, 2026-09-11). **Proposed for read-gating** (decision 5), which changes ADR 0002 and ADR 0019 decision 1 and waits on the owner's answer to the M7 plan's follow-up **F5**. Supersedes ADR 0111 Amendment A2's pointer design.~~ ~~**Accepted in full, 2026-09-11 — the owner answered F5 "Only its own browser" (Amendment A).**~~ **Accepted in full, 2026-09-11 — the owner revised F5 the same day to "Own browser + private share link" (Amendment B, which supersedes Amendment A).** Supersedes ADR 0111 Amendment A2's pointer design; supersedes the open read of ADR 0002 and ADR 0019 decision 1. **Amendment C, 2026-09-11** — the share link is made short (12 base62 characters, ~71 bits) on the owner's later statement; how a browser becomes authorised to *edit* is being re-decided by the owner (PIN or customer profiles) and is not yet recorded. **Amendment D, 2026-09-11** — the editing half is settled by [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md): customer profiles in M8 replace the PIN; in M7 the owning browser's cookie alone authorises reading and editing. **Amendment F, 2026-09-23** — wave 7E3a's plan: resume runs in Route Handlers (decision 4's *"as server components"* cannot clear a cookie); how a `__Host-` cookie is cleared; the mint refuses cross-site requests; the mint and save refresh points.
 Date: 2026-09-11
 Type: Decision (owner requirement + engineering)
 Milestone: M7 — waves 7E3a and 7E3b (architect's re-plan, `docs/milestones/M7-room-and-presets.md`)
@@ -306,3 +306,40 @@ that include the user id"* is read as **the customer being identified when they 
 URL shape that carries an identifier; a per-visitor listing URL is neither designed nor approved here.
 That reading was the coordinator's, and it is recorded as a reading rather than as the owner's words.
 
+
+## Amendment F — 2026-09-23: how 7E3a implements decisions 1, 3 and 4
+
+Recorded by the architect in [wave 7E3a's plan](../milestones/M7-room-and-presets.md#wave-7e3a--the-plan-2026-09-23), at `6b82a2b`, before implementation. **The contract is unchanged.** One cookie, the same attributes, resume on the server, and a clear on the same response. Only the mechanism is decided here, plus one guard that the contract turned out to need.
+
+**F1. Decision 4's *"as server components"* is superseded in mechanism only.**
+
+- **Why it has to change.** Next 16 does not support setting cookies during Server Component rendering: *"use a Route Handler"* (`next/dist/docs/01-app/03-api-reference/04-functions/cookies.md`). Decision 4 also requires *"a cookie matching no design is cleared on that response"*.
+- **What replaces it.** `/[locale]` and `/[locale]/configurator/configure` become Route Handlers, `GET` only. Each answers a relative `307` with an empty body and `Cache-Control: private, no-store`. That header is there because a cached resume would give one visitor's design id to the next.
+- **Rejected alternatives:**
+  - a resume in the proxy, which would put a database lookup in the proxy;
+  - leaving the cookie uncleared, which breaks decision 4.
+
+**F2. Clearing a `__Host-` cookie repeats its attributes.**
+
+- **The rule.** The clear is `Max-Age=0; Path=/; Secure; HttpOnly; SameSite=lax` with no `Domain`, built from the same constant as the set.
+- **Why.** Next's `cookies.delete(name)` emits no `Secure`, which was checked in `next/dist/compiled/@edge-runtime/cookies`. A browser ignores a `__Host-` `Set-Cookie` without `Secure`, so the cookie would silently survive. That second half is an inference, which the wave measures in a browser.
+
+**F3. Refresh points.**
+
+- **The mint.** It reuses a well-formed cookie from the request and re-emits it. An absent or malformed cookie is replaced with a fresh secret.
+- **A successful save.** It re-emits the request's own well-formed value and never mints one, per decision 1's *"refreshed with every successful save"*.
+- **Nothing else sets it.** Resume only ever clears.
+- **A stale premise, noted without re-deciding.** Decision 1's lifetime argument (*"a longer cookie would point at a design that no longer exists"*) lost its premise on 2026-09-15, when ADR 0019's decision 7 note retired automatic deletion. The 30-day figure stands, as that note says.
+
+**F4. The mint refuses cross-site requests.**
+
+- **The rule.** `POST /api/designs` answers 403, sets no cookie and writes no row when either:
+  - `Sec-Fetch-Site` is present and is not `same-origin`; or
+  - it is absent and `Origin` is present and is not the request's own origin.
+- **Why.** A cross-site top-level form `POST` carries no `SameSite=Lax` cookie, but its response may still set one. That is RFC 6265bis's top-level-navigation exception, an inference the wave's QA measures. Without the guard, any site could replace a visitor's identity and cut them off from their designs.
+- **What it does not change.** ADR 0111 decision 1's contract for every legitimate caller: the same-origin Step 1 mint and the e2e fixture. SEC-001's rate limit stays in M8.
+
+**F5. A lookup failure is not a missing design.**
+
+- **The rule.** A driver error during resume sends the visitor to Step 1 **without** clearing the cookie, and logs one line that carries no value, hash or id.
+- **Why.** An outage must never erase an identity.
