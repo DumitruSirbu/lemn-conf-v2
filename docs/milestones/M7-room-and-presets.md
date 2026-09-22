@@ -1542,7 +1542,7 @@ table.
 | **7F4a** | The composition runs and is drawn: 1F's rows, the borrowed kit, the measured cost — **DONE, `bf6901b` + `37f1ecb` + `6113176` + `52504d1`**; `ci:local` and the push are **pending** | `src/room/generation-model.ts`, `use-generation.ts`, `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` (+ messages) | 7D2, 7F1 | **Full** (kit lifetime) | **Yes** | Q7F4-1 **answered** — the owner's words for 1F, 2026-09-15 |
 | **7F4b** | The hand-off into the editor: one attempt, one row, navigation after the write — **DONE, close-out 2026-09-17, reconciled against `git log` 2026-09-17**. Commits: `9bb222b` (the hand-off), `b91cb25` (adversarial QA, no defect found), `e2f24dc` (save-failed notice as a live region; a false contract line corrected), `ef83393` (the run token detached from the mount's lifetime; `HandoffStatus` gains `saved`). See [7F4b close-out](#7f4b-close-out--2026-09-17). **Criterion 44's "CI is the verdict" is outstanding** — no push to this branch has ever triggered `ci.yml`; the owner has agreed to trigger it by hand from the Actions tab | `src/room/use-generation.ts`, `generation-steps.tsx`, `room.module.css` (+ `tests/e2e`) | **7F4a**, 7E2 | **Full** | **Yes** (short) | — |
 | ↳ | ***Minimum not met* → 1C needs no new screen** (carried from the struck row, answered 2026-09-14): 7A2's `ROOM_TOO_SMALL_FOR_KITCHEN` already resolves such a room to 1C **before** generation runs, and the sentence there is **7F2's**. The generator's own refusal arm is unreachable from 1D and is asserted so, not drawn for (R16) | | | | | |
-| **7T** | **The live persistence suite actually runs.** Five live suites gate on `DATABASE_URL`, which `ci.yml` deliberately never sets, so the database seam's live coverage has been **green by never executing**. Re-gate what is safe to re-gate onto `TEST_DATABASE_URL`, run it, and **report what it finds** — a red suite is the finding, not a reason to re-skip. **Ordered before 7P1** so the repository never holds two meanings of *"the persistence tests pass"* at once (coordinator's ruling on Q-7P1-1, 2026-09-15) | `packages/persistence/tests/*` (gating only), `tests/support/exclusive-migration-access.ts` (new, test support — T-J2's advisory lock), `.github/workflows/ci.yml`; **no production file** | — | Full (test infrastructure; CI is its verdict) | No | — |
+| **7T** | **The live persistence suite actually runs.** Five live suites gate on `DATABASE_URL`, which `ci.yml` deliberately never sets, so the database seam's live coverage has been **green by never executing**. Re-gate what is safe to re-gate onto `TEST_DATABASE_URL`, run it, and **report what it finds** — a red suite is the finding, not a reason to re-skip. **Ordered before 7P1** so the repository never holds two meanings of *"the persistence tests pass"* at once (coordinator's ruling on Q-7P1-1, 2026-09-15). **S1 SHIPPED at `5c1a6aa` (2026-09-16)** — two suites re-gated, `tests/support/live-test-database.ts` added; never run in CI (the last `ci.yml` run of any kind is `34580253814`, 2026-09-11). **S2 + S3 are NEXT — coordinator's ruling, 2026-09-22 — see [7T S2/S3 — the plan](#7t-s2s3--the-plan-2026-09-22)**; they discharge BACKLOG 69 | `packages/persistence/tests/*` (gating and lock registration only), `tests/support/test-schema-lock.ts` (new — T-J2 as amended by T-J5), `.github/workflows/ci.yml` (comments only, under C-7T-1's recommendation); **no production file** | — | Full (test infrastructure; CI is its verdict) | No | none — C-7T-1 is the coordinator's and gates S3 only |
 | **7P1** | The preset store: migration, record schema, repository, read path, backup export | `persistence/src/migrations/0005_create_presets.sql`, `persistence/src/preset-repository.ts`, `configurator-domain/src/presets/preset-record.ts`, `apps/web/src/lib/server/backup-designs.ts` | 7A | Full + security | No | — |
 | **7P2** | Authoring gate, save endpoint, editor button. **This wave is the project's freeze point**: the owner's *"a critical moment will be when I will start to save presets"*. From here the corner's reach, the wall minima and `ROOM_TOO_SMALL_FOR_KITCHEN` are load-bearing on stored data — **geometry that wants re-deriving (7D6, 7D7) lands before this, not after** | `apps/web/src/lib/server/preset-authoring.ts`, `app/api/preset-authoring/session/route.ts`, `app/api/presets/route.ts`, `src/panel/save-as-preset.tsx`, `app/[locale]/d/[id]/page.tsx` | 7P1, 7E2 | Full + security | **Yes** (owner surface) | — |
 | **7G** | Thumbnail captured at save, stored, served — **and backfilled for every preset authored before this wave** (coordinator's ruling on Q-7P1-2, 2026-09-15). 7P2 ships the save before this wave ships the capture, so presets authored in the gap would otherwise have no thumbnail and no way to acquire one: the application holds no `UPDATE`. **Not accepted** — those presets are the owner's first authored artefacts and the first data here that cannot be re-derived. The backfill re-captures from each preset's own snapshot (ADR 0112 decision 6) and needs only a **column-level** grant, so `status` stays unwritable by the application | `src/panel/capture-preset-thumbnail.ts`, `app/api/presets/[id]/thumbnail/route.ts`, `preset-repository.ts`, the thumbnail migration (not created by 7P1 — ruling P5) | 7P2 | Full + security (upload) | Capture | — |
@@ -1552,8 +1552,8 @@ table.
 | **7A3** | **The wall maxima become 6000 mm each, and the field says what number to type — DONE, close-out 2026-09-17.** See [7A3 close-out](#7a3-close-out--2026-09-17). Commits: S0 (ADR 0124) `6c8a1bc`; S1 (`recordedLRoom` split + guard) `71aae6d`; S2 (policy 6000/6000, `MAX_ROOM_DEPTH_MM` 6300) `1fac007`; S2 QA (4 new qa-7a3 files) `cbd04a8`; S2 review fixes (new corner suites, wall-B sweeps to 6000) `2898b14`; S3 (hint line + per-wall help, copy lock) `c0d74dc`; S3 fixes (U-room clip, corner clause, shared dismiss hook) `b7b3941`; S3 D2 (help button placement, 44px non-overlap guard) `6bc1b44`. `pnpm ci:local`/push **pending at the time of writing; the coordinator records it separately.** | `src/room/approved-room-policy.ts`, `src/design-bounds.ts`; then `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json` + `ru.json` | **7D8 closed** (its re-keyed arm governs 91.0 % of the rooms this wave admits). Not in flight with 7D5, 7D6 or 7D7 | **Full** (domain bound + a wire bound) | **Yes**, slice S3 only | **Two owner rulings recorded 2026-09-17** — see *Owner questions for M7* for the dated entries: the corner clause, and help-button placement option (a) |
 | **7F2** | 1C validation state, incl. *minimum not met* — **DONE, `22279b6`** (S1 `731a338`, S1b `3bbbde8`, S2 `c4f59f3`, S3 `f4f775d`, S3b plan `518b7db`, S3b `c8bdc5e`, S4 `20381e7`, S5 `9aad164`, S5b `22279b6`) — see [7F2 close-out — 2026-09-22](#7f2-close-out--2026-09-22) | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | answered — Q-7F2-1…4 = (a); the Q-7F2-2 remedy already applied to frame 1F by 7D5b's W7 fix |
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
-| **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
-| ↳ | **Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more | | | | | |
+| **7F3** | 1D skeletons; 1E list from the library, with declared changes. **DEFERRED PAST M8 with 7B/7C — coordinator's ruling, 2026-09-22.** What is left of it is the preset list and its loading skeletons (the skeleton count is a constant over *"0, 1 and 3 fitting presets"*, criteria at the 7F3 carried line), and both read the library (7P1) and the matcher (7B/7C) — so its dependency is **not** narrower than the row states | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
+| ↳ | ~~**Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more~~ **DISCHARGED by 7F4 (coordinator, 2026-09-22):** *Continuă*'s destination moved to 7F4 (Q-D45-5), and `room-screen.tsx`'s `continueFromLengths()` now calls `departTo("presets")` and then `run.compose(room)` [source-verified at `ea8b11e`]. 7F4's seam note stands for whenever 7F3 revives: 7F3 inserts 1D/1E in front of `use-generation`'s one entry call | | | | | |
 | **7E4** | e2e and tooling off `/configurator/configure` | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs` | — | Light (tests; CI is the verdict) | No | — |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
@@ -1561,7 +1561,7 @@ table.
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
-| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked |
+| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **One owner question OPEN, recorded 2026-09-22 (coordinator's instruction), gating 7J's policy slice and nothing else — Q-7J-1: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300?** The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. **Recommendation: 6000**, so every wall the product accepts has one maximum. It does not gate 7T |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
@@ -1586,7 +1586,10 @@ not make a scheduling decision, and both of these are scheduling decisions once 
    gives way — whether 7F3 is deferred with the rest of the preset story, or whether its dependency on
    7C is narrower than the row states. **That is a scheduling call, not a documentation one**, and it
    is left open here for whoever makes it. The same question does not arise for 7B, which states its
-   own deferral and its own reason.
+   own deferral and its own reason. **RESOLVED 2026-09-22 by the coordinator's ruling: 7F3 defers
+   past M8 with 7B/7C.** Its one M7-sized obligation, *Continuă* at 1B, was already discharged by 7F4
+   (see 7F3's row); what remains reads the library. **Consequence for the order: 7E4 is the first
+   product wave after 7T.**
 
 **Recommended order, and why.** The owner's own process — *choose the room, generate, adjust, save* —
 is the critical path, because matching is useless until the library has presets: **7A → 7D1 → 7D2 →
@@ -1601,6 +1604,11 @@ them — `… → 7F4a → 7F4b → 7T → 7P1 → 7P2 → 7G → …` (coordina
 nothing it does not already gate: it touches **no production file**, and it is placed before 7P1
 because 7P1 adds live suites that run in CI alongside five that do not, and a repository in which
 *"the persistence tests pass"* means two different things is how the next green badge is misread.
+**Corrected again 2026-09-22 (coordinator's ruling, after 7F2 closed):** the preset story (7P1, 7P2,
+7G, 7B, 7C) and now **7F3** sit past M8, and 7T's S1 shipped at `5c1a6aa`. The remaining M7 order
+reads **`… → 7F2 (DONE) → 7T S2/S3 → 7E4 → 7E3a → 7E3c → 7E3b → 7I → 7J → 7K → 7L`** (7H is DONE).
+7T comes first because it is the earliest unfinished wave in the recorded order, the 2026-09-15
+deferral exempts it by name, and the failure it prevents has occurred (BACKLOG 69, 2026-09-18).
 
 **The 7E3 split, confirmed against F5's final answer (ADR 0115) — three waves, not two.**
 - **7E3a — cookie and resume.** Needed under every answer the owner gave; nothing reads a design by
@@ -17062,6 +17070,14 @@ without running, and repairing it by weakening what it checks reproduces it in a
 - **S1 — the measurement, and it is a step of its own before any editing.** Re-gate the three T4
   suites onto `TEST_DATABASE_URL`, run them locally and in CI, and **report the raw output**.
   Criteria 1, 2, 3. **No remedy is written in this slice** (T-J1).
+  **SHIPPED at `5c1a6aa`, 2026-09-16 — recorded 2026-09-22, closing the record gap first noted in the
+  7D5 close-out** [source-verified: `git show 5c1a6aa`]. It re-gated **two** suites
+  (`design-row-source.test.ts`, `backup-restore-round-trip.adversarial.test.ts`) through a new
+  `tests/support/live-test-database.ts`, and its commit message carries the finding that **T4 is
+  wrong**: the other two suites that resolve the test database each violate T4's own criterion (a
+  whole-table count; a dropped column). Measured by S1, CI-shaped and **locally only**: exit 0, 205
+  passed, 77 skipped. **It has never run in CI** [measured: `gh run list --workflow ci.yml` — the
+  newest run is `34580253814`, 2026-09-11, before `5c1a6aa`], so criterion 1 is still open.
   - **Red is the expected outcome, not a surprise and not a blocker.** These suites have never
     executed against a real database. **A failure is the wave's product**: it is reported with its
     output and it is neither repaired in this slice nor made to pass by editing what it asserts
@@ -17072,11 +17088,14 @@ without running, and repairing it by weakening what it checks reproduces it in a
     act is to trust a number somebody else produced starts one step away from the evidence. The
     second reason is ordinary care: the suite writes to a shared Neon database and one of its files
     drops the ledger, so it is not run while another wave is in flight.
-- **S2 — whatever S1 found**, plus T-J2's advisory-lock helper for `migrate.test.ts`. Criterion 4.
-  Dispatched only after S1's output is in front of the coordinator.
-- **S3 — `migrate:status` in CI** and the comment correction. Criteria 5, 6. Separate because its
+- ~~**S2 — whatever S1 found**, plus T-J2's advisory-lock helper for `migrate.test.ts`. Criterion 4.
+  Dispatched only after S1's output is in front of the coordinator.~~
+- ~~**S3 — `migrate:status` in CI** and the comment correction. Criteria 5, 6. Separate because its
   credential question (T-J3) is the one thing here that can fail for a configuration reason rather
-  than a code one.
+  than a code one.~~
+- **S2 and S3 are re-planned below, 2026-09-22 — [7T S2/S3 — the plan](#7t-s2s3--the-plan-2026-09-22).**
+  The struck lines stand as history. The re-plan exists because re-measuring at `ea8b11e` shows T-J2
+  as written would not work (see T-J5).
 
 ### Risks, ranked — with the reason for the rank
 
@@ -17105,6 +17124,408 @@ is this wave's verdict by definition, since the whole claim is about what CI exe
 proves the suites pass; **only the job log proves they ran**. Whole-tree `pnpm format:check` at the
 wave's end. No e2e, no visual capture, and **no production file in the diff** — a production file
 appearing in this wave's diff is itself a review finding.
+
+### 7T S2/S3 — the plan, 2026-09-22
+
+**Written by the architect at HEAD `ea8b11e`, on the coordinator's ruling of 2026-09-22** that the
+rest of 7T is the next wave. The original plan above was measured at `41181d8` and **nothing in it
+is inherited without being re-checked**. Evidence labels: **[measured]** means executed in this
+session with the output read; **[source-verified]** means read at `ea8b11e`; **[doc-quoted]** means
+quoted from a record, not re-run; **[inference]** means reasoned, and open to challenge.
+
+> **How it was measured, and what was deliberately not run.** Files were read at `ea8b11e`. The
+> persistence suite was **not** run: a push with `pnpm ci:local` was running against
+> `lemn-conf-v2-staging` while this was written, and starting a second runner is exactly BACKLOG 69.
+> CI evidence comes from `gh run list` / `gh run view 34580253814 --log` (read-only). Environment
+> files were inspected for **key names, database names, lengths and booleans only**. No value was
+> printed (`docs/best-practices/environments-and-resources.md`).
+
+#### 1. What S2/S3 must deliver, from the record
+
+**The row (`M7-room-and-presets.md`, revised wave table, 7T) [source-verified]:** *"Re-gate what is
+safe to re-gate onto `TEST_DATABASE_URL`, run it, and **report what it finds** — a red suite is the
+finding, not a reason to re-skip."*
+
+**The governing sentence (coordinator, 2026-09-15) [doc-quoted]:** *"I am not assuming they pass.
+Five suites that have never executed against a real database may well be red, and if they are, that
+is the finding — not a reason to re-skip them."*
+
+**The open criteria of the original plan [source-verified, above]:**
+
+- criterion 1: the live suites run in CI, *"proved by their names appearing as run, not skipped, in
+  the job log"*;
+- criterion 4: *"Two simultaneous runners cannot corrupt each other's migration run"*;
+- criterion 5: *"`migrate:status` runs in `ci.yml` and reports **level** against the test database"*;
+- criterion 6: the `ci.yml` comment at `:136-138` is corrected;
+- T-J4: *"nothing in this wave changes a test's assertions to make it pass."*
+
+**S1's finding (`5c1a6aa`'s message) [source-verified]:** *"THE PLAN'S T4 IS WRONG … The two
+unnamed ones each violate T4's own stated criterion and were deliberately left alone"*. Those are
+`neon-configuration-repository.adversarial.test.ts:216-237` (a whole-table count) and
+`neon-configuration-repository.test.ts:656-686` (a dropped column). S1 also says: *"Re-gating either
+without T-J2's helper would realise the plan's own rank-2 risk."*
+
+**BACKLOG 69 (`docs/backlog/open.md:1625`) [doc-quoted]:** two gate runs against one test database
+corrupted its ledger on 2026-09-18. The errors were *"`MigrationSequenceError`: Migration 4 … is
+recorded as applied, but 2 … is not"* and *"column "write_token_hash" does not exist"*. It is recorded
+as *"wave 7T's subject, not scheduled"*. **The owner's test (ADR 0118) is met: the problem has
+occurred.**
+
+#### 2. Ground truth at `ea8b11e`, re-measured
+
+| # | Fact | Evidence |
+| --- | --- | --- |
+| G1 | The CI test job and a local run hit **the same database**. The CI log prints `TEST_DATABASE_URL present; database name: lemn-conf-v2-staging`. Local `.env.test.local` `TEST_DATABASE_URL` parses to `lemn-conf-v2-staging` too. | [measured] run `34580253814` log; [measured] name-only parse |
+| G2 | **No `ci.yml` run has happened since 2026-09-11**, so `5c1a6aa` has never run in CI. `ci.yml` triggers only on a PR to `main`, a push to `main`, or `workflow_dispatch` (`ci.yml:10-18`). A push to this branch runs nothing. | [measured] `gh run list`; [source-verified] |
+| G3 | The last CI test job **skipped 86 of 282 persistence tests**: `neon-configuration-repository.test.ts` 42, `…adversarial.test.ts` 14, `migrate.test.ts` 9, `backup-restore-round-trip.adversarial.test.ts` 5, `design-row-source.test.ts` 4, `write-token-schema.adversarial.test.ts` 3, `application-role-privileges.test.ts` 9. | [measured] run `34580253814` log |
+| G4 | Since that run, the **only** change under `packages/persistence` or `.github/workflows` is `5c1a6aa`. So the CI-shaped skip count at HEAD is **77** (86 − 9), which agrees with S1's own *"205 passed and 77 skipped"*. After S2 it should be **12**: the two application-database files, 9 + 3. | [measured] `git diff --stat 995ad03 HEAD`; [computed] |
+| G5 | **Locally every live suite already runs**: `.env.local` holds `DATABASE_URL`, so the old gate is true. That is why local `pnpm check` reports persistence *"20 / 282"* with no skips. So **the destructive suites run on every developer's and every agent's `pnpm test`, `ci:local` and pre-push**, against the database CI uses. | [measured] key names; [doc-quoted] STATUS |
+| G6 | **Four describe blocks in three files mutate shared schema or ledger, or assert a whole-table aggregate. It is not one file, as T1 says.** `migrate.test.ts:109` drops the ledger, forgets rows and synthesises versions. `neon-configuration-repository.test.ts:629` drops `revision` (`:665`). `…adversarial.test.ts:535` drops `write_token_hash` and forgets 2–4 (`:550-557`). `…adversarial.test.ts:71` holds the whole-table `count(*)` (`:216-237`). **Both error texts in BACKLOG 69 match these windows**: the gap test's `forgetAppliedMigrations([2])` (`migrate.test.ts:198-212`) and the adversarial column drop. | [source-verified] |
+| G7 | **The two suites S1 re-gated are *not* safe against a concurrent destructive runner.** They tolerate each other, as T4 says, but they mint rows. A mint that lands while another runner has `write_token_hash` or `revision` dropped fails, which is BACKLOG 69's second error. **S1 therefore added a new cross-runner flake that has not yet fired, only because CI has not run since** (G2). | [source-verified] + [inference] |
+| G8 | **Local `TEST_DATABASE_URL` uses Neon's pooled endpoint** (hostname contains `-pooler`). Neon's pooler runs PgBouncer in **transaction mode**, where a *session*-level advisory lock is not reliably held across transactions. | [measured] boolean; [inference] — Neon's pooling behaviour recalled, **not verified in this session**; S2a measures it |
+| G9 | `MIGRATION_ADVISORY_LOCK_KEY = 4_207_691_115` (`migration-ledger.ts:60`), transaction-scoped (`:55`). `migrate.ts:42-45` uses the WebSocket `Client` because *"the HTTP driver has no session"*. | [source-verified] |
+| G10 | `vitest.config.ts`: `fileParallelism: false`, `testTimeout` and `hookTimeout` 30 000 ms. | [source-verified] |
+| G11 | `migrate:status` (`src/migrate-status.ts`) needs an environment argument and `MIGRATION_DATABASE_URL` (`:170-181`). It runs only in `deploy.yml:112,126`. `readDeployedSchema(url)` is exported (`:87`), and **no live test calls it** — only `readDeclaredEnvironment` is unit-tested. | [source-verified] |
+| G12 | `ci.yml:131-143` still explains the absent `DATABASE_URL` in a way that reads as though the live suites are covered. `ci.yml:253-260` justifies `e2e`'s `needs: test` with DDL-executing live suites. **In CI today those suites are skipped (G3)**, so the justification describes a state S2 creates rather than the current one. | [source-verified] |
+| G13 | `migrate.test.ts:215-233` (*"two concurrent runners"*) **cannot tell concurrency from serial execution**: both assertions hold if the two runs execute one after the other. | [source-verified] + [inference] |
+
+#### 3. Rulings
+
+**T-J5 — T-J2 is amended, dated 2026-09-22. The critical section is the file, the lock is
+readers–writer, and it is transaction-scoped.** T-J2's intent stands: an advisory lock on a
+test-only key, decided in the plan rather than by the implementer. **Three parts of its mechanism do
+not survive re-measurement:**
+
+1. ~~*"It wraps the `runMigrations` call, not the whole suite."*~~ **Wrong twice over.** First, the
+   window that corrupts another runner is *mutate → run → assert → restore* (G6), and a lock that
+   covers only the run leaves the mutation outside it. Second, wrapped around each call it would
+   **serialise `migrate.test.ts`'s two "concurrent" runners** into one after the other, so that test
+   would still pass and no longer test anything (G13).
+   **Ruled instead:** each live test file declares **one mode at module scope**, which holds a lock
+   from a top-level `beforeAll` to its `afterAll`:
+   - **exclusive** — `migrate.test.ts`, `neon-configuration-repository.test.ts` and
+     `neon-configuration-repository.adversarial.test.ts`, the three files that contain G6's
+     describes;
+   - **shared** — `design-row-source.test.ts` and `backup-restore-round-trip.adversarial.test.ts`;
+   - the two application-database files take **no** lock and keep their gate, because they never
+     touch the test database.
+
+   **Per-file, not per-describe:** fewer registration points and a census a regex can check. The
+   cost is a longer exclusive hold, bounded below.
+2. ~~*exclusion only*~~ **Readers–writer.** Shared holders run alongside each other. An exclusive
+   holder runs alone. G7 is why shared exists: the "tolerant" suites need the schema intact while
+   they run.
+3. ~~*session-scoped `pg_try_advisory_lock` in a bounded retry*~~ **Transaction-scoped, blocking, with
+   a bounded wait.**
+   - **The lock.** `pg_advisory_xact_lock` / `pg_advisory_xact_lock_shared` are held inside a
+     transaction left open on one dedicated `Client` and released by `COMMIT`. A transaction pins a
+     server connection even under PgBouncer's transaction mode (G8) [inference]. A dead worker closes
+     its socket and the transaction rolls back, releasing the lock. **That is the property ADR 0042
+     decision 3 chose transaction scope for**, so the helper agrees with the file it sits beside
+     rather than arguing with it.
+   - **Why blocking and not a retry loop.** A retry loop lets an exclusive requester starve behind a
+     stream of shared holders, whereas a blocking request queues [inference: Postgres grants a new
+     request only if it conflicts with neither held nor waiting modes; S2a measures it].
+   - **The bound.** `SET LOCAL lock_timeout` to a named constant, mapped to a named error, e.g.
+     `TestSchemaLockTimeoutError`, that says which mode, which key and how long it waited. T-J2
+     recorded the belief that `lock_timeout` does not govern advisory locks; **this plan believes it
+     does. Neither belief is verified, so S2a measures it.** If it does not, `SET LOCAL
+     statement_timeout` does the same job.
+   - **The hook's own timeout.** The top-level `beforeAll` takes an explicit timeout above the bound,
+     so contention surfaces as the named error and never as vitest's 30-second hook timeout (G10).
+
+   **Neither alternative is re-proposed here.** The CI `concurrency` group and the second database
+   stay rejected for the reasons T-J2 gives, as corrected. **Add one fact to the second-database
+   option:** ADR 0006's 2026-08-31 amendment records that the owner **declined** creating a separate
+   `lemnaria_test`, and ADR 0054 records that the Neon project's **child-branch limit is already
+   reached**. So per-runner branches (BACKLOG 69's *"own database or branch"*) are not available
+   today, and reviving the second-database option is **an owner question, not a coordinator
+   choice**.
+
+**T-J6 — the lock key is test-only, never `MIGRATION_ADVISORY_LOCK_KEY`, and the helper never
+imports `migrate.ts`.** So the production runner's per-transaction lock runs inside an exclusive
+holder's window unchanged, and G13's two runners stay genuinely concurrent. **G13 itself is recorded
+as a finding and not fixed here**: fixing it would change an assertion (T-J4).
+
+**T-J7 — the mode is a census, not a convention.** A static test discovers every file under
+`packages/persistence/tests` and asserts three things. Every file that resolves the test database
+registers exactly one mode, at module scope, before any `describe`. Every file matching the
+destructive pattern (`alter table`, `drop `, `forgetAppliedMigrations`, `dropMigrationLedger`,
+`dropSynthesisedMigrationArtefacts`, `count(*)`) registers **exclusive**. The observed
+classification equals a literal table: three exclusive, two shared, and two ungated application-DB
+files. **A new live file that registers nothing turns the census red** — the failure this wave
+exists for, arriving through a new file instead of an old one.
+
+**C-7T-1 — the coordinator's question, which gates S3 only: where `migrate:status`'s check runs.**
+T-J3 said *"a `migrate:status` run in `ci.yml`"*, and left the credential to the implementer. Two
+options, re-measured:
+
+- **(a) A CLI step in `ci.yml`** after `pnpm test`, with the job's env mapping
+  `MIGRATION_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}`. This is an addition under the
+  add-only rule: no new secret, nothing removed. **Its flaw:** the step cannot take the test lock,
+  so it can read another runner's exclusive window and go red for a reason nobody can reproduce —
+  risk 5 of the original plan, now made **certain** by G5. It also adds a secret mapping to a
+  workflow, which brings in a security reviewer.
+- **(b) A live test in the persistence package** under the **shared** lock. It runs
+  `runMigrations`, then `readDeployedSchema(liveTestDatabaseUrl)`, then `describeDeployedSchemaStatus`
+  over `readMigrationFiles()`, and asserts `isDeployedSchemaLevel`. These are the **same three
+  functions `deploy.yml`'s gate reaches**. It needs no credential change, runs locally as well as in
+  CI, and cannot see a half-mutated schema.
+  - ADR 0020's amendment by ADR 0096 permits exactly this: *"A suite-level assertion may stand
+    beside it; it may not be it."* **So (b) stands beside `deploy.yml`'s gate and never replaces
+    it.**
+  - It also closes G11: the first live exercise of `readDeployedSchema`.
+
+**Recommendation: (b).** T-J3's purpose — *"a gate that disagrees with the migration set is a **red
+CI job** rather than a blocked deploy"* — is met exactly. Only the words *"in `ci.yml`"* are not.
+**If (b) is chosen, record it as a dated amendment to T-J3** rather than letting S3's diff overturn
+it silently.
+
+#### 4. Tier, visual flag, goal, scope, module boundaries
+
+**Tier: Full.** Persistence, and a test-isolation mechanism that every future live suite inherits.
+Adversarial QA runs first, then **logic and clean-code review in parallel**. **No security reviewer
+under C-7T-1 (b)**, because no secret, credential or workflow permission changes. **Under (a), add
+one** for the secret mapping. **Visual: No.**
+
+**Goal.** Every live persistence suite runs wherever a test database is configured, CI included. Two
+runners against `lemn-conf-v2-staging` — a laptop and CI, two agents' gates, or `ci:local` and a
+pre-push — can no longer corrupt each other. And a mismatch between a schema requirement and the
+migration set is a red test.
+
+**In scope:**
+
+- re-gating the three remaining resolving suites through `live-test-database.ts`;
+- the lock helper and its self-tests;
+- the per-file lock registration in the five resolving suites;
+- the two censuses;
+- the schema-level live test (under (b));
+- the `ci.yml` comment corrections;
+- the CI verdict.
+
+**Out, named so nobody drifts:**
+
+- **`apps/web` and e2e.** Playwright mints rows on the same database and does not take the lock.
+  Recorded as residual risk R6, with its trigger (ADR 0118), **not built**.
+- **The pre-push port-4320 half of BACKLOG 69.** A separate cause, not this wave's.
+- **Any assertion.** T-J4, restated as criterion 15.
+- **G13's vacuous concurrency test.** Recorded, not fixed.
+- **A second database or branch, and any env var or secret.** Add-only, and outside this wave in any
+  case.
+- **`application-role-privileges.test.ts` and `write-token-schema.adversarial.test.ts`.** Their
+  `DATABASE_URL` gate is correct (S1's finding) and must not move.
+- **Every file under `packages/*/src` and `apps/*/src`.**
+
+**Module boundaries:**
+
+| file | role | new/edit |
+| --- | --- | --- |
+| `packages/persistence/tests/support/test-schema-lock.ts` | The one place a live file declares its mode. Holds one dedicated `Client`, one open transaction and one xact advisory lock. Exports the two registrations, the bound, the key and the named error. **Must not:** import `migrate.ts`, use `MIGRATION_ADVISORY_LOCK_KEY`, retry in a loop, or allow a second acquisition while one is held. | new |
+| `packages/persistence/tests/support/live-test-database.ts` | Unchanged role, the gate. It may gain nothing but what the lock helper needs to read (`liveTestDatabaseUrl`). | edit only if needed |
+| `tests/migrate.test.ts`, `tests/neon-configuration-repository.test.ts`, `tests/neon-configuration-repository.adversarial.test.ts` | Re-gate onto `live-test-database.ts`, announce a skip, register **exclusive**. | edit |
+| `tests/design-row-source.test.ts`, `tests/backup-restore-round-trip.adversarial.test.ts` | Register **shared**. | edit |
+| `tests/test-schema-lock.test.ts`, `tests/live-suite-census.test.ts` | Helper self-tests (live, own key) and the two censuses (static). | new |
+| `tests/test-database-schema-status.test.ts` *(under (b))* | The schema-level check (S3). | new |
+| `.github/workflows/ci.yml` | Comments only under (b). | edit |
+
+#### 5. Slices (≤ 5 items each), with owners
+
+Sequential, with the tree frozen between slices. **Hard precondition for every slice that touches
+the database:** no other gate, e2e run or live suite is running against `lemn-conf-v2-staging` — no
+`ci:local`, no pre-push, no second agent. The coordinator confirms this before dispatch
+(`docs/best-practices/agent-coordination.md`).
+
+**S1 — DONE, `5c1a6aa`** (see *Slices* above).
+
+**S2a — measure the primitive before building on it. Owner: developer. No committed code** — a
+scratchpad probe only, reported verbatim.
+
+1. Through the **pooled** `TEST_DATABASE_URL`, exactly as given: open a transaction on a `Client` and
+   take `pg_advisory_xact_lock_shared(k)` on a random test key. Leave it idle **≥ 120 s**, and confirm
+   from a second connection that it is still held (`pg_locks`, `locktype = 'advisory'`).
+   **Kill the holder process;** report how many seconds pass before a second session acquires the
+   lock exclusively.
+2. The modes: shared + shared are both granted; shared blocks exclusive; **exclusive queued before a
+   later shared request makes that request wait** (the fairness T-J5 relies on).
+3. The bound: with `SET LOCAL lock_timeout = '3s'`, does a contended `pg_advisory_xact_lock` fail at
+   about 3 s with SQLSTATE `55P03`? If not, repeat with `statement_timeout` and report both.
+4. The hold durations: wall-clock from first to last test of each of the five resolving files in one
+   full CI-shaped run (`DATABASE_URL` unset, `TEST_DATABASE_URL` set, old gates temporarily lifted in
+   the scratch copy only). **This sets the bound.**
+   **The ruling on the numbers:** the bound is at least 2× the longest exclusive file's hold. The
+   top-level hook timeout is the bound plus 30 s.
+5. **Stop condition.** If item 1 shows the pooler dropping an idle transaction, or item 3 shows
+   neither timeout governing the wait, **stop and report**. The fallback — a session lock over the
+   non-pooler endpoint derived from the same URL — is the coordinator's call, not the
+   implementer's.
+
+**S2b — the helper and its proof. Owner: developer; then adversarial QA.**
+
+1. `test-schema-lock.ts` per T-J5/T-J6, with the bound and hook timeout from S2a as named
+   constants.
+2. `test-schema-lock.test.ts`: the contention semantics (criteria 10–12), on a **per-run random key**,
+   so the self-test never contends with a real runner.
+3. `live-suite-census.test.ts`: the gate census (criterion 7) and the mode census (criterion 13),
+   both discovering files from disk and comparing them with a literal table.
+4. **No live suite is touched in this slice.** The census is **expected red** until S2c. It is
+   committed with the census's two assertions marked `it.fails` and a comment naming S2c, and S2c
+   flips them. **Must not:** a committed red suite, or a census written to pass today.
+
+**S2c — apply. Owner: developer; then adversarial QA; then logic + clean-code review (Full).**
+
+1. Re-gate `migrate.test.ts`, `neon-configuration-repository.test.ts` and
+   `neon-configuration-repository.adversarial.test.ts` onto `isLiveTestDatabaseConfigured` /
+   `liveTestDatabaseUrl`, each with `announceSkippedLiveSuite`.
+2. Register **exclusive** in those three files, and **shared** in the two S1 files. Flip the census's
+   `it.fails`.
+3. **Run CI-shaped and report verbatim, before any remedy (T-J1 applies again).** Three suites that
+   have never run in CI may be red. **A red suite is reported with its output, never re-skipped and
+   never "fixed" by an assertion edit** (T-J4). Whoever dispatches the fix does so knowing what was
+   red.
+4. The concurrency evidence: two full CI-shaped persistence runs **started together**, three rounds,
+   against the test database. Report all six exit codes and the maximum lock wait each runner saw.
+
+**S3 — the schema check and the comments. Owner: developer; QA; one combined reviewer — S3 alone is
+Light (one read-only live test and comments) under C-7T-1 (b); under (a) it is Full + security.
+Dispatch only after C-7T-1 is answered.**
+
+1. **Measure first:** run the S3 read once under the shared lock against `lemn-conf-v2-staging`, and
+   report `describeMigrationStatusLine` verbatim. The document schema versions the e2e rows carry
+   could make it non-level for a reason unrelated to migrations. **If it is not level, stop and
+   report.**
+2. `test-database-schema-status.test.ts` (criterion 16).
+3. `ci.yml` comments (criterion 17).
+4. **At the wave's end, the CI verdict** (criterion 18): one `workflow_dispatch` of `ci.yml` on
+   `m7-room-and-presets`. This is **an owner action**, because it spends the Actions allowance: the
+   `e2e` legs run too, because `e2e` is gated `if: github.event_name != 'pull_request'`. **It also
+   discharges 7F4b criterion 44's outstanding CI verdict**, which is waiting on the same kind of run.
+
+#### 6. Acceptance criteria
+
+Criteria 1, 2, 3 and 6 of the original plan stand. **Criterion 4 is replaced by 10–14, and criterion 5
+by 16** (dated 2026-09-22). *Sabotage ↑* means a change that should turn a test red. *Sabotage ↓*
+means a change a weak test would let through. Both directions are required for each criterion
+marked (unit/live).
+
+7. *(static — the gate census)* Every file under `packages/persistence/tests` that connects to the
+   test database gates through `live-test-database.ts`. **Exactly two** files keep
+   `Boolean(process.env["DATABASE_URL"])`: `application-role-privileges.test.ts` and
+   `write-token-schema.adversarial.test.ts`.
+   **Discriminating population:** every `*.test.ts` in the directory, discovered from disk (20
+   today).
+   **Sabotage ↑:** restore the `DATABASE_URL` gate in `neon-configuration-repository.test.ts` →
+   red. **Sabotage ↓:** re-gate `application-role-privileges.test.ts` onto the test database →
+   red. That file asserts the *application* role's privileges, so on the test database it would
+   check the wrong role and could pass.
+   **Must not:** a census driven only by a hard-coded file list, which a new file escapes.
+8. *(measured — the skip count, both ways)* CI-shaped (`DATABASE_URL` unset, `TEST_DATABASE_URL`
+   set): **exactly 12 skipped**, all from the two application-database files, and **no
+   `[live-suite skipped]` line**. With both variables unset: every live test skips, and **each of
+   the five resolving files prints its announce line once**.
+   **Sabotage ↓:** a file that skips without announcing → one line short → fail.
+9. *(unit — the gate refuses rather than skips)* With `TEST_DATABASE_URL` naming a database that is
+   not allowlisted, importing `live-test-database.ts` **throws** the guard's refusal. It does not
+   evaluate to "not configured".
+   **Sabotage ↓:** wrap the resolve in a `try` that returns `undefined` → red.
+   **Must not:** a suite that is reachable with its target pointed at `lemn-conf-v2` (ADR 0006).
+10. *(live — shared coexists, exclusive excludes)* On a random key: two shared holders are granted
+   together. While an exclusive is held, a shared request with a 2 s bound fails in **[2 s, 5 s]**
+   with `TestSchemaLockTimeoutError` naming the mode, the key and the bound. The same holds with
+   the roles swapped.
+   **Sabotage ↑:** take every lock shared → the exclusion arm goes red. **Sabotage ↓:** drop the
+   bound → the test fails on vitest's timeout, not on the named error class, and the class assertion
+   is what turns it red.
+11. *(live — fairness)* An exclusive request queued behind a shared holder is granted before a
+   **later** shared request.
+   **Sabotage ↑:** implement acquisition as a `pg_try_advisory_*` retry loop → red.
+12. *(live — no leak)* After the holder's `Client` is destroyed without `COMMIT`, a second session
+   acquires exclusively within **5 s**. After `afterAll`, `pg_locks` shows no advisory lock on the
+   key.
+   **Sabotage ↑:** a session-scoped lock through the pooled URL → red, if S2a showed it leaks.
+13. *(static — the mode census, T-J7)* The observed classification equals the literal table: three
+    exclusive, two shared, two ungated. Every destructive-pattern file registers exclusive. Every
+    registration sits at module scope, above the first `describe`.
+    **Sabotage ↑:** register `neon-configuration-repository.adversarial.test.ts` as shared → red.
+    **Sabotage ↓:** delete the registration from `design-row-source.test.ts` → red.
+14. *(static + source)* The lock key ≠ `MIGRATION_ADVISORY_LOCK_KEY`. `test-schema-lock.ts` does not
+    import `../../src/migrate.js`. `migrate.test.ts:215-233`'s `Promise.all` over two
+    `runMigrations` calls is byte-identical.
+    **Sabotage ↑:** set the key to `4_207_691_115` → red.
+15. *(diff — T-J4)* `git diff ea8b11e..HEAD -- packages/persistence/tests` (`ea8b11e` is this plan's base) changes **no line
+    containing `expect(`** and no test title.
+    **Must not:** an assertion "adjusted" to get a newly running suite green.
+16. *(live, under C-7T-1 (b))* After `runMigrations`, the test database's schema is **level** by
+    `describeDeployedSchemaStatus(readMigrationFiles(), await readDeployedSchema(url))`, and the
+    status line is quoted in the close-out.
+    **Discriminating arm, in the same test:** the same live reading against `readMigrationFiles()`
+    plus one synthesised next version reports **not level**.
+    **Sabotage ↓:** a status function that always says level → the synthesised arm goes red.
+    **Sabotage ↑ (QA, reverted):** add a phantom column to `REQUIRED_DESIGN_COLUMNS` → red.
+    **Must not:** a `ci.yml` line mapping any secret, or any change to `deploy.yml`'s gate.
+17. *(diff)* `ci.yml:131-143` states that the live suites run on `TEST_DATABASE_URL`, which 12
+    tests skip by design and why, and that the suites serialise across runners through the test
+    lock. `:253-260` stays accurate. **Under (b), no non-comment line of `ci.yml` changes.**
+18. *(CI — the verdict)* One `ci.yml` run on the branch whose `test` log shows each of the five
+    resolving files with **0 skipped**, and persistence at **12 skipped** in total. Both are quoted
+    in the close-out with the run id.
+    **Must not:** a close-out on local evidence alone. A local run proves the suites pass; only the
+    job log proves CI ran them.
+19. *(diff)* `git diff --stat <wave base>..HEAD -- packages/*/src apps/*/src` is empty. No `.env*`
+    file, env var, secret or provisioned resource is added, changed or removed.
+
+#### 7. Risks, ranked
+
+| # | Risk | Why this rank | Mitigation |
+| --- | --- | --- | --- |
+| R1 | **A newly running suite is red, and gets re-skipped or its assertion weakened.** | The only outcome worse than before the wave. Three suites have never run in CI, and the CI secret's role privileges are not known to equal the local file's [inference]. | T-J1 (S2c item 3), T-J4, criterion 15. |
+| R2 | **The lock primitive misbehaves through Neon's transaction-mode pooler**, holding nothing or leaking. | Load-bearing and only [inference] today (G8). | S2a items 1 and 5; criterion 12. The fallback is the coordinator's. |
+| R3 | **Contention surfaces as vitest's 30 s hook timeout**, the unreadable failure T-J2 warned of. | Certain if the bound or the hook timeout is left at its default (G10). | T-J5 part 3; criterion 10's class assertion. |
+| R4 | **Waiting makes gates slow.** A runner can wait up to the longest exclusive file's hold, perhaps about a minute (S1 measured 66–67 s for two files). | Only under contention, which is rare, but `ci:local` and pre-push are exactly the case BACKLOG 69 saw. | Bound from S2a's measurement. The test job's 15-minute ceiling is checked in S2c. |
+| R5 | **S1's re-gated suites flake in CI before S2c lands** (G7). | Latent until the first CI run. | S2c lands before any `ci.yml` run is triggered on this branch. The owner's dispatch waits for S3 item 4. |
+| R6 | **e2e still mints without the lock**, so a concurrent exclusive window can fail a Playwright write. | Not observed; BACKLOG 69's e2e failure was the port. | Recorded, not built (ADR 0118). **Trigger:** the first e2e failure whose log shows a missing `designs` column. **Remedy then:** Playwright's global setup takes a shared lock. |
+| R7 | **The census drifts from the files.** | Pattern-matching source is brittle. | Two sources must agree: the literal table and the pattern. A disagreement is a red test, not a warning. |
+
+#### 8. Questions
+
+- **Owner: none that gates a slice.** One **owner action** at the end: trigger the `ci.yml`
+  dispatch (S3 item 4), which also settles 7F4b criterion 44.
+- **Coordinator: C-7T-1** (section 3), which gates S3 only. **Recommendation: (b).**
+- **Carried, not asked:** whether to revive a second test database belongs to the owner, if T-J5's
+  lock ever proves insufficient (ADR 0006's amendment; ADR 0054's branch limit).
+
+#### 9. Decision-record sweep
+
+I grepped `docs/decisions/*.md` for `TEST_DATABASE_URL`, `test database`, `lemn-conf-v2-staging`,
+`advisory`, `skipIf`, `live suite` and `migrate:status`. Nine records matched; ADR 0118 was read for
+the scheduling test.
+
+| Record | What it says | How it is settled here |
+| --- | --- | --- |
+| [0006](../decisions/0006-tests-never-touch-the-application-database.md) + amendment 2026-08-31 | Live tests never touch the application database. `lemn-conf-v2-staging` is the named destructive target, and *"nothing other than the destructive test suites may use"* it. The owner declined a separate `lemnaria_test`. | **Upheld.** Criterion 9 keeps the guard on the path. The second-database fallback is an owner question because of this amendment. **No conflict.** |
+| [0008](../decisions/0008-least-privilege-database-role.md) | The application role holds no DDL. | **Upheld.** The two application-database files keep their gate (criterion 7). |
+| [0020](../decisions/0020-a-migration-file-is-not-an-applied-migration.md), amended by [0096](../decisions/0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md) | The read-back is a deploy-time gate; *"a suite-level assertion may stand beside it; it may not be it."* | **Settles C-7T-1 in favour of (b) being permitted.** Criterion 16 forbids touching `deploy.yml`'s gate. |
+| [0042](../decisions/0042-the-database-records-which-migrations-it-ran.md) decision 3 | The production runner rejected a session-scoped lock: *"a lock a dying process can leave held."* | **Agreed with, not contradicted.** T-J5 chooses transaction scope for the same reason. The key is separate (T-J6). T-J2's *"different blast radius"* argument is no longer needed. |
+| [0054](../decisions/0054-local-development-writes-to-the-preview-database.md) | Local development writes to preview. `.env.test.local` → `lemn-conf-v2-staging` with the owner role. The Neon child-branch limit is reached. | **Upheld;** G1 re-measures the mapping. It rules out per-runner branches today. |
+| [0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md) | e2e's database use is row-scoped. The *"DDL window"* reason for `needs: test` was struck on 2026-09-10, and the conclusion kept. | **No change.** R6 records the cross-runner residue with a trigger. |
+| [0007](../decisions/0007-standalone-neon-instead-of-vercel-managed.md), [0009](../decisions/0009-deployment-configuration-gaps.md) | Standalone Neon; the test database is emptied by the live suite. | **Background only; nothing contradicts.** |
+| [0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | A problem that has not occurred is recorded with its trigger, not built for. | **Applied twice.** BACKLOG 69 has occurred, so S2 is built. The e2e cross-runner case has not, so R6 records a trigger. |
+| [0119](../decisions/0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) | A remembered fact is a claim to recheck. | **Applied.** Every `41181d8` fact is re-measured in section 2. T1, T4 and T-J2's mechanism did not survive. |
+
+**No earlier record is overturned.** The only prior ruling amended is this plan's own T-J2 (T-J5,
+dated), plus T-J3 if C-7T-1 = (b). **Recommendation for close-out:** the lock is a convention every
+future live suite inherits — 7P1's preset suites first. The scribe should therefore lift T-J5–T-J7
+into an ADR once S2c ships, rather than leave them in milestone prose (ADR 0127 did the same for
+7F1-D45's rule).
+
+#### 10. Verification
+
+- **Per slice:** `pnpm --filter @lemnaria/persistence test`, CI-shaped (`env -u DATABASE_URL`), run
+  **only** when no other runner is on `lemn-conf-v2-staging`, with the output quoted through
+  `rtk proxy`.
+- **Wave end:** whole-tree `pnpm format:check`, `pnpm check`, and `pnpm ci:local`, then the owner's
+  `ci.yml` dispatch for criterion 18.
+- **Nothing else:** no e2e change and no visual capture. A production file in the diff is a review
+  finding (criterion 19).
 
 ## Wave 7P2 — dispatchable punch list: the authoring gate, the save, and the owner's button
 

@@ -944,9 +944,18 @@ policy, so every per-endpoint limit is application code.
 > 2026-09-22*](milestones/M7-room-and-presets.md#7f2-close-out--2026-09-22). New record:
 > [ADR 0127](decisions/0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md)
 > lifts the 7F1-D45 convergence rule out of milestone prose and folds in S3b's late-echo fix. Seven
-> new backlog entries opened, 72–78 (`BACKLOG.md`). **Next: to be planned — the architect is
-> determining the next wave from the recorded order and its open scheduling questions (7F3's
-> dependency on the deferred 7C; the state of 7P1/7P2/7G).**
+> new backlog entries opened, 72–78 (`BACKLOG.md`). **Next (coordinator's ruling, 2026-09-22): the rest of wave 7T
+> — S2 + S3, the live persistence suites run everywhere and two runners on the test database can no
+> longer corrupt each other (discharges BACKLOG 69).** Plan: [`milestones/M7-room-and-presets.md`,
+> *7T S2/S3 — the plan, 2026-09-22*](milestones/M7-room-and-presets.md#7t-s2s3--the-plan-2026-09-22).
+> Full tier, not visual, no owner question gates a slice; **S2a (a probe, no committed code) is
+> dispatchable once no other gate is running against `lemn-conf-v2-staging`**; S3 waits on the
+> coordinator's C-7T-1; the CI verdict at the end needs the owner to dispatch `ci.yml` on this branch
+> (which also settles 7F4b criterion 44). 7T S1 shipped at `5c1a6aa` (2026-09-16) — the record gap is
+> closed in the wave table and the 7T section. **Same ruling:** 7F3 defers past M8 with 7B/7C (its
+> *Continuă* obligation was already met by 7F4), so **7E4 is the first product wave after 7T**; and
+> 7J's row now carries owner question Q-7J-1 (does the 6000 mm ruling cover a straight wall —
+> recommended yes), which does not gate 7T.
 
 > **RESUME HERE (superseded above, kept for its detail) — 2026-09-21, later still. M7 wave 7D5b is DONE and pushed; 7F2 is next.** Commits,
 > in order: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW
