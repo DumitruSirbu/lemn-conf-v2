@@ -20,7 +20,11 @@ import {
 } from "../src/migration-errors.js";
 import { readMigrationFiles } from "../src/migration-files.js";
 import type { MigrationFile } from "../src/migration-files.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import {
   dropMigrationLedger,
   dropSynthesisedMigrationArtefacts,
@@ -29,9 +33,18 @@ import {
   hasTable,
   readMigrationLedger,
 } from "./support/migration-ledger-probe.js";
+import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
+// Exclusive: this file drops the ledger, forgets its rows and synthesises versions, and no other
+// run may use the test database while it does (M7 wave 7T, T-J5).
+holdExclusiveTestSchemaLock();
+
+const SUITE_NAME = "the migration runner's live suite (live test database)";
+
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
+
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
 /**

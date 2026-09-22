@@ -13,6 +13,11 @@ import {
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
 import { readAllDesignRows } from "./support/read-all-design-rows.js";
+import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
+
+// Shared: this file mints rows and needs the schema intact, but tolerates other shared runs
+// (M7 wave 7T, T-J5).
+holdSharedTestSchemaLock();
 
 const SUITE_NAME = "createNeonDesignRowSource (live test database)";
 

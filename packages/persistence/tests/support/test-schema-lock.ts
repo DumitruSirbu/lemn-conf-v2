@@ -35,8 +35,15 @@ export type TestSchemaLockMode = "shared" | "exclusive";
 export const TEST_SCHEMA_LOCK_KEY = 3_141_592_653;
 
 /** How long a file waits for a conflicting run to finish before failing with a named error.
- *  Keyed on the longest hold of any mode: S2a measured the two shared files at about 85 s each, and
- *  an exclusive request queues behind a shared holder just as a shared one queues behind it. */
+ *  180 s is T-J5 Amendment A ruling 1 (2026-09-22), the ruling of record: keyed on the longest hold
+ *  of **any** mode, because an exclusive request queues behind a shared holder just as a shared one
+ *  queues behind it.
+ *
+ *  The ruling's own figure — S2a's shared files at about 85 s each — does not reproduce now that
+ *  the five files hold the lock for real. Measured locally at S2c, two runners at once: exclusive
+ *  12.9–15.1 s, shared 7.4–9.1 s. **The bound is deliberately not re-keyed to those numbers here**;
+ *  ruling 4 holds it until criterion 18's CI run measures the same holds against Neon from a CI
+ *  runner, and the coordinator re-keys it once. */
 export const TEST_SCHEMA_LOCK_WAIT_BOUND_MS = 180_000;
 
 /** Head-room a hook gets above the bound it enforces, so a stall surfaces as this module's named

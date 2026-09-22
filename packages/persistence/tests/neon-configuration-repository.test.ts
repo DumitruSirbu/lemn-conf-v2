@@ -18,10 +18,35 @@ import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
+import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
+// Exclusive: this file drops the revision column, and no other run may use the test database
+// while it is missing (M7 wave 7T, T-J5).
+holdExclusiveTestSchemaLock();
+
+const SUITE_NAME =
+  "the configuration repository's live suite (live test database)";
+
+// Never the application database — `liveTestDatabaseUrl` resolves through `resolveTestDatabaseUrl`,
+// which throws rather than resolving to it. These tests insert and delete rows; pointed at the
+// app's own database they would eventually destroy real customer designs.
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
+
+// Whether an application database URL exists to compare the test database against. CI configures
+// none on purpose, and with nothing to compare, the not-the-application's-own check would assert
+// nothing — so it runs only where both URLs exist (coordinator, 2026-09-22). Deliberately not the
+// file's gate: every other test here needs only the test database.
+const hasApplicationDatabaseUrl =
+  (process.env["DATABASE_URL"]?.trim() ?? "") !== "";
+
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
 // Stand-ins for the SHA-256 hex digests the web layer derives from a real write token. The
@@ -34,11 +59,6 @@ const WRONG_TOKEN_HASH = "b".repeat(64);
  *  back, so a migration that quietly changed the default would fail these tests instead of being
  *  followed by them. */
 const FIRST_REVISION = "1";
-
-// Never the application database — `resolveTestDatabaseUrl` throws rather than resolving to it.
-// These tests insert and delete rows; pointed at the app's own database they would eventually
-// destroy real customer designs.
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
 
 describe("NeonConfigurationRepository (live test database)", () => {
   // Rows these tests mint, deleted after each test. Without this the suite is not repeatable in the
@@ -318,7 +338,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
     },
   );
 
-  it.skipIf(!hasLiveDatabase)(
+  it.skipIf(!hasLiveDatabase || !hasApplicationDatabaseUrl)(
     "targets a database that is not the application's own",
     () => {
       const applicationDatabase = new URL(process.env["DATABASE_URL"] ?? "")
@@ -662,8 +682,12 @@ describe("the design-revision migration (WEB-003)", () => {
       const sql = neon(testDatabaseUrl);
       const legacyId = generateDesignId();
       try {
-        await sql`alter table designs drop column if exists revision`;
+        // Forget the ledger row before dropping the column, never after: killed between the two,
+        // a run leaves only a forgotten tail, which the next `runMigrations` re-applies and
+        // re-records. The other order leaves the ledger claiming a column that is gone, which is
+        // BACKLOG 69's second error and wedges every later run (review finding R1.2).
         await forgetAppliedMigrations(testDatabaseUrl, [REVISION_VERSION]);
+        await sql`alter table designs drop column if exists revision`;
         await sql`
           insert into designs (id, schema_version, document, write_token_hash)
           values (${legacyId}, 1, ${KITCHEN_L_DESIGN}, ${"c".repeat(64)})

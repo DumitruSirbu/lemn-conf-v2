@@ -22,11 +22,25 @@ import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
+import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
+// Exclusive: this file drops write_token_hash and asserts a whole-table count, and neither is
+// safe while another run uses the test database (M7 wave 7T, T-J5).
+holdExclusiveTestSchemaLock();
+
+const SUITE_NAME =
+  "the write-authorisation predicate's live suite (live test database)";
+
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
+
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
 /** Every design in this file is minted and then attacked without ever being saved, so the revision
@@ -547,11 +561,15 @@ describe("the write-token migration actually executes", () => {
     "re-adds the column after it is dropped, so a no-op run cannot pass",
     async () => {
       if (!sql) return;
-      await sql`alter table designs drop column if exists write_token_hash`;
+      // Forget the ledger rows before dropping the column, never after: killed between the two, a
+      // run leaves only a forgotten tail, which the next `runMigrations` re-applies and re-records.
+      // The other order leaves the ledger claiming a column that is gone, which is BACKLOG 69's
+      // second error and wedges every later run (review finding R1.2).
       await forgetAppliedMigrations(
         testDatabaseUrl,
         WRITE_TOKEN_MIGRATION_VERSIONS,
       );
+      await sql`alter table designs drop column if exists write_token_hash`;
       expect(await writeTokenColumns()).toHaveLength(0);
 
       const summary = await runMigrations(testDatabaseUrl);

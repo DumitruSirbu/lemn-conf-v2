@@ -71,6 +71,14 @@ const SHORT_RELEASE_BOUND_MS = 1_000;
 /** Node's millisecond timers can fire a fraction of a millisecond early by `performance.now()`. */
 const TIMER_TOLERANCE_MS = 5;
 const HEALTHY_RELEASE_SAMPLE_SIZE = 10;
+/** A wait bound no other runner uses, so a `lock_timeout` of exactly this is ours and nobody else's. */
+const SETTINGS_MARKER_WAIT_BOUND_MS = 17_123;
+const SETTINGS_MARKER_LOCK_TIMEOUT = `${String(SETTINGS_MARKER_WAIT_BOUND_MS)}ms`;
+/** How Postgres displays the helper's 600 s idle limit through `current_setting`. */
+const HELPER_IDLE_TIMEOUT_AS_DISPLAYED = "10min";
+/** Another runner's lock transaction can pin our old backend for its whole hold (≤ ~15 s measured). */
+const REUSE_SEARCH_BUDGET_MS = 40_000;
+const REUSE_TEST_TIMEOUT_MS = 60_000;
 /** A healthy release is one COMMIT and one close; a tenth of the bound is already ~300 round trips. */
 const HEALTHY_RELEASE_CEILING_MS = TEST_SCHEMA_LOCK_RELEASE_BOUND_MS / 10;
 /** Offsets, in ms, between asking the server to kill the holder and calling `release()`. The
@@ -527,30 +535,45 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   });
 
   describe("scope: nothing outlives release", () => {
-    it("leaves the holder's backend with no advisory lock and no open transaction", async () => {
+    it("leaves no lock of ours behind: none on our key, none held by our transaction", async () => {
       const key = randomTestKey();
       const holder = await hold("exclusive", key);
-      const holderPid = await backendPidOf(holdingClientOf(holder));
+      const ourTransaction = await virtualTransactionHolding(key);
 
       await holder.release();
 
-      expect(await advisoryLocksHeldBy(holderPid)).toEqual([]);
-      expect(await transactionStateOf(holderPid)).not.toBe(
-        "idle in transaction",
-      );
+      expect(ourTransaction).toMatch(/^\d+\/\d+$/);
+      expect(await advisoryLocksOn(key)).toEqual([]);
+      expect(await locksOfTransaction(ourTransaction)).toEqual([]);
     });
 
-    it("leaves the server's own timeouts on a pooled backend reused after release", async () => {
-      const serverDefaults = await timeoutsOnAFreshConnection();
-      const holder = await hold("shared", randomTestKey());
-      const holderPid = await backendPidOf(holdingClientOf(holder));
+    it(
+      "leaves none of our settings on the pooled backend a later connection reuses",
+      async () => {
+        const holder = await hold(
+          "shared",
+          randomTestKey(),
+          SETTINGS_MARKER_WAIT_BOUND_MS,
+        );
+        const holderPid = await backendPidOf(holdingClientOf(holder));
 
-      await holder.release();
-      const reuse = await findFreshConnectionOnBackend(holderPid);
+        await holder.release();
+        const search = await searchFreshConnectionsForBackend(holderPid);
 
-      expect(reuse).toBeDefined();
-      expect(reuse?.timeouts).toEqual(serverDefaults);
-    });
+        expect(search.landing).toBeDefined();
+        expect(
+          search.readings.map((reading) => reading.timeouts),
+        ).not.toContainEqual(
+          expect.objectContaining({
+            lockTimeout: SETTINGS_MARKER_LOCK_TIMEOUT,
+          }),
+        );
+        expect(
+          search.landing?.timeouts.idleInTransactionSessionTimeout,
+        ).not.toBe(HELPER_IDLE_TIMEOUT_AS_DISPLAYED);
+      },
+      REUSE_TEST_TIMEOUT_MS,
+    );
   });
 });
 
@@ -624,17 +647,21 @@ async function advisoryLocksOn(key: number): Promise<AdvisoryLockRow[]> {
   `) as AdvisoryLockRow[];
 }
 
-async function advisoryLocksHeldBy(pid: number): Promise<AdvisoryLockRow[]> {
-  return (await neon(liveTestDatabaseUrl)`
-    select mode, granted from pg_locks where locktype = 'advisory' and pid = ${pid}
-  `) as AdvisoryLockRow[];
+/** The virtual transaction id that holds `key` — ours alone, unlike the pooled backend's pid. */
+async function virtualTransactionHolding(key: number): Promise<string> {
+  const rows = (await neon(liveTestDatabaseUrl)`
+    select virtualtransaction from pg_locks
+     where locktype = 'advisory' and classid = 0 and objid = ${key} and objsubid = 1 and granted
+  `) as { virtualtransaction: string }[];
+  return rows[0]?.virtualtransaction ?? "";
 }
 
-async function transactionStateOf(pid: number): Promise<string | undefined> {
-  const rows = (await neon(liveTestDatabaseUrl)`
-    select state from pg_stat_activity where pid = ${pid}
-  `) as { state: string | null }[];
-  return rows[0]?.state ?? undefined;
+async function locksOfTransaction(
+  virtualTransaction: string,
+): Promise<{ locktype: string }[]> {
+  return (await neon(liveTestDatabaseUrl)`
+    select locktype from pg_locks where virtualtransaction = ${virtualTransaction}
+  `) as { locktype: string }[];
 }
 
 /** Kills the backend holding `key`, as a crashed worker or an idle kill would: no COMMIT. */
@@ -755,19 +782,24 @@ interface SessionTimeouts {
   idleInTransactionSessionTimeout: string;
 }
 
-async function timeoutsOnAFreshConnection(): Promise<SessionTimeouts> {
-  return (await readFromAFreshConnection()).timeouts;
+interface BackendSearch {
+  readonly landing: { timeouts: SessionTimeouts } | undefined;
+  readonly readings: readonly { timeouts: SessionTimeouts }[];
 }
 
-async function findFreshConnectionOnBackend(
+/** Opens fresh pooled connections until one lands on `pid`, within the budget; returns every
+ *  reading, because a setting of ours on any backend would be a leak too. */
+async function searchFreshConnectionsForBackend(
   pid: number,
-): Promise<{ timeouts: SessionTimeouts } | undefined> {
-  const MAXIMUM_ATTEMPTS = 20;
-  for (let attempt = 0; attempt < MAXIMUM_ATTEMPTS; attempt += 1) {
+): Promise<BackendSearch> {
+  const readings: { pid: number; timeouts: SessionTimeouts }[] = [];
+  const deadline = performance.now() + REUSE_SEARCH_BUDGET_MS;
+  while (performance.now() < deadline) {
     const reading = await readFromAFreshConnection();
-    if (reading.pid === pid) return reading;
+    readings.push(reading);
+    if (reading.pid === pid) return { landing: reading, readings };
   }
-  return undefined;
+  return { landing: undefined, readings };
 }
 
 async function readFromAFreshConnection(): Promise<{
