@@ -29,6 +29,7 @@ import {
   type DrawnPlanPreview,
   type PlanBox,
   type MarkedPlanWall,
+  type PlanPreview as PlanPreviewModel,
   type PlanWallId,
 } from "@/room/plan-preview-model";
 import {
@@ -153,6 +154,26 @@ function render(
   return plan;
 }
 
+/** Any plan the model returns, drawn or empty, painted in the product locale. */
+function surfaceWidthPx(): number {
+  const surface = elementAt("room-plan").querySelector("svg");
+  if (surface === null) throw new Error("the card paints no drawing surface");
+  return attributePx(surface, "width");
+}
+
+function renderPlan(plan: PlanPreviewModel): void {
+  act(() => {
+    root.render(
+      createElement(NextIntlClientProvider, {
+        children: createElement(PlanPreview, { plan }),
+        locale: A_PRODUCT_LOCALE,
+        messages: roMessages,
+        timeZone: "Europe/Chisinau",
+      }),
+    );
+  });
+}
+
 function elementAt(testId: string): HTMLElement {
   const element = container.querySelector(`[data-testid="${testId}"]`);
   if (!(element instanceof HTMLElement)) {
@@ -275,6 +296,30 @@ describe("the box the model is handed is the inside of the box that is painted",
       expect(barsOutsideThePaintableBox()).toEqual([]);
     },
   );
+
+  // 7F2 S5 (Q-7F2-3 = a): an L with wall B not yet typed draws nothing, and the card must not jump
+  // when wall B's first digit arrives. The height is read off the painted element, never the model.
+  it("paints the empty plan's box as tall and as wide as a drawn plan's, and draws nothing in it", () => {
+    render(AN_ORDINARY_KITCHEN);
+    const drawnHeightPx = paintedHeightPx();
+    const drawnWidthPx = surfaceWidthPx();
+
+    renderPlan(
+      derivePlanPreview(
+        withStoredLength(createRoomDraft("L"), {
+          field: "wallA",
+          millimetres: AN_ORDINARY_KITCHEN.wallAMm,
+        }),
+        PLAN_BOX,
+      ),
+    );
+    expect(paintedHeightPx()).toBe(drawnHeightPx);
+    expect(surfaceWidthPx()).toBe(drawnWidthPx);
+    expect(paintedBars()).toHaveLength(0);
+    expect(
+      container.querySelector('[data-testid^="room-plan-label-"]'),
+    ).toBeNull();
+  });
 });
 
 describe("a label is hung off the anchor the model placed, and nowhere else", () => {

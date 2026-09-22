@@ -820,12 +820,19 @@ describe("derivePlanPreview — what a shape draws", () => {
     });
   });
 
-  it("draws wall A alone from the first readable keystroke", () => {
-    const draft = draftWith("L", [["wallA", smallestApprovedRoom().wallAMm]]);
+  // Amended in 7F2 S5 by the owner's ruling Q-7F2-3 = (a). It claimed "draws wall A alone from the
+  // first readable keystroke" on an L — which drew exactly a linear room (criterion 8's L{A}).
+  it("draws wall A alone only for a linear room, where wall A is the whole shape", () => {
+    const wallAMm = smallestApprovedRoom().wallAMm;
+    const wallAOnlyAs = (shape: RoomShape) =>
+      derivePlanPreview(
+        draftWith(shape, [["wallA", wallAMm]]),
+        FRAME_PREVIEW_BOX,
+      );
 
-    expect(wallIdsIn(derivePlanPreview(draft, FRAME_PREVIEW_BOX))).toEqual([
-      "A",
-    ]);
+    expect(wallAOnlyAs("L").kind).toBe("empty");
+    expect(wallAOnlyAs("U").kind).toBe("empty");
+    expect(wallIdsIn(wallAOnlyAs("linear"))).toEqual(["A"]);
   });
 
   it("draws only the walls the chosen shape asks about", () => {
@@ -858,6 +865,165 @@ describe("derivePlanPreview — what a shape draws", () => {
       9,
     );
     expect(wall(plan, "C").yPx).toBe(wall(plan, "B").yPx);
+  });
+});
+
+// Wave 7F2 criterion 8, under the owner's ruling Q-7F2-3 = (a): the plan draws nothing until every
+// wall of the chosen shape reads as a length. A part of one shape is another shape's whole — U{A,B} is
+// an L, U{A} and L{A} are a linear room — so a plan that drew what was readable showed a room the
+// customer did not choose. Swept over every proper subset of every shape's walls, with each missing
+// wall either untouched or holding text the entry parser refuses.
+type WallField = Exclude<RoomLengthField, "height">;
+
+const WALLS_OF_SHAPE: Readonly<Record<RoomShape, readonly WallField[]>> = {
+  linear: ["wallA"],
+  L: ["wallA", "wallB"],
+  U: ["wallA", "wallB", "wallC"],
+};
+
+const EVERY_SHAPE = Object.keys(WALLS_OF_SHAPE) as readonly RoomShape[];
+
+/** Text a customer can leave in a field that reads as no length at all (ADR 0126, C-S1b-2). */
+const UNREADABLE_TEXTS = ["abc", "0", "3,6", "3600mm"] as const;
+
+interface IncompleteDraftCase {
+  readonly shape: RoomShape;
+  readonly present: readonly WallField[];
+  readonly missingText: readonly (string | undefined)[];
+  readonly wallsMm: Readonly<Record<WallField, number>>;
+  readonly direction: CornerDirection;
+  readonly box: PlanBox;
+}
+
+function everyProperSubsetOf(
+  fields: readonly WallField[],
+): fc.Arbitrary<readonly WallField[]> {
+  return fc.subarray([...fields], { maxLength: fields.length - 1 });
+}
+
+function everyIncompleteDraftCase(): fc.Arbitrary<IncompleteDraftCase> {
+  const typedWallMm = fc.integer({ min: 1, max: 7000 });
+  return fc.constantFrom(...EVERY_SHAPE).chain((shape) =>
+    fc.record({
+      shape: fc.constant(shape),
+      present: everyProperSubsetOf(WALLS_OF_SHAPE[shape]),
+      missingText: fc.array(
+        fc.option(fc.constantFrom(...UNREADABLE_TEXTS), { nil: undefined }),
+        { minLength: 3, maxLength: 3 },
+      ),
+      wallsMm: fc.record({
+        wallA: typedWallMm,
+        wallB: typedWallMm,
+        wallC: typedWallMm,
+      }),
+      direction: fc.constantFrom(...EVERY_CORNER),
+      box: everyPreviewBox(),
+    }),
+  );
+}
+
+/** The chosen shape with only `present` typed; every other wall untouched or left unreadable. */
+function incompleteDraftOf(testCase: IncompleteDraftCase): RoomDraft {
+  const typed = WALLS_OF_SHAPE[testCase.shape].reduce<RoomDraft>(
+    (draft, field, index) => {
+      const text = testCase.present.includes(field)
+        ? String(testCase.wallsMm[field])
+        : testCase.missingText[index];
+      return text === undefined
+        ? draft
+        : withEnteredText(draft, { field, text });
+    },
+    createRoomDraft(testCase.shape),
+  );
+  return turned(typed, testCase.direction);
+}
+
+/** Another shape, every one of its walls typed at the same values. */
+function completeDraftOf(
+  shape: RoomShape,
+  testCase: IncompleteDraftCase,
+): RoomDraft {
+  const typed = draftWith(
+    shape,
+    WALLS_OF_SHAPE[shape].map(
+      (field) => [field, testCase.wallsMm[field]] as const,
+    ),
+  );
+  return turned(typed, testCase.direction);
+}
+
+describe("derivePlanPreview — the plan never draws another shape (7F2 criterion 8, Q-7F2-3 = a)", () => {
+  it("draws the empty plan while any wall the shape asks for is missing or unreadable", () => {
+    fc.assert(
+      fc.property(everyIncompleteDraftCase(), (testCase) => {
+        expect(
+          derivePlanPreview(incompleteDraftOf(testCase), testCase.box),
+        ).toEqual({
+          kind: "empty",
+          boxPx: testCase.box,
+        });
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it("never draws an incomplete draft as another shape's complete drawing at the same values", () => {
+    fc.assert(
+      fc.property(everyIncompleteDraftCase(), (testCase) => {
+        const incomplete = JSON.stringify(
+          derivePlanPreview(incompleteDraftOf(testCase), testCase.box),
+        );
+
+        for (const other of EVERY_SHAPE.filter(
+          (shape) => shape !== testCase.shape,
+        )) {
+          const complete = derivePlanPreview(
+            completeDraftOf(other, testCase),
+            testCase.box,
+          );
+          expect(complete.kind, `${other} complete`).toBe("drawn");
+          expect(incomplete, `${testCase.shape} drawn as ${other}`).not.toBe(
+            JSON.stringify(complete),
+          );
+        }
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it.each([
+    ["U with walls A and B", "L", "U", ["wallA", "wallB"]],
+    ["U with wall A", "linear", "U", ["wallA"]],
+    ["L with wall A", "linear", "L", ["wallA"]],
+  ] as const)(
+    "draws %s as nothing rather than as the complete %s — a measured violation (S0 measurement 3)",
+    (_name, other, shape, present) => {
+      const testCase: IncompleteDraftCase = {
+        shape,
+        present,
+        missingText: [undefined, undefined, undefined],
+        wallsMm: { wallA: 3600, wallB: 2400, wallC: 1200 },
+        direction: "left",
+        box: FRAME_PREVIEW_BOX,
+      };
+
+      expect(
+        derivePlanPreview(incompleteDraftOf(testCase), FRAME_PREVIEW_BOX).kind,
+      ).toBe("empty");
+      expect(
+        derivePlanPreview(completeDraftOf(other, testCase), FRAME_PREVIEW_BOX)
+          .kind,
+      ).toBe("drawn");
+    },
+  );
+
+  it("draws nothing for an L whose wall A is unreadable, where it drew wall B alone (S0 measurement 3, its extra observation)", () => {
+    const draft = withEnteredText(draftWith("L", [["wallB", 2400]]), {
+      field: "wallA",
+      text: "abc",
+    });
+
+    expect(derivePlanPreview(draft, FRAME_PREVIEW_BOX).kind).toBe("empty");
   });
 });
 

@@ -3,8 +3,9 @@
 // `plan-preview-model-marking.test.ts` proves the claims over the rooms the issue model produces, on
 // L plans that always draw A before B. Two sabotages the plan names are invisible there, because in
 // every such plan a wall's array index, its id and its side agree: **marking by index** is caught
-// only by a plan that does not draw wall A, and **marking by screen side** only by a plan with two
-// walls running down the screen — a U — mirrored. Both are built here directly.
+// only by a plan that does not draw wall A (cut from a complete drawing: since S5 no draft draws
+// one), and **marking by screen side** only by a plan with two walls running down the screen — a U —
+// mirrored. Both are built here directly.
 //
 // The expected marks are taken from `validateRoomInput` called **directly on the millimetres**, never
 // from the issue model the component will be handed, and the sweep reaches below 100 mm because,
@@ -127,6 +128,16 @@ function drawn(plan: PlanPreview): DrawnPlanPreview {
   if (plan.kind !== "drawn")
     throw new Error("the draft under test draws no plan");
   return plan;
+}
+
+/** A complete drawing with wall A left out, so the walls that remain no longer stand at the index
+ *  their letter would suggest. */
+function withoutWallA(plan: PlanPreview): DrawnPlanPreview {
+  const complete = drawn(plan);
+  return {
+    ...complete,
+    walls: complete.walls.filter((candidate) => candidate.wall !== "A"),
+  };
 }
 
 function wallOf(plan: PlanPreview, wallId: PlanWallId): PlanWallRect {
@@ -276,16 +287,18 @@ function deepFrozen<T>(value: T): T {
 // ---------------------------------------------------------------------------------------------
 
 describe("a mark finds its wall by id, never by array index", () => {
-  // An L with wall A still empty draws wall B alone, at index 0. No reachable 1C plan looks like
-  // this — 1C needs every wall — which is exactly why the issue-model sweep cannot see an index.
+  // A plan with wall A left out puts wall B at index 0. **No draft draws one** — since 7F2 S5
+  // (Q-7F2-3 = a) a plan draws every wall its shape asks for or none — so it is built by taking a
+  // complete drawing and dropping wall A. `markPlanWalls` is a pure step over any plan it is handed,
+  // and only a plan whose index and id disagree can tell marking by id from marking by index.
   it.each(DIRECTIONS)(
     "marks wall B when it is the only wall drawn, with the corner turning %s",
     (direction) => {
-      const plan = planOf(draftTyped("L", { wallB: 2400 }, direction));
+      const plan = withoutWallA(
+        planOf(draftTyped("L", { wallA: 3600, wallB: 2400 }, direction)),
+      );
 
-      expect(drawn(plan).walls.map((candidate) => candidate.wall)).toEqual([
-        "B",
-      ]);
+      expect(plan.walls.map((candidate) => candidate.wall)).toEqual(["B"]);
       expect(
         marksOn(markPlanWalls(plan, [{ wall: "B", labelKey: TOO_SHORT }])),
       ).toEqual([{ wall: "B", labelKey: TOO_SHORT }]);
@@ -295,8 +308,11 @@ describe("a mark finds its wall by id, never by array index", () => {
   it.each(DIRECTIONS)(
     "marks nothing for wall A when wall A is not drawn, with the corner turning %s",
     (direction) => {
-      const plan = planOf(draftTyped("L", { wallB: 2400 }, direction));
+      const plan = withoutWallA(
+        planOf(draftTyped("L", { wallA: 3600, wallB: 2400 }, direction)),
+      );
 
+      expect(plan.walls).toHaveLength(1);
       expect(markPlanWalls(plan, [{ wall: "A", labelKey: TOO_LONG }])).toEqual(
         plan,
       );
@@ -304,15 +320,16 @@ describe("a mark finds its wall by id, never by array index", () => {
   );
 
   it("marks a U's walls B and C by id when wall A is not drawn", () => {
-    const plan = planOf(draftTyped("U", { wallB: 2400, wallC: 1200 }, "left"));
+    const plan = withoutWallA(
+      planOf(
+        draftTyped("U", { wallA: 3600, wallB: 2400, wallC: 1200 }, "left"),
+      ),
+    );
     const marks: readonly MarkedPlanWall[] = [
       { wall: "C", labelKey: TOO_LONG },
     ];
 
-    expect(drawn(plan).walls.map((candidate) => candidate.wall)).toEqual([
-      "B",
-      "C",
-    ]);
+    expect(plan.walls.map((candidate) => candidate.wall)).toEqual(["B", "C"]);
     expect(marksOn(markPlanWalls(plan, marks))).toEqual(marks);
   });
 });

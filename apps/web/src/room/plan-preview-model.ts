@@ -96,8 +96,9 @@ export interface DrawnPlanPreview {
   readonly walls: readonly PlanWallRect[];
 }
 
-/** Nothing readable to draw yet — an empty form is a state of the plan, not a missing plan, so the
- *  caller branches on it instead of receiving a drawing of a room nobody entered. */
+/** Not every wall the chosen shape asks for reads as a length yet — an incomplete form is a state of
+ *  the plan, not a missing plan, so the caller branches on it instead of receiving a drawing of a room
+ *  nobody entered. The box stays the same size, so the card does not jump when the drawing arrives. */
 export interface EmptyPlanPreview {
   readonly kind: "empty";
   readonly boxPx: PlanBox;
@@ -148,8 +149,6 @@ export const PLAN_MINIMUM_BOX_HEIGHT_PX =
  *  the end the room would turn at, and no linear plan draws a turn. */
 const MIRRORED_CORNER_DIRECTION: CornerDirection = "right";
 
-/** The walls a plan can draw, each with the field that gives it its length. The height is a field
- *  and not a wall: this is the view from above. */
 /** The wall the anchor sends along +X, which on a view from above is the one that runs across the
  *  screen. Every other wall a plan draws runs down it. */
 const WALL_ACROSS_THE_SCREEN: PlanWallId = "A";
@@ -158,10 +157,14 @@ const WALL_ACROSS_THE_SCREEN: PlanWallId = "A";
  *  down the screen stand at the far end of wall A. */
 const WALL_DOWN_FROM_THE_CORNER: PlanWallId = "B";
 
-const DRAWABLE_WALLS: readonly {
+interface DrawableWall {
   readonly wall: PlanWallId;
   readonly field: RoomLengthField;
-}[] = [
+}
+
+/** The walls a plan can draw, each with the field that gives it its length. The height is a field
+ *  and not a wall: this is the view from above. */
+const DRAWABLE_WALLS: readonly DrawableWall[] = [
   { wall: "A", field: "wallA" },
   { wall: "B", field: "wallB" },
   { wall: "C", field: "wallC" },
@@ -187,10 +190,10 @@ interface PlanLayout {
 export function derivePlanPreview(draft: RoomDraft, box: PlanBox): PlanPreview {
   assertBoxCanHoldTheDrawing(box);
 
-  const lengths = drawableLengthsIn(draft);
-  if (lengths.length === 0) return { kind: "empty", boxPx: box };
+  const walls = wallsAskedForBy(draft);
+  if (!isEveryWallReadable(draft, walls)) return { kind: "empty", boxPx: box };
 
-  const drawn = drawFromTheCorner(lengths, box);
+  const drawn = drawFromTheCorner(drawableLengthsIn(draft, walls), box);
   return draft.cornerDirection === MIRRORED_CORNER_DIRECTION
     ? reflectPlanPreview(drawn)
     : drawn;
@@ -581,18 +584,37 @@ function reflectedXPx(xPx: number, box: PlanBox): number {
   return box.widthPx - xPx;
 }
 
-/** The walls this shape asks about that read as a length. A field the shape does not ask for is not
- *  drawn even when it still holds a value the customer typed under another shape. */
-function drawableLengthsIn(draft: RoomDraft): readonly DrawableLength[] {
+/** The walls this shape asks about, from the parser's own field list. A field the shape does not ask
+ *  for is not drawn even when it still holds a value the customer typed under another shape. */
+function wallsAskedForBy(draft: RoomDraft): readonly DrawableWall[] {
   const askedFor = requiredFieldsFor(draft.shape);
-  return DRAWABLE_WALLS.filter((wall) => askedFor.includes(wall.field)).flatMap(
-    (wall) => {
-      const millimetres = draft.lengths[wall.field].millimetres;
-      return millimetres === undefined
-        ? []
-        : [{ wall: wall.wall, millimetres }];
-    },
+  return DRAWABLE_WALLS.filter((wall) => askedFor.includes(wall.field));
+}
+
+/**
+ * **The plan draws only once every wall the shape asks for reads as a length** (owner ruling
+ * Q-7F2-3 = (a), wave 7F2 criterion 8): a part of one shape can be another shape's whole — a U
+ * missing wall C is exactly an L, an L missing wall B exactly a linear room — so drawing whatever is
+ * readable showed the customer a room they did not choose.
+ */
+function isEveryWallReadable(
+  draft: RoomDraft,
+  walls: readonly DrawableWall[],
+): boolean {
+  return walls.every(
+    (wall) => draft.lengths[wall.field].millimetres !== undefined,
   );
+}
+
+/** The walls asked for that read as a length, each with its millimetres. */
+function drawableLengthsIn(
+  draft: RoomDraft,
+  walls: readonly DrawableWall[],
+): readonly DrawableLength[] {
+  return walls.flatMap((wall) => {
+    const millimetres = draft.lengths[wall.field].millimetres;
+    return millimetres === undefined ? [] : [{ wall: wall.wall, millimetres }];
+  });
 }
 
 function millimetresOf(
