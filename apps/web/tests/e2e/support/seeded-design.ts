@@ -83,9 +83,11 @@ export interface DesignAccessProbe {
 }
 
 /**
- * Opens a design-by-link path the way a browser does — from inside the page, so cookies land in
- * the jar under test — and returns only once the write-access probe (`GET /api/designs/{id}`) has
- * answered, alongside the navigation's own response.
+ * Navigates to a design-by-link `path` and returns only once the write-access probe
+ * (`GET /api/designs/{id}`) has answered, alongside the navigation's own response. A plain
+ * `page.goto`, carrying whatever cookies this browser context already holds — it sets none of its
+ * own, unlike {@link mintSeededDesign}'s in-page `fetch`, which exists specifically to land a
+ * `Set-Cookie` in the jar under test.
  *
  * **The one navigation every `/d/{id}` caller in this suite shares** (review round 1, R1.3):
  * `openSeededDesign` below throws on the probe's answer; `read-only-panel`, `read-only-global-settings`
@@ -129,8 +131,9 @@ export async function openDesignAndAwaitAccessProbe(
  *
  * Throws by name unless the write-access probe (`GET /api/designs/{id}`) answers `canWrite: true` —
  * this helper is for specs that need write access confirmed before they proceed. A spec that wants
- * the read-only path clears cookies and drives its own navigation instead (`read-only-panel`,
- * `read-only-global-settings`), because there the disabled state is the thing under test.
+ * the read-only path calls {@link openDesignAndAwaitAccessProbe} directly instead (`read-only-panel`,
+ * `read-only-global-settings`, `global-colour`'s own read-only case), because there a disabled
+ * answer is the thing under test rather than a reason to throw.
  *
  * `global-settings-trigger`, the store's own observable for "the probe's answer has been applied",
  * only exists on the WebGL-available branch: the exit renders neither it nor `GlobalSettings`, so

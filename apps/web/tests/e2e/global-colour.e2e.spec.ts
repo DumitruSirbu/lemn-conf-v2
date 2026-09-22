@@ -53,6 +53,17 @@ interface StoredColour {
   readonly updatedAt: string;
 }
 
+/** `openSeededDesign` waits for the trigger to be enabled, not for the rest of the scene to have
+ *  settled — a read taken the instant it returns can still race the document (review round 2,
+ *  R2.1). Every open in this file goes through here rather than through `openSeededDesign` bare. */
+async function openAndSettle(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<void> {
+  await openSeededDesign(page, seededDesign);
+  await page.waitForTimeout(SCENE_SETTLE_MS);
+}
+
 async function storedColour(page: Page): Promise<StoredColour> {
   return page.getByTestId("selection-debug").evaluate((element) => ({
     globalFinish: element.getAttribute("data-global-finish") ?? "",
@@ -155,7 +166,7 @@ test("offers the colour group after the material group, from the material's own 
   page,
   seededDesign,
 }) => {
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   await openSheet(page);
 
   const group = page.getByTestId("global-settings-colour-group");
@@ -208,7 +219,7 @@ test("writes the kitchen's colour and grows the document no cabinet key at all",
   page,
   seededDesign,
 }) => {
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
 
   const before = await storedColour(page);
   expect(before.globalFinish).toBe("");
@@ -217,7 +228,7 @@ test("writes the kitchen's colour and grows the document no cabinet key at all",
   await applyGlobalColour(page, "pal.antracit");
 
   // The reload is what makes this about the document rather than the store's memory.
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   const after = await storedColour(page);
   expect(after.globalFinish).toBe("palette-entry:pal.antracit");
   // **The owner's invariant, from the outside**: no placement gained a `finish` key. Had the global
@@ -231,12 +242,12 @@ test("leaves a cabinet's own colour untouched when the kitchen's colour changes"
   seededDesign,
 }) => {
   await wearColour(page, seededDesign, "pal.antracit");
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   expect((await storedColour(page)).overridingFinishes).toBe(1);
 
   await applyGlobalColour(page, "pal.gri-havanna");
 
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   const after = await storedColour(page);
   expect(after.globalFinish).toBe("palette-entry:pal.gri-havanna");
   // Still exactly one override: the global change wrote one settings key and reached no cabinet
@@ -249,7 +260,7 @@ test("re-derives the offered colours from the pending material, before apply", a
   page,
   seededDesign,
 }) => {
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   await openSheet(page);
 
   await expect(globalSwatch(page, "pal.antracit")).toBeVisible();
@@ -272,7 +283,7 @@ test("cancelling after choosing a colour writes nothing at all", async ({
   page,
   seededDesign,
 }) => {
-  await openSeededDesign(page, seededDesign);
+  await openAndSettle(page, seededDesign);
   const before = await storedColour(page);
 
   await openSheet(page);

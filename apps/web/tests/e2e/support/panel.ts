@@ -250,21 +250,22 @@ export async function storedRevision(page: Page, id: string): Promise<string> {
 }
 
 /**
- * Waits for the next save a test's edit produces to land, and returns its revision.
+ * Waits for the first save whose revision moves past `baselineRevision`, and returns that revision.
  *
  * On `/d/{id}` the first successful mutation **writes** — it does not mint (wave 7E4 G4): the id
  * was already fixed by the fixture's own mint, so "an id exists" proves nothing any more. This
- * polls the design's own stored revision until it has moved past a baseline, which only a
+ * polls the design's own stored revision until it has moved past the baseline, which only a
  * `PUT`/`PATCH` answered `200` can do — `saveAuthorized`'s whole contract refuses to move it
  * otherwise — rather than racing a single `page.waitForResponse` against a save that may already
  * have landed by the time this is called.
  *
- * **The baseline is `seededDesign.revision` by default, and that is only ever the *first* save.**
- * `seededDesign.revision` is fixed at mint time and this function never updates it, so a second call
- * against the same design — after some other write has already moved the row past it — would find
- * the revision already past that stale baseline and return at once, proving nothing about the write
- * it was asked to wait for. A caller confirming a **later** save passes the revision the previous
- * `waitForFirstSave` (or an equivalent read) returned, as `baselineRevision`.
+ * **`baselineRevision` defaults to `seededDesign.revision`, which is what makes the default call the
+ * *first* save after minting** — the name's own claim. `seededDesign.revision` is fixed at mint time
+ * and this function never updates it, so calling it a second time against the same design with the
+ * default would find the revision already past that stale baseline and return at once, proving
+ * nothing about the write it was asked to wait for. A caller confirming a **later** save passes the
+ * revision the previous `waitForFirstSave` (or an equivalent read) returned, as `baselineRevision` —
+ * "first" then means the first save after that explicit point, not after the mint.
  *
  * Throws by name if the deadline passes with the revision unmoved.
  */
