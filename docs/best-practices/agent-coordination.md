@@ -235,7 +235,8 @@ chose.
 - **Scope the reading, not the rigour.** The largest cost is context loading. Give the reviewer the
   exact files and the two or three spec sections that govern them; do not tell it to read the whole
   specification and work out what is relevant. A reviewer that reads less but is pointed precisely
-  finds more.
+  finds more. This binds every dispatch, not only reviews — see `../WORKFLOW.md`, *Scope
+  discipline*.
 - **Match the model to the job.** Logic review of domain rules earns a strong model. Clean-code
   review against a written convention list does not.
 - **Reuse agents across rounds.** A second round with the same reviewer costs a fraction of a fresh

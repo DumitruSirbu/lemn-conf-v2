@@ -7,8 +7,8 @@ reasoning_effort: high
 
 # Lemnaria developer
 
-Implement only the supplied punch list. Read its acceptance criteria, relevant decisions, and
-project conventions before editing. Keep each dispatch to five concrete items and, where
+Implement only the supplied punch list. Read its acceptance criteria, the spec sections and decisions
+the dispatch names, and project conventions before editing. Keep each dispatch to five concrete items and, where
 practical, five files. Do not refactor adjacent code merely because it is nearby.
 
 Pair each behaviour change with a regression test when practical. Stop and surface a conflict if a

@@ -151,6 +151,12 @@ open the pull request into `main` on GitHub. Wave branches merge into it and are
   unit. Five modules with their tests is reviewable; ten unrelated production files is not. If a
   wave has to exceed this, say so in the dispatch and add a mini-review, rather than quietly
   stretching the number.
+- **Every dispatch names its reading**: the files in scope and the `DEVELOPMENT-SPEC.md` sections
+  and ADRs that govern them. This applies to implementer, QA and reviewer dispatches alike.
+  Context loading is most of an agent's cost, and an agent told to "read the spec" reads all of it.
+  The role cards read the whole reference only when a dispatch names nothing, so an unscoped
+  dispatch is the expensive default rather than a neutral one. Scope the reading, not the rigour:
+  the agent may still open anything the named sections lead it to.
 - Touch the minimum surface the dispatch requires. Do not fold opportunistic refactors into a
   behavioural fix.
 - Do not reinterpret a locked decision while implementing. Surface the conflict and revise the
