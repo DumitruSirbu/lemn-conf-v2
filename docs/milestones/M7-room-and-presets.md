@@ -17242,6 +17242,46 @@ not survive re-measurement:**
    today, and reviving the second-database option is **an owner question, not a coordinator
    choice**.
 
+**T-J5 Amendment A — coordinator rulings, 2026-09-22, on S2a's measurements.** S2a ran as a
+scratchpad probe (`scratchpad/7t-s2a/`, not committed). Its results are [doc-quoted] from the
+coordinator's relay; this pass did not re-run the probe.
+
+**What S2a measured:**
+
+| # | Measurement | Consequence for T-J5 |
+| --- | --- | --- |
+| A1 | The transaction-scoped primitive **holds through the pooler and on the direct endpoint**. | G8's risk does not materialise. No endpoint rewriting; the URL is used as given. |
+| A2 | **Fairness holds.** A later shared request queues behind a queued exclusive request. | T-J5 part 3's blocking design stands, and criterion 11 is its test. |
+| A3 | `SET LOCAL lock_timeout` **does** govern advisory-lock waits, failing with SQLSTATE `55P03`. | **T-J2's recorded belief (*"`lock_timeout` does not govern advisory locks"*) is refuted.** `statement_timeout` is not needed. |
+| A4 | A killed holder's lock is released within **54 ms**. | Criterion 12's 5 s ceiling has wide margin. |
+| A5 | **Postgres's `idle_in_transaction_session_timeout` is 300 s** (a configuration-file setting), and it **silently terminates a holder at 300.0 s** on both endpoints. The holder learns of it only through an asynchronous `error` event on its `Client`. | A lock can be **lost mid-file without any test noticing** — the silent-success failure this wave exists to remove, in a new place. Hence rulings 2 and 3. |
+| A6 | Hold durations, one full CI-shaped run: **shared** `design-row-source` ≈ 82 s, `backup-restore` ≈ 85 s; **exclusive** `migrate` 15.6 s, `neon-configuration-repository` 12.7 s, adversarial 7.4 s. | **The shared files hold longest.** An exclusive request waits behind granted shared holders, so the bound must be keyed on all modes (ruling 1). |
+
+**The rulings:**
+
+1. **The wait bound is `lock_timeout` = 180 s.** It is keyed on the longest hold of **any** mode
+   (2 × ≈ 85 s, rounded up), **not** on exclusive files only. The top-level hook timeout is
+   **210 s** (the bound plus 30 s). This supersedes S2a item 4's *"2× the longest exclusive file's
+   hold"*, which A6 shows would have been too short: 2 × 15.6 s is about 31 s, against an 85 s
+   shared hold.
+2. **The helper sets `SET LOCAL idle_in_transaction_session_timeout = 600s` inside its lock
+   transaction**, as a named constant. The repository, not the database's configuration, decides how
+   long a holder may sit idle. The value stays **finite**, so a truly stuck holder is still freed.
+   600 s covers the longest measured hold (≈ 85 s) about seven times over.
+3. **Losing the lock is loud.** The helper attaches `client.on("error", …)` from the moment it
+   connects and records any error as *lock lost*. In `afterAll`, a lost lock — or a `COMMIT` that
+   fails — throws a **named error** (for example `TestSchemaLockLostError`) that states the mode, the
+   key and the recorded cause. **Must not:** an `error` listener that only swallows (it would silence
+   Node's unhandled-error crash and report nothing), or a `COMMIT` failure caught and ignored.
+4. **Caveat: every timing above is local.** CI's latency to Neon may differ. **S2c's CI-shaped run
+   and the owner's `ci.yml` run re-measure the hold durations**. If any CI hold exceeds 90 s — half the
+   bound — that goes to the coordinator before the wave closes, and the bound is not silently raised.
+5. **A pending item for the scribe's `docs/best-practices/ci-and-local-gates.md`** (recorded here, not
+   written by this pass): during S2a, **the rtk hook rewrote `pnpm exec vitest --version` into a full
+   test run**. So `pnpm exec vitest <anything>` can become a test run, and against this package that
+   means a live-database run on the shared test database. Until the guide carries it, a version or
+   config probe of vitest is run through `rtk proxy` or by reading `node_modules/vitest/package.json`.
+
 **T-J6 — the lock key is test-only, never `MIGRATION_ADVISORY_LOCK_KEY`, and the helper never
 imports `migrate.ts`.** So the production runner's per-transaction lock runs inside an exclusive
 holder's window unchanged, and G13's two runners stay genuinely concurrent. **G13 itself is recorded
@@ -17338,7 +17378,8 @@ the database:** no other gate, e2e run or live suite is running against `lemn-co
 **S1 — DONE, `5c1a6aa`** (see *Slices* above).
 
 **S2a — measure the primitive before building on it. Owner: developer. No committed code** — a
-scratchpad probe only, reported verbatim.
+scratchpad probe only, reported verbatim. **DONE 2026-09-22** — results and the coordinator's rulings
+are T-J5 Amendment A. No stop condition fired.
 
 1. Through the **pooled** `TEST_DATABASE_URL`, exactly as given: open a transaction on a `Client` and
    take `pg_advisory_xact_lock_shared(k)` on a random test key. Leave it idle **≥ 120 s**, and confirm
@@ -17352,8 +17393,9 @@ scratchpad probe only, reported verbatim.
 4. The hold durations: wall-clock from first to last test of each of the five resolving files in one
    full CI-shaped run (`DATABASE_URL` unset, `TEST_DATABASE_URL` set, old gates temporarily lifted in
    the scratch copy only). **This sets the bound.**
-   **The ruling on the numbers:** the bound is at least 2× the longest exclusive file's hold. The
-   top-level hook timeout is the bound plus 30 s.
+   ~~**The ruling on the numbers:** the bound is at least 2× the longest exclusive file's hold. The
+   top-level hook timeout is the bound plus 30 s.~~ **Superseded 2026-09-22 by T-J5 Amendment A
+   ruling 1:** the bound is 180 s, keyed on the longest hold of any mode, and the hook timeout is 210 s.
 5. **Stop condition.** If item 1 shows the pooler dropping an idle transaction, or item 3 shows
    neither timeout governing the wait, **stop and report**. The fallback — a session lock over the
    non-pooler endpoint derived from the same URL — is the coordinator's call, not the
@@ -17361,9 +17403,11 @@ scratchpad probe only, reported verbatim.
 
 **S2b — the helper and its proof. Owner: developer; then adversarial QA.**
 
-1. `test-schema-lock.ts` per T-J5/T-J6, with the bound and hook timeout from S2a as named
-   constants.
-2. `test-schema-lock.test.ts`: the contention semantics (criteria 10–12), on a **per-run random key**,
+1. `test-schema-lock.ts` per T-J5 (with Amendment A) and T-J6. It has four named constants, each
+   asserted as a literal: `lock_timeout` 180 s, hook timeout 210 s,
+   `idle_in_transaction_session_timeout` 600 s, and the test-only key. It also has the lost-lock
+   handling of Amendment A ruling 3.
+2. `test-schema-lock.test.ts`: the contention semantics (criteria 10–12, 20 and 21), on a **per-run random key**,
    so the self-test never contends with a real runner.
 3. `live-suite-census.test.ts`: the gate census (criterion 7) and the mode census (criterion 13),
    both discovering files from disk and comparing them with a literal table.
@@ -17429,19 +17473,31 @@ marked (unit/live).
    **Sabotage ↓:** wrap the resolve in a `try` that returns `undefined` → red.
    **Must not:** a suite that is reachable with its target pointed at `lemn-conf-v2` (ADR 0006).
 10. *(live — shared coexists, exclusive excludes)* On a random key: two shared holders are granted
-   together. While an exclusive is held, a shared request with a 2 s bound fails in **[2 s, 5 s]**
-   with `TestSchemaLockTimeoutError` naming the mode, the key and the bound. The same holds with
-   the roles swapped.
+   together. While an exclusive is held, a shared request with a **test-local** 2 s bound fails in
+   **[2 s, 5 s]** with `TestSchemaLockTimeoutError` naming the mode, the key and the bound, and its
+   cause carries SQLSTATE `55P03` (A3). The same holds with the roles swapped.
+   **The production values are asserted separately, as literals (amended 2026-09-22, T-J5
+   Amendment A ruling 1):** the helper's `lock_timeout` is **180 s** and its registered top-level
+   hook timeout is **210 s**. The hook timeout must exceed the bound, so an assertion
+   `hookTimeout > lockTimeout` sits beside the literals.
+   **Sabotage (literals):** set the bound to 31 s — the old *"2× longest exclusive"* rule applied to
+   A6 — → red. Set the hook timeout equal to the bound → red.
    **Sabotage ↑:** take every lock shared → the exclusion arm goes red. **Sabotage ↓:** drop the
    bound → the test fails on vitest's timeout, not on the named error class, and the class assertion
    is what turns it red.
 11. *(live — fairness)* An exclusive request queued behind a shared holder is granted before a
-   **later** shared request.
+   **later** shared request (measured to hold in S2a, A2).
    **Sabotage ↑:** implement acquisition as a `pg_try_advisory_*` retry loop → red.
+   **Bound arithmetic, amended 2026-09-22:** because of this queueing, an exclusive requester's
+   worst wait is the longest **shared** file's hold (≈ 85 s locally, A6). That is why the 180 s bound
+   in criterion 10 is keyed on all modes.
 12. *(live — no leak)* After the holder's `Client` is destroyed without `COMMIT`, a second session
    acquires exclusively within **5 s**. After `afterAll`, `pg_locks` shows no advisory lock on the
    key.
-   **Sabotage ↑:** a session-scoped lock through the pooled URL → red, if S2a showed it leaks.
+   ~~**Sabotage ↑:** a session-scoped lock through the pooled URL → red, if S2a showed it leaks.~~
+   **Amended 2026-09-22:** S2a measured release in 54 ms (A4), so the 5 s ceiling has wide margin.
+   **Sabotage ↑:** make `afterAll` skip the `COMMIT` while keeping the `Client` open → `pg_locks`
+   still shows the key after teardown → red.
 13. *(static — the mode census, T-J7)* The observed classification equals the literal table: three
     exclusive, two shared, two ungated. Every destructive-pattern file registers exclusive. Every
     registration sits at module scope, above the first `describe`.
@@ -17470,17 +17526,33 @@ marked (unit/live).
     in the close-out with the run id.
     **Must not:** a close-out on local evidence alone. A local run proves the suites pass; only the
     job log proves CI ran them.
+    **Also re-measured here (T-J5 Amendment A ruling 4):** each resolving file's hold duration in CI.
+    Any hold above 90 s goes to the coordinator before close.
 19. *(diff)* `git diff --stat <wave base>..HEAD -- packages/*/src apps/*/src` is empty. No `.env*`
     file, env var, secret or provisioned resource is added, changed or removed.
+20. *(live — the idle limit is the repository's, added 2026-09-22, Amendment A ruling 2)* Inside a
+    held lock, `current_setting('idle_in_transaction_session_timeout')` on the holder's connection
+    reads **600 s** (Postgres displays it as `10min`) [inference on the display form], whatever the server's default (300 s, A5). **Sabotage ↓:** remove the
+    `SET LOCAL` → the server default is read → red.
+    **Must not:** `0` (never time out). A holder that can never be freed swaps a silent loss for a
+    permanent wedge.
+21. *(live — a lost lock is loud, added 2026-09-22, Amendment A ruling 3)* On a random key, take a
+    lock, then terminate the holder's backend from a second session (`pg_terminate_backend`) to
+    stand in for A5's idle kill. The helper's `afterAll` path then **throws
+    `TestSchemaLockLostError`** naming the mode, the key and the recorded cause. The process does
+    **not** crash on an unhandled `error` event.
+    **Sabotage ↓:** an `error` listener that records nothing → `afterAll` passes → red.
+    **Sabotage ↑:** no listener at all → Node's unhandled `error` crashes the worker instead of
+    raising the named error → red, because the assertion is on the error class.
 
 #### 7. Risks, ranked
 
 | # | Risk | Why this rank | Mitigation |
 | --- | --- | --- | --- |
 | R1 | **A newly running suite is red, and gets re-skipped or its assertion weakened.** | The only outcome worse than before the wave. Three suites have never run in CI, and the CI secret's role privileges are not known to equal the local file's [inference]. | T-J1 (S2c item 3), T-J4, criterion 15. |
-| R2 | **The lock primitive misbehaves through Neon's transaction-mode pooler**, holding nothing or leaking. | Load-bearing and only [inference] today (G8). | S2a items 1 and 5; criterion 12. The fallback is the coordinator's. |
-| R3 | **Contention surfaces as vitest's 30 s hook timeout**, the unreadable failure T-J2 warned of. | Certain if the bound or the hook timeout is left at its default (G10). | T-J5 part 3; criterion 10's class assertion. |
-| R4 | **Waiting makes gates slow.** A runner can wait up to the longest exclusive file's hold, perhaps about a minute (S1 measured 66–67 s for two files). | Only under contention, which is rare, but `ci:local` and pre-push are exactly the case BACKLOG 69 saw. | Bound from S2a's measurement. The test job's 15-minute ceiling is checked in S2c. |
+| R2 | ~~**The lock primitive misbehaves through Neon's transaction-mode pooler**, holding nothing or leaking.~~ **Retired 2026-09-22 — S2a measured it holding (A1) and releasing in 54 ms (A4). Replaced by:** **a holder is silently killed by the server's 300 s idle-in-transaction limit** (A5), so a file runs on without the lock it thinks it holds. | Measured, and silent by construction. | Amendment A rulings 2 and 3; criteria 20 and 21. |
+| R3 | **Contention surfaces as vitest's 30 s hook timeout**, the unreadable failure T-J2 warned of. | Certain if the bound or the hook timeout is left at its default (G10). | T-J5 part 3; Amendment A ruling 1 (180 s / 210 s); criterion 10's class and literal assertions. |
+| R4 | **Waiting makes gates slow.** ~~A runner can wait up to the longest exclusive file's hold~~ **An exclusive runner can wait up to the longest *shared* file's hold, ≈ 85 s locally (A6), and CI may be slower (ruling 4).** | Only under contention, which is rare, but `ci:local` and pre-push are exactly the case BACKLOG 69 saw. | The 180 s bound; the CI re-measurement in criterion 18. The test job's 15-minute ceiling is checked in S2c. |
 | R5 | **S1's re-gated suites flake in CI before S2c lands** (G7). | Latent until the first CI run. | S2c lands before any `ci.yml` run is triggered on this branch. The owner's dispatch waits for S3 item 4. |
 | R6 | **e2e still mints without the lock**, so a concurrent exclusive window can fail a Playwright write. | Not observed; BACKLOG 69's e2e failure was the port. | Recorded, not built (ADR 0118). **Trigger:** the first e2e failure whose log shows a missing `designs` column. **Remedy then:** Playwright's global setup takes a shared lock. |
 | R7 | **The census drifts from the files.** | Pattern-matching source is brittle. | Two sources must agree: the literal table and the pattern. A disagreement is a red test, not a warning. |
@@ -17490,6 +17562,9 @@ marked (unit/live).
 - **Owner: none that gates a slice.** One **owner action** at the end: trigger the `ci.yml`
   dispatch (S3 item 4), which also settles 7F4b criterion 44.
 - **Coordinator: C-7T-1** (section 3), which gates S3 only. **Recommendation: (b).**
+- **Pending for the scribe (T-J5 Amendment A ruling 5, 2026-09-22):** add to
+  `docs/best-practices/ci-and-local-gates.md` that the rtk hook turned `pnpm exec vitest --version`
+  into a full test run, so `pnpm exec vitest <anything>` can become a (live-database) test run.
 - **Carried, not asked:** whether to revive a second test database belongs to the owner, if T-J5's
   lock ever proves insufficient (ADR 0006's amendment; ADR 0054's branch limit).
 
