@@ -170,6 +170,7 @@ describe("the echo keeps a draft, and what it keeps is only what nobody can see"
           lastSeenText: "shape=bogus",
           liveQuery: queryOf(ourOwnWrite),
           liveText: ourOwnWrite,
+          writtenNotYetSeen: [],
         }).draft;
         const reseeded = draftFrom(ourOwnWrite);
 

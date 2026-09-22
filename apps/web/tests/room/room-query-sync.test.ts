@@ -1,7 +1,7 @@
 // **The convergence loop's pure half** — M7 wave 7F1-D45, criteria 20 and 21, ruling R9.
 //
 // No DOM and no router: the rule that decides whether a live query is *our own write coming back* or
-// *a different room the customer is now in* is a function of four values, and it is asserted here as
+// *a different room the customer is now in* is a function of five values, and it is asserted here as
 // one. The component behaviours that rest on it are `room-url-round-trip.dom.test.ts`'s.
 //
 // **Criterion 21 is the load-bearing one.** A replace loop — render writes, write re-renders,
@@ -61,17 +61,20 @@ function canonicalTextOf(draft: RoomDraft): string {
   return canonicalRoomQuery(draft).toString();
 }
 
-/** What the screen would read, stated once so each case below names only what it varies. */
+/** What the screen would read, stated once so each case below names only what it varies. No write
+ *  is in flight unless a case says so, which is D45's own rule. */
 function reconcile(input: {
   draft: RoomDraft;
   lastSeenText: string;
   liveText: string;
+  writtenNotYetSeen?: readonly string[];
 }) {
   return reconcileRoomDraft({
     draft: input.draft,
     lastSeenText: input.lastSeenText,
     liveQuery: queryOf(input.liveText),
     liveText: input.liveText,
+    writtenNotYetSeen: input.writtenNotYetSeen ?? [],
   });
 }
 
@@ -275,6 +278,339 @@ describe("the loop settles, and it settles once (criterion 21)", () => {
       { numRuns: SWEEP_RUNS },
     );
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// M7 wave 7F2, slice S3b — a late echo of our own write is ours, not a traversal
+// ---------------------------------------------------------------------------------------------
+
+/** The empty L room 1B opens on, as the first settle writes it. */
+const THE_EMPTY_L_ROOM = "shape=L&direction=left";
+
+/** The empty L room with `text` typed into wall A. */
+function typedIntoWallA(text: string): RoomDraft {
+  return withEnteredText(draftOf(THE_EMPTY_L_ROOM), { field: "wallA", text });
+}
+
+/** Any room's query as a settle would have written it: canonical text, never raw. */
+const ANY_WRITTEN_TEXT = ANY_ARRIVING_QUERY.map((query) =>
+  canonicalTextOf(roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query)),
+);
+
+/** Any room a customer could be editing, with text in wall A that is not yet a length. */
+const ANY_DRAFT_WITH_UNPARSED_TEXT = ANY_ARRIVING_QUERY.map((query) =>
+  withEnteredText(roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query), {
+    field: "wallA",
+    text: "3,6",
+  }),
+);
+
+/** The texts a query arrives as, which the pure rule reads as `liveText`. */
+function arrivingTextOf(query: Record<string, string>): string {
+  return new URLSearchParams(query).toString();
+}
+
+describe("an older write of ours echoing after the draft moved on (S3b-5, S3b-3, S3b-4)", () => {
+  it("keeps the draft object, and forgets that write, when it echoes after a newer keystroke", () => {
+    // The QA repro, at the seam: *3* was written, *36* was typed during the write's round trip, and
+    // the write came back. HEAD read it as another room and put *3* back in the field.
+    const writtenAtThree = canonicalTextOf(typedIntoWallA("3"));
+    const typedOnToThirtySix = typedIntoWallA("36");
+
+    const reconciled = reconcile({
+      draft: typedOnToThirtySix,
+      lastSeenText: THE_EMPTY_L_ROOM,
+      liveText: writtenAtThree,
+      writtenNotYetSeen: [writtenAtThree],
+    });
+
+    // **Identity, not equality**, for the same reason as the echo case above: `use-typing-pause.ts`
+    // tells an arrival from our own echo by this object, so a copy would end the burst on the echo.
+    expect(reconciled.draft).toBe(typedOnToThirtySix);
+    expect(lengthShown(reconciled.draft, "wallA")).toBe("36");
+    expect(reconciled.lastSeenText).toBe(writtenAtThree);
+    expect(reconciled.writtenNotYetSeen).toEqual([]);
+  });
+
+  it("forgets the echoed write and every older one, and keeps the writes sent after it", () => {
+    // Next discards a pending navigation when a newer one is dispatched, so once a write has echoed
+    // nothing sent before it can still commit.
+    const [first, second, third] = ["3", "36", "365"].map((text) =>
+      canonicalTextOf(typedIntoWallA(text)),
+    );
+
+    const reconciled = reconcile({
+      draft: typedIntoWallA("3650"),
+      lastSeenText: THE_EMPTY_L_ROOM,
+      liveText: String(second),
+      writtenNotYetSeen: [String(first), String(second), String(third)],
+    });
+
+    expect(reconciled.writtenNotYetSeen).toEqual([third]);
+  });
+
+  it("keeps a write still coming when the first of two copies of a repeated text echoes", () => {
+    // QA finding F1 (S3b.10): 3, then 36, then back to 3 writes A, B, A. Under a commit race the
+    // first A arrives while B is still coming, so B must stay, or it re-seeds when it lands and the
+    // digit typed since is lost. The text cannot say which A arrived, so the rule keeps both.
+    const [atThree, atThirtySix] = ["3", "36"].map((text) =>
+      canonicalTextOf(typedIntoWallA(text)),
+    );
+
+    const reconciled = reconcile({
+      draft: typedIntoWallA("35"),
+      lastSeenText: THE_EMPTY_L_ROOM,
+      liveText: String(atThree),
+      writtenNotYetSeen: [
+        String(atThree),
+        String(atThirtySix),
+        String(atThree),
+      ],
+    });
+
+    expect(reconciled.writtenNotYetSeen).toEqual([atThirtySix, atThree]);
+  });
+
+  it("re-seeds, and forgets every write, for an arrival neither written nor the draft's own text", () => {
+    fc.assert(
+      fc.property(
+        ANY_ARRIVING_QUERY,
+        fc.array(ANY_WRITTEN_TEXT, { maxLength: 4 }),
+        ANY_ARRIVING_QUERY,
+        (editing, writtenNotYetSeen, arriving) => {
+          const draft = roomDraftFromQuery(
+            roomShapeInQuery(editing) ?? "L",
+            editing,
+          );
+          const liveText = arrivingTextOf(arriving);
+          fc.pre(liveText !== canonicalTextOf(draft));
+          fc.pre(!writtenNotYetSeen.includes(liveText));
+
+          const reconciled = reconcile({
+            draft,
+            lastSeenText: "shape=the-room-before",
+            liveText,
+            writtenNotYetSeen,
+          });
+
+          const liveQuery = queryOf(liveText);
+          expect(reconciled.draft).toEqual(
+            roomDraftFromQuery(
+              roomShapeInQuery(liveQuery) ?? draft.shape,
+              liveQuery,
+            ),
+          );
+          expect(reconciled.writtenNotYetSeen).toEqual([]);
+        },
+      ),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+
+  it("keeps D45's residue exactly: an arrival equal to the draft's text keeps it, whatever was written", () => {
+    // D45's accepted residue must not move in either direction. The `draftText` branch keeps the
+    // draft object and its unparsed text whether or not that text was ever written, and consults
+    // nothing else. What it does to the list is the pruning rule: the list left is exactly the writes
+    // sent after the **oldest** copy of the arrival, and empty if the arrival matches no entry. Why the
+    // oldest and not the newest is S3b.10's two-history argument, restated at `writtenAfter`: once a
+    // text repeats, the same inputs describe a commit race, where a later write is still coming, and
+    // a discard, where none is, and only keeping it loses no digit. The list is also emptied by every
+    // `popstate` and every departure; those are the hook's, asserted in `room-late-echo.dom.test.ts`.
+    fc.assert(
+      fc.property(
+        ANY_DRAFT_WITH_UNPARSED_TEXT,
+        fc.array(ANY_WRITTEN_TEXT, { maxLength: 4 }),
+        fc.array(fc.nat(), { maxLength: 2 }),
+        (draft, otherWrites, insertionPoints) => {
+          const draftText = canonicalTextOf(draft);
+          const writtenNotYetSeen = withTextInserted(
+            otherWrites,
+            draftText,
+            insertionPoints,
+          );
+
+          const reconciled = reconcile({
+            draft,
+            lastSeenText: "shape=the-room-before",
+            liveText: draftText,
+            writtenNotYetSeen,
+          });
+
+          expect(reconciled.draft).toBe(draft);
+          expect(lengthShown(reconciled.draft, "wallA")).toBe("3,6");
+          expect(reconciled.writtenNotYetSeen).toEqual(
+            writtenAfterOldestCopyOf(writtenNotYetSeen, draftText),
+          );
+        },
+      ),
+      { numRuns: SWEEP_RUNS },
+    );
+  });
+});
+
+/** `list` with `text` spliced in at each of `points`, wrapped to the list's length. */
+function withTextInserted(
+  list: readonly string[],
+  text: string,
+  points: readonly number[],
+): readonly string[] {
+  return points.reduce<readonly string[]>((current, point) => {
+    const at = point % (current.length + 1);
+    return [...current.slice(0, at), text, ...current.slice(at)];
+  }, list);
+}
+
+/** The oracle for the pruning rule (S3b.10): everything after the **oldest** copy of `arrived`, or
+ *  nothing if it was never written. Written as a walk from the oldest end rather than as the
+ *  production's index arithmetic, so the two cannot share a slip. */
+function writtenAfterOldestCopyOf(
+  list: readonly string[],
+  arrived: string,
+): readonly string[] {
+  const remaining = [...list];
+  while (remaining.length > 0) {
+    if (remaining.shift() === arrived) return remaining;
+  }
+  return [];
+}
+
+/** One step of the loop as the pure rule sees it. A backspace lets a written text recur. */
+type LoopEvent =
+  | { readonly kind: "keystroke"; readonly digit: string }
+  | { readonly kind: "backspace" }
+  | { readonly kind: "settle" }
+  | { readonly kind: "echo"; readonly supersededCount: number }
+  | { readonly kind: "traversal" };
+
+const ANY_LOOP_EVENT: fc.Arbitrary<LoopEvent> = fc.oneof(
+  fc
+    .constantFrom("3", "6")
+    .map((digit) => ({ kind: "keystroke", digit }) as const),
+  fc.constant({ kind: "backspace" } as const),
+  fc.constant({ kind: "settle" } as const),
+  fc
+    .integer({ min: 0, max: 2 })
+    .map((supersededCount) => ({ kind: "echo", supersededCount }) as const),
+  fc.constant({ kind: "traversal" } as const),
+);
+
+/**
+ * How the writes come back, in dispatch order always:
+ * - **discard** — a dispatch discards every write still in flight, so only the newest can echo;
+ * - **commit race** — every write echoes, oldest first;
+ * - **mixed** — any in-flight write may echo, and the ones before it were discarded.
+ */
+type DeliveryOrder = "discard" | "commit race" | "mixed";
+
+const EVERY_DELIVERY_ORDER: readonly DeliveryOrder[] = [
+  "discard",
+  "commit race",
+  "mixed",
+];
+
+/**
+ * The loop driven through `reconcileRoomDraft`, standing in for the hook: a settle writes whenever
+ * the draft's text differs from the live one and records the write, as the hook does, so a text
+ * typed back to (a backspace) is written, and recorded, twice. After every arrival that changes the
+ * live text, it asserts the bound the rule can know (S3b.10).
+ */
+class ReconciliationLoop {
+  private draft = draftOf(THE_EMPTY_L_ROOM);
+  private lastSeenText = THE_EMPTY_L_ROOM;
+  private writtenNotYetSeen: readonly string[] = [];
+  private undelivered: string[] = [];
+  private traversalCount = 0;
+
+  constructor(private readonly order: DeliveryOrder) {}
+
+  apply(event: LoopEvent): void {
+    if (event.kind === "keystroke") this.type(event.digit);
+    if (event.kind === "backspace") this.backspace();
+    if (event.kind === "settle") this.settle();
+    if (event.kind === "echo") this.echo(event.supersededCount);
+    if (event.kind === "traversal") this.traverse();
+  }
+
+  private type(digit: string): void {
+    this.enterWallA(lengthShown(this.draft, "wallA") + digit);
+  }
+
+  private backspace(): void {
+    this.enterWallA(lengthShown(this.draft, "wallA").slice(0, -1));
+  }
+
+  private enterWallA(text: string): void {
+    this.draft = withEnteredText(this.draft, { field: "wallA", text });
+  }
+
+  private settle(): void {
+    const draftText = canonicalTextOf(this.draft);
+    if (draftText === this.lastSeenText) return;
+    if (this.order === "discard") this.undelivered = [];
+    this.undelivered.push(draftText);
+    this.writtenNotYetSeen = [...this.writtenNotYetSeen, draftText];
+  }
+
+  private echo(supersededCount: number): void {
+    const index =
+      this.order === "mixed"
+        ? Math.min(supersededCount, this.undelivered.length - 1)
+        : 0;
+    const arrived = this.undelivered[index];
+    if (arrived === undefined) return;
+    this.undelivered = this.undelivered.slice(index + 1);
+    this.arriveAndCheckTheBound(arrived);
+  }
+
+  private traverse(): void {
+    this.traversalCount += 1;
+    // A traversal discards every pending write, so none of them can echo afterwards.
+    this.undelivered = [];
+    const wallB = metresTextForUrl(this.traversalCount);
+    this.arriveAndCheckTheBound(
+      `shape=U&wallA=1&wallB=${wallB}&wallC=1&direction=right`,
+    );
+
+    expect(this.writtenNotYetSeen).toEqual([]);
+  }
+
+  private arriveAndCheckTheBound(liveText: string): void {
+    const before = this.writtenNotYetSeen;
+    const changesTheLiveText = liveText !== this.lastSeenText;
+    const reconciled = reconcile({
+      draft: this.draft,
+      lastSeenText: this.lastSeenText,
+      liveText,
+      writtenNotYetSeen: before,
+    });
+    this.draft = reconciled.draft;
+    this.lastSeenText = reconciled.lastSeenText;
+    this.writtenNotYetSeen = reconciled.writtenNotYetSeen;
+    if (!changesTheLiveText) return;
+
+    expect(this.writtenNotYetSeen).toEqual(
+      writtenAfterOldestCopyOf(before, liveText),
+    );
+    if (before.includes(liveText)) {
+      expect(this.writtenNotYetSeen.length).toBeLessThan(before.length);
+    }
+  }
+}
+
+describe("the writes not yet seen keep the bound the rule can know (S3b-7, restated in S3b.10)", () => {
+  it.each(EVERY_DELIVERY_ORDER)(
+    "keeps exactly the writes after the oldest copy of each arrival, and none after a traversal, under %s",
+    (order) => {
+      fc.assert(
+        fc.property(fc.array(ANY_LOOP_EVENT, { maxLength: 40 }), (events) => {
+          const loop = new ReconciliationLoop(order);
+
+          for (const event of events) loop.apply(event);
+        }),
+        { numRuns: SWEEP_RUNS },
+      );
+    },
+  );
 });
 
 /** Every whole millimetre any approved wall or ceiling can take, from the smallest bound to the

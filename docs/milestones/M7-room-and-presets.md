@@ -10930,15 +10930,21 @@ rather than a ref, because the reconciliation reads it **during render**.
 1. `liveText === lastSeenText`: nothing to do, as today. The list is untouched.
 2. Otherwise the URL changed, and `lastSeenText` follows it. Then:
    - **`liveText === draftText`**: our echo, or D45's accepted residue, **exactly as today**. The draft
-     is kept, **as the same object**. The list keeps only the writes dispatched after the newest entry
-     equal to `liveText`, and is emptied if there is none.
+     is kept, **as the same object**. The list keeps only the writes dispatched after the ~~newest~~
+     **oldest** entry equal to `liveText`, and is emptied if there is none. *(Corrected 2026-09-22, F1:
+     see S3b.10.)*
    - **`liveText` equals a write in the list (new)**: **a late echo of our own write.** The draft is
-     kept, **as the same object**, and the list is pruned the same way: that write and every older one
-     go, because Next can no longer commit them. The write effect then sees `liveText !== draftText`
-     and writes the draft once, after `URL_SETTLE_MS` counted from this arrival.
+     kept, **as the same object**, and the list is pruned the same way: ~~that write and every older one
+     go, because Next can no longer commit them~~ **the oldest copy of that text and every entry before
+     it go. Entries after it stay, even when a later copy of the same text is among them, because a
+     text alone cannot say which copy arrived** (S3b.10). The write effect then sees
+     `liveText !== draftText` and writes the draft once, after `URL_SETTLE_MS` counted from this
+     arrival.
    - **Otherwise**: a traversal. The draft is re-seeded as today, and the list is emptied.
 3. **A write joins the list when the settle dispatches it**, and only then. **The flush never joins it.**
-4. **Arming a departure empties the list.** From the tap onwards the flush's echo is classified exactly
+4. **Arming a departure empties the list.** *(Widened 2026-09-22 by the coordinator's ruling on review
+   R1.2: **every** departure empties it, the direct push as well as the flush-and-arm path. See
+   S3b.10, R1.1.)* From the tap onwards the flush's echo is classified exactly
    as D45 classifies it, and the departure path is unchanged, byte for byte. This is the guard for
    D45's trigger paragraph.
 5. **A `popstate` empties the list.** After a traversal no write of ours can still commit, so the rule
@@ -11036,9 +11042,13 @@ overreaches. *Property* means fast-check with at least 100 runs per arm.
   `laterReplaces: 1` and field `36`, and nothing existing catches it [measured]. That is D45's dead
   *Înapoi*. **↑** Also empty the list on every keystroke: S3b-1 reddens.
 - **S3b-7 — the list is bounded and the loop settles (unit, property).** Over random interleavings of
-  dispatched writes and in-order arrivals: after any arrival, no entry at or older than it remains; a
+  dispatched writes and in-order arrivals: ~~after any arrival, no entry at or older than it remains; a
   traversal leaves the list empty; the list never holds more entries than writes dispatched since the
-  last arrival. Criterion 21's at-most-one-`replace` settles with one more arm: after a late echo,
+  last arrival~~. **Restated 2026-09-22 (S3b.10). The original could not be met once a text repeats.**
+  After every arrival that changes `liveText` and equals an entry, the list is **exactly** the entries
+  after the oldest copy of the arrived text, so it is strictly shorter than before. An arrival equal
+  to no entry leaves it empty. A traversal, a departure's arming and a `popstate` leave it empty.
+  Criterion 21's at-most-one-`replace` settles with one more arm: after a late echo,
   exactly one `replace` carrying `draftText`, and none in the following interval. **↓** Remove only
   the matched entry and keep the older ones: the "no older entry remains" arm reddens. **↑** Empty the
   whole list on a late echo: the commit-race arm of S3b-1 reddens (the newer echo arrives into an
@@ -11109,6 +11119,174 @@ changes other than the lost digit being kept. **One question for the coordinator
 which gates nothing:** the convergence loop's rule has lived only in milestone prose since D45, and
 this is its first amendment. Should the close-out lift it into an ADR, or is the dated pointer
 (item 5) enough?
+
+##### S3b.10 — amendment 2026-09-22: QA finding F1 adjudicated, and F2 and F3 recorded
+
+> **Measured on a scratch copy of the frozen tree:** `518b7db` plus the implementer's and QA's
+> uncommitted files, copied into the session scratchpad. The working tree was only read. Every
+> variant ran against the whole `tests/room` suite, 44 files and 1 531 tests, which includes QA's
+> three red tests.
+
+**F1: a text written twice, delivered in commit-race order, loses a digit. Verdict: a contract gap in
+this plan's rule.** The implementation (`writtenAfter`, `lastIndexOf`) is exactly what S3b.3 said: *"after
+the newest entry equal to `liveText`"*. **The same finding exposes a second gap, in the criterion.**
+S3b-7's *"no entry at or older than it remains"* and QA's test *"never holds more writes than were
+dispatched after the last one seen"* both ask for a fact the rule cannot know.
+
+**Why no rule over texts can satisfy both [measured].** Suppose the list is `[A, B, A]`, the draft has
+moved to `35`, and `A` arrives. The pure function sees the same four inputs in two different
+histories:
+- **Commit race.** The *first* `A` arrived. `B` and the second `A` are still coming, so `B` must stay.
+  Otherwise it re-seeds when it lands: the draft goes 35 → 36 → 3, which is QA's F1 exactly.
+- **Discard order.** The *second* `A` arrived. Nothing more is coming, so the exact bound wants the
+  list empty.
+
+One input cannot have two outputs, so no pruning rule over texts alone meets both requirements.
+**Losing a digit is the defect. A stale entry is only a stale entry.** So the rule keeps `B`. Run on
+these inputs, the corrected function returns `[0.036, 0.003]` [measured].
+
+**The corrected rule.** When an arrival that changes `liveText` equals an entry in the list, the
+**oldest** copy of that text and every entry before it are dropped, and everything after it stays,
+including any later copy of the same text. Nothing else changes: an arrival that equals no entry
+empties the list, and so do a traversal, a departure's arming and a `popstate`. The `draftText`
+branch still consults nothing, and the draft is returned as the same object on both echo branches.
+**What it guarantees:**
+- No write that can still echo is ever forgotten, under any in-order delivery. Next commits
+  navigations in dispatch order.
+- Every visible arrival that matches strictly shortens the list.
+
+**What it gives up, and why that is acceptable:**
+- **Stale entries survive while texts repeat.** In a model sweep of up to 40 steps with backspace,
+  the longest list seen was 11 under the discard and mixed orders and 17 under commit race
+  [measured].
+- **A stale entry does harm in one case only:** a URL change that is neither ours nor announced by a
+  `popstate`. A stale entry makes such an arrival read as an echo. That case is F3 below.
+- **A stale entry equal to the current `liveText` is inert.** An arrival of it is not a change.
+
+**The candidates, each against the whole suite [measured]:**
+
+| candidate | QA's three F1 tests | other tests that go red | verdict |
+| --- | --- | --- | --- |
+| `lastIndexOf` (as built) | 3 red | none | the defect |
+| **`indexOf`, oldest copy** | **green** | 2. QA's exact-bound test and the implementer's *"keeps D45's residue exactly"*. **Both assert the `lastIndexOf` output**: QA's through the unknowable bound, the implementer's through its helper `writtenAfterNewestCopyOf` (`room-query-sync.test.ts:416`, `:439`). Neither fails on residue behaviour: the `toBe` and `"3,6"` assertions pass. | **adopted** |
+| `lastIndexOf`, plus emptying when the arrival equals `draftText` | 3 red | 1, the residue test | rejected: it still loses a digit |
+| `indexOf`, plus emptying when the arrival equals `draftText` | 1 red (*never re-seeds … under commit race*) | 2 | rejected. `[A, B, A]` with the draft back at `A`: emptying on the first `A` makes `B` re-seed, so the customer sees 36 flash in and 3 come back |
+| remove the oldest copy only, keep everything else | green | 5: QA's exact bound, the implementer's two pruning tests and its S3b-7 bound, and QA's *"re-seeds to a superseded write's text … without a popstate"* | rejected: the list only grows |
+| count occurrences | — | — | not run separately. A count carries no more information than the ordered list, so it faces the same ambiguity |
+| a token per write | — | — | impossible. The echo carries only the query, the query holds the canonical keys and nothing else (ADR 0111 decision 3, 7F1 criterion 9), and `history.state` is Next's private state (S3b.2 (b)) |
+
+**The adopted rule, with the two tests re-expressed [measured]:**
+- The whole suite is green: 44 files, 1 531 tests.
+- QA's three model orders, each property at 3 000 runs with backspace in the alphabet: **no re-seed and
+  no lost digit under the discard order, the mixed order and commit race**.
+- **The knowable bound holds under all three orders:** after every arrival that changes `liveText`,
+  the list is exactly the suffix after the oldest copy.
+
+**Sabotage in both directions [measured]:**
+- **↓** Back to `lastIndexOf`: QA's three tests go red.
+- **↑** Never prune on an echo: 6 red, including the knowable bound and the traversal-without-`popstate`
+  test.
+- **↑** Empty the list on every echo: 9 red, including QA's F1 tests, QA's three-field property and
+  the implementer's commit-race arm of S3b-1.
+
+**Tests that must change, named:**
+- **`apps/web/tests/room/qa-7f2-s3b-late-echo.adversarial.test.ts`, *"never holds more writes than
+  were dispatched after the last one seen"*.** Re-express it as the knowable bound. For every arrival
+  that changes `liveText`, the list afterwards equals the entries after the oldest copy of the arrived
+  text in the list before; an arrival matching no entry leaves it empty. Run it under all three
+  orders, not only `mixed`. **A first version that counted invisible arrivals too went red**: two
+  writes of the same text with nothing between them, the second echo not changing `liveText`
+  [measured]. So the criterion must say *"changes `liveText`"*. QA owns the edit.
+- **`apps/web/tests/room/room-query-sync.test.ts`, *"keeps D45's residue exactly"*.** Only the list
+  expectation changes, from `writtenAfterNewestCopyOf` to the oldest-copy suffix, and the helper is
+  renamed to match. The residue assertions (`toBe(draft)`, `"3,6"`) stay unedited. The implementer
+  owns the edit, and it is named in the commit.
+- **S3b-1's property gains repeated texts:** backspace in the alphabet, with the three delivery orders
+  including QA's `mixed`. QA's own properties already do this, and the implementer's must too, or it
+  cannot see F1. In QA's words: *"with nine digits it almost never does, which is how 300 runs of a
+  wider alphabet stayed green over the concrete counterexample."*
+- QA's three red tests are the witnesses and stay unedited.
+
+**Fence.** This amendment changes one line of production logic, `writtenAfter`'s choice of copy,
+plus its doc comment, which must stop claiming it mirrors *"nothing sent before it can still commit"*
+for repeated texts. It stays inside the 2026-09-22 must-not-change exception.
+
+**F3, a residue recorded under [ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md),
+not built for.** The list is emptied on **every** `popstate`. Next's own listener returns early when
+`event.state` is null (`app-router.js:284-288`, source-verified in S3b.2), and in that case Next keeps
+its pending write. So the list can forget a write that is still coming. When that write echoes, it
+re-seeds, and the digit typed during its round trip is lost, which is the pre-S3b behaviour for that
+one arrival. **Trigger:** a `popstate` to a history entry Next did not create on the room page, such
+as a fragment navigation (`#…`) or a foreign `history.pushState`. **Nothing under `apps/web/src`
+creates either** (QA, source-verified), and the room directory's lint ban forbids the history calls.
+**Revisit** if the room page ever gains a fragment link or a third-party script that pushes history
+state. **Do not** fix it by copying Next's `event.state` check: that reads Next's private state
+contract, which S3b.2 (b) rejected.
+
+**F2, test fidelity, recorded.** The implementer's `room-late-echo.e2e.spec.ts` first-keystroke arm
+does not witness the defect on local `next dev`: QA measured the window there at 420–440 ms, outside
+the arm's cadences. That matches this plan's own spread across builds, 380–400 ms in production and
+385–430 ms in dev for the wall-A case. **QA's slow-network arm is the strong witness** (300 ms of
+added latency through CDP, `qa-7f2-s3b-late-echo.adversarial.e2e.spec.ts`), because it widens the
+window past any cadence jitter. **S3b-8 is amended accordingly:** a latency-injected arm is required.
+Fixed cadences alone are a witness only where the window was measured on that build and runner, and a
+cadence arm that does not go red against HEAD's rule on its runner does not count.
+
+| # | added risk | mitigation |
+| --- | --- | --- |
+| R-S3b-6 | **Stale entries are mistaken for a bound defect, and someone "tightens" the pruning back to the newest copy.** | This section's two-history argument goes into `writtenAfter`'s doc comment. QA's commit-race tests stay as the ↓ witness. |
+
+**R1.1, S3b logic review, should-fix, reproduced by the reviewer: a departure that pushes directly
+leaves the list full.**
+
+*Classification: a contract gap in this plan.* Rule 4 said *"arming a departure empties the list"*,
+and only the flush path arms. `departTo`'s direct branch (`!liveQueryNamesARoom || liveText ===
+draftText`, `room-query-sync.ts:335-337`) pushes at once and was built as written, without emptying
+the list. Yet this section's own F1 statement says a departure's arming empties the list, as if that
+covered every departure. The plan's two statements did not agree, and the code followed the narrower
+one.
+
+**The repro (the reviewer's):**
+1. Type `3`. The settle writes `A`, and the list is `[A]`.
+2. Clear the field, so `draftText` equals the live query `L`.
+3. Tap *Înapoi*. That takes the direct branch, the push is dispatched, and the list keeps `[A]`.
+4. `A` arrives in commit-race order. It is in the list, so it is kept as a late echo.
+5. The write effect sees `liveText (A) !== draftText (L)` and `replace(L)` fires 400 ms later.
+6. On a slow network that `replace` discards the still-pending push
+   (`app-router-instance.js:146-160`). *Înapoi* silently does nothing: **D45's dead-button failure,
+   reached through S3b's new branch.** At HEAD before S3b, `A` re-seeded the draft, `draftText`
+   became `A`, no `replace` fired, and the push survived.
+
+**Why this follows from F1, and why every departure path needs the guard.** F1's adjudication rests
+on the commit race being real: an echo of an already-dispatched write can still render after later
+events. If it can land after a flush, it can land after a direct push. Any departure that leaves the
+list non-empty therefore gives the late-echo branch a chance to keep a moved draft in the commit
+after a push. That is D45's trigger condition: the write effect sees `liveText !== draftText` while
+a push is pending, with only the timer between them.
+
+**The ruling (R1.2).** Every departure empties the list, on both branches of `departTo`. Rule 4 is
+widened in S3b.3, the must-not-change exception allows the second call, and the doc comments at
+`room-query-sync.ts:414` and `:457` hold as written.
+
+**The test gap that let it through: no harness models the push.** In every S3b DOM harness, `push` is
+a spy that navigates nowhere, and `replace` does not discard a pending push. So *"a `replace` after a
+push"* is invisible unless a test asserts it by name. S3b-6 did assert it, but only on the
+flush-and-arm path: its scenario always has a write in flight **and** `liveText !== draftText` at the
+tap. **S3b-6 is widened:**
+- **The direct branch.** A write is in flight, the field is returned to the live query's text, the
+  customer taps *Înapoi* (and, as a second arm, *Continuă* over a valid room), and the write is then
+  delivered. Exactly one push, **no `replace` over the following 1.5 s**, and the list is empty after
+  the tap.
+- **The shape-less direct branch** (`!liveQueryNamesARoom`): the same assertion, where the harness
+  can reach it.
+- **Sabotage ↓:** remove the direct branch's `forgetWrites()`. A `replace(L)` follows the push; that
+  is the reviewer's repro.
+- **Sabotage ↑:** empty the list on every keystroke. S3b-1 reddens, as before.
+
+**Recommended for QA, not required:** a router double whose `push` records a pending navigation that
+any later `replace` marks discarded, mirroring `app-router-instance.js:146-160`. With it, the
+dead-button class becomes a failed assertion on *"the push committed"* in every departure test, rather
+than a named `replace` count that each new path has to remember.
 
 **S4 — the shape refusal. Owner: implementer (web). 2–3 production files. Ungated** (wording is Q-7F2-1's,
 a message edit).
@@ -11252,6 +11430,16 @@ declared in. **Criterion 13's *"`room-query-sync.ts` unedited"* is read with thi
 eight departure tests stay unedited. **Tests S3b may edit:** `room-query-sync.test.ts`, plus the
 single call site at `qa-7f1-d45-convergence.adversarial.test.ts:168`, named in the commit message. It
 may also add new files. The four 7F1-frozen tests stay unedited.
+
+**Further amended 2026-09-22, coordinator ruling on S3b logic review R1.2.** *"Beyond the one emptying
+call"* now reads **"beyond the two emptying calls"**. `departTo` may call `forgetWrites()` on **both**
+of its branches:
+- the flush-and-arm branch, as before;
+- **the direct-push branch** (`!liveQueryNamesARoom || liveText === draftText`, at
+  `room-query-sync.ts:335-337` when the review ran).
+
+Nothing else in the departure changes. The branch conditions, the flush, the observe-then-push order
+and the destinations all stay inside the fence. See S3b.10, R1.1.
 
 ### 5. New copy — ADOPTED 2026-09-21 (Q-7F2-1 = (a))
 
