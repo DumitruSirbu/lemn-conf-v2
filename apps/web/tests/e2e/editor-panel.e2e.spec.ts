@@ -1,12 +1,17 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
-import { dismissPanel, readSelection } from "./support/panel";
+import {
+  dismissPanel,
+  readSelection,
+  storedRevision,
+  waitForFirstSave,
+} from "./support/panel";
 import {
   SINK_CABINET_TAP,
   tapCanvas,
   tapSceneStripAboveSheet,
 } from "./support/canvas-taps";
-import { deleteMintedDesigns } from "./support/minted-designs";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * M4's phase gate (`docs/milestones/M4-editor-surface.md`, "Surfaces" — Mobile): §9's panel at
@@ -40,25 +45,10 @@ const SETTLE_MS = 400;
 const SWIPE_DISTANCE_PX = 160;
 const SCENE_SETTLE_MS = 2000;
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
-
-/** Registers whatever the design turned into for deletion, before anything is asserted about it —
- *  ADR 0006's third mechanism, and the reason it is called on the way past rather than at the end. */
-async function keepForDeletion(page: Page): Promise<void> {
-  const { designId } = await readSelection(page);
-  if (designId && !mintedDesignIds.includes(designId))
-    mintedDesignIds.push(designId);
-}
 
 async function selectSinkCabinet(page: Page): Promise<void> {
   await tapCanvas(page, SINK_CABINET_TAP);
@@ -136,16 +126,22 @@ async function swipeUpInside(page: Page, box: { x: number; y: number }) {
  */
 test("the §10 loop completes by touch: select, replace, finish, handle, dismiss, inspect", async ({
   page,
+  seededDesign,
 }) => {
   await selectSinkCabinet(page);
   const before = await readSelection(page);
   const beforeLabel = await page.getByTestId("panel-label").textContent();
+  // The no-edit side (wave 7E4 D5): nothing has written yet, so the stored revision is still the
+  // seeded one.
+  expect(await storedRevision(page, seededDesign.id)).toBe(
+    seededDesign.revision,
+  );
 
   const replacement = await firstReplacementRow(page);
   const replacementId = await replacement.getAttribute("data-testid");
   await replacement.tap();
   await page.waitForTimeout(SETTLE_MS);
-  await keepForDeletion(page);
+  await waitForFirstSave(page, seededDesign);
 
   // Still open. The replacement is already in the model, and the panel — a projection of it — has
   // re-headed itself onto the new body and badged that row ACTUAL.
@@ -184,8 +180,9 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
   await expect(page.getByTestId("scene-hint")).toHaveCount(1);
   const after = await readSelection(page);
   expect(after.selectionId).toBe("");
-  expect(after.designId).not.toBe("");
-  expect(before.designId).toBe("");
+  // The id is fixed by the fixture's own mint and does not change on a write (wave 7E4 D5, G4).
+  expect(after.designId).toBe(seededDesign.id);
+  expect(before.designId).toBe(seededDesign.id);
 });
 
 /** Selecting a body must not also press whatever §9 puts under the finger. A touch on the canvas
@@ -196,6 +193,7 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
  *  milestone states it: the sheet never steals or leaks pointer events into the canvas. */
 test("the tap that opens the sheet is not also delivered to the sheet", async ({
   page,
+  seededDesign,
 }) => {
   const writes: string[] = [];
   page.on("request", (request) => {
@@ -206,9 +204,15 @@ test("the tap that opens the sheet is not also delivered to the sheet", async ({
   await page.waitForTimeout(1000);
 
   const readout = await readSelection(page);
-  await keepForDeletion(page);
-  expect(readout.designId).toBe("");
+  expect(readout.designId).toBe(seededDesign.id);
+  // Checked **after** `writes`, deliberately (wave 7E4 D5's own must-not): the check below is
+  // itself a `GET`, and asserting it first would put that request inside the collector's own
+  // window and fail the very claim this test makes about a ghost tap.
   expect(writes).toEqual([]);
+  // No edit landed: the revision has not moved from the seeded one.
+  expect(await storedRevision(page, seededDesign.id)).toBe(
+    seededDesign.revision,
+  );
   // Nothing was chosen, so nothing is marked chosen: the handle section's note is what marks the
   // §6.5 default, and a ghost tap on a chip would have replaced it with a real choice.
   await expect(page.getByTestId("section-handle")).toContainText("Implicit");
@@ -382,6 +386,7 @@ test("the scene stays live above the sheet, and scrolling the sheet does not mov
  */
 test("an edit is in the model before the sheet is dismissed", async ({
   page,
+  seededDesign,
 }) => {
   await selectSinkCabinet(page);
   const before = await readSelection(page);
@@ -389,13 +394,15 @@ test("an edit is in the model before the sheet is dismissed", async ({
   const replacement = await firstReplacementRow(page);
   await replacement.tap();
   await page.waitForTimeout(SETTLE_MS);
-  await keepForDeletion(page);
+  await waitForFirstSave(page, seededDesign);
 
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   await expect(async () => {
     const during = await readSelection(page);
     expect(during.metaKind || during.selectionId).not.toBe("");
-    expect(during.designId).not.toBe("");
+    // The id is fixed by the fixture's own mint; `waitForFirstSave` above is the stronger claim
+    // that a write actually landed (wave 7E4 D5, G4).
+    expect(during.designId).toBe(seededDesign.id);
     expect(`${during.selectionId}/${during.metaKind}`).not.toBe(
       `${before.selectionId}/${before.metaKind}`,
     );
@@ -419,7 +426,6 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
   // that lands.
   await page.getByTestId("finish-pal.stejar-bardolino").tap();
   await page.waitForTimeout(SETTLE_MS);
-  await keepForDeletion(page);
   await expect(page.getByTestId("finish-pal.stejar-bardolino")).toHaveAttribute(
     "aria-pressed",
     "true",

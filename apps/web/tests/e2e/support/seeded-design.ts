@@ -11,8 +11,8 @@ import { deleteMintedDesigns } from "./minted-designs";
  * Mints and opens `/d/{id}` the way a browser actually does: from inside the page, so the
  * `lemnaria_write_token_{id}` cookie lands in the jar under test rather than an out-of-band
  * `APIRequestContext`'s (wave 7E4 D1). Every spec that opens a seeded design goes through here so
- * the mint origin can move — `/configurator/configure` retiring is a 7E3a concern, not this file's
- * — without every spec re-deriving the fetch.
+ * the mint origin can move — the retired editor route is a 7E3a concern, not this file's — without
+ * every spec re-deriving the fetch.
  */
 
 export type Locale = "ro" | "ru";
@@ -63,12 +63,18 @@ export async function mintSeededDesign(
         `${String(minted.status)}, wanted 201`,
     );
   }
+  if (minted.id === "" || minted.revision === "") {
+    throw new Error(
+      `mintSeededDesign: POST /api/designs answered 201 with an empty id or revision ` +
+        `(id: ${JSON.stringify(minted.id)}, revision: ${JSON.stringify(minted.revision)})`,
+    );
+  }
   return { id: minted.id, revision: minted.revision };
 }
 
 /**
  * Opens the seeded design and returns only once this browser's write access is confirmed. The path
- * is unprefixed by default, exactly as `/configurator/configure` was, so the same proxy redirect to
+ * is unprefixed by default, exactly as the retired editor route was, so the same proxy redirect to
  * `/ro/…` runs; pass `locale` to open an explicit prefix instead (`shared-design-locale-identity`,
  * `webgl-unavailable-i18n`).
  *

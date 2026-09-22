@@ -1,12 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-import { deleteMintedDesigns } from "./support/minted-designs";
 import {
   openFridgeColumnView,
   pressPanelControl,
   requireInFridgeColumn,
-  waitForMintedDesignId,
+  waitForFirstSave,
 } from "./support/panel";
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **ADR 0099 in a browser: a colour is chosen at two levels and the cabinet's wins.**
@@ -38,12 +42,6 @@ import {
 
 const SCENE_SETTLE_MS = 2000;
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
 interface StoredColour {
   /** `three-adapter`'s own finish signature, or empty where the design names no global colour. */
   readonly globalFinish: string;
@@ -65,67 +63,76 @@ async function storedColour(page: Page): Promise<StoredColour> {
 }
 
 /**
- * Mints a row and, optionally, writes a colour onto its **first** placement through the same route
- * the client uses — so the document under test is one the server actually accepted.
+ * Writes a colour onto the seeded design's **first** placement through the same route the client
+ * uses — so the document under test is one the server actually accepted. A no-op when `entryId` is
+ * `undefined`: the fixture's own mint already wears nothing.
  *
  * The override is written server-side rather than tapped, for this file's stated reason: the
  * invariant is about what a *later* global change does to it, and a tap that missed would make the
- * assertion pass by having nothing to protect.
+ * assertion pass by having nothing to protect. Run on whatever origin `page` is already on — the
+ * `seededDesign` fixture's own mint already left it same-origin with `/api/designs`.
  */
-async function mintDesignWearing(
+async function wearColour(
   page: Page,
+  seededDesign: SeededDesign,
   entryId: string | undefined,
-): Promise<string> {
-  await page.goto("/configurator/configure");
-  const { status, id } = await page.evaluate(async (chosenEntryId) => {
-    const created = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const { id: designId } = (await created.json()) as { id: string };
-    if (chosenEntryId === undefined) return { status: 200, id: designId };
-
-    const loaded = await fetch(`/api/designs/${designId}`);
-    const { design, revision } = (await loaded.json()) as {
-      design: {
-        placements: { body: Record<string, unknown> }[];
-        [key: string]: unknown;
+): Promise<void> {
+  if (entryId === undefined) return;
+  const status = await page.evaluate(
+    async ({ id, chosenEntryId }) => {
+      const loaded = await fetch(`/api/designs/${id}`);
+      const { design, revision } = (await loaded.json()) as {
+        design: {
+          placements: { body: Record<string, unknown> }[];
+          [key: string]: unknown;
+        };
+        revision: string;
       };
-      revision: string;
-    };
-    const written = await fetch(`/api/designs/${designId}`, {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: {
-        "content-type": "application/json",
-        "x-expected-revision": revision,
-      },
-      body: JSON.stringify({
-        ...design,
-        placements: design.placements.map((placement, at) =>
-          at === 0
-            ? {
-                ...placement,
-                body: {
-                  ...placement.body,
-                  finish: { kind: "palette-entry", entryId: chosenEntryId },
-                },
-              }
-            : placement,
-        ),
-      }),
-    });
-    return { status: written.status, id: designId };
-  }, entryId);
-
-  if (id) mintedDesignIds.push(id);
+      const written = await fetch(`/api/designs/${id}`, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: {
+          "content-type": "application/json",
+          "x-expected-revision": revision,
+        },
+        body: JSON.stringify({
+          ...design,
+          placements: design.placements.map((placement, at) =>
+            at === 0
+              ? {
+                  ...placement,
+                  body: {
+                    ...placement.body,
+                    finish: { kind: "palette-entry", entryId: chosenEntryId },
+                  },
+                }
+              : placement,
+          ),
+        }),
+      });
+      return written.status;
+    },
+    { id: seededDesign.id, chosenEntryId: entryId },
+  );
   expect(status).toBe(200);
-  return id;
 }
 
-async function openDesign(page: Page, designId: string): Promise<void> {
-  await page.goto(`/d/${designId}`);
+/** Opens a shared link without asserting write access, the one thing `openSeededDesign` will not
+ *  do — it throws on exactly the read-only answer this file's one read-only test wants. Waits for
+ *  the write-access probe on the way, as `read-only-global-settings.e2e.spec.ts`'s own
+ *  `openSharedLink` does, so the state below is the probe's answer rather than a race against it. */
+async function openWithoutAssertingWriteAccess(
+  page: Page,
+  id: string,
+): Promise<void> {
+  const probe = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      new URL(response.url()).pathname === `/api/designs/${id}`,
+  );
+  await page.goto(`/d/${id}`);
   await page.waitForSelector("canvas", { state: "attached" });
+  await probe;
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 
@@ -153,9 +160,9 @@ async function applyGlobalColour(page: Page, entryId: string): Promise<void> {
 
 test("offers the colour group after the material group, from the material's own palette", async ({
   page,
+  seededDesign,
 }) => {
-  const designId = await mintDesignWearing(page, undefined);
-  await openDesign(page, designId);
+  await openSeededDesign(page, seededDesign);
   await openSheet(page);
 
   const group = page.getByTestId("global-settings-colour-group");
@@ -206,9 +213,9 @@ test("offers the colour group after the material group, from the material's own 
 
 test("writes the kitchen's colour and grows the document no cabinet key at all", async ({
   page,
+  seededDesign,
 }) => {
-  const designId = await mintDesignWearing(page, undefined);
-  await openDesign(page, designId);
+  await openSeededDesign(page, seededDesign);
 
   const before = await storedColour(page);
   expect(before.globalFinish).toBe("");
@@ -217,7 +224,7 @@ test("writes the kitchen's colour and grows the document no cabinet key at all",
   await applyGlobalColour(page, "pal.antracit");
 
   // The reload is what makes this about the document rather than the store's memory.
-  await openDesign(page, designId);
+  await openSeededDesign(page, seededDesign);
   const after = await storedColour(page);
   expect(after.globalFinish).toBe("palette-entry:pal.antracit");
   // **The owner's invariant, from the outside**: no placement gained a `finish` key. Had the global
@@ -228,14 +235,15 @@ test("writes the kitchen's colour and grows the document no cabinet key at all",
 
 test("leaves a cabinet's own colour untouched when the kitchen's colour changes", async ({
   page,
+  seededDesign,
 }) => {
-  const designId = await mintDesignWearing(page, "pal.antracit");
-  await openDesign(page, designId);
+  await wearColour(page, seededDesign, "pal.antracit");
+  await openSeededDesign(page, seededDesign);
   expect((await storedColour(page)).overridingFinishes).toBe(1);
 
   await applyGlobalColour(page, "pal.gri-havanna");
 
-  await openDesign(page, designId);
+  await openSeededDesign(page, seededDesign);
   const after = await storedColour(page);
   expect(after.globalFinish).toBe("palette-entry:pal.gri-havanna");
   // Still exactly one override: the global change wrote one settings key and reached no cabinet
@@ -246,9 +254,9 @@ test("leaves a cabinet's own colour untouched when the kitchen's colour changes"
 
 test("re-derives the offered colours from the pending material, before apply", async ({
   page,
+  seededDesign,
 }) => {
-  const designId = await mintDesignWearing(page, undefined);
-  await openDesign(page, designId);
+  await openSeededDesign(page, seededDesign);
   await openSheet(page);
 
   await expect(globalSwatch(page, "pal.antracit")).toBeVisible();
@@ -269,9 +277,9 @@ test("re-derives the offered colours from the pending material, before apply", a
 
 test("cancelling after choosing a colour writes nothing at all", async ({
   page,
+  seededDesign,
 }) => {
-  const designId = await mintDesignWearing(page, undefined);
-  await openDesign(page, designId);
+  await openSeededDesign(page, seededDesign);
   const before = await storedColour(page);
 
   await openSheet(page);
@@ -287,10 +295,13 @@ test("cancelling after choosing a colour writes nothing at all", async ({
 
 test("keeps the colour group unreachable on a read-only link", async ({
   page,
+  seededDesign,
 }) => {
-  const designId = await mintDesignWearing(page, undefined);
   await page.context().clearCookies();
-  await openDesign(page, designId);
+  // `openSeededDesign` would throw on exactly the read-only answer this test wants, so this opens
+  // the link the same way `read-only-global-settings.e2e.spec.ts` does — waiting for the probe
+  // without asserting `canWrite: true`.
+  await openWithoutAssertingWriteAccess(page, seededDesign.id);
 
   // The trigger is locked, so the fourth group is unreachable — which is the correct read-only
   // behaviour and what `read-only-global-settings.e2e.spec.ts` asserts for the other three. Held
@@ -304,10 +315,11 @@ test("keeps the colour group unreachable on a read-only link", async ({
 
 test("gives a cabinet back to the kitchen's colour, and it then tracks two further changes", async ({
   page,
+  seededDesign,
 }) => {
   // ADR 0099 decision 8, and the only leg here that has to reach §9's own control — so it taps the
   // scene, through the pinned constants in `support/panel.ts`.
-  await openFridgeColumnView(page);
+  await openFridgeColumnView(page, seededDesign);
   await requireInFridgeColumn(page, {
     matches: (readout) => readout.selectionKind === "placement",
     description: "a cabinet the finish control is offered for",
@@ -315,9 +327,8 @@ test("gives a cabinet back to the kitchen's colour, and it then tracks two furth
   await expect(page.getByTestId("section-finish")).toBeVisible();
 
   await pressPanelControl(page, "finish-pal.antracit");
-  const designId = await waitForMintedDesignId(page);
-  if (designId) mintedDesignIds.push(designId);
-  expect(designId).not.toBe("");
+  const savedRevision = await waitForFirstSave(page, seededDesign);
+  expect(savedRevision).not.toBe(seededDesign.revision);
   await expect
     .poll(async () => (await storedColour(page)).overridingFinishes)
     .toBe(1);

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import {
   describeOpenings,
@@ -7,11 +7,11 @@ import {
   pressPanelControl,
   readSelection,
   requireInFridgeColumn,
-  waitForMintedDesignId,
+  waitForFirstSave,
   scanFridgeColumn,
   type SelectionReadout,
 } from "./support/panel";
-import { deleteMintedDesigns } from "./support/minted-designs";
+import { test } from "./support/seeded-design";
 
 /**
  * M3's own gate (`docs/milestones/M3-mutations.md`, "Surfaces"): `DEVELOPMENT-SPEC.md` §10's
@@ -37,24 +37,17 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  *  the right order of magnitude for it. */
 const FLOW_TIMEOUT_MS = 900_000;
 
-/** The first successful command mints a design row (the store's write path). Deleted afterwards —
- *  the suite writes to the test database and must leave it as it found it (ADR 0006). */
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
 function isVoid(readout: SelectionReadout): boolean {
   return readout.metaKind === "void";
 }
 
 test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   page,
+  seededDesign,
 }) => {
   test.setTimeout(FLOW_TIMEOUT_MS);
 
-  await openFridgeColumnView(page);
+  await openFridgeColumnView(page, seededDesign);
   expect((await readSelection(page)).probe).toBe("on");
 
   // 1. Select the fridge, delete it. The vacated opening becomes the selection (§5.1).
@@ -69,12 +62,10 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   expect(isVoid(afterFridge)).toBe(true);
   expect(afterFridge.spanHMm).toBe("1850");
 
-  // The write path ran from a real touch: the first mutation minted a row. Registered for
-  // deletion **before** it is asserted on, so that a slow mint fails this test loudly without
-  // also leaking its row past `afterAll`.
-  const designId = await waitForMintedDesignId(page);
-  if (designId) mintedDesignIds.push(designId);
-  expect(designId).not.toBe("");
+  // The write path ran from a real touch: the first mutation writes rather than mints (wave 7E4
+  // G4), so the stronger claim is that a save landed and moved the revision.
+  const savedRevision = await waitForFirstSave(page, seededDesign);
+  expect(savedRevision).not.toBe(seededDesign.revision);
 
   // 2. Delete the unit above it — the two openings merge.
   const above = await requireInFridgeColumn(page, {

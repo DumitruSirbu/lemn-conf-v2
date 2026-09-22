@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import {
   capturePatch,
@@ -14,7 +14,7 @@ import {
   SINK_PATCH,
 } from "./support/desktop-scene-points";
 import { readSelection } from "./support/panel";
-import { deleteMintedDesigns } from "./support/minted-designs";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * M4's desktop line (`docs/milestones/M4-editor-surface.md`, "Surfaces" — Desktop): frames D2A and
@@ -210,23 +210,10 @@ const SCENE_SETTLE_MS = 2500;
 const RENDER_SETTLE_MS = 400;
 const COMMAND_SETTLE_MS = 600;
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
-
-async function keepForDeletion(page: Page): Promise<void> {
-  const { designId } = await readSelection(page);
-  if (designId && !mintedDesignIds.includes(designId))
-    mintedDesignIds.push(designId);
-}
 
 /** Page coordinates, which is how the constants above were found — the canvas fills the stage and
  *  starts **76 px** below the top of the screen (frame D2A's own declared top bar, and nothing else:
@@ -278,17 +265,21 @@ async function expectUnchanged(
  * **The blue counter's premise, as an executable assertion** (wave 6V work item 3).
  *
  * Read back from `GET /api/designs/{id}` — the document the scene is drawing, after the delete that
- * minted it — rather than from `KITCHEN_L_DESIGN`, so a divergence between the fixture and what is
- * on screen shows up here instead of being assumed away. A design with no bodies would satisfy an
- * "every placement" check vacuously, so the count is asserted first.
+ * wrote it (wave 7E4 G4: the id is the fixture's own and a mutation writes rather than mints) —
+ * rather than from `KITCHEN_L_DESIGN`, so a divergence between the fixture and what is on screen
+ * shows up here instead of being assumed away. A design with no bodies would satisfy an "every
+ * placement" check vacuously, so the count is asserted first.
  */
 async function expectNoPlacementWearsAFinish(
   page: Page,
   designId: string,
 ): Promise<void> {
-  expect(designId, "the delete should have minted a design").not.toBe("");
-  // Retried: the delete schedules the save that creates the row, so the id is known here a moment
-  // before the document is fetchable.
+  expect(
+    designId,
+    "the selection should carry the seeded design's id",
+  ).not.toBe("");
+  // Retried: the delete schedules the save, so the document reflects it here a moment before it is
+  // fetchable.
   await expect(async () => {
     const worn = await page.evaluate(async (id: string) => {
       const loaded = await fetch(`/api/designs/${id}`);
@@ -454,7 +445,6 @@ test("an edit repaints the scene while the panel is still open", async ({
 
   await page.getByTestId("finish-pal.antracit").click();
   await page.waitForTimeout(COMMAND_SETTLE_MS);
-  await keepForDeletion(page);
 
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   await expect(page.getByTestId("finish-pal.antracit")).toHaveAttribute(
@@ -491,7 +481,6 @@ test("a selected void is highlighted, and is distinguishable from a selected bod
   await selectInRail(page, "p7");
   await page.getByTestId("panel-remove").click();
   await page.waitForTimeout(COMMAND_SETTLE_MS);
-  await keepForDeletion(page);
 
   const vacated = await readSelection(page);
   expect(vacated.selectionKind).toBe("void");

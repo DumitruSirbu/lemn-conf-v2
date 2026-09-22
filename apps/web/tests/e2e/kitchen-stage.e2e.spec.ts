@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import {
   dismissPanel,
@@ -6,14 +6,14 @@ import {
   pressPanelControl,
   readSelection,
   requireInFridgeColumn,
-  waitForMintedDesignId,
+  waitForFirstSave,
 } from "./support/panel";
-import { deleteMintedDesigns } from "./support/minted-designs";
 import {
   SINK_CABINET_TAP,
   tapCanvas,
   tapSceneStripAboveSheet,
 } from "./support/canvas-taps";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * M2's mobile picking gate (`docs/milestones/M2-void-engine.md`, "Surfaces"): tapping a body and
@@ -97,17 +97,8 @@ async function readTarget(page: import("@playwright/test").Page) {
   return { kind: selectionKind, id: selectionId };
 }
 
-/** The last case in this file deletes a body, and the first successful command mints a design row.
- *  Deleted afterwards: the suite writes to the test database and leaves it as it found it. */
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   // The scene mounts, seats the camera, and settles its easing before picking is meaningful.
   await page.waitForTimeout(2000);
 });
@@ -200,10 +191,13 @@ test.skip("a selected body renders a visible highlight distinct from no selectio
  * panel instead: `editor-rail.desktop.e2e.spec.ts`. What this case keeps is M2's gate proper —
  * that a real touch at 390 x 844 selects the intended empty slot.
  */
-test("tapping an empty void slot selects it at 390 x 844", async ({ page }) => {
+test("tapping an empty void slot selects it at 390 x 844", async ({
+  page,
+  seededDesign,
+}) => {
   test.setTimeout(VOID_SELECTION_TIMEOUT_MS);
 
-  await openFridgeColumnView(page);
+  await openFridgeColumnView(page, seededDesign);
   const fridge = await requireInFridgeColumn(page, {
     matches: (readout) => readout.selectionId === "p7",
     description: "the seeded fridge, p7",
@@ -211,11 +205,10 @@ test("tapping an empty void slot selects it at 390 x 844", async ({ page }) => {
   expect(fridge.metaKind).toBe("fridge_freestanding");
 
   await pressPanelControl(page, "panel-remove");
-  // The mutation mints a design row. Registered for deletion before it is asserted on: a slow
-  // mint must fail loudly without also leaking its row into the test database.
-  const designId = await waitForMintedDesignId(page);
-  if (designId) mintedDesignIds.push(designId);
-  expect(designId).not.toBe("");
+  // The mutation writes rather than mints (wave 7E4 G4): the id is the fixture's own, and this
+  // is the stronger claim that the removal actually landed.
+  const savedRevision = await waitForFirstSave(page, seededDesign);
+  expect(savedRevision).not.toBe(seededDesign.revision);
 
   // The remove leaves the vacated void selected. Deselect first, so what the tap below proves is
   // the tap and not the command that preceded it — and so the sheet is off the scene.

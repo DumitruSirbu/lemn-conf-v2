@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { alongThisCanvas } from "./canvas-taps";
+import { openSeededDesign, type SeededDesign } from "./seeded-design";
 
 /**
  * Navigation and selector helpers for the specs that drive §9's panel by touch. No assertion lives
@@ -80,10 +81,10 @@ const CAMERA_SETTLE_MS = 1500;
 /** One frame plus React's commit, after a tap or a command. */
 const PICK_SETTLE_MS = 80;
 const COMMAND_SETTLE_MS = 300;
-/** The first mutation mints a design row, which is a real network round trip to the database —
- *  no fixed settle can be sized for one, so it is waited for rather than assumed. */
-const MINT_TIMEOUT_MS = 5000;
-const MINT_POLL_MS = 100;
+/** The first mutation on `/d/{id}` writes — it no longer mints (wave 7E4 G4) — and a save is a real
+ *  network round trip to the database, so it is polled for rather than assumed. */
+const SAVE_TIMEOUT_MS = 5000;
+const SAVE_POLL_MS = 100;
 
 /** What `SelectionDebug` publishes: the selection, `describeSelection`'s `meta` numbers, and the
  *  write-path state. Every field is a string because it arrives through `dataset`; empty means
@@ -103,9 +104,11 @@ export interface SelectionReadout {
   readonly rejection: string;
 }
 
-export async function openFridgeColumnView(page: Page): Promise<void> {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+export async function openFridgeColumnView(
+  page: Page,
+  design: SeededDesign,
+): Promise<void> {
+  await openSeededDesign(page, design);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   await page.getByRole("button", { name: "Perete B" }).tap();
   await page.waitForTimeout(CAMERA_SETTLE_MS);
@@ -228,21 +231,42 @@ export function describeOpenings(
   }));
 }
 
+/** The design's own stored revision, read the same way the client repository does — a fresh `GET`,
+ *  never the value a page happens to hold in memory. */
+export async function storedRevision(page: Page, id: string): Promise<string> {
+  return page.evaluate(async (designId) => {
+    const response = await fetch(`/api/designs/${designId}`, {
+      credentials: "same-origin",
+    });
+    const payload = (await response.json()) as { revision: string };
+    return payload.revision;
+  }, id);
+}
+
 /**
- * Waits for the design id the first successful mutation mints, and returns `""` if it has not
- * arrived in time.
+ * Waits for the first save a test's edit produces to land, and returns its revision.
  *
- * Deliberately never throws. The caller's first job with this id is to register it for deletion
- * (ADR 0006) and only then to assert on it: a helper that threw on the slow case would skip that
- * registration and leak into the test database the very row that arrives a moment later — which
- * is the failure this helper exists to prevent.
+ * On `/d/{id}` the first successful mutation **writes** — it does not mint (wave 7E4 G4): the id
+ * was already fixed by the fixture's own mint, so "an id exists" proves nothing any more. This
+ * polls the design's own stored revision until it has moved past `seededDesign.revision`, which
+ * only a `PUT`/`PATCH` answered `200` can do — `saveAuthorized`'s whole contract refuses to move it
+ * otherwise — rather than racing a single `page.waitForResponse` against a save that may already
+ * have landed by the time this is called.
+ *
+ * Throws by name if the deadline passes with the revision unmoved.
  */
-export async function waitForMintedDesignId(page: Page): Promise<string> {
-  const deadline = Date.now() + MINT_TIMEOUT_MS;
+export async function waitForFirstSave(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<string> {
+  const deadline = Date.now() + SAVE_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    const { designId } = await readSelection(page);
-    if (designId) return designId;
-    await page.waitForTimeout(MINT_POLL_MS);
+    const revision = await storedRevision(page, seededDesign.id);
+    if (BigInt(revision) > BigInt(seededDesign.revision)) return revision;
+    await page.waitForTimeout(SAVE_POLL_MS);
   }
-  return (await readSelection(page)).designId;
+  throw new Error(
+    `waitForFirstSave: no save for ${seededDesign.id} moved its revision past ` +
+      `${seededDesign.revision} within ${String(SAVE_TIMEOUT_MS)}ms`,
+  );
 }
