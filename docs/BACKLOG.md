@@ -102,6 +102,13 @@ status corrections, in one of these two files:
 | 68 | A large wood-decor run-end panel shows a visible grain tiling seam | open.md — observed 2026-09-17 in M7 wave 7D8's visual check of `dcec03f`, not compared against a pre-fix build, owner question, not built, not scheduled |
 | 70 | The editor allows a kitchen with no oven | open.md — owner principle recorded 2026-09-21 (ADR 0110 Amendment M, M12), no owner, no phase yet |
 | 71 | Re-tapping the selected *Vedere generală* chip does not reset the camera | open.md — seen by the 7D5b visual gate, 2026-09-21; no owner, no phase |
+| 72 | Wide-U facing labels overlap | open.md — pre-existing, confirmed 2026-09-22 by M7 wave 7F2's visual gate; no owner, no phase |
+| 73 | Language switch at Step 1B drops the room | open.md — confirmed 2026-09-22 by M7 wave 7F2's visual gate; contradicts `use-locale-menu.ts`'s own contract; no owner, no phase |
+| 74 | An open help popover covers the field above it | open.md — found 2026-09-22, M7 wave 7F2's S5b × 7A3 interaction; low; no owner, no phase |
+| 75 | A second field problem is not re-announced while the note already shows | open.md — raised 2026-09-22 by M7 wave 7F2's S3 review R1.6; needs copy; no owner, no phase |
+| 76 | `DRAWABLE_WALLS` has no exhaustiveness tie to `requiredFieldsFor` | open.md — raised 2026-09-22 by M7 wave 7F2's S5 review R1.4; no owner, no phase |
+| 77 | Press completion assumes `click` fires in the same task as `mouseup` | open.md — recorded 2026-09-22 from `use-after-press.ts`'s own header; verified in Chromium only; no owner, no phase |
+| 78 | Mid-typing slivers under mm entry | open.md — captured 2026-09-22 by M7 wave 7F2's visual gate; deliberate under C-7F2-1; owner question, no phase |
 
 ## 2026-09-06 audit note
 

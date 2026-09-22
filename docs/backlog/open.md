@@ -1711,3 +1711,61 @@ view where it was instead of returning to the overview. The gate's `*-700-overvi
 stayed top-down because of it (`testing-reports/7d5b/`, gitignored). Outside wave 7D5b's scope — no
 camera or chip code changed in it. Whether re-selecting the current view should reset the camera is
 an open product question; nothing asserts either behaviour today.
+
+## 72. Wide-U facing labels overlap — PRE-EXISTING, CONFIRMED 2026-09-22, NO OWNER, NO PHASE
+
+**Confirmed on screen by M7 wave 7F2's closing visual gate** (production build, 390 × 844, touch,
+2026-09-22): a wide U room (e.g. 4000 × 2400 × 2400) draws two facing wall labels that overlap and
+read as one run-together string, *"B · 24002400 mm"*. Pre-existing per wave 7F2's S2 close-out note
+(S2 only changed a label's side or its `topPx`, never its overlap behaviour); needs a new placement
+rule for the facing-label case, not a fix inside S2's own change. Severity: medium — cosmetic on a
+plan the customer reads to confirm their room, not a validation defect. No owner, no phase yet.
+
+## 73. Language switch at Step 1B drops the room — CONFIRMED 2026-09-22, NO OWNER, NO PHASE
+
+**Confirmed on screen during M7 wave 7F2's closing visual gate**, 2026-09-22: `locale-menu.tsx`
+links to `menu.pathname` without the room's query string, so switching ro/ru at frame 1B loses the
+typed room instead of carrying it to the new locale. This contradicts `use-locale-menu.ts`'s own
+documented contract, which describes the query as preserved. Severity: medium — a customer who
+switches language mid-entry loses typed work, silently. No owner, no phase yet.
+
+## 74. An open help popover covers the field above it — FOUND 2026-09-22, LOW, NO OWNER, NO PHASE
+
+**Found during M7 wave 7F2's S5b × 7A3 interaction**, 2026-09-22, visual gate: `.lengthHelpText`
+opens upward and covers wall A's new unreadable-input sentence (ADR 0126) while both are on screen;
+the sentence becomes visible again once the popover is dismissed. New in this wave's combination of
+S5b's field reason and 7A3's per-wall help button — neither alone reaches the case. Severity: low.
+No owner, no phase yet.
+
+## 75. A second field problem is not re-announced while the note already shows — NEEDS COPY, RECORDED 2026-09-22
+
+**Raised by M7 wave 7F2's S3 logic review, R1.6**, and routed here per the wave's close-out
+(2026-09-22): if a second field becomes invalid while 1C's room-level note is already showing for a
+first, the note does not re-announce — a screen-reader customer is not told a second thing is now
+wrong. Needs new copy (a plural or "also" form) before it can be built; not scheduled. No owner, no
+phase yet.
+
+## 76. `DRAWABLE_WALLS` has no exhaustiveness tie to `requiredFieldsFor` — RECORDED 2026-09-22
+
+**Raised by M7 wave 7F2's S5 logic review, R1.4**, 2026-09-22: `DRAWABLE_WALLS` (which walls a
+shape draws) and `requiredFieldsFor` (which fields a shape requires) are two independent
+enumerations over the same underlying fact — which walls a room shape has — with nothing that fails
+to compile if a new shape is added to one and not the other. The domain is the natural owner of
+"which walls a shape has"; today it is duplicated in `apps/web/src/room`. No owner, no phase yet.
+
+## 77. Press completion assumes `click` fires in the same task as `mouseup` — RECORDED 2026-09-22
+
+**Recorded in `src/lib/use-after-press.ts`'s own header comment**, surfaced by M7 wave 7F2's S5b
+close-out, 2026-09-22: the press-completion logic assumes a synthesised `click` event fires in the
+same task as the `mouseup` that produced it. Verified true in Chromium (the visual gate's engine);
+**not verified in WebKit**, which this project's visual gates do not currently cover. No owner, no
+phase yet — a WebKit-specific check is owed before this can be closed either way.
+
+## 78. Mid-typing slivers under mm entry — CAPTURED, NOT JUDGED, OWNER QUESTION, 2026-09-22
+
+**Captured by M7 wave 7F2's closing visual gate** (production build, 390 × 844, touch, 2026-09-22),
+under ADR 0126's millimetre entry: a wall mid-typing (e.g. `3`, `36` on the way to `3600`) draws as
+a red sliver on the plan, labelled *"A prea scurt"*, for the length of the 400 ms typing pause. This
+is the S5 slice's own recorded note (*"36 mm beside 2400"*) now visible in a production build, not a
+new defect — it is deliberate under C-7F2-1's single-clock ruling. Recorded as an owner question:
+whether this reads acceptably to a first-time customer has not been asked. No owner, no phase yet.

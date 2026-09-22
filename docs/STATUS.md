@@ -33,6 +33,9 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
+Last updated: 2026-09-22 — **M7 wave 7F2 is DONE**; see the RESUME HERE entry under *What to do
+next* and the M7 row below. Earlier text below is kept as history.
+
 Last updated: 2026-09-21. **Corrected 2026-09-11, later the same day: M6B merged to `main` via PR
 #8 (`995ad03`), and M7 — Step 1, room and presets — is now in progress on branch
 `m7-room-and-presets`.** ~~Wave 7A shipped at `8df0d49`; see the M7 row below and the *What is open
@@ -425,18 +428,9 @@ PASS.
 
 ## What is open right now
 
-- **M7 wave 7D7 is complete through documentation close-out `71e6ba3` and pushed through
-  `7f95421`.**
-  `pnpm check` and `pnpm ci:local` are green, and the wave's QA, full review and visual gate are
-  recorded in `milestones/M7-room-and-presets.md`. **Source-verified 2026-09-19:** local HEAD and
-  `origin/m7-room-and-presets` both resolve to `7f954211874ee635fe4b2abe2eb2384ef0ab16c9`.
-  The next planned implementation wave is **7D5**. Its 2026-09-19 current-HEAD reconciliation in the
-  milestone corrects the dispatch boundary: the old S0 comment chore is already done; a new 7D5
-  pre-width recording and S1's conditional bottle are dispatchable; **S2 first needs Q-H6's A/C
-  answer**, and S3 then needs Q-H5 after the real S1/S2 planner is re-measured. The old 49 % / 62 %
-  Q-H5 figures are stale after 7D8 and 7A3 and must not be put to the owner. The reconciliation
-  recommends lifting the dishwasher into a separate 7D5b wave. 7F2 is also planned and remains the
-  owner of Step 1's 1C validation state.
+- ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
+  RESUME HERE entry under *What to do next* for the current state: 7D5, 7D5b and 7F2 have since all
+  shipped and 7F2 is DONE as of 2026-09-22.** This bullet is kept only as history; do not act on it.
 - ~~**M7 — six owner follow-up questions, F1–F6, open since 2026-09-11.**~~ **CLOSED 2026-09-11 — the
   owner answered F1–F7 the same day** (`milestones/M7-room-and-presets.md`, *Follow-up questions*),
   through a structured prompt, the option labels quoted verbatim in the milestone. F1 unblocked wave
@@ -931,7 +925,30 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-21, later still. M7 wave 7D5b is DONE and pushed; 7F2 is next.** Commits,
+> **RESUME HERE — 2026-09-22. M7 wave 7F2 is DONE.** Commits, in order: S1 `731a338`; S1b
+> `3bbbde8`; S2 `c4f59f3`; S3 `f4f775d`; S3b plan `518b7db`; S3b `c8bdc5e`; S4 `20381e7`; S5
+> `9aad164`; S5b `22279b6`. HEAD `22279b6` on `m7-room-and-presets`. **Gates (coordinator,
+> doc-quoted):** `pnpm check` before every commit; at `22279b6` — domain 228 files / 4,866 tests,
+> persistence 20 / 282, three-adapter 92 / 3,553, web 242 / 4,379. `pnpm ci:local` at `9aad164`:
+> `LOCAL CI PASSED — all gates green, safe to push.` (format, lint, typecheck, test, e2e 320 passed
+> in 5.9 m, build, boundary, lockfile, SCA all PASS); pushed, local and origin matched at `9aad164`
+> at dispatch time — `22279b6` (S5b) was not yet pushed and the coordinator pushes after this
+> record. **Visual gate at `22279b6`** (production build, 390×844, touch, ro and ru, emulated
+> Chromium): PASS on the eight criterion-14 witnesses, S1b-11, the S2 ru label, S3 timing (reason
+> at 403–407 ms, cleared 1 ms after the fix), S5b help-tap and Tab, and the full journey to the
+> editor; 136 screenshots in `testing-reports/7f2/` (gitignored); two preview-database design rows
+> written by the journeys (`v1n9mXWMnGM7XJ3uHwLRd`, `FkBE4FQMFKGSVPxKJYMan`); console unchanged; not
+> verified — a real device or keypad, WebKit, screen-reader output, 1F's own screen; captured, not
+> judged — a mid-typing wall draws a red sliver under mm entry (backlog 78). Full close-out:
+> [`milestones/M7-room-and-presets.md`, *7F2 close-out —
+> 2026-09-22*](milestones/M7-room-and-presets.md#7f2-close-out--2026-09-22). New record:
+> [ADR 0127](decisions/0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md)
+> lifts the 7F1-D45 convergence rule out of milestone prose and folds in S3b's late-echo fix. Seven
+> new backlog entries opened, 72–78 (`BACKLOG.md`). **Next: to be planned — the architect is
+> determining the next wave from the recorded order and its open scheduling questions (7F3's
+> dependency on the deferred 7C; the state of 7P1/7P2/7G).**
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-21, later still. M7 wave 7D5b is DONE and pushed; 7F2 is next.** Commits,
 > in order: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW
 > `f6e3730` (pushed, local and origin verified matching); the W7 fix committed just after `f6e3730`
 > and pushed with the close-out. Gates at `f6e3730`, run by the coordinator: `pnpm check` — domain

@@ -1550,7 +1550,7 @@ table.
 | **7C** | Preset adaptation from the free ends and **below a low ceiling**; leftover rule; declared changes. **DEFERRED PAST M8**, by 7B's derivation — it adapts what 7B matched, so it cannot precede it | `src/presets/adapt-preset.ts`, `src/presets/evaluate-preset.ts`, `src/index.ts` | 7B, 7D2 | Full | No | answered (F4, F7) |
 | **7A2** | The coupled room rule: the room must hold a sink and a hob (`ROOM_TOO_SMALL_FOR_KITCHEN`), tied to the generator by a property — **DONE, `f97d621`** | `src/room/room-policy.ts`, `src/room/approved-room-policy.ts`, `src/room/validate-room.ts` | 7D2 | Full | No | answered (F6) |
 | **7A3** | **The wall maxima become 6000 mm each, and the field says what number to type — DONE, close-out 2026-09-17.** See [7A3 close-out](#7a3-close-out--2026-09-17). Commits: S0 (ADR 0124) `6c8a1bc`; S1 (`recordedLRoom` split + guard) `71aae6d`; S2 (policy 6000/6000, `MAX_ROOM_DEPTH_MM` 6300) `1fac007`; S2 QA (4 new qa-7a3 files) `cbd04a8`; S2 review fixes (new corner suites, wall-B sweeps to 6000) `2898b14`; S3 (hint line + per-wall help, copy lock) `c0d74dc`; S3 fixes (U-room clip, corner clause, shared dismiss hook) `b7b3941`; S3 D2 (help button placement, 44px non-overlap guard) `6bc1b44`. `pnpm ci:local`/push **pending at the time of writing; the coordinator records it separately.** | `src/room/approved-room-policy.ts`, `src/design-bounds.ts`; then `apps/web/src/room/dimensions-form.tsx`, `room.module.css`, `messages/ro.json` + `ru.json` | **7D8 closed** (its re-keyed arm governs 91.0 % of the rooms this wave admits). Not in flight with 7D5, 7D6 or 7D7 | **Full** (domain bound + a wire bound) | **Yes**, slice S3 only | **Two owner rulings recorded 2026-09-17** — see *Owner questions for M7* for the dated entries: the corner clause, and help-button placement option (a) |
-| **7F2** | 1C validation state, incl. *minimum not met* — **PLANNED, next — see [Wave 7F2 — the plan](#wave-7f2--the-plan-2026-09-21). All owner and coordinator questions answered 2026-09-21 (Q-7F2-1…4 = (a); C-7F2-1/2/3 ruled).** | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | answered — Q-7F2-1…4 = (a); the Q-7F2-2 remedy already applied to frame 1F by 7D5b's W7 fix |
+| **7F2** | 1C validation state, incl. *minimum not met* — **DONE, `22279b6`** (S1 `731a338`, S1b `3bbbde8`, S2 `c4f59f3`, S3 `f4f775d`, S3b plan `518b7db`, S3b `c8bdc5e`, S4 `20381e7`, S5 `9aad164`, S5b `22279b6`) — see [7F2 close-out — 2026-09-22](#7f2-close-out--2026-09-22) | *carried*, plus the room-level reason | 7F1, 7D2 | Light | **Yes** | answered — Q-7F2-1…4 = (a); the Q-7F2-2 remedy already applied to frame 1F by 7D5b's W7 fix |
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
 | ↳ | **Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more | | | | | |
@@ -10735,6 +10735,10 @@ both ways (↑ over-fires / over-refuses, ↓ under-fires / under-refuses).
   already exists to prevent for the reason alone. This is safe for the CTA specifically because
   *Continuă* already acts only on a flushed valid room (a dead tap otherwise, until S3 makes it
   inactive) — the pause changes when the button reads *inactive*, never what it does once tapped.
+  **Annotated 2026-09-22: this premise was wrong.** QA's F2 found that a tap held over a refused
+  draft ends the pause and does not depart; `room-screen.tsx`'s `continueFromLengths` doc now
+  records the corrected behaviour. See *7F2 close-out — 2026-09-22*, ruling *C-7F2-1 extended*, for
+  the full ruling. Kept here rather than deleted, per the coordinator's 2026-09-22 instruction.
 - **S4 (shape refusal):** nothing.
 - **S5 (incomplete plan):** criterion 8 is unaffected (it is about shapes, not magnitudes). New and
   recorded, not scoped: with every wall typed, a wall mid-typing draws at its prefix (`36` mm beside
@@ -11533,24 +11537,149 @@ These are notes for the scribe's close-out of 7F2. They are not in S3b's scope, 
 written here so they are not lost. They are relayed from the coordinator's dispatch unless marked.
 
 1. **S2 changed label placement.** In an approved-range U room, only the label's side changes. In an
-   L room with B ≤ 241 mm, only `topPx` changes. The close-out records both as deliberate.
+   L room with B ≤ 241 mm, only `topPx` changes. The close-out records both as deliberate. ***Resolved
+   below*, under *7F2 close-out — 2026-09-22*, ruling S2.**
 2. **Wide-U facing labels overlap, and did before 7F2** (e.g. 4000 × 2400 × 2400). Goes to
-   `docs/BACKLOG.md`.
+   `docs/BACKLOG.md`. ***Routed***, see `docs/BACKLOG.md`.
 3. **S3 review R1.6: a second field problem is not re-announced while the note is showing.** Goes to
-   `docs/BACKLOG.md`. It needs copy.
+   `docs/BACKLOG.md`. It needs copy. ***Routed***, see `docs/BACKLOG.md`.
 4. **Coordinator ruling, 2026-09-22, on F2:** a tap held over a refused draft ends the pause and does
    not depart (`room-screen.tsx`'s `continueFromLengths` doc records it). The coordinator reports that
    the premise of its own 2026-09-21 extension of C-7F2-1 was wrong. The scribe annotates that
    premise sentence in S1b's *what S2 to S5b must change* block (*"*Continuă* already acts only on a
-   flushed valid room"*) rather than deleting it.
+   flushed valid room"*) rather than deleting it. ***Resolved***: see the annotation added at
+   [S1b's *what S2 to S5b must change*](#s1b--what-s2-to-s5b-must-change), C-7F2-1 paragraph, and
+   *7F2 close-out — 2026-09-22*, ruling C-7F2-1 extended.
 5. **Criterion 7's sabotage ↑ does not hold.** The S2 plan claims *"mark by array index → the `right`
    direction arm reddens"*. It does not, because index and id agree in every reachable plan. The
-   close-out corrects criterion 7's text and names a sabotage that does redden.
+   close-out corrects criterion 7's text and names a sabotage that does redden. ***Resolved below***,
+   ruling *criterion 7*.
 6. **S1b's review round and its S1b-11 visual gate are unrecorded.** Fold S1b-11's captures into the
-   wave's final visual gate and record the review round in the close-out.
+   wave's final visual gate and record the review round in the close-out. ***Resolved below***, under
+   *S1b gap*.
 7. *(Added by the S3b planner.)* **`room-to-editor.qa.e2e.spec.ts:55-56`'s workaround wait** was this
    late-echo defect, filed as a slow-runner race (S3b.0). It stays, because it is harmless. Its
-   comment should say what it was once S3b lands.
+   comment should say what it was once S3b lands. ***Recorded, not further verified by this pass —
+   the comment update was not independently re-read.***
+
+## 7F2 close-out — 2026-09-22
+
+**Commits, in order** (`git log 89fb4ec..22279b6`, as relayed by the coordinator): S1 `731a338`;
+S1b `3bbbde8`; S2 `c4f59f3`; S3 `f4f775d`; S3b plan `518b7db`; S3b `c8bdc5e`; S4 `20381e7`; S5
+`9aad164`; S5b `22279b6`. HEAD `22279b6` on `m7-room-and-presets`; origin was at `9aad164` at the
+time of dispatch, with `22279b6` (S5b) still to be pushed by the coordinator.
+
+**Gates, run by the coordinator (evidence tier: doc-quoted from the dispatch).** `pnpm check`
+before every commit; at `22279b6`: domain 228 files / 4,866 tests; persistence 20 / 282;
+three-adapter 92 / 3,553; web 242 / 4,379. `pnpm ci:local` at `9aad164`: verdict line `LOCAL CI
+PASSED — all gates green, safe to push.` — format, lint, typecheck, test, e2e (320 passed, 5.9 m),
+build, boundary, lockfile and SCA all PASS. Pushed; local and origin matched at `9aad164`.
+
+**Visual gate at `22279b6`** (production build, 390×844, touch, ro and ru, emulated Chromium),
+also doc-quoted from the dispatch:
+
+- **PASS** on every item: the eight criterion-14 witnesses (3600×450×2600; 900×2160×2200;
+  2200×900; 800×800×2000; 3600×2400×4000; U with C empty; U filled; linear at 1A and 1B); S1b-11;
+  the S2 ru label (116.6 px, inside the box, over no bar); S3 timing (the reason appeared 403–407 ms
+  after the keystroke and cleared 1 ms after the fix); S5b help-tap and Tab; the full journey to the
+  editor.
+- 136 screenshots in `testing-reports/7f2/` (gitignored, not part of this record).
+- Two design rows were written to the **preview** database by the journeys:
+  `v1n9mXWMnGM7XJ3uHwLRd` and `FkBE4FQMFKGSVPxKJYMan`.
+- Console: nothing new. The two pre-existing header warnings come from `security-headers.ts`,
+  unchanged in this wave.
+- **Not verified:** a real device or keypad, WebKit, screen-reader output, and 1F's own screen (it
+  handed off within 1.5 s).
+- **Captured, not judged:** under mm entry a wall mid-typing (`3`, `36`) draws as a red sliver
+  labelled "A prea scurt" — the S5 bullet's "36 mm beside 2400" note, now visible; recorded for the
+  owner, not ruled on.
+
+**S1b gap.** S1b's review round and its S1b-11 visual gate were never recorded separately in this
+file. S1b-11 is now covered by this close-out's visual gate, above, and the review round is
+recorded as part of this close-out: S1b shipped as a Full-tier wave (ADR 0108 decision 4 boundary,
+C-S1b-3's fence on the pre-named 7F1-D45 file), and no separate S1b close-out section exists or is
+owed beyond this note.
+
+### Criterion-by-criterion, 1–17 plus S1b's
+
+Evidence tier for every line below is **doc-quoted** from the coordinator's dispatch and the plan
+sections cited, unless marked otherwise.
+
+1–17 (7F2's own criteria, plan §4) and S1b-1…S1b-11 (plan §3, S1b slice) all shipped as planned,
+with two corrections and one extension recorded below rather than silently:
+
+- **Criterion 7 correction.** The S2 plan's claim that marking by array index makes the `right`
+  direction arm reddens under sabotage does not hold: index and id agree in every reachable plan.
+  Criterion 7's sabotage ↑ is corrected in place here rather than in the plan text above, since the
+  plan is historical record: **no mark-by-index vs mark-by-id divergence is reachable**, so that
+  arm is not a discriminating sabotage for this criterion. The criterion is otherwise met.
+- **Criterion 13, the 8 departure tests.** Moved to another harness per C-7F2-2, none deleted;
+  widened by S3b to both branches of `departTo` (below).
+- **S1b-11, criterion 14, S5's mm-entry note** — all PASS/captured per the visual gate above.
+
+### Rulings recorded 2026-09-22, with their date
+
+- **C-7F2-1 extended (one clock).** Its premise was wrong, and QA's F2 corrected it: **a held tap
+  over a refused draft ends the pause and does not depart.** `room-screen.tsx`'s
+  `continueFromLengths` doc now records this. The premise sentence this corrects — *"*Continuă*
+  already acts only on a flushed valid room"*, in [S1b's *what S2 to S5b must
+  change*](#s1b--what-s2-to-s5b-must-change) — is annotated in place there rather than deleted, per
+  the coordinator's instruction (pending item 4 above).
+- **S2's label placement changes** are deliberate, per the S2 commit message (`c4f59f3`): in an
+  approved-range U room, only the label's side changes; in an L room with B ≤ 241 mm, only `topPx`
+  changes. No other population is affected.
+- **The S2 plan's criterion-7 sabotage claim does not hold**, per the correction above: index and id
+  agree in every reachable plan.
+- **S3b's F1 verdict (oldest copy, the two-history argument).** The corrected pruning rule: when an
+  arrival that changes `liveText` equals an entry in the in-flight-write list, the **oldest** copy
+  of that text and every entry before it are dropped; everything after stays, including any later
+  copy of the same text. This trades a stale entry (harmless except against F3, below) for never
+  losing a digit under any in-order delivery — the two-history argument at
+  `docs/milestones/M7-room-and-presets.md:11144-11165`, adopted with the whole suite green (44
+  files, 1,531 tests) and QA's three model orders clean at 3,000 runs each with backspace in the
+  alphabet.
+- **R1.1/R1.2 — every departure empties the list.** `departTo`'s direct branch
+  (`!liveQueryNamesARoom || liveText === draftText`) previously left the list full, which could
+  strand a pending push behind a later `replace` and reproduce D45's dead-button failure through
+  the new branch. Ruled: every departure empties the list on both branches, widening rule 4. The
+  must-not-change fence was amended in place (*"beyond the two emptying calls"*) to allow the
+  second `forgetWrites()` call — see *the S3b must-not-change amendment*, below.
+- **S4: only the chosen chip is described.** R1.2 amends the earlier every-chip ruling; the refusal
+  has its own live region, separate from the chosen chip's description.
+- **S5 (Q-7F2-3 = a): the plan draws nothing until every wall of the chosen shape is typed.** The
+  amended 7F1 test is `plan-preview-model.test.ts:665`, named in S5's commit per the plan's own
+  instruction (never silently edited).
+- **S5b:**
+  - **Owner:** one message for every unreadable input.
+  - **Coordinator:** the reason stays while the field stays unreadable; a deep link refills as
+    empty; press deferral; `keydown`/window `blur` end a press, with modifiers, repeats and IME
+    excluded; the lost-release QA test was a test-fidelity issue (QA's F2, above, is the
+    late-echo-specific instance of this same class).
+  - **Reviewer's reasoning for why the S5b sentence is deliberately not live:** it appears after
+    focus has moved on (the blur has already fired), and a live announcement at that point would
+    talk over whatever control the customer has moved to next.
+
+### The S3b must-not-change amendment's wording, aligned to what shipped
+
+The 2026-09-22 amendment's phrase *"beyond the one emptying call"* is corrected in place, in the
+plan text above, to *"beyond the two emptying calls"* — but what shipped is **one**
+`forgetWrites()` call at the top of `departTo`, covering both the flush-and-arm branch and the
+direct-push branch, rather than two separate call sites. The coordinator accepted this as
+satisfying the fence: the amendment permits `departTo` to empty the list on both of its branches,
+and a single call placed before the branch split discharges that permission with less duplication
+than two calls would. Nothing else in the departure changed; the branch conditions, the flush, and
+the observe-then-push order all stayed inside the fence.
+
+### §8 (what 7J needs) — additions from this wave
+
+- **S4 review R1.4:** after 7J, the linear suggestion renders inside the live region while the
+  field reasons are not live, so it would announce *"Sau alege o formă liniară."* alone. 7J decides
+  where it belongs.
+- **QA's positive-arm test for the suggestion** lives in `qa-7f2-s4-shape-refusal.adversarial.test.ts`
+  (stubbed domain).
+- **`validateRoomInput` must stop refusing linear in the same commit** 7J states `linear` in the
+  policy — otherwise a filled linear room reaches 1C carrying only `SHAPE_NOT_BUILDABLE` with no
+  reason shown (§8, added 2026-09-21, measured).
 
 ## Wave 7D8 — the plan, 2026-09-16: the run follows the wider wall
 
