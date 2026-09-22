@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * **ADR 0082's containment, measured** — on the control that replaced the strip this file was
@@ -50,9 +52,8 @@ interface Box {
   readonly height: number;
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * **Adversarial QA for the one thing `price-breakdown.tsx` decides: what is open.**
@@ -33,9 +35,8 @@ const SCENE_SETTLE_MS = 2000;
  *  than the measured distance, so a re-ordered tab ring changes nothing about what is asserted. */
 const MAX_TAB_STOPS = 10;
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

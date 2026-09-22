@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * **M7 wave 7H criterion 11: §11 row 21, proved in a browser.**
@@ -168,9 +169,8 @@ test.describe("the ceiling row stays tappable in a browser", () => {
   // this only stops the clock from being the thing that fails on a slow runner.
   test.setTimeout(120_000);
 
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/configurator/configure");
-    await page.waitForSelector("canvas", { state: "attached" });
+  test.beforeEach(async ({ page, seededDesign }) => {
+    await openSeededDesign(page, seededDesign);
     // The first settle is the stage seating itself; every later one is a preset landing.
     await waitForSettleAfter(page, 0);
   });

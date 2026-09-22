@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * The refreshed top bar at 390 x 844, measured (wave W4, mobile half).
@@ -54,9 +56,8 @@ const OVERLONG_TITLE =
   // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a metrics fixture rather than copy — the note above rules it Romanian because diacritics change the measured glyph run.
   "Configurare completă a bucătăriei pe toți pereții, cu toate corpurile alese";
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

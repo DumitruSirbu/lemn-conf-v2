@@ -204,9 +204,9 @@ function renderedBasesOf(finish: Finish): readonly Rgb[] {
 }
 
 /** **Every finish the two pixel-counting e2e specs put on a front**, read off the designs they
- *  load. `editor-rail.desktop.e2e.spec.ts` opens `/configurator/configure`, which seeds
- *  `KITCHEN_L_DESIGN`; `overflow-mark.e2e.spec.ts` stores `NARROWED_ROOM_OVERFLOWING_DESIGN`, which
- *  is the same placements in a narrower room.
+ *  load. `editor-rail.desktop.e2e.spec.ts` opens the seeded `KITCHEN_L_DESIGN` through
+ *  `support/seeded-design.ts`'s fixture; `overflow-mark.e2e.spec.ts` stores the same placements with
+ *  `NARROWED_ROOM_OVERFLOWING_DESIGN`'s narrower room width.
  *
  *  Derived rather than declared, per ADR 0091 decision 4a: this returns nothing today, and the day
  *  a fixture wears a decor it returns that decor's rendered bases and the sweeps below re-measure

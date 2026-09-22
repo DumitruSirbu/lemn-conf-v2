@@ -3,13 +3,19 @@ import {
   OVERFLOW_MARK_COLOR,
   SELECTION_HIGHLIGHT_COLOR,
 } from "@lemnaria/three-adapter";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { atThisCanvas, SINK_CABINET_TAP } from "./support/canvas-taps";
 import { countPixels, toRgb, type PixelRect } from "./support/pixels";
 import { readSelection } from "./support/panel";
+import {
+  mintSeededDesign,
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * M6 wave 6M's first acceptance criterion: a body ADR 0065 reports is **visibly marked in the
@@ -183,35 +189,20 @@ const SELECTION = {
   tolerance: COLOR_TOLERANCE,
 } as const;
 
-const mintedDesignIds: string[] = [];
+/** The `seededDesign` fixture owns the one row each test narrows. This file's two fitting-control
+ *  captures need a second, unmutated row beside it — the document under test is narrowed by the
+ *  time the control's rectangle is known — and this is that row's own cleanup (wave 7E4 D3: `mint`
+ *  now runs from `mintSeededDesign`'s own origin rather than the retired editor route). */
+const fittingControlIds: string[] = [];
 
 test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
+  await deleteMintedDesigns(fittingControlIds);
 });
 
-interface StoredDesign {
-  readonly id: string;
-  readonly revision: string;
-}
-
-/** Mints a row and returns it with the revision a save has to state (WEB-003). */
-async function mintDesign(page: Page): Promise<StoredDesign> {
-  await page.goto("/configurator/configure");
-  const minted = await page.evaluate(async () => {
-    const created = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const { id } = (await created.json()) as { id: string };
-    const loaded = await fetch(`/api/designs/${id}`);
-    const { revision } = (await loaded.json()) as { revision: string };
-    return { id, revision, status: created.status };
-  });
-
-  // Registered before anything is asserted, so a failing assertion still cleans up.
-  if (minted.id) mintedDesignIds.push(minted.id);
-  expect(minted.status).toBe(201);
-  return { id: minted.id, revision: minted.revision };
+async function mintFittingControl(page: Page): Promise<SeededDesign> {
+  const control = await mintSeededDesign(page);
+  fittingControlIds.push(control.id);
+  return control;
 }
 
 /**
@@ -223,10 +214,10 @@ async function mintDesign(page: Page): Promise<StoredDesign> {
  */
 async function storeANarrowedRoom(
   page: Page,
-  stored: StoredDesign,
+  stored: SeededDesign,
 ): Promise<readonly string[]> {
   const result = await page.evaluate(
-    async (target: StoredDesign & { readonly widthMm: number }) => {
+    async (target: SeededDesign & { readonly widthMm: number }) => {
       const loaded = await fetch(`/api/designs/${target.id}`);
       const { design } = (await loaded.json()) as {
         design: {
@@ -298,10 +289,10 @@ async function expectNothingIsSelected(page: Page): Promise<void> {
 }
 
 /** Opens a stored design and waits until the scene is really mounted — `probe` is the store's own
- *  `isBodyProbeAttached`, which is what the warning band is gated on. */
-async function openAndSettle(page: Page, designId: string): Promise<void> {
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
+ *  `isBodyProbeAttached`, which is what the warning band is gated on. Write access is confirmed by
+ *  `openSeededDesign`; this only adds the probe wait `openSeededDesign` itself has no opinion on. */
+async function openAndSettle(page: Page, design: SeededDesign): Promise<void> {
+  await openSeededDesign(page, design);
   await expect(async () => {
     expect((await readSelection(page)).probe).toBe("on");
   }).toPass({ timeout: 15_000 });
@@ -359,12 +350,12 @@ test("the mark's colour cannot be counted as the selection highlight", () => {
 
 test("a stored overflowing design is marked in the scene and warned about, and a fitting one is neither", async ({
   page,
+  seededDesign,
 }) => {
   // The marked capture first, so the band's height is known and the same rectangle can be used for
   // both.
-  const stored = await mintDesign(page);
-  await storeANarrowedRoom(page, stored);
-  await openAndSettle(page, stored.id);
+  await storeANarrowedRoom(page, seededDesign);
+  await openAndSettle(page, seededDesign);
 
   const warning = page.getByTestId("scene-overflow-warning");
   await expect(warning).toBeVisible();
@@ -380,10 +371,12 @@ test("a stored overflowing design is marked in the scene and warned about, and a
   const markedPixels = await countPixels(page, clip, MARK);
   const highlightPixels = await countPixels(page, clip, SELECTION);
 
-  // The control, on the design the product ships, through the same rectangle.
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
-  await page.waitForTimeout(SCENE_SETTLE_MS);
+  // The control, on the design the product ships, through the same rectangle. A second,
+  // unmutated row beside the narrowed one (wave 7E4 D3, D1): the row under test has already been
+  // narrowed by this point, so the fitting baseline needs its own.
+  const fittingControl = await mintFittingControl(page);
+  expect(fittingControl.id).not.toBe(seededDesign.id);
+  await openSeededDesign(page, fittingControl);
   await expect(page.getByTestId("scene-overflow-warning")).toHaveCount(0);
   await expectNothingIsSelected(page);
   const fittingPixels = await countPixels(page, clip, MARK);
@@ -425,18 +418,20 @@ test("a stored overflowing design is marked in the scene and warned about, and a
 
 test("the warning band is pinned to the scene's bottom edge and costs the canvas no height", async ({
   page,
+  seededDesign,
 }) => {
   // Wave 6G moved this band out of the flow. What has to be true now is that it sits on the scene
   // box's bottom edge and that **the band** takes nothing from the canvas.
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
-  await page.waitForTimeout(SCENE_SETTLE_MS);
+  //
+  // The fitting baseline is the same row, read **before** it is narrowed (wave 7E4 D3): nothing
+  // measured here depends on the marked state, so one row serves as its own control rather than
+  // needing a second mint.
+  await openSeededDesign(page, seededDesign);
   const fittingCanvas = await canvasBox(page);
   const fittingBar = await boxOf(page, "price-bar");
 
-  const stored = await mintDesign(page);
-  await storeANarrowedRoom(page, stored);
-  await openAndSettle(page, stored.id);
+  await storeANarrowedRoom(page, seededDesign);
+  await openAndSettle(page, seededDesign);
 
   const band = await boxOf(page, "scene-overflow-warning");
   const canvas = await canvasBox(page);
@@ -468,12 +463,12 @@ test("the warning band is pinned to the scene's bottom edge and costs the canvas
 
 test("the orbit hint rides above the band rather than inside it", async ({
   page,
+  seededDesign,
 }) => {
   // Both are bottom-anchored overlays on the same box. Pinned independently the 56 px band would be
   // drawn straight through the hint pill, which stands 16 px off the same edge.
-  const stored = await mintDesign(page);
-  await storeANarrowedRoom(page, stored);
-  await openAndSettle(page, stored.id);
+  await storeANarrowedRoom(page, seededDesign);
+  await openAndSettle(page, seededDesign);
 
   const hint = await boxOf(page, "scene-hint");
   const band = await boxOf(page, "scene-overflow-warning");
@@ -508,10 +503,10 @@ test("the orbit hint rides above the band rather than inside it", async ({
  */
 test("a body is selectable with the band up, and the strip above the sheet is still reachable", async ({
   page,
+  seededDesign,
 }) => {
-  const stored = await mintDesign(page);
-  await storeANarrowedRoom(page, stored);
-  await openAndSettle(page, stored.id);
+  await storeANarrowedRoom(page, seededDesign);
+  await openAndSettle(page, seededDesign);
 
   // An **unmarked** body, because no marked one is on screen. The seeded sink cabinet, at this
   // file's own re-measured constant.

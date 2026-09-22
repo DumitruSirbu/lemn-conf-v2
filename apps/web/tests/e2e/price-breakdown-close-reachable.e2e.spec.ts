@@ -1,4 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **The breakdown sheet's close button, measured against what is painted over it** — the owner's
@@ -61,9 +67,11 @@ interface Probe {
   readonly y: number;
 }
 
-async function openSheet(page: Page): Promise<void> {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+async function openSheet(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<void> {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   await page.getByTestId("price-breakdown-trigger").tap();
   await expect(page.getByTestId("price-breakdown-surface")).toBeVisible();
@@ -108,9 +116,10 @@ test.describe("the breakdown sheet's close button is reachable, not merely prese
 
     test(`answers the close button at all five points at ${where}`, async ({
       page,
+      seededDesign,
     }) => {
       await page.setViewportSize(viewport);
-      await openSheet(page);
+      await openSheet(page, seededDesign);
 
       const found = await whatIsOnTopOfTheCloseButton(page);
 
@@ -126,8 +135,11 @@ test.describe("the breakdown sheet's close button is reachable, not merely prese
 
   /** The button is on screen as well as on top. A box below the fold is unreachable for a different
    *  reason and would pass the probes above by returning `nothing`. */
-  test("draws the close button inside the viewport", async ({ page }) => {
-    await openSheet(page);
+  test("draws the close button inside the viewport", async ({
+    page,
+    seededDesign,
+  }) => {
+    await openSheet(page, seededDesign);
 
     const box = await page.getByTestId("price-breakdown-close").boundingBox();
     const viewport = page.viewportSize();
@@ -145,8 +157,9 @@ test.describe("the breakdown sheet's close button is reachable, not merely prese
    *  would turn every assertion above green. */
   test("still draws the action row underneath, overlapping the button's band", async ({
     page,
+    seededDesign,
   }) => {
-    await openSheet(page);
+    await openSheet(page, seededDesign);
 
     const close = await page.getByTestId("price-breakdown-close").boundingBox();
     const back = await page.getByTestId("bottom-bar-back").boundingBox();
@@ -164,8 +177,9 @@ test.describe("the breakdown sheet's close button is reachable, not merely prese
    *  it, and that is the fix this product has already refused. */
   test("leaves the scene above the sheet live and hit-testable", async ({
     page,
+    seededDesign,
   }) => {
-    await openSheet(page);
+    await openSheet(page, seededDesign);
 
     const sheet = await page
       .getByTestId("price-breakdown-surface")

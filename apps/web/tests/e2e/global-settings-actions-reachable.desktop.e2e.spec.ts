@@ -1,4 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **M6-AUD-016, measured on the shell it was found on.**
@@ -56,9 +62,11 @@ interface Box {
   readonly height: number;
 }
 
-async function openConfigurator(page: Page): Promise<void> {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+async function openConfigurator(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<void> {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 
@@ -115,9 +123,10 @@ for (const viewport of SHORT_DESKTOP_VIEWPORTS) {
   for (const surface of SURFACES) {
     test(`keeps every action of ${surface.name} inside the viewport at ${size}`, async ({
       page,
+      seededDesign,
     }) => {
       await page.setViewportSize(viewport);
-      await openConfigurator(page);
+      await openConfigurator(page, seededDesign);
       await page.getByTestId(surface.trigger).click();
       await expect(page.getByTestId(surface.surface)).toBeVisible();
 
@@ -141,12 +150,13 @@ for (const viewport of SHORT_DESKTOP_VIEWPORTS) {
 
     test(`keeps every action of ${surface.name} pointer-clickable at ${size}`, async ({
       page,
+      seededDesign,
     }) => {
       // A keyboard may focus an off-screen action; that does not make it operable. The audit's whole
       // severity argument for the settings sheet is that a pointer customer cannot commit, so what
       // is asserted is the pointer.
       await page.setViewportSize(viewport);
-      await openConfigurator(page);
+      await openConfigurator(page, seededDesign);
       await page.getByTestId(surface.trigger).click();
       await expect(page.getByTestId(surface.surface)).toBeVisible();
 
@@ -163,12 +173,13 @@ for (const viewport of SHORT_DESKTOP_VIEWPORTS) {
 
 test("still draws the settings sheet at its designed height where the screen has room", async ({
   page,
+  seededDesign,
 }) => {
   // The clamp is a `min()`, so this is what says it is a clamp and not a shrink: at the shipped
   // desktop viewport the surface keeps the height frame D2E draws, and only a short screen changes
   // anything.
   await page.setViewportSize({ width: 1440, height: 900 });
-  await openConfigurator(page);
+  await openConfigurator(page, seededDesign);
   await page.getByTestId("global-settings-trigger").click();
   await expect(page.getByTestId("global-settings-surface")).toBeVisible();
 

@@ -9,14 +9,13 @@ import {
   SELECTION_HIGHLIGHT_COLOR,
   SELECTION_OUTLINE_CASING_COLOR,
 } from "@lemnaria/three-adapter";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import {
   FAR_BASE_CABINET,
   SINK_CABINET_FULL_WIDTH,
   SINK_PATCH,
 } from "./support/desktop-scene-points";
-import { deleteMintedDesigns } from "./support/minted-designs";
 import { readSelection } from "./support/panel";
 import {
   MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
@@ -26,6 +25,11 @@ import {
   toRgb,
   type CapturedPatch,
 } from "./support/pixels";
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **Adversarial QA against wave 6V**, and it exists because two of that wave's claims are true only
@@ -210,36 +214,6 @@ const MIN_WOOD_CEILING_PIXELS = 10_000;
 /** The unpainted seeded design reads **16** at the lower of the two edges. */
 const MAX_UNPAINTED_CEILING_PIXELS = 100;
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-interface StoredDesign {
-  readonly id: string;
-  readonly revision: string;
-}
-
-async function mintDesign(page: Page): Promise<StoredDesign> {
-  await page.goto("/configurator/configure");
-  const minted = await page.evaluate(async () => {
-    const created = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const { id } = (await created.json()) as { id: string };
-    const loaded = await fetch(`/api/designs/${id}`);
-    const { revision } = (await loaded.json()) as { revision: string };
-    return { id, revision, status: created.status };
-  });
-
-  // Registered before anything is asserted, so a failing assertion still cleans up.
-  if (minted.id) mintedDesignIds.push(minted.id);
-  expect(minted.status).toBe(201);
-  return { id: minted.id, revision: minted.revision };
-}
-
 /**
  * Repaints the stored seeded kitchen in one finish on one material, built from the document the
  * API returned rather than from a literal, and returns what the saved document then wears so the
@@ -258,7 +232,7 @@ async function mintDesign(page: Page): Promise<StoredDesign> {
  */
 async function storeAKitchenWearing(
   page: Page,
-  stored: StoredDesign,
+  stored: SeededDesign,
   wearing: { readonly materialTierId: string; readonly finish: Finish },
 ): Promise<StoredKitchenColour> {
   const result = await page.evaluate(
@@ -342,9 +316,8 @@ function expectTheWholeKitchenWears(
   expect(stored.finishes).toEqual([JSON.stringify(finish)]);
 }
 
-async function openAndSettle(page: Page, designId: string): Promise<void> {
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
+async function openAndSettle(page: Page, design: SeededDesign): Promise<void> {
+  await openSeededDesign(page, design);
   await expect(async () => {
     expect((await readSelection(page)).probe).toBe("on");
   }).toPass({ timeout: 15_000 });
@@ -392,17 +365,18 @@ async function wholeCanvas(page: Page): Promise<CapturedPatch> {
  */
 test("the near-black casing pass reaches the framebuffer on a front painted the highlight's own colour", async ({
   page,
+  seededDesign,
 }) => {
   const finish = freeColourFinish("#ff2d2d");
-  const stored = await mintDesign(page);
+  expect(seededDesign.id).not.toBe("");
   expectTheWholeKitchenWears(
-    await storeAKitchenWearing(page, stored, {
+    await storeAKitchenWearing(page, seededDesign, {
       materialTierId: MDF,
       finish,
     }),
     finish,
   );
-  await openAndSettle(page, stored.id);
+  await openAndSettle(page, seededDesign);
 
   await clickScene(page, SINK_CABINET_FULL_WIDTH);
   await selectInRail(page, "p0");
@@ -447,16 +421,16 @@ test("the near-black casing pass reaches the framebuffer on a front painted the 
 for (const wood of UNMARKED_WOODS) {
   test(`an unmarked kitchen in ${wood.name} stays under the mark counter in every preset`, async ({
     page,
+    seededDesign,
   }) => {
-    const stored = await mintDesign(page);
     expectTheWholeKitchenWears(
-      await storeAKitchenWearing(page, stored, {
+      await storeAKitchenWearing(page, seededDesign, {
         materialTierId: VENEER,
         finish: wood.finish,
       }),
       wood.finish,
     );
-    await openAndSettle(page, stored.id);
+    await openAndSettle(page, seededDesign);
 
     // Nothing is selected, so no outline is on screen: the outline's own red clears the mark's
     // threshold by 130 and would be counted as a wash.
@@ -502,17 +476,17 @@ for (const wood of UNMARKED_WOODS) {
  */
 test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not", async ({
   page,
+  seededDesign,
 }) => {
   const finish = materialById(VENEER).defaultFinish;
-  const stored = await mintDesign(page);
   expectTheWholeKitchenWears(
-    await storeAKitchenWearing(page, stored, {
+    await storeAKitchenWearing(page, seededDesign, {
       materialTierId: VENEER,
       finish,
     }),
     finish,
   );
-  await openAndSettle(page, stored.id);
+  await openAndSettle(page, seededDesign);
   expect((await readSelection(page)).selectionId).toBe("");
 
   const presetButtons = page.locator('[role="group"] button');
@@ -539,9 +513,9 @@ test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and
  *  margin the way the adversarial reading of 50 suggested. */
 test("the design the mark gate photographs leaves both woods' bands empty", async ({
   page,
+  seededDesign,
 }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   expect((await readSelection(page)).selectionId).toBe("");
 
@@ -572,9 +546,9 @@ test("the design the mark gate photographs leaves both woods' bands empty", asyn
  */
 test("a camera preset round-trip leaves the canvas unchanged at the declared noise floor", async ({
   page,
+  seededDesign,
 }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 
   const before = await wholeCanvas(page);

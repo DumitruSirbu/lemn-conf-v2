@@ -1,7 +1,13 @@
 import { NARROWED_ROOM_OVERFLOWING_DESIGN } from "@lemnaria/configurator-domain";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
+import {
+  mintSeededDesign,
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **ADR 0082 decision 7's other shell**: *"one rule for both shells — containment is not one of
@@ -21,8 +27,9 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  *
  * On 2026-09-06 this file was green while two chips rendered 28 px wide with 138 and 115 px of label
  * cut, painted inside the step nav's column, and the trigger stood over the price bar. It was green
- * because every case drove `/configurator/configure`, which is **never flagged** — the assertion that
- * would have failed was evaluated only on the input that cannot falsify it.
+ * because every case drove the retired editor route's own seeded document, which is **never
+ * flagged** — the assertion that would have failed was evaluated only on the input that cannot
+ * falsify it.
  *
  * So a design carrying ADR 0065's flag is a **second surface** here, minted and deleted the way
  * `overflow-mark.e2e.spec.ts` mints and deletes one (ADR 0006).
@@ -74,9 +81,8 @@ test.afterAll(async () => {
   await deleteMintedDesigns(mintedDesignIds);
 });
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 
@@ -236,28 +242,13 @@ function expectInside(
  * The flagged surface: a stored design carrying ADR 0065's overflow flag.
  * ------------------------------------------------------------------------- */
 
-interface StoredDesign {
-  readonly id: string;
-  readonly revision: string;
-}
-
-/** Mints a row and returns it with the revision a save has to state (WEB-003). */
-async function mintDesign(page: Page): Promise<StoredDesign> {
-  const minted = await page.evaluate(async () => {
-    const created = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const { id } = (await created.json()) as { id: string };
-    const loaded = await fetch(`/api/designs/${id}`);
-    const { revision } = (await loaded.json()) as { revision: string };
-    return { id, revision, status: created.status };
-  });
-
-  // Registered before anything is asserted, so a failing assertion still cleans up.
-  if (minted.id) mintedDesignIds.push(minted.id);
-  expect(minted.status).toBe(201);
-  return { id: minted.id, revision: minted.revision };
+/** Mints a row of its own, beside the fixture's per-test one: this file caches it across every test
+ *  (below), which the test-scoped `seededDesign` fixture does not do. */
+async function mintFlaggedRow(page: Page): Promise<SeededDesign> {
+  const design = await mintSeededDesign(page);
+  mintedDesignIds.push(design.id);
+  expect(design.id).not.toBe("");
+  return design;
 }
 
 /** Stores the seeded kitchen with wall A declared narrower than the run standing on it, which is
@@ -265,10 +256,10 @@ async function mintDesign(page: Page): Promise<StoredDesign> {
  *  drift from the fixture. */
 async function storeANarrowedRoom(
   page: Page,
-  stored: StoredDesign,
+  stored: SeededDesign,
 ): Promise<void> {
   const saved = await page.evaluate(
-    async (target: StoredDesign & { readonly widthMm: number }) => {
+    async (target: SeededDesign & { readonly widthMm: number }) => {
       const loaded = await fetch(`/api/designs/${target.id}`);
       const { design } = (await loaded.json()) as {
         design: { room: { widthMm: number } };
@@ -296,23 +287,29 @@ async function storeANarrowedRoom(
 
 /** One row for the whole file — the document is read, never edited, so the tests cannot disturb each
  *  other through it, and minting once keeps the write this spec owes ADR 0006 to a single row. */
-let flaggedDesignId: string | undefined;
+let flaggedDesign: SeededDesign | undefined;
 
 /**
  * Opens a design whose total carries ADR 0065's flag, and asserts that it does.
+ *
+ * **Not `openSeededDesign`, deliberately.** That helper throws unless this browser holds write
+ * access, and the row is cached across tests (above) — each of which gets its own fresh context and
+ * so a fresh, empty cookie jar (Playwright's own per-test isolation). Reading a shared link never
+ * needed the write-token cookie to begin with (ADR 0019 decision 1), which is exactly what lets one
+ * minted row serve every test here.
  *
  * **The sentence is on the scene now** (ADR 0104 decision 8b), so that is where its presence is
  * confirmed — the entire point of the ruling is that the top bar cannot tell the two designs apart,
  * which would make a top-bar probe for the flag both wrong and vacuous.
  */
 async function openFlaggedDesign(page: Page): Promise<void> {
-  if (!flaggedDesignId) {
-    const stored = await mintDesign(page);
-    await storeANarrowedRoom(page, stored);
-    flaggedDesignId = stored.id;
+  if (!flaggedDesign) {
+    const minted = await mintFlaggedRow(page);
+    await storeANarrowedRoom(page, minted);
+    flaggedDesign = minted;
   }
 
-  await page.goto(`/d/${flaggedDesignId}`);
+  await page.goto(`/d/${flaggedDesign.id}`);
   await page.waitForSelector("canvas", { state: "attached" });
   await expect(page.getByTestId("price-bar-overflow")).toBeVisible();
   await page.waitForTimeout(SCENE_SETTLE_MS);
