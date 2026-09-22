@@ -22,6 +22,10 @@
 // shapes it still describes. A straight room's 1B keeps its slack and is measured both ways. 1A's
 // column still clips (`overflow: hidden`), so the refusal under the cards is measured where it stands.
 //
+// **Since slice S5b a field left holding text it refuses carries a sentence under it** (Q-7F2-4). A U
+// room is where that stacks highest: three walls, each explained, under the shape refusal. Those
+// sentences follow a blur, which no URL can carry, so that witness is typed rather than linked to.
+//
 // **A help target is measured by what it answers, not by the box it paints.** The area is found by
 // asking `elementFromPoint` over a grid around the button — the question ADR 0104 decision 5's gate
 // asks — so a pseudo-element that widens the target is counted, and a target that stole the top of a
@@ -155,48 +159,90 @@ for (const locale of LOCALES) {
         await expect(page.getByTestId(testId)).toBeVisible();
       }
 
-      const column = await columnScroll(page);
-      expect(column.scrollWidthPx, JSON.stringify(column)).toBeLessThanOrEqual(
-        column.clientWidthPx,
-      );
-      expect(column.overflowX, JSON.stringify(column)).toBe("hidden");
-      // **A customer's finger scrolls only a scroller.** `scrollIntoViewIfNeeded` below scrolls an
-      // `overflow: hidden` box as readily as an `auto` one, so without this line the reach claims
-      // would pass over the clipping column Q-7F2-2 replaced.
-      expect(USER_SCROLLABLE, JSON.stringify(column)).toContain(
-        column.overflowY,
-      );
-      if (witness.mustScroll) {
-        // What follows is then a claim about scrolling to each target rather than about a column
-        // that happens to fit.
-        expect(column.scrollHeightPx, JSON.stringify(column)).toBeGreaterThan(
-          column.clientHeightPx,
-        );
-      }
-
-      const reachable = [
-        ...(await page
-          .locator(
-            [
-              "input[data-testid^='room-shape-chip-control-']",
-              `[data-testid='${REFUSAL}']`,
-              "input[data-testid^='room-length-']",
-              "[data-testid^='room-length-reason-']",
-              `[data-testid='${NOTE}']`,
-            ].join(", "),
-          )
-          .all()),
-        page.getByTestId("room-continue"),
-      ];
-      for (const target of reachable) {
-        await target.scrollIntoViewIfNeeded();
-        const reach = await reachOf(target);
-        expect(reach.isTopmostAtItsCentre, JSON.stringify(reach)).toBe(true);
-        expect(reach.clippedPx, JSON.stringify(reach)).toBeLessThan(
-          SUB_PIXEL_PX,
-        );
-      }
+      await expectEveryTargetReachable(page, witness.mustScroll);
     });
+  }
+}
+
+/** Text each wall's parser refuses (C-S1b-2): the metre habit, letters, and a zero. */
+const UNREADABLE_WALL_TEXTS = [
+  ["wallA", "3,6"],
+  ["wallB", "abc"],
+  ["wallC", "0"],
+] as const;
+
+for (const locale of LOCALES) {
+  test(`every field, the three unreadable sentences, the shape refusal and the Continue button of a U room can be reached in ${locale}`, async ({
+    page,
+  }) => {
+    await page.goto(`/${locale}/configurator/room?shape=U&direction=left`);
+    await expect(page.getByTestId(REFUSAL)).toBeVisible();
+
+    for (const [field, text] of UNREADABLE_WALL_TEXTS) {
+      const input = page.getByTestId(`room-length-${field}`);
+      await input.fill(text);
+      await input.blur();
+    }
+    for (const [field] of UNREADABLE_WALL_TEXTS) {
+      await expect(page.getByTestId(`room-length-reason-${field}`)).toHaveCount(
+        1,
+      );
+      await expect(page.getByTestId(`room-length-${field}`)).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+    }
+
+    // Measured by QA: 919 px of content in a 709 px column, in ro and ru.
+    await expectEveryTargetReachable(page, true);
+  });
+}
+
+/**
+ * Nothing in the column scrolls sideways, the column is one a finger can scroll, and every chip,
+ * refusal, field, reason, note and *Continuă* can be scrolled to and tapped at its centre.
+ */
+async function expectEveryTargetReachable(
+  page: Page,
+  mustScroll: boolean,
+): Promise<void> {
+  const column = await columnScroll(page);
+  expect(column.scrollWidthPx, JSON.stringify(column)).toBeLessThanOrEqual(
+    column.clientWidthPx,
+  );
+  expect(column.overflowX, JSON.stringify(column)).toBe("hidden");
+  // **A customer's finger scrolls only a scroller.** `scrollIntoViewIfNeeded` below scrolls an
+  // `overflow: hidden` box as readily as an `auto` one, so without this line the reach claims
+  // would pass over the clipping column Q-7F2-2 replaced.
+  expect(USER_SCROLLABLE, JSON.stringify(column)).toContain(column.overflowY);
+  if (mustScroll) {
+    // What follows is then a claim about scrolling to each target rather than about a column
+    // that happens to fit.
+    expect(column.scrollHeightPx, JSON.stringify(column)).toBeGreaterThan(
+      column.clientHeightPx,
+    );
+  }
+  expect(await documentScrollsSideways(page)).toBe(false);
+
+  const reachable = [
+    ...(await page
+      .locator(
+        [
+          "input[data-testid^='room-shape-chip-control-']",
+          `[data-testid='${REFUSAL}']`,
+          "input[data-testid^='room-length-']",
+          "[data-testid^='room-length-reason-']",
+          `[data-testid='${NOTE}']`,
+        ].join(", "),
+      )
+      .all()),
+    page.getByTestId("room-continue"),
+  ];
+  for (const target of reachable) {
+    await target.scrollIntoViewIfNeeded();
+    const reach = await reachOf(target);
+    expect(reach.isTopmostAtItsCentre, JSON.stringify(reach)).toBe(true);
+    expect(reach.clippedPx, JSON.stringify(reach)).toBeLessThan(SUB_PIXEL_PX);
   }
 }
 

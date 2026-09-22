@@ -18,8 +18,13 @@
 // reading of that parser; a `maxLength` truncates a paste into a room nobody entered; and a
 // placeholder would put an example figure in the box.
 //
-// **Nothing is painted as an error at 1B.** A field that does not yet read as a length is a field
-// still to be filled, not a wrong one (7F1 criterion 10): no `aria-invalid`, no message, no red.
+// **Nothing is painted as an error at 1B while the customer is in a field.** A field that does not
+// yet read as a length is a field still to be filled, not a wrong one (7F1 criterion 10): no
+// `aria-invalid`, no message, no red. **Text the field refuses is explained once the customer leaves
+// it** (Q-7F2-4 (a), ADR 0126): that one sentence, in the reason's slot and with its wiring. It goes
+// on the keystroke that makes the text readable or empty, and a keystroke that leaves it unreadable
+// keeps it — the rule `stillShowing` applies to every other reason mid-burst: what is showing and
+// still holds stays, what is fixed goes at once, and what is new waits for its trigger, here the blur.
 // **At 1C a field the room refuses carries its reason beside it** (wave 7F2, frame 1C `:224-231`):
 // the reason is linked by `aria-describedby` after the hint and the help, and the input carries
 // `aria-invalid`. The red is painted **from** that attribute (`room.module.css`), so nothing can be
@@ -34,14 +39,20 @@
 // decision 3) and neither refuses anything: the refusal sentence is 7F2's.
 import type { CornerDirection, RoomShape } from "@lemnaria/configurator-domain";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useState } from "react";
+
+import { useAfterPress } from "@/lib/use-after-press";
 
 import {
   carriesCornerDirection,
   type RoomDraft,
   type RoomLengthField,
 } from "./room-draft";
-import type { RoomFieldReason, RoomIssueMessageKey } from "./room-issue-model";
+import {
+  UNREADABLE_LENGTH_MESSAGE_KEY,
+  type RoomFieldReason,
+  type RoomIssueMessageKey,
+} from "./room-issue-model";
 import { requiredFieldsFor } from "./room-url-state";
 import styles from "./room.module.css";
 import { WallLengthHelp } from "./wall-length-help";
@@ -51,6 +62,9 @@ export interface DimensionsFormProps {
   /** The reasons 1C shows beside their fields (`RoomIssueView.fieldReasons`). None until the screen
    *  passes them, which is 1B's state. */
   readonly fieldReasons?: readonly RoomFieldReason[];
+  /** The fields holding text the field's parser refuses (`RoomIssueView.unreadableFields`). The form
+   *  decides when each is explained: after the customer leaves it, never while they type. */
+  readonly unreadableFields?: readonly RoomLengthField[];
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
   readonly onChooseCorner: (direction: CornerDirection) => void;
 }
@@ -126,10 +140,18 @@ const CORNER_GLYPH_VIEWBOX = { width: 60, height: 44 } as const;
 const CORNER_GLYPH_SIZE = { widthPx: 36, heightPx: 26 } as const;
 
 const NO_FIELD_REASONS: readonly RoomFieldReason[] = [];
+const NO_UNREADABLE_FIELDS: readonly RoomLengthField[] = [];
+
+/** A field whose unreadable text is explained says that and nothing else. A 1C reason cannot stand
+ *  beside it — unreadable text keeps the room at 1B — and this keeps the two apart by construction. */
+const UNREADABLE_REASON_KEYS: readonly ReasonMessageKey[] = [
+  UNREADABLE_LENGTH_MESSAGE_KEY,
+];
 
 export function DimensionsForm({
   draft,
   fieldReasons = NO_FIELD_REASONS,
+  unreadableFields = NO_UNREADABLE_FIELDS,
   onEnterLength,
   onChooseCorner,
 }: DimensionsFormProps) {
@@ -147,6 +169,7 @@ export function DimensionsForm({
       <LengthFields
         draft={draft}
         fieldReasons={fieldReasons}
+        unreadableFields={unreadableFields}
         onEnterLength={onEnterLength}
       />
     </>
@@ -208,6 +231,7 @@ function CornerToggle({ chosen, onChoose }: CornerToggleProps) {
 interface LengthFieldsProps {
   readonly draft: RoomDraft;
   readonly fieldReasons: readonly RoomFieldReason[];
+  readonly unreadableFields: readonly RoomLengthField[];
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
 }
 
@@ -216,11 +240,13 @@ interface LengthFieldsProps {
 function LengthFields({
   draft,
   fieldReasons,
+  unreadableFields,
   onEnterLength,
 }: LengthFieldsProps) {
   const translate = useTranslations();
   const fieldIdPrefix = useId();
   const hintId = useId();
+  const unreadableExplained = useUnreadableOnLeave(unreadableFields);
 
   return (
     <div className={styles.fields} data-testid="room-fields">
@@ -239,8 +265,16 @@ function LengthFields({
           text={draft.lengths[field].text}
           shape={draft.shape}
           hintId={hintId}
-          reasonKeys={reasonKeysFor(field, fieldReasons)}
-          onEnter={onEnterLength}
+          reasonKeys={
+            unreadableExplained.isShown(field)
+              ? UNREADABLE_REASON_KEYS
+              : reasonKeysFor(field, fieldReasons)
+          }
+          onEnter={(entered, text) => {
+            unreadableExplained.forgetUnlessShown(entered);
+            onEnterLength(entered, text);
+          }}
+          onLeave={unreadableExplained.noteLeave}
         />
       ))}
     </div>
@@ -253,10 +287,16 @@ interface LengthFieldProps {
   readonly text: string;
   readonly shape: RoomShape;
   readonly hintId: string;
-  /** This field's 1C reasons; empty at 1B and on every field the room does not refuse. */
-  readonly reasonKeys: readonly RoomIssueMessageKey[];
+  /** This field's reasons: its 1C reasons, or the unreadable text's once the field was left. Never
+   *  both — a field holding unreadable text keeps the room at 1B, where no field carries a 1C reason. */
+  readonly reasonKeys: readonly ReasonMessageKey[];
   readonly onEnter: (field: RoomLengthField, text: string) => void;
+  readonly onLeave: (field: RoomLengthField) => void;
 }
+
+type ReasonMessageKey =
+  | RoomIssueMessageKey
+  | typeof UNREADABLE_LENGTH_MESSAGE_KEY;
 
 /** A wall's input is described by the hint and by its own help, so a screen reader announces both on
  *  focus without the customer opening anything. The help is referenced while hidden on purpose: a
@@ -270,6 +310,7 @@ function LengthField({
   hintId,
   reasonKeys,
   onEnter,
+  onLeave,
 }: LengthFieldProps) {
   const translate = useTranslations();
   const helpId = `${id}-help`;
@@ -309,6 +350,9 @@ function LengthField({
           onChange={(event) => {
             onEnter(field, event.target.value);
           }}
+          onBlur={() => {
+            onLeave(field);
+          }}
         />
         <span className={styles.fieldUnit}>
           {translate("room.unitMillimetres")}
@@ -326,6 +370,81 @@ function LengthField({
       ))}
     </div>
   );
+}
+
+/** No field left while unreadable: the state every form starts in. Never mutated — `withField` and
+ *  `withoutField` return new sets. */
+const NO_FIELDS_LEFT: ReadonlySet<RoomLengthField> = new Set();
+
+interface UnreadableOnLeave {
+  readonly isShown: (field: RoomLengthField) => boolean;
+  /** The customer left the field: its unreadable text is explained, and readable text forgets it. */
+  readonly noteLeave: (field: RoomLengthField) => void;
+  /** A keystroke keeps the explanation only while it is on screen, so a field fixed and then made
+   *  unreadable again says nothing until it is left again. */
+  readonly forgetUnlessShown: (field: RoomLengthField) => void;
+}
+
+/**
+ * **When unreadable text is explained, per field** (Q-7F2-4 (a)). Shown means *left while unreadable,
+ * and unreadable still*: the second half is read from the issue model on every render, so text that
+ * turns readable or empty — by a keystroke or by a refill from the URL — hides the sentence on that
+ * very render, without waiting for the customer to leave the field.
+ *
+ * **A deep link never arrives explained.** The URL's refill writes only whole millimetres, so no field
+ * arrives holding unreadable text; and a field is explained only once it has been left, so one that
+ * did would wait for its blur too.
+ *
+ * **A field left by a press is explained once the press is over** (QA finding S5b-1). A browser moves
+ * focus on the press, before the click; a sentence inserted then pushes every control below the field
+ * down under the finger, and the click lands elsewhere — wall B's help did not open. So the sentence
+ * waits for the press's click. A field left from the keyboard is explained at once.
+ */
+function useUnreadableOnLeave(
+  unreadableFields: readonly RoomLengthField[],
+): UnreadableOnLeave {
+  const [leftUnreadable, setLeftUnreadable] = useState(NO_FIELDS_LEFT);
+  const whenPressEnds = useAfterPress();
+
+  function isShown(field: RoomLengthField): boolean {
+    return leftUnreadable.has(field) && unreadableFields.includes(field);
+  }
+
+  function explain(field: RoomLengthField): void {
+    setLeftUnreadable((current) => withField(current, field));
+  }
+
+  return {
+    isShown,
+    noteLeave: (field) => {
+      if (unreadableFields.includes(field)) {
+        whenPressEnds(() => {
+          explain(field);
+        });
+        return;
+      }
+      setLeftUnreadable((current) => withoutField(current, field));
+    },
+    forgetUnlessShown: (field) => {
+      if (isShown(field)) return;
+      setLeftUnreadable((current) => withoutField(current, field));
+    },
+  };
+}
+
+function withField(
+  fields: ReadonlySet<RoomLengthField>,
+  field: RoomLengthField,
+): ReadonlySet<RoomLengthField> {
+  return fields.has(field) ? fields : new Set([...fields, field]);
+}
+
+function withoutField(
+  fields: ReadonlySet<RoomLengthField>,
+  field: RoomLengthField,
+): ReadonlySet<RoomLengthField> {
+  if (!fields.has(field)) return fields;
+  return new Set([...fields].filter((member) => member !== field));
 }
 
 function reasonKeysFor(

@@ -43,7 +43,8 @@ export interface OneCInputs {
   readonly typing: TypingState;
 }
 
-/** The part of 1C the form draws; the unreadable reason is a later slice's. */
+/** The part of 1C the form draws, and the fields holding unreadable text, which the form explains on
+ *  its own clock: once the customer leaves the field (Q-7F2-4). */
 export type OneCSurfaces = Pick<
   RoomIssueView,
   | "fieldReasons"
@@ -52,6 +53,7 @@ export type OneCSurfaces = Pick<
   | "markedWalls"
   | "isNoteShown"
   | "isLinearSuggested"
+  | "unreadableFields"
 >;
 
 export interface OneCPresentation {
@@ -97,6 +99,10 @@ export function presentOneC(inputs: OneCInputs): OneCPresentation {
  * the draft's shape at once — a chip chosen mid-burst is refused or cleared the moment it is chosen.
  * The linear suggestion is appended to a reason, so it shows only while a held reason does (review
  * R1.1): a burst that turns wall B from too short to too long holds neither sentence, nor the clause.
+ *
+ * **Unreadable fields are not held either** (slice S5b): they are passed as they are now, because the
+ * pause is not their clock — the form explains one only once it is left, and drops the sentence on the
+ * keystroke that makes the text readable or empty.
  */
 export function stillShowing(
   now: RoomIssueView,
@@ -117,6 +123,7 @@ export function stillShowing(
       marksBefore.has(markKey(marked)),
     ),
     isShapeRefused: now.isShapeRefused,
+    unreadableFields: now.unreadableFields,
     isNoteShown: now.isNoteShown && beforeTyping.isNoteShown,
     isLinearSuggested:
       now.isLinearSuggested && fieldReasons.length + roomReasons.length > 0,

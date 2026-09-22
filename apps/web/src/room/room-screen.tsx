@@ -370,6 +370,7 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
         <DimensionsForm
           draft={draft}
           fieldReasons={oneC.fieldReasons}
+          unreadableFields={oneC.unreadableFields}
           onEnterLength={(field, text) => {
             const typed = withEnteredText(draft, { field, text });
             noteKeystroke({ before: draft, after: typed });
