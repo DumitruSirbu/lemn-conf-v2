@@ -109,6 +109,7 @@ status corrections, in one of these two files:
 | 76 | `DRAWABLE_WALLS` has no exhaustiveness tie to `requiredFieldsFor` | open.md — raised 2026-09-22 by M7 wave 7F2's S5 review R1.4; no owner, no phase |
 | 77 | Press completion assumes `click` fires in the same task as `mouseup` | open.md — recorded 2026-09-22 from `use-after-press.ts`'s own header; verified in Chromium only; no owner, no phase |
 | 78 | Mid-typing slivers under mm entry | open.md — captured 2026-09-22 by M7 wave 7F2's visual gate; deliberate under C-7F2-1; owner question, no phase |
+| 79 | 16 rows leaked in the test database, pre-S1 configure-route specs | open.md — found 2026-09-23 by M7 wave 7E4's QA; leak closed by the wave, rows themselves not deleted (ADR 0006); no owner, no phase |
 
 ## 2026-09-06 audit note
 

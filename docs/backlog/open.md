@@ -1769,3 +1769,17 @@ a red sliver on the plan, labelled *"A prea scurt"*, for the length of the 400 m
 is the S5 slice's own recorded note (*"36 mm beside 2400"*) now visible in a production build, not a
 new defect — it is deliberate under C-7F2-1's single-clock ruling. Recorded as an owner question:
 whether this reads acceptably to a first-time customer has not been asked. No owner, no phase yet.
+
+## 79. 16 rows leaked in the test database, pre-S1 configure-route specs — FOUND 2026-09-23, LEAK CLOSED, ROWS NOT DELETED
+
+**Found by M7 wave 7E4's adversarial QA, 2026-09-23.** 16 design rows in the test database were
+minted and never deleted, created 2026-09-22 in four batches of four, at roughly 09:33Z, 11:07Z,
+19:48Z and 20:32Z. The cause: configure-route e2e specs that predate wave 7E4's S1 minted a design
+through the store's own client but never registered it for teardown deletion — the pattern S1
+replaced with `mintSeededDesign`'s guaranteed cleanup.
+
+**The leak is closed going forward, not retroactively.** A full e2e run after wave 7E4's S3
+(`d00212a`) left 0 leaked rows; every remaining spec that mints now deletes what it minted, including
+on a failing test (criterion 4's teardown proof). **The 16 existing rows are untouched** — under
+ADR 0006 (environments and provisioned resources are add-only), no agent deletes a database row on
+its own judgment; that is the owner's call. No owner, no phase yet.

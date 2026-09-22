@@ -1554,7 +1554,7 @@ table.
 | ↳ | **Owes, from 7F1's rulings R2/R3 (2026-09-14):** the refusal sentence for a non-buildable shape, which 7F1 ships silent and asserted; and 1C as a **live** state reached by typing, so reasons appear and clear mid-field | | | | | |
 | **7F3** | 1D skeletons; 1E list from the library, with declared changes. **DEFERRED PAST M8 with 7B/7C — coordinator's ruling, 2026-09-22.** What is left of it is the preset list and its loading skeletons (the skeleton count is a constant over *"0, 1 and 3 fitting presets"*, criteria at the 7F3 carried line), and both read the library (7P1) and the matcher (7B/7C) — so its dependency is **not** narrower than the row states | *carried*, reading 7P1 | 7C, 7E2, 7F1, 7P1 | Light | **Yes** | — |
 | ↳ | ~~**Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more~~ **DISCHARGED by 7F4 (coordinator, 2026-09-22):** *Continuă*'s destination moved to 7F4 (Q-D45-5), and `room-screen.tsx`'s `continueFromLengths()` now calls `departTo("presets")` and then `run.compose(room)` [source-verified at `ea8b11e`]. 7F4's seam note stands for whenever 7F3 revives: 7F3 inserts 1D/1E in front of `use-generation`'s one entry call | | | | | |
-| **7E4** | e2e and tooling off `/configurator/configure` — **planned 2026-09-23, three slices; see [Wave 7E4 — the plan](#wave-7e4--the-plan-2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | — (runner verdict needs the owner's `workflow_dispatch`) |
+| **7E4** | e2e and tooling off `/configurator/configure` — **DONE 2026-09-23; plan `4d65a6f`, S1 `64e8894`, S1 QA `99fd679`, S2 + Q1/Q3 `740142b`, S3 `d00212a`, QA round 2 `708d3b8`, review round 1 `734a5e3`, review round 2 `1b512bb`; see [7E4 close-out](#7e4-close-out--2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | Runner verdict still outstanding — needs the owner's `workflow_dispatch` |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` | `persistence/src/migrations/0006_add_design_visitor_hash.sql`, `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) | 7E2, 7E4 | **Full + security** | Light | — |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
@@ -2083,6 +2083,91 @@ is re-validated by those specs passing on the same document (G2).
 - ADR 0111 A3 counts "34 `goto` calls". G1 is the current count.
 - **No blocking owner question.** D4's deletion is the architect's decision, and the coordinator may
   reverse it.
+
+### 7E4 close-out — 2026-09-23
+
+**Commits, in order:** plan `4d65a6f`; S1 `64e8894`; S1 QA spec `99fd679`; S2 + Q1/Q3 `740142b`; S3
+`d00212a`; QA round 2 fixes (Q5–Q7) `708d3b8`; review round 1 fixes `734a5e3`; review round 2 fixes
+`1b512bb`. **Tier: Light** — adversarial QA ran twice, one combined reviewer ran twice, no visual
+pass, matching the plan's own tier call. Every commit made with hooks (no `--no-verify`). **Push is
+pending at the time of writing; the coordinator pushes after this record.**
+
+**Criterion 1 (D2 — no test or tool opens `/configurator/configure` except the spec whose subject it
+is):** MET. `rtk proxy git grep -nE '(^|[^p])/configurator/configure' -- apps/web/tests/e2e
+apps/web/playwright.config.ts apps/web/scripts packages/three-adapter/tests` printed only
+`configure-route.e2e.spec.ts:12` and `:20` [measured at `d00212a`; reviewer re-ran at `708d3b8`].
+Doc-quoted from the coordinator's dispatch.
+
+**Criterion 2 (the migrated specs keep their assertion weight):** MET, with one recorded exception.
+`playwright test --list` went from **274 tests / 31 files (mobile), 84 / 9 (desktop)** at the plan's
+base `4d65a6f` to **283 / 33 (mobile), 84 / 9 (desktop)** after S3 (`d00212a`) — net +9 tests, +2
+files, all additions (`configure-route.e2e.spec.ts`, `seeded-design.qa.e2e.spec.ts`'s 8 tests). The
+only title removed against the base was the planned rename of `locale-routing.qa`'s "localized roots
+and all five customer entrypoints are real runtime routes" [measured]. Per-file `expect` counts fell
+in eight files — `read-only-panel` (45), `read-only-global-settings` (41),
+`top-bar-pill-containment.desktop` (250), `pixel-counter-witness.desktop` (356),
+`pixel-counter-witness.adversarial.desktop` (371), `kitchen-stage` (211), `signature-flow` (68),
+`global-colour` (331), plus one inside `editor-rail`'s `expectNoPlacementWearsAFinish` —
+**by the coordinator's own ruling (Q6)**: the removed assertions were unfailable `not.toBe("")`
+padding or pure duplicates of `waitForFirstSave`'s own check, each still enforced by
+`mintSeededDesign` / `waitForFirstSave`'s named throws [implementer-reported list]. Criterion 2's
+letter is therefore met only with that exception on the record, not silently.
+
+**Criterion 3 (zero production diff):** MET. `apps/web/src` and `packages/*/src` are empty in the
+wave's diff [implementer- and QA-reported; reviewer confirmed by reading]. `scripts/verify-surfaces.mjs`
+is deleted, per the plan's D4, which the coordinator accepted.
+
+**Criterion 4 (the fixture's own correctness is proved, not assumed):** MET. New QA spec
+`seeded-design.qa.e2e.spec.ts` (8 tests) proves: distinct minted ids across calls; teardown runs
+after a failing test (the deleted design then 404s); the minted document deep-equals
+`KITCHEN_L_DESIGN`; the write-token cookie carries `Path` and `HttpOnly` in the browser's own jar;
+`openSeededDesign` never returns while the store reads `canWrite: "checking"`; and a named throw on
+a foreign design. Sabotage was run in both directions (breaking the fixture reddens the QA spec;
+restoring it goes green) [QA-reported].
+
+**Defects found and fixed, by round:**
+
+- **QA round 2, Q5:** the editor-rail delete test stayed green with every `PUT`/`PATCH` forced to
+  500 — fixed; the sabotage now reddens it.
+- **Review round 1, R1.1/R1.2:** the S3 migration had dropped `SCENE_SETTLE_MS` waits before
+  absence/pixel checks in `overflow-mark`, `global-settings-apply` (×4),
+  `global-settings-centred.desktop` (×2) and `global-colour` (×7); restored.
+- **Review round 1, R1.3:** probe-wait logic, duplicated across specs, is now one helper,
+  `openDesignAndAwaitAccessProbe`.
+- **Review round 1, R1.5:** `mintSeededDesign` now deletes its own row before throwing on a
+  malformed 201 response, rather than leaking it.
+
+**Criterion 6 (build-and-capture, and readiness):** PARTIALLY MET, and the gap is stated rather than
+implied closed. `capture:fidelity` after `pnpm build` wrote 9 shots, and readiness polls
+`/ro/d/e2e-readiness-probe` [implementer-reported]. **The plan's "no compile on first `/d/{id}`"
+sub-check was not measured by this wave** — not claimed passed.
+
+**Criterion 7 (the local gate):** MET. `pnpm ci:local` at `1b512bb`: `LOCAL CI PASSED — all gates
+green, safe to push.` e2e **365 passed (5.2 minutes), 2 skipped** (the pre-existing `kitchen-stage`
+skip and the `global-settings-apply` fixme); persistence 27 files / 419 tests; three-adapter 92 /
+3,553; web 242 / 4,379 [measured]. Local e2e runtime shows no slowdown against 7F2's 5.9 minutes for
+320 tests (365 tests now, 5.2 minutes) — the runner itself remains untested.
+
+**Criterion 8 (the runner's verdict):** OUTSTANDING. Needs the owner's `workflow_dispatch` of
+`ci.yml` on `m7-room-and-presets`; the same run also settles 7T's criteria 1/18 and 7F4b's
+criterion 44.
+
+**Found by QA, not fixed — the owner's call under ADR 0006 (resources are add-only):** 16 rows
+leaked in the test database from 2026-09-22 runs, minted before this wave's S1 by configure-route
+specs that stored a design through the store without registering deletion. The wave closes the
+leak going forward — a full run after S3 left 0 rows. Filed as
+[`docs/backlog/open.md` entry 79](backlog/open.md) rather than cleaned up here, per the add-only
+rule.
+
+**Documentation updates from this close-out:** [ADR 0111](decisions/0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md)
+A3 gains an Amendment A correcting its stale "34 `goto` calls" figure (coordinator-measured: 47
+lines in 34 files) and recording the durable rule this wave leaves behind — e2e opens a seeded
+`/d/{id}` via the fixture, and the editor route is not a test origin.
+
+**Deferred, with an owner:** the runner verdict (criterion 8) — owed to the owner's next
+`workflow_dispatch`, shared with 7T and 7F4b. **Next wave: 7E3a** (visitor identity), per the
+recorded order `7E4 → 7E3a → 7E3c → 7E3b → 7I → 7J → 7K → 7L`; it also inherits the
+Vitest/production route references D2 left to it.
 
 **7P1 — the preset store** (security reviewer dispatched)
 

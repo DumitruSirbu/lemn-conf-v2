@@ -155,6 +155,18 @@ web-server readiness URL (`apps/web/playwright.config.ts:93`) and `capture-fidel
 probe (`:66`) stop naming the retired route. That migration lands **before** the redirect does, so
 the suite never goes red in between.
 
+> **Amendment A — 2026-09-23, M7 wave 7E4 close-out.** A3's "34 `goto` calls" was stale at the time
+> it was carried into planning; the coordinator measured **47 lines across 34 files** referencing
+> `/configurator/configure` at the wave's start. The migration this amendment records shipped as
+> planned: `rtk proxy git grep -nE '(^|[^p])/configurator/configure' -- apps/web/tests/e2e
+> apps/web/playwright.config.ts apps/web/scripts packages/three-adapter/tests` now prints only
+> `configure-route.e2e.spec.ts:12` and `:20` — the one spec whose subject *is* the retired route —
+> measured at `d00212a`, re-run by the reviewer at `708d3b8`. **The durable rule the wave leaves
+> behind: e2e opens a seeded `/d/{id}` via the fixture (`mintSeededDesign` / `waitForFirstSave`); the
+> editor route (`/configurator/configure`) is not a test origin.** Full close-out:
+> [`milestones/M7-room-and-presets.md`, *7E4 close-out —
+> 2026-09-23*](../milestones/M7-room-and-presets.md#7e4-close-out--2026-09-23).
+
 **A4. The two routes become dynamic** (they read a cookie). That also removes two of the prerendered
 pages `security-headers.ts` names as a blocker to enforcing the CSP — a side effect worth noting, not
 a goal.

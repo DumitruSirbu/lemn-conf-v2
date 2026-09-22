@@ -33,8 +33,10 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
-Last updated: 2026-09-22 — **M7 wave 7T is DONE but for the owner's CI run**; see the RESUME HERE
-entry under *What to do next* and the M7 row below. Earlier text below is kept as history.
+Last updated: 2026-09-23 — **M7 wave 7E4 is DONE** (e2e and tooling off `/configurator/configure`);
+see the RESUME HERE entry under *What to do next* and the M7 row below. The runner's own CI verdict
+is still outstanding for 7T, 7F4b and now 7E4 alike — one owner-dispatched `workflow_dispatch` of
+`ci.yml` settles all three. Earlier text below is kept as history.
 
 Last updated: 2026-09-21. **Corrected 2026-09-11, later the same day: M6B merged to `main` via PR
 #8 (`995ad03`), and M7 — Step 1, room and presets — is now in progress on branch
@@ -363,7 +365,7 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a** (visitor identity). | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -925,7 +927,70 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-22. M7 wave 7T is DONE but for the owner's CI run.** Commits, in order:
+> **RESUME HERE — 2026-09-23. M7 wave 7E4 is DONE.** Commits, in order: plan `4d65a6f`; S1
+> `64e8894`; S1 QA spec `99fd679`; S2 + Q1/Q3 `740142b`; S3 `d00212a`; QA round 2 fixes (Q5–Q7)
+> `708d3b8`; review round 1 fixes `734a5e3`; review round 2 fixes `1b512bb`. Tier **Light** —
+> adversarial QA ×2 rounds, one combined reviewer ×2 rounds, no visual pass. Every commit made with
+> hooks (no `--no-verify`). **Push is pending at the time of writing; the coordinator pushes after
+> this record.**
+>
+> **What shipped:** the e2e suite and its tooling stop opening `/configurator/configure` as a test
+> origin. `rtk proxy git grep -nE '(^|[^p])/configurator/configure' -- apps/web/tests/e2e
+> apps/web/playwright.config.ts apps/web/scripts packages/three-adapter/tests` prints only
+> `configure-route.e2e.spec.ts:12` and `:20` [measured at `d00212a`; reviewer re-ran at `708d3b8`].
+> Every other remaining spec opens a seeded `/d/{id}` via `mintSeededDesign`. `playwright test
+> --list` mobile went **274 tests / 31 files → 283 / 33** (desktop unchanged, 84 / 9); the only title
+> removed against the base was the planned rename of `locale-routing.qa`'s "localized roots and all
+> five customer entrypoints are real runtime routes" [measured]. **Criterion 2's letter is met only
+> with one recorded exception, by the coordinator's own ruling (Q6):** per-file `expect` counts fell
+> in eight files where unfailable `not.toBe("")` padding and pure duplicates of
+> `waitForFirstSave`'s own check were removed, each still enforced by `mintSeededDesign` /
+> `waitForFirstSave`'s named throws. `apps/web/src` and `packages/*/src` carry an empty diff
+> [implementer + QA reported; reviewer confirmed by reading]; `scripts/verify-surfaces.mjs` is
+> deleted, per the plan's D4. New QA spec `seeded-design.qa.e2e.spec.ts` (8 tests) proves distinct
+> minted ids, teardown after a failing test, deep equality to `KITCHEN_L_DESIGN`, cookie
+> `Path`/`HttpOnly` in the browser jar, no return while `checking`, and a named throw on a foreign
+> design; sabotage reproduced red/green both directions [QA-reported].
+>
+> **Defects found and fixed:** Q5 — editor-rail's delete test stayed green with every PUT/PATCH
+> forced to 500 (fixed; sabotage now red). Review round 1 — the S3 migration had dropped
+> `SCENE_SETTLE_MS` waits before absence/pixel checks in `overflow-mark`, `global-settings-apply`
+> (×4), `global-settings-centred.desktop` (×2) and `global-colour` (×7); restored. Probe-wait logic
+> deduplicated into one helper, `openDesignAndAwaitAccessProbe`. `mintSeededDesign` now deletes its
+> row before throwing on a malformed 201 response.
+>
+> **`pnpm ci:local` at `1b512bb`:** `LOCAL CI PASSED — all gates green, safe to push.` — e2e **365
+> passed (5.2 m), 2 skipped** (the pre-existing `kitchen-stage` skip and the `global-settings-apply`
+> fixme); persistence 27 files / 419 tests; three-adapter 92 / 3,553; web 242 / 4,379 [measured]. No
+> local slowdown against 7F2's 5.9 m / 320 tests for a larger suite (365 tests), so the runner's own
+> timing is untested rather than at risk on current evidence. **Criterion 6's readiness-probe check
+> was met** (`capture:fidelity` after `pnpm build` wrote 9 shots, polling `/ro/d/e2e-readiness-probe`
+> [implementer-reported]); **the "no compile on first `/d/{id}`" sub-check was not measured — said
+> plainly, not implied passed.**
+>
+> **Criterion 8 (the runner's verdict) is outstanding**, same structural gap as 7T's criteria 1/18
+> and 7F4b's criterion 44: it needs the owner's `workflow_dispatch` of `ci.yml` on
+> `m7-room-and-presets`; one run settles all three.
+>
+> **Found by QA, not fixed — the owner's call under ADR 0006 (resources are add-only):** 16 rows
+> leaked in the test database from 2026-09-22 runs, minted before S1 by configure-route specs that
+> stored through the design store without registering deletion. The wave itself closes the leak — a
+> full run after S3 left 0 rows. Filed as
+> [`docs/backlog/open.md` entry 79](backlog/open.md) rather than fixed in place.
+>
+> Full criterion-by-criterion close-out:
+> [`milestones/M7-room-and-presets.md`, *7E4 close-out —
+> 2026-09-23*](milestones/M7-room-and-presets.md#7e4-close-out--2026-09-23).
+> [ADR 0111](decisions/0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md)
+> A3 is corrected in place — its "34 `goto` calls" figure was stale; the coordinator measured **47
+> lines in 34 files** — and now records the durable rule this wave leaves behind: e2e opens a
+> seeded `/d/{id}` via the fixture, and the editor route is not a test origin.
+>
+> **Next wave: 7E3a** — visitor identity (`__Host-` cookie, visitor-hash migration, server-side
+> resume), Full tier plus a security pass, per the recorded order `7E4 → 7E3a → 7E3c → 7E3b → 7I →
+> 7J → 7K → 7L`. It also inherits the Vitest/production route references D2 left to it.
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-22. M7 wave 7T is DONE but for the owner's CI run.** Commits, in order:
 > S1 `5c1a6aa` (2026-09-16, shipped earlier, record gap closed 2026-09-22); plan (S2/S3 re-plan, the
 > 7F3 deferral, Q-7J-1) `a67dcb8`; T-J5 Amendment A `4342f31`; S2b `092d583`; S2c pieces `b3a4570`
 > (the slow-walk fix and the timer tolerance) and `3a10c50`; S3 `4a51f18`. HEAD `4a51f18` on
