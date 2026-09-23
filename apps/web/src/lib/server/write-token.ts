@@ -1,8 +1,10 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import type { NextRequest, NextResponse } from "next/server";
+
+import { sha256Hex } from "./sha256-hex";
 
 /** 256 bits from the platform CSPRNG — comfortably past ADR 0019's requirement, and drawn from
  *  `node:crypto` rather than `Math.random`, which is seeded predictably and is not a secret source. */
@@ -29,7 +31,7 @@ export interface MintedWriteToken {
  *  exactly once, in the `Set-Cookie` header; only its hash is persisted. */
 export function mintWriteToken(): MintedWriteToken {
   const token = randomBytes(WRITE_TOKEN_BYTES).toString("base64url");
-  return { token, hash: hashWriteToken(token) };
+  return { token, hash: sha256Hex(token) };
 }
 
 /**
@@ -102,7 +104,7 @@ export function readWriteTokenHash(
   designId: string,
 ): string | undefined {
   const token = readWriteToken(request.cookies, designId);
-  return token === undefined ? undefined : hashWriteToken(token);
+  return token === undefined ? undefined : sha256Hex(token);
 }
 
 /**
@@ -136,11 +138,4 @@ function cookieNameFor(designId: string): string {
 
 function writePathFor(designId: string): string {
   return `/api/designs/${encodeURIComponent(designId)}`;
-}
-
-/** SHA-256, not a slow KDF: the token is 256 bits of uniform randomness rather than a guessable
- *  human secret, so there is no dictionary for a work factor to slow down. The hash exists to make
- *  a database leak non-transferable, not to resist brute force. */
-function hashWriteToken(token: string): string {
-  return createHash("sha256").update(token, "utf8").digest("hex");
 }

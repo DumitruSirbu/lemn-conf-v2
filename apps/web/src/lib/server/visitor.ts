@@ -1,8 +1,10 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import type { NextRequest, NextResponse } from "next/server";
+
+import { sha256Hex } from "./sha256-hex";
 
 /**
  * The one visitor cookie (ADR 0114 decision 1). Its name carries the `__Host-` prefix so the
@@ -70,7 +72,7 @@ export function resolveVisitorForMint(
     carried !== undefined && WELL_FORMED_VISITOR_VALUE.test(carried)
       ? carried
       : randomBytes(VISITOR_TOKEN_BYTES).toString("base64url");
-  return { value, hash: hashVisitor(value) };
+  return { value, hash: sha256Hex(value) };
 }
 
 /** Sets the visitor cookie to `value`, with a fresh 30-day `Max-Age`. The only two callers are the
@@ -135,18 +137,22 @@ export function readVisitorCookieForResume(
   const carried = readVisitorValue(cookies);
   if (carried === undefined) return { kind: "absent" };
   if (!WELL_FORMED_VISITOR_VALUE.test(carried)) return { kind: "malformed" };
-  return { kind: "well-formed", hash: hashVisitor(carried) };
+  return { kind: "well-formed", hash: sha256Hex(carried) };
 }
 
-/** SHA-256, hex, over the UTF-8 cookie value — the row's `visitor_hash`. Not shared with
- *  `write-token.ts`'s own digest: the two exist for the same reason (a 256-bit secret needs no slow
- *  KDF) but hashing two different secrets, and a shared helper would be a third use short of the
- *  rule this codebase applies before extracting one. Kept private, like `write-token.ts`'s own
- *  `hashWriteToken`: both of this module's own callers already have a value they resolved
- *  themselves (`resolveVisitorForMint`'s return, `readVisitorCookieForResume`'s shape check), so
- *  nothing outside this file has ever needed to hash an arbitrary string. */
-function hashVisitor(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
+/**
+ * D4's own read for the share route: well-formed → hash, `undefined` for anything else. Collapses
+ * `readVisitorCookieForResume`'s three states to two on purpose — the share route's refusal is
+ * identical whether the cookie is absent or malformed, and issues no query in either case, so the
+ * distinction that matters to D4 (resume's clear-vs-leave-alone) buys the share route nothing.
+ */
+export function readVisitorHash(
+  cookies: VisitorCookieReader,
+): string | undefined {
+  const carried = readVisitorValue(cookies);
+  if (carried === undefined || !WELL_FORMED_VISITOR_VALUE.test(carried))
+    return undefined;
+  return sha256Hex(carried);
 }
 
 /** Anything that can be asked for a cookie by name, declared structurally so a caller need not
