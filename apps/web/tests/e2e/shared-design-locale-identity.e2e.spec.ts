@@ -14,6 +14,13 @@ interface LoadedDesign {
   readonly canWrite: boolean;
 }
 
+/** `shared-design-view.tsx`'s own `SHARED_VIEW_DESIGN_ID`, not exported (D6: the share view hydrates
+ *  under a sentinel, never the real id — G5, G8). Pinned here rather than imported, the same reason
+ *  the approved copy strings are pinned as literals in the golden fixtures: this spec is the
+ *  regression guard for the value, and importing the constant it is meant to check would let both
+ *  change together silently. */
+const SHARED_VIEW_SENTINEL_DESIGN_ID = "shared-view";
+
 /**
  * **Re-pointed onto a real `/s/{token}` link, M7 wave 7E3c S6.** Before this wave no dedicated share
  * route existed, so this file used `/{locale}/d/{id}` itself as a stand-in for "a shared design,
@@ -27,7 +34,12 @@ interface LoadedDesign {
  * read off `selection-debug` the same way the original test did, is part of the document rather
  * than the row's identity, and it is asserted identical to the owner's own authenticated read of the
  * same design, at both locales. The former `data-design-id` assertion becomes its own inverse: proof
- * that the attribute is **not** the real id. And the former per-locale probe wait becomes a positive
+ * that the attribute holds the share view's own sentinel (review round 1, L1.6: pinned to that
+ * literal, not merely asserted absent — `not.toHaveAttribute(..., id)` would also pass on a blank
+ * or a wrong-but-still-not-`id` value, which is not what "never the real id" was meant to prove).
+ * `shared-design-view.tsx`'s own `SHARED_VIEW_DESIGN_ID` is not exported; the literal is pinned here
+ * deliberately, so a change to it is a decision this spec notices rather than one it stays silent on.
+ * And the former per-locale probe wait becomes a positive
  * assertion that **no** `/api/` request happens at all while the share view is open (criterion 9),
  * which the old test could not have asserted — it depended on exactly one such request happening.
  *
@@ -68,8 +80,11 @@ test("Romanian and Russian share links load one unchanged design identity", asyn
 
     const debug = page.getByTestId("selection-debug");
     // The inverse of the old assertion: the share view hydrates under a sentinel, never the real
-    // id (G5, G8) — this is the regression guard for that, not a check on what the sentinel is.
-    await expect(debug).not.toHaveAttribute("data-design-id", seededDesign.id);
+    // id (G5, G8) — pinned to that literal (review round 1, L1.6), not merely asserted absent.
+    await expect(debug).toHaveAttribute(
+      "data-design-id",
+      SHARED_VIEW_SENTINEL_DESIGN_ID,
+    );
     await expect(debug).toHaveAttribute(
       "data-updated-at",
       before.design.updatedAt,

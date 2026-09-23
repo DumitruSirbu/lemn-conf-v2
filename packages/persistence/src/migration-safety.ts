@@ -72,6 +72,23 @@ const TABLE_NAME = String.raw`[\w".]+`;
  *  altering one that does. */
 const CREATE_TABLE_IF_NOT_EXISTS = /^create\s+table\s+if\s+not\s+exists\s/;
 
+/**
+ * `INSERT INTO table [(cols)] VALUES (…) [, (…) …] [ON CONFLICT … DO NOTHING]` — a fixed, literal
+ * row set, never a query. Review round 1, SEC-7E3c.9: the old shape was bare `^insert\s+into\s`,
+ * which cleared `INSERT INTO … SELECT …` the same way `CREATE TABLE … AS SELECT` once cleared on
+ * `create table if not exists` alone — a query runs during the migration and is not guaranteed to
+ * produce the same rows on a re-run, which is exactly the CTAS diagnosis's own reasoning one row
+ * lower. `ON CONFLICT DO NOTHING` is the only conflict clause admitted, for the same idempotence
+ * promise `IF NOT EXISTS` makes elsewhere in this allowlist — `DO UPDATE` rewrites an existing row
+ * and belongs with the other rewrite diagnoses, not with an "adds new rows only" shape. No shipped
+ * migration uses `insert` as executable SQL at all (only in prose), so nothing here is a rebaseline.
+ */
+const INSERT_VALUES_SHAPE = new RegExp(
+  String.raw`^insert\s+into\s+${TABLE_NAME}\s*(\([^()]*\)\s*)?` +
+    String.raw`values\s*\([^()]*\)(\s*,\s*\([^()]*\))*` +
+    String.raw`(\s+on\s+conflict\b[^;]*\bdo\s+nothing)?$`,
+);
+
 const ADDITIVE_STATEMENT_SHAPES: readonly AdditiveStatementShape[] = [
   {
     what: "create table if not exists",
@@ -91,8 +108,8 @@ const ADDITIVE_STATEMENT_SHAPES: readonly AdditiveStatementShape[] = [
   },
   { what: "comment on", isMatchedBy: matchesAnchored(/^comment\s+on\s/) },
   {
-    what: "insert into … (new rows only)",
-    isMatchedBy: matchesAnchored(/^insert\s+into\s/),
+    what: "insert into … values (…) (new rows only)",
+    isMatchedBy: matchesAnchored(INSERT_VALUES_SHAPE),
   },
 ];
 
@@ -150,6 +167,19 @@ const DESTRUCTIVE_DIAGNOSES: readonly DestructiveDiagnosis[] = [
       /\bcreate\s+database\b/,
       /\balter\s+type\b[\s\S]*?\badd\s+value\b/,
     ),
+  },
+  {
+    what: "creates a table that inherits from, or partitions, an existing one",
+    why: "INHERITS and PARTITION OF both attach the new table to another table's existing rows and structure, which is not the plain 'a new table, empty until code writes to it' promise this allowlist's create-table shape makes, and this screen cannot certify the interaction with an already-populated parent is safe (SEC-7E3c.9)",
+    isBrokenBy: (statement) =>
+      CREATE_TABLE_IF_NOT_EXISTS.test(statement) &&
+      /\binherits\b|\bpartition\s+of\b/.test(statement),
+  },
+  {
+    what: "runs dynamic SQL inside a DO block",
+    why: "EXECUTE, PERFORM, format(…) and string concatenation (||) can construct and run a statement this screen never sees, so a DO block using any of them cannot be certified additive and idempotent by pattern alone (SEC-7E3c.8)",
+    isBrokenBy: (statement) =>
+      /^do\s+\$\$/.test(statement) && usesDynamicSql(statement),
   },
   {
     what: "creates a table from a query (CTAS)",
@@ -270,20 +300,21 @@ export function executableStatementsOf(sql: string): string[] {
 }
 
 /**
- * SEC-7E3c.4 (QA round 1, Q1). One construct this scanner still cannot lex correctly costs the
- * *whole file* its unattended status, named — the fail-closed correction to SEC-7E3c.1's own
- * quote-aware pass, which QA broke five more ways without writing anything a person would call
- * unusual: a Postgres E-string's backslash escape (`E'\''`), an unquoted identifier ending in the
- * bare delimiter (`qa_b$$`), a nested block comment (Postgres nests them; this scanner does not), and
- * a tagged dollar quote (`$q$…$q$`) holding a single quote or a literal `$$`. Each merged a hidden,
- * unscreened statement into a preceding `create table if not exists`.
+ * SEC-7E3c.4 (QA round 1, Q1; SEC-7E3c.7, review round 1). One construct this scanner still cannot
+ * lex correctly costs the *whole file* its unattended status, named — the fail-closed correction to
+ * SEC-7E3c.1's own quote-aware pass, which QA and review broke six ways without writing anything a
+ * person would call unusual: a Postgres E-string's backslash escape (`E'\''`), an unquoted identifier
+ * ending in the bare delimiter (`qa_b$$`), a nested block comment (Postgres nests them; this scanner
+ * does not), a tagged dollar quote (`$q$…$q$`) holding a single quote or a literal `$$`, and a bare
+ * `\r` (Postgres ends a `--` comment at `\n` **or** `\r`; the old scanner read only `\n`). Each merged
+ * a hidden, unscreened statement into a preceding `create table if not exists`.
  *
  * **Modelling more of Postgres's lexer is not the fix that generalises** — the next construct nobody
  * pictured would still get through, and every patch to a growing lexer looks exactly as complete as
- * the last one did. So this refuses by *construct*, not by scenario: five shapes this module does not
- * model at all, checked once per file rather than embedded in the five separate evasions QA wrote.
- * `refusalsForFile` checks this before running the allowlist at all, because a file that hits one of
- * these can no longer trust its own statement split.
+ * the last one did. So this refuses by *construct*, not by scenario: the shapes this module does not
+ * model at all, checked once per file rather than embedded in each separate evasion QA or review
+ * wrote. `refusalsForFile` checks this before running the allowlist at all, because a file that hits
+ * one of these can no longer trust its own statement split.
  */
 export function unmodelledConstructsOf(sql: string): string[] {
   return scanSql(sql).unmodelledConstructs;
@@ -386,9 +417,27 @@ function scanSql(sql: string): RawScan {
 
     // state === "code"
     if (sql.startsWith("--", index)) {
-      const lineEnd = sql.indexOf("\n", index);
+      // Review round 1, SEC-7E3c.7: Postgres's own lexer ends a line — and so a `--` comment — at
+      // `\n` **or** `\r`, and the old `indexOf("\n", …)` alone let a bare `\r` carry a comment
+      // straight through a real statement sitting on the next line: `-- note\rdelete from
+      // designs;` read as one un-terminated comment here while Postgres executed the delete.
+      const lineEnd = indexOfEither(sql, "\n", "\r", index);
       index = lineEnd === -1 ? sql.length : lineEnd;
       buffer += " ";
+      continue;
+    }
+    if (sql[index] === "\r" && sql[index + 1] !== "\n") {
+      // SEC-7E3c.7: a bare `\r` is fixed above for the one place this screen currently reads a
+      // line ending, but nothing in this module models what Postgres's own lexer does with one
+      // anywhere else a line ending could matter later. Refused by construct, the same rule the
+      // other unmodelled shapes follow, rather than trusted because today's one fix happens to
+      // cover today's one probe.
+      unmodelledConstructs.push(
+        "a bare \\r (carriage return) not immediately followed by \\n, whose line-ending " +
+          "behaviour this screen does not track",
+      );
+      buffer += sql[index] ?? "";
+      index += 1;
       continue;
     }
     if (sql.startsWith("/*", index)) {
@@ -482,6 +531,22 @@ function scanSql(sql: string): RawScan {
 
   statements.push(buffer);
   return { statements, unmodelledConstructs };
+}
+
+/** The earliest of two single-character delimiters at or after `from`, or `-1` if neither occurs
+ *  again — `String.indexOf` only ever takes one needle, and a `--` comment ends at whichever of
+ *  `\n`/`\r` comes first (SEC-7E3c.7). */
+function indexOfEither(
+  sql: string,
+  first: string,
+  second: string,
+  from: number,
+): number {
+  const firstIndex = sql.indexOf(first, from);
+  const secondIndex = sql.indexOf(second, from);
+  if (firstIndex === -1) return secondIndex;
+  if (secondIndex === -1) return firstIndex;
+  return Math.min(firstIndex, secondIndex);
 }
 
 interface QuoteStep {
@@ -585,11 +650,59 @@ function isIdempotentCreateIndex(statement: string): boolean {
   return /^create\s+(unique\s+)?index\s+if\s+not\s+exists\s/.test(statement);
 }
 
-/** `0003`'s shape. The guard is what makes it idempotent — Postgres has no `add constraint if not
- *  exists`, so the file asks `pg_constraint` itself whether the work is already done. A `DO` block
- *  without that guard is an arbitrary procedural body and is not recognised. */
+/**
+ * `0003`'s shape, matched structurally rather than by the mere presence of `pg_constraint`
+ * somewhere in the body (review round 1, SEC-7E3c.8). The old check accepted any `DO` block that
+ * *mentioned* `pg_constraint` — including inside a string a dynamic statement built from, or a
+ * comment naming it for cover — so `do $$ begin execute 'drop table designs'; -- pg_constraint end
+ * $$;` cleared the allowlist despite running a statement this screen never read. The guard is what
+ * makes `0003`'s shape idempotent at all — Postgres has no `add constraint if not exists`, so the
+ * file asks `pg_constraint` itself whether the work is already done — so this now requires the
+ * *entire* body to be exactly that question and exactly one guarded `alter table … add constraint`,
+ * naming the same constraint on both halves. Anything else, dynamic SQL above all, is an arbitrary
+ * procedural body and is not recognised.
+ *
+ * **The `conrelid` clause is optional in the pattern, required in the check when present.** `0003`
+ * and `0005` both scope the guard to one table (`and conrelid = 'designs'::regclass`), and where a
+ * body carries it, it must name the same table the `alter table` below it does. A body that narrows
+ * on `conname` alone is a real, valid PostgreSQL guard too — a constraint name is not required to be
+ * unique across tables — and this allowlist has held that shape since before this wave.
+ */
+const CONSTRAINT_GUARD_TEMPLATE = new RegExp(
+  String.raw`^do \$\$ begin if not exists \(\s*select 1 from pg_constraint where conname = '([^']*)'` +
+    String.raw`(?: and conrelid = '([^']*)'::regclass)?\s*\) then alter table (${TABLE_NAME}) ` +
+    String.raw`add constraint (\S+) check \((.+)\); end if; end \$\$$`,
+);
+
+/** Dynamic SQL inside a `DO` block can construct and run a statement this screen never sees —
+ *  `execute`, `perform` (PL/pgSQL's fire-and-forget call, which reaches a function the same way),
+ *  `format(…)` and string concatenation (`||`) are the ways a body builds one. Checked on every `DO`
+ *  block regardless of whether it otherwise matches the guard template, so a future loosening of
+ *  that template can never accidentally admit one — the same "regardless" the finding asked for. */
 function isConstraintGuardedDoBlock(statement: string): boolean {
-  return /^do\s+\$\$/.test(statement) && statement.includes("pg_constraint");
+  if (!/^do\s+\$\$/.test(statement)) return false;
+  if (usesDynamicSql(statement)) return false;
+
+  const match = CONSTRAINT_GUARD_TEMPLATE.exec(statement);
+  if (match === null) return false;
+  const [, guardedName, guardedTable, alteredTable, addedConstraintName] =
+    match;
+  if (guardedName !== addedConstraintName) return false;
+  return (
+    guardedTable === undefined ||
+    guardedTable === stripQuotes(alteredTable ?? "")
+  );
+}
+
+function usesDynamicSql(statement: string): boolean {
+  return /\bexecute\b|\bperform\b|\bformat\s*\(|\|\|/.test(statement);
+}
+
+/** `conrelid = 'designs'::regclass` names the table as a string; `alter table designs` names it as
+ *  a bare or double-quoted identifier. Comparing the two for the structural match above means
+ *  stripping the identifier's own quotes, if it has any — the string literal carries none to strip. */
+function stripQuotes(identifier: string): string {
+  return identifier.replace(/^"|"$/g, "");
 }
 
 /** The one referential action this screen ever reads out of a `delete` occurrence rather than into

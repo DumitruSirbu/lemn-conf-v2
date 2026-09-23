@@ -18,10 +18,16 @@ interface RouteParams {
 }
 
 /**
- * D4: every authorised response — success or refusal alike — carries these, and none ever carries
- * `Set-Cookie`. `private, no-store` and `Vary: Cookie` for the same reason `[id]/route.ts`'s own
- * `PER_CREDENTIAL_HEADERS` does: the answer is decided by the request's own credential cookies, so
- * nothing between this handler and the browser may cache one caller's answer for another's request.
+ * D4: every **successful** response carries these — the 201, the 204 and the 200 — and none of the
+ * three ever carries `Set-Cookie`. `private, no-store` and `Vary: Cookie` for the same reason
+ * `[id]/route.ts`'s own `PER_CREDENTIAL_HEADERS` does: the answer is decided by the request's own
+ * credential cookies, so nothing between this handler and the browser may cache one caller's answer
+ * for another's request.
+ *
+ * **The refusal carries neither** (review round 1, L1.7) — `designNotFoundResponse` is byte-identical
+ * to `GET /api/designs/{unknown}`'s own 404 (D4), and that identity is the point: a response
+ * distinguishable from an ordinary missing-design 404 by its headers alone would still tell a caller
+ * something the body's own sameness is built to withhold.
  */
 const SHARE_RESPONSE_HEADERS = {
   "Cache-Control": "private, no-store",

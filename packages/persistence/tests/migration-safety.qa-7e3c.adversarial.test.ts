@@ -92,3 +92,130 @@ describe("SEC-7E3c.2's CTAS diagnosis", () => {
     expect(refusalsFor(sql)).not.toEqual([]);
   });
 });
+
+// Review round 1, SEC-7E3c.7: Postgres ends a line — and a `--` comment with it — at `\n` **or**
+// `\r`. The old scanner read only `\n`, so a bare `\r` carried a `--` comment straight through a
+// real statement sitting on the "next line".
+describe("SEC-7E3c.7: a bare \\r ends a -- comment, the same as \\n", () => {
+  it.each([RENAME_A_LIVE_COLUMN, DISCARD_EVERY_NEW_DESIGN])(
+    "a bare \\r after -- carries the hidden statement past the comment: %s",
+    (hidden) => {
+      const sql = `create table if not exists qa_h (a int); -- note\r${hidden};`;
+      expect(refusalsFor(sql)).not.toEqual([]);
+    },
+  );
+
+  it("refuses a bare \\r on its own, outside any comment, named as an unmodelled construct", () => {
+    const refusals = refusalsFor("create table if not exists qa_i (a\rint);");
+    expect(refusals).not.toEqual([]);
+    expect(refusals[0]).toContain("\\r");
+  });
+
+  it("does not refuse an ordinary \\r\\n line ending", () => {
+    expect(
+      refusalsFor(
+        "create table if not exists qa_j (a int);\r\ncomment on table qa_j is 'x';",
+      ),
+    ).toEqual([]);
+  });
+});
+
+// Review round 1, SEC-7E3c.8: the old guard accepted any DO block that merely *mentioned*
+// `pg_constraint`, including inside a string a dynamic statement was built from, or a comment
+// naming it for cover. Each case below is a DO block PostgreSQL runs as dynamic SQL, which the old
+// check waved through because the literal substring "pg_constraint" appears somewhere in it.
+describe("SEC-7E3c.8: a DO block guarded on pg_constraint is matched structurally, never by dynamic SQL", () => {
+  it("refuses a DO block that mentions pg_constraint only in a trailing comment", () => {
+    const sql =
+      "do $$ begin execute 'drop table designs'; end $$; -- pg_constraint";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses EXECUTE of a concatenated string naming pg_constraint nowhere at all", () => {
+    const sql = "do $$ begin execute 'dr' || 'op table designs'; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses EXECUTE of a format(...) call", () => {
+    const sql =
+      "do $$ begin execute format('drop table %I', 'designs'); end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses EXECUTE that grants superuser, dressed as if guarded", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      "execute 'alter role app_designs superuser'; end if; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses PERFORM of an arbitrary function call inside an otherwise-guarded body", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      "perform pg_terminate_backend(pid) from pg_stat_activity; end if; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses a guard naming a different constraint from the one it adds", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      "alter table designs add constraint not_c check (true); end if; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses a guard whose conrelid names a different table from the one altered", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c' and " +
+      "conrelid = 'other_table'::regclass) then alter table designs add constraint c " +
+      "check (true); end if; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+});
+
+// Review round 1, SEC-7E3c.9: `insert into … select …` runs a query during the migration, the same
+// hazard CTAS carries — not guaranteed to produce the same rows on a re-run, and able to call an
+// arbitrary function with side effects. `inherits`/`partition of` attach a new table to an existing
+// one's rows and structure, which is not the empty-table promise `create table if not exists` makes
+// elsewhere in this allowlist.
+describe("SEC-7E3c.9: insert is restricted to a literal VALUES list; inherits/partition of are refused", () => {
+  it("refuses insert into … select …, which runs a query rather than adding literal rows", () => {
+    expect(
+      refusalsFor("insert into audit (note) select document from designs;"),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a table that inherits from an existing one", () => {
+    expect(
+      refusalsFor(
+        "create table if not exists qa_k (a int) inherits (designs);",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a table declared as a partition of an existing one", () => {
+    expect(
+      refusalsFor(
+        "create table if not exists qa_l partition of designs for values in (1);",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("still allows a literal insert, with or without ON CONFLICT DO NOTHING", () => {
+    expect(
+      refusalsFor("insert into settings (key, value) values ('a', 'b');"),
+    ).toEqual([]);
+    expect(
+      refusalsFor(
+        "insert into settings (key, value) values ('a', 'b') on conflict (key) do nothing;",
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses insert … on conflict … do update, which rewrites an existing row", () => {
+    expect(
+      refusalsFor(
+        "insert into settings (key, value) values ('a', 'b') on conflict (key) do update set value = excluded.value;",
+      ),
+    ).not.toEqual([]);
+  });
+});

@@ -11,7 +11,13 @@
 // **The link is shown once and lives only in this component's state** (D10): never the store, never
 // Web Storage, never the URL, never a log. It is rendered as a read-only text field, never as an
 // anchor — no navigation, no prefetch, nothing a crawler or a browser history could pick up.
-import { useEffect, useRef, useState, type FocusEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type RefObject,
+} from "react";
 import type { DesignId } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
@@ -29,6 +35,12 @@ import styles from "./share-design.module.css";
  *  enough that a second copy a minute later shows the real button again rather than a stale one. */
 const COPY_FEEDBACK_MS = 2000;
 
+/** Review round 1, L1.1: the failed operation travels with the error, so retrying repeats *that*
+ *  request rather than always re-issuing — a status check that failed must not be retried as a
+ *  create, which would silently mint a fresh link and kill whatever the sheet's last open already
+ *  found active. */
+type FailedOperation = "status" | "create" | "revoke";
+
 type ShareControlState =
   | { readonly kind: "checking" }
   | { readonly kind: "none"; readonly justRevoked: boolean }
@@ -38,7 +50,7 @@ type ShareControlState =
       readonly path: string;
       readonly copied: boolean;
     }
-  | { readonly kind: "error" };
+  | { readonly kind: "error"; readonly failedOperation: FailedOperation };
 
 export function ShareDesign() {
   const shareContent = useContent().share;
@@ -67,6 +79,7 @@ function ShareDesignControl({
   const copyTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const linkFieldRef = useRef<HTMLInputElement>(null);
 
   // The sheet's own open is the one moment this reads the status (D10) — not on a schedule, and not
   // re-read while the sheet stays open, so a revoke or re-issue this component itself performed is
@@ -79,7 +92,7 @@ function ShareDesignControl({
           setState({ kind: active ? "active" : "none", justRevoked: false });
       })
       .catch(() => {
-        if (isCurrent) setState({ kind: "error" });
+        if (isCurrent) setState({ kind: "error", failedOperation: "status" });
       });
     return () => {
       isCurrent = false;
@@ -93,6 +106,17 @@ function ShareDesignControl({
     [],
   );
 
+  function checkStatus(): void {
+    setState({ kind: "checking" });
+    shareLinkStatus(designId)
+      .then((active) => {
+        setState({ kind: active ? "active" : "none", justRevoked: false });
+      })
+      .catch(() => {
+        setState({ kind: "error", failedOperation: "status" });
+      });
+  }
+
   function create(): void {
     setState({ kind: "checking" });
     issueShareLink(designId)
@@ -100,7 +124,7 @@ function ShareDesignControl({
         setState({ kind: "just-issued", path, copied: false });
       })
       .catch(() => {
-        setState({ kind: "error" });
+        setState({ kind: "error", failedOperation: "create" });
       });
   }
 
@@ -111,23 +135,61 @@ function ShareDesignControl({
         setState({ kind: "none", justRevoked: true });
       })
       .catch(() => {
-        setState({ kind: "error" });
+        setState({ kind: "error", failedOperation: "revoke" });
       });
   }
 
+  /** Review round 1, L1.1: repeats whichever request failed rather than always re-issuing — a
+   *  status check retried as `create` would silently mint a fresh link, and a failed revoke
+   *  retried as `create` would leave the link it was meant to kill standing beside a second one. */
+  function retryFailedOperation(): void {
+    if (state.kind !== "error") return;
+    if (state.failedOperation === "status") {
+      checkStatus();
+      return;
+    }
+    if (state.failedOperation === "revoke") {
+      revoke();
+      return;
+    }
+    create();
+  }
+
+  /** Review round 1, L1.2: `copied` only follows a `writeText` that actually resolved — the field
+   *  stays selected either way, so a customer whose browser withheld clipboard access (no secure
+   *  context, no permission, no `navigator.clipboard` at all) can still copy by hand from a
+   *  visibly-selected field instead of trusting a confirmation the browser never earned. Both
+   *  branches of the promise are handled, so a rejection never reaches the console as unhandled. */
   function copy(path: string): void {
-    void navigator.clipboard.writeText(`${location.origin}${path}`);
-    setState((current) =>
-      current.kind === "just-issued" ? { ...current, copied: true } : current,
+    linkFieldRef.current?.select();
+    // TypeScript's own `lib.dom.d.ts` declares `Navigator.clipboard` as always present; a browser
+    // without a secure context or without clipboard permission at all leaves it `undefined` in
+    // reality, which is exactly the case this function exists to survive — read through a narrower
+    // type than the DOM lib's own, so the runtime check below is not "always true" to the compiler.
+    const clipboard = (navigator as { clipboard?: Clipboard }).clipboard;
+    if (clipboard === undefined) return;
+
+    clipboard.writeText(`${location.origin}${path}`).then(
+      () => {
+        setState((current) =>
+          current.kind === "just-issued"
+            ? { ...current, copied: true }
+            : current,
+        );
+        if (copyTimeout.current !== undefined)
+          clearTimeout(copyTimeout.current);
+        copyTimeout.current = setTimeout(() => {
+          setState((current) =>
+            current.kind === "just-issued"
+              ? { ...current, copied: false }
+              : current,
+          );
+        }, COPY_FEEDBACK_MS);
+      },
+      () => {
+        linkFieldRef.current?.select();
+      },
     );
-    if (copyTimeout.current !== undefined) clearTimeout(copyTimeout.current);
-    copyTimeout.current = setTimeout(() => {
-      setState((current) =>
-        current.kind === "just-issued"
-          ? { ...current, copied: false }
-          : current,
-      );
-    }, COPY_FEEDBACK_MS);
   }
 
   return (
@@ -137,8 +199,10 @@ function ShareDesignControl({
       <ShareDesignBody
         state={state}
         content={content}
+        linkFieldRef={linkFieldRef}
         onCreate={create}
         onRevoke={revoke}
+        onRetry={retryFailedOperation}
         onCopy={copy}
       />
     </section>
@@ -148,14 +212,18 @@ function ShareDesignControl({
 function ShareDesignBody({
   state,
   content,
+  linkFieldRef,
   onCreate,
   onRevoke,
+  onRetry,
   onCopy,
 }: {
   readonly state: ShareControlState;
   readonly content: Content["share"];
+  readonly linkFieldRef: RefObject<HTMLInputElement | null>;
   readonly onCreate: () => void;
   readonly onRevoke: () => void;
+  readonly onRetry: () => void;
   readonly onCopy: (path: string) => void;
 }) {
   switch (state.kind) {
@@ -221,6 +289,7 @@ function ShareDesignBody({
         <>
           <div className={styles.linkRow}>
             <input
+              ref={linkFieldRef}
               type="text"
               readOnly
               className={styles.linkField}
@@ -254,7 +323,7 @@ function ShareDesignBody({
             type="button"
             className={styles.primary}
             data-testid="share-design-retry"
-            onClick={onCreate}
+            onClick={onRetry}
           >
             {content.create}
           </button>

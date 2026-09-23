@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
-import { mintSeededDesign, openSeededDesign } from "./support/seeded-design";
+import {
+  issueShareLink,
+  mintSeededDesign,
+  openSeededDesign,
+} from "./support/seeded-design";
 
 /**
  * D10's share control, end to end: create → copy → open in a fresh context → revoke → not
@@ -81,6 +85,47 @@ test("create, copy, open in a fresh context, revoke, then not available", async 
     } finally {
       await revokedContext.close();
     }
+  } finally {
+    await deleteMintedDesigns([design.id]);
+  }
+});
+
+// Review round 1, L1.3: the owner's own browser holds both the share link and the write credential
+// at once, so the two views have to keep their own state straight in one session — not merely in
+// two separate contexts, which the test above already covers.
+test("the owner's own share link is read-only; /d/{id} restores write access; back/forward keeps each", async ({
+  page,
+}) => {
+  const design = await mintSeededDesign(page);
+  try {
+    await openSeededDesign(page, design);
+    const sharePath = await issueShareLink(page, design);
+
+    // The owner opens their own share link — read-only even with both credential cookies in the
+    // jar (G5: the view reads no cookie at all, so it cannot tell its own author from a stranger).
+    await page.goto(sharePath);
+    await page.waitForSelector("canvas", { state: "attached" });
+    await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
+    await expect(page.getByTestId("top-bar-back")).toHaveCount(0);
+
+    // Navigating to their own /d/{id} restores full write access.
+    await page.goto(`/d/${design.id}`);
+    await page.waitForSelector("canvas", { state: "attached" });
+    await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+    await expect(page.getByTestId("top-bar-back")).toBeVisible();
+
+    // Back: the share view again, still read-only — not left writable by whatever `/d/{id}` just
+    // set the store to.
+    await page.goBack();
+    await page.waitForSelector("canvas", { state: "attached" });
+    await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
+    await expect(page.getByTestId("top-bar-back")).toHaveCount(0);
+
+    // Forward: /d/{id} again, writable.
+    await page.goForward();
+    await page.waitForSelector("canvas", { state: "attached" });
+    await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+    await expect(page.getByTestId("top-bar-back")).toBeVisible();
   } finally {
     await deleteMintedDesigns([design.id]);
   }

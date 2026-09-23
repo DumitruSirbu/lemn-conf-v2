@@ -194,3 +194,108 @@ describe("ShareDesign — the four states", () => {
     expect(byTestId("share-design-retry")).not.toBeNull();
   });
 });
+
+/** Review round 1, L1.1: the retry button must repeat whichever request failed, never always
+ *  `create` — a status-check retry that silently re-issued would mint a fresh link, and a
+ *  failed-revoke retry that silently re-issued would leave the link it was meant to kill standing
+ *  beside a second one. */
+describe("ShareDesign — the retry button repeats the operation that failed", () => {
+  beforeEach(() => {
+    useConfiguratorStore.setState({
+      design: KITCHEN_L_DESIGN,
+      designId: "design-a",
+      revision: "1",
+      canWrite: true,
+      hasPersistedSuccessfully: true,
+    });
+  });
+
+  it("retries the status check, not a create, after the initial read fails", async () => {
+    shareLinkStatus.mockRejectedValueOnce(new Error("network down"));
+    shareLinkStatus.mockResolvedValueOnce(false);
+    await mount();
+    expect(byTestId("share-design-error")).not.toBeNull();
+
+    await click("share-design-retry");
+
+    expect(shareLinkStatus).toHaveBeenCalledTimes(2);
+    expect(issueShareLink).not.toHaveBeenCalled();
+    expect(byTestId("share-design-create")).not.toBeNull();
+  });
+
+  it("retries create after a failed issue, not a revoke or a second status read", async () => {
+    shareLinkStatus.mockResolvedValue(false);
+    issueShareLink.mockRejectedValueOnce(new Error("network down"));
+    issueShareLink.mockResolvedValueOnce("/s/abcDEF123456");
+    await mount();
+    await click("share-design-create");
+    expect(byTestId("share-design-error")).not.toBeNull();
+
+    await click("share-design-retry");
+
+    expect(issueShareLink).toHaveBeenCalledTimes(2);
+    expect(revokeShareLink).not.toHaveBeenCalled();
+    const field = byTestId("share-design-link") as HTMLInputElement | null;
+    expect(field?.value).toContain("/s/abcDEF123456");
+  });
+
+  it("retries revoke after a failed revoke, never re-issuing the link it was meant to kill", async () => {
+    shareLinkStatus.mockResolvedValue(true);
+    revokeShareLink.mockRejectedValueOnce(new Error("network down"));
+    revokeShareLink.mockResolvedValueOnce(undefined);
+    await mount();
+    await click("share-design-revoke");
+    expect(byTestId("share-design-error")).not.toBeNull();
+
+    await click("share-design-retry");
+
+    expect(revokeShareLink).toHaveBeenCalledTimes(2);
+    expect(issueShareLink).not.toHaveBeenCalled();
+    expect(byTestId("share-design-revoked")).not.toBeNull();
+  });
+});
+
+/** Review round 1, L1.2: `copied` follows only a `writeText` that actually resolved, and a
+ *  rejection or a missing `navigator.clipboard` must reach neither an unhandled rejection nor a
+ *  false "Copiat". */
+describe("ShareDesign — the copy button never shows a confirmation the browser did not earn", () => {
+  beforeEach(() => {
+    useConfiguratorStore.setState({
+      design: KITCHEN_L_DESIGN,
+      designId: "design-a",
+      revision: "1",
+      canWrite: true,
+      hasPersistedSuccessfully: true,
+    });
+  });
+
+  it("shows no confirmation when the clipboard write rejects", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+    shareLinkStatus.mockResolvedValue(false);
+    issueShareLink.mockResolvedValue("/s/abcDEF123456");
+    await mount();
+    await click("share-design-create");
+
+    await click("share-design-copy");
+
+    expect(byTestId("share-design-copy")?.textContent).toBe(
+      roMessages.share.copy,
+    );
+  });
+
+  it("shows no confirmation and does not throw when navigator.clipboard is absent", async () => {
+    vi.stubGlobal("navigator", {});
+    shareLinkStatus.mockResolvedValue(false);
+    issueShareLink.mockResolvedValue("/s/abcDEF123456");
+    await mount();
+    await click("share-design-create");
+
+    await click("share-design-copy");
+
+    expect(byTestId("share-design-copy")?.textContent).toBe(
+      roMessages.share.copy,
+    );
+  });
+});
