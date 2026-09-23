@@ -242,8 +242,9 @@ function expectInside(
  * The flagged surface: a stored design carrying ADR 0065's overflow flag.
  * ------------------------------------------------------------------------- */
 
-/** Mints a row of its own, beside the fixture's per-test one: this file caches it across every test
- *  (below), which the test-scoped `seededDesign` fixture does not do. */
+/** Mints a row of its own, beside the fixture's per-test one — called fresh on every
+ *  {@link openFlaggedDesign}, never cached across tests (see that function's own doc comment,
+ *  ADR 0114 decision 5, for why a file-wide cache stopped working). */
 async function mintFlaggedRow(page: Page): Promise<SeededDesign> {
   const design = await mintSeededDesign(page);
   mintedDesignIds.push(design.id);

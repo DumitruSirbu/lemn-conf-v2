@@ -187,38 +187,60 @@ export async function openDesignAndAwaitAccessProbe(
   return { navigation: outcome.navigation, probe: outcome.probe };
 }
 
+// eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about which of the three DesignLoadError reasons rendered, not copy authored here — the sentence itself is the reached-by-key catalogue leaf `designLoadError.bodyUnavailable`.
+const UNAVAILABLE_COPY_SUBSTRING = "nu este disponibilă în acest browser";
+
 /**
- * Opens `path` and waits for the `"unavailable"` refusal (M7 wave 7E3b, ADR 0114 decision 5) —
- * every foreign, missing or cookie-less visitor cookie answers this same page, and never sends the
- * write-access probe at all. Fails by name if a probe request was made regardless: that would mean
- * this browser actually owns the row, which is not the scenario a caller of this helper is testing.
+ * Opens `path` — for `designId` — and waits for the `"unavailable"` refusal (M7 wave 7E3b, ADR 0114
+ * decision 5) — every foreign, missing or cookie-less visitor cookie answers this same page, and
+ * never sends the write-access probe at all. **Composes** {@link navigateAndAwaitDesignRouteOutcome}
+ * rather than repeating its navigation and wait (review round 2, L1.5/C1.1), asserts the
+ * `"unavailable"` copy itself so no caller can forget it (C1.1), and its own probe matcher is scoped
+ * to `designId` (C1.2) — the open regex it replaced would have missed a probe fired for a
+ * *different* id, which is not this helper's guarantee to make.
+ *
+ * Fails by name if a probe request for `designId` was made regardless: that would mean this browser
+ * actually owns the row, which is not the scenario a caller of this helper is testing.
  */
 export async function openUnavailableDesign(
   page: Page,
   path: string,
+  designId: string,
 ): Promise<Response | null> {
   const probeRequestUrls: string[] = [];
   const onRequest = (request: PlaywrightRequest): void => {
     if (
       request.method() === "GET" &&
-      /^\/api\/designs\/[^/]+$/.test(new URL(request.url()).pathname)
+      new URL(request.url()).pathname === `/api/designs/${designId}`
     ) {
       probeRequestUrls.push(request.url());
     }
   };
   page.on("request", onRequest);
   try {
-    const navigation = await page.goto(path);
-    await page.waitForSelector('[data-testid="design-load-error"]', {
-      state: "attached",
-    });
-    if (probeRequestUrls.length > 0) {
+    const outcome = await navigateAndAwaitDesignRouteOutcome(
+      page,
+      path,
+      designId,
+    );
+    if (outcome.kind !== "unavailable") {
       throw new Error(
-        `openUnavailableDesign: a write-access probe request was made while opening ${path} ` +
-          `(${probeRequestUrls.join(", ")}), which the unavailable page must never send.`,
+        `openUnavailableDesign: ${path} answered its write-access probe instead of the ` +
+          '"unavailable" refusal — this browser must own the row, which this helper\'s callers ' +
+          "never expect.",
       );
     }
-    return navigation;
+    if (probeRequestUrls.length > 0) {
+      throw new Error(
+        `openUnavailableDesign: a write-access probe request for ${designId} was made while ` +
+          `opening ${path} (${probeRequestUrls.join(", ")}), which the unavailable page must ` +
+          "never send.",
+      );
+    }
+    await expect(page.getByTestId("design-load-error")).toContainText(
+      UNAVAILABLE_COPY_SUBSTRING,
+    );
+    return outcome.navigation;
   } finally {
     page.off("request", onRequest);
   }

@@ -10,15 +10,9 @@ import {
  * M7 wave 7E3b, S4 — criterion 7, the refusal spec (ADR 0114 decision 5, Amendment H2): a foreign
  * context and a cookie-less context each get `design-load-error` with the `"unavailable"` copy for
  * `/{locale}/d/{id}`. Neither ever sends the write-access probe, neither ever mounts a `<canvas>`,
- * and neither changes its own cookie jar by trying.
- *
- * The Romanian copy substring below is the one that distinguishes `"unavailable"`'s wording from
- * the `"not-found"` and `"invalid"` reasons `DesignLoadError` also renders — the testid alone would
- * pass for any of the three.
+ * and neither changes its own cookie jar by trying. The copy assertion itself lives in
+ * `openUnavailableDesign` now (review round 2, L1.5/C1.1), so every caller gets it for free.
  */
-
-// eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about which of the three DesignLoadError reasons rendered, not copy authored here — the sentence itself is the reached-by-key catalogue leaf `designLoadError.bodyUnavailable`.
-const UNAVAILABLE_COPY_SUBSTRING = "nu este disponibilă în acest browser";
 
 test("a foreign visitor's /d/{id} answers the unavailable refusal, with no probe and an untouched jar", async ({
   page,
@@ -32,10 +26,7 @@ test("a foreign visitor's /d/{id} answers the unavailable refusal, with no probe
   try {
     const before = await context.cookies();
 
-    await openUnavailableDesign(page, `/ro/d/${foreign.id}`);
-    await expect(page.getByTestId("design-load-error")).toContainText(
-      UNAVAILABLE_COPY_SUBSTRING,
-    );
+    await openUnavailableDesign(page, `/ro/d/${foreign.id}`, foreign.id);
     await expect(page.locator("canvas")).toHaveCount(0);
 
     expect(await context.cookies()).toEqual(before);
@@ -57,10 +48,7 @@ test("a cookie-less context's /d/{id} answers the unavailable refusal, with no p
     const before = await strangerContext.cookies();
     expect(before).toEqual([]);
 
-    await openUnavailableDesign(strangerPage, `/ro/d/${design.id}`);
-    await expect(strangerPage.getByTestId("design-load-error")).toContainText(
-      UNAVAILABLE_COPY_SUBSTRING,
-    );
+    await openUnavailableDesign(strangerPage, `/ro/d/${design.id}`, design.id);
     await expect(strangerPage.locator("canvas")).toHaveCount(0);
 
     expect(await strangerContext.cookies()).toEqual([]);

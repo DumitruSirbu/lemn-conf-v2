@@ -133,6 +133,7 @@ test.describe("criterion 9 — another visitor's /d/{id}", () => {
       const navigation = await openUnavailableDesign(
         page,
         `/ro/d/${foreign.id}`,
+        foreign.id,
       );
       expect(
         (await navigation?.allHeaders())?.["set-cookie"] ?? "",

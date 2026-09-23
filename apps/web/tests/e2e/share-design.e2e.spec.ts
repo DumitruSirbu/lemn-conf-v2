@@ -107,6 +107,10 @@ test("the owner's own share link is read-only; /d/{id} restores write access; ba
     await page.waitForSelector("canvas", { state: "attached" });
     await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
     await expect(page.getByTestId("top-bar-back")).toHaveCount(0);
+    // S5b (L1.5/C1.1): the trigger being disabled is not, on its own, a claim about what the sheet
+    // it would have opened contains. Asserted directly, the same way the stranger's own case does
+    // above — holding the write token changes nothing here, because G5's view never reads it.
+    await expect(page.getByTestId("share-design")).toHaveCount(0);
 
     // Navigating to their own /d/{id} restores full write access.
     await page.goto(`/d/${design.id}`);

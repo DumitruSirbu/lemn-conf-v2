@@ -105,7 +105,11 @@ test.describe("criterion 6 — fixation closed (backlog 81)", () => {
     try {
       const attackerPage = await attackerContext.newPage();
       await plantVisitorValue(attackerPage, PLANTED_VALUE);
-      await openUnavailableDesign(attackerPage, `/ro/d/${design.id}`);
+      await openUnavailableDesign(
+        attackerPage,
+        `/ro/d/${design.id}`,
+        design.id,
+      );
 
       const attackerApi = await attackerPage.evaluate(async (id) => {
         const response = await fetch(`/api/designs/${id}`);
@@ -139,7 +143,11 @@ test.describe("criterion 6 — fixation closed (backlog 81)", () => {
       await plantVisitorValue(page, attackerValue);
       const victimDesign = await mintTracked(page);
 
-      await openUnavailableDesign(attackerPage, `/ro/d/${attackerDesign.id}`);
+      await openUnavailableDesign(
+        attackerPage,
+        `/ro/d/${attackerDesign.id}`,
+        attackerDesign.id,
+      );
       await page.goto("/ro");
       expect(new URL(page.url()).pathname).toBe(`/ro/d/${victimDesign.id}`);
     } finally {
@@ -168,7 +176,7 @@ test.describe("the owner across a rotation", () => {
       await expect(strangerPage.getByTestId("design-load-error")).toHaveCount(
         0,
       );
-      await openUnavailableDesign(strangerPage, `/ro/d/${first.id}`);
+      await openUnavailableDesign(strangerPage, `/ro/d/${first.id}`, first.id);
     } finally {
       await strangerContext.close();
     }

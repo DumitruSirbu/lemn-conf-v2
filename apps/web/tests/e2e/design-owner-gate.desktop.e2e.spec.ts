@@ -11,11 +11,9 @@ import {
  * for both projects (`playwright.config.ts`'s `testMatch` ties a project to a file name, following
  * `top-bar.e2e.spec.ts` / `top-bar.desktop.e2e.spec.ts`'s pattern, and `visitor-identity.e2e.spec.ts`
  * / `visitor-identity.desktop.e2e.spec.ts`'s own twin for the same reason). The assertions are
- * identical on purpose: the gate's refusal does not vary with viewport.
+ * identical on purpose: the gate's refusal does not vary with viewport. The copy assertion itself
+ * lives in `openUnavailableDesign` now (review round 2, L1.5/C1.1), so every caller gets it for free.
  */
-
-// eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about which of the three DesignLoadError reasons rendered, not copy authored here — the sentence itself is the reached-by-key catalogue leaf `designLoadError.bodyUnavailable`.
-const UNAVAILABLE_COPY_SUBSTRING = "nu este disponibilă în acest browser";
 
 test("a foreign visitor's /d/{id} answers the unavailable refusal, with no probe and an untouched jar", async ({
   page,
@@ -29,10 +27,7 @@ test("a foreign visitor's /d/{id} answers the unavailable refusal, with no probe
   try {
     const before = await context.cookies();
 
-    await openUnavailableDesign(page, `/ro/d/${foreign.id}`);
-    await expect(page.getByTestId("design-load-error")).toContainText(
-      UNAVAILABLE_COPY_SUBSTRING,
-    );
+    await openUnavailableDesign(page, `/ro/d/${foreign.id}`, foreign.id);
     await expect(page.locator("canvas")).toHaveCount(0);
 
     expect(await context.cookies()).toEqual(before);
@@ -54,10 +49,7 @@ test("a cookie-less context's /d/{id} answers the unavailable refusal, with no p
     const before = await strangerContext.cookies();
     expect(before).toEqual([]);
 
-    await openUnavailableDesign(strangerPage, `/ro/d/${design.id}`);
-    await expect(strangerPage.getByTestId("design-load-error")).toContainText(
-      UNAVAILABLE_COPY_SUBSTRING,
-    );
+    await openUnavailableDesign(strangerPage, `/ro/d/${design.id}`, design.id);
     await expect(strangerPage.locator("canvas")).toHaveCount(0);
 
     expect(await strangerContext.cookies()).toEqual([]);
