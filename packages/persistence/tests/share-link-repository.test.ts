@@ -49,7 +49,7 @@ describe(SUITE_NAME, () => {
     const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
       design: KITCHEN_L_DESIGN,
       writeTokenHash: WRITE_TOKEN_HASH,
-      visitorHash: VISITOR_HASH,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
     });
     mintedIds.push(id);
     return {
@@ -361,7 +361,8 @@ describe(`${SUITE_NAME} — adversarial QA (M7 wave 7E3c)`, () => {
   ): Promise<ShareLinkCredentials> {
     const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
       design: KITCHEN_L_DESIGN,
-      ...hashes,
+      writeTokenHash: hashes.writeTokenHash,
+      visitor: { kind: "fresh", visitorHash: hashes.visitorHash },
     });
     mintedIds.push(id);
     return { designId: id, ...hashes };

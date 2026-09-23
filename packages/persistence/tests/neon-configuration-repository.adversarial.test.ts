@@ -17,6 +17,7 @@ import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { generateDesignId } from "../src/generate-design-id.js";
 import { runMigrations } from "../src/migrate.js";
 import {
   DesignWriteForbiddenError,
@@ -99,7 +100,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
     const { id } = await testRepository().mint({
       design: KITCHEN_L_DESIGN,
       writeTokenHash,
-      visitorHash: VISITOR_HASH,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
     });
     mintedIds.push(id);
     return id;
@@ -147,6 +148,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
         design: { ...KITCHEN_L_DESIGN, presetId: "authorised" },
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: FIRST_REVISION,
+        requestVisitor: { kind: "absent" },
       });
 
       const after = await readRow(id);
@@ -169,6 +171,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
             design: ATTACKER_DESIGN,
             writeTokenHash: hash,
             expectedRevision: FIRST_REVISION,
+            requestVisitor: { kind: "absent" },
           }),
           name,
         ).rejects.toThrow(DesignWriteForbiddenError);
@@ -198,6 +201,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
             design: ATTACKER_DESIGN,
             writeTokenHash: hash,
             expectedRevision: FIRST_REVISION,
+            requestVisitor: { kind: "absent" },
           }),
           name,
         ).rejects.toThrow(DesignWriteForbiddenError);
@@ -248,7 +252,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           testRepository().mint({
             design: KITCHEN_L_DESIGN,
             writeTokenHash: hash,
-            visitorHash: VISITOR_HASH,
+            visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
           }),
           name,
         ).rejects.toThrow(
@@ -271,7 +275,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
         .mint({
           design: KITCHEN_L_DESIGN,
           writeTokenHash: secret,
-          visitorHash: VISITOR_HASH,
+          visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
         })
         .then(
           () => undefined,
@@ -387,6 +391,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           design: KITCHEN_L_DESIGN,
           writeTokenHash: "a".repeat(64),
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -407,6 +412,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           design: ATTACKER_DESIGN,
           writeTokenHash: otherHash,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
       await expect(
@@ -415,6 +421,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           design: ATTACKER_DESIGN,
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
 
@@ -435,12 +442,14 @@ describe("the write-authorisation predicate under attack (live test database)", 
           design: authorised,
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
         testRepository().saveAuthorized({
           id,
           design: ATTACKER_DESIGN,
           writeTokenHash: "e".repeat(64),
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ]);
 
@@ -473,6 +482,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
             design: ATTACKER_DESIGN,
             writeTokenHash: hash,
             expectedRevision: FIRST_REVISION,
+            requestVisitor: { kind: "absent" },
           }),
           name,
         ).rejects.toThrow(DesignWriteForbiddenError);
@@ -611,7 +621,7 @@ describe("the write-token migration actually executes", () => {
       ).mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: CORRECT_TOKEN_HASH,
-        visitorHash: VISITOR_HASH,
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
       });
       try {
         // Forgotten first, so the migrations genuinely re-execute against a table that already
@@ -952,7 +962,7 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
     const { id } = await repository().mint({
       design: KITCHEN_L_DESIGN,
       writeTokenHash: CORRECT_TOKEN_HASH,
-      visitorHash,
+      visitor: { kind: "fresh", visitorHash },
     });
     created.push(id);
     return id;
@@ -1004,7 +1014,7 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         const attempt = repository().mint({
           design: KITCHEN_L_DESIGN,
           writeTokenHash: CORRECT_TOKEN_HASH,
-          visitorHash,
+          visitor: { kind: "fresh", visitorHash },
         });
         await expect(attempt, JSON.stringify(visitorHash)).rejects.toThrow(
           /visitor hash/,
@@ -1086,6 +1096,7 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         design: KITCHEN_L_DESIGN,
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: FIRST_REVISION,
+        requestVisitor: { kind: "absent" },
       });
 
       await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
@@ -1126,5 +1137,182 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
       }
     },
     30_000,
+  );
+});
+
+/**
+ * M7 wave 7E3b, adversarial QA for D1 / ADR 0114 Amendment H1's own retry and atomicity claim
+ * (criterion 8). `mint`'s public surface always generates a fresh id, so a genuine retry cannot be
+ * driven through it directly; the shape `mintStatements` submits is reproduced here with the driver
+ * itself, exactly as `0005`'s and `0006`'s own blocks drive raw SQL past the repository to prove a
+ * database-level guarantee no double can stand in for.
+ */
+describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", () => {
+  const mintedIds: DesignId[] = [];
+
+  function repository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  async function mintUnder(visitorHash: string): Promise<DesignId> {
+    const { id } = await repository().mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: CORRECT_TOKEN_HASH,
+      visitor: { kind: "fresh", visitorHash },
+    });
+    mintedIds.push(id);
+    return id;
+  }
+
+  async function visitorHashOf(id: DesignId): Promise<string | null> {
+    const rows = (await neon(testDatabaseUrl)`
+      select visitor_hash from designs where id = ${id}
+    `) as { visitor_hash: string | null }[];
+    return rows[0]?.visitor_hash ?? null;
+  }
+
+  /** The rotation transaction, laid out exactly as `mintStatements`'s rotate branch does, so a
+   *  "retry" can be driven twice with byte-identical arguments without going through `mint`'s own
+   *  id generation. */
+  function rotationTransaction(
+    id: DesignId,
+    writeTokenHash: string,
+    fromVisitorHash: string,
+    toVisitorHash: string,
+  ) {
+    const sql = neon(testDatabaseUrl);
+    return sql.transaction(
+      [
+        sql`
+          update designs set visitor_hash = ${toVisitorHash}
+          where visitor_hash = ${fromVisitorHash}
+        `,
+        sql`
+          insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+          values (${id}, 1, ${KITCHEN_L_DESIGN}, ${writeTokenHash}, ${toVisitorHash})
+          on conflict (id) do nothing
+        `,
+        sql`
+          select revision::text as revision from designs
+          where id = ${id} and visitor_hash = ${toVisitorHash}
+        `,
+      ],
+      { isolationLevel: "ReadCommitted" },
+    );
+  }
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "running the rotation transaction twice with identical arguments answers the same revision and leaves one row",
+    async () => {
+      const oldHash = "20".repeat(32);
+      const newHash = "21".repeat(32);
+      const existingId = await mintUnder(oldHash);
+      const newId = generateDesignId();
+      mintedIds.push(newId);
+
+      // The first attempt, standing in for the one whose acknowledgement was lost.
+      const first = (await rotationTransaction(
+        newId,
+        CORRECT_TOKEN_HASH,
+        oldHash,
+        newHash,
+      )) as [unknown[], unknown[], { revision: string }[]];
+      // The retry: byte-identical arguments, run only after the first has committed.
+      const retried = (await rotationTransaction(
+        newId,
+        CORRECT_TOKEN_HASH,
+        oldHash,
+        newHash,
+      )) as [unknown[], unknown[], { revision: string }[]];
+
+      const firstRevision = first[2][0]?.revision;
+      expect(firstRevision).toBeDefined();
+      expect(retried[2][0]?.revision).toBe(firstRevision);
+
+      const rows = (await neon(testDatabaseUrl)`
+        select count(*)::int as n from designs where id = ${newId}
+      `) as { n: number }[];
+      expect(rows[0]?.n).toBe(1);
+      expect(await visitorHashOf(existingId)).toBe(newHash);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "a forced failure of the insert leaves every row under the old hash",
+    async () => {
+      const oldHash = "22".repeat(32);
+      const newHash = "23".repeat(32);
+      const existingId = await mintUnder(oldHash);
+      const sql = neon(testDatabaseUrl);
+
+      await expect(
+        sql.transaction(
+          [
+            sql`
+              update designs set visitor_hash = ${newHash}
+              where visitor_hash = ${oldHash}
+            `,
+            // Bypasses `requireSha256Digest` by going straight at the driver — the only way to make
+            // this statement fail without also making the insert's own well-formedness the thing
+            // under test. `write_token_hash_is_sha256` (`0003`) refuses it at the database.
+            sql`
+              insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+              values (${generateDesignId()}, 1, ${KITCHEN_L_DESIGN}, 'not-a-digest', ${newHash})
+            `,
+          ],
+          { isolationLevel: "ReadCommitted" },
+        ),
+      ).rejects.toThrow(/write_token_hash_is_sha256/);
+
+      // The whole transaction rolled back, including the update that ran first — one Postgres
+      // transaction, not three independent statements.
+      expect(await visitorHashOf(existingId)).toBe(oldHash);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "two concurrent mints from one old value leave no row under it",
+    async () => {
+      const oldHash = "24".repeat(32);
+      const raceWinnerHash = "25".repeat(32);
+      const raceLoserHash = "26".repeat(32);
+      const existingId = await mintUnder(oldHash);
+
+      const [winner, loser] = await Promise.all([
+        repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: {
+            kind: "rotate",
+            visitorHash: raceWinnerHash,
+            fromVisitorHash: oldHash,
+          },
+        }),
+        repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: {
+            kind: "rotate",
+            visitorHash: raceLoserHash,
+            fromVisitorHash: oldHash,
+          },
+        }),
+      ]);
+      mintedIds.push(winner.id, loser.id);
+
+      const stillUnderOldHash = (await neon(testDatabaseUrl)`
+        select count(*)::int as n from designs where visitor_hash = ${oldHash}
+      `) as { n: number }[];
+      expect(stillUnderOldHash[0]?.n).toBe(0);
+
+      const movedTo = await visitorHashOf(existingId);
+      expect([raceWinnerHash, raceLoserHash]).toContain(movedTo);
+    },
   );
 });

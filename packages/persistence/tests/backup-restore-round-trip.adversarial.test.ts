@@ -125,7 +125,7 @@ describe(SUITE_NAME, () => {
       const { id } = await repository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: hashWriteToken(token),
-        visitorHash: VISITOR_HASH,
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
       });
       mintedIds.push(id);
 
@@ -147,8 +147,9 @@ describe(SUITE_NAME, () => {
           design: edited,
           writeTokenHash: hashWriteToken(token),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
-      ).resolves.toEqual({ id, revision: "2" });
+      ).resolves.toEqual({ id, revision: "2", ownsVisitor: false });
       expect(
         canonicalSerializeDesign((await repository().load(id)).design),
       ).toBe(canonicalSerializeDesign(edited));
@@ -163,7 +164,7 @@ describe(SUITE_NAME, () => {
       const { id } = await repository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: hashWriteToken(token),
-        visitorHash: VISITOR_HASH,
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
       });
       mintedIds.push(id);
       const line = await exportedLineFor(id);
@@ -179,6 +180,7 @@ describe(SUITE_NAME, () => {
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken("a-different-token"),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -192,7 +194,7 @@ describe(SUITE_NAME, () => {
       const { id } = await repository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: hashWriteToken(token),
-        visitorHash: VISITOR_HASH,
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
       });
       mintedIds.push(id);
 
@@ -215,7 +217,7 @@ describe(SUITE_NAME, () => {
       const { id } = await repository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: hashWriteToken("qa-round-trip-token-visitor"),
-        visitorHash,
+        visitor: { kind: "fresh", visitorHash },
       });
       mintedIds.push(id);
       if (!sql) return;
@@ -262,6 +264,7 @@ describe(SUITE_NAME, () => {
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken("any-token-at-all"),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -275,7 +278,7 @@ describe(SUITE_NAME, () => {
       const { id } = await repository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: hashWriteToken(token),
-        visitorHash: VISITOR_HASH,
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
       });
       mintedIds.push(id);
       const line = await exportedLineFor(id);
@@ -292,8 +295,9 @@ describe(SUITE_NAME, () => {
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken(token),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
-      ).resolves.toEqual({ id, revision: "2" });
+      ).resolves.toEqual({ id, revision: "2", ownsVisitor: false });
     },
     30_000,
   );
@@ -307,7 +311,7 @@ describe(SUITE_NAME, () => {
       const { id } = await repository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: hashWriteToken("qa-7e3a-restore-resumes"),
-        visitorHash,
+        visitor: { kind: "fresh", visitorHash },
       });
       mintedIds.push(id);
       if (!sql) return;

@@ -26,10 +26,12 @@ interface DesignRow {
 }
 
 /** The single row the conditional update returns, whatever it decided. `revision` is the **new**
- *  one when this write is the one that landed, and null when it matched nothing. */
+ *  one when this write is the one that landed, and null when it matched nothing. `owns_visitor` is
+ *  Amendment H3's answer, from the same snapshot as the update. */
 interface ConditionalUpdateRow {
   is_authorised: boolean;
   revision: DesignRevision | null;
+  owns_visitor: boolean;
 }
 
 /** A write was refused: the supplied credential does not authorise the named design, or no such
@@ -85,17 +87,53 @@ export interface AuthorizedSave {
   /** The revision the caller read this design at. The write lands only if the row still carries
    *  it — see `saveAuthorized`. */
   readonly expectedRevision: DesignRevision;
+  /** The requester's own visitor value, so `saveAuthorized` can answer whether the row it just
+   *  wrote is still the one this browser owns (M7 wave 7E3b D3 / Amendment H3). */
+  readonly requestVisitor: RequestVisitor;
+}
+
+/** The requester's visitor value for a save — a tagged union rather than a nullable field, so "no
+ *  cookie" is a distinct case from "a value that happens not to match" instead of a `null` this
+ *  file would have to accept and guard against (this package's own no-null convention; the same
+ *  shape `VisitorResumeLookup` uses). */
+export type RequestVisitor =
+  | { readonly kind: "present"; readonly visitorHash: string }
+  | { readonly kind: "absent" };
+
+/** What a successful save answers beyond `DesignVersion` (Amendment H3): whether the request's own
+ *  visitor value is the one now stored on the row. A caller refreshes the visitor cookie only when
+ *  this is `true` — a value already rotated away by another tab's mint must never be re-emitted, or
+ *  the browser would be locked out of every design it owns. Answered by the same statement as the
+ *  update, never a second query. */
+export interface SaveOutcome extends DesignVersion {
+  readonly ownsVisitor: boolean;
 }
 
 /** What a mint stores: the design, the write-token hash that will authorise editing it, and the
- *  visitor hash that will own it (ADR 0114 decision 5). Grouped rather than passed as three
- *  positional arguments so the two hashes — both 64-character hex digests — can never be swapped
- *  with each other at a call site (M7 wave 7E3a D2). */
+ *  visitor value that will own it (ADR 0114 decision 5). Grouped rather than passed as three
+ *  positional arguments so the write-token hash and the visitor value can never be swapped with
+ *  each other at a call site (M7 wave 7E3a D2). */
 export interface MintDesign {
   readonly design: Design;
   readonly writeTokenHash: string;
-  readonly visitorHash: string;
+  readonly visitor: MintVisitor;
 }
+
+/**
+ * The visitor value a mint stores, and whether the browser's existing rows move to it (ADR 0114
+ * Amendment H1, the owner's ruling "Rotate on mint"). A tagged union rather than an optional
+ * "old hash" field (Amendment H1's own port note): mint either knows there is nothing to move
+ * — `"fresh"` — or knows exactly what to move it from — `"rotate"` — and a caller cannot supply a
+ * malformed carried value and have it silently ignored, because there is no shape here for one to
+ * occupy.
+ */
+export type MintVisitor =
+  | { readonly kind: "fresh"; readonly visitorHash: string }
+  | {
+      readonly kind: "rotate";
+      readonly visitorHash: string;
+      readonly fromVisitorHash: string;
+    };
 
 /**
  * The server-side persistence port, split by ADR 0019 decision 1 into an open read and an
@@ -108,7 +146,7 @@ export interface MintDesign {
  */
 export interface AuthorizedConfigurationRepository {
   mint(mint: MintDesign): Promise<DesignVersion>;
-  saveAuthorized(save: AuthorizedSave): Promise<DesignVersion>;
+  saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome>;
   load(id: DesignId): Promise<StoredDesign>;
 }
 
@@ -138,11 +176,48 @@ export interface VisitorResumeRepository {
   resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup>;
 }
 
+/** `loadOwned`'s argument: the id and the visitor hash it must be read alongside (ADR 0114
+ *  Amendment H2), grouped so a caller cannot name one and forget the other. */
+export interface OwnedDesignLookup {
+  readonly id: DesignId;
+  readonly visitorHash: string;
+}
+
+/** What `loadOwned` answers — tagged for `VisitorResumeLookup`'s own reason: a caller cannot forget
+ *  to check which case it got. A foreign row, a pre-`0005` row (`visitor_hash is null`) and a
+ *  missing row are all `"none"` — one outcome of one statement, so nothing about which of the three
+ *  it was is observable to a caller that does not already own the row. */
+export type LoadOwnedOutcome =
+  | {
+      readonly kind: "found";
+      readonly design: Design;
+      readonly revision: DesignRevision;
+    }
+  | { readonly kind: "none" };
+
+/**
+ * The gated read (ADR 0114 Amendment H2): a design is readable only by the browser whose visitor
+ * hash the row carries. Deliberately not a fourth method on `AuthorizedConfigurationRepository`,
+ * for `VisitorResumeRepository`'s own reason (M7 wave 7E3a D3) — this asks a different question,
+ * from a different starting shape, than the read every existing mint/save/load double already
+ * fakes.
+ *
+ * `migrateDesign` runs only on `found`, so `InvalidDesignError` is reachable by the design's owner
+ * alone: a foreign row holding an invalid document answers `none`, the same as a row that does not
+ * exist, and is never migrated or validated on that caller's behalf.
+ */
+export interface OwnedDesignRepository {
+  loadOwned(lookup: OwnedDesignLookup): Promise<LoadOwnedOutcome>;
+}
+
 /** `AuthorizedConfigurationRepository` backed by Neon Postgres. Every query uses
  *  `@neondatabase/serverless`'s tagged-template `sql`, which parameterises interpolated values by
  *  construction — no query in this file concatenates a value into SQL text. */
 export class NeonConfigurationRepository
-  implements AuthorizedConfigurationRepository, VisitorResumeRepository
+  implements
+    AuthorizedConfigurationRepository,
+    VisitorResumeRepository,
+    OwnedDesignRepository
 {
   private readonly sql;
 
@@ -152,32 +227,85 @@ export class NeonConfigurationRepository
     this.sql = neon(connectionUrl);
   }
 
-  /** Mints a new design row holding the SHA-256 hash of its write token and of the visitor that
-   *  owns it (ADR 0114 decision 5). Neither raw value is ever stored, so a database leak yields
-   *  read access and nothing more. */
+  /**
+   * Mints a new design row holding the SHA-256 hash of its write token and of the visitor that
+   * owns it (ADR 0114 decision 5). Neither raw value is ever stored, so a database leak yields
+   * read access and nothing more.
+   *
+   * **Rotation (Amendment H1, the owner's ruling "Rotate on mint").** When `visitor` carries a
+   * well-formed value the browser already held, every row under that value's hash moves to the
+   * fresh one in the same transaction as the insert — a planted value therefore owns nothing after
+   * the next mint, and it is `HttpOnly`, so no script ever learns the new one. `mintStatements`
+   * lays out the one to three statements this runs; see it for the retry argument.
+   */
   async mint({
     design,
     writeTokenHash,
-    visitorHash,
+    visitor,
   }: MintDesign): Promise<DesignVersion> {
     requireSha256Digest(writeTokenHash, "write-token hash", "mint a design");
-    requireSha256Digest(visitorHash, "visitor hash", "mint a design");
+    requireVisitorDigests(visitor);
     // **The id is generated here, outside the retried callback, and must stay there.** A retry that
     // minted a fresh id each attempt would insert a second row for a write the customer made once,
-    // whenever an acknowledgement is lost rather than the query refused. Kept out here, every
-    // attempt carries the same primary key, so the repeat takes a duplicate-key rejection instead —
-    // which is an HTTP 400, decoded, unmarked, and therefore not retried again.
+    // whenever an acknowledgement is lost rather than the query refused.
     const id = generateDesignId();
-    // The revision comes back from the column's own default rather than being asserted here, so
-    // the one place that decides what a first revision is remains the migration.
-    const rows = (await retryOnComputeRestart(
-      () => this.sql`
+
+    const results = (await retryOnComputeRestart(() =>
+      this.sql.transaction(
+        this.mintStatements(id, design, writeTokenHash, visitor),
+        // Pinned per `NeonShareLinkRepository.issue`'s own doc comment (SEC-7E3c.4): Postgres's own
+        // default, made explicit so it cannot drift under this method without a reviewer seeing the
+        // line change. READ COMMITTED is what lets a rotation racing another mint see the first
+        // one's committed move rather than a snapshot fixed before it.
+        { isolationLevel: "ReadCommitted" },
+      ),
+    )) as unknown[][];
+
+    // The revision comes back from the final `select`, never asserted here, so the one place that
+    // decides what a first revision is remains the migration.
+    const selected = results.at(-1) as { revision: DesignRevision }[];
+    return { id, revision: revisionOfMintedRow(selected, id) };
+  }
+
+  /**
+   * The statements `mint` submits as one transaction, in order.
+   *
+   * **Why this shape is retry-safe under identical arguments (G6), for both branches.** The insert
+   * takes `on conflict (id) do nothing` rather than the plain insert a first version of this method
+   * used, and the final `select` reads the row back by id **and** by the value this attempt is
+   * minting — so a retry after a lost acknowledgement moves nothing a first attempt already moved,
+   * inserts nothing a first attempt already inserted, and the `select` still finds the row either
+   * way. `revisionOfMintedRow` then reports the same revision on every attempt.
+   *
+   * **The rotate branch's `update` moves the browser's existing rows first, and touches no column
+   * but `visitor_hash`** — `updated_at` and every other column are exactly what D3's resume order
+   * and retention accounting already assume. **The fresh branch issues no `UPDATE` at all**
+   * (Amendment H1): there is nothing to move for an absent, empty or malformed carried value.
+   */
+  private mintStatements(
+    id: DesignId,
+    design: Design,
+    writeTokenHash: string,
+    visitor: MintVisitor,
+  ) {
+    const insert = this.sql`
       insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
-      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitorHash})
-      returning revision::text as revision
-    `,
-    )) as { revision: DesignRevision }[];
-    return { id, revision: revisionOfMintedRow(rows, id) };
+      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitor.visitorHash})
+      on conflict (id) do nothing
+    `;
+    const select = this.sql`
+      select revision::text as revision from designs
+      where id = ${id} and visitor_hash = ${visitor.visitorHash}
+    `;
+    if (visitor.kind === "fresh") return [insert, select];
+    return [
+      this.sql`
+        update designs set visitor_hash = ${visitor.visitorHash}
+        where visitor_hash = ${visitor.fromVisitorHash}
+      `,
+      insert,
+      select,
+    ];
   }
 
   /**
@@ -205,10 +333,14 @@ export class NeonConfigurationRepository
    * guard means no stored hash is empty and `NULL = ''` is NULL; the revision is compared as text
    * for the same reason, so no caller-supplied string can raise a cast error out of this statement.
    */
-  async saveAuthorized(save: AuthorizedSave): Promise<DesignVersion> {
+  async saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome> {
     const outcome = await this.updateIfCurrent(save);
     if (outcome.revision !== null)
-      return { id: save.id, revision: outcome.revision };
+      return {
+        id: save.id,
+        revision: outcome.revision,
+        ownsVisitor: outcome.owns_visitor,
+      };
     // Order matters: a conflict is only ever reported to a caller whose credential matched, so the
     // 409 this becomes cannot tell anyone else that a design exists.
     if (outcome.is_authorised) throw new DesignWriteConflictError(save.id);
@@ -236,7 +368,14 @@ export class NeonConfigurationRepository
     design,
     writeTokenHash,
     expectedRevision,
+    requestVisitor,
   }: AuthorizedSave): Promise<ConditionalUpdateRow> {
+    // `null` for "absent" is safe here and nowhere else in this file: it never reaches a stored
+    // column, only the right-hand side of the `coalesce(... , false)` comparison below, where
+    // Postgres's `= null` already answers "no" for every row — including one whose own
+    // `visitor_hash` is null (D4's untouched-column case would otherwise be ambiguous).
+    const requestVisitorHash =
+      requestVisitor.kind === "present" ? requestVisitor.visitorHash : null;
     const rows = (await retryOnComputeRestart(
       () => this.sql`
       with authorised as (
@@ -249,11 +388,12 @@ export class NeonConfigurationRepository
         where id = ${id}
           and write_token_hash = ${writeTokenHash}
           and revision::text = ${expectedRevision}
-        returning revision
+        returning revision, visitor_hash
       )
       select
         exists (select 1 from authorised) as is_authorised,
-        (select revision::text from updated) as revision
+        (select revision::text from updated) as revision,
+        coalesce((select visitor_hash from updated) = ${requestVisitorHash}, false) as owns_visitor
     `,
     )) as ConditionalUpdateRow[];
 
@@ -266,8 +406,14 @@ export class NeonConfigurationRepository
     return outcome;
   }
 
-  /** Reading needs no credential: a shared link stays open to anyone holding it, which is the
-   *  whole point of splitting read from write (ADR 0019 decision 1). */
+  /**
+   * The **ungated** read: any id, no credential. Since ADR 0114 Amendment H2 (M7 wave 7E3b) no
+   * production caller reads through this method any more — `GET /api/designs/{id}` and
+   * `/[locale]/d/{id}` both read through `loadOwned`, and `/s/{token}` reads through
+   * `ShareLinkRepository.loadShared`, neither of which names an id to the caller. `load` stays on
+   * this class only because the persistence package's own live suites need an unfiltered read to
+   * assert against the raw row.
+   */
   async load(id: DesignId): Promise<StoredDesign> {
     const rows = (await retryOnComputeRestart(
       () => this.sql`
@@ -280,6 +426,38 @@ export class NeonConfigurationRepository
     if (!row) throw new DesignNotFoundError(id);
 
     return {
+      design: migrateDesign(row.schema_version, row.document),
+      revision: row.revision,
+    };
+  }
+
+  /**
+   * The gated read (ADR 0114 Amendment H2): `id` **and** `visitorHash` in one predicate, so a
+   * foreign row, a pre-`0005` row (`visitor_hash is null`) and a missing row are one outcome —
+   * `"none"` — of one statement. `migrateDesign` runs only when a row actually matched, which is
+   * what keeps a stranger from ever triggering `InvalidDesignError` for a document they cannot
+   * read.
+   *
+   * No `requireSha256Digest` here, for `resumeVisitor`'s own reason: a malformed `visitorHash`
+   * simply matches no row, because `0005`'s check constraint admits nothing else, so there is no
+   * unsafe shape for this SELECT to guard against.
+   */
+  async loadOwned({
+    id,
+    visitorHash,
+  }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
+    const rows = (await retryOnComputeRestart(
+      () => this.sql`
+      select schema_version, document, revision::text as revision
+      from designs where id = ${id} and visitor_hash = ${visitorHash}
+    `,
+    )) as DesignRow[];
+
+    const row = rows[0];
+    if (!row) return { kind: "none" };
+
+    return {
+      kind: "found",
       design: migrateDesign(row.schema_version, row.document),
       revision: row.revision,
     };
@@ -304,10 +482,23 @@ export class NeonConfigurationRepository
   }
 }
 
-/** The revision an `insert ... returning` must have produced. A missing row here is not a domain
- *  failure a caller can act on — the insert either raised or produced exactly one row — so it is
- *  reported as the impossibility it is rather than defaulted to a first revision this file would
- *  then be the second place to decide. */
+/** `mintStatements`'s guard: `requireSha256Digest` covers every hash a mint is about to store,
+ *  whichever branch of `MintVisitor` supplied it (ADR 0114 Amendment H1's port note). */
+function requireVisitorDigests(visitor: MintVisitor): void {
+  requireSha256Digest(visitor.visitorHash, "visitor hash", "mint a design");
+  if (visitor.kind === "rotate")
+    requireSha256Digest(
+      visitor.fromVisitorHash,
+      "visitor hash",
+      "mint a design",
+    );
+}
+
+/** The revision `mintStatements`'s final `select` must have found. A missing row here is not a
+ *  domain failure a caller can act on — the insert this attempt or an earlier retried one made
+ *  either raised or produced exactly one row the select can see — so it is reported as the
+ *  impossibility it is rather than defaulted to a first revision this file would then be the second
+ *  place to decide. */
 function revisionOfMintedRow(
   rows: readonly { revision: DesignRevision }[],
   id: DesignId,
@@ -315,7 +506,7 @@ function revisionOfMintedRow(
   const revision = rows[0]?.revision;
   if (revision === undefined)
     throw new Error(
-      `Minting design "${id}" inserted a row but returned no revision for it.`,
+      `Minting design "${id}" found no row for it at the value it was minted under.`,
     );
   return revision;
 }

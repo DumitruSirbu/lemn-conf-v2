@@ -70,7 +70,7 @@ describe(SUITE_NAME, () => {
     const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
       design: KITCHEN_L_DESIGN,
       writeTokenHash: hash,
-      visitorHash: VISITOR_HASH,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
     });
     mintedIds.push(id);
     return id;
@@ -209,8 +209,9 @@ describe(SUITE_NAME, () => {
           // A restored row carries whatever revision the dump held; this suite restores rows the
           // export wrote before the column existed, so the migration's backfill is the revision.
           expectedRevision: "1",
+          requestVisitor: { kind: "absent" },
         }),
-      ).resolves.toEqual({ id, revision: "2" });
+      ).resolves.toEqual({ id, revision: "2", ownsVisitor: false });
     },
   );
 });

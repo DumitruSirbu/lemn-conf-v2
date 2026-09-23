@@ -422,9 +422,14 @@ describe("the NeonDbError shape the retryable marker is read out of", () => {
 /**
  * The one call site where a retry could turn a lost acknowledgement into two rows for a single
  * customer action, and the thing that prevents it is a line's *position*: `mint` calls
- * `generateDesignId()` outside the retried callback, so every attempt carries the same primary key
- * and a repeat of a write that actually landed takes a duplicate-key rejection instead of minting a
- * second design.
+ * `generateDesignId()` outside the retried callback, so every attempt carries the same primary key.
+ *
+ * **Since ADR 0114 Amendment H1 ("Rotate on mint", M7 wave 7E3b) `mint` submits its statements as
+ * one `sql.transaction([...])`, never a single insert, and the insert itself takes
+ * `on conflict (id) do nothing`.** A repeat of a write that already landed therefore inserts
+ * nothing and the closing `select` still finds the row — silently, not as a duplicate-key
+ * rejection the way a plain `insert ... returning` once surfaced it. That is this file's own
+ * retry-safety claim, updated rather than merely re-pointed: see the third test below.
  *
  * That placement is invisible to every other test in this file — move the call inside the callback
  * and they all still pass — so it is asserted here against the real repository, driven through a
@@ -433,24 +438,36 @@ describe("the NeonDbError shape the retryable marker is read out of", () => {
  * idempotent *under identical arguments*, so identical arguments is the property to pin.
  */
 describe("mint under a compute restart", () => {
-  /** The body `@neondatabase/serverless` POSTs for a single query. */
-  interface NeonHttpRequest {
-    query: string;
-    params: unknown[];
+  /** The wire shape `@neondatabase/serverless` POSTs for `sql.transaction([...])` — one request
+   *  carrying every statement `mint` submits, never one request per statement. */
+  interface NeonHttpTransactionRequest {
+    queries: { query: string; params: unknown[] }[];
   }
 
-  /** The `id` is the first interpolation in `mint`'s insert. */
+  /** The `id` is the first interpolation in both the insert and the closing select. */
   const ID_PARAMETER = 0;
 
   const WRITE_TOKEN_HASH = "a".repeat(64);
 
-  /** This file is about the retry mechanics, not visitor identity, so every mint needs one
-   *  well-formed visitor hash and nothing more. */
+  /** This file is about the retry mechanics, not visitor identity, so every mint below is a fresh
+   *  one, well-formed and nothing more — which means no rotation `update` precedes the insert
+   *  (Amendment H1), and the insert is the transaction's first query. */
   const VISITOR_HASH = "b".repeat(64);
 
-  /** One row carrying `revision::text as revision`, in the array-mode shape the driver asks for. */
-  const MINTED_ROW_BODY = JSON.stringify({
+  /** The insert's own result. No `returning` clause since Amendment H1 — a repeat past a lost
+   *  acknowledgement must not raise — so an empty row set is the honest shape whether or not this
+   *  attempt is the one that actually inserted anything. */
+  const INSERT_RESULT = {
     command: "INSERT",
+    rowCount: 1,
+    fields: [],
+    rows: [],
+  };
+
+  /** The closing select's result: one row carrying `revision::text as revision`, in the array-mode
+   *  shape the driver asks for. */
+  const SELECT_RESULT = {
+    command: "SELECT",
     rowCount: 1,
     fields: [
       {
@@ -464,6 +481,12 @@ describe("mint under a compute restart", () => {
       },
     ],
     rows: [["1"]],
+  };
+
+  /** The whole transaction's response body: `sql.transaction` reads back `results`, one entry per
+   *  submitted query, in the order they were submitted. */
+  const MINT_TRANSACTION_BODY = JSON.stringify({
+    results: [INSERT_RESULT, SELECT_RESULT],
   });
 
   let previousFetchFunction: unknown;
@@ -481,10 +504,10 @@ describe("mint under a compute restart", () => {
   /** Answers each request in turn, and hands back the list of requests as it fills up. */
   function answerInTurn(
     answers: { status: number; body: string }[],
-  ): NeonHttpRequest[] {
-    const requests: NeonHttpRequest[] = [];
+  ): NeonHttpTransactionRequest[] {
+    const requests: NeonHttpTransactionRequest[] = [];
     neonConfig.fetchFunction = (_url: string, init: { body: string }) => {
-      requests.push(JSON.parse(init.body) as NeonHttpRequest);
+      requests.push(JSON.parse(init.body) as NeonHttpTransactionRequest);
       const answer = answers.shift();
       if (!answer)
         throw new Error(
@@ -498,23 +521,31 @@ describe("mint under a compute restart", () => {
     return requests;
   }
 
+  function mintFresh(
+    repository: NeonConfigurationRepository,
+  ): ReturnType<NeonConfigurationRepository["mint"]> {
+    return repository.mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: WRITE_TOKEN_HASH,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+    });
+  }
+
   it("re-sends the insert with the same id, so a lost acknowledgement cannot mint twice", async () => {
     const requests = answerInTurn([
       { status: 500, body: JSON.stringify(COLD_START_PAYLOAD) },
-      { status: 200, body: MINTED_ROW_BODY },
+      { status: 200, body: MINT_TRANSACTION_BODY },
     ]);
     const repository = new NeonConfigurationRepository(TEST_CONNECTION_STRING);
 
-    const minting = repository.mint({
-      design: KITCHEN_L_DESIGN,
-      writeTokenHash: WRITE_TOKEN_HASH,
-      visitorHash: VISITOR_HASH,
-    });
+    const minting = mintFresh(repository);
     await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
     const minted = await minting;
 
     expect(requests).toHaveLength(2);
-    const [firstInsert, retriedInsert] = requests;
+    const [firstAttempt, retriedAttempt] = requests;
+    const firstInsert = firstAttempt?.queries[0];
+    const retriedInsert = retriedAttempt?.queries[0];
     expect(retriedInsert?.params[ID_PARAMETER]).toBe(
       firstInsert?.params[ID_PARAMETER],
     );
@@ -523,53 +554,39 @@ describe("mint under a compute restart", () => {
     expect(firstInsert?.params[ID_PARAMETER]).toBe(minted.id);
   });
 
-  it("re-sends the insert with every argument identical, not only the id", async () => {
+  it("re-sends every statement identical, not only the id", async () => {
     const requests = answerInTurn([
       { status: 500, body: JSON.stringify(COLD_START_PAYLOAD) },
-      { status: 200, body: MINTED_ROW_BODY },
+      { status: 200, body: MINT_TRANSACTION_BODY },
     ]);
     const repository = new NeonConfigurationRepository(TEST_CONNECTION_STRING);
 
-    const minting = repository.mint({
-      design: KITCHEN_L_DESIGN,
-      writeTokenHash: WRITE_TOKEN_HASH,
-      visitorHash: VISITOR_HASH,
-    });
+    const minting = mintFresh(repository);
     await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
     await minting;
 
-    const [firstInsert, retriedInsert] = requests;
-    expect(retriedInsert?.query).toBe(firstInsert?.query);
-    expect(retriedInsert?.params).toEqual(firstInsert?.params);
+    const [firstAttempt, retriedAttempt] = requests;
+    expect(retriedAttempt?.queries).toEqual(firstAttempt?.queries);
   });
 
-  it("propagates a duplicate-key rejection without retrying it, so a repeat cannot loop", async () => {
-    const requests = answerInTurn([
-      { status: 500, body: JSON.stringify(COLD_START_PAYLOAD) },
-      {
-        status: 400,
-        body: JSON.stringify({
-          message:
-            'duplicate key value violates unique constraint "designs_pkey"',
-          severity: "ERROR",
-          code: "23505",
-        }),
-      },
-    ]);
-    const repository = new NeonConfigurationRepository(TEST_CONNECTION_STRING);
+  it(
+    "a repeat past a lost acknowledgement resolves with the same revision, rather than raising a " +
+      "duplicate-key rejection (Amendment H1: the insert takes on conflict (id) do nothing)",
+    async () => {
+      const requests = answerInTurn([
+        { status: 500, body: JSON.stringify(COLD_START_PAYLOAD) },
+        { status: 200, body: MINT_TRANSACTION_BODY },
+      ]);
+      const repository = new NeonConfigurationRepository(
+        TEST_CONNECTION_STRING,
+      );
 
-    const thrown = rejectionOf(
-      repository.mint({
-        design: KITCHEN_L_DESIGN,
-        writeTokenHash: WRITE_TOKEN_HASH,
-        visitorHash: VISITOR_HASH,
-      }),
-    );
-    await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
+      const minting = mintFresh(repository);
+      await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
 
-    const rejection = await thrown;
-    expect(rejection).toBeInstanceOf(NeonDbError);
-    expect(rejection).toHaveProperty("code", "23505");
-    expect(requests).toHaveLength(2);
-  });
+      const minted = await minting;
+      expect(minted.revision).toBe("1");
+      expect(requests).toHaveLength(2);
+    },
+  );
 });
