@@ -1,6 +1,7 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
 import {
   reportDesignFailure,
   reportDesignRefusal,
@@ -37,34 +38,13 @@ const CROSS_SITE_MINT_REFUSED: DesignRefusal = {
  * this route ever creates, and a caller's body is ignored whether or not one was sent.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (isCrossSiteMintAttempt(request)) return crossSiteMintRefusedResponse();
+  if (isCrossSiteRequest(request)) return crossSiteMintRefusedResponse();
   try {
     return await mintDesignRow(request);
   } catch (error) {
     reportDesignFailure("mint", error);
     throw error;
   }
-}
-
-/**
- * D6 (ADR 0114 Amendment F3): a cross-site top-level form `POST` carries no `SameSite=Lax` cookie,
- * and its response — a top-level navigation — *may* still set one. An unguarded mint would replace
- * a victim's visitor identity with a fresh one on exactly that response, so this runs before either
- * cookie is read or any row is minted.
- *
- * `Sec-Fetch-Site` is the primary signal: browsers attach it to every fetch and navigation and a
- * page cannot forge or suppress it. It is trusted when present, whatever `Origin` says. Only when a
- * client sends neither header at all — old browsers, or a non-browser caller — does a foreign
- * `Origin` alone trigger the refusal; neither header present is accepted, which is what keeps every
- * existing same-origin caller (Step 1's `fetch`, the e2e fixture) unaffected.
- */
-function isCrossSiteMintAttempt(request: NextRequest): boolean {
-  const secFetchSite = request.headers.get("sec-fetch-site");
-  if (secFetchSite !== null) return secFetchSite !== "same-origin";
-
-  const origin = request.headers.get("origin");
-  if (origin === null) return false;
-  return origin !== request.nextUrl.origin;
 }
 
 function crossSiteMintRefusedResponse(): NextResponse {

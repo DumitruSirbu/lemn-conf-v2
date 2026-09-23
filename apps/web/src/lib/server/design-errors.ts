@@ -2,6 +2,7 @@ import {
   DesignNotFoundError,
   InvalidDesignError,
 } from "@lemnaria/configurator-domain";
+import type { DesignId } from "@lemnaria/configurator-domain";
 import {
   DesignWriteConflictError,
   DesignWriteForbiddenError,
@@ -83,13 +84,28 @@ export function designErrorResponse(
     return writeConflictResponse();
   }
   if (error instanceof DesignNotFoundError) {
-    return NextResponse.json({ error: error.message }, { status: 404 });
+    return notFoundResponseForMessage(error.message);
   }
   if (error instanceof InvalidDesignError) {
     return designUnreadableResponse(operation, error);
   }
   reportDesignFailure(operation, error);
   throw error;
+}
+
+/**
+ * The one refusal every missing-credential and unknown-id path answers with (M7 wave 7E3c D4):
+ * `GET /api/designs/{unknown}`'s own 404, extracted so the share route's refusal is provably
+ * byte-identical to it rather than merely written to look the same. Constructs `DesignNotFoundError`
+ * for its message alone — the same class `designErrorResponse`'s own branch above now goes through
+ * — so the two can never drift apart.
+ */
+export function designNotFoundResponse(id: DesignId): NextResponse {
+  return notFoundResponseForMessage(new DesignNotFoundError(id).message);
+}
+
+function notFoundResponseForMessage(message: string): NextResponse {
+  return NextResponse.json({ error: message }, { status: 404 });
 }
 
 /**

@@ -43,8 +43,23 @@ import { boundedFailureReason } from "@lemnaria/configurator-domain";
  *  **`resume`, since M7 wave 7E3a S3**, is the visitor-hash lookup `/[locale]` and
  *  `/[locale]/configurator/configure` run before either answers. D3 requires exactly one line here,
  *  on a driver failure only, carrying no value, hash or id — `reportDesignFailure`'s own fields
- *  already exclude all three structurally, the same guarantee `mint`'s failures rely on. */
-export type DesignOperation = "load" | "mint" | "resume" | "save";
+ *  already exclude all three structurally, the same guarantee `mint`'s failures rely on.
+ *
+ *  **`share-issue`, `share-revoke` and `share-status`, since M7 wave 7E3c S3b**, are
+ *  `api/designs/[id]/share/route.ts`'s three methods — named for what they authorise, not for the
+ *  HTTP verb, the same choice `mint`/`save` already make. **`share-read`**, added here for S4's own
+ *  use, is the share view's read of an already-issued link; criterion 15 requires its line to carry
+ *  no id, unlike every other operation's driver-failure line, which is why it is named apart from
+ *  `load` despite reading the same table. */
+export type DesignOperation =
+  | "load"
+  | "mint"
+  | "resume"
+  | "save"
+  | "share-issue"
+  | "share-revoke"
+  | "share-status"
+  | "share-read";
 
 /** A refusal, as the server sees it. `code` is a log-only label for the 403, whose *response*
  *  deliberately carries no code at all: one answer for every write refusal is what stops the route
