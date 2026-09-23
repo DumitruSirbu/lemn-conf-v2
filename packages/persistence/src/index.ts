@@ -17,6 +17,8 @@ export type {
   DesignVersion,
   MintDesign,
   StoredDesign,
+  VisitorResumeLookup,
+  VisitorResumeRepository,
 } from "./neon-configuration-repository.js";
 export { isDesignRevision } from "./design-revision.js";
 export type { DesignRevision } from "./design-revision.js";

@@ -114,11 +114,37 @@ export interface AuthorizedConfigurationRepository {
   load(id: DesignId): Promise<StoredDesign>;
 }
 
+/** What `resumeVisitor` answers — tagged rather than `DesignId | null`, so a caller cannot forget
+ *  to check which one it got (the same reasoning `ReadDesignOutcome`-shaped types use elsewhere in
+ *  this codebase). Never a driver error: a lookup that fails to run is a rejected promise, not a
+ *  third member here. */
+export type VisitorResumeLookup =
+  | { readonly kind: "found"; readonly id: DesignId }
+  | { readonly kind: "none" };
+
+/**
+ * A second, narrower port beside `AuthorizedConfigurationRepository` — deliberately not a fourth
+ * method on it (M7 wave 7E3a D3). Resume is neither the open read nor the authorised write ADR 0019
+ * decision 1 splits that interface into: it takes a visitor hash instead of a design id or a write
+ * credential, and it is the only place with the shape "starting from a hash, learn an id". Folding
+ * it into `AuthorizedConfigurationRepository` would force every existing test double for mint/save/
+ * load — about 16 of them — to also fake a lookup their own tests never exercise.
+ */
+export interface VisitorResumeRepository {
+  /** D3's query: the visitor's most recently updated design, or none. `visitorHash` is expected
+   *  already hashed and well-formed — this method runs the query as given and trusts the caller's
+   *  shape check, the same division of labour `saveAuthorized` draws with its own credential (no
+   *  `requireSha256Digest` here): a malformed value simply matches no row, because the column's own
+   *  check constraint (`0005`) admits nothing else, so there is no unsafe shape for this SELECT to
+   *  guard against. */
+  resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup>;
+}
+
 /** `AuthorizedConfigurationRepository` backed by Neon Postgres. Every query uses
  *  `@neondatabase/serverless`'s tagged-template `sql`, which parameterises interpolated values by
  *  construction — no query in this file concatenates a value into SQL text. */
 export class NeonConfigurationRepository
-  implements AuthorizedConfigurationRepository
+  implements AuthorizedConfigurationRepository, VisitorResumeRepository
 {
   private readonly sql;
 
@@ -259,6 +285,24 @@ export class NeonConfigurationRepository
       design: migrateDesign(row.schema_version, row.document),
       revision: row.revision,
     };
+  }
+
+  /** D3's resume query, unchanged from the plan: ordered by `updated_at desc, id desc` so the tie
+   *  break is deterministic, and answered by `designs_visitor_hash_updated_at_idx` (`0005`) rather
+   *  than a scan — the index carries exactly these three columns in this order, in a partial index
+   *  that already excludes the rows this query could never match (`visitor_hash is not null`). */
+  async resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup> {
+    const rows = (await retryOnComputeRestart(
+      () => this.sql`
+      select id from designs
+      where visitor_hash = ${visitorHash}
+      order by updated_at desc, id desc
+      limit 1
+    `,
+    )) as { id: DesignId }[];
+
+    const row = rows[0];
+    return row === undefined ? { kind: "none" } : { kind: "found", id: row.id };
   }
 }
 

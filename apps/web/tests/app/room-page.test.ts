@@ -20,9 +20,9 @@ const roomPageSource = readFileSync(
   new URL("../../src/app/[locale]/configurator/room/page.tsx", import.meta.url),
   "utf8",
 );
-const configurePageSource = readFileSync(
+const configureRouteSource = readFileSync(
   new URL(
-    "../../src/app/[locale]/configurator/configure/page.tsx",
+    "../../src/app/[locale]/configurator/configure/route.ts",
     import.meta.url,
   ),
   "utf8",
@@ -87,12 +87,15 @@ describe("localized room route placeholder", () => {
     );
   });
 
-  it("leaves the editor route in place and points both readiness probes off configure", () => {
-    expect(configurePageSource).toContain(
+  it("no longer renders the editor at /configure, and points both readiness probes off it", () => {
+    // Inverted since M7 wave 7E3a S3 (D7): the page that rendered `ConfigureScreen` is gone,
+    // replaced by a Route Handler that only resumes. `<ConfigureScreen` now appears solely in
+    // `hydrate-and-configure.tsx` (D8's close-out grep).
+    expect(configureRouteSource).not.toContain(
       'import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";',
     );
-    expect(configurePageSource).toContain("<ConfigureScreen");
-    expect(configurePageSource).not.toContain("configurator/room");
+    expect(configureRouteSource).not.toContain("<ConfigureScreen");
+    expect(configureRouteSource).not.toContain("app/configurator/configure");
 
     // Wave 7E4 D4: neither the e2e server's readiness poll nor the fidelity script's still names
     // `/configurator/configure` — the editor route retires as a poll target even though its source

@@ -114,12 +114,37 @@ export function clearVisitorCookie(response: NextResponse): void {
   });
 }
 
+/**
+ * D3: what a resume route read from the cookie, before it decides anything. Three states rather
+ * than two, and the distinction is load-bearing for D4 — `absent` never clears (there is nothing to
+ * clear and no query is issued), while `malformed` clears *and* issues no query. Collapsing the two
+ * the way `resolveVisitorForMint` does for its own purposes would clear a cookie that was never
+ * there.
+ */
+export type CarriedVisitorCookie =
+  | { readonly kind: "absent" }
+  | { readonly kind: "malformed" }
+  | { readonly kind: "well-formed"; readonly hash: string };
+
+/** Reads and shape-checks the cookie for a resume route — never sets or clears anything, exactly
+ *  like `resolveVisitorForMint`, so D6-style ordering (decide first, mutate second) stays possible
+ *  here too even though nothing currently needs it. */
+export function readVisitorCookieForResume(
+  cookies: VisitorCookieReader,
+): CarriedVisitorCookie {
+  const carried = readVisitorValue(cookies);
+  if (carried === undefined) return { kind: "absent" };
+  if (!WELL_FORMED_VISITOR_VALUE.test(carried)) return { kind: "malformed" };
+  return { kind: "well-formed", hash: hashVisitor(carried) };
+}
+
 /** SHA-256, hex, over the UTF-8 cookie value — the row's `visitor_hash`. Not shared with
  *  `write-token.ts`'s own digest: the two exist for the same reason (a 256-bit secret needs no slow
  *  KDF) but hashing two different secrets, and a shared helper would be a third use short of the
  *  rule this codebase applies before extracting one. Kept private, like `write-token.ts`'s own
- *  `hashWriteToken`: every caller needs the hash of a value this module already resolved, never an
- *  arbitrary one, so `resolveVisitorForMint`'s return is the only way out of this file. */
+ *  `hashWriteToken`: both of this module's own callers already have a value they resolved
+ *  themselves (`resolveVisitorForMint`'s return, `readVisitorCookieForResume`'s shape check), so
+ *  nothing outside this file has ever needed to hash an arbitrary string. */
 function hashVisitor(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }

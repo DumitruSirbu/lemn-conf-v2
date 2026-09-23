@@ -668,6 +668,86 @@ describe("saveAuthorized revisions (WEB-003)", () => {
   );
 });
 
+/** M7 wave 7E3a S3, D3: the resume query, run for real rather than only against a repository
+ *  double — the double cannot prove the ordering, the isolation, or that `0005`'s index is even the
+ *  right shape for the columns this file's own SQL names. */
+describe("resumeVisitor (D3)", () => {
+  const mintedIds: DesignId[] = [];
+
+  function testRepository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  async function mintWithVisitor(visitorHash: string): Promise<DesignId> {
+    const { id } = await testRepository().mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: CORRECT_TOKEN_HASH,
+      visitorHash,
+    });
+    mintedIds.push(id);
+    return id;
+  }
+
+  async function setUpdatedAt(id: DesignId, hoursAgo: number): Promise<void> {
+    await neon(testDatabaseUrl)`
+      update designs set updated_at = now() - (${hoursAgo} * interval '1 hour')
+      where id = ${id}
+    `;
+  }
+
+  beforeAll(async () => {
+    if (hasLiveDatabase) await runMigrations(testDatabaseUrl);
+  });
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers none for a hash no row carries",
+    async () => {
+      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+
+      expect(lookup).toEqual({ kind: "none" });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers the visitor's most recently updated design, not the oldest",
+    async () => {
+      const olderId = await mintWithVisitor(VISITOR_HASH);
+      await setUpdatedAt(olderId, 2);
+      const newerId = await mintWithVisitor(VISITOR_HASH);
+      await setUpdatedAt(newerId, 1);
+
+      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+
+      expect(lookup).toEqual({ kind: "found", id: newerId });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "never returns another visitor's design, or one whose hash is null",
+    async () => {
+      const otherVisitorHash = "9".repeat(64);
+      await mintWithVisitor(otherVisitorHash);
+      const nullHashId = await mintWithVisitor(VISITOR_HASH);
+      // A pre-0005 row, simulated: minted with a hash, then nulled out directly, since `mint` has
+      // no way left to create one.
+      await neon(testDatabaseUrl)`
+        update designs set visitor_hash = null where id = ${nullHashId}
+      `;
+      const mineId = await mintWithVisitor(VISITOR_HASH);
+
+      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+
+      expect(lookup).toEqual({ kind: "found", id: mineId });
+    },
+  );
+});
+
 describe("the design-revision migration (WEB-003)", () => {
   beforeAll(async () => {
     if (hasLiveDatabase) await runMigrations(testDatabaseUrl);

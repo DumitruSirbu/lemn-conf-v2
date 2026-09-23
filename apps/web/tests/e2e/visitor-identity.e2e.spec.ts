@@ -9,12 +9,10 @@ import { mintSeededDesign } from "./support/seeded-design";
  * "over a real browser" means here — no `context.addCookies` is used, because whether a *planted*
  * `__Host-` cookie is accepted is not the question this file answers.
  *
- * **Scope, as of M7 wave 7E3a S2.** §4 has four steps; only the first two are true yet. Step 3 —
- * `page.goto("/ro")` ending on `/ro/d/{id}` — needs the resume routes S3 builds; `/[locale]` still
- * redirects unconditionally to room until then, so asserting step 3 here would either fail or (if
- * mis-written) accidentally pass for the old, unrelated reason. Step 4 is a QA sabotage run, not an
- * automated assertion (the plan describes it as a manual positive control performed once during
- * adversarial QA). This file gains step 3 as its own test the moment S3 lands `/[locale]/route.ts`.
+ * §4 has four steps; steps 1-3 are asserted below (since M7 wave 7E3a S3, which lands
+ * `/[locale]/route.ts`). Step 4 is a QA sabotage run, not an automated assertion — the plan
+ * describes it as a manual positive control performed once during adversarial QA, and
+ * `configure-route.e2e.spec.ts` carries the rest of the resume matrix this step 3 is one row of.
  */
 
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
@@ -50,6 +48,18 @@ test("mints exactly one __Host- visitor cookie with the required attributes, ove
     expect(
       Math.abs(secondsUntilExpiry - EXPECTED_MAX_AGE_SECONDS),
     ).toBeLessThanOrEqual(MAX_AGE_TOLERANCE_SECONDS);
+
+    // Step 3: the browser sent the cookie **back** over http — proof of transmission, not only of
+    // storage — and the resume route used it to find this exact design.
+    const navigation = await page.goto("/ro");
+    if (navigation === null) throw new Error("Navigation returned no response");
+    expect(new URL(page.url()).pathname).toBe(`/ro/d/${design.id}`);
+
+    const redirectedFrom = navigation.request().redirectedFrom();
+    if (redirectedFrom === null) {
+      throw new Error("Expected /ro to have redirected at least once");
+    }
+    expect((await redirectedFrom.response())?.status()).toBe(307);
   } finally {
     await deleteMintedDesigns([design.id]);
   }

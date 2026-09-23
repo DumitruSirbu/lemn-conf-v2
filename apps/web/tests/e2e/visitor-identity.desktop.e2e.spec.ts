@@ -14,8 +14,8 @@ import { mintSeededDesign } from "./support/seeded-design";
  * mobile one does not is that the *other* project's browser instance, launched from its own
  * `webServer`, receives the same `Set-Cookie` over the same `http://localhost`.
  *
- * See the mobile file for what is deliberately not asserted yet (§4 step 3, which needs S3's resume
- * routes) and why.
+ * Since M7 wave 7E3a S3, step 3 (the resume redirect) is asserted here too — it is exactly as
+ * viewport-independent as steps 1-2.
  */
 
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
@@ -47,6 +47,16 @@ test("mints exactly one __Host- visitor cookie with the required attributes, ove
     expect(
       Math.abs(secondsUntilExpiry - EXPECTED_MAX_AGE_SECONDS),
     ).toBeLessThanOrEqual(MAX_AGE_TOLERANCE_SECONDS);
+
+    const navigation = await page.goto("/ro");
+    if (navigation === null) throw new Error("Navigation returned no response");
+    expect(new URL(page.url()).pathname).toBe(`/ro/d/${design.id}`);
+
+    const redirectedFrom = navigation.request().redirectedFrom();
+    if (redirectedFrom === null) {
+      throw new Error("Expected /ro to have redirected at least once");
+    }
+    expect((await redirectedFrom.response())?.status()).toBe(307);
   } finally {
     await deleteMintedDesigns([design.id]);
   }

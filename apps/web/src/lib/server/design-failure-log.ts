@@ -33,14 +33,18 @@
 
 import { boundedFailureReason } from "@lemnaria/configurator-domain";
 
-/** Which handler the line came from. Three, because the route family has three: the creation of a
- *  row, an open read, and an authorised write. It is not the HTTP method — `PUT` and `PATCH` are one
+/** Which handler the line came from. It is not the HTTP method — `PUT` and `PATCH` are one
  *  operation here, and `POST /api/designs` is `mint` rather than a second `save`.
  *
  *  **`mint` is the operation the 2026-09-07 outage was failing on**, and until wave W4 it was the one
  *  handler with no `try`/`catch` at all: a driver failure there reached the platform as a digest and
- *  nothing else, which is the exact blindness this module exists to remove (ADR 0096, Consequences). */
-export type DesignOperation = "load" | "mint" | "save";
+ *  nothing else, which is the exact blindness this module exists to remove (ADR 0096, Consequences).
+ *
+ *  **`resume`, since M7 wave 7E3a S3**, is the visitor-hash lookup `/[locale]` and
+ *  `/[locale]/configurator/configure` run before either answers. D3 requires exactly one line here,
+ *  on a driver failure only, carrying no value, hash or id — `reportDesignFailure`'s own fields
+ *  already exclude all three structurally, the same guarantee `mint`'s failures rely on. */
+export type DesignOperation = "load" | "mint" | "resume" | "save";
 
 /** A refusal, as the server sees it. `code` is a log-only label for the 403, whose *response*
  *  deliberately carries no code at all: one answer for every write refusal is what stops the route
