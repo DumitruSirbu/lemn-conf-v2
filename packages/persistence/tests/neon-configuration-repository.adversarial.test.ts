@@ -740,3 +740,195 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
     },
   );
 });
+
+// M7 wave 7E3a adversarial QA: D2's guard on `mint`, D3's ordering at its edges (a tie, created vs
+// updated, a save jumping ahead) and hostile hash shapes presented to the lookup. Here, not in a new
+// file, because a new live file would have to register a lock mode and move ADR 0128's census.
+describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, live", () => {
+  const QA_VISITOR = "7e3a".repeat(16);
+  const created: DesignId[] = [];
+
+  function repository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  async function mintFor(visitorHash: string): Promise<DesignId> {
+    const { id } = await repository().mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: CORRECT_TOKEN_HASH,
+      visitorHash,
+    });
+    created.push(id);
+    return id;
+  }
+
+  async function insertWithTimes(
+    id: string,
+    {
+      createdHoursAgo,
+      updatedHoursAgo,
+    }: { createdHoursAgo: number; updatedHoursAgo: number },
+  ): Promise<void> {
+    created.push(id);
+    await neon(testDatabaseUrl)`
+      insert into designs (id, schema_version, document, created_at, updated_at, visitor_hash)
+      values (${id}, 1, ${KITCHEN_L_DESIGN},
+              now() - (${createdHoursAgo} * interval '1 hour'),
+              now() - (${updatedHoursAgo} * interval '1 hour'),
+              ${QA_VISITOR})
+    `;
+  }
+
+  beforeAll(async () => {
+    if (hasLiveDatabase) await runMigrations(testDatabaseUrl);
+  });
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || created.length === 0) return;
+    const ids = created.splice(0, created.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "mint refuses every malformed visitor hash, inserts nothing, and names no value in its error",
+    async () => {
+      const sql = neon(testDatabaseUrl);
+      const hostile = [
+        "",
+        " ",
+        QA_VISITOR.toUpperCase(),
+        QA_VISITOR.slice(1),
+        `${QA_VISITOR} `,
+      ];
+      const [{ n: before } = { n: -1 }] = (await sql`
+        select count(*)::int as n from designs
+      `) as { n: number }[];
+
+      for (const visitorHash of hostile) {
+        const attempt = repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitorHash,
+        });
+        await expect(attempt, JSON.stringify(visitorHash)).rejects.toThrow(
+          /visitor hash/,
+        );
+        const message = await attempt.catch((error: unknown) => String(error));
+        if (visitorHash.trim() !== "")
+          expect(message).not.toContain(visitorHash.trim());
+      }
+
+      const [{ n: after } = { n: -2 }] = (await sql`
+        select count(*)::int as n from designs
+      `) as { n: number }[];
+      expect(after).toBe(before);
+    },
+    30_000,
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "orders by updated_at, not created_at: a row created later but touched earlier loses",
+    async () => {
+      const stamp = String(Date.now());
+      await insertWithTimes(`qa-7e3a-created-late-${stamp}`, {
+        createdHoursAgo: 1,
+        updatedHoursAgo: 5,
+      });
+      await insertWithTimes(`qa-7e3a-touched-late-${stamp}`, {
+        createdHoursAgo: 9,
+        updatedHoursAgo: 2,
+      });
+
+      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+        kind: "found",
+        id: `qa-7e3a-touched-late-${stamp}`,
+      });
+    },
+    30_000,
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "breaks an exact updated_at tie by id, descending",
+    async () => {
+      const stamp = String(Date.now());
+      const sql = neon(testDatabaseUrl);
+      const ids = [
+        `qa-7e3a-tie-a-${stamp}`,
+        `qa-7e3a-tie-b-${stamp}`,
+        `qa-7e3a-tie-c-${stamp}`,
+      ];
+      created.push(...ids);
+      await sql`
+        insert into designs (id, schema_version, document, updated_at, visitor_hash)
+        select i, 1, ${KITCHEN_L_DESIGN}, timestamptz '2026-09-23 12:00:00+00', ${QA_VISITOR}
+        from unnest(${ids}::text[]) as i
+      `;
+
+      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+        kind: "found",
+        id: `qa-7e3a-tie-c-${stamp}`,
+      });
+    },
+    30_000,
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "a save moves the saved design ahead, and leaves its visitor_hash untouched (D9)",
+    async () => {
+      const first = await mintFor(QA_VISITOR);
+      const second = await mintFor(QA_VISITOR);
+      await neon(testDatabaseUrl)`
+        update designs set updated_at = now() - interval '1 hour' where id = ${first}
+      `;
+      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+        kind: "found",
+        id: second,
+      });
+
+      await repository().saveAuthorized({
+        id: first,
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        expectedRevision: FIRST_REVISION,
+      });
+
+      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+        kind: "found",
+        id: first,
+      });
+      const rows = (await neon(testDatabaseUrl)`
+        select visitor_hash from designs where id = ${first}
+      `) as { visitor_hash: string | null }[];
+      expect(rows[0]?.visitor_hash).toBe(QA_VISITOR);
+    },
+    30_000,
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "hostile hash shapes presented to the lookup match nothing, including NULL-hash rows",
+    async () => {
+      await mintFor(QA_VISITOR);
+      const nullId = `qa-7e3a-null-${String(Date.now())}`;
+      created.push(nullId);
+      await neon(testDatabaseUrl)`
+        insert into designs (id, schema_version, document, visitor_hash)
+        values (${nullId}, 1, ${KITCHEN_L_DESIGN}, ${null})
+      `;
+
+      for (const hostile of [
+        "",
+        " ",
+        QA_VISITOR.toUpperCase(),
+        `${QA_VISITOR} `,
+        "%",
+        "null",
+      ]) {
+        await expect(
+          repository().resumeVisitor(hostile),
+          JSON.stringify(hostile),
+        ).resolves.toEqual({ kind: "none" });
+      }
+    },
+    30_000,
+  );
+});

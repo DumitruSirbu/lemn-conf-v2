@@ -297,4 +297,33 @@ describe(SUITE_NAME, () => {
     },
     30_000,
   );
+
+  // M7 wave 7E3a adversarial QA, criterion 13's second half: a restored row is not only stored with
+  // its hash, it is *resumed* — the index-backed lookup finds it again after the loss.
+  it.skipIf(!hasLiveDatabase)(
+    "a restored row is resumed by its visitor hash (criterion 13)",
+    async () => {
+      const visitorHash = "d".repeat(63) + "1";
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken("qa-7e3a-restore-resumes"),
+        visitorHash,
+      });
+      mintedIds.push(id);
+      if (!sql) return;
+      const line = await exportedLineFor(id);
+
+      await sql`delete from designs where id = ${id}`;
+      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+        kind: "none",
+      });
+      await restoreRow(line);
+
+      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+        kind: "found",
+        id,
+      });
+    },
+    30_000,
+  );
 });
