@@ -3000,6 +3000,137 @@ row whose `visitor_hash is null`. Each case holds for both locales where a page 
 - **Five stale comments** say the read is open (D7).
 - **No blocking owner question.** The copy (D5) is approved as drafted under ADR 0113.
 
+#### 8. Addendum 2026-09-23 — slice S5: deterministic rotation (ADR 0114 Amendment H4)
+
+**Written at HEAD `9960ab5`.** S1 through S4 and the QA tests are committed.
+
+**The measured defect** [QA-reported, `next start`, 30 rounds]. Two concurrent mints from one browser
+carrying `O`. `T2`'s `UPDATE` waits on `T1`'s locks, so `T2` answers last, and its `n2` owns only
+`T2`'s design. In **29 of 30 rounds the jar kept `n2` and lost every earlier design**, including
+`T1`'s. This is R3, which the logic reviewer's L1.3 predicted. Criterion 8's third bullet held, and it
+was the wrong property.
+
+**The owner's first ruling, 2026-09-23** (chose *"HMAC rotation"*), later refined — see below:
+- A carried `O` rotates to `N = HMAC(secret, O)`. Concurrent mints therefore converge.
+- A browser with no `O` still gets a random value.
+- A client-side Web Lock was rejected as the primary fix, and may come later.
+
+**A premise of that ruling did not hold as stated, and the coordinator corrected it to the owner
+before asking again** [inference; `sec-7e3` to confirm]. The ruling reads *"fixation stays closed because `N`
+is uncomputable without the secret"*. But the server computes `N` for **anyone who presents `O`**, so
+an attacker who knows `O` asks the server for it:
+- The attacker plants `P` in the victim's browser.
+- The attacker mints from `P` in their own browser, **before or after** the victim, and receives
+  `N = HMAC(k, P)` in their own `Set-Cookie`.
+- The victim's mint from `P` lands on the same `N`.
+
+That is backlog 81 in full, one step longer. The secret stops offline derivation. It does not stop
+the server acting as an oracle.
+
+**The owner's final ruling, 2026-09-23: *"Conditional HMAC"*** (ADR 0114 H4). It keeps HMAC and adds a convergence condition. `N_det = HMAC(k, O)`, and
+the mint also holds a random `N_rand`, both generated outside the retry. The mint uses `N_det` only
+when **one** of the following holds; every other mint uses `N_rand`:
+- **(a)** `O` owned at least one row in the statement's snapshot. This covers the first rotation, and
+  the measured lock-wait race, where `T2`'s snapshot predates `T1`'s commit.
+- **(b)** Rows under `N_det` exist, and the **earliest** of those created in the last `2G` was created
+  no more than `G` ago, with `G = 10 s`. This covers a second tab whose request left before `T1`'s
+  response arrived.
+
+`G` is measured from the **first** rotation. A later join cannot extend it, because the minimum over
+the window stays pinned at `T1`'s row.
+
+**What the condition closes:**
+- **A planted `P`**, which owns nothing: it gets `N_rand` on the victim's mint and on the attacker's.
+  Closed.
+- **The attacker plants their own identity `A`**, which owns rows. The attacker reaches the victim's
+  `N` only by presenting `A` within `G` of the victim's rotation, which needs a live same-origin script
+  timing the victim's mint. That script can already read the victim's designs in-session. What it
+  gains is access **until the victim's next mint**. That residual goes to `sec-7e3`.
+
+**Unconditional HMAC was offered and rejected**, because it reopens backlog 81, leaving CSP
+enforcement (M8) as the only defence.
+
+**The secret.**
+
+| Aspect | Decision |
+| --- | --- |
+| Name | **`VISITOR_ROTATION_SECRET`** (the `CRON_SECRET` naming style) |
+| Shape | 32 bytes from a CSPRNG, base64url, exactly 43 characters. It is decoded to the HMAC key. HMAC-SHA256's input is `"lemnaria-visitor-rotation-v1\0" + O`, the label giving domain separation. The output is base64url of the 32-byte tag, which is already a well-formed visitor value. |
+| Where it is read | A new `lib/server/visitor-rotation-secret.ts` (`server-only`), read **lazily at mint**, never at module load. `next build` runs with no environment (ci.yml's `build` job, source-verified), so a boot-time read would fail the build gate. |
+| Absent or malformed | **Every** mint throws a named `VisitorRotationSecretUnavailableError` before any statement. It is logged through `reportDesignFailure("mint")`, carrying the variable's **name** and never a value or length. The result is a 500 with no cookie and no row. It is every mint, not only rotating ones, so that a misconfiguration shows on the first mint rather than selectively on returning visitors. No default and no fallback to random: a silent fallback is the defect. |
+| Tests | Vitest: `tests/support/vitest.setup.ts` sets a fixed test-only value, and the missing and malformed cases override it per test. Playwright: `playwright.config.ts`'s `webServer.env` sets a named constant, `E2E_ONLY_VISITOR_ROTATION_SECRET`, beside `SELECTION_DEBUG_FLAG`. That covers `pnpm test:e2e`, `ci:local` and both CI e2e legs, which run through that config (source-verified). **No GitHub secret is needed.** |
+| `.env.example` | Gains the key, empty, with a comment. The key name only, per the file's own rule. |
+| Changing the secret | **No visitor is locked out.** Stored hashes are of cookie values, not of the key. The next mint derives from the browser's current `O` under the new key and moves its rows. Two costs: while two keys are live across a deploy rollover, a concurrent pair may diverge; and a leaked key lets an attacker compute `N_det` offline for an **own-identity** plant, while rotating the key closes that from then on. |
+
+**Owner actions, before this branch deploys** (add-only; never `vercel env rm`; never print a value):
+(1) generate one value per environment with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`; (2) `vercel env
+add VISITOR_ROTATION_SECRET production` and `… preview`, each with its **own** value — without it
+every mint there answers 500; (3) a third value in `apps/web/.env.local` for `pnpm dev`, which writes to
+preview (ADR 0054); (4) never deploy `E2E_ONLY_VISITOR_ROTATION_SECRET`.
+
+**The chain.**
+- Across successive mints the value runs `O → N = H(O) → N' = H(N)`, each by condition (a).
+- A save carrying `O` after the rotation still answers `ownsVisitor: false` (H3, unchanged).
+- A lost-acknowledgement retry is idempotent because the final `select` reads the row by `id` and
+  `visitor_hash in (hash(N_det), hash(N_rand))`, and the route emits **whichever preimage** the stored
+  hash matches.
+- **R3's mint-versus-mint half becomes a criterion.** Its save-versus-mint half, and races spread more
+  than `G` apart, stay residual.
+
+**Slices.** The **Reading** column names the plan rows, the ADR 0114 amendments and the files the
+implementer opens.
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S5a derivation** | (1) `visitor-rotation-secret.ts`: read, shape check, named error; (2) `visitor.ts`: the mint resolves `{N_det, N_rand, fromHash}` for a well-formed `O`, and `fresh` otherwise; (3) `mintStatements`: the (a)/(b) decision in the **same statement** as the move, with the final `select` returning the stored hash; (4) the route emits the matching preimage; plus L1.6's stale prose at `neon-configuration-repository.ts:139` and `api/designs/route.ts:60`; (5) the secret in `vitest.setup.ts`, `playwright.config.ts` and `.env.example` | `visitor-rotation-secret.ts` (new), `visitor.ts`, `api/designs/route.ts`, `neon-configuration-repository.ts`, `playwright.config.ts` (+ `.env.example`; a sixth file, declared) | §8; D1–D3; ADR 0114 H1, H3, H4; `docs/best-practices/environments-and-resources.md`; `visitor.ts`, `api/designs/route.ts`, `neon-configuration-repository.ts` (`mint`, `mintStatements`, `saveAuthorized`), `retry-on-compute-restart.ts`, `cron-auth.ts` (the fail-closed precedent), `playwright.config.ts:80-110`, `tests/support/vitest.setup.ts` |
+| **S5b tests and review fixes** | (1) **L1.1:** the retry test replays the **production** `mintStatements` SQL, captured through the driver's `fetchFunction` and sent twice live, never retyped; (2) **L1.2:** the H3 race test forces rotation-first ordering and asserts `ownsVisitor === false`, replacing the vacuous `typeof` at `neon-configuration-repository.adversarial.test.ts:1580`; (3) the S5 criteria's live and e2e tests (below); (4) **L1.5, C1.1, C1.2:** `openUnavailableDesign` asserts the `unavailable` copy, composes `navigateAndAwaitDesignRouteOutcome`, and scopes its probe matcher to the design id; add the case of an owner holding a write token who opens `/s/{token}` and sees no share control; correct the stale comment at `top-bar-pill-containment.desktop:245`; (5) per-file `expect` counts quoted | — (tests only) | §8 criteria S5-1…S5-8; ADR 0114 H4, H5; the review findings L1.1, L1.2, L1.5, C1.1, C1.2; `neon-configuration-repository.adversarial.test.ts` (the rotation describe at `:1146-1240`, and `:1538-1585`), `tests/e2e/support/seeded-design.ts`, `qa-7e3b-owner-gate.adversarial.e2e.spec.ts`, `share-design.e2e.spec.ts` |
+
+- **Sequence:** S5a → **security mini-review** (`sec-7e3`: the oracle
+  argument, the window, the secret's failure mode) → S5b → QA round 2 → review round 2.
+- **Reading, QA:** §8, H4; QA's `r3.mjs`; `visitor.ts`, `visitor-rotation-secret.ts`, `api/designs/route.ts`,
+  `mintStatements`. **Logic:** §8; H1, H3, H4; the S5a diff with `mintStatements`, `saveAuthorized`.
+  **Clean-code:** §8's slice rows; `engineering-conventions.md`; the S5 diff. **Security (`sec-7e3`):**
+  §8; H1, H4; backlog 81; `environments-and-resources.md`; the S5a diff; `cron-auth.ts`.
+
+**Criteria (7E3b-S5-…)**
+1. **Convergence** (live, and e2e in the shape of QA's `r3.mjs`, ≥ 30 rounds in both projects). Two
+   concurrent in-page mints from one `O` both answer the same `N`. The jar ends holding `N`, and
+   **every** design, earlier ones and both new ones, opens in that browser. Failing a single round is
+   a failure.
+2. **Near-concurrent.** A second mint from `O` sent within `G` after the first's response joins `N`. The
+   same mint sent after `G` gets a value that opens only its own design. This is stated, not hidden.
+3. **Fixation, oracle blocked** (the positive control first).
+   - **A planted `P`:** the victim's mint and the attacker's mint, in either order, get different
+     values, and neither reads the other's designs.
+   - **The attacker's own `A`:** the attacker presents `A` more than `G` after the victim's rotation,
+     and gets no access.
+   - **Sabotage:** with the (a)/(b) condition removed, the planted-`P` case reads the victim's
+     design. This must go red.
+4. **Determinism.** Under a fixed key, the mint from `O` answers `N_det` whenever (a) holds. A different
+   key gives a different `N`, and after a key change the next mint still moves every row. Nothing is
+   stranded.
+5. **The secret.**
+   - When it is absent, empty or not 43 base64url characters, every mint answers 500, sets no cookie,
+     inserts no row and issues no statement.
+   - The log line names the variable and carries no value or length.
+   - `next build` passes with it unset.
+   - **Must not:** the secret is read at module load; the e2e constant is referenced outside
+     `playwright.config.ts` (grep); the secret or `N` appears in any log.
+6. **Retry.** The captured production statements run twice answer the same revision and the same
+   stored hash, and the route emits that hash's preimage (L1.1).
+7. **The H3 race** (L1.2). With the rotation committed first, a save carrying `O` answers `ownsVisitor:
+   false` and emits no visitor `Set-Cookie`.
+8. **Gates.** `pnpm ci:local` is green, with counts quoted against `9960ab5`'s run. No migration is
+   added (the decision reads `created_at`, which `0001` already has). No `.skip`, `.only` or `.fixme`,
+   and no raised timeout.
+
+**Risks and residuals.** S5-R1: the key is a new deploy precondition beside `0005`, `0006` and the
+grant, which `STATUS.md` lists at close-out. S5-R2: `G` is chosen at about 30 times a slow round trip
+[inference], and QA reports the measured spread. S5-R3: the save-versus-mint half of R3; a moved row
+created recently shortens (b) conservatively. S5-R4: a live same-origin script timing the victim's
+mint keeps access until the victim's next mint. S5-R5: two keys live during a rollover.
+
 **7E4 — e2e and tooling off the retired route** (lands before 7E3a)
 
 1. A Playwright fixture mints the seeded design through `POST /api/designs` and opens its `/d/{id}`;
