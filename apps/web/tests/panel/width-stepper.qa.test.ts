@@ -80,7 +80,11 @@ function worldFrom(kitchen: Kitchen) {
 
 type World = ReturnType<typeof worldFrom>;
 
-function panelAt(world: World, target: CommandTarget) {
+function panelAt(
+  world: World,
+  target: CommandTarget,
+  direction?: "left" | "right",
+) {
   const engineInput = {
     design: world.design,
     catalog: world.catalog,
@@ -90,6 +94,7 @@ function panelAt(world: World, target: CommandTarget) {
   };
   return describePanel({
     content: ro,
+    ...(direction === undefined ? {} : { direction }),
     material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
@@ -113,8 +118,12 @@ function panelAt(world: World, target: CommandTarget) {
   });
 }
 
-function stepperAt(world: World, id: string): WidthStepperSection | undefined {
-  const panel = panelAt(world, { kind: "placement", id });
+function stepperAt(
+  world: World,
+  id: string,
+  direction?: "left" | "right",
+): WidthStepperSection | undefined {
+  const panel = panelAt(world, { kind: "placement", id }, direction);
   if (panel.kind !== "open") return undefined;
   const section = panel.sections.find(
     (candidate) => candidate.kind === "width",
@@ -576,6 +585,22 @@ describe("§9's width copy describes the control that is actually there", () => 
     if (choice?.kind !== "width" || choice.control !== "choice")
       throw new Error("expected a discrete choice on p1");
     expect(choice.note).toBe(ro.panel.widthChoiceNote);
+  });
+
+  // 7I-A15 / ADR 0129 D8: a right-hand room reads the reflected sentence, and left is unmoved
+  // whether the direction is passed explicitly or the input carries none at all (D2's "absent
+  // means left", the panel's reader of it).
+  it("reads the reflected widthStepNote on a right-hand room", () => {
+    const world = worldFrom(SEEDED_KITCHEN);
+
+    const left = stepperAt(world, "p0", "left");
+    const right = stepperAt(world, "p0", "right");
+    const omitted = stepperAt(world, "p0");
+
+    expect(left?.note).toBe(ro.panel.widthStepNote);
+    expect(right?.note).toBe(ro.panel.widthStepNoteRight);
+    expect(right?.note).not.toBe(left?.note);
+    expect(omitted?.note).toBe(left?.note);
   });
 
   // ADR 0035 decision 1's labels, and the accessible name beside them. The button face says the size

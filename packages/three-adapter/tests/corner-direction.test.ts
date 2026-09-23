@@ -22,8 +22,9 @@ import { buildCatalogBody } from "../src/catalog-bodies.js";
 import { applyCornerDirection, mirroredX } from "../src/corner-direction.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { createBodyProbe } from "../src/measure-built-body.js";
+import { buildOverflowMark } from "../src/overflow-mark.js";
 import { createPickingRaycaster, pick } from "../src/picking.js";
-import { isMesh } from "../src/three-guards.js";
+import { buildSelectionOutline } from "../src/selection-outline.js";
 import {
   applyCornerDirectionToLightRig,
   cameraPresetsForRoom,
@@ -31,6 +32,7 @@ import {
   findCameraPresetForRoom,
   type Vector3Tuple,
 } from "../src/stage.js";
+import { isMesh } from "../src/three-guards.js";
 import { buildVoidMesh } from "../src/void-mesh.js";
 import {
   createHeadlessCanvas,
@@ -572,5 +574,77 @@ describe("applyCornerDirectionToLightRig", () => {
     applyCornerDirectionToLightRig(rig, "right");
 
     expect(rig.key.position.equals(afterOnce)).toBe(true);
+  });
+});
+
+// =================================================================================================
+// 7I-A14 — outline and mark follow.
+// =================================================================================================
+
+// **Not rebuilt on a direction change** (`kitchen-stage.tsx`'s outline and mark effects are keyed
+// on selection/records/voids, never on the room), so this is the scenario that actually occurs: the
+// outline/mark group is built once, against the room *before* it mirrors, and its `group.matrix` —
+// computed by `transformRelativeTo(parent, target)` — is a *local* coordinate relative to the room,
+// which the room's own transform cancels out of. Mirroring the room afterwards and re-deriving
+// `matrixWorld` (exactly what a later frame does, with no rebuild) is therefore the right thing to
+// mirror in this test, not a fresh `buildSelectionOutline`/`buildOverflowMark` call.
+describe("the selection outline and the overflow mark follow an already-mirrored room", () => {
+  let kit: Kit;
+
+  beforeAll(() => {
+    kit = makeKit({ createCanvas: createHeadlessCanvas });
+  });
+
+  function roomWithTarget(): { room: THREE.Group; target: THREE.Group } {
+    const room = new THREE.Group();
+    const target = buildCatalogBody(kit, "base-cabinet", {
+      widthM: 0.6,
+      heightM: 0.86,
+      depthM: 0.56,
+    });
+    target.position.set(1.2, 0, 0.28);
+    room.add(target);
+    room.updateWorldMatrix(true, true);
+    return { room, target };
+  }
+
+  it("mirrors the selection outline's world bounds with the room, unrebuilt", () => {
+    const { room, target } = roomWithTarget();
+    const { group } = buildSelectionOutline({
+      target,
+      parent: room,
+      kind: "placement",
+    });
+    room.add(group);
+    room.updateWorldMatrix(true, true);
+    const canonical = new THREE.Box3().setFromObject(group);
+
+    applyCornerDirection(room, "right");
+    room.updateWorldMatrix(true, true);
+    const mirrored = new THREE.Box3().setFromObject(group);
+
+    expect(mirrored.min.x).toBeCloseTo(-canonical.max.x, 9);
+    expect(mirrored.max.x).toBeCloseTo(-canonical.min.x, 9);
+    expect(mirrored.min.y).toBeCloseTo(canonical.min.y, 9);
+    expect(mirrored.max.y).toBeCloseTo(canonical.max.y, 9);
+    expect(mirrored.min.z).toBeCloseTo(canonical.min.z, 9);
+    expect(mirrored.max.z).toBeCloseTo(canonical.max.z, 9);
+  });
+
+  it("mirrors the overflow mark's world bounds with the room, unrebuilt", () => {
+    const { room, target } = roomWithTarget();
+    const { group } = buildOverflowMark({ target, parent: room });
+    room.add(group);
+    room.updateWorldMatrix(true, true);
+    const canonical = new THREE.Box3().setFromObject(group);
+
+    applyCornerDirection(room, "right");
+    room.updateWorldMatrix(true, true);
+    const mirrored = new THREE.Box3().setFromObject(group);
+
+    expect(mirrored.min.x).toBeCloseTo(-canonical.max.x, 9);
+    expect(mirrored.max.x).toBeCloseTo(-canonical.min.x, 9);
+    expect(mirrored.min.y).toBeCloseTo(canonical.min.y, 9);
+    expect(mirrored.max.y).toBeCloseTo(canonical.max.y, 9);
   });
 });

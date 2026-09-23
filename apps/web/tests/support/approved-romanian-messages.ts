@@ -310,6 +310,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     widthStepNote:
       "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre dreapta, apoi spre stânga. Când un buton este gri, sub el scrie de ce.",
+    // ADR 0129 D8, approved by ADR 0113 decision 2 in the wave that adds it: the mirrored sentence
+    // for a right-hand room, otherwise word for word.
+    widthStepNoteRight:
+      "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre stânga, apoi spre dreapta. Când un buton este gri, sub el scrie de ce.",
     widthChoiceNote:
       "Coloana e formată din lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui dulap.",
     structuralTitle: "Dulap structural",

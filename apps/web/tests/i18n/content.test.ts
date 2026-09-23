@@ -155,7 +155,7 @@ describe("the localized content resolver", () => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(121);
+      expect(leaves).toHaveLength(122);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -327,6 +327,40 @@ describe("the localized content resolver", () => {
         expect(output).not.toContain("undefined");
         expect(output).not.toContain("NaN");
       }
+    },
+  );
+
+  // ADR 0129 D8 / 7I-A15: a right-hand room shows the opposite screen word for the same domain
+  // side (G9 — the domain's "right"/"left" mean +along/−along, never a screen side), and a
+  // left-hand room's words are unchanged, whether the direction is passed explicitly or omitted.
+  it.each(CATALOGUES)(
+    "reflects the empty-space side word for a right-hand room, in %s",
+    (locale, messages) => {
+      const { content } = contentAndOracleFor(locale, messages);
+      const detailFor = (side: "left" | "right") => ({
+        code: "NO_EMPTY_SPACE" as const,
+        params: {
+          label: kindLabel("body-token"),
+          requestedMm: 650,
+          deltaMm: 50,
+          sides: [{ side, reason: "absent" as const }],
+        },
+      });
+
+      // The domain's own "right" (+along), read on a right-hand room, is the same rendered word
+      // as the domain's own "left" (−along) read on a left-hand room — the screen word crossed,
+      // never the reason.
+      expect(content.rejection(detailFor("right"), "right")).toBe(
+        content.rejection(detailFor("left"), "left"),
+      );
+      expect(content.rejection(detailFor("left"), "right")).toBe(
+        content.rejection(detailFor("right"), "left"),
+      );
+      // Left is unmoved whether the direction is passed explicitly or omitted (D2's "absent means
+      // left", restated for this reader).
+      expect(content.rejection(detailFor("right"))).toBe(
+        content.rejection(detailFor("right"), "left"),
+      );
     },
   );
 

@@ -6,6 +6,7 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   validateRoomInput,
+  type CornerDirection,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -22,12 +23,22 @@ const APPROVED_WALL_B_MM = fc.integer({ min: 1000, max: 6000 });
 const APPROVED_HEIGHT_MM = fc.integer({ min: 2200, max: 3900 });
 const SWEEP_RUNS = 1000;
 
-const APPROVED_L_ROOM = fc.record({
-  shape: fc.constant<"L">("L"),
-  widthMm: APPROVED_WALL_A_MM,
-  depthMm: APPROVED_WALL_B_MM,
-  heightMm: APPROVED_HEIGHT_MM,
-});
+// ADR 0129 D2: the right arm adds `cornerDirection`, the left arm leaves the room at its original
+// four keys — so this sweep draws both the byte-identical-left rooms G4 fixed and the right ones
+// D9 adds, in the same proportion `anyCornerDirection` picks.
+const anyCornerDirection = fc.constantFrom<CornerDirection>("left", "right");
+const APPROVED_L_ROOM: fc.Arbitrary<DesignRoom> = fc
+  .record({
+    shape: fc.constant<"L">("L"),
+    widthMm: APPROVED_WALL_A_MM,
+    depthMm: APPROVED_WALL_B_MM,
+    heightMm: APPROVED_HEIGHT_MM,
+  })
+  .chain((room) =>
+    anyCornerDirection.map((cornerDirection) =>
+      cornerDirection === "right" ? { ...room, cornerDirection } : room,
+    ),
+  );
 
 describe("the editor's back link, over every approved room", () => {
   it("reopens Step 1 on the design's own room, to the millimetre", () => {
@@ -87,6 +98,18 @@ describe("the editor's back link, over every approved room", () => {
 
     expect(queryOf(room).get("wallA")).toBe(metres);
     expect(stepOneStateFor(room)).toMatchObject({ substate: "1D", room });
+  });
+
+  // ADR 0129 D9, as a property over the whole sweep rather than on one hand-picked pair.
+  it("emits direction=right for a right room and direction=left for an absent or left one", () => {
+    fc.assert(
+      fc.property(APPROVED_L_ROOM, (room: DesignRoom) => {
+        const expected = room.cornerDirection === "right" ? "right" : "left";
+
+        expect(queryOf(room).get("direction")).toBe(expected);
+      }),
+      { numRuns: SWEEP_RUNS },
+    );
   });
 
   it("spells every length as a plain metre decimal", () => {

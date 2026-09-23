@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  applyCornerDirection,
+  applyCornerDirectionToLightRig,
   applyFinish,
   buildKitchenShell,
   buildOverflowMark,
@@ -31,6 +33,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import {
+  cornerDirectionOf,
   DEFAULT_CABINET_DEPTH_MM,
   wallCarcassDepthMm,
   createBodyProbeLease,
@@ -259,6 +262,13 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       shell: stage.shell,
       room: designRoom,
     });
+    // ADR 0129 D4/D6, applied **in place** (7H's pattern, same reason as the resize above): the
+    // root's own scale and the two directional lights are the whole of what a direction change
+    // touches, so this mirrors them without disposing or rebuilding a single mesh, geometry or
+    // material — `stage` is not keyed on the direction any more than it is on the room's size.
+    const direction = cornerDirectionOf(designRoom);
+    applyCornerDirection(stage.room, direction);
+    applyCornerDirectionToLightRig(stage.lights, direction);
     invalidate();
   }, [stage, designRoom, invalidate]);
 

@@ -3,6 +3,7 @@ import type { _Translator, Messages } from "next-intl";
 import type {
   Band,
   BodyLabel,
+  CornerDirection,
   EmptySpaceSide,
   PaletteEntryId,
   RejectionDetail,
@@ -262,14 +263,28 @@ function resolveKindLabel(
   }
 }
 
+/** ADR 0129 D8: the domain's `"right"`/`"left"` mean +along/−along (G9), never a screen side, so a
+ *  refusal drawn on a mirrored (right-hand) room reads the *opposite* screen word from the same
+ *  domain side. `screenSideOf` is the one place that crossing happens — everywhere else in this
+ *  file still reads `side.side` as the domain wrote it. */
+function screenSideOf(
+  domainSide: EmptySpaceSide["side"],
+  cornerDirection: CornerDirection,
+): EmptySpaceSide["side"] {
+  if (cornerDirection === "left") return domainSide;
+  return domainSide === "right" ? "left" : "right";
+}
+
 /** next-intl 4.14.2's generated argument parser types a select-only message as accepting no values.
  * An exact-value `selectordinal` keeps this one catalogue leaf typed without changing its output;
  * these numbers are only the adapter's exhaustive side/reason selector, never domain data. */
 function resolveEmptySpaceSide(
   translate: ContentTranslator,
   side: EmptySpaceSide,
+  cornerDirection: CornerDirection,
 ): string {
-  switch (side.side) {
+  const screenSide = screenSideOf(side.side, cornerDirection);
+  switch (screenSide) {
     case "right":
       switch (side.reason) {
         case "absent":
@@ -297,16 +312,17 @@ function resolveEmptySpaceSide(
           return assertNever(side.reason);
       }
     default:
-      return assertNever(side.side);
+      return assertNever(screenSide);
   }
 }
 
 function resolveEmptySpaceSides(
   translate: ContentTranslator,
   sides: readonly EmptySpaceSide[],
+  cornerDirection: CornerDirection,
 ): string {
   return sides
-    .map((side) => resolveEmptySpaceSide(translate, side))
+    .map((side) => resolveEmptySpaceSide(translate, side, cornerDirection))
     .join(translate("rejection.parts.sidesJoin"));
 }
 
@@ -350,6 +366,11 @@ function resolveWidthsMadeClause(
 export function resolveRejection(
   translate: ContentTranslator,
   detail: RejectionDetail,
+  // ADR 0129 D8. Optional and defaulting to left rather than threaded to every caller: only a
+  // width-resize refusal's `sides` ever reads it (`resolveEmptySpaceSides`), and a caller with no
+  // room in scope — `global-settings.tsx`'s whole-kitchen-settings refusal, which can never carry an
+  // `EmptySpaceSide` — is unaffected by the default either way.
+  cornerDirection: CornerDirection = "left",
 ): string {
   switch (detail.code) {
     case "VOID_SELECTED":
@@ -473,7 +494,11 @@ export function resolveRejection(
         label: resolveBodyLabel(translate, detail.params.label),
         requestedMm: detail.params.requestedMm,
         deltaMm: detail.params.deltaMm,
-        sides: resolveEmptySpaceSides(translate, detail.params.sides),
+        sides: resolveEmptySpaceSides(
+          translate,
+          detail.params.sides,
+          cornerDirection,
+        ),
       });
     case "COLUMN_MEMBER_NOT_RESIZABLE":
       return translate("rejection.COLUMN_MEMBER_NOT_RESIZABLE", {
@@ -488,13 +513,21 @@ export function resolveRejection(
     case "RESIZE_OPENS_GAP":
       return translate("rejection.RESIZE_OPENS_GAP", {
         label: resolveBodyLabel(translate, detail.params.label),
-        sides: resolveEmptySpaceSides(translate, detail.params.sides),
+        sides: resolveEmptySpaceSides(
+          translate,
+          detail.params.sides,
+          cornerDirection,
+        ),
       });
     case "COLUMN_KEY_COLLISION":
       return translate("rejection.COLUMN_KEY_COLLISION", {
         label: resolveBodyLabel(translate, detail.params.label),
         requestedMm: detail.params.requestedMm,
-        sides: resolveEmptySpaceSides(translate, detail.params.sides),
+        sides: resolveEmptySpaceSides(
+          translate,
+          detail.params.sides,
+          cornerDirection,
+        ),
       });
     case "COLUMN_HOOD_FLOOR":
       return translate("rejection.COLUMN_HOOD_FLOOR", {
@@ -535,7 +568,8 @@ export function resolveRejection(
  */
 export function resolveContent(translate: ContentTranslator) {
   return {
-    rejection: (detail: RejectionDetail) => resolveRejection(translate, detail),
+    rejection: (detail: RejectionDetail, cornerDirection?: CornerDirection) =>
+      resolveRejection(translate, detail, cornerDirection),
     /** A domain descriptor resolved through `catalog.*`, not a content family — see
      *  `resolveBodyLabel`. Held on `Content` for `rejection`'s reason: a model already threading the
      *  resolved content has no translator of its own. */
@@ -653,6 +687,11 @@ export function resolveContent(translate: ContentTranslator) {
         wider: translate("panel.widthStepAriaLabels.wider"),
       },
       widthStepNote: translate("panel.widthStepNote"),
+      // ADR 0129 D8: the reflected sentence for a right-hand room — same rule, opposite screen
+      // words. A new leaf rather than an ICU selector on the room's direction, because
+      // `widthStepNote` is a static translation with no runtime argument today; the caller
+      // (`panel-model.ts`) picks between the two by `cornerDirectionOf(design.room)`.
+      widthStepNoteRight: translate("panel.widthStepNoteRight"),
       widthChoiceNote: translate("panel.widthChoiceNote"),
       structuralTitle: translate("panel.structuralTitle"),
       structuralReasons: {

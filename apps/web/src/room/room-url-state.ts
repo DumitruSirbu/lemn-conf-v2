@@ -1,5 +1,6 @@
 import {
   APPROVED_ROOM_POLICY,
+  cornerDirectionOf,
   validateRoomInput,
   type CornerDirection,
   type DesignRoom,
@@ -139,8 +140,8 @@ export function serialiseRoomInput(input: ParsedRoomInput): URLSearchParams {
 
 /**
  * Reopens Step 1 from a stored room without carrying document or presentation state in the URL.
- * A stored L room has no corner direction yet, so its effective direction is left; wave 7I owns
- * persisting and serialising a customer's right-turning choice.
+ * ADR 0129 D9: the direction is `cornerDirectionOf(room)`, which maps an absent key to left — so a
+ * document from before this wave still reopens on the left toggle, exactly as it always has.
  */
 export function roomHrefFromDesignRoom(room: DesignRoom): string {
   const input: ParsedRoomInput =
@@ -155,7 +156,7 @@ export function roomHrefFromDesignRoom(room: DesignRoom): string {
           wallAMm: room.widthMm,
           wallBMm: room.depthMm,
           heightMm: room.heightMm,
-          cornerDirection: "left",
+          cornerDirection: cornerDirectionOf(room),
         };
 
   return `/configurator/room?${serialiseRoomInput(input).toString()}`;

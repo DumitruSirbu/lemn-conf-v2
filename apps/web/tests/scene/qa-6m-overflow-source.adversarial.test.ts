@@ -97,6 +97,8 @@ vi.mock("@/store/configurator-store", () => ({
 vi.mock("@lemnaria/three-adapter", async () => {
   const THREE = await import("three");
   return {
+    applyCornerDirection: vi.fn(),
+    applyCornerDirectionToLightRig: vi.fn(),
     applyFinish: vi.fn(),
     buildKitchenShell: vi.fn(() => {
       const shell = new THREE.Group();

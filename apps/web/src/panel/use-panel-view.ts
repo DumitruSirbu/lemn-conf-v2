@@ -8,6 +8,7 @@
 import {
   buildableWidthSpanMm,
   cabinetDepthMmOf,
+  cornerDirectionOf,
   describeSelection,
   materialOfDesign,
   offersFor,
@@ -30,6 +31,13 @@ import { widthStepsFor, type WidthSteps } from "@lemnaria/configurator-domain";
 
 export function usePanelView(): PanelView {
   const content = useContent();
+  // ADR 0129 D8. Selected on its own rather than read off `usePricedDesign`'s design below: the
+  // direction is the one field of the room every width refusal's wording depends on, and selecting
+  // it directly keeps this hook from re-rendering the panel on a wall length the width section does
+  // not read here.
+  const direction = useConfiguratorStore((state) =>
+    cornerDirectionOf(state.design.room),
+  );
   const meta = useSelectionMeta();
   const offers = useSelectionOffers();
   const widthSpan = useBuildableWidthSpan();
@@ -54,6 +62,7 @@ export function usePanelView(): PanelView {
     () =>
       describePanel({
         content,
+        direction,
         meta,
         offers,
         buildableWidthSpanMm: widthSpan,
@@ -69,6 +78,7 @@ export function usePanelView(): PanelView {
       }),
     [
       content,
+      direction,
       meta,
       offers,
       widthSpan,

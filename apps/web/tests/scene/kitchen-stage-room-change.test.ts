@@ -35,6 +35,8 @@ const harness = vi.hoisted(() => ({
     cleanup?: () => void;
   }[],
   cursor: 0,
+  applyCornerDirection: vi.fn(),
+  applyCornerDirectionToLightRig: vi.fn(),
   buildKitchenShell: vi.fn(),
   invalidate: vi.fn(),
   kit: {} as Record<string, unknown>,
@@ -108,6 +110,8 @@ vi.mock("../../src/store/configurator-store", () => ({
 vi.mock("@lemnaria/three-adapter", async () => {
   const THREE = await import("three");
   return {
+    applyCornerDirection: harness.applyCornerDirection,
+    applyCornerDirectionToLightRig: harness.applyCornerDirectionToLightRig,
     applyFinish: vi.fn(),
     buildKitchenShell: harness.buildKitchenShell,
     buildOverflowMark: vi.fn(() => ({ group: new THREE.Group() })),
@@ -143,6 +147,8 @@ vi.mock("@lemnaria/three-adapter", async () => {
     syncVoidMeshes: vi.fn(),
   };
 });
+
+import { createLightRig } from "@lemnaria/three-adapter";
 
 import { KitchenStage } from "../../src/scene/kitchen-stage";
 
@@ -287,6 +293,90 @@ describe("the harness can tell a rebuild from a re-render", () => {
     expect(harness.syncSolidBodies).toHaveBeenCalledOnce();
   });
 });
+
+// =================================================================================================
+// 7I-A13 — in place: a direction change rebuilds nothing, and survives a resize and a depth rebuild.
+// =================================================================================================
+
+/** A right-hand twin of the seeded room, same dimensions — the change under test is only the
+ *  direction. */
+const RIGHT_ROOM: DesignRoom = { ...SEEDED_ROOM, cornerDirection: "right" };
+
+describe("a direction change (ADR 0129 D4/D6) applies in place", () => {
+  it("mirrors the stage's own root and light rig, and rebuilds nothing", () => {
+    render();
+    const lights = (createLightRig as ReturnType<typeof vi.fn>).mock.results[0]
+      ?.value as { key: THREE.Object3D; fill: THREE.Object3D };
+
+    harness.storeState.design = designWith(RIGHT_ROOM);
+    render();
+
+    expect(harness.applyCornerDirection).toHaveBeenCalledWith(
+      expect.any(THREE.Group),
+      "right",
+    );
+    expect(harness.applyCornerDirectionToLightRig).toHaveBeenCalledWith(
+      lights,
+      "right",
+    );
+    expect(harness.makeKit).toHaveBeenCalledOnce();
+    expect(harness.buildKitchenShell).toHaveBeenCalledOnce();
+    expect(harness.seatObjectOnStage).toHaveBeenCalledOnce();
+  });
+
+  it("reads left for an absent direction, exactly as an unmirrored room does", () => {
+    render();
+
+    expect(harness.applyCornerDirection).toHaveBeenCalledWith(
+      expect.any(THREE.Group),
+      "left",
+    );
+    expect(harness.applyCornerDirectionToLightRig).toHaveBeenCalledWith(
+      expect.anything(),
+      "left",
+    );
+  });
+
+  it("survives a subsequent resize: the mirror is reapplied and nothing is rebuilt", () => {
+    render();
+
+    harness.storeState.design = designWith(RIGHT_ROOM);
+    render();
+    harness.storeState.design = designWith(CORRECTED_ROOM_RIGHT);
+    render();
+
+    expect(harness.applyCornerDirection).toHaveBeenLastCalledWith(
+      expect.any(THREE.Group),
+      "right",
+    );
+    expect(harness.resizeShellToRoom).toHaveBeenLastCalledWith(
+      expect.objectContaining({ room: CORRECTED_ROOM_RIGHT }),
+    );
+    expect(harness.makeKit).toHaveBeenCalledOnce();
+    expect(harness.buildKitchenShell).toHaveBeenCalledOnce();
+  });
+
+  it("survives a depth change's rebuild: the new stage is mirrored too", () => {
+    render();
+
+    harness.storeState.design = designWith(RIGHT_ROOM, 700);
+    render();
+
+    expect(harness.makeKit).toHaveBeenCalledTimes(2);
+    expect(harness.applyCornerDirection).toHaveBeenLastCalledWith(
+      expect.any(THREE.Group),
+      "right",
+    );
+  });
+});
+
+/** `CORRECTED_ROOM`'s wall-A correction, carried on a right-hand room — the resize test above needs
+ *  a room that changes on **two** axes (a wall length and none, since the direction is already
+ *  right) so it cannot pass by re-detecting the direction alone. */
+const CORRECTED_ROOM_RIGHT: DesignRoom = {
+  ...CORRECTED_ROOM,
+  cornerDirection: "right",
+};
 
 function fakeCanvas() {
   return {
