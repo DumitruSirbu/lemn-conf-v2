@@ -1,3 +1,5 @@
+export { applyCornerDirection, mirroredX } from "./corner-direction.js";
+
 export {
   makeKit,
   PARTS,
@@ -118,6 +120,7 @@ export {
 } from "./picking.js";
 
 export {
+  applyCornerDirectionToLightRig,
   CAMERA_FIELD_OF_VIEW_DEGREES,
   CAMERA_PRESETS,
   cameraPresetsForRoom,

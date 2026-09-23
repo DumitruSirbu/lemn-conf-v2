@@ -6,12 +6,15 @@
 // `docs/milestones/M1-scene-port.md` treats them as part of the port. The web-component shell,
 // the OBJ/GLB exporters and the toolbar are deliberately left behind — R3F owns the canvas now.
 import {
+  cornerDirectionOf,
   LEVELS,
   toMetres,
+  type CornerDirection,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
+import { mirroredX } from "./corner-direction.js";
 import { context2d } from "./three-guards.js";
 
 /** CSS colour behind the (alpha) canvas, and the background the reference preset shots were
@@ -98,19 +101,46 @@ export interface LightRig {
   fill: THREE.DirectionalLight;
 }
 
+/** The rig's canonical (left-hand) positions — declared once so `createLightRig` and
+ *  `applyCornerDirectionToLightRig` (D6) read the same numbers instead of each carrying its own
+ *  copy. */
+const KEY_LIGHT_POSITION_M: Vector3Tuple = [4, 7, 5];
+const FILL_LIGHT_POSITION_M: Vector3Tuple = [-5, 3, -4];
+
 /** Neutral studio: soft sky/ground wash, a key light, and a dim fill from behind so silhouettes
  *  never go black. The key deliberately does not cast — see `createShadowGround`. */
 export function createLightRig(): LightRig {
   const hemisphere = new THREE.HemisphereLight(0xffffff, 0xd8d2c4, 0.45);
   const key = new THREE.DirectionalLight(0xffffff, 1.9);
-  key.position.set(4, 7, 5);
+  key.position.set(...KEY_LIGHT_POSITION_M);
   key.castShadow = false;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.bias = -0.0008;
   key.shadow.normalBias = 0.02;
   const fill = new THREE.DirectionalLight(0xfff4e6, 0.35);
-  fill.position.set(-5, 3, -4);
+  fill.position.set(...FILL_LIGHT_POSITION_M);
   return { hemisphere, key, fill };
+}
+
+/** ADR 0129 D6: the key and fill follow the room's mirror (x negated); the hemisphere is ambient
+ *  and symmetric, so it is left untouched. Written from the canonical constants rather than by
+ *  negating whatever the lights currently hold, so repeated calls are idempotent — the same
+ *  in-place update `applyCornerDirection` gives a `Group`, applied here to two light positions
+ *  instead (7H's pattern: a direction change updates the rig, never rebuilds it). */
+export function applyCornerDirectionToLightRig(
+  rig: Pick<LightRig, "key" | "fill">,
+  direction: CornerDirection,
+): void {
+  rig.key.position.set(
+    mirroredX(direction, KEY_LIGHT_POSITION_M[0]),
+    KEY_LIGHT_POSITION_M[1],
+    KEY_LIGHT_POSITION_M[2],
+  );
+  rig.fill.position.set(
+    mirroredX(direction, FILL_LIGHT_POSITION_M[0]),
+    FILL_LIGHT_POSITION_M[1],
+    FILL_LIGHT_POSITION_M[2],
+  );
 }
 
 export function createShadowGround(): THREE.Mesh {
@@ -281,11 +311,40 @@ const PRESET_DISTANCE_M =
  * **Not a lookup around a special case.** There is no room this answers from a table, the seeded
  * one included: two rooms a millimetre apart return presets a fraction of a millimetre apart,
  * because every term is linear in the room's dimensions.
+ *
+ * **A right-hand room's presets are the left-hand ones with x negated** (ADR 0129 D6): framed on
+ * the canonical (left-hand) room first, then mirrored, so the distance and every other component
+ * are exactly what they were — the camera does not pull back for a right-hand room (Q7H-7).
  */
 export function cameraPresetsForRoom(
   room: DesignRoom,
 ): readonly CameraPreset[] {
-  return CAMERA_PRESETS.map((reference) => framedOnRoom(reference, room));
+  const canonical = CAMERA_PRESETS.map((reference) =>
+    framedOnRoom(reference, room),
+  );
+  const direction = cornerDirectionOf(room);
+  return direction === "left"
+    ? canonical
+    : canonical.map((preset) => mirroredPreset(preset, direction));
+}
+
+function mirroredPreset(
+  preset: CameraPreset,
+  direction: CornerDirection,
+): CameraPreset {
+  return {
+    id: preset.id,
+    position: [
+      mirroredX(direction, preset.position[0]),
+      preset.position[1],
+      preset.position[2],
+    ],
+    target: [
+      mirroredX(direction, preset.target[0]),
+      preset.target[1],
+      preset.target[2],
+    ],
+  };
 }
 
 export function findCameraPresetForRoom(
