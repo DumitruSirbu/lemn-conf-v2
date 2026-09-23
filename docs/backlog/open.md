@@ -1798,6 +1798,8 @@ owner, no phase yet.
 
 ## 81. SEC-7E3a.1 — cookie fixation is harmless today and becomes durable read access once 7E3b lands — FOUND 2026-09-23, GATES 7E3b
 
+**DECIDED 2026-09-23 — option (b), the owner's ruling *"Rotate on mint"*** ([ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) Amendment H1). Built by wave 7E3b; this entry closes when 7E3b ships.
+
 **Found by M7 wave 7E3a's security review, 2026-09-23.** A same-host script (e.g. through an XSS on
 this origin) can plant a well-formed, non-`HttpOnly` visitor cookie value in a fresh browser; the
 next mint adopts it under D1's reuse rule, and any subsequent save keeps it alive. Under 7E3a this is

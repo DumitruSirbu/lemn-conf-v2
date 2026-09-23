@@ -1,6 +1,6 @@
 # ADR 0114 — A returning visitor is recognised by a host-only, HttpOnly secret, and a design's link opens only in the browser that owns it
 
-Status: ~~Accepted for the visitor cookie (owner requirement, 2026-09-11). **Proposed for read-gating** (decision 5), which changes ADR 0002 and ADR 0019 decision 1 and waits on the owner's answer to the M7 plan's follow-up **F5**. Supersedes ADR 0111 Amendment A2's pointer design.~~ ~~**Accepted in full, 2026-09-11 — the owner answered F5 "Only its own browser" (Amendment A).**~~ **Accepted in full, 2026-09-11 — the owner revised F5 the same day to "Own browser + private share link" (Amendment B, which supersedes Amendment A).** Supersedes ADR 0111 Amendment A2's pointer design; supersedes the open read of ADR 0002 and ADR 0019 decision 1. **Amendment C, 2026-09-11** — the share link is made short (12 base62 characters, ~71 bits) on the owner's later statement; how a browser becomes authorised to *edit* is being re-decided by the owner (PIN or customer profiles) and is not yet recorded. **Amendment D, 2026-09-11** — the editing half is settled by [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md): customer profiles in M8 replace the PIN; in M7 the owning browser's cookie alone authorises reading and editing. **Amendment F, 2026-09-23** — wave 7E3a's plan: resume runs in Route Handlers (decision 4's *"as server components"* cannot clear a cookie); how a `__Host-` cookie is cleared; the mint refuses cross-site requests; the mint and save refresh points. **Amendment G, 2026-09-23** — wave 7E3c's plan: how the share link is built — rejection-sampled token, one table with an FK cascade the unattended screen is taught to accept, a hand-issued grant, the cross-site guard reused, a share view that holds no id, and `NEXT_LOCALE` read as outside *"sets no cookie"*.
+Status: ~~Accepted for the visitor cookie (owner requirement, 2026-09-11). **Proposed for read-gating** (decision 5), which changes ADR 0002 and ADR 0019 decision 1 and waits on the owner's answer to the M7 plan's follow-up **F5**. Supersedes ADR 0111 Amendment A2's pointer design.~~ ~~**Accepted in full, 2026-09-11 — the owner answered F5 "Only its own browser" (Amendment A).**~~ **Accepted in full, 2026-09-11 — the owner revised F5 the same day to "Own browser + private share link" (Amendment B, which supersedes Amendment A).** Supersedes ADR 0111 Amendment A2's pointer design; supersedes the open read of ADR 0002 and ADR 0019 decision 1. **Amendment C, 2026-09-11** — the share link is made short (12 base62 characters, ~71 bits) on the owner's later statement; how a browser becomes authorised to *edit* is being re-decided by the owner (PIN or customer profiles) and is not yet recorded. **Amendment D, 2026-09-11** — the editing half is settled by [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md): customer profiles in M8 replace the PIN; in M7 the owning browser's cookie alone authorises reading and editing. **Amendment F, 2026-09-23** — wave 7E3a's plan: resume runs in Route Handlers (decision 4's *"as server components"* cannot clear a cookie); how a `__Host-` cookie is cleared; the mint refuses cross-site requests; the mint and save refresh points. **Amendment G, 2026-09-23** — wave 7E3c's plan: how the share link is built — rejection-sampled token, one table with an FK cascade the unattended screen is taught to accept, a hand-issued grant, the cross-site guard reused, a share view that holds no id, and `NEXT_LOCALE` read as outside *"sets no cookie"*. **Amendment H, 2026-09-23** — the owner's ruling on backlog 81, *"Rotate on mint"*: every mint issues a fresh visitor value and moves the browser's rows to it (superseding F3's reuse); wave 7E3b's plan: the read gate compares in SQL, and a save refreshes the visitor cookie only when the request's value owns the row.
 Date: 2026-09-11
 Type: Decision (owner requirement + engineering)
 Milestone: M7 — waves 7E3a and 7E3b (architect's re-plan, `docs/milestones/M7-room-and-presets.md`)
@@ -367,3 +367,42 @@ Recorded by the architect in [wave 7E3c's plan](../milestones/M7-room-and-preset
 **G7. Backup.** Share rows are **not** exported: restoring an older export must never revive a revoked link. A point-in-time restore can, so the restore runbook gains an owner step that revokes every active link after one.
 
 **Shipped 2026-09-23 — wave 7E3c is DONE.** Commits: plan + this amendment + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix (SEC-7E3c.1/.2) `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. The screen extension in G2 needed far more correction than a single recognised case — see [the 7E3c close-out](../milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23) for the full list of bypasses the wave found and fixed. Security approved the screen at `03ffd4a`.
+
+## Amendment H — 2026-09-23: the visitor value rotates on every mint, and how 7E3b gates the read
+
+Recorded by the architect in [wave 7E3b's plan](../milestones/M7-room-and-presets.md#wave-7e3b--the-plan-2026-09-23), at `e00a8dc`, before implementation. **Decision 5 and Amendment B1 are unchanged:** a design opens only in its owning browser, and every other request gets one indistinguishable refusal. H1 is an owner ruling. H2 and H3 are mechanism.
+
+**H1. The visitor value rotates on every mint.** This is the owner's ruling, 2026-09-23. It closes backlog 81 (SEC-7E3a.1).
+
+- **The choice, verbatim:** *"Rotate on mint"*. It was chosen over backlog 81's option (a), which would have accepted the fixation with CSP enforcement in M8 as a named dependency.
+- **What it supersedes:** F3's and 7E3a D1's reuse clause (*"reuses a well-formed cookie from the request and re-emits it"*).
+- **What now happens.** Every `POST /api/designs` that passes F4 issues a fresh 256-bit value. When the request carried a well-formed value, the browser's existing rows move from that value's hash to the new one. The move shares one transaction with the insert, and it is idempotent under the retry `retryOnComputeRestart` may make:
+  1. the `update` of the old hash to the new;
+  2. an `insert … on conflict (id) do nothing`;
+  3. a `select` of the new row by id **and** new hash.
+- **When there is nothing to move.** An absent, empty or malformed value moves nothing and issues no `UPDATE`.
+- **Why it closes backlog 81.** A value planted by script owns nothing after the next mint, and the new value is `HttpOnly`, so no script ever learns it.
+- **What else changes.**
+  - 7E3a criterion 5's must-not (*"no statement writes `visitor_hash` except the mint's insert"*) now reads: *except the mint's insert and the mint's rotation, in one transaction*.
+  - The move touches no column but `visitor_hash`. In particular it leaves `updated_at` alone, so resume order and retention are unaffected.
+- **Two residuals, recorded and not built** (ADR 0118):
+  - *Concurrent mints, or a save that commits before a rotation and is answered after it.* Either can leave rows under a value the jar no longer holds.
+  - *A planted value's own rows are moved into the victim's identity.* This has the same precondition as backlog 81.
+
+**H2. The gate compares in SQL.**
+
+- **The read.** `/[locale]/d/{id}` and `GET /api/designs/{id}` read through `select … where id = $1 and visitor_hash = $2`. A foreign row, an unowned (pre-`0005`) row and a missing row are one outcome of one statement.
+- **Decision 5's *"compare … in constant time"*** is met by Postgres comparing SHA-256 digests of 256-bit secrets. This is the argument already accepted for `write_token_hash` in `saveAuthorized`: a digest's prefix does not help anyone produce a preimage.
+- **Rejected: comparing in application code with `timingSafeEqual`.** It would load the hash into memory and give *no row* and *mismatch* two code paths.
+- **What a refusal does not do.** A request with no well-formed cookie issues no query. A stored document is migrated and validated only for its owner, so an invalid row is indistinguishable from a missing one to anyone else.
+- **What a refusal looks like.**
+  - The API answers `designNotFoundResponse(id)`, which now carries `Cache-Control: private, no-store` and `Vary: Cookie` for every caller.
+  - The page renders *"not available in this browser"* at HTTP 200. That is a new `unavailable` reason with one new leaf, approved as drafted under ADR 0113.
+
+**H3. A save refreshes the visitor cookie only when the request's value owns the saved row.**
+
+- **The rule.** The answer comes from the same `update` statement, so no second query is made.
+- **What it supersedes:** 7E3a D1's *"Rejected: a tight refresh"*. That rejection held while the refresh's only benefit was matching retention. **The new reason is H1.** A save carrying a value that was just rotated away would otherwise re-emit it, and lock the browser out of every design it owns.
+- **What stays the same.**
+  - A save without a well-formed cookie still refreshes nothing.
+  - The write token alone still authorises the save (decision 2; ADR 0019 decision 1).

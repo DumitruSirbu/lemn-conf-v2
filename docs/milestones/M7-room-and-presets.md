@@ -1558,7 +1558,7 @@ table.
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA `0d53a06`; review round 1 `1ae9f32`; see [7E3a close-out](#7e3a-close-out--2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. See [7E3c close-out](#7e3c-close-out--2026-09-23)** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
-| **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
+| **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — **off hold**; backlog 81 ruled *"Rotate on mint"* (ADR 0114 H). **Planned 2026-09-23 — see [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4** |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **One owner question OPEN, recorded 2026-09-22 (coordinator's instruction), gating 7J's policy slice and nothing else — Q-7J-1: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300?** The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. **Recommendation: 6000**, so every wall the product accepts has one maximum. It does not gate 7T |
@@ -2701,6 +2701,304 @@ revised the same day (Amendment B): 7E3b now lands after 7E3c**
 4. ~~Dated amendments land in ADR 0002 and ADR 0019 decision 1 in the same wave.~~ **Recorded at the
    ruling, 2026-09-11** — both records carry a dated supersession note naming this wave as the one that
    implements it; the wave's close-out adds the commit hash to both notes.
+
+### Wave 7E3b — the plan (2026-09-23)
+
+**Written by the architect at HEAD `e00a8dc`** (`bac6789` since, docs only). Labels: **[source-verified]** read at `e00a8dc`;
+**[doc-quoted]** from a record; **[measured]** a `grep` run in this session; **[inference]** reasoned,
+open to challenge. Nothing was built, run or applied. The owner's ruling on backlog 81 and the
+mechanism decisions below are recorded as ADR 0114 **Amendment H** (same date).
+
+#### 1. Ground truth
+
+| # | Fact | Evidence |
+| --- | --- | --- |
+| G1 | `GET /api/designs/{id}` and `/[locale]/d/{id}` both call `getRepository().load(id)`, which selects by `id` alone. Nothing reads the visitor cookie on either path. These are the only two production callers of `load`. | [source-verified] `[id]/route.ts:88-107`, `[locale]/d/[id]/page.tsx:19-38`; [measured] |
+| G2 | The mint reuses a carried well-formed value (`resolveVisitorForMint`, `visitor.ts:67-76`) and stores its hash in one `insert`. A successful save re-emits the request's own well-formed value (`refreshVisitorCookie`), unconditionally. | [source-verified] |
+| G3 | The API's missing-design answer is `designNotFoundResponse(id)`: 404 `{"error":"No design found for id \"…\""}`, **no cache header**. The share route's refusal is the same function, and 7E3c criterion 4 pins the two as byte- and header-identical. | [source-verified] `design-errors.ts:103-109`; [doc-quoted] |
+| G4 | `/d/{unknown}` renders `DesignLoadError reason="not-found"` with HTTP 200. `locale-routing.qa:47,140` asserts `/d/qa-route-does-not-exist` answers 200 with CSP. `/s/{token}` reuses the same `not-found` reason and copy (*"… Posibil că a fost ștearsă sau linkul este invalid."*). | [source-verified] `design-load-error.tsx`, `ro.json:269-274` |
+| G5 | `InvalidDesignError` on load renders `reason="invalid"` (page) or 500 `DESIGN_UNREADABLE` (API). Today a stranger can reach both for any id. | [source-verified] |
+| G6 | `retryOnComputeRestart` retries a statement Neon marks retryable, and says outright that it **cannot tell a lost acknowledgement from a statement that never ran**. Each call site must be idempotent on its own. The mint is, only because a repeat hits a duplicate key. | [source-verified] `retry-on-compute-restart.ts:57-80` |
+| G7 | `app_designs` holds table-level `UPDATE` on `designs`, so an `update … set visitor_hash` needs no grant. No trigger touches `updated_at`. | [doc-quoted] ADR 0019 residual, ADR 0008; [measured] `grep -i trigger migrations/` |
+| G8 | Twenty-three web test files supply a repository double with `load`, eleven call a route's `GET`, and `shared-design-route.test.ts` calls the page with no cookie mock. | [measured] |
+| G9 | **E2e reads of `/d/{id}` or `GET /api/designs/{id}` without the owner's cookie**, which 7E3c criterion 17 undercounted: `seeded-design.qa:51` (cookie-less `request.get` expecting 404 after teardown, which the gate makes vacuous), `seeded-design.qa:143` (`clearCookies`, then `openSeededDesign` expecting *canWrite false*), `qa-7e3a-visitor:128` (foreign `/d` through the probe), `qa-7e3c-share:683` (stranger's read-only `/d`), and `top-bar-pill-containment.desktop:311` (one row cached across tests, each with a fresh context). | [measured] `grep clearCookies\|newContext\|request.get\|/d/` |
+| G10 | Tests that pin reuse: `visitor-identity.test.ts:215-245` (property), `qa-7e3a-visitor.adversarial.test.ts:234`, and the comment at `configure-route.e2e:170`. | [measured] |
+| G11 | Playwright is 1.62.1, so `context.clearCookies({ name })` is available. Whether `context.addCookies` can plant a host-only `__Host-` cookie in Chromium is **unmeasured**. | [source-verified] `package.json:36`; [inference] |
+
+**Decision-record sweep.** Read: ADR 0114 in full (decisions 1–7, A–G), 0115, the 0002 and 0019
+supersession notes, 0006, 0105, 0118, backlog 81, and the 7E3a and 7E3c plans and close-outs.
+
+| Record | Bearing | Settled |
+| --- | --- | --- |
+| 0114 decision 5, B1, D | This wave's contract | **Followed.** Its *"compare … in constant time"* is met in mechanism by H2 (see §8). |
+| 0114 F3 / 7E3a D1 (reuse; *"Rejected: a tight refresh"*) | Mint and save refresh points | **Superseded by the owner's ruling** (H1) and by H3, which reverses the tight-refresh rejection because rotation gives it a new reason. Both are recorded, not silent. |
+| 7E3a criterion 5, must-not (*"visitor_hash … never inside `set`"*) | Only the mint's insert writes the column | **Amended:** the only writers are the mint's insert and the mint's rotation, in one transaction (H1). |
+| 0114 F4 (D6) | Cross-site mint refused | **Kept, and it still runs first.** Rotation happens only after the guard passes (D2). |
+| 0019 decision 1, write half; 0114 decision 2 | The write token alone authorises a save | **Unchanged.** Saves are not gated on the visitor (D6). |
+| 0002 / 0019 notes | *"implemented by M7 wave 7E3b"* | The close-out adds this wave's hash to both (criterion 4). |
+| 0118 | Record, don't build, the unoccurred | **Applied to** concurrent mints and design injection (R3, R4). **Not applied to** the retried rotation (D1): that makes an existing module contract hold (G6), and the failure it prevents loses every design the browser owns. |
+| 0006, 0105, 0128 | Test database only; shared e2e DB; live census | **Followed.** New live cases go into existing registered files. No migration, so the census is unchanged. |
+| 0113 | New M7 wording is approved as drafted and locked in its commit | **Applied** to D5's one leaf. |
+
+#### 2. Decisions
+
+**D1 — Rotate on mint** (the owner's ruling, 2026-09-23, *"Rotate on mint"*; Amendment H1). Every
+`POST /api/designs` that passes D6 issues a **fresh** `randomBytes(32)` value, and never re-emits a
+carried one.
+- **Well-formed carried value** (43 base64url characters): the repository moves that browser's rows,
+  in **one `sql.transaction`**, pinned to `ReadCommitted` as `issue` is:
+  1. `update designs set visitor_hash = $new where visitor_hash = $old`, which touches no other
+     column;
+  2. `insert … values (…, $new) on conflict (id) do nothing`;
+  3. `select revision::text from designs where id = $id and visitor_hash = $new`.
+- **Why this shape.** A retry after a lost acknowledgement must not answer 500 while the rows already
+  sit under a value the browser never received (G6). Under this shape the retry moves nothing,
+  inserts nothing, and step 3 still returns the row. The id and the new value are generated
+  **outside** the retried callback, as today.
+- **Absent, empty (7E3a L1.6) or malformed carried value:** a fresh value, and **no `UPDATE`
+  issued**. No row can carry such a value's hash.
+- **The port.** The signature keeps one DTO. How the old hash is passed is the implementer's choice,
+  provided it is a tagged union rather than an optional or nullable field, and that the guard
+  `requireSha256Digest` covers both hashes.
+- **Rejected:**
+  - reuse with CSP enforcement as the named dependency (backlog 81 option (a)), which the owner did
+    not choose;
+  - rotation without moving rows, which strands every earlier design;
+  - a forwarding table from old hash to new hash, which needs a migration and exists only to fix R3.
+
+**D2 — Order inside the mint.** The cross-site check, then read the cookie, then the
+transaction, then set both cookies. A refused request issues no statement (7E3a criterion 4
+stands). Nothing else moves rows: resume, the gate and saves never rotate.
+
+**D3 — The save refreshes the visitor cookie only when the request's value owns the saved row**
+(Amendment H3).
+- **The reason.** A save sent with the old value, whose `UPDATE` runs after another tab's rotation,
+  would otherwise re-emit the old value and lock the browser out of every design.
+- **The rule.** The ownership answer comes from **the same statement** as the update: a column
+  `visitor_hash = $request` returned alongside `revision`. There is no second query and no comparison
+  in Node.
+- **A request without a well-formed cookie** still gets no refresh (unchanged).
+- **The residual.** A save whose statement commits before the rotation, and whose response still
+  reaches the browser after the mint's, is not closed (R3).
+
+**D4 — The gate** (ADR 0114 decision 5; Amendment H2).
+- **A new port.** `OwnedDesignRepository.loadOwned({ id, visitorHash })` answers
+  `found {design, revision} | none`, from
+  `select … from designs where id = $1 and visitor_hash = $2`.
+  - `migrateDesign` runs **only on `found`**, so `InvalidDesignError` is reachable by the owner alone.
+  - A pre-`0005` row (`visitor_hash is null`), a foreign row and a missing row are one outcome from
+    one statement.
+- **`lib/server/repository.ts`.** `SharedRepository` becomes `Omit<AuthorizedConfigurationRepository,
+  "load"> & OwnedDesignRepository & VisitorResumeRepository`, so no web module can reach the ungated
+  read. `load(id)` stays on the Neon class for the persistence live suites.
+- **`GET /api/designs/{id}`.**
+  - `readVisitorHash(request.cookies)` returns `undefined` → `designNotFoundResponse(id)`, and **no
+    query is issued**.
+  - `none` → the same response.
+  - `found` → today's 200 body, where `canWrite` is still `hasWriteCredentialFor`, together with
+    `PER_CREDENTIAL_HEADERS`.
+- **`/[locale]/d/{id}`.** It reads `readVisitorHash(await cookies())` and follows the same three
+  branches. The refusal is `<DesignLoadError reason="unavailable" />` at HTTP 200: G4 keeps the
+  status, and `locale-routing.qa` stays unchanged.
+- **Refusals share one header set.** `designNotFoundResponse` itself gains `Cache-Control: private,
+  no-store` and `Vary: Cookie`. The answer now depends on a cookie, and the share route's refusal
+  stays identical to the API's because it calls the same function.
+- **"Constant time"** is met by Postgres comparing SHA-256 digests of 256-bit secrets inside the
+  predicate. This is `saveAuthorized`'s accepted argument: a digest prefix does not help anyone
+  produce a preimage. An application-side `timingSafeEqual` would need the row's hash in memory and
+  would split one outcome into two code paths, *no row* and *mismatch*. **Rejected**, and on the
+  security reviewer's brief.
+
+**D5 — The refusal copy** (ADR 0114 decision 5 names the page *"not available in this browser"*). A
+third reason, `unavailable`, is added to `DesignLoadError`, with one new leaf,
+`designLoadError.bodyUnavailable`:
+- ro: *"Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în
+  care a fost creată."*
+- ru: *"Эта конфигурация недоступна в этом браузере. Она открывается только в браузере, в котором
+  была создана."*
+
+The title and *Începe o configurare nouă* are reused. `/s/{token}` keeps `not-found`, because a
+revoked link is not about a browser. The copy is approved as drafted under ADR 0113, and the owner
+may reword it later. **Not blocking.**
+
+**D6 — Out of scope, stated.**
+- Saves stay authorised by the write token alone (G7 row in the sweep). An owner who holds the write
+  token but not the visitor cookie can still `PUT` blind.
+- The unprefixed `/d/{id}` redirect is the proxy's, and it reads no visitor cookie.
+- M8's re-binding is untouched.
+
+**D7 — Stale prose corrected in passing** (the Boy Scout rule, same files). These comments now state
+the opposite of the code:
+- the `GET` doc (*"Open to anyone holding the link"*);
+- the page doc;
+- `NeonConfigurationRepository.load`'s doc;
+- `design-errors.ts:48-49`;
+- `retry-on-compute-restart.ts:7-12`, only if S1 touches the file.
+
+#### 3. Migrations
+
+**None.** Rotation uses `designs_visitor_hash_updated_at_idx` (`0005`); the gate uses the primary
+key; the grant already covers the `UPDATE` (G7). There is therefore no held apply and no SQL
+mini-gate. **Must not:** a new file under `migrations/`, or any edit to `0001`–`0006`. The owner's
+deploy precondition is unchanged: `0005`, `0006` and the share grant on preview, then production.
+
+#### 4. Slices, tier, visual pass
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S1 persistence** | (1) rotation transaction (D1); (2) the save's ownership column (D3); (3) `loadOwned` (D4); (4) live cases in the **existing** `neon-configuration-repository{,.adversarial}.test.ts`: rotation, retry idempotence (step 3 after a committed attempt), untouched columns, concurrency, `loadOwned` for own / foreign / null / missing / invalid rows; (5) exports | `neon-configuration-repository.ts`, `index.ts` | plan G2, G6, G7, D1–D4, §3, criteria 1, 5, 8, 10; ADR 0114 decision 5, F3, G (`issue`'s transaction), H1–H3; ADR 0006, 0118; `neon-configuration-repository.ts`, `share-link-repository.ts` (`issue`), `retry-on-compute-restart.ts`, `sha256-digest.ts`, `migrations/0005_…sql`, `index.ts` |
+| **S2 identity at the API** | (1) `visitor.ts`: `resolveVisitorForMint` → rotation (always fresh, plus the old hash as a tagged value); (2) `POST` wiring (D2); (3) the save's conditional refresh (D3); (4) G10's reuse tests **inverted**, not deleted, and listed; (5) the comment at `configure-route.e2e:170` | `visitor.ts`, `api/designs/route.ts`, `api/designs/[id]/route.ts` | plan G2, G10, D1–D3, criteria 5, 6, 10, 11; ADR 0114 F2–F4, H1, H3; `visitor.ts`, `cross-site-request.ts`, `api/designs/route.ts`, `api/designs/[id]/route.ts`, `write-token.ts`, `tests/app/api/designs/visitor-identity.test.ts`, `qa-7e3a-visitor.adversarial.test.ts` |
+| **S3 the gate** | (1) `GET` gated; (2) page gated; (3) the `designNotFoundResponse` headers; (4) the `unavailable` reason plus the ro/ru leaf, the copy lock and golden fixtures; (5) `SharedRepository` narrowed, with G8's doubles updated mechanically | `[id]/route.ts`, `[locale]/d/[id]/page.tsx`, `design-errors.ts`, `design-load-error.tsx`, `repository.ts` (+ `ro.json`, `ru.json`, message data) | plan G1, G3–G5, G8, D4, D5, D7, criteria 1, 2, 4, 11; ADR 0114 decision 5, B1, D, H2; ADR 0113; `[id]/route.ts`, `[locale]/d/[id]/page.tsx`, `d/[id]/design-load-error.tsx`, `d/[id]/hydrate-and-configure.tsx`, `design-errors.ts`, `repository.ts`, `visitor.ts` (`readVisitorHash`), `messages/ro.json` `designLoadError`, `tests/app/shared-design-route.test.ts` |
+| **S4 e2e** (tests + one test utility) | (1) `seeded-design.ts` gains `openUnavailableDesign(page, path)`, which waits for `design-load-error` and fails if the probe was requested; (2) the new `design-owner-gate.e2e.spec.ts` (criterion 7); (3) G9's five sites, re-pointed as in §5 criterion 9; (4) a read-only `findDesignIdsForTests` sibling of `deleteDesignsForTests`, behind the same guard, so `seeded-design.qa:51` proves deletion from the database and not from a 404 every cookie-less caller now gets | `packages/persistence/src/…-for-tests.ts` (one file) | plan G9, G11, criteria 3, 4, 6, 7, 9; ADR 0105, 0006; `tests/e2e/support/seeded-design.ts`, `support/minted-designs.ts`, `persistence/src/delete-designs-for-tests.ts`, `test-database-url.ts`, and the five G9 specs at their cited lines |
+
+- **Reading, QA:** this plan §1–§6 and §5 in full; ADR 0114 decision 5, B1, F4, H1–H3; backlog 81; the 7E3 split note (*adversarial QA emphasis*); `visitor.ts`, both `api/designs` routes, the `/d` page, `design-errors.ts`, `seeded-design.ts`, `qa-7e3a-visitor` and `qa-7e3c-share` specs.
+- **Reading, logic reviewer:** plan D1–D6, §5; ADR 0114 decision 5, F3, H1–H3; ADR 0019 decision 1; the S1–S3 diff with `neon-configuration-repository.ts`, `visitor.ts`, both `api/designs` routes and the `/d` page.
+- **Reading, clean-code reviewer:** plan D4 (port shape), D7; `docs/best-practices/engineering-conventions.md`; the wave diff.
+- **Reading, security (`sec-7e3`):** plan D1–D4, §6 R3, R4, R7, §5 criteria 2, 3, 6, 8, 10, 11; ADR 0114 decision 5, F2–F4, G4, H1–H3; backlog 81; the S1–S3 diff; `cross-site-request.ts`, `retry-on-compute-restart.ts`.
+- **Sequence:** S1 → S2 → **security mini-review** (`sec-7e3`: rotation, D3, backlog 81 closed) →
+  S3 → **security mini-review** (byte identity, D4's no-query branch, headers) → S4 → full adversarial
+  QA → review.
+- **Tier: Full + security, confirmed.** The wave touches a public read, a credential and customer
+  data. Logic and clean-code reviewers run in parallel with **the same security reviewer, `sec-7e3`**
+  (*Review continuity*).
+  - **The security brief:** D1's atomicity and retry; R3 and R4; D4's in-SQL comparison against the
+    criterion's *"constant time"*; the header and byte identity; the log-absence of hashes; D6.
+  - **QA's emphasis** (the 7E3 split note): timing and byte identity of *"not available"* across a
+    wrong id, a foreign cookie and a missing cookie, plus fixation after rotation.
+- **Visual: Light, as the row says.** A production build at 390 × 844, ro and ru:
+  - the unavailable page for a foreign and for a missing cookie, pixel-identical to each other;
+  - the owner's `/d/{id}` unchanged beside a pre-wave capture.
+
+  Evidence goes in `testing-reports/7e3b/`.
+
+#### 5. Acceptance criteria (7E3b-A1…)
+
+"Refusal cases" means: no cookie, empty, malformed, well-formed but foreign, a nonexistent id, and a
+row whose `visitor_hash is null`. Each case holds for both locales where a page is involved.
+
+1. **The gate (criterion 1).**
+   - The owner's cookie serves `/{l}/d/{id}`, and `GET` answers 200 with the design.
+   - Every refusal case serves neither.
+   - **Must not:**
+     - any web module calls `getRepository().load(` (grep, and a type error);
+     - `migrateDesign` runs for a row the request does not own. A foreign row holding an invalid
+       document answers the refusal, never `invalid` or 500.
+2. **One refusal (criterion 2).** API, across every refusal case, as a `fast-check` property over
+   cases × ids:
+   - 404, with a body byte-identical to `designNotFoundResponse(id)`;
+   - a header set identical except `Date`, including `private, no-store` and `Vary: Cookie`;
+   - no `Set-Cookie`;
+   - no-cookie and malformed cases **never call the repository**.
+
+   The page, on `next start`: the refusal cases answer the same status and bodies identical once the
+   nonce and the path's own id are placeholders. For a **fixed** id, foreign, missing and null-owner
+   are identical after the nonce alone. The unprefixed redirect is identical with and without a
+   visitor cookie.
+3. **Timing (QA, measured, reported).** On `next start`, n ≥ 200 per class, interleaved: foreign
+   cookie against an existing id versus a nonexistent id, for both the API and the page. **Falsified
+   if** the difference of medians exceeds the larger interquartile range. A separation is reported
+   to `sec-7e3` and not fixed silently.
+4. **The owner keeps working (criterion 3).**
+   - `openSeededDesign` passes unchanged in every spec that uses it, and the probe answers `canWrite:
+     true`.
+   - With the write-token cookie alone removed (`clearCookies({ name })`), the owner's `/d/{id}`
+     renders read-only, the probe answers `canWrite: false`, and no share control appears.
+   - Every owner-context spec passes with zero diff.
+5. **Rotation (Amendment H1), a property over 1–5 sequential mints in one context:**
+   - every response sets a new value, none equal to any earlier one;
+   - after mint *k*, every row minted so far carries `sha256(value_k)`, and **no row carries any
+     earlier value's hash**;
+   - resume lands on the newest;
+   - `document`, `revision`, `updated_at` and `write_token_hash` of the moved rows are byte-identical
+     before and after;
+   - an active share link keeps opening across a rotation.
+
+   **Must not:** the absent or malformed path issues an `UPDATE` (a recording double); `set
+   visitor_hash` appears anywhere but the mint's transaction (grep).
+6. **Fixation closed (backlog 81), e2e.**
+   - A script plants a well-formed non-`HttpOnly` value in a fresh context, and the next in-page mint
+     replaces it.
+   - A second context holding the planted value then opens the minted design and gets the refusal,
+     and resume from it lands on Step 1.
+   - **QA's sabotage:** with reuse restored, the second context reads the design. This must go red.
+7. **The refusal spec (criterion 3),** in both projects:
+   - a foreign context and a cookie-less context each get `design-load-error` with the `unavailable`
+     copy;
+   - no probe request is made, and no `canvas` appears;
+   - the jar is byte-identical before and after.
+8. **Atomicity and retry (live).**
+   - Running the rotation transaction twice with identical arguments answers the same `revision`
+     and leaves one row.
+   - A forced failure of statement 2 leaves every row under the old hash.
+   - Two concurrent mints from one old value leave **no** row under it (the READ COMMITTED
+     re-check).
+9. **Re-pointed specs, per G9.**
+   - `seeded-design.qa:51` proves deletion through `findDesignIdsForTests`.
+   - `seeded-design.qa:143` splits in two: the write token cleared, which throws the existing
+     *canWrite false* message, and all cookies cleared, where `openSeededDesign` throws by name on
+     the unavailable page.
+   - `qa-7e3a-visitor` criterion 9 asserts the refusal and keeps its jar-identity and resume
+     assertions.
+   - `qa-7e3c-share:683`'s read-only `/d` becomes the owner without a write token.
+   - `top-bar-pill-containment.desktop` mints per test in its own context, unless the implementer
+     measures that `addCookies` plants a host-only `__Host-` cookie (G11). Either way it quotes the
+     file's runtime before and after.
+   - **For all of them:** per-file `expect` counts do not fall except by listed moves.
+10. **Save refresh (D3).**
+    - A save carrying the owning value re-emits it.
+    - A save carrying a stale value, after a rotation, succeeds (the write token) and emits **no**
+      visitor `Set-Cookie`.
+    - No save issues a second query.
+11. **Logs.** The captured console across a forced gate failure, rotation failure and save failure
+    carries neither value nor hash. A gate refusal logs nothing (it is not an error).
+12. **Gates.**
+    - `pnpm ci:local` is green, with counts quoted against 7E3c's: e2e 414 / 2, persistence 29 / 535
+      \| 1, three-adapter 92 / 3,553, web 255 / 4,608.
+    - The census literal is unchanged, and no migration file is added.
+    - No `.skip`, `.only` or `.fixme`, no raised timeout, and no dependency change.
+    - Runner verdict: the owner's `workflow_dispatch`.
+13. **Records.**
+    - Amendment H is in the plan commit.
+    - At close-out: ADR 0002 and 0019's notes and Amendment H carry the hashes, backlog 81 moves to
+      closed, and `STATUS.md` names the deploy precondition.
+
+#### 6. Risks
+
+- **R1: churn from the doubles** (G8, ~23 files) can hide a dropped assertion. Criterion 9's
+  per-file counts guard against it.
+- **R2: existing unowned rows become unreadable** — every row minted before `0005`, anywhere. This
+  is ADR 0114 decision 5's stated consequence, and the count is unmeasured (7E3a S1.2 struck
+  *"five production rows"*). **It is not an owner decision; it is reported.**
+- **R3: a same-browser race.**
+  - Two mints in parallel, or a save statement that commits before a rotation but whose response
+    lands after it, can leave some rows under a value the jar no longer holds. They cannot be
+    reopened in that browser until M8.
+  - It needs two tabs acting within one round trip. It is recorded, not built (ADR 0118); D3 closes
+    the common half.
+- **R4: design injection.** A planted value's rows (the attacker's own) are moved into the victim's
+  new identity, and resume may land there. The precondition is the same as backlog 81's (same-host
+  script or physical access). The victim gains read access to the attacker's design, and nothing of
+  the victim's is exposed. This goes to `sec-7e3`.
+- **R5: `cookies()` in the page** is already dynamic, so this is not a new rendering mode.
+  `next build`'s table is quoted.
+- **R6: deploy order.** No new migration. The existing precondition (`0005`, `0006`, grant) is
+  unchanged.
+- **R7: timing.** Criterion 3 measures a heap visit that exists only for existing ids. The 126-bit
+  id makes an existence oracle worthless for enumeration. If it is measurable, the ruling is
+  `sec-7e3`'s.
+
+#### 7. Where the records and the code disagree
+
+- **The wave row** lists four files. The wave also touches `neon-configuration-repository.ts`,
+  `persistence/index.ts`, `api/designs/route.ts`, `design-errors.ts`, `repository.ts`, the two
+  message files, a `…-for-tests.ts` utility and five e2e specs. The row is to point here.
+- **ADR 0114 decision 5** says *"load the row and compare … in constant time"*. The comparison moves
+  into the predicate (D4, H2).
+- **7E3a D1's reuse, its rejected tight refresh, and its criterion 5 must-not** are superseded by H1
+  and H3.
+- **7E3c criterion 17** named two specs reading `/d` without the owner. There are five (G9).
+- **Five stale comments** say the read is open (D7).
+- **No blocking owner question.** The copy (D5) is approved as drafted under ADR 0113.
 
 **7E4 — e2e and tooling off the retired route** (lands before 7E3a)
 
