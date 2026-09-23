@@ -49,16 +49,23 @@ function readingWith(
   };
 }
 
-const FILES = [1, 2, 3, 4, 5].map(migrationFile);
+const FILES = [1, 2, 3, 4, 5, 6].map(migrationFile);
 const EVERY_FILE_APPLIED = FILES.map(ledgerRowFor);
-const [FIRST_FILE, SECOND_FILE, THIRD_FILE, FOURTH_FILE, FIFTH_FILE] =
-  FILES as [
-    MigrationFile,
-    MigrationFile,
-    MigrationFile,
-    MigrationFile,
-    MigrationFile,
-  ];
+const [
+  FIRST_FILE,
+  SECOND_FILE,
+  THIRD_FILE,
+  FOURTH_FILE,
+  FIFTH_FILE,
+  SIXTH_FILE,
+] = FILES as [
+  MigrationFile,
+  MigrationFile,
+  MigrationFile,
+  MigrationFile,
+  MigrationFile,
+  MigrationFile,
+];
 
 describe("a ledger that exists but disagrees with the files", () => {
   it("reports an empty ledger as behind by every file, never as outside the ledger", () => {
@@ -68,7 +75,7 @@ describe("a ledger that exists but disagrees with the files", () => {
     const report = describeDeployedSchemaStatus(FILES, readingWith([]));
 
     expect(report.outcome).toBe("behind");
-    expect(report.detail).toContain("behind by 5 migration(s)");
+    expect(report.detail).toContain("behind by 6 migration(s)");
     expect(report.detail).not.toContain("outside the ledger");
   });
 
@@ -89,11 +96,11 @@ describe("a ledger that exists but disagrees with the files", () => {
     // Both are a ledger row with no file. Only the second is benign, and the two repairs are
     // opposites: restore the file, or migrate from the revision that matches the database.
     //
-    // Only the middle file is missing from the checkout here — the highest version (5) stays in
+    // Only the middle file is missing from the checkout here — the highest version (6) stays in
     // both, so this scenario is "a file was deleted" and not also "this checkout is older", which
     // is the confusion the next test isolates.
     const deletedMiddleFile = describeDeployedSchemaStatus(
-      [FIRST_FILE, SECOND_FILE, FOURTH_FILE, FIFTH_FILE],
+      [FIRST_FILE, SECOND_FILE, FOURTH_FILE, FIFTH_FILE, SIXTH_FILE],
       readingWith(EVERY_FILE_APPLIED),
     );
 
@@ -160,7 +167,7 @@ describe("a ledger that exists but disagrees with the files", () => {
 
     const report = describeDeployedSchemaStatus(FILES, readingWith(duplicated));
 
-    expect(report.readBack).toContain("ledger [1, 2, 3, 4, 5, 2]");
+    expect(report.readBack).toContain("ledger [1, 2, 3, 4, 5, 6, 2]");
   });
 });
 
@@ -264,10 +271,10 @@ describe("only level deploys", () => {
       }),
       behind: describeDeployedSchemaStatus(FILES, readingWith([])),
       // A row for a version above the highest file on disk — "the checkout is older than the
-      // database" — so this must be a version FILES does not carry, which is 6 now that 5 is real.
+      // database" — so this must be a version FILES does not carry, which is 7 now that 6 is real.
       diverged: describeDeployedSchemaStatus(
         FILES,
-        readingWith([...EVERY_FILE_APPLIED, ledgerRowFor(migrationFile(6))]),
+        readingWith([...EVERY_FILE_APPLIED, ledgerRowFor(migrationFile(7))]),
       ),
       "columns-missing": describeDeployedSchemaStatus(FILES, {
         ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
@@ -299,7 +306,7 @@ describe("the verdict over swept ledgers", () => {
   // fake, a future read, or a `union` added to the query would reorder them, and a verdict that
   // changed with row order would be a guard that reports differently on identical databases.
   propertyTest.prop(
-    [fc.shuffledSubarray(EVERY_FILE_APPLIED, { minLength: 5, maxLength: 5 })],
+    [fc.shuffledSubarray(EVERY_FILE_APPLIED, { minLength: 6, maxLength: 6 })],
     { seed: 20260907, numRuns: 200 },
   )("does not depend on the order the ledger rows arrive in", (shuffled) => {
     expect(

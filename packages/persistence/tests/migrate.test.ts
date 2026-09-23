@@ -63,6 +63,7 @@ const ALL_MIGRATION_FILE_NAMES = [
   "0003_check_write_token_hash_shape.sql",
   "0004_add_design_revision.sql",
   "0005_add_design_visitor_hash.sql",
+  "0006_create_design_share_links.sql",
 ];
 
 /** Every version after the first, read from disk. Forgetting a *suffix* of the ledger is the only

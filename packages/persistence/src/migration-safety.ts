@@ -67,10 +67,15 @@ interface AdditiveStatementShape {
 
 const TABLE_NAME = String.raw`[\w".]+`;
 
+/** Anchors the one shape both the allowlist and the `on delete` exemption below need to agree on:
+ *  a statement is only ever read as "creating a table that may not already exist", never as
+ *  altering one that does. */
+const CREATE_TABLE_IF_NOT_EXISTS = /^create\s+table\s+if\s+not\s+exists\s/;
+
 const ADDITIVE_STATEMENT_SHAPES: readonly AdditiveStatementShape[] = [
   {
     what: "create table if not exists",
-    isMatchedBy: matchesAnchored(/^create\s+table\s+if\s+not\s+exists\s/),
+    isMatchedBy: matchesAnchored(CREATE_TABLE_IF_NOT_EXISTS),
   },
   {
     what: "alter table … add column if not exists",
@@ -119,7 +124,7 @@ const DESTRUCTIVE_DIAGNOSES: readonly DestructiveDiagnosis[] = [
     // Bare, for the reason `drop` is bare: `UPDATE designs d SET`, `UPDATE designs AS d SET` and
     // `UPDATE ONLY designs SET` all put something unexpected between the table and `SET`.
     // `updated_at` and `update_count` are untouched by the word boundary.
-    isBrokenBy: matches(/\bdelete\b/, /\bupdate\b/),
+    isBrokenBy: rewritesExistingRows,
   },
   {
     what: "changes a column's type",
@@ -333,6 +338,37 @@ function isIdempotentCreateIndex(statement: string): boolean {
  *  without that guard is an arbitrary procedural body and is not recognised. */
 function isConstraintGuardedDoBlock(statement: string): boolean {
   return /^do\s+\$\$/.test(statement) && statement.includes("pg_constraint");
+}
+
+/** The one referential action this screen ever reads out of a `delete` occurrence rather than into
+ *  it (D2, M7 wave 7E3c): `on delete cascade|restrict|no action|set null|set default`, the shape
+ *  `0006` needs for `design_share_links.design_id ... references designs (id) on delete cascade`. */
+const ON_DELETE_REFERENTIAL_ACTION =
+  /\bon\s+delete\s+(cascade|restrict|no\s+action|set\s+null|set\s+default)\b/g;
+
+/**
+ * `delete` and `update` both name a statement that rewrites existing rows — with one narrow
+ * exemption. Inside a statement this screen has already anchored as `create table if not exists`,
+ * an `on delete …` referential-action clause is part of the table's own definition, not a rewrite,
+ * and a table that does not yet exist has no rows to rewrite regardless of what its foreign keys
+ * say. Stripping just that clause and re-testing is what keeps the exemption narrow: any other
+ * `delete` inside the same statement — there is none in `0006`, but the screen must not assume that
+ * of a future one — still trips this diagnosis.
+ *
+ * `update` gets no such exemption: `on update cascade` inside a `create table if not exists` is
+ * still refused, because nothing about this wave needs it and a broader exemption is a broader
+ * promise than D2 made.
+ */
+function rewritesExistingRows(statement: string): boolean {
+  if (/\bupdate\b/.test(statement)) return true;
+  if (!/\bdelete\b/.test(statement)) return false;
+  if (!CREATE_TABLE_IF_NOT_EXISTS.test(statement)) return true;
+
+  const withoutReferentialActions = statement.replace(
+    ON_DELETE_REFERENTIAL_ACTION,
+    " ",
+  );
+  return /\bdelete\b/.test(withoutReferentialActions);
 }
 
 function matchesAnchored(pattern: RegExp): (statement: string) => boolean {

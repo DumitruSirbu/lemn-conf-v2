@@ -137,6 +137,55 @@ describe("evasions the screen already holds against", () => {
   });
 });
 
+describe("the on-delete exemption (D2, M7 wave 7E3c) stays narrow", () => {
+  // Acceptance criterion 3: the screen still refuses each of these, even though `0006` needs
+  // `create table if not exists ... on delete cascade` to pass.
+  it("refuses an on-delete cascade added to a table that may already exist", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add constraint designs_owner_fk " +
+          "foreign key (owner_id) references owners (id) on delete cascade;",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses on update cascade, inside or outside a create table if not exists", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add constraint designs_owner_fk " +
+          "foreign key (owner_id) references owners (id) on update cascade;",
+      ),
+    ).not.toEqual([]);
+    expect(
+      refusalsFor(
+        "create table if not exists t (id text, parent_id text references t (id) on update cascade);",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a bare delete over existing rows", () => {
+    expect(refusalsFor("delete from designs;")).not.toEqual([]);
+  });
+
+  it("refuses a delete statement that follows a create table if not exists in the same file", () => {
+    // Two statements: the first is the exempted shape, the second is an ordinary delete. Passing
+    // the first must not launder the second past the screen.
+    expect(
+      refusalsFor(
+        "create table if not exists t (id text primary key); delete from t;",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a create table if not exists whose on-delete clause hides a second, bare delete", () => {
+    expect(
+      refusalsFor(
+        "create table if not exists t (id text references t (id) on delete cascade, note text default 'delete me too');",
+      ),
+    ).not.toEqual([]);
+  });
+});
+
 describe("the false-positive direction: additive migrations that must still pass", () => {
   it("allows a column whose name contains a refused keyword", () => {
     // `deleted_at`, `dropped_at` and `update_count` are ordinary column names. A screen that

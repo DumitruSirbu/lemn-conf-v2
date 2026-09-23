@@ -122,6 +122,56 @@ describe("unattendedMigrationRefusals", () => {
 
     expect(refusals).toEqual([]);
   });
+
+  // M7 wave 7E3c, D2: a `create table if not exists` may carry an `on delete` referential action
+  // without tripping the "rewrites existing rows" diagnosis — this is `0006`'s own shape, a foreign
+  // key to `designs` that cascades. `0006` is checked verbatim in the shipped-migrations test above;
+  // these exercise the exemption's edges directly.
+  describe("a create table if not exists may carry an on delete referential action", () => {
+    it("allows the exact shape 0006 ships", () => {
+      expect(
+        refusalsFor(
+          "create table if not exists design_share_links (\n" +
+            "  token_hash text primary key,\n" +
+            "  design_id text not null references designs (id) on delete cascade,\n" +
+            "  created_at timestamptz not null default now()\n" +
+            ");",
+        ),
+      ).toEqual([]);
+    });
+
+    it.each(["cascade", "restrict", "no action", "set null", "set default"])(
+      "allows on delete %s",
+      (action) => {
+        expect(
+          refusalsFor(
+            `create table if not exists t (id text, parent_id text references t (id) on delete ${action});`,
+          ),
+        ).toEqual([]);
+      },
+    );
+
+    it("still refuses update, unexempted, inside the same create table", () => {
+      // D2 exempts only `on delete`. `on update cascade` inside a fresh `create table if not
+      // exists` is still refused, because nothing needs the broader exemption and D2 did not
+      // promise one.
+      const refusals = refusalsFor(
+        "create table if not exists t (id text, parent_id text references t (id) on update cascade);",
+      );
+
+      expect(refusals[0]).toContain("rewrites existing rows");
+    });
+
+    it("still refuses a delete smuggled elsewhere in the same create table statement", () => {
+      // The exemption strips only the `on delete <action>` phrase and re-tests; a bare `delete`
+      // anywhere else in the statement survives that strip and still trips the diagnosis.
+      const refusals = refusalsFor(
+        "create table if not exists t (id text default 'please delete nothing');",
+      );
+
+      expect(refusals[0]).toContain("rewrites existing rows");
+    });
+  });
 });
 
 describe("executableStatementsOf", () => {

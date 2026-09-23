@@ -15,6 +15,24 @@ through parse → validate → migrate (`migrateDesign` from `@lemnaria/configur
 *that row only* if it doesn't pass — never a bulk `COPY` straight into the table. A dump can carry
 an older schema version, or the very corruption that prompted the restore in the first place.
 
+## Migration `0006` (`design_share_links`) — the grant is a separate, owner-run step
+
+M7 wave 7E3c's migration creates `design_share_links`, but `app_designs` gets no privilege on it
+from the migration itself: `grant` is not a shape `migration-safety.ts` recognises as safe to run
+unattended, and whether `app_designs` exists on every database this file runs against is not
+something a migration file can assume (ADR 0008's 2026-09-23 note; ADR 0114 Amendment G3). The
+owner runs this by hand, **after `0006` and before the deploy that ships the code reading the
+table** — the same order `0005`'s own header states for its column, for the same reason: code that
+ships before both answers every share operation with a 500.
+
+```sql
+GRANT SELECT, INSERT, UPDATE ON TABLE public.design_share_links TO app_designs;
+```
+
+Preview first, then production, each after that environment's own `0006` apply.
+`application-role-privileges.test.ts` asserts the exact grant set whenever the table exists, so a
+missing grant on a database that already has the table turns local gates red.
+
 ## Path 1 — Neon instant restore (PITR)
 
 Use this first if the incident is recent. The restore window is a **hard cap**, not a default, and
@@ -57,6 +75,19 @@ This project is on Neon's Free plan — **6 hours**. Past that, skip to Path 2.
    ```bash
    neon branches delete main_pre_restore_2026-08-25 --project-id <neon-project-id>
    ```
+
+6. **If `design_share_links` exists (M7 wave 7E3c), revoke every link before declaring the
+   incident resolved.** Unlike Path 2's row-level restore below — which excludes share rows
+   deliberately, so an older export can never resurrect a link revoked since (D8) — a PITR restore
+   moves the *whole* database backward, share links included, so a link revoked between the
+   restore point and the incident comes back active:
+
+   ```bash
+   psql "$DATABASE_URL" -c "update design_share_links set revoked_at = now() where revoked_at is null;"
+   ```
+
+   Every outstanding link dies, including any the restore did not actually resurrect — the query
+   cannot distinguish the two, and the owner re-issues.
 
 ## Path 2 — Restore from a dated Blob export
 

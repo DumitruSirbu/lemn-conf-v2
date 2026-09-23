@@ -557,8 +557,9 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // **Every version from 2 upward, not only 2 and 3** (WEB-003). The runner refuses a ledger with a
 // hole in it, so forgetting 2 while a later migration stays recorded is itself the gap — it wedges
 // the shared test database rather than re-running the migration under test. Anything added after
-// 0004 belongs in this list for the same reason. `0005` joined it for exactly that reason.
-const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5];
+// 0004 belongs in this list for the same reason. `0005` joined it for exactly that reason, and `0006`
+// for the same reason again.
+const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5, 6];
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -591,6 +592,7 @@ describe("the write-token migration actually executes", () => {
         "0003_check_write_token_hash_shape.sql",
         "0004_add_design_revision.sql",
         "0005_add_design_visitor_hash.sql",
+        "0006_create_design_share_links.sql",
       ]);
 
       const columns = await writeTokenColumns();
@@ -746,6 +748,191 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
       } finally {
         await sql`delete from designs where id = ${id}`;
       }
+    },
+  );
+});
+
+// M7 wave 7E3c, S1: `0006_create_design_share_links.sql`'s table, constraint, foreign key and index,
+// read back live — the same argument as the write-token and visitor-hash constraint tests above.
+// Application code is not the only path to this table (a manual insert, the restore runbook), so
+// every guarantee below is proven at the database. **Written for the mini-gate's post-apply run
+// (§3) and not run by this implementer**: `0006` reaches no database, including the test one, until
+// the security reviewer has read it and the coordinator has run the migration suite once.
+describe("0006's design_share_links table, read back live", () => {
+  const DEGENERATE_TOKEN_HASHES = [
+    "",
+    " ",
+    "secret",
+    "z".repeat(64),
+    "A".repeat(64),
+    "a".repeat(63),
+  ];
+
+  /** A bare `designs` row with no share links yet, for a share-link test to attach to and delete
+   *  when it is done. Direct SQL, as the visitor-hash block above inserts directly, because this
+   *  describe block is about the schema and not about `NeonConfigurationRepository`. */
+  async function insertDesignForShareLinks(): Promise<string> {
+    const id = `qa-0006-design-${String(Date.now())}-${String(Math.random()).slice(2)}`;
+    await neon(testDatabaseUrl)`
+      insert into designs (id, schema_version, document)
+      values (${id}, 1, ${KITCHEN_L_DESIGN})
+    `;
+    return id;
+  }
+
+  it.skipIf(!hasLiveDatabase)(
+    "carries token_hash as the primary key, design_id, created_at and revoked_at",
+    async () => {
+      const columns = (await neon(testDatabaseUrl)`
+        select column_name, data_type, is_nullable
+        from information_schema.columns
+        where table_name = 'design_share_links'
+        order by column_name
+      `) as { column_name: string; data_type: string; is_nullable: string }[];
+
+      expect(columns).toEqual([
+        {
+          column_name: "created_at",
+          data_type: "timestamp with time zone",
+          is_nullable: "NO",
+        },
+        { column_name: "design_id", data_type: "text", is_nullable: "NO" },
+        {
+          column_name: "revoked_at",
+          data_type: "timestamp with time zone",
+          is_nullable: "YES",
+        },
+        { column_name: "token_hash", data_type: "text", is_nullable: "NO" },
+      ]);
+
+      const primaryKeyColumns = (await neon(testDatabaseUrl)`
+        select a.attname
+        from pg_index i
+        join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+        where i.indrelid = 'design_share_links'::regclass and i.indisprimary
+      `) as { attname: string }[];
+
+      expect(primaryKeyColumns.map((row) => row.attname)).toEqual([
+        "token_hash",
+      ]);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "cascades on delete: the design_id foreign key's confdeltype is 'c', not the driver default",
+    async () => {
+      const foreignKeys = (await neon(testDatabaseUrl)`
+        select confdeltype
+        from pg_constraint
+        where conrelid = 'design_share_links'::regclass and contype = 'f'
+      `) as { confdeltype: string }[];
+
+      expect(foreignKeys).toHaveLength(1);
+      expect(foreignKeys[0]?.confdeltype).toBe("c");
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "refuses a degenerate token_hash at the database level, not only in application code",
+    async () => {
+      const sql = neon(testDatabaseUrl);
+      const designId = await insertDesignForShareLinks();
+      try {
+        for (const hash of DEGENERATE_TOKEN_HASHES) {
+          await expect(
+            sql`
+              insert into design_share_links (token_hash, design_id)
+              values (${hash}, ${designId})
+            `,
+            `hash of length ${String(hash.length)}`,
+          ).rejects.toThrow(/design_share_links_token_hash_is_sha256/);
+        }
+      } finally {
+        await sql`delete from designs where id = ${designId}`;
+      }
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "carries the exact index definition D3's issue transaction needs",
+    async () => {
+      const rows = (await neon(testDatabaseUrl)`
+        select indexdef from pg_indexes
+        where tablename = 'design_share_links'
+          and indexname = 'design_share_links_one_active_per_design'
+      `) as { indexdef: string }[];
+
+      expect(rows).toHaveLength(1);
+      const indexdef = rows[0]?.indexdef ?? "";
+      expect(indexdef).toContain("UNIQUE INDEX");
+      expect(indexdef).toContain("(design_id)");
+      expect(indexdef).toContain("WHERE (revoked_at IS NULL)");
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "refuses a second active row for one design, but not a revoked row beside an active one",
+    async () => {
+      const sql = neon(testDatabaseUrl);
+      const designId = await insertDesignForShareLinks();
+      const firstHash = "1".repeat(64);
+      const secondHash = "2".repeat(64);
+      try {
+        await sql`
+          insert into design_share_links (token_hash, design_id)
+          values (${firstHash}, ${designId})
+        `;
+
+        await expect(
+          sql`
+            insert into design_share_links (token_hash, design_id)
+            values (${secondHash}, ${designId})
+          `,
+        ).rejects.toThrow(/design_share_links_one_active_per_design/);
+
+        await sql`
+          update design_share_links set revoked_at = now() where token_hash = ${firstHash}
+        `;
+        await sql`
+          insert into design_share_links (token_hash, design_id)
+          values (${secondHash}, ${designId})
+        `;
+
+        const rows = (await sql`
+          select token_hash, revoked_at is null as is_active
+          from design_share_links
+          where design_id = ${designId}
+          order by token_hash
+        `) as { token_hash: string; is_active: boolean }[];
+
+        expect(rows).toEqual([
+          { token_hash: firstHash, is_active: false },
+          { token_hash: secondHash, is_active: true },
+        ]);
+      } finally {
+        await sql`delete from designs where id = ${designId}`;
+      }
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "removes a design's share rows when the design itself is deleted",
+    async () => {
+      const sql = neon(testDatabaseUrl);
+      const designId = await insertDesignForShareLinks();
+      const tokenHash = "3".repeat(64);
+      await sql`
+        insert into design_share_links (token_hash, design_id)
+        values (${tokenHash}, ${designId})
+      `;
+
+      await sql`delete from designs where id = ${designId}`;
+
+      const rows = (await sql`
+        select token_hash from design_share_links where token_hash = ${tokenHash}
+      `) as { token_hash: string }[];
+
+      expect(rows).toEqual([]);
     },
   );
 });
