@@ -167,7 +167,8 @@ test("resumes the most recently touched design, over both an earlier mint and an
   const first = await mintSeededDesign(page, "ro");
   const second = await mintSeededDesign(page, "ro");
   try {
-    // Minting again in the same browser reuses the one cookie (D1), so both designs share a
+    // Minting again in the same browser rotates to a fresh value and moves the earlier design's
+    // row to it (M7 wave 7E3b D1 / ADR 0114 Amendment H1), so both designs still share one
     // visitor — `second` is now the more recently updated of the two.
     await page.goto("/ro");
     expect(new URL(page.url()).pathname).toBe(`/ro/d/${second.id}`);

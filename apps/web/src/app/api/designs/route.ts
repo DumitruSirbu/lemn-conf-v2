@@ -62,16 +62,18 @@ function crossSiteMintRefusedResponse(): NextResponse {
  *  contract — the repository itself has no opinion on how a `Design` came to exist
  *  (`docs/milestones/M2-void-engine.md`, "Something has to create the first design").
  *
- *  Since M7 wave 7E3a it also resolves — and always sets — the visitor cookie (D1): a well-formed
- *  one the request already carried is reused, and an absent or malformed one is replaced. Every
- *  mint therefore leaves the browser with exactly one identity, never two and never none. */
+ *  Since M7 wave 7E3a it also resolves — and always sets — the visitor cookie. Since M7 wave 7E3b
+ *  (Amendment H1, *"Rotate on mint"*) every mint issues a **fresh** value; a well-formed one the
+ *  request already carried is never re-emitted, only rotated away from — the repository moves that
+ *  browser's existing rows to the fresh value in the same transaction as the insert. Every mint
+ *  therefore leaves the browser with exactly one identity, never two and never none. */
 async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
   const writeToken = mintWriteToken();
   const visitor = resolveVisitorForMint(request);
   const { id, revision } = await getRepository().mint({
     design: KITCHEN_L_DESIGN,
     writeTokenHash: writeToken.hash,
-    visitorHash: visitor.hash,
+    visitor: visitor.mintVisitor,
   });
 
   // The token and the visitor value both travel in `Set-Cookie` headers only, deliberately absent

@@ -27,6 +27,7 @@ import {
   type AuthorizedConfigurationRepository,
   type AuthorizedSave,
   type DesignVersion,
+  type SaveOutcome,
   type MintDesign,
   type StoredDesign,
 } from "@lemnaria/persistence";
@@ -58,7 +59,7 @@ class InMemoryAuthorizedRepository
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     if (row === undefined || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
@@ -68,7 +69,7 @@ class InMemoryAuthorizedRepository
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {

@@ -18,6 +18,7 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  SaveOutcome,
   MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
@@ -48,7 +49,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     // The order the real repository uses: the credential decides between 403 and 409, so a caller
     // without one can never see a conflict and never learn the design exists.
@@ -60,7 +61,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {

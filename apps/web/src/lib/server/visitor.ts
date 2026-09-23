@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
+import type { MintVisitor, RequestVisitor } from "@lemnaria/persistence";
 import type { NextRequest, NextResponse } from "next/server";
 
 import { sha256Hex } from "./sha256-hex";
@@ -47,19 +48,23 @@ const VISITOR_COOKIE_ATTRIBUTES = {
   path: "/",
 } as const;
 
-/** A minted or reused visitor identity: the cookie's own value, and the hash `mint` stores. */
+/** A minted visitor identity: the cookie's own fresh value, and the tagged instruction `mint`
+ *  needs to store it (M7 wave 7E3b D1 / ADR 0114 Amendment H1). */
 export interface ResolvedVisitor {
   readonly value: string;
-  readonly hash: string;
+  readonly mintVisitor: MintVisitor;
 }
 
 /**
- * D1's reuse-or-mint decision, made once and handed to both the repository insert and the cookie.
+ * D1's rotation decision (Amendment H1, the owner's ruling *"Rotate on mint"*), made once and
+ * handed to both the repository insert and the cookie.
  *
- * A well-formed carried value is reused outright — the mint re-emits it with a fresh `Max-Age`
- * rather than replacing it, so a browser that already has an identity keeps it across every design
- * it mints. An absent or malformed value is replaced with a fresh one. Either way the mint **always
- * sets the cookie**; there is no branch in which `POST /api/designs` answers 201 without one.
+ * **Every mint issues a fresh value; none is ever re-emitted.** A well-formed carried value is
+ * *not* kept — instead `mintVisitor` tags it as the value the repository's own transaction moves
+ * every existing row away from, so the browser keeps every design it already owned under the new
+ * identity. An absent or malformed carried value has nothing to move, and `mintVisitor` says so.
+ * Either way the mint **always sets the cookie** to the fresh value; there is no branch in which
+ * `POST /api/designs` answers 201 without one.
  *
  * Reads the cookie only — it neither sets nor clears anything, so a caller can decide whether to
  * proceed (D6's cross-site refusal runs first) before any state changes.
@@ -68,11 +73,17 @@ export function resolveVisitorForMint(
   request: Pick<NextRequest, "cookies">,
 ): ResolvedVisitor {
   const carried = readVisitorValue(request.cookies);
-  const value =
+  const value = randomBytes(VISITOR_TOKEN_BYTES).toString("base64url");
+  const hash = sha256Hex(value);
+  const mintVisitor: MintVisitor =
     carried !== undefined && WELL_FORMED_VISITOR_VALUE.test(carried)
-      ? carried
-      : randomBytes(VISITOR_TOKEN_BYTES).toString("base64url");
-  return { value, hash: sha256Hex(value) };
+      ? {
+          kind: "rotate",
+          visitorHash: hash,
+          fromVisitorHash: sha256Hex(carried),
+        }
+      : { kind: "fresh", visitorHash: hash };
+  return { value, mintVisitor };
 }
 
 /** Sets the visitor cookie to `value`, with a fresh 30-day `Max-Age`. The only two callers are the
@@ -85,11 +96,17 @@ export function setVisitorCookie(response: NextResponse, value: string): void {
 }
 
 /**
- * A successful save's refresh (D1): re-emits the **request's own** well-formed value, so the
- * cookie's lifetime slides with use exactly as the write-token cookie's does. Never mints — an
- * absent or malformed value is left alone, because minting here would hand a browser that arrived
- * with no identity (or a tampered one) a fresh one on the strength of a save to a design it may not
- * even own, which is not this function's decision to make.
+ * A successful save's refresh: re-emits the **request's own** well-formed value, so the cookie's
+ * lifetime slides with use exactly as the write-token cookie's does. Never mints — an absent or
+ * malformed value is left alone, because minting here would hand a browser that arrived with no
+ * identity (or a tampered one) a fresh one on the strength of a save to a design it may not even
+ * own, which is not this function's decision to make.
+ *
+ * **Callers must gate this on `saveAuthorized`'s `ownsVisitor` (M7 wave 7E3b D3 / Amendment H3)
+ * before calling it at all.** A request's value can be well-formed and still not be the row's
+ * current one — another tab may have rotated it away between the read and this write — and
+ * re-emitting it then would lock the browser out of every design it owns. This function's own
+ * well-formedness check is not a substitute for that gate; it only keeps this function total.
  */
 export function refreshVisitorCookie({
   request,
@@ -153,6 +170,21 @@ export function readVisitorHash(
   if (carried === undefined || !WELL_FORMED_VISITOR_VALUE.test(carried))
     return undefined;
   return sha256Hex(carried);
+}
+
+/**
+ * A save's own read (M7 wave 7E3b D3 / Amendment H3): the tagged shape `saveAuthorized` needs to
+ * answer whether the request's value is the row's current one, built on `readVisitorHash`'s own
+ * collapse of absent and malformed to one case — D3's rule is unconditional either way ("a request
+ * without a well-formed cookie still gets no refresh").
+ */
+export function resolveRequestVisitor(
+  cookies: VisitorCookieReader,
+): RequestVisitor {
+  const hash = readVisitorHash(cookies);
+  return hash === undefined
+    ? { kind: "absent" }
+    : { kind: "present", visitorHash: hash };
 }
 
 /** Anything that can be asked for a cookie by name, declared structurally so a caller need not

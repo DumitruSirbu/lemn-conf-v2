@@ -19,6 +19,7 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  SaveOutcome,
   MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
@@ -54,7 +55,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
@@ -64,7 +65,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {

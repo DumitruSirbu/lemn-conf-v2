@@ -24,7 +24,10 @@ import {
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
 import { getRepository } from "@/lib/server/repository";
-import { refreshVisitorCookie } from "@/lib/server/visitor";
+import {
+  refreshVisitorCookie,
+  resolveRequestVisitor,
+} from "@/lib/server/visitor";
 import {
   hasWriteCredentialFor,
   readWriteTokenHash,
@@ -155,18 +158,22 @@ async function saveDesign(
       design: body.design,
       writeTokenHash,
       expectedRevision,
+      requestVisitor: resolveRequestVisitor(request.cookies),
     });
 
     // A save is the proof the design is still in use, so it is also what keeps edit access alive —
-    // and, since M7 wave 7E3a (D1), what keeps the visitor identity alive on the same clock.
+    // and, since M7 wave 7E3a, what keeps the visitor identity alive on the same clock.
     // `refreshVisitorCookie` re-emits only the request's own well-formed value; it never mints one,
     // so a save made without a visitor cookie still sets none (D9: no save changes ownership).
+    // Since M7 wave 7E3b (D3 / Amendment H3) that refresh runs only when `saved.ownsVisitor` —
+    // the row's own current visitor_hash, answered by the same statement as the update — so a
+    // value another tab already rotated away is never re-emitted here.
     const response = NextResponse.json({
       id: saved.id,
       revision: saved.revision,
     });
     refreshWriteTokenCookie({ request, response }, id);
-    refreshVisitorCookie({ request, response });
+    if (saved.ownsVisitor) refreshVisitorCookie({ request, response });
     return response;
   } catch (error) {
     return designErrorResponse("save", error);

@@ -3,6 +3,7 @@ import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import type {
   AuthorizedConfigurationRepository,
   DesignVersion,
+  SaveOutcome,
   MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
@@ -53,7 +54,7 @@ class FailingMintRepository implements AuthorizedConfigurationRepository {
     return Promise.reject(this.failure as Error);
   }
 
-  saveAuthorized(): Promise<DesignVersion> {
+  saveAuthorized(): Promise<SaveOutcome> {
     throw new Error("this fixture is never saved to");
   }
 
@@ -70,7 +71,7 @@ class MintingRepository implements AuthorizedConfigurationRepository {
     return Promise.resolve({ id: "design-0" as DesignId, revision: "1" });
   }
 
-  saveAuthorized(): Promise<DesignVersion> {
+  saveAuthorized(): Promise<SaveOutcome> {
     throw new Error("this fixture is never saved to");
   }
 

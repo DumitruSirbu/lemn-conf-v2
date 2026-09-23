@@ -15,6 +15,7 @@ import type {
   AuthorizedSave,
   DesignVersion,
   MintDesign,
+  SaveOutcome,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
@@ -41,7 +42,12 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
   failMintWith: unknown = undefined;
   private readonly rows = new Map<
     DesignId,
-    { design: Design; writeTokenHash: string; revision: string }
+    {
+      design: Design;
+      writeTokenHash: string;
+      visitorHash: string;
+      revision: string;
+    }
   >();
   private nextId = 0;
 
@@ -51,11 +57,19 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
     }
     this.mints.push(params);
     const id = `qa-7e3a-${String(this.nextId++)}`;
-    this.rows.set(id, { ...params, revision: FIRST_REVISION });
+    this.rows.set(id, {
+      design: params.design,
+      writeTokenHash: params.writeTokenHash,
+      visitorHash: params.visitor.visitorHash,
+      revision: FIRST_REVISION,
+    });
     return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
-  saveAuthorized(save: AuthorizedSave): Promise<DesignVersion> {
+  // Amendment H3 (D3): the same row this write lands on is what answers whether the request's own
+  // visitor value is its current one — a fake standing in for the same statement the real
+  // repository answers this from, never a second lookup.
+  saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome> {
     if (this.failSaveWith !== undefined) {
       return Promise.reject(this.failSaveWith as Error);
     }
@@ -68,7 +82,10 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(save.id, { ...row, design: save.design, revision });
-    return Promise.resolve({ id: save.id, revision });
+    const ownsVisitor =
+      save.requestVisitor.kind === "present" &&
+      save.requestVisitor.visitorHash === row.visitorHash;
+    return Promise.resolve({ id: save.id, revision, ownsVisitor });
   }
 
   load(id: DesignId): Promise<StoredDesign> {
@@ -127,13 +144,21 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
-async function mintOwnDesign(visitorValue: string): Promise<{
+/**
+ * Mints under a carried cookie value and returns the value the mint actually issued — since M7
+ * wave 7E3b (Amendment H1) that is **never** `carriedVisitorValue`: rotation always answers with a
+ * fresh one, moving any row `carriedVisitorValue` owned to it. A caller that wants to act as the
+ * owner afterwards must present this returned value, the same way a real browser's cookie jar
+ * would already hold it from the mint's own `Set-Cookie`.
+ */
+async function mintOwnDesign(carriedVisitorValue: string): Promise<{
   id: string;
   writeTokenPair: string;
+  visitorValue: string;
 }> {
   const response = await mintWith({
     "sec-fetch-site": "same-origin",
-    cookie: `${VISITOR_COOKIE_NAME}=${visitorValue}`,
+    cookie: `${VISITOR_COOKIE_NAME}=${carriedVisitorValue}`,
   });
   const { id } = (await response.json()) as { id: string };
   const writeTokenPair =
@@ -141,7 +166,7 @@ async function mintOwnDesign(visitorValue: string): Promise<{
       .getSetCookie()
       .find((line) => line.startsWith("lemnaria_write_token_"))
       ?.split(";")[0] ?? "";
-  return { id, writeTokenPair };
+  return { id, writeTokenPair, visitorValue: visitorValueOf(response) ?? "" };
 }
 
 function saveRequest(
@@ -231,14 +256,23 @@ describe("D6 — Sec-Fetch-Site × Origin, the whole matrix", () => {
 });
 
 describe("mint — carried-value boundaries (D1)", () => {
-  it("reuses exactly a 43-character value made of the whole base64url alphabet's edge characters", async () => {
+  // M7 wave 7E3b, Amendment H1 — inverted from "reuses ... " (G10 in the 7E3b plan's sweep): a
+  // well-formed 43-character carried value is now the value rotation moves rows *away* from, never
+  // the one re-emitted.
+  it("rotates away from exactly a 43-character value made of the whole base64url alphabet's edge characters", async () => {
     const response = await mintWith({
       "sec-fetch-site": "same-origin",
       cookie: `${VISITOR_COOKIE_NAME}=${KNOWN_VALUE}`,
     });
 
-    expect(visitorValueOf(response)).toBe(KNOWN_VALUE);
-    expect(fake.mints[0]?.visitorHash).toBe(sha256Hex(KNOWN_VALUE));
+    const minted = visitorValueOf(response);
+    expect(minted).toMatch(WELL_FORMED);
+    expect(minted).not.toBe(KNOWN_VALUE);
+    expect(fake.mints[0]?.visitor).toEqual({
+      kind: "rotate",
+      visitorHash: sha256Hex(minted ?? ""),
+      fromVisitorHash: sha256Hex(KNOWN_VALUE),
+    });
   });
 
   const MALFORMED = [
@@ -269,7 +303,11 @@ describe("mint — carried-value boundaries (D1)", () => {
       const minted = visitorValueOf(response) ?? "";
       expect(minted).toMatch(WELL_FORMED);
       expect(minted).not.toBe(value);
-      expect(fake.mints[0]?.visitorHash).toBe(sha256Hex(minted));
+      // Nothing well-formed was carried, so there is nothing to rotate from (Amendment H1).
+      expect(fake.mints[0]?.visitor).toEqual({
+        kind: "fresh",
+        visitorHash: sha256Hex(minted),
+      });
     },
   );
 
@@ -282,7 +320,8 @@ describe("mint — carried-value boundaries (D1)", () => {
     const minted = visitorValueOf(response);
     expect(minted).toMatch(WELL_FORMED);
     expect(minted).not.toBe(KNOWN_VALUE);
-    expect(fake.mints[0]?.visitorHash).not.toBe(sha256Hex(KNOWN_VALUE));
+    expect(fake.mints[0]?.visitor.kind).toBe("fresh");
+    expect(fake.mints[0]?.visitor.visitorHash).not.toBe(sha256Hex(KNOWN_VALUE));
   });
 
   it("ignores a case-variant prefix `__host-lemnaria_visitor`", async () => {
@@ -305,7 +344,7 @@ describe("mint — carried-value boundaries (D1)", () => {
       .getSetCookie()
       .filter((line) => line.startsWith(`${VISITOR_COOKIE_NAME}=`));
     expect(lines).toHaveLength(1);
-    expect(fake.mints[0]?.visitorHash).toBe(
+    expect(fake.mints[0]?.visitor.visitorHash).toBe(
       sha256Hex(visitorValueOf(response) ?? ""),
     );
   });
@@ -322,6 +361,31 @@ describe("mint — carried-value boundaries (D1)", () => {
 
 describe("save refresh (D1) — never on a failure, never a mint", () => {
   it("a successful PATCH re-emits the request's own value with a fresh Max-Age", async () => {
+    // The mint rotated away from KNOWN_VALUE (Amendment H1); `visitorValue` is what the browser's
+    // jar now holds and so what a genuine follow-up request carries and owns.
+    const { id, writeTokenPair, visitorValue } =
+      await mintOwnDesign(KNOWN_VALUE);
+
+    const response = await PATCH(
+      saveRequest(
+        id,
+        { cookie: `${writeTokenPair}; ${VISITOR_COOKIE_NAME}=${visitorValue}` },
+        "PATCH",
+      ),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(200);
+    const line = visitorSetCookieOf(response) ?? "";
+    expect(visitorValueOf(response)).toBe(visitorValue);
+    expect(line).toMatch(/Max-Age=2592000/);
+    expect(line).toMatch(/Secure/);
+    expect(line).toMatch(/HttpOnly/);
+    expect(line).toMatch(/Path=\//);
+    expect(line).not.toMatch(/Domain=/i);
+  });
+
+  it("a successful PATCH carrying the value rotated away from gets no refresh (Amendment H3)", async () => {
     const { id, writeTokenPair } = await mintOwnDesign(KNOWN_VALUE);
 
     const response = await PATCH(
@@ -334,13 +398,7 @@ describe("save refresh (D1) — never on a failure, never a mint", () => {
     );
 
     expect(response.status).toBe(200);
-    const line = visitorSetCookieOf(response) ?? "";
-    expect(visitorValueOf(response)).toBe(KNOWN_VALUE);
-    expect(line).toMatch(/Max-Age=2592000/);
-    expect(line).toMatch(/Secure/);
-    expect(line).toMatch(/HttpOnly/);
-    expect(line).toMatch(/Path=\//);
-    expect(line).not.toMatch(/Domain=/i);
+    expect(visitorSetCookieOf(response)).toBeUndefined();
   });
 
   it("a successful save carrying a malformed visitor value emits no visitor cookie", async () => {

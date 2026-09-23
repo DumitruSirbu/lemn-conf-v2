@@ -17,6 +17,7 @@ import type {
   AuthorizedSave,
   DesignVersion,
   MintDesign,
+  SaveOutcome,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { fc, test as propertyTest } from "@fast-check/vitest";
@@ -56,16 +57,24 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
   mint(params: MintDesign): Promise<DesignVersion> {
     this.mints.push(params);
     const id = `visitor-identity-${String(this.nextId++)}`;
-    this.rows.set(id, { ...params, revision: FIRST_REVISION });
+    this.rows.set(id, {
+      design: params.design,
+      writeTokenHash: params.writeTokenHash,
+      visitorHash: params.visitor.visitorHash,
+      revision: FIRST_REVISION,
+    });
     return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
+  // Amendment H3 (D3): the same row this write lands on is what answers whether the request's own
+  // visitor value is its current one — never a second lookup.
   saveAuthorized({
     id,
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+    requestVisitor,
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
@@ -75,7 +84,10 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    const ownsVisitor =
+      requestVisitor.kind === "present" &&
+      requestVisitor.visitorHash === row.visitorHash;
+    return Promise.resolve({ id, revision, ownsVisitor });
   }
 
   load(id: DesignId): Promise<StoredDesign> {
@@ -195,11 +207,13 @@ describe("the mint's Set-Cookie for the visitor (criterion 1)", () => {
     expect(cookie?.value).toMatch(WELL_FORMED_VISITOR_VALUE);
 
     const minted = fake.mints[0];
-    expect(minted?.visitorHash).toBe(
+    expect(minted?.visitor.visitorHash).toBe(
       createHash("sha256")
         .update(cookie?.value ?? "", "utf8")
         .digest("hex"),
     );
+    // Every mint is fresh (Amendment H1) — with no carried cookie there is nothing to rotate from.
+    expect(minted?.visitor.kind).toBe("fresh");
   });
 
   it("draws its value from node:crypto, never twice the same across two mints", async () => {
@@ -212,34 +226,55 @@ describe("the mint's Set-Cookie for the visitor (criterion 1)", () => {
   });
 });
 
-describe("mint reuse (criterion 3, property)", () => {
+/**
+ * M7 wave 7E3b, Amendment H1 — the owner's ruling "Rotate on mint" supersedes 7E3a's reuse. This
+ * describe block inverts the property below and the boundary case that follows it (G10 in the
+ * 7E3b plan's sweep): every mint issues a fresh value, and a well-formed carried one is tagged as
+ * what the repository's own transaction rotates away from, never re-emitted.
+ */
+describe("mint rotation (criterion 5, Amendment H1, property)", () => {
   propertyTest.prop([fc.integer({ min: 1, max: 5 })], {
     seed: 20260924,
     numRuns: 30,
   })(
-    "keeps one value throughout a context, and every mint's row carries its hash",
+    "issues a fresh value on every mint in one context, and tags rotation away from the one before it",
     async (mintCount) => {
       repository.current = new RecordingRepository();
       let cookie: string | undefined;
+      const seenValues = new Set<string>();
 
       for (let attempt = 0; attempt < mintCount; attempt += 1) {
         const headers =
           cookie === undefined ? {} : { cookie: cookieHeaderFor(cookie) };
         const response = await POST(mintRequest(headers));
-        const value = response.cookies.get(VISITOR_COOKIE_NAME)?.value;
+        const value = response.cookies.get(VISITOR_COOKIE_NAME)?.value ?? "";
         expect(value).toMatch(WELL_FORMED_VISITOR_VALUE);
-        if (cookie !== undefined) expect(value).toBe(cookie);
+        // Never the same value twice, and in particular never the one just carried.
+        expect(seenValues.has(value)).toBe(false);
+        seenValues.add(value);
+
+        const recording = repository.current as RecordingRepository;
+        const minted = recording.mints.at(-1);
+        const expectedHash = createHash("sha256")
+          .update(value, "utf8")
+          .digest("hex");
+        expect(minted?.visitor).toEqual(
+          cookie === undefined
+            ? { kind: "fresh", visitorHash: expectedHash }
+            : {
+                kind: "rotate",
+                visitorHash: expectedHash,
+                fromVisitorHash: createHash("sha256")
+                  .update(cookie, "utf8")
+                  .digest("hex"),
+              },
+        );
         cookie = value;
       }
 
-      const recording = repository.current as RecordingRepository;
-      expect(recording.mints).toHaveLength(mintCount);
-      const expectedHash = createHash("sha256")
-        .update(cookie ?? "", "utf8")
-        .digest("hex");
-      for (const minted of recording.mints) {
-        expect(minted.visitorHash).toBe(expectedHash);
-      }
+      expect((repository.current as RecordingRepository).mints).toHaveLength(
+        mintCount,
+      );
     },
   );
 
@@ -251,7 +286,7 @@ describe("mint reuse (criterion 3, property)", () => {
   ];
 
   it.each(MALFORMED_VALUES)(
-    "replaces a malformed carried value ($name) rather than reusing it",
+    "mints fresh, with nothing to rotate from, for a malformed carried value ($name)",
     async ({ value }) => {
       const response = await POST(
         mintRequest({ cookie: cookieHeaderFor(value) }),
@@ -260,7 +295,8 @@ describe("mint reuse (criterion 3, property)", () => {
       const replaced = response.cookies.get(VISITOR_COOKIE_NAME)?.value;
       expect(replaced).toMatch(WELL_FORMED_VISITOR_VALUE);
       expect(replaced).not.toBe(value);
-      expect(fake.mints[0]?.visitorHash).toBe(
+      expect(fake.mints[0]?.visitor.kind).toBe("fresh");
+      expect(fake.mints[0]?.visitor.visitorHash).toBe(
         createHash("sha256")
           .update(replaced ?? "", "utf8")
           .digest("hex"),
