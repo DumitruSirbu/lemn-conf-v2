@@ -33,9 +33,20 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
+Last updated: 2026-09-23, later than 7E3c below — **M7 wave 7E3b is DONE** (a design opens only in its
+owning browser). See the RESUME HERE entry under *What to do next* (the 7E3c entry below it is
+superseded, kept for its detail) and the M7 row below. **Next wave: 7I** (mirrored right-hand L),
+then 7J, 7K, 7L, per the recorded order. The runner's own CI verdict is still outstanding for 7T,
+7F4b, 7E4, 7E3a, 7E3c and now 7E3b alike — one owner-dispatched `workflow_dispatch` of `ci.yml`
+settles all six. **Owner actions needed before this branch deploys:** migrations `0005` and `0006`
+must be applied to `lemn-conf-v2-preview` then production, followed by the grant on
+`design_share_links` — **no** `VISITOR_ROTATION_SECRET` is needed (the wave that would have required
+it was reverted the same day it was added) — see the RESUME HERE entry for detail.
+
 Last updated: 2026-09-23, later still — **M7 wave 7E3c is DONE** (the private share link: create,
-revoke, re-issue; `/[locale]/s/{token}`). See the RESUME HERE entry under *What to do next* and the
-M7 row below. **Next wave: 7E3b** (a design opens only in its owning browser). The runner's own CI
+revoke, re-issue; `/[locale]/s/{token}`). See the RESUME HERE entry under *What to do next* (superseded
+above, kept for its detail) and the M7 row below. ~~**Next wave: 7E3b** (a design opens only in its
+owning browser).~~ The runner's own CI
 verdict is still outstanding for 7T, 7F4b, 7E4, 7E3a and now 7E3c alike — one owner-dispatched
 `workflow_dispatch` of `ci.yml` settles all five. **Owner actions needed before this branch
 deploys:** migrations `0005` and `0006` must be applied to `lemn-conf-v2-preview` then production,
@@ -378,7 +389,7 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3c is DONE** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`), commits plan+ADR `f59d79b` … screen notes `b39983d`; see the RESUME HERE entry and the [7E3c close-out](milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23). **7E3b is next.** | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3c is DONE** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`), commits plan+ADR `f59d79b` … screen notes `b39983d`; see the [7E3c close-out](milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3b is DONE** — a design opens only in its owning browser, with the visitor value rotating to a fresh random secret on every mint (backlog 81 closed) and the two-tab create race closed by a client-side Web Lock rather than the server-side HMAC the wave tried and reverted the same day (ADR 0114 H1, H4 struck, H6). Commits: plan + ADR H `239d87f` … review round 2 fixes `f1e4fc9`; `pnpm ci:local` PASSED at `f1e4fc9` — e2e 448 passed / 2 skipped, persistence 29 / 558 passed | 1 skipped, three-adapter 92 / 3,553, web 260 / 4,653; see the [7E3b close-out](milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23). **Next wave: 7I**, then 7J, 7K, 7L. | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -940,7 +951,73 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-23, later still. M7 wave 7E3c is DONE — the private share link.**
+> **RESUME HERE — 2026-09-23, later still. M7 wave 7E3b is DONE — a design opens only in its owning
+> browser.** Commits, in order: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`,
+> intermediate — web did not compile until S2); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA
+> `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red
+> e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2
+> `2a07509`; review round 2 fixes `f1e4fc9`. Tier **Full + security** (confirmed in the plan). Doc
+> commits `--no-verify`. Security reviewer kept across 7E3a, 7E3c and 7E3b (*Review continuity*).
+>
+> **What shipped:** `/[locale]/d/{id}` and `GET /api/designs/{id}` now gate on the requesting
+> browser's visitor hash matching the row's, one indistinguishable refusal for every other case
+> (foreign cookie, no cookie, empty, malformed, unknown id, unowned row). Every `POST /api/designs`
+> issues a fresh random visitor value and moves the browser's rows onto it in one transaction
+> (ADR 0114 H1), closing backlog 81 (cookie fixation). A save refreshes the visitor cookie only when
+> its own value still owns the saved row (H3). Tabs of one browser serialise design creation through
+> a Web Lock (`lemnaria:create-design`), so the two-tab create race is closed in the browser rather
+> than by a server-side secret (H6).
+>
+> **The wave's own middle was found wrong and reverted the same day, on the record rather than
+> smoothed over.** QA measured the owner's first ruling (*"Rotate on mint"*) losing every earlier
+> design in 29 of 30 rounds under two concurrent mints, predicted by the logic reviewer. The owner's
+> next ruling, unconditional HMAC rotation, was corrected by the coordinator before being put back to
+> the owner — it would have reopened backlog 81 by making the server an oracle. The owner's
+> *"Conditional HMAC"* (H4) shipped, and security then found it chainable (SEC-7E3b.5, High): poll for
+> the rotation, mint within 10 s, follow the victim indefinitely. The owner's final ruling, *"Web Lock
+> + random"* (H6), removed the secret and closed the race client-side instead. **No
+> `VISITOR_ROTATION_SECRET` exists in the shipped code and none is needed.**
+>
+> **SEC-7E3b.8 is resolved at this close-out** (ADR 0114 H6's residual): the 29/30 figure and QA's
+> re-measured **15/15 raw concurrent fetches from one value lost earlier designs** are the same defect
+> from two entry points; the lock's own 10 s acquire timeout is a second route into that race, not a
+> separate one; and the claim that a peer mint slower than 10 s *"has almost certainly failed"* is
+> **inference** — a cold Neon retry (0.5 s + 1.5 s backoff) plus a serverless cold start make a
+> slow-but-live peer plausible (logic reviewer R2.3).
+>
+> **Residuals, named and not built, each with an owner:** SEC-7E3b.1 (backlog 88) — an attacker's
+> rows planted under a fixated value move into the victim's identity on rotation and can surface as
+> their newest design; owner to decide record-or-fix. R2.2 / SEC-7E3b.2 (backlog 89) — the Web Lock
+> covers only the mint, so a save racing a rotation can revert the jar to a value owning nothing;
+> told to the owner, not fixed (widening the lock would contradict the plan's D2). SEC-7E3b.3
+> (backlog 90) — the rotation `UPDATE` has no rate limit, deferred to M8's limiter. Pre-`0005` rows
+> are unreadable by anyone (ADR 0114 decision 5's stated consequence); their count on preview or
+> production is **unmeasured**.
+>
+> **Gates:** `pnpm ci:local` at `f1e4fc9` — `LOCAL CI PASSED — all gates green, safe to push`; e2e
+> **448 passed (6.5m), 2 skipped**; persistence **29 / 558 passed | 1 skipped**; three-adapter
+> **92 / 3,553**; web **260 / 4,653**.
+>
+> Full criterion-by-criterion record, including §5's criteria and §9's S6-1…S6-6:
+> [`milestones/M7-room-and-presets.md`, *7E3b close-out —
+> 2026-09-23*](milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23).
+>
+> **Owner actions for this RESUME HERE:**
+> 1. Before deploy — preview then production, in order: migration `0005`, migration `0006`, the
+>    `design_share_links` grant (unchanged from 7E3c). **No** `VISITOR_ROTATION_SECRET` — the wave
+>    that would have needed it was reverted the same day.
+> 2. Confirm whether `vercel env add VISITOR_ROTATION_SECRET` was ever run during the reverted
+>    window. If it was, ADR 0006's add-only rule means the variable stays, orphaned, until the owner
+>    removes it — no agent action.
+> 3. Dispatch `ci.yml` (settles 7T, 7F4b, 7E4, 7E3a, 7E3c and now 7E3b's runner verdicts in one run).
+> 4. Decide backlog 88 (SEC-7E3b.1): record acceptance, or have resume prefer browser-minted rows.
+> 5. Note backlog 89 (R2.2 / SEC-7E3b.2), the save-vs-rotation race — informational, not blocking.
+> 6. Review the new leaf `designLoadError.bodyUnavailable` (ro/ru), approved as drafted under
+>    ADR 0113 and open to the owner's later wording.
+>
+> **Next wave: 7I** — mirrored right-hand L, per the recorded order `7I → 7J → 7K → 7L`.
+>
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-23, later still. M7 wave 7E3c is DONE — the private share link.**
 > Commits, in order: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen
 > fix (SEC-7E3c.1/.2) `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5
 > `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2

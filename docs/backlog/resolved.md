@@ -1568,3 +1568,25 @@ cabinet there draws the panel past the wall.
 reaches the wall, a real kitchen needs no finished end there (the wall closes the run, and the fitter
 uses a filler strip). So the likely answer is a veto at the wall's end, not a mark — but that changes
 what the scene shows and is the owner's to rule.
+
+## 81. SEC-7E3a.1 — cookie fixation is harmless today and becomes durable read access once 7E3b lands — CLOSED 2026-09-23, SHIPPED IN M7 WAVE 7E3b
+
+**CLOSED 2026-09-23 at the [7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23).**
+The owner's ruling *"Rotate on mint"* ([ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+Amendment H1, kept through Amendment H6's *"Web Lock + random"*) ships: every `POST /api/designs`
+issues a fresh random value and moves the browser's rows to it, so a script-planted value owns
+nothing after the next mint. QA's sabotage test (reuse restored) read the victim's design 10/10 —
+confirming the fix is load-bearing — then went red 10/10 against the shipped code, as required by
+plan criterion 6. Commits: plan + ADR 0114 Amendment H `239d87f` … review round 2 fixes `f1e4fc9`
+(full list in the close-out).
+
+### The finding, as recorded before it was closed
+
+Found by M7 wave 7E3a's security review, 2026-09-23. A same-host script (e.g. through an XSS on
+this origin) can plant a well-formed, non-`HttpOnly` visitor cookie value in a fresh browser; the
+next mint adopts it under D1's reuse rule, and any subsequent save keeps it alive. Under 7E3a this is
+harmless, because designs are still readable by id regardless of the cookie. **Once 7E3b gates a
+design's read to its owning visitor hash, the planted value becomes durable read access** to
+whatever designs later mint under it. **Must be decided before 7E3b ships**, one of: (a) record
+acceptance with CSP enforcement (M8) as a named dependency, or (b) rotate the cookie value on every
+mint rather than reusing it. Not blocking 7E3a or 7E3c. No owner yet; phase is 7E3b.

@@ -1558,7 +1558,7 @@ table.
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA `0d53a06`; review round 1 `1ae9f32`; see [7E3a close-out](#7e3a-close-out--2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. See [7E3c close-out](#7e3c-close-out--2026-09-23)** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
-| **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — **off hold**; backlog 81 ruled *"Rotate on mint"* (ADR 0114 H). **Planned 2026-09-23 — see [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4** |
+| **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`, intermediate); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`; review round 2 fixes `f1e4fc9`. See [7E3b close-out](#7e3b-close-out--2026-09-23)** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — backlog 81 closed, *"Rotate on mint"* then *"Web Lock + random"* (ADR 0114 H, H6). See [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4 |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **One owner question OPEN, recorded 2026-09-22 (coordinator's instruction), gating 7J's policy slice and nothing else — Q-7J-1: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300?** The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. **Recommendation: 6000**, so every wall the product accepts has one maximum. It does not gate 7T |
@@ -3073,6 +3073,12 @@ add VISITOR_ROTATION_SECRET production` and `… preview`, each with its **own**
 every mint there answers 500; (3) a third value in `apps/web/.env.local` for `pnpm dev`, which writes to
 preview (ADR 0054); (4) never deploy `E2E_ONLY_VISITOR_ROTATION_SECRET`.
 
+> **WITHDRAWN at the 7E3b close-out, 2026-09-23** — §9's Web Lock + random rotation (ADR 0114 H6)
+> supersedes §8 in full and needs no `VISITOR_ROTATION_SECRET`. Instruction (2) above is withdrawn: it
+> is not to be run from this close-out forward. **Whether it was ever run is unresolved** — the owner
+> is being asked; if it was, ADR 0006's add-only rule means the variable stays, orphaned, and is not
+> removed on anyone's judgment.
+
 **The chain.**
 - Across successive mints the value runs `O → N = H(O) → N' = H(N)`, each by condition (a).
 - A save carrying `O` after the rotation still answers `ownsVisitor: false` (H3, unchanged).
@@ -3259,6 +3265,109 @@ creation paths are covered and none can bypass it.
 6. **Gates.** `pnpm ci:local` is green, with counts quoted against `9960ab5`'s run. Per-file `expect`
    counts do not fall except by the listed S5 deletions. No `.skip`, `.only` or `.fixme`, no raised
    timeout, and no dependency change. The lock is a platform API, not a package.
+
+### 7E3b close-out — 2026-09-23
+
+**Shipped.** Commits, in order: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`,
+intermediate — web did not compile until S2 landed); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA
+`9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red
+e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`;
+review round 2 fixes `f1e4fc9`. Doc-only commits ran `--no-verify`. **Tier: Full + security**
+(confirmed in the plan), security reviewer kept across 7E3a, 7E3c and 7E3b (*Review continuity*).
+
+**What shipped, in the shape that landed.** A design opens only in the browser that owns it
+(`/[locale]/d/{id}` and `GET /api/designs/{id}`, D4/H2), the visitor value rotates to a fresh random
+secret on every mint and moves the browser's rows with it (D1/H1), a save refreshes the visitor
+cookie only when its value still owns the saved row (D3/H3), and tabs of one browser serialise
+design creation through a Web Lock so the two-tab race stays closed without a server-side secret
+(§9 D1–D2, ADR 0114 H6). **The wave's own middle (§8, HMAC rotation) shipped, was found chainable by
+security, and was reverted the same day** — recorded below rather than omitted, per this repository's
+rule that a corrected number is bound as hard as an original one.
+
+**§5's original criteria vs §9's S6 criteria.** The plan's §5 criteria (1–13) describe the gate, the
+rotation and the refusal shape in mechanism-neutral terms and stand as shipped, evaluated against the
+Web-Lock-plus-random build. **§8's S5-1…S5-8 criteria are superseded in full** — they assert HMAC
+convergence, a `VISITOR_ROTATION_SECRET` failure mode and a chained-oracle defence that no longer
+exist in the shipped code; §9 says so explicitly (*"§8 is superseded in full"*) and only S5b's test
+fixes (L1.1, L1.2, L1.5, C1.1, C1.2) survived into §9's S6b slice. Criterion-by-criterion:
+
+| # | Criterion (§5) | Evidence | Tier |
+| --- | --- | --- | --- |
+| 1 | The gate: owner's cookie serves `/{l}/d/{id}` and `GET`; every refusal case serves neither; no web module calls `getRepository().load(`; `migrateDesign` never runs for a row the request does not own | `OwnedDesignRepository.loadOwned`, `SharedRepository` narrowed to `Omit<…, "load">` (a type error on any remaining caller) | QA-measured, review round 1 approved |
+| 2 | One refusal: byte-identical 404 body/headers across refusal cases at the API; the page identical **within** two classes (H5's narrowing) | QA property test, n≥200; coordinator ruling (1) narrowing the page half, security upheld | QA-measured |
+| 3 | Timing | API |Δ| **0.46 ms**, page |Δ| **0.10 ms**, n = 250 | QA-measured (facts as relayed to this pass) |
+| 4 | The owner keeps working: `openSeededDesign` unchanged; write-token-only removal still renders read-only | QA round 1 and round 2, e2e green | QA-measured |
+| 5 | Rotation property (1–5 sequential mints) | Superseded in mechanism from HMAC (§8) back to random (§9 D1); live suite green at `9960ab5` and again after the S6a revert | QA-measured |
+| 6 | Fixation closed (backlog 81), sabotage must go red | QA round 1: sabotage 10/10 red with reuse restored | QA-measured |
+| 7 | The refusal e2e spec, both projects | QA round 1 and round 2 | QA-measured |
+| 8 | Atomicity and retry (live) | Live suite, `neon-configuration-repository.adversarial.test.ts` | QA-measured |
+| 9 | Re-pointed specs (G9) | Per-file `expect` counts quoted at gate time | QA-measured |
+| 10 | Save refresh (D3) | H3 race test forcing rotation-first ordering, replacing a vacuous `typeof` (L1.2 fix) | QA-measured, review-found |
+| 11 | Logs carry no value/hash | SEC-7E3b.6 (should-fix, found at §9): the unreachable-path `Error` interpolated a stored visitor hash — fixed by the S6a revert, pinned by a grep criterion (S6-5) | Security-found, QA-measured |
+| 12 | Gates | `pnpm ci:local` at `f1e4fc9`: `LOCAL CI PASSED — all gates green, safe to push` — e2e **448 passed (6.5m), 2 skipped**; persistence **29 / 558 passed \| 1 skipped**; three-adapter **92 / 3,553**; web **260 / 4,653** | Coordinator-measured |
+| 13 | Records | This close-out, ADR 0114 H/H4/H6 hashes, backlog 81 closed | This pass |
+
+**S6-1…S6-6 (§9, the shipped mechanism's own criteria).**
+
+| # | Criterion | Evidence | Tier |
+| --- | --- | --- | --- |
+| S6-1 | Two tabs converge: one context, two concurrent *Continuă* taps, ≥30 rounds/project, every design opens `canWrite: true`; sabotage (pass-through lock) must lose a design | QA round 2: lock timing held **6/6**, sabotage **10/10 red** | QA-measured |
+| S6-2 | Serialisation: second `mint()`'s `fetch` starts only after the first's response settles and carries its cookie | QA round 2 (fake-`LockManager` replaced the round-1 weak fake per Q9) | QA-measured |
+| S6-3 | Degradation: lock-absent unlocked; >10 s timeout proceeds unlocked; a throw releases the lock and rethrows | QA round 2: 10 s fallback and abort/close release both exercised; `navigator.locks` absent → no crash | QA-measured |
+| S6-4 | Random rotation is back; no `createHmac`/`VISITOR_ROTATION_SECRET`/`E2E_ONLY_VISITOR_ROTATION_SECRET` anywhere in the tree | grep, part of the S6a revert | Source-verified |
+| S6-5 | No hash in any error or log (SEC-7E3b.6) | grep plus forced-failure console capture | QA-measured |
+| S6-6 | Gates green, counts quoted against `9960ab5`, no `.skip`/`.only`/`.fixme`, no raised timeout, no dependency change | `pnpm ci:local` `f1e4fc9` (see criterion 12's row); the two-tab spec restructured to one round per test — 10 mobile + 3 desktop by default, `E2E_TWO_TAB_ROUNDS` for 30 — CI 13 passed in 46.7 s | QA-measured |
+
+**The reverted middle, on the record.** The owner's first ruling on backlog 81 (*"Rotate on mint"*,
+H1) held; QA then measured H1's concurrent-mint residual at 29/30 rounds losing every earlier design,
+predicted by logic reviewer L1.3. The owner's next ruling, *"HMAC rotation"* (unconditional), was
+corrected by the coordinator before being put back to the owner — an unconditional derivation makes
+the server an oracle for a planted value, reopening backlog 81 — and the owner's *"Conditional HMAC"*
+(H4, §8) followed. Security then found SEC-7E3b.5 (High): condition (b) is chainable by polling `/ro`
+for the rotation and minting within the 10 s window, following the victim indefinitely. The owner's
+final ruling, *"Web Lock + random"* (H6, §9), removed the secret and closed the race in the browser
+instead. **SEC-7E3b.8 is resolved at this close-out** (ADR 0114 H6's residual bullet): the 29/30
+figure and QA's **15/15 raw concurrent fetches from one value lost earlier designs** are the same
+defect measured from two entry points, quoted together rather than in place of one another; the lock's
+own 10 s acquire timeout is a second route into that same race, not a separate one; and the rationale
+for that timeout — a peer mint slower than 10 s *"has almost certainly failed"* — is **inference**,
+because a cold Neon retry (0.5 s + 1.5 s backoff, `retry-on-compute-restart.ts`) plus a serverless cold
+start make a slow-but-live peer plausible (logic reviewer R2.3).
+
+**Residuals, named rather than built (ADR 0118 shape), each with an owner.**
+- **R2.2 (logic, inference) / SEC-7E3b.2 (security).** The Web Lock covers only the mint `POST`, so
+  tab A's first save can run concurrently with tab B's rotating mint. If A's save commits before B's
+  rotation and A's response lands after B's, the jar reverts to a value that owns nothing. Plausibly
+  rare; S6-1 is green regardless. Widening the lock to cover saves would contradict D2 (nothing but the
+  mint rotates). **Tell the owner** — done in this close-out and in `STATUS.md`.
+- **SEC-7E3b.1 (High, security).** R4's content injection: an attacker's rows, planted under a value
+  `P` that later moves into the victim's identity, can become the victim's newest design and surface
+  ahead of their own on resume. Needs the same precondition as backlog 81 (a same-host script or
+  physical access). **Owner to decide**: record acceptance, or have resume prefer rows the browser
+  itself minted.
+- **SEC-7E3b.3 (security).** The rotation `UPDATE` is unbounded per request; M8's rate limiter is the
+  named control, not built here.
+- **Pre-`0005` rows are unreadable by anyone**, per ADR 0114 decision 5's stated consequence (R2 in the
+  plan). Their count on preview or production is **unmeasured** by this wave.
+
+**What is NOT claimed.** No agent ran `vercel env add VISITOR_ROTATION_SECRET`; whether the owner ran
+it during the §8 window is unresolved (see the §8 withdrawal note above) — if they did, the variable
+is orphaned and stays, add-only, until the owner removes it. No runner-verdict CI run is claimed for
+this wave; it is settled by the same owner-dispatched `workflow_dispatch` as 7T, 7F4b, 7E4, 7E3a and
+7E3c. Deploy precondition is unchanged from 7E3c: migrations `0005`, `0006`, and the `design_share_links`
+grant, on preview then production — **no** `VISITOR_ROTATION_SECRET`.
+
+**Backlog.** 81 (SEC-7E3a.1, cookie fixation) is **closed** — random rotation on every mint (H1, kept
+through H6) closes it, and QA's sabotage test (reuse restored → design read) went 10/10 red as
+required. Three new entries recorded for the residuals above, undecided or scheduled for M8: cookie
+fixation is closed; content injection, the unbounded rotation write, and the save-vs-rotation race are
+open with no wave yet.
+
+**Records.** ADR 0114 Amendments H and H6 carry this wave's commit hashes; H4 (struck) carries the
+hashes of what shipped and what reverted it; §8's `VISITOR_ROTATION_SECRET` instruction is marked
+withdrawn in place, not deleted. `docs/BACKLOG.md`, `docs/backlog/open.md` and
+`docs/backlog/resolved.md` are updated in the same pass. `docs/STATUS.md`'s M7 row and *What to do
+next* RESUME HERE entry are updated in the same pass.
 
 **7E4 — e2e and tooling off the retired route** (lands before 7E3a)
 

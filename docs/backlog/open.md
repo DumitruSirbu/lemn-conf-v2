@@ -1796,19 +1796,6 @@ retiring ADR 0010's write path is its own dated decision, not a residue of the w
 last caller. Trigger: whenever ADR 0010's write path is next revisited, or before M8 closes. No
 owner, no phase yet.
 
-## 81. SEC-7E3a.1 — cookie fixation is harmless today and becomes durable read access once 7E3b lands — FOUND 2026-09-23, GATES 7E3b
-
-**DECIDED 2026-09-23 — option (b), the owner's ruling *"Rotate on mint"*** ([ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) Amendment H1). Built by wave 7E3b; this entry closes when 7E3b ships.
-
-**Found by M7 wave 7E3a's security review, 2026-09-23.** A same-host script (e.g. through an XSS on
-this origin) can plant a well-formed, non-`HttpOnly` visitor cookie value in a fresh browser; the
-next mint adopts it under D1's reuse rule, and any subsequent save keeps it alive. Under 7E3a this is
-harmless, because designs are still readable by id regardless of the cookie. **Once 7E3b gates a
-design's read to its owning visitor hash, the planted value becomes durable read access** to
-whatever designs later mint under it. **Must be decided before 7E3b ships**, one of: (a) record
-acceptance with CSP enforcement (M8) as a named dependency, or (b) rotate the cookie value on every
-mint rather than reusing it. Not blocking 7E3a or 7E3c. No owner yet; phase is 7E3b.
-
 ## 82. `/{l}/s/{t}/` (a share link with a trailing slash) gets Next's own headerless 308 before the proxy runs — FOUND 2026-09-23
 
 **Found by M7 wave 7E3c's close-out, coordinator ruling (b).** Criterion 8 expects every malformed or
@@ -1863,3 +1850,34 @@ control on `hasPersistedSuccessfully`, so a never-saved design should show no sh
 non-owner `/d/{id}` half of J6 was verified visually; the never-saved-design half could not be reached
 through the UI in the visual pass's session (every reachable design had already persisted) and is
 covered only by the component-level DOM test that asserts the gate directly. No owner, no phase yet.
+
+## 88. SEC-7E3b.1 — an attacker's rows planted under a fixated value move into the victim's identity on rotation, and can surface as the victim's newest design — FOUND 2026-09-23, OWNER TO DECIDE
+
+**Found by M7 wave 7E3b's security review** (R4 in the plan; SEC-7E3b.1 at the
+[7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23)). Rotation (ADR 0114
+H1/H6) moves **every** row under a carried value `P` into the mint's new identity, including rows an
+attacker created while `P` was planted in the victim's browser. Resume lands on the most recently
+updated design, so the attacker's planted design can surface ahead of the victim's own on the next
+resume. Same precondition as backlog 81's, now closed (a same-host script, or physical access to the
+browser). **Owner to decide:** record acceptance, or have resume prefer rows the browser itself
+minted over rows moved in by a rotation. No owner yet; no phase.
+
+## 89. R2.2 / SEC-7E3b.2 — the create-design lock covers only the mint `POST`; a save that commits before a rotation, answered after it, reverts the jar to a value owning nothing — FOUND 2026-09-23, TELL THE OWNER
+
+**Found independently by two reviewers of M7 wave 7E3b**, converging on the same race: the logic
+reviewer's R2.2 (inference) and security's SEC-7E3b.2. ADR 0114 Amendment H6's Web Lock
+(`lemnaria:create-design`) serialises only the mint request, so tab A's first save can run
+concurrently with tab B's rotating mint. If A's save's `UPDATE` commits before B's rotation, but A's
+response reaches the browser after B's `Set-Cookie`, the jar ends holding B's new value — which owns
+none of A's rows. Plausibly rare (the shipped e2e criterion S6-1 is green regardless); widening the
+lock to cover saves would contradict the plan's decision D2 (nothing but the mint rotates).
+**Recorded to tell the owner**, per the close-out; not fixed here. No owner yet; no phase.
+
+## 90. SEC-7E3b.3 — the rotation `UPDATE` has no rate limit — FOUND 2026-09-23, DEFERRED TO M8
+
+**Found by M7 wave 7E3b's security review** (SEC-7E3b.3 at the
+[7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23)). Every mint issues
+one `UPDATE designs SET visitor_hash = …` unconditionally; nothing bounds how often one caller can
+trigger it. ADR 0114 decision 7 already names M8's limiter and WAF scope as the control for mint
+abuse generally; this is that same gap, named for the rotation write specifically rather than built
+here. No owner yet; phase is M8.

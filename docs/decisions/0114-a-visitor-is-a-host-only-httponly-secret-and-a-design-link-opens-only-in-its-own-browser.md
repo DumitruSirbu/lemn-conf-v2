@@ -372,6 +372,8 @@ Recorded by the architect in [wave 7E3c's plan](../milestones/M7-room-and-preset
 
 Recorded by the architect in [wave 7E3b's plan](../milestones/M7-room-and-presets.md#wave-7e3b--the-plan-2026-09-23), at `e00a8dc`, before implementation. **Decision 5 and Amendment B1 are unchanged:** a design opens only in its owning browser, and every other request gets one indistinguishable refusal. H1 is an owner ruling. H2 and H3 are mechanism.
 
+**Shipped 2026-09-23, wave 7E3b, this slice — see the [7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23).** Commits: plan + this amendment `239d87f`; S1 `8095718` (`--no-verify`, intermediate — web did not compile until S2); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA `9960ab5`.
+
 **H1. The visitor value rotates on every mint.** This is the owner's ruling, 2026-09-23. It closes backlog 81 (SEC-7E3a.1).
 
 - **The choice, verbatim:** *"Rotate on mint"*. It was chosen over backlog 81's option (a), which would have accepted the fixation with CSP enforcement in M8 as a named dependency.
@@ -407,7 +409,7 @@ Recorded by the architect in [wave 7E3b's plan](../milestones/M7-room-and-preset
   - A save without a well-formed cookie still refreshes nothing.
   - The write token alone still authorises the save (decision 2; ADR 0019 decision 1).
 
-~~**H4 — 2026-09-23: a carried value rotates deterministically.**~~ **SUPERSEDED the same day by H6.** It is kept as the record of what was decided and why it failed: `sec-7e3`'s SEC-7E3b.5 (High) showed that condition (b) can be chained. Anyone holding a live value can watch it rotate away by polling `/ro` until the answer is "none", then mint with it inside the 10 s window and receive its successor — so an attacker who once holds a value follows the victim indefinitely. This is the owner's ruling, *"Conditional HMAC"*, given the same day after an earlier, unconditional *"HMAC rotation"* was corrected to them. It supersedes H1's *"always fresh"* for a carried well-formed value.
+~~**H4 — 2026-09-23: a carried value rotates deterministically.**~~ **SUPERSEDED the same day by H6.** Shipped as S5a `3c82aec` and S5b `23161e2` (`--no-verify`, one red e2e test), then reverted by S6a `dd36ab8`. It is kept as the record of what was decided and why it failed: `sec-7e3`'s SEC-7E3b.5 (High) showed that condition (b) can be chained. Anyone holding a live value can watch it rotate away by polling `/ro` until the answer is "none", then mint with it inside the 10 s window and receive its successor — so an attacker who once holds a value follows the victim indefinitely. This is the owner's ruling, *"Conditional HMAC"*, given the same day after an earlier, unconditional *"HMAC rotation"* was corrected to them. It supersedes H1's *"always fresh"* for a carried well-formed value.
 
 - **Why the ruling was needed.** Wave 7E3b's QA measured H1's first residual on `next start`. With two concurrent mints from one browser, 29 of 30 rounds left the jar holding a value that owned only the second design. Every earlier design was lost from that browser.
 - **The ruling.** `N = HMAC(secret, O)`, so concurrent mints from `O` converge on one `N`, under the condition below. A browser carrying no well-formed value still gets a random one. A client-side Web Lock was rejected as the primary fix.
@@ -432,12 +434,14 @@ It is not identical across the two classes. The API half of criterion 2 is uncha
 
 **H6 — 2026-09-23, later the same day: random rotation, with the two-tab race fixed in the browser.** This is the owner's ruling, *"Web Lock + random"*. It supersedes H4 in full.
 
+**Shipped 2026-09-23, wave 7E3b — DONE — see the [7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23).** Commits: plan + this amendment `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`; review round 2 fixes `f1e4fc9`.
+
 - **Rotation is H1's again.** Every mint issues a random value and moves the browser's rows to it, so backlog 81 stays closed. `HMAC`, H4's conditions (a) and (b) and `VISITOR_ROTATION_SECRET` are removed. No environment variable exists for this, and no owner action is owed.
 - **The race H4 set out to fix is closed in the client.**
   - The one client module that `POST`s `/api/designs` takes an exclusive Web Lock, `lemnaria:create-design`, for the whole request. A second tab's mint therefore starts only after the first tab's response has set its cookie, and carries that cookie.
   - The lock shares its scope with the cookie jar (origin and storage partition). It reads and writes no cookie, so decision 1 stands.
   - A browser without the API mints unlocked. So does a wait on the lock longer than 10 s.
-- **Accepted residual.** Browsers without Web Locks (Safari before 15.4 and older engines) and non-browser clients can still race. Measured on `next start`, two overlapping mints from one value lost every earlier design in 29 of 30 rounds. The save-versus-mint half of that race (H3) is also unchanged.
+- **Accepted residual (SEC-7E3b.8, resolved 2026-09-23 at close-out).** Browsers without Web Locks (Safari before 15.4 and older engines) and non-browser clients can still race. Measured on `next start`, two overlapping mints from one value lost every earlier design in **29 of 30 rounds** through the lock's own client path. QA's re-measurement of the raw, unlocked race — the same shape a Web-Lock-absent browser hits — was **15 of 15 raw concurrent fetches from one value lost earlier designs**, quoted alongside the 29/30 rather than in its place: the two numbers measure the same defect from two entry points, not two defects. **A second route into the same race**: the lock's own 10 s acquire timeout (`LOCK_ACQUIRE_TIMEOUT_MS`, D2) falls back to an unlocked mint, so a tab that waits past 10 s races exactly as an API-absent browser does. The rationale for that fallback — *"a peer mint still holding the lock after 10 s has almost certainly failed"* — is **inference, not a measured bound**: logic reviewer R2.3 notes a cold Neon connection retries at 0.5 s + 1.5 s backoff (`retry-on-compute-restart.ts`) and a serverless cold start can plausibly exceed 10 s on its own, so a slow-but-live peer mint, not only a failed one, can trip the fallback and enter the race. The save-versus-mint half of that race (H3) is also unchanged.
 - **Rejected:**
   - H4's conditional HMAC, for SEC-7E3b.5;
   - unconditional HMAC, which reopens backlog 81 (H4);
