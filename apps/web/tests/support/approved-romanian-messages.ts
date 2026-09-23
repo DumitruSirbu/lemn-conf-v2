@@ -430,6 +430,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     revoke: "Dezactivează linkul",
     revoked: "Linkul a fost dezactivat.",
     error: "Nu am putut actualiza linkul. Încearcă din nou.",
+    // Review round 2, R2.1: the retry button after a failed status read has no other approved
+    // label to borrow (D10's table names none), so it gets its own.
+    retry: "Încearcă din nou",
   },
   contactPlaceholder: {
     title: "Formularul de contact urmează",

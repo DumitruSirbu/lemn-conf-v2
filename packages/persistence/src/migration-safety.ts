@@ -602,10 +602,23 @@ function alterTableClausesOf(statement: string): string[] | undefined {
 
 const ADD_COLUMN_CLAUSE = /^add\s+(column\s+)?if\s+not\s+exists\s+[\w"]+\b/;
 
+/** The clause's own `default …` expression, to the end of the clause — `topLevelClausesOf` has
+ *  already split on the commas between clauses, so this is exactly one column's default and
+ *  nothing past it. */
+const DEFAULT_EXPRESSION = /\bdefault\s+(.+)$/;
+
 function isSafeAddColumnClause(clause: string): boolean {
-  return (
-    ADD_COLUMN_CLAUSE.test(clause.trim()) && !isNotNullWithoutDefault(clause)
-  );
+  if (!ADD_COLUMN_CLAUSE.test(clause.trim())) return false;
+  if (isNotNullWithoutDefault(clause)) return false;
+  // SEC-7E3c.11: a function call in a column's default runs during the migration, the same hazard
+  // a CHECK expression carries — checked here for the reason it is checked there.
+  const defaultExpression = DEFAULT_EXPRESSION.exec(clause.trim())?.[1];
+  if (
+    defaultExpression !== undefined &&
+    containsDisallowedFunctionCall(defaultExpression)
+  )
+    return false;
+  return true;
 }
 
 /** Asked of one clause, never of the statement. The statement-wide question was the seventh
@@ -667,12 +680,26 @@ function isIdempotentCreateIndex(statement: string): boolean {
  * body carries it, it must name the same table the `alter table` below it does. A body that narrows
  * on `conname` alone is a real, valid PostgreSQL guard too — a constraint name is not required to be
  * unique across tables — and this allowlist has held that shape since before this wave.
+ *
+ * **The `check (…)` clause is not captured by `(.+)` any more (review round 2, SEC-7E3c.10).** A
+ * greedy, unbounded capture spans `;`, so `check (true); alter table designs enable row level
+ * security; alter table designs add constraint c check (true); end if; end $$` matched this
+ * template's *literal tail* on the **last** `check (…); end if; end $$` in the file and ran
+ * everything in between unscreened. The condition is now read with a balanced-paren scan
+ * ({@link balancedParenContent}) that stops at the matching `)`, and what follows it must be
+ * *exactly* `); end if; end $$` — nothing may stand between the guarded `alter table` and the two
+ * closing keywords the template ends on. The condition itself may hold no `;` (nothing inside a
+ * `check` expression legitimately needs one), and the whole body is required to name `begin` and
+ * `end if;` exactly once each — the same anchoring stated twice, once structurally and once by
+ * count, because a bug in one must not be the only thing standing between an attacker and the other.
  */
-const CONSTRAINT_GUARD_TEMPLATE = new RegExp(
+const CONSTRAINT_GUARD_HEAD = new RegExp(
   String.raw`^do \$\$ begin if not exists \(\s*select 1 from pg_constraint where conname = '([^']*)'` +
     String.raw`(?: and conrelid = '([^']*)'::regclass)?\s*\) then alter table (${TABLE_NAME}) ` +
-    String.raw`add constraint (\S+) check \((.+)\); end if; end \$\$$`,
+    String.raw`add constraint (\S+) check \(`,
 );
+
+const CONSTRAINT_GUARD_TAIL = "); end if; end $$";
 
 /** Dynamic SQL inside a `DO` block can construct and run a statement this screen never sees —
  *  `execute`, `perform` (PL/pgSQL's fire-and-forget call, which reaches a function the same way),
@@ -683,10 +710,31 @@ function isConstraintGuardedDoBlock(statement: string): boolean {
   if (!/^do\s+\$\$/.test(statement)) return false;
   if (usesDynamicSql(statement)) return false;
 
-  const match = CONSTRAINT_GUARD_TEMPLATE.exec(statement);
-  if (match === null) return false;
-  const [, guardedName, guardedTable, alteredTable, addedConstraintName] =
-    match;
+  const head = CONSTRAINT_GUARD_HEAD.exec(statement);
+  if (head === null) return false;
+  const [
+    wholeHead,
+    guardedName,
+    guardedTable,
+    alteredTable,
+    addedConstraintName,
+  ] = head;
+
+  const afterOpenParen = statement.slice(wholeHead.length);
+  const condition = balancedParenContent(afterOpenParen);
+  if (condition === undefined) return false;
+  if (condition.includes(";")) return false;
+  if (containsDisallowedFunctionCall(condition)) return false;
+  if (afterOpenParen.slice(condition.length) !== CONSTRAINT_GUARD_TAIL)
+    return false;
+
+  // SEC-7E3c.10's second, independent anchor: the exact-tail check above already pins everything
+  // between the guarded `alter table` and `end $$`, but a second `begin` or a second `end if;`
+  // anywhere else in the body — ahead of the guard, or smuggled into the condition itself despite
+  // the `;`-free rule above — is refused here too, rather than trusted to the first check alone.
+  if (countOccurrences(statement, /\bbegin\b/g) !== 1) return false;
+  if (countOccurrences(statement, /\bend\s+if\s*;/g) !== 1) return false;
+
   if (guardedName !== addedConstraintName) return false;
   return (
     guardedTable === undefined ||
@@ -696,6 +744,55 @@ function isConstraintGuardedDoBlock(statement: string): boolean {
 
 function usesDynamicSql(statement: string): boolean {
   return /\bexecute\b|\bperform\b|\bformat\s*\(|\|\|/.test(statement);
+}
+
+/** The content strictly between a `(` already consumed by the caller and its matching `)`, tracking
+ *  nested parens so `check (a and (b or c))` is read as one balanced expression rather than closing
+ *  on the first `)` it meets. `undefined` if the text never returns to depth zero — Postgres would
+ *  refuse that as an unterminated expression, and this screen refuses it the same way, by finding no
+ *  shape to recognise rather than by guessing where it was supposed to end. */
+function balancedParenContent(text: string): string | undefined {
+  let depth = 1;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === "(") depth += 1;
+    else if (character === ")") {
+      depth -= 1;
+      if (depth === 0) return text.slice(0, index);
+    }
+  }
+  return undefined;
+}
+
+function countOccurrences(text: string, pattern: RegExp): number {
+  return text.match(pattern)?.length ?? 0;
+}
+
+/**
+ * Review round 2, SEC-7E3c.11. A function call inside a `CHECK` expression or a column's `DEFAULT`
+ * runs during the migration, the same hazard CTAS and `INSERT … SELECT` carry — `lo_unlink(42)` is
+ * this module's own standing example of a side-effecting one. Refused by *syntax* (an identifier,
+ * schema-qualified or quoted, immediately followed by `(`) rather than by a denylist of dangerous
+ * names, for the reason every other diagnosis in this file is refuse-by-default: the next dangerous
+ * function nobody has heard of yet still has to be typed as `name(`.
+ *
+ * **`now()` is the one exception**, because `0001` and `0006` both use it as a column default and
+ * neither is going anywhere. Nothing else shipped uses a function call in either position — checked
+ * by hand against `0001`–`0006` before this rule was written — so the allowlist stays a set of one
+ * until a migration genuinely needs a second.
+ */
+const ALLOWED_FUNCTION_CALLS = new Set(["now"]);
+
+const FUNCTION_CALL_HEAD = /("[^"]*"|[a-z_][\w$]*(?:\.[a-z_][\w$]*)*)\s*\(/g;
+
+function containsDisallowedFunctionCall(expression: string): boolean {
+  for (const match of expression.matchAll(FUNCTION_CALL_HEAD)) {
+    const rawName = match[1] ?? "";
+    const qualifiedName = stripQuotes(rawName);
+    const unqualifiedName = qualifiedName.split(".").pop() ?? qualifiedName;
+    if (!ALLOWED_FUNCTION_CALLS.has(unqualifiedName)) return true;
+  }
+  return false;
 }
 
 /** `conrelid = 'designs'::regclass` names the table as a string; `alter table designs` names it as

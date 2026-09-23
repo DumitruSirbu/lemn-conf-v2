@@ -287,7 +287,8 @@ declare const messages: {
     "copied": "Copiat",
     "revoke": "Dezactivează linkul",
     "revoked": "Linkul a fost dezactivat.",
-    "error": "Nu am putut actualiza linkul. Încearcă din nou."
+    "error": "Nu am putut actualiza linkul. Încearcă din nou.",
+    "retry": "Încearcă din nou"
   },
   "contactPlaceholder": {
     "title": "Formularul de contact urmează",

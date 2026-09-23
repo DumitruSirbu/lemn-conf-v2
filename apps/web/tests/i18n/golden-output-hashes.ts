@@ -66,6 +66,10 @@
  * **Grown again, never rebaselined, by M7 wave 7E3c slice S5** (ADR 0113; ADR 0114 Amendment B
  * *Copy*) — the twelve `share.*` leaves for D10's share control, approved and locked in the same
  * commit. **Twelve added and no existing hash moved.**
+ *
+ * **Grown by one, never rebaselined, by M7 wave 7E3c review round 2 (R2.1)** — `share.retry`, the
+ * error state's own label once its retry button stopped always reading `share.create`. **One added
+ * and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -598,6 +602,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "e7ee7ce07294ca9a5b9016e464519bfbde88a90b1171bbcb9ad5acbe3a8e10e8",
   "content.static.share.reissueWarning":
     "ff70236eb0ad89805e9b29faa2832c4303a21cb2917136500eb533a4f1b528e1",
+  "content.static.share.retry":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
   "content.static.share.revoke":
     "feb9b21ba9dd8ffc4fc97b296e2d8a42bf006d3b9b447f4421ad83facd5425d9",
   "content.static.share.revoked":

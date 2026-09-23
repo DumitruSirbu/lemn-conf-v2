@@ -219,3 +219,80 @@ describe("SEC-7E3c.9: insert is restricted to a literal VALUES list; inherits/pa
     ).not.toEqual([]);
   });
 });
+
+// Review round 2, SEC-7E3c.10: `check \((.+)\); end if; end \$\$$` is greedy and spans `;`, so it
+// matches on the *last* `check (…); end if; end $$` in the statement rather than the first — every
+// case below smuggles a real, dangerous statement between a legitimate-looking first `check (true)`
+// and a second, decoy `alter table … add constraint … check (true); end if; end $$` that only
+// exists to give the old regex something to anchor its tail on.
+describe("SEC-7E3c.10: the guarded check's condition cannot span a smuggled statement", () => {
+  const decoyTail =
+    "alter table designs add constraint c check (true); end if; end $$;";
+
+  function smuggledSql(injected: string): string {
+    return (
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      `alter table designs add constraint c check (true); ${injected}; ${decoyTail}`
+    );
+  }
+
+  it.each([
+    [
+      "enables row level security",
+      "alter table designs enable row level security",
+    ],
+    [
+      "revokes a grant from the application role",
+      "revoke select on designs from app_designs",
+    ],
+    ["grants everything to public", "grant all on designs to public"],
+    ["changes the table's owner", "alter table designs owner to someone"],
+    ["disables every trigger", "alter table designs disable trigger all"],
+    [
+      "opens a second, decoy if-block",
+      "end if; if false then raise notice 'x'; end if",
+    ],
+    ["raises an exception", "raise exception 'anything'"],
+    [
+      "forces row level security inside a nested block",
+      "begin alter table designs force row level security; end",
+    ],
+  ])("refuses a smuggled statement that %s", (_label, injected) => {
+    expect(refusalsFor(smuggledSql(injected))).not.toEqual([]);
+  });
+});
+
+// Review round 2, SEC-7E3c.11: a function call inside a guarded CHECK or a column's DEFAULT runs
+// during the migration — the same hazard CTAS and `insert … select` carry.
+describe("SEC-7E3c.11: a function call is refused inside a CHECK or a column DEFAULT, except the allowlist", () => {
+  it("refuses a side-effecting function call inside a guarded CHECK", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      "alter table designs add constraint c check (lo_unlink(42) = 1 or true); end if; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+
+  it("refuses a side-effecting function call inside an added column's default", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add column if not exists z int default lo_unlink(1);",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("still allows now() as a column default, which 0001 and 0006 both use", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add column if not exists seen_at timestamptz default now();",
+      ),
+    ).toEqual([]);
+  });
+
+  it("still allows 0003's and 0005's ~ regex checks, which hold no function call at all", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      "alter table designs add constraint c check (note is null or note ~ '^[0-9a-f]{64}$'); " +
+      "end if; end $$;";
+    expect(refusalsFor(sql)).toEqual([]);
+  });
+});

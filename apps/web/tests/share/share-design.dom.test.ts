@@ -215,6 +215,10 @@ describe("ShareDesign — the retry button repeats the operation that failed", (
     shareLinkStatus.mockResolvedValueOnce(false);
     await mount();
     expect(byTestId("share-design-error")).not.toBeNull();
+    // Review round 2, R2.1: labelled with the new share.retry leaf, not share.create.
+    expect(byTestId("share-design-retry")?.textContent).toBe(
+      roMessages.share.retry,
+    );
 
     await click("share-design-retry");
 
@@ -230,6 +234,9 @@ describe("ShareDesign — the retry button repeats the operation that failed", (
     await mount();
     await click("share-design-create");
     expect(byTestId("share-design-error")).not.toBeNull();
+    expect(byTestId("share-design-retry")?.textContent).toBe(
+      roMessages.share.create,
+    );
 
     await click("share-design-retry");
 
@@ -246,6 +253,9 @@ describe("ShareDesign — the retry button repeats the operation that failed", (
     await mount();
     await click("share-design-revoke");
     expect(byTestId("share-design-error")).not.toBeNull();
+    expect(byTestId("share-design-retry")?.textContent).toBe(
+      roMessages.share.revoke,
+    );
 
     await click("share-design-retry");
 

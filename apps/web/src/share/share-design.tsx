@@ -325,11 +325,26 @@ function ShareDesignBody({
             data-testid="share-design-retry"
             onClick={onRetry}
           >
-            {content.create}
+            {retryLabelFor(state.failedOperation, content)}
           </button>
         </>
       );
   }
+}
+
+/** Review round 2, R2.1: the button always read `content.create`, whatever had actually failed — a
+ *  customer whose *revoke* failed saw "Creează link" on the one control meant to finish killing
+ *  their link. Labelled by the operation `retryFailedOperation` is about to repeat instead: `create`
+ *  after a failed create (which also covers re-issue, the same request under another name),
+ *  `revoke` after a failed revoke, and the new `retry` leaf after a failed status read, which has no
+ *  approved label of its own in D10's table. */
+function retryLabelFor(
+  failedOperation: FailedOperation,
+  content: Content["share"],
+): string {
+  if (failedOperation === "revoke") return content.revoke;
+  if (failedOperation === "create") return content.create;
+  return content.retry;
 }
 
 function selectFieldContents(event: FocusEvent<HTMLInputElement>): void {

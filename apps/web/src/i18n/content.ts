@@ -776,6 +776,7 @@ export function resolveContent(translate: ContentTranslator) {
       revoke: translate("share.revoke"),
       revoked: translate("share.revoked"),
       error: translate("share.error"),
+      retry: translate("share.retry"),
     },
     contactPlaceholder: {
       title: translate("contactPlaceholder.title"),
