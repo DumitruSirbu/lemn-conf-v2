@@ -151,7 +151,24 @@ const DESTRUCTIVE_DIAGNOSES: readonly DestructiveDiagnosis[] = [
       /\balter\s+type\b[\s\S]*?\badd\s+value\b/,
     ),
   },
+  {
+    what: "creates a table from a query (CTAS)",
+    why: "the query runs during the migration and can call arbitrary functions with side effects (e.g. lo_unlink), which is not what a plain column list's 'additive and idempotent' promise covers, and a second run over the same query is not guaranteed to produce the same rows",
+    // Scoped to the shape it is smuggled inside, the same pattern the module's own comment
+    // describes: `create table if not exists` only ever anchors the *start* of a statement (SEC-
+    // 7E3c.2), so a `create table if not exists name as select …` cleared the allowlist on that
+    // anchor alone, with nothing reading what followed it.
+    isBrokenBy: (statement) =>
+      CREATE_TABLE_IF_NOT_EXISTS.test(statement) && CTAS_QUERY.test(statement),
+  },
 ];
+
+/** `CREATE TABLE [IF NOT EXISTS] name AS query` and `CREATE TABLE [IF NOT EXISTS] name AS TABLE
+ *  source` are both a query, not a column list, and cover every keyword PostgreSQL accepts after
+ *  the `AS` of a CTAS: `SELECT`, `WITH` (a `SELECT` wrapped in a CTE), `VALUES`, and `TABLE` itself.
+ *  A column named `as` cannot collide with this: `\bas\b` requires it to stand alone, and none of
+ *  the four words following it is a valid next token inside an ordinary column-list clause. */
+const CTAS_QUERY = /\bas\s+(select|with|values|table)\b/;
 
 /**
  * Every reason the pipeline must not apply these files unattended — empty when it may.
@@ -223,42 +240,155 @@ const APPLY_BY_HAND_INSTEAD =
  * `drop constraint if exists` by name, and `0004`'s discusses `not null default`. Screening the raw
  * bytes would refuse the entire existing set.
  *
- * The split respects `$$` quoting, so `0003`'s `DO` block arrives as one statement rather than as
- * three fragments of one. A `$tag$` quote is not tracked, and does not need to be: its fragments
- * would each fail to match a recognised shape and the file would be refused, which is the direction
- * this module errs in everywhere.
+ * Splitting and comment-stripping happen together, in one quote-aware pass (`rawStatementsOf`), for
+ * the reason SEC-7E3c.1 exists: `--`, `/* *\/` and `;` are only ever read as meaningful outside a
+ * quoted region, exactly as Postgres reads them.
  */
 export function executableStatementsOf(sql: string): string[] {
-  const withoutComments = sql
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\n]*/g, " ")
-    .toLowerCase();
-  return splitOutsideDollarQuotes(withoutComments)
-    .map((statement) => statement.replace(/\s+/g, " ").trim())
+  return rawStatementsOf(sql)
+    .map((statement) => statement.toLowerCase().replace(/\s+/g, " ").trim())
     .filter((statement) => statement !== "");
 }
 
 const DOLLAR_QUOTE = "$$";
 
-function splitOutsideDollarQuotes(sql: string): string[] {
-  const statements: string[] = [];
-  let statementStart = 0;
-  let isInsideDollarQuote = false;
+type ScanState = "code" | "single-quote" | "double-quote" | "dollar-quote";
 
-  for (let index = 0; index < sql.length; index += 1) {
-    if (sql.startsWith(DOLLAR_QUOTE, index)) {
-      isInsideDollarQuote = !isInsideDollarQuote;
-      index += DOLLAR_QUOTE.length - 1;
+/**
+ * One quote-aware pass over the raw file, splitting into statements with `--` and `/* *\/` comments
+ * blanked to a single space — never inside a single-quoted string, a double-quoted identifier, or a
+ * `$$`-delimited body, and never splitting on a `;` inside one either.
+ *
+ * **SEC-7E3c.1.** The version this replaces stripped comments with a plain regex before ever looking
+ * at quotes, so `default '--'` inside a string literal was read as a comment start: everything after
+ * it — including the statement's own closing quote, its closing paren and semicolon, and a second,
+ * real statement sitting right behind it — vanished from what the screen saw, while Postgres reads
+ * the same bytes correctly and executes both statements. The same held for `/* *\/` (a quoted `/*`
+ * with a real, later `*\/` could swallow everything between into one "comment") and for `$$` (a
+ * quoted `$$` could wedge the old dollar-quote toggle on, merging two real statements into one whose
+ * *start* still matched `create table if not exists` while its tail carried an unrelated,
+ * unrecognised statement no diagnosis happened to name).
+ *
+ * `''` inside a single-quoted literal and `""` inside a double-quoted identifier are the standard SQL
+ * escapes for an embedded quote; both keep the scanner inside the same quoted region rather than
+ * closing it early. A `$tag$…$tag$` body is not tracked — only the bare `$$` this repository's own
+ * migrations use — for the reason the original comment already gave: an untracked tagged body falls
+ * apart into fragments that fail to match a recognised shape, and this module always errs toward
+ * refusing rather than silently accepting.
+ */
+function rawStatementsOf(sql: string): string[] {
+  const statements: string[] = [];
+  let buffer = "";
+  let state: ScanState = "code";
+  let index = 0;
+
+  while (index < sql.length) {
+    if (state === "single-quote") {
+      const step = stepThroughQuote(sql, index, "'");
+      buffer += step.consumed;
+      index = step.nextIndex;
+      if (step.closesQuote) state = "code";
       continue;
     }
-    if (sql[index] === ";" && !isInsideDollarQuote) {
-      statements.push(sql.slice(statementStart, index));
-      statementStart = index + 1;
+    if (state === "double-quote") {
+      const step = stepThroughQuote(sql, index, '"');
+      buffer += step.consumed;
+      index = step.nextIndex;
+      if (step.closesQuote) state = "code";
+      continue;
     }
+    if (state === "dollar-quote") {
+      if (sql.startsWith(DOLLAR_QUOTE, index)) {
+        buffer += DOLLAR_QUOTE;
+        state = "code";
+        index += DOLLAR_QUOTE.length;
+        continue;
+      }
+      buffer += sql[index] ?? "";
+      index += 1;
+      continue;
+    }
+
+    // state === "code"
+    if (sql.startsWith("--", index)) {
+      const lineEnd = sql.indexOf("\n", index);
+      index = lineEnd === -1 ? sql.length : lineEnd;
+      buffer += " ";
+      continue;
+    }
+    if (sql.startsWith("/*", index)) {
+      const blockEnd = sql.indexOf("*/", index + 2);
+      // No closing delimiter: Postgres's own lexer would refuse this as an unterminated comment
+      // rather than reading the rest of the file as one, so these two characters are read as
+      // ordinary code — refused for being unrecognised rather than silently swallowed.
+      if (blockEnd === -1) {
+        buffer += "/*";
+        index += 2;
+        continue;
+      }
+      index = blockEnd + 2;
+      buffer += " ";
+      continue;
+    }
+    if (sql[index] === "'") {
+      buffer += "'";
+      state = "single-quote";
+      index += 1;
+      continue;
+    }
+    if (sql[index] === '"') {
+      buffer += '"';
+      state = "double-quote";
+      index += 1;
+      continue;
+    }
+    if (sql.startsWith(DOLLAR_QUOTE, index)) {
+      buffer += DOLLAR_QUOTE;
+      state = "dollar-quote";
+      index += DOLLAR_QUOTE.length;
+      continue;
+    }
+    if (sql[index] === ";") {
+      statements.push(buffer);
+      buffer = "";
+      index += 1;
+      continue;
+    }
+    buffer += sql[index] ?? "";
+    index += 1;
   }
 
-  statements.push(sql.slice(statementStart));
+  statements.push(buffer);
   return statements;
+}
+
+interface QuoteStep {
+  readonly consumed: string;
+  readonly nextIndex: number;
+  readonly closesQuote: boolean;
+}
+
+/** One step inside a single- or double-quoted region: `''`/`""` is the SQL escape for an embedded
+ *  quote and stays inside the region; a lone quote character ends it; anything else is ordinary
+ *  content that cannot itself be a quote character, since a bare occurrence of `quoteChar` is always
+ *  handled by one of the two branches above. */
+function stepThroughQuote(
+  sql: string,
+  index: number,
+  quoteChar: "'" | '"',
+): QuoteStep {
+  const doubled = quoteChar + quoteChar;
+  if (sql.startsWith(doubled, index)) {
+    return { consumed: doubled, nextIndex: index + 2, closesQuote: false };
+  }
+  if (sql[index] === quoteChar) {
+    return { consumed: quoteChar, nextIndex: index + 1, closesQuote: true };
+  }
+  return {
+    consumed: sql[index] ?? "",
+    nextIndex: index + 1,
+    closesQuote: false,
+  };
 }
 
 /** `ALTER TABLE [ONLY|IF EXISTS] t ADD [COLUMN] IF NOT EXISTS …`, one or more clauses, each of them
