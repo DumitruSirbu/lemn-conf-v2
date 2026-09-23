@@ -15,7 +15,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
@@ -1173,72 +1173,93 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
     return rows[0]?.visitor_hash ?? null;
   }
 
-  /** The rotation transaction, laid out exactly as `mintStatements`'s rotate branch does, so a
-   *  "retry" can be driven twice with byte-identical arguments without going through `mint`'s own
-   *  id generation. */
-  function rotationTransaction(
-    id: DesignId,
-    writeTokenHash: string,
-    fromVisitorHash: string,
-    toVisitorHash: string,
-  ) {
-    const sql = neon(testDatabaseUrl);
-    return sql.transaction(
-      [
-        sql`
-          update designs set visitor_hash = ${toVisitorHash}
-          where visitor_hash = ${fromVisitorHash}
-        `,
-        sql`
-          insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
-          values (${id}, 1, ${KITCHEN_L_DESIGN}, ${writeTokenHash}, ${toVisitorHash})
-          on conflict (id) do nothing
-        `,
-        sql`
-          select revision::text as revision from designs
-          where id = ${id} and visitor_hash = ${toVisitorHash}
-        `,
-      ],
-      { isolationLevel: "ReadCommitted" },
-    );
-  }
-
   afterEach(async () => {
     if (!hasLiveDatabase || mintedIds.length === 0) return;
     const ids = mintedIds.splice(0, mintedIds.length);
     await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
   });
 
+  /** The wire shape `@neondatabase/serverless` POSTs for `sql.transaction([...])`, and the shape
+   *  its response carries back — array-mode rows, named by a parallel `fields` array — reused here
+   *  only to decode the replay's own answer, never to build a request by hand. */
+  interface NeonHttpTransactionResult {
+    fields: { name: string }[];
+    rows: unknown[][];
+  }
+  interface NeonHttpTransactionResponseBody {
+    results: NeonHttpTransactionResult[];
+  }
+
+  /** Reads the last statement's first row as an object, keyed by its own `fields` — the columns
+   *  `mintStatements`'s closing `select` names, whatever order the driver put them in. */
+  function lastRowOf(
+    body: NeonHttpTransactionResponseBody,
+  ): Record<string, unknown> {
+    const result = body.results.at(-1);
+    const row = result?.rows[0];
+    if (result === undefined || row === undefined)
+      throw new Error(
+        "the replayed transaction answered no row for its closing select",
+      );
+    return Object.fromEntries(
+      result.fields.map((field, index) => [field.name, row[index]]),
+    );
+  }
+
   it.skipIf(!hasLiveDatabase)(
-    "running the rotation transaction twice with identical arguments answers the same revision and leaves one row",
+    // L1.1: earlier versions of this test retyped `mintStatements`'s SQL by hand, which had
+    // already drifted from the production shape once. Retyping it again would only be as
+    // trustworthy as this file's own transcription. Instead, `neonConfig.fetchFunction` — the same
+    // seam `retry-on-compute-restart.test.ts` stubs offline — is pointed at the real network here,
+    // so it can *record* the exact request `mint` sends without changing what is sent. That
+    // captured request is then POSTed again, live, unmodified: the retry this test proves
+    // idempotent is the one production code actually issues, not a copy of it.
+    "the production rotation transaction, replayed live from its own captured wire bytes, answers the same revision twice and leaves one row (S6 criterion 4, L1.1)",
     async () => {
       const oldHash = "20".repeat(32);
       const newHash = "21".repeat(32);
       const existingId = await mintUnder(oldHash);
-      const newId = generateDesignId();
-      mintedIds.push(newId);
 
-      // The first attempt, standing in for the one whose acknowledgement was lost.
-      const first = (await rotationTransaction(
-        newId,
-        CORRECT_TOKEN_HASH,
-        oldHash,
-        newHash,
-      )) as [unknown[], unknown[], { revision: string }[]];
-      // The retry: byte-identical arguments, run only after the first has committed.
-      const retried = (await rotationTransaction(
-        newId,
-        CORRECT_TOKEN_HASH,
-        oldHash,
-        newHash,
-      )) as [unknown[], unknown[], { revision: string }[]];
+      const captured: { url: string; init: RequestInit }[] = [];
+      const previousFetchFunction: unknown = neonConfig.fetchFunction;
+      const realFetch = globalThis.fetch;
+      neonConfig.fetchFunction = (url: string, init: RequestInit) => {
+        captured.push({ url, init });
+        return realFetch(url, init);
+      };
 
-      const firstRevision = first[2][0]?.revision;
-      expect(firstRevision).toBeDefined();
-      expect(retried[2][0]?.revision).toBe(firstRevision);
+      let outcome: { id: DesignId; revision: string };
+      try {
+        outcome = await repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: {
+            kind: "rotate",
+            visitorHash: newHash,
+            fromVisitorHash: oldHash,
+          },
+        });
+      } finally {
+        neonConfig.fetchFunction = previousFetchFunction;
+      }
+      mintedIds.push(outcome.id);
+
+      expect(captured).toHaveLength(1);
+      const wireRequest = captured[0];
+      if (wireRequest === undefined)
+        throw new Error("the driver sent no request to capture");
+
+      // The retry: the exact bytes production sent, POSTed a second time, live.
+      const replayed = await realFetch(wireRequest.url, wireRequest.init);
+      expect(replayed.status).toBe(200);
+      const replayedRow = lastRowOf(
+        (await replayed.json()) as NeonHttpTransactionResponseBody,
+      );
+
+      expect(replayedRow["revision"]).toBe(outcome.revision);
 
       const rows = (await neon(testDatabaseUrl)`
-        select count(*)::int as n from designs where id = ${newId}
+        select count(*)::int as n from designs where id = ${outcome.id}
       `) as { n: number }[];
       expect(rows[0]?.n).toBe(1);
       expect(await visitorHashOf(existingId)).toBe(newHash);
@@ -1536,7 +1557,13 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
   );
 
   it.skipIf(!hasLiveDatabase)(
-    "R3, a save racing a rotation: the save never writes visitor_hash back, the save lands, and no row is ever left under the old value",
+    // L1.2: `Promise.all` left the two requests' arrival order to the database scheduler, so
+    // whichever one actually reached the table first was never controlled — and the assertion
+    // that followed, `typeof save.ownsVisitor === "boolean"`, is true of `true` and `false` alike
+    // and so proved nothing about which one it was. Forcing the rotation to commit first, then
+    // issuing the save, pins the one order H3 makes a claim about and lets the test state it: a
+    // save carrying the value the rotation just moved away from owns nothing.
+    "R3, a save racing a rotation: with the rotation committed first, the save never writes visitor_hash back, the save still lands, and it answers ownsVisitor: false (S6 criterion 7 residual, L1.2)",
     async () => {
       for (let attempt = 0; attempt < 6; attempt++) {
         const oldHash = hashNumbered(0x3e000 + attempt, 0);
@@ -1548,28 +1575,29 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         });
         mintedIds.push(minted.id);
 
-        const [save, rotation] = await Promise.all([
-          repository().saveAuthorized({
-            id: minted.id,
-            design: {
-              ...KITCHEN_L_DESIGN,
-              presetId: `race-${String(attempt)}`,
-            },
-            writeTokenHash: CORRECT_TOKEN_HASH,
-            expectedRevision: minted.revision,
-            requestVisitor: { kind: "present", visitorHash: oldHash },
-          }),
-          repository().mint({
-            design: KITCHEN_L_DESIGN,
-            writeTokenHash: CORRECT_TOKEN_HASH,
-            visitor: {
-              kind: "rotate",
-              visitorHash: newHash,
-              fromVisitorHash: oldHash,
-            },
-          }),
-        ]);
+        const rotation = await repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: {
+            kind: "rotate",
+            visitorHash: newHash,
+            fromVisitorHash: oldHash,
+          },
+        });
         mintedIds.push(rotation.id);
+
+        // The rotation has already committed — awaited above — so this save's own `oldHash` is
+        // stale before it is ever sent.
+        const save = await repository().saveAuthorized({
+          id: minted.id,
+          design: {
+            ...KITCHEN_L_DESIGN,
+            presetId: `race-${String(attempt)}`,
+          },
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          expectedRevision: minted.revision,
+          requestVisitor: { kind: "present", visitorHash: oldHash },
+        });
 
         expect(await countUnder(oldHash)).toBe(0);
         const row = (await rawRows([minted.id])).get(minted.id);
@@ -1577,7 +1605,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         expect(JSON.parse(row?.document ?? "{}")).toMatchObject({
           presetId: `race-${String(attempt)}`,
         });
-        expect(typeof save.ownsVisitor).toBe("boolean");
+        expect(save.ownsVisitor).toBe(false);
       }
     },
     120_000,
@@ -1626,6 +1654,58 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         ).kind,
       ).toBe("found");
       expect(await countUnder(oldHash)).toBe(0);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    // S6 criterion 4's third bullet, kept against random rotation (H1/H6) rather than deleted with
+    // H4: under plain random rotation there is no derivation to attack — a rotate mint always draws
+    // a fresh value regardless of what `fromVisitorHash` names — so a planted `P` that owns no row
+    // moves nothing and reaches nothing, which this test measures directly rather than assumes.
+    "S6 criterion 4: a planted P owns nothing, so an attacker's mint from it gets its own fresh value and reads nothing of the victim's",
+    async () => {
+      const ownerHash = "44".repeat(32);
+      const plantedP = "45".repeat(32);
+      const attackerHash = "46".repeat(32);
+
+      const victim = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: ownerHash },
+      });
+      mintedIds.push(victim.id);
+
+      const attacker = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: {
+          kind: "rotate",
+          visitorHash: attackerHash,
+          fromVisitorHash: plantedP,
+        },
+      });
+      mintedIds.push(attacker.id);
+
+      // The victim's row never moved — nothing owned `plantedP`, so the `update` matched no row.
+      expect((await rawRows([victim.id])).get(victim.id)?.visitor_hash).toBe(
+        ownerHash,
+      );
+      expect(
+        (
+          await repository().loadOwned({
+            id: victim.id,
+            visitorHash: attackerHash,
+          })
+        ).kind,
+      ).toBe("none");
+      expect(
+        (
+          await repository().loadOwned({
+            id: attacker.id,
+            visitorHash: ownerHash,
+          })
+        ).kind,
+      ).toBe("none");
     },
   );
 });

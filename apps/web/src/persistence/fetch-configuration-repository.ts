@@ -12,6 +12,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
 
+import { withCreateDesignLock } from "./create-design-lock";
 import {
   DesignRequestFailedError,
   isRetryableStatus,
@@ -231,14 +232,25 @@ export class FetchConfigurationRepository {
   /** `POST /api/designs` takes no body: it creates the row from the seeded fixture and, in the
    *  same response, sets the write-token cookie scoped to the new id. The customer's own design
    *  therefore travels in the `PUT` that always follows — without it the first edit would never
-   *  reach the database. */
+   *  reach the database.
+   *
+   *  **The one call this file makes to `POST /api/designs`, and so the only place
+   *  `withCreateDesignLock` needs to wrap** (M7 wave 7E3b S6, ADR 0114 Amendment H6 / D2): both
+   *  creation paths — the Step 1 hand-off and the store's mint-on-first-command branch — reach here
+   *  through `save({ id: null })`, so wrapping this one method covers both without either knowing
+   *  the lock exists. The lock holds across the whole request, response included, so a second tab's
+   *  own mint — once the lock admits it — carries the cookie this one's response just set. */
   private async mint(): Promise<ClientSaveResult> {
-    const response = await this.request(DESIGNS_ENDPOINT, { method: "POST" });
-    if (!response.ok) throw failureFor("Minting a design", response.status);
-    return readSaveResult(
-      await readJsonBody(response, "Minting a design"),
-      "Minting a design",
-    );
+    return withCreateDesignLock(async () => {
+      const response = await this.request(DESIGNS_ENDPOINT, {
+        method: "POST",
+      });
+      if (!response.ok) throw failureFor("Minting a design", response.status);
+      return readSaveResult(
+        await readJsonBody(response, "Minting a design"),
+        "Minting a design",
+      );
+    });
   }
 
   /**

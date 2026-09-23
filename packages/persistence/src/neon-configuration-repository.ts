@@ -137,7 +137,11 @@ export type MintVisitor =
 
 /**
  * The server-side persistence port, split by ADR 0019 decision 1 into an open read and an
- * authorised write.
+ * authorised write. **The open read is no longer what a production caller reaches** — since ADR
+ * 0114 Amendment H2 (M7 wave 7E3b) a design opens only in its owning browser, and
+ * `OwnedDesignRepository.loadOwned` below is the gate that enforces it; `load` stays on this
+ * interface only for this package's own live tests, which need an unfiltered read to assert
+ * against the raw row (see its own doc comment).
  *
  * Deliberately **not** the domain's `ConfigurationRepository`: that interface's `save(id, design)`
  * carries no credential and is what the browser client implements over `fetch`, where the cookie

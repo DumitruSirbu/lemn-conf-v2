@@ -56,11 +56,14 @@ function crossSiteMintRefusedResponse(): NextResponse {
 }
 
 /** Mints the first design row **and** the credential that authorises writing to it (ADR 0019
- *  decision 1): the creating browser is the only party that ever holds the token, so a link shared
- *  afterwards carries read access alone. M2 has no Step 1 yet, so the seeded L-kitchen fixture is
- *  the only creation trigger; M7 replaces it with preset application without changing this route's
- *  contract — the repository itself has no opinion on how a `Design` came to exist
- *  (`docs/milestones/M2-void-engine.md`, "Something has to create the first design").
+ *  decision 1): the creating browser is the only party that ever holds the token. **The design's
+ *  own link no longer carries read access to anyone who has it** — since ADR 0114 Amendment H2 (M7
+ *  wave 7E3b) it opens only in the browser that owns the visitor cookie; a customer who wants to
+ *  share a read-only view issues a separate share link (Amendment C, M7 wave 7E3c). M2 has no
+ *  Step 1 yet, so the seeded L-kitchen fixture is the only creation trigger; M7 replaces it with
+ *  preset application without changing this route's contract — the repository itself has no
+ *  opinion on how a `Design` came to exist (`docs/milestones/M2-void-engine.md`, "Something has to
+ *  create the first design").
  *
  *  Since M7 wave 7E3a it also resolves — and always sets — the visitor cookie. Since M7 wave 7E3b
  *  (Amendment H1, *"Rotate on mint"*) every mint issues a **fresh** value; a well-formed one the
