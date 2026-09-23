@@ -9,6 +9,7 @@ import {
   CSP_ENFORCED_HEADER,
   cspResponseHeaderName,
   NONCE_HEADER,
+  SHARE_VIEW_HEADERS,
 } from "@/lib/security-headers";
 
 const handleLocaleRouting = createMiddleware(routing);
@@ -42,7 +43,20 @@ export function proxy(request: NextRequest): NextResponse {
     cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE),
     policy,
   );
+  if (isSharePath(request.nextUrl.pathname)) applySharedViewHeaders(response);
   return response;
+}
+
+/**
+ * D7: every response this path family produces — the unprefixed 307 (criterion 8) and the localized
+ * page alike — carries the same three headers, set here rather than in the page so the redirect gets
+ * them too. Applied **after** the CSP is set above, on the same response object `handleLocaleRouting`
+ * already returned, so it never races the locale redirect it decorates.
+ */
+function applySharedViewHeaders(response: NextResponse): void {
+  for (const { key, value } of SHARE_VIEW_HEADERS) {
+    response.headers.set(key, value);
+  }
 }
 
 function hasCaseVariantLocalePrefix(pathname: string): boolean {
@@ -57,15 +71,22 @@ function hasCaseVariantLocalePrefix(pathname: string): boolean {
 }
 
 /**
+ * The path with any locale prefix stripped, as segments — the shape both `isCustomerPath` and
+ * `isSharePath` read the allow-list against, so a locale in front of either family is recognised the
+ * same way.
+ */
+function localeStrippedSegments(pathname: string): string[] {
+  const segments = pathname.split("/").filter(Boolean);
+  return hasLocale(routing.locales, segments[0]) ? segments.slice(1) : segments;
+}
+
+/**
  * Only the customer route families below participate in locale routing. The configurator family is
  * an exact allow-list: `configure`, `contact`, and `room`; a nested room path is not a customer
  * route. A locale in front of `/api` or `/internal` remains an ordinary Next.js 404 candidate.
  */
 function isCustomerPath(pathname: string): boolean {
-  const segments = pathname.split("/").filter(Boolean);
-  const routeSegments = hasLocale(routing.locales, segments[0])
-    ? segments.slice(1)
-    : segments;
+  const routeSegments = localeStrippedSegments(pathname);
 
   if (routeSegments.length === 0) return true;
   if (
@@ -76,10 +97,25 @@ function isCustomerPath(pathname: string): boolean {
       routeSegments[1] === "room")
   )
     return true;
-
-  return (
+  if (
     routeSegments.length === 2 &&
     routeSegments[0] === "d" &&
+    routeSegments[1] !== ""
+  )
+    return true;
+
+  return isSharePath(pathname);
+}
+
+/** D7's allow-list addition: `s/{token}`, two segments with a non-empty second — the share view,
+ *  gated the same way `d/{id}` is. Kept as its own predicate, not folded silently into
+ *  `isCustomerPath`'s body, because `proxy()` also needs it on its own to decide `SHARE_VIEW_HEADERS`
+ *  independently of locale routing. */
+function isSharePath(pathname: string): boolean {
+  const routeSegments = localeStrippedSegments(pathname);
+  return (
+    routeSegments.length === 2 &&
+    routeSegments[0] === "s" &&
     routeSegments[1] !== ""
   );
 }

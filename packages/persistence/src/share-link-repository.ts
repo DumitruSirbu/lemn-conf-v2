@@ -100,13 +100,27 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
    * link per design" is also enforced at the database by the partial unique index `0006` adds; this
    * transaction is what keeps a legitimate re-issue from ever colliding with it.
    *
-   * Three statements over one snapshot, each carrying the full credential predicate on its own,
-   * because the predicate is the security control (the same reasoning
-   * `NeonConfigurationRepository.saveAuthorized` states): (1) `select … for update` locks the design
-   * row, serialising two concurrent issues for the same design; (2) the previously active row, if
-   * any, is revoked; (3) the new row is inserted only from a `select` that itself re-checks the
-   * credential, so an unauthorised call inserts nothing at all. Reading `token_hash` back off that
-   * insert is what tells `issued` from `refused` apart — not the lock, which a caller cannot observe.
+   * Three statements, serialised by the row lock; relies on READ COMMITTED. Each carries the full
+   * credential predicate on its own, because the predicate is the security control (the same
+   * reasoning `NeonConfigurationRepository.saveAuthorized` states): (1) `select … for update` locks
+   * the design row, serialising two concurrent issues for the same design; (2) the previously active
+   * row, if any, is revoked; (3) the new row is inserted only from a `select` that itself re-checks
+   * the credential, so an unauthorised call inserts nothing at all. Reading `token_hash` back off
+   * that insert is what tells `issued` from `refused` apart — not the lock, which a caller cannot
+   * observe.
+   *
+   * **Why READ COMMITTED, stated rather than assumed (SEC-7E3c.4).** The lock in (1) is what makes
+   * two concurrent `issue()` calls for the same design safe, but the lock alone is not what keeps
+   * them correct: under READ COMMITTED, every statement takes a fresh snapshot as of its own start,
+   * so a second `issue()` — call it T2 — that blocks on (1)'s `for update` sees, once the first
+   * commits and releases the lock, that first call's *committed* insert when T2's own statements (2)
+   * and (3) run. T2's revoke then correctly deactivates the row T1 just created before T2 inserts its
+   * own, which is what leaves exactly one active row after any number of concurrent issues
+   * (criterion 5). Under `RepeatableRead` or `Serializable`, T2's snapshot is fixed at its own
+   * `BEGIN` — before T1 committed — so T2 would neither see nor revoke T1's row, and its own insert
+   * would collide with `0006`'s partial unique index instead of resolving cleanly. `isolationLevel`
+   * is stated explicitly so a future change to `neon()`'s own default cannot silently change which of
+   * those two outcomes this method gets.
    */
   async issue({
     designId,
@@ -126,15 +140,16 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
     // *parameter*, never as spliced-in SQL text, so a `NeonQueryPromise` built by one `sql` call
     // cannot be interpolated into another — there is no fragment-composition feature to reuse here.
     const [, , inserted] = (await retryOnComputeRestart(() =>
-      this.sql.transaction([
-        this.sql`
+      this.sql.transaction(
+        [
+          this.sql`
             select 1 from designs
             where id = ${designId}
               and write_token_hash = ${writeTokenHash}
               and visitor_hash = ${visitorHash}
             for update
           `,
-        this.sql`
+          this.sql`
             update design_share_links
             set revoked_at = now()
             where revoked_at is null
@@ -145,7 +160,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
                   and visitor_hash = ${visitorHash}
               )
           `,
-        this.sql`
+          this.sql`
             insert into design_share_links (token_hash, design_id)
             select ${tokenHash}, id from designs
             where id = ${designId}
@@ -153,7 +168,11 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
               and visitor_hash = ${visitorHash}
             returning token_hash
           `,
-      ]),
+        ],
+        // Pinned per the doc comment above (SEC-7E3c.4) — this is Postgres's own default, made
+        // explicit so it cannot drift under this method without a reviewer seeing the line change.
+        { isolationLevel: "ReadCommitted" },
+      ),
     )) as [unknown[], unknown[], IssuedRow[]];
 
     return inserted.length > 0 ? "issued" : "refused";

@@ -97,6 +97,19 @@ export const STATIC_SECURITY_HEADERS: readonly {
   { key: "X-DNS-Prefetch-Control", value: "off" },
 ];
 
+/**
+ * Every response on a `/s/{token}` path, redirect and page alike (M7 wave 7E3c D7): a share link is
+ * handed out for one recipient, never indexed and never cached by an intermediary. `no-referrer` is
+ * stricter than the site-wide `strict-origin-when-cross-origin` above — a share view must not leak
+ * even the origin to whatever the recipient clicks next — so it is set here rather than folded into
+ * `STATIC_SECURITY_HEADERS`, which every other route still wants the looser default from.
+ */
+export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+  { key: "Cache-Control", value: "private, no-store" },
+];
+
 export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
   return mode === "enforce" ? CSP_ENFORCED_HEADER : CSP_REPORT_ONLY_HEADER;
 }

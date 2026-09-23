@@ -40,7 +40,18 @@ function ConfigureLoading() {
 
 type SupportState = "probing" | "supported" | "unsupported";
 
-export function ConfigureScreen() {
+/** `"owner"` is the default and every existing mount's answer (G9). `"shared"` is the share view's
+ *  own (M7 wave 7E3c D6, criterion 12): it drops the two Step 1 links and the review CTA row, which
+ *  lead nowhere useful without the owner's write credential — `canWrite: false` already disables
+ *  every control inside the panel and the settings surface, so this variant only ever removes
+ *  navigation, never re-implements the read-only gating those already do. */
+export type ConfigureScreenVariant = "owner" | "shared";
+
+export function ConfigureScreen({
+  variant = "owner",
+}: {
+  variant?: ConfigureScreenVariant;
+}) {
   const content = useContent();
   const room = useConfiguratorStore((state) => state.design.room);
   const roomHref = roomHrefFromDesignRoom(room);
@@ -84,15 +95,20 @@ export function ConfigureScreen() {
           `configure.module.css` hides one. */}
       <header className={styles.nav}>
         {/* Frame 2A `:483` draws the glyph alone. The word is the link's accessible name, because a
-            `‹` read aloud is not a destination. */}
-        <Link
-          className={styles.back}
-          aria-label={content.configure.back}
-          data-testid="top-bar-back"
-          href={roomHref}
-        >
-          <span aria-hidden="true">‹</span>
-        </Link>
+            `‹` read aloud is not a destination.
+
+            Absent in the shared variant: Step 1 is the owner's own screen, and a link there from a
+            share session would hand a visitor with no write credential a dead end (criterion 12). */}
+        {variant === "owner" && (
+          <Link
+            className={styles.back}
+            aria-label={content.configure.back}
+            data-testid="top-bar-back"
+            href={roomHref}
+          >
+            <span aria-hidden="true">‹</span>
+          </Link>
+        )}
         <span className={styles.wordmark}>{content.brand}</span>
         {/* The step, twice over and from one source (`src/messages/ro.json`): the pill the frames
             draw, and — as its accessible name — the sentence the caption it replaced said. "2/4"
@@ -204,19 +220,24 @@ export function ConfigureScreen() {
         </div>
       </div>
       {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. The room back link is
-          live in M7; the review CTA remains inert until M8 because no review route exists. */}
-      <div className={styles.actions}>
-        <Link
-          className={styles.backAction}
-          data-testid="bottom-bar-back"
-          href={roomHref}
-        >
-          {content.configure.backAction}
-        </Link>
-        <span className={styles.reviewCta} data-testid="review-cta">
-          {content.configure.reviewCta}
-        </span>
-      </div>
+          live in M7; the review CTA remains inert until M8 because no review route exists.
+
+          The whole row is absent in the shared variant (criterion 12): both controls lead back to
+          the owner's own Step 1 or M8's review, neither of which a share session may reach. */}
+      {variant === "owner" && (
+        <div className={styles.actions}>
+          <Link
+            className={styles.backAction}
+            data-testid="bottom-bar-back"
+            href={roomHref}
+          >
+            {content.configure.backAction}
+          </Link>
+          <span className={styles.reviewCta} data-testid="review-cta">
+            {content.configure.reviewCta}
+          </span>
+        </div>
+      )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the
           measurement that would put it back. */}
