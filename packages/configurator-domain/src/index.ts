@@ -279,9 +279,15 @@ export {
 // The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the
 // corner that fits under its ceiling, and every free run recorded as empty space.
 export {
+  buildLinearShellDesign,
   buildLShellDesign,
+  linearShellFloorRuns,
+  LinearShellInputError,
   lShellFloorRuns,
   LShellInputError,
+  type LinearShellCompositionPlan,
+  type LinearShellDesignInput,
+  type LinearShellInputRefusal,
   type LShellCompositionPlan,
   type LShellDesignInput,
   type LShellInputRefusal,

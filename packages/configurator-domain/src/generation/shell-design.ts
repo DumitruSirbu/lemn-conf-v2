@@ -73,6 +73,124 @@ import {
 } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 
+// =================================================================================================
+// ADR 0130 D5 (wave 7J S2) — the straight kitchen's shell: no corner, no structural placement, one
+// wall. The tiling primitives above (`tileRunsOn`, `tilesOver`, `plannedFloorTiles`,
+// `wholeMillimetreReachableEndMm`) are shared rather than copied: a straight room's free run is the
+// same shape of thing an L's is, with the corner's reach and the depth-change reserve both at zero
+// rather than a second code path computing them.
+// =================================================================================================
+
+export interface LinearShellDesignInput {
+  /** A room `validateRoomInput` accepted for the straight policy; the shell passes it through
+   *  untouched. */
+  readonly room: DesignRoom;
+  readonly occurredAt: string;
+  /** Composition's private row plan for wall A, the straight room's only wall. Omit it to retain the
+   *  un-composed 800-first shell exactly, the same contract `LShellDesignInput.compositionPlan` has. */
+  readonly compositionPlan?: LinearShellCompositionPlan;
+}
+
+export interface LinearShellCompositionPlan {
+  readonly floorWidthsMm: readonly number[];
+}
+
+export type LinearShellInputRefusal =
+  | "ROOM_NOT_A_DESIGN_ROOM"
+  | "ROOM_NOT_LINEAR"
+  | "ROOM_OUTSIDE_ENGINE_LIMITS"
+  | "INVALID_OCCURRED_AT";
+
+/** The builder sits behind the room validator, so a bad input here is a programming error. */
+export class LinearShellInputError extends Error {
+  constructor(readonly refusal: LinearShellInputRefusal) {
+    super(`buildLinearShellDesign refused its input: ${refusal}`);
+    this.name = "LinearShellInputError";
+  }
+}
+
+/** The shell for a straight `input.room`: no structural placement (D5) and wall A's one free run,
+ *  recorded the same way an L's floor and wall-only runs are. */
+export function buildLinearShellDesign(input: LinearShellDesignInput): Design {
+  refuseUnbuildableLinearInput(input);
+  const shell: Design = {
+    room: input.room,
+    presetId: null,
+    settings: { ...REFERENCE_KITCHEN.settings },
+    placements: [],
+    createdAt: input.occurredAt,
+    updatedAt: input.occurredAt,
+  };
+  const tiles = linearFreeRunTiles(input.room, input.compositionPlan);
+  return canonicalised(withFrozenMap(shell, { emptyColumns: tiles }));
+}
+
+function refuseUnbuildableLinearInput(input: LinearShellDesignInput): void {
+  if (!DesignRoomSchema.safeParse(input.room).success) {
+    throw new LinearShellInputError("ROOM_NOT_A_DESIGN_ROOM");
+  }
+  if (input.room.shape !== "linear") {
+    throw new LinearShellInputError("ROOM_NOT_LINEAR");
+  }
+  if (!isInsideTheEngineLimitsLinear(input.room)) {
+    throw new LinearShellInputError("ROOM_OUTSIDE_ENGINE_LIMITS");
+  }
+  if (!isValidOccurredAt(input.occurredAt)) {
+    throw new LinearShellInputError("INVALID_OCCURRED_AT");
+  }
+}
+
+/** The engine's own linear limits (ADR 0130 D2), never the approved policy — the same split
+ *  `isInsideTheEngineLimits` keeps for the L. Generation never reads `room.depthMm` (D3, A7), so no
+ *  check here touches it. */
+function isInsideTheEngineLimitsLinear(room: DesignRoom): boolean {
+  return validateRoomInput(
+    { shape: "linear", wallAMm: room.widthMm, heightMm: room.heightMm },
+    ENGINE_ROOM_LIMITS,
+  ).ok;
+}
+
+/** Wall A's free run: `[0, W]` less the odd millimetre (7D1-P P3), with no corner reach to subtract
+ *  and no depth-change reserve — wall A never slides (D5), because there is no corner on wall B to
+ *  slide it.
+ *
+ *  **One run, not two.** The L's `freeRunTiles` also records a *wall-only* run, but only over the
+ *  horizontal strip where the corner's base band is occupied while its wall/top bands have already
+ *  ended — the space directly above the corner's own base piece. A straight room places no structural
+ *  piece at all (D5), so that strip never exists: `wallRowStartMm`'s corner reach and
+ *  `floorRunStartMm`'s both equal 0, which is exactly the input that collapses the L's own wall-only
+ *  span to zero length (`Math.min(floorSpan.startMm, …)` clamped against a `wallOnlyStartMm` that is
+ *  the same 0). Tiling only the floor run reaches the identical, non-overlapping result the shared
+ *  clamp would, without a call that is provably always empty. */
+function linearFreeRunTiles(
+  room: DesignRoom,
+  compositionPlan: LinearShellCompositionPlan | undefined,
+): EmptyColumn[] {
+  const runs = tileRunsOn("A", room);
+  const span = linearFloorRunSpan(room);
+  return compositionPlan === undefined
+    ? tilesOver(runs.floor, span)
+    : plannedFloorTiles(runs.floor, span, compositionPlan.floorWidthsMm);
+}
+
+/** Wall A's one run, exported for the composer the same way `lShellFloorRuns` is — so the plan's
+ *  declared widths and the shell's tiles are cut from the identical span. */
+export function linearShellFloorRuns(room: DesignRoom): Readonly<{
+  readonly wall: "A";
+  readonly startMm: number;
+  readonly endMm: number;
+}> {
+  return { wall: "A", ...linearFloorRunSpan(room) };
+}
+
+function linearFloorRunSpan(room: DesignRoom): AlongWallSpan {
+  const physicalSpan = { startMm: 0, endMm: wallLengthMm("A", room) };
+  return {
+    ...physicalSpan,
+    endMm: wholeMillimetreReachableEndMm(physicalSpan),
+  };
+}
+
 export interface LShellDesignInput {
   /** A room `validateRoomInput` accepted; the shell passes it through untouched. */
   readonly room: DesignRoom;

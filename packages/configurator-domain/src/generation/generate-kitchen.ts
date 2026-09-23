@@ -32,10 +32,16 @@ import {
   planKitchenComposition,
   type GenerationBaseRole,
   type GenerationCoreRole,
+  type GenerationRun,
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "./generation-priorities.js";
-import { buildLShellDesign, lShellFloorRuns } from "./shell-design.js";
+import {
+  buildLinearShellDesign,
+  buildLShellDesign,
+  linearShellFloorRuns,
+  lShellFloorRuns,
+} from "./shell-design.js";
 import {
   DOOR_COLUMN_BUILD_ID,
   OVEN_TOWER_BUILD_ID,
@@ -142,21 +148,59 @@ const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
   OVEN_TOWER_BUILD_ID,
 ]);
 
-/** Composes one deterministic L kitchen through the same command and frozen-map funnel as the
- *  editor. One probe lease brackets the entire attempt, including a minimum refusal or a throw. */
+/** ADR 0130 D6: the composer's own runs, a straight room's one wall handed over beside an empty,
+ *  zero-capacity wall B — `planKitchenComposition` never branches on the shape, because a wall with
+ *  no capacity cuts the reading order at 0 by the same `fitsAcrossTheCorner` arithmetic an L's own
+ *  narrow prefix wall already uses. */
+function shellRunsFor(
+  room: Design["room"],
+): Readonly<Record<DesignWall, GenerationRun>> {
+  if (room.shape === "linear") {
+    return {
+      A: linearShellFloorRuns(room),
+      B: { wall: "B", startMm: 0, endMm: 0 },
+    };
+  }
+  return lShellFloorRuns(room);
+}
+
+/** ADR 0130 D5/D6: the shell dispatch, kept to one place so a wave that adds a third shape edits one
+ *  function rather than every call site `buildLShellDesign` used to have alone. */
+function buildShellFor(args: {
+  readonly room: Design["room"];
+  readonly occurredAt: string;
+  readonly plan: KitchenCompositionPlan;
+}): Design {
+  if (args.room.shape === "linear") {
+    return buildLinearShellDesign({
+      room: args.room,
+      occurredAt: args.occurredAt,
+      compositionPlan: { floorWidthsMm: args.plan.floorWidthsMm.A },
+    });
+  }
+  return buildLShellDesign({
+    room: args.room,
+    occurredAt: args.occurredAt,
+    compositionPlan: { floorWidthsMm: args.plan.floorWidthsMm },
+  });
+}
+
+/** Composes one deterministic kitchen — an L or a straight run (ADR 0130) — through the same command
+ *  and frozen-map funnel as the editor. One probe lease brackets the entire attempt, including a
+ *  minimum refusal or a throw. */
 export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
   const catalog = buildKitchenLBodyCatalog(PLANNING_CABINET_DEPTH_MM);
   const plan = planKitchenComposition({
     room: input.room,
-    runs: lShellFloorRuns(input.room),
+    runs: shellRunsFor(input.room),
     columns: declaredColumnSizes(catalog),
   });
-  const shell = buildLShellDesign({
+  const shell = buildShellFor({
     room: input.room,
     occurredAt: input.occurredAt,
-    compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
+    plan,
   });
   refuseAnUnplannedShellDepth(shell);
   const lease = input.probeAt(cabinetDepthMmOf(shell));
@@ -630,7 +674,7 @@ function isFreeEndBody(
   planned: PlannedGenerationBase,
   room: Design["room"],
 ): boolean {
-  const run = lShellFloorRuns(room)[planned.wall];
+  const run = shellRunsFor(room)[planned.wall];
   return run.endMm - planned.endMm <= 200;
 }
 
@@ -721,10 +765,10 @@ export function replayGenerationLog(input: {
   readonly log: GenerationLog;
   readonly probeAt: BodyProbeFactory;
 }): Design {
-  const shell = buildLShellDesign({
+  const shell = buildShellFor({
     room: input.log.plan.room,
     occurredAt: input.log.occurredAt,
-    compositionPlan: { floorWidthsMm: input.log.plan.floorWidthsMm },
+    plan: input.log.plan,
   });
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(shell));
   const lease = input.probeAt(cabinetDepthMmOf(shell));
