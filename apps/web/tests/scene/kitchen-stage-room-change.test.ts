@@ -321,7 +321,11 @@ describe("a direction change (ADR 0129 D4/D6) applies in place", () => {
     );
     expect(harness.makeKit).toHaveBeenCalledOnce();
     expect(harness.buildKitchenShell).toHaveBeenCalledOnce();
-    expect(harness.seatObjectOnStage).toHaveBeenCalledOnce();
+    // QA 7I-Q2: the flip re-seats — the contact blob and the shadow ground were left on the old
+    // side otherwise (`qa-7i-stage-direction.adversarial.test.ts` is where that is proven with the
+    // real primitive). "Rebuilds nothing" is `makeKit`/`buildKitchenShell` staying at one call
+    // each, not `seatObjectOnStage` staying at one — a second seat is a reposition, not a rebuild.
+    expect(harness.seatObjectOnStage).toHaveBeenCalledTimes(2);
   });
 
   it("reads left for an absent direction, exactly as an unmirrored room does", () => {

@@ -3,6 +3,7 @@
 import type { CornerDirection } from "@lemnaria/configurator-domain";
 import {
   applyCornerDirection,
+  applyCornerDirectionToLightRig,
   CAMERA_FIELD_OF_VIEW_DEGREES,
   configureRenderer,
   createContactBlob,
@@ -110,11 +111,17 @@ function CornerScene({ direction, onReady }: CornerSceneProps) {
   const stage = useMemo(() => {
     const kit: Kit = makeKit({});
     const group = kit.builders["base-corner"]();
-    if (direction === "right") applyCornerDirection(group, "right");
+    const lights = createLightRig();
+    if (direction === "right") {
+      applyCornerDirection(group, "right");
+      // QA 7I-Q3 (D6): the group mirrors, but nothing mirrored its light rig, so the right panel
+      // was the left one's key/fill shining onto a group that had turned to face the other way.
+      applyCornerDirectionToLightRig(lights, "right");
+    }
     return {
       kit,
       group,
-      lights: createLightRig(),
+      lights,
       ground: createShadowGround(),
       blob: createContactBlob(),
     };

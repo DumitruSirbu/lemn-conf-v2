@@ -39,6 +39,7 @@ import {
   createBodyProbeLease,
   resolvedDefaultFinishOf,
   type BodyProbeFactory,
+  type CornerDirection,
   type Finish,
 } from "@lemnaria/configurator-domain";
 
@@ -256,6 +257,10 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // record of the three numbers it last drew and returns immediately when they have not moved. That
   // record is a fact about work already done — the same category as `hasSeatedAStage` below — and
   // not a second authority on what the room is, which the design still answers alone.
+  // QA 7I-Q2. Undefined on the very first render of a stage, so the re-seat below never fires on
+  // mount — `seatObjectOnStage` already runs there (the effect further down, keyed on `stage`).
+  const lastSeatedDirection = useRef<CornerDirection | undefined>(undefined);
+
   useEffect(() => {
     resizeShellToRoom({
       kit: stage.kit,
@@ -269,6 +274,35 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     const direction = cornerDirectionOf(designRoom);
     applyCornerDirection(stage.room, direction);
     applyCornerDirectionToLightRig(stage.lights, direction);
+
+    // QA 7I-Q2: a direction flip moves the kitchen's whole bounding box across x = 0, but the
+    // contact blob and the shadow ground were positioned by `seatObjectOnStage` at whatever side
+    // the room stood on when *that* effect last ran (keyed on `stage`, which a direction-only
+    // change never rebuilds) — left standing on the old side otherwise. Re-seat in place, holding
+    // the camera's own position and orbit target the same way a depth rebuild does, so only the
+    // blob, the ground and the near/far planes follow the flip and the customer's own view does
+    // not move under them.
+    if (
+      lastSeatedDirection.current !== undefined &&
+      lastSeatedDirection.current !== direction
+    ) {
+      const orbit = controls;
+      const heldPosition = camera.position.clone();
+      const heldTarget = orbit?.target.clone();
+      seatObjectOnStage({
+        object: stage.room,
+        camera: camera as THREE.PerspectiveCamera,
+        ground: stage.ground,
+        blob: stage.blob,
+        key: stage.lights.key,
+      });
+      camera.position.copy(heldPosition);
+      if (orbit && heldTarget) {
+        orbit.target.copy(heldTarget);
+        orbit.update();
+      }
+    }
+    lastSeatedDirection.current = direction;
     invalidate();
   }, [stage, designRoom, invalidate]);
 

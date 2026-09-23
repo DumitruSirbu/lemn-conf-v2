@@ -16,10 +16,16 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   buildableWidthSpanMm,
+  columnWidthChoices,
+  cornerDirectionOf,
   describeSelection,
   KITCHEN_L_DESIGN,
   offersFor,
+  widthOptionsFor,
+  widthStepsFor,
   type Design,
+  type WidthOption,
+  type WidthSteps,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -32,11 +38,51 @@ import { paletteFinish } from "@lemnaria/configurator-domain";
 import { PAL_KITCHEN } from "../support/panel-material";
 import { swatchSectionOf } from "../support/panel-sections";
 
+/** `useSelectionWidthAnswers`'s own composition (`use-panel-view.ts`): both width answers run the
+ *  real resize command once per candidate, off `state.recordedColumns` and a borrowed probe — empty
+ *  and `undefined` without one, which is the honest answer rather than a degraded one. */
+function widthAnswersFromStore(state: ConfiguratorState): {
+  options: WidthOption[];
+  steps: WidthSteps | undefined;
+} {
+  const {
+    design,
+    recordedColumns: columns,
+    catalog,
+    selection,
+    probeAt,
+  } = state;
+  if (!selection || !probeAt) return { options: [], steps: undefined };
+  return probeAt(cabinetDepthMmOf(design)).use((probe) => ({
+    options: widthOptionsFor({
+      design,
+      columns,
+      catalog,
+      target: selection,
+      probe,
+    }),
+    steps: widthStepsFor({
+      design,
+      columns,
+      catalog,
+      target: selection,
+      probe,
+    }),
+  }));
+}
+
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
   const { records, voids, columns, catalog, selection } = state;
+  const widthAnswers = widthAnswersFromStore(state);
   return describePanel({
     content: ro,
+    // ADR 0129 D8, QA 7I coverage gap: `usePanelView` selects this straight off the store
+    // (`cornerDirectionOf(state.design.room)`) and nothing else in this file's fixtures ever
+    // differs by direction, so a hook that stopped passing it would have stayed green here too
+    // until "reads the reflected width note on a right-hand room" below was added — the same class
+    // of gap `buildableWidthSpanMm` closed above.
+    direction: cornerDirectionOf(state.design.room),
     material: PAL_KITCHEN,
     meta: selection
       ? describeSelection({ records, voids, catalog, target: selection })
@@ -56,7 +102,15 @@ function panelFromStore(state: ConfiguratorState): PanelView {
     // passing it stayed green here.
     buildableWidthSpanMm: buildableWidthSpanMm(catalog),
     rejection: state.lastRejection,
-    widthOptions: [],
+    widthOptions: widthAnswers.options,
+    widthSteps: widthAnswers.steps,
+    widthRanges: selection
+      ? (columnWidthChoices({
+          design: state.design,
+          catalog,
+          target: selection,
+        })?.widthRangesMm ?? [])
+      : [],
     isBodyProbeAttached: state.isBodyProbeAttached,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,
@@ -263,5 +317,25 @@ describe("the panel over the store's own state", () => {
       expect(attempt.getState().lastRejection, row.buildId).toBeNull();
       expect(row.isDisabled, row.buildId).toBe(false);
     }
+  });
+
+  // ADR 0129 D8, QA 7I coverage gap. `usePanelView` reads `cornerDirectionOf(state.design.room)`
+  // straight off the store and passes it to `describePanel` — nothing else in this file exercises
+  // a room whose `cornerDirection` is `"right"`, so this is the one case that goes red if that
+  // wiring is ever dropped, the same way `buildableWidthSpanMm` going missing above once did.
+  it("reads the reflected width note on a right-hand room", () => {
+    const rightHandDesign: Design = {
+      ...KITCHEN_L_DESIGN,
+      room: { ...KITCHEN_L_DESIGN.room, cornerDirection: "right" },
+    };
+    const store = createStore({ design: rightHandDesign });
+    store.getState().select({ kind: "placement", id: "p0" });
+
+    const section = openPanel(store.getState()).sections.find(
+      (candidate) => candidate.kind === "width",
+    );
+    if (section?.kind !== "width") throw new Error("no width section");
+    expect(section.note).toBe(ro.panel.widthStepNoteRight);
+    expect(section.note).not.toBe(ro.panel.widthStepNote);
   });
 });
