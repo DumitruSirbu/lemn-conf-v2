@@ -3002,6 +3002,10 @@ row whose `visitor_hash is null`. Each case holds for both locales where a page 
 
 #### 8. Addendum 2026-09-23 — slice S5: deterministic rotation (ADR 0114 Amendment H4)
 
+> **SUPERSEDED 2026-09-23, later the same day, by §9** (the owner's *"Web Lock + random"*, ADR 0114 H6),
+> after `sec-7e3`'s SEC-7E3b.5 showed that condition (b) can be chained. Kept as history. Only the S5b review fixes that §9's S6b keeps
+> are live.
+
 **Written at HEAD `9960ab5`.** S1 through S4 and the QA tests are committed.
 
 **The measured defect** [QA-reported, `next start`, 30 rounds]. Two concurrent mints from one browser
@@ -3130,6 +3134,131 @@ grant, which `STATUS.md` lists at close-out. S5-R2: `G` is chosen at about 30 ti
 [inference], and QA reports the measured spread. S5-R3: the save-versus-mint half of R3; a moved row
 created recently shortens (b) conservatively. S5-R4: a live same-origin script timing the victim's
 mint keeps access until the victim's next mint. S5-R5: two keys live during a rollover.
+
+#### 9. Addendum 2026-09-23, later — slice S6: a client-side Web Lock, random rotation (ADR 0114 Amendment H6)
+
+**Written at HEAD `23161e2`.** **§8 is superseded** in full: its derivation, its secret, its owner
+action and criteria S5-1 to S5-5. Only the S5b review fixes listed in S6b below survive.
+
+**Why §8 fell** [`sec-7e3`-reported]. SEC-7E3b.5 (High): condition (b) can be chained.
+- Any holder of a live value `D` can observe a rotation away from it by polling `/ro` until it
+  answers "none".
+- The holder then mints with `D` inside 10 s and receives `HMAC(D)`.
+- Repeating that step follows the victim indefinitely.
+
+SEC-7E3b.6 (should-fix): the unreachable-path `Error` in `api/designs/route.ts` interpolates a stored
+visitor hash, and `reportDesignFailure("mint")` logs it.
+
+**The owner's ruling, 2026-09-23** (chose *"Web Lock + random"*):
+- Rotation stays **random** (H1), so backlog 81 stays closed.
+- The two-tab race is fixed **in the browser**: tabs of one browser serialise *create design* through
+  the Web Locks API. The second tab's `POST` then carries the cookie the first tab's response set.
+- HMAC, conditions (a) and (b), and `VISITOR_ROTATION_SECRET` are **removed**. There is no environment
+  variable and no owner action.
+
+**Ground truth** [measured at `23161e2`]:
+- `apps/web/src` has **exactly one** client `POST /api/designs`:
+  `FetchConfigurationRepository.mint()` (`fetch-configuration-repository.ts:236`).
+- Both creation paths reach it through `save({ id: null })` → `mintOnce` → `mint`:
+  - the Step 1 hand-off (`room/create-design.ts`, called from `use-generation`);
+  - the store's mint-on-first-command branch (backlog 80, unreachable).
+- The e2e fixture's in-page `fetch` is a test path, not a client path.
+
+**D1 — Revert S5a to random rotation.**
+- **Source of truth.** Restore the production logic of `visitor.ts`, `api/designs/route.ts` and
+  `neon-configuration-repository.ts` (`mint`, `mintStatements`, `MintVisitor`, the guard, the minted-row
+  reader) to `9960ab5`. Read the old versions with `git show 9960ab5:<path>`; never `git checkout --`.
+  Re-apply S5a's L1.6 prose fixes, reworded for random rotation.
+- **Delete:** `lib/server/visitor-rotation-secret.ts`, `MintOutcome.visitorHash`, the secret in
+  `playwright.config.ts` and `tests/support/vitest.setup.ts`, and S5a's test helper
+  `tests/support/mint-visitor-hash.ts`, where it serves only HMAC.
+- **Revert** the persistence `index.ts` export S5a added.
+- **The statements: S1's three statements, not S5a's two.** S5a merged the move and the insert into
+  one CTE only because (a) and (b) had to be decided from one snapshot. With a random value there is
+  nothing to decide. `update`, then `insert … on conflict do nothing`, then `select … where id and
+  visitor_hash = $new` in one `ReadCommitted` transaction is idempotent on retry, and it passed the
+  live atomicity suite at `9960ab5`.
+- **SEC-7E3b.6 goes with the revert,** because `valueByHash` and its `Error` disappear. It is pinned by
+  a grep criterion (S6-5).
+
+**D2 — The lock.** A new `src/persistence/create-design-lock.ts` exports
+`withCreateDesignLock(run)`. `FetchConfigurationRepository.mint()` is the **only** caller, so both
+creation paths are covered and none can bypass it.
+- **The name** is `LEMNARIA_CREATE_DESIGN_LOCK = "lemnaria:create-design"`, exclusive mode. Web Locks
+  are scoped to origin and storage partition, the same scope as the cookie jar, so private windows
+  and other profiles get independent locks and independent jars.
+- **Held across** the whole `POST`, including reading the body. The lock is released when `run`
+  settles.
+- **Release is safe once the `fetch` promise settles.** Under the Fetch Standard (*HTTP-network
+  fetch*), `Set-Cookie` is stored while the response headers are processed, before `fetch` resolves
+  [doc-quoted from the spec by reference; **measured** by S6-1, whose sabotage shows the ordering
+  matters].
+- **Feature detection.** When `navigator.locks?.request` is absent, `run()` executes unlocked. This is
+  the accepted residual below. No polyfill is added.
+- **Waiting on the lock.** Acquisition carries `signal: AbortSignal.timeout(LOCK_ACQUIRE_TIMEOUT_MS =
+  10_000)`. On an abort the mint proceeds **unlocked** rather than failing the customer's *Continuă*,
+  because a peer mint still holding the lock after 10 s has almost certainly failed.
+  - The mint itself stays unbounded, as ADR 0010's write path is.
+  - A closed tab releases its lock automatically.
+- **Must not:**
+  - the lock wraps a save, a load or a share call;
+  - any code reads or writes the visitor cookie (ADR 0114 decision 1 stands);
+  - the lock callback swallows the mint's error.
+
+**Residual, accepted by the owner.**
+- **Who it covers:** browsers without Web Locks, meaning Safari before 15.4 and older Chromium and
+  Firefox, plus non-browser clients.
+- **The measured cost** [QA, `next start`, 30 rounds, two overlapping mints from one `O`]: 29 of 30
+  lost every earlier design, and 1 of 30 lost the second tab's.
+- **Still open:** the save-versus-mint half of R3.
+
+**Slices**
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S6a revert** | (1) D1's restore of the three modules to `9960ab5` logic, with L1.6 prose kept; (2) delete the secret module and its wiring in `playwright.config.ts`, `vitest.setup.ts` and the persistence `index.ts`; (3) re-align S5a's mechanical test edits (about 17 web route tests, `mint-failure-log.test.ts`, the two persistence live files) to the random `MintVisitor`; (4) SEC-7E3b.6 grep criterion; (5) per-file `expect` counts against `9960ab5` | `visitor.ts`, `api/designs/route.ts`, `neon-configuration-repository.ts`, `persistence/src/index.ts`, `playwright.config.ts` (− `visitor-rotation-secret.ts`) | §9 D1; ADR 0114 H1, H3, H6; `git show 9960ab5:` of the three modules; `git show 3c82aec --stat` for the file list; the SEC-7E3b.6 finding |
+| **S6b lock and tests** | (1) `create-design-lock.ts` (D2) and its call in `mint()`; (2) Vitest: serialisation with a fake `navigator.locks`, the absent-API branch, the timeout branch, errors propagate, lock released on a throw; (3) S6-1's two-page e2e plus its sabotage; (4) **delete** `qa-7e3b-s5-convergence{,.desktop}.adversarial.e2e.spec.ts`, `support/s5-convergence.ts` and the HMAC live tests (`neon-…adversarial.test.ts` around `:1630-1760`); **keep and re-target** L1.1's captured-statement replay to the random rotation, plus L1.2, L1.5, C1.1, C1.2, the owner `/s/{token}` case and the comment fix; (5) the planted-`P` live test, kept against random rotation | `create-design-lock.ts` (new), `fetch-configuration-repository.ts` | §9 D2, S6-1…S6-6; ADR 0114 H6, decision 1; ADR 0010; `fetch-configuration-repository.ts:186-245`, `room/create-design.ts`, `tests/e2e/support/seeded-design.ts`, `neon-configuration-repository.adversarial.test.ts:1146-1300, 1570-1760` |
+
+- **Sequence:** S6a → S6b → **security mini-review** (`sec-7e3`: the revert is complete, the lock's
+  failure modes, SEC-7E3b.5 and .6 closed) → QA round 3 → review round 3.
+- **Reading, QA:** §9 and ADR 0114 H1, H6; `create-design-lock.ts`, `fetch-configuration-repository.ts`,
+  `room/create-design.ts`, `api/designs/route.ts`; QA's own R3 measurement.
+- **Reading, logic:** §9 D1 and D2; H1, H3, H6; the S6 diff with `mintStatements` and
+  `fetch-configuration-repository.ts`.
+- **Reading, clean-code:** §9's slice rows; `docs/best-practices/engineering-conventions.md`; the S6
+  diff.
+- **Reading, security (`sec-7e3`):** §9; H1, H4 (superseded) and H6; backlog 81; SEC-7E3b.5–.7; the S6
+  diff.
+
+**Criteria (7E3b-S6-…)**
+1. **Two tabs converge.**
+   - **Setup:** in each round, two pages in **one** context each reach 1F through the real Step 1 path
+     and tap *Continuă* concurrently. It is e2e, in both projects, for at least 30 rounds per project,
+     and the context carries a prior design.
+   - **Expected:** the jar ends holding one value, and **every** design (the prior one and both new
+     ones) opens with `canWrite: true`. A single failing round fails the criterion.
+   - **Sabotage:** with the lock made a pass-through, at least one round loses a design. That must go
+     red.
+2. **Serialisation**, in Vitest with a recording fake: the second `mint()`'s `fetch` starts only after
+   the first's response settles. The second request carries the cookie the first set, which the e2e
+   confirms from the request headers.
+3. **Degradation.**
+   - With `navigator.locks` absent, `mint()` still answers.
+   - With a lock held longer than 10 s, `mint()` proceeds after the timeout.
+   - A thrown mint releases the lock and rethrows the same error.
+4. **Random rotation is back.**
+   - Criterion 5's property from §5 holds again: a new value on every mint, and no row under any
+     earlier hash.
+   - L1.1's replay answers the same revision twice.
+   - A planted `P`: the attacker's mint from `P` and the victim's get different values, and neither
+     reads the other's designs.
+   - **Must not:** `createHmac`, `VISITOR_ROTATION_SECRET` or `E2E_ONLY_VISITOR_ROTATION_SECRET`
+     appears anywhere in the tree (grep).
+5. **No hash in any error or log** (SEC-7E3b.6). No `Error` message or log line on the mint or save
+   path interpolates a visitor or write-token hash (grep, plus forced-failure console capture).
+6. **Gates.** `pnpm ci:local` is green, with counts quoted against `9960ab5`'s run. Per-file `expect`
+   counts do not fall except by the listed S5 deletions. No `.skip`, `.only` or `.fixme`, no raised
+   timeout, and no dependency change. The lock is a platform API, not a package.
 
 **7E4 — e2e and tooling off the retired route** (lands before 7E3a)
 
