@@ -16,8 +16,9 @@ export interface LocaleChoice {
 
 /** Everything the locale menu draws, as a value. */
 export interface LocaleMenuModel {
-  /** The **locale-free** path of the page the customer is on — `/d/{id}`, `/configurator/configure`.
-   *  Every choice points at it, which is what makes the menu a change of language and not of place. */
+  /** The **locale-free** path of the page the customer is on — `/d/{id}`, the only route that
+   *  renders this menu. Every choice points at it, which is what makes the menu a change of
+   *  language and not of place. */
   readonly pathname: string;
   /** `routing.locales`, in the order it declares them. */
   readonly choices: readonly LocaleChoice[];

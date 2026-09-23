@@ -40,11 +40,7 @@ function ConfigureLoading() {
 
 type SupportState = "probing" | "supported" | "unsupported";
 
-export function ConfigureScreen({
-  webglUnavailableTitleMobile,
-}: {
-  webglUnavailableTitleMobile?: string;
-} = {}) {
+export function ConfigureScreen() {
   const content = useContent();
   const room = useConfiguratorStore((state) => state.design.room);
   const roomHref = roomHrefFromDesignRoom(room);
@@ -69,13 +65,7 @@ export function ConfigureScreen({
   );
 
   if (support === "unsupported") {
-    return (
-      <WebGLUnavailable
-        {...(webglUnavailableTitleMobile === undefined
-          ? {}
-          : { titleMobile: webglUnavailableTitleMobile })}
-      />
-    );
+    return <WebGLUnavailable />;
   }
 
   return (

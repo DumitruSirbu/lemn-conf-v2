@@ -33,7 +33,7 @@ export default async function ContactPage() {
         {content.contactPlaceholder.body}
       </p>
       <Link
-        href="/configurator/configure"
+        href="/"
         style={{ font: "700 14px/1 var(--font-ui)", color: "var(--accent)" }}
       >
         {content.contactPlaceholder.back}

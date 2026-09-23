@@ -36,7 +36,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /** The address bar, as the one thing a test render cannot supply for itself: `usePathname` answers
  *  `null` outside a router, and keeping the path it is handed is the switcher's whole job. */
-const browser = vi.hoisted(() => ({ pathname: "/ro/configurator/configure" }));
+const browser = vi.hoisted(() => ({ pathname: "/ro/d/qa-design" }));
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -198,7 +198,7 @@ afterEach(() => {
 
 describe("the languages the menu offers", () => {
   it("offers every configured locale, in the order routing declares them", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     const options = [...openMenu().querySelectorAll("a")];
 
     expect(options.map((option) => option.getAttribute("lang"))).toEqual([
@@ -212,7 +212,7 @@ describe("the languages the menu offers", () => {
   it.each(SHIPPED_LOCALES)(
     "names each language in its own language, read from %s",
     (locale) => {
-      renderAt(locale, `/${locale}/configurator/configure`);
+      renderAt(locale, `/${locale}/d/qa-design`);
       const names = [...openMenu().querySelectorAll("a")].map(
         (option) => option.textContent,
       );
@@ -226,12 +226,10 @@ describe("switching locale changes the language and nothing else", () => {
   it.each(SWITCHES)(
     "keeps %s's configure step at the same step under %s's prefix",
     (from, to) => {
-      renderAt(from, `/${from}/configurator/configure`);
+      renderAt(from, `/${from}/d/qa-design`);
       openMenu();
 
-      expect(attributeOf(optionFor(to), "href")).toBe(
-        `/${to}/configurator/configure`,
-      );
+      expect(attributeOf(optionFor(to), "href")).toBe(`/${to}/d/qa-design`);
     },
   );
 
@@ -292,7 +290,7 @@ describe("the control a screen reader and a keyboard get", () => {
   it.each(SHIPPED_LOCALES)(
     "gives %s a trigger that says what it opens, and says so only while it is open",
     (locale) => {
-      renderAt(locale, `/${locale}/configurator/configure`);
+      renderAt(locale, `/${locale}/d/qa-design`);
 
       expect(trigger().getAttribute("aria-expanded")).toBe("false");
       expect(trigger().getAttribute("aria-haspopup")).toBe("true");
@@ -307,7 +305,7 @@ describe("the control a screen reader and a keyboard get", () => {
     "names %s's trigger with a sentence rather than the two letters it draws",
     (locale) => {
       const catalogue = CATALOGUE_OF[locale];
-      renderAt(locale, `/${locale}/configurator/configure`);
+      renderAt(locale, `/${locale}/d/qa-design`);
       const name = attributeOf(trigger(), "aria-label");
 
       expect(name).toBe(requireLeafAt(catalogue, "configure.localeMenu"));
@@ -319,7 +317,7 @@ describe("the control a screen reader and a keyboard get", () => {
   );
 
   it("labels the list by the trigger, so the list is not an unnamed group", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     const list = openMenu();
 
     expect(attributeOf(list, "aria-labelledby")).toBe(
@@ -335,7 +333,7 @@ describe("the control a screen reader and a keyboard get", () => {
   it.each(SHIPPED_LOCALES)(
     "marks %s as the current language and marks no other",
     (locale) => {
-      renderAt(locale, `/${locale}/configurator/configure`);
+      renderAt(locale, `/${locale}/d/qa-design`);
       openMenu();
       const current = SHIPPED_LOCALES.filter(
         (each) => optionFor(each).getAttribute("aria-current") === "true",
@@ -348,7 +346,7 @@ describe("the control a screen reader and a keyboard get", () => {
   it.each(SWITCHES)(
     "declares from %s that %s's link leads to a document in that language",
     (from, to) => {
-      renderAt(from, `/${from}/configurator/configure`);
+      renderAt(from, `/${from}/d/qa-design`);
       openMenu();
 
       expect(attributeOf(optionFor(to), "hreflang")).toBe(to);
@@ -356,7 +354,7 @@ describe("the control a screen reader and a keyboard get", () => {
   );
 
   it("keeps every choice a link, so it is shareable and openable in a new tab", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
 
     for (const option of openMenu().querySelectorAll("a")) {
       expect(option.tagName).toBe("A");
@@ -365,7 +363,7 @@ describe("the control a screen reader and a keyboard get", () => {
   });
 
   it("hides the caret from the accessibility tree, and draws it for everyone else", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     const caret = trigger().querySelector('[aria-hidden="true"]');
 
     expect(caret?.textContent).toBe("▾");
@@ -377,7 +375,7 @@ describe("the control a screen reader and a keyboard get", () => {
    *  ships no font that has them, so a customer there would read the letters *MD* where a flag
    *  belongs. `locale-flags.test.ts` holds the flags to their own countries' colours. */
   it("draws a flag beside every language, and hides it from a screen reader", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     for (const locale of SHIPPED_LOCALES) {
@@ -391,7 +389,7 @@ describe("the control a screen reader and a keyboard get", () => {
   /** And the flag adds nothing to what is *read*: the announcement is still the endonym alone, which
    *  is the whole reason the flag is hidden rather than labelled. */
   it("leaves the announced name the endonym and nothing beside it", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     for (const locale of SHIPPED_LOCALES) {
@@ -402,14 +400,14 @@ describe("the control a screen reader and a keyboard get", () => {
 
 describe("the keyboard", () => {
   it("opens on the trigger's own activation and lands on the current language", () => {
-    renderAt("ru", "/ru/configurator/configure");
+    renderAt("ru", "/ru/d/qa-design");
     openMenu();
 
     expect(document.activeElement).toBe(optionFor("ru"));
   });
 
   it("opens downwards at the first language and upwards at the last", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
 
     pressOn(trigger(), "ArrowDown");
     expect(document.activeElement).toBe(optionFor(firstLocale()));
@@ -420,7 +418,7 @@ describe("the keyboard", () => {
   });
 
   it("walks every language with the arrows and wraps at both ends", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     pressOn(trigger(), "ArrowDown");
 
     const visited: (Element | null)[] = [document.activeElement];
@@ -439,7 +437,7 @@ describe("the keyboard", () => {
   });
 
   it("jumps to the ends with Home and End", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     pressOn(focused(), "End");
@@ -450,7 +448,7 @@ describe("the keyboard", () => {
   });
 
   it("closes on Escape and hands focus back to the trigger it came from", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     pressOn(focused(), "Escape");
@@ -472,7 +470,7 @@ describe("the keyboard", () => {
   it("closes when focus leaves it, and leaves focus where it went", () => {
     const elsewhere = document.createElement("button");
     document.body.append(elsewhere);
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
     const opened = focused();
 
@@ -499,7 +497,7 @@ describe("the keyboard", () => {
    * has to wait for `focusout`, which is what the case above then supplies.
    */
   it("does not close on Tab's keydown alone, so focus is never unmounted mid-move", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
     const held = focused();
 
@@ -512,7 +510,7 @@ describe("the keyboard", () => {
   });
 
   it("stays open while focus moves between its own choices", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     act(() => {
@@ -532,7 +530,7 @@ describe("the keyboard", () => {
 
 describe("the menu closes when the customer is done with it", () => {
   it("closes when the trigger is pressed a second time", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     act(() => {
@@ -545,7 +543,7 @@ describe("the menu closes when the customer is done with it", () => {
   });
 
   it("closes on a pointer down anywhere outside it", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     act(() => {
@@ -560,7 +558,7 @@ describe("the menu closes when the customer is done with it", () => {
   });
 
   it("stays open on a pointer down inside it, so a mis-aimed press is not a dismissal", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     const list = openMenu();
 
     act(() => {
@@ -575,7 +573,7 @@ describe("the menu closes when the customer is done with it", () => {
   });
 
   it("closes when a language is chosen", () => {
-    renderAt("ro", "/ro/configurator/configure");
+    renderAt("ro", "/ro/d/qa-design");
     openMenu();
 
     act(() => {

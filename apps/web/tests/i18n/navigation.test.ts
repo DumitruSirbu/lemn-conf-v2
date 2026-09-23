@@ -52,7 +52,7 @@ describe("locale-aware customer navigation", () => {
         createElement(DesignLoadError, { reason: "not-found" }),
       );
 
-      expect(contact).toContain(`href="/${locale}/configurator/configure"`);
+      expect(contact).toContain(`href="/${locale}"`);
       expect(loadError).toContain(`href="/${locale}/configurator/room"`);
     },
   );
