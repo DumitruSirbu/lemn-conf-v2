@@ -98,6 +98,7 @@ declare const messages: {
       "title": "Preset",
       "heading": "Ți-o construim pe a ta",
       "roomSummary": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm",
+      "roomSummaryLinear": "{shape} · {wallA, number, ::group-off} mm · h {height, number, ::group-off} mm",
       "noPresetNotice": "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
       "stepsLabel": "Ce este inclus, în ordinea priorității",
       "role": {

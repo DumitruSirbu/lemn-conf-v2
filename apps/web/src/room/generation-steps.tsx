@@ -49,6 +49,7 @@ import {
   type GenerationRow,
   type GenerationRowStatus,
 } from "./generation-model";
+import { requiredFieldsFor } from "./room-url-state";
 import styles from "./room.module.css";
 import type { ActiveGenerationRun } from "./use-generation";
 
@@ -187,18 +188,31 @@ function ComposeCta({
 
 /** Frame 1F's one-line room, in the whole millimetres the customer typed (ADR 0126). The numbers are
  *  ICU arguments, exactly as `room.planWallLabel`'s are, so their form is the catalogue's and a digit
- *  is never concatenated into a sentence. */
+ *  is never concatenated into a sentence.
+ *
+ *  **Which leaf, decided by `requiredFieldsFor(room.shape)`** (ADR 0130 D10): a straight room's own
+ *  entered fields are wall A and height, never a second wall — `room.depthMm` is the drawn floor's
+ *  depth in front of the run (ADR 0130 D3), not a length the customer typed, so the summary must not
+ *  print it as though it were one. The field set is read rather than the shape compared a second
+ *  time here, so a wave that widens a shape's fields moves this summary with it. */
 function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
+  const carriesWallB = requiredFieldsFor(room.shape).includes("wallB");
 
   return (
     <span className={styles.composeSummary} data-testid="room-compose-summary">
-      {translate("room.compose.roomSummary", {
-        shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
-        wallA: room.widthMm,
-        wallB: room.depthMm,
-        height: room.heightMm,
-      })}
+      {carriesWallB
+        ? translate("room.compose.roomSummary", {
+            shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
+            wallA: room.widthMm,
+            wallB: room.depthMm,
+            height: room.heightMm,
+          })
+        : translate("room.compose.roomSummaryLinear", {
+            shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
+            wallA: room.widthMm,
+            height: room.heightMm,
+          })}
     </span>
   );
 }

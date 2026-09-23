@@ -14,6 +14,12 @@ import { resolveSceneView, sceneViewKey } from "../../src/scene/scene-view";
 
 const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
 const CORRECTED_ROOM: DesignRoom = { ...SEEDED_ROOM, widthMm: 4560 };
+const LINEAR_ROOM: DesignRoom = {
+  shape: "linear",
+  widthMm: 3700,
+  depthMm: 3400,
+  heightMm: 2600,
+};
 
 describe("resolveSceneView", () => {
   /** **Wave 7H replaced the reference's three triples here with the room's own.** This asserted
@@ -71,6 +77,29 @@ describe("resolveSceneView", () => {
     ).toBe(true);
   });
 
+  /** ADR 0130 D9 (wave 7J S4): `useCameraPreset` outlives a room edit (`camera-preset-store.ts`),
+   *  so a customer who stood on *Perete B* and then shrank the room to a straight kitchen must not
+   *  hit `findCameraPresetForRoom`'s own throw for an id this room no longer offers. */
+  it("falls back to overview for a stale wallB preset against a straight room", () => {
+    expect(() =>
+      resolveSceneView({ kind: "preset", id: "wallB" }, LINEAR_ROOM),
+    ).not.toThrow();
+    expect(resolveSceneView({ kind: "preset", id: "wallB" }, LINEAR_ROOM)) //
+      .toEqual(
+        resolveSceneView({ kind: "preset", id: "overview" }, LINEAR_ROOM),
+      );
+  });
+
+  it("still resolves wallA and overview directly for a straight room", () => {
+    for (const id of ["overview", "wallA"] as const) {
+      expect(resolveSceneView({ kind: "preset", id }, LINEAR_ROOM)).toEqual({
+        position: findCameraPresetForRoom(id, LINEAR_ROOM).position,
+        target: findCameraPresetForRoom(id, LINEAR_ROOM).target,
+        isImmediate: false,
+      });
+    }
+  });
+
   /** §11 row 21, at the level this module can see it: every preset looks at the middle of the
    *  kitchen's height, so the 2.20–2.60 row is never at the edge of the frame. Restated from
    *  *frames floor to ceiling* by Q7H-3 — the presets frame the kitchen and the ceiling is
@@ -122,11 +151,21 @@ describe("sceneViewKey", () => {
 });
 
 describe("the preset buttons", () => {
-  /** `configure-screen.tsx` enumerates `CAMERA_PRESETS` for the three buttons. It reads their
-   *  **ids** and never their vectors, so it is not a second live source for the framing — but the
-   *  ids must stay the ones the room-driven function answers to. */
-  it("offers exactly the ids the room-driven presets answer to", () => {
+  /** `configure-screen.tsx` enumerates `cameraPresetsForRoom(room)` for its buttons (ADR 0130 D9,
+   *  wave 7J S4 — it read the constant `CAMERA_PRESETS` before this wave). It reads their **ids**
+   *  and never their vectors, so it is not a second live source for the framing — but an L's ids
+   *  must stay the three `CAMERA_PRESETS` itself declares. */
+  it("offers exactly the ids the room-driven presets answer to, for an L", () => {
     expect(cameraPresetsForRoom(CORRECTED_ROOM).map((preset) => preset.id)) //
       .toEqual(CAMERA_PRESETS.map((preset) => preset.id));
+  });
+
+  it("offers two buttons for a straight room and three for an L", () => {
+    expect(
+      cameraPresetsForRoom(LINEAR_ROOM).map((preset) => preset.id),
+    ).toEqual(["overview", "wallA"]);
+    expect(
+      cameraPresetsForRoom(SEEDED_ROOM).map((preset) => preset.id),
+    ).toEqual(["overview", "wallA", "wallB"]);
   });
 });

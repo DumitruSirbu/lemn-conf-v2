@@ -1,6 +1,8 @@
 import type { DesignRoom } from "@lemnaria/configurator-domain";
 import {
+  cameraPresetsForRoom,
   findCameraPresetForRoom,
+  type CameraPreset,
   type CameraPresetId,
   type Vector3Tuple,
 } from "@lemnaria/three-adapter";
@@ -29,7 +31,7 @@ export function resolveSceneView(
   room: DesignRoom,
 ): ResolvedView {
   if (view.kind === "preset") {
-    const preset = findCameraPresetForRoom(view.id, room);
+    const preset = presetForRoom(view.id, room);
     return {
       position: preset.position,
       target: preset.target,
@@ -37,6 +39,16 @@ export function resolveSceneView(
     };
   }
   return { position: view.position, target: view.target, isImmediate: true };
+}
+
+/** ADR 0130 D9: `useCameraPreset` (`camera-preset-store.ts`) is a module-scope singleton that
+ *  outlives a room edit, so a customer who stood on *Perete B* and then shrank the room to a
+ *  straight kitchen still has `"wallB"` recorded when this next resolves — a room that offers no
+ *  such preset. Falls back to `overview` rather than throwing `findCameraPresetForRoom`'s own
+ *  refusal, which is right for a genuinely unknown id but wrong for one only this room has outgrown. */
+function presetForRoom(id: CameraPresetId, room: DesignRoom): CameraPreset {
+  const offered = cameraPresetsForRoom(room).find((preset) => preset.id === id);
+  return offered ?? findCameraPresetForRoom("overview", room);
 }
 
 /** Stable identity for a view, so a re-render with an equivalent object does not restart the ease.

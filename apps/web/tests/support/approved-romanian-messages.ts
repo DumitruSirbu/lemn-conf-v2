@@ -186,6 +186,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       heading: "Ți-o construim pe a ta",
       roomSummary:
         "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm",
+      // M7 wave 7J S4, ADR 0130 D10 — **drafted, not approved**: no frame draws a straight kitchen's
+      // 1F summary, so this restates `roomSummary`'s own two-length shape with the wall B clause
+      // dropped, the field `requiredFieldsFor("linear")` names. It is in this file for the lock's
+      // reason every drafted leaf is: a leaf `ro.json` holds and this file omits fails the equality.
+      roomSummaryLinear:
+        "{shape} · {wallA, number, ::group-off} mm · h {height, number, ::group-off} mm",
       noPresetNotice:
         "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
       stepsLabel: "Ce este inclus, în ordinea priorității",

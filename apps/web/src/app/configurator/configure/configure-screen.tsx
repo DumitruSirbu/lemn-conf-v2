@@ -1,6 +1,6 @@
 "use client";
 
-import { CAMERA_PRESETS } from "@lemnaria/three-adapter";
+import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
@@ -74,6 +74,9 @@ export function ConfigureScreen({
     () => ({ kind: "preset", id: presetId }),
     [presetId],
   );
+  // ADR 0130 D9: the room decides how many buttons this row draws — two for a straight kitchen,
+  // three for an L — so a re-render that leaves `room` the same object does not rebuild the list.
+  const cameraPresets = useMemo(() => cameraPresetsForRoom(room), [room]);
 
   if (support === "unsupported") {
     return <WebGLUnavailable />;
@@ -167,7 +170,7 @@ export function ConfigureScreen({
             role="group"
             aria-label={content.configure.cameraGroupLabel}
           >
-            {CAMERA_PRESETS.map((preset) => (
+            {cameraPresets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"

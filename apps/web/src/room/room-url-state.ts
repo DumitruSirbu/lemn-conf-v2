@@ -66,7 +66,7 @@ export type RoomUrlState =
     }
   | {
       readonly substate: "1D";
-      readonly input: ParsedLRoomInput;
+      readonly input: ParsedLRoomInput | ParsedLinearRoomInput;
       readonly room: DesignRoom;
       readonly markedFields: readonly [];
     };
@@ -107,7 +107,11 @@ export function parseRoomUrlState(
       markedFields: validation.issues.map((issue) => issue.field),
     };
   }
-  if (input.shape !== "L") {
+  // ADR 0130 D2/D10 (wave 7J S4): the domain now maps both the L and the straight kitchen onto a
+  // `DesignRoom`, so `input` is one of the two shapes that can reach here — a U still cannot, and
+  // `validateRoomInput` refusing it as its shape alone (ADR 0108 decision 3) is what keeps this
+  // reachable only for the two ADR 0116 has designed.
+  if (input.shape === "U") {
     throw new Error(
       "Domain accepted a room shape without a DesignRoom mapping",
     );

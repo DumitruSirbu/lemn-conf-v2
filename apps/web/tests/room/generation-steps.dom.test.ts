@@ -611,4 +611,36 @@ describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", 
       );
     },
   );
+
+  // ADR 0130 D10 (wave 7J S4): a straight room's summary names wall A and the height only \u2014 never a
+  // third number \u2014 because `room.depthMm` is the drawn floor's depth in front of the run (D3), not a
+  // length the customer typed. Selected by `requiredFieldsFor(room.shape)`, so this is the same
+  // property as the L's own above with the wall-B clause absent rather than a second read of the
+  // shape.
+  it.each([
+    ["ro", ROMANIAN, "mm"],
+    ["ru", RUSSIAN, "\u043C\u043C"],
+  ] as const)(
+    "writes only wall A and the height for a straight room, in %s",
+    (_locale, catalogue, unit) => {
+      const lengthMm = fc.integer({ min: 1, max: LARGEST_SWEPT_MM });
+      fc.assert(
+        fc.property(lengthMm, lengthMm, (widthMm, heightMm) => {
+          renderRun(
+            {
+              phase: "failed",
+              room: { shape: "linear", widthMm, depthMm: 3400, heightMm },
+            },
+            catalogue,
+          );
+
+          expect(summaryText()).toBe(
+            `${catalogue.messages.room.shapes.linear.short} \u00B7 ${String(widthMm)} ` +
+              `${unit} \u00B7 h ${String(heightMm)} ${unit}`,
+          );
+        }),
+        { numRuns: SUMMARY_SWEEP_RUNS },
+      );
+    },
+  );
 });

@@ -95,6 +95,7 @@
       "title": "Пресет",
       "heading": "Построим кухню специально для тебя",
       "roomSummary": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} мм · h {height, number, ::group-off} мм",
+      "roomSummaryLinear": "{shape} · {wallA, number, ::group-off} мм · h {height, number, ::group-off} мм",
       "noPresetNotice": "Ни один готовый пресет сюда не помещается. Соберём кухню по размерам твоей комнаты — это займёт чуть больше времени.",
       "stepsLabel": "Что включено, в порядке приоритета",
       "role": {

@@ -65,8 +65,10 @@ describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () =
     // Amendment M3). Wave 7F2 S1's 11 are frame 1C's: six reasons, one per reachable issue code, the
     // unreadable-length reason (Q-7F2-4), the linear suggestion wired off until 7J, the plan wall's two
     // short labels, and the note. Wave 7F2 S1b (ADR 0126) swaps one for one: `room.unitMetres` is
-    // removed and `room.unitMillimetres` added, so the count does not move.
-    expect(ROOM_KEYS.length).toBe(68);
+    // removed and `room.unitMillimetres` added, so the count does not move. Wave 7J S4's 1 is
+    // `room.compose.roomSummaryLinear` (ADR 0130 D10): a straight room's own 1F summary, drafted
+    // rather than approved because no frame draws it.
+    expect(ROOM_KEYS.length).toBe(69);
   });
 
   it.each(ROOM_KEYS)("reads %s somewhere under src/room", (key) => {

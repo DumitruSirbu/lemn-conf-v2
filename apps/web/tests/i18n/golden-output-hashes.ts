@@ -743,6 +743,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "cb18c899f3227071b5f242aacd6f90a6c56afc0744daa32771a6946d4c5844b7",
   "room.compose.roomSummary":
     "06065b68375cce3c5819420945aecfb25e48f7f57fba6d780bdf635dc77c5f15",
+  "room.compose.roomSummaryLinear":
+    "f9beb57a2564c46d0537452a037ebc9c342634d8962561d03e9dc1180218dffa",
   "room.compose.rowLabel":
     "4d23f6e72dbf5825d76c75e692b6f3771038943e7899c38c93cb9a9040bc8d32",
   "room.compose.rowWidth":
