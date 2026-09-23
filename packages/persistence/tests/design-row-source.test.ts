@@ -27,6 +27,10 @@ if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const WRITE_TOKEN_HASH = "e".repeat(64);
 
+/** This file is about the row source's export, not visitor identity, so every mint needs one
+ *  well-formed visitor hash and nothing more. */
+const VISITOR_HASH = "f".repeat(64);
+
 /** Two full pages and a short one: the walk must resume twice and stop on the short page. */
 const PAGING_ROW_COUNT = 5;
 const SMALL_PAGE_SIZE = 2;
@@ -63,10 +67,11 @@ describe(SUITE_NAME, () => {
   const mintedIds: DesignId[] = [];
 
   async function mintTrackingId(hash = WRITE_TOKEN_HASH): Promise<DesignId> {
-    const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint(
-      KITCHEN_L_DESIGN,
-      hash,
-    );
+    const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: hash,
+      visitorHash: VISITOR_HASH,
+    });
     mintedIds.push(id);
     return id;
   }

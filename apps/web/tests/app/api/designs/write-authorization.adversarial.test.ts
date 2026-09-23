@@ -18,6 +18,7 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
@@ -36,7 +37,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -109,8 +110,15 @@ interface Minted {
   readonly token: string;
 }
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 async function mintDesign(): Promise<Minted> {
-  const response = await POST();
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
   const setCookie = response.headers.get("set-cookie") ?? "";
   const pair = setCookie.split(";")[0] ?? "";
@@ -297,7 +305,7 @@ describe("the raw token never leaves the Set-Cookie header", () => {
   it("is absent from the mint response body and from the GET response", async () => {
     const { id, token } = await mintDesign();
 
-    const minted = await POST();
+    const minted = await POST(mintRequest());
     const mintedBody = await minted.text();
     const read = await GET(
       new NextRequest(`https://example.test/api/designs/${id}`),

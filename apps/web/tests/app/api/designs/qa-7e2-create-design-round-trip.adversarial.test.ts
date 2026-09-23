@@ -13,6 +13,7 @@ import {
   type AuthorizedConfigurationRepository,
   type AuthorizedSave,
   type DesignVersion,
+  type MintDesign,
   type StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
@@ -29,7 +30,7 @@ class InMemoryAuthorizedRepository
   >();
   private nextId = 1;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `step-one-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -73,6 +74,13 @@ vi.mock("@/lib/server/repository", () => ({
 const { POST } = await import("../../../../src/app/api/designs/route");
 const { GET, PUT } = await import("../../../../src/app/api/designs/[id]/route");
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 let fakeRepository: InMemoryAuthorizedRepository;
 
 beforeEach(() => {
@@ -97,7 +105,7 @@ describe("Step 1 design — real API save/load round trip", () => {
           heightMm: 2600,
         },
       };
-      const mint = await POST();
+      const mint = await POST(mintRequest());
       const { id, revision } = (await mint.json()) as {
         id: DesignId;
         revision: string;

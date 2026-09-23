@@ -444,6 +444,10 @@ describe("mint under a compute restart", () => {
 
   const WRITE_TOKEN_HASH = "a".repeat(64);
 
+  /** This file is about the retry mechanics, not visitor identity, so every mint needs one
+   *  well-formed visitor hash and nothing more. */
+  const VISITOR_HASH = "b".repeat(64);
+
   /** One row carrying `revision::text as revision`, in the array-mode shape the driver asks for. */
   const MINTED_ROW_BODY = JSON.stringify({
     command: "INSERT",
@@ -501,7 +505,11 @@ describe("mint under a compute restart", () => {
     ]);
     const repository = new NeonConfigurationRepository(TEST_CONNECTION_STRING);
 
-    const minting = repository.mint(KITCHEN_L_DESIGN, WRITE_TOKEN_HASH);
+    const minting = repository.mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: WRITE_TOKEN_HASH,
+      visitorHash: VISITOR_HASH,
+    });
     await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
     const minted = await minting;
 
@@ -522,7 +530,11 @@ describe("mint under a compute restart", () => {
     ]);
     const repository = new NeonConfigurationRepository(TEST_CONNECTION_STRING);
 
-    const minting = repository.mint(KITCHEN_L_DESIGN, WRITE_TOKEN_HASH);
+    const minting = repository.mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: WRITE_TOKEN_HASH,
+      visitorHash: VISITOR_HASH,
+    });
     await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
     await minting;
 
@@ -547,7 +559,11 @@ describe("mint under a compute restart", () => {
     const repository = new NeonConfigurationRepository(TEST_CONNECTION_STRING);
 
     const thrown = rejectionOf(
-      repository.mint(KITCHEN_L_DESIGN, WRITE_TOKEN_HASH),
+      repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: WRITE_TOKEN_HASH,
+        visitorHash: VISITOR_HASH,
+      }),
     );
     await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
 

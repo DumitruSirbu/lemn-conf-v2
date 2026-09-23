@@ -43,6 +43,10 @@ holdSharedTestSchemaLock();
  *  revision column — so what comes back is the migration's backfill. */
 const RESTORED_REVISION = "1";
 
+/** This file is about write-token edit access, not visitor identity, so every mint that is not
+ *  itself the visitor_hash round-trip below needs one well-formed visitor hash and nothing more. */
+const VISITOR_HASH = "c".repeat(64);
+
 const SUITE_NAME =
   "a backup round trip preserves edit access (live test database)";
 
@@ -118,10 +122,11 @@ describe(SUITE_NAME, () => {
     "lets the original token still write after export, loss and restore",
     async () => {
       const token = "qa-round-trip-token-not-a-real-credential";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitorHash: VISITOR_HASH,
+      });
       mintedIds.push(id);
 
       const line = await exportedLineFor(id);
@@ -155,10 +160,11 @@ describe(SUITE_NAME, () => {
     "does not hand write access to anyone else after the restore",
     async () => {
       const token = "qa-round-trip-token-two";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitorHash: VISITOR_HASH,
+      });
       mintedIds.push(id);
       const line = await exportedLineFor(id);
       if (!sql) return;
@@ -183,10 +189,11 @@ describe(SUITE_NAME, () => {
     "carries the hash and never a token, so a leaked backup confers no write access",
     async () => {
       const token = "qa-round-trip-token-three";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitorHash: VISITOR_HASH,
+      });
       mintedIds.push(id);
 
       const line = await exportedLineFor(id);
@@ -202,16 +209,16 @@ describe(SUITE_NAME, () => {
   it.skipIf(!hasLiveDatabase)(
     "carries visitor_hash through export, loss and restore untouched",
     async () => {
-      // `mint` does not yet set `visitor_hash` (M7 wave 7E3a S2), so this stands in for a saved
-      // design's owner the way S2's mint will write it — a 64-character lowercase hex digest.
+      // Since M7 wave 7E3a S2, `mint` writes `visitor_hash` directly — a 64-character lowercase
+      // hex digest, exactly like the write-token hash beside it.
       const visitorHash = "b".repeat(64);
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken("qa-round-trip-token-visitor"),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken("qa-round-trip-token-visitor"),
+        visitorHash,
+      });
       mintedIds.push(id);
       if (!sql) return;
-      await sql`update designs set visitor_hash = ${visitorHash} where id = ${id}`;
 
       const line = await exportedLineFor(id);
       expect(line).toContain(visitorHash);
@@ -265,10 +272,11 @@ describe(SUITE_NAME, () => {
     "survives a second restore of the same dump — the conflict branch keeps the hash",
     async () => {
       const token = "qa-round-trip-token-four";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitorHash: VISITOR_HASH,
+      });
       mintedIds.push(id);
       const line = await exportedLineFor(id);
 

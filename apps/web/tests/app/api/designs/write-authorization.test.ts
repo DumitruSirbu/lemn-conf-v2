@@ -12,6 +12,7 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
@@ -33,7 +34,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -103,8 +104,15 @@ beforeEach(() => {
   repository.current = fakeRepository;
 });
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 async function mintDesign(): Promise<{ id: string; cookie: string }> {
-  const response = await POST();
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
   return { id, cookie: cookiePairOf(response.headers.get("set-cookie") ?? "") };
 }
@@ -166,7 +174,7 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
 
 describe("POST /api/designs", () => {
   it("mints a design and hands the creating browser its write token", async () => {
-    const response = await POST();
+    const response = await POST(mintRequest());
 
     expect(response.status).toBe(201);
     expect(response.headers.get("set-cookie")).toMatch(
@@ -175,7 +183,7 @@ describe("POST /api/designs", () => {
   });
 
   it("never puts the token in the response body, where script could read it", async () => {
-    const response = await POST();
+    const response = await POST(mintRequest());
     const setCookie = response.headers.get("set-cookie") ?? "";
     const token = cookiePairOf(setCookie).split("=")[1] ?? "";
 
@@ -718,7 +726,7 @@ describe("PUT /api/designs/[id] — the revision the save is conditional on (WEB
   });
 
   it("mints a design already carrying its first revision", async () => {
-    const response = await POST();
+    const response = await POST(mintRequest());
 
     expect((await response.json()) as { revision: string }).toMatchObject({
       revision: FIRST_REVISION,

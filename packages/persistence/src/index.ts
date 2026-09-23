@@ -15,6 +15,7 @@ export type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  MintDesign,
   StoredDesign,
 } from "./neon-configuration-repository.js";
 export { isDesignRevision } from "./design-revision.js";

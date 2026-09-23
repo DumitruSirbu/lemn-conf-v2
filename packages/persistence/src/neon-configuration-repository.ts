@@ -89,6 +89,16 @@ export interface AuthorizedSave {
   readonly expectedRevision: DesignRevision;
 }
 
+/** What a mint stores: the design, the write-token hash that will authorise editing it, and the
+ *  visitor hash that will own it (ADR 0114 decision 5). Grouped rather than passed as three
+ *  positional arguments so the two hashes — both 64-character hex digests — can never be swapped
+ *  with each other at a call site (M7 wave 7E3a D2). */
+export interface MintDesign {
+  readonly design: Design;
+  readonly writeTokenHash: string;
+  readonly visitorHash: string;
+}
+
 /**
  * The server-side persistence port, split by ADR 0019 decision 1 into an open read and an
  * authorised write.
@@ -99,7 +109,7 @@ export interface AuthorizedSave {
  * update must be unrepresentable rather than merely unused.
  */
 export interface AuthorizedConfigurationRepository {
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion>;
+  mint(mint: MintDesign): Promise<DesignVersion>;
   saveAuthorized(save: AuthorizedSave): Promise<DesignVersion>;
   load(id: DesignId): Promise<StoredDesign>;
 }
@@ -118,10 +128,16 @@ export class NeonConfigurationRepository
     this.sql = neon(connectionUrl);
   }
 
-  /** Mints a new design row holding the SHA-256 hash of its write token. The token itself is never
-   *  stored, so a database leak yields read access and nothing more. */
-  async mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
-    requireSha256Digest(writeTokenHash);
+  /** Mints a new design row holding the SHA-256 hash of its write token and of the visitor that
+   *  owns it (ADR 0114 decision 5). Neither raw value is ever stored, so a database leak yields
+   *  read access and nothing more. */
+  async mint({
+    design,
+    writeTokenHash,
+    visitorHash,
+  }: MintDesign): Promise<DesignVersion> {
+    requireSha256Digest(writeTokenHash, "write-token hash");
+    requireSha256Digest(visitorHash, "visitor hash");
     // **The id is generated here, outside the retried callback, and must stay there.** A retry that
     // minted a fresh id each attempt would insert a second row for a write the customer made once,
     // whenever an acknowledgement is lost rather than the query refused. Kept out here, every
@@ -132,8 +148,8 @@ export class NeonConfigurationRepository
     // the one place that decides what a first revision is remains the migration.
     const rows = (await retryOnComputeRestart(
       () => this.sql`
-      insert into designs (id, schema_version, document, write_token_hash)
-      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash})
+      insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitorHash})
       returning revision::text as revision
     `,
     )) as { revision: DesignRevision }[];
@@ -247,24 +263,28 @@ export class NeonConfigurationRepository
 }
 
 /**
- * The one shape `mint` accepts: exactly what SHA-256 produces, a 64-character lowercase hex digest.
+ * The one shape `mint` accepts for either hash it stores: exactly what SHA-256 produces, a
+ * 64-character lowercase hex digest.
  *
- * Stated as what a write-token hash **is**, not as a list of what it must not be. The empty string
- * is the instance that prompted this — `'' = ''` is true in SQL, so a row stored with one is
- * writable by anyone presenting an empty string — but a whitespace-only value has the same
- * property, and so does every other low-entropy value a broken caller might supply. A blocklist
- * grows one discovered value at a time; the contract does not.
+ * Stated as what a hash **is**, not as a list of what it must not be. The empty string is the
+ * instance that prompted this — `'' = ''` is true in SQL, so a row stored with one is writable (or,
+ * since M7 wave 7E3a, resumable) by anyone presenting an empty string — but a whitespace-only value
+ * has the same property, and so does every other low-entropy value a broken caller might supply. A
+ * blocklist grows one discovered value at a time; the contract does not.
  *
- * Nothing in the web layer can reach this: `mintWriteToken` always yields a digest. It is enforced
- * anyway, because this port's contract is that an unauthorised write is unrepresentable, and a
- * predicate that can be satisfied by a guessable value is the hole in exactly that claim. The
- * offending value is deliberately absent from the message.
+ * Nothing in the web layer can reach this: `mintWriteToken` and `resolveVisitorForMint` always
+ * yield a digest. It is enforced anyway, because this port's contract is that an unauthorised
+ * write or an unowned row is unrepresentable, and a predicate that can be satisfied by a guessable
+ * value is the hole in exactly that claim. `whatItIs` names which of the two hashes failed; the
+ * offending value is deliberately absent from the message either way (D2: "names no value").
  */
-function requireSha256Digest(writeTokenHash: string): void {
-  if (SHA256_HEX_DIGEST.test(writeTokenHash)) return;
+function requireSha256Digest(value: string, whatItIs: string): void {
+  if (SHA256_HEX_DIGEST.test(value)) return;
   throw new Error(
-    "Refusing to mint a design: a write-token hash must be a 64-character lowercase hex SHA-256 " +
-      "digest. Any other shape risks a row that a caller can write by presenting a guessable value.",
+    "Refusing to mint a design: a " +
+      whatItIs +
+      " must be a 64-character lowercase hex SHA-256 digest. Any other shape risks a row a " +
+      "guessable value could write or claim.",
   );
 }
 

@@ -27,6 +27,7 @@ import {
   type AuthorizedConfigurationRepository,
   type AuthorizedSave,
   type DesignVersion,
+  type MintDesign,
   type StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
@@ -46,7 +47,7 @@ class InMemoryAuthorizedRepository
   >();
   private nextId = 1;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `seven-a-three-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -197,8 +198,15 @@ function paddedTo(design: Design, totalBytes: number): string {
   return serialised + " ".repeat(padding);
 }
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://lemnaria.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 async function mintDesign(): Promise<{ id: DesignId; cookie: string }> {
-  const response = await POST();
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: DesignId };
   const cookie = (response.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
   return { id, cookie };

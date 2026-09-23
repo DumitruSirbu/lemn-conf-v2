@@ -48,6 +48,10 @@ const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 const FIRST_REVISION = "1";
 
 const CORRECT_TOKEN_HASH = "c".repeat(64);
+
+/** This file attacks the write-token predicate, never visitor identity, so every mint needs one
+ *  well-formed visitor hash and nothing more. */
+const VISITOR_HASH = "e".repeat(64);
 const ATTACKER_DESIGN: Design = {
   ...KITCHEN_L_DESIGN,
   presetId: "overwritten-by-attacker",
@@ -92,10 +96,11 @@ describe("the write-authorisation predicate under attack (live test database)", 
   async function mintTrackingId(
     writeTokenHash: string = CORRECT_TOKEN_HASH,
   ): Promise<DesignId> {
-    const { id } = await testRepository().mint(
-      KITCHEN_L_DESIGN,
+    const { id } = await testRepository().mint({
+      design: KITCHEN_L_DESIGN,
       writeTokenHash,
-    );
+      visitorHash: VISITOR_HASH,
+    });
     mintedIds.push(id);
     return id;
   }
@@ -240,7 +245,11 @@ describe("the write-authorisation predicate under attack (live test database)", 
 
       for (const { name, hash } of DEGENERATE_HASHES) {
         await expect(
-          testRepository().mint(KITCHEN_L_DESIGN, hash),
+          testRepository().mint({
+            design: KITCHEN_L_DESIGN,
+            writeTokenHash: hash,
+            visitorHash: VISITOR_HASH,
+          }),
           name,
         ).rejects.toThrow(
           /must be a 64-character lowercase hex SHA-256 digest/,
@@ -259,7 +268,11 @@ describe("the write-authorisation predicate under attack (live test database)", 
       const secret = "not-a-digest-but-still-a-secret";
 
       const refusal = await testRepository()
-        .mint(KITCHEN_L_DESIGN, secret)
+        .mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: secret,
+          visitorHash: VISITOR_HASH,
+        })
         .then(
           () => undefined,
           (error: unknown) => error,
@@ -593,7 +606,11 @@ describe("the write-token migration actually executes", () => {
     async () => {
       const { id } = await new NeonConfigurationRepository(
         testDatabaseUrl,
-      ).mint(KITCHEN_L_DESIGN, CORRECT_TOKEN_HASH);
+      ).mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitorHash: VISITOR_HASH,
+      });
       try {
         // Forgotten first, so the migrations genuinely re-execute against a table that already
         // holds rows. Without this the ledger would skip them and the assertion below would be

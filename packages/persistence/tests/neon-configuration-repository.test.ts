@@ -56,6 +56,10 @@ const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 const CORRECT_TOKEN_HASH = "a".repeat(64);
 const WRONG_TOKEN_HASH = "b".repeat(64);
 
+/** A stand-in visitor hash: this file is about the write-token predicate, not visitor identity, so
+ *  every mint below needs one well-formed value and nothing more. */
+const VISITOR_HASH = "d".repeat(64);
+
 /** What `0004_add_design_revision.sql` gives every row, existing or new. Stated rather than read
  *  back, so a migration that quietly changed the default would fail these tests instead of being
  *  followed by them. */
@@ -71,7 +75,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
     design: Design = KITCHEN_L_DESIGN,
     writeTokenHash: string = CORRECT_TOKEN_HASH,
   ): Promise<{ id: DesignId; revision: string }> {
-    const minted = await repository.mint(design, writeTokenHash);
+    const minted = await repository.mint({
+      design,
+      writeTokenHash,
+      visitorHash: VISITOR_HASH,
+    });
     mintedIds.push(minted.id);
     return minted;
   }
@@ -296,7 +304,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
     "refuses to mint a design whose write-token hash is $name",
     async ({ hash }) => {
       await expect(
-        testRepository().mint(KITCHEN_L_DESIGN, hash),
+        testRepository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: hash,
+          visitorHash: VISITOR_HASH,
+        }),
       ).rejects.toThrow(/64-character lowercase hex SHA-256 digest/);
     },
   );
@@ -307,7 +319,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
       const rejected = "' or '1'='1";
 
       await expect(
-        testRepository().mint(KITCHEN_L_DESIGN, rejected),
+        testRepository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: rejected,
+          visitorHash: VISITOR_HASH,
+        }),
       ).rejects.not.toThrow(rejected);
     },
   );
@@ -327,10 +343,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
     "leaves no row behind once its own cleanup has run",
     async () => {
       const repository = testRepository();
-      const { id } = await repository.mint(
-        KITCHEN_L_DESIGN,
-        CORRECT_TOKEN_HASH,
-      );
+      const { id } = await repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitorHash: VISITOR_HASH,
+      });
 
       const sql = neon(testDatabaseUrl);
       await sql`delete from designs where id = ${id}`;
@@ -443,7 +460,11 @@ describe("saveAuthorized revisions (WEB-003)", () => {
     repository: NeonConfigurationRepository,
     writeTokenHash: string = CORRECT_TOKEN_HASH,
   ): Promise<{ id: DesignId; revision: string }> {
-    const minted = await repository.mint(KITCHEN_L_DESIGN, writeTokenHash);
+    const minted = await repository.mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash,
+      visitorHash: VISITOR_HASH,
+    });
     mintedIds.push(minted.id);
     return minted;
   }
