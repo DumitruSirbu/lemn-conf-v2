@@ -667,35 +667,31 @@ test.describe("criterion 14 — the link never reaches storage, the URL or the c
     expect(await page.content()).not.toContain(token);
   });
 
-  test("no share control for a non-owner's read-only /d/{id} or inside the share view", async ({
+  // M7 wave 7E3b, S4, criterion 9: re-pointed from a stranger context reading `/d/{id}` read-only.
+  // Since ADR 0114 decision 5 that access no longer exists at all — a stranger's visitor cookie
+  // never matches the row, so `/d/{id}` answers the `"unavailable"` refusal rather than a read-only
+  // view. The closest surviving read-only `/d/{id}` case is the owner's own browser missing only
+  // its write-token cookie (criterion 4), so that is what this test now exercises; the share-view
+  // half is unchanged — it never depended on the visitor cookie either way (D6/G15).
+  test("no share control for the owner's own read-only /d/{id} (write token cleared) or inside the share view", async ({
     page,
-    browser,
+    context,
   }) => {
     const design = await mintTracked(page);
     const sharePath = await issueShareLink(page, design);
-    const strangerContext = await browser.newContext({
-      hasTouch: true,
-      isMobile: true,
-      viewport: { width: 390, height: 844 },
-    });
-    try {
-      const strangerPage = await strangerContext.newPage();
-      await strangerPage.goto(`/ro/d/${design.id}`);
-      await strangerPage.waitForSelector("canvas", { state: "attached" });
-      await strangerPage.waitForTimeout(SETTLE_MS);
-      await expect(
-        strangerPage.getByTestId("global-settings-trigger"),
-      ).toBeDisabled();
-      await expect(strangerPage.getByTestId("share-design")).toHaveCount(0);
 
-      await openSharedDesign(strangerPage, sharePath, { locale: "ro" });
-      await strangerPage.waitForTimeout(SETTLE_MS);
-      await expect(
-        strangerPage.getByTestId("global-settings-trigger"),
-      ).toBeDisabled();
-      await expect(strangerPage.getByTestId("share-design")).toHaveCount(0);
-    } finally {
-      await strangerContext.close();
-    }
+    await context.clearCookies({
+      name: `lemnaria_write_token_${design.id}`,
+    });
+    await page.goto(`/ro/d/${design.id}`);
+    await page.waitForSelector("canvas", { state: "attached" });
+    await page.waitForTimeout(SETTLE_MS);
+    await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
+    await expect(page.getByTestId("share-design")).toHaveCount(0);
+
+    await openSharedDesign(page, sharePath, { locale: "ro" });
+    await page.waitForTimeout(SETTLE_MS);
+    await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
+    await expect(page.getByTestId("share-design")).toHaveCount(0);
   });
 });

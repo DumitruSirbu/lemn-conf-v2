@@ -284,29 +284,27 @@ async function storeANarrowedRoom(
   expect(saved).toBe(200);
 }
 
-/** One row for the whole file — the document is read, never edited, so the tests cannot disturb each
- *  other through it, and minting once keeps the write this spec owes ADR 0006 to a single row. */
-let flaggedDesign: SeededDesign | undefined;
-
 /**
  * Opens a design whose total carries ADR 0065's flag, and asserts that it does.
  *
- * **Not `openSeededDesign`, deliberately.** That helper throws unless this browser holds write
- * access, and the row is cached across tests (above) — each of which gets its own fresh context and
- * so a fresh, empty cookie jar (Playwright's own per-test isolation). Reading a shared link never
- * needed the write-token cookie to begin with (ADR 0019 decision 1), which is exactly what lets one
- * minted row serve every test here.
+ * **Mints its own row, in the caller's own context, every time it is called** (M7 wave 7E3b, S4,
+ * criterion 9). This file used to cache one row across every test — each of which gets its own
+ * fresh, empty cookie jar (Playwright's own per-test isolation) — because reading `/d/{id}` never
+ * needed a credential at all (ADR 0019 decision 1). Since ADR 0114 decision 5 a design opens only in
+ * the browser that owns it, so a row minted in one test's context is unreadable from the next's:
+ * re-minting per call is the fallback G11 names when `addCookies` planting a host-only `__Host-`
+ * cookie across contexts is not measured, which it was not here.
+ *
+ * **Not `openSeededDesign`, deliberately**, because that helper throws unless this browser holds
+ * write access, and this file only ever reads the row back — never edits it through the UI.
  *
  * **The sentence is on the scene now** (ADR 0104 decision 8b), so that is where its presence is
  * confirmed — the entire point of the ruling is that the top bar cannot tell the two designs apart,
  * which would make a top-bar probe for the flag both wrong and vacuous.
  */
 async function openFlaggedDesign(page: Page): Promise<void> {
-  if (!flaggedDesign) {
-    const minted = await mintFlaggedRow(page);
-    await storeANarrowedRoom(page, minted);
-    flaggedDesign = minted;
-  }
+  const flaggedDesign = await mintFlaggedRow(page);
+  await storeANarrowedRoom(page, flaggedDesign);
 
   await page.goto(`/d/${flaggedDesign.id}`);
   await page.waitForSelector("canvas", { state: "attached" });

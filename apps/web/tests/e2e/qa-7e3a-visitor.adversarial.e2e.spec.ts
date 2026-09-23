@@ -4,6 +4,7 @@ import { deleteMintedDesigns } from "./support/minted-designs";
 import {
   mintSeededDesign,
   openDesignAndAwaitAccessProbe,
+  openUnavailableDesign,
 } from "./support/seeded-design";
 
 /**
@@ -111,7 +112,11 @@ test.describe("criterion 10 — no script can read it", () => {
 });
 
 test.describe("criterion 9 — another visitor's /d/{id}", () => {
-  test("opening a foreign design leaves the jar's visitor cookie byte-identical, and resume still finds this visitor's own", async ({
+  // M7 wave 7E3b, S4, criterion 9: re-pointed from "leaves the jar's visitor cookie byte-identical"
+  // at a 200 with `canWrite: false` — since ADR 0114 decision 5 a foreign visitor cookie is refused
+  // outright (the `"unavailable"` page), and the write-access probe never fires. The jar-identity
+  // and resume assertions carry over unchanged.
+  test("opening a foreign design is refused, leaves the jar's visitor cookie byte-identical, and resume still finds this visitor's own", async ({
     page,
     context,
     browser,
@@ -125,12 +130,10 @@ test.describe("criterion 9 — another visitor's /d/{id}", () => {
       const ownerCookie = await visitorCookieOf(ownerContext);
       expect(before?.value).not.toBe(ownerCookie?.value);
 
-      const { navigation, probe } = await openDesignAndAwaitAccessProbe(
+      const navigation = await openUnavailableDesign(
         page,
         `/ro/d/${foreign.id}`,
-        foreign.id,
       );
-      expect(probe.canWrite).toBe(false);
       expect(
         (await navigation?.allHeaders())?.["set-cookie"] ?? "",
       ).not.toContain(VISITOR_COOKIE_NAME);

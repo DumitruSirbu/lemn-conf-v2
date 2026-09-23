@@ -1,6 +1,7 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { expect } from "@playwright/test";
 
+import { findMintedDesignIds } from "./support/minted-designs";
 import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
@@ -39,19 +40,16 @@ test("a deliberately failing test still hands its row to teardown", ({
   expect(seededDesign.id, "deliberate failure").toBe("never-this");
 });
 
-test("the rows of every earlier test, including the failed one, are gone", async ({
-  request,
-}) => {
+// M7 wave 7E3b, S4, criterion 9: a cookie-less `GET /api/designs/{id}` now answers 404 whether or
+// not the row exists (ADR 0114 decision 5), so that status can no longer stand in for "deleted".
+// `findMintedDesignIds` reads the test database directly instead.
+test("the rows of every earlier test, including the failed one, are gone", async () => {
   const earlierIds = [...idsSeenByEarlierTests, idOfDeliberatelyFailedTest];
   expect(earlierIds).toHaveLength(3);
   expect(earlierIds).not.toContain("");
 
-  const statuses = await Promise.all(
-    earlierIds.map(async (id) =>
-      (await request.get(`/api/designs/${id}`)).status(),
-    ),
-  );
-  expect(statuses).toEqual([404, 404, 404]);
+  const remaining = await findMintedDesignIds(earlierIds);
+  expect(remaining).toEqual([]);
 });
 
 test("the opened document deep-equals KITCHEN_L_DESIGN", async ({
@@ -135,7 +133,25 @@ test("openSeededDesign returns only after the store applied canWrite, even when 
   );
 });
 
-test("openSeededDesign throws by name on a design this browser holds no token for", async ({
+// M7 wave 7E3b, S4, criterion 9: split from "openSeededDesign throws by name on a design this
+// browser holds no token for" (which cleared every cookie) into the two cases the gate now tells
+// apart — losing the write-token cookie alone still reaches the probe; losing every cookie never
+// does.
+test("openSeededDesign throws by name when only the write-token cookie is cleared", async ({
+  page,
+  context,
+  seededDesign,
+}) => {
+  await context.clearCookies({
+    name: `${WRITE_TOKEN_COOKIE_PREFIX}${seededDesign.id}`,
+  });
+
+  await expect(openSeededDesign(page, seededDesign)).rejects.toThrow(
+    `openSeededDesign: the write-access probe for ${seededDesign.id} answered canWrite: false, wanted true`,
+  );
+});
+
+test("openSeededDesign throws by name on the unavailable page when every cookie is cleared", async ({
   page,
   context,
   seededDesign,
@@ -143,6 +159,6 @@ test("openSeededDesign throws by name on a design this browser holds no token fo
   await context.clearCookies();
 
   await expect(openSeededDesign(page, seededDesign)).rejects.toThrow(
-    `openSeededDesign: the write-access probe for ${seededDesign.id} answered canWrite: false, wanted true`,
+    `openSeededDesign: ${seededDesign.id} is unavailable in this browser — no visitor cookie owns it.`,
   );
 });

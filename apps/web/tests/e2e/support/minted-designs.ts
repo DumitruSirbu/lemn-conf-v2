@@ -1,4 +1,7 @@
-import { deleteDesignsForTests } from "@lemnaria/persistence";
+import {
+  deleteDesignsForTests,
+  findDesignIdsForTests,
+} from "@lemnaria/persistence";
 
 /**
  * Deletes the design rows a spec caused to be minted.
@@ -19,4 +22,17 @@ export async function deleteMintedDesigns(
   // The SQL lives in `packages/persistence`, the only package allowed to import a Postgres driver
   // (`scripts/gates/boundary.sh`).
   await deleteDesignsForTests(designIds);
+}
+
+/**
+ * Answers which of `designIds` still have a row in the test database — read-only, for proving a
+ * delete actually happened. M7 wave 7E3b, S4: since ADR 0114 decision 5 gates every cookie-less
+ * `GET /api/designs/{id}` to 404 whether or not the row exists, that response can no longer stand
+ * in for "the row is gone" (`seeded-design.qa.e2e.spec.ts`, criterion 9).
+ */
+export async function findMintedDesignIds(
+  designIds: readonly string[],
+): Promise<string[]> {
+  if (designIds.length === 0) return [];
+  return findDesignIdsForTests(designIds);
 }

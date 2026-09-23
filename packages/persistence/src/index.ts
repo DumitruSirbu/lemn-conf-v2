@@ -47,7 +47,10 @@ export {
   MigrationExecutionError,
   MigrationSequenceError,
 } from "./migration-errors.js";
-export { deleteDesignsForTests } from "./delete-designs-for-tests.js";
+export {
+  deleteDesignsForTests,
+  findDesignIdsForTests,
+} from "./delete-designs-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,
