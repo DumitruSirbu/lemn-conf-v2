@@ -311,6 +311,10 @@ That reading was the coordinator's, and it is recorded as a reading rather than 
 
 Recorded by the architect in [wave 7E3a's plan](../milestones/M7-room-and-presets.md#wave-7e3a--the-plan-2026-09-23), at `6b82a2b`, before implementation. **The contract is unchanged.** One cookie, the same attributes, resume on the server, and a clear on the same response. Only the mechanism is decided here, plus one guard that the contract turned out to need.
 
+**Shipped 2026-09-23, wave 7E3a — see the [7E3a close-out](../milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23).** Commits, in order: plan + this amendment `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA `0d53a06`; review round 1 fixes `1ae9f32`.
+
+**Per the security reviewer: decision 5 — a design opens only in its owning browser — is not yet enforced by this wave.** 7E3a mints, refreshes, resumes and clears the visitor cookie, and its migration adds `designs.visitor_hash`; nothing in 7E3a gates `/{locale}/d/{id}` or `GET /api/designs/{id}` on that hash matching the request. That gate is wave **7E3b**'s subject, per the recorded order `7E4 → 7E3a → 7E3c → 7E3b`.
+
 **F1. Decision 4's *"as server components"* is superseded in mechanism only.**
 
 - **Why it has to change.** Next 16 does not support setting cookies during Server Component rendering: *"use a Route Handler"* (`next/dist/docs/01-app/03-api-reference/04-functions/cookies.md`). Decision 4 also requires *"a cookie matching no design is cleared on that response"*.

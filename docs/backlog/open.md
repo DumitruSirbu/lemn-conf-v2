@@ -1783,3 +1783,26 @@ replaced with `mintSeededDesign`'s guaranteed cleanup.
 on a failing test (criterion 4's teardown proof). **The 16 existing rows are untouched** — under
 ADR 0006 (environments and provisioned resources are add-only), no agent deletes a database row on
 its own judgment; that is the owner's call. No owner, no phase yet.
+
+## 80. The store's mint-on-first-command branch has no reaching route since 7E3a — FOUND 2026-09-23, NOT RETIRED
+
+**Found by M7 wave 7E3a's review, 2026-09-23** (finding L1.3). Since 7E3a moved Step 1's
+`/[locale]/configurator/configure` and `/[locale]` to route handlers and every remaining editor entry
+opens `/{locale}/d/{id}`, the store's `designId: null` / `canWrite: true` mint-on-first-command
+branch — ADR 0010's path, still witnessed by `client-write-path.test.ts` — is no longer reachable
+from any production route. The mechanism stays in code; the plan's own ground truth (G5) already
+observed this route was the *only* one that could reach it. **Not retired in 7E3a**, because
+retiring ADR 0010's write path is its own dated decision, not a residue of the wave that removed the
+last caller. Trigger: whenever ADR 0010's write path is next revisited, or before M8 closes. No
+owner, no phase yet.
+
+## 81. SEC-7E3a.1 — cookie fixation is harmless today and becomes durable read access once 7E3b lands — FOUND 2026-09-23, GATES 7E3b
+
+**Found by M7 wave 7E3a's security review, 2026-09-23.** A same-host script (e.g. through an XSS on
+this origin) can plant a well-formed, non-`HttpOnly` visitor cookie value in a fresh browser; the
+next mint adopts it under D1's reuse rule, and any subsequent save keeps it alive. Under 7E3a this is
+harmless, because designs are still readable by id regardless of the cookie. **Once 7E3b gates a
+design's read to its owning visitor hash, the planted value becomes durable read access** to
+whatever designs later mint under it. **Must be decided before 7E3b ships**, one of: (a) record
+acceptance with CSP enforcement (M8) as a named dependency, or (b) rotate the cookie value on every
+mint rather than reusing it. Not blocking 7E3a or 7E3c. No owner yet; phase is 7E3b.

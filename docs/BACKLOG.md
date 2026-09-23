@@ -110,6 +110,8 @@ status corrections, in one of these two files:
 | 77 | Press completion assumes `click` fires in the same task as `mouseup` | open.md — recorded 2026-09-22 from `use-after-press.ts`'s own header; verified in Chromium only; no owner, no phase |
 | 78 | Mid-typing slivers under mm entry | open.md — captured 2026-09-22 by M7 wave 7F2's visual gate; deliberate under C-7F2-1; owner question, no phase |
 | 79 | 16 rows leaked in the test database, pre-S1 configure-route specs | open.md — found 2026-09-23 by M7 wave 7E4's QA; leak closed by the wave, rows themselves not deleted (ADR 0006); no owner, no phase |
+| 80 | The store's mint-on-first-command branch has no reaching route since 7E3a | open.md — found 2026-09-23 by M7 wave 7E3a's review (L1.3); needs its own dated retirement record; no owner, no phase |
+| 81 | SEC-7E3a.1 — cookie fixation is harmless today, durable read access once 7E3b lands | open.md — found 2026-09-23 by M7 wave 7E3a's security review; must be decided before 7E3b ships; no owner yet, phase is 7E3b |
 
 ## 2026-09-06 audit note
 

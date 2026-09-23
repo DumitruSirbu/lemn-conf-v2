@@ -33,6 +33,14 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
+Last updated: 2026-09-23, later the same day — **M7 wave 7E3a is DONE** (visitor identity and
+resume: the `__Host-` cookie, migration `0005`, mint/resume/clear); see the RESUME HERE entry under
+*What to do next* and the M7 row below. **Next wave: 7E3c** (the private share link). The runner's
+own CI verdict is still outstanding for 7T, 7F4b, 7E4 and now 7E3a alike — one owner-dispatched
+`workflow_dispatch` of `ci.yml` settles all four. **Owner action needed before this branch deploys:**
+migration `0005` must be applied to `lemn-conf-v2-preview` then production — see the RESUME HERE
+entry for detail. Earlier text below is kept as history.
+
 Last updated: 2026-09-23 — **M7 wave 7E4 is DONE** (e2e and tooling off `/configurator/configure`);
 see the RESUME HERE entry under *What to do next* and the M7 row below. The runner's own CI verdict
 is still outstanding for 7T, 7F4b and now 7E4 alike — one owner-dispatched `workflow_dispatch` of
@@ -365,7 +373,7 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a** (visitor identity). | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23); **7E3c is next.** | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -927,7 +935,95 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-23. M7 wave 7E4 is DONE.** Commits, in order: plan `4d65a6f`; S1
+> **RESUME HERE — 2026-09-23, later the same day. M7 wave 7E3a is DONE.** Commits, in order: plan +
+> ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3
+> `15e18df`; S4 `e2d95ef`; QA tests `0d53a06`; review round 1 fixes `1ae9f32`. Tier **Full +
+> security** (confirmed in the plan). Every commit made with hooks (no `--no-verify`). Security
+> reviewer kept across 7E3a, 7E3c and 7E3b (*Review continuity*). **Push is pending at the time of
+> writing; the coordinator pushes after this record.**
+>
+> **What shipped:** the `__Host-lemnaria_visitor` cookie (`Path=/`, `Max-Age=2592000`, `Secure`,
+> `HttpOnly`, `SameSite=lax`, no `Domain`) is minted on the first successful mutation, reused across
+> mints, refreshed on every successful save and cleared when it matches nothing. `/[locale]` and
+> `/[locale]/configurator/configure` are now Route Handlers, `GET` only, resolving through one shared
+> resume handler (`export { resumeVisitorRoute as GET }`) that answers a relative `307` — to the
+> owner's design at `/{l}/d/{id}`, or to room, with `Cache-Control: private, no-store` and CSP on
+> every hop. Migration `0005` adds `designs.visitor_hash` (nullable, `sha256hex`-checked) and its
+> index; cross-site mint attempts (`Sec-Fetch-Site` not `same-origin`, or a foreign `Origin`) are
+> refused with 403, no cookie and no `mint` call.
+>
+> **Incident, recorded plainly:** during S1 the implementer ran
+> `packages/persistence/tests/migrate.test.ts` believing it non-live; `vitest.config.ts`'s
+> `loadEnvLocal()` loads `TEST_DATABASE_URL`, so `0005` was applied to the **test database**
+> (`lemn-conf-v2-staging`, ADR 0006's destructive target) before the security mini-gate read the SQL.
+> The reviewer then required two header-comment edits (a false "re-runs every file" claim, an
+> unverified "five production rows" claim) and a restore round-trip test. The test DB ledger was
+> repaired with `forgetAppliedMigrations([5])` + `runMigrations` — checksum `26df252d…` →
+> `822cba5d…`, no `MigrationChecksumMismatchError` [implementer-reported]. **No preview or production
+> database has run `0005`.** Lesson: every persistence Vitest file is live in a checkout with
+> `.env.test.local`; "non-live" must be established by the file's gate, not its describe block.
+>
+> **QA (Full):** no production defect found. 3 new web test files (39 + 50 Vitest, 13 e2e) plus live
+> repository/backup tests. Measured: Chromium **does** store a Lax cookie from a cross-site
+> top-level-navigation `POST` response — D6's guard is load-bearing (guard off → 201 and jar
+> replaced; guard on → 403, jar unchanged). Sabotage red/green confirmed: `clearVisitorCookie` →
+> `cookies.delete` (red in browser and Vitest), `secure: false` (red), the D6 guard disabled (red)
+> [QA-reported].
+>
+> **Review:** clean-code, no must-fix (the shared resume handler above was C1.1's fix). Logic, no
+> production defect — four findings fixed: L1.1, `SET LOCAL enable_seqscan` moved inside its own
+> `sql.transaction`; L1.2, `configure-screen-single-mount.test.ts` now guards `<ConfigureScreen`
+> mounting only in `hydrate-and-configure.tsx` (sabotage red); L1.4, CSP asserted on the found branch
+> and both hops of unprefixed `/` and `/configurator/configure`, ro and ru; L1.7, the contact back
+> link is `prefetch={false}`. **L1.6, coordinator's ruling, recorded not changed:** an empty
+> `__Host-lemnaria_visitor=` value is treated as absent (no clear, no query) — this cannot arise
+> since the server never sets an empty value with `Max-Age > 0`.
+>
+> **Two items filed to the backlog, not fixed here** — see
+> [`docs/backlog/open.md`](backlog/open.md) entries 80–81 and the index: **L1.3**, the store's
+> mint-on-first-command branch (ADR 0010's path) has no reaching route since 7E3a and needs its own
+> dated retirement record; **SEC-7E3a.1**, gates 7E3b — a same-host script can plant a well-formed
+> non-`HttpOnly` visitor value in a fresh browser and the next mint adopts it (D1 reuse), harmless
+> under 7E3a but durable read access under 7E3b. **Must be decided before 7E3b ships.** The security
+> reviewer's SEC-7E3a.2/.3 are notes, not blockers: D6 is acceptable as designed; a resume miss
+> clears the cookie permanently, so a pre-`0005` restore or a wrong-database branch would orphan a
+> returning visitor (the restore runbook covers this).
+>
+> **Visual (Light), 390 × 844, ro/ru + a desktop spot-check, against the test database at
+> `1ae9f32`:** five journeys PASS — fresh `/` → Step 1 → editor; resume via `/`,
+> `/ro/configurator/configure`, `/ru`; most-recent-wins after an edit plus a second mint; the contact
+> back link resumes; cleared cookies land on Step 1 with no error page. Evidence in
+> `testing-reports/7e3a/` (gitignored). Rows created in the test database: `aHY5Soe9q6one_l50692K`,
+> `20uXjLpCk6Gli7zrzoKSZ`, `EMDHPB7Z37Z5TXJAIw2cg`. **Not verified:** WebKit, Firefox, a real device.
+>
+> **`pnpm ci:local` at `1ae9f32`:** `LOCAL CI PASSED — all gates green, safe to push.` — e2e **400
+> passed (5.6 m), 2 skipped** (pre-existing); persistence 27 / 437; three-adapter 92 / 3,553; web
+> 246 / 4,502 [measured].
+>
+> **The runner's own CI verdict is outstanding**, same structural gap as 7T, 7F4b and 7E4 — needs
+> the owner's `workflow_dispatch` of `ci.yml` on `m7-room-and-presets` (the same run settles 7E4, 7T
+> and 7F4b too). **Note: CI's e2e run will run against the shared test database, which already has
+> `0005` applied — from the incident above, not from a deploy.**
+>
+> **Owner actions, prominently, because the first blocks a deploy:**
+> 1. **Apply migration `0005` to `lemn-conf-v2-preview`, then production**, through `deploy.yml` or
+>    `migrate` + `migrate:status` (ledger 1–4 → 1–5), **before this branch deploys** — until then
+>    local `pnpm dev` (which points at preview, ADR 0054) answers 500 on every mint and every
+>    cookie-carrying resume.
+> 2. Dispatch `ci.yml`.
+> 3. Decide SEC-7E3a.1 (backlog) before 7E3b ships.
+>
+> Full criterion-by-criterion close-out:
+> [`milestones/M7-room-and-presets.md`, *7E3a close-out —
+> 2026-09-23*](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23).
+> [ADR 0114](decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+> Amendment F now carries this wave's commit hashes, and records — per the security reviewer — that
+> decision 5 (a design opens only in its owning browser) is **not yet enforced**; that is 7E3b.
+>
+> **Next wave: 7E3c** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`),
+> Full tier plus security, visual **Yes**. Then **7E3b**.
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-23. M7 wave 7E4 is DONE.** Commits, in order: plan `4d65a6f`; S1
 > `64e8894`; S1 QA spec `99fd679`; S2 + Q1/Q3 `740142b`; S3 `d00212a`; QA round 2 fixes (Q5–Q7)
 > `708d3b8`; review round 1 fixes `734a5e3`; review round 2 fixes `1b512bb`. Tier **Light** —
 > adversarial QA ×2 rounds, one combined reviewer ×2 rounds, no visual pass. Every commit made with

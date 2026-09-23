@@ -1556,7 +1556,7 @@ table.
 | ↳ | ~~**Owes, from 7F1's ruling R2 (2026-09-14):** *Continuă* at 1B, which 7F1 leaves pushing the canonical query and nothing more~~ **DISCHARGED by 7F4 (coordinator, 2026-09-22):** *Continuă*'s destination moved to 7F4 (Q-D45-5), and `room-screen.tsx`'s `continueFromLengths()` now calls `departTo("presets")` and then `run.compose(room)` [source-verified at `ea8b11e`]. 7F4's seam note stands for whenever 7F3 revives: 7F3 inserts 1D/1E in front of `use-generation`'s one entry call | | | | | |
 | **7E4** | e2e and tooling off `/configurator/configure` — **DONE 2026-09-23; plan `4d65a6f`, S1 `64e8894`, S1 QA `99fd679`, S2 + Q1/Q3 `740142b`, S3 `d00212a`, QA round 2 `708d3b8`, review round 1 `734a5e3`, review round 2 `1b512bb`; see [7E4 close-out](#7e4-close-out--2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | Runner verdict still outstanding — needs the owner's `workflow_dispatch` |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
-| **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **planned 2026-09-23, four slices: see [Wave 7E3a — the plan](#wave-7e3a--the-plan-2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
+| **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA `0d53a06`; review round 1 `1ae9f32`; see [7E3a close-out](#7e3a-close-out--2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
@@ -2118,6 +2118,148 @@ The criteria are numbered **7E3a-A1…**. "Both routes" means `/{l}` and `/{l}/c
 - **ADR 0114 decision 4 says *"as server components"*.** Server Components cannot set cookies (G6), so it is superseded in mechanism by **Amendment F**, dated 2026-09-23.
 - **Criterion 5's preset clause has no endpoint (G14).** 7E4 D2's list missed `home-navigation.test.ts` and `room-page.test.ts` (G15).
 - **No blocking owner question.** D6 is an engineering decision against an attack, not a product choice, so the coordinator or the security reviewer may overrule it on the record.
+
+### 7E3a close-out — 2026-09-23
+
+**Commits, in order:** plan + ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes
+`49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA tests `0d53a06`; review round 1 fixes
+`1ae9f32`. All made with hooks (no `--no-verify`). **Tier: Full + security**, confirmed in the plan;
+the security reviewer is kept across 7E3a, 7E3c and 7E3b (*Review continuity*).
+
+**Criterion-by-criterion against the plan's §6:**
+
+1. **Attributes.** `Path=/`, `Max-Age=2592000`, `Secure`, `HttpOnly`, `SameSite=lax`, no `Domain`, a
+   43-character `node:crypto` value, `visitor_hash = sha256hex(value)` on the row. **Met**
+   [implementer-reported, QA-confirmed].
+2. **Set points (D1).** The cookie name literal is confined to `visitor.ts` (`server-only`). Where a
+   `Set-Cookie` appears and where it never does — `GET /api/designs/{id}`, `/{l}/d/{id}` and
+   `/{l}/configurator/room` carry none; a failed save carries none; a successful save re-emits or
+   stays silent as specified. **Met** [QA-reported].
+3. **Mint reuse (property, `fast-check`).** One value held across repeats, malformed values
+   replaced, the body never read (a throwing body stream still answers 201). **Met**
+   [implementer-reported].
+4. **Cross-site mint (D6).** Refused on cross-site/same-site/none `Sec-Fetch-Site` and on an absent
+   header with a foreign `Origin`; accepted on `same-origin`. **QA's e2e measured the browser
+   behaviour the guard exists to stop:** Chromium **does** store a Lax cookie from a cross-site
+   top-level-navigation `POST` response — with the guard off, that response is 201 and the jar is
+   replaced; with the guard on, 403 and the jar is unchanged. **Met, and shown load-bearing**
+   [QA-reported].
+5. **Migration.** `migrate:unattended-check` classifies `0005` as additive; contiguity holds
+   (`0001`–`0005`) on the test database, corrected after the incident below;
+   `visitor_hash_is_sha256` and the index are present; malformed inserts violate the check; the
+   `enable_seqscan = off` plan uses the index. **Met, with the incident below as the path it took to
+   get there** [implementer-reported; test-database ledger corrected by the reviewer's gate].
+6. **Resume matrix.** All five branches (none / matches / well-formed-matching-nothing / malformed /
+   lookup-throws) answer as specified, across both routes and both locales, each also covered in
+   Vitest with a repository double. **Met** [implementer + QA reported].
+7. **No editor.** Neither route answers 200; `<ConfigureScreen` mounts only in
+   `hydrate-and-configure.tsx` — enforced by the new `configure-screen-single-mount.test.ts`
+   (L1.2, sabotage red). **Met**.
+8. **The clear, measured in a browser (D4).** Confirmed: after deleting the minted row, `goto("/ro")`
+   lands on room and `context.cookies()` no longer holds the visitor cookie. Sabotage
+   (`clearVisitorCookie` → `cookies.delete`) reproduces red in both the browser and Vitest. **Met**
+   [QA-reported].
+9. **Credentials.** A `PUT` with a matching visitor cookie and no write token still answers 403 with
+   the revision unchanged; opening a foreign `/d/{id}` leaves the jar byte-identical. The preset
+   clause has no endpoint (G14) and is **carried to 7P2, not claimed here** — unchanged from the
+   plan.
+10. **Script cannot read it.** `document.cookie` never carries the name on room or `/d/{id}`;
+    `context.cookies()` does (positive control); no new `localStorage`/`sessionStorage`/
+    `document.cookie` use. **Met**.
+11. **Nothing leaks into logs.** Captured console output across a forced mint, save and resume
+    failure contains neither the cookie value nor its hash; the resume log line carries no design
+    id. **Met** [implementer-reported].
+12. **Localhost.** Plan §4 steps 1–4 reproduced. **Met**.
+13. **Backup.** Added under S1.3 (owed to the reviewer after the incident below): the restore
+    round-trip test restores `visitor_hash` byte-identically, and a restored row resumes. **Met**.
+14. **No read change (D9).** `read-only-panel`, `read-only-global-settings`,
+    `shared-design-locale-identity` and `design-write-path` pass with zero diff. **Met**
+    [implementer-reported].
+15. **Gates.** 7E4 D2's regex still prints only `configure-route.e2e.spec.ts:12,20`
+    [reviewer re-ran at `708d3b8`]. `pnpm ci:local` green, quoting pass/skip counts against 7E4's
+    365/2 — see the numbers below. No `.skip`/`.only`/`.fixme` added, no timeout raised, no
+    dependency change. **The runner verdict itself is outstanding** — the owner's
+    `workflow_dispatch` of `ci.yml`, same structural gap as 7T, 7F4b and 7E4.
+
+**Incident, recorded plainly rather than smoothed over.** During S1 the implementer ran
+`packages/persistence/tests/migrate.test.ts` believing it non-live. `vitest.config.ts`'s
+`loadEnvLocal()` loads `TEST_DATABASE_URL`, so migration `0005` was applied to the **test database**
+(`lemn-conf-v2-staging`, ADR 0006's destructive target) before the security mini-gate had read the
+SQL. The reviewer then required two header-comment corrections (S1.1: a false "re-runs every file"
+claim; S1.2: an unverified "five production rows" claim) and a restore round-trip test (S1.3). The
+test database's migration ledger was repaired with `forgetAppliedMigrations([5])` followed by
+`runMigrations` — checksum `26df252d…` → `822cba5d…`, with no `MigrationChecksumMismatchError`
+[implementer-reported]. **No preview or production database has run `0005`.** The lesson this
+incident leaves, worth carrying forward: **every persistence Vitest file is live in a checkout with
+`.env.test.local`; "non-live" must be established by the file's own gate, not its describe block.**
+This has an obvious home in `docs/best-practices/ci-and-local-gates.md`'s live-suite gating section;
+it is recorded here rather than added there, since editing that guide is outside this close-out's
+scope.
+
+**QA (Full).** No production defect found. Three new web test files (39 + 50 Vitest tests, 13 e2e
+tests) plus live repository and backup tests. The cross-site cookie measurement under criterion 4 is
+the wave's most load-bearing finding — see above. Sabotage red/green confirmed in both directions for
+`clearVisitorCookie` → `cookies.delete`, `secure: false`, and the D6 guard disabled [QA-reported].
+
+**Review.** Clean-code: no must-fix findings survived; C1.1 (a duplicated resume handler between the
+two routes) was fixed — both `route.ts` files now `export { resumeVisitorRoute as GET }`. Logic: no
+production defect; four findings fixed (L1.1 `SET LOCAL enable_seqscan` moved inside its own
+`sql.transaction`; L1.2 the single-mount guard above; L1.4 CSP asserted on the found branch and both
+hops of unprefixed `/` and `/configurator/configure`, ro and ru; L1.7 the contact back link is
+`prefetch={false}`). **Coordinator's ruling on L1.6, recorded rather than changed:** an empty
+`__Host-lemnaria_visitor=` value is treated as absent (no clear, no query issued) — this cannot arise
+in practice, since the server never sets an empty value with `Max-Age > 0`.
+
+**Deviations, with rationale.**
+- The migration incident above — an unplanned application of `0005` to the test database mid-wave,
+  repaired rather than reverted, per ADR 0006 (add-only; the ledger was corrected forward, not the
+  database rolled back).
+- The security reviewer required two extra deliverables not itemised as separate slices in the
+  plan — the S1.3 restore round-trip test and the two header-comment corrections — both folded into
+  S1's fix commit `49c4672` rather than the wave's own slices.
+
+**Documentation updated.** This close-out; the 7E3a wave-table row (DONE, commits); `docs/STATUS.md`
+(new RESUME HERE, prior 7E4 entry marked superseded, `Last updated`, M7 row);
+[ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+Amendment F, which now carries this wave's commit hashes and records that decision 5 (a design opens
+only in its owning browser) is **not yet enforced by this wave** — per the security reviewer, that
+is 7E3b's subject; `docs/backlog/open.md` and `docs/BACKLOG.md`'s index, two new entries (L1.3, the
+retired store branch; SEC-7E3a.1, the fixation gap gating 7E3b).
+
+**Deferred work.**
+- **L1.3** (backlog, no phase): the store's mint-on-first-command branch (ADR 0010's path, witnessed
+  by `client-write-path.test.ts`) has no reaching route since 7E3a. Retiring it needs its own dated
+  record. Trigger: whenever ADR 0010's write path is next revisited, or before M8 closes.
+- **SEC-7E3a.1** (backlog, gates 7E3b): a same-host script can plant a well-formed non-`HttpOnly`
+  visitor value in a fresh browser; the next mint adopts it (D1 reuse) and saves keep it alive.
+  Harmless under 7E3a (designs are still readable by id); under 7E3b it becomes durable read access.
+  **Must be decided before 7E3b ships:** (a) record acceptance with CSP enforce (M8) as a named
+  dependency, or (b) rotate on mint. Not blocking 7E3a or 7E3c.
+- The security reviewer's SEC-7E3a.2/.3 are notes, not obligations: D6 is acceptable as designed; a
+  resume miss clears the cookie permanently, so a pre-`0005` restore or a wrong-database branch
+  would orphan a returning visitor — the restore runbook covers this case.
+- **Owner actions**, in order of urgency: (1) apply migration `0005` to `lemn-conf-v2-preview`, then
+  production, before this branch deploys — until then local `pnpm dev` (which points at preview,
+  ADR 0054) answers 500 on every mint and every cookie-carrying resume; (2) dispatch `ci.yml`; (3)
+  decide SEC-7E3a.1 before 7E3b ships.
+
+**Gates.** `pnpm ci:local` at `1ae9f32`: `LOCAL CI PASSED — all gates green, safe to push.` — e2e
+**400 passed (5.6 m), 2 skipped** (the pre-existing skip pair);
+persistence 27 files / 437 tests; three-adapter 92 / 3,553; web 246 / 4,502 [measured]. Criterion 6
+(the runner's own CI verdict) is owed to the owner's `workflow_dispatch` of `ci.yml`, the same run
+that settles 7E4, 7T and 7F4b. **Note for that run:** CI's e2e executes against the shared test
+database, which already carries `0005` — applied by the incident above, not by a deploy.
+
+**Visual (Light), 390 × 844, ro/ru plus a desktop spot-check, against the test database at
+`1ae9f32`:** five journeys PASS — a fresh `/` visit reaching Step 1 then the editor; resume via `/`,
+`/ro/configurator/configure` and `/ru`; most-recent-wins after an edit and a second mint; the contact
+back link resuming; cleared cookies landing on Step 1 with no error page. Evidence in
+`testing-reports/7e3a/` (gitignored). Rows created in the test database: `aHY5Soe9q6one_l50692K`,
+`20uXjLpCk6Gli7zrzoKSZ`, `EMDHPB7Z37Z5TXJAIw2cg`. **Not verified:** WebKit, Firefox, a real device.
+
+**Next wave: 7E3c** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`), Full
+tier plus security, visual **Yes**, per the recorded order `7E4 → 7E3a → 7E3c → 7E3b → 7I → 7J → 7K
+→ 7L`. Then **7E3b**.
 
 **7E3c — the private share link** (F5 revised, *"Own browser + private share link"*, 2026-09-11;
 **security reviewer dispatched**; ADR 0114 Amendment B; lands before 7E3b)
