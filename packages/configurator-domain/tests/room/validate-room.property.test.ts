@@ -25,6 +25,7 @@ import {
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import {
   acceptedRoom,
+  engineLinearWallBounds,
   engineLWallBounds,
   lInputWithField,
   lWallBoundsOf,
@@ -121,6 +122,12 @@ const validLRoomInput: fc.Arbitrary<LRoomInput> = fc.record({
   cornerDirection: anyCornerDirection,
 });
 
+const validLinearRoomInput: fc.Arbitrary<LinearRoomInput> = fc.record({
+  shape: fc.constant("linear"),
+  wallAMm: withinBounds(engineLinearWallBounds().wallA),
+  heightMm: withinBounds(ENGINE_ROOM_LIMITS.heightBounds),
+});
+
 const anyLRoomInput: fc.Arbitrary<LRoomInput> = fc.record({
   shape: fc.constant("L"),
   wallAMm: anyEnteredMillimetres,
@@ -184,10 +191,17 @@ describe("validateRoomInput — the shape is judged first, whatever the dimensio
     );
   });
 
-  it("refuses any straight kitchen as its shape alone, including missing and invalid dimensions", () => {
+  // ADR 0130 D2 (wave 7J S1): `ENGINE_ROOM_LIMITS` now states linear bounds, so shape-alone refusal
+  // for a straight kitchen needs a policy that does not — the engine's own limits are no longer one.
+  it("refuses any straight kitchen as its shape alone under a policy that states no linear bounds", () => {
+    const buildsNoLinear: RoomPolicy = {
+      ...ENGINE_ROOM_LIMITS,
+      buildableShapes: { L: engineLWallBounds() },
+    };
+
     fc.assert(
       fc.property(anyLinearRoomInput, (input) => {
-        expect(validateRoom(input)).toEqual(SHAPE_ALONE);
+        expect(validateRoom(input, buildsNoLinear)).toEqual(SHAPE_ALONE);
       }),
       { numRuns: RUNS_PER_ARM },
     );
@@ -304,5 +318,77 @@ describe("validateRoomInput — a valid room is exactly what was entered", () =>
 
     // Half the draws come from the valid arm, so a sweep that accepted nothing checked nothing.
     expect(acceptedCount).toBeGreaterThan(0);
+  });
+});
+
+// ADR 0130 D2/D3/D4/D7 (wave 7J S1, criterion A3): a straight kitchen's own mapping, swept.
+describe("validateRoomInput — a valid straight kitchen is exactly four keys, fixed depth, no direction", () => {
+  it("accepts every sampled wall A and height inside the engine's linear bounds", () => {
+    fc.assert(
+      fc.property(validLinearRoomInput, (input) => {
+        expect(validateRoom(input).ok).toBe(true);
+      }),
+      { numRuns: RUNS_PER_ARM },
+    );
+  });
+
+  it("maps to exactly four keys, wall A as the width and the fixed depth, over any integers", () => {
+    let acceptedCount = 0;
+    fc.assert(
+      fc.property(
+        fc.oneof(validLinearRoomInput, anyLinearRoomInput),
+        (input) => {
+          const result = validateRoom(input);
+          if (!result.ok) return;
+          acceptedCount += 1;
+
+          expect(Object.keys(result.room).sort()).toEqual([
+            "depthMm",
+            "heightMm",
+            "shape",
+            "widthMm",
+          ]);
+          expect(result.room).toStrictEqual({
+            shape: "linear",
+            widthMm: input.wallAMm,
+            depthMm: engineLinearWallBounds().depthMm,
+            heightMm: input.heightMm,
+          });
+          expect(DesignRoomSchema.parse(result.room)).toStrictEqual(
+            result.room,
+          );
+        },
+      ),
+      { numRuns: RUNS_PER_ARM * 2 },
+    );
+
+    expect(acceptedCount).toBeGreaterThan(0);
+  });
+
+  it("never names wallB, wallC or ROOM_TOO_SMALL_FOR_KITCHEN in a straight kitchen's issues", () => {
+    fc.assert(
+      fc.property(anyLinearRoomInput, (input) => {
+        const result = validateRoom(input);
+        if (result.ok) return;
+
+        for (const issue of result.issues) {
+          expect(["wallA", "height"]).toContain(issue.field);
+          expect(issue.code).not.toBe("ROOM_TOO_SMALL_FOR_KITCHEN");
+        }
+      }),
+      { numRuns: RUNS_PER_ARM },
+    );
+  });
+
+  it("hands the fit gate back wall A as entered and wall B as 0 (D4), over any valid sample", () => {
+    fc.assert(
+      fc.property(validLinearRoomInput, (input) => {
+        const room = acceptedRoom(input);
+
+        expect(wallLengthMm("A", room)).toBe(input.wallAMm);
+        expect(wallLengthMm("B", room)).toBe(0);
+      }),
+      { numRuns: RUNS_PER_ARM },
+    );
   });
 });

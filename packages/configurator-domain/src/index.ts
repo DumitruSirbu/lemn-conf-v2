@@ -232,6 +232,7 @@ export { APPROVED_ROOM_POLICY } from "./room/approved-room-policy.js";
 export { isShapeBuildable } from "./room/room-policy.js";
 export type {
   BuildableShapes,
+  LinearWallBounds,
   LMinimumKitchen,
   LWallBounds,
   MillimetreBounds,

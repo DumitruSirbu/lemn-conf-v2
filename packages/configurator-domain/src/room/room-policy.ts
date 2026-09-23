@@ -11,6 +11,7 @@
 // compare every value against it silently, the failure `module-grid.ts`'s head comment records.
 import { narrowestCornerReachMm } from "../corner-assembly-size.js";
 import {
+  LINEAR_ROOM_DEPTH_MM,
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
@@ -42,6 +43,20 @@ export interface LWallBounds {
   readonly minimumKitchen: LMinimumKitchen;
 }
 
+/** A straight room's one wall (ADR 0130 D2). **No `minimumKitchen`**: with no corner to clear, the
+ *  coupled rule (ADR 0108 C) collapses to *wall A ≥ sink + hob*, which is the wall's own minimum —
+ *  there is no second wall for the rule to couple against.
+ *
+ *  **`depthMm` rides here rather than being imported by `validate-room.ts` directly** (ADR 0130 D3):
+ *  that module's own guard (`validate-room.ts can read no depth...`) holds it to type-only imports so
+ *  it can never reach a *cabinet* depth reader — a value import for this unrelated room depth would
+ *  weaken that guard's mechanism for every depth, not only the one this shape is exempt from. Handed
+ *  through the policy instead, the same way every other bound here is. */
+export interface LinearWallBounds {
+  readonly wallA: MillimetreBounds;
+  readonly depthMm: number;
+}
+
 export interface LMinimumKitchen {
   /** `ENGINE_ROOM_LIMITS` carries the derived figures as a guard source but remains only the shell's
    *  geometric envelope. The owner-approved product policy requires the coupled rule. */
@@ -55,10 +70,11 @@ export interface LMinimumKitchen {
 }
 
 /** A shape is buildable exactly when its walls' bounds are stated here, so a buildable shape cannot
- *  lack them. Only the L can be stated: it is the one shape a valid input maps onto `DesignRoom`
- *  for (ADR 0108 decision 8). A straight kitchen is wave 7J's, behind owner question Q5. */
+ *  lack them. The L and the straight kitchen can be stated (ADR 0108 decision 8, extended by ADR
+ *  0130 decision 2); a U is M7B's. */
 export interface BuildableShapes {
   readonly L?: LWallBounds;
+  readonly linear?: LinearWallBounds;
 }
 
 /** Whether the owner has ruled on these bounds. Load-bearing (ADR 0108, *Consequences*): no surface,
@@ -105,6 +121,16 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
           wallB: wallMinimumMm("B"),
         },
       },
+    },
+    // ADR 0130 D2: no corner to clear, so the minimum is the wall's own — the generated sink plus the
+    // generated hob — and the maximum is the same storage ceiling every wall carries (decision 7).
+    linear: {
+      wallA: {
+        minMm:
+          generatedRequiredWidthMm("sink") + generatedRequiredWidthMm("hob"),
+        maxMm: MAX_ROOM_WIDTH_MM,
+      },
+      depthMm: LINEAR_ROOM_DEPTH_MM,
     },
   },
   heightBounds: { minMm: baseRowTopMm(), maxMm: MAX_ROOM_HEIGHT_MM },

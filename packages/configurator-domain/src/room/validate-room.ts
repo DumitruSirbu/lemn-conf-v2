@@ -3,6 +3,7 @@
 // nor a limit (decision 3), and it reads no cabinet depth (ADR 0083 decision 2).
 import type { DesignRoom } from "../design.js";
 import type {
+  LinearWallBounds,
   LWallBounds,
   MillimetreBounds,
   RoomPolicy,
@@ -72,17 +73,32 @@ export function validateRoomInput(
   input: RoomInput,
   policy: RoomPolicy,
 ): RoomValidation {
-  const lWallBounds = policy.buildableShapes.L;
-  if (input.shape !== "L" || lWallBounds === undefined) {
-    return {
-      ok: false,
-      issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
-    };
+  if (input.shape === "L") {
+    const lWallBounds = policy.buildableShapes.L;
+    if (lWallBounds === undefined) return shapeNotBuildable();
+    return validateLRoom(input, {
+      walls: lWallBounds,
+      height: policy.heightBounds,
+    });
   }
-  return validateLRoom(input, {
-    walls: lWallBounds,
-    height: policy.heightBounds,
-  });
+  if (input.shape === "linear") {
+    const linearWallBounds = policy.buildableShapes.linear;
+    if (linearWallBounds === undefined) return shapeNotBuildable();
+    return validateLinearRoom(input, {
+      walls: linearWallBounds,
+      height: policy.heightBounds,
+    });
+  }
+  return shapeNotBuildable();
+}
+
+/** A fresh object on every call — never a shared constant — so a caller that mutates one refusal
+ *  cannot change what the next call returns (purity, asserted directly). */
+function shapeNotBuildable(): RoomValidation {
+  return {
+    ok: false,
+    issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+  };
 }
 
 interface LRoomBounds {
@@ -137,6 +153,39 @@ function validateLRoom(input: LRoomInput, bounds: LRoomBounds): RoomValidation {
       ...(input.cornerDirection === "right"
         ? { cornerDirection: "right" as const }
         : {}),
+    },
+  };
+}
+
+interface LinearRoomBounds {
+  readonly walls: LinearWallBounds;
+  readonly height: MillimetreBounds;
+}
+
+/** ADR 0130 D2/D3: one wall, no coupled minimum-kitchen gate (there is no second wall to couple
+ *  against — the wall's own bound already is *sink + hob*), and `depthMm` fixed to the policy's own
+ *  `LinearWallBounds.depthMm` (`LINEAR_ROOM_DEPTH_MM`, handed through the policy rather than imported
+ *  here — see that field's own comment) rather than read from any entered field. No `cornerDirection`
+ *  is ever carried (ADR 0130 D7 / ADR 0129 D2/D3): there is no corner for one to describe. */
+function validateLinearRoom(
+  input: LinearRoomInput,
+  bounds: LinearRoomBounds,
+): RoomValidation {
+  const wallA = judgeField(
+    input.wallAMm,
+    wallRule("wallA", bounds.walls.wallA),
+  );
+  const height = judgeField(input.heightMm, heightRule(bounds.height));
+  if (!wallA.ok || !height.ok) {
+    return { ok: false, issues: [wallA, height].flatMap(issuesOf) };
+  }
+  return {
+    ok: true,
+    room: {
+      shape: "linear",
+      widthMm: wallA.valueMm,
+      depthMm: bounds.walls.depthMm,
+      heightMm: height.valueMm,
     },
   };
 }

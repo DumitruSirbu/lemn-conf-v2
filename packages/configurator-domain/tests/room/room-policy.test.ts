@@ -33,6 +33,7 @@ import {
   GENERATION_PRIORITIES,
   KITCHEN_L_DESIGN,
   LEVELS,
+  LINEAR_ROOM_DEPTH_MM,
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
@@ -44,6 +45,7 @@ import {
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
+  engineLinearWallBounds,
   engineLWallBounds,
   lInputFromRoom,
   validateRoom,
@@ -105,8 +107,14 @@ describe("ENGINE_ROOM_LIMITS — never presented as the owner's", () => {
     expect(ENGINE_ROOM_LIMITS.approval).toBe("interim-unapproved");
   });
 
-  it("builds the L and no other shape", () => {
-    expect(Object.keys(ENGINE_ROOM_LIMITS.buildableShapes)).toEqual(["L"]);
+  // ADR 0130 D2 (7J S1): the engine's own limits now derive a straight kitchen's bounds too, ahead of
+  // the owner-approved policy stating them (ADR 0108 Amendment G, wave 7J S5) — this object was
+  // always the floor and ceiling a product policy sits inside, and a U is still M7B's.
+  it("builds the L and the straight kitchen, and no other shape", () => {
+    expect(Object.keys(ENGINE_ROOM_LIMITS.buildableShapes)).toEqual([
+      "L",
+      "linear",
+    ]);
   });
 });
 
@@ -202,12 +210,50 @@ describe("ENGINE_ROOM_LIMITS — every bound is the constant it is derived from"
   });
 });
 
+// ADR 0130 D2 (wave 7J S1): the straight kitchen's one wall, with no coupled minimum-kitchen block —
+// the rule collapses to "wall A holds a sink and a hob" once there is no second wall to couple it
+// against, so the wall's own minimum already states it.
+describe("ENGINE_ROOM_LIMITS.linear — derived, and states no minimumKitchen", () => {
+  it("wall A's minimum is the generated sink plus the generated hob", () => {
+    const sink = GENERATION_PRIORITIES.find((p) => p.role === "sink");
+    const hob = GENERATION_PRIORITIES.find((p) => p.role === "hob");
+
+    expect(sink?.required).toBe(true);
+    expect(hob?.required).toBe(true);
+    expect(engineLinearWallBounds().wallA.minMm).toBe(
+      (sink?.widthMm ?? 0) + (hob?.widthMm ?? 0),
+    );
+    expect(engineLinearWallBounds().wallA.minMm).toBe(1200);
+  });
+
+  // Q-7J-1 / ADR 0108 Amendment G: one maximum for every wall — the L's two and the straight wall's
+  // one all read the same storage ceiling.
+  it("wall A's maximum equals the L's wall A and wall B maxima — one ceiling for every wall", () => {
+    expect(engineLinearWallBounds().wallA.maxMm).toBe(MAX_ROOM_WIDTH_MM);
+    expect(engineLinearWallBounds().wallA.maxMm).toBe(
+      engineLWallBounds().wallA.maxMm,
+    );
+    expect(engineLinearWallBounds().wallA.maxMm).toBe(
+      engineLWallBounds().wallB.maxMm,
+    );
+  });
+
+  it("states no minimumKitchen key at all", () => {
+    expect("minimumKitchen" in engineLinearWallBounds()).toBe(false);
+  });
+
+  it("carries the seeded shell's own depth, for validation to fix a straight room's depthMm to", () => {
+    expect(engineLinearWallBounds().depthMm).toBe(LINEAR_ROOM_DEPTH_MM);
+  });
+});
+
 describe("ENGINE_ROOM_LIMITS — every room it accepts is a room a design can store", () => {
   // ADR 0108 decision 7: an owner maximum above storage lands as a deliberate `design-bounds.ts`
   // change, never as a policy value the write seam then refuses.
   it.each([
     ["wall A", () => engineLWallBounds().wallA, MAX_ROOM_WIDTH_MM],
     ["wall B", () => engineLWallBounds().wallB, MAX_ROOM_DEPTH_MM],
+    ["linear wall A", () => engineLinearWallBounds().wallA, MAX_ROOM_WIDTH_MM],
     ["height", () => ENGINE_ROOM_LIMITS.heightBounds, MAX_ROOM_HEIGHT_MM],
   ] as const)(
     "%s stays inside the wire bound for its axis",

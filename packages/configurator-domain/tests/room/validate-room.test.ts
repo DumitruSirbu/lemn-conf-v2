@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LINEAR_ROOM_DEPTH_MM,
   wallLengthMm,
   type LRoomInput,
   type RoomField,
@@ -12,10 +13,12 @@ import {
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import {
   acceptedRoom,
+  engineLinearWallBounds,
   engineLWallBounds,
   lInputWithField,
   validateRoom,
   validLInput,
+  validLinearInput,
 } from "../support/room-input.js";
 
 /** The L's measured fields, in field order, and the key each is entered under. */
@@ -48,12 +51,36 @@ describe("validateRoomInput — the shape is judged first and alone", () => {
     });
   });
 
-  it("refuses a straight kitchen as its shape alone, even with its wall and height missing", () => {
+  // ADR 0130 D2 (wave 7J S1): `ENGINE_ROOM_LIMITS` now states linear bounds, so a straight kitchen is
+  // no longer refused as its shape alone — it is judged field by field, exactly as an L is. Shape
+  // refusal for a straight kitchen still exists; it needs a policy that states no linear bounds, the
+  // engine's own limits no longer being one.
+  it("judges a straight kitchen field by field once the policy states its bounds, missing fields included", () => {
     const result = validateRoom({
       shape: "linear",
       wallAMm: undefined,
       heightMm: undefined,
     });
+
+    expect(result).toEqual({
+      ok: false,
+      issues: [
+        { field: "wallA", code: "VALUE_MISSING" },
+        { field: "height", code: "VALUE_MISSING" },
+      ],
+    });
+  });
+
+  it("refuses a straight kitchen as its shape alone under a policy that states no linear bounds", () => {
+    const buildsNoLinear: RoomPolicy = {
+      ...ENGINE_ROOM_LIMITS,
+      buildableShapes: { L: engineLWallBounds() },
+    };
+
+    const result = validateRoom(
+      { shape: "linear", wallAMm: undefined, heightMm: undefined },
+      buildsNoLinear,
+    );
 
     expect(result).toEqual({
       ok: false,
@@ -205,5 +232,49 @@ describe("validateRoomInput — a valid L is the existing DesignRoom", () => {
 
     expect(wallLengthMm("A", room)).toBe(input.wallAMm);
     expect(wallLengthMm("B", room)).toBe(input.wallBMm);
+  });
+});
+
+// ADR 0130 D2/D3/D7 (wave 7J S1): a valid straight kitchen maps to exactly four keys, its wall A
+// becomes the width, its depth is fixed rather than entered, and it never carries a corner direction.
+describe("validateRoomInput — a valid straight kitchen is a four-key DesignRoom", () => {
+  it("maps wall A to the width, fixes the depth, and carries no cornerDirection key", () => {
+    const input = validLinearInput();
+
+    const result = validateRoom(input);
+
+    expect(result).toStrictEqual({
+      ok: true,
+      room: {
+        shape: "linear",
+        widthMm: input.wallAMm,
+        depthMm: LINEAR_ROOM_DEPTH_MM,
+        heightMm: input.heightMm,
+      },
+    });
+  });
+
+  it("never reports wall B for a straight kitchen, whatever the entered wall A", () => {
+    const input = validLinearInput({
+      wallAMm: engineLinearWallBounds().wallA.maxMm + 1,
+    });
+
+    const result = validateRoom(input);
+
+    expect(result).toEqual({
+      ok: false,
+      issues: [{ field: "wallA", code: "WALL_TOO_LONG" }],
+    });
+  });
+
+  it("hands the fit gate back the wall A that was entered, and a wall B of 0 (D4)", () => {
+    const input = validLinearInput({
+      wallAMm: engineLinearWallBounds().wallA.maxMm,
+    });
+
+    const room = acceptedRoom(input);
+
+    expect(wallLengthMm("A", room)).toBe(input.wallAMm);
+    expect(wallLengthMm("B", room)).toBe(0);
   });
 });

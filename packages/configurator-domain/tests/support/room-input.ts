@@ -11,6 +11,8 @@ import {
   validateRoomInput,
   type DesignRoom,
   type EnteredMillimetres,
+  type LinearRoomInput,
+  type LinearWallBounds,
   type LRoomInput,
   type LWallBounds,
   type RoomInput,
@@ -69,6 +71,34 @@ export function lWallBoundsOf(policy: RoomPolicy): LWallBounds {
 
 export function engineLWallBounds(): LWallBounds {
   return lWallBoundsOf(ENGINE_ROOM_LIMITS);
+}
+
+/** A policy's linear wall. Optional in `RoomPolicy`; ADR 0130 S1 states it in `ENGINE_ROOM_LIMITS`,
+ *  never yet in `APPROVED_ROOM_POLICY` (that is wave 7J S5's). */
+export function linearWallBoundsOf(policy: RoomPolicy): LinearWallBounds {
+  const walls = policy.buildableShapes.linear;
+  if (walls === undefined) {
+    throw new Error("the policy states no linear wall");
+  }
+  return walls;
+}
+
+export function engineLinearWallBounds(): LinearWallBounds {
+  return linearWallBoundsOf(ENGINE_ROOM_LIMITS);
+}
+
+/** A linear room `policy` accepts. */
+export function validLinearInput(
+  overrides: Partial<LinearRoomInput> = {},
+  policy: RoomPolicy = ENGINE_ROOM_LIMITS,
+): LinearRoomInput {
+  const walls = linearWallBoundsOf(policy);
+  return {
+    shape: "linear",
+    wallAMm: walls.wallA.minMm,
+    heightMm: policy.heightBounds.minMm,
+    ...overrides,
+  };
 }
 
 /** An L `policy` accepts, using wall A for the generated minimum only when the policy requires it. */

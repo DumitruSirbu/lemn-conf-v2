@@ -27,6 +27,15 @@ const SCENE_SHELL_WIDTH_MM = 4200;
 const SCENE_SHELL_DEPTH_MM = 3400;
 const SCENE_SHELL_HEIGHT_MM = 2600;
 
+/**
+ * ADR 0130 D3/D2: a straight room's `depthMm` is never a wall — with no corner there is nothing for
+ * it to measure — so validation fixes it to the one depth the product has drawn without being told,
+ * the seeded shell's own. Exported under this name rather than `SCENE_SHELL_DEPTH_MM` at its call
+ * site in `room/validate-room.ts`, so that reader states what the number is *for* rather than where
+ * it happens to come from.
+ */
+export const LINEAR_ROOM_DEPTH_MM = SCENE_SHELL_DEPTH_MM;
+
 /** Half as much again as the seeded shell. Deliberate slack, not a product rule — sized so a room a
  *  little larger than the one the scene drew still loads.
  *
