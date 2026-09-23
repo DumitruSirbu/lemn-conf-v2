@@ -3,7 +3,7 @@
 Status: Accepted (**extends [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
 decisions 1 and 2 into the case where the type system forbids constructing the witness; applies
 [ADR 0084](0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md)
-decision 5; **overturns nothing**)
+decision 5; **overturns nothing**; **Amendment A, 2026-09-24** — wave 7J discharges the widening, the `src/room` claim is narrowed to the two C-7F2-3 sites, and the casts outnumber "both")
 Date: 2026-09-14
 Type: Decision (adjudication)
 Milestone: M7 — ruled while planning wave 7F1, on a finding its slice 1 developer raised and confined
@@ -190,3 +190,33 @@ Nothing found in the sweep contradicts this record without being named above.
   and the witness is cast until then.*
 - **Nothing in production changes**, and no test that exists today is edited. This record describes a
   restraint, so its evidence is the absence of a diff.
+
+## Amendment A — 2026-09-24: wave 7J discharges the widening; the `src/room` claim is narrowed to the surface it proved, and the casts outnumber "both"
+
+**Classification: a contract gap, not an implementation defect.** Decision 3 and *Consequences* hold
+7J to *"changes nothing under `apps/web/src/room`"*, proved by 7F1 criterion 3's adversarial arm.
+That arm proves what the ruling protects — **the screen asks the domain rather than spelling a
+shape**: the card, the refusal and (since 7F2) the linear suggestion switch on from the policy alone.
+It never covered two later sites written for the L only, which 7F2 found and recorded for 7J's
+planner rather than fixing (coordinator ruling C-7F2-3), read at `8cd084b`:
+
+- `room-url-state.ts:109-113` throws *"Domain accepted a room shape without a DesignRoom mapping"* when
+  a non-L room validates — so the first valid straight room would throw at 1D;
+- `generation-steps.tsx:199` prints `room.depthMm` as wall B in frame 1F's summary — a number that is
+  not a wall for a straight room (ADR 0130 decision 2).
+
+Neither can be fixed from the domain. **A1 — the claim is narrowed, not dropped:** wave 7J's diff under
+`apps/web/src/room` is exactly those two sites; no line it adds there compares a shape to `"linear"`
+(the summary prints the walls `requiredFieldsFor(shape)` names); every other file under `src/room` is
+byte-identical. Wave 7J's criterion 14 is the test.
+
+**A2 — the casts.** Decision 3 counted two helpers. At `8cd084b` there are **seven `as BuildableShapes`
+expressions in six test files** (one domain, five web): the pattern spread through 7F2's QA. Wave 7J
+deletes every cast that states `linear` (the widened type makes it unnecessary, which is decision 3's
+proof that the widening was real); those stating `U` remain, and each comment names **M7B** as the
+wave that deletes it. The general rule in *What this amendment does not do* stands unchanged.
+
+**A3 — decision 1 is kept.** `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and
+`validateRoomInput` widen together in one wave (7J S1 and S5). Between those slices the approved
+policy states no straight room, so `isShapeBuildable("linear", APPROVED_ROOM_POLICY)` stays false at
+every intermediate commit — the inconsistent state decision 1 guards against is never on the branch.

@@ -136,7 +136,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md) | Step 1's copy is approved as drafted, and each leaf enters the copy lock in the wave that adds it | Accepted |
 | [0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) | A returning visitor is recognised by a host-only, HttpOnly secret, and a design's link opens only in the browser that owns it | Accepted (amended) |
 | [0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md) | Customer profiles replace the PIN and arrive in M8; M7 ships the owner's browser cookie and short share links | Accepted |
-| [0116](0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md) | A type that refuses to describe an undesigned shape is a guard, not friction, and the cast that witnesses the rule is confined to a test | Accepted |
+| [0116](0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md) | A type that refuses to describe an undesigned shape is a guard, not friction, and the cast that witnesses the rule is confined to a test | Accepted (amended) |
 | [0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation produces a correct, cheap baseline, and the owner's taste enters through presets | Accepted |
 | [0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | A problem that has not occurred is recorded with its trigger, not built for | Accepted |
 | [0119](0119-a-remembered-fact-about-this-repository-is-a-claim-to-recheck-and-true-at-head-is-not-true-at-the-end-of-the-milestone.md) | A remembered fact about this repository is a claim to re-check, and "true at HEAD" is not "true at the end of the milestone" | Accepted |
@@ -150,6 +150,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md) | Step 1's URL follows the typed room, and a late echo is still ours | Accepted |
 | [0128](0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md) | Live persistence suites serialise through a declared, transaction-scoped readers–writer lock | Accepted |
 | [0129](0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | A right-hand L is the left-hand design drawn in a reflection, and the reflection is a per-group primitive | Proposed |
+| [0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) | A straight kitchen is the composer's run on one wall with no corner | Proposed |
 
 ## Adding the next one
 

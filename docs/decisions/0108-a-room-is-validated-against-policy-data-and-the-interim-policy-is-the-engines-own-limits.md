@@ -3,7 +3,7 @@
 Status: Accepted (**Amendment A, 2026-09-11** — the L wall minima hold the corner at every declared
 cabinet depth, so wall B's is 1000, not 900; **Amendment B, 2026-09-11** — the owner approved the L
 bounds: wall A 900–6300, wall B 1000–5100, ceiling 2200–3900, held as product data inside the
-engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal; **Amendment F, 2026-09-18** — Amendment A ruling 1 is narrowed to the corner's floor widths at a `(depth, room)` argument, not the reference-sized far edge at a depth alone, and the approved 900/1000 are recorded as [ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)'s deliberate margin above the derived 880/880 floor; **2026-09-21, decision 4's unit — see [ADR 0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)** — decision 4's rule (whole millimetres, parsed once at the form boundary, on the digit string) stands; only the displayed unit the parser reads changes, from metres to millimetres, by owner ruling, in wave 7F2 slice S1b)
+engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal; **Amendment F, 2026-09-18** — Amendment A ruling 1 is narrowed to the corner's floor widths at a `(depth, room)` argument, not the reference-sized far edge at a depth alone, and the approved 900/1000 are recorded as [ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)'s deliberate margin above the derived 880/880 floor; **2026-09-21, decision 4's unit — see [ADR 0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)** — decision 4's rule (whole millimetres, parsed once at the form boundary, on the digit string) stands; only the displayed unit the parser reads changes, from metres to millimetres, by owner ruling, in wave 7F2 slice S1b; **Amendment G, 2026-09-24** — one maximum for every wall: a straight wall is 1200–6000 mm, superseding Amendment D's 6300, on the owner's Q-7J-1 ruling and wave 7J's measurement)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — wave 7A (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -370,9 +370,9 @@ widths, which is why F1 proposes 1200. **U (M7B):** the same rule across three r
 ## Amendment D — 2026-09-11: the owner's answers to F1 and F6
 
 **F1**, option chosen verbatim: **"Yes, 1200–6300 mm"**. A straight kitchen's wall is approved at
-1200–6300 mm — 1200 being a 600 mm sink and a 600 mm hob, the owner's minimum kitchen (the engine's own
-floor, with the sink at its 560 mm floor, is 1160, so the approved value sits inside it); 6300 is the
-storage bound. It enters `APPROVED_ROOM_POLICY` **in wave 7J, not 7A2**: a shape's bounds in the
+~~1200–6300 mm~~ **1200–6000 mm — maximum superseded by Amendment G (2026-09-24)** — 1200 being a 600 mm sink and a 600 mm hob, the owner's minimum kitchen (the engine's own
+floor, with the sink at its 560 mm floor, is 1160, so the approved value sits inside it); ~~6300 is the
+storage bound~~ **the maximum is the one every wall has, 6000 (Amendment G)**. It enters `APPROVED_ROOM_POLICY` **in wave 7J, not 7A2**: a shape's bounds in the
 approved policy are what make `validateRoomInput` accept it (Amendment B, B2), and a straight room must
 not validate before the wave that can build it lands. The same guard applies — approved values inside
 the engine's derived linear limits.
@@ -564,3 +564,38 @@ for ([ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigge
 | [0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | Q-K1 answered: keep 900/1000 as a deliberate margin above the derived 880/880; this ADR 0108 amendment is owed by the wave that lands the derivation. | **This amendment.** The margin is cited, not re-derived; the rename it flags is left to the commit that makes it. |
 | [0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) Amendment A | Every cabinet is custom made, corners included; the room enters sizing as a ceiling, never a target. | **Carried through** as `cornerAssemblyWidthsMm`'s `(depth, room)` argument, which is what makes the reference-sized reading in the original ruling 1 no longer the binding case. |
 | Logic review finding SF1, 2026-09-18 | Amendment A rulings 1 and 2 are false of HEAD; the reader and the values both moved. | **This amendment**, written and checked against HEAD `9ae586c` rather than against the adjudication's estimate. |
+
+## Amendment G — 2026-09-24: one maximum for every wall — a straight wall is 1200–6000 mm, superseding Amendment D's 6300
+
+**The ruling, verbatim** (owner, 2026-09-23, answering Q-7J-1 — *does "lets stick to 6 now for each
+of the wall" (ADR 0120 Amendment B2) cover a straight wall too?*):
+
+> *"Max should be on any type of kitchen same, liniar, L-shape an u-shape, only if you say that
+> liniar need more because instead of a corner cabinet it can fit a different full size cabinet and
+> for algo that detect which cabinets to fill is easier to fill a wall with 6300 mm instead of 6000
+> otherwise cap all walls on same max width"*
+
+**G1 — The rule: one maximum for every wall of every shape, 6000 mm**, unless a measurement shows the
+straight wall's fill needs more.
+
+**G2 — The measurement, and it shows the opposite** (wave 7J plan, G6; `tsc` build of `src` at
+`8cd084b`; the composer fed one wall as its suffix and an empty prefix):
+
+| Straight wall | Mean bare end | Rooms with ≥ 300 mm bare | Bases at the top of the range |
+| --- | --- | --- | --- |
+| 1200–6000 (4801 rooms) | 174.4 mm | 800 | 6000: 10 bases, **0 mm bare** |
+| 6001–6300 (300 rooms) | **350.5 mm** | 201 | 6300: 10 bases, **500 mm bare** |
+
+No room above 6000 holds a body more than 6000 does. The owner's premise — a straight wall gains a
+full-size cabinet where a corner stood — is already true at 6000: its free run is 6000 mm, against
+the L's longest free run of 5100 mm at 6000 × 6000. **So G1's exception does not apply.**
+
+**G3 — What changes.** Amendment D's *"1200–6300 mm"* is superseded for the maximum; its minimum
+(1200, a 600 mm sink and a 600 mm hob) and its sequencing (the bounds enter `APPROVED_ROOM_POLICY` in
+7J, not before the wave that builds the shape) stand. The approved straight wall is **1200–6000**,
+held inside the engine's derived linear limits (1200 / 6300) by the same guard as the L (B1), and a
+test holds the approved wall maxima of every stated shape equal. M7B's U inherits G1.
+
+**Not re-asked.** The owner asked to be told only if 6300 was needed; it is not, so this is recorded
+rather than put back to them. `approved-room-policy.test.ts`' pin and `is-shape-buildable.test.ts`'
+*"1200–6300"* comment move with it in wave 7J S5.

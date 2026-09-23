@@ -370,3 +370,11 @@ Preserved here verbatim from that column so nothing is lost by the table's slimm
   clip seam this record's decision 6 relies on (`refuseUnexecutableDesign`'s empty-column clip) was
   amended by **ADR 0090**'s Amendment B, which restricts what a room-derived pass may do to a
   recorded map (bound what it publishes, never rewrite what the document records).
+- **ADR 0108** Amendment D's straight-wall maximum *"1200–6300 mm … 6300 is the storage bound"* →
+  **6000 mm** by ADR 0108 **Amendment G** (2026-09-24): the owner's Q-7J-1 ruling (one maximum for
+  every wall unless a straight wall measurably needs more) and wave 7J's measurement that it does not.
+  The minimum (1200) and the sequencing (the bounds enter the approved policy in 7J) stand.
+- **ADR 0116** decision 3 / *Consequences*' *"7J changes nothing under `apps/web/src/room`"* and
+  *"both helpers"* → **narrowed** by its **Amendment A** (2026-09-24): the diff there is exactly
+  `room-url-state.ts` and `generation-steps.tsx` (C-7F2-3); the casts are seven, and only the
+  `linear` ones are deleted in 7J — the `U` ones are M7B's.

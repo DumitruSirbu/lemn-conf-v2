@@ -1561,7 +1561,7 @@ table.
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`, intermediate); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`; review round 2 fixes `f1e4fc9`. See [7E3b close-out](#7e3b-close-out--2026-09-23)** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — backlog 81 closed, *"Rotate on mint"* then *"Web Lock + random"* (ADR 0114 H, H6). See [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4 |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group — **DONE 2026-09-24. Commits: plan + ADR 0129 `4ff2d64`; S1 `95c5ad4`; S2 `e653efb`; S3 `bf3716a`; S4 `250efb7`; QA fixes + QA tests `a20085a`; review fixes `f653bdf`; comment-only `HEAD`. See [7I close-out](#7i-close-out--2026-09-24)** | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
-| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **Q-7J-1 ANSWERED by the owner, 2026-09-23: one maximum for every kitchen shape (linear, L, U) — 6000 mm — unless 7J's planning shows the fill algorithm genuinely needs 6300 mm on a straight wall (instead of a corner cabinet it can fit a full-size cabinet); otherwise cap all walls at the same maximum.** Supersedes the *"Recommendation: 6000"* line below, which is the coordinator's superseded reasoning kept for its detail: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300? The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. It does not gate 7T |
+| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **PLANNED 2026-09-24: *Wave 7J — the plan (2026-09-24)*, right after the 7J criteria block; Q-7J-1 settled at 1200–6000 mm by measurement (ADR 0108 Amendment G); decisions in ADR 0130; the `src/room` claim narrowed by ADR 0116 Amendment A.** **Q-7J-1 ANSWERED by the owner, 2026-09-23: one maximum for every kitchen shape (linear, L, U) — 6000 mm — unless 7J's planning shows the fill algorithm genuinely needs 6300 mm on a straight wall (instead of a corner cabinet it can fit a full-size cabinet); otherwise cap all walls at the same maximum.** Supersedes the *"Recommendation: 6000"* line below, which is the coordinator's superseded reasoning kept for its detail: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300? The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. It does not gate 7T |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
@@ -4019,7 +4019,203 @@ engine's derived linear limits it is guarded against — not 7A2, because a shap
 approved policy are what make `validateRoomInput` accept it, and linear must not validate before the
 wave that can build it lands. Then: a shell with no corner; composition
 on wall A under every 7D2 property; the 1C/D1C suggestion to switch to a straight kitchen appears; what
-`depthMm` means for a one-wall room is decided and recorded in the wave.
+`depthMm` means for a one-wall room is decided and recorded in the wave. **Planned 2026-09-24 —
+see *Wave 7J — the plan (2026-09-24)* directly below.**
+
+### Wave 7J — the plan (2026-09-24)
+
+**Goal.** A customer who picks *Liniară* types one wall and the height, and gets a composed straight
+kitchen in the editor: the same composer, rules and command path as the L, laid on wall A with no
+corner. **Tier: Full. Visual: Yes** (mobile 390 × 844, desktop 1440 × 900). Code read at `8cd084b`.
+Decision records: **[ADR 0130](../decisions/0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md)**
+(Proposed with this plan), **ADR 0108 Amendment G** (the linear maximum), **ADR 0116 Amendment A**
+(what 7J may change under `apps/web/src/room`).
+
+#### 1. Ground truth
+
+Tiers: **[src]** read at `8cd084b`; **[doc]** quoted from a record; **[meas]** executed against a
+`tsc` build of `packages/configurator-domain/src` at `8cd084b` into the session scratchpad (not the
+checked-in `dist`), script `7j-measure.mjs`; **[inf]** inference, owed a test.
+
+| # | Fact | Tier |
+| --- | --- | --- |
+| G1 | `DesignRoomShapeSchema` already accepts `"linear"` (`design.ts:51`); `depthMm` is required and positive on every room (`:144-149`). No schema change is needed to *store* a straight room. | [src] |
+| G2 | `validateRoomInput` refuses every non-L input whatever the policy says (`validate-room.ts:76`); `BuildableShapes` declares `L?` only (`room-policy.ts`); `ENGINE_ROOM_LIMITS` has no linear entry. `isShapeBuildable` reads any stated key. | [src] |
+| G3 | Generation is L-only at four points: `buildLShellDesign` throws `ROOM_NOT_L` (`shell-design.ts:186`); `generateKitchen` calls `lShellFloorRuns`/`buildLShellDesign` (`generate-kitchen.ts:153-156`), `isFreeEndBody` (`:633`) and `replayGenerationLog` (`:724`). | [src] |
+| G4 | The composer is pure over two run capacities; `readingOrderWallsFor` keys the suffix on `wallLengthMm("B") > wallLengthMm("A")` (`generation-priorities.ts:77-82`), and `wallLengthMm("B", room)` returns `room.depthMm` for **every** shape (`queries/overflowing-placements.ts:45-50`) — 7P2's recorded defect. | [src] |
+| G5 | **The composer, fed one wall as the suffix and an empty prefix (A = [0, W], B = [0, 0]), over W = 1200…6300 mm at h 2600:** 0 refusals, 0 bodies on wall B, 0 overflows; drops the fridge and preparation below 1800, the fridge alone below 2500; bare end ≤ 599 everywhere; identical plans at h 2200 and h 3900. | [meas] — a model of D6, **not** shipped code |
+| G6 | **Q-7J-1's measurement.** 1200–6000: mean bare end 174.4 mm. 6001–6300: mean **350.5 mm**, 201 of 300 rooms leave ≥ 300 mm bare, max 500. **At 6000 the run is filled exactly (bare 0; outermost pantry 800); at 6300, 500 mm is bare. No room in 6001–6300 holds a single body more than 6000 does (10 bases each).** A straight 6000 wall's free run (6000) already exceeds the L's longest free run at 6000 × 6000 (A 5100, B 5000). | [meas] |
+| G7 | **The owner's own kitchen** (linear, 3700 mm: *"fridge, sink, cabinet with drawers, hob, and a tall cabinet"*, `:10408`) composes as `fridge-free 700 · base-sink · base-dishwasher · base-3drawer · base-hob-2drawer · tall-oven-tower`, bare 0. | [doc] + [meas] |
+| G8 | Step 1 offers, refuses and suggests through the domain: *Continuă* keys on `isShapeBuildable`; the 1C suggestion gate is `validateRoomInput({shape:"linear", …}, APPROVED_ROOM_POLICY).ok` (7F2 criterion 10, `room-issue-model.ts:199`); the plan preview already draws a lone wall. | [src] |
+| G9 | **Two L-only sites under `apps/web/src/room` break once linear validates** (C-7F2-3, recorded for 7J): `room-url-state.ts:109-113` throws *"Domain accepted a room shape without a DesignRoom mapping"* at 1D; `generation-steps.tsx:199` prints `room.depthMm` as wall B in 1F's summary. **7F1 criterion 3's "7J changes nothing under `apps/web/src/room`" therefore cannot hold as written.** | [src] + [doc] |
+| G10 | `as BuildableShapes` casts: **7 expressions in 6 test files** (1 domain, 5 web), not ADR 0116's "both helpers". Those stating `linear` become unnecessary once the type widens; those stating `U` remain M7B's witness. | [src] (grep) |
+| G11 | Shell: `resizeShellToRoom` sizes floor, wall A, wall B, backsplash; its drawn-room signature is `W×D×H` with no shape (`kitchen-shell.ts:139-141`). The probe reads only `wall_back` (`measure-built-body.ts:27-38`); picking intersects only the solids and voids groups (`picking.ts:87-97`). | [src] |
+| G12 | Cameras: `cameraPresetsForRoom` frames three presets on the room (`stage.ts:329-339, 388-399`); the editor renders the **constant** `CAMERA_PRESETS` (`configure-screen.tsx:170`); `findCameraPresetForRoom` throws on an id it does not return (`stage.ts:360-369`), called from `scene-view.ts:32` with a store that survives remounts. | [src] |
+| G13 | Run-end panel: seated past wall A's rightmost base, vetoed where it would pass wall A's end (`run-end-panel.ts:105-122`; ADR 0120 D2: *"a run ending mid-wall gets no finished end panel"* — the veto is correct). | [src] + [doc] |
+| G14 | Presets (7F3/7C) are deferred past M8; every shape goes 1D → 1F composition today. | [doc] |
+| G15 | Many web tests assert *Liniară refused under the approved policy* (≥ 20 files mention `linear`, incl. two e2e specs). How many go red at the switch is **unmeasured**. | [src] / count [inf] — S0 measures |
+
+#### 2. Decisions (ADR 0130 unless stated)
+
+- **D1 — The straight wall is 1200–6000 mm** (Q-7J-1, owner 2026-09-23, verbatim in ADR 0108
+  Amendment G, which supersedes Amendment D's 6300). **6300 is not proposed, on measurement (G6):**
+  the extra 300 mm buys no cabinet and raises the mean bare end from 174 to 351 mm; the owner's
+  premise — a straight wall gains a full-size cabinet where the corner stood — is already true at
+  6000 (G6's last sentence). Height is the shared 2200–3900.
+- **D2 — Policy structure.** `BuildableShapes.linear?: LinearWallBounds = { wallA }` — **no
+  `minimumKitchen` block**: with no corner the coupled rule (ADR 0108 C) collapses to *wall A ≥ sink +
+  hob*, which is the wall's minimum. `ENGINE_ROOM_LIMITS.linear.wallA` = `{ sink + hob via
+  generatedRequiredWidthMm, MAX_ROOM_WIDTH_MM }` = 1200 / 6300, derived (ADR 0108 decision 6); the
+  approved 1200 equals it (B1 permits equality). No new `RoomIssueCode` (7F2 §8 item 3's compile
+  guard stays untouched); a short straight wall is `WALL_TOO_SHORT` on `wallA`, never
+  `ROOM_TOO_SMALL_FOR_KITCHEN`.
+- **D3 — `depthMm` of a straight room is the drawn floor's depth in front of the run, never a
+  wall**, fixed by validation to `LINEAR_ROOM_DEPTH_MM` = the seeded shell's 3400
+  (`SCENE_SHELL_DEPTH_MM`, `design-bounds.ts`, exported under the new name — the one depth the
+  product has drawn without being told). Mapping: `{ shape: "linear", widthMm: A, depthMm: 3400,
+  heightMm }`, four keys. Generation never reads it (A7). *Rejected:* `depthMm = widthMm` (a 6 m
+  floor for a 6 m run); an optional/union `depthMm` (ripples into every reader and the stored-document
+  contract for a value only the drawing uses); a newly chosen number (no source).
+- **D4 — A straight room has no wall B: `wallLengthMm("B", linear) = 0`** (extends ADR 0065 decision
+  5 to a shape it never saw). A wall-B placement in a straight document is then marked overflowing —
+  the truth — and the reading-order key (G4) sees wall A wider for every straight room without a
+  branch in the composer.
+- **D5 — A shell with no corner.** `buildLinearShellDesign`: no structural placement; floor run and
+  wall-only run both `[0, W]` less the odd millimetre (7D1-P P3); no reserve (wall A never slides);
+  nothing on wall B; engine-limit check against `ENGINE_ROOM_LIMITS.linear`. `buildLShellDesign` is
+  unchanged, `ROOM_NOT_L` included. Tiling helpers are shared, not copied.
+- **D6 — Composition is the same composer on one wall.** The run is the suffix; the prefix is empty
+  (capacity 0), so the cut is always 0. What changes meaning, and nothing else does:
+  *reading order* — fridge → sink → preparation → hob read left to right from x = 0, the end the L's
+  corner would occupy (ADR 0110 A1; D2's reversal has no wall to act on); *tall end block* — the
+  free end is x = W and `hobStandsOnTheFreeEndWall` is always true (E3 unchanged); *dishwasher* — the
+  across-the-corner arm (F12) is empty by construction; *uppers* — over every base below the wall
+  row from x = 0, since 7D2 criterion 14's corner zone does not exist; *leftover* — no F7 wall-B
+  exception; *7D8's wider-wall key* — moot (D4). Drop order, widths, bottle, pan drawer, threshold
+  drawer, one oven: unchanged. `generateKitchen`, `isFreeEndBody` and `replayGenerationLog` dispatch
+  on `room.shape` to the matching shell and runs.
+- **D7 — No corner, no direction** (ADR 0129 is about a corner). Validation never writes
+  `cornerDirection` for a straight room, and `cornerDirectionOf` answers `"left"` for one whatever a
+  stored key says, so nothing mirrors a straight kitchen. A fridge-on-the-right straight kitchen is
+  recorded in ADR 0118's shape — **trigger:** the owner asks for it.
+- **D8 — 3D.** For a straight room the wall-B plane stays in the shell with `visible = false`
+  (7H's in-place resize and kit ownership unchanged; safe for the probe and picking, G11); the
+  drawn-room signature gains the shape; floor, wall A (anchor `[−0.3, W]`, overhang kept) and
+  backsplash follow the existing rules. **End panels:** the right one is `runEndPanelSeatM`,
+  unchanged; **no left panel** — the run starts at the entered run's start, ADR 0120 D2's rule. No
+  `kitchen-parts.ts` or `reference/` change (fidelity baseline untouched).
+- **D9 — Cameras for one wall:** a straight room offers `overview` and `wallA`; framing formulas
+  unchanged. The editor renders the room's presets, not the constant; a stored `wallB` against a
+  straight room stands at `overview` and never throws.
+- **D10 — Step 1** (ADR 0116 Amendment A). The card, the refusal and the suggestion switch on from the
+  policy with no edit. **The `src/room` diff is exactly G9's two sites:** the 1D guard is deleted;
+  1F's summary prints the walls `requiredFieldsFor(room.shape)` names (one new leaf, ro/ru, into the
+  copy lock). 7F2 §8 R1.4 (the suggestion announced inside the live region beside the note) is an
+  **accepted interim owned by 7L**, whose D1C suggestion is the same surface.
+- **D11 — Casts** (ADR 0116 Amendment A): every cast stating `linear` is deleted; each remaining
+  `U` cast's comment names M7B as its discharge wave.
+
+#### 3. Slices
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S0 census** (no production) | In a throwaway worktree at the wave base, apply S5's policy line alone; run domain + web unit suites; list every red and every e2e assertion that names `linear`; classify each as *"until 7J" — restate in S5* or *defect — add to S1–S4*. Table appended here. | none | §1 G8, G9, G15; §2 D10; 7F1 criterion 3; 7F2 §8; `agent-coordination.md` (worktree bases) |
+| **S1 domain — room** | (1) `LinearWallBounds`, `BuildableShapes.linear?`, `ENGINE_ROOM_LIMITS.linear` derived (D2); (2) `validateRoomInput` maps linear (D3), L path untouched; (3) `LINEAR_ROOM_DEPTH_MM` (D3); (4) `wallLengthMm` (D4); (5) `cornerDirectionOf` (D7) | `room/room-policy.ts`, `room/validate-room.ts`, `design-bounds.ts`, `room/corner-direction.ts`, `queries/overflowing-placements.ts` | §2 D1–D4, D7; ADR 0108 decisions 6–8, Amendments B, C, E, G; ADR 0116; ADR 0065 decision 5; ADR 0129 D2–D3; `approved-room-policy.test.ts`, `room-policy.test.ts`, `validate-room*.test.ts` |
+| **S2 domain — generation** | (1) `buildLinearShellDesign` + `linearShellFloorRuns` (D5); (2) dispatch in `generateKitchen`, `isFreeEndBody`, `replayGenerationLog` (D6); (3) the composer reads a one-wall run (D6); (4) exports; (5) A5–A8 tests | `generation/shell-design.ts` (+ one new module if the implementer splits it), `generation/generate-kitchen.ts`, `generation/generation-priorities.ts`, `index.ts` | §1 G3–G7; §2 D4–D6; ADR 0110 A1, A4, D2, E3, I, M (F12), 7D2 criteria 1–14; ADR 0120 E; `shell-design.ts`, `generate-kitchen.ts`, `run-layout.ts`, `tall-end-rule.ts`, `dishwasher-beside-the-sink.ts:136-185`; `7j-measure.mjs` |
+| **S3 adapter** | (1) wall-B plane hidden for a straight room, signature gains the shape (D8); (2) presets for one wall (D9); (3) exports; (4) A11–A12 tests + a generated-linear parity sample | `three-adapter/src/kitchen-shell.ts`, `src/stage.ts`, `src/index.ts` | §1 G11–G13; §2 D7–D9; DEVELOPMENT-SPEC §2, §6.1, §6.4; `product-invariants.md`; skill `lemnaria-3d-reference`; ADR 0120 D2–D3; ADR 0129 D4, D6; the 7H close-out |
+| **S4 web** | (1) camera buttons from `cameraPresetsForRoom`; (2) stale `wallB` → `overview`; (3) delete the 1D guard; (4) 1F summary by `requiredFieldsFor` + leaf ro/ru, lock and golden manifest move by exactly that leaf | `app/configurator/configure/configure-screen.tsx`, `scene/scene-view.ts` (or `camera-preset-store.ts`), `room/room-url-state.ts`, `room/generation-steps.tsx`; catalogues `messages/ro.json`, `ru.json` (+ generated `ro.d.json.ts`) | §1 G9, G12; §2 D9–D10; ADR 0116 + Amendment A; ADR 0113; ADR 0126; C-7F2-3; `room-url-state.test.ts`, `generation-steps.dom.test.ts` |
+| **S5 the switch** | (1) `linear: { wallA: 1200–6000 }` in `APPROVED_ROOM_POLICY` + pins; (2) S0's restatements, each citing this row; (3) delete the linear casts, re-comment the U ones (D11); (4) 7F2's positive arm by name; (5) `SHAPES_WITH_APPROVED_BOUNDS` | `room/approved-room-policy.ts` | §2 D1, D2, D10, D11; S0's table; ADR 0108 Amendment G; 7F2 criterion 10 and §8; `qa-7f2-s4-shape-refusal.adversarial.test.ts` |
+| **S6 flow + capture** | (1) e2e: *Liniară* → 1B → 1D → 1F → editor, mobile + desktop; (2) reload on the room query and `/d/{id}`; (3) captures | e2e spec only | §4 A13, A16, A17; `browser-and-visual-qa.md`; ADR 0105; the 7I S4 capture route |
+
+Order **S0 → S1 → S2 → S3 → S4 → S5 → S6**; S3 and S4's `src/room` items may run in parallel
+(disjoint files). **S5 lands last among production slices**, so the approved policy admits a straight
+room only once everything that builds it exists (ADR 0108 Amendment D's sequencing, kept). QA per
+slice before the next.
+
+- **Reading, QA:** this plan §1–§5; ADR 0130; ADR 0108 Amendments D, G; ADR 0116 + Amendment A;
+  7D2/7D3/7D5/7D5b criteria as §2 D6 re-reads them; `engineering-conventions.md`, *Coverage an
+  adversarial pass owes*; skill `javascript-testing-expert` (fast-check); the slice diff.
+- **Reading, logic reviewer:** §2 D1–D11, §4; ADR 0130, 0108 (C, D, G), 0110 (A1, D2, E3, I, M),
+  0120 (B2, D1–D3, E), 0065 decision 5, 0129; the wave diff with `generation-priorities.ts`.
+- **Reading, clean-code reviewer:** §3's rows; `engineering-conventions.md`; the wave diff.
+- **Reading, visual reviewer:** §2 D7–D9, §4 A11, A17; skill `lemnaria-3d-reference`;
+  `browser-and-visual-qa.md`; the 7H and 7I close-outs' *not a bug* lists; the capture set.
+
+#### 4. Acceptance criteria (7J-A1 …)
+
+1. **The L is byte-identical.** Every recorded generation baseline (`7d3-…`, `7d5-…`, `7d5b-…`,
+   `7d8-…` JSON) and every L design the product generates serialise as at `8cd084b`;
+   `git diff 8cd084b -- packages/three-adapter/src/kitchen-parts.ts packages/three-adapter/reference/`
+   is empty; every existing test passes except S0's listed restatements. **[unit] + [parity]**
+2. **The bounds.** Approved linear wall A is 1200–6000, pinned; engine linear is derived (1200 from
+   `GENERATION_PRIORITIES`' sink + hob, 6300 from `MAX_ROOM_WIDTH_MM`); approved ⊆ engine. **One
+   maximum:** L wall A, L wall B and linear wall A maxima are equal (a test, Q-7J-1). 1199 →
+   `WALL_TOO_SHORT`, 1200 ok, 6000 ok, 6001 → `WALL_TOO_LONG`. **Must not:** `6300` in
+   `approved-room-policy.ts`; a number in any issue. **[unit]**
+3. **The mapping** (*property*, any integers and `undefined`): an ok straight room has exactly the
+   four keys `{ shape: "linear", widthMm: A, depthMm: 3400, heightMm }`; its issues name only `wallA`
+   or `height`; never `wallB`, `wallC`, `ROOM_TOO_SMALL_FOR_KITCHEN` or a `cornerDirection` key. L
+   inputs return exactly what they return at `8cd084b`. **[unit]**
+4. **Validator ⇔ generator** (7A2 criterion 3 for one wall): over 1200–6000 × 2200–3900, ≥ 200 samples
+   plus every boundary in A6, validation passes **iff** `generateKitchen` places a sink and a hob.
+   **[unit]**
+5. **The shell.** A straight shell has zero placements; its empty columns are on wall A only, each ≤
+   800; floor and wall-only tiles each cover `[0, W − W mod 2]` without gap or overlap; zero findings.
+   `buildLShellDesign` still refuses a straight room with `ROOM_NOT_L`. **[unit]**
+6. **Composition** (*property*, 1200–6000 × 2200–3900, ≥ 200 samples, plus 1200, 1799/1800,
+   1899/1900, 2499/2500, 3699/3700, 4000/4001, 4899/4900, 5999/6000): zero findings, no overflow;
+   deterministic; the log replays to the design; along-run order is a subsequence of fridge → sink →
+   preparation → hob and the first base starts at 0; **nothing on wall B**; bare end < 600; exactly
+   one oven; an upper over every base below the wall row, a hood over the hob, none over a
+   full-height body; a dishwasher only along the wall beside the sink; any block at the x = W end.
+   **[unit]**
+7. **`depthMm` is never read by generation:** for a straight room, `depthMm` ∈ {1, 3400, 6300} yields
+   designs equal except `room.depthMm`. **[unit]**
+8. **Witnesses, through `generateKitchen`:** 3700 × 2600 is G7's six bodies in that order; 6000 ×
+   2600 leaves 0 mm bare; 1200 holds a sink and a hob only. **If S2 measures otherwise, stop and
+   report** — G5–G7 are a model. **[unit]**
+9. **One wall.** `wallLengthMm("B", straight) = 0`, `("A") = widthMm`; L unchanged; a wall-B placement
+   in a straight document is reported overflowing, not refused. **[unit]**
+10. **No mirror.** `cornerDirectionOf({ shape: "linear", …, cornerDirection: "right" })` is `"left"`;
+    the stage root's `scale.x` is positive for every straight design. **[unit]**
+11. **3D.** For a straight design `wall_left` is not visible; floor depth is `depthMm + 0.3 m`;
+    an L and a straight room at equal `W×D×H` redraw on switching; no panel at x ≤ 0; the right
+    panel is `runEndPanelSeatM`'s answer. With the real probe over a generated straight sample: no two
+    bodies intersect and every back face is on wall A's plane (7D2 criterion 6). **[unit] + [parity]**
+12. **Cameras.** `cameraPresetsForRoom(straight)` ids are `[overview, wallA]`; an L's are unchanged;
+    the editor shows two buttons for a straight design and three for an L; a stored `wallB` with a
+    straight design frames `overview` and throws nothing. **[unit] + [dom]**
+13. **Step 1** (after S5): *Liniară* enables *Continuă* with no component edit; a filled straight room
+    reaches 1D, 1F and the editor; the 1C suggestion shows for an L entry whose wall A and height
+    validate as a straight room (7F2's positive arm, by name) and not when wall A is outside
+    1200–6000; 1F's straight summary shows wall A and height and no third number; the L summary is
+    unchanged. **[dom] + [e2e]**
+14. **Must not, `src/room`:** `git diff <wave base> -- apps/web/src/room` touches exactly
+    `room-url-state.ts` and `generation-steps.tsx`; no line added under `src/room` compares a shape to
+    `"linear"`; `git grep "as BuildableShapes"` returns only `U` casts, each naming M7B. **[review]**
+15. **Must not, sequencing:** `isShapeBuildable("linear", APPROVED_ROOM_POLICY)` is false at every
+    wave commit before S5 (checked per commit). **[QA]**
+16. **Flow.** Mobile and desktop e2e: 1A → *Liniară* → fields → 1D → 1F → editor at `/d/{id}`; reload
+    on the room query and on `/d/{id}` restores; the share view draws the same kitchen; what the specs
+    add is reported against ADR 0105's ceiling. **[e2e]**
+17. **Captures** at 1200, 3700 and 6000 × both viewports × `overview`/`wallA`: no wall-B plane, no
+    floating corner piece, fronts face the room, nothing past the wall's end; the fridge or sink side
+    at x = 0 shows unpanelled (D8, accepted). **[visual]**
+
+#### 5. Risks
+
+- **R1 — S5 turns "until 7J" assertions red and one is "fixed" by deletion.** S0's census; each
+  restatement cites its row; QA diffs assertions, not counts.
+- **R2 — the model is not the generator** (void lookup at x = 0, the free-end `setWidth` against the
+  L's runs, uppers from x = 0). A8's stop-and-report; S2's replay property.
+- **R3 — a shared-helper refactor moves the L.** A1's baselines are byte-compared.
+- **R4 — a stale camera id throws in the editor** (the store outlives a design). A12.
+- **R5 — 3400 mm of floor frames a 1200 run poorly.** A17's gate; the remedy is the preset target,
+  not the depth.
+- **R6 — the unpanelled left end reads as unfinished to the owner.** Recorded in ADR 0118's shape;
+  trigger: the owner objects on seeing it.
+
+**Owner questions:** none blocking. Q-7J-1 is answered and encoded (D1, ADR 0108 Amendment G).
 
 **7F2 (add, 2026-09-14, from wave 7F1's rulings R2 and R3 — read them before starting):**
 
