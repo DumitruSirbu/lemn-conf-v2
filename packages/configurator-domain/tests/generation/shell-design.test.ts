@@ -291,7 +291,7 @@ describe("buildLShellDesign — the document it writes", () => {
   });
 
   it("refuses a room carrying a key a stored design cannot, by code (Q1.5)", () => {
-    const withAnExtraKey = { ...REFERENCE_ROOM, cornerDirection: "left" };
+    const withAnExtraKey = { ...REFERENCE_ROOM, depthSetting: 700 };
 
     const refusal = refusalOf(() => shellIn(withAnExtraKey));
 
@@ -310,6 +310,17 @@ describe("buildLShellDesign — the document it writes", () => {
 
     expect(refusal).toBeUndefined();
     expect(DesignSchema.safeParse(shellIn(room)).success).toBe(true);
+  });
+
+  // ADR 0129 D2: cornerDirection joined DesignRoomSchema this wave, so it is now a key a stored
+  // design *can* carry, and passes through this same untouched-room path (Q1.5's other half).
+  it("builds from a room carrying cornerDirection: right, untouched (ADR 0129 D2)", () => {
+    const room: DesignRoom = { ...REFERENCE_ROOM, cornerDirection: "right" };
+
+    const shell = shellIn(room);
+
+    expect(shell.room).toStrictEqual(room);
+    expect(DesignSchema.safeParse(shell).success).toBe(true);
   });
 
   it("refuses a moment that is not a timestamp, by code", () => {

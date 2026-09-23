@@ -1028,7 +1028,9 @@ describe("buildLShellDesign — the room it refuses (Q1.5, revised: refuse rathe
   }
 
   it.each([
-    ["an extra key", { ...ROOM, cornerDirection: "left" }],
+    // ADR 0129 D2 added `cornerDirection` to DesignRoomSchema this wave, so it is no longer an
+    // extra key here — `corner-direction.test.ts` covers that a room carrying it now builds.
+    ["an extra key", { ...ROOM, depthSetting: 700 }],
     ["a missing key", { shape: "L", widthMm: 3560, depthMm: 2920 }],
     ["a width written as text", { ...ROOM, widthMm: "3560" }],
     ["a fractional millimetre", { ...ROOM, widthMm: 3560.5 }],

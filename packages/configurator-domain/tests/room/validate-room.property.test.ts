@@ -194,8 +194,11 @@ describe("validateRoomInput — the shape is judged first, whatever the dimensio
   });
 });
 
-describe("validateRoomInput — the corner direction is never read", () => {
-  it("answers a valid L identically for either direction, and the room carries none", () => {
+// ADR 0129 D2/D3: the direction is carried onto the room now, so "never read" is about *judgement*
+// — `ok` and `issues` do not vary with it — not about the room being identical across a flip. The key
+// itself is asserted only where written (D2's writer omits it for left, writes it for right).
+describe("validateRoomInput — the corner direction is never read to judge a room", () => {
+  it("accepts a valid L for either direction, and only a right one carries the key", () => {
     fc.assert(
       fc.property(validLRoomInput, (input) => {
         const result = validateRoom(input);
@@ -204,27 +207,33 @@ describe("validateRoomInput — the corner direction is never read", () => {
           cornerDirection: flipped(input.cornerDirection),
         });
 
-        expect(flippedResult).toStrictEqual(result);
-        expect(Object.keys(acceptedRoom(input)).sort()).toEqual([
-          "depthMm",
-          "heightMm",
-          "shape",
-          "widthMm",
-        ]);
+        expect(flippedResult.ok).toBe(result.ok);
+        const room = acceptedRoom(input);
+        expect("cornerDirection" in room).toBe(
+          input.cornerDirection === "right",
+        );
+        if (input.cornerDirection === "right") {
+          expect(room.cornerDirection).toBe("right");
+        }
       }),
       { numRuns: RUNS_PER_ARM },
     );
   });
 
-  it("answers any L identically for either direction, refused or not", () => {
+  it("answers any L with the same ok and issues for either direction, refused or not", () => {
     fc.assert(
       fc.property(anyLRoomInput, (input) => {
         const flippedInput = {
           ...input,
           cornerDirection: flipped(input.cornerDirection),
         };
+        const result = validateRoom(input);
+        const flippedResult = validateRoom(flippedInput);
 
-        expect(validateRoom(flippedInput)).toStrictEqual(validateRoom(input));
+        expect(flippedResult.ok).toBe(result.ok);
+        if (!result.ok || !flippedResult.ok) {
+          expect(flippedResult).toStrictEqual(result);
+        }
       }),
       { numRuns: RUNS_PER_ARM },
     );
@@ -284,6 +293,9 @@ describe("validateRoomInput — a valid room is exactly what was entered", () =>
           widthMm: input.wallAMm,
           depthMm: input.wallBMm,
           heightMm: input.heightMm,
+          ...(input.cornerDirection === "right"
+            ? { cornerDirection: "right" as const }
+            : {}),
         });
         expect(DesignRoomSchema.parse(result.room)).toStrictEqual(result.room);
       }),

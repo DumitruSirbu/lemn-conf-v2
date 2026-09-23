@@ -146,6 +146,12 @@ export const DesignRoomSchema = z.strictObject({
   widthMm: roomDimensionSchema(MAX_ROOM_WIDTH_MM),
   depthMm: roomDimensionSchema(MAX_ROOM_DEPTH_MM),
   heightMm: roomDimensionSchema(MAX_ROOM_HEIGHT_MM),
+  /** Which way the corner turns (ADR 0129 D2). Optional, and the product writes it only for a
+   *  right-hand room: an absent key is left, so every left-hand document stays byte-identical to
+   *  what this schema wrote before this key existed — no schema version bump is owed, the same
+   *  argument as `columnExtents` (ADR 0053). A truthful explicit `"left"` still parses. Read only
+   *  through `cornerDirectionOf`, the one production reader (ADR 0129 D2). */
+  cornerDirection: z.enum(["left", "right"]).optional(),
 });
 export type DesignRoom = z.infer<typeof DesignRoomSchema>;
 

@@ -414,7 +414,10 @@ describe("7A2 — engine envelope and wire schema remain independent", () => {
     };
 
     expect(DesignRoomSchema.safeParse(room).success).toBe(false);
+    // ADR 0129 D2 added `cornerDirection` this wave; the assertion is still that this suite's
+    // *policy* key (`minimumKitchen`) is not among them, not that the schema never grows.
     expect(DesignRoomSchema.keyof().options.sort()).toEqual([
+      "cornerDirection",
       "depthMm",
       "heightMm",
       "shape",

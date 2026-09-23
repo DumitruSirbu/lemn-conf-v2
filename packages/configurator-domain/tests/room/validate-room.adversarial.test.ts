@@ -123,18 +123,19 @@ const BUILDS_NOTHING: RoomPolicy = {
 };
 
 /** The validator, with the whole-result shape checked on every call: a refusal is exactly
- *  `{ ok, issues }`, an acceptance exactly `{ ok, room }`, and every issue exactly `{ field, code }`
+ *  `{ ok, issues }`, an acceptance exactly `{ ok, room }` of its four keys plus `cornerDirection`
+ *  only when the room is right-hand (ADR 0129 D2/D3), and every issue exactly `{ field, code }`
  *  with both drawn from the published enums and **no digit anywhere in what a surface is handed**. */
 function judge(input: unknown, policy: RoomPolicy): RoomValidation {
   const result = validateRoomInput(input as RoomInput, policy);
   if (result.ok) {
     expect(Reflect.ownKeys(result).sort()).toEqual(["ok", "room"]);
-    expect(Reflect.ownKeys(result.room).sort()).toEqual([
-      "depthMm",
-      "heightMm",
-      "shape",
-      "widthMm",
-    ]);
+    const roomKeys = Reflect.ownKeys(result.room).sort();
+    expect(roomKeys).toEqual(
+      "cornerDirection" in result.room
+        ? ["cornerDirection", "depthMm", "heightMm", "shape", "widthMm"]
+        : ["depthMm", "heightMm", "shape", "widthMm"],
+    );
   } else {
     expect(Reflect.ownKeys(result).sort()).toEqual(["issues", "ok"]);
     expect(result.issues.length).toBeGreaterThan(0);
@@ -260,6 +261,7 @@ function expectedLValidation(
     readonly wallAMm: number | undefined;
     readonly wallBMm: number | undefined;
     readonly heightMm: number | undefined;
+    readonly cornerDirection?: unknown;
   },
   policy: RoomPolicy,
 ): RoomValidation {
@@ -281,7 +283,16 @@ function expectedLValidation(
   }
   return {
     ok: true,
-    room: { shape: "L", widthMm: wallAMm, depthMm: wallBMm, heightMm },
+    room: {
+      shape: "L",
+      widthMm: wallAMm,
+      depthMm: wallBMm,
+      heightMm,
+      // ADR 0129 D2/D3: carried, and written only for a right-hand room.
+      ...(input.cornerDirection === "right"
+        ? { cornerDirection: "right" as const }
+        : {}),
+    },
   };
 }
 
@@ -730,8 +741,12 @@ describe("validateRoomInput never rounds, at the edges of floating point", () =>
 // The direction is carried and never read.
 // =================================================================================================
 
-describe("validateRoomInput never reads the corner direction", () => {
-  it("answers identically whatever the direction holds, including nothing and nonsense", () => {
+// ADR 0129 D2/D3 changed what "never reads" means: the direction is carried onto the room now, so
+// this suite asserts the part that is still true — `ok` and `issues` never vary with it, including
+// for a nonsense value, which is refused on its own account rather than because it was read as a
+// direction — and moves the room-shape assertion to a `left`/`right` pair below.
+describe("validateRoomInput never reads the corner direction to judge a room", () => {
+  it("answers with the same ok and issues whatever the direction holds, including nonsense", () => {
     fc.assert(
       fc.property(
         policyAndLInput,
@@ -744,9 +759,14 @@ describe("validateRoomInput never reads the corner direction", () => {
           const withoutDirection = { ...input };
           Reflect.deleteProperty(withoutDirection, "cornerDirection");
 
-          expect(
-            judge({ ...input, cornerDirection: direction }, policy),
-          ).toStrictEqual(reference);
+          const withDirection = judge(
+            { ...input, cornerDirection: direction },
+            policy,
+          );
+          expect(withDirection.ok).toBe(reference.ok);
+          if (!withDirection.ok) {
+            expect(withDirection).toStrictEqual(reference);
+          }
           expect(judge(withoutDirection, policy)).toStrictEqual(reference);
         },
       ),
@@ -754,7 +774,43 @@ describe("validateRoomInput never reads the corner direction", () => {
     );
   });
 
-  it("builds a room of exactly four keys however many extra keys the input carries", () => {
+  it("carries the direction onto an accepted room, written only for right", () => {
+    fc.assert(
+      fc.property(policyAndLInput, ({ policy, ...input }) => {
+        const left = judge({ ...input, cornerDirection: "left" }, policy);
+        const right = judge({ ...input, cornerDirection: "right" }, policy);
+
+        expect(right.ok).toBe(left.ok);
+        if (left.ok && right.ok) {
+          expect("cornerDirection" in left.room).toBe(false);
+          expect(right.room).toStrictEqual({
+            ...left.room,
+            cornerDirection: "right",
+          });
+        }
+      }),
+      { numRuns: RUNS },
+    );
+  });
+
+  it("builds a room of exactly four keys for left, however many extra keys the input carries", () => {
+    const valid = lInputAtMinimaOf(ENGINE_ROOM_LIMITS);
+    const input = {
+      ...valid,
+      cornerDirection: "left",
+      direction: "right",
+      mirrored: true,
+      wallCMm: 1200,
+      depthSetting: 700,
+    };
+
+    expect(judge(input, ENGINE_ROOM_LIMITS)).toStrictEqual({
+      ok: true,
+      room: roomAtMinimaOf(ENGINE_ROOM_LIMITS),
+    });
+  });
+
+  it("builds a room of exactly five keys for right, however many other extra keys the input carries", () => {
     const valid = lInputAtMinimaOf(ENGINE_ROOM_LIMITS);
     const input = {
       ...valid,
@@ -767,7 +823,7 @@ describe("validateRoomInput never reads the corner direction", () => {
 
     expect(judge(input, ENGINE_ROOM_LIMITS)).toStrictEqual({
       ok: true,
-      room: roomAtMinimaOf(ENGINE_ROOM_LIMITS),
+      room: { ...roomAtMinimaOf(ENGINE_ROOM_LIMITS), cornerDirection: "right" },
     });
   });
 });

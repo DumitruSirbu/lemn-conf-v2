@@ -477,7 +477,15 @@ describe("room URL state domain hand-off", () => {
         heightMm: 2500,
         cornerDirection: "right",
       },
-      room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2500 },
+      // ADR 0129 D2/D3 (M7 wave 7I S1): validateRoomInput now carries cornerDirection onto the
+      // room it returns, written only for right.
+      room: {
+        shape: "L",
+        widthMm: 3600,
+        depthMm: 2400,
+        heightMm: 2500,
+        cornerDirection: "right",
+      },
       markedFields: [],
     });
   });

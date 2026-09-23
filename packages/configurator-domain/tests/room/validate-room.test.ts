@@ -160,7 +160,24 @@ describe("validateRoomInput — whole millimetres or refused, never rounded", ()
 });
 
 describe("validateRoomInput — a valid L is the existing DesignRoom", () => {
-  it("maps wall A to the width, wall B to the depth, and carries no direction", () => {
+  it("maps wall A to the width, wall B to the depth, and carries no key for left", () => {
+    const input = validLInput({ cornerDirection: "left" });
+
+    const result = validateRoom(input);
+
+    expect(result).toStrictEqual({
+      ok: true,
+      room: {
+        shape: "L",
+        widthMm: input.wallAMm,
+        depthMm: input.wallBMm,
+        heightMm: input.heightMm,
+      },
+    });
+  });
+
+  // ADR 0129 D2/D3: carried, and written only for right (S1's addition to this file).
+  it('carries cornerDirection: "right" for a right-hand room', () => {
     const input = validLInput({ cornerDirection: "right" });
 
     const result = validateRoom(input);
@@ -172,6 +189,7 @@ describe("validateRoomInput — a valid L is the existing DesignRoom", () => {
         widthMm: input.wallAMm,
         depthMm: input.wallBMm,
         heightMm: input.heightMm,
+        cornerDirection: "right",
       },
     });
   });

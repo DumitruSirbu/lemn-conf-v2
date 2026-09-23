@@ -124,6 +124,9 @@ function validateLRoom(input: LRoomInput, bounds: LRoomBounds): RoomValidation {
     };
   }
   // ADR 0108 decision 8: `wallLengthMm`'s mapping, so the fit gate reads back the walls entered.
+  // ADR 0129 D2/D3: the direction is carried onto the room, never read to judge it (the issues
+  // above are computed with no reference to `input.cornerDirection`) — and written only for
+  // "right", so a left-hand room stays the same four keys it was before this wave.
   return {
     ok: true,
     room: {
@@ -131,6 +134,9 @@ function validateLRoom(input: LRoomInput, bounds: LRoomBounds): RoomValidation {
       widthMm: wallA.valueMm,
       depthMm: wallB.valueMm,
       heightMm: height.valueMm,
+      ...(input.cornerDirection === "right"
+        ? { cornerDirection: "right" as const }
+        : {}),
     },
   };
 }
