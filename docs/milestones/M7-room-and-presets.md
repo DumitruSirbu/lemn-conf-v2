@@ -1557,7 +1557,7 @@ table.
 | **7E4** | e2e and tooling off `/configurator/configure` — **DONE 2026-09-23; plan `4d65a6f`, S1 `64e8894`, S1 QA `99fd679`, S2 + Q1/Q3 `740142b`, S3 `d00212a`, QA round 2 `708d3b8`, review round 1 `734a5e3`, review round 2 `1b512bb`; see [7E4 close-out](#7e4-close-out--2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | Runner verdict still outstanding — needs the owner's `workflow_dispatch` |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA `0d53a06`; review round 1 `1ae9f32`; see [7E3a close-out](#7e3a-close-out--2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
-| **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) | `persistence/src/migrations/00NN_create_design_share_links.sql`, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, `src/panel/share-design.tsx` (+ `proxy.ts` allow-list) | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
+| **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **planned 2026-09-23: see [Wave 7E3c — the plan](#wave-7e3c--the-plan-2026-09-23) and ADR 0114 Amendment G** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
@@ -2284,6 +2284,294 @@ tier plus security, visual **Yes**, per the recorded order `7E4 → 7E3a → 7E3
    design's retention clock.
 7. The three read-only e2e specs (`read-only-panel`, `read-only-global-settings`,
    `shared-design-locale-identity`) are **re-pointed at `/s/{token}`** rather than deleted.
+
+### Wave 7E3c — the plan (2026-09-23)
+
+**Written by the architect at HEAD `8b4282c`.** Labels: **[source-verified]** read at `8b4282c`;
+**[doc-quoted]** from a record or Next 16's bundled docs; **[measured]** a `git grep` run in this
+session; **[inference]** reasoned, open to challenge. Nothing was built, run or applied. The mechanism
+decisions below are also recorded as ADR 0114 **Amendment G** (same date).
+
+#### 1. Ground truth
+
+| # | Fact | Evidence |
+| --- | --- | --- |
+| G1 | `migrations/` holds `0001`–`0005`; `readMigrationFiles` refuses a hole. **This wave's file is `0006`.** | [source-verified] |
+| G2 | The unattended screen's *"rewrites existing rows"* diagnosis is a bare `\bdelete\b`, so **`on delete cascade` is refused**; `grant` matches no recognised shape. `migration-safety.test.ts` asserts **every shipped file** clears, and `deploy.yml:102` screens every file on every run. An FK cascade in `0006` as the screen stands would turn the gate red and block every future deploy. | [source-verified] `migration-safety.ts` (`DESTRUCTIVE_DIAGNOSES`), `migration-safety.test.ts:30-38` |
+| G3 | `app_designs` was granted `SELECT, INSERT, UPDATE` on `designs` **by hand SQL, per table**; no `DELETE`. A new table has no grant until someone issues one. `application-role-privileges.test.ts` asserts against `DATABASE_URL`, which a checkout's root `.env.local` points at production. | [doc-quoted] ADR 0008, ADR 0054 table; [source-verified] test `:57-72` |
+| G4 | Six persistence files call `runMigrations` against `TEST_DATABASE_URL`: `migrate`, `neon-configuration-repository`, its `.adversarial`, `design-row-source`, `backup-restore-round-trip.adversarial`, `test-database-schema-status`. `vitest.config.ts` loads `.env.test.local`, so **each applies `0006` when run** (the 7E3a incident). Pre-commit runs only prettier and lint; **pre-push runs `local-ci.sh`, which applies it.** | [measured]; [source-verified] `.githooks/*` |
+| G5 | The write token's `Path=/api/designs/{id}` path-matches `/api/designs/{id}/share`, so both cookies reach the share route (ADR 0114 B4). The visitor cookie (`Path=/`) **also reaches `/s/*`**, so the share page must not read it. | [source-verified] `write-token.ts`, `visitor.ts`; [inference] RFC 6265 path-match |
+| G6 | "A missing design" is `designErrorResponse`'s branch: 404 `{"error":"No design found for id \"…\""}`, no cache header. | [source-verified] `design-errors.ts:85-86`, domain `repository.ts:20-24` |
+| G7 | D6's cross-site predicate is private to `api/designs/route.ts`. SHA-256-hex-over-UTF-8 is written twice (`write-token.ts`, `visitor.ts`); the share token makes three. `requireSha256Digest` is private to `neon-configuration-repository.ts`. | [source-verified] |
+| G8 | `HydrateAndConfigure` receives `designId` as a client prop, so the id is in the RSC payload; `SelectionDebug` renders `data-design-id`. The single-mount guard admits only `hydrate-and-configure.tsx`. | [source-verified] `configure-screen-single-mount.test.ts` |
+| G9 | Read-only is a UI rule: only the panel and global settings call store mutators, both gated on `canWrite`; the scene only selects. `ConfigureScreen` always renders two Step 1 links (`top-bar-back`, `bottom-bar-back`) and the inert `review-cta`, whatever `canWrite` says. | [measured]; [source-verified] `configure-screen.tsx:88-93,207-218` |
+| G10 | The proxy allow-lists `configurator/{configure,contact,room}` and `d/{x}`. next-intl sets **`NEXT_LOCALE`** on locale-routed responses, prefixed ones included. | [source-verified] `proxy.ts:64-86`, `proxy.test.ts:152,181` |
+| G11 | `Referrer-Policy: strict-origin-when-cross-origin` is set on `/:path*` by `next.config.ts`. Next runs config headers **before** the proxy. | [source-verified]; [doc-quoted] `03-file-conventions/proxy.md:238-247` |
+| G12 | Nothing deletes a design automatically; the app role cannot. The backup exports `designs` rows only. The restore is a row-level upsert on `id`, or a Neon point-in-time branch restore of the whole database. | [doc-quoted] ADR 0019 note 2026-09-15; [source-verified] `design-row-source.ts`, runbook `:35-58,196-205` |
+| G13 | The stored document carries no row id (`room`, `presetId`, `placements`, extents, `settings`, timestamps). | [source-verified] `design.ts:207-235` |
+| G14 | Four specs read a design without its cookie on `/d/{id}`: the three criterion 7 names **and `global-colour.e2e.spec.ts:300-308`**. `read-only-global-settings` test 3's subject is the probe's in-flight window, which a share view does not have. | [measured] |
+| G15 | The store already names the gate: `hasPersistedSuccessfully` is what *"a future share-link UI gates on"* (ADR 0002 decision 17). No `"use server"` exists in `src`. | [source-verified] `configurator-store.ts:214-216`; [measured] |
+
+**Decision-record sweep** — `docs/decisions/` grepped for `share`, `token`, `no-referrer`, `noindex`,
+`read-only`, plus the records the dispatch named.
+
+| Record | Bearing | Settled |
+| --- | --- | --- |
+| 0114 B, C, D; 0115 decision 2 | This wave's contract | **Followed.** Three gaps ruled in Amendment G: the FK cascade the screen refuses (G2), the grant (G3) and `NEXT_LOCALE` (G10). |
+| 0114 F4 (D6) | Cross-site mint refused | **Reused** on the share route (D5). |
+| 0002 decision 17; supersession notes | A never-persisted design presents no link | **Followed** (D10). |
+| 0019 note 2026-09-15; decision 11 | No reaper; table-level `UPDATE` residual | Cascade still decided, for the manual script and tests (D8). The **`UPDATE` residual now covers `revoked_at`**: reported to security, not re-decided. |
+| 0008 | Exactly `SELECT, INSERT, UPDATE` on `designs`, *"nothing else"* | **Extended** by a dated note: the same three on the new table, no `DELETE` (D9). |
+| 0020, 0042, 0096 decisions 5 and 8 | Read back; frozen bytes; unattended = additive and idempotent; forward only | **Followed.** The screen gains one recognised shape (D2); that is the deliberate act its own header describes, not a relaxation. |
+| 0006, 0054, 0105, 0128 | Test DB only; local dev → preview; shared e2e DB; live lock and census | **Followed** (§3). The census moves by one row (D3). |
+| 0095 decision 4; 0041 | Locale is presentation; CSP nonce, report-only | `NEXT_LOCALE` allowed (D7); nonce required on the share page. |
+| 0104 decision 1 | Frames are chrome; no invented band | The control goes **inside** the settings surface, not in the top bar (D10). |
+| 0113; 0114 B *Copy* | New leaves approved as drafted, locked in their commit | **Followed** (D10). No owner approval blocks. |
+| 0052, 0055, 0071, 0073 | A stored design always loads, for the link holder | These now protect `/s/{token}`. The same `migrateDesign` path is used. |
+| 0010; backlog 80 | Mint-on-first-command branch | The share view cannot reach it (D6: the store id is non-null and `canWrite` is false). |
+| 0118 | Record, don't build, the unoccurred | Applied to the lost-ack retry and the `design_id` index (R8, D2). |
+| Backlog 81 (SEC-7E3a.1) | Fixation gates 7E3b | **Does not widen here.** A planted visitor value lacks the per-design write token, which is fresh at every mint, so it can neither create nor revoke a link. Still gates 7E3b. |
+
+#### 2. Decisions
+
+**D1 — Token.** Twelve characters from `ALPHABET = 0-9A-Za-z` (62). **Rejection sampling:**
+- Draw bytes from `randomBytes`, keep only `b < 248` (4 × 62), and emit `ALPHABET[b % 62]`. Repeat until there are 12.
+- The generator takes an injectable byte source, `createShareToken(drawBytes = randomBytes)`, so the sampling is testable.
+- The shape is `^[0-9A-Za-z]{12}$`. The hash is SHA-256 hex over UTF-8.
+- **Third use of that digest:** extract `lib/server/sha256-hex.ts` (`server-only`) and switch `visitor.ts` and `write-token.ts` to it. The output is byte-identical, and their existing tests pin it.
+- No pepper, no environment variable (ADR 0114 C1).
+
+**D2 — Schema.** See §3. One table: `design_share_links(token_hash PK, design_id FK → designs ON DELETE CASCADE, created_at, revoked_at)`, plus a partial unique index on `design_id where revoked_at is null`.
+- No separate `design_id` index: the cascade runs only in a manual delete (ADR 0118).
+- `migration-safety.ts` gains **one** recognised case. Inside a statement already matched as `create table if not exists`, the referential action `on delete (cascade|restrict|no action|set null|set default)` does not trip the `delete` diagnosis. Everywhere else, `delete` and `on update …` are refused as today.
+
+**D3 — Persistence port** `persistence/src/share-link-repository.ts`: `ShareLinkRepository` / `NeonShareLinkRepository`. It is **a separate port**, for 7E3a D3's reason. Every method compares both hashes inside SQL and **never writes to `designs`**.
+
+| Method | Statement(s) | Answers |
+| --- | --- | --- |
+| `issue({designId, writeTokenHash, visitorHash, tokenHash})` | One `sql.transaction` of three statements, each carrying the same authorisation predicate `id = $ and write_token_hash = $ and visitor_hash = $`: (1) `select … for update` on the design row, which serialises concurrent issues; (2) revoke the active row; (3) `insert … select` from the authorised row | `issued` \| `refused` |
+| `revoke(credentials)` | One CTE: authorised, then `update … set revoked_at = now() where revoked_at is null` | `revoked` (also when none was active) \| `refused` |
+| `status(credentials)` | One select | `{active: boolean}` \| `refused` |
+| `loadShared(tokenHash)` | `select d.schema_version, d.document from design_share_links s join designs d on d.id = s.design_id where s.token_hash = $1 and s.revoked_at is null`. **It selects no id.** | `found {design}` \| `none` |
+
+- `requireSha256Digest` moves to `persistence/src/sha256-digest.ts`, with an operation-named message. `issue` guards `tokenHash` with it.
+- The token is generated **outside** `retryOnComputeRestart`, as the mint's id is.
+- Live tests go in a new `tests/share-link-repository.test.ts`, mode **`shared`** (it writes rows and needs the schema intact). The census literal gains exactly that row. Putting a new port's behaviour into the exclusive `neon-configuration-repository` files would serialise it for no reason. **The coordinator may overrule** this and fold it into `neon-configuration-repository.test.ts`.
+
+**D4 — Endpoint contract**, `app/api/designs/[id]/share/route.ts`. The body is never read. No response ever carries `Set-Cookie`.
+
+| Method | Authorised | Refused (see order below) |
+| --- | --- | --- |
+| `POST` | `201 {"path":"/s/{token}"}`, and nothing else in the body | the refusal |
+| `DELETE` | `204`, empty. Idempotent. | the refusal |
+| `GET` | `200 {"active":boolean}` | the refusal |
+
+- **Success headers:** `Cache-Control: private, no-store` and `Vary: Cookie`.
+- **Order of checks:** (1) D5's cross-site check; (2) a present write token for this id **and** a well-formed visitor cookie, else the refusal **with no query**; (3) the repository.
+- **The refusal** is one function, `designNotFoundResponse(id)`, extracted from `designErrorResponse` and used by both. It is byte-identical to `GET /api/designs/{unknown}`'s 404 for the same id.
+- **Driver errors** go through `reportDesignFailure("share-issue" | "share-revoke" | "share-status", …)` and are rethrown, as the mint's are.
+- `visitor.ts` gains `readVisitorHash(cookies)` (well-formed → hash, else `undefined`). The resume helper is untouched.
+- `lib/server/repository.ts` gains `getShareLinkRepository()`.
+
+**D5 — CSRF.** `SameSite=Lax` already withholds both cookies from a cross-site `POST`/`DELETE`. It does **not** withhold them from a *same-site* sibling origin, and a simple `POST` needs no preflight, so such a sibling could re-issue and thereby cut off the owner's link.
+- D6's predicate moves to `lib/server/cross-site-request.ts`, and `api/designs/route.ts` imports it unchanged.
+- The share route applies it to **all three methods**, and answers with the refusal, not D6's 403: one refusal shape. A log-only code, `SHARE_CROSS_SITE_REFUSED`, records it.
+
+**D6 — The share view**, `app/[locale]/s/[token]/page.tsx`, a server component.
+- **Rendering.** A malformed token gets the unavailable view with **no query**. Otherwise the token is hashed and `loadShared` runs: `found` renders `<SharedDesignView design={…} />`; `none` renders the existing `DesignLoadError reason="not-found"` (HTTP 200, as `/d` does; no new copy); `InvalidDesignError` renders `reason="invalid"`, reachable only with a live token. A driver error is logged as `"share-read"` and rethrown.
+- **Metadata** `robots: {index:false, follow:false}`, `referrer: "no-referrer"`. The page imports **nothing** from `visitor.ts`, `write-token.ts` or `fetch-configuration-repository.ts`.
+- **`SharedDesignView`** (`app/s/[token]/shared-design-view.tsx`, client) hydrates during render with `designId: SHARED_VIEW_DESIGN_ID` (not 21 characters, so never a nanoid), a sentinel revision and `canWrite: false`; it re-hydrates whenever the store's design is not the object it was handed. It mounts `<ConfigureScreen variant="shared" />`, which omits both Step 1 links and the review CTA row; `"owner"` is the default and unchanged. **The single-mount guard admits exactly these two files.**
+
+**D7 — Proxy and headers.**
+- **The allow-list** gains `s/{token}`: two segments, the second non-empty.
+- **On every share-path response,** redirect and page alike, the proxy sets `SHARE_VIEW_HEADERS` (exported from `security-headers.ts`): `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`, `Cache-Control: private, no-store`.
+- **Why the proxy and not `next.config.ts`:** by G11 the proxy runs later, so its value should win [inference]. A production build measures this (criterion 7). **If it does not win,** the fallback is a source-specific `next.config.ts` rule after `ALL_ROUTES` (last wins [doc-quoted]). The implementer reports which one shipped.
+- **`NEXT_LOCALE` ruling (a contract gap).** Criterion 3's *"sets no cookie"* is read as *no credential cookie, and no cookie other than `NEXT_LOCALE`*. `NEXT_LOCALE` is ADR 0114 C2's own mechanism for sending the recipient to their locale, and it carries only a locale (ADR 0095 decision 4).
+
+**D8 — Retention and backup.**
+- **Cascade:** deleting a design deletes its share rows.
+- **No share operation writes to `designs`:** a share never moves `updated_at`, so it neither reorders resume nor touches the retention clock.
+- **Share rows are excluded from the backup, deliberately.** A restore of an older export could otherwise resurrect a link revoked since. `design-row-source.ts` is unchanged, and a row-level restore touches no share row.
+- **A point-in-time restore does resurrect revocations.** The runbook therefore gains an owner step to run after one: `update design_share_links set revoked_at = now() where revoked_at is null`. Every link dies, and owners re-issue.
+
+**D9 — Grant.** The owner runs `GRANT SELECT, INSERT, UPDATE ON TABLE public.design_share_links TO app_designs;` on preview, then on production, after `0006` and before the deploy. There is no `DELETE`: revocation is an `UPDATE`, and the cascade runs as the table owner.
+- The grant is not in the migration: `grant` is an unrecognised shape, and whether `app_designs` exists on the test database is unmeasured.
+- `application-role-privileges.test.ts` gains a test **conditional on `to_regclass('public.design_share_links')`**: present → grants exactly `INSERT, SELECT, UPDATE` and a delete refused; absent → skipped by name. Local gates stay green before the owner acts and go red if the table exists without the grant.
+
+**D10 — The share control.**
+- **Where it lives:** `src/share/share-design.tsx` (not `src/panel/`: it is not the panel), with its fetch calls in `src/persistence/share-link-client.ts`. It is the **last section of the global-settings surface**, the sheet on mobile and the popover on desktop. No chrome slot is invented (ADR 0104 decision 1), and the pill's ladder does not count it.
+- **When it renders:** only when `canWrite === true` and `hasPersistedSuccessfully`.
+- **States:** *none* (`Creează link`); *active* (status, `Creează un link nou`, `Dezactivează linkul`); *just created* (a read-only field holding `${location.origin}${path}`, `Copiază`, the shown-once warning); *error*.
+- **The link is shown once** and lives only in component state: never the store, never Web Storage, never the URL, never a log. It is never rendered as an anchor, so there is no navigation and no prefetch.
+- **Copy**, drafted and approved by ADR 0113 / 0114 B, locked in its commit. The owner may reword it later (non-blocking):
+
+| Key (under `share`) | ro | ru |
+| --- | --- | --- |
+| `title` | Link de vizualizare | Ссылка для просмотра |
+| `description` | Oricine are linkul poate vedea designul, dar nu îl poate modifica. | Любой, у кого есть ссылка, сможет посмотреть дизайн, но не изменить его. |
+| `create` / `reissue` | Creează link / Creează un link nou | Создать ссылку / Создать новую ссылку |
+| `active` | Un link de vizualizare este activ. | Ссылка для просмотра активна. |
+| `reissueWarning` | Linkul vechi nu va mai funcționa. | Старая ссылка перестанет работать. |
+| `shownOnce` | Copiază linkul acum — nu îl vom mai putea afișa. | Скопируйте ссылку сейчас — показать её снова мы не сможем. |
+| `copy` / `copied` | Copiază / Copiat | Копировать / Скопировано |
+| `revoke` / `revoked` | Dezactivează linkul / Linkul a fost dezactivat. | Отключить ссылку / Ссылка отключена. |
+| `error` | Nu am putut actualiza linkul. Încearcă din nou. | Не удалось обновить ссылку. Попробуйте ещё раз. |
+
+**D11 — Revocation racing a read.** A request that **begins after** the `DELETE` response is refused. A read whose snapshot predates the commit may still complete once. That residual is stated and not engineered away.
+
+**D12 — Scope boundary.** No change to `/d/{id}`, `GET /api/designs/{id}`, the mint, saves or resume. Gating is 7E3b's.
+
+#### 3. The migration's contract — `0006_create_design_share_links.sql`
+
+```sql
+create table if not exists design_share_links (
+  token_hash text primary key
+    constraint design_share_links_token_hash_is_sha256 check (token_hash ~ '^[0-9a-f]{64}$'),
+  design_id text not null references designs (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  revoked_at timestamptz
+);
+create unique index if not exists design_share_links_one_active_per_design
+  on design_share_links (design_id) where revoked_at is null;
+```
+
+- **The header** carries 0005's structure: why each piece exists (ADR 0114 B2, D2); **"APPLY THIS BEFORE THE WEB CODE THAT READS IT SHIPS"**, with the grant (D9), since without both every share operation answers 500; the ledger reads 1–5 before and 1–6 after; the checksum-freeze paragraph. **No claim the implementer has not measured** (7E3a's S1.1 and S1.2 were such claims).
+- **Must not:** `grant`, `do`, `update`, `delete` as a statement, `drop`, or any statement other than the two above.
+- **The schema-status reading stays designs-only.** A missing `0006` is already "not level" through the ledger, which is contiguous and checksummed. Generalising the deploy gate to a second table is not needed to catch this wave's failure. **The security reviewer may overrule this.** The owner's hand-off gives the ADR 0020 read-back query against `information_schema.columns` and `pg_indexes` instead.
+- **Before the mini-gate, nothing live runs.** The implementer runs only the non-live files, by name, with the three variables emptied:
+  ```
+  TEST_DATABASE_URL= DATABASE_URL= MIGRATION_DATABASE_URL= pnpm --filter @lemnaria/persistence exec \
+    vitest run --config vitest.config.ts tests/migration-safety.test.ts \
+    tests/migration-safety.adversarial.test.ts tests/migration-files.test.ts \
+    tests/migration-status.test.ts tests/migration-status.adversarial.test.ts
+  ```
+  None of those five is in the census (they reach no database) [source-verified census table]. Emptied variables are also read as absent by the `??=` loader [inference; the implementer first runs the same command at `8b4282c` and quotes that it completes with no connection].
+- **Forbidden until the mini-gate passes:** any of G4's six files or the new `share-link-repository.test.ts`; `pnpm test`, `pnpm check`, `pnpm ci:local`, `git push`; any e2e run.
+- **The pinned lists move to `0006`:** `migrate.test.ts:65`, `migration-files.test.ts:24,31`, the adversarial suite's `:593`, `migration-status.adversarial.test.ts:52,163`. `firstSynthesisedVersion` reads the files from disk and needs nothing.
+- **Mini-gate.** The security reviewer reads the SQL and the screen change. Only then does the coordinator run the persistence suite, which applies `0006` to `lemn-conf-v2-staging` (ADR 0006) **and nothing else**.
+- **Editing after that apply.** Allowed until a deployed database has run it. The repair is `forgetAppliedMigrations([6])` plus `runMigrations`, recorded in the close-out. After that, never.
+- **The live read-back** goes in the existing exclusive `neon-configuration-repository.adversarial.test.ts`: columns, primary key, the FK with `confdeltype = 'c'`, the check, the exact `pg_indexes` definition, the violations, the cascade. `test-database-schema-status.test.ts` asserts `level` at 1–6.
+- **Must not:** an agent applies `0006` or the grant to preview or production, dispatches `deploy.yml`, or edits `.env*`.
+- **The owner, in this order:** preview first (`migrate`, `GRANT`, read back), then production the same way, then the deploy.
+
+#### 4. Slices, tier, visual pass
+
+| Slice | Must-fix items (≤ 5) | Production files |
+| --- | --- | --- |
+| **S1 schema** | (1) `0006` per §3; (2) D2's screen case, with adversarial refusals kept; (3) pinned lists; (4) live read-back, runnable only after the mini-gate; (5) the conditional grant test, plus the runbook's PITR and grant steps | `0006_…sql` (new), `migration-safety.ts` (+ `docs/runbooks/design-db-restore.md`) |
+| **S2 port** | (1) `issue`; (2) `revoke` and `status`; (3) `loadShared`; (4) the `sha256-digest.ts` extraction; (5) `share-link-repository.test.ts` plus its census row | `share-link-repository.ts` (new), `sha256-digest.ts` (new), `neon-configuration-repository.ts` (import only), `index.ts` |
+| **S3a primitives** | (1) `share-token.ts` (D1); (2) the `sha256-hex.ts` extraction plus its two callers; (3) `readVisitorHash`; (4) `getShareLinkRepository` | `sha256-hex.ts` (new), `share-token.ts` (new), `visitor.ts`, `write-token.ts`, `repository.ts` |
+| **S3b route** | (1) D5's extraction; (2) `designNotFoundResponse`; (3) the three handlers; (4) the four log operations; (5) the credential matrix (criterion 4) | `cross-site-request.ts` (new), `api/designs/route.ts`, `share/route.ts` (new), `design-errors.ts`, `design-failure-log.ts` |
+| **S4 share view** | (1) the allow-list plus `SHARE_VIEW_HEADERS`; (2) the page; (3) `SharedDesignView` plus the guard's two files; (4) the `variant="shared"` removals; (5) criteria 7–13's page tests | `proxy.ts`, `security-headers.ts`, `s/[token]/page.tsx` (new), `shared-design-view.tsx` (new), `configure-screen.tsx`, **plus `configure.module.css` as a sixth**, declared here per WORKFLOW's scope rule |
+| **S5 control** | (1) `share-link-client.ts`; (2) `share-design.tsx`; (3) the mount in the settings surface; (4) the ro/ru leaves plus the copy lock and golden fixtures | `share-design.tsx` (+ `.module.css`), `share-link-client.ts`, `global-settings.tsx`, `ro.json`, `ru.json` (message data) |
+| **S6 re-point** (tests only) | (1) the fixture's `issueShareLink` and `openSharedDesign`; (2) the three specs plus `global-colour`'s read-only case moved to `/s/{token}`; (3) `read-only-global-settings` test 3 moved to the owner's `/d/{id}` with the probe held by `page.route`, keeping its subject | — |
+
+- **Sequence:** S1, then the **security mini-gate on the SQL** (§3), then the apply. Then S2, S3a and S3b, then a **security mini-review of the route** (byte-identity and D5). Then S4, S5 and S6, then full adversarial QA, then review.
+- **Tier: Full + security, confirmed** — persistence, a new public read, a credential, customer data. The **same security reviewer as 7E3a** (*Review continuity*). **Brief:** enumeration through status, bytes and timing; D5; the id/cookie/token leak scan; header precedence; D8's PITR resurrection; the screen extension; the `UPDATE` residual on `revoked_at`. **QA's emphasis** is the 7E3 split note: guessing and enumeration, CSRF, a share view reaching a write, a cookie or the id, revocation racing a read.
+- **Visual pass: Yes.** Production build against the test database, 390 × 844 and 1280 wide, ro and ru: the settings surface in each control state; the share view (scene, price, read-only panel, no back links, no CTA); the unavailable view; the settings pill **unchanged** beside a pre-wave capture. Evidence in `testing-reports/7e3c/`.
+
+#### 5. Acceptance criteria (7E3c-A1…)
+
+1. **Token (criterion 1), a property.** For any byte stream the output is `ALPHABET[b % 62]` over the
+   accepted bytes, in order, exactly 12 characters. Over bytes 0–247 **every character has exactly 4
+   preimages** — uniformity proved without statistics. **Sabotage:** plain `% 62` over 0–255 gives
+   eight characters 5 preimages and turns this red. **Must not:** `Math.random`; a modulo on an
+   unfiltered byte.
+2. **Hash only.** The stored `token_hash` equals `sha256hex(token)`; no column of any table holds the
+   token; `''`, an uppercase digest and a 63-character digest each violate the check.
+3. **Migration.** `migrate:unattended-check` passes over `0001`–`0006`; `pg_constraint` and
+   `pg_indexes` match §3 exactly; a second active row for one design violates the partial index, a
+   revoked plus an active row does not; deleting the design removes its rows. **The screen still
+   refuses** `alter table … add constraint … on delete cascade`, `on update cascade`,
+   `delete from designs`, and `create table if not exists …;` followed by a `delete`.
+4. **Credential matrix (criterion 2), `fast-check` over cases × {`POST`, `DELETE`, `GET`}.** Cases: no,
+   wrong or foreign-design write token; no, malformed or foreign visitor cookie; unknown id;
+   `Sec-Fetch-Site` ∈ {`cross-site`, `same-site`, `none`}; a foreign `Origin` without
+   `Sec-Fetch-Site`. **Every case:** 404; body byte-identical to `GET /api/designs/{unknown}`'s for
+   the same id; identical header set except `Date`; no `Set-Cookie`; share rows and `revoked_at`
+   unchanged. Cookie-absent cases **never call the repository**.
+5. **Issue, revoke, status.** `POST` → 201, exactly `{"path"}` matching `^/s/[0-9A-Za-z]{12}$`,
+   `private, no-store`, no `Set-Cookie`. **Sequence property** (length 1–8): at most one active row
+   after any sequence, and a token opens **iff** it was the last issued and no revoke followed.
+   **Concurrency:** five parallel `POST`s leave exactly one active row and exactly one working token.
+6. **No side effects on `designs` (criterion 6).** `document`, `revision`, `updated_at`,
+   `write_token_hash`, `visitor_hash` byte-identical across issue, revoke, status and every share
+   read; after sharing an older design, resume still lands on the most recently **saved** one.
+7. **Headers (criterion 3), on `next start`,** for `/{ro,ru}/s/{t}` with a live, revoked, unknown and
+   malformed `t`: exactly one `Referrer-Policy`, `no-referrer`; `X-Robots-Tag: noindex, nofollow`;
+   `Cache-Control` including `private` and `no-store`, without `public` or `s-maxage`; the robots and
+   referrer `<meta>` tags; a CSP with a nonce; the route dynamic in `next build`'s table.
+8. **Unprefixed link.** `/s/{t}` → 307 to `/{l}/s/{t}` by `NEXT_LOCALE`, then `Accept-Language`,
+   carrying criterion 7's three headers. `/en/s/{t}`, `/RO/s/{t}`, `/ro/s/{t}/x` are not served.
+9. **Nothing leaks (criterion 3).** In a fresh context, the document, every flight payload and every
+   response the view triggers are captured; none contains the design id, the visitor value or hash,
+   the write token or hash, or the token's hash. **Zero requests to `/api/`** during load and after
+   every enabled control (camera presets, a selection tap, a locale switch). The jar gains nothing but
+   `NEXT_LOCALE`. **Positive control:** the same scan finds the id on `/d/{id}`. **No cookie read:**
+   the owner's browser, holding both cookies, gets a body identical to the fresh context's once the
+   nonce is normalised.
+10. **Unavailable is one response (criterion 4).** Unknown, revoked, malformed (11 or 13 characters,
+    non-base62) and a deleted design's token answer the same status, with bodies identical once the
+    nonce and the path's own token are placeholders. A malformed token issues no query.
+11. **Revocation is immediate (criterion 4).** After the `DELETE` response the next request gets
+    criterion 10's response; a re-issued link opens and the revoked one never does again, including
+    after a further re-issue.
+12. **Read-only (criterion 5).** Scene, price, `data-notice="read-only"`; every offer, finish, handle
+    and remove disabled; the settings trigger disabled with its reason. **Absent from the DOM:**
+    `top-bar-back`, `bottom-bar-back`, `review-cta` — while the owner's `/d/{id}` still renders all
+    three. **Crafted writes:** `POST`/`PUT`/`PATCH`/`DELETE` on `/{l}/s/{t}` change no row and set no
+    cookie; `PUT /api/designs/{token}` → 403; the share route with only a share token → the refusal.
+    No `"use server"` exists.
+13. **The store.** Before `ConfigureScreen`'s first render the store holds the sentinel and
+    `canWrite: false`; no save is scheduled in a share session; the guard lists exactly two files;
+    back/forward between two share views in one tab shows each its own design; share view → owner's
+    `/d/{id}` restores the owner's writable state.
+14. **The control.** Absent in the share view, on a read-only `/d`, and before persistence. The link
+    shows once; after a reload the control shows *active*, never the link. The token never reaches
+    `localStorage`, `sessionStorage`, `document.cookie`, the URL or the console (grep and e2e). Pill
+    tests and captures: zero diff. ro leaves locked; ru carries the same keys.
+15. **Logs.** A forced driver failure in each of the four operations logs one line carrying no token,
+    token hash, or cookie value or hash; the `share-read` line carries no id.
+16. **Grant and backup.** D9's conditional test holds against the database it reaches; the backup
+    query is unchanged (grep); the runbook carries D8's PITR step and D9's grant.
+17. **Re-pointed specs (criterion 7).** S6 as specified, every read-only assertion kept, per-file
+    `expect` counts not falling except S6's listed moves. `git grep -n clearCookies --
+    apps/web/tests/e2e` leaves only `qa-7e3a-visitor` and `seeded-design.qa` reading `/d/{id}` without
+    the owner's cookie — 7E3b's to change.
+18. **Gates.** `pnpm ci:local` green, quoting counts against 7E3a's (e2e 400 passed / 2 skipped;
+    persistence 27 files / 437; web 246 / 4,502). The census literal moves by exactly one row. No
+    `.skip`/`.only`/`.fixme`, no raised timeout, no dependency change. Runner verdict: the owner's
+    `workflow_dispatch`.
+
+#### 6. Risks
+
+- **R1: deploy order.**
+  - Code that ships before `0006` **and** the grant makes every share operation answer 500.
+  - Local `pnpm dev` points at preview (ADR 0054), so preview comes first.
+  - The owner hand-off states the order.
+- **R2: `0006` reaches the test database before the mini-gate.** This is 7E3a's incident. §3 names every live path; a push counts as one.
+- **R3: checksum freeze** after the first apply (§3).
+- **R4: header precedence** is an inference until measured (D7). There is a named fallback.
+- **R5: a flight payload can carry props.** The id must never be a prop of the share tree. Criterion 9's scan, with its positive control, is the guard.
+- **R6: the screen edit is to a safety module.** It gets adversarial refusals and is on the security reviewer's brief.
+- **R7: the settings sheet grows** at 390 × 844. The visual pass checks it, and the pill is proved unchanged.
+- **R8: a lost acknowledgement on `issue`** retries into a primary-key collision and a 500, while the link exists. The customer re-issues. Recorded, not built (ADR 0118).
+- **R9: an XSS on this origin** can create and read a link, as it can save a design. CSP enforcement is M8's (ADR 0041).
+- **R10: a point-in-time restore resurrects revoked links.** Mitigated by D8's runbook step.
+- **R11: e2e against a test database without `0006`** fails. Run the persistence suite first (7E3a R2).
+
+#### 7. Where the records and the code disagree
+
+- **The row.**
+  - `00NN` is `0006`.
+  - `src/panel/share-design.tsx` is `src/share/share-design.tsx`, mounted in the settings surface.
+  - It omits `migration-safety.ts`, both digest extractions, `cross-site-request.ts`, `design-errors.ts`, `design-failure-log.ts`, `security-headers.ts`, `configure-screen.tsx` (+ its CSS), `global-settings.tsx`, the message files and the runbook.
+- **ADR 0114 B2 (an FK cascade) against ADR 0096's screen (which refuses `delete`).** A contract gap, resolved by D2.
+- **ADR 0114 B2's schema needs a grant that ADR 0008's *"nothing else"* never anticipated.** Resolved by D9 and a dated 0008 note.
+- **Criterion 3's *"sets no cookie"* against next-intl's `NEXT_LOCALE`**, which is ADR 0114 C2's mechanism. Ruled in D7.
+- **Criterion 6's *"when retention deletes"*:** the reaper is retired (G12). The cascade still stands, for a manual delete.
+- **Criterion 7 names three specs; G14 finds a fourth** (`global-colour`'s read-only case). It moves too.
+- **No blocking owner question.** Placement (D10) and the wording (`Dezactivează` or `Revocă`) are the wave's under ADR 0114 B *Copy*, and the owner may change either later.
 
 **7E3b — a design opens only in its owning browser** (~~blocked on F5~~ **unblocked: F5 "Only its own
 browser", 2026-09-11**; security reviewer dispatched; ADR 0114 decision 5 and Amendment A) — **F5 was
