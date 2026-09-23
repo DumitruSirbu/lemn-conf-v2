@@ -164,6 +164,68 @@ export async function openSeededDesign(
   return navigation;
 }
 
+interface ShareLinkIssueOutcome {
+  readonly status: number;
+  readonly path: string;
+}
+
+/**
+ * Issues an active share link for `design`, from inside the page (M7 wave 7E3c S6) — the same
+ * reason {@link mintSeededDesign} mints in-page: the request has to carry the browser's own
+ * write-token and visitor cookies, which an out-of-band `APIRequestContext` would not. Throws by
+ * name on anything but 201, so a spec that expects a link fails in setup rather than on a later,
+ * unrelated assertion.
+ */
+export async function issueShareLink(
+  page: Page,
+  design: SeededDesign,
+): Promise<string> {
+  const issued = await page.evaluate(
+    async (id: string): Promise<ShareLinkIssueOutcome> => {
+      const response = await fetch(`/api/designs/${id}/share`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const payload = (await response.json().catch(() => ({}))) as Partial<{
+        path: string;
+      }>;
+      return { status: response.status, path: payload.path ?? "" };
+    },
+    design.id,
+  );
+  if (issued.status !== 201 || issued.path === "") {
+    throw new Error(
+      `issueShareLink: POST /api/designs/${design.id}/share answered ` +
+        `${String(issued.status)}, wanted 201 with a path`,
+    );
+  }
+  return issued.path;
+}
+
+/**
+ * Opens a share link — `path` is what {@link issueShareLink} returned, e.g. `/s/{token}`. Unlike
+ * {@link openDesignAndAwaitAccessProbe}, this waits for **no** `GET /api/designs/{id}`: the share
+ * view issues no write-access probe at all (D6/G15 — it holds no credential to ask about and no id
+ * to ask with), so waiting for one here would hang forever on a route that correctly never sends it.
+ * Waits for either `<canvas>` or the WebGL-unavailable exit's own testid, the same two legitimate
+ * outcomes {@link openDesignAndAwaitAccessProbe} waits on.
+ */
+export async function openSharedDesign(
+  page: Page,
+  path: string,
+  { locale }: { locale?: Locale } = {},
+): Promise<Response | null> {
+  const target = locale === undefined ? path : `/${locale}${path}`;
+  const navigation = await page.goto(target);
+  await Promise.race([
+    page.waitForSelector("canvas", { state: "attached" }),
+    page.waitForSelector('[data-testid="webgl-unavailable"]', {
+      state: "attached",
+    }),
+  ]);
+  return navigation;
+}
+
 /**
  * `base.extend` with a test-scoped `seededDesign` fixture: setup mints the row, teardown always
  * deletes it — including when the test fails, because the delete runs after `use()` regardless of

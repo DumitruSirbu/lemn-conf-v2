@@ -8,8 +8,9 @@ import {
   waitForFirstSave,
 } from "./support/panel";
 import {
-  openDesignAndAwaitAccessProbe,
+  issueShareLink,
   openSeededDesign,
+  openSharedDesign,
   test,
   type SeededDesign,
 } from "./support/seeded-design";
@@ -126,18 +127,6 @@ async function wearColour(
     { id: seededDesign.id, chosenEntryId: entryId },
   );
   expect(status).toBe(200);
-}
-
-/** Opens a shared link without asserting write access, the one thing `openSeededDesign` will not
- *  do — it throws on exactly the read-only answer this file's one read-only test wants. Built on
- *  the shared navigation-and-probe helper (review round 1, R1.3), which every `/d/{id}` caller in
- *  this suite now shares. */
-async function openWithoutAssertingWriteAccess(
-  page: Page,
-  id: string,
-): Promise<void> {
-  await openDesignAndAwaitAccessProbe(page, `/d/${id}`, id);
-  await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 
 async function openSheet(page: Page): Promise<void> {
@@ -297,24 +286,24 @@ test("cancelling after choosing a colour writes nothing at all", async ({
   expect(await storedColour(page)).toEqual(before);
 });
 
-test("keeps the colour group unreachable on a read-only link", async ({
+test("keeps the colour group unreachable on a share link (M7 wave 7E3c S6)", async ({
   page,
   seededDesign,
 }) => {
-  await page.context().clearCookies();
-  // `openSeededDesign` would throw on exactly the read-only answer this test wants, so this opens
-  // the link the same way `read-only-global-settings.e2e.spec.ts` does — waiting for the probe
-  // without asserting `canWrite: true`.
-  await openWithoutAssertingWriteAccess(page, seededDesign.id);
+  // The owner's own credential stays in the jar — deliberately not cleared, for
+  // `read-only-panel.e2e.spec.ts`'s own reason: a share link answers read-only however it is
+  // opened.
+  const sharePath = await issueShareLink(page, seededDesign);
+  await openSharedDesign(page, sharePath);
+  await page.waitForTimeout(SCENE_SETTLE_MS);
 
   // The trigger is locked, so the fourth group is unreachable — which is the correct read-only
   // behaviour and what `read-only-global-settings.e2e.spec.ts` asserts for the other three. Held
   // here so the group this wave adds cannot become the one exception (M6-AUD-001).
   await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
   // Pinned to the read-only sentence itself (wave 7E4 Q7), not merely to "some reason": `/./` would
-  // also pass while the trigger still carried `accessCheckingReason`, the wording a probe still in
-  // flight leaves on screen — a state this test's own `openWithoutAssertingWriteAccess` has already
-  // waited past.
+  // also pass while the trigger still carried `accessCheckingReason` — a state the share view never
+  // shows at all (D6/G15: there is no probe for it to be in flight on).
   await expect(page.getByTestId("global-settings-trigger")).toHaveAttribute(
     "data-disabled-reason",
     ro.panel.readOnlyReason,
