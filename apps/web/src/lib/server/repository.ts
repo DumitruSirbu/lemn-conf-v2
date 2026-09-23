@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   AuthorizedConfigurationRepository,
+  OwnedDesignRepository,
   ShareLinkRepository,
   VisitorResumeRepository,
 } from "@lemnaria/persistence";
@@ -10,10 +11,18 @@ import {
   NeonShareLinkRepository,
 } from "@lemnaria/persistence";
 
-/** The one instance's full shape: the write/read port every route already depended on, plus the
- *  resume lookup M7 wave 7E3a S3 adds. One class implements both (`NeonConfigurationRepository`),
- *  so this is a fact about the singleton below, not a new port to construct. */
-type SharedRepository = AuthorizedConfigurationRepository &
+/**
+ * The one instance's shape every web module may reach: the write port every route already depended
+ * on, minus the ungated `load` (M7 wave 7E3b D4, ADR 0114 decision 5) — `Omit` rather than a second,
+ * separate interface, so the removal shows up here as a type error at every existing call site
+ * instead of a silently-still-callable method — plus the gated `loadOwned` and the resume lookup.
+ * One class implements all three (`NeonConfigurationRepository`), so this is a fact about the
+ * singleton below, not a new port to construct; `load` stays on that class itself for the
+ * persistence package's own live suites, which need the unfiltered read to assert against the raw
+ * row.
+ */
+type SharedRepository = Omit<AuthorizedConfigurationRepository, "load"> &
+  OwnedDesignRepository &
   VisitorResumeRepository;
 
 // Lazily created, not module-load-eager: `neon(process.env.DATABASE_URL!)` at import time would

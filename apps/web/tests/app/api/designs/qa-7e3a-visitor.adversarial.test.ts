@@ -94,6 +94,25 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
       ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
   }
+
+  loadOwned({
+    id,
+    visitorHash,
+  }: {
+    id: DesignId;
+    visitorHash: string;
+  }): Promise<
+    { kind: "found"; design: Design; revision: string } | { kind: "none" }
+  > {
+    const row = this.rows.get(id);
+    if (!row || row.visitorHash !== visitorHash)
+      return Promise.resolve({ kind: "none" });
+    return Promise.resolve({
+      kind: "found",
+      design: row.design,
+      revision: row.revision,
+    });
+  }
 }
 
 const repository = vi.hoisted(() => ({ current: undefined as unknown }));
@@ -472,14 +491,16 @@ describe("save refresh (D1) — never on a failure, never a mint", () => {
   });
 
   it("a PUT carrying the matching visitor cookie but no write token is 403 and saves nothing (criterion 9)", async () => {
-    const { id } = await mintOwnDesign(KNOWN_VALUE);
+    const { id, visitorValue } = await mintOwnDesign(KNOWN_VALUE);
 
     const response = await PUT(
       saveRequest(id, { cookie: `${VISITOR_COOKIE_NAME}=${KNOWN_VALUE}` }),
       routeParams(id),
     );
     const read = await GET(
-      new NextRequest(`${OWN_ORIGIN}/api/designs/${id}`),
+      new NextRequest(`${OWN_ORIGIN}/api/designs/${id}`, {
+        headers: { cookie: `${VISITOR_COOKIE_NAME}=${visitorValue}` },
+      }),
       routeParams(id),
     );
 
@@ -490,7 +511,7 @@ describe("save refresh (D1) — never on a failure, never a mint", () => {
     );
   });
 
-  it("GET of a foreign design carrying a visitor cookie never sets or changes it", async () => {
+  it("GET of a foreign design carrying a visitor cookie is refused, and sets no cookie (Amendment H2)", async () => {
     const { id } = await mintOwnDesign(KNOWN_VALUE);
 
     const response = await GET(
@@ -500,7 +521,10 @@ describe("save refresh (D1) — never on a failure, never a mint", () => {
       routeParams(id),
     );
 
-    expect(response.status).toBe(200);
+    // Superseded from "never sets or changes it" at 200: since M7 wave 7E3b (ADR 0114 decision 5) a
+    // foreign visitor cookie is refused outright, the same as every other case designNotFoundResponse
+    // answers — never a 200 with the design attached to a stranger.
+    expect(response.status).toBe(404);
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 });

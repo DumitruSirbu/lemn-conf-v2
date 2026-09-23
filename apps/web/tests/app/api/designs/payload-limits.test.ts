@@ -22,6 +22,10 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { flattenLogArguments } from "../../../support/console-log-line";
+import {
+  loadOwnedByIdAlone,
+  ownerVisitorCookiePair,
+} from "../../../support/owned-design-lookup";
 
 /** The one property these tests need from the repository: a save lands only for the credential the
  *  row was minted with, so a rejection can be attributed to the payload and not to authorisation. */
@@ -81,6 +85,12 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     return row
       ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
+  }
+
+  // This file is about the write seam and the unreadable-row leak, never visitor identity, so
+  // `loadOwned` is `load` by id alone — see `loadOwnedByIdAlone`.
+  loadOwned({ id }: { id: DesignId; visitorHash: string }) {
+    return loadOwnedByIdAlone((designId) => this.load(designId), id);
   }
 
   /** A row already sitting in the database, stored before this validator existed or written by a
@@ -581,7 +591,9 @@ describe("GET /api/designs/[id] with an unreadable stored row", () => {
   const LEAK_CANARY = "LEAK-CANARY-9f3a2b";
 
   function loadRequest(id: string): NextRequest {
-    return new NextRequest(`https://example.test/api/designs/${id}`);
+    return new NextRequest(`https://example.test/api/designs/${id}`, {
+      headers: { cookie: ownerVisitorCookiePair() },
+    });
   }
 
   function seedRowNaming(buildId: string): string {

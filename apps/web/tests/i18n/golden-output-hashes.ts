@@ -428,6 +428,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "7939b8956d8f17fca2ff3dd0b2bf59e4927868693c66406f85841bcfe86d75f5",
   "content.static.designLoadError.bodyNotFound":
     "044b94e8669ef281e8a9015474dd79e4f1ea0dc865b86b89401e14ecfe642e2c",
+  "content.static.designLoadError.bodyUnavailable":
+    "62e841d6fa2ad1cb1b76225f9fd56c1feb8fb7df598a4c1375057a2385ced330",
   "content.static.designLoadError.startOver":
     "f8bd1e318dbd3207ab51234b0fb230f5f56670d0076c392747c50bcaa5e53f66",
   "content.static.designLoadError.title":

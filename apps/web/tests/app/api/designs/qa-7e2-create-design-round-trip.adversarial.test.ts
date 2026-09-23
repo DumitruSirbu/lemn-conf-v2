@@ -20,6 +20,11 @@ import {
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  loadOwnedByIdAlone,
+  ownerVisitorCookiePair,
+} from "../../../support/owned-design-lookup";
+
 const FIRST_REVISION = "1";
 
 class InMemoryAuthorizedRepository
@@ -60,6 +65,12 @@ class InMemoryAuthorizedRepository
     return row === undefined
       ? Promise.reject(new DesignNotFoundError(id))
       : Promise.resolve({ design: row.design, revision: row.revision });
+  }
+
+  // This file is about the save/load round trip's byte fidelity, never visitor identity, so
+  // `loadOwned` is `load` by id alone — see `loadOwnedByIdAlone`.
+  loadOwned({ id }: { id: DesignId; visitorHash: string }) {
+    return loadOwnedByIdAlone((designId) => this.load(designId), id);
   }
 
   designAt(id: DesignId): Design | undefined {
@@ -138,7 +149,9 @@ describe("Step 1 design — real API save/load round trip", () => {
       expect(saved.status).toBe(200);
 
       const loaded = await GET(
-        new NextRequest(`https://lemnaria.test/api/designs/${id}`),
+        new NextRequest(`https://lemnaria.test/api/designs/${id}`, {
+          headers: { cookie: ownerVisitorCookiePair() },
+        }),
         routeParams(id),
       );
       const body = (await loaded.json()) as { design: Design };

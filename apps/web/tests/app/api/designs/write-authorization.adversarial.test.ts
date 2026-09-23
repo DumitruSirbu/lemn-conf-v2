@@ -26,6 +26,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { flattenLogArguments } from "../../../support/console-log-line";
+import { ownerVisitorCookiePair } from "../../../support/owned-design-lookup";
 
 /** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
  *  also the revision every save in this file states. */
@@ -34,13 +35,27 @@ const FIRST_REVISION = "1";
 class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rows = new Map<
     DesignId,
-    { design: Design; writeTokenHash: string | null; revision: string }
+    {
+      design: Design;
+      writeTokenHash: string | null;
+      visitorHash: string | undefined;
+      revision: string;
+    }
   >();
   private nextId = 0;
 
-  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
+  mint({
+    design,
+    writeTokenHash,
+    visitor,
+  }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
-    this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
+    this.rows.set(id, {
+      design,
+      writeTokenHash,
+      visitorHash: visitor.visitorHash,
+      revision: FIRST_REVISION,
+    });
     return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
@@ -71,11 +86,32 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
       : Promise.reject(new DesignNotFoundError(id));
   }
 
-  /** A design minted before ADR 0019: readable, and carrying no credential anyone can present. */
+  loadOwned({
+    id,
+    visitorHash,
+  }: {
+    id: DesignId;
+    visitorHash: string;
+  }): Promise<
+    { kind: "found"; design: Design; revision: string } | { kind: "none" }
+  > {
+    const row = this.rows.get(id);
+    if (!row || row.visitorHash !== visitorHash)
+      return Promise.resolve({ kind: "none" });
+    return Promise.resolve({
+      kind: "found",
+      design: row.design,
+      revision: row.revision,
+    });
+  }
+
+  /** A design minted before ADR 0019, and before the visitor column (M7 wave 7E3a): readable by
+   *  nobody under the current gate, and writable by nobody either. */
   seedTokenlessRow(id: DesignId, design: Design): void {
     this.rows.set(id, {
       design,
       writeTokenHash: null,
+      visitorHash: undefined,
       revision: FIRST_REVISION,
     });
   }
@@ -107,6 +143,7 @@ afterEach(() => {
 interface Minted {
   readonly id: string;
   readonly cookie: string;
+  readonly visitorCookie: string;
   readonly setCookie: string;
   readonly token: string;
 }
@@ -118,12 +155,30 @@ function mintRequest(): NextRequest {
   });
 }
 
+/** M7 wave 7E3b: every mint also sets the visitor cookie (ADR 0114 decision 5), which the read gate
+ *  now requires on every `GET` regardless of the write token — `visitorCookie` is that identity. */
 async function mintDesign(): Promise<Minted> {
   const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
-  const setCookie = response.headers.get("set-cookie") ?? "";
+  const setCookies = response.headers.getSetCookie();
+  const setCookie =
+    setCookies.find((line) => line.startsWith("lemnaria_write_token_")) ?? "";
+  const visitorLine =
+    setCookies.find((line) => line.startsWith("__Host-lemnaria_visitor=")) ??
+    "";
   const pair = setCookie.split(";")[0] ?? "";
-  return { id, cookie: pair, setCookie, token: pair.split("=")[1] ?? "" };
+  return {
+    id,
+    cookie: pair,
+    visitorCookie: visitorLine.split(";")[0] ?? "",
+    setCookie,
+    token: pair.split("=")[1] ?? "",
+  };
+}
+
+/** Joins cookie pairs the way a browser's own `Cookie` header does, dropping any that are empty. */
+function combinedCookie(...pairs: readonly string[]): string {
+  return pairs.filter((pair) => pair !== "").join("; ");
 }
 
 /** Every save this file sends states a revision, because the route refuses one that does not
@@ -304,12 +359,14 @@ describe("the raw token never leaves the Set-Cookie header", () => {
   });
 
   it("is absent from the mint response body and from the GET response", async () => {
-    const { id, token } = await mintDesign();
+    const { id, token, visitorCookie } = await mintDesign();
 
     const minted = await POST(mintRequest());
     const mintedBody = await minted.text();
     const read = await GET(
-      new NextRequest(`https://example.test/api/designs/${id}`),
+      new NextRequest(`https://example.test/api/designs/${id}`, {
+        headers: { cookie: visitorCookie },
+      }),
       routeParams(id),
     );
     const readBody = await read.text();
@@ -339,10 +396,13 @@ describe("canWrite is advisory and never the authorisation decision", () => {
   }
 
   it("reports true for a forged cookie, and the write is still refused", async () => {
-    const { id } = await mintDesign();
+    const { id, visitorCookie } = await mintDesign();
     const forged = `lemnaria_write_token_${id}=not-the-real-token`;
 
-    const advisory = await canWriteFor(id, forged);
+    const advisory = await canWriteFor(
+      id,
+      combinedCookie(forged, visitorCookie),
+    );
     const write = await PUT(
       requestWith(id, {
         body: JSON.stringify(KITCHEN_L_DESIGN),
@@ -361,17 +421,29 @@ describe("canWrite is advisory and never the authorisation decision", () => {
   });
 
   it("reports false for a cookie whose token is empty — the name alone is not a credential", async () => {
-    const { id } = await mintDesign();
+    const { id, visitorCookie } = await mintDesign();
 
-    expect(await canWriteFor(id, `lemnaria_write_token_${id}=`)).toBe(false);
+    expect(
+      await canWriteFor(
+        id,
+        combinedCookie(`lemnaria_write_token_${id}=`, visitorCookie),
+      ),
+    ).toBe(false);
   });
 
-  it("reports true on a pre-ADR-0019 row that no credential can ever write", async () => {
+  it("refuses a pre-ADR-0019 row outright — no credential can read or write it (Amendment H2)", async () => {
+    // Superseded from "reports true on a pre-ADR-0019 row that no credential can ever write": since
+    // M7 wave 7E3b such a row also has no visitor owner (it predates that column too), so the read
+    // itself is refused and `canWrite` is never computed — the same "have no owner and are therefore
+    // unreadable" consequence ADR 0114 decision 5 states for a pre-`0005` row.
     const legacyId = "legacy-design";
     fakeRepository.seedTokenlessRow(legacyId, KITCHEN_L_DESIGN);
     const anyCookie = `lemnaria_write_token_${legacyId}=anything-at-all`;
 
-    const advisory = await canWriteFor(legacyId, anyCookie);
+    const read = await GET(
+      readRequest(legacyId, ownerVisitorCookiePair()),
+      routeParams(legacyId),
+    );
     const write = await PUT(
       requestWith(legacyId, {
         body: JSON.stringify(KITCHEN_L_DESIGN),
@@ -380,11 +452,14 @@ describe("canWrite is advisory and never the authorisation decision", () => {
       routeParams(legacyId),
     );
 
-    expect(advisory).toBe(true);
+    expect(read.status).toBe(404);
     expect(write.status).toBe(403);
   });
 
-  it("does not turn a cookie-less read into a refusal", async () => {
+  it("refuses a cookie-less read outright, rather than answering canWrite: false (Amendment H2)", async () => {
+    // Superseded from "does not turn a cookie-less read into a refusal": ADR 0019 decision 1's open
+    // read is exactly what M7 wave 7E3b (ADR 0114 decision 5) retires — a design now opens only in
+    // its owning browser, so a cookie-less caller gets the same 404 every other refusal case does.
     const { id } = await mintDesign();
 
     const response = await GET(
@@ -392,18 +467,16 @@ describe("canWrite is advisory and never the authorisation decision", () => {
       routeParams(id),
     );
 
-    // ADR 0019 decision 1: reading stays open to anyone holding the link. `canWrite` must never
-    // become a reason to answer 401 or 403 here.
-    expect(response.status).toBe(200);
-    expect(((await response.json()) as { canWrite: unknown }).canWrite).toBe(
-      false,
-    );
+    expect(response.status).toBe(404);
   });
 
   it("sets no cookie on a read, whatever the answer", async () => {
-    const { id, cookie } = await mintDesign();
+    const { id, cookie, visitorCookie } = await mintDesign();
 
-    const withCredential = await GET(readRequest(id, cookie), routeParams(id));
+    const withCredential = await GET(
+      readRequest(id, combinedCookie(cookie, visitorCookie)),
+      routeParams(id),
+    );
     const without = await GET(
       new NextRequest(`https://example.test/api/designs/${id}`),
       routeParams(id),

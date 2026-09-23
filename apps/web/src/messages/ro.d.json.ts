@@ -273,6 +273,7 @@ declare const messages: {
     "title": "Nu am putut deschide acest link",
     "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
     "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
+    "bodyUnavailable": "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
     "startOver": "Începe o configurare nouă"
   },
   "share": {

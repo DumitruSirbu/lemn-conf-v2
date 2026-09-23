@@ -761,6 +761,8 @@ export function resolveContent(translate: ContentTranslator) {
       title: translate("designLoadError.title"),
       bodyNotFound: translate("designLoadError.bodyNotFound"),
       bodyInvalid: translate("designLoadError.bodyInvalid"),
+      // M7 wave 7E3b D5: the "wrong browser" refusal (ADR 0114 decision 5).
+      bodyUnavailable: translate("designLoadError.bodyUnavailable"),
       startOver: translate("designLoadError.startOver"),
     },
     share: {

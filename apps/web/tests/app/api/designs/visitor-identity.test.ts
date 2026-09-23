@@ -96,6 +96,25 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
       ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
   }
+
+  loadOwned({
+    id,
+    visitorHash,
+  }: {
+    id: DesignId;
+    visitorHash: string;
+  }): Promise<
+    { kind: "found"; design: Design; revision: string } | { kind: "none" }
+  > {
+    const row = this.rows.get(id);
+    if (!row || row.visitorHash !== visitorHash)
+      return Promise.resolve({ kind: "none" });
+    return Promise.resolve({
+      kind: "found",
+      design: row.design,
+      revision: row.revision,
+    });
+  }
 }
 
 const repository = vi.hoisted(() => ({ current: undefined as unknown }));
@@ -128,8 +147,11 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
-function readRequest(id: string): NextRequest {
-  return new NextRequest(`https://lemnaria.test/api/designs/${id}`);
+function readRequest(id: string, cookie?: string): NextRequest {
+  const url = `https://lemnaria.test/api/designs/${id}`;
+  return cookie === undefined
+    ? new NextRequest(url)
+    : new NextRequest(url, { headers: { cookie } });
 }
 
 function saveRequest(
@@ -376,9 +398,9 @@ describe("cross-site mint refusal (criterion 4, D6)", () => {
 
 describe("where a visitor Set-Cookie appears, and where it never does (criterion 2)", () => {
   it("GET /api/designs/{id} carries none", async () => {
-    const { id } = await mintAndReturnCookiePair();
+    const { id, visitorPair } = await mintAndReturnCookiePair();
 
-    const response = await GET(readRequest(id), routeParams(id));
+    const response = await GET(readRequest(id, visitorPair), routeParams(id));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("set-cookie")).toBeNull();

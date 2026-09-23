@@ -26,6 +26,11 @@ import type {
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  loadOwnedByIdAlone,
+  ownerVisitorCookiePair,
+} from "../../../support/owned-design-lookup";
+
 /**
  * ADR 0065 decision 7 at the HTTP seams: an overflowing design **loads, saves and resumes with the
  * warning intact**. Every verb the `[id]` route exports is asked, plus the raw load path, because a
@@ -88,6 +93,12 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
       : Promise.reject(new DesignNotFoundError(id));
   }
 
+  // This file is about the overflow demotion, never visitor identity, so `loadOwned` is `load` by
+  // id alone — see `loadOwnedByIdAlone`.
+  loadOwned({ id }: { id: DesignId; visitorHash: string }) {
+    return loadOwnedByIdAlone((designId) => this.load(designId), id);
+  }
+
   seedRawRow(id: DesignId, document: unknown): void {
     this.rawRows.set(id, document);
   }
@@ -148,7 +159,9 @@ function saveRequest(
 }
 
 function loadRequest(id: string): NextRequest {
-  return new NextRequest(`https://example.test/api/designs/${id}`);
+  return new NextRequest(`https://example.test/api/designs/${id}`, {
+    headers: { cookie: ownerVisitorCookiePair() },
+  });
 }
 
 describe("the seams that read validation, on an overflowing design", () => {

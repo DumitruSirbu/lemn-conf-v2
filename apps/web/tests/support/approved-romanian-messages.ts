@@ -412,6 +412,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
     bodyInvalid:
       "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
+    // M7 wave 7E3b, drafted and approved as drafted under ADR 0113 (ADR 0114 Amendment H2's D5).
+    // The owner may reword later (non-blocking), the same standing D10 gives the share copy below.
+    bodyUnavailable:
+      "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
     startOver: "Începe o configurare nouă",
   },
   // M7 wave 7E3c D10, drafted and approved by ADR 0113 / ADR 0114 Amendment B *Copy*, locked in
