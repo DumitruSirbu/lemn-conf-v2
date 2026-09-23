@@ -1806,3 +1806,58 @@ design's read to its owning visitor hash, the planted value becomes durable read
 whatever designs later mint under it. **Must be decided before 7E3b ships**, one of: (a) record
 acceptance with CSP enforcement (M8) as a named dependency, or (b) rotate the cookie value on every
 mint rather than reusing it. Not blocking 7E3a or 7E3c. No owner yet; phase is 7E3b.
+
+## 82. `/{l}/s/{t}/` (a share link with a trailing slash) gets Next's own headerless 308 before the proxy runs — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's close-out, coordinator ruling (b).** Criterion 8 expects every malformed or
+mis-shaped share path to carry criterion 7's headers (`no-referrer`, `noindex, nofollow`, `private,
+no-store`). A trailing-slash variant of a share link is instead answered by Next's own built-in
+redirect, which runs **before** the proxy and therefore carries none of them. Accepted by the
+coordinator and upheld by the security reviewer as out of this wave's scope — it is a general Next.js
+routing behaviour, not specific to the share surface. No owner, no phase yet.
+
+## 83. A client-side transition between two hydrated designs logs a dev-only React warning — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's close-out, coordinator ruling (c).** *"Cannot update a component while
+rendering a different component"* fires in `next dev` on a client-side transition between two
+hydrated designs (e.g. share view to share view, or share view to the owner's `/d/{id}`). Reproduced
+as pre-existing in `HydrateAndConfigure`'s render-time hydrate pattern, which 7E3c's
+`SharedDesignView` reuses rather than introduces. Not observed on `next start` (visual pass). No
+owner, no phase yet.
+
+## 84. SEC-7E3c.5 — the platform's own error logger may print a Postgres `detail` carrying a token hash on a share-token primary-key collision — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's security review, 2026-09-23.** A primary-key collision on
+`design_share_links.token_hash` (astronomically unlikely, given rejection-sampled 12-character base62
+tokens) would surface a Postgres constraint-violation error whose `detail` field can include the
+colliding key value. This project's own log lines are clean — `reportDesignFailure("share-issue", …)`
+logs no token or hash — but the platform's own unhandled-error logger sits outside this project's
+control and may print the raw driver error, including that `detail`, if the error is ever rethrown
+uncaught. Not fixed here: no code path in this wave rethrows uncaught to that logger. No owner, no
+phase yet.
+
+## 85. Criterion 9's share-view leak scan did not exercise a camera preset — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's review, finding L1.5.** Criterion 9 requires zero `/api/` requests from the
+share view "during load and after every enabled control (camera presets, a selection tap, a locale
+switch)". QA's scan covered a selection tap and a locale switch but not a camera-preset tap. No
+production defect is suspected — camera presets are a client-only 3D-adapter concern with no
+persistence call in their path — but the criterion as written is not fully discharged. No owner, no
+phase yet.
+
+## 86. Optional hardening: grant `UPDATE (revoked_at)` on `design_share_links` instead of table-wide `UPDATE` — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's security review, SEC-7E3c.3.** D9 grants `app_designs` `SELECT, INSERT,
+UPDATE` on `design_share_links`, table-wide. Revocation only ever needs to write `revoked_at`; a
+column-scoped `GRANT UPDATE (revoked_at) ON design_share_links TO app_designs` would narrow the blast
+radius of an application-layer bug or injection to that one column, at the cost of a second grant
+statement to maintain. Reported to security and recorded as optional hardening, not required for this
+wave's threat model. No owner, no phase yet.
+
+## 87. Visual J6 — a share section on a never-saved design is unreachable via the UI and is covered only by a DOM test — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's visual pass, journey J6 (PARTIAL).** ADR 0002 decision 17 gates the share
+control on `hasPersistedSuccessfully`, so a never-saved design should show no share section. The
+non-owner `/d/{id}` half of J6 was verified visually; the never-saved-design half could not be reached
+through the UI in the visual pass's session (every reachable design had already persisted) and is
+covered only by the component-level DOM test that asserts the gate directly. No owner, no phase yet.

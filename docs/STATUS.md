@@ -33,13 +33,18 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
+Last updated: 2026-09-23, later still — **M7 wave 7E3c is DONE** (the private share link: create,
+revoke, re-issue; `/[locale]/s/{token}`). See the RESUME HERE entry under *What to do next* and the
+M7 row below. **Next wave: 7E3b** (a design opens only in its owning browser). The runner's own CI
+verdict is still outstanding for 7T, 7F4b, 7E4, 7E3a and now 7E3c alike — one owner-dispatched
+`workflow_dispatch` of `ci.yml` settles all five. **Owner actions needed before this branch
+deploys:** migrations `0005` and `0006` must be applied to `lemn-conf-v2-preview` then production,
+followed by the grant on `design_share_links` — see the RESUME HERE entry for detail.
+
 Last updated: 2026-09-23, later the same day — **M7 wave 7E3a is DONE** (visitor identity and
 resume: the `__Host-` cookie, migration `0005`, mint/resume/clear); see the RESUME HERE entry under
-*What to do next* and the M7 row below. **Next wave: 7E3c** (the private share link). The runner's
-own CI verdict is still outstanding for 7T, 7F4b, 7E4 and now 7E3a alike — one owner-dispatched
-`workflow_dispatch` of `ci.yml` settles all four. **Owner action needed before this branch deploys:**
-migration `0005` must be applied to `lemn-conf-v2-preview` then production — see the RESUME HERE
-entry for detail. Earlier text below is kept as history.
+*What to do next* (superseded above, kept for its detail) and the M7 row below. Earlier text below
+is kept as history.
 
 Last updated: 2026-09-23 — **M7 wave 7E4 is DONE** (e2e and tooling off `/configurator/configure`);
 see the RESUME HERE entry under *What to do next* and the M7 row below. The runner's own CI verdict
@@ -373,7 +378,7 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23); **7E3c is next.** | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3c is DONE** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`), commits plan+ADR `f59d79b` … screen notes `b39983d`; see the RESUME HERE entry and the [7E3c close-out](milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23). **7E3b is next.** | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
@@ -935,7 +940,121 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-23, later the same day. M7 wave 7E3a is DONE.** Commits, in order: plan +
+> **RESUME HERE — 2026-09-23, later still. M7 wave 7E3c is DONE — the private share link.**
+> Commits, in order: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen
+> fix (SEC-7E3c.1/.2) `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5
+> `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2
+> `03ffd4a`; screen notes `b39983d`. Tier **Full + security** (confirmed in the plan). All commits
+> made with hooks except the plan commit (`--no-verify`, docs only). Security reviewer kept across
+> 7E3a, 7E3c and 7E3b (*Review continuity*).
+>
+> **What shipped:** a 12-character base62, rejection-sampled share token (`ALPHABET = 0-9A-Za-z`,
+> four preimages per character), stored only as its SHA-256 hex digest, with one active link per
+> design enforced by a partial unique index. `POST /api/designs/{id}/share` issues a link only with
+> both the design's write token and the owning visitor cookie, revoking any prior active link in the
+> same transaction; `DELETE` revokes; `GET` reports status. Every credential failure answers the
+> byte-identical 404 a missing design gives. `/[locale]/s/{token}` renders the design read-only with
+> `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` and `Cache-Control: private,
+> no-store`; it holds no design id, no visitor cookie and no write token, sets no cookie but
+> `NEXT_LOCALE`, mints nothing and runs no write-access probe. Revocation is immediate: the next
+> request after a `DELETE` gets the unavailable response, and a re-issued link works while the
+> revoked one never does again. Migration `0006` adds `design_share_links` (token hash PK, `design_id`
+> FK `on delete cascade`, `created_at`, `revoked_at`), read back against its own contract.
+>
+> **The migration screen (`migration-safety.ts`) was the wave's main finding** — it gates unattended
+> `deploy.yml` runs. Bypasses found and fixed, each measured (QA against the test DB inside
+> rolled-back transactions; security via scratch probes): SEC-7E3c.1 `'--'` inside a string hid a
+> following `DELETE` (pre-existing); SEC-7E3c.2 a parenthesised `CREATE TABLE AS SELECT`; QA's Q1
+> (High) E-strings, `$`-ending identifiers, nested block comments and tagged dollar quotes, fixed
+> **fail-closed** — the screen now refuses any construct it does not model rather than trying to
+> parse it; Q2 a second CTAS shape; SEC-7E3c.7 (High) a bare carriage return ends a `--` comment
+> under Postgres; SEC-7E3c.8 (High, pre-existing) any DO body mentioning `pg_constraint` was accepted
+> including dynamic SQL via `execute`/`format`/`||`; SEC-7E3c.9 `insert … select` and `inherits`;
+> SEC-7E3c.10 (High) the new DO template's greedy check capture spanned statements (RLS enable,
+> revoke, grant, owner change); SEC-7E3c.11–.14 function calls inside checks/defaults/inline
+> add-column checks, comment-split calls inside a DO body, and a qualified-name allowlist. **Security's
+> final verdict: the screen approved at `03ffd4a`**, with notes .12–.14 closed at `b39983d`. All
+> shipped migrations `0001`–`0006` still pass the screen; no migration's bytes changed. The screen is
+> a guard against mistakes, not a hostile committer (the reviewer's framing).
+>
+> **Other review/QA findings, fixed:** SEC-7E3c.4, `issue()` relied on READ COMMITTED — isolation
+> pinned to `isolationLevel: "ReadCommitted"`; L1.1, the share control's error retry always re-issued
+> (would silently kill a sent link) — it now retries the operation that failed, labelled by it (new
+> leaf `share.retry`, ro *"Încearcă din nou"* / ru *"Повторить"*); L1.2, *"Copiat"* showed before the
+> clipboard write resolved — now only on resolve; L1.3, a new e2e share view test; Q3, a refused
+> `issue` could revoke the owner's link — test added; Q4, a proxy test asserted against its own
+> constant, now literal values. Clean-code: no actionable findings.
+>
+> **Coordinator rulings, on the record:**
+> (a) criterion 10 — a *malformed* token's not-available page differs from an unknown/revoked one
+> only in RSC flight-chunk framing (no query, per D6); accepted because the token format is public,
+> and unknown vs revoked measured byte-identical on `next start` (QA 10/10). The criterion's wording
+> listed malformed tokens; the ruling narrows it. Security upheld.
+> (b) trailing-slash `/ro/s/{t}/` gets Next's own headerless 308 before the proxy runs — accepted,
+> filed to the backlog. Security upheld.
+> (c) the dev-only React *"Cannot update a component while rendering a different component"* warning
+> on a client-side transition between two hydrated designs is pre-existing in `HydrateAndConfigure`'s
+> render-time hydrate pattern, reproduced there too — filed to the backlog, not observed on `next
+> start`.
+>
+> **QA (Full):** e2e both projects **413 passed, 2 skipped**; the new e2e spec, **12 tests (+
+> `--repeat-each=10`, 40 passed on `CI=1`)**; the reported `global-colour` flake did not reproduce
+> (2 full runs, 6 repeats, 6-worker stress). Sabotage red/green confirmed on: the `issue` credential
+> predicate (both statements), not-found identity, no-id guarantee, no-referrer, the screen's quote
+> handling [QA-reported].
+>
+> **Visual (production build, 390×844 touch, ro+ru):** J1–J5 PASS — create → shown once → *Copiat*;
+> reopen → active + re-issue + revoke; a fresh context on `/s/{t}` → 307 → `/ro/s/{t}` 200 read-only,
+> no edit/save/depth/Step 1/*"Verifică designul"*; headers measured `referrer-policy: no-referrer`,
+> `x-robots-tag: noindex, nofollow`, `cache-control: private, no-store` on the redirect and the page;
+> the jar holds only `NEXT_LOCALE`; no design id in the HTML; re-issue kills the old link, revoke
+> kills the new one on the next request (*"Nu am putut deschide acest link"*). **J6 PARTIAL:** a
+> non-owner's `/d/{id}` has no share section, verified; the never-saved-design case is unreachable via
+> UI and covered by the DOM test only. Desktop spot-check not done. Evidence in
+> `apps/web/testing-reports/7e3c/` (gitignored). Test-DB rows: `qYzuOaa-oNtXkuZD3Z2nG` (3 tokens, all
+> revoked), `7-A1RdjKcCcmFZs_nsyq1`.
+>
+> **Incident, recorded plainly:** during visual setup the verify agent mis-parsed `.env.test.local`
+> with shell `cut`; the app's error handler printed the **test database connection string** once to a
+> local log file and to the agent's tool output. The agent deleted the log and switched to
+> `loadEnvLocal()`. It is the allowlisted test DB, not production. Whether to rotate its credential is
+> the owner's call — resources are add-only, and agents do not rotate them.
+>
+> **`pnpm ci:local` at `b39983d`:** `LOCAL CI PASSED — all gates green, safe to push.` — e2e **414
+> passed (5.9 m), 2 skipped**; persistence **29 files / 535 passed | 1 skipped** (D9's conditional
+> grant test, skipped by design because the table doesn't exist on the `DATABASE_URL` database);
+> three-adapter **92 / 3,553**; web **255 / 4,608** [measured].
+>
+> **New backlog entries** (`docs/backlog/open.md`, `docs/BACKLOG.md` index) — 82–87: the trailing-slash
+> 308 (ruling b); the render-time hydrate warning (ruling c); SEC-7E3c.5, the platform's own error
+> logger may print a Postgres `detail` carrying a token hash on a PK collision (our own log lines are
+> clean); SEC-7E3c.3, optional hardening — `GRANT UPDATE (revoked_at)` instead of table-wide `UPDATE`;
+> criterion 9's leak scan did not exercise a camera preset (L1.5); visual J6's never-saved-design case,
+> unreachable via UI, covered by the DOM test only.
+>
+> **Owner actions for this RESUME HERE:**
+> 1. **Preview then production:** apply `0005` and `0006` (ledger 1–4 → 1–6), then `GRANT SELECT,
+>    INSERT, UPDATE ON TABLE public.design_share_links TO app_designs;`, and read both back —
+>    **before** deploying. Without them every mint/resume (`0005`) and every share operation (`0006` +
+>    the grant) answers 500. After the grant, D9's conditional test stops skipping and must go green.
+> 2. Dispatch `ci.yml` (settles 7E4, 7E3a, 7E3c, 7T and 7F4b runner verdicts in one run).
+> 3. Decide backlog 81 (SEC-7E3a.1) before 7E3b starts.
+> 4. Decide whether to rotate the test DB credential, per the incident above.
+> 5. Review the 13 new share strings (ro/ru) — the 12 from D10 plus `share.retry`.
+>
+> Full criterion-by-criterion close-out:
+> [`milestones/M7-room-and-presets.md`, *7E3c close-out —
+> 2026-09-23*](milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23).
+> [ADR 0114](decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+> Amendment G now carries this wave's commit hashes.
+>
+> **Next wave: 7E3b** — a design opens only in its owning browser, Full tier plus security, gated by
+> the backlog-81 decision above.
+>
+> **Push is pending at the time of writing; the coordinator pushes after this record.**
+
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-23, later the same day. M7 wave
+> 7E3a is DONE.** Commits, in order: plan +
 > ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3
 > `15e18df`; S4 `e2d95ef`; QA tests `0d53a06`; review round 1 fixes `1ae9f32`. Tier **Full +
 > security** (confirmed in the plan). Every commit made with hooks (no `--no-verify`). Security

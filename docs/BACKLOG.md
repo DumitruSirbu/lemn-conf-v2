@@ -112,6 +112,12 @@ status corrections, in one of these two files:
 | 79 | 16 rows leaked in the test database, pre-S1 configure-route specs | open.md — found 2026-09-23 by M7 wave 7E4's QA; leak closed by the wave, rows themselves not deleted (ADR 0006); no owner, no phase |
 | 80 | The store's mint-on-first-command branch has no reaching route since 7E3a | open.md — found 2026-09-23 by M7 wave 7E3a's review (L1.3); needs its own dated retirement record; no owner, no phase |
 | 81 | SEC-7E3a.1 — cookie fixation is harmless today, durable read access once 7E3b lands | open.md — found 2026-09-23 by M7 wave 7E3a's security review; must be decided before 7E3b ships; no owner yet, phase is 7E3b |
+| 82 | A share link's trailing slash gets Next's headerless 308 before the proxy runs | open.md — found 2026-09-23 by M7 wave 7E3c's close-out (ruling b); accepted, no owner, no phase |
+| 83 | A client-side transition between two hydrated designs logs a dev-only React warning | open.md — found 2026-09-23 by M7 wave 7E3c's close-out (ruling c); pre-existing in `HydrateAndConfigure`; no owner, no phase |
+| 84 | SEC-7E3c.5 — the platform's own error logger may print a token hash on a share-token PK collision | open.md — found 2026-09-23 by M7 wave 7E3c's security review; our own log lines are clean; no owner, no phase |
+| 85 | Criterion 9's share-view leak scan did not exercise a camera preset | open.md — found 2026-09-23 by M7 wave 7E3c's review (L1.5); no owner, no phase |
+| 86 | Optional hardening: `GRANT UPDATE (revoked_at)` on `design_share_links` instead of table-wide `UPDATE` | open.md — found 2026-09-23 by M7 wave 7E3c's security review (SEC-7E3c.3); no owner, no phase |
+| 87 | Visual J6 — a never-saved design's absent share section is unreachable via the UI, covered only by a DOM test | open.md — found 2026-09-23 by M7 wave 7E3c's visual pass; no owner, no phase |
 
 ## 2026-09-06 audit note
 

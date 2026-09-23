@@ -1557,7 +1557,7 @@ table.
 | **7E4** | e2e and tooling off `/configurator/configure` — **DONE 2026-09-23; plan `4d65a6f`, S1 `64e8894`, S1 QA `99fd679`, S2 + Q1/Q3 `740142b`, S3 `d00212a`, QA round 2 `708d3b8`, review round 1 `734a5e3`, review round 2 `1b512bb`; see [7E4 close-out](#7e4-close-out--2026-09-23)** | `apps/web/tests/e2e/*`, `playwright.config.ts`, `scripts/capture-fidelity.mjs`, **`scripts/verify-surfaces.mjs` (deleted, D4), `tests/app/room-page.test.ts` (pins the probe lines)**; no production source | — | Light (tests; CI is the verdict; confirmed in the plan) | No | Runner verdict still outstanding — needs the owner's `workflow_dispatch` |
 | ~~**7E3**~~ | ~~Returning visitor: pointer cookie~~ — **split 2026-09-11 into 7E3a and 7E3b (ADR 0114)** | | | | | |
 | **7E3a** | Visitor identity: the `__Host-` secret cookie, the visitor-hash column and its migration, mint linking, server-side resume; editor only at `/d/{id}` — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment F `046755e`; S1 `ca5d975`; S1 security fixes `49c4672`; S2 `1619715`; S3 `15e18df`; S4 `e2d95ef`; QA `0d53a06`; review round 1 `1ae9f32`; see [7E3a close-out](#7e3a-close-out--2026-09-23)** | ~~`0006_add_design_visitor_hash.sql`~~ **`persistence/src/migrations/0005_add_design_visitor_hash.sql`** (7P1's `0005` left with 7P1; plan G1), `persistence/src/neon-configuration-repository.ts`, `apps/web/src/lib/server/visitor.ts`, `app/api/designs/route.ts`, `app/[locale]/page.tsx` (+ `configurator/configure/page.tsx`) — **both pages become `route.ts` (ADR 0114 Amendment F1); the full per-slice list, which adds `[id]/route.ts`, `migration-status.ts`, `design-row-source.ts`, `visitor-resume.ts` and `design-failure-log.ts`, is in the plan's §5** | 7E2, 7E4 | **Full + security** (confirmed in the plan) | Light | none blocking |
-| **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **planned 2026-09-23: see [Wave 7E3c — the plan](#wave-7e3c--the-plan-2026-09-23) and ADR 0114 Amendment G** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
+| **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. See [7E3c close-out](#7e3c-close-out--2026-09-23)** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** | Light | answered (F5 final, ADR 0115) — **off hold** |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
@@ -2572,6 +2572,120 @@ create unique index if not exists design_share_links_one_active_per_design
 - **Criterion 6's *"when retention deletes"*:** the reaper is retired (G12). The cascade still stands, for a manual delete.
 - **Criterion 7 names three specs; G14 finds a fourth** (`global-colour`'s read-only case). It moves too.
 - **No blocking owner question.** Placement (D10) and the wording (`Dezactivează` or `Revocă`) are the wave's under ADR 0114 B *Copy*, and the owner may change either later.
+
+### 7E3c close-out — 2026-09-23
+
+**Commits, in order:** plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen
+fix (SEC-7E3c.1/.2) `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`;
+S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`;
+screen notes `b39983d`. Tier **Full + security**, confirmed in the plan. Every commit was made with
+hooks except the plan commit, which used `--no-verify` (docs only). The security reviewer was kept
+across 7E3a, 7E3c and 7E3b (*Review continuity*).
+
+**Criterion-by-criterion against §5:**
+
+1. **Token, a property.** Shipped as specified: `ALPHABET[b % 62]` over bytes accepted below 248,
+   twelve characters, uniformity proved without statistics. Met.
+2. **Hash only.** `token_hash` is `sha256hex(token)`; the check constraint refuses an empty string, an
+   uppercase digest and a 63-character digest. Met.
+3. **Migration.** `0001`–`0006` pass `migrate:unattended-check`; `pg_constraint`/`pg_indexes` match
+   §3; a second active row violates the partial index; deleting the design cascades. **The migration
+   screen's own refusals needed the wave's largest correction** — SEC-7E3c.1/.2 and QA's Q1/Q2, both
+   pre-existing gaps the wave found rather than introduced, fixed fail-closed; see the wave's own
+   ground-truth sweep below. Met, with the screen materially strengthened beyond the plan's D2.
+4. **Credential matrix.** The `fast-check` property over the case set answers 404, byte-identical to
+   `GET /api/designs/{unknown}`, with cookie-absent cases never reaching the repository. Met.
+5. **Issue, revoke, status.** `POST` → 201 `{"path"}`; the sequence property and the five-parallel-POST
+   concurrency case both hold at most one active row. Met.
+6. **No side effects on `designs`.** `document`, `revision`, `updated_at`, `write_token_hash` and
+   `visitor_hash` are asserted byte-identical across every share operation. Met.
+7. **Headers, on `next start`.** Measured: `referrer-policy: no-referrer`, `x-robots-tag: noindex,
+   nofollow`, `cache-control: private, no-store` (no `public`, no `s-maxage`) on both the redirect and
+   the page. Met [visual, production build].
+8. **Unprefixed link.** `/s/{t}` → 307 to the locale, carrying criterion 7's headers; `/en/s/{t}`,
+   `/RO/s/{t}` and `/ro/s/{t}/x` are not served, except that the trailing-slash case gets Next's own
+   headerless 308 **before the proxy runs** — coordinator ruling (b), accepted, filed as backlog entry
+   82. Met, with the one narrowed and recorded exception.
+9. **Nothing leaks.** The scan found no design id, visitor value/hash, write token/hash or token hash
+   in the document, any flight payload, or any triggered response; zero `/api/` requests; the jar
+   holds only `NEXT_LOCALE`; the positive control found the id on `/d/{id}`. **Not fully met as
+   written:** the scan did not exercise a camera preset (finding L1.5) — filed as backlog entry 85.
+10. **Unavailable is one response.** Unknown, revoked and a deleted design's token answer identically;
+    a malformed token issues no query and its response differs from unknown/revoked **only in RSC
+    flight-chunk framing** — coordinator ruling (a), accepted (the token format is public; unknown vs
+    revoked measured byte-identical on `next start`, QA 10/10), security upheld. The criterion's
+    wording named malformed tokens as part of the identical set; the ruling narrows that to unknown
+    and revoked. Met, with the narrowing recorded.
+11. **Revocation is immediate.** The request after `DELETE` gets criterion 10's response; re-issue
+    opens the new link and the revoked one never opens again, including after a further re-issue. Met.
+12. **Read-only.** `data-notice="read-only"`, every mutating control disabled, `top-bar-back`,
+    `bottom-bar-back` and `review-cta` absent from the DOM while present on the owner's `/d/{id}`;
+    crafted writes change no row and set no cookie; no `"use server"` exists. Met.
+13. **The store.** The sentinel id and `canWrite: false` are set before first render; the guard admits
+    exactly `hydrate-and-configure.tsx` and `shared-design-view.tsx`; back/forward between two share
+    views each shows its own design; a share view to the owner's `/d/{id}` restores writable state.
+    Met.
+14. **The control.** Absent in the share view, on a read-only `/d`, and before persistence; the link
+    shows once and never reaches storage, the URL or the console; ro leaves are locked, ru carries the
+    same keys. Met.
+15. **Logs.** A forced driver failure in each of the four operations logs one line carrying no token,
+    hash or cookie value; the `share-read` line carries no id. Met.
+16. **Grant and backup.** D9's conditional grant test is **skipped by design** on `DATABASE_URL`
+    because `design_share_links` does not exist there yet (the grant is an owner action, not shipped
+    in the migration); the backup query is unchanged; the runbook carries D8's PITR step and D9's
+    grant step. Met as specified; the conditional test's green state is deferred to the owner's grant.
+17. **Re-pointed specs.** The three named specs plus `global-colour`'s read-only case (G14) all moved
+    to `/s/{token}`; `read-only-global-settings` test 3 moved to the owner's `/d/{id}`. Met.
+18. **Gates.** `pnpm ci:local` PASSED at `b39983d` — e2e 414 passed / 2 skipped (5.9 m); persistence 29
+    files / 535 passed | 1 skipped (D9's grant test, skipped by design); three-adapter 92 / 3,553; web
+    255 / 4,608. The census literal moved by exactly one row. No `.skip`/`.only`/`.fixme`, no raised
+    timeout. Runner verdict: still the owner's `workflow_dispatch`, outstanding. Met.
+
+**Deviations from the plan, with rationale:**
+
+- **The migration screen (`migration-safety.ts`) needed far more correction than D2's single
+  recognised case.** QA and security together found and fixed, in sequence: SEC-7E3c.1 (`'--'` inside
+  a string hiding a following `DELETE`, pre-existing), SEC-7E3c.2 (a parenthesised CTAS), QA Q1 (High
+  — E-strings, `$`-ending identifiers, nested block comments, tagged dollar quotes), Q2 (a second CTAS
+  shape), SEC-7E3c.7 (High — a bare CR ends a `--` comment under Postgres), SEC-7E3c.8 (High,
+  pre-existing — any DO body mentioning `pg_constraint` accepted, including dynamic SQL),
+  SEC-7E3c.9 (`insert … select`, `inherits`), SEC-7E3c.10 (High — the DO template's greedy check
+  capture spanning statements), SEC-7E3c.11–.14 (function calls in checks/defaults/inline add-column
+  checks, comment-split calls, qualified allowlist). The rationale is the fail-closed principle stated
+  in the plan's own §3: the screen refuses any construct it does not model, rather than parsing more
+  of SQL to admit it. Security's final verdict, at `03ffd4a`: **the screen approved**; notes .12–.14
+  closed at `b39983d`.
+- **SEC-7E3a.1 / backlog 81 does not widen here**, per the plan's own decision-record sweep: a planted
+  visitor value lacks the fresh per-design write token, so it can neither create nor revoke a share
+  link under 7E3c. Confirmed, not re-litigated.
+- **Coordinator rulings (a), (b), (c)** above are deviations from the plan's literal wording, each
+  accepted with rationale and security's sign-off; (b) and (c) are filed to the backlog rather than
+  fixed, since they are pre-existing Next.js/React behaviour outside this wave's scope.
+
+**Documentation updated:** `docs/decisions/0114-…md` Amendment G (this wave's commit hashes); ADR
+0008 gained a dated note for the new table's grant; `docs/backlog/open.md` and `docs/BACKLOG.md`
+gained entries 82–87; `docs/best-practices/ci-and-local-gates.md` gained the live-suite-by-default
+note.
+
+**Deferred work:**
+
+- **Owner-owed, before deploy:** apply `0005` and `0006` to preview then production, then the grant on
+  `design_share_links`, then read both back. Until then every mint/resume and every share operation
+  answers 500.
+- **Owner-owed:** dispatch `ci.yml` (settles 7E4, 7E3a, 7E3c, 7T and 7F4b runner verdicts together);
+  decide backlog 81 before 7E3b starts; decide whether to rotate the test DB credential exposed by the
+  visual-setup incident (below); review the 13 new share strings (ro/ru).
+- **Backlog, no owner or phase yet:** entries 82–87 (trailing-slash 308; the render-time hydrate
+  warning; SEC-7E3c.5, the platform's own error logger printing a token hash on a PK collision;
+  SEC-7E3c.3, optional `GRANT UPDATE (revoked_at)` hardening; criterion 9's scan not exercising a
+  camera preset; visual J6's never-saved-design case, unreachable via UI).
+- **Next wave: 7E3b** — a design opens only in its owning browser, Full tier plus security, gated by
+  the backlog-81 decision.
+
+**Incident, recorded plainly:** during visual setup the verify agent mis-parsed `.env.test.local` with
+shell `cut`; the app's error handler printed the test database connection string once to a local log
+file and to the agent's tool output. The agent deleted the log and switched to `loadEnvLocal()`. It is
+the allowlisted test DB, not production. Whether to rotate its credential is the owner's call.
 
 **7E3b — a design opens only in its owning browser** (~~blocked on F5~~ **unblocked: F5 "Only its own
 browser", 2026-09-11**; security reviewer dispatched; ADR 0114 decision 5 and Amendment A) — **F5 was

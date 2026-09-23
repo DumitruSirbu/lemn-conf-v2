@@ -345,6 +345,13 @@ live file registers into is [ADR 0128](../decisions/0128-live-persistence-suites
 Neon database (a laptop and CI, or two agents' gates) from corrupting each other's migration state,
 the failure BACKLOG 69 recorded before the lock existed.
 
+**Every persistence Vitest file is live in a checkout carrying `.env.test.local`**, whatever its
+describe block says — `vitest.config.ts`'s `loadEnvLocal()` loads `TEST_DATABASE_URL` unconditionally,
+so "non-live" must be established by the file's own gate, not by inspection. To run one file
+non-live, empty the three connection variables on the command line: `TEST_DATABASE_URL=
+DATABASE_URL= MIGRATION_DATABASE_URL= pnpm --filter @lemnaria/persistence exec vitest run …`
+(measured 2026-09-23, M7 wave 7E3c: a live file then skips instead of connecting).
+
 ## Mutation testing across the package boundary: `apps/web` reads `dist/`, not `src/`
 
 `apps/web` resolves `@lemnaria/configurator-domain` to the package's **built `dist/`**, not its
