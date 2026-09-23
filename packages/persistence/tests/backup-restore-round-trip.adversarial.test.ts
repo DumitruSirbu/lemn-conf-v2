@@ -79,16 +79,19 @@ describe(SUITE_NAME, () => {
       created_at: string;
       updated_at: string;
       write_token_hash?: string | null;
+      visitor_hash?: string | null;
     };
     await sql`
-      insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash)
+      insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
+                            visitor_hash)
       values (${row.id}, 1, ${row.document as Design}, ${row.created_at}, ${row.updated_at},
-              ${row.write_token_hash ?? null})
+              ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
       on conflict (id) do update
         set schema_version = excluded.schema_version,
             document = excluded.document,
             updated_at = excluded.updated_at,
-            write_token_hash = excluded.write_token_hash
+            write_token_hash = excluded.write_token_hash,
+            visitor_hash = excluded.visitor_hash
     `;
   }
 
@@ -194,6 +197,35 @@ describe(SUITE_NAME, () => {
       // ndjson and a zero-row one is still a non-empty body.
       expect(line.endsWith("\n")).toBe(true);
     },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "carries visitor_hash through export, loss and restore untouched",
+    async () => {
+      // `mint` does not yet set `visitor_hash` (M7 wave 7E3a S2), so this stands in for a saved
+      // design's owner the way S2's mint will write it — a 64-character lowercase hex digest.
+      const visitorHash = "b".repeat(64);
+      const { id } = await repository().mint(
+        KITCHEN_L_DESIGN,
+        hashWriteToken("qa-round-trip-token-visitor"),
+      );
+      mintedIds.push(id);
+      if (!sql) return;
+      await sql`update designs set visitor_hash = ${visitorHash} where id = ${id}`;
+
+      const line = await exportedLineFor(id);
+      expect(line).toContain(visitorHash);
+
+      await sql`delete from designs where id = ${id}`;
+      await restoreRow(line);
+
+      const rows = (await sql`
+        select visitor_hash from designs where id = ${id}
+      `) as { visitor_hash: string | null }[];
+      expect(rows[0]?.visitor_hash).toBe(visitorHash);
+      expect(rows[0]?.visitor_hash).toMatch(/^[0-9a-f]{64}$/);
+    },
+    30_000,
   );
 
   it.skipIf(!hasLiveDatabase)(

@@ -13,6 +13,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
 import { runMigrations } from "../src/migrate.js";
+import { readMigrationFiles } from "../src/migration-files.js";
 import {
   DesignWriteConflictError,
   DesignWriteForbiddenError,
@@ -686,7 +687,16 @@ describe("the design-revision migration (WEB-003)", () => {
         // a run leaves only a forgotten tail, which the next `runMigrations` re-applies and
         // re-records. The other order leaves the ledger claiming a column that is gone, which is
         // BACKLOG 69's second error and wedges every later run (review finding R1.2).
-        await forgetAppliedMigrations(testDatabaseUrl, [REVISION_VERSION]);
+        //
+        // Every version from REVISION_VERSION upward, not only REVISION_VERSION itself (WEB-003,
+        // the same argument `neon-configuration-repository.adversarial.test.ts`'s
+        // WRITE_TOKEN_MIGRATION_VERSIONS makes): forgetting 4 while a later migration stays
+        // recorded is itself the gap the runner refuses, and 0005 is exactly such a later migration
+        // now.
+        await forgetAppliedMigrations(
+          testDatabaseUrl,
+          REVISION_AND_LATER_VERSIONS,
+        );
         await sql`alter table designs drop column if exists revision`;
         await sql`
           insert into designs (id, schema_version, document, write_token_hash)
@@ -695,7 +705,7 @@ describe("the design-revision migration (WEB-003)", () => {
 
         const summary = await runMigrations(testDatabaseUrl);
 
-        expect(summary.applied).toEqual(["0004_add_design_revision.sql"]);
+        expect(summary.applied).toEqual(REVISION_AND_LATER_FILE_NAMES);
         const rows = (await sql`
           select revision::text as revision from designs where id = ${legacyId}
         `) as { revision: string }[];
@@ -727,6 +737,20 @@ describe("the design-revision migration (WEB-003)", () => {
 
 /** The version `0004_add_design_revision.sql` occupies in the ledger. */
 const REVISION_VERSION = 4;
+
+/** Every migration at or after `REVISION_VERSION`, read from disk rather than written down — the
+ *  same argument `migrate.test.ts`'s `VERSIONS_AFTER_THE_FIRST` makes: a literal list here would go
+ *  stale the moment a later migration shipped, and staleness here is destructive (a forgotten
+ *  ledger row with a later one left recorded is the gap the runner refuses), not merely wrong. */
+const REVISION_AND_LATER_FILES = readMigrationFiles().filter(
+  (migration) => migration.version >= REVISION_VERSION,
+);
+const REVISION_AND_LATER_VERSIONS = REVISION_AND_LATER_FILES.map(
+  (migration) => migration.version,
+);
+const REVISION_AND_LATER_FILE_NAMES = REVISION_AND_LATER_FILES.map(
+  (migration) => migration.fileName,
+);
 
 describe("NeonConfigurationRepository connection setup", () => {
   it("never disables TLS in its own connection-string handling", () => {

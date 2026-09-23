@@ -708,8 +708,14 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
           order by updated_at desc, id desc limit 1
         `) as { "QUERY PLAN": unknown }[];
 
+        // "Index Only Scan", not "Index Scan": the index's own columns are `visitor_hash`,
+        // `updated_at` and `id`, so the query above (`select id ... where visitor_hash = ...`) is
+        // answered from the index alone, with no heap fetch. Both are index scans; only the
+        // narrower one is what the planner actually picks here, which is stronger evidence for the
+        // index's shape, not weaker.
         const planText = JSON.stringify(plan);
-        expect(planText).toContain("Index Scan");
+        expect(planText).toMatch(/Index (Only )?Scan/);
+        expect(planText).not.toContain("Seq Scan");
         expect(planText).toContain("designs_visitor_hash_updated_at_idx");
       } finally {
         await sql`delete from designs where id = ${id}`;

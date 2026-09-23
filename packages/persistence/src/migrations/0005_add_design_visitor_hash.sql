@@ -3,7 +3,7 @@
 -- cookie, never the cookie itself.
 --
 -- Nullable, and deliberately: every row written before this migration ran (development and preview
--- data, and the five production rows of the seeded fixture) has no visitor to attribute it to. ADR
+-- data, and any production rows written before launch) has no visitor to attribute it to. ADR
 -- 0114 decision 5 states this outcome by name — "have no owner and are therefore unreadable —
 -- pre-launch data" — so a not-null column here would either invent an owner for rows that never had
 -- one or fail outright on a table that already holds them. NULL is the honest value, and every read
@@ -13,7 +13,8 @@
 -- the same shape: a lowercase hex SHA-256 digest is 64 characters from `[0-9a-f]`, and `''` is the
 -- one degenerate value that would make a hash comparison satisfiable by a guessable input. Wrapped
 -- in a DO block for the same reason `0003` is — Postgres has no `add constraint if not exists`, and
--- this runner re-runs every file on every invocation.
+-- every statement here must be re-runnable (`migration-safety.ts`; a `forgetAppliedMigrations`
+-- repair re-runs the file, 0004's precedent).
 --
 -- The index answers D3's resume query directly: "the visitor's most recently updated design" is
 -- `where visitor_hash = $1 order by updated_at desc, id desc limit 1`, and the partial
