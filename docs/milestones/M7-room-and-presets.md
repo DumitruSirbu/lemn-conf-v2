@@ -1560,7 +1560,7 @@ table.
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. See [7E3c close-out](#7e3c-close-out--2026-09-23)** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`, intermediate); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`; review round 2 fixes `f1e4fc9`. See [7E3b close-out](#7e3b-close-out--2026-09-23)** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — backlog 81 closed, *"Rotate on mint"* then *"Web Lock + random"* (ADR 0114 H, H6). See [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4 |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
-| **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
+| **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6). **Planned 2026-09-23 — see [Wave 7I — the plan](#wave-7i--the-plan-2026-09-23)** |
 | **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **One owner question OPEN, recorded 2026-09-22 (coordinator's instruction), gating 7J's policy slice and nothing else — Q-7J-1: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300?** The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. **Recommendation: 6000**, so every wall the product accepts has one maximum. It does not gate 7T |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
@@ -3709,6 +3709,202 @@ image, never a broken one.
 **7I — the mirror** (carried, plus): the mirror primitive applies to one group as well as the whole
 scene, with correct face winding either way — captured, not only asserted — because M7B mirrors the
 corner assembly on its own.
+
+### Wave 7I — the plan (2026-09-23)
+
+**Goal.** A customer who picks *La dreapta* gets their kitchen drawn as the mirror image of the
+left-hand one — same cabinets, long run still on the back wall, corner on the right (Q6, answered
+2026-09-11) — and the adapter gains a mirror that works on **one group** as well as the whole scene,
+so M7B can mirror the corner assembly alone. **Tier: Full. Visual: Yes** (captured, not only
+asserted; mobile 390 × 844 and desktop 1440 × 900). Code read at `fb7c925` (the only commits since
+`f1e4fc9` are docs, `git diff --name-only`). Decision record: **[ADR 0129](../decisions/0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md)**
+(Proposed with this plan).
+
+#### 1. Ground truth
+
+Tiers: **[src]** read in the tree at `fb7c925`; **[doc]** quoted from a record; **[inf]** inference, owed a test.
+
+| # | Fact | Tier |
+| --- | --- | --- |
+| G1 | `CornerDirection = "left" \| "right"` exists in the domain (`room/validate-room.ts:15`), is carried on `LRoomInput`/`URoomInput`, and **never reaches a `DesignRoom`**: `validateRoomInput` builds `{ shape, widthMm, depthMm, heightMm }` (`:129-134`). `DesignRoomSchema` is a `strictObject` of those four keys (`design.ts:144-149`). | [src] |
+| G2 | Step 1 already handles *right* end to end **in 2D**: the toggle (`dimensions-form.tsx:127-222`), the draft (`room-draft.ts:57-82`), the URL sync (`room-query-sync.ts:536-557`), the parser (`room-url-state.ts:91-96, 207-213`), and the plan preview's reflection (`plan-preview-model.ts:150, 197-215`). **7I changes none of these.** | [src] |
+| G3 | The choice is dropped at the 1D → `DesignRoom` step (G1), so `use-generation.ts:392-398` composes, and the mint stores, a room with no direction. `generateKitchen` copies `input.room` into the design (`generate-kitchen.ts:152-157`; `shell-design.ts:161`) — a field on the room travels through unchanged without touching generation code. | [src] |
+| G4 | `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` (`room-url-state.ts:141-161`) — 7E2's deferral; `room-url-state.test.ts:190-199` pins the left href. The parser marks an absent `direction` as 1B (`:304`, frozen by 7F1 criterion 18). | [src] |
+| G5 | Nothing in `packages/three-adapter/src` mirrors anything; no negative scale, no `DoubleSide`. The scene root is the `THREE.Group` named `kitchen_l_shape` built in `kitchen-stage.tsx:200-202`; outline and overflow mark mount on it and place themselves by `transformRelativeTo` (`relative-transform.ts:19-28`), which cancels any transform on the root. | [src] |
+| G6 | three 0.184.0 flips the front face for any mesh whose `matrixWorld.determinant() < 0` (`WebGLRenderer.js:1180-1184`), and `Mesh` raycasting culls in local space (`Mesh.js:413-419`) — so a reflected ancestor renders and picks correctly **without touching geometry or `material.side`**. **But `Line.raycast` divides its threshold by the Line's *own* `scale` average** (`Line.js:182`): a `-1` on a Line leaf makes the 8 mm §6.1 threshold 24 mm. | [src]; the pick consequence is [inf] |
+| G7 | The body probe measures **in world space inside `stage.room`** when the depth is the standing one (`kitchen-stage.tsx:69-80`; `measure-built-body.ts:75-110`). Mirroring `stage.room` therefore reaches every command's measurement. Its readings (wall A's plane along z; a body measured unrotated, seat along z) look reflection-invariant. | [src] / invariance [inf] |
+| G8 | Presets derive from the room with **the corner at the origin and wall A along +x** (`stage.ts:315-331`); the light rig is fixed in world (`stage.ts:103-114`: key `(4,7,5)`, fill `(-5,3,-4)`) and is **not** under the root. Mirroring the root alone would leave wall B's fronts facing away from the key. | [src] / look [inf] |
+| G9 | The domain's `"right"`/`"left"` in a width refusal mean **+along / −along** (`plan-width-funding.ts:42, 252-254, 287`), and the web renders them as screen words — *„în dreapta …"* (`content.ts:266-290`; `ro.json` `rejection.parts.emptySpaceSide`) and `panel.widthStepNote` *„întâi spre dreapta, apoi spre stânga"*. On a reflected wall A, +along is the **screen's left**. | [src]; wall B's existing word vs the screen is **not examined** by this plan |
+| G10 | Q6's answer is recorded only in this file (*Answered* list, re-plan table); **ADR 0108 decision 5 still reads "an open owner question"**. ADR 0109 A2: *"the domain is canonical and the mirror is presentation, so corner direction is not a match criterion"*. ADR 0111 decision 8: a stored direction is *"an optional field whose absence is a valid unchanged state"*. | [doc] |
+| G11 | The M1 fidelity gate is `three-adapter/tests/kitchen-parts.parity.test.ts`, which calls the builders directly and never the stage (7H plan, ground-truth facts 1–2). 7D7 and 7H have both landed, so the ordering constraint between them is discharged. | [doc] |
+| G12 | Presets (7F3/7G) are deferred past M8 (STATUS), so no thumbnail or matching surface exists for 7I to mirror. | [doc] |
+
+#### 2. Decisions (recorded in ADR 0129)
+
+- **D1 — The domain stays canonical; the mirror is presentation** (ADR 0109 A2, kept). Generation,
+  commands, columns, the probe and the stored placements are those of the left-hand L. A right-hand
+  design differs from its left twin **only** in `room.cornerDirection`. *Rejected:* a domain-side
+  mirror (negated `alongMm`, a wall C, or a mirrored wall transform) — it would fork every M2–M6 rule
+  keyed on +along, and M7B already owns the question of re-expressing a right corner as walls A + C
+  (re-plan, *What U means for stored documents*).
+- **D2 — Storage: `room.cornerDirection?: "left" | "right"`; the product writes it only for right.**
+  The reader accepts both values (a truthful explicit `"left"` is not refused); the writer omits it
+  for left, so **every left document the product writes stays byte-identical to today's**. One
+  query, `cornerDirectionOf(room)`, is the only production reader and maps absent → left. No schema
+  version (ADR 0111 decision 8; ADR 0053's argument). `MAX_DESIGN_BYTES` does not move: the key is
+  ~26 bytes inside `DESIGN_ENVELOPE_BYTES = 1024`. *Rejected:* always explicit (moves every left
+  document's bytes for no reader's benefit); `"right"`-only literal (refuses a truthful document).
+- **D3 — `validateRoomInput` carries the direction onto the room it returns** (ADR 0108 decision 5:
+  carried, never read — this makes "carried" true). Issues are computed exactly as today.
+- **D4 — The primitive: `applyCornerDirection(group, direction)` in a new adapter module.** It sets
+  the **sign** of `group.scale.x` (never toggles), so it reflects in the group's own local X about
+  its own origin. Whole scene: applied to the root, whose origin is the corner (DEVELOPMENT-SPEC §2),
+  so the reflection plane is **world x = 0, wall B's plane** — room-independent, which is why 7H's
+  in-place resize needs no mirror update. One group: applied to that group; a structural corner piece
+  is centred on its origin along the run (7D7's recorded centres), so it mirrors in its own
+  footprint and its back face stays on the wall. Typed to `THREE.Group`; it throws on anything else
+  (G6's `Line` trap). *Rejected:* reflection about x = W/2 (moves with every resize — a second
+  authority on the room); flipping the camera projection or the canvas by CSS (breaks picking,
+  cannot mirror one group).
+- **D5 — Face winding is the renderer's job.** No index reversal, no cloned geometry, no
+  `material.side` change, no `DoubleSide` (G6). Normals follow `normalMatrix`.
+- **D6 — Cameras and lights follow the reflection; the environment map does not.**
+  `cameraPresetsForRoom` negates x of every position and target for a right room (distance and
+  angles unchanged, so Q7H-7's framing holds in the mirror); key and fill negate x; the hemisphere
+  is symmetric. The studio environment is not reflected — reflections in glossy fronts differ
+  slightly, which is why the capture criterion is geometric rather than a pixel diff.
+- **D7 — The probe measures in canonical space.** Kept as today (world space inside `stage.room`)
+  **only if** S2's invariance property holds for every catalogue body; if it fails, the implementer
+  **stops and reports** — the fix (measuring in room-local space through `transformRelativeTo`) is a
+  change to a §6.2 module and is decided here, not improvised.
+- **D8 — Screen words follow the reflection.** The domain keeps +along = `"right"`; the web resolves a
+  refusal's side word through `cornerDirectionOf(design.room)` (same leaves, swapped selector), and
+  `panel.widthStepNote` gains its reflected sentence (*„întâi spre stânga, apoi spre dreapta"*, and
+  its Russian). New leaves enter the copy lock in this wave (ADR 0113). Whether wall B's existing
+  word matches the screen is **out of scope**; the reflection maps whatever left shows to its opposite.
+- **D9 — URL.** `roomHrefFromDesignRoom` emits `direction=${cornerDirectionOf(room)}`; the parser and
+  7F1 criterion 18's three layers are unchanged.
+- **D10 — Fidelity baseline: none taken, none moved.** `kitchen-parts.ts`, `reference/`, and both
+  declaration tables are untouched; the left path is the baseline.
+- **D11 — Appliances are drawn mirrored**, drainer and knob side included, because Q6 asked for *the
+  mirror image* and the owner said yes. Recorded in ADR 0118's shape: **trigger** — the owner sees a
+  right-hand kitchen and objects to a mirrored appliance. Not built for.
+
+#### 3. Slices
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S1 domain** | (1) optional `cornerDirection` on `DesignRoomSchema` (D2); (2) `cornerDirectionOf` (D2); (3) `validateRoomInput` carries it (D3); (4) exports; (5) A1–A5 tests | `configurator-domain/src/design.ts`, `src/room/corner-direction.ts` (new), `src/room/validate-room.ts`, `src/index.ts` | this plan §1 G1, G3, G10, §2 D1–D3; ADR 0108 decision 5; ADR 0109 A2; ADR 0111 decision 8; ADR 0053 (why optional costs nothing); `design-bounds.ts:200-226`; `generate-kitchen.ts:110-160`; `shell-design.ts:150-210` |
+| **S2 adapter** | (1) `applyCornerDirection` (D4, D5); (2) presets reflect (D6); (3) light rig reflects (D6); (4) exports; (5) A6–A12 tests incl. the probe property (D7) | `three-adapter/src/corner-direction.ts` (new), `src/stage.ts`, `src/index.ts` | §1 G5–G8, §2 D4–D7, D10; DEVELOPMENT-SPEC §2, §6.1, §6.2; `docs/design/SPEC.md` *Coordinate & anchor conventions*; `product-invariants.md`; skill `lemnaria-3d-reference`; `picking.ts`, `relative-transform.ts`, `measure-built-body.ts`, `selection-outline.ts:312-380`, `overflow-mark.ts:120-175`; three `Line.js:182`, `Mesh.js:413-419`, `WebGLRenderer.js:1180`; the 7H close-out and Q7H-7/Q7H-8 |
+| **S3a web scene + URL** | (1) the stage applies the direction to its root and lights **in place** (7H's pattern, no rebuild); (2) survives a resize and a depth rebuild; (3) `roomHrefFromDesignRoom` (D9); (4) A13–A14, A16 tests | `apps/web/src/scene/kitchen-stage.tsx`, `apps/web/src/room/room-url-state.ts` | §2 D4, D6, D9; 7F1 criterion 18 and its three-layer note; 7H close-out findings 1, 6; `kitchen-stage.tsx:140-345`; `room-url-state.ts`; `room-url-state.test.ts:190-213, 304`; `qa-7e2-room-href.adversarial.test.ts`; `qa-7h-resize-in-place.adversarial.test.ts` |
+| **S3b copy** | (1) side word through the direction (D8); (2) `widthStepNote`'s reflected sentence, ro + ru; (3) copy lock and golden manifest move by exactly the new leaf; (4) A15 tests | `apps/web/src/i18n/content.ts`, `apps/web/src/panel/panel-model.ts`, `apps/web/src/messages/ro.json`, `ru.json` (+ the generated `ro.d.json.ts`) | §1 G9, §2 D8; ADR 0113; ADR 0095 decision 3; `content.ts:262-300`; `plan-width-funding.ts:40-45, 245-290`; `rejection.ts:120-140`; the copy-lock test and manifest |
+| **S4 capture + e2e** | (1) `/internal/mirror-shot`: the `base-corner` builder's group, canonical and mirrored side by side, behind `isSceneShotRouteEnabled`; (2) the real-flow e2e (A17); (3) the share view (A17); (4) the capture set (A18) | `apps/web/src/app/internal/mirror-shot/page.tsx`, `mirror-shot.tsx` (both new) | §2 D4, D6, D11; §4 A17–A18; `browser-and-visual-qa.md` (evidence outside the watched tree); `internal/scene-shot/*`; 7H close-out findings 1–2 (a canvas constant is a function of room and rail; reload per sample); `scene-measurement-store.ts` |
+
+Order S1 → S2 → S3a → S3b → S4, one at a time; S3b may run beside S3a (disjoint files). Each slice
+gets QA before the next is dispatched.
+
+- **Reading, QA:** this plan §1–§5 in full; ADR 0129; ADR 0109 A2; ADR 0108 decision 5; DEVELOPMENT-SPEC
+  §2, §6.1, §6.2; the 7H close-out and Q7H-7/Q7H-8 (what is *not* a bug); `engineering-conventions.md`,
+  *Coverage an adversarial pass owes*; the slice's diff and the files in its Reading cell.
+- **Reading, logic reviewer:** §2 D1–D9 and §4; ADR 0129, 0109 A2, 0108 decision 5, 0111 decision 8,
+  0110 Amendment I (I5.4 — why a reflected run is not A1 violated); DEVELOPMENT-SPEC §2, §5.4, §6.1;
+  the wave diff with `plan-width-funding.ts` and `measure-built-body.ts`.
+- **Reading, clean-code reviewer:** §3's rows; `docs/best-practices/engineering-conventions.md`; the wave diff.
+- **Reading, visual reviewer:** §2 D6, D11, §4 A17–A18; the 3D skill; `browser-and-visual-qa.md`;
+  the 7H close-out's *What a later wave must NOT read as a bug*; the capture set.
+
+#### 4. Acceptance criteria (7I-A1 …)
+
+1. **Left is byte-identical.** For the reference room, the eight policy corners and a sampled sweep,
+   the design the product generates for a left room serialises (`JSON.stringify`) to the same bytes
+   as at `fb7c925`, with **no** `cornerDirection` key. Every existing unit, parity, e2e and capture
+   passes unchanged. `git diff fb7c925 -- packages/three-adapter/src/kitchen-parts.ts
+   packages/three-adapter/reference/` is empty and both declaration tables in
+   `kitchen-parts.parity.test.ts` are byte-identical. **[unit]** + **[parity]**
+2. **The schema.** A room with the key absent, `"left"` or `"right"` parses; `"Right"`, `""`, `null`,
+   `"up"`, a number and an array are refused. `MAX_DESIGN_BYTES` is unchanged, and the maximal
+   document with `"right"` stays under it. **[unit]**
+3. **One reader.** `cornerDirectionOf` maps absent → left; no production module outside it reads
+   `room.cornerDirection` (a `git grep` over `packages/*/src` and `apps/web/src` returns only that
+   module and the schema). **[unit]** + review
+4. **Validation carries and never reads.** For every input (property over the approved and engine
+   policies), flipping the direction leaves `issues` identical; an accepted right room carries
+   `"right"`, an accepted left room has no key. **[property]**
+5. **Generation is canonical.** For every room in the sweep, `generateKitchen` on the right room
+   yields placements, empty columns, extents and log deep-equal to the left room's; the designs
+   differ only in `room.cornerDirection`. Nothing under `generation/` references the direction.
+   **[property]**
+6. **The primitive is a reflection and nothing else.** `"left"` leaves the matrix bit-exact; `"right"`
+   makes the group's local matrix its canonical matrix × `S`, `S = diag(−1, 1, 1)`, so every
+   descendant reflects in the group's local X; applying `"right"` twice equals once; `"right"` then `"left"` restores
+   every matrix bit-exact. **No geometry, index, material or `side` is created or changed** (the
+   same object references before and after). It throws on a `Mesh`, `Line` or `Points`. **[unit]**
+7. **One group, alone.** Mirroring one structural corner group inside a built kitchen (the base
+   pair and the wall corner) leaves every sibling's `matrixWorld` bit-identical, and the group's
+   world bounds become the reflection of its canonical bounds in its own local X plane; for a piece
+   centred on its origin along the run (the X-leg, SPEC's anchor convention) that is its own
+   footprint within 1e-9 m. **[unit]** + A18 capture
+8. **Winding.** Under a mirrored root and under a mirrored single group, for every triangle of every
+   mesh, the renderer's front normal (winding normal × sign of `det(matrixWorld)`) equals the
+   reflection of the canonical one — fronts face into the room. **[unit]** + A18
+9. **Picking follows.** For rays sampled across a built kitchen (property), picking the right scene
+   with the reflected ray returns the same placement or void id as the left scene — **void outlines
+   included**, which is what proves the §6.1 threshold did not triple (G6). **[property]**
+10. **The probe is canonical.** For every catalogue `buildId`, at depths 600 and 700, a probe over a
+    right-hand stage room returns a `BodyMeasurement` deep-equal to the canonical one. **If this
+    fails, the implementer stops (D7).** **[property]**
+11. **Cameras.** For every room in the sweep, each right preset equals the left one with x negated in
+    position and target, bit-exact; `PRESET_DISTANCE_M` unchanged; `perete-a-framing.test.ts`'s
+    1.62 m holds for a right room. The camera does **not** pull back (Q7H-7). **[unit]**
+12. **Lights.** Right: key and fill x negated; hemisphere unchanged. Left: bit-identical to today. **[unit]**
+13. **In place.** Changing the direction on a standing stage creates and disposes nothing (same
+    meshes, geometries, materials — 7H's resize-in-place check), and the reflection survives a
+    subsequent room resize and a depth change's rebuild. **[unit/dom]**
+14. **Outline and mark follow.** The selection outline and the overflow mark of a body in a right
+    scene have world bounds equal to the reflection of the left ones within 1e-9 m. **[unit]**
+15. **Words follow.** For each of the eight refusal sides, a right-hand design shows the opposite
+    word of the left-hand design for the same canonical refusal; the left strings are unchanged;
+    `widthStepNote` reads the reflected sentence on a right design. Copy lock and manifest move by
+    exactly the new leaf. **[unit/dom]**
+16. **URL.** `roomHrefFromDesignRoom` emits `direction=right` for a right room and `direction=left`
+    for an absent or left one; parsing the href returns 1D with the same room (property). The parser,
+    `room-url-state.test.ts:304` and 7F1 criterion 18's three layers are unchanged. **[property]**
+17. **The real flow, captured.** At 390 × 844 and 1440 × 900: Step 1 → *La dreapta* → composition →
+    `/d/{id}`; for every placement, its projected centre in the right scene at each preset is
+    `canvasWidth − x` of the left twin's within 2 px, **measured with the rail in the same state and
+    one reload per sample** (7H findings 1–2), never from a stored pixel constant; a tap at that
+    reflected point selects the same placement; reload keeps the reflection; configure's back link
+    lands Step 1 with *La dreapta* selected; the share view `/s/{token}` of that design is mirrored.
+    **[e2e]**
+18. **The capture set, inspected.** Left and right × overview / Perete A / Perete B × mobile and
+    desktop × 600 and 700 mm, plus `/internal/mirror-shot` (the corner group canonical beside
+    mirrored). Inspected for: fronts facing the room, no see-through or inside-out carcass, handles
+    and worktop joins present, the selection outline visible on a right-hand body, the contact blob
+    under the kitchen; 0 page errors. Written outside the watched tree. **[visual]**
+
+**Must not happen.** No change to `kitchen-parts.ts`, `reference/`, `measure-built-body.ts` (unless
+D7 stops the wave), `approved-room-policy.ts`, `plan-preview*`, the URL parser, or any generation
+module. No `DoubleSide`, no negative scale on a leaf, no renamed mesh (`wall_left`, `end_panel_right`
+keep their canonical names — ADR 0121). No *Perete* label changes. Q7H-7 (part of a long wall shown)
+and Q7H-8 (a marked body off screen at mobile) are **not** fixed in the mirror either. A reversed run
+in a right-hand kitchen is **not** A1 violated (ADR 0110 I5.4).
+
+#### 5. Risks
+
+- **R1 — the probe (G7).** Invariance is inference until A10 runs; D7 names the stop.
+- **R2 — `Line` threshold (G6).** Guarded by D4's `Group`-only type and A9's void rays.
+- **R3 — a world-space reader assuming +x.** Known readers: `seatObjectOnStage` (box — safe),
+  `scene-measurement-store.ts` (e2e only), outline and mark (relative — safe). QA should grep
+  `matrixWorld|getWorldPosition|setFromObject` for any reader added since.
+- **R4 — two spellings of left** (absent, `"left"`). Contained by A3's single reader.
+- **R5 — an older build refuses a right-hand document** (strict schema). Pre-launch; the same
+  no-rollback note `DesignSettingsSchema.finish` carries; first stored schema is M8's (ADR 0111 d8).
+- **R6 — e2e pixel constants.** A canvas constant is now a function of (room, rail, direction); A17
+  measures, never stores.
+- **R7 — carry-forwards, not built:** 7F3/7G draw a left preset's thumbnail mirrored for a right room
+  (ADR 0109 A2); M7B mirrors the corner group with A6–A8's primitive.
+
+**Owner questions:** none blocking. D11 is recorded with its trigger.
 
 **7J — straight kitchens** (**unblocked: F1 "Yes, 1200–6300 mm", 2026-09-11**): **this wave adds
 `linear: { wallA: { minMm: 1200, maxMm: 6300 } }` to `APPROVED_ROOM_POLICY`**, together with the

@@ -149,6 +149,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md) | The room's lengths are typed in whole millimetres, and the URL keeps its metre wire form | Accepted |
 | [0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md) | Step 1's URL follows the typed room, and a late echo is still ours | Accepted |
 | [0128](0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md) | Live persistence suites serialise through a declared, transaction-scoped readers–writer lock | Accepted |
+| [0129](0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | A right-hand L is the left-hand design drawn in a reflection, and the reflection is a per-group primitive | Proposed |
 
 ## Adding the next one
 

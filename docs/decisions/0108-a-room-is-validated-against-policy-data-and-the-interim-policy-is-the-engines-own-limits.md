@@ -65,6 +65,12 @@ lățimi"*. Flipping the direction cannot change any issue, and a valid room doe
 direction — what the direction does to the 3D kitchen is an open owner question (M7 plan, *Owner
 questions*, Q6).
 
+> **Note, 2026-09-23 — Q6 is answered.** The owner ruled on 2026-09-11 that a right-hand corner is
+> the mirror image of the left-hand kitchen, and
+> [ADR 0129](0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md)
+> (Proposed with wave 7I's plan) records what that means. *"Never read by validation"* stands; a
+> valid room now **carries** the direction when it is right (ADR 0129 decisions 2–3).
+
 **6. Until the owner rules, the policy is the engine's own limits, and it says so.** Each bound is
 **derived at module load from an existing constant, never written as a literal**, and the policy
 carries `approval: "interim-unapproved"`:
