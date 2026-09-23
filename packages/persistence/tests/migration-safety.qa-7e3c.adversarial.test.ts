@@ -296,3 +296,41 @@ describe("SEC-7E3c.11: a function call is refused inside a CHECK or a column DEF
     expect(refusalsFor(sql)).toEqual([]);
   });
 });
+
+// Review round 3: three note-level gaps the reviewer measured against the round 2 fix.
+describe("SEC-7E3c.12: PL/pgSQL strips comments Postgres reads inside $$…$$ that this scanner does not", () => {
+  it("refuses a function call an empty block comment splits inside a guarded DO body", () => {
+    const sql =
+      "do $$ begin if not exists (select 1 from pg_constraint where conname = 'c') then " +
+      "alter table designs add constraint c check (lo_unlink/**/(1) = 1 or true); end if; end $$;";
+    expect(refusalsFor(sql)).not.toEqual([]);
+  });
+});
+
+describe("SEC-7E3c.13: a function call is refused anywhere in an add-column clause, not only its default", () => {
+  it("refuses a side-effecting function call inside an added column's own inline check", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add column if not exists z int check (lo_unlink(1) = 1 or true);",
+      ),
+    ).not.toEqual([]);
+  });
+});
+
+describe("SEC-7E3c.14: now() is allowed by exact spelling, never by an unqualified tail match", () => {
+  it("refuses evil.now(), which is not the allowed now or pg_catalog.now", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add column if not exists seen_at timestamptz default evil.now();",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("still allows the schema-qualified pg_catalog.now()", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add column if not exists seen_at timestamptz default pg_catalog.now();",
+      ),
+    ).toEqual([]);
+  });
+});

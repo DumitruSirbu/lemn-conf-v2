@@ -602,22 +602,15 @@ function alterTableClausesOf(statement: string): string[] | undefined {
 
 const ADD_COLUMN_CLAUSE = /^add\s+(column\s+)?if\s+not\s+exists\s+[\w"]+\b/;
 
-/** The clause's own `default …` expression, to the end of the clause — `topLevelClausesOf` has
- *  already split on the commas between clauses, so this is exactly one column's default and
- *  nothing past it. */
-const DEFAULT_EXPRESSION = /\bdefault\s+(.+)$/;
-
 function isSafeAddColumnClause(clause: string): boolean {
   if (!ADD_COLUMN_CLAUSE.test(clause.trim())) return false;
   if (isNotNullWithoutDefault(clause)) return false;
-  // SEC-7E3c.11: a function call in a column's default runs during the migration, the same hazard
-  // a CHECK expression carries — checked here for the reason it is checked there.
-  const defaultExpression = DEFAULT_EXPRESSION.exec(clause.trim())?.[1];
-  if (
-    defaultExpression !== undefined &&
-    containsDisallowedFunctionCall(defaultExpression)
-  )
-    return false;
+  // SEC-7E3c.11, widened by review round 3's SEC-7E3c.13: a function call anywhere in the clause —
+  // a `default`, or (the gap .13 found) an inline `check (…)` an added column carries — runs during
+  // the migration, the same hazard a guarded DO block's own CHECK expression carries. Scoped to the
+  // whole clause rather than to `default` alone, because `add column … check (lo_unlink(1) = 1 or
+  // true)` has no `default` for the old, narrower check to find.
+  if (containsDisallowedFunctionCall(clause)) return false;
   return true;
 }
 
@@ -705,10 +698,19 @@ const CONSTRAINT_GUARD_TAIL = "); end if; end $$";
  *  `execute`, `perform` (PL/pgSQL's fire-and-forget call, which reaches a function the same way),
  *  `format(…)` and string concatenation (`||`) are the ways a body builds one. Checked on every `DO`
  *  block regardless of whether it otherwise matches the guard template, so a future loosening of
- *  that template can never accidentally admit one — the same "regardless" the finding asked for. */
+ *  that template can never accidentally admit one — the same "regardless" the finding asked for.
+ *
+ * **Review round 3, SEC-7E3c.12.** `scanSql`'s comment-stripping treats a `$$…$$` body as opaque
+ * text — correctly, since the *outer* SQL lexer never looks inside one — but PL/pgSQL's own
+ * compiler does strip a block comment and a line comment from the body before running it. A
+ * function call split by an empty block comment reaches `containsDisallowedFunctionCall` below as
+ * one broken token and one paren, matching no function call at all, while Postgres runs the two
+ * halves joined as one call. `0003` and `0005` carry no comment marker inside their own `$$…$$`
+ * bodies (checked by hand), so refusing either kind anywhere in a `DO` body is not a rebaseline. */
 function isConstraintGuardedDoBlock(statement: string): boolean {
   if (!/^do\s+\$\$/.test(statement)) return false;
   if (usesDynamicSql(statement)) return false;
+  if (containsCommentMarker(statement)) return false;
 
   const head = CONSTRAINT_GUARD_HEAD.exec(statement);
   if (head === null) return false;
@@ -746,6 +748,13 @@ function usesDynamicSql(statement: string): boolean {
   return /\bexecute\b|\bperform\b|\bformat\s*\(|\|\|/.test(statement);
 }
 
+/** Anything left that looks like a comment marker, checked against a statement `scanSql` has
+ *  already stripped comments from *outside* every `$$…$$` body — so a survivor here can only be
+ *  inside one (SEC-7E3c.12). */
+function containsCommentMarker(statement: string): boolean {
+  return statement.includes("/*") || statement.includes("--");
+}
+
 /** The content strictly between a `(` already consumed by the caller and its matching `)`, tracking
  *  nested parens so `check (a and (b or c))` is read as one balanced expression rather than closing
  *  on the first `)` it meets. `undefined` if the text never returns to depth zero — Postgres would
@@ -776,21 +785,26 @@ function countOccurrences(text: string, pattern: RegExp): number {
  * names, for the reason every other diagnosis in this file is refuse-by-default: the next dangerous
  * function nobody has heard of yet still has to be typed as `name(`.
  *
- * **`now()` is the one exception**, because `0001` and `0006` both use it as a column default and
- * neither is going anywhere. Nothing else shipped uses a function call in either position — checked
- * by hand against `0001`–`0006` before this rule was written — so the allowlist stays a set of one
- * until a migration genuinely needs a second.
+ * **`now()` is the one exception, matched whole, never by its last segment** (review round 3,
+ * SEC-7E3c.14 — the old check split the call on `.` and compared only the tail, so `evil.now()`
+ * read as `now` and passed). Exactly two spellings are allowed: unqualified `now` and
+ * schema-qualified `pg_catalog.now`, because `0001` and `0006` both use the unqualified form as a
+ * column default and neither is going anywhere. Nothing else shipped uses a function call in either
+ * position — checked by hand against `0001`–`0006` before this rule was written — so the allowlist
+ * stays these two spellings of one function until a migration genuinely needs a second.
  */
-const ALLOWED_FUNCTION_CALLS = new Set(["now"]);
+const ALLOWED_FUNCTION_CALLS = new Set(["now", "pg_catalog.now"]);
 
 const FUNCTION_CALL_HEAD = /("[^"]*"|[a-z_][\w$]*(?:\.[a-z_][\w$]*)*)\s*\(/g;
 
 function containsDisallowedFunctionCall(expression: string): boolean {
   for (const match of expression.matchAll(FUNCTION_CALL_HEAD)) {
     const rawName = match[1] ?? "";
-    const qualifiedName = stripQuotes(rawName);
-    const unqualifiedName = qualifiedName.split(".").pop() ?? qualifiedName;
-    if (!ALLOWED_FUNCTION_CALLS.has(unqualifiedName)) return true;
+    const qualifiedName = rawName
+      .split(".")
+      .map((segment) => stripQuotes(segment))
+      .join(".");
+    if (!ALLOWED_FUNCTION_CALLS.has(qualifiedName)) return true;
   }
   return false;
 }
