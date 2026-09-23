@@ -105,9 +105,58 @@ for (const locale of LOCALES) {
             (cookie) => cookie.name === VISITOR_COOKIE_NAME,
           ),
         ).toBe(true);
+
+        // The found branch's own 307, not only the page it lands on (L1.4, review round 1): a
+        // redirect that dropped CSP for one step would still leave the final document policy-
+        // covered, so this has to be read off the intermediate response.
+        const redirectedFrom = navigation.request().redirectedFrom();
+        if (redirectedFrom === null) {
+          throw new Error(`Expected ${path} to have redirected at least once`);
+        }
+        const redirectResponse = await redirectedFrom.response();
+        if (redirectResponse === null) {
+          throw new Error("Expected the redirect's own response");
+        }
+        expect(redirectResponse.status()).toBe(307);
+        assertCsp(redirectResponse);
       } finally {
         await deleteMintedDesigns([design.id]);
       }
+    });
+  }
+}
+
+// L1.4 (review round 1): the unprefixed paths take **two** hops — next-intl's own locale redirect,
+// then this route's resume redirect — and CSP has to survive both, not only the one the existing
+// per-locale tests above already cover. `ru` needs `NEXT_LOCALE` because it is not the fallback
+// locale `locale-routing.qa`'s own cases negotiate the same way.
+for (const [locale, negotiationHeaders] of [
+  ["ro", { cookie: "NEXT_LOCALE=ro" }],
+  ["ru", { cookie: "NEXT_LOCALE=ru" }],
+] as const) {
+  for (const routeSuffix of ENTRY_ROUTES) {
+    const unprefixedPath = routeSuffix === "" ? "/" : routeSuffix;
+
+    test(`unprefixed ${unprefixedPath} negotiates ${locale} and resumes to room, CSP on both hops`, async ({
+      request,
+    }) => {
+      const firstHop = await request.get(unprefixedPath, {
+        headers: negotiationHeaders,
+        maxRedirects: 0,
+      });
+
+      expect(firstHop.status(), unprefixedPath).toBe(307);
+      assertCsp(firstHop);
+      const firstLocation = firstHop.headers().location ?? "";
+      expect(firstLocation).toBe(`/${locale}${routeSuffix}`);
+
+      const secondHop = await request.get(firstLocation, {
+        maxRedirects: 0,
+      });
+
+      expect(secondHop.status(), firstLocation).toBe(307);
+      assertCsp(secondHop);
+      expect(secondHop.headers().location).toBe(`/${locale}/configurator/room`);
     });
   }
 }

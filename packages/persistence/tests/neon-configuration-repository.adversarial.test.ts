@@ -718,12 +718,21 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
         // what makes "an index scan was chosen" evidence about the index rather than about the
         // table's size — the contract is that the shape supports one, not that the planner always
         // picks it.
-        await sql`set local enable_seqscan = off`;
-        const plan = (await sql`
-          explain (format json)
-          select id from designs where visitor_hash = ${probeHash}
-          order by updated_at desc, id desc limit 1
-        `) as { "QUERY PLAN": unknown }[];
+        //
+        // **Both statements inside one `sql.transaction(...)`, never two bare calls.** Neon's HTTP
+        // driver opens a fresh implicit transaction for every plain `sql\`...\`` call, so a `set
+        // local` issued that way is scoped to a transaction that has already committed by the time
+        // a second call runs its own — the setting would silently do nothing, and review round 1
+        // caught exactly that (L1.1). `transaction()` submits both queries over one connection, so
+        // the session-local setting from the first is still in effect for the `explain` beside it.
+        const [, plan] = (await sql.transaction([
+          sql`set local enable_seqscan = off`,
+          sql`
+            explain (format json)
+            select id from designs where visitor_hash = ${probeHash}
+            order by updated_at desc, id desc limit 1
+          `,
+        ])) as [unknown, { "QUERY PLAN": unknown }[]];
 
         // "Index Only Scan", not "Index Scan": the index's own columns are `visitor_hash`,
         // `updated_at` and `id`, so the query above (`select id ... where visitor_hash = ...`) is

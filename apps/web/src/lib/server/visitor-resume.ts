@@ -1,14 +1,37 @@
 import "server-only";
 
 import type { VisitorResumeLookup } from "@lemnaria/persistence";
+import { hasLocale } from "next-intl";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import type { AppLocale } from "@/i18n/routing";
+import { routing, type AppLocale } from "@/i18n/routing";
 
 import { reportDesignFailure } from "./design-failure-log";
 import { getRepository } from "./repository";
 import { clearVisitorCookie, readVisitorCookieForResume } from "./visitor";
+
+/** The params shape both Route Handlers below receive from their identical `[locale]` segment. */
+interface LocaleRouteParams {
+  readonly params: Promise<{ locale: string }>;
+}
+
+/**
+ * The whole of `[locale]/route.ts` and `[locale]/configurator/configure/route.ts`'s `GET` (C1.1,
+ * review round 1) — both files re-export this directly rather than each repeating the locale guard.
+ * An unsupported locale 404s **before** `resumeVisitor` reads any cookie, matching the page these
+ * routes replaced and criterion 6's "before any cookie is read".
+ */
+export async function resumeVisitorRoute(
+  request: NextRequest,
+  { params }: LocaleRouteParams,
+): Promise<NextResponse> {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) {
+    return new NextResponse(null, { status: 404 });
+  }
+  return resumeVisitor(request, locale);
+}
 
 /**
  * `/[locale]` and `/[locale]/configurator/configure`'s shared body (M7 wave 7E3a S3, D3/D5).
