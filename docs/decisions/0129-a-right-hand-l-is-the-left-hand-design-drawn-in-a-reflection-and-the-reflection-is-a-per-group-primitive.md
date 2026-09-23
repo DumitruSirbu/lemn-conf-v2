@@ -1,6 +1,6 @@
 # ADR 0129 — A right-hand L is the left-hand design drawn in a reflection, and the reflection is a per-group primitive
 
-Status: Proposed (accepted when wave 7I's plan is accepted)
+Status: Accepted — wave 7I shipped, 2026-09-24
 Date: 2026-09-23
 Type: Decision
 Milestone: M7, wave 7I
@@ -79,3 +79,28 @@ dropped where the validated input becomes a `DesignRoom`, so every stored design
   note `DesignSettingsSchema.finish` carries; the first stored schema remains M8's.
 - 7F3/7G, when they return, show a left preset's thumbnail mirrored for a right room (ADR 0109 A2).
 - M7B builds a U's right-hand corner with decision 4's primitive on the corner group alone.
+
+## Amendment — 2026-09-24, wave 7I's own QA and review
+
+**(a) The selection outline's `LineMaterial` is `side: DoubleSide` — a scoped exception to decision 5
+and to the *"reverse triangle winding or draw `DoubleSide`"* rejected alternative above.**
+`LineSegments2` builds screen-space quads whose winding never flips with the transform, while three's
+renderer flips `gl.frontFace` for a negative-determinant world matrix (`WebGLRenderer.js:1180`, the
+same source cited in decision 5) — so a one-sided outline was culled **entirely** in a right-hand
+scene. QA captured **0 red pixels** where the untouched (left-hand) reference captured **more than
+200**. This exception is scoped to the outline's own material: body geometry stays one-sided, no
+mesh gains `DoubleSide`, and decision 5's reasoning ("the renderer already handles a reflected world
+matrix") still governs every other material in the scene.
+
+**(b) Decision 8 is amended: the side word and the width note cross on screen iff `(wall A and
+right) or (wall B and left)`.** Proved by projecting +along through each wall's camera preset
+(`packages/three-adapter/tests/qa-7i-screen-side.adversarial.test.ts`: wall A/left → right, wall
+A/right → left, wall B/left → left, wall B/right → right). **This changes left-hand wall-B wording**:
+the side words and the width-step note were mirrored wrong on wall B in **every left-hand kitchen**
+shipped before this amendment — a pre-existing defect, corrected as a side effect of building the
+mirror rather than a newly introduced regression. `panel.widthStepNoteRight` is not a right-hand-only
+string; it is the swapped note, shown whenever the crossing condition above holds.
+
+Full criterion-by-criterion record, QA and review detail:
+[`milestones/M7-room-and-presets.md`, *7I close-out —
+2026-09-24*](../milestones/M7-room-and-presets.md#7i-close-out--2026-09-24).

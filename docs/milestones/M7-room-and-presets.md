@@ -1560,8 +1560,8 @@ table.
 | **7E3c** | The private share link: create, revoke, re-issue; `/[locale]/s/{token}` read-only view (ADR 0114 Amendment B) — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment G + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. See [7E3c close-out](#7e3c-close-out--2026-09-23)** | ~~`00NN_create_design_share_links.sql`~~ **`persistence/src/migrations/0006_create_design_share_links.sql`**, `persistence/src/share-link-repository.ts`, `app/api/designs/[id]/share/route.ts`, `app/[locale]/s/[token]/page.tsx`, ~~`src/panel/share-design.tsx`~~ **`src/share/share-design.tsx`** (+ `proxy.ts` allow-list) — **the full per-slice list, which adds `migration-safety.ts`, the digest and cross-site extractions, `design-errors.ts`, `security-headers.ts`, `configure-screen.tsx`, `global-settings.tsx` and the message files, is in the plan's §4** | 7E3a | **Full + security** | **Yes** | answered (F5 final, ADR 0114 C, ADR 0115) |
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`, intermediate); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`; review round 2 fixes `f1e4fc9`. See [7E3b close-out](#7e3b-close-out--2026-09-23)** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — backlog 81 closed, *"Rotate on mint"* then *"Web Lock + random"* (ADR 0114 H, H6). See [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4 |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
-| **7I** | Mirrored right-hand L; a mirror that works on one group. **Owes 7E2's deferral**: `roomHrefFromDesignRoom` hardcodes `cornerDirection: "left"` and needs the optional field once mirroring lands | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6). **Planned 2026-09-23 — see [Wave 7I — the plan](#wave-7i--the-plan-2026-09-23)** |
-| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **One owner question OPEN, recorded 2026-09-22 (coordinator's instruction), gating 7J's policy slice and nothing else — Q-7J-1: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300?** The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. **Recommendation: 6000**, so every wall the product accepts has one maximum. It does not gate 7T |
+| **7I** | Mirrored right-hand L; a mirror that works on one group — **DONE 2026-09-24. Commits: plan + ADR 0129 `4ff2d64`; S1 `95c5ad4`; S2 `e653efb`; S3 `bf3716a`; S4 `250efb7`; QA fixes + QA tests `a20085a`; review fixes `f653bdf`; comment-only `HEAD`. See [7I close-out](#7i-close-out--2026-09-24)** | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
+| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **Q-7J-1 ANSWERED by the owner, 2026-09-23: one maximum for every kitchen shape (linear, L, U) — 6000 mm — unless 7J's planning shows the fill algorithm genuinely needs 6300 mm on a straight wall (instead of a corner cabinet it can fit a full-size cabinet); otherwise cap all walls at the same maximum.** Supersedes the *"Recommendation: 6000"* line below, which is the coordinator's superseded reasoning kept for its detail: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300? The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. It does not gate 7T |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
@@ -3905,6 +3905,113 @@ in a right-hand kitchen is **not** A1 violated (ADR 0110 I5.4).
   (ADR 0109 A2); M7B mirrors the corner group with A6–A8's primitive.
 
 **Owner questions:** none blocking. D11 is recorded with its trigger.
+
+### 7I close-out — 2026-09-24
+
+**What shipped — the mirrored right-hand L, built on one primitive that mirrors a single group.**
+Commits, in order: plan + ADR 0129 `4ff2d64`; S1 domain `95c5ad4`; S2 adapter `e653efb`; S3
+stage/URL/copy `bf3716a`; S4 capture + e2e `250efb7`; QA fixes + QA tests `a20085a`; review fixes
+`f653bdf`; comment-only `f653bdf..HEAD`. All with hooks except the plan commit (`--no-verify`,
+docs).
+
+**Criterion-by-criterion (7I-A1…A18), each with its evidence tier and the test that goes red if the
+criterion breaks** — the logic reviewer's R6 table, carried here as the close-out record:
+
+| # | Criterion | Test(s) that go red | Tier |
+| --- | --- | --- | --- |
+| A1 | Left is byte-identical | `qa-7i-corner-direction:46,147`, `validate-room.test:163`, `room-url-state.test:190`, `kitchen-stage-room-change:331` | test-verified |
+| A2 | The schema (absent/left/right parse; hostile values refused) | `corner-direction.test:46-89`, `qa-7i-corner-direction:158,176` | test-verified |
+| A3 | One reader, `cornerDirectionOf` | `corner-direction.test:122` (widened to adapter + web `src` by review finding L1.6) | test-verified |
+| A4 | Validation carries and never reads | `validate-room.property:201,223` | test-verified |
+| A5 | Generation is canonical | `corner-direction.test:164,182,217` | test-verified |
+| A6 | The primitive is a reflection and nothing else | `corner-direction.test:69-155` | test-verified |
+| A7 | One group, alone | `qa-7i-mirror:159,185` | test-verified |
+| A8 | Winding | `qa-7i-mirror:289,303` | test-verified |
+| A9 | Picking follows | `qa-7i-mirror:364-421` — the void half is near-vacuous (outlines don't raycast); the `Group`-only throw is the guard | test-verified, void half near-vacuous |
+| A10 | The probe is canonical | `corner-direction.test:407` | test-verified |
+| A11 | Cameras | `qa-7i-mirror:434`, `corner-direction.test:494-527` | test-verified |
+| A12 | Lights | `corner-direction.test:543`, `qa-7i-mirror:477` | test-verified |
+| A13 | In place (no dispose/create on a direction flip; camera held) | `kitchen-stage-room-change:306-363`, `qa-7i-stage-direction:245-287`, `kitchen-stage-direction-camera-hold.test.ts` (new — QA's Q2, camera-hold review finding L1.3) | test-verified |
+| A14 | Outline and mark follow | `corner-direction.test:591-634`, `qa-7i-mirror:541-593` | test-verified |
+| A15 | Words follow — **left strings do not hold on wall B; see below** | `qa-7i-side-words:120-218`, `width-stepper.qa:593`, `content.test.ts:373-429`, e2e `qa-7i-captures:196` | test-verified |
+| A16 | URL | `qa-7e2-room-href:104`, `room-url-state.test:190` | test-verified |
+| A17 | The real flow, captured | `mirror-flow.ts:261-449` | e2e |
+| A18 | The capture set, inspected | visual — testing-reports/7i/ | visual |
+
+**A1 and A15 read differently than the plan wrote them, and both corrections are recorded rather than
+silently absorbed.** A1's "left render unchanged" still holds for geometry and storage — the QA-held
+figures below confirm it. **A15's "left strings unchanged" does not hold on wall B**: D8 is amended
+(below) so that the side word and the width note cross on screen iff `(wall A and right) or (wall B
+and left)`, which means **wall-B's side words and the width note were mirrored wrong on every
+left-hand kitchen before this wave** — a pre-existing defect, corrected as a side effect of building
+the mirror, not a new left-hand regression. `panel.widthStepNoteRight` is the swapped note, not a
+right-hand-only note.
+
+**QA (Full).** Found: **Q1** the selection outline was invisible in a right-hand scene (fixed:
+outline `LineMaterial` set `side: DoubleSide`, a scoped exception — see the ADR amendment below);
+**Q2** the contact blob was not re-seated on an in-place direction flip (fixed); **Q3** the capture
+route's lights were not mirrored (fixed); a coverage gap in `usePanelView`'s direction wiring (a seam
+test added; the real guard is the e2e at `qa-7i-captures.ts:196`). **Held, not found broken:** left
+documents byte-identical against `fb7c925` (validated for the reference room, 8 policy corners and 60
+sampled rooms; right adds only `,"cornerDirection":"right"`); `kitchen-parts.ts`, `reference/`, the
+parity test, `measure-built-body.ts` and `generation/` unchanged; picking matches the canonical scene
+over 400 random rays; winding reflected; presets bit-exact over 200 rooms; hostile `cornerDirection`
+values refused or treated as left; sabotage red/green confirmed on `applyCornerDirection`, the mirror
+on leaves, `cornerDirectionOf`'s default, `validateRoomInput`, the light rig, and `screenSideOf`.
+[QA-reported]
+
+**Review.** Clean-code: C1.1 (camera-hold duplication, extracted to `reseatHoldingCamera`), C1.2
+(the shared `FRAMES_BEFORE_READY` constant, moved to `app/internal/capture-settle.ts`) — both fixed.
+Logic, round 1: L1.1 (wall-B side word, folded into the D8 amendment below), L1.3 (camera held across
+a flip — a new test goes red if the restore is deleted), L1.4 (`seatObjectOnStage` takes a required
+`direction`; the framing offset mirrors with it), L1.5 (a seam-test comment corrected), L1.6 (A3's
+one-reader scan widened to adapter + web `src`; `global-settings.tsx` now passes the direction) —
+all fixed. Logic, round 2: R2.3 (the side-word projection table and `content.test.ts:373` are
+hand-coupled — commented in both so a future edit to one is flagged at the other), R2.4 (the QA
+side-words oracle no longer checks walls; wall-dependence is guarded instead by
+`content.test.ts:373-429`).
+
+**Visual (production build, 390×844 ro + 1440×900).** All PASS: Step 1 *La dreapta* preview;
+mirrored editor with fronts facing the room, joins and blob correct; the selection outline visible
+(the fix for Q1); the width note reading *"întâi spre stânga, apoi spre dreapta"*; Perete B lit like
+wall A; the known overflow mark (Q7H-8, not a 7I bug); resize 3000→3600 and a depth change 600→700
+both keep the mirror; the back-link keeps *La dreapta* (`direction=right` in the URL); desktop
+presets; `/internal/mirror-shot`; the share view; a left twin renders as a clean mirror. **Not
+verified:** Russian walked visually, real hardware touch, void-outline picking, rotate-drag. Evidence
+in `testing-reports/7i/` (gitignored). Test-DB rows: `ZDfcjI92ChibTHHGBF_Aq`,
+`MxX7wFDQ5noajbVQCk1wN`, `0TiYDPW7Z3n-HjKv6FMF_`; share token `l4W0SBae9Vtd`.
+
+**New copy, approved as drafted under ADR 0113.** `panel.widthStepNoteRight` — ro: *"Lățimea se
+schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre
+stânga, apoi spre dreapta. Când un buton este gri, sub el scrie de ce."* / ru: *"Ширина меняется с
+шагом 50 мм: боковая стенка шкафа сдвигается за счёт соседнего свободного пространства — сначала
+слева, затем справа. Если кнопка неактивна, причина указана под ней."*
+
+**Gates.** `pnpm ci:local` at `f653bdf`: `LOCAL CI PASSED — all gates green, safe to push.` — e2e
+**452 passed (7.0m), 2 skipped**; persistence **29 / 558 passed | 1 skipped**; three-adapter **95 /
+3,609**; web **263 / 4,693**. The commit after `f653bdf` is comments only.
+
+**Deviations from the plan, with rationale:**
+
+1. **A1/A15's wording is corrected**, not the code — see above. The plan's criteria read as if
+   left-hand wall-B strings were already correct; they were not, and the fix ships as part of this
+   wave because D8's projection rule is what both walls now share.
+2. **The outline's `LineMaterial` gained `side: DoubleSide`**, a scoped exception to the plan's "no
+   `DoubleSide`" must-not and to D5's rejected-alternative reasoning — see ADR 0129's dated amendment
+   below for the full argument. Body geometry stays one-sided; only the selection outline's
+   screen-space quad is affected.
+
+**Deferred, named with an owner:** D11 (appliances drawn mirrored on a right-hand L) is recorded with
+its trigger in ADR 0129 decision 9 — not built for, per ADR 0118's shape. R7's two carry-forwards
+(7F3/7G's mirrored thumbnail; M7B's corner-alone mirror) are 7F3/7G's and M7B's respectively, not
+built here.
+
+**Owner line for the next RESUME HERE:** left-hand kitchens' wall-B side words and width-step note
+now read the other way — a correctness fix, visible in existing designs; the owner should review the
+new string. D11 (appliances mirrored on a right-hand L) is recorded with its trigger, not built.
+
+Implementation and QA/review are `4ff2d64`…`f653bdf`; documentation close-out is this commit. Push is
+pending; the coordinator pushes after this record. **Next wave: 7J** (straight kitchens).
 
 **7J — straight kitchens** (**unblocked: F1 "Yes, 1200–6300 mm", 2026-09-11**): **this wave adds
 `linear: { wallA: { minMm: 1200, maxMm: 6300 } }` to `APPROVED_ROOM_POLICY`**, together with the

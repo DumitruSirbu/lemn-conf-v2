@@ -33,10 +33,24 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
+Last updated: 2026-09-24 — **M7 wave 7I is DONE** (mirrored right-hand L; a mirror that works on one
+group). See the RESUME HERE entry under *What to do next* (the 7E3b entry below it is superseded,
+kept for its detail) and the M7 row below. **Next wave: 7J** (straight kitchens), then 7K, 7L, per
+the recorded order and the owner's Q-7J-1 answer (one maximum, 6000 mm, per kitchen shape unless
+7J's planning shows a real need for 6300 mm on a straight wall). The runner's own CI verdict is still
+outstanding for 7T, 7F4b, 7E4, 7E3a, 7E3c, 7E3b and now 7I alike — one owner-dispatched
+`workflow_dispatch` of `ci.yml` settles all seven. **Owner actions needed before this branch
+deploys:** migrations `0005` and `0006` must be applied to `lemn-conf-v2-preview` then production,
+followed by the grant on `design_share_links` — **no** `VISITOR_ROTATION_SECRET` is needed (the wave
+that would have required it was reverted the same day it was added) — see the RESUME HERE entry for
+detail. Review the new leaf `panel.widthStepNoteRight` (ro/ru), and note that left-hand kitchens'
+wall-B side words and width-step note now read the other way — a correctness fix found while
+building the mirror, not a regression from it.
+
 Last updated: 2026-09-23, later than 7E3c below — **M7 wave 7E3b is DONE** (a design opens only in its
 owning browser). See the RESUME HERE entry under *What to do next* (the 7E3c entry below it is
-superseded, kept for its detail) and the M7 row below. **Next wave: 7I** (mirrored right-hand L),
-then 7J, 7K, 7L, per the recorded order. The runner's own CI verdict is still outstanding for 7T,
+superseded, kept for its detail) and the M7 row below. ~~**Next wave: 7I** (mirrored right-hand L),
+then 7J, 7K, 7L, per the recorded order.~~ The runner's own CI verdict is still outstanding for 7T,
 7F4b, 7E4, 7E3a, 7E3c and now 7E3b alike — one owner-dispatched `workflow_dispatch` of `ci.yml`
 settles all six. **Owner actions needed before this branch deploys:** migrations `0005` and `0006`
 must be applied to `lemn-conf-v2-preview` then production, followed by the grant on
@@ -389,9 +403,9 @@ room remains 900 / 320 / 570, the engine floor remains 880 / 880, and ADR 0125 k
 minima at 900 / 1000; S5 was cancelled. Final `pnpm check` passed with domain **4,570**,
 persistence **282**, three-adapter **3,536** and web **3,316**. Final `pnpm ci:local` passed every
 gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The full evidence and visual limitation are in the milestone's *7D7 close-out —
-2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3c is DONE** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`), commits plan+ADR `f59d79b` … screen notes `b39983d`; see the [7E3c close-out](milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3b is DONE** — a design opens only in its owning browser, with the visitor value rotating to a fresh random secret on every mint (backlog 81 closed) and the two-tab create race closed by a client-side Web Lock rather than the server-side HMAC the wave tried and reverted the same day (ADR 0114 H1, H4 struck, H6). Commits: plan + ADR H `239d87f` … review round 2 fixes `f1e4fc9`; `pnpm ci:local` PASSED at `f1e4fc9` — e2e 448 passed / 2 skipped, persistence 29 / 558 passed | 1 skipped, three-adapter 92 / 3,553, web 260 / 4,653; see the [7E3b close-out](milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23). **Next wave: 7I**, then 7J, 7K, 7L. | Yes — `milestones/M7-room-and-presets.md`, and ADRs
+2026-09-19*. **Updated 2026-09-21: wave 7D5 is DONE, close-out at [7D5 close-out](milestones/M7-room-and-presets.md#7d5-close-out--2026-09-21).** Commits: S1 `c67b4ee` (bottle cabinet), S2 `17df3f5` (pan-drawer cabinet), S3 `dd7a25b` (threshold drawer). Pushed; local and origin both at `dd7a25b`, source-verified with `git rev-parse` after `git fetch`. `pnpm check` passed — domain 221 files / 4,673 tests, persistence 20 / 282, three-adapter 92 / 3,546, web 218 / 3,316; `pnpm ci:local` printed `LOCAL CI PASSED — all gates green, safe to push`, e2e 208 passed / 2 skipped in 5.7 minutes. A six-witness-room visual gate on the production build passed with no defects filed; one open owner question on the reference room's 560 mm end gap is recorded, not fixed. The dishwasher (S5) is lifted to **wave 7D5b**. **A coordinator process error is on the record** (ADR 0110 L7): S1 and S2 were each committed after running only the domain suite, with three-adapter red at both (neither pushed). **Separately: wave 7T's slice 1 shipped at `5c1a6aa` on 2026-09-16 but was never recorded in this row or given a DONE marker — a documentation gap found while closing 7D5, left open here rather than resolved, since this pass did not verify `5c1a6aa` against `git log`.** **Updated 2026-09-21: wave 7D5b is DONE, close-out at [7D5b close-out](milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21).** Commits: plan + Amendment M `acb7b6f`; S0 `c0018ef`; S0b `4e88ae0`; S1 `f116b1c`; S2 `09cea46`; SW `f6e3730` (pushed, local/origin verified matching); the W7 fix committed just after and pushed with the close-out. `pnpm check` and `pnpm ci:local` both green at `f6e3730` (see the RESUME HERE entry above for the full figures). A dishwasher stands in 196,621 of 245,211 placed kitchens; every room keeps ≥ 1 oven. Owner and coordinator rulings are [ADR 0110 Amendment M](decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-m--2026-09-21-wave-7d5b-the-dishwasher-and-the-oven-principle) (M1–M16). **Wave 7F2 — 1C validation state, shape refusal, the red wall — is PLANNED, next**, all owner/coordinator questions answered; see [Wave 7F2 — the plan](milestones/M7-room-and-presets.md#wave-7f2--the-plan-2026-09-21). **Updated 2026-09-23: waves 7F2, 7T and 7E4 are all DONE since — see the RESUME HERE entries in *What to do next* for full figures.** 7E4 (S1 `64e8894` … review round 2 `1b512bb`) moves the e2e suite and its tooling off `/configurator/configure` onto a fixture that mints and opens a seeded `/d/{id}`; `pnpm ci:local` PASSED at `1b512bb` (e2e **365 passed, 2 skipped, 5.2 minutes**); the runner's own CI verdict remains outstanding, the same structural gap 7T and 7F4b left open. **Next wave: 7E3a is DONE, 2026-09-23** — the `__Host-` visitor cookie, the `0005` migration and server-side resume; see the RESUME HERE entry and the [7E3a close-out](milestones/M7-room-and-presets.md#7e3a-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3c is DONE** — the private share link (create, revoke, re-issue; `/[locale]/s/{token}`), commits plan+ADR `f59d79b` … screen notes `b39983d`; see the [7E3c close-out](milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23). **Updated 2026-09-23, later still: wave 7E3b is DONE** — a design opens only in its owning browser, with the visitor value rotating to a fresh random secret on every mint (backlog 81 closed) and the two-tab create race closed by a client-side Web Lock rather than the server-side HMAC the wave tried and reverted the same day (ADR 0114 H1, H4 struck, H6). Commits: plan + ADR H `239d87f` … review round 2 fixes `f1e4fc9`; `pnpm ci:local` PASSED at `f1e4fc9` — e2e 448 passed / 2 skipped, persistence 29 / 558 passed | 1 skipped, three-adapter 92 / 3,553, web 260 / 4,653; see the [7E3b close-out](milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23). **Updated 2026-09-24: wave 7I is DONE** — mirrored right-hand L, one primitive (`applyCornerDirection`) that reflects a group in its own local X, settable on the whole scene or on one structural corner group alone (for M7B's U shape). Commits: plan + ADR 0129 `4ff2d64`; S1 `95c5ad4`; S2 `e653efb`; S3 `bf3716a`; S4 `250efb7`; QA fixes + QA tests `a20085a`; review fixes `f653bdf`. `pnpm ci:local` PASSED at `f653bdf` — e2e **452 passed (7.0m), 2 skipped**, persistence **29 / 558 passed | 1 skipped**, three-adapter **95 / 3,609**, web **263 / 4,693**. QA found and fixed the selection outline invisible in a right-hand scene (a scoped `DoubleSide` exception on the outline material only, recorded as an ADR 0129 amendment), the contact blob not re-seated on an in-place flip, and mirrored capture-route lights. **A pre-existing defect was found and fixed as a side effect: wall-B's side words and width-step note were mirrored wrong on every left-hand kitchen** — ADR 0129 decision 8 is amended so the crossing condition is `(wall A and right) or (wall B and left)`; `panel.widthStepNoteRight` is the swapped note, not right-hand-only. Full record: [7I close-out](milestones/M7-room-and-presets.md#7i-close-out--2026-09-24). **Next wave: 7J**, then 7K, 7L, per the owner's Q-7J-1 answer (one 6000 mm maximum per shape, unless 7J shows a real need for 6300 mm on a straight wall). | Yes — `milestones/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
-0123, 0124, 0125 |
+0123, 0124, 0125, 0129 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -951,7 +965,70 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-23, later still. M7 wave 7E3b is DONE — a design opens only in its owning
+> **RESUME HERE — 2026-09-24. M7 wave 7I is DONE — mirrored right-hand L; a mirror that works on one
+> group.** Commits, in order: plan + ADR 0129 `4ff2d64`; S1 domain `95c5ad4`; S2 adapter `e653efb`;
+> S3 stage/URL/copy `bf3716a`; S4 capture + e2e `250efb7`; QA fixes + QA tests `a20085a`; review
+> fixes `f653bdf`; comment-only `HEAD` (the commit after `f653bdf`). All with hooks except the plan
+> commit (`--no-verify`, docs). Tier **Full**, visual **Yes** (confirmed in the plan).
+>
+> **What shipped:** the domain gains an optional `room.cornerDirection: "left" | "right"`, absent
+> means left, read by exactly one query (`cornerDirectionOf`); generation, commands, columns and the
+> body probe stay canonical (left-hand) regardless of direction. The adapter mirrors with one
+> primitive, `applyCornerDirection(group, direction)` — a reflection in the group's own local X,
+> settable on the scene root (the whole kitchen) or on one structural corner group alone, which is
+> what M7B needs for the U shape. Face winding, picking, cameras, lights, the selection outline and
+> the overflow mark all follow the reflection; the URL (`direction=right`/`left`), the share view and
+> the capture route all carry it end to end.
+>
+> **QA found four defects and held everything else.** Found: the selection outline was invisible in
+> a right-hand scene — `LineMaterial`'s screen-space quads never flip winding under a reflected world
+> matrix, unlike a mesh, so a one-sided outline was culled entirely (0 red pixels vs >200 on the left
+> twin); fixed with a scoped `side: DoubleSide` exception on the outline material alone, recorded as
+> an amendment to ADR 0129 decision 5 rather than a silent departure. The contact blob was not
+> re-seated on an in-place direction flip; the capture route's lights were not mirrored; a coverage
+> gap in `usePanelView`'s direction wiring got a seam test (the real guard is the e2e). Held: left
+> documents byte-identical against `fb7c925` (reference room, 8 policy corners, 60 sampled rooms);
+> `kitchen-parts.ts`, `reference/`, the parity test, `measure-built-body.ts` and `generation/`
+> unchanged; picking matches canonical over 400 random rays; winding reflected; presets bit-exact
+> over 200 rooms; hostile `cornerDirection` values refused or treated as left.
+>
+> **A pre-existing defect was found and corrected as a side effect of building the mirror, not
+> introduced by it: wall-B's side words and width-step note were mirrored wrong in every left-hand
+> kitchen.** ADR 0129 decision 8 is amended — the side word and the width note cross on screen iff
+> `(wall A and right) or (wall B and left)`, proved by projecting +along through each wall's camera
+> preset. This **changes left-hand wall-B wording** going forward; `panel.widthStepNoteRight` is the
+> swapped note, not a right-hand-only one. Plan criteria A1 and A15 are corrected in the close-out to
+> say so — A1's "left render unchanged" still holds for geometry and storage, A15's "left strings
+> unchanged" does not hold on wall B.
+>
+> **Review** folded two clean-code findings (a shared `reseatHoldingCamera` helper; a shared
+> `FRAMES_BEFORE_READY` constant) and, across two rounds, five logic findings — the wall-B side word
+> (above), camera held across a flip (new test), `seatObjectOnStage` taking a required `direction`,
+> a corrected seam-test comment, and A3's one-reader scan widened to adapter + web `src`.
+>
+> **Gates:** `pnpm ci:local` at `f653bdf` — `LOCAL CI PASSED — all gates green, safe to push`; e2e
+> **452 passed (7.0m), 2 skipped**; persistence **29 / 558 passed | 1 skipped**; three-adapter **95 /
+> 3,609**; web **263 / 4,693**. The following commit is comments only.
+>
+> Full criterion-by-criterion record (7I-A1…A18), QA and review detail:
+> [`milestones/M7-room-and-presets.md`, *7I close-out —
+> 2026-09-24*](milestones/M7-room-and-presets.md#7i-close-out--2026-09-24).
+>
+> **Owner actions for this RESUME HERE:**
+> 1. Review the new leaf `panel.widthStepNoteRight` (ro/ru), approved as drafted under ADR 0113.
+> 2. **Left-hand kitchens' wall-B side words and width-step note now read the other way** — a
+>    correctness fix, visible in existing designs, not a regression from this wave.
+> 3. D11 (appliances drawn mirrored on a right-hand L) is recorded with its trigger — not built,
+>    per ADR 0118's shape: the trigger is the owner objecting on seeing it.
+> 4. Dispatch `ci.yml` when convenient (settles 7T, 7F4b, 7E4, 7E3a, 7E3c, 7E3b and now 7I's runner
+>    verdicts in one run) — outstanding since 7E3b, unchanged by this wave.
+>
+> **Next wave: 7J** (straight kitchens). The owner's Q-7J-1 answer (2026-09-23): **one maximum for
+> every kitchen shape (linear, L, U) — 6000 mm — unless 7J's planning shows the fill algorithm
+> genuinely needs 6300 mm on a straight wall (instead of a corner cabinet it can fit a full-size
+> cabinet); otherwise cap all walls at the same maximum.** Then 7K, 7L.
+>
+> **RESUME HERE (superseded above, kept for its detail) — 2026-09-23, later still. M7 wave 7E3b is DONE — a design opens only in its owning
 > browser.** Commits, in order: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`,
 > intermediate — web did not compile until S2); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA
 > `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red
