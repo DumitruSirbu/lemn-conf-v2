@@ -156,7 +156,15 @@ open the pull request into `main` on GitHub. Wave branches merge into it and are
   Context loading is most of an agent's cost, and an agent told to "read the spec" reads all of it.
   The role cards read the whole reference only when a dispatch names nothing, so an unscoped
   dispatch is the expensive default rather than a neutral one. Scope the reading, not the rigour:
-  the agent may still open anything the named sections lead it to.
+  the agent may still open anything the named sections lead it to. **The architect owns the reading
+  lists.** A wave plan's slice table carries a *Reading* column per slice (plan D-rows/§, ADRs with
+  amendment letters, DEVELOPMENT-SPEC sections, source files), plus one *Reading* line each for the
+  QA dispatch and each reviewer. The coordinator pastes them verbatim and adds only what the wave
+  learned after planning (e.g. a file a finding touched), marked as an addition. An agent that needs
+  something off-list still reads it (scope the reading, not the rigour) and reports it, and the
+  architect corrects the list for later slices. Why: a list rebuilt from memory per dispatch drifts —
+  on 2026-09-23 a 7E3c S4 dispatch omitted the plan's RSC-payload rule and the developer had to
+  rediscover it; a short, specific, plan-reviewed list is also the one agents actually read.
 - Touch the minimum surface the dispatch requires. Do not fold opportunistic refactors into a
   behavioural fix.
 - Do not reinterpret a locked decision while implementing. Surface the conflict and revise the
