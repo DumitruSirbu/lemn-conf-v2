@@ -33,6 +33,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   type Ref,
   type RefObject,
 } from "react";
@@ -43,6 +44,7 @@ import {
   usePricedDesign,
   useWholeKitchenTierOffer,
 } from "@/price/use-priced-design";
+import { ShareDesign } from "@/share/share-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
 import { describeEditability, type Editability } from "@/store/editability";
 import { useContent } from "@/i18n/use-content";
@@ -409,6 +411,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
             ref={surfaceRef}
             view={view}
             editability={editability}
+            shareControl={<ShareDesign />}
             {...(refusal === undefined
               ? {}
               : { refusalNote: describeApplyRefusal(refusal, content) })}
@@ -505,6 +508,7 @@ export function GlobalSettingsSurface({
   editability,
   refusalNote,
   confirming,
+  shareControl,
   onChoose,
   onChooseDepth,
   onChooseFinish,
@@ -562,6 +566,16 @@ export function GlobalSettingsSurface({
    * nothing in a `node` runtime can open the sheet, so no rendering test exercises it.
    */
   readonly onChooseFinish?: (finish: Finish) => void;
+  /**
+   * D10's share control, rendered as the choosing step's last section — a slot rather than a
+   * hard-wired `<ShareDesign />`, for the same reason `editability` is threaded through rather than
+   * read from the store in here: this surface takes already-resolved data and renders it, so a
+   * fixture that builds a `GlobalSettingsView` by hand can render the whole dialog with no store and
+   * no i18n provider in scope. `global-settings.tsx`'s own connected component is the only caller
+   * that ever passes one; absent, the choosing step's body simply ends one section sooner, which is
+   * every existing surface-level test's own case.
+   */
+  readonly shareControl?: ReactNode;
   readonly onCancel: () => void;
   readonly onApply: () => void;
 }) {
@@ -620,6 +634,7 @@ export function GlobalSettingsSurface({
           editability={editability}
           {...(refusalNote === undefined ? {} : { refusalNote })}
           {...(onChooseFinish === undefined ? {} : { onChooseFinish })}
+          {...(shareControl === undefined ? {} : { shareControl })}
           onChoose={onChoose}
           onChooseDepth={onChooseDepth}
           onCancel={onCancel}
@@ -712,6 +727,7 @@ function ChoosingStep({
   onChoose,
   onChooseDepth,
   onChooseFinish,
+  shareControl,
   onCancel,
   onApply,
 }: {
@@ -722,6 +738,7 @@ function ChoosingStep({
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
   readonly onChooseDepth: (cabinetDepthMm: number) => void;
   readonly onChooseFinish?: (finish: Finish) => void;
+  readonly shareControl?: ReactNode;
   readonly onCancel: () => void;
   readonly onApply: () => void;
 }) {
@@ -781,6 +798,10 @@ function ChoosingStep({
           onChoose={onChooseDepth}
           namePrefix={namePrefix}
         />
+        {/* D10: the surface's last section, mobile and desktop alike. The element itself is built by
+            `global-settings.tsx`'s connected component and handed down as `shareControl` — see that
+            prop's own comment for why this file never imports `<ShareDesign>` directly. */}
+        {shareControl}
       </div>
       {/* ADR 0065 decision 6: the flag travels with the total, and this surface shows one. */}
       {view.overflowWarning === undefined ? null : (

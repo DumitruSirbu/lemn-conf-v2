@@ -1,0 +1,110 @@
+/* D10: the last section of the settings sheet/popover, styled like every other `.group` in
+ * `global-settings.module.css` rather than inventing a second vocabulary for one more section. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 15px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.heading {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.description {
+  margin: 0;
+  font: 400 11.5px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.status {
+  margin: 0;
+  font: 700 12.5px/1.35 var(--font-ui);
+  color: var(--ink);
+}
+
+.caption {
+  margin: 0;
+  font: 400 11px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.error {
+  margin: 0;
+  font: 400 12.5px/1.35 var(--font-ui);
+  color: #b3261e;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* §10.1's 44 px floor, on every pressable control in this section — mobile-first, and the same rule
+ * `global-settings.module.css`'s own `.cancel`/`.apply` state. */
+.primary,
+.secondary,
+.revoke,
+.copy {
+  min-width: var(--touch-target);
+  height: var(--touch-target);
+  padding: 0 18px;
+  font: 700 13px/1 var(--font-ui);
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.primary {
+  color: var(--paper);
+  background: var(--accent-strong);
+  border: none;
+}
+
+.secondary {
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--line);
+}
+
+.revoke {
+  color: #b3261e;
+  background: none;
+  border: 1px solid var(--line);
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+/* A read-only field, never an anchor (D10) — selectable text with nothing to navigate to. */
+.linkField {
+  flex: 1;
+  min-width: 0;
+  height: var(--touch-target);
+  padding: 0 12px;
+  overflow: hidden;
+  font: 400 12.5px/1 var(--font-ui);
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.copy {
+  flex: 0 0 auto;
+  color: var(--paper);
+  background: var(--accent-strong);
+  border: none;
+}

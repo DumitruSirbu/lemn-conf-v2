@@ -272,6 +272,20 @@
     "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
     "startOver": "Începe o configurare nouă"
   },
+  "share": {
+    "title": "Link de vizualizare",
+    "description": "Oricine are linkul poate vedea designul, dar nu îl poate modifica.",
+    "create": "Creează link",
+    "reissue": "Creează un link nou",
+    "active": "Un link de vizualizare este activ.",
+    "reissueWarning": "Linkul vechi nu va mai funcționa.",
+    "shownOnce": "Copiază linkul acum — nu îl vom mai putea afișa.",
+    "copy": "Copiază",
+    "copied": "Copiat",
+    "revoke": "Dezactivează linkul",
+    "revoked": "Linkul a fost dezactivat.",
+    "error": "Nu am putut actualiza linkul. Încearcă din nou."
+  },
   "contactPlaceholder": {
     "title": "Formularul de contact urmează",
     "body": "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",

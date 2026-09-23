@@ -62,6 +62,10 @@
  * `::group-off` number form with the unit *mm*; and `room.unitMetres` is removed and replaced by
  * `room.unitMillimetres`, the box's new suffix. **Three moved, one renamed, no others** — the count of
  * fixtures is unchanged.
+ *
+ * **Grown again, never rebaselined, by M7 wave 7E3c slice S5** (ADR 0113; ADR 0114 Amendment B
+ * *Copy*) — the twelve `share.*` leaves for D10's share control, approved and locked in the same
+ * commit. **Twelve added and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -578,6 +582,30 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6f5e8a6a2dbf05583c1bc68be44e1405667bad92cdb8a9e1df182ff15709999d",
   "content.static.priceBreakdown.wholeKitchenCategories.material":
     "616cb218a65b982f61fd738e24ebe00d5a2ae039c0d386fed975a51d51b772f8",
+  "content.static.share.active":
+    "11e24fed2e008b9990cc09c79c5b906ea690de596fbb8779585693695717fea4",
+  "content.static.share.copied":
+    "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
+  "content.static.share.copy":
+    "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.share.create":
+    "85c7c4cba9850b92a4ee2f5544e0b0a1e03028581438ed36d295b24a9e707e4d",
+  "content.static.share.description":
+    "ec6db86d72dcd834feeba64df026e146ea4dab87e79fb20bfcedd71b7aa91a1e",
+  "content.static.share.error":
+    "b84b802ffd760ded9905b73b749fb836523b213f8a52cd8bca93e910f3eeb2ef",
+  "content.static.share.reissue":
+    "e7ee7ce07294ca9a5b9016e464519bfbde88a90b1171bbcb9ad5acbe3a8e10e8",
+  "content.static.share.reissueWarning":
+    "ff70236eb0ad89805e9b29faa2832c4303a21cb2917136500eb533a4f1b528e1",
+  "content.static.share.revoke":
+    "feb9b21ba9dd8ffc4fc97b296e2d8a42bf006d3b9b447f4421ad83facd5425d9",
+  "content.static.share.revoked":
+    "fb21d510279e562b9b3f3de19742e03b68b4c96627e962f04e5cef7c98d89ea5",
+  "content.static.share.shownOnce":
+    "16ad18d502ad86cacf194a15647b858df41e6c927c4bdc69aac87de1f530bf6c",
+  "content.static.share.title":
+    "f910ad5d811172c1eda26732321a8cd035c7f9d5beb9d55893ccb821004c121e",
   "content.static.webglUnavailable.bodyDesktop":
     "07b37eca3d8331107c7faa08978372485a5a8f648a165582bdd7466b2b6112e1",
   "content.static.webglUnavailable.bodyMobile":

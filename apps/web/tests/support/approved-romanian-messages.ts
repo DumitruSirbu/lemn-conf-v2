@@ -414,6 +414,23 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
     startOver: "Începe o configurare nouă",
   },
+  // M7 wave 7E3c D10, drafted and approved by ADR 0113 / ADR 0114 Amendment B *Copy*, locked in
+  // this commit. The owner may reword later (non-blocking) — see D10.
+  share: {
+    title: "Link de vizualizare",
+    description:
+      "Oricine are linkul poate vedea designul, dar nu îl poate modifica.",
+    create: "Creează link",
+    reissue: "Creează un link nou",
+    active: "Un link de vizualizare este activ.",
+    reissueWarning: "Linkul vechi nu va mai funcționa.",
+    shownOnce: "Copiază linkul acum — nu îl vom mai putea afișa.",
+    copy: "Copiază",
+    copied: "Copiat",
+    revoke: "Dezactivează linkul",
+    revoked: "Linkul a fost dezactivat.",
+    error: "Nu am putut actualiza linkul. Încearcă din nou.",
+  },
   contactPlaceholder: {
     title: "Formularul de contact urmează",
     body: "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
