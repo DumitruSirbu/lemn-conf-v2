@@ -21,13 +21,15 @@ import {
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
-  DesignVersion,
+  MintOutcome,
   SaveOutcome,
   MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 
 /** The revision `0004_add_design_revision.sql` gives every row, which is what a single mint holds. */
 const FIRST_REVISION = "1";
@@ -42,10 +44,14 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
+  mint({ design, writeTokenHash, visitor }: MintDesign): Promise<MintOutcome> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
-    return Promise.resolve({ id, revision: FIRST_REVISION });
+    return Promise.resolve({
+      id,
+      revision: FIRST_REVISION,
+      visitorHash: storedVisitorHashFor(visitor),
+    });
   }
 
   saveAuthorized({

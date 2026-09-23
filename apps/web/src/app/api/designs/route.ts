@@ -63,18 +63,27 @@ function crossSiteMintRefusedResponse(): NextResponse {
  *  (`docs/milestones/M2-void-engine.md`, "Something has to create the first design").
  *
  *  Since M7 wave 7E3a it also resolves — and always sets — the visitor cookie. Since M7 wave 7E3b
- *  (Amendment H1, *"Rotate on mint"*) every mint issues a **fresh** value; a well-formed one the
- *  request already carried is never re-emitted, only rotated away from — the repository moves that
- *  browser's existing rows to the fresh value in the same transaction as the insert. Every mint
- *  therefore leaves the browser with exactly one identity, never two and never none. */
+ *  (Amendment H1, refined by Amendment H4's *"Conditional HMAC"*), a well-formed carried value is
+ *  never re-emitted as-is, but it is not simply replaced with a fresh one either: the repository's
+ *  own statement decides, from its own snapshot, whether this mint converges with an earlier one
+ *  from the same browser or draws an unrelated identity — see `resolveVisitorForMint` and
+ *  `NeonConfigurationRepository.mintStatements`. Either way the response emits the cookie value
+ *  whose hash the repository actually stored, never a guess at which candidate won. */
 async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
   const writeToken = mintWriteToken();
   const visitor = resolveVisitorForMint(request);
-  const { id, revision } = await getRepository().mint({
+  const { id, revision, visitorHash } = await getRepository().mint({
     design: KITCHEN_L_DESIGN,
     writeTokenHash: writeToken.hash,
     visitor: visitor.mintVisitor,
   });
+  const visitorValue = visitor.valueByHash.get(visitorHash);
+  if (visitorValue === undefined) {
+    throw new Error(
+      `mintDesignRow: the repository reported visitor hash "${visitorHash}", which this ` +
+        "request never offered a preimage for.",
+    );
+  }
 
   // The token and the visitor value both travel in `Set-Cookie` headers only, deliberately absent
   // from the JSON body, where script could read them and a proxy or log could retain them. The
@@ -83,6 +92,6 @@ async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
   // one.
   const response = NextResponse.json({ id, revision }, { status: 201 });
   setWriteTokenCookie(response, { designId: id, token: writeToken.token });
-  setVisitorCookie(response, visitor.value);
+  setVisitorCookie(response, visitorValue);
   return response;
 }

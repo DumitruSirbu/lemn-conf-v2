@@ -17,7 +17,7 @@ import {
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
-  DesignVersion,
+  MintOutcome,
   SaveOutcome,
   MintDesign,
   StoredDesign,
@@ -26,6 +26,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { flattenLogArguments } from "../../../support/console-log-line";
+import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 import { ownerVisitorCookiePair } from "../../../support/owned-design-lookup";
 
 /** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
@@ -44,19 +45,16 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint({
-    design,
-    writeTokenHash,
-    visitor,
-  }: MintDesign): Promise<DesignVersion> {
+  mint({ design, writeTokenHash, visitor }: MintDesign): Promise<MintOutcome> {
     const id = `design-${String(this.nextId++)}`;
+    const visitorHash = storedVisitorHashFor(visitor);
     this.rows.set(id, {
       design,
       writeTokenHash,
-      visitorHash: visitor.visitorHash,
+      visitorHash,
       revision: FIRST_REVISION,
     });
-    return Promise.resolve({ id, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION, visitorHash });
   }
 
   saveAuthorized({

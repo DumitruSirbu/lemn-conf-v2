@@ -15,14 +15,16 @@ import {
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
-  DesignVersion,
   MintDesign,
+  MintOutcome,
   SaveOutcome,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 
 /**
  * M7 wave 7E3a S2 — criteria 1-4: the visitor cookie's attributes, where it is and is not set, the
@@ -54,16 +56,17 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint(params: MintDesign): Promise<DesignVersion> {
+  mint(params: MintDesign): Promise<MintOutcome> {
     this.mints.push(params);
     const id = `visitor-identity-${String(this.nextId++)}`;
+    const visitorHash = storedVisitorHashFor(params.visitor);
     this.rows.set(id, {
       design: params.design,
       writeTokenHash: params.writeTokenHash,
-      visitorHash: params.visitor.visitorHash,
+      visitorHash,
       revision: FIRST_REVISION,
     });
-    return Promise.resolve({ id, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION, visitorHash });
   }
 
   // Amendment H3 (D3): the same row this write lands on is what answers whether the request's own
@@ -228,14 +231,14 @@ describe("the mint's Set-Cookie for the visitor (criterion 1)", () => {
     expect(cookie?.domain).toBeUndefined();
     expect(cookie?.value).toMatch(WELL_FORMED_VISITOR_VALUE);
 
-    const minted = fake.mints[0];
-    expect(minted?.visitor.visitorHash).toBe(
+    const visitor = fake.mints[0]?.visitor;
+    // Every mint is fresh (Amendment H1) — with no carried cookie there is nothing to rotate from.
+    if (visitor?.kind !== "fresh") throw new Error("expected a fresh mint");
+    expect(visitor.visitorHash).toBe(
       createHash("sha256")
         .update(cookie?.value ?? "", "utf8")
         .digest("hex"),
     );
-    // Every mint is fresh (Amendment H1) — with no carried cookie there is nothing to rotate from.
-    expect(minted?.visitor.kind).toBe("fresh");
   });
 
   it("draws its value from node:crypto, never twice the same across two mints", async () => {
@@ -284,8 +287,15 @@ describe("mint rotation (criterion 5, Amendment H1, property)", () => {
           cookie === undefined
             ? { kind: "fresh", visitorHash: expectedHash }
             : {
+                // Amendment H4: the mint always hands the repository both a deterministic
+                // candidate — this fake's `storedVisitorHashFor` (via `RecordingRepository`, which
+                // does not model condition (a)/(b) convergence) treats as the one that lands — and
+                // a random one.
                 kind: "rotate",
-                visitorHash: expectedHash,
+                detVisitorHash: expectedHash,
+                randVisitorHash: expect.stringMatching(
+                  /^[0-9a-f]{64}$/,
+                ) as string,
                 fromVisitorHash: createHash("sha256")
                   .update(cookie, "utf8")
                   .digest("hex"),
@@ -317,8 +327,9 @@ describe("mint rotation (criterion 5, Amendment H1, property)", () => {
       const replaced = response.cookies.get(VISITOR_COOKIE_NAME)?.value;
       expect(replaced).toMatch(WELL_FORMED_VISITOR_VALUE);
       expect(replaced).not.toBe(value);
-      expect(fake.mints[0]?.visitor.kind).toBe("fresh");
-      expect(fake.mints[0]?.visitor.visitorHash).toBe(
+      const visitor = fake.mints[0]?.visitor;
+      if (visitor?.kind !== "fresh") throw new Error("expected a fresh mint");
+      expect(visitor.visitorHash).toBe(
         createHash("sha256")
           .update(replaced ?? "", "utf8")
           .digest("hex"),

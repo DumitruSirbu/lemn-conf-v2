@@ -13,13 +13,15 @@ import {
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
-  DesignVersion,
   MintDesign,
+  MintOutcome,
   SaveOutcome,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 
 /**
  * M7 wave 7E3a adversarial QA — the API half: D6's full Sec-Fetch-Site × Origin matrix, D1's save
@@ -51,19 +53,20 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint(params: MintDesign): Promise<DesignVersion> {
+  mint(params: MintDesign): Promise<MintOutcome> {
     if (this.failMintWith !== undefined) {
       return Promise.reject(this.failMintWith as Error);
     }
     this.mints.push(params);
     const id = `qa-7e3a-${String(this.nextId++)}`;
+    const visitorHash = storedVisitorHashFor(params.visitor);
     this.rows.set(id, {
       design: params.design,
       writeTokenHash: params.writeTokenHash,
-      visitorHash: params.visitor.visitorHash,
+      visitorHash,
       revision: FIRST_REVISION,
     });
-    return Promise.resolve({ id, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION, visitorHash });
   }
 
   // Amendment H3 (D3): the same row this write lands on is what answers whether the request's own
@@ -287,9 +290,13 @@ describe("mint — carried-value boundaries (D1)", () => {
     const minted = visitorValueOf(response);
     expect(minted).toMatch(WELL_FORMED);
     expect(minted).not.toBe(KNOWN_VALUE);
+    // Amendment H4: the mint always hands the repository both a deterministic candidate (which
+    // this fake, like every fake that does not itself test convergence, treats as the one that
+    // always lands) and a random one — never a single `visitorHash`.
     expect(fake.mints[0]?.visitor).toEqual({
       kind: "rotate",
-      visitorHash: sha256Hex(minted ?? ""),
+      detVisitorHash: sha256Hex(minted ?? ""),
+      randVisitorHash: expect.stringMatching(/^[0-9a-f]{64}$/) as string,
       fromVisitorHash: sha256Hex(KNOWN_VALUE),
     });
   });
@@ -339,8 +346,9 @@ describe("mint — carried-value boundaries (D1)", () => {
     const minted = visitorValueOf(response);
     expect(minted).toMatch(WELL_FORMED);
     expect(minted).not.toBe(KNOWN_VALUE);
-    expect(fake.mints[0]?.visitor.kind).toBe("fresh");
-    expect(fake.mints[0]?.visitor.visitorHash).not.toBe(sha256Hex(KNOWN_VALUE));
+    const visitor = fake.mints[0]?.visitor;
+    if (visitor?.kind !== "fresh") throw new Error("expected a fresh mint");
+    expect(visitor.visitorHash).not.toBe(sha256Hex(KNOWN_VALUE));
   });
 
   it("ignores a case-variant prefix `__host-lemnaria_visitor`", async () => {
@@ -363,7 +371,9 @@ describe("mint — carried-value boundaries (D1)", () => {
       .getSetCookie()
       .filter((line) => line.startsWith(`${VISITOR_COOKIE_NAME}=`));
     expect(lines).toHaveLength(1);
-    expect(fake.mints[0]?.visitor.visitorHash).toBe(
+    const visitor = fake.mints[0]?.visitor;
+    if (visitor?.kind !== "rotate") throw new Error("expected a rotate mint");
+    expect(visitor.detVisitorHash).toBe(
       sha256Hex(visitorValueOf(response) ?? ""),
     );
   });

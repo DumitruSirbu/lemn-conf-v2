@@ -18,6 +18,17 @@ import { requireSha256Digest } from "./sha256-digest.js";
  * a migration that silently stopped running. The read path never assumes it — it passes
  * `row.schema_version`, which is what lets a stored older row go on loading. */
 
+/** `G` (ADR 0114 Amendment H4): a second mint from the same carried value, sent this soon after the
+ *  first one's response, converges on the first one's rotated hash instead of drawing a fresh,
+ *  unrelated identity. Chosen at roughly 30 times a slow round trip [S5-R2, inference]; QA's own
+ *  measurement of the spread is the evidence, not this comment. */
+const CONVERGENCE_WINDOW_SECONDS = 10;
+
+/** `2G`: the window `mintStatements`'s own condition (b) searches for the *earliest* row under a
+ *  converged hash, so a later joiner's own insert can never push that earliest row's timestamp
+ *  forward and re-open a window that has already closed. */
+const CONVERGENCE_LOOKBACK_SECONDS = CONVERGENCE_WINDOW_SECONDS * 2;
+
 interface DesignRow {
   schema_version: number;
   document: unknown;
@@ -120,20 +131,38 @@ export interface MintDesign {
 }
 
 /**
- * The visitor value a mint stores, and whether the browser's existing rows move to it (ADR 0114
- * Amendment H1, the owner's ruling "Rotate on mint"). A tagged union rather than an optional
- * "old hash" field (Amendment H1's own port note): mint either knows there is nothing to move
- * — `"fresh"` — or knows exactly what to move it from — `"rotate"` — and a caller cannot supply a
- * malformed carried value and have it silently ignored, because there is no shape here for one to
- * occupy.
+ * The visitor value(s) a mint may store (ADR 0114 Amendment H1, refined by **Amendment H4, the
+ * owner's ruling "Conditional HMAC"**). A tagged union rather than an optional "old hash" field
+ * (Amendment H1's own port note): mint either knows there is nothing to converge — `"fresh"` — or
+ * offers **two** candidates for `"rotate"`, never one.
+ *
+ * **Why two candidates.** A carried value `O` resolves to `N_det = HMAC(secret, O)` so that
+ * concurrent mints from the same browser converge on one value — but only when the repository's own
+ * statement finds a genuine convergence (condition (a)/(b) below), never merely because a caller
+ * *presented* `O`. Presenting `O` is something anyone who read it off a planted cookie can do, so
+ * the choice between `N_det` and the random `N_rand` has to be made **inside** the statement that
+ * already holds the database's own snapshot — a caller-side choice would let a planted value's
+ * presenter claim its owner's rows (backlog 81, reopened). `mintStatements` is where that choice is
+ * made; see it for the (a)/(b) condition and for how `fromVisitorHash` is used to move rows only
+ * when the condition holds.
  */
 export type MintVisitor =
   | { readonly kind: "fresh"; readonly visitorHash: string }
   | {
       readonly kind: "rotate";
-      readonly visitorHash: string;
+      readonly detVisitorHash: string;
+      readonly randVisitorHash: string;
       readonly fromVisitorHash: string;
     };
+
+/** What a mint answers beyond {@link DesignVersion}: the visitor hash the statement actually
+ *  stored (ADR 0114 Amendment H4). For `"fresh"` this is always the one hash offered; for
+ *  `"rotate"` it is whichever of `detVisitorHash`/`randVisitorHash` the repository's own
+ *  convergence condition chose — the caller cannot know which in advance, and must look up the
+ *  matching preimage by this hash to emit the right `Set-Cookie` value. */
+export interface MintOutcome extends DesignVersion {
+  readonly visitorHash: string;
+}
 
 /**
  * The server-side persistence port, split by ADR 0019 decision 1 into an open read and an
@@ -145,7 +174,7 @@ export type MintVisitor =
  * update must be unrepresentable rather than merely unused.
  */
 export interface AuthorizedConfigurationRepository {
-  mint(mint: MintDesign): Promise<DesignVersion>;
+  mint(mint: MintDesign): Promise<MintOutcome>;
   saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome>;
   load(id: DesignId): Promise<StoredDesign>;
 }
@@ -232,17 +261,22 @@ export class NeonConfigurationRepository
    * owns it (ADR 0114 decision 5). Neither raw value is ever stored, so a database leak yields
    * read access and nothing more.
    *
-   * **Rotation (Amendment H1, the owner's ruling "Rotate on mint").** When `visitor` carries a
-   * well-formed value the browser already held, every row under that value's hash moves to the
-   * fresh one in the same transaction as the insert — a planted value therefore owns nothing after
-   * the next mint, and it is `HttpOnly`, so no script ever learns the new one. `mintStatements`
-   * lays out the one to three statements this runs; see it for the retry argument.
+   * **Rotation (Amendment H1, refined by Amendment H4's "Conditional HMAC").** When `visitor`
+   * offers two candidates, `mintStatements`'s own statement decides — from its own snapshot,
+   * never from anything this method or its caller assumes — whether this mint converges with the
+   * browser's earlier one or gets a fresh, unrelated identity; see `mintStatements` for the
+   * condition. Either way the browser's rows it *does* move stay reachable under whichever value
+   * won, and a planted value that owns nothing never converges, so it owns nothing after the next
+   * mint either.
+   *
+   * **The caller cannot know which candidate was stored until this method returns** — that is what
+   * `MintOutcome.visitorHash` is for.
    */
   async mint({
     design,
     writeTokenHash,
     visitor,
-  }: MintDesign): Promise<DesignVersion> {
+  }: MintDesign): Promise<MintOutcome> {
     requireSha256Digest(writeTokenHash, "write-token hash", "mint a design");
     requireVisitorDigests(visitor);
     // **The id is generated here, outside the retried callback, and must stay there.** A retry that
@@ -256,31 +290,59 @@ export class NeonConfigurationRepository
         // Pinned per `NeonShareLinkRepository.issue`'s own doc comment (SEC-7E3c.4): Postgres's own
         // default, made explicit so it cannot drift under this method without a reviewer seeing the
         // line change. READ COMMITTED is what lets a rotation racing another mint see the first
-        // one's committed move rather than a snapshot fixed before it.
+        // one's committed move (or insert) rather than a snapshot fixed before it — the same
+        // property H4's convergence condition depends on.
         { isolationLevel: "ReadCommitted" },
       ),
     )) as unknown[][];
 
-    // The revision comes back from the final `select`, never asserted here, so the one place that
-    // decides what a first revision is remains the migration.
-    const selected = results.at(-1) as { revision: DesignRevision }[];
-    return { id, revision: revisionOfMintedRow(selected, id) };
+    // The revision and the stored hash both come back from the final `select`, never asserted
+    // here, so the one place that decides what a first revision is remains the migration, and the
+    // one place that decides which candidate converged remains `mintStatements`'s own statement.
+    const selected = results.at(-1) as {
+      revision: DesignRevision;
+      visitor_hash: string;
+    }[];
+    const row = mintedRow(selected, id);
+    return { id, revision: row.revision, visitorHash: row.visitor_hash };
   }
 
   /**
    * The statements `mint` submits as one transaction, in order.
    *
-   * **Why this shape is retry-safe under identical arguments (G6), for both branches.** The insert
-   * takes `on conflict (id) do nothing` rather than the plain insert a first version of this method
-   * used, and the final `select` reads the row back by id **and** by the value this attempt is
-   * minting — so a retry after a lost acknowledgement moves nothing a first attempt already moved,
-   * inserts nothing a first attempt already inserted, and the `select` still finds the row either
-   * way. `revisionOfMintedRow` then reports the same revision on every attempt.
+   * **The `"fresh"` branch is unchanged since Amendment H1:** insert, then select back by id and
+   * the one hash offered. **Why this shape is retry-safe under identical arguments (G6):** the
+   * insert takes `on conflict (id) do nothing`, and the select reads the row back by id **and** by
+   * the value this attempt is minting — so a retry after a lost acknowledgement inserts nothing a
+   * first attempt already inserted, and the select still finds the row either way.
    *
-   * **The rotate branch's `update` moves the browser's existing rows first, and touches no column
-   * but `visitor_hash`** — `updated_at` and every other column are exactly what D3's resume order
-   * and retention accounting already assume. **The fresh branch issues no `UPDATE` at all**
-   * (Amendment H1): there is nothing to move for an absent, empty or malformed carried value.
+   * **The `"rotate"` branch is two statements (Amendment H4), not the three-statement transaction
+   * H1 shipped with.** The first is one `with` block holding the whole convergence decision, the
+   * move and the insert — it has to be one statement, or a second mint's own decision could read a
+   * snapshot the first mint's move has already changed underneath it. The second reads the result
+   * back. **They cannot be merged into one statement:** every part of a single query — CTEs and
+   * primary statement alike — shares the one snapshot taken when that query starts, so a plain
+   * `select` against `designs` inside the *same* statement as the insert cannot see that insert's
+   * own row (Postgres makes a data-modifying CTE's output visible only by name, e.g. `returning`,
+   * never by re-scanning the table it wrote to, from within that one statement). A second statement
+   * does not have that problem: under READ COMMITTED each statement in a transaction takes a fresh
+   * snapshot, and that snapshot sees every write the transaction's own earlier statements already
+   * made, committed or not.
+   * - `decision` answers whether `fromVisitorHash` **(a)** owns a row right now, or **(b)** the
+   *   earliest row under `detVisitorHash` created in the last {@link CONVERGENCE_LOOKBACK_SECONDS}
+   *   was created no more than {@link CONVERGENCE_WINDOW_SECONDS} ago — `G`, measured from the
+   *   *first* rotation, which a later join cannot extend because `min()` over the window stays
+   *   pinned at that first row.
+   * - `moved` runs the same `update` H1's rotate branch always ran, gated on the decision: when
+   *   neither (a) nor (b) holds there is nothing under `fromVisitorHash` worth moving anyway,
+   *   because (a) is exactly "it owns a row".
+   * - `inserted` stores the new design under `detVisitorHash` when the decision holds, or under
+   *   `randVisitorHash` otherwise — `on conflict (id) do nothing`, for the same retry argument as
+   *   the fresh branch.
+   * - The second statement does **not** re-read the decision. It finds the row by id and **either**
+   *   candidate hash, so a retry that would recompute a different decision (because the first
+   *   attempt's own `moved` already changed what (a) sees) still finds the row the first attempt
+   *   actually landed on, and reports its true hash rather than this attempt's guess.
    */
   private mintStatements(
     id: DesignId,
@@ -288,23 +350,53 @@ export class NeonConfigurationRepository
     writeTokenHash: string,
     visitor: MintVisitor,
   ) {
-    const insert = this.sql`
-      insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
-      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitor.visitorHash})
-      on conflict (id) do nothing
-    `;
-    const select = this.sql`
-      select revision::text as revision from designs
-      where id = ${id} and visitor_hash = ${visitor.visitorHash}
-    `;
-    if (visitor.kind === "fresh") return [insert, select];
+    if (visitor.kind === "fresh") {
+      return [
+        this.sql`
+          insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+          values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitor.visitorHash})
+          on conflict (id) do nothing
+        `,
+        this.sql`
+          select revision::text as revision, visitor_hash from designs
+          where id = ${id} and visitor_hash = ${visitor.visitorHash}
+        `,
+      ];
+    }
+
+    const { detVisitorHash, randVisitorHash, fromVisitorHash } = visitor;
     return [
       this.sql`
-        update designs set visitor_hash = ${visitor.visitorHash}
-        where visitor_hash = ${visitor.fromVisitorHash}
+        with decision as (
+          select
+            exists (
+              select 1 from designs where visitor_hash = ${fromVisitorHash}
+            ) as from_owns,
+            exists (
+              select 1 from (
+                select min(created_at) as earliest from designs
+                where visitor_hash = ${detVisitorHash}
+                  and created_at > now() - (${CONVERGENCE_LOOKBACK_SECONDS} * interval '1 second')
+              ) recent_rows
+              where recent_rows.earliest > now() - (${CONVERGENCE_WINDOW_SECONDS} * interval '1 second')
+            ) as recent_join
+        ), moved as (
+          update designs set visitor_hash = ${detVisitorHash}
+          where visitor_hash = ${fromVisitorHash}
+            and exists (select 1 from decision where from_owns or recent_join)
+        ), inserted as (
+          insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+          select ${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash},
+            case when (select from_owns or recent_join from decision)
+              then ${detVisitorHash} else ${randVisitorHash} end
+          on conflict (id) do nothing
+        )
+        select 1 as decided
       `,
-      insert,
-      select,
+      this.sql`
+        select revision::text as revision, visitor_hash from designs
+        where id = ${id} and visitor_hash in (${detVisitorHash}, ${randVisitorHash})
+      `,
     ];
   }
 
@@ -482,31 +574,32 @@ export class NeonConfigurationRepository
   }
 }
 
-/** `mintStatements`'s guard: `requireSha256Digest` covers every hash a mint is about to store,
- *  whichever branch of `MintVisitor` supplied it (ADR 0114 Amendment H1's port note). */
+/** `mintStatements`'s guard: `requireSha256Digest` covers every hash a mint is about to store or
+ *  compare against, whichever branch of `MintVisitor` supplied it (ADR 0114 Amendment H1's port
+ *  note, extended by Amendment H4's second candidate). */
 function requireVisitorDigests(visitor: MintVisitor): void {
-  requireSha256Digest(visitor.visitorHash, "visitor hash", "mint a design");
-  if (visitor.kind === "rotate")
-    requireSha256Digest(
-      visitor.fromVisitorHash,
-      "visitor hash",
-      "mint a design",
-    );
+  if (visitor.kind === "fresh") {
+    requireSha256Digest(visitor.visitorHash, "visitor hash", "mint a design");
+    return;
+  }
+  requireSha256Digest(visitor.detVisitorHash, "visitor hash", "mint a design");
+  requireSha256Digest(visitor.randVisitorHash, "visitor hash", "mint a design");
+  requireSha256Digest(visitor.fromVisitorHash, "visitor hash", "mint a design");
 }
 
-/** The revision `mintStatements`'s final `select` must have found. A missing row here is not a
- *  domain failure a caller can act on — the insert this attempt or an earlier retried one made
- *  either raised or produced exactly one row the select can see — so it is reported as the
- *  impossibility it is rather than defaulted to a first revision this file would then be the second
- *  place to decide. */
-function revisionOfMintedRow(
-  rows: readonly { revision: DesignRevision }[],
+/** The row `mintStatements`'s final `select` must have found — the revision, and (since Amendment
+ *  H4) which candidate hash actually landed. A missing row here is not a domain failure a caller
+ *  can act on — the insert this attempt or an earlier retried one made either raised or produced
+ *  exactly one row the select can see — so it is reported as the impossibility it is rather than
+ *  defaulted to a first revision this file would then be the second place to decide. */
+function mintedRow(
+  rows: readonly { revision: DesignRevision; visitor_hash: string }[],
   id: DesignId,
-): DesignRevision {
-  const revision = rows[0]?.revision;
-  if (revision === undefined)
+): { revision: DesignRevision; visitor_hash: string } {
+  const row = rows[0];
+  if (row === undefined)
     throw new Error(
       `Minting design "${id}" found no row for it at the value it was minted under.`,
     );
-  return revision;
+  return row;
 }

@@ -55,6 +55,12 @@ const CORRECT_TOKEN_HASH = "c".repeat(64);
 /** This file attacks the write-token predicate, never visitor identity, so every mint needs one
  *  well-formed visitor hash and nothing more. */
 const VISITOR_HASH = "e".repeat(64);
+
+/** ADR 0114 Amendment H4's second candidate, for every rotate call in this file where
+ *  `fromVisitorHash` owns a row at the point of the call and nothing else races it, so condition
+ *  (a) always holds and `detVisitorHash` is always the one actually stored. Shared and never
+ *  expected to be selected. */
+const UNUSED_RAND_HASH = "ff".repeat(32);
 const ATTACKER_DESIGN: Design = {
   ...KITCHEN_L_DESIGN,
   presetId: "overwritten-by-attacker",
@@ -1292,7 +1298,8 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
           writeTokenHash: CORRECT_TOKEN_HASH,
           visitor: {
             kind: "rotate",
-            visitorHash: raceWinnerHash,
+            detVisitorHash: raceWinnerHash,
+            randVisitorHash: UNUSED_RAND_HASH,
             fromVisitorHash: oldHash,
           },
         }),
@@ -1301,7 +1308,8 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
           writeTokenHash: CORRECT_TOKEN_HASH,
           visitor: {
             kind: "rotate",
-            visitorHash: raceLoserHash,
+            detVisitorHash: raceLoserHash,
+            randVisitorHash: UNUSED_RAND_HASH,
             fromVisitorHash: oldHash,
           },
         }),
@@ -1404,7 +1412,10 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
               writeTokenHash: CORRECT_TOKEN_HASH,
               visitor: {
                 kind: "rotate",
-                visitorHash: hashes[k] ?? "",
+                // H4: sequential, never concurrent — hashes[k - 1] always owns a row here, so
+                // condition (a) holds and detVisitorHash is always the one actually stored.
+                detVisitorHash: hashes[k] ?? "",
+                randVisitorHash: UNUSED_RAND_HASH,
                 fromVisitorHash: hashes[k - 1] ?? "",
               },
             });
@@ -1522,7 +1533,8 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
             writeTokenHash: CORRECT_TOKEN_HASH,
             visitor: {
               kind: "rotate",
-              visitorHash: "3d".repeat(32),
+              detVisitorHash: "3d".repeat(32),
+              randVisitorHash: UNUSED_RAND_HASH,
               fromVisitorHash: oldHash,
             },
           })
@@ -1564,7 +1576,10 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
             writeTokenHash: CORRECT_TOKEN_HASH,
             visitor: {
               kind: "rotate",
-              visitorHash: newHash,
+              // H4: the concurrent save never touches visitor_hash (H3), so oldHash still owns
+              // the row throughout — condition (a) holds regardless of the race's outcome.
+              detVisitorHash: newHash,
+              randVisitorHash: UNUSED_RAND_HASH,
               fromVisitorHash: oldHash,
             },
           }),
@@ -1598,12 +1613,24 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
       ).id;
       mintedIds.push(existingId);
 
+      // H4 note: unlike every other rotate call in this file, this one is a genuine race between
+      // two *different* target hashes for the same `fromVisitorHash` — the exact shape Amendment
+      // H4's condition exists to change the outcome of (the plan's own "criterion 8's third bullet
+      // held, and it was the wrong property"). Only one of the two can find `oldHash` still owning
+      // a row; the loser's own condition (a) and (b) may both fail, landing its new row under
+      // `randVisitorHash` instead of the hash asserted below. Left as a mechanical type fix per
+      // 7E3b S5a's scope — S5b owns rewriting this test's premise for Amendment H4.
       const [first, second] = await Promise.all(
-        [firstHash, secondHash].map((visitorHash) =>
+        [firstHash, secondHash].map((detVisitorHash) =>
           repository().mint({
             design: KITCHEN_L_DESIGN,
             writeTokenHash: CORRECT_TOKEN_HASH,
-            visitor: { kind: "rotate", visitorHash, fromVisitorHash: oldHash },
+            visitor: {
+              kind: "rotate",
+              detVisitorHash,
+              randVisitorHash: UNUSED_RAND_HASH,
+              fromVisitorHash: oldHash,
+            },
           }),
         ),
       );

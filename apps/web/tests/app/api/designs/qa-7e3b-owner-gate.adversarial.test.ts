@@ -11,9 +11,9 @@ import {
 } from "@lemnaria/persistence";
 import type {
   AuthorizedSave,
-  DesignVersion,
   LoadOwnedOutcome,
   MintDesign,
+  MintOutcome,
   OwnedDesignLookup,
   SaveOutcome,
 } from "@lemnaria/persistence";
@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { designNotFoundResponse } from "../../../../src/lib/server/design-errors";
 import { flattenLogArguments } from "../../../support/console-log-line";
+import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 
 /**
  * M7 wave 7E3b adversarial QA at the route boundary — criterion 2 (one refusal, as a property over
@@ -58,27 +59,24 @@ class RotatingRepository {
   failWith: Error | undefined = undefined;
   private nextId = 0;
 
-  mint({
-    design,
-    writeTokenHash,
-    visitor,
-  }: MintDesign): Promise<DesignVersion> {
+  mint({ design, writeTokenHash, visitor }: MintDesign): Promise<MintOutcome> {
     this.calls.push("mint");
     if (this.failWith !== undefined) return Promise.reject(this.failWith);
+    const visitorHash = storedVisitorHashFor(visitor);
     if (visitor.kind === "rotate") {
       for (const row of this.rows.values())
         if (row.visitorHash === visitor.fromVisitorHash)
-          row.visitorHash = visitor.visitorHash;
+          row.visitorHash = visitorHash;
     }
     const id = `qa-7e3b-${String(this.nextId++)}`;
     this.rows.set(id, {
       design,
       writeTokenHash,
-      visitorHash: visitor.visitorHash,
+      visitorHash,
       revision: FIRST_REVISION,
       isDocumentInvalid: false,
     });
-    return Promise.resolve({ id, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION, visitorHash });
   }
 
   saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome> {

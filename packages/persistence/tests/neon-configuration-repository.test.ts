@@ -61,6 +61,12 @@ const WRONG_TOKEN_HASH = "b".repeat(64);
  *  every mint below needs one well-formed value and nothing more. */
 const VISITOR_HASH = "d".repeat(64);
 
+/** ADR 0114 Amendment H4's second candidate, for every sequential (never concurrent) rotate call
+ *  in this file: `fromVisitorHash` always owns exactly one row at the point of each call, so
+ *  condition (a) always holds and `detVisitorHash` is always the one actually stored. This value
+ *  is shared and never expected to be selected. */
+const UNUSED_RAND_HASH = "ff".repeat(32);
+
 /** What `0004_add_design_revision.sql` gives every row, existing or new. Stated rather than read
  *  back, so a migration that quietly changed the default would fail these tests instead of being
  *  followed by them. */
@@ -774,7 +780,10 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
         writeTokenHash: CORRECT_TOKEN_HASH,
         visitor: {
           kind: "rotate",
-          visitorHash: rotatedHash,
+          // H4: condition (a) holds (fromVisitorHash owns a row here), so detVisitorHash is
+          // always the one actually stored; randVisitorHash is never expected to be selected.
+          detVisitorHash: rotatedHash,
+          randVisitorHash: UNUSED_RAND_HASH,
           fromVisitorHash: OWNER_HASH,
         },
       });
@@ -943,7 +952,10 @@ describe("mint rotation (Amendment H1)", () => {
         writeTokenHash: CORRECT_TOKEN_HASH,
         visitor: {
           kind: "rotate",
-          visitorHash: newHash,
+          // H4: condition (a) holds (fromVisitorHash owns a row here), so detVisitorHash is
+          // always the one actually stored; randVisitorHash is never expected to be selected.
+          detVisitorHash: newHash,
+          randVisitorHash: UNUSED_RAND_HASH,
           fromVisitorHash: oldHash,
         },
       });
@@ -977,7 +989,10 @@ describe("mint rotation (Amendment H1)", () => {
         writeTokenHash: CORRECT_TOKEN_HASH,
         visitor: {
           kind: "rotate",
-          visitorHash: newHash,
+          // H4: condition (a) holds (fromVisitorHash owns a row here), so detVisitorHash is
+          // always the one actually stored; randVisitorHash is never expected to be selected.
+          detVisitorHash: newHash,
+          randVisitorHash: UNUSED_RAND_HASH,
           fromVisitorHash: oldHash,
         },
       });
