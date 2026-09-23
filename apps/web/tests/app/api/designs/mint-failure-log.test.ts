@@ -2,15 +2,13 @@ import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import type {
   AuthorizedConfigurationRepository,
-  MintOutcome,
+  DesignVersion,
   SaveOutcome,
   MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 
 /**
  * `POST /api/designs` had no `try`/`catch` at all, so a driver failure on **mint** — the operation
@@ -52,7 +50,7 @@ function mintRequest(): NextRequest {
 class FailingMintRepository implements AuthorizedConfigurationRepository {
   constructor(private readonly failure: unknown) {}
 
-  mint(): Promise<MintOutcome> {
+  mint(): Promise<DesignVersion> {
     return Promise.reject(this.failure as Error);
   }
 
@@ -68,13 +66,9 @@ class FailingMintRepository implements AuthorizedConfigurationRepository {
 class MintingRepository implements AuthorizedConfigurationRepository {
   minted: Design | undefined;
 
-  mint({ design, visitor }: MintDesign): Promise<MintOutcome> {
+  mint({ design }: MintDesign): Promise<DesignVersion> {
     this.minted = design;
-    return Promise.resolve({
-      id: "design-0" as DesignId,
-      revision: "1",
-      visitorHash: storedVisitorHashFor(visitor),
-    });
+    return Promise.resolve({ id: "design-0" as DesignId, revision: "1" });
   }
 
   saveAuthorized(): Promise<SaveOutcome> {

@@ -26,7 +26,7 @@ import {
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
-  MintOutcome,
+  DesignVersion,
   SaveOutcome,
   MintDesign,
   StoredDesign,
@@ -35,7 +35,6 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../../../support/fake-body-probe";
-import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 
 const FIRST_REVISION = "1";
 const EXPECTED_REVISION_HEADER = "x-expected-revision";
@@ -50,14 +49,10 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint({ design, writeTokenHash, visitor }: MintDesign): Promise<MintOutcome> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
-    return Promise.resolve({
-      id,
-      revision: FIRST_REVISION,
-      visitorHash: storedVisitorHashFor(visitor),
-    });
+    return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
   saveAuthorized({

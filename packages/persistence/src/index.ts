@@ -17,7 +17,6 @@ export type {
   DesignVersion,
   LoadOwnedOutcome,
   MintDesign,
-  MintOutcome,
   MintVisitor,
   OwnedDesignLookup,
   OwnedDesignRepository,

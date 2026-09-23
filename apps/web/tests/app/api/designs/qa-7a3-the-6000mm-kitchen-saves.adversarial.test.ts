@@ -26,7 +26,7 @@ import {
   DesignWriteForbiddenError,
   type AuthorizedConfigurationRepository,
   type AuthorizedSave,
-  type MintOutcome,
+  type DesignVersion,
   type SaveOutcome,
   type MintDesign,
   type StoredDesign,
@@ -35,7 +35,6 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../../../support/fake-body-probe";
-import { storedVisitorHashFor } from "../../../support/mint-visitor-hash";
 import {
   loadOwnedByIdAlone,
   ownerVisitorCookiePair,
@@ -53,14 +52,10 @@ class InMemoryAuthorizedRepository
   >();
   private nextId = 1;
 
-  mint({ design, writeTokenHash, visitor }: MintDesign): Promise<MintOutcome> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `seven-a-three-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
-    return Promise.resolve({
-      id,
-      revision: FIRST_REVISION,
-      visitorHash: storedVisitorHashFor(visitor),
-    });
+    return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
   saveAuthorized({

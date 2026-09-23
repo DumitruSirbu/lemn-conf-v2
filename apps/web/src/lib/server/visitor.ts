@@ -1,12 +1,11 @@
 import "server-only";
 
-import { createHmac, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import type { MintVisitor, RequestVisitor } from "@lemnaria/persistence";
 import type { NextRequest, NextResponse } from "next/server";
 
 import { sha256Hex } from "./sha256-hex";
-import { readVisitorRotationSecret } from "./visitor-rotation-secret";
 
 /**
  * The one visitor cookie (ADR 0114 decision 1). Its name carries the `__Host-` prefix so the
@@ -49,38 +48,23 @@ const VISITOR_COOKIE_ATTRIBUTES = {
   path: "/",
 } as const;
 
-/** The label HMAC-SHA256 is keyed and domain-separated with (ADR 0114 Amendment H4) — a trailing
- *  NUL so no carried value, however chosen, can be crafted to collide with the label itself. */
-const VISITOR_ROTATION_HMAC_LABEL = "lemnaria-visitor-rotation-v1\0";
-
-/**
- * A minted visitor identity: the tagged instruction `mint` needs to store it, and every value that
- * instruction might resolve to, keyed by its own hash (ADR 0114 Amendment H1 / H4). `mint` reports
- * back which hash it actually stored, and `valueByHash` is what lets the caller find that value's
- * own preimage — the one the repository never learns, because it stores hashes only.
- */
+/** A minted visitor identity: the cookie's own fresh value, and the tagged instruction `mint`
+ *  needs to store it (M7 wave 7E3b D1 / ADR 0114 Amendment H1). */
 export interface ResolvedVisitor {
+  readonly value: string;
   readonly mintVisitor: MintVisitor;
-  readonly valueByHash: ReadonlyMap<string, string>;
 }
 
 /**
- * D1/H4's rotation decision, made once and handed to both the repository insert and the cookie.
+ * D1's rotation decision (Amendment H1, the owner's ruling *"Rotate on mint"*), made once and
+ * handed to both the repository insert and the cookie.
  *
- * **Every mint reads `VISITOR_ROTATION_SECRET` first, whether or not this browser carried a
- * value** (Amendment H4's own table): a misconfigured secret must fail the very first mint, not
- * only a returning visitor's.
- *
- * **A well-formed carried value `O` resolves two candidates, never one.** `N_det = HMAC(secret, O)`
- * converges every concurrent mint from the same browser onto one value; `N_rand` is a fresh random
- * value, used when the repository's own condition (a)/(b) check finds no convergence to join
- * (Amendment H4). Both are handed to the repository as `mintVisitor`, and both are indexed in
- * `valueByHash` so whichever one the repository reports as stored can be looked up by its hash —
- * this function does not, and cannot, decide which one is used; that decision needs the database's
- * own snapshot, which only the repository's statement has.
- *
- * **An absent or malformed carried value has nothing to converge**, and resolves to a single fresh
- * random value the same way it always has.
+ * **Every mint issues a fresh value; none is ever re-emitted.** A well-formed carried value is
+ * *not* kept — instead `mintVisitor` tags it as the value the repository's own transaction moves
+ * every existing row away from, so the browser keeps every design it already owned under the new
+ * identity. An absent or malformed carried value has nothing to move, and `mintVisitor` says so.
+ * Either way the mint **always sets the cookie** to the fresh value; there is no branch in which
+ * `POST /api/designs` answers 201 without one.
  *
  * Reads the cookie only — it neither sets nor clears anything, so a caller can decide whether to
  * proceed (D6's cross-site refusal runs first) before any state changes.
@@ -88,46 +72,18 @@ export interface ResolvedVisitor {
 export function resolveVisitorForMint(
   request: Pick<NextRequest, "cookies">,
 ): ResolvedVisitor {
-  const secret = readVisitorRotationSecret();
   const carried = readVisitorValue(request.cookies);
-  const randomValue = randomBytes(VISITOR_TOKEN_BYTES).toString("base64url");
-  const randomHash = sha256Hex(randomValue);
-
-  if (carried === undefined || !WELL_FORMED_VISITOR_VALUE.test(carried)) {
-    return {
-      mintVisitor: { kind: "fresh", visitorHash: randomHash },
-      valueByHash: new Map([[randomHash, randomValue]]),
-    };
-  }
-
-  const deterministicValue = deriveDeterministicVisitorValue(secret, carried);
-  const deterministicHash = sha256Hex(deterministicValue);
-  return {
-    mintVisitor: {
-      kind: "rotate",
-      detVisitorHash: deterministicHash,
-      randVisitorHash: randomHash,
-      fromVisitorHash: sha256Hex(carried),
-    },
-    valueByHash: new Map([
-      [deterministicHash, deterministicValue],
-      [randomHash, randomValue],
-    ]),
-  };
-}
-
-/** `N_det = HMAC(secret, O)` (ADR 0114 Amendment H4). The key is decoded from the secret's own
- *  base64url encoding, never used as raw text — the secret and a visitor value share an encoding,
- *  not a byte length. The output is base64url of the 32-byte tag, which is already a well-formed
- *  visitor value with no further encoding step. */
-function deriveDeterministicVisitorValue(
-  secret: string,
-  carried: string,
-): string {
-  const key = Buffer.from(secret, "base64url");
-  return createHmac("sha256", key)
-    .update(VISITOR_ROTATION_HMAC_LABEL + carried, "utf8")
-    .digest("base64url");
+  const value = randomBytes(VISITOR_TOKEN_BYTES).toString("base64url");
+  const hash = sha256Hex(value);
+  const mintVisitor: MintVisitor =
+    carried !== undefined && WELL_FORMED_VISITOR_VALUE.test(carried)
+      ? {
+          kind: "rotate",
+          visitorHash: hash,
+          fromVisitorHash: sha256Hex(carried),
+        }
+      : { kind: "fresh", visitorHash: hash };
+  return { value, mintVisitor };
 }
 
 /** Sets the visitor cookie to `value`, with a fresh 30-day `Max-Age`. The only two callers are the

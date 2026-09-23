@@ -6,18 +6,6 @@ import {
   SELECTION_DEBUG_FLAG_ENABLED,
 } from "./src/app/configurator/configure/selection-debug-availability";
 
-/**
- * A fixed, e2e-only `VISITOR_ROTATION_SECRET` (ADR 0114 Amendment H4). Named apart from the
- * production variable so a developer's own shell can never leak it into a server this config
- * starts, and referenced from nowhere but this file (S5-5's own must-not) — a spec that needs the
- * secret's *value* reads it off `process.env["VISITOR_ROTATION_SECRET"]` inside the server process
- * it names below, never off this constant. No GitHub secret is needed: this value is public in the
- * source, and it authorises nothing outside a database `pnpm test:e2e`, `ci:local` and both CI e2e
- * legs already point at their own test database for (ADR 0006).
- */
-const E2E_ONLY_VISITOR_ROTATION_SECRET =
-  "bY9-D-Nb7vY7A8CVcs1n6h3MqMOeDoxKXkII2_QfOKA";
-
 // The application's own `DATABASE_URL` has to be readable here for `assertSafeTestDatabaseUrl` to
 // have anything to compare against; without it the guard can only pass vacuously (finding DB-001).
 loadEnvLocal();
@@ -116,10 +104,6 @@ export default defineConfig({
       // travels with the runner that needs it: a developer running `next dev` by hand gets a
       // production-shaped page, and no deployed environment can inherit the flag by accident.
       [SELECTION_DEBUG_FLAG]: SELECTION_DEBUG_FLAG_ENABLED,
-      // ADR 0114 Amendment H4: every mint fails closed without this, so the whole suite would fail
-      // closed with it unset. Set here for the same reason `SELECTION_DEBUG_FLAG` is — it travels
-      // with the runner that needs it, and no deployed environment inherits it by accident.
-      VISITOR_ROTATION_SECRET: E2E_ONLY_VISITOR_ROTATION_SECRET,
     },
     // Long enough for a cold `next build` on CI; the local `dev` branch reaches
     // its URL in seconds and never approaches this.

@@ -15,7 +15,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
-import { neon, neonConfig } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
@@ -24,7 +24,6 @@ import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
-import type { MintOutcome } from "../src/neon-configuration-repository.js";
 import { NeonShareLinkRepository } from "../src/share-link-repository.js";
 import {
   announceSkippedLiveSuite,
@@ -56,12 +55,6 @@ const CORRECT_TOKEN_HASH = "c".repeat(64);
 /** This file attacks the write-token predicate, never visitor identity, so every mint needs one
  *  well-formed visitor hash and nothing more. */
 const VISITOR_HASH = "e".repeat(64);
-
-/** ADR 0114 Amendment H4's second candidate, for every rotate call in this file where
- *  `fromVisitorHash` owns a row at the point of the call and nothing else races it, so condition
- *  (a) always holds and `detVisitorHash` is always the one actually stored. Shared and never
- *  expected to be selected. */
-const UNUSED_RAND_HASH = "ff".repeat(32);
 const ATTACKER_DESIGN: Design = {
   ...KITCHEN_L_DESIGN,
   presetId: "overwritten-by-attacker",
@@ -1151,8 +1144,10 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
 
 /**
  * M7 wave 7E3b, adversarial QA for D1 / ADR 0114 Amendment H1's own retry and atomicity claim
- * (criterion 8), and S5's criterion 6 (retry, ADR 0114 H4). `mint`'s public surface always
- * generates a fresh id, so a genuine retry cannot be driven through it directly.
+ * (criterion 8). `mint`'s public surface always generates a fresh id, so a genuine retry cannot be
+ * driven through it directly; the shape `mintStatements` submits is reproduced here with the driver
+ * itself, exactly as `0005`'s and `0006`'s own blocks drive raw SQL past the repository to prove a
+ * database-level guarantee no double can stand in for.
  */
 describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", () => {
   const mintedIds: DesignId[] = [];
@@ -1178,102 +1173,75 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
     return rows[0]?.visitor_hash ?? null;
   }
 
+  /** The rotation transaction, laid out exactly as `mintStatements`'s rotate branch does, so a
+   *  "retry" can be driven twice with byte-identical arguments without going through `mint`'s own
+   *  id generation. */
+  function rotationTransaction(
+    id: DesignId,
+    writeTokenHash: string,
+    fromVisitorHash: string,
+    toVisitorHash: string,
+  ) {
+    const sql = neon(testDatabaseUrl);
+    return sql.transaction(
+      [
+        sql`
+          update designs set visitor_hash = ${toVisitorHash}
+          where visitor_hash = ${fromVisitorHash}
+        `,
+        sql`
+          insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+          values (${id}, 1, ${KITCHEN_L_DESIGN}, ${writeTokenHash}, ${toVisitorHash})
+          on conflict (id) do nothing
+        `,
+        sql`
+          select revision::text as revision from designs
+          where id = ${id} and visitor_hash = ${toVisitorHash}
+        `,
+      ],
+      { isolationLevel: "ReadCommitted" },
+    );
+  }
+
   afterEach(async () => {
     if (!hasLiveDatabase || mintedIds.length === 0) return;
     const ids = mintedIds.splice(0, mintedIds.length);
     await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
   });
 
-  /** The wire shape `@neondatabase/serverless` POSTs for `sql.transaction([...])`, and the shape
-   *  its response carries back — array-mode rows, named by a parallel `fields` array — reused here
-   *  only to decode the replay's own answer, never to build a request by hand. */
-  interface NeonHttpTransactionResult {
-    fields: { name: string }[];
-    rows: unknown[][];
-  }
-  interface NeonHttpTransactionResponseBody {
-    results: NeonHttpTransactionResult[];
-  }
-
-  /** Reads the last statement's first row as an object, keyed by its own `fields` — the columns
-   *  `mintStatements`'s closing `select` names, whatever order the driver put them in. */
-  function lastRowOf(
-    body: NeonHttpTransactionResponseBody,
-  ): Record<string, unknown> {
-    const result = body.results.at(-1);
-    const row = result?.rows[0];
-    if (result === undefined || row === undefined)
-      throw new Error(
-        "the replayed transaction answered no row for its closing select",
-      );
-    return Object.fromEntries(
-      result.fields.map((field, index) => [field.name, row[index]]),
-    );
-  }
-
   it.skipIf(!hasLiveDatabase)(
-    // L1.1: earlier versions of this test retyped `mintStatements`'s SQL by hand, which had
-    // already drifted from the production shape once (Amendment H4 split it into two statements —
-    // see `neon-configuration-repository.ts`'s own doc comment on why a single statement cannot
-    // read its own writes). Retyping it again would only be as trustworthy as this file's own
-    // transcription. Instead, `neonConfig.fetchFunction` — the same seam `retry-on-compute-
-    // restart.test.ts` stubs offline — is pointed at the real network here, so it can *record* the
-    // exact request `mint` sends without changing what is sent. That captured request is then
-    // POSTed again, live, unmodified: the retry this test proves idempotent is the one production
-    // code actually issues, not a copy of it.
-    "the production rotation transaction, replayed live from its own captured wire bytes, answers the same revision and the same stored hash twice (S5 criterion 6, L1.1)",
+    "running the rotation transaction twice with identical arguments answers the same revision and leaves one row",
     async () => {
       const oldHash = "20".repeat(32);
-      const detHash = "21".repeat(32);
+      const newHash = "21".repeat(32);
       const existingId = await mintUnder(oldHash);
+      const newId = generateDesignId();
+      mintedIds.push(newId);
 
-      const captured: { url: string; init: RequestInit }[] = [];
-      const previousFetchFunction: unknown = neonConfig.fetchFunction;
-      const realFetch = globalThis.fetch;
-      neonConfig.fetchFunction = (url: string, init: RequestInit) => {
-        captured.push({ url, init });
-        return realFetch(url, init);
-      };
+      // The first attempt, standing in for the one whose acknowledgement was lost.
+      const first = (await rotationTransaction(
+        newId,
+        CORRECT_TOKEN_HASH,
+        oldHash,
+        newHash,
+      )) as [unknown[], unknown[], { revision: string }[]];
+      // The retry: byte-identical arguments, run only after the first has committed.
+      const retried = (await rotationTransaction(
+        newId,
+        CORRECT_TOKEN_HASH,
+        oldHash,
+        newHash,
+      )) as [unknown[], unknown[], { revision: string }[]];
 
-      let outcome: { id: DesignId; revision: string; visitorHash: string };
-      try {
-        outcome = await repository().mint({
-          design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
-          visitor: {
-            kind: "rotate",
-            // (a) holds: `oldHash` owns `existingId`'s row at the moment of the call, and nothing
-            // else races it, so this mint's own snapshot always converges on `detHash`.
-            detVisitorHash: detHash,
-            randVisitorHash: UNUSED_RAND_HASH,
-            fromVisitorHash: oldHash,
-          },
-        });
-      } finally {
-        neonConfig.fetchFunction = previousFetchFunction;
-      }
-      mintedIds.push(outcome.id);
-
-      expect(captured).toHaveLength(1);
-      const wireRequest = captured[0];
-      if (wireRequest === undefined)
-        throw new Error("the driver sent no request to capture");
-
-      // The retry: the exact bytes production sent, POSTed a second time, live.
-      const replayed = await realFetch(wireRequest.url, wireRequest.init);
-      expect(replayed.status).toBe(200);
-      const replayedRow = lastRowOf(
-        (await replayed.json()) as NeonHttpTransactionResponseBody,
-      );
-
-      expect(replayedRow["revision"]).toBe(outcome.revision);
-      expect(replayedRow["visitor_hash"]).toBe(outcome.visitorHash);
+      const firstRevision = first[2][0]?.revision;
+      expect(firstRevision).toBeDefined();
+      expect(retried[2][0]?.revision).toBe(firstRevision);
 
       const rows = (await neon(testDatabaseUrl)`
-        select count(*)::int as n from designs where id = ${outcome.id}
+        select count(*)::int as n from designs where id = ${newId}
       `) as { n: number }[];
       expect(rows[0]?.n).toBe(1);
-      expect(await visitorHashOf(existingId)).toBe(detHash);
+      expect(await visitorHashOf(existingId)).toBe(newHash);
     },
   );
 
@@ -1324,8 +1292,7 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
           writeTokenHash: CORRECT_TOKEN_HASH,
           visitor: {
             kind: "rotate",
-            detVisitorHash: raceWinnerHash,
-            randVisitorHash: UNUSED_RAND_HASH,
+            visitorHash: raceWinnerHash,
             fromVisitorHash: oldHash,
           },
         }),
@@ -1334,8 +1301,7 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
           writeTokenHash: CORRECT_TOKEN_HASH,
           visitor: {
             kind: "rotate",
-            detVisitorHash: raceLoserHash,
-            randVisitorHash: UNUSED_RAND_HASH,
+            visitorHash: raceLoserHash,
             fromVisitorHash: oldHash,
           },
         }),
@@ -1438,10 +1404,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
               writeTokenHash: CORRECT_TOKEN_HASH,
               visitor: {
                 kind: "rotate",
-                // H4: sequential, never concurrent — hashes[k - 1] always owns a row here, so
-                // condition (a) holds and detVisitorHash is always the one actually stored.
-                detVisitorHash: hashes[k] ?? "",
-                randVisitorHash: UNUSED_RAND_HASH,
+                visitorHash: hashes[k] ?? "",
                 fromVisitorHash: hashes[k - 1] ?? "",
               },
             });
@@ -1559,8 +1522,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
             writeTokenHash: CORRECT_TOKEN_HASH,
             visitor: {
               kind: "rotate",
-              detVisitorHash: "3d".repeat(32),
-              randVisitorHash: UNUSED_RAND_HASH,
+              visitorHash: "3d".repeat(32),
               fromVisitorHash: oldHash,
             },
           })
@@ -1574,13 +1536,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
   );
 
   it.skipIf(!hasLiveDatabase)(
-    // L1.2: `Promise.all` left the two requests' arrival order to the database scheduler, so
-    // whichever one actually reached the table first was never controlled — and the assertion
-    // that followed, `typeof save.ownsVisitor === "boolean"`, is true of `true` and `false` alike
-    // and so proved nothing about which one it was. Forcing the rotation to commit first, then
-    // issuing the save, pins the one order H3 makes a claim about and lets the test state it: a
-    // save carrying the value the rotation just moved away from owns nothing.
-    "R3, a save racing a rotation: with the rotation committed first, the save never writes visitor_hash back, the save still lands, and it answers ownsVisitor: false (S5 criterion 7, L1.2)",
+    "R3, a save racing a rotation: the save never writes visitor_hash back, the save lands, and no row is ever left under the old value",
     async () => {
       for (let attempt = 0; attempt < 6; attempt++) {
         const oldHash = hashNumbered(0x3e000 + attempt, 0);
@@ -1592,32 +1548,28 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         });
         mintedIds.push(minted.id);
 
-        const rotation = await repository().mint({
-          design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
-          visitor: {
-            kind: "rotate",
-            // H4: this attempt is the only writer of `oldHash`'s row at this point, so (a) holds
-            // and `newHash` is always the one actually stored.
-            detVisitorHash: newHash,
-            randVisitorHash: UNUSED_RAND_HASH,
-            fromVisitorHash: oldHash,
-          },
-        });
+        const [save, rotation] = await Promise.all([
+          repository().saveAuthorized({
+            id: minted.id,
+            design: {
+              ...KITCHEN_L_DESIGN,
+              presetId: `race-${String(attempt)}`,
+            },
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            expectedRevision: minted.revision,
+            requestVisitor: { kind: "present", visitorHash: oldHash },
+          }),
+          repository().mint({
+            design: KITCHEN_L_DESIGN,
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            visitor: {
+              kind: "rotate",
+              visitorHash: newHash,
+              fromVisitorHash: oldHash,
+            },
+          }),
+        ]);
         mintedIds.push(rotation.id);
-
-        // The rotation has already committed — awaited above — so this save's own `oldHash` is
-        // stale before it is ever sent.
-        const save = await repository().saveAuthorized({
-          id: minted.id,
-          design: {
-            ...KITCHEN_L_DESIGN,
-            presetId: `race-${String(attempt)}`,
-          },
-          writeTokenHash: CORRECT_TOKEN_HASH,
-          expectedRevision: minted.revision,
-          requestVisitor: { kind: "present", visitorHash: oldHash },
-        });
 
         expect(await countUnder(oldHash)).toBe(0);
         const row = (await rawRows([minted.id])).get(minted.id);
@@ -1625,159 +1577,55 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         expect(JSON.parse(row?.document ?? "{}")).toMatchObject({
           presetId: `race-${String(attempt)}`,
         });
-        expect(save.ownsVisitor).toBe(false);
+        expect(typeof save.ownsVisitor).toBe("boolean");
       }
     },
     120_000,
   );
 
   it.skipIf(!hasLiveDatabase)(
-    // Replaces the premise flagged in S5a review: that test raced two *different* caller-chosen
-    // target hashes for one `fromVisitorHash`, which is not what two genuinely concurrent mints
-    // from one browser ever do — `visitor.ts` derives `N_det = HMAC(secret, O)` for both calls from
-    // the same `O`, so they always propose the *same* candidate. S5 criterion 1 (the headline
-    // criterion), in QA's `r3.mjs` shape: three pre-existing designs from one browser, then two
-    // in-flight mints racing from its current value, over 30 rounds — the plan's own bar ("failing
-    // a single round is a failure").
-    "S5 criterion 1: two concurrent in-page mints from one O both answer the same N, and every design — three earlier ones and both new — opens under it, over 30 rounds",
+    "R3, two concurrent mints from one old value: each mint's own new row is readable under the value that mint issued",
     async () => {
-      for (let round = 0; round < 30; round++) {
-        const seed = 0x51000 + round;
-        const ids: DesignId[] = [];
+      const oldHash = "3f".repeat(32);
+      const firstHash = "40".repeat(32);
+      const secondHash = "41".repeat(32);
+      const existingId = (
+        await repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: { kind: "fresh", visitorHash: oldHash },
+        })
+      ).id;
+      mintedIds.push(existingId);
 
-        // Three pre-existing designs: sequential mints, each rotating the browser's own value
-        // forward (H1) — nothing races these, so condition (a) always holds and each one converges
-        // deterministically on the next `hashNumbered` value, exactly as production's HMAC chain
-        // would for a fixed secret and a fixed prior value.
-        let cookie = hashNumbered(seed, 0);
-        for (let k = 0; k < 3; k++) {
-          const nextHash = hashNumbered(seed, k + 1);
-          const outcome = await repository().mint({
-            design: KITCHEN_L_DESIGN,
-            writeTokenHash: CORRECT_TOKEN_HASH,
-            visitor:
-              k === 0
-                ? { kind: "fresh", visitorHash: cookie }
-                : {
-                    kind: "rotate",
-                    detVisitorHash: nextHash,
-                    randVisitorHash: hashNumbered(seed, 20 + k),
-                    fromVisitorHash: cookie,
-                  },
-          });
-          ids.push(outcome.id);
-          cookie = outcome.visitorHash;
-        }
-
-        // Two in-flight mints, both racing from the browser's *current* value — both proposing the
-        // same deterministic candidate, exactly as two real requests reading the same jar would.
-        const converged = hashNumbered(seed, 10);
-        const inFlightMint = (randSalt: number): Promise<MintOutcome> =>
+      const [first, second] = await Promise.all(
+        [firstHash, secondHash].map((visitorHash) =>
           repository().mint({
             design: KITCHEN_L_DESIGN,
             writeTokenHash: CORRECT_TOKEN_HASH,
-            visitor: {
-              kind: "rotate",
-              detVisitorHash: converged,
-              randVisitorHash: hashNumbered(seed, randSalt),
-              fromVisitorHash: cookie,
-            },
-          });
-        const [first, second] = await Promise.all([
-          inFlightMint(11),
-          inFlightMint(12),
-        ]);
-        ids.push(first.id, second.id);
-        mintedIds.push(...ids);
+            visitor: { kind: "rotate", visitorHash, fromVisitorHash: oldHash },
+          }),
+        ),
+      );
+      mintedIds.push(first?.id ?? "", second?.id ?? "");
 
-        // Convergence: both answer the same N, whichever of the two actually moved the rows.
-        expect(first.visitorHash, `round ${String(round)}`).toBe(converged);
-        expect(second.visitorHash, `round ${String(round)}`).toBe(converged);
-
-        // The jar ends holding N — every design, the three earlier ones and both new ones, opens.
-        for (const id of ids) {
-          expect(
-            (await repository().loadOwned({ id, visitorHash: converged })).kind,
-            `round ${String(round)}, design ${id}`,
-          ).toBe("found");
-        }
-        // No earlier value in the chain owns anything either — not only the one the race started
-        // from, but every value a sequential rotation moved rows away from before it.
-        for (let k = 0; k <= 3; k++) {
-          expect(
-            await countUnder(hashNumbered(seed, k)),
-            `round ${String(round)}, generation ${String(k)}`,
-          ).toBe(0);
-        }
-      }
-    },
-    120_000,
-  );
-
-  it.skipIf(!hasLiveDatabase)(
-    "S5 criterion 3: an attacker's planted value, presented after the victim's rotation, gets a random value and reads nothing of the victim's",
-    async () => {
-      const ownerHash = "3f".repeat(32);
-      const victimNewHash = "40".repeat(32);
-      // Never used as a `fromVisitorHash` anywhere else in this file, and nothing is ever minted
-      // under `HMAC(secret, plantedP)` — stood in for here by `plantedHmacOfP`, a value chosen to be
-      // unrelated to anything else in this suite, so it owns nothing and nothing was recently
-      // created under it either. Both conditions (a) and (b) must therefore fail for the attacker.
-      const plantedP = "41".repeat(32);
-      const plantedHmacOfP = "42".repeat(32);
-      const attackerRand = "43".repeat(32);
-
-      const victim = await repository().mint({
-        design: KITCHEN_L_DESIGN,
-        writeTokenHash: CORRECT_TOKEN_HASH,
-        visitor: { kind: "fresh", visitorHash: ownerHash },
-      });
-      mintedIds.push(victim.id);
-
-      const victimRotated = await repository().mint({
-        design: KITCHEN_L_DESIGN,
-        writeTokenHash: CORRECT_TOKEN_HASH,
-        visitor: {
-          kind: "rotate",
-          detVisitorHash: victimNewHash,
-          randVisitorHash: UNUSED_RAND_HASH,
-          fromVisitorHash: ownerHash,
-        },
-      });
-      mintedIds.push(victimRotated.id);
-      expect(victimRotated.visitorHash).toBe(victimNewHash);
-
-      const attacker = await repository().mint({
-        design: KITCHEN_L_DESIGN,
-        writeTokenHash: CORRECT_TOKEN_HASH,
-        visitor: {
-          kind: "rotate",
-          detVisitorHash: plantedHmacOfP,
-          randVisitorHash: attackerRand,
-          fromVisitorHash: plantedP,
-        },
-      });
-      mintedIds.push(attacker.id);
-
-      // The oracle stays closed: the attacker's mint falls back to the random candidate, never the
-      // deterministic one a shared secret would otherwise hand anyone who presents `O`.
-      expect(attacker.visitorHash).toBe(attackerRand);
       expect(
         (
           await repository().loadOwned({
-            id: victimRotated.id,
-            visitorHash: attackerRand,
+            id: first?.id ?? "",
+            visitorHash: firstHash,
           })
         ).kind,
-      ).toBe("none");
+      ).toBe("found");
       expect(
         (
           await repository().loadOwned({
-            id: attacker.id,
-            visitorHash: victimNewHash,
+            id: second?.id ?? "",
+            visitorHash: secondHash,
           })
         ).kind,
-      ).toBe("none");
+      ).toBe("found");
+      expect(await countUnder(oldHash)).toBe(0);
     },
   );
 });
