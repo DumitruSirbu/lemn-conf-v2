@@ -188,6 +188,12 @@ export interface StageSeatingInput {
   ground: THREE.Mesh;
   blob: THREE.Mesh;
   key: THREE.DirectionalLight;
+  /** Review L1.4: the auto-frame's offset (below, `dir`) is a fixed world-space vector, so it does
+   *  not follow `object`'s own mirror (D4) — a right-hand kitchen's bounding sphere moves to negative
+   *  x, but the camera still approached it from world +x, front-on rather than from the customer's
+   *  own front-right. `direction` is `mirroredX`'d into the offset the same way the camera presets
+   *  and the light rig already are, so every caller must name the room's direction explicitly. */
+  direction: CornerDirection;
 }
 
 /** The auto-frame half of the reference's `setObject()`: rest the object on the ground without
@@ -197,7 +203,7 @@ export interface StageSeatingInput {
  *  A camera preset applied afterwards overrides position and target but inherits the near/far
  *  planes derived here, exactly as the reference preset rig does. */
 export function seatObjectOnStage(input: StageSeatingInput): THREE.Vector3 {
-  const { object, camera, ground, blob, key } = input;
+  const { object, camera, ground, blob, key, direction } = input;
   object.traverse((o) => {
     o.castShadow = true;
     o.receiveShadow = true;
@@ -217,7 +223,11 @@ export function seatObjectOnStage(input: StageSeatingInput): THREE.Vector3 {
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   const dist =
     (sphere.radius / Math.tan((camera.fov * Math.PI) / 360)) * FRAMING_HEADROOM;
-  const dir = new THREE.Vector3(1, 0.55, 1.25).normalize();
+  const dir = new THREE.Vector3(
+    mirroredX(direction, 1),
+    0.55,
+    1.25,
+  ).normalize();
   camera.position.copy(sphere.center).add(dir.multiplyScalar(dist));
   camera.near = Math.max(dist / 100, 0.01);
   camera.far = dist * 100;

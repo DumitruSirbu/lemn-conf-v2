@@ -4,6 +4,7 @@ import type {
   Band,
   BodyLabel,
   CornerDirection,
+  DesignWall,
   EmptySpaceSide,
   PaletteEntryId,
   RejectionDetail,
@@ -263,15 +264,42 @@ function resolveKindLabel(
   }
 }
 
-/** ADR 0129 D8: the domain's `"right"`/`"left"` mean +along/−along (G9), never a screen side, so a
- *  refusal drawn on a mirrored (right-hand) room reads the *opposite* screen word from the same
- *  domain side. `screenSideOf` is the one place that crossing happens — everywhere else in this
- *  file still reads `side.side` as the domain wrote it. */
+/**
+ * ADR 0129 D8, corrected by review L1.1: the domain's `"right"`/`"left"` mean +along/−along
+ * (G9), never a screen side, and **which screen side +along reads as depends on the wall, not
+ * only on the room's direction** — `along-wall.ts`'s own mapping is wall A's +x, wall B's +z, and
+ * D4's mirror negates world x and never z. Measured against the real camera projection
+ * (`qa-7i-screen-side.adversarial.test.ts`, which this table restates rather than assumes):
+ *
+ * | wall | direction | +along reads on screen |
+ * | ---  | ---       | ---                     |
+ * | A    | left      | right                   |
+ * | A    | right     | left                    |
+ * | B    | left      | left                    |
+ * | B    | right     | right                   |
+ *
+ * So the crossing — screen word is the domain word's opposite — happens on wall A for a
+ * right-hand room and on wall B for a **left**-hand one (wall B's own mapping is already crossed
+ * at the domain's canonical, unmirrored left, because +z reads screen-left there independently of
+ * any mirror). `screenSideOf` is the one place either crossing happens — everywhere else in this
+ * file still reads `side.side` as the domain wrote it.
+ */
+export function crossesOnScreen(
+  wall: DesignWall,
+  cornerDirection: CornerDirection,
+): boolean {
+  return (
+    (wall === "A" && cornerDirection === "right") ||
+    (wall === "B" && cornerDirection === "left")
+  );
+}
+
 function screenSideOf(
   domainSide: EmptySpaceSide["side"],
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): EmptySpaceSide["side"] {
-  if (cornerDirection === "left") return domainSide;
+  if (!crossesOnScreen(wall, cornerDirection)) return domainSide;
   return domainSide === "right" ? "left" : "right";
 }
 
@@ -281,9 +309,10 @@ function screenSideOf(
 function resolveEmptySpaceSide(
   translate: ContentTranslator,
   side: EmptySpaceSide,
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): string {
-  const screenSide = screenSideOf(side.side, cornerDirection);
+  const screenSide = screenSideOf(side.side, wall, cornerDirection);
   switch (screenSide) {
     case "right":
       switch (side.reason) {
@@ -319,10 +348,13 @@ function resolveEmptySpaceSide(
 function resolveEmptySpaceSides(
   translate: ContentTranslator,
   sides: readonly EmptySpaceSide[],
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): string {
   return sides
-    .map((side) => resolveEmptySpaceSide(translate, side, cornerDirection))
+    .map((side) =>
+      resolveEmptySpaceSide(translate, side, wall, cornerDirection),
+    )
     .join(translate("rejection.parts.sidesJoin"));
 }
 
@@ -366,10 +398,15 @@ function resolveWidthsMadeClause(
 export function resolveRejection(
   translate: ContentTranslator,
   detail: RejectionDetail,
-  // ADR 0129 D8. Optional and defaulting to left rather than threaded to every caller: only a
-  // width-resize refusal's `sides` ever reads it (`resolveEmptySpaceSides`), and a caller with no
-  // room in scope — `global-settings.tsx`'s whole-kitchen-settings refusal, which can never carry an
-  // `EmptySpaceSide` — is unaffected by the default either way.
+  // ADR 0129 D8. Both optional and defaulting to wall A / left rather than threaded to every
+  // caller: only a width-resize refusal's `sides` ever reads either (`resolveEmptySpaceSides`),
+  // and a caller with no selection in scope — `global-settings.tsx`'s whole-kitchen-settings
+  // refusal, whose codes can never carry an `EmptySpaceSide` (L1.6; pinned by
+  // `qa-7i-side-words.adversarial.test.ts`) — is unaffected by the defaults either way. Wall A is
+  // the default rather than an arbitrary choice: it is the one wall whose own crossing rule
+  // (`crossesOnScreen`) agrees with `cornerDirection`'s default of left, so an omitted wall reads
+  // exactly as this function did before wave 7I added a direction at all.
+  wall: DesignWall = "A",
   cornerDirection: CornerDirection = "left",
 ): string {
   switch (detail.code) {
@@ -497,6 +534,7 @@ export function resolveRejection(
         sides: resolveEmptySpaceSides(
           translate,
           detail.params.sides,
+          wall,
           cornerDirection,
         ),
       });
@@ -516,6 +554,7 @@ export function resolveRejection(
         sides: resolveEmptySpaceSides(
           translate,
           detail.params.sides,
+          wall,
           cornerDirection,
         ),
       });
@@ -526,6 +565,7 @@ export function resolveRejection(
         sides: resolveEmptySpaceSides(
           translate,
           detail.params.sides,
+          wall,
           cornerDirection,
         ),
       });
@@ -568,8 +608,16 @@ export function resolveRejection(
  */
 export function resolveContent(translate: ContentTranslator) {
   return {
-    rejection: (detail: RejectionDetail, cornerDirection?: CornerDirection) =>
-      resolveRejection(translate, detail, cornerDirection),
+    // `cornerDirection` stays the second positional argument, unchanged from wave 7I's own S3b:
+    // every existing two-argument call (`content.rejection(detail, direction)`, panel-model.ts and
+    // the test suites alike) keeps meaning what it always meant. `wall` is new and third, read only
+    // by a refusal whose `sides` actually names one (`resolveEmptySpaceSides`); a caller with no
+    // wall in scope gets `resolveRejection`'s own default.
+    rejection: (
+      detail: RejectionDetail,
+      cornerDirection?: CornerDirection,
+      wall?: DesignWall,
+    ) => resolveRejection(translate, detail, wall, cornerDirection),
     /** A domain descriptor resolved through `catalog.*`, not a content family — see
      *  `resolveBodyLabel`. Held on `Content` for `rejection`'s reason: a model already threading the
      *  resolved content has no translator of its own. */

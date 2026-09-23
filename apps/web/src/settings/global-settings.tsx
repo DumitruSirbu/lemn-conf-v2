@@ -17,6 +17,7 @@
 // the screen marked inert while it is open. Two neighbouring surfaces with opposite focus stories is
 // not a bug in either.
 import {
+  cornerDirectionOf,
   countCabinetsWearingAChosenFinish,
   lookUpMaterial,
   projectDesignForDisplay,
@@ -299,7 +300,20 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
         // **6B-e**: the engine hands back a code and its params, and the sentence is the active
         // locale's. ADR 0032 rule 2 still holds — the sheet hands over to the engine's own words
         // rather than restating the refusal in its own.
-        message: content.rejection(outcome.reason),
+        //
+        // Review L1.6: a whole-kitchen refusal reaches here from `setCabinetDepth`'s rebuild, whose
+        // only refusal codes are `COLUMN_MISMATCH`, `NON_INTEGER_MILLIMETRES` and
+        // `evaluateInsertFit`'s own set (`WIDTH_TOO_SMALL`/`_LARGE`, `WIDTH_NOT_SUPPORTED`,
+        // `HEIGHT_EXCEEDS_LEVEL`/`_TOO_LARGE`, `NO_SNAP_POSITION`, `BAND_MISMATCH`,
+        // `OPENING_TOO_SHORT`, `COLUMN_MISMATCH`, `TARGET_NOT_FOUND`/`_REPLACEABLE`) — none of which
+        // is `NO_EMPTY_SPACE`, `RESIZE_OPENS_GAP` or `COLUMN_KEY_COLLISION`, the only codes that ever
+        // carry `sides` (`content.ts`'s `SIDE_CARRIERS`). So the direction this call omits can never
+        // change the sentence; it is passed anyway so a future refusal code does not silently depend
+        // on that fact.
+        message: content.rejection(
+          outcome.reason,
+          cornerDirectionOf(design.room),
+        ),
       });
       // Back to the choosing step rather than out of the sheet: the confirm step's *Schimbă
       // materialul* reaches here too, and leaving the customer on a question that has been answered

@@ -78,10 +78,14 @@ function panelFromStore(state: ConfiguratorState): PanelView {
   return describePanel({
     content: ro,
     // ADR 0129 D8, QA 7I coverage gap: `usePanelView` selects this straight off the store
-    // (`cornerDirectionOf(state.design.room)`) and nothing else in this file's fixtures ever
-    // differs by direction, so a hook that stopped passing it would have stayed green here too
-    // until "reads the reflected width note on a right-hand room" below was added — the same class
-    // of gap `buildableWidthSpanMm` closed above.
+    // (`cornerDirectionOf(state.design.room)`). Review L1.5: this mirror computes it the same way,
+    // so no test in this file — including "reads the reflected width note on a right-hand room"
+    // below — can catch the real `use-panel-view.ts` hook dropping this wiring; only a suite that
+    // renders (or drives) the real hook can. The real guard is the e2e at
+    // `tests/e2e/support/qa-7i-captures.ts:196`, which asserts the reflected note against the
+    // actually-rendered app. What this file's own test *does* still buy: proof that `describePanel`
+    // renders the right note once handed a right-hand direction, which is the half of the wiring a
+    // pure-function suite can reach.
     direction: cornerDirectionOf(state.design.room),
     material: PAL_KITCHEN,
     meta: selection
@@ -321,8 +325,11 @@ describe("the panel over the store's own state", () => {
 
   // ADR 0129 D8, QA 7I coverage gap. `usePanelView` reads `cornerDirectionOf(state.design.room)`
   // straight off the store and passes it to `describePanel` — nothing else in this file exercises
-  // a room whose `cornerDirection` is `"right"`, so this is the one case that goes red if that
-  // wiring is ever dropped, the same way `buildableWidthSpanMm` going missing above once did.
+  // a room whose `cornerDirection` is `"right"`. Review L1.5: because `panelFromStore` (above) is a
+  // seam mirror that re-derives `direction` itself rather than calling the real hook, this proves
+  // `describePanel` renders the reflected note given a right-hand direction, not that the real
+  // hook still passes one — that half is guarded by the e2e at
+  // `tests/e2e/support/qa-7i-captures.ts:196`.
   it("reads the reflected width note on a right-hand room", () => {
     const rightHandDesign: Design = {
       ...KITCHEN_L_DESIGN,

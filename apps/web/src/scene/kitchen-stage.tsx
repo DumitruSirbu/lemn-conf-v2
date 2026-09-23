@@ -117,6 +117,41 @@ export interface KitchenStageProps {
   onSettled?: () => void;
 }
 
+interface ReseatInput {
+  readonly object: THREE.Object3D;
+  readonly camera: THREE.PerspectiveCamera;
+  readonly controls: OrbitTarget | null;
+  readonly ground: THREE.Mesh;
+  readonly blob: THREE.Mesh;
+  readonly key: THREE.DirectionalLight;
+  readonly direction: CornerDirection;
+}
+
+/**
+ * Review C1.1: the one place `seatObjectOnStage` is called while holding the camera's own position
+ * and orbit target through it — shared by the mount/depth-rebuild seating effect and the in-place
+ * direction-flip re-seat (QA 7I-Q2), which were the same five lines twice.
+ *
+ * `restoreCamera` is the caller's own answer to "does a camera already exist to hold": the very
+ * first seat of a session has none, so `seatObjectOnStage`'s own framing is left standing; every
+ * later seat — a depth rebuild, or a direction flip — restores what the customer already had.
+ */
+function reseatHoldingCamera(input: ReseatInput, restoreCamera: boolean): void {
+  const { object, camera, controls, ground, blob, key, direction } = input;
+  const heldPosition = camera.position.clone();
+  const heldTarget = controls?.target.clone();
+
+  seatObjectOnStage({ object, camera, ground, blob, key, direction });
+
+  if (restoreCamera) {
+    camera.position.copy(heldPosition);
+    if (controls && heldTarget) {
+      controls.target.copy(heldTarget);
+      controls.update();
+    }
+  }
+}
+
 /**
  * The ported stage, mounted imperatively.
  *
@@ -279,28 +314,25 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     // contact blob and the shadow ground were positioned by `seatObjectOnStage` at whatever side
     // the room stood on when *that* effect last ran (keyed on `stage`, which a direction-only
     // change never rebuilds) — left standing on the old side otherwise. Re-seat in place, holding
-    // the camera's own position and orbit target the same way a depth rebuild does, so only the
-    // blob, the ground and the near/far planes follow the flip and the customer's own view does
-    // not move under them.
+    // the camera's own position and orbit target the same way a depth rebuild does (review C1.1:
+    // `reseatHoldingCamera` is the one place either does this), so only the blob, the ground and
+    // the near/far planes follow the flip and the customer's own view does not move under them.
     if (
       lastSeatedDirection.current !== undefined &&
       lastSeatedDirection.current !== direction
     ) {
-      const orbit = controls;
-      const heldPosition = camera.position.clone();
-      const heldTarget = orbit?.target.clone();
-      seatObjectOnStage({
-        object: stage.room,
-        camera: camera as THREE.PerspectiveCamera,
-        ground: stage.ground,
-        blob: stage.blob,
-        key: stage.lights.key,
-      });
-      camera.position.copy(heldPosition);
-      if (orbit && heldTarget) {
-        orbit.target.copy(heldTarget);
-        orbit.update();
-      }
+      reseatHoldingCamera(
+        {
+          object: stage.room,
+          camera: camera as THREE.PerspectiveCamera,
+          controls,
+          ground: stage.ground,
+          blob: stage.blob,
+          key: stage.lights.key,
+          direction,
+        },
+        true,
+      );
     }
     lastSeatedDirection.current = direction;
     invalidate();
@@ -364,26 +396,21 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     //
     // Restored around the call rather than split out of the adapter, because `near`/`far` *should*
     // be re-derived: the room's bounding sphere moves with the depth, and framing distance is what
-    // they are computed from. Only the customer's own two vectors are put back.
-    const orbit = controls;
-    const heldPosition = camera.position.clone();
-    const heldTarget = orbit?.target.clone();
-
-    seatObjectOnStage({
-      object: stage.room,
-      camera: camera as THREE.PerspectiveCamera,
-      ground: stage.ground,
-      blob: stage.blob,
-      key: stage.lights.key,
-    });
-
-    if (hasSeatedAStage.current) {
-      camera.position.copy(heldPosition);
-      if (orbit && heldTarget) {
-        orbit.target.copy(heldTarget);
-        orbit.update();
-      }
-    }
+    // they are computed from. Only the customer's own two vectors are put back — `reseatHoldingCamera`
+    // (review C1.1) is shared with the direction-flip re-seat above, which restores unconditionally
+    // because it never runs on a session's first seat.
+    reseatHoldingCamera(
+      {
+        object: stage.room,
+        camera: camera as THREE.PerspectiveCamera,
+        controls,
+        ground: stage.ground,
+        blob: stage.blob,
+        key: stage.lights.key,
+        direction: cornerDirectionOf(designRoom),
+      },
+      hasSeatedAStage.current,
+    );
     hasSeatedAStage.current = true;
     invalidate();
   }, [stage, camera, controls, invalidate]);

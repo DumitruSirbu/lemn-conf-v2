@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { kindLabel } from "@lemnaria/configurator-domain";
 
 import {
+  crossesOnScreen,
   resolveContent,
   type Content,
   type ContentTranslator,
@@ -360,6 +361,70 @@ describe("the localized content resolver", () => {
       // left", restated for this reader).
       expect(content.rejection(detailFor("right"))).toBe(
         content.rejection(detailFor("right"), "left"),
+      );
+    },
+  );
+
+  // 7I review L1.1: which wall/direction pair crosses on screen is a fact about the real camera
+  // (`qa-7i-screen-side.adversarial.test.ts`, `packages/three-adapter`, proves this exact table by
+  // projection), not something this file may assume — restated here as the literal table so a
+  // change to `crossesOnScreen` that agrees with itself but disagrees with the geometry fails here
+  // too, one package over from where the projection lives.
+  it.each([
+    ["A", "left", false],
+    ["A", "right", true],
+    ["B", "left", true],
+    ["B", "right", false],
+  ] as const)(
+    "wall %s, direction %s crosses on screen: %s",
+    (wall, direction, expected) => {
+      expect(crossesOnScreen(wall, direction)).toBe(expected);
+    },
+  );
+
+  it.each(CATALOGUES)(
+    "the side word crosses on wall B for a left-hand room and holds for a right-hand one, in %s",
+    (locale, messages) => {
+      const { content } = contentAndOracleFor(locale, messages);
+      const detailOn = (wall: "A" | "B", side: "left" | "right") => ({
+        code: "NO_EMPTY_SPACE" as const,
+        params: {
+          label: kindLabel("body-token"),
+          requestedMm: 650,
+          deltaMm: 50,
+          sides: [{ side, reason: "absent" as const }],
+        },
+      });
+
+      // Wall A, left room: the reference — no crossing, domain word is the screen word.
+      const wallALeftRight = content.rejection(
+        detailOn("A", "right"),
+        "left",
+        "A",
+      );
+      const wallALeftLeft = content.rejection(
+        detailOn("A", "left"),
+        "left",
+        "A",
+      );
+      expect(wallALeftRight).not.toBe(wallALeftLeft);
+
+      // Wall B, left room: crosses — domain "right" reads the same screen word wall A's own
+      // (uncrossed) "left" does, and domain "left" reads wall A's "right".
+      expect(content.rejection(detailOn("B", "right"), "left", "B")).toBe(
+        wallALeftLeft,
+      );
+      expect(content.rejection(detailOn("B", "left"), "left", "B")).toBe(
+        wallALeftRight,
+      );
+
+      // Wall B, right room: does not cross — domain word is the screen word again, the same as
+      // wall A's own left-room (uncrossed) reading.
+      expect(content.rejection(detailOn("B", "right"), "right", "B")).toBe(
+        wallALeftRight,
+      );
+      expect(content.rejection(detailOn("B", "left"), "right", "B")).toBe(
+        wallALeftLeft,
       );
     },
   );

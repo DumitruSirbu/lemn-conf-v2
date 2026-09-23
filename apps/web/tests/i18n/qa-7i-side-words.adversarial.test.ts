@@ -237,8 +237,20 @@ describe("7I-A15 — the panel crosses the side word for every width refusal of 
         }
         const sides = (detail.params as unknown as { sides: EmptySpaceSide[] })
           .sides;
+        // 7I review L1.1: the oracle must be handed the *placement's own wall* — omitted, it
+        // defaulted to wall A, which is `screenWord(wall, right, S) === screenWord(wall, left,
+        // opposite(S))`'s identity compared across two different walls (the real right-hand
+        // rendering's actual wall vs. the oracle's implicit wall A) rather than within one, and
+        // that mismatch is exactly what wall B's placements caught once `content.rejection`
+        // started reading the wall for real. The identity itself needed no change: it holds for
+        // any wall, because exactly one of a wall's two directions crosses on screen by
+        // construction (`crossesOnScreen`) — only the missing argument was wrong.
         expect(rightReasons[index], placement.id).toBe(
-          ro.rejection(withSides(detail, flipped(sides))),
+          ro.rejection(
+            withSides(detail, flipped(sides)),
+            "left",
+            placement.wall,
+          ),
         );
         if (sides.length > 0) {
           sideCarrying += 1;

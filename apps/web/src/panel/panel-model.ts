@@ -16,6 +16,7 @@ import {
   type CatalogOffer,
   type ColourControl,
   type CornerDirection,
+  type DesignWall,
   type Finish,
   type Handle,
   type Material,
@@ -35,7 +36,7 @@ import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
-import type { Content } from "@/i18n/content";
+import { crossesOnScreen, type Content } from "@/i18n/content";
 import {
   describeFlaggedTotalWarning,
   describeStartingPrice,
@@ -699,7 +700,14 @@ function collectSections(
   if (input.rejection) {
     sections.push({
       kind: "rejection",
-      message: input.content.rejection(input.rejection, input.direction),
+      // L1.1: the side word's screen crossing depends on which wall this selection is on
+      // (`crossesOnScreen`), not only on the room's direction — the banner is drawn for *this*
+      // body, so `meta.wall` is the wall a side-carrying refusal of it names.
+      message: input.content.rejection(
+        input.rejection,
+        input.direction,
+        meta.wall,
+      ),
     });
   }
   // **The refusal is rendered whenever it is declared, offers or no offers** (§11 row 16, and the
@@ -1140,6 +1148,7 @@ function describeWidthSection(
           steps.narrower,
           editability,
           input.content,
+          meta.wall,
           direction,
         ),
         describeWidthStep(
@@ -1147,21 +1156,28 @@ function describeWidthSection(
           steps.wider,
           editability,
           input.content,
+          meta.wall,
           direction,
         ),
       ],
-      // ADR 0129 D8: the reflected sentence for a right-hand room — same rule, the sides it names
-      // swapped along with the ones the buttons themselves now refuse from.
-      note:
-        direction === "right"
-          ? input.content.panel.widthStepNoteRight
-          : input.content.panel.widthStepNote,
+      // ADR 0129 D8, corrected by L1.1: the reflected sentence for whichever wall/direction pair
+      // actually crosses on screen (`crossesOnScreen`) — the same rule `content.rejection`'s side
+      // word now follows, not merely "the room is right-hand".
+      note: crossesOnScreen(meta.wall, direction)
+        ? input.content.panel.widthStepNoteRight
+        : input.content.panel.widthStepNote,
     };
   return {
     ...head,
     control: "choice",
     chips: options.map((option) =>
-      describeWidthChip(option, editability, input.content, direction),
+      describeWidthChip(
+        option,
+        editability,
+        input.content,
+        meta.wall,
+        direction,
+      ),
     ),
     note: input.content.panel.widthChoiceNote,
   };
@@ -1206,6 +1222,7 @@ function describeWidthStep(
   option: WidthOption,
   editability: PanelEditability,
   content: Content,
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): WidthStepButton {
   return {
@@ -1218,6 +1235,7 @@ function describeWidthStep(
       option.verdict,
       editability,
       content,
+      wall,
       cornerDirection,
     ),
   };
@@ -1229,11 +1247,12 @@ function describeWidthStepReason(
   verdict: WidthOption["verdict"],
   editability: PanelEditability,
   content: Content,
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): { readonly reason?: string } {
   if (editability.isReadOnly) return { reason: editability.disabledReason };
   if (verdict.status !== "refused") return {};
-  return { reason: content.rejection(verdict.reason, cornerDirection) };
+  return { reason: content.rejection(verdict.reason, cornerDirection, wall) };
 }
 
 /** One candidate width, in §9's vocabulary. Only a `free` chip is a move: `active` is the width the
@@ -1248,6 +1267,7 @@ function describeWidthChip(
   option: WidthOption,
   editability: PanelEditability,
   content: Content,
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): WidthChip {
   const state = describeWidthChipState(option.verdict);
@@ -1260,6 +1280,7 @@ function describeWidthChip(
       option.verdict,
       editability,
       content,
+      wall,
       cornerDirection,
     ),
   };
@@ -1289,11 +1310,12 @@ function describeWidthChipReason(
   verdict: WidthOption["verdict"],
   editability: PanelEditability,
   content: Content,
+  wall: DesignWall,
   cornerDirection: CornerDirection,
 ): { readonly reason?: string } {
   if (editability.isReadOnly) return { reason: editability.disabledReason };
   if (verdict.status === "current" || verdict.status === "available") return {};
-  return { reason: content.rejection(verdict.reason, cornerDirection) };
+  return { reason: content.rejection(verdict.reason, cornerDirection, wall) };
 }
 
 /** Takes the whole three-state union rather than what any one milestone happens to produce, and

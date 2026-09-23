@@ -22,15 +22,13 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
+import { FRAMES_BEFORE_READY } from "@/app/internal/capture-settle";
+
 /** 7I-A7/A18: the `base-corner` builder's own group — the base pair (X-leg + return leg) — is D4's
  *  "one group" example, drawn canonical and mirrored side by side so the primitive is visible on a
  *  real structural piece rather than only asserted in `corner-direction.test.ts`. */
 const PANEL_WIDTH_PX = 480;
 const PANEL_HEIGHT_PX = 480;
-
-/** Frames to let settle after the camera lands, matching `scene-shot.tsx`'s own margin: the capture
- *  must never read a half-composited buffer. */
-const FRAMES_BEFORE_READY = 5;
 
 export interface MirrorShotProps {
   /** `"right"` is D4's mirror; `"left"` is a second canonical panel offered for a byte-for-byte
@@ -141,21 +139,16 @@ function CornerScene({ direction, onReady }: CornerSceneProps) {
       hasFramed.current = true;
       // No `OrbitControls` here to consume the returned target, unlike the editor's stage — so the
       // look-at this panel needs is applied directly, once, right after the auto-frame.
+      // Review L1.4: `seatObjectOnStage` now mirrors its own offset direction (`stage.ts`), so this
+      // panel no longer needs the post-hoc reflection about the target that used to correct for it.
       const target = seatObjectOnStage({
         object: stage.group,
         camera: camera as THREE.PerspectiveCamera,
         ground: stage.ground,
         blob: stage.blob,
         key: stage.lights.key,
+        direction,
       });
-      // D6's own rule, applied to this panel's fixed viewing direction rather than to a preset: the
-      // auto-frame's `dir` is a constant offset (`stage.ts`'s `seatObjectOnStage`), so a right-hand
-      // panel viewed from it looks at the piece's *back* — reflecting the camera's x about the
-      // target is what puts the fronts on screen for both panels alike (Q7H-7's "does not pull
-      // back" holds here too: only x moves, so the distance to target is unchanged).
-      if (direction === "right") {
-        camera.position.x = 2 * target.x - camera.position.x;
-      }
       camera.lookAt(target);
       camera.updateMatrixWorld();
       return;

@@ -388,7 +388,11 @@ describe("every stepper the shipped kitchen renders", () => {
         expect([record.id, step.direction, step.reason]).toEqual([
           record.id,
           step.direction,
-          result.ok ? undefined : ro.rejection(result.reason),
+          // `widthSectionAt` defaults to left (no direction argument above); the wall is
+          // `record`'s own, not the oracle's default (7I review L1.1).
+          result.ok
+            ? undefined
+            : ro.rejection(result.reason, "left", record.wall),
         ]);
         buttons += 1;
         if (!step.isDisabled) enabled += 1;

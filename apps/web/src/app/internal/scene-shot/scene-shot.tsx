@@ -4,11 +4,9 @@ import type { Finish } from "@lemnaria/configurator-domain";
 import { STAGE_BACKGROUND } from "@lemnaria/three-adapter";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { FRAMES_BEFORE_READY } from "@/app/internal/capture-settle";
 import KitchenCanvas from "@/scene/kitchen-canvas";
 import type { SceneView } from "@/scene/scene-view";
-
-/** Frames to let settle after the camera lands, so the capture never reads a half-composited buffer. */
-const FRAMES_BEFORE_READY = 5;
 
 export interface SceneShotProps {
   width: number;

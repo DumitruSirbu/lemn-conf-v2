@@ -17,9 +17,13 @@ import {
   CAMERA_FIELD_OF_VIEW_DEGREES,
   CAMERA_PRESETS,
   cameraPresetsForRoom,
+  createContactBlob,
+  createLightRig,
+  createShadowGround,
   findCameraPreset,
   findCameraPresetForRoom,
   KITCHEN_TOP_M,
+  seatObjectOnStage,
   type CameraPreset,
   type CameraPresetId,
 } from "../src/stage.js";
@@ -402,6 +406,52 @@ describe("the tallest body's top", () => {
     );
 
     expect(top).toBeCloseTo(KITCHEN_TOP_M, 2);
+  });
+});
+
+// Review L1.4: `seatObjectOnStage`'s auto-frame offset is a fixed world-space vector, so it must
+// mirror its own x the same way the presets and the light rig already do (`mirroredX`), or a
+// right-hand room is framed from the wrong side of a bounding sphere that has itself moved to
+// negative x.
+describe("seatObjectOnStage frames from the customer's own side", () => {
+  function seatedCameraFor(direction: "left" | "right") {
+    const object = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+    box.position.set(2, 0.5, 1);
+    object.add(box);
+
+    const camera = new THREE.PerspectiveCamera(CAMERA_FIELD_OF_VIEW_DEGREES);
+    seatObjectOnStage({
+      object,
+      camera,
+      ground: createShadowGround(),
+      blob: createContactBlob(createHeadlessCanvas),
+      key: createLightRig().key,
+      direction,
+    });
+    return camera;
+  }
+
+  it("moves the camera's x offset from the sphere centre to the opposite side for a right-hand room", () => {
+    const leftCamera = seatedCameraFor("left");
+    const rightCamera = seatedCameraFor("right");
+
+    // The object itself is not mirrored here (only the *camera offset* is under test), so both
+    // cameras frame the same sphere centre; only the sign of the x offset from it should differ.
+    expect(leftCamera.position.x).toBeGreaterThan(2);
+    expect(rightCamera.position.x).toBeLessThan(2);
+    expect(rightCamera.position.x - 2).toBeCloseTo(
+      -(leftCamera.position.x - 2),
+      9,
+    );
+  });
+
+  it("keeps the y and z offsets identical, mirroring x alone (D4/D6)", () => {
+    const leftCamera = seatedCameraFor("left");
+    const rightCamera = seatedCameraFor("right");
+
+    expect(rightCamera.position.y).toBeCloseTo(leftCamera.position.y, 9);
+    expect(rightCamera.position.z).toBeCloseTo(leftCamera.position.z, 9);
   });
 });
 
