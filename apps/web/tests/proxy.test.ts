@@ -358,17 +358,20 @@ describe("proxy share-view routing and headers (M7 wave 7E3c D7)", () => {
     expect(response.headers.get("location")).toBe(
       "https://lemnaria.test/ru/s/abcDEF123456",
     );
-    for (const { key, value } of SHARE_VIEW_HEADERS) {
-      expect(response.headers.get(key)).toBe(value);
-    }
+    // QA round 1, Q4: pinned to the literal values, not to `SHARE_VIEW_HEADERS` itself — a test
+    // asserting a module's own constant against itself passes however that constant is edited and
+    // proves nothing about the response.
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
   it("carries the three share headers on the localized page response too", () => {
     const response = respondTo("/ro/s/abcDEF123456");
 
-    for (const { key, value } of SHARE_VIEW_HEADERS) {
-      expect(response.headers.get(key)).toBe(value);
-    }
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
   it("carries no share header on an ordinary customer route", () => {

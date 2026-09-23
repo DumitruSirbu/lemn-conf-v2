@@ -167,8 +167,14 @@ const DESTRUCTIVE_DIAGNOSES: readonly DestructiveDiagnosis[] = [
  *  source` are both a query, not a column list, and cover every keyword PostgreSQL accepts after
  *  the `AS` of a CTAS: `SELECT`, `WITH` (a `SELECT` wrapped in a CTE), `VALUES`, and `TABLE` itself.
  *  A column named `as` cannot collide with this: `\bas\b` requires it to stand alone, and none of
- *  the four words following it is a valid next token inside an ordinary column-list clause. */
-const CTAS_QUERY = /\bas\s+(select|with|values|table)\b/;
+ *  the four words following it is a valid next token inside an ordinary column-list clause.
+ *
+ *  **QA round 1, Q2.** PostgreSQL's `AS` before a CTAS query takes the query parenthesised or not,
+ *  and the parenthesised form takes any amount of whitespace around each paren — `AS (SELECT …)`,
+ *  `AS(SELECT …)` and `AS ((SELECT …))` are all one statement to Postgres. `\s*\(*\s*` is what
+ *  `\s+` was missing: zero or more parens, with the whitespace optional on both sides of the run
+ *  rather than required once. */
+const CTAS_QUERY = /\bas\s*\(*\s*(select|with|values|table)\b/;
 
 /**
  * Every reason the pipeline must not apply these files unattended — empty when it may.
@@ -184,6 +190,17 @@ export function unattendedMigrationRefusals(
 }
 
 function refusalsForFile(file: MigrationFile): string[] {
+  // SEC-7E3c.4: checked before the statement split is trusted at all — a file that hits one of
+  // these constructs can no longer trust `executableStatementsOf`'s own idea of where one statement
+  // ends and the next begins, so nothing downstream of that split is asked to say anything further.
+  const constructRefusals = [...new Set(unmodelledConstructsOf(file.sql))].map(
+    (construct) =>
+      `"${file.fileName}" contains ${construct}, so it may not be applied by the ` +
+      `pipeline: an unattended screen that cannot lex a construct correctly cannot certify what ` +
+      `stands beside it either. ${APPLY_BY_HAND_INSTEAD}`,
+  );
+  if (constructRefusals.length > 0) return constructRefusals;
+
   return executableStatementsOf(file.sql)
     .map(refusalForStatement)
     .filter((refusal): refusal is string => refusal !== undefined)
@@ -245,19 +262,64 @@ const APPLY_BY_HAND_INSTEAD =
  * quoted region, exactly as Postgres reads them.
  */
 export function executableStatementsOf(sql: string): string[] {
-  return rawStatementsOf(sql)
-    .map((statement) => statement.toLowerCase().replace(/\s+/g, " ").trim())
+  return scanSql(sql)
+    .statements.map((statement) =>
+      statement.toLowerCase().replace(/\s+/g, " ").trim(),
+    )
     .filter((statement) => statement !== "");
+}
+
+/**
+ * SEC-7E3c.4 (QA round 1, Q1). One construct this scanner still cannot lex correctly costs the
+ * *whole file* its unattended status, named — the fail-closed correction to SEC-7E3c.1's own
+ * quote-aware pass, which QA broke five more ways without writing anything a person would call
+ * unusual: a Postgres E-string's backslash escape (`E'\''`), an unquoted identifier ending in the
+ * bare delimiter (`qa_b$$`), a nested block comment (Postgres nests them; this scanner does not), and
+ * a tagged dollar quote (`$q$…$q$`) holding a single quote or a literal `$$`. Each merged a hidden,
+ * unscreened statement into a preceding `create table if not exists`.
+ *
+ * **Modelling more of Postgres's lexer is not the fix that generalises** — the next construct nobody
+ * pictured would still get through, and every patch to a growing lexer looks exactly as complete as
+ * the last one did. So this refuses by *construct*, not by scenario: five shapes this module does not
+ * model at all, checked once per file rather than embedded in the five separate evasions QA wrote.
+ * `refusalsForFile` checks this before running the allowlist at all, because a file that hits one of
+ * these can no longer trust its own statement split.
+ */
+export function unmodelledConstructsOf(sql: string): string[] {
+  return scanSql(sql).unmodelledConstructs;
+}
+
+interface RawScan {
+  readonly statements: string[];
+  readonly unmodelledConstructs: string[];
 }
 
 const DOLLAR_QUOTE = "$$";
 
 type ScanState = "code" | "single-quote" | "double-quote" | "dollar-quote";
 
+/** The four string-type prefixes PostgreSQL recognises immediately before an opening quote — `E'`,
+ *  `U&'`/`U&"`, `B'`, `X'` — each with escaping or encoding rules this module's plain quote-tracker
+ *  does not implement. Matched only against what stands immediately before the quote, with a
+ *  non-word character (or the start of the file) before *that*, so an ordinary one-character string
+ *  like `'b'` is never mistaken for a bit-string's `B'…'`: the `b` there is quoted content, not a
+ *  prefix standing in code. */
+const STRING_TYPE_PREFIX = /(?:^|[^\w$])(u&|e|b|x)$/i;
+
+function precedingStringPrefix(
+  sql: string,
+  quoteIndex: number,
+): string | undefined {
+  const lookback = sql.slice(Math.max(0, quoteIndex - 4), quoteIndex);
+  return STRING_TYPE_PREFIX.exec(lookback)?.[1];
+}
+
 /**
  * One quote-aware pass over the raw file, splitting into statements with `--` and `/* *\/` comments
  * blanked to a single space — never inside a single-quoted string, a double-quoted identifier, or a
- * `$$`-delimited body, and never splitting on a `;` inside one either.
+ * `$$`-delimited body, and never splitting on a `;` inside one either. Also collects `SEC-7E3c.4`'s
+ * unmodelled-construct reasons in the same pass, since it is already the one place in this module
+ * that knows which state each character stands in.
  *
  * **SEC-7E3c.1.** The version this replaces stripped comments with a plain regex before ever looking
  * at quotes, so `default '--'` inside a string literal was read as a comment start: everything after
@@ -274,16 +336,29 @@ type ScanState = "code" | "single-quote" | "double-quote" | "dollar-quote";
  * closing it early. A `$tag$…$tag$` body is not tracked — only the bare `$$` this repository's own
  * migrations use — for the reason the original comment already gave: an untracked tagged body falls
  * apart into fragments that fail to match a recognised shape, and this module always errs toward
- * refusing rather than silently accepting.
+ * refusing rather than silently accepting. SEC-7E3c.4 makes that refusal explicit and named, rather
+ * than trusting that whatever the fragments happen to match is not itself a recognised shape.
  */
-function rawStatementsOf(sql: string): string[] {
+function scanSql(sql: string): RawScan {
   const statements: string[] = [];
+  const unmodelledConstructs: string[] = [];
   let buffer = "";
   let state: ScanState = "code";
   let index = 0;
 
   while (index < sql.length) {
     if (state === "single-quote") {
+      // SEC-7E3c.4: a backslash's meaning inside a single-quoted string depends on
+      // `standard_conforming_strings`, a session setting this module never reads — `E'\''` is a
+      // one-character string to Postgres and a still-open one to a scanner that reads `\` as
+      // ordinary content, which is exactly QA's E-string case. Flagged once per statement's worth
+      // of harm regardless of how many backslashes it holds; the file is refused either way.
+      if (sql[index] === "\\") {
+        unmodelledConstructs.push(
+          "a backslash inside a single-quoted string, whose meaning depends on a session setting " +
+            "this screen does not read",
+        );
+      }
       const step = stepThroughQuote(sql, index, "'");
       buffer += step.consumed;
       index = step.nextIndex;
@@ -326,26 +401,73 @@ function rawStatementsOf(sql: string): string[] {
         index += 2;
         continue;
       }
+      // SEC-7E3c.4: PostgreSQL nests `/* */`, so `/* /* */ … */` is one comment that keeps running
+      // past this scanner's first `*/` — the wrong direction here is silence, not a false refusal,
+      // and a genuinely non-nested prose comment (every shipped header's own shape) never trips
+      // this: `indexOf("/*", …)` inside the body finds nothing to find.
+      if (sql.slice(index + 2, blockEnd).includes("/*")) {
+        unmodelledConstructs.push(
+          "a nested block comment, which PostgreSQL nests and this screen does not",
+        );
+      }
       index = blockEnd + 2;
       buffer += " ";
       continue;
     }
     if (sql[index] === "'") {
+      const prefix = precedingStringPrefix(sql, index);
+      if (prefix !== undefined) {
+        unmodelledConstructs.push(
+          `a "${prefix.toUpperCase()}'…'" string, whose escaping or encoding this screen does not track`,
+        );
+      }
       buffer += "'";
       state = "single-quote";
       index += 1;
       continue;
     }
     if (sql[index] === '"') {
+      const prefix = precedingStringPrefix(sql, index);
+      if (prefix !== undefined && prefix.toLowerCase() === "u&") {
+        unmodelledConstructs.push(
+          `a "U&"…"" identifier, whose unicode escaping this screen does not track`,
+        );
+      }
       buffer += '"';
       state = "double-quote";
       index += 1;
       continue;
     }
-    if (sql.startsWith(DOLLAR_QUOTE, index)) {
-      buffer += DOLLAR_QUOTE;
-      state = "dollar-quote";
-      index += DOLLAR_QUOTE.length;
+    if (sql[index] === "$") {
+      // SEC-7E3c.4: two of QA's cases hinge on this one character. A `$` glued to the end of a bare
+      // identifier (`qa_b$$`) is a legal identifier this scanner would otherwise read as a
+      // dollar-quote *open*; a `$` starting a tagged quote (`$q$…$q$`) is a body this scanner would
+      // otherwise read as ordinary code once the untagged toggle failed to arm. Both merge whatever
+      // follows into the wrong statement. The one shape left alone is the bare, untagged `$$` this
+      // repository's own migrations use, standing free of any identifier on either side.
+      const precededByIdentifierChar =
+        index > 0 && /[\w$]/.test(sql[index - 1] ?? "");
+      if (precededByIdentifierChar) {
+        unmodelledConstructs.push(
+          "an identifier containing $, which this screen's dollar-quote detection cannot tell apart " +
+            "from a delimiter",
+        );
+        buffer += "$";
+        index += 1;
+        continue;
+      }
+      if (sql.startsWith(DOLLAR_QUOTE, index) && sql[index + 2] !== "$") {
+        buffer += DOLLAR_QUOTE;
+        state = "dollar-quote";
+        index += DOLLAR_QUOTE.length;
+        continue;
+      }
+      unmodelledConstructs.push(
+        "a $ that is not part of the bare, untagged $$ delimiter (a tag, or a lone $), which this " +
+          "screen does not track",
+      );
+      buffer += "$";
+      index += 1;
       continue;
     }
     if (sql[index] === ";") {
@@ -359,7 +481,7 @@ function rawStatementsOf(sql: string): string[] {
   }
 
   statements.push(buffer);
-  return statements;
+  return { statements, unmodelledConstructs };
 }
 
 interface QuoteStep {

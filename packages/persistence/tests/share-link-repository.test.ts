@@ -350,6 +350,193 @@ describe(SUITE_NAME, () => {
   );
 });
 
+describe(`${SUITE_NAME} — adversarial QA (M7 wave 7E3c)`, () => {
+  const mintedIds: DesignId[] = [];
+
+  async function mintDesign(
+    hashes: { writeTokenHash: string; visitorHash: string } = {
+      writeTokenHash: WRITE_TOKEN_HASH,
+      visitorHash: VISITOR_HASH,
+    },
+  ): Promise<ShareLinkCredentials> {
+    const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
+      design: KITCHEN_L_DESIGN,
+      ...hashes,
+    });
+    mintedIds.push(id);
+    return { designId: id, ...hashes };
+  }
+
+  function repository(): NeonShareLinkRepository {
+    return new NeonShareLinkRepository(testDatabaseUrl);
+  }
+
+  async function activeHashesOf(designId: DesignId): Promise<string[]> {
+    const rows = (await neon(testDatabaseUrl)`
+      select token_hash from design_share_links
+      where design_id = ${designId} and revoked_at is null
+    `) as { token_hash: string }[];
+    return rows.map((row) => row.token_hash);
+  }
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "a refused issue never revokes the owner's active link, whichever credential is wrong",
+    async () => {
+      const credentials = await mintDesign();
+      const ownersHash = nextTokenHash();
+      await repository().issue({ ...credentials, tokenHash: ownersHash });
+
+      const refusals = await Promise.all([
+        repository().issue({
+          ...credentials,
+          writeTokenHash: WRONG_WRITE_TOKEN_HASH,
+          tokenHash: nextTokenHash(),
+        }),
+        repository().issue({
+          ...credentials,
+          visitorHash: WRONG_VISITOR_HASH,
+          tokenHash: nextTokenHash(),
+        }),
+      ]);
+
+      expect(refusals).toEqual(["refused", "refused"]);
+      expect(await activeHashesOf(credentials.designId)).toEqual([ownersHash]);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "one design's full credential pair, aimed at another design's id, is refused by every method",
+    async () => {
+      const attacker = await mintDesign();
+      const victim = await mintDesign({
+        writeTokenHash: "5".repeat(64),
+        visitorHash: "6".repeat(64),
+      });
+      const victimsHash = nextTokenHash();
+      await repository().issue({ ...victim, tokenHash: victimsHash });
+      const crossed = { ...attacker, designId: victim.designId };
+
+      expect(
+        await repository().issue({ ...crossed, tokenHash: nextTokenHash() }),
+      ).toBe("refused");
+      expect(await repository().revoke(crossed)).toBe("refused");
+      expect(await repository().status(crossed)).toBe("refused");
+      expect(await activeHashesOf(victim.designId)).toEqual([victimsHash]);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "five concurrent issues all succeed and leave exactly one active row, the only token that opens",
+    async () => {
+      const credentials = await mintDesign();
+      const hashes = Array.from({ length: 5 }, () => nextTokenHash());
+
+      const outcomes = await Promise.all(
+        hashes.map((tokenHash) =>
+          repository().issue({ ...credentials, tokenHash }),
+        ),
+      );
+
+      expect(outcomes).toEqual(hashes.map(() => "issued"));
+      const active = await activeHashesOf(credentials.designId);
+      expect(active).toHaveLength(1);
+      const opened = [];
+      for (const hash of hashes) {
+        if ((await repository().loadShared(hash)).kind === "found")
+          opened.push(hash);
+      }
+      expect(opened).toEqual(active);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "issue racing revoke never leaves more than one active row, and status agrees with the table",
+    async () => {
+      const credentials = await mintDesign();
+      for (let round = 0; round < 6; round += 1) {
+        await Promise.all([
+          repository().issue({ ...credentials, tokenHash: nextTokenHash() }),
+          repository().revoke(credentials),
+          repository().issue({ ...credentials, tokenHash: nextTokenHash() }),
+        ]);
+        const active = await activeHashesOf(credentials.designId);
+        expect(active.length).toBeLessThanOrEqual(1);
+        expect(await repository().status(credentials)).toEqual({
+          active: active.length === 1,
+        });
+      }
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "a read that begins after revoke resolves never finds the design, even under concurrent reads",
+    async () => {
+      const credentials = await mintDesign();
+      const tokenHash = nextTokenHash();
+      await repository().issue({ ...credentials, tokenHash });
+
+      const racingReads = Array.from({ length: 4 }, () =>
+        repository().loadShared(tokenHash),
+      );
+      await repository().revoke(credentials);
+      const laterReads = await Promise.all(
+        Array.from({ length: 4 }, () => repository().loadShared(tokenHash)),
+      );
+      await Promise.all(racingReads);
+
+      expect(laterReads.map((read) => read.kind)).toEqual([
+        "none",
+        "none",
+        "none",
+        "none",
+      ]);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "loadShared matches the stored digest exactly: an uppercase or truncated form of a live hash finds nothing",
+    async () => {
+      const credentials = await mintDesign();
+      const tokenHash = "ab".repeat(32);
+      await repository().issue({ ...credentials, tokenHash });
+
+      expect((await repository().loadShared(tokenHash)).kind).toBe("found");
+      expect(
+        (await repository().loadShared(tokenHash.toUpperCase())).kind,
+      ).toBe("none");
+      expect((await repository().loadShared(tokenHash.slice(0, 63))).kind).toBe(
+        "none",
+      );
+      expect((await repository().loadShared("")).kind).toBe("none");
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "a share read after sharing leaves resume's ordering on the most recently saved design",
+    async () => {
+      const older = await mintDesign();
+      const newer = await mintDesign();
+      const tokenHash = nextTokenHash();
+      await repository().issue({ ...older, tokenHash });
+      await repository().loadShared(tokenHash);
+      await repository().status(older);
+
+      const rows = (await neon(testDatabaseUrl)`
+        select id from designs where visitor_hash = ${VISITOR_HASH}
+        and id = any(${[older.designId, newer.designId]})
+        order by updated_at desc, id desc limit 1
+      `) as { id: string }[];
+      expect(rows[0]?.id).toBe(newer.designId);
+    },
+  );
+});
+
 /** Everything a share operation must never move, read once by id rather than through either
  *  repository (so a bug in one cannot mask itself when the test reads it back through the same
  *  bug). */
