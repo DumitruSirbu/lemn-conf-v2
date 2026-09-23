@@ -101,6 +101,10 @@ function screenSideOfPlusAlong(
 }
 
 describe("7I-L1.1 — the projection table +along reads on screen", () => {
+  // Review R2.3: this table and `apps/web/tests/i18n/content.test.ts`'s literal restatement of
+  // `crossesOnScreen` (search that file for "7I review L1.1") are hand-coupled — this package
+  // cannot import the web app's `crossesOnScreen` to assert agreement directly. A change to either
+  // table must be checked against the other by hand; there is no single source enforcing it.
   it.each([
     ["A", "left", "right"],
     ["A", "right", "left"],

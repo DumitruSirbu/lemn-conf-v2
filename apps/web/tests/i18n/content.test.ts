@@ -370,6 +370,10 @@ describe("the localized content resolver", () => {
   // projection), not something this file may assume — restated here as the literal table so a
   // change to `crossesOnScreen` that agrees with itself but disagrees with the geometry fails here
   // too, one package over from where the projection lives.
+  //
+  // Review R2.3: this table and that file's own are hand-coupled, not enforced by any import — this
+  // package cannot depend on `three-adapter`'s tests, and that one cannot import this file's
+  // `crossesOnScreen`. Changing one table means checking the other by hand.
   it.each([
     ["A", "left", false],
     ["A", "right", true],

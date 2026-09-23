@@ -1163,6 +1163,11 @@ function describeWidthSection(
       // ADR 0129 D8, corrected by L1.1: the reflected sentence for whichever wall/direction pair
       // actually crosses on screen (`crossesOnScreen`) — the same rule `content.rejection`'s side
       // word now follows, not merely "the room is right-hand".
+      //
+      // Review R2.2 (naming): despite its name, `widthStepNoteRight` means "the swapped note" —
+      // chosen whenever `crossesOnScreen` is true, which includes **wall B on a left-hand L**, not
+      // only a right-hand room. The leaf keeps its name regardless (the copy lock and golden hashes
+      // pin it); only the selection rule below has moved.
       note: crossesOnScreen(meta.wall, direction)
         ? input.content.panel.widthStepNoteRight
         : input.content.panel.widthStepNote,
