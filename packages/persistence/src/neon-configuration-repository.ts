@@ -10,15 +10,13 @@ import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
 import { readDatabaseUrl } from "./read-database-url.js";
+import { requireSha256Digest } from "./sha256-digest.js";
 
 /* `CURRENT_SCHEMA_VERSION` is the version every row this adapter writes is stamped with, and it is
  * imported from the domain rather than restated here: it is the same number that decides which
  * normalisations `migrateDesign` still owes a row, and two copies of it that drifted apart would be
  * a migration that silently stopped running. The read path never assumes it — it passes
  * `row.schema_version`, which is what lets a stored older row go on loading. */
-
-/** SHA-256 as `node:crypto`'s `digest("hex")` renders it: 64 lowercase hex characters. */
-const SHA256_HEX_DIGEST = /^[0-9a-f]{64}$/;
 
 interface DesignRow {
   schema_version: number;
@@ -162,8 +160,8 @@ export class NeonConfigurationRepository
     writeTokenHash,
     visitorHash,
   }: MintDesign): Promise<DesignVersion> {
-    requireSha256Digest(writeTokenHash, "write-token hash");
-    requireSha256Digest(visitorHash, "visitor hash");
+    requireSha256Digest(writeTokenHash, "write-token hash", "mint a design");
+    requireSha256Digest(visitorHash, "visitor hash", "mint a design");
     // **The id is generated here, outside the retried callback, and must stay there.** A retry that
     // minted a fresh id each attempt would insert a second row for a write the customer made once,
     // whenever an acknowledgement is lost rather than the query refused. Kept out here, every
@@ -304,32 +302,6 @@ export class NeonConfigurationRepository
     const row = rows[0];
     return row === undefined ? { kind: "none" } : { kind: "found", id: row.id };
   }
-}
-
-/**
- * The one shape `mint` accepts for either hash it stores: exactly what SHA-256 produces, a
- * 64-character lowercase hex digest.
- *
- * Stated as what a hash **is**, not as a list of what it must not be. The empty string is the
- * instance that prompted this — `'' = ''` is true in SQL, so a row stored with one is writable (or,
- * since M7 wave 7E3a, resumable) by anyone presenting an empty string — but a whitespace-only value
- * has the same property, and so does every other low-entropy value a broken caller might supply. A
- * blocklist grows one discovered value at a time; the contract does not.
- *
- * Nothing in the web layer can reach this: `mintWriteToken` and `resolveVisitorForMint` always
- * yield a digest. It is enforced anyway, because this port's contract is that an unauthorised
- * write or an unowned row is unrepresentable, and a predicate that can be satisfied by a guessable
- * value is the hole in exactly that claim. `whatItIs` names which of the two hashes failed; the
- * offending value is deliberately absent from the message either way (D2: "names no value").
- */
-function requireSha256Digest(value: string, whatItIs: string): void {
-  if (SHA256_HEX_DIGEST.test(value)) return;
-  throw new Error(
-    "Refusing to mint a design: a " +
-      whatItIs +
-      " must be a 64-character lowercase hex SHA-256 digest. Any other shape risks a row a " +
-      "guessable value could write or claim.",
-  );
 }
 
 /** The revision an `insert ... returning` must have produced. A missing row here is not a domain

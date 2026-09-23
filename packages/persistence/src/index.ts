@@ -22,6 +22,17 @@ export type {
 } from "./neon-configuration-repository.js";
 export { isDesignRevision } from "./design-revision.js";
 export type { DesignRevision } from "./design-revision.js";
+export { NeonShareLinkRepository } from "./share-link-repository.js";
+export type {
+  IssueShareLink,
+  LoadSharedOutcome,
+  ShareLinkCredentials,
+  ShareLinkIssueOutcome,
+  ShareLinkRepository,
+  ShareLinkRevokeOutcome,
+  ShareLinkStatus,
+  ShareLinkStatusOutcome,
+} from "./share-link-repository.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {

@@ -83,12 +83,15 @@ interface ExpectedClassification {
   readonly reason: string;
 }
 
-/** The literal table (T-J7): three exclusive, three shared, two application-database files, and the
+/** The literal table (T-J7): three exclusive, four shared, two application-database files, and the
  *  files that name a database-URL source without taking the schema lock. Keys are paths under
  *  `tests/`.
  *
- *  **Twelve rows, not the eleven of T-J5 Amendment B ruling 3** (2026-09-22): S3 added
- *  `test-database-schema-status.test.ts` under C-7T-1 (b), the third shared file. The count moves
+ *  **Thirteen rows, not the twelve of S3** (M7 wave 7E3c S2, 2026-09-23): `share-link-repository.
+ *  test.ts` joined as the fourth shared file (D3: it writes rows and needs the schema intact, same
+ *  reason `design-row-source.test.ts` is shared rather than exclusive). Before that, T-J5 Amendment
+ *  B ruling 3's eleven grew to twelve when S3 added `test-database-schema-status.test.ts` under
+ *  C-7T-1 (b), the third shared file. The count moves
  *  whenever a live file is added — that is the census working, not drifting. */
 const EXPECTED_CLASSIFICATION: Readonly<
   Record<string, ExpectedClassification>
@@ -123,6 +126,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "shared",
     reason:
       "reads the ledger and the deployed columns, and needs both intact (C-7T-1 (b))",
+  },
+  "share-link-repository.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes share-link rows through a fresh design per test and needs the schema intact (M7 wave 7E3c D3)",
   },
   "application-role-privileges.test.ts": {
     gate: "DATABASE_URL",
