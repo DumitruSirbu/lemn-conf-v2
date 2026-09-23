@@ -98,31 +98,13 @@ describe("withCreateDesignLock", () => {
     ).resolves.toBe("ok");
   });
 
-  it("serialises: the second run starts only once the first has settled, both grant (S6 criterion 2)", async () => {
-    vi.stubGlobal("navigator", { locks: new FakeLockManager() });
-    const order: string[] = [];
-    const first = deferred<string>();
-
-    const firstCall = withCreateDesignLock(async () => {
-      order.push("first-started");
-      const value = await first.promise;
-      order.push("first-settled");
-      return value;
-    });
-
-    // The second request is issued before the first has settled — it must not start yet.
-    const secondCall = withCreateDesignLock(() => {
-      order.push("second-started");
-      return Promise.resolve("second");
-    });
-    await Promise.resolve(); // let both requests reach the fake lock manager
-    expect(order).toEqual(["first-started"]);
-
-    first.resolve("first");
-    await Promise.all([firstCall, secondCall]);
-
-    expect(order).toEqual(["first-started", "first-settled", "second-started"]);
-  });
+  // S6 criterion 2 (serialisation) is proved against Node's own real `LockManager`, not this
+  // file's fake, in `qa-7e3b-create-design-lock-real-locks.adversarial.test.ts` (QA round 2,
+  // finding Q9): a single `await Promise.resolve()` here could not tell "the second run waited"
+  // from "the fake granted it a tick sooner than the real API ever would", so a version of this
+  // test once stayed green against a `withCreateDesignLock` that released the lock as soon as the
+  // held run *started* rather than once it *settled*. Removed rather than patched, so nothing in
+  // this file claims a property only the real-lock suite actually holds it to.
 
   it("a request held longer than the acquire timeout proceeds unlocked, without waiting for the holder (S6 criterion 3)", async () => {
     vi.useFakeTimers();

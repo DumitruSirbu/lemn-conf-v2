@@ -15,7 +15,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
-import { neon, neonConfig } from "@neondatabase/serverless";
+import { Client, neon, neonConfig } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
@@ -1557,58 +1557,58 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
   );
 
   it.skipIf(!hasLiveDatabase)(
-    // L1.2: `Promise.all` left the two requests' arrival order to the database scheduler, so
-    // whichever one actually reached the table first was never controlled — and the assertion
-    // that followed, `typeof save.ownsVisitor === "boolean"`, is true of `true` and `false` alike
-    // and so proved nothing about which one it was. Forcing the rotation to commit first, then
-    // issuing the save, pins the one order H3 makes a claim about and lets the test state it: a
-    // save carrying the value the rotation just moved away from owns nothing.
-    "R3, a save racing a rotation: with the rotation committed first, the save never writes visitor_hash back, the save still lands, and it answers ownsVisitor: false (S6 criterion 7 residual, L1.2)",
+    // R2.1: this ran sequentially — mint, then rotate-mint, then save — which is exactly
+    // `neon-configuration-repository.test.ts`'s "answers false for the value a rotation already
+    // moved away from" (Amendment H3's own reason), duplicated rather than raced. A genuine race
+    // instead: a raw client holds the rotation's own row lock open inside its own transaction, so
+    // the save's own `UPDATE` — targeting the same row by id — blocks on it exactly as two truly
+    // concurrent requests would, and proceeds only once the rotation commits.
+    "R3, a save racing a genuinely concurrent rotation: the save's own UPDATE blocks on the rotation's row lock, then answers ownsVisitor: false (S6 criterion 7 residual)",
     async () => {
-      for (let attempt = 0; attempt < 6; attempt++) {
-        const oldHash = hashNumbered(0x3e000 + attempt, 0);
-        const newHash = hashNumbered(0x3e000 + attempt, 1);
-        const minted = await repository().mint({
-          design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
-          visitor: { kind: "fresh", visitorHash: oldHash },
-        });
-        mintedIds.push(minted.id);
+      const oldHash = "47".repeat(32);
+      const newHash = "48".repeat(32);
+      const minted = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: oldHash },
+      });
+      mintedIds.push(minted.id);
 
-        const rotation = await repository().mint({
-          design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
-          visitor: {
-            kind: "rotate",
-            visitorHash: newHash,
-            fromVisitorHash: oldHash,
-          },
-        });
-        mintedIds.push(rotation.id);
+      const rotationHolder = new Client(testDatabaseUrl);
+      await rotationHolder.connect();
+      try {
+        await rotationHolder.query("begin");
+        // The rotation's own move, held open — the row lock the save's own UPDATE blocks on below.
+        await rotationHolder.query(
+          "update designs set visitor_hash = $1 where visitor_hash = $2",
+          [newHash, oldHash],
+        );
 
-        // The rotation has already committed — awaited above — so this save's own `oldHash` is
-        // stale before it is ever sent.
-        const save = await repository().saveAuthorized({
+        const savePromise = repository().saveAuthorized({
           id: minted.id,
-          design: {
-            ...KITCHEN_L_DESIGN,
-            presetId: `race-${String(attempt)}`,
-          },
+          design: { ...KITCHEN_L_DESIGN, presetId: "raced-save" },
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: minted.revision,
           requestVisitor: { kind: "present", visitorHash: oldHash },
         });
 
-        expect(await countUnder(oldHash)).toBe(0);
-        const row = (await rawRows([minted.id])).get(minted.id);
-        expect(row?.visitor_hash).toBe(newHash);
-        expect(JSON.parse(row?.document ?? "{}")).toMatchObject({
-          presetId: `race-${String(attempt)}`,
-        });
-        expect(save.ownsVisitor).toBe(false);
+        // Long enough for the save's own request to reach Postgres and block on the lock above,
+        // well short of anything that would let it give up and answer on its own.
+        await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+        await rotationHolder.query("commit");
+
+        expect((await savePromise).ownsVisitor).toBe(false);
+      } finally {
+        await rotationHolder.end();
       }
+
+      const row = (await rawRows([minted.id])).get(minted.id);
+      expect(row?.visitor_hash).toBe(newHash);
+      expect(JSON.parse(row?.document ?? "{}")).toMatchObject({
+        presetId: "raced-save",
+      });
     },
-    120_000,
+    30_000,
   );
 
   it.skipIf(!hasLiveDatabase)(

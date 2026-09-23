@@ -1,25 +1,31 @@
 import { expect, test } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
-import { runTwoTabConvergenceRounds } from "./support/two-tab-convergence";
+import {
+  DEFAULT_DESKTOP_ROUNDS,
+  runOneTwoTabRound,
+  twoTabRoundCount,
+} from "./support/two-tab-convergence";
 
 /**
  * M7 wave 7E3b S6, criterion 1 — the desktop half of
  * `qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts`. The plan asks for both projects; the
  * test body is identical on purpose, since the Web Lock's own guarantee is server- and
- * client-JS-level, not a viewport concern (`qa-7e3b-s5-convergence`'s own twin carried the same
- * reasoning before it was retired with H4).
+ * client-JS-level, not a viewport concern. Fewer default rounds than the mobile twin only to keep
+ * both projects' own share of the suite comparable (see `support/two-tab-convergence.ts`); the
+ * same `E2E_TWO_TAB_ROUNDS` opt-in raises this leg too.
  */
-test("two tabs of one context converge on the lock, and every design stays reachable, over 30 rounds", async ({
-  context,
-}) => {
-  // 30 rounds of two real Step 1 journeys each — composition, kit load, mint and save — well past
-  // the config's own default (`ceiling-row-tappable.e2e.spec.ts`'s own reason for the same call).
-  test.setTimeout(300_000);
-  const { mintedIds, failure } = await runTwoTabConvergenceRounds(context);
-  try {
-    expect(failure).toBeNull();
-  } finally {
-    await deleteMintedDesigns(mintedIds);
-  }
-});
+const ROUNDS = twoTabRoundCount(DEFAULT_DESKTOP_ROUNDS);
+
+for (let round = 1; round <= ROUNDS; round += 1) {
+  test(`round ${String(round)}/${String(ROUNDS)}: two tabs of one context converge on the lock, and every design stays reachable`, async ({
+    context,
+  }) => {
+    const { mintedIds, failureReason } = await runOneTwoTabRound(context);
+    try {
+      expect(failureReason).toBeNull();
+    } finally {
+      await deleteMintedDesigns(mintedIds);
+    }
+  });
+}

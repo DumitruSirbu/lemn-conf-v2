@@ -1,12 +1,26 @@
 import type { BrowserContext, Page } from "@playwright/test";
 
-import { mintSeededDesign } from "./seeded-design";
+import { mintSeededDesign, type DesignAccessProbe } from "./seeded-design";
 
 /**
  * M7 wave 7E3b S6, criterion S6-1 (ADR 0114 Amendment H6, D2) — the headline criterion for the
  * client-side Web Lock: two tabs of **one** browser context, each driven through the real Step 1
- * path (shape → dimensions → *Continuă*), tapping the composing *Continuă* concurrently. Run over
- * `ROUNDS` rounds; a single failing round fails the criterion.
+ * path (shape → dimensions → *Continuă*), tapping the composing *Continuă* concurrently. A single
+ * failing round fails the criterion.
+ *
+ * **One round per Playwright test** (QA round 2, finding Q10): a 30-round loop inside one test
+ * needed `test.setTimeout(300_000)` to fit locally at all, and measured at roughly 3.2–3.6 s a
+ * round on a production build — about ten times that on a CI runner — which put the mobile leg
+ * alone near 18 minutes, over the per-test timeout and most of the suite's own 45-minute ceiling.
+ * A round is its own test instead: each comfortably fits the config's default per-test timeout
+ * even at CI's ten-times-slower pace, and a failing round is reported by name rather than by
+ * number inside one long failure.
+ *
+ * **Round count.** `DEFAULT_MOBILE_ROUNDS`/`DEFAULT_DESKTOP_ROUNDS` below are what CI runs; set
+ * `E2E_TWO_TAB_ROUNDS` to run more locally (30 was this criterion's own original bar). Desktop
+ * defaults lower than mobile only to keep both projects' own share of the suite comparable — the
+ * property under test does not vary by viewport (every other twin in this directory carries the
+ * same reasoning).
  *
  * A fully-typed room query, matching `room-to-editor.qa.e2e.spec.ts`'s own `THE_TYPED_ROOM` — a
  * room comfortably inside the approved bounds, so composition is the thing under test rather than
@@ -18,20 +32,29 @@ import { mintSeededDesign } from "./seeded-design";
 const TYPED_ROOM_QUERY =
   "shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left";
 
-const ROUNDS = 30;
+export const DEFAULT_MOBILE_ROUNDS = 10;
+export const DEFAULT_DESKTOP_ROUNDS = 3;
 
-interface DesignAccessProbe {
-  readonly canWrite: boolean;
+const ROUNDS_ENV_VAR = "E2E_TWO_TAB_ROUNDS";
+
+/** `E2E_TWO_TAB_ROUNDS`, read once per spec file, or `defaultRounds` when it is unset — never a
+ *  silent fallback for a value that *is* set but unusable, which would run a round count nobody
+ *  chose. */
+export function twoTabRoundCount(defaultRounds: number): number {
+  const raw = process.env[ROUNDS_ENV_VAR];
+  if (raw === undefined) return defaultRounds;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(
+      `${ROUNDS_ENV_VAR} must be a positive integer; got ${JSON.stringify(raw)}.`,
+    );
+  }
+  return parsed;
 }
 
-interface RoundFailure {
-  readonly round: number;
-  readonly reason: string;
-}
-
-export interface TwoTabConvergenceResult {
+export interface TwoTabRoundResult {
   readonly mintedIds: readonly string[];
-  readonly failure: RoundFailure | null;
+  readonly failureReason: string | null;
 }
 
 /** Navigates one page to the fully-typed room and returns once `room-continue` — the tap that
@@ -67,46 +90,40 @@ async function canWriteDesign(page: Page, id: string): Promise<boolean> {
 }
 
 /**
- * Runs S6-1's own rounds against `context`, which is expected to already hold a design (the
- * criterion's *"the context carries a prior design"*) — a caller mints one before calling this, so
- * every round's own reachability check has an established identity to hold onto, not only the two
- * it just created.
+ * One round of S6-1: mints the prior design the criterion's own *"the context carries a prior
+ * design"* names, then two tabs of `context` race through Step 1 concurrently, then every design —
+ * the prior one and both new — is checked for `canWrite: true`.
  */
-export async function runTwoTabConvergenceRounds(
+export async function runOneTwoTabRound(
   context: BrowserContext,
-): Promise<TwoTabConvergenceResult> {
+): Promise<TwoTabRoundResult> {
   const prior = await mintSeededDesign(await context.newPage());
   const mintedIds: string[] = [prior.id];
 
-  for (let round = 0; round < ROUNDS; round += 1) {
-    const pageA = await context.newPage();
-    const pageB = await context.newPage();
-    try {
-      await readyToContinue(pageA);
-      await readyToContinue(pageB);
+  const pageA = await context.newPage();
+  const pageB = await context.newPage();
+  try {
+    await readyToContinue(pageA);
+    await readyToContinue(pageB);
 
-      const [idA, idB] = await Promise.all([
-        tapContinueAndAwaitDesign(pageA),
-        tapContinueAndAwaitDesign(pageB),
-      ]);
-      mintedIds.push(idA, idB);
+    const [idA, idB] = await Promise.all([
+      tapContinueAndAwaitDesign(pageA),
+      tapContinueAndAwaitDesign(pageB),
+    ]);
+    mintedIds.push(idA, idB);
 
-      for (const id of [prior.id, idA, idB]) {
-        if (!(await canWriteDesign(pageA, id))) {
-          return {
-            mintedIds,
-            failure: {
-              round,
-              reason: `design ${id} did not open with canWrite: true`,
-            },
-          };
-        }
+    for (const id of [prior.id, idA, idB]) {
+      if (!(await canWriteDesign(pageA, id))) {
+        return {
+          mintedIds,
+          failureReason: `design ${id} did not open with canWrite: true`,
+        };
       }
-    } finally {
-      await pageA.close();
-      await pageB.close();
     }
+  } finally {
+    await pageA.close();
+    await pageB.close();
   }
 
-  return { mintedIds, failure: null };
+  return { mintedIds, failureReason: null };
 }
