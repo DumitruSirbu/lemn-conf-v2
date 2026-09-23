@@ -14,6 +14,7 @@ import {
   canonicalSerializeDesign,
 } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
+import { fc } from "@fast-check/vitest";
 import { neon } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -23,6 +24,7 @@ import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
+import { NeonShareLinkRepository } from "../src/share-link-repository.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,
@@ -1313,6 +1315,317 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
 
       const movedTo = await visitorHashOf(existingId);
       expect([raceWinnerHash, raceLoserHash]).toContain(movedTo);
+    },
+  );
+});
+
+/**
+ * M7 wave 7E3b adversarial QA (the second pass, after S4): criterion 5 as a property over a
+ * sequence of real mints, the gate's predicate against hostile hash shapes, and the two races the
+ * plan records as R3 — measured here rather than assumed.
+ */
+describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3 races (live)", () => {
+  const mintedIds: DesignId[] = [];
+
+  function repository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  function hashNumbered(seed: number, index: number): string {
+    return (seed * 16 + index).toString(16).padStart(8, "0").repeat(8);
+  }
+
+  interface RawRow {
+    document: string;
+    revision: string;
+    updated_at: string;
+    write_token_hash: string | null;
+    visitor_hash: string | null;
+  }
+
+  async function rawRows(
+    ids: readonly DesignId[],
+  ): Promise<Map<string, RawRow>> {
+    const rows = (await neon(testDatabaseUrl)`
+      select id, document::text as document, revision::text as revision,
+             updated_at::text as updated_at, write_token_hash, visitor_hash
+      from designs where id = any(${ids})
+    `) as (RawRow & { id: string })[];
+    return new Map(rows.map(({ id, ...row }) => [id, row]));
+  }
+
+  async function countUnder(visitorHash: string): Promise<number> {
+    const rows = (await neon(testDatabaseUrl)`
+      select count(*)::int as n from designs where visitor_hash = ${visitorHash}
+    `) as { n: number }[];
+    return rows[0]?.n ?? -1;
+  }
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "criterion 5: over 1-5 sequential mints every row follows the newest value, no earlier value owns anything, resume lands on the newest, the moved rows' other columns are byte-identical, and a share link keeps opening",
+    async () => {
+      let seed = 0x7e3b0;
+      await fc.assert(
+        fc.asyncProperty(fc.integer({ min: 1, max: 5 }), async (mintCount) => {
+          seed += 1;
+          const hashes = Array.from({ length: mintCount + 1 }, (_, index) =>
+            hashNumbered(seed, index),
+          );
+          const shareLinks = new NeonShareLinkRepository(testDatabaseUrl);
+          const firstId = (
+            await repository().mint({
+              design: KITCHEN_L_DESIGN,
+              writeTokenHash: CORRECT_TOKEN_HASH,
+              visitor: { kind: "fresh", visitorHash: hashes[0] ?? "" },
+            })
+          ).id;
+          mintedIds.push(firstId);
+          const shareTokenHash = hashNumbered(seed, 15).replace(/^./, "f");
+          expect(
+            await shareLinks.issue({
+              designId: firstId,
+              writeTokenHash: CORRECT_TOKEN_HASH,
+              visitorHash: hashes[0] ?? "",
+              tokenHash: shareTokenHash,
+            }),
+          ).toBe("issued");
+          const ids = [firstId];
+
+          for (let k = 1; k <= mintCount; k++) {
+            const before = await rawRows(ids);
+            const { id } = await repository().mint({
+              design: KITCHEN_L_DESIGN,
+              writeTokenHash: CORRECT_TOKEN_HASH,
+              visitor: {
+                kind: "rotate",
+                visitorHash: hashes[k] ?? "",
+                fromVisitorHash: hashes[k - 1] ?? "",
+              },
+            });
+            mintedIds.push(id);
+            const after = await rawRows(ids);
+            for (const earlierId of ids) {
+              const was = before.get(earlierId);
+              const now = after.get(earlierId);
+              expect(now?.visitor_hash).toBe(hashes[k]);
+              expect(now?.document).toBe(was?.document);
+              expect(now?.revision).toBe(was?.revision);
+              expect(now?.updated_at).toBe(was?.updated_at);
+              expect(now?.write_token_hash).toBe(was?.write_token_hash);
+            }
+            ids.push(id);
+            for (let earlier = 0; earlier < k; earlier++)
+              expect(await countUnder(hashes[earlier] ?? "")).toBe(0);
+            await expect(
+              repository().resumeVisitor(hashes[k] ?? ""),
+            ).resolves.toEqual({ kind: "found", id });
+            expect((await shareLinks.loadShared(shareTokenHash)).kind).toBe(
+              "found",
+            );
+          }
+          expect(await countUnder(hashes[mintCount] ?? "")).toBe(ids.length);
+        }),
+        { numRuns: 4 },
+      );
+    },
+    120_000,
+  );
+
+  /** Shapes a caller could present as the visitor hash that are neither the owner's nor simply a
+   *  different digest — every one must answer `none`, including the owner's hash in another case,
+   *  padded, or wrapped in SQL. */
+  const HOSTILE_VISITOR_HASHES = [
+    "",
+    " ",
+    "NULL",
+    "%",
+    "_".repeat(64),
+    "' or '1'='1",
+    "x'; --",
+    "' or visitor_hash is not null --",
+  ];
+
+  it.skipIf(!hasLiveDatabase)(
+    "loadOwned answers none for every hostile shape of the owner's hash, and found for the exact one",
+    async () => {
+      const ownerHash = "3a".repeat(32);
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: ownerHash },
+      });
+      mintedIds.push(id);
+
+      const shapes = [
+        ...HOSTILE_VISITOR_HASHES,
+        ownerHash.toUpperCase(),
+        `${ownerHash} `,
+        `\n${ownerHash}`,
+        ownerHash.slice(0, 63),
+        `${ownerHash}0`,
+      ];
+      for (const visitorHash of shapes)
+        await expect(
+          repository().loadOwned({ id, visitorHash }),
+          JSON.stringify(visitorHash),
+        ).resolves.toEqual({ kind: "none" });
+      for (const hostileId of ["%", "_".repeat(id.length), `${id}' or '1'='1`])
+        await expect(
+          repository().loadOwned({ id: hostileId, visitorHash: ownerHash }),
+          hostileId,
+        ).resolves.toEqual({ kind: "none" });
+      expect(
+        (await repository().loadOwned({ id, visitorHash: ownerHash })).kind,
+      ).toBe("found");
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "a rotation moves no pre-0005 row (visitor_hash null) and no other browser's row",
+    async () => {
+      const oldHash = "3b".repeat(32);
+      const otherHash = "3c".repeat(32);
+      const orphanId = generateDesignId();
+      await neon(testDatabaseUrl)`
+        insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+        values (${orphanId}, 1, ${KITCHEN_L_DESIGN}, ${CORRECT_TOKEN_HASH}, null)
+      `;
+      mintedIds.push(orphanId);
+      const otherId = (
+        await repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: { kind: "fresh", visitorHash: otherHash },
+        })
+      ).id;
+      mintedIds.push(otherId);
+      mintedIds.push(
+        (
+          await repository().mint({
+            design: KITCHEN_L_DESIGN,
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            visitor: { kind: "fresh", visitorHash: oldHash },
+          })
+        ).id,
+      );
+
+      mintedIds.push(
+        (
+          await repository().mint({
+            design: KITCHEN_L_DESIGN,
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            visitor: {
+              kind: "rotate",
+              visitorHash: "3d".repeat(32),
+              fromVisitorHash: oldHash,
+            },
+          })
+        ).id,
+      );
+
+      const rows = await rawRows([orphanId, otherId]);
+      expect(rows.get(orphanId)?.visitor_hash).toBeNull();
+      expect(rows.get(otherId)?.visitor_hash).toBe(otherHash);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "R3, a save racing a rotation: the save never writes visitor_hash back, the save lands, and no row is ever left under the old value",
+    async () => {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const oldHash = hashNumbered(0x3e000 + attempt, 0);
+        const newHash = hashNumbered(0x3e000 + attempt, 1);
+        const minted = await repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: { kind: "fresh", visitorHash: oldHash },
+        });
+        mintedIds.push(minted.id);
+
+        const [save, rotation] = await Promise.all([
+          repository().saveAuthorized({
+            id: minted.id,
+            design: {
+              ...KITCHEN_L_DESIGN,
+              presetId: `race-${String(attempt)}`,
+            },
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            expectedRevision: minted.revision,
+            requestVisitor: { kind: "present", visitorHash: oldHash },
+          }),
+          repository().mint({
+            design: KITCHEN_L_DESIGN,
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            visitor: {
+              kind: "rotate",
+              visitorHash: newHash,
+              fromVisitorHash: oldHash,
+            },
+          }),
+        ]);
+        mintedIds.push(rotation.id);
+
+        expect(await countUnder(oldHash)).toBe(0);
+        const row = (await rawRows([minted.id])).get(minted.id);
+        expect(row?.visitor_hash).toBe(newHash);
+        expect(JSON.parse(row?.document ?? "{}")).toMatchObject({
+          presetId: `race-${String(attempt)}`,
+        });
+        expect(typeof save.ownsVisitor).toBe("boolean");
+      }
+    },
+    120_000,
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "R3, two concurrent mints from one old value: each mint's own new row is readable under the value that mint issued",
+    async () => {
+      const oldHash = "3f".repeat(32);
+      const firstHash = "40".repeat(32);
+      const secondHash = "41".repeat(32);
+      const existingId = (
+        await repository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: CORRECT_TOKEN_HASH,
+          visitor: { kind: "fresh", visitorHash: oldHash },
+        })
+      ).id;
+      mintedIds.push(existingId);
+
+      const [first, second] = await Promise.all(
+        [firstHash, secondHash].map((visitorHash) =>
+          repository().mint({
+            design: KITCHEN_L_DESIGN,
+            writeTokenHash: CORRECT_TOKEN_HASH,
+            visitor: { kind: "rotate", visitorHash, fromVisitorHash: oldHash },
+          }),
+        ),
+      );
+      mintedIds.push(first?.id ?? "", second?.id ?? "");
+
+      expect(
+        (
+          await repository().loadOwned({
+            id: first?.id ?? "",
+            visitorHash: firstHash,
+          })
+        ).kind,
+      ).toBe("found");
+      expect(
+        (
+          await repository().loadOwned({
+            id: second?.id ?? "",
+            visitorHash: secondHash,
+          })
+        ).kind,
+      ).toBe("found");
+      expect(await countUnder(oldHash)).toBe(0);
     },
   );
 });
