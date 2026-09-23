@@ -114,6 +114,14 @@ export function resizeShellToRoom(input: ShellResizeInput): void {
   shell.userData[DRAWN_ROOM_KEY] = drawnRoomSignature(room);
 }
 
+/** ADR 0130 D8: a straight room has no wall B, so its plane stands in the shell **hidden, not
+ *  removed** — 7H's in-place resize and the kit's ownership of the geometry are both untouched, and
+ *  the probe and picking are unaffected (G11): the probe reads only `wall_back`, and three's own
+ *  raycaster traversal skips an invisible mesh before `pick`'s solids-first order ever sees it. */
+function wallBPlaneVisibleFor(room: DesignRoom): boolean {
+  return room.shape !== "linear";
+}
+
 /**
  * Whether this shell already stands at these three dimensions.
  *
@@ -136,8 +144,11 @@ function isAlreadyDrawnAt(shell: Object3D, room: DesignRoom): boolean {
   return shell.userData[DRAWN_ROOM_KEY] === drawnRoomSignature(room);
 }
 
+/** ADR 0130 D8: gains the shape, so an L and a straight room standing at the same three dimensions
+ *  are not read as the same drawn picture — wall B's visibility is a function of the shape and
+ *  nothing else in these three numbers says so. */
 function drawnRoomSignature(room: DesignRoom): string {
-  return `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
+  return `${room.shape}:${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
 }
 
 /** Where the signature above is kept. On the shell rather than in a module-scope map, so it shares
@@ -179,6 +190,11 @@ function resizeWallBPlane(plane: Mesh, room: DesignRoom): void {
   // width axis is therefore the world's z.
   replacePlane(plane, drawnLengthM, heightM);
   plane.position.set(0, heightM / 2, alongWallCentreM(drawnLengthM));
+  // ADR 0130 D8: hidden for a straight room, drawn (as an L always was) otherwise — written on
+  // every resize rather than only when it changes, the same "both branches write" rule
+  // `syncRunEndPanel` follows, so a design switching shape is a pure function of the room and not
+  // of whichever shape happened to draw the shell first.
+  plane.visible = wallBPlaneVisibleFor(room);
 }
 
 /** The backsplash means *"behind the worktop"*, and it follows the **room's** wall A rather than

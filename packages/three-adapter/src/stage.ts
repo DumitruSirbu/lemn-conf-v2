@@ -325,13 +325,19 @@ const PRESET_DISTANCE_M =
  * **A right-hand room's presets are the left-hand ones with x negated** (ADR 0129 D6): framed on
  * the canonical (left-hand) room first, then mirrored, so the distance and every other component
  * are exactly what they were — the camera does not pull back for a right-hand room (Q7H-7).
+ *
+ * **A straight room offers `overview` and `wallA` only** (ADR 0130 D9): `wallB` looks at the middle
+ * of `room.depthMm`, which for a straight room is the drawn floor's depth in front of the run and
+ * never a wall (D3) — there is nothing there for a preset to be *of*. Filtered here rather than
+ * left for a caller to skip, so `cameraPresetsForRoom`'s own length answers "how many walls does
+ * this room have" without a second reading of the shape.
  */
 export function cameraPresetsForRoom(
   room: DesignRoom,
 ): readonly CameraPreset[] {
-  const canonical = CAMERA_PRESETS.map((reference) =>
-    framedOnRoom(reference, room),
-  );
+  const canonical = CAMERA_PRESETS.filter(
+    (reference) => room.shape !== "linear" || reference.id !== "wallB",
+  ).map((reference) => framedOnRoom(reference, room));
   const direction = cornerDirectionOf(room);
   return direction === "left"
     ? canonical
