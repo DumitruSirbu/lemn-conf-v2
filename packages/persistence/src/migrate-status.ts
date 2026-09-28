@@ -41,6 +41,10 @@ import type {
   DeployedSchemaReading,
   MigrationLedgerReading,
 } from "./migration-status.js";
+import {
+  assertDeclaredEnvironmentReaches,
+  readDeclaredEnvironment,
+} from "./migration-target.js";
 
 /**
  * Presence asked of the catalogue rather than discovered by letting a query raise.
@@ -184,21 +188,6 @@ async function readDocumentSchemaVersions(sql: NeonQuery): Promise<number[]> {
   return rows.map((row) => row.schema_version);
 }
 
-/** The environment this run declares it is checking. Required, and never defaulted: ADR 0096
- *  decision 3 asks for a guard that runs "against each deployed environment by name", and a default
- *  is how a check ends up aimed at whatever the machine happened to hold. */
-export function readDeclaredEnvironment(argv: readonly string[]): string {
-  const declared = argv[2]?.trim();
-  if (declared === undefined || declared === "") {
-    throw new MigrationExecutionError(
-      `migrate:status needs the name of the environment it is checking, so its output can be read ` +
-        `against the database it actually reached. Usage: pnpm --filter @lemnaria/persistence run ` +
-        `migrate:status <environment>, for example "production" or "preview".`,
-    );
-  }
-  return declared;
-}
-
 /** Never the error object and never its `cause`: a driver error's properties are exactly where a
  *  connection string hides (ADR 0008's incident). Mirrors `describeMigrationFailure` under this
  *  command's own prefix, so a job log says which of the two commands failed. */
@@ -223,8 +212,15 @@ if (isDirectCliInvocation) {
 
 async function reportDeployedSchemaStatus(): Promise<void> {
   try {
-    const environment = readDeclaredEnvironment(process.argv);
+    // Required, and checked before the read below ever runs: see migrate.ts's own comment on the
+    // same check, and docs/milestones/migration-environment-safety-check.md.
+    const environment = readDeclaredEnvironment(process.argv, "migrate:status");
     const connectionUrl = requireMigrationDatabaseUrl();
+    assertDeclaredEnvironmentReaches({
+      environment,
+      databaseName: databaseNameOf(connectionUrl),
+    });
+
     const report = describeDeployedSchemaStatus(
       readMigrationFiles(),
       await readDeployedSchema(connectionUrl),
@@ -242,10 +238,11 @@ async function reportDeployedSchemaStatus(): Promise<void> {
   }
 }
 
-/** Read here rather than through `readMigrationDatabaseUrl`, whose throw is a plain `Error`: the
- *  printer above deliberately withholds a non-`MigrationError` message, and a missing credential is
- *  this command's most likely misconfiguration by a wide margin. It deserves a line an operator can
- *  act on rather than "failed with an unexpected Error". */
+/** Read here rather than through `readMigrationDatabaseUrl` — both now throw the same
+ *  `MigrationExecutionError`, so that is no longer why this duplicates it. It survives only because
+ *  consolidating the two credential-reading functions into one is explicitly out of scope for the
+ *  change that introduced this comment (`docs/milestones/migration-environment-safety-check.md`),
+ *  not because of any difference in error type. */
 function requireMigrationDatabaseUrl(): string {
   const url = process.env[MIGRATION_URL_VARIABLE];
   if (url === undefined || url === "") {

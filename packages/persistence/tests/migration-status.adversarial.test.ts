@@ -1,7 +1,6 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { readDeclaredEnvironment } from "../src/migrate-status.js";
 import type { MigrationFile } from "../src/migration-files.js";
 import type { AppliedMigration } from "../src/migration-plan.js";
 import {
@@ -373,19 +372,5 @@ describe("the verdict over swept ledgers", () => {
     // Distinct from "missing" on purpose: the column is there, so `migrate` would change nothing.
     expect(report.outcome).toBe("columns-misshapen");
     expect(report.detail).toContain(flipped.name);
-  });
-});
-
-describe("readDeclaredEnvironment", () => {
-  it("refuses an argument that is only whitespace", () => {
-    expect(() =>
-      readDeclaredEnvironment(["node", "migrate-status.ts", "   "]),
-    ).toThrow(/needs the name of the environment/);
-  });
-
-  it("trims the name it was given, so a stray space does not become part of it", () => {
-    expect(
-      readDeclaredEnvironment(["node", "migrate-status.ts", " production "]),
-    ).toBe("production");
   });
 });

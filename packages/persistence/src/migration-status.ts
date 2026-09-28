@@ -125,8 +125,10 @@ export const REQUIRED_DESIGN_COLUMNS = [
 type RequiredDesignColumn = (typeof REQUIRED_DESIGN_COLUMNS)[number];
 
 /** Named once: it appears in three different refusals, and a fix an operator has to guess at is a
- *  fix they will get wrong against the wrong database. */
-const MIGRATE_COMMAND = "pnpm --filter @lemnaria/persistence run migrate";
+ *  fix they will get wrong against the wrong database. `<environment>` is a required argument
+ *  (`migration-target.ts`'s `readDeclaredEnvironment`), not a placeholder to drop. */
+const MIGRATE_COMMAND =
+  "pnpm --filter @lemnaria/persistence run migrate <environment>";
 
 /**
  * The verdict, from the files on disk and one read of the deployed database.

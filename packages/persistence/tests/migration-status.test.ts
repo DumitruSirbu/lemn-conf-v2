@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { readDeclaredEnvironment } from "../src/migrate-status.js";
 import type { MigrationFile } from "../src/migration-files.js";
 import type { AppliedMigration } from "../src/migration-plan.js";
 import {
@@ -320,21 +319,5 @@ describe("describeMigrationStatusLine", () => {
     expect(line).toContain("production");
     expect(line).toContain("lemn-conf-v2");
     expect(line).toContain("read back:");
-  });
-});
-
-describe("readDeclaredEnvironment", () => {
-  it("returns the environment the run declares", () => {
-    expect(
-      readDeclaredEnvironment(["node", "migrate-status.ts", "preview"]),
-    ).toBe("preview");
-  });
-
-  it("refuses to guess when no environment is named", () => {
-    // ADR 0096 finding 4: a check whose subject depends on the executing machine's environment is
-    // a coincidence with a test name.
-    expect(() =>
-      readDeclaredEnvironment(["node", "migrate-status.ts"]),
-    ).toThrow(/needs the name of the environment/);
   });
 });

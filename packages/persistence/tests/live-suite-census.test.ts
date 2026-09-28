@@ -87,11 +87,14 @@ interface ExpectedClassification {
  *  files that name a database-URL source without taking the schema lock. Keys are paths under
  *  `tests/`.
  *
- *  **Thirteen rows, not the twelve of S3** (M7 wave 7E3c S2, 2026-09-23): `share-link-repository.
- *  test.ts` joined as the fourth shared file (D3: it writes rows and needs the schema intact, same
- *  reason `design-row-source.test.ts` is shared rather than exclusive). Before that, T-J5 Amendment
- *  B ruling 3's eleven grew to twelve when S3 added `test-database-schema-status.test.ts` under
- *  C-7T-1 (b), the third shared file. The count moves
+ *  **Fourteen rows, not the thirteen of 7E3c S2** (migration-environment-safety-check, 2026-09-28):
+ *  `read-database-url.test.ts` joined as a fifth "none" file — a unit test of `readDatabaseUrl` and
+ *  `readMigrationDatabaseUrl` that names those functions without ever connecting, same reason
+ *  `test-database-url.test.ts` is a "none" file rather than a gated one. Before that,
+ *  `share-link-repository.test.ts` joined as the fourth shared file (D3: it writes rows and needs
+ *  the schema intact, same reason `design-row-source.test.ts` is shared rather than exclusive), and
+ *  before that, T-J5 Amendment B ruling 3's eleven grew to twelve when S3 added
+ *  `test-database-schema-status.test.ts` under C-7T-1 (b), the third shared file. The count moves
  *  whenever a live file is added — that is the census working, not drifting. */
 const EXPECTED_CLASSIFICATION: Readonly<
   Record<string, ExpectedClassification>
@@ -160,6 +163,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "none",
     reason:
       "unit test of the resolver: sets its variables and connects nowhere",
+  },
+  "read-database-url.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "unit test of the two readers: sets and deletes its own variables, connects nowhere",
   },
   "delete-designs-for-tests.test.ts": {
     gate: "none",

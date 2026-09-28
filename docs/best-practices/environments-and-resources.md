@@ -60,18 +60,40 @@ repo-root file. Neither tool touches the other's file.
 
 Put overrides in the specific file, **not** `.env.local` — `vercel env pull` would discard them.
 
-**The `migrate`/`migrate:status <environment>` argument is a printed label, not a database
-selector.** `pnpm --filter @lemnaria/persistence run migrate preview` does **not** migrate
-`lemn-conf-v2-preview` — it migrates whatever `MIGRATION_DATABASE_URL` currently is (production,
-per the table above), and merely prints `preview` next to the database name it actually reached so
-a human can compare the two and catch a mismatch. This is deliberate (ADR 0096 decision 4: the tool
-refuses to guess an environment, so it makes you declare one and shows you the truth beside it) —
-but it depends on someone reading the printed database name and noticing a mismatch, which does not
-always happen. **Incident, 2026-09-28:** an agent session read `preview` as a selector, ran
-`migrate preview`, and applied migrations 0005/0006 to production ahead of the documented
-"preview then production" order (additive, no data lost, but done without a fresh go-ahead for
-production specifically). To actually reach preview, pass `PREVIEW_OWNER_DATABASE_URL` (from
-`.env.prod.local`) as `MIGRATION_DATABASE_URL` for that one invocation — never edit
+**The `migrate`/`migrate:status <environment>` argument is a required declaration, never a database
+selector — and both commands now refuse a mismatch instead of merely printing one.**
+`pnpm --filter @lemnaria/persistence run migrate preview` does **not** migrate
+`lemn-conf-v2-preview` — it targets whatever `MIGRATION_DATABASE_URL` currently is (production, per
+the table above). The credential remains the sole selector (ADR 0096 decision 4: the tool refuses to
+guess an environment, so it makes you declare one). What changed is what happens when the declared
+label and the credential disagree.
+
+**Incident, 2026-09-28:** an agent session read `preview` as a selector, ran `migrate preview`, and
+applied migrations 0005/0006 to production ahead of the documented "preview then production" order
+(additive, no data lost, but done without a fresh go-ahead for production specifically). At the time,
+`migrate` did not read its argument at all — `preview` was ignored twice over, once by design (the
+credential selects the database) and once because the CLI never even inspected `process.argv`. Only
+`migrate:status` read and printed the label, beside the database name, for a human to compare — and
+that comparison depended on someone reading the output and noticing a mismatch, which did not happen.
+
+**Fixed, same day (`migration-environment-safety-check.md`):** both `migrate` and `migrate:status`
+now require the `<environment>` argument and **check it before connecting or reading anything.**
+`assertDeclaredEnvironmentReaches` in `packages/persistence/src/migration-target.ts` compares the
+declared label against the database name the credential actually reaches, using
+`DATABASE_NAMES_BY_ENVIRONMENT` (`production` → `lemn-conf-v2`, `preview` → `lemn-conf-v2-preview`,
+`test` → the existing `ALLOWED_TEST_DATABASE_NAMES`). A label outside that map is accepted only if it
+is the database's own exact name and no listed environment already claims that name — the escape
+hatch a one-off restore-drill database needs, with no code change. On any other mismatch, both
+commands exit non-zero having run and read nothing, and the refusal message never contains a URL,
+host or credential.
+
+**Known limit:** a database name is not an identity. A Neon branch forked from production keeps the
+name `lemn-conf-v2`, so the check cannot tell it from production and demands the label `production`
+to run against it — a tripwire against a label and credential disagreeing, not proof of which Neon
+branch was reached.
+
+To actually reach preview, pass `PREVIEW_OWNER_DATABASE_URL` (from `.env.prod.local`) as
+`MIGRATION_DATABASE_URL` for that one invocation, with the argument `preview` — never edit
 `.env.migration.local` to do it.
 
 ## Test-database isolation

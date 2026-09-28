@@ -408,6 +408,39 @@ describe("databaseNameOf", () => {
     expect(name).not.toContain("hunter2");
     expect(name).not.toContain("postgres://");
   });
+
+  // Findings A and B (security and logic review): a connection string with no `//` authority parses
+  // without throwing, so it took a different path than the unparseable case above. `new URL` reads
+  // everything after the scheme's single slash as the pathname, which is where a credential hides.
+  it.each([
+    "postgres:/user:pw@host/lemn-conf-v2",
+    "postgresql:/user:pw@host/lemn-conf-v2",
+  ])(
+    "never returns the raw pathname's credential for a connection string with no trusted authority: %s",
+    (noAuthorityUrl) => {
+      const name = databaseNameOf(noAuthorityUrl);
+
+      expect(name).not.toContain("user:pw@host");
+      expect(name).not.toBe("lemn-conf-v2");
+    },
+  );
+
+  it("refuses postgres:host, whose empty host the driver would fall back on PGHOST/PGDATABASE for", () => {
+    expect(databaseNameOf("postgres:host")).not.toBe("host");
+  });
+
+  it("refuses a non-postgres scheme even when the rest of the URL is well-formed", () => {
+    expect(databaseNameOf("socket://x.invalid/lemn-conf-v2")).not.toBe(
+      "lemn-conf-v2",
+    );
+  });
+
+  it("returns the same placeholder for every no-authority shape, so the check can always refuse it", () => {
+    const first = databaseNameOf("postgres:/user:pw@host/lemn-conf-v2");
+    const second = databaseNameOf("postgres:host");
+
+    expect(first).toBe(second);
+  });
 });
 
 describe("describeMigrationFailure", () => {

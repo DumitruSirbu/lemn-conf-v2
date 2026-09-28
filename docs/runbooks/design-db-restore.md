@@ -138,7 +138,7 @@ Run the migrations against the target so it has the `designs` table:
 
 ```bash
 MIGRATION_DATABASE_URL="<restore-drill connection string>" \
-  pnpm --filter @lemnaria/persistence run migrate
+  pnpm --filter @lemnaria/persistence run migrate <the target's database name>
 ```
 
 **It is `MIGRATION_DATABASE_URL`, not `DATABASE_URL`.** The migration runner reads only that
@@ -146,6 +146,17 @@ variable, deliberately and with no fallback — the application role cannot run 
 `DATABASE_URL` here does nothing: the runner would fall through to whatever
 `.env.migration.local` holds, which is **production**, and you would believe the drill target had
 been migrated when it had not. This runbook said `DATABASE_URL` until 2026-08-25; see ADR 0013.
+
+**`migrate` now requires the `<environment>` argument and refuses a mismatch before connecting**
+(`docs/milestones/migration-environment-safety-check.md`). `production` and `preview` are checked
+against their own database names, so a throwaway restore target must be declared by its **own exact
+database name** — for example `restore_drill_2026_08_25` — which passes because no listed
+environment claims that name. Declaring it `production` or `preview` is refused even though the
+credential is correct, because those labels are reserved for their real databases. A Neon branch
+restore is the one case this does not fit cleanly: a branch forked from production keeps the
+database name `lemn-conf-v2`, so it can only be declared `production` — this runbook's own
+throwaway-**database** route (above) avoids that ambiguity by giving the drill target a name of its
+own, which is why it is the recommended path over a branch restore.
 
 Confirm the table exists before continuing — do not assume the command worked:
 
