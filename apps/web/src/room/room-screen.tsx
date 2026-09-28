@@ -62,8 +62,7 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 
 import { DimensionsForm } from "./dimensions-form";
 import { GenerationSteps } from "./generation-steps";
-import { PLAN_BOX, PlanPreview } from "./plan-preview";
-import { derivePlanPreview } from "./plan-preview-model";
+import { PlanPreview } from "./plan-preview";
 import {
   canContinueFrom,
   draftStateOf,
@@ -363,10 +362,7 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
           }}
         />
         <ShapeRefusal id={refusalId} refusedShape={refusedShape} />
-        <PlanPreview
-          plan={derivePlanPreview(draft, PLAN_BOX)}
-          markedWalls={oneC.markedWalls}
-        />
+        <PlanPreview draft={draft} markedWalls={oneC.markedWalls} />
         <DimensionsForm
           draft={draft}
           fieldReasons={oneC.fieldReasons}

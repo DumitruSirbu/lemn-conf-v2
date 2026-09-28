@@ -15,23 +15,37 @@
 // **Frame 1C's red wall is marked, never drawn** (wave 7F2 criterion 7): `markPlanWalls` sets a
 // reason on the walls the room refuses, and this renderer paints that wall red and writes the reason
 // where its length was. The rectangle is the one `derivePlanPreview` placed, untouched.
+//
+// **Wave 7L D6: the box the plan is drawn in is no longer always a constant.** On the desktop layout
+// `.planBox` publishes a fill-mode flag this component reads off the element itself (`--plan-fill`,
+// `usePlanFillState` below); off that flag, the box is measured (`ResizeObserver`) rather than
+// assumed, and the drawing is derived here, against the measured box, with D1B's own metrics — the
+// same `derivePlanPreview` every phone room draws with, never a second layout function. Without the
+// flag — the phone, a server render, a test with no stylesheet loaded — nothing below moves: the box
+// is `PLAN_BOX`, the metrics are `DEFAULT_PLAN_PREVIEW_METRICS`, byte for byte (D6a, criterion 7's
+// "with `PLAN_BOX` and the default set" clause).
 import { useTranslations } from "next-intl";
-import type { CSSProperties } from "react";
+import type { CSSProperties, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  PLAN_LABEL_LINE_PX,
+  DEFAULT_PLAN_PREVIEW_METRICS,
+  derivePlanPreview,
   markPlanWalls,
+  planPreviewMinimumBoxPx,
   type MarkedPlanWall,
   type PlanBox,
   type PlanLabelAlignment,
   type PlanPreview as PlanPreviewModel,
+  type PlanPreviewMetrics,
   type PlanWallLabelPx,
   type PlanWallRect,
 } from "./plan-preview-model";
+import type { RoomDraft } from "./room-draft";
 import styles from "./room.module.css";
 
 export interface PlanPreviewProps {
-  readonly plan: PlanPreviewModel;
+  readonly draft: RoomDraft;
   /** The walls frame 1C draws red (`RoomIssueView.markedWalls`). None until the screen passes them. */
   readonly markedWalls?: readonly MarkedPlanWall[];
 }
@@ -63,20 +77,56 @@ const PLAN_BOX_BORDER_SPEND_PX = PLAN_BOX_BORDER_PX * 2;
  *  this one — measure the drawing against the painted box instead and every extreme clips. */
 export const PLAN_BOX: PlanBox = insideTheBorder(PAINTED_PLAN_BOX);
 
-/** The two figures the stylesheet cannot import: the border already taken off `PLAN_BOX`, and the
- *  line height the model reserves a label lane for. Published rather than repeated in CSS — the same
- *  hop `price-bar.tsx:12-18` takes, and for the same reason. */
-const PLAN_BOX_METRICS = {
-  "--plan-box-border": `${String(PLAN_BOX_BORDER_PX)}px`,
-  "--plan-label-line": `${String(PLAN_LABEL_LINE_PX)}px`,
-} as CSSProperties;
+/** D1B's own set (`Desktop.dc.html:183, 185`; wave 7L D6b): 26 px walls, 14 px labels, a 20 px label
+ *  gap. Declared beside `DEFAULT_PLAN_PREVIEW_METRICS` rather than in the model, which keeps no
+ *  opinion about which shell asks for which set. */
+const DESKTOP_PLAN_PREVIEW_METRICS: PlanPreviewMetrics = {
+  wallThicknessPx: 26,
+  labelLinePx: 14,
+  labelGapPx: 20,
+};
+
+/** The value `.planBox` publishes under the desktop `@media` block (D6c). Read off the element with
+ *  `getComputedStyle` rather than assumed from the viewport — CSS is the one place a width is known
+ *  (7L D2), so this component asks the box rather than keeping a breakpoint of its own. */
+const FILL_MODE_FLAG = "1";
 
 export function PlanPreview({
-  plan: drawnPlan,
+  draft,
   markedWalls = NO_MARKED_WALLS,
 }: PlanPreviewProps) {
   const translate = useTranslations();
-  const plan = markPlanWalls(drawnPlan, markedWalls);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const fill = usePlanFillState(boxRef);
+
+  if (fill.kind === "awaiting-measurement") {
+    // D6d: fill mode is flagged but no measurement has arrived yet — draw the box and nothing in it,
+    // so no drawing sized for the wrong box is ever visible.
+    return (
+      <div className={styles.planCard} data-testid="room-plan">
+        <span className={styles.planCaption}>
+          {translate("room.planCaption")}
+        </span>
+        <div
+          ref={boxRef}
+          className={styles.planBox}
+          data-testid="room-plan-box"
+          data-plan-measured="false"
+        />
+      </div>
+    );
+  }
+
+  const metrics =
+    fill.kind === "measured"
+      ? DESKTOP_PLAN_PREVIEW_METRICS
+      : DEFAULT_PLAN_PREVIEW_METRICS;
+  const boxPx =
+    fill.kind === "measured" ? flooredAtMinimum(fill.boxPx, metrics) : PLAN_BOX;
+  const plan = markPlanWalls(
+    derivePlanPreview(draft, boxPx, metrics),
+    markedWalls,
+  );
 
   return (
     <div className={styles.planCard} data-testid="room-plan">
@@ -84,12 +134,18 @@ export function PlanPreview({
         {translate("room.planCaption")}
       </span>
       <div
+        ref={boxRef}
         className={styles.planBox}
         data-testid="room-plan-box"
-        style={{
-          ...PLAN_BOX_METRICS,
-          height: `${String(paintedHeightPx(plan.boxPx))}px`,
-        }}
+        data-plan-measured={fill.kind === "measured" ? "true" : "false"}
+        style={
+          fill.kind === "measured"
+            ? planBoxMetricsStyle(metrics)
+            : {
+                ...planBoxMetricsStyle(metrics),
+                height: `${String(paintedHeightPx(plan.boxPx))}px`,
+              }
+        }
       >
         <PlanDrawing plan={plan} />
         {plan.kind === "drawn"
@@ -100,6 +156,100 @@ export function PlanPreview({
       </div>
     </div>
   );
+}
+
+/** The measurement state `.planBox` is in: never flagged (the phone, a server render, a stylesheet-
+ *  free test — D6c), flagged but not yet measured (D6d), or flagged and measured (D6, the desktop
+ *  panel's steady state). */
+type PlanFillState =
+  | { readonly kind: "not-fill" }
+  | { readonly kind: "awaiting-measurement" }
+  | { readonly kind: "measured"; readonly boxPx: PlanBox };
+
+const NOT_FILL: PlanFillState = { kind: "not-fill" };
+const AWAITING_MEASUREMENT: PlanFillState = { kind: "awaiting-measurement" };
+
+/**
+ * **One observer, registered once the flag is read.** The flag and the measurement are asked
+ * together, in the observer's own callback, so a box that stops being flagged (a resize back onto
+ * the phone layout) is read again rather than trusted from mount. Criterion 9: an environment with no
+ * `ResizeObserver` (a bare jsdom) never measures and never throws — the component simply stays
+ * unflagged and draws `PLAN_BOX`.
+ */
+function usePlanFillState(
+  boxRef: RefObject<HTMLDivElement | null>,
+): PlanFillState {
+  const [state, setState] = useState<PlanFillState>(NOT_FILL);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (box === null || typeof ResizeObserver === "undefined") return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry === undefined) return;
+      if (!isFlaggedForFill(box)) {
+        setState(NOT_FILL);
+        return;
+      }
+      setState({ kind: "measured", boxPx: contentBoxPxOf(entry) });
+    });
+    setState(isFlaggedForFill(box) ? AWAITING_MEASUREMENT : NOT_FILL);
+    observer.observe(box);
+    return () => {
+      observer.disconnect();
+    };
+  }, [boxRef]);
+
+  return state;
+}
+
+function isFlaggedForFill(box: HTMLElement): boolean {
+  return (
+    getComputedStyle(box).getPropertyValue("--plan-fill").trim() ===
+    FILL_MODE_FLAG
+  );
+}
+
+/** `ResizeObserver`'s content box already excludes the border (`globals.css:53-55` puts the element
+ *  in `border-box`, but the *content* box is reported net of it either way) — exactly the pixels
+ *  `derivePlanPreview` is handed for the phone's own `PLAN_BOX`, so no second subtraction belongs
+ *  here. `contentBoxSize` is preferred; `contentRect` is the fallback for an engine reporting an
+ *  empty array instead (older Safari's own `ResizeObserverEntry`). */
+function contentBoxPxOf(entry: ResizeObserverEntry): PlanBox {
+  const contentBoxSize = entry.contentBoxSize.at(0);
+  if (contentBoxSize !== undefined) {
+    return {
+      widthPx: contentBoxSize.inlineSize,
+      heightPx: contentBoxSize.blockSize,
+    };
+  }
+  return {
+    widthPx: entry.contentRect.width,
+    heightPx: entry.contentRect.height,
+  };
+}
+
+/** D6e: a panel a customer's window has made smaller than the set's own minimum is drawn at that
+ *  minimum and left to `.planBox`'s `overflow: hidden` to clip — never a thrown `RangeError`. */
+function flooredAtMinimum(box: PlanBox, metrics: PlanPreviewMetrics): PlanBox {
+  const minimum = planPreviewMinimumBoxPx(metrics);
+  return {
+    widthPx: Math.max(box.widthPx, minimum.widthPx),
+    heightPx: Math.max(box.heightPx, minimum.heightPx),
+  };
+}
+
+/** The figures the stylesheet cannot import: the border already taken off `PLAN_BOX`, and the line
+ *  height the drawing's metric set reserves a label lane for. Published rather than repeated in CSS
+ *  — the same hop `price-bar.tsx:12-18` takes, and for the same reason. In fill mode this publishes
+ *  the **desktop** set's own line height, so the type `.planWallLabel` sets is the type the lane was
+ *  reserved for (D6c). */
+function planBoxMetricsStyle(metrics: PlanPreviewMetrics): CSSProperties {
+  return {
+    "--plan-box-border": `${String(PLAN_BOX_BORDER_PX)}px`,
+    "--plan-label-line": `${String(metrics.labelLinePx)}px`,
+  } as CSSProperties;
 }
 
 function PlanDrawing({ plan }: { readonly plan: PlanPreviewModel }) {

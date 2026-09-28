@@ -120,6 +120,26 @@ export const PLAN_LABEL_LINE_PX = 11;
 export const PLAN_LABEL_GAP_PX = 5;
 
 /**
+ * **Wave 7L D6a: the three figures above are the phone's own, kept as a named set rather than a
+ * literal handed to `derivePlanPreview` at every call site.** Every caller before this wave gets
+ * exactly this set by default, so its output is unchanged; the desktop panel (S2) hands over D1B's
+ * own 26 / 14 / 20 px set instead, declared beside this one in `plan-preview.tsx`. Nothing here
+ * scales with the room (criterion 12) — a metric set changes what is drawn *around* the room, never
+ * the room itself.
+ */
+export interface PlanPreviewMetrics {
+  readonly wallThicknessPx: number;
+  readonly labelLinePx: number;
+  readonly labelGapPx: number;
+}
+
+export const DEFAULT_PLAN_PREVIEW_METRICS: PlanPreviewMetrics = {
+  wallThicknessPx: PLAN_WALL_THICKNESS_PX,
+  labelLinePx: PLAN_LABEL_LINE_PX,
+  labelGapPx: PLAN_LABEL_GAP_PX,
+};
+
+/**
  * **The lane kept clear above the drawing, and the reason a label cannot be overprinted.** Frame 1B
  * writes wall A's label above wall A (`:137`, over the bar at `:135`) and this is that placement made
  * structural: the lane comes off the box *before* the scale is taken, so no bar is ever painted in it
@@ -129,13 +149,41 @@ export const PLAN_LABEL_GAP_PX = 5;
  * and no anchor can save it there: at 2500 x 5000 mm the label is wider than wall A is long, so
  * wall B's bar ran through *"A · 2500 mm"* for its full height.
  */
-export const PLAN_LABEL_LANE_PX = PLAN_LABEL_LINE_PX + PLAN_LABEL_GAP_PX;
+export const PLAN_LABEL_LANE_PX = labelLanePxFor(DEFAULT_PLAN_PREVIEW_METRICS);
 
 /** The shortest box the plan can be drawn in: the lane above the drawing, the wall's own thickness,
  *  and the line the label beside the deepest wall is written on. Below it either the drawing or a
  *  label would leave the box, and the caller is handing over a box it has not sized. */
-export const PLAN_MINIMUM_BOX_HEIGHT_PX =
-  PLAN_LABEL_LANE_PX + PLAN_WALL_THICKNESS_PX + PLAN_LABEL_LINE_PX;
+export const PLAN_MINIMUM_BOX_HEIGHT_PX = minimumBoxHeightPxFor(
+  DEFAULT_PLAN_PREVIEW_METRICS,
+);
+
+/**
+ * **D6e: the box a measured panel is floored at, published so a caller can clamp before it ever
+ * calls `derivePlanPreview`.** A panel a customer's window has genuinely made smaller than this is
+ * drawn at this size and left to `.planBox`'s own `overflow: hidden` to clip — never a thrown
+ * `RangeError`, and never a wider document.
+ */
+export function planPreviewMinimumBoxPx(metrics: PlanPreviewMetrics): PlanBox {
+  return {
+    widthPx: metrics.wallThicknessPx,
+    heightPx: minimumBoxHeightPxFor(metrics),
+  };
+}
+
+/** The lane a metric set reserves above the drawing — `PLAN_LABEL_LANE_PX`'s own arithmetic, worked
+ *  out for whichever set the caller handed over instead of always the default one. */
+function labelLanePxFor(metrics: PlanPreviewMetrics): number {
+  return metrics.labelLinePx + metrics.labelGapPx;
+}
+
+/** The shortest box a metric set can be drawn in — `PLAN_MINIMUM_BOX_HEIGHT_PX`'s own arithmetic,
+ *  worked out for whichever set the caller handed over. */
+function minimumBoxHeightPxFor(metrics: PlanPreviewMetrics): number {
+  return (
+    labelLanePxFor(metrics) + metrics.wallThicknessPx + metrics.labelLinePx
+  );
+}
 
 /** `left` is the drawn convention, with the corner at the origin the world puts it at; `right` is
  *  that same drawing reflected, and nothing else (criterion 13).
@@ -183,17 +231,30 @@ interface PlanLayout {
   readonly scalePxPerMm: number;
   readonly originPx: PlanPointPx;
   readonly contentPx: PlanBox;
+  readonly metrics: PlanPreviewMetrics;
 }
 
 /** The plan, from the draft's lengths and its corner direction and from nothing else: no cabinet, no
- *  placement, no catalogue and no depth. Identical arguments give an identical drawing. */
-export function derivePlanPreview(draft: RoomDraft, box: PlanBox): PlanPreview {
-  assertBoxCanHoldTheDrawing(box);
+ *  placement, no catalogue and no depth. Identical arguments give an identical drawing.
+ *
+ *  **`metrics` defaults to the phone's own set** (D6a): every call site before wave 7L's slice S2,
+ *  and every one that still omits the argument, draws exactly what it always has. Only the desktop
+ *  panel hands over a set of its own. */
+export function derivePlanPreview(
+  draft: RoomDraft,
+  box: PlanBox,
+  metrics: PlanPreviewMetrics = DEFAULT_PLAN_PREVIEW_METRICS,
+): PlanPreview {
+  assertBoxCanHoldTheDrawing(box, metrics);
 
   const walls = wallsAskedForBy(draft);
   if (!isEveryWallReadable(draft, walls)) return { kind: "empty", boxPx: box };
 
-  const drawn = drawFromTheCorner(drawableLengthsIn(draft, walls), box);
+  const drawn = drawFromTheCorner(
+    drawableLengthsIn(draft, walls),
+    box,
+    metrics,
+  );
   return draft.cornerDirection === MIRRORED_CORNER_DIRECTION
     ? reflectPlanPreview(drawn)
     : drawn;
@@ -265,14 +326,16 @@ function withoutIssueMark(wall: PlanWallRect): PlanWallRect {
 function drawFromTheCorner(
   lengths: readonly DrawableLength[],
   box: PlanBox,
+  metrics: PlanPreviewMetrics,
 ): DrawnPlanPreview {
-  const regionPx = drawingRegionPx(box);
-  const scalePxPerMm = isotropicScalePxPerMm(lengths, regionPx);
-  const contentPx = contentExtentPx(lengths, scalePxPerMm);
+  const regionPx = drawingRegionPx(box, metrics);
+  const scalePxPerMm = isotropicScalePxPerMm(lengths, regionPx, metrics);
+  const contentPx = contentExtentPx(lengths, scalePxPerMm, metrics);
   const layout: PlanLayout = {
     scalePxPerMm,
     contentPx,
-    originPx: belowTheLabelLane(centredOriginPx(contentPx, regionPx)),
+    metrics,
+    originPx: belowTheLabelLane(centredOriginPx(contentPx, regionPx), metrics),
   };
   const bars = lengths.map((length) => placeWall(length, layout));
 
@@ -282,21 +345,27 @@ function drawFromTheCorner(
     scalePxPerMm,
     contentPx,
     cornerPx: layout.originPx,
-    walls: bars.map((bar) => ({ ...bar, labelPx: labelFor(bar, bars, box) })),
+    walls: bars.map((bar) => ({
+      ...bar,
+      labelPx: labelFor(bar, bars, box, metrics),
+    })),
   };
 }
 
 /** What the label lane leaves of the box. The drawing is fitted into this and never into the whole
  *  box, which is the whole mechanism that keeps the lane clear. */
-function drawingRegionPx(box: PlanBox): PlanBox {
+function drawingRegionPx(box: PlanBox, metrics: PlanPreviewMetrics): PlanBox {
   return {
     widthPx: box.widthPx,
-    heightPx: box.heightPx - PLAN_LABEL_LANE_PX,
+    heightPx: box.heightPx - labelLanePxFor(metrics),
   };
 }
 
-function belowTheLabelLane(originPx: PlanPointPx): PlanPointPx {
-  return { xPx: originPx.xPx, yPx: originPx.yPx + PLAN_LABEL_LANE_PX };
+function belowTheLabelLane(
+  originPx: PlanPointPx,
+  metrics: PlanPreviewMetrics,
+): PlanPointPx {
+  return { xPx: originPx.xPx, yPx: originPx.yPx + labelLanePxFor(metrics) };
 }
 
 /**
@@ -313,32 +382,35 @@ function belowTheLabelLane(originPx: PlanPointPx): PlanPointPx {
 function isotropicScalePxPerMm(
   lengths: readonly DrawableLength[],
   regionPx: PlanBox,
+  metrics: PlanPreviewMetrics,
 ): number {
   const limitsPxPerMm: number[] = [];
   const alongXMm = millimetresOf(lengths, "A");
   const alongZMm = deepestWallMm(lengths);
 
   if (alongXMm > 0) limitsPxPerMm.push(regionPx.widthPx / alongXMm);
-  if (alongZMm > 0) limitsPxPerMm.push(usableDepthPx(regionPx) / alongZMm);
+  if (alongZMm > 0)
+    limitsPxPerMm.push(usableDepthPx(regionPx, metrics) / alongZMm);
   return Math.min(...limitsPxPerMm);
 }
 
 /** Wall A's own thickness is spent before a single millimetre of depth is drawn, because the walls
  *  running down the screen start below it — so it comes off the region before the scale is taken. */
-function usableDepthPx(regionPx: PlanBox): number {
-  return regionPx.heightPx - PLAN_WALL_THICKNESS_PX;
+function usableDepthPx(regionPx: PlanBox, metrics: PlanPreviewMetrics): number {
+  return regionPx.heightPx - metrics.wallThicknessPx;
 }
 
 function contentExtentPx(
   lengths: readonly DrawableLength[],
   scalePxPerMm: number,
+  metrics: PlanPreviewMetrics,
 ): PlanBox {
   return {
     widthPx: Math.max(
       millimetresOf(lengths, "A") * scalePxPerMm,
-      PLAN_WALL_THICKNESS_PX,
+      metrics.wallThicknessPx,
     ),
-    heightPx: PLAN_WALL_THICKNESS_PX + deepestWallMm(lengths) * scalePxPerMm,
+    heightPx: metrics.wallThicknessPx + deepestWallMm(lengths) * scalePxPerMm,
   };
 }
 
@@ -369,7 +441,7 @@ function placeBackWall(
     xPx: layout.originPx.xPx,
     yPx: layout.originPx.yPx,
     widthPx: length.millimetres * layout.scalePxPerMm,
-    heightPx: PLAN_WALL_THICKNESS_PX,
+    heightPx: layout.metrics.wallThicknessPx,
   };
 }
 
@@ -383,7 +455,7 @@ function placeLeftWall(
     lengthMm: length.millimetres,
     xPx: layout.originPx.xPx,
     yPx: belowTheBackWallPx(layout),
-    widthPx: PLAN_WALL_THICKNESS_PX,
+    widthPx: layout.metrics.wallThicknessPx,
     heightPx: length.millimetres * layout.scalePxPerMm,
   };
 }
@@ -394,15 +466,17 @@ function placeFarWall(length: DrawableLength, layout: PlanLayout): PlanWallBar {
     wall: length.wall,
     lengthMm: length.millimetres,
     xPx:
-      layout.originPx.xPx + layout.contentPx.widthPx - PLAN_WALL_THICKNESS_PX,
+      layout.originPx.xPx +
+      layout.contentPx.widthPx -
+      layout.metrics.wallThicknessPx,
     yPx: belowTheBackWallPx(layout),
-    widthPx: PLAN_WALL_THICKNESS_PX,
+    widthPx: layout.metrics.wallThicknessPx,
     heightPx: length.millimetres * layout.scalePxPerMm,
   };
 }
 
 function belowTheBackWallPx(layout: PlanLayout): number {
-  return layout.originPx.yPx + PLAN_WALL_THICKNESS_PX;
+  return layout.originPx.yPx + layout.metrics.wallThicknessPx;
 }
 
 /** Where a wall's length is written: above the drawing for a wall that runs across the screen, beside
@@ -412,19 +486,23 @@ function labelFor(
   bar: PlanWallBar,
   bars: readonly PlanWallBar[],
   box: PlanBox,
+  metrics: PlanPreviewMetrics,
 ): PlanWallLabelPx {
   return runsAcrossTheScreen(bar)
-    ? aboveTheWall(bar)
-    : besideTheWall(bar, bars, box);
+    ? aboveTheWall(bar, metrics)
+    : besideTheWall(bar, bars, box, metrics);
 }
 
 /** Frame 1B's own placement (`:135` and `:137`): centred over the wall, in the lane nothing is ever
  *  painted in. The drawing is centred in the box, so this anchor is the box's own middle and the
  *  text grows symmetrically out of it. */
-function aboveTheWall(bar: PlanWallBar): PlanWallLabelPx {
+function aboveTheWall(
+  bar: PlanWallBar,
+  metrics: PlanPreviewMetrics,
+): PlanWallLabelPx {
   return {
     xPx: bar.xPx + bar.widthPx / 2,
-    topPx: bar.yPx - PLAN_LABEL_LANE_PX,
+    topPx: bar.yPx - labelLanePxFor(metrics),
     alignment: "centred",
   };
 }
@@ -445,15 +523,18 @@ function besideTheWall(
   bar: PlanWallBar,
   bars: readonly PlanWallBar[],
   box: PlanBox,
+  metrics: PlanPreviewMetrics,
 ): PlanWallLabelPx {
-  const topPx = lineBesideTheWallTopPx(bar, box);
-  const crossing = bars.filter((other) => crossesTheLine(other, topPx));
+  const topPx = lineBesideTheWallTopPx(bar, box, metrics);
+  const crossing = bars.filter((other) =>
+    crossesTheLine(other, topPx, metrics),
+  );
   const towardsTheRight = sharesItsBarWithAnother(bar, crossing)
     ? isTheFarWall(bar)
     : freeToTheRightPx(bar, crossing, box) >= freeToTheLeftPx(bar, crossing);
 
   return {
-    xPx: insideTheBoxPx(anchorBesidePx(bar, towardsTheRight), box),
+    xPx: insideTheBoxPx(anchorBesidePx(bar, towardsTheRight, metrics), box),
     topPx,
     alignment: towardsTheRight ? "leftAligned" : "rightAligned",
   };
@@ -467,10 +548,14 @@ function besideTheWall(
  * (7F2 S2 QA finding 1). Held inside the box as well, so the floor never pushes a line off its
  * bottom. Decided from the bars and the line height only, never from the text.
  */
-function lineBesideTheWallTopPx(bar: PlanWallBar, box: PlanBox): number {
-  const centredTopPx = bar.yPx + bar.heightPx / 2 - PLAN_LABEL_LINE_PX / 2;
+function lineBesideTheWallTopPx(
+  bar: PlanWallBar,
+  box: PlanBox,
+  metrics: PlanPreviewMetrics,
+): number {
+  const centredTopPx = bar.yPx + bar.heightPx / 2 - metrics.labelLinePx / 2;
   const flooredAtTheBarTopPx = Math.max(centredTopPx, bar.yPx);
-  return Math.min(flooredAtTheBarTopPx, box.heightPx - PLAN_LABEL_LINE_PX);
+  return Math.min(flooredAtTheBarTopPx, box.heightPx - metrics.labelLinePx);
 }
 
 /**
@@ -498,10 +583,14 @@ function isTheFarWall(bar: PlanWallBar): boolean {
   return bar.wall !== WALL_DOWN_FROM_THE_CORNER;
 }
 
-function anchorBesidePx(bar: PlanWallBar, towardsTheRight: boolean): number {
+function anchorBesidePx(
+  bar: PlanWallBar,
+  towardsTheRight: boolean,
+  metrics: PlanPreviewMetrics,
+): number {
   return towardsTheRight
-    ? rightEdgePx(bar) + PLAN_LABEL_GAP_PX
-    : bar.xPx - PLAN_LABEL_GAP_PX;
+    ? rightEdgePx(bar) + metrics.labelGapPx
+    : bar.xPx - metrics.labelGapPx;
 }
 
 function freeToTheLeftPx(
@@ -526,8 +615,12 @@ function freeToTheRightPx(
 }
 
 /** A bar stands between a label and the room only where it crosses the line the label is on. */
-function crossesTheLine(bar: PlanWallBar, topPx: number): boolean {
-  return bar.yPx < topPx + PLAN_LABEL_LINE_PX && bottomEdgePx(bar) > topPx;
+function crossesTheLine(
+  bar: PlanWallBar,
+  topPx: number,
+  metrics: PlanPreviewMetrics,
+): boolean {
+  return bar.yPx < topPx + metrics.labelLinePx && bottomEdgePx(bar) > topPx;
 }
 
 /** A box too narrow to stand a label beside a wall keeps the anchor rather than putting it outside:
@@ -629,15 +722,18 @@ function deepestWallMm(lengths: readonly DrawableLength[]): number {
   return Math.max(millimetresOf(lengths, "B"), millimetresOf(lengths, "C"));
 }
 
-function assertBoxCanHoldTheDrawing(box: PlanBox): void {
+function assertBoxCanHoldTheDrawing(
+  box: PlanBox,
+  metrics: PlanPreviewMetrics,
+): void {
   const fits =
     Number.isFinite(box.widthPx) &&
     Number.isFinite(box.heightPx) &&
-    box.widthPx >= PLAN_WALL_THICKNESS_PX &&
-    box.heightPx >= PLAN_MINIMUM_BOX_HEIGHT_PX;
+    box.widthPx >= metrics.wallThicknessPx &&
+    box.heightPx >= minimumBoxHeightPxFor(metrics);
   if (!fits) {
     throw new RangeError(
-      `derivePlanPreview: a preview box of ${String(box.widthPx)} x ${String(box.heightPx)} px cannot hold a wall ${String(PLAN_WALL_THICKNESS_PX)} px thick and the lanes its labels are written in`,
+      `derivePlanPreview: a preview box of ${String(box.widthPx)} x ${String(box.heightPx)} px cannot hold a wall ${String(metrics.wallThicknessPx)} px thick and the lanes its labels are written in`,
     );
   }
 }

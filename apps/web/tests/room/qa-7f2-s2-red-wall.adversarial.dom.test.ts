@@ -20,11 +20,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PLAN_BOX, PlanPreview } from "@/room/plan-preview";
-import {
-  derivePlanPreview,
-  type PlanPreview as PlanPreviewModel,
-  type PlanWallId,
-} from "@/room/plan-preview-model";
+import { derivePlanPreview, type PlanWallId } from "@/room/plan-preview-model";
 import {
   createRoomDraft,
   withCornerDirection,
@@ -114,11 +110,11 @@ function markedWallsOf(draft: RoomDraft): readonly MarkedPlanWall[] {
 }
 
 function renderCard(
-  plan: PlanPreviewModel,
+  draft: RoomDraft,
   markedWalls: readonly MarkedPlanWall[] | undefined,
   [locale, messages]: readonly [CatalogueLocale, Catalogue],
 ): void {
-  const props = markedWalls === undefined ? { plan } : { plan, markedWalls };
+  const props = markedWalls === undefined ? { draft } : { draft, markedWalls };
   act(() => {
     root.render(
       createElement(NextIntlClientProvider, {
@@ -203,11 +199,10 @@ describe("the red wall moves no pixel on the card", () => {
       fc.assert(
         fc.property(anyMarkedRoom, (room) => {
           const draft = lDraft(room);
-          const plan = derivePlanPreview(draft, PLAN_BOX);
-          renderCard(plan, [], [locale, messages]);
+          renderCard(draft, [], [locale, messages]);
           const unmarked = paintedGeometry();
 
-          renderCard(plan, markedWallsOf(draft), [locale, messages]);
+          renderCard(draft, markedWallsOf(draft), [locale, messages]);
 
           expect(paintedGeometry()).toBe(unmarked);
         }),
@@ -217,28 +212,22 @@ describe("the red wall moves no pixel on the card", () => {
   );
 
   it("renders the same card with no marks passed as with an empty list", () => {
-    const plan = derivePlanPreview(
-      lDraft({ wallA: 3600, wallB: 2400, direction: "left" }),
-      PLAN_BOX,
-    );
-    renderCard(plan, undefined, ["ro", CATALOGUES[0][1]]);
+    const draft = lDraft({ wallA: 3600, wallB: 2400, direction: "left" });
+    renderCard(draft, undefined, ["ro", CATALOGUES[0][1]]);
     const withoutTheProp = container.innerHTML;
 
-    renderCard(plan, [], ["ro", CATALOGUES[0][1]]);
+    renderCard(draft, [], ["ro", CATALOGUES[0][1]]);
 
     expect(container.innerHTML).toBe(withoutTheProp);
   });
 
   it("renders an L exactly as unmarked when the only mark names wall C, which it does not draw", () => {
-    const plan = derivePlanPreview(
-      lDraft({ wallA: 3600, wallB: 450, direction: "right" }),
-      PLAN_BOX,
-    );
-    renderCard(plan, [], ["ro", CATALOGUES[0][1]]);
+    const draft = lDraft({ wallA: 3600, wallB: 450, direction: "right" });
+    renderCard(draft, [], ["ro", CATALOGUES[0][1]]);
     const unmarked = container.innerHTML;
 
     renderCard(
-      plan,
+      draft,
       [{ wall: "C", labelKey: "room.planWallIssue.tooLong" }],
       ["ro", CATALOGUES[0][1]],
     );
@@ -258,7 +247,7 @@ describe("only the marked walls are red, and each says why in words", () => {
           const draft = lDraft(room);
           const plan = derivePlanPreview(draft, PLAN_BOX);
           const marks = markedWallsOf(draft);
-          renderCard(plan, marks, [locale, messages]);
+          renderCard(draft, marks, [locale, messages]);
           if (plan.kind !== "drawn")
             throw new Error("a marked room draws a plan");
 
@@ -302,7 +291,7 @@ describe("only the marked walls are red, and each says why in words", () => {
       if (plan.kind !== "drawn")
         throw new Error("frame 1C's room draws a plan");
       const wallB = plan.walls.find((wall) => wall.wall === "B");
-      renderCard(plan, markedWallsOf(draft), ["ro", CATALOGUES[0][1]]);
+      renderCard(draft, markedWallsOf(draft), ["ro", CATALOGUES[0][1]]);
 
       const redBars = paintedBars().filter(
         (bar) => bar.getAttribute("fill") === MARKED_FILL,
@@ -320,10 +309,7 @@ describe("the red is not the only signal (accessibility)", () => {
     "exposes the marked wall's reason as text no ancestor hides, in %s",
     (locale, messages) => {
       const draft = lDraft({ wallA: 3600, wallB: 450, direction: "left" });
-      renderCard(derivePlanPreview(draft, PLAN_BOX), markedWallsOf(draft), [
-        locale,
-        messages,
-      ]);
+      renderCard(draft, markedWallsOf(draft), [locale, messages]);
 
       const label = labelAt("B");
 
@@ -340,11 +326,10 @@ describe("the red is not the only signal (accessibility)", () => {
     "changes the marked wall's words, not only its colour, in %s",
     (locale, messages) => {
       const draft = lDraft({ wallA: 3600, wallB: 450, direction: "left" });
-      const plan = derivePlanPreview(draft, PLAN_BOX);
-      renderCard(plan, [], [locale, messages]);
+      renderCard(draft, [], [locale, messages]);
       const unmarkedText = labelAt("B").textContent;
 
-      renderCard(plan, markedWallsOf(draft), [locale, messages]);
+      renderCard(draft, markedWallsOf(draft), [locale, messages]);
 
       expect(labelAt("B").textContent).not.toBe(unmarkedText);
       expect(labelAt("A").textContent).toBe(
@@ -358,10 +343,7 @@ describe("the red is not the only signal (accessibility)", () => {
 
   it("keeps the red bar inside the drawing that is hidden, so the reason is read once and not twice", () => {
     const draft = lDraft({ wallA: 3600, wallB: 450, direction: "left" });
-    renderCard(derivePlanPreview(draft, PLAN_BOX), markedWallsOf(draft), [
-      "ro",
-      CATALOGUES[0][1],
-    ]);
+    renderCard(draft, markedWallsOf(draft), ["ro", CATALOGUES[0][1]]);
 
     const redBar = paintedBars().find(
       (bar) => bar.getAttribute("fill") === MARKED_FILL,

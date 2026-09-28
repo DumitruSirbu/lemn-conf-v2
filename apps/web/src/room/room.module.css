@@ -1031,3 +1031,403 @@
     animation: none;
   }
 }
+
+/**
+ * ── M7 wave 7L: the desktop shell (frames D1A–D1C, `Lemnaria Configurator Desktop.dc.html:45-272`) ──
+ *
+ * **One breakpoint, the codebase's own** (7L D2): `900px` is what `configure.module.css`, the editor
+ * rail and every other desktop surface already branch at, so the room and the editor never disagree
+ * about which shell a width is. Every declaration below is inside this block — a width belongs to
+ * this file's media query and nowhere else under `src/room` (7L A2).
+ *
+ * **Same components, same copy, a CSS fork only** (7L §10.1): nothing here is a new element, a new
+ * string or a new rule — only the geometry a wider viewport affords. Q-7L-1's three phone-absent
+ * strings (D1B's heading, its on-site-measurement note, and the plan hint) are not drawn by this
+ * slice: two of the three name a promise or a mechanism no shipped leaf anywhere in the product makes
+ * today (confirmed by a search of every locale file), so reusing "the phone's already-shipped
+ * wording" for them has no source to reuse from, and inventing new desktop-only copy is exactly what
+ * the override forbids. Left for the coordinator to settle a source string for, or to accept as a
+ * named departure — see the wave's close-out.
+ */
+@media (min-width: 900px) {
+  /* ── The top bar, D1A/D1B/D1C `:52-60` — a 76 px band, `padding: 0 40px`, `gap: 20px` ──────────── */
+
+  .topBar {
+    height: 76px;
+    padding: 0 40px;
+    gap: 20px;
+  }
+
+  .topBarCell {
+    gap: 20px;
+    padding: 11px 0;
+  }
+
+  .wordmark {
+    font-size: 15px;
+    letter-spacing: 0.22em;
+  }
+
+  .stepPill {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .title {
+    font-size: 19px;
+  }
+
+  /**
+   * **D3: the borrowed locale cell's divider and inset, overridden from this side.** The cell is
+   * `configure.module.css`'s own `.locale` (`room-screen.tsx`'s import), and that stylesheet keeps
+   * every declaration it has — its head comment requires it, and R5's extraction is deferred (7K
+   * ground truth). A class selector cannot reach into another CSS module's scoped name, so the
+   * override is rooted in `.topBar` and reaches the cell structurally, through the one thing about it
+   * that is this screen's own: the locale trigger's `data-testid`.
+   *
+   * `configure.module.css`'s desktop rule adds a 28 px `padding-right` and a 28 px `::before`
+   * divider, both of which are D2A's own row-fit arithmetic — meaningless here, where the row is a
+   * plain two-cell flex and the frame draws no divider before the chip at all. Overridden to nothing
+   * so the chip's right edge lands the frame's own 40 px in from `.topBar`'s padding alone (7L A4).
+   */
+  .topBar > div:has([data-testid="top-bar-locale"]) {
+    padding-right: 0;
+  }
+
+  .topBar > div:has([data-testid="top-bar-locale"])::before {
+    display: none;
+  }
+
+  /* ── D1A `:61-96` — three cards in one row, in a 1120 px column centred in the body ─────────────── */
+
+  .body {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 34px;
+    padding: 0 40px;
+  }
+
+  .body > .intro,
+  .body > .shapes,
+  .body > .shapeRefusal,
+  .body > .note {
+    width: 100%;
+    max-width: 1120px;
+  }
+
+  .intro {
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .question {
+    font-size: 38px;
+    line-height: 1.15;
+  }
+
+  .lead {
+    max-width: 52ch;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .shapes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+
+  .shapeCard {
+    flex-direction: column;
+    gap: 18px;
+    padding: 38px 26px;
+  }
+
+  /* The frame's own glyph, 176 x 128 (`:69`) — scoped to the card so 1B/1C's chip glyph, which
+   * shares `.shapeGlyph`, is untouched (frame D1B `:123` keeps the chip small). An SVG's own
+   * `width`/`height` attributes are presentation defaults; a stylesheet rule overrides them. */
+  .shapeCard .shapeGlyph {
+    width: 176px;
+    height: 128px;
+  }
+
+  .shapeText {
+    align-items: center;
+    text-align: center;
+  }
+
+  .shapeName {
+    font-size: 20px;
+  }
+
+  .shapeDetail {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* The frame's inactive CTA sits alone, right-aligned in an 88 px footer (`:92-94`) — the same
+   * treatment D1B/D1C/D1F's two-button footer gets below, minus the *Înapoi* this one has none of. */
+  .footer {
+    display: flex;
+    height: 88px;
+    padding: 0 40px;
+    justify-content: flex-end;
+    border-top-color: var(--line-soft);
+  }
+
+  /* ── D1B/D1C `:99-272` — a 520 px form column beside a plan panel that fills the body ────────────── */
+
+  /**
+   * **The row's own two tracks** (7L A6): a fixed 520 px form column and a flexible one capped at
+   * 900 px, `56px` apart (`:115`). The flexible track is `1fr` rather than `minmax(0, 900px)` alone,
+   * because a non-`fr` track sizes to its content and never grows to fill the row — which would leave
+   * `.planCard` at whatever width its (still phone-sized, pre-7L-S2) contents ask for instead of the
+   * frame's "big, live" panel. The 900 px cap is spent on the item (`.planCard`) rather than the
+   * track, so a track wider than 900 (a viewport past D1B's own 1556 px content width) leaves its
+   * surplus after the panel rather than centring the pair — untested at 7L-A17's widths and named
+   * here rather than silently decided.
+   *
+   * **The row and the panel share one scroll container** (7L A10's "reachable by scrolling the form
+   * column"): splitting the panel from the form column's own scroll would need a wrapper element this
+   * slice's file list (`room.module.css` alone) does not reach — flagged for the wave's close-out
+   * rather than added as a silent departure.
+   */
+  .dimensionsBody {
+    display: grid;
+    grid-template-columns: 520px minmax(0, 1fr);
+    /*
+     * **A trailing `1fr` row, so `.planCard`'s `grid-row: 1 / -1` (below) has a real last line to
+     * reach.** `-1` counts from the end of the *explicit* grid — with no `grid-template-rows` at
+     * all, that explicit grid has exactly one line, so `1 / -1` collapsed to a single implicit row
+     * and the panel stood only as tall as `.shapeChips`, measured (7L QA). Five rows generously
+     * covers column 1's own list just below (`.shapeChips`, `.shapeRefusal`, `.corner`, `.fields`,
+     * `.oneCStatus`); a shape that skips one leaves that row's track empty and 0 px tall, exactly as
+     * it did before this line existed. The `1fr` track takes every pixel the five content rows do
+     * not, so the panel's bottom always lands at the column's own last pixel, whatever the shape.
+     */
+    grid-template-rows: repeat(5, auto) 1fr;
+    column-gap: 56px;
+    justify-content: center;
+    align-items: stretch;
+    padding: 52px 40px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .shapeChips,
+  .shapeRefusal,
+  .corner,
+  .fields,
+  .oneCStatus {
+    grid-column: 1;
+  }
+
+  .shapeChips {
+    gap: 12px;
+  }
+
+  .shapeChip {
+    gap: 9px;
+    padding: 13px 10px;
+  }
+
+  .shapeChip .shapeGlyph {
+    width: 66px;
+    height: 42px;
+  }
+
+  .shapeChipName {
+    font-size: 13px;
+  }
+
+  .corner {
+    gap: 10px;
+  }
+
+  .cornerQuestion {
+    font-size: 13px;
+  }
+
+  .cornerHint {
+    font-size: 12.5px;
+  }
+
+  .cornerChoices {
+    gap: 12px;
+  }
+
+  .cornerChoice {
+    gap: 12px;
+    padding: 13px 15px;
+  }
+
+  .cornerGlyph {
+    width: 48px;
+    height: 34px;
+  }
+
+  .cornerName {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  /**
+   * **The panel, D1B `:179-188` / D1C `:256-264`.** `.planCard` is the phone's own flex column
+   * (`:335-343`), so stretching it to the row's full height (`grid-row: 1 / -1`) leaves `.planBox`
+   * free to take the remainder with `flex: 1` below — the panel "fills as the field column grows"
+   * without a height figure written anywhere in this file (7L D6c).
+   */
+  .planCard {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    width: 100%;
+    max-width: 900px;
+    padding: 26px;
+    gap: 16px;
+  }
+
+  .planCaption {
+    font-size: 11px;
+  }
+
+  /**
+   * **`--plan-fill: 1` is the flag `plan-preview.tsx` reads off this element** (7L D6c) — the only
+   * width test in the whole of `PlanPreview`, and it lives here rather than as a breakpoint in
+   * TypeScript (7L D2). The custom property is unset below 900 px, so `getComputedStyle` there reads
+   * back an empty string — never `"1"` — with no base-shell declaration needed to say so. `flex: 1`
+   * with `min-height: 0` gives the box a real, contentful height from the flex column above instead
+   * of the inline height the phone still writes: the drawing's absolutely positioned bars and labels
+   * contribute no intrinsic height of their own, so a box with `flex: 1` and no floor would otherwise
+   * collapse to its content's zero.
+   */
+  .planBox {
+    --plan-fill: 1;
+
+    flex: 1;
+    min-height: 0;
+    border-radius: 11px;
+  }
+
+  /**
+   * **The fields in one row, in field order** (7L A6, D5), reasons below the row and spanning it.
+   * `.field` becomes `display: contents`: its children join `.fields`' grid directly, so each input
+   * keeps its own `.field` ancestor in the DOM (`aria-describedby` targets and 7F2's structure are
+   * untouched) while its box moves. Column count follows the same "`:has()` counts the siblings"
+   * technique this file already uses for the U room's field height, because a shape's field count
+   * (2, 3 or 4) is exactly the three values a shape can have and CSS cannot count an arbitrary N.
+   *
+   * **The hint is row 1, headings row 2, boxes row 3** (frame `:135-157`), each explicit on both
+   * axes — the hint spans every column so the auto-placement pass below it can never mistake a
+   * partly-filled row 2 or 3 for free space. **A reason has a definite column (it spans every one)
+   * and an auto row**: the grid placement algorithm walks rows 1–3, finds each already partly taken
+   * by a shape with fewer than the full field count, and lands every reason at row 4 or below, in
+   * DOM order — so a room with two field reasons at once (the domain judges every field, ADR 0108
+   * decision 2) stacks them rather than drawing one over the other.
+   */
+  /**
+   * **`minmax(0, 1fr)`, not a bare `1fr`** (7L QA finding): a bare `1fr` track's implicit minimum is
+   * `auto` — the widest a field's own content asks to be, unclamped — so three or four fields'
+   * combined minimums came out wider than `.fields`' own 520 px column, and CSS Grid does not clip an
+   * explicit grid to its container for that: the row simply overflowed onto `.planCard` once the
+   * panel actually reached that far down the column (D1B's own "filling" is what exposed it — at the
+   * short, pre-S2 box nothing painted that far to notice against). `minmax(0, 1fr)` floors each
+   * track's minimum at zero, so equal division of the 520 px column is what a bare `1fr` was meant to
+   * give and a field's own text wraps or truncates inside its own cell instead of pushing the row wide.
+   */
+  .fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: 7px;
+  }
+
+  .fields:has(> .field ~ .field ~ .field) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fields:has(> .field ~ .field ~ .field ~ .field) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lengthsHint {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin-block-end: 0;
+  }
+
+  .field {
+    display: contents;
+  }
+
+  .field:nth-of-type(1) > .fieldHeading,
+  .field:nth-of-type(1) > .fieldBox {
+    grid-column: 1;
+  }
+
+  .field:nth-of-type(2) > .fieldHeading,
+  .field:nth-of-type(2) > .fieldBox {
+    grid-column: 2;
+  }
+
+  .field:nth-of-type(3) > .fieldHeading,
+  .field:nth-of-type(3) > .fieldBox {
+    grid-column: 3;
+  }
+
+  .field:nth-of-type(4) > .fieldHeading,
+  .field:nth-of-type(4) > .fieldBox {
+    grid-column: 4;
+  }
+
+  .field > .fieldHeading {
+    grid-row: 2;
+  }
+
+  .field > .fieldBox {
+    grid-row: 3;
+  }
+
+  .field > .reason {
+    grid-column: 1 / -1;
+  }
+
+  /**
+   * **The help target moves from bleeding past the field into the next column's own** (7L A16):
+   * mobile bleeds it into the page's empty 18 px padding, which a row of fields has none of between
+   * columns — the next field's own box starts there instead. Flush against the field's own right
+   * edge (`right: 0` rather than a negative bleed), the 44 px target stays inside its own column at
+   * every field count, including a U room's narrowest (`Perete C` beside a 44 px square in a
+   * ~118 px column) — checked by hand against the shortest label and the tightest column this file
+   * has. The glyph keeps the same "12 px inside the box's own edge" reading (`:565`'s comment) with
+   * the bleed term dropped, since there is no bleed left to add it to.
+   */
+  .lengthHelpButton {
+    right: 0;
+  }
+
+  .lengthHelpGlyph {
+    right: 12px;
+  }
+
+  /* ── The two-button footers, D1B/D1C/D1F `:190-193, 266-269` — *Înapoi* left, the CTA right ──────── */
+
+  .dimensionsFooter,
+  .composeFooter {
+    height: 88px;
+    padding: 0 40px;
+    justify-content: space-between;
+    border-top-color: var(--line-soft);
+  }
+
+  .dimensionsFooter .cta,
+  .composeFooter .cta {
+    flex: 0 0 auto;
+  }
+
+  .cta {
+    width: auto;
+    padding: 0 30px;
+  }
+}

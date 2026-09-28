@@ -29,7 +29,6 @@ import {
   type DrawnPlanPreview,
   type PlanBox,
   type MarkedPlanWall,
-  type PlanPreview as PlanPreviewModel,
   type PlanWallId,
 } from "@/room/plan-preview-model";
 import {
@@ -137,21 +136,33 @@ function render(
   locale: CatalogueLocale = A_PRODUCT_LOCALE,
   messages: Catalogue = roMessages,
 ): DrawnPlanPreview {
-  const plan = derivePlanPreview(draftFor(room), PLAN_BOX);
+  const draft = draftFor(room);
+  const plan = derivePlanPreview(draft, PLAN_BOX);
   if (plan.kind !== "drawn") {
     throw new Error("the room under test was expected to draw a plan");
   }
+  renderDraft(draft, locale, messages);
+  return plan;
+}
+
+/** Any plan the model returns, drawn or empty, painted in the product locale. Not fill-flagged —
+ *  no stylesheet is loaded under this test's `happy-dom` (D6c) — so `PlanPreview` derives the same
+ *  `plan` this function returns, against `PLAN_BOX` and the default metrics. */
+function renderDraft(
+  draft: RoomDraft,
+  locale: CatalogueLocale = A_PRODUCT_LOCALE,
+  messages: Catalogue = roMessages,
+): void {
   act(() => {
     root.render(
       createElement(NextIntlClientProvider, {
-        children: createElement(PlanPreview, { plan }),
+        children: createElement(PlanPreview, { draft }),
         locale,
         messages,
         timeZone: "Europe/Chisinau",
       }),
     );
   });
-  return plan;
 }
 
 /** Any plan the model returns, drawn or empty, painted in the product locale. */
@@ -159,19 +170,6 @@ function surfaceWidthPx(): number {
   const surface = elementAt("room-plan").querySelector("svg");
   if (surface === null) throw new Error("the card paints no drawing surface");
   return attributePx(surface, "width");
-}
-
-function renderPlan(plan: PlanPreviewModel): void {
-  act(() => {
-    root.render(
-      createElement(NextIntlClientProvider, {
-        children: createElement(PlanPreview, { plan }),
-        locale: A_PRODUCT_LOCALE,
-        messages: roMessages,
-        timeZone: "Europe/Chisinau",
-      }),
-    );
-  });
 }
 
 function elementAt(testId: string): HTMLElement {
@@ -304,14 +302,11 @@ describe("the box the model is handed is the inside of the box that is painted",
     const drawnHeightPx = paintedHeightPx();
     const drawnWidthPx = surfaceWidthPx();
 
-    renderPlan(
-      derivePlanPreview(
-        withStoredLength(createRoomDraft("L"), {
-          field: "wallA",
-          millimetres: AN_ORDINARY_KITCHEN.wallAMm,
-        }),
-        PLAN_BOX,
-      ),
+    renderDraft(
+      withStoredLength(createRoomDraft("L"), {
+        field: "wallA",
+        millimetres: AN_ORDINARY_KITCHEN.wallAMm,
+      }),
     );
     expect(paintedHeightPx()).toBe(drawnHeightPx);
     expect(surfaceWidthPx()).toBe(drawnWidthPx);
@@ -413,11 +408,11 @@ describe("a wall the room refuses is painted red and reads its short reason (7F2
     messages: Catalogue,
     markedWalls: readonly MarkedPlanWall[],
   ): void {
-    const plan = derivePlanPreview(draftFor(FRAME_ONE_C_ROOM), PLAN_BOX);
+    const draft = draftFor(FRAME_ONE_C_ROOM);
     act(() => {
       root.render(
         createElement(NextIntlClientProvider, {
-          children: createElement(PlanPreview, { plan, markedWalls }),
+          children: createElement(PlanPreview, { draft, markedWalls }),
           locale,
           messages,
           timeZone: "Europe/Chisinau",

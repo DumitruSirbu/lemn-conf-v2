@@ -626,6 +626,9 @@ Bespoke generation (1F / D1F):
 - Every generated design is a valid design under the M2/M3 engine. Generation produces placements
   through the same guards as manual insertion; it has no privileged path.
 - Desktop shows the composition steps beside a preview that fills as bodies are placed.
+  **Annotated 2026-09-28 by wave 7L's plan (D10), pending Q-7L-2:** *"that fills as bodies are
+  placed"* is read as struck by 7F4's R12 — composition is one synchronous call — so the preview is
+  the room's own plan, static. See [*Wave 7L — the plan*](#wave-7l--the-plan-2026-09-28).
 
 Surfaces:
 
@@ -637,6 +640,9 @@ Surfaces:
   to confirm the reading. See [*Wave 7K — the plan*](#wave-7k--the-plan-2026-09-28).
 - **Desktop (same phase, separate line):** D1A–D1F, with the step labels in the top bar rather than
   a progress bar, the large live plan beside the fields, and the four-up preset grid.
+  **Annotated 2026-09-28 by wave 7L's plan (D1), not amended:** the four-up grid (D1E) and the
+  skeletons (D1D) have no surface in M7, by 7K D2's derivation, and move with 7F3; 7L builds D1A,
+  D1B, D1C and D1F. See [*Wave 7L — the plan*](#wave-7l--the-plan-2026-09-28).
 
 Step framing:
 
@@ -1175,7 +1181,11 @@ rest becomes criteria 7K-A1…A20.
 plan beside the fields; D1C's actionable suggestion (its wording follows Q5); the four-up grid; D1F's
 steps beside a preview that fills as bodies are placed — **proposed** as the 2D plan filling, which
 the visual verifier judges against the frame's placeholder. A CSS fork only (§10.1): no rule and no
-copy differs by viewport.
+copy differs by viewport. **Expanded 2026-09-28 into [*Wave 7L — the plan*](#wave-7l--the-plan-2026-09-28),
+which is the binding version:** the four-up grid has no surface in M7 (D1); Q5 no longer gates the
+suggestion (G3); the preview in D1F is the static room plan (D10, Q-7L-2); the card is the one
+desktop-only element and D1B's extra prose waits on Q-7L-1 (D11); the rest becomes criteria
+7L-A1…A21.
 
 ## Wave 7A — dispatchable punch list
 
@@ -1570,7 +1580,7 @@ table.
 | **7J** | Straight kitchens through composition — **DONE 2026-09-28. Commits: plan + ADR 0130 + ADR 0108 Amendment G + ADR 0116 Amendment A `5596de1`; S1 `c39cd95`; S2 `8c9b1bf`; S3 `b83f172`; S4 `f4de5dd`; S5 `e34f1e3`; S6 `c97ce3b`; QA fixes `7f386c9`; review fixes `d00cfc0`. See [7J close-out](#7j-close-out--2026-09-28)** | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1, Q-7J-1 at 1200–6000 mm, ADR 0108 Amendment G) |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate — **DONE 2026-09-28. Commits: plan `d0a21a2`; S0-S2 implementation `d841d9a`; review fixes `daea173` (HEAD). See [7K close-out](#7k-close-out--2026-09-28)** | `apps/web/tests/e2e/mobile-gate.e2e.spec.ts`, `tests/e2e/support/step-one-by-touch.ts` (both new); no production file | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | answered (Q-7K-1 no; Q-7K-2 yes) |
-| **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
+| **7L** | The desktop line — **PLANNED 2026-09-28, see [Wave 7L — the plan](#wave-7l--the-plan-2026-09-28)**; D1A, D1B, D1C, D1F (D1D/D1E move with 7F3) | ~~*carried*~~ **corrected by the plan:** `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `plan-preview-model.ts`, `src/room/validation-suggestion.tsx` (new), `one-c-status.tsx`, `dimensions-form.tsx`, `generation-steps.tsx` (+ messages; + one `.desktop.e2e` spec) | 7F1–7F4 | Light | Desktop | Q-7L-1 (owner, not blocking), Q-7L-2 (coordinator) |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
 
 **Two defects in the table above, found during 7D3's close-out on 2026-09-15, recorded and
@@ -4782,6 +4792,325 @@ covers the composed path only, the preset path re-gated when 7F3 revives, per th
 
 Implementation and review are `d0a21a2`…`daea173`; documentation close-out is this commit.
 **Next wave: 7L** (the desktop line, D1A-D1F), then Gate M7-C, per the recorded order.
+
+### Wave 7L — the plan (2026-09-28)
+
+**Goal.** At 900 px and wider, Step 1 draws frames **D1A, D1B, D1C and D1F**
+(`docs/design/mockups/Lemnaria Configurator Desktop.dc.html:45-272, 464-526`) from the same
+components, rules and copy the phone uses, and nothing a phone renders at 390 × 844 moves by a
+pixel. **Tier: Light** (the row's own; UI assembly against settled rules) — adversarial QA, then one
+combined reviewer, plus the visual verifier. **Visual: Desktop, 1440 × 900**, production build, both
+locales. Code read at `7a6438a`. Decision records: **none new** — see §7.
+
+**What 7L is, in one sentence:** a CSS branch at the codebase's existing `min-width: 900px`, plus two
+component changes the desktop frames need and the phone never sees — a plan preview that fills a box
+it measures, and D1C's actionable suggestion — plus the live-region fix 7J handed over (7F2 R1.4).
+
+#### 1. Ground truth
+
+Tiers: **[src]** read or `grep`ped in the tree at `7a6438a` (mockup lines included); **[doc]** quoted
+from a record; **[inf]** inference, owed a measurement. **No suite, build or browser was run by the
+architect.** Every claim about how Step 1 *looks* at desktop today is [inf] until S0 captures it.
+**A bare `:N` cites this milestone file as it stood at `7a6438a`**, before this plan and its three
+in-place annotations were inserted; read it with `git show 7a6438a:docs/milestones/M7-room-and-presets.md`.
+
+| # | Fact | Tier |
+| --- | --- | --- |
+| G1 | **The charter.** Original row: files `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `src/room/validation-suggestion.tsx`, owner *Q5 (D1C's suggestion)* (`:936`); revised row: files *carried*, depends on 7F1–7F4, Light, Desktop, owner — (`:1573`). Carried bullet: step labels in the top bar not a progress bar; the large live plan beside the fields; D1C's actionable suggestion (*"its wording follows Q5"*); the four-up grid; D1F's steps beside a preview that fills — *"proposed as the 2D plan filling"*; *"A CSS fork only (§10.1): no rule and no copy differs by viewport"* (`:1174-1178`). Milestone criteria: *"Desktop uses its extra space for an actionable suggestion, not for more prose"* (`:597`); *"Desktop shows the composition steps beside a preview that fills as bodies are placed"* (`:628`); *"Desktop (same phase, separate line): D1A–D1F … the four-up preset grid"* (`:638-639`); *"On desktop the steps are labels in the top bar, not a progress bar"* (`:643-645`). | [doc] |
+| G2 | **Obligations other waves handed to 7L.** 7F2: *"D1C's Sugestii card and `validation-suggestion.tsx` are 7L's"* (`:13145`). 7J D10: 7F2 R1.4 — the suggestion announced alone inside the live region — is *"an accepted interim owned by 7L"* (`:4129-4130`; the finding at `:14487-14489`). 7K R5: *"7L edits `room.module.css` and `room-screen.tsx`, which mobile shares … 7L's plan should name it in its QA reading"* (`:4607-4608`). | [doc] |
+| G3 | **Q5 no longer gates anything.** Answered 2026-09-11 — linear stands, so the suggestion stands (`:329-333`); 7F2 shipped `room.issue.orChooseLinear` behind a domain gate (`room-issue-model.ts:195-204`); 7J made linear buildable and the gate's positive arm live (7J A13, `:4230-4234`; its close-out's visual pass). The original row's *"Q5 (D1C's suggestion)"* (`:936`) is stale; the revised row already reads *"—"* (`:1573`). | [doc] + [src] |
+| G4 | **D1D and D1E have no surface in M7**, by the derivation 7K D2 recorded (`:4386-4392`): the preset story, 7F3 included, is past M8 (`:1552-1561`). *Continuă* at 1D goes straight to composition (`room-screen.tsx:335-343`). | [doc] + [src] |
+| G5 | **Step 1 has no desktop branch.** `room.module.css`'s only `@media` is `prefers-reduced-motion` (`room.module.css:1027`). Every other surface branches at **`@media (min-width: 900px)`** — `configure.module.css:549`, `editor-panel.module.css:648`, `global-settings.module.css:534`, `price-bar.module.css:80` and four more. So at 1440 × 900 Step 1 is the phone's column stretched: `.body`/`.dimensionsBody` full width with 18 px insets (`room.module.css:91-100, 256-266`), the cards stacked (`:120-124` there), a full-width *Continuă* (`:220-232` there). | [src]; the rendering [inf] |
+| G6 | **The top bar already carries step labels and no progress bar.** `RoomTopBar` draws the wordmark, the `1/4` pill (named `configure.step`) and the title in every sub-state (`room-screen.tsx:170-199`); nothing under `src/room` has `role="progressbar"` or `<progress>` (`grep`). D1A draws the **same** three items (`Desktop.dc.html:52-60`) — what differs is metrics: a 76 px band, `padding: 0 40px`, `gap: 20px`, wordmark 15 px, pill 12 px, title 19 px, and **no divider before the locale chip**. The locale cell is the editor's `.locale` (`room-screen.tsx:60`), so the editor's desktop rules reach it: `padding-block: 0` (`configure.module.css:604`), `padding-left: var(--top-bar-row-gap)` (`:613`, a property this screen never defines), a 28 px `::before` divider (`:640-648`), `padding-right: 28px` (`:707`), a 40 px chip (`:715`). Consequence, **[inf], S0 measures:** today's desktop room bar is roughly 41 px tall and paints the editor's divider before the chip. | [src] + [inf] |
+| G7 | **The plan box is a phone constant.** `PAINTED_PLAN_BOX` is 320 × 104 (`plan-preview.tsx:49`), `PLAN_BOX` is handed to the model at `room-screen.tsx:367`, and the box's height is written inline from it (`plan-preview.tsx:91`). The model's metrics are module constants — wall 12 px, label line 11 px, gap 5 px (`plan-preview-model.ts:112-120`) — and it throws below its minimum box (`plan-preview-model.ts:636-640`). D1B's panel is `flex:1; max-width:900px` filling the column (`Desktop.dc.html:179-188`), walls **26 px** thick, labels **14 px**, label gap 20 px beside wall B (bar right edge 146, label left 166; `Desktop.dc.html:183, 185`). **D1B is isotropic** — A 600 px for 3,60 m, B 400 px for 2,40 m, 166.7 px/m both — so owner ruling R4's departure (`:6801-6815`) does not arise at desktop. | [src] |
+| G8 | **DOM order vs frame order.** `DimensionsStep` renders chips, shape refusal, plan, then `DimensionsForm` (corner toggle, then fields), then the status region (`room-screen.tsx:357-389`; `dimensions-form.tsx:163-174`); each field's reason is inside its `.field` (`dimensions-form.tsx:365`). D1B/D1C draw chips, the three fields **in one row**, the corner toggle **below** them, and **one** reason box under the whole row (`Desktop.dc.html:121-173, 220-246`). | [src] |
+| G9 | **The suggestion today.** `isLinearSuggested` (`room-issue-model.ts:135-137`) renders inside the polite `room-one-c-status` region (`one-c-status.tsx:38-57`) — R1.4. Tests pin that interim: `qa-7f2-s3-one-c.adversarial.dom.test.ts:645-658` (the region's text *is* suggestion + note) and `qa-7f2-s4-shape-refusal.adversarial.dom.test.ts:598-605` (children `[reason, suggestion, note]`). The mobile e2e `qa-7f2-s3-one-c.adversarial.e2e.spec.ts:154-173` takes the region's **parent** as the scrolling column. | [src] |
+| G10 | **The card's action already exists.** A shape chip calls `edit(withRoomShape(draft, chosen))` (`room-screen.tsx:358-364`), and `withRoomShape` keeps every typed text (`room-draft.ts:74-76`). The suggestion shows only after a reason and only when wall A and the height validate as a straight room (`room-issue-model.ts:197-204`), so it never shows for a room already straight or refused as U [inference from those lines, owed a property — A11]. Tapping *Liniară* in that state is exactly *"Treci la formă liniară pe peretele A"*. | [src] + [inf] |
+| G11 | **1F.** `GenerationSteps` replaces the form inside `DimensionsStep` (`room-screen.tsx:345-353`); 7F4 R14's must-not: no `display: none` over the form (`:18466`); the title is `room.compose.title` in composition (`room-screen.tsx:193`). D1F draws the steps (620 px) beside a placeholder *"[ previzualizare live a compunerii ]"* (`Desktop.dc.html:480-517`). R12: `generateKitchen` is one synchronous call and a paced reveal would be *"animating a fiction"* (`:1106-1110`). 1F handed off within 1.5 s in 7F2's gate (`:14404`). | [src] + [doc] |
+| G12 | **Desktop e2e today.** The `desktop` project is 1440 × 900 with no touch (`playwright.config.ts:58-68`). Step 1 is walked at desktop, by click, only as the front of `linear-flow.desktop.e2e.spec.ts` and `mirror-real-flow.desktop.e2e.spec.ts` (via `support/linear-flow.ts`, `support/mirror-flow.ts`); both were green in 7K's final `ci:local` (451 passed, `:4763-4765`). **Nothing asserts Step 1's desktop layout, 1C at desktop, or the suggestion at desktop**; `room-length-fields-fit.e2e.spec.ts` has no desktop twin. | [src] + [doc] |
+| G13 | **Frame text the phone frames do not have** (Desktop vs Mobil): D1B/D1C heading *"Dimensiunile camerei"* and lead *"Măsoară de la perete la perete, pe podea."* (`Desktop.dc.html:117-120, 216-219`); D1B info note *"Măsurile aproximative sunt în regulă acum — …"* (`Desktop.dc.html:174-177`) and plan hint *"Planul se actualizează la tastare și se oglindește odată cu cotul."* (`Desktop.dc.html:186`); D1C *"Sugestii"* + card *"Treci la formă liniară pe peretele A"* (`Desktop.dc.html:247-253`). **Frame text that says what a shipped leaf already says, differently:** D1A's merged lead vs `room.shapeLead` + `room.dimensionsLater`; D1B's *"Înălțime"* vs `room.heightLabel`; *"‹ Înapoi"*; D1F's top-bar *"Cameră"* vs R14's *Preset*; D1F's *"Ce așezăm"*/*"așezat"* vs the owner's *inclus* (`:118`). **The D1B lead contradicts an owner ruling:** ADR 0120 Amendment C1 (2026-09-16) — the number is *"the length they want furnished. Not the wall's real length"* (`0120:835-846`), which is also what `room.lengthsHint` tells the customer. | [src] + [doc] |
+| G14 | **Tests that read `room.module.css` as text:** `plan-preview.dom.test.ts:72-77`, `generation-steps.dom.test.ts:63-64`, `dimensions-form.dom.test.ts`, `qa-7f2-s2-red-wall.adversarial.test.ts`. A media block may meet their parsers. `PLAN_BOX` is imported by `plan-preview.dom.test.ts` and `qa-7f2-s2-red-wall.adversarial.dom.test.ts`. | [src] (grep) |
+| G15 | **The frames are 1920 × 1080** (`Desktop.dc.html:51`); the product checks desktop at 1440 × 900 (G12). D1B's columns fit 1440 (40 + 520 + 56 + 784 + 40); D1F's too (64 + 620 + 56 + 636 + 64). At 900 px D1F's panel would get ~96 px — the frame's widths are maxima, not minima. | [src] + arithmetic |
+| G16 | **Gate M7-C is withdrawn** (ADR 0113 decision 1; the struck row at `:1574`). *"then Gate M7-C"* in the 7K close-out (`:4784`) and in `STATUS.md:65` is stale: after 7L comes M7's close. | [doc] |
+
+#### 2. Decisions
+
+- **D1 — 7L is D1A, D1B, D1C and D1F.** D1D's skeletons and D1E's four-up grid have no surface in
+  M7 (G4) and move with 7F3, by 7K D2's derivation — nothing is written against an absent grid.
+  The milestone's *Desktop (same phase, separate line)* criterion is annotated in place (`:638-639`).
+- **D2 — One breakpoint, the codebase's.** Step 1 branches at `@media (min-width: 900px)`, the value
+  eight stylesheets and the editor rail already use (G5), so the room and the editor never disagree
+  about which shell a width is. **CSS is the only place a width is known**: no `matchMedia`,
+  `innerWidth` or pixel threshold under `src/room`. *Rejected:* a Step-1 breakpoint of its own (a
+  950 px window would show a desktop editor behind a phone Step 1).
+- **D3 — The top bar needs metrics, not structure** (G6). *"Step labels in the top bar, not a
+  progress bar"* is already true at every width; the desktop branch applies D1A's band (76 px,
+  `0 40px` inset, `gap: 20px`, 15/12/19 px type). **The editor's divider and 28 px inset on the
+  borrowed locale cell are overridden from `room.module.css`'s side**, through a selector rooted in
+  `.topBar` — the coupling is paid on this side, as the file's head comment requires, and
+  `configure.module.css` is not edited. R5's extraction stays deferred and inherits this override.
+- **D4 — The corner toggle stays above the fields at desktop — a named departure from D1B** (*"toggle-ul
+  de oglindire rămâne sub ele"*, `Desktop.dc.html:195`). The DOM order is the phone's (G8) and there is one DOM
+  (§10.1); drawing the toggle below the fields with CSS `order` would make keyboard focus visit the
+  toggle before the fields while it is painted after them (WCAG 2.4.3 / 1.3.2). *Rejected:* CSS
+  `order` (that mismatch); reordering the DOM (moves the phone's 1B off frame 1B and under 7K's
+  gate). Flagged for the owner's eye in §7, not asked.
+- **D5 — D1C's reasons sit under the whole row, spanning it** (G8), **by CSS alone**: each reason
+  stays inside its `.field` and remains its input's `aria-describedby` target, placed by grid
+  (e.g. `display: contents` on `.field` and full-row reason tracks). **If that cannot be done in CSS,
+  stop and report** — moving a reason in the DOM reopens 7F2's structure.
+- **D6 — The large live plan measures its box; the metrics become an input.**
+  (a) `derivePlanPreview` gains the three metrics (wall thickness, label line, label gap) as input,
+  **defaulting to today's constants**, so every existing call and its output is unchanged.
+  (b) A desktop metric set from D1B: **26 / 14 / 20 px** (G7), declared once, in the component, beside
+  today's set. (c) The desktop branch marks `.planBox` as **fill mode** with a custom property; in
+  fill mode `PlanPreview` measures its box (`ResizeObserver`), writes **no inline height**, and derives
+  at the measured box with the desktop set, publishing the metrics it drew with (as `--plan-label-line`
+  is published today). Without the flag — the phone, jsdom, the server render — it is `PLAN_BOX` and
+  today's metrics, byte for byte. (d) **In fill mode nothing is painted until the box is measured**, so
+  no drawing sized for another box is ever visible. (e) A measured box below the set's minimum is
+  drawn at the minimum and clipped by `.planBox`'s `overflow: hidden` — never a throw, never a wider
+  document. *Rejected:* a second fixed box chosen by `matchMedia` (a second authority for the
+  breakpoint, no height response); scaling the SVG with its `viewBox` (the labels are HTML and would
+  not follow; a 3:1 phone box letterboxes in D1B's ~4:3 panel); a CSS `transform` (the same aspect
+  problem, and scaled type). **Escalation trigger:** if (a) moves any output at `PLAN_BOX` and the
+  default metrics, S2 becomes **Full** (logic + clean-code reviewers).
+- **D7 — The plan's anchor, scale and dependencies** (`product-invariants.md`, 7F1 criterion 12).
+  **Anchor:** adopted from `room-transforms.ts` via the model and untouched — corner at the
+  drawing's origin, A along +X across the top, B along +Z down the side; `direction: "right"`
+  reflects the drawing and the mark travels with its wall. **Scaling rule:** one isotropic px/mm per
+  drawing (owner R4), recomputed per box; wall thickness and label type are metrics and **never scale
+  with the room or the box**. **Structural dependencies:** box → scale → bars → label lanes; issue
+  field → marked wall (7F2), unchanged.
+- **D8 — D1C's suggestion: the frame's card, the chip's action, no new rule.** Q5 is settled (G3).
+  `validation-suggestion.tsx` (the row's own file) draws the phone's clause, as today, and D1C's
+  *Sugestii* card, whose layout the phone hides. **The card's handler is the *Liniară* chip's**
+  (`withRoomShape(draft, "linear")`, G10) — it writes, composes and navigates nothing the chip does not.
+  Afterwards focus moves to the *Liniară* chip's control, because the activated card has unmounted.
+  The card is the one desktop-only element the milestone's own criterion requires (`:597`); its words
+  are D1C's as written (ADR 0113 decision 5).
+- **D9 — R1.4 closed: the suggestion leaves the live region.** It sits **between** the room reasons and
+  the note, in no `aria-live`/`role="status"` subtree; the room reasons and the note are still each
+  announced through a polite region present, empty, from 1B on (7F2's F3 is kept); while the
+  suggestion shows, each offending field's `aria-describedby` lists its reason **then** the suggestion,
+  which is how frame 1C's sentence reads. `room-one-c-status` stays a direct child of the scrolling
+  column (G9's e2e). *Rejected:* `aria-hidden` on the visible clause (hides visible text from a screen
+  reader); `display: contents` on the status region (drops the live region in some engines).
+- **D10 — D1F's preview is the room's own plan** — S2's component, from the same draft, unmarked, in a
+  desktop-only aside beside the steps. **D1F's *"fills as bodies are placed"* is struck by R12's
+  derivation**: the composition is one synchronous call (G11), so a filling picture animates a fiction,
+  and a drawing of the placed bodies would be a second model shown for about a second. The top-bar title
+  stays `room.compose.title` (R14), not D1F's *Cameră*. The form is still never `display: none`'d
+  (R14). **Q-7L-2 asks the coordinator to confirm** the derivation, as Q-7K-2 did for D2.
+- **D11 — Copy: one leaf per thing, and one frame sentence never ships.** Where both shells say the
+  same thing (G13's second list) the **shipped leaf** is used at desktop — no string forks for one
+  thing. **D1B's lead ships under no answer** — it contradicts ADR 0120 C1 and the hint beside it. D1B's
+  heading, info note and plan hint are **Q-7L-1's**; the interim is to draw none of them (option (b)).
+  New leaves: the card's two, below; each enters the copy lock and the golden manifest in the commit
+  that adds it (ADR 0113 decision 2), Russian drafted in the informal *ты*.
+
+  | key | ro | ru (drafted) | source |
+  | --- | --- | --- | --- |
+  | `room.suggestion.title` | Sugestii | Предложения | D1C, `Desktop.dc.html:248`, as written |
+  | `room.suggestion.switchToLinear` | Treci la formă liniară pe peretele A | Перейди на линейную форму на стене A | D1C, `Desktop.dc.html:250`, as written; *стене A* as `room.wallLabel.wallA` |
+
+- **D12 — One new desktop spec for the layout contract; no desktop replay of 7K's journey.** The rules
+  are one implementation (§10.1), 7K proves the journey by touch, and the two inherited desktop flows
+  (G12) already walk Step 1 at 1440 × 900 — they stay unedited as the desktop's journey witnesses. The
+  new `room-desktop-line.desktop.e2e.spec.ts` asserts geometry, boundaries, reach and the card; it
+  measures against the page's own boxes and cites any frame figure to its mockup line.
+- **D13 — The visual gate** is a verifier's walk of a production build at 1440 × 900 in both locales,
+  captures outside the tree; 1F is held on screen with Chrome's network emulation (7K D8 e's
+  precedent), never a sleep. It also re-captures the phone at 390 × 844 against S0's baseline (A1).
+
+#### 3. Departures from frames D1A–D1F
+
+Listed so they reach the close-out rather than pass as the frame's; the verifier reports each against
+its frame. Anything else that differs from D1A–D1C or D1F is a defect.
+
+- **The corner toggle above the fields** (D4).
+- **D1B/D1C's lead not drawn** (D11, ADR 0120 C1).
+- **D1B's heading, info note and plan hint not drawn** — interim, Q-7L-1.
+- **D1C's reason sentence** is 7F2's `room.issue.*`, not the frame's (7F2 §5, ADR 0120 C1).
+- **D1A's lead, *Înălțime*, *‹ Înapoi*'s text, D1F's *Ce așezăm*/*așezat*** — the shipped leaves
+  (D11); the *‹* is drawn as decoration.
+- **D1F's title *Preset*** (R14) **and a static plan** (D10).
+- **Length values in millimetres** (ADR 0126), where the frames draw metres.
+- **The frames are 1920 wide**; their column widths are maxima at 1440 and at 900 (G15).
+
+#### 4. Slices
+
+| Slice | Must-fix items (≤ 5) | Files | Reading |
+| --- | --- | --- | --- |
+| **S0 census + baselines** (no production file; verifier + QA) | (1) Production build at the wave base, 1440 × 900, `ro` and `ru`: capture 1A, 1B (L left, L right, linear, U), 1C (the frame's 3600 × 450 × 2600 L; a room carrying a **room-level** reason *and* the suggestion, found with `validateRoomInput` and recorded; 800 × 800 × 2000), 1F — outside the tree; measure G6's band height and divider, the plan box's painted size, `scrollWidth`. (2) The **phone baseline** at 390 × 844, both locales: 1A, 1B (L, linear, U), 1C (the same three rooms) — for A1's pixel identity. (3) Census: every test in G9 and G14, and any other that pins the status region, the suggestion's placement, `PlanPreview`'s props or the stylesheet's text — each classed *restate in S⟨n⟩* or *must stay unedited*; **if any `mobile`-project e2e file must change, stop and report before S1** — the plan assumes none. (4) The `desktop` leg's local duration (JSON reporter to the scratchpad; ADR 0105). (5) Record all of it in an *S0 census* sub-section appended after this table, **live, in this slice**. | none | §1 G5–G9, G12–G14; §2 D1, D12, D13; `browser-and-visual-qa.md` in full; `agent-coordination.md`, *Agent worktrees arrive at the session's starting commit*; ADR 0105 |
+| **S1 the desktop shell** — CSS only | (1) Top bar at D1A's metrics; the borrowed locale cell's divider and inset overridden on this side (D3). (2) D1A: three cards in one row in a ≤ 1120 px column centred in the body, each card's glyph (176 × 128) above its text; the footer's *Continuă* right-aligned, auto width, 52 px. (3) D1B/D1C: a ≤ 520 px form column left of the plan panel (gap 56, panel ≤ 900 filling the body's height); the form column scrolls vertically, nothing sideways, the footer fixed (Q-7F2-2's remedy, `:12983`). (4) The fields in one row in field order, reasons under the row spanning it (D5); the toggle above them (D4); the help target clears every input. (5) The footers of D1B/D1F: *Înapoi* left, the CTA right. **Every added declaration is inside the desktop block** (A2). | `room.module.css` | §1 G5–G8, G15; §2 D2–D5; §3; §5 A1–A6, A10, A16, A17; ADR 0104 decisions 1, 5; ADR 0082 decisions 1–2; DEVELOPMENT-SPEC §10, §10.1; frames D1A–D1C (`Desktop.dc.html:45-272`); `room.module.css` whole; `configure.module.css:549-730` (read only); `room-screen.tsx:148-199, 355-415`; `dimensions-form.tsx:151-400`; `room-length-fields-fit.e2e.spec.ts` (the help-target scan) |
+| **S2 the large live plan** | (1) Metrics as the model's input, defaulting to today's; HEAD output unchanged (D6 a). (2) D1B's metric set (D6 b). (3) Fill mode: flagged by the stylesheet, measured, no inline height, unpainted until measured, floored at the minimum (D6 c–e). (4) D1B's panel and caption in the desktop block. (5) The A7–A9 tests, including the property. | `plan-preview-model.ts`, `plan-preview.tsx`, `room.module.css` (+ `room-screen.tsx` only if the component's input changes; then say so) | §1 G7; §2 D6, D7; §5 A7–A9; 7F1 criteria 11–13 and R4 (`:6801-6815`); `product-invariants.md`; `plan-preview-model.ts`, `plan-preview.tsx`; `plan-preview.dom.test.ts`; `qa-7f2-s2-red-wall.adversarial*.test.ts`; skill `javascript-testing-expert`; frame D1B (`Desktop.dc.html:179-188`) |
+| **S3 D1C's suggestion + R1.4** | (1) `ValidationSuggestion`: the clause on both shells, the card on the desktop layout only, both iff `isLinearSuggested` (D8). (2) The card's handler is the chip's; focus to the *Liniară* chip after (D8). (3) The suggestion out of the live region, order reasons → suggestion → note, both regions kept (D9). (4) Offending fields described by reason then suggestion (D9). (5) The two leaves, ro/ru, lock and golden manifest in the same commit citing ADR 0113; S0's listed restatements, each citing A13. **Five production files plus the message trio** — at the limit; stated here. | `src/room/validation-suggestion.tsx` (new), `one-c-status.tsx`, `room-screen.tsx`, `dimensions-form.tsx`, `room.module.css`; `messages/ro.json`, `ru.json`, `ro.d.json.ts` | §1 G9, G10, G13; §2 D8, D9, D11; §5 A10–A14, A19; ADR 0113; ADR 0120 decision 3 and Amendment C1; ADR 0095 decision 2; 7F2 §5 (`:14260-14287`), §8 and its close-out additions (`:14485-14494`); 7J D10 and A13; `room-issue-model.ts`; `one-c-surfaces.ts`; `one-c-status.tsx`; `shape-picker.tsx:177-230`; S0's census rows; frame D1C (`Desktop.dc.html:198-272`) |
+| **S4 D1F** | (1) An aside slot beside the steps, desktop layout only (D10). (2) The room's plan in it, from the draft, unmarked. (3) D1F's columns (≤ 620 steps, gap 56, panel ≤ 840) and footer. (4) Title stays `room.compose.title` (R14). (5) 7F4's hand-off, run token and must-nots untouched. | `generation-steps.tsx`, `room-screen.tsx`, `room.module.css` | §1 G11; §2 D10; §5 A15; 7F4 R12–R14 (`:18356-18470`); 7F4b criteria 39–43; `generation-steps.tsx`; `room-screen.tsx:285-353`; frame D1F (`Desktop.dc.html:464-526`) |
+| **S5 the desktop spec** | (1) `room-desktop-line.desktop.e2e.spec.ts` covering every **[e2e]** criterion in §5; (2) boundary widths by `setViewportSize`; (3) the help-target scan at desktop; (4) the card's action and focus; (5) the `desktop` leg's local duration after, beside S0's (ADR 0105). | the new spec (+ a support module only for navigation helpers; assertions stay in the spec) | §5 all [e2e] rows; `browser-and-visual-qa.md`, *Browser test design*; `room-length-fields-fit.e2e.spec.ts` (the clipping-column and `elementFromPoint` patterns); `playwright.config.ts:44-68`; ADR 0105; `engineering-conventions.md`, *Tests* |
+| **S6 the visual gate** (verifier; owns the tree for its run) | (1) Production build, 1440 × 900, ro and ru: D1A, D1B (L left/right, linear, U), D1C (S0's three rooms), D1F (held by network emulation). (2) Inspect each against its frame and report §3's departures by name. (3) The phone at 390 × 844 against S0's baseline — pixel diff. (4) Console. (5) What cannot be verified. | none | §2 D1, D4, D10–D13; §3; §5 A1, A20; `browser-and-visual-qa.md` in full; frames D1A–D1C, D1F; mobile frames 1A–1C; the *not a bug* list below |
+
+Order **S0 → S1 → S2 → S3 → S4 → S5 → S6**, one at a time, the tree frozen between them: every
+production slice edits `room.module.css`. **QA after S2** (the shell and the plan — where a phone
+regression would enter) **and after S5**; the combined reviewer once QA is green; S6 alongside the
+reviewer, who judges against `git show HEAD:`.
+
+- **Reading, QA:** this plan §1–§7; `engineering-conventions.md`, *Coverage an adversarial pass owes*
+  and *Three guards that look thorough and cannot fail*; `docs/WORKFLOW.md` **R6**; **the 7K mobile
+  gate — `mobile-gate.e2e.spec.ts` and the four specs of 7K's manifest (7K plan §3) — which 7L's
+  shared files feed (7K R5, G2)**; `room-length-fields-fit.e2e.spec.ts`;
+  `qa-7f2-s3-one-c.adversarial.e2e.spec.ts`; S0's census; the slice diff; the A18 sabotage sites.
+- **Reading, combined reviewer:** §2 D1–D13, §3, §5; DEVELOPMENT-SPEC §10, §10.1; ADR 0104 decisions
+  1, 5, 6; ADR 0113; ADR 0120 decision 3 and C1; ADR 0082 decisions 1–2; 7F2 §8 and R1.4 with WCAG
+  4.1.3 (the live-region change touches 7F2's F3); 7F4 R12, R14; `engineering-conventions.md`; the wave
+  diff — **and confirm the 7K gate's five specs are byte-identical to the wave base**.
+- **Reading, visual reviewer:** S6's row.
+
+#### 5. Acceptance criteria (7L-A1 …)
+
+At 1440 × 900 on the `desktop` project unless a criterion names another viewport. Frame figures are
+cited to their mockup line; everything else is measured against the page's own boxes.
+
+1. **The phone does not move (7K R5).** Every `mobile`-project e2e passes, and `git diff <base> --`
+   over the `mobile` project's spec and support files is empty — `mobile-gate.e2e.spec.ts`, 7K's four
+   inherited specs, `room-length-fields-fit`, `qa-7f2-s3-one-c` among them. S6's captures of S0's
+   phone set differ from the baseline by **0 pixels**; a non-zero diff is a finding reported with its
+   region, never a tolerance raised to absorb it. **[e2e] + [visual]**
+2. **The branch is CSS.** Every declaration the wave adds or changes in `room.module.css` is inside
+   `@media (min-width: 900px)`, except the base-shell `display: none` of the card and the 1F aside,
+   each named in its comment. `git grep -E "matchMedia|innerWidth|900" -- apps/web/src/room` adds no
+   line. **[review] + grep**
+3. **One breakpoint.** At 899 × 900 Step 1 is the phone's layout (the plan above the fields, one
+   column, a full-width *Continuă*, no card); at 900 × 900 it is the desktop's. **[e2e]**
+4. **The top bar is D1A's** (`Desktop.dc.html:52-60`). Band 76 px (±0.5); pill named `configure.step` at step 1 of 4;
+   title `room.title` at 1A–1D and `room.compose.title` at 1F; the locale chip last, its right edge
+   40 px (±1) from the viewport's; **nothing painted between the title and the chip** (the borrowed
+   divider is gone). No `progressbar` role or `<progress>` in Step 1. **Must not:**
+   `top-bar.desktop` or `top-bar-pill-containment.desktop` edited or red. **[e2e]**
+5. **D1A.** Three cards in one row, tops equal (±1), in *Liniară*, L, U order, inside a column ≤ 1120 px
+   wide centred in the body (±1); each glyph above its name; *Continuă* right-aligned in the footer,
+   52 px tall, narrower than the footer. U tapped → the refusal shows, *Continuă* disabled. **[e2e]**
+6. **D1B.** The form column (≤ 520 px) left of the plan panel with a 56 px gap (±1); the panel's
+   bottom within 1 px of the body's content bottom, width ≤ 900. The shape's fields in one row (label
+   tops equal ±1) in field order; the toggle (L, U) above them; no toggle for a straight room. **[e2e]**
+7. **The large live plan.** In fill mode the drawing is fitted to the **measured** box: on the binding
+   axis its extent reaches the box less the set's lanes (±1); walls 26 px, labels 14 px. A typed
+   length redraws at the same box; a resize from 1440 to 1100 wide redraws and the fit holds.
+   *Property* **[unit]**, ≥ 100 samples per arm (L left, L right, linear, U with walls missing), boxes
+   from the set's minimum to 900 × 700, both sets: one px/mm for every drawn wall (±1 px over the
+   longest wall); every bar and label inside the box; no label over a bar. **With `PLAN_BOX` and the
+   default set, output deep-equals the base's function** (run against `git show <base>:` of the model,
+   in the scratchpad). **[e2e] + [unit]**
+8. **Nothing sized for another box is shown.** In fill mode a visible drawing carries the measured
+   marker, at first load and after a reload; the phone never enters fill mode. **[e2e]**
+9. **Never a throw.** At 900 × 400 (a box below the desktop minimum): zero `pageerror`, the plan drawn
+   at the minimum and clipped by its box, the document no wider than the viewport. Without
+   `ResizeObserver` (jsdom) the component renders `PLAN_BOX` and does not throw. **[e2e] + [dom]**
+10. **D1C.** The frame's room (L 3600 × 450 × 2600): wall B's box, label and plan wall red; the reason
+    **below the row, spanning it** (its left at the first field's left, its right at the last field's
+    right, ±1); then the clause and the *Sugestii* card; then the note; *Continuă* disabled. The worst
+    case (800 × 800 × 2000) at 1440 × 900 **and at 1280 × 720**: every reason under the row, every field
+    and *Continuă* reachable by scrolling the form column, the footer fixed, nothing sideways. **[e2e]**
+11. **The gate is unchanged.** Clause and card are present **iff** `isLinearSuggested`, over 7F2's field
+    arms and 7J A13's witnesses; e.g. 899 × 2400 × 2600 shows neither; a straight or U room never shows
+    either. **[dom]**
+12. **The card is the chip.** *Property* over drafts where the card shows: activating the card yields
+    the same draft (deep-equal) and the same settled query as activating the *Liniară* chip from that
+    state. Afterwards: 1D for a straight room, wall A and height as typed, focus on the *Liniară* chip's
+    control, never `document.body`. **Must not:** a write, a `POST`/`PUT`, a composition or a query key
+    the chip would not produce. **[dom] + [e2e]**
+13. **R1.4 closed.** At every sub-state the suggestion's text is in no `aria-live`/`role="status"`
+    subtree; the room reasons and the note are each in a polite region present, empty, from 1B on; DOM
+    order reasons → suggestion → note; `room-one-c-status` a direct child of the scrolling column;
+    while shown, each offending field's `aria-describedby` is its reason's id then the suggestion's.
+    Every test S0 listed for this is **restated, not deleted**, and cites this criterion. **[dom]**
+14. **Desktop-only is layout-only.** At 390 × 844 the card and the 1F aside have no box, are not
+    visible and are not in the tab order; the clause is as today. **[e2e]**
+15. **D1F.** The steps column (≤ 620) left of the plan panel (≤ 840), gap 56 (±1); the panel shows the
+    room's plan with the same wall labels 1B showed for that draft, nothing marked. **Must not:** a
+    paced reveal, a drawn body, or the form `display: none`'d (R12, R14); any change to the hand-off
+    (7F4b criteria 39–43 green, unedited). **[e2e] + [dom]**
+16. **Help targets.** For every shape at 1440 × 900 and at 900 × 900, each wall's help button is a 44 px
+    square whose hit area (the `elementFromPoint` scan) covers no input. **[e2e]**
+17. **Nothing sideways.** At widths 900, 1280, 1440, 1920 (heights 720–1080), in 1A, 1B (L, linear,
+    U), 1C's worst case and 1F: the document's and every column's `scrollWidth ≤ clientWidth`. **[e2e]**
+18. **The gate bites (R6), [QA].** Each sabotage, applied to the build the suite runs, reddens at least
+    the named criterion, and restoring it restores green: one desktop declaration moved out of the
+    block → 1 or 2; the breakpoint made 1000 → 3; fill mode removed → 7; the card's handler writing
+    `shape=linear` without the draft's height → 12; the suggestion put back in the status region → 13;
+    the aside's base `display: none` removed → 14. The other direction: a different room of the same
+    class in place of each witness keeps the suite green. A sabotage that reddens nothing is reported
+    with the criterion that should have owned it.
+19. **Copy.** The new leaves are exactly D11's table (or Q-7L-1's answer's list), each in ro and ru,
+    the lock and the golden manifest in the same commit citing ADR 0113; no leaf carries a digit; no
+    existing leaf's text changes; D1B's lead is in no catalogue. **[unit] (copy lock) + [review]**
+20. **The visual gate, [visual].** D1A, D1B, D1C, D1F captured per S6, inspected against the frames,
+    every §3 departure reported against its frame; console read. **What cannot be verified is stated**
+    — at minimum the 1920-wide frames' own proportions at 1440, and real pointer hover.
+21. **Scope and timing.** `git diff --name-only <base>` lists only §4's files, their tests and
+    documents: no `packages/` file, nothing under `app/configurator/configure/`, not `room-query-sync.ts`
+    or `use-generation.ts`. The close-out quotes S0's and S5's local `desktop`-leg figures with their
+    commands and states that the runner's is outstanding (ADR 0105). **[review] + [doc]**
+
+**Must not happen.** A rule, a URL key, a route or a domain call that differs by viewport. A width in
+TypeScript. A string that says at desktop what a shipped leaf already says. A preset grid or skeleton.
+A picture of composition progress. An edit under `packages/`, to `configure.module.css`, or to the 7K
+gate's specs. A weakened, deleted or skipped assertion. A `waitForTimeout` as synchronisation. **Not a
+bug, and not to be filed from this wave:** no D1D/D1E; *Preset* in 1F's title; the toggle above the
+fields (D4); the static 1F plan (D10); millimetre values where the frames draw metres; 1F on screen for
+about a second (the verifier holds it); 7J R5's camera framing and every other editor-side item on the
+7H, 7I, 7J and 7K *not a bug* lists.
+
+#### 6. Risks
+
+- **R1 — A shared-file edit moves the phone** (7K R5). A1's 0-pixel diff and byte-identical specs, A2's
+  stylesheet boundary, and the 7K gate in QA's reading.
+- **R2 — The measurement loops or flashes.** An inline height in fill mode would stop the box
+  shrinking and feed `ResizeObserver` its own output; D6 forbids the inline height there, A7 resizes,
+  A8 checks the first paint.
+- **R3 — The model's default output drifts** while metrics are threaded through. A7's deep-equality
+  against the base's own function; D6's escalation trigger.
+- **R4 — Reasons under the row need a DOM change.** D5's stop-and-report; A10 measures the span.
+- **R5 — The R1.4 fix reddens 7F2/7J tests and one is "fixed" by deletion.** S0's census; A13
+  requires restatement citing it; QA diffs assertions, not counts.
+- **R6 — The borrowed locale cell.** The override lives on the room's side (D3) and A4 keeps both
+  editor top-bar specs green; R5's extraction inherits one more reason to exist.
+- **R7 — Short desktops.** 1280 × 720 leaves the form column ~450 px; A10 and A17 cover it; the
+  frames' widths are maxima (G15).
+- **R8 — Q-7L-1 answers (a) after S3 has landed.** One follow-up slice adds three leaves and their
+  CSS; the lock moves twice, each time in its own commit. No slice waits.
+
+#### 7. Records, and questions
+
+**No ADR is written with this plan.** D2–D10 are layout inside a charter the milestone already set;
+D1 and D10 are derivations from recorded rulings (7K D2, 7F4 R12/R14). **One record is owed later, and
+flagged for the coordinator:** Q-7L-1's answer settles how DEVELOPMENT-SPEC §10's *"same copy"* reads
+against ADR 0104's *frames as specification* for Step 1, whichever way it goes — so it must reach
+`docs/decisions/` by M7's close, recommended as a dated amendment to ADR 0104 carrying §3's departure
+list. **Also flagged:** *"then Gate M7-C"* in the 7K close-out and `STATUS.md:65` is stale (G16) —
+after 7L comes M7's close, which also owes the preset-deferral ADR 7K §7 recommended.
+
+**For the owner's eye, not a question:** the corner toggle stays above the length fields at desktop
+(D4), where D1B draws it below them — so keyboard focus follows what the customer sees.
+
+**Questions:**
+
+- **Q-7L-1 (owner, not blocking dispatch).** The desktop frames draw text the phone frames do not:
+  D1B's heading *"Dimensiunile camerei"*, its note *"Măsurile aproximative sunt în regulă acum —
+  înainte de producție facem oricum o măsurare la fața locului."*, and its plan hint *"Planul se
+  actualizează la tastare și se oglindește odată cu cotul."* (D1B's lead, *"Măsoară de la perete la
+  perete"*, is left out in every option: it contradicts your 2026-09-16 ruling that the number is the
+  length to furnish, not the wall.) (a) Draw the three on desktop only, as the frames show. **(b)
+  *Recommended:* draw none of them** — the phone never shows them, so a phone customer would never
+  read the on-site-measurement promise; *"Dimensiunile camerei"* invites wall-to-wall numbers, which
+  the hint beside the fields exists to prevent; the plan hint mentions the corner, which a straight
+  kitchen does not have; and the specification says *"same rules, same copy"* across the two screens.
+  D1C's *Sugestii* card is drawn under every option, because the milestone asks for an actionable
+  suggestion on desktop. (c) Also leave the card's words out and reuse the phone's *"Sau alege o formă
+  liniară."* on the card. *Until you answer:* (b).
+- **Q-7L-2 (coordinator, confirmation).** D10's derivation: the milestone criterion *"a preview that
+  fills as bodies are placed"* (`:628`) is struck by R12 — the preview is the room's own plan, static.
+  The architect reads this as already decided by R12; confirm, or say where it is not.
 
 ## Wave 7D1 — dispatchable punch list
 
