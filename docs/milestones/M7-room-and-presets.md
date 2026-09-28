@@ -5079,6 +5079,22 @@ about a second (the verifier holds it); 7J R5's camera framing and every other e
   frames' widths are maxima (G15).
 - **R8 — Q-7L-1 answers (a) after S3 has landed.** One follow-up slice adds three leaves and their
   CSS; the lock moves twice, each time in its own commit. No slice waits.
+- **R9 — A desktop load paints the phone-sized drawing before fill mode resolves.** **Materialised
+  2026-09-29, accepted by coordinator ruling as a known, bounded limitation — not a defect.** The
+  server has no viewport hint and the phone's server render must stay byte-identical at every
+  viewport, so the server always emits the phone-sized (unmeasured) plan; a desktop browser paints it
+  until the `ResizeObserver` measurement resolves after hydration. The border-sizing fix and the
+  `useLayoutEffect` timing cut the window from ~8–10 paints to ~4 on a production build; closing it
+  to zero was attempted and reverted, because it either broke the phone's SSR byte-identity or raised
+  a real hydration mismatch. Measured 2026-09-29, 20 loads each at 1440 px (first load and reload):
+  3–4 recorded paints before the first measured one on a production build, 7 on `next dev`. A8's
+  desktop test therefore reads *"nothing sized for another box"* as: the window converges, is at most
+  12 recorded paints (`MAX_PRE_HYDRATION_PLAN_PAINTS`, headroom over the slower leg), every paint
+  inside it is the phone render (`data-plan-measured="false"`), and every paint after it is measured
+  and box-sized (±1). This is the one assertion 7L loosened, by ruling, against §5's *"a weakened
+  assertion"* — the phone arm of A8 is unchanged. **Trigger for revisiting:** a requirement for a true
+  zero-flash guarantee — a server-side viewport hint (client hints) becoming available, or the owner
+  reporting the flash as visibly jarring in practice. Scope a dedicated follow-up then, not before.
 
 #### 7. Records, and questions
 
