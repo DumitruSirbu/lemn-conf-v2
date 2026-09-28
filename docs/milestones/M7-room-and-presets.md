@@ -1569,7 +1569,7 @@ table.
 | **7I** | Mirrored right-hand L; a mirror that works on one group — **DONE 2026-09-24. Commits: plan + ADR 0129 `4ff2d64`; S1 `95c5ad4`; S2 `e653efb`; S3 `bf3716a`; S4 `250efb7`; QA fixes + QA tests `a20085a`; review fixes `f653bdf`; comment-only `HEAD`. See [7I close-out](#7i-close-out--2026-09-24)** | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition — **DONE 2026-09-28. Commits: plan + ADR 0130 + ADR 0108 Amendment G + ADR 0116 Amendment A `5596de1`; S1 `c39cd95`; S2 `8c9b1bf`; S3 `b83f172`; S4 `f4de5dd`; S5 `e34f1e3`; S6 `c97ce3b`; QA fixes `7f386c9`; review fixes `d00cfc0`. See [7J close-out](#7j-close-out--2026-09-28)** | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1, Q-7J-1 at 1200–6000 mm, ADR 0108 Amendment G) |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
-| **7K** | The mobile gate — **PLANNED 2026-09-28, see [Wave 7K — the plan](#wave-7k--the-plan-2026-09-28)**: four inherited specs plus one new touch-driven spec; the preset arm moves with 7F3 (D2) | `apps/web/tests/e2e/mobile-gate.e2e.spec.ts`, `tests/e2e/support/step-one-by-touch.ts` (both new); no production file | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | Q-7K-1 (real device, not blocking); Q-7K-2 (coordinator confirmation) |
+| **7K** | The mobile gate — **DONE 2026-09-28. Commits: plan `d0a21a2`; S0-S2 implementation `d841d9a`; review fixes `daea173` (HEAD). See [7K close-out](#7k-close-out--2026-09-28)** | `apps/web/tests/e2e/mobile-gate.e2e.spec.ts`, `tests/e2e/support/step-one-by-touch.ts` (both new); no production file | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | answered (Q-7K-1 no; Q-7K-2 yes) |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
 
@@ -4698,6 +4698,90 @@ never shows an editor; no customer journey can reach the save-as-preset control.
 discarded after success — `runPromise` is deliberately never cleared on success, since it is
 terminal. A re-run of generation is a new selection and needs a new attempt. 7F3's (a) and (b) above
 apply equally to the generation hand-off.
+
+### 7K close-out — 2026-09-28
+
+**What shipped — the M7 phase gate: the mobile customer journey is proven by touch, not click.**
+Commits, in order: plan `d0a21a2`; S0-S2 implementation (`mobile-gate.e2e.spec.ts` +
+`support/step-one-by-touch.ts`) `d841d9a`; review fixes (teardown captures a mid-flight mint, an
+additive check on requests) `daea173` (HEAD). One new spec of 5 tests plus one support module,
+covering: the L journey twice by touch (`{ro, left}`, `{ru, right}`) with a full round-trip check
+against the real `PUT`/`GET` bodies (`cornerDirection` present only in the right-hand case);
+browser Back/Forward from the editor and resume onto the newest design; leaving 1F while a write is
+observed in flight (precondition asserted, not assumed); the straight kitchen's journey in `ro`; a
+U-refusal tap at 1A. The four inherited specs (`room-to-editor.qa`, `room-traversal.qa`,
+`linear-flow*`, `mirror-real-flow*`) are verified untouched and still green (criterion 18).
+
+**S0 census.** Confirmed all seven gaps the plan listed (§7K plan, above) still existed at
+implementation time, verified by grep against the plan's own citations — no drift.
+
+**QA (Light, sabotage against criterion 17).** The hand-off `push`→`replace` reddens criterion 11
+(Back). `cornerDirection` dropped on store reddens criterion 7 **in the right-hand case only**,
+proving the discriminator. A literal "compose twice" in the *Continuă* handler reddens nothing,
+correctly, because of an existing run-token guard in `use-generation.ts` (verified sound by the
+logic reviewer reading that guard directly) — reported against its criterion per the plan's own
+instruction rather than dropped. A stronger "second attempt actually built and handed off" mutation
+does redden all five tests. The negative control (a different interior room per shape) stays green.
+Every mutation was reverted and confirmed via `git diff`.
+
+**ADR 0105 timing (criterion 19, local `next dev` only).** Mobile leg: 357 tests, 4.1 min wall-clock;
+`mobile-gate.e2e.spec.ts` itself 67.1 s (4.4% of the leg). The plan's "added or changed since
+`995ad03`" filter gave 100% of files, which the report judged meaningless (nearly every mobile spec
+has been touched since then), and instead split files M7 added (25 files, 250 tests, 52.5%) from
+pre-M7 files M7 modified (21 files, 109 tests, 47.5%). The CI runner's own figure remains outstanding
+— `ci.yml` has never run on this branch.
+
+**Review.** Logic: two findings, both fixed in the review-fix commit (`daea173`). (1) The mid-write
+test's orphaned design could escape cleanup on a failure path before the `POST`'s response event
+fired — fixed by capturing mint ids from the request handler itself with a bounded wait in teardown.
+(2) The "no `/d/` URL committed" check relied on a fixed wait window — added an additive check that
+no *request* to the editor route was ever issued during the same window (request initiation is
+immediate, independent of response latency). Both fixes verified with temporary probes against real
+scenarios, then reverted. One observation, not a defect: the mid-write test asserts more precisely
+than the plan strictly requires (waits for exactly `POST` then `PUT`) — noted for whoever next
+touches the hand-off's write sequence. Clean-code: essentially clean. One low-severity, non-blocking
+note — a small i18n message-loading helper in the new support module duplicates ~3 lines of
+file-read boilerplate already present in `romanian-content.e2e.ts`, for a legitimate reason (the new
+module needs raw parameterized translation in both locales, that module only exposes pre-resolved
+Romanian) — flagged as coordinator follow-up alongside the plan's own G17 census of similar existing
+duplication, not a required fix.
+
+**Visual (S3, the phase gate).** Completed for all three journeys (L ro/left, L ru/right, linear ro)
+at 390×844 in a production build. Confirmed: the top-bar pill reads *1/4* at every Step-1 state and
+*2/4* in the editor; no horizontal overflow; 1C's validation styling (reason beside field, red
+wall/border, red plan-preview segment) correct in both locales; 1F's composition rows render
+correctly; the composed kitchen draws correctly in the editor including correct left/right mirroring
+for the two L cases; the corner toggle present and correctly labelled for L, absent for the straight
+kitchen (which also shows exactly one length field); console clean throughout (only benign
+CSP/favicon/THREE.Clock noise). **Not verified**, named per criterion 20's own instruction: real
+touch-vs-click divergence on actual hardware (Q-7K-1, owner answered no, out of scope) and criteria
+7-14's functional assertions (left to the e2e spec, not the capture list). Six throwaway design rows
+were minted in `lemn-conf-v2-preview` during this pass (no isolated test database wired for manual
+browser verification); the owner was informed and chose to leave them, same as any abandoned real
+customer design.
+
+**Gates.** Final `pnpm ci:local` at `daea173`: **ALL GATES GREEN** — domain 5018/5018, persistence
+559/559, three-adapter 3642/3642, web 4719/4719, e2e 451 passed (2 skipped, up from 446 pre-wave —
+the new spec's 5 tests), build/boundary/lockfile/SCA all PASS.
+
+**Deviations from the plan, with rationale:** none to production behaviour (this wave touches no
+production file, per its own scope). The ADR 0105 filter substitution above (files-added/-modified
+split, in place of the plan's "changed since `995ad03`" measure) is a reporting-method change, not a
+product one, made because the planned filter returned a meaningless 100%.
+
+**Deferred, named with an owner:** the M7-close ADR recording the preset-path deferral past M8
+(§7 of the 7K plan, "flagged for the coordinator, not blocking") — recommended at M7's own
+close-out, not this wave. The i18n helper duplication (review, above) — coordinator follow-up
+alongside the plan's G17 census, not a required fix. Real-hardware touch verification — out of
+scope per Q-7K-1's owner answer, re-openable if ever wanted before M7 closes.
+
+**Owner line for the next RESUME HERE:** Q-7K-1 answered no (emulated touch is enough, no
+real-phone walk needed before M7 closes); Q-7K-2 confirmed yes by the coordinator (the mobile gate
+covers the composed path only, the preset path re-gated when 7F3 revives, per the 2026-09-15/
+2026-09-22 rulings). No further owner action is needed to accept 7K.
+
+Implementation and review are `d0a21a2`…`daea173`; documentation close-out is this commit.
+**Next wave: 7L** (the desktop line, D1A-D1F), then Gate M7-C, per the recorded order.
 
 ## Wave 7D1 — dispatchable punch list
 

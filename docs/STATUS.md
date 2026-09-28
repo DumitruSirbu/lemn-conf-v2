@@ -33,49 +33,44 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
-> **RESUME HERE — 2026-09-28, later than 7J below. M7 wave 7K ("the mobile gate") is PLANNED, not yet
-> implemented.** The plan is written and both its open questions are settled — nothing here is
-> blocked on a decision, only on dispatching the work. Full plan:
-> [`milestones/M7-room-and-presets.md`, *Wave 7K — the plan
-> (2026-09-28)*](milestones/M7-room-and-presets.md#wave-7k--the-plan-2026-09-28), directly after the
-> 7J close-out.
+> **RESUME HERE — 2026-09-28, later than 7J below. M7 wave 7K ("the mobile gate") is DONE.** The full
+> mobile customer journey is proven by touch, not click, across the L (`{ro, left}`, `{ru, right}`)
+> and straight (`ro`) cases, plus Back/Forward, resume, a mid-write leave and a U-refusal tap. Full
+> close-out: [`milestones/M7-room-and-presets.md`, *7K close-out —
+> 2026-09-28*](milestones/M7-room-and-presets.md#7k-close-out--2026-09-28), directly after the 7K
+> plan.
 >
-> **What the plan says.** A tests-only wave (`apps/web/tests/e2e/*` only, no production files),
-> gating the full mobile customer journey by touch rather than click. It inherits four existing specs
-> unchanged (`room-to-editor.qa`, `room-traversal.qa`, `linear-flow*`, `mirror-real-flow*`) and adds
-> one new spec, `mobile-gate.e2e.spec.ts` (+ a `step-one-by-touch.ts` support helper), to close seven
-> census gaps: no Step-1 journey driven by `.tap()`; 1C never reached by typing (only by deep link);
-> browser Back/Forward from the editor never asserted; the stored-design round trip only checked
-> against a stubbed fetch, never the real `PUT`/`GET` bodies; resume only tested on an API-minted
-> design, never one composed in Step 1; leaving 1F mid-save never tested in a browser; no composing
-> journey run in Russian. Slices: **S0** census (confirm the gaps still hold), **S1** the L journey by
-> touch in `{ro, left}` and `{ru, right}` with the round-trip check on the right-hand document, **S2**
-> Backs/resume/mid-save/the straight journey's remaining gaps/one U-refusal tap, **S3** a visual
-> verifier walks it in a production build plus an ADR 0105 timing report on the now-446-test mobile
-> leg (never run in CI on this branch).
+> **What shipped.** One new spec (`mobile-gate.e2e.spec.ts`, 5 tests) plus one support module
+> (`step-one-by-touch.ts`); the four inherited specs (`room-to-editor.qa`, `room-traversal.qa`,
+> `linear-flow*`, `mirror-real-flow*`) verified untouched and still green. Commits, in order: plan
+> `d0a21a2`; S0-S2 implementation `d841d9a`; review fixes (teardown captures a mid-flight mint, an
+> additive check on requests) `daea173` (HEAD).
 >
-> **Both owner-facing questions the plan raised are answered, so dispatch needs no further sign-off:**
-> Q-7K-1 (should M7's gate include a real-phone walkthrough, not only emulated touch) — **owner
-> answered no**, emulated touch coverage is enough. Q-7K-2 (does the mobile gate cover only the
-> composed path, with the preset path staying deferred per the 2026-09-15/2026-09-22 rulings) —
-> **coordinator confirmed yes**, cited to the plan's own G3.
+> **QA (sabotage against criterion 17) and review found no blocker.** The hand-off `push`→`replace`
+> reddens Back; dropping `cornerDirection` on store reddens the round trip **in the right-hand case
+> only**, proving the discriminator; a literal "compose twice" reddens nothing, correctly, because of
+> an existing run-token guard (verified sound by the reviewer). Review found and fixed two logic
+> issues (an orphaned-design cleanup race; a fixed-wait check strengthened to an additive
+> request-level check) and noted one low-severity, non-blocking duplication (an i18n loading helper),
+> both in the close-out.
 >
-> **Why it stopped here rather than shipping:** dispatching the S0–S2 implementation agent hit a
-> transient server-side classifier outage (repeated "auto mode classifier gave no verdict" errors on
-> every action tool — Agent, Bash, even ScheduleWakeup — not specific to this task). The user asked to
-> record state and will resume after restarting the session rather than wait it out.
+> **Both owner-facing questions are closed, not just answered.** Q-7K-1 (should M7's gate include a
+> real-phone walkthrough) — **owner said no**, emulated touch is enough; M7 closes without one.
+> Q-7K-2 (does the gate cover only the composed path) — **coordinator confirmed yes**.
 >
-> **Next action for whoever resumes this:** dispatch `configurator-qa` to implement 7K's S0, S1 and S2
-> exactly as the plan states (the dispatch prompt used this session is reconstructable from the plan
-> alone — nothing decided outside the doc). Then S3 (visual verification), review per the plan's
-> tier (**Light**), `pnpm ci:local`, commit, and close-out — same shape as 7J's cycle, documented in
-> its own close-out just above 7K's plan in the milestone file.
+> **Final `pnpm ci:local` at `daea173`: ALL GATES GREEN** — domain 5018/5018, persistence 559/559,
+> three-adapter 3642/3642, web 4719/4719, e2e 451 passed (2 skipped, up from 446 pre-wave),
+> build/boundary/lockfile/SCA all PASS.
+>
+> **Next wave: 7L** (the desktop line, D1A–D1F), then Gate M7-C, per the recorded order. No owner
+> action is needed to accept 7K.
 
 Last updated: 2026-09-28 — **M7 wave 7J is DONE** (straight kitchens through composition, 1200–6000 mm
 on one wall, no corner). See the [7J close-out](milestones/M7-room-and-presets.md#7j-close-out--2026-09-28)
 and the M7 row below (the 7I entry directly below this one is superseded, kept for its detail).
-**Next wave: 7K** (the mobile gate — full e2e touch flow through all six Step-1 states into the
-editor), then 7L, then Gate M7-C, per the recorded order. Final `pnpm ci:local` at the review-fix
+~~**Next wave: 7K** (the mobile gate — full e2e touch flow through all six Step-1 states into the
+editor), then 7L, then Gate M7-C, per the recorded order.~~ **7K is now DONE too — see the RESUME HERE
+entry above.** Final `pnpm ci:local` at the review-fix
 commit (`d00cfc0`): **ALL GATES GREEN** — domain 5018/5018, persistence 559/559, three-adapter
 3642/3642, web 4719/4719, e2e 446 passed (2 skipped), build/boundary/lockfile/SCA all PASS. QA found
 and fixed one camera button reading pressed after a stale wall-B view; review found and fixed four
