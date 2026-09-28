@@ -153,10 +153,14 @@ export interface CapturedSave {
 export interface DesignWrites {
   readonly postCount: () => number;
   readonly saves: () => readonly CapturedSave[];
-  /** The ids every successful `POST /api/designs` answered with, once their bodies have been read.
-   *  The fixture below deletes exactly these (ADR 0006; criterion 16), which is why an id is taken
-   *  from the observed response and never from a URL the test might not reach (risk R7). */
+  /** The ids every successful `POST /api/designs` answered with, once their bodies have been read —
+   *  awaiting any mint still in flight. The fixture below deletes exactly these (ADR 0006; criterion
+   *  16), which is why an id is taken from the observed response and never from a URL the test might
+   *  not reach (risk R7). */
   readonly mintedIds: () => Promise<readonly string[]>;
+  /** The same ids, but a mint whose response has not arrived within `timeoutMs` is logged and
+   *  skipped rather than awaited — for teardown, which must neither hang nor throw. */
+  readonly mintedIdsWithin: (timeoutMs: number) => Promise<readonly string[]>;
 }
 
 function isMint(request: Request): boolean {
@@ -186,39 +190,91 @@ async function mintedIdIn(response: Response): Promise<string | undefined> {
   }
 }
 
+/** The id a mint answered with, or `undefined` if it failed, was refused, or never got a response
+ *  (`request.response()` resolves `null` on a network error and rejects if the page went away). */
+async function mintedIdOf(request: Request): Promise<string | undefined> {
+  try {
+    const response = await request.response();
+    return response?.ok() === true ? await mintedIdIn(response) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A mint still unanswered when the bound runs out, so teardown moves on instead of hanging. */
+const UNANSWERED_MINT = Symbol("unanswered mint");
+
+async function withinBound(
+  mint: Promise<string | undefined>,
+  timeoutMs: number,
+): Promise<string | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bound = new Promise<typeof UNANSWERED_MINT>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(UNANSWERED_MINT);
+    }, timeoutMs);
+  });
+  const outcome = await Promise.race([mint, bound]);
+  clearTimeout(timer);
+  if (outcome !== UNANSWERED_MINT) return outcome;
+  console.warn(
+    `mobile gate cleanup: a POST ${DESIGNS_ENDPOINT} had no response after ${String(timeoutMs)} ms; ` +
+      "its row, if one was written, is not deleted by this run",
+  );
+  return undefined;
+}
+
+function definedIds(ids: readonly (string | undefined)[]): string[] {
+  return ids.filter((id): id is string => id !== undefined);
+}
+
 export function recordDesignWrites(page: Page): DesignWrites {
   let posts = 0;
   const saves: CapturedSave[] = [];
+  // Registered when the `POST` **leaves the browser**, not when its response arrives: an assertion
+  // that throws while the mint is still in flight (criterion 14 holds it for 1.5 s) must not leave
+  // teardown with an empty list and the row in the database (risk R7).
   const mints: Promise<string | undefined>[] = [];
 
   page.on("request", (request) => {
-    if (isMint(request)) posts += 1;
+    if (isMint(request)) {
+      posts += 1;
+      mints.push(mintedIdOf(request));
+    }
     const designId = saveTargetOf(request);
     if (designId !== undefined) {
       saves.push({ designId, body: request.postDataJSON() as unknown });
-    }
-  });
-  page.on("response", (response) => {
-    if (isMint(response.request()) && response.ok()) {
-      mints.push(mintedIdIn(response));
     }
   });
 
   return {
     postCount: () => posts,
     saves: () => saves,
-    mintedIds: async () =>
-      (await Promise.all(mints)).filter((id): id is string => id !== undefined),
+    mintedIds: async () => definedIds(await Promise.all(mints)),
+    mintedIdsWithin: async (timeoutMs) =>
+      definedIds(
+        await Promise.all(mints.map((mint) => withinBound(mint, timeoutMs))),
+      ),
+  };
+}
+
+/** An ordered record of pathnames, read from a mark onward. */
+export interface PathnameRecord {
+  /** A position in the record, to read from later. */
+  readonly mark: () => number;
+  readonly since: (mark: number) => readonly string[];
+}
+
+function readableRecordOf(pathnames: readonly string[]): PathnameRecord {
+  return {
+    mark: () => pathnames.length,
+    since: (mark) => pathnames.slice(mark),
   };
 }
 
 /** The main frame's committed pathnames, in order — same-document (router) commits included, which
  *  is what lets the gate say *"no other pathname"* between a tap and the editor (criterion 6). */
-export interface CommittedPathnames {
-  /** A position in the record, to read from later. */
-  readonly mark: () => number;
-  readonly since: (mark: number) => readonly string[];
-}
+export type CommittedPathnames = PathnameRecord;
 
 export function recordCommittedPathnames(page: Page): CommittedPathnames {
   const pathnames: string[] = [];
@@ -226,10 +282,25 @@ export function recordCommittedPathnames(page: Page): CommittedPathnames {
     if (frame === page.mainFrame())
       pathnames.push(new URL(frame.url()).pathname);
   });
-  return {
-    mark: () => pathnames.length,
-    since: (mark) => pathnames.slice(mark),
-  };
+  return readableRecordOf(pathnames);
+}
+
+/** The pathname of every request the page **issued**, in order, whatever became of it. A router
+ *  `push` requests its target the instant it runs, so this sees a navigation that a slow response or
+ *  a cold compile would keep from ever being committed (criterion 14). */
+export type RequestedPathnames = PathnameRecord;
+
+export function recordRequestedPathnames(page: Page): RequestedPathnames {
+  const pathnames: string[] = [];
+  page.on("request", (request) => {
+    pathnames.push(new URL(request.url()).pathname);
+  });
+  return readableRecordOf(pathnames);
+}
+
+/** True for a pathname on the editor's route — `/d/{id}` with or without a locale prefix. */
+export function isEditorRoutePathname(pathname: string): boolean {
+  return /^\/(?:[^/]+\/)?d\//.test(pathname);
 }
 
 export function recordPageErrors(page: Page): readonly string[] {
@@ -239,6 +310,10 @@ export function recordPageErrors(page: Page): readonly string[] {
   });
   return errors;
 }
+
+/** How long teardown waits for a mint still in flight — the emulated 1.5 s round trip of criterion 14
+ *  many times over, on `next dev` — before it logs the id as unrecoverable and moves on. */
+const MINT_RESPONSE_BOUND_IN_TEARDOWN_MS = 15_000;
 
 /**
  * The test fixture every gate test runs under: its own page's writes and commits recorded from before
@@ -255,7 +330,9 @@ export const test = base.extend<{
     try {
       await use(writes);
     } finally {
-      await deleteMintedDesigns(await writes.mintedIds());
+      await deleteMintedDesigns(
+        await writes.mintedIdsWithin(MINT_RESPONSE_BOUND_IN_TEARDOWN_MS),
+      );
     }
   },
   committedPathnames: async ({ page }, use) => {

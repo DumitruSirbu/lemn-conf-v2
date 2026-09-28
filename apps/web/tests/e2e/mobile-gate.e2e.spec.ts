@@ -29,11 +29,13 @@ import {
   eraseDigits,
   findBaseRowTapTarget,
   idInEditorUrl,
+  isEditorRoutePathname,
   isEditorUrl,
   lengthField,
   readDesignWritesInPage,
   readStoredDesign,
   readTheHandOff,
+  recordRequestedPathnames,
   roomPath,
   roomScreen,
   stepSentence,
@@ -385,7 +387,9 @@ test("leaving 1F while the design is being written: the form stays, no editor op
   await walkToTheTypedLRoom(page, { locale, direction });
   await watchDesignWritesInPage(page);
   const restoreTheNetwork = await emulateNetworkLatency(page, WRITE_LATENCY_MS);
+  const requestedPathnames = recordRequestedPathnames(page);
   const beforeTheTap = committedPathnames.mark();
+  const requestsBeforeTheTap = requestedPathnames.mark();
 
   await continueButton(page).tap();
   await expect(page.getByTestId("room-compose")).toBeVisible();
@@ -412,6 +416,15 @@ test("leaving 1F while the design is being written: the form stays, no editor op
   // been armed, its `push` would commit `/d/{id}` one emulated round trip (the RSC fetch) after the
   // save landed; this waits out that round trip twice over plus the settle before reading the record.
   await page.waitForTimeout(WRITE_LATENCY_MS * 2 + URL_SETTLE_MS);
+  // The sharper witness first: a stale `push` **requests** `/{locale}/d/{id}` the instant it runs, so
+  // this cannot be outlasted by a slow RSC response or a cold `next dev` compile the way a check on
+  // the committed URL alone could be.
+  expect(
+    requestedPathnames
+      .since(requestsBeforeTheTap)
+      .filter(isEditorRoutePathname),
+    "the abandoned hand-off still requested the editor",
+  ).toEqual([]);
   expect(
     committedPathnames
       .since(beforeTheTap)
