@@ -26,7 +26,7 @@
 // "with `PLAN_BOX` and the default set" clause).
 import { useTranslations } from "next-intl";
 import type { CSSProperties, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import {
   DEFAULT_PLAN_PREVIEW_METRICS,
@@ -51,6 +51,10 @@ export interface PlanPreviewProps {
 }
 
 const NO_MARKED_WALLS: readonly MarkedPlanWall[] = [];
+
+/** The one test id `.planBox` is ever rendered with, named once so both render branches below agree
+ *  with each other and with `readPlanDrawing`/`readPlanPaints` in the e2e spec. */
+const PLAN_BOX_TEST_ID = "room-plan-box";
 
 /** A wall's paint: the frame's accent (`:135`), or frame 1C's red (`:210-211`) on a wall the room refuses.
  *  The red is published by `.planBox` as `--plan-wall-issue`, so the bar and its label share one. */
@@ -110,8 +114,9 @@ export function PlanPreview({
         <div
           ref={boxRef}
           className={styles.planBox}
-          data-testid="room-plan-box"
+          data-testid={PLAN_BOX_TEST_ID}
           data-plan-measured="false"
+          style={planBoxBorderStyle()}
         />
       </div>
     );
@@ -136,7 +141,7 @@ export function PlanPreview({
       <div
         ref={boxRef}
         className={styles.planBox}
-        data-testid="room-plan-box"
+        data-testid={PLAN_BOX_TEST_ID}
         data-plan-measured={fill.kind === "measured" ? "true" : "false"}
         style={
           fill.kind === "measured"
@@ -175,13 +180,21 @@ const AWAITING_MEASUREMENT: PlanFillState = { kind: "awaiting-measurement" };
  * the phone layout) is read again rather than trusted from mount. Criterion 9: an environment with no
  * `ResizeObserver` (a bare jsdom) never measures and never throws — the component simply stays
  * unflagged and draws `PLAN_BOX`.
+ *
+ * **`useLayoutEffect`, not `useEffect`** (7L QA finding, defect 1): the server can never know the
+ * client's own viewport, so hydration always starts from the not-fill markup (D6c) — deliberately
+ * diverging the client's first render from it here (an `initialPlanFillState` read via `useState`'s
+ * lazy initializer, tried and reverted) throws a hydration error instead, which is worse than the gap
+ * it closes. `useLayoutEffect` still closes most of it: it commits the flag's real answer, and the
+ * observer, synchronously after the DOM mutates and before the browser paints, rather than in a
+ * passive effect queued a whole extra frame behind that first paint.
  */
 function usePlanFillState(
   boxRef: RefObject<HTMLDivElement | null>,
 ): PlanFillState {
   const [state, setState] = useState<PlanFillState>(NOT_FILL);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const box = boxRef.current;
     if (box === null || typeof ResizeObserver === "undefined") return undefined;
 
@@ -247,8 +260,19 @@ function flooredAtMinimum(box: PlanBox, metrics: PlanPreviewMetrics): PlanBox {
  *  reserved for (D6c). */
 function planBoxMetricsStyle(metrics: PlanPreviewMetrics): CSSProperties {
   return {
-    "--plan-box-border": `${String(PLAN_BOX_BORDER_PX)}px`,
+    ...planBoxBorderStyle(),
     "--plan-label-line": `${String(metrics.labelLinePx)}px`,
+  } as CSSProperties;
+}
+
+/** The border alone, applied from the box's very first render (including `awaiting-measurement`,
+ *  which draws nothing else) — never added a paint later, which is what let `ResizeObserver`'s first
+ *  measurement include the 2 px a border added right after it (7L QA finding, defect 2). Without
+ *  `--plan-box-border` at all, `room.module.css:374`'s `var()` fails to resolve and the whole `border`
+ *  declaration is invalid at computed-value time, so the box is borderless rather than unstyled. */
+function planBoxBorderStyle(): CSSProperties {
+  return {
+    "--plan-box-border": `${String(PLAN_BOX_BORDER_PX)}px`,
   } as CSSProperties;
 }
 

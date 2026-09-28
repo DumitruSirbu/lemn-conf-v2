@@ -148,22 +148,69 @@ export function serialiseRoomInput(input: ParsedRoomInput): URLSearchParams {
  * document from before this wave still reopens on the left toggle, exactly as it always has.
  */
 export function roomHrefFromDesignRoom(room: DesignRoom): string {
+  const lengths = parsedRoomLengthsOf(room);
   const input: ParsedRoomInput =
     room.shape === "linear"
       ? {
           shape: "linear",
-          wallAMm: room.widthMm,
-          heightMm: room.heightMm,
+          wallAMm: millimetresOf(lengths, "wallA"),
+          heightMm: millimetresOf(lengths, "height"),
         }
       : {
           shape: "L",
-          wallAMm: room.widthMm,
-          wallBMm: room.depthMm,
-          heightMm: room.heightMm,
+          wallAMm: millimetresOf(lengths, "wallA"),
+          wallBMm: millimetresOf(lengths, "wallB"),
+          heightMm: millimetresOf(lengths, "height"),
           cornerDirection: cornerDirectionOf(room),
         };
 
   return `/configurator/room?${serialiseRoomInput(input).toString()}`;
+}
+
+/** A length read off a stored `DesignRoom`, in the shape both `roomHrefFromDesignRoom`'s URL and
+ *  `generation-steps.tsx`'s live 1F draft build a room draft's fields from. */
+export interface DesignRoomLength {
+  readonly field: "wallA" | "wallB" | "height";
+  readonly millimetres: number;
+}
+
+/**
+ * **The one `DesignRoom` → wall/height mapping**, so `roomHrefFromDesignRoom` above and
+ * `generation-steps.tsx`'s `roomDraftFor` cannot map a stored room's numbers two different ways
+ * (7L review finding F5). `widthMm` is wall A; `depthMm` is wall B, but only for a room that turns a
+ * corner — a straight room's `depthMm` is the drawn floor's depth in front of the run (ADR 0130 D3),
+ * never a wall the customer typed. A `Record` over `DesignRoom["shape"]`, so a shape `DesignRoom`
+ * learns to carry a third wall in is a compile error here, not a call site silently missing one.
+ */
+const DESIGN_ROOM_LENGTHS = {
+  linear: (room) => [
+    { field: "wallA", millimetres: room.widthMm },
+    { field: "height", millimetres: room.heightMm },
+  ],
+  L: (room) => [
+    { field: "wallA", millimetres: room.widthMm },
+    { field: "wallB", millimetres: room.depthMm },
+    { field: "height", millimetres: room.heightMm },
+  ],
+} as const satisfies Readonly<
+  Record<DesignRoom["shape"], (room: DesignRoom) => readonly DesignRoomLength[]>
+>;
+
+export function parsedRoomLengthsOf(
+  room: DesignRoom,
+): readonly DesignRoomLength[] {
+  return DESIGN_ROOM_LENGTHS[room.shape](room);
+}
+
+function millimetresOf(
+  lengths: readonly DesignRoomLength[],
+  field: DesignRoomLength["field"],
+): number {
+  const length = lengths.find((candidate) => candidate.field === field);
+  if (length === undefined) {
+    throw new Error(`a DesignRoom's own mapping carries no ${field}`);
+  }
+  return length.millimetres;
 }
 
 function invalidShape(): RoomUrlState {

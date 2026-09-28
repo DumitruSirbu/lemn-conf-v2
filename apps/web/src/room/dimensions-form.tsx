@@ -65,6 +65,10 @@ export interface DimensionsFormProps {
   /** The fields holding text the field's parser refuses (`RoomIssueView.unreadableFields`). The form
    *  decides when each is explained: after the customer leaves it, never while they type. */
   readonly unreadableFields?: readonly RoomLengthField[];
+  /** The linear suggestion's id while it shows (D9); appended after each offending field's own
+   *  reason, so `aria-describedby` reads the reason then the suggestion. Undefined while it does
+   *  not, and for a field carrying no reason of its own. */
+  readonly suggestionId?: string | undefined;
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
   readonly onChooseCorner: (direction: CornerDirection) => void;
 }
@@ -152,6 +156,7 @@ export function DimensionsForm({
   draft,
   fieldReasons = NO_FIELD_REASONS,
   unreadableFields = NO_UNREADABLE_FIELDS,
+  suggestionId,
   onEnterLength,
   onChooseCorner,
 }: DimensionsFormProps) {
@@ -170,6 +175,7 @@ export function DimensionsForm({
         draft={draft}
         fieldReasons={fieldReasons}
         unreadableFields={unreadableFields}
+        suggestionId={suggestionId}
         onEnterLength={onEnterLength}
       />
     </>
@@ -232,6 +238,7 @@ interface LengthFieldsProps {
   readonly draft: RoomDraft;
   readonly fieldReasons: readonly RoomFieldReason[];
   readonly unreadableFields: readonly RoomLengthField[];
+  readonly suggestionId: string | undefined;
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
 }
 
@@ -241,6 +248,7 @@ function LengthFields({
   draft,
   fieldReasons,
   unreadableFields,
+  suggestionId,
   onEnterLength,
 }: LengthFieldsProps) {
   const translate = useTranslations();
@@ -270,6 +278,7 @@ function LengthFields({
               ? UNREADABLE_REASON_KEYS
               : reasonKeysFor(field, fieldReasons)
           }
+          suggestionId={suggestionId}
           onEnter={(entered, text) => {
             unreadableExplained.forgetUnlessShown(entered);
             onEnterLength(entered, text);
@@ -290,6 +299,9 @@ interface LengthFieldProps {
   /** This field's reasons: its 1C reasons, or the unreadable text's once the field was left. Never
    *  both — a field holding unreadable text keeps the room at 1B, where no field carries a 1C reason. */
   readonly reasonKeys: readonly ReasonMessageKey[];
+  /** The linear suggestion's id while shown; appended after this field's own reason when it carries
+   *  one (D9). */
+  readonly suggestionId: string | undefined;
   readonly onEnter: (field: RoomLengthField, text: string) => void;
   readonly onLeave: (field: RoomLengthField) => void;
 }
@@ -309,6 +321,7 @@ function LengthField({
   shape,
   hintId,
   reasonKeys,
+  suggestionId,
   onEnter,
   onLeave,
 }: LengthFieldProps) {
@@ -318,7 +331,15 @@ function LengthField({
   const reasonIds = reasonKeys.map(
     (_, index) => `${id}-reason-${String(index)}`,
   );
-  const describedBy = [...(isWall ? [hintId, helpId] : []), ...reasonIds];
+  // D9: only an *offending* field — one that already carries a reason of its own — is described by
+  // the suggestion too, and always after that reason, which is how frame 1C's sentence reads.
+  const suggestionIds =
+    suggestionId !== undefined && reasonKeys.length > 0 ? [suggestionId] : [];
+  const describedBy = [
+    ...(isWall ? [hintId, helpId] : []),
+    ...reasonIds,
+    ...suggestionIds,
+  ];
 
   return (
     <div className={styles.field}>

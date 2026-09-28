@@ -644,3 +644,39 @@ describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", 
     },
   );
 });
+
+/**
+ * **7L review finding F5.** `roomDraftFor` (this file) and `roomHrefFromDesignRoom`
+ * (`room-url-state.ts`) both used to map a stored `DesignRoom`'s numbers onto wall/height fields
+ * independently; now both call the one shared `parsedRoomLengthsOf`. This locks the mapping itself —
+ * wall A from `widthMm`, wall B from `depthMm` only for a room that turns a corner — against the two
+ * drifting apart again, read off what 1F actually draws rather than off the summary line.
+ */
+describe("the composed plan aside maps a DesignRoom the one way parsedRoomLengthsOf does (7L F5)", () => {
+  function planLabelText(wall: "A" | "B"): string | null {
+    return (
+      container.querySelector(`[data-testid="room-plan-label-${wall}"]`)
+        ?.textContent ?? null
+    );
+  }
+
+  it("draws wall A from widthMm and wall B from depthMm for a room that turns a corner", () => {
+    renderRun({
+      phase: "failed",
+      room: { shape: "L", widthMm: 1500, depthMm: 2800, heightMm: 2600 },
+    });
+
+    expect(planLabelText("A")).toContain("1500");
+    expect(planLabelText("B")).toContain("2800");
+  });
+
+  it("draws only wall A from widthMm for a straight room, never a wall B from depthMm", () => {
+    renderRun({
+      phase: "failed",
+      room: { shape: "linear", widthMm: 3400, depthMm: 900, heightMm: 2600 },
+    });
+
+    expect(planLabelText("A")).toContain("3400");
+    expect(planLabelText("B")).toBeNull();
+  });
+});

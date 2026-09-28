@@ -144,6 +144,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       tooLong: "{wall} prea lung",
     },
     presetsAfterValid: "Presetele apar după ce toate valorile sunt valide.",
+    // Wave 7L D8/D11, approved by ADR 0113 decision 2 in the wave that adds it. D1C's *Sugestii*
+    // card, as written (`Desktop.dc.html:248, 250`) — the desktop-only actionable suggestion the
+    // milestone's own criterion asks for. The card's action is the *Liniară* chip's own handler.
+    suggestion: {
+      title: "Sugestii",
+      switchToLinear: "Treci la formă liniară pe peretele A",
+    },
     // Sub-state 1F, wave 7F4a. Frame 1F's wording used as written, with three drafted leaves called
     // out because no frame supplies them:
     //

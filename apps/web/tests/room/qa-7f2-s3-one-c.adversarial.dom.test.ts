@@ -607,39 +607,61 @@ describe("a chip or the corner never starts a burst", () => {
   });
 });
 
-describe("1C is announced into a status region that was already there (F3)", () => {
+// 7L D9/criterion 13: the suggestion left this describe's one region for two, each present, empty,
+// from 1B on — `room-one-c-reasons` and `room-one-c-note` — so it is never announced from inside
+// either while carrying no reason of its own. The tests below are F3's original two, restated over
+// the two regions rather than one; the third ("carries no field reason…") needed no change, because
+// `elementAt(STATUS).textContent` already flattens both regions' text regardless of nesting.
+describe("1C is announced into two status regions that were already there (F3, 7L D9/A13)", () => {
   const STATUS = "room-one-c-status";
+  const REASONS = "room-one-c-reasons";
+  const NOTE = "room-one-c-note";
 
   it.each([
     ["1B", "shape=L"],
     ["1B, linear", "shape=linear"],
     ["1D", A_VALID_ROOM],
-  ])("draws the region empty at %s", (_, search) => {
+  ])("draws both regions empty at %s", (_, search) => {
     render(search);
 
-    const status = elementAt(STATUS);
-    expect(status.getAttribute("role")).toBe("status");
-    expect(status.childNodes).toHaveLength(0);
+    const reasons = elementAt(REASONS);
+    const note = elementAt(NOTE);
+    expect(reasons.getAttribute("role")).toBe("status");
+    expect(reasons.childNodes).toHaveLength(0);
+    expect(note.getAttribute("role")).toBe("status");
+    expect(note.childNodes).toHaveLength(0);
+    expect(maybeAt("room-suggestion-group")).toBe(null);
   });
 
-  it("fills the same node on the pause, rather than inserting a region with its content", () => {
+  it("fills the same nodes on the pause, rather than inserting a region with its content", () => {
     // 3600 x 2160 x 2200 holds the kitchen; wall A retyped to 900 makes it too small.
     const start = "shape=L&wallA=3.6&wallB=2.16&height=2.2&direction=left";
     expect(parsed(new URLSearchParams(start).toString()).substate).toBe("1D");
     render(start);
     withholdTheEchoes();
-    const before = elementAt(STATUS);
+    const reasonsBefore = elementAt(REASONS);
+    const noteBefore = elementAt(NOTE);
+    expect(reasonsBefore.childNodes).toHaveLength(0);
+    expect(noteBefore.childNodes).toHaveLength(0);
 
     type("wallA", "900");
-    expect(before.childNodes).toHaveLength(0);
+    expect(reasonsBefore.childNodes).toHaveLength(0);
+    expect(noteBefore.childNodes).toHaveLength(0);
     advance(URL_SETTLE_MS);
 
-    expect(elementAt(STATUS)).toBe(before);
+    expect(elementAt(REASONS)).toBe(reasonsBefore);
+    expect(elementAt(NOTE)).toBe(noteBefore);
+    expect(maybeAt("room-suggestion-group")).toBe(null);
     expect(
-      [...before.querySelectorAll("[data-testid]")].map((child) =>
+      [...reasonsBefore.querySelectorAll("[data-testid]")].map((child) =>
         child.getAttribute("data-testid"),
       ),
-    ).toEqual(["room-room-reason", "room-presets-after-valid"]);
+    ).toEqual(["room-room-reason"]);
+    expect(
+      [...noteBefore.querySelectorAll("[data-testid]")].map((child) =>
+        child.getAttribute("data-testid"),
+      ),
+    ).toEqual(["room-presets-after-valid"]);
   });
 
   it("carries no field reason, which is described on its input instead", () => {
@@ -652,9 +674,12 @@ describe("1C is announced into a status region that was already there (F3)", () 
     // 7J S5: this room's wall A (3600) and height (2600) now validate as a straight kitchen on
     // their own (ADR 0108 Amendment G), so the status carries the suggestion beside the presets
     // note — the same room `qa-7f2-s4-shape-refusal.adversarial.test.ts`'s "shows for an L refused
-    // on a field" fixture names — where it used to carry the note alone.
+    // on a field" fixture names — where it used to carry the note alone. **7L D9:** the suggestion
+    // (now the clause and, in the same DOM, D1C's card — `.suggestionCard` is hidden by CSS, not
+    // omitted) is a sibling of the two regions rather than a child of either — `status.textContent`
+    // still equals the concatenation, since it flattens every descendant's text regardless of depth.
     expect(status.textContent).toBe(
-      elementAt("room-linear-suggestion").textContent +
+      elementAt("room-suggestion-group").textContent +
         elementAt("room-presets-after-valid").textContent,
     );
   });
@@ -668,6 +693,23 @@ describe("1C is announced into a status region that was already there (F3)", () 
     arriveAt(A_VALID_ROOM);
 
     expect(continueButton().hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  // F1 (7L review, 2026-09-29): a room-level reason (ROOM_TOO_SMALL_FOR_KITCHEN) names no field, so
+  // before this fix the suggestion sat between the two live regions, inside neither, and no field's
+  // `aria-describedby` named it either — reachable from nothing on screen. 1800×1200×2600mm,
+  // direction left, is the reviewer's own reproduction: wall A (1800) passes as a straight room on
+  // its own, so the suggestion fires, while wall A and B together leave no room for the sink and the
+  // hob past the corner cabinet, so the coupled rule fires as a room reason and zero field reasons.
+  it("a room-level reason with no field of its own still reaches the suggestion (F1)", () => {
+    render("shape=L&wallA=1.8&wallB=1.2&height=2.6&direction=left");
+
+    expect(fieldsWithAReason()).toEqual([]);
+    expect(roomReasonCount()).toBe(1);
+    const roomReason = elementAt("room-room-reason");
+    const suggestion = elementAt("room-linear-suggestion");
+
+    expect(roomReason.getAttribute("aria-describedby")).toBe(suggestion.id);
   });
 });
 

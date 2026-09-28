@@ -732,15 +732,19 @@ function describedBy(input: HTMLInputElement): readonly string[] {
 
 describe("a refused field says so to a screen reader (criterion 6)", () => {
   it("describes a refused wall by the hint, its help and its reason, in that order", () => {
+    // 7J S5: this room's wall A (3600) and height (2600) also validate as a straight kitchen on
+    // their own, so wave 7L's D9 adds a fourth id — the suggestion's, after the reason, which is
+    // how frame 1C's sentence reads (7L criterion 13).
     render("shape=L&wallA=3.6&wallB=0.45&height=2.6&direction=left");
     const hintId = elementAt("room-lengths-hint").id;
     const wallB = fieldFor("wallB");
 
-    const [hint, help, reason, ...rest] = describedBy(wallB);
+    const [hint, help, reason, suggestion, ...rest] = describedBy(wallB);
 
     expect(hint).toBe(hintId);
     expect(help).toBe(`${wallB.id}-help`);
     expect(reason).toBe(elementAt("room-length-reason-wallB").id);
+    expect(suggestion).toBe(elementAt("room-linear-suggestion").id);
     expect(rest).toEqual([]);
     expect(wallB.getAttribute("aria-invalid")).toBe("true");
   });

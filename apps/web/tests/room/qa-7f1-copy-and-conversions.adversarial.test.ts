@@ -67,8 +67,10 @@ describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () =
     // short labels, and the note. Wave 7F2 S1b (ADR 0126) swaps one for one: `room.unitMetres` is
     // removed and `room.unitMillimetres` added, so the count does not move. Wave 7J S4's 1 is
     // `room.compose.roomSummaryLinear` (ADR 0130 D10): a straight room's own 1F summary, drafted
-    // rather than approved because no frame draws it.
-    expect(ROOM_KEYS.length).toBe(69);
+    // rather than approved because no frame draws it. Wave 7L S3's 2 are D1C's *Sugestii* card,
+    // `room.suggestion.title` and `room.suggestion.switchToLinear` — the desktop-only actionable
+    // suggestion the milestone's own criterion asks for.
+    expect(ROOM_KEYS.length).toBe(71);
   });
 
   it.each(ROOM_KEYS)("reads %s somewhere under src/room", (key) => {

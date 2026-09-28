@@ -47,6 +47,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
 
 import type { RoomLengthField } from "@/room/room-draft";
 import { OneCStatus } from "@/room/one-c-status";
+import { ValidationSuggestion } from "@/room/validation-suggestion";
 import { URL_SETTLE_MS } from "@/room/room-query-sync";
 import { RoomScreen } from "@/room/room-screen";
 import { requiredFieldsFor } from "@/room/room-url-state";
@@ -522,6 +523,10 @@ describe("what a chip tap announces", () => {
   it("changes both live regions on one tap from a valid L whose walls fill a U: the refusal and the note", () => {
     // Pinned as observed: one tap queues two polite announcements, the refusal's sentence and the
     // note. They say different things, and neither region repeats the other's sentence.
+    //
+    // 7L D9: the note is its own region now (`room-one-c-note`), not the reasons' — this room's own
+    // reasons stay silent (`room-one-c-reasons` does not change), which is what "the refusal and the
+    // note" always meant here.
     render(A_FILLED_U);
     click("room-shape-chip-control-L");
     expect(isRefusalShown()).toBe(false);
@@ -531,7 +536,9 @@ describe("what a chip tap announces", () => {
       click("room-shape-chip-control-U");
     });
 
-    expect([...changed].sort()).toEqual([ONE_C_STATUS, REFUSAL_STATUS].sort());
+    expect([...changed].sort()).toEqual(
+      ["room-one-c-note", REFUSAL_STATUS].sort(),
+    );
     expect(elementAt(ONE_C_STATUS).textContent).not.toContain(shapeSentence());
   });
 
@@ -578,16 +585,26 @@ describe("the refusal in Russian", () => {
 // ---------------------------------------------------------------------------------------------
 
 describe("the linear suggestion, once the domain turns it on (section 8)", () => {
-  it("is drawn once, inside 1C's status region, after the room's reason and before the note", () => {
+  it("sits between the two regions (7L D9), inside neither, after the room's reason and before the note", () => {
     act(() => {
       root.render(
         createElement(NextIntlClientProvider, {
-          children: createElement(OneCStatus, {
-            roomReasons: ["room.issue.roomTooSmall"],
-            isLinearSuggested: true,
-            isNoteShown: true,
-            noteId: "the-note",
-          }),
+          children: createElement(
+            OneCStatus,
+            {
+              roomReasons: ["room.issue.roomTooSmall"],
+              isNoteShown: true,
+              noteId: "the-note",
+            },
+            createElement(ValidationSuggestion, {
+              isShown: true,
+              id: "the-suggestion",
+              onChooseLinear: () => {
+                /* not exercised here — activation is 7L-A12's, in
+                   `qa-7l-suggestion-card-is-the-chip.adversarial.dom.test.ts` */
+              },
+            }),
+          ),
           locale: "ro",
           messages: roMessages,
           timeZone: "Europe/Chisinau",
@@ -595,12 +612,22 @@ describe("the linear suggestion, once the domain turns it on (section 8)", () =>
       );
     });
 
-    const region = elementAt(ONE_C_STATUS);
+    const status = elementAt(ONE_C_STATUS);
     expect(
-      [...region.children].map((child) => child.getAttribute("data-testid")),
-    ).toEqual(["room-room-reason", SUGGESTION, "room-presets-after-valid"]);
+      [...status.children].map((child) => child.getAttribute("data-testid")),
+    ).toEqual([
+      "room-one-c-reasons",
+      "room-suggestion-group",
+      "room-one-c-note",
+    ]);
     expect(elementAt(SUGGESTION).textContent).toBe(
       requireLeafAt(roMessages, "room.issue.orChooseLinear"),
+    );
+    expect(
+      elementAt("room-one-c-reasons").contains(elementAt(SUGGESTION)),
+    ).toBe(false);
+    expect(elementAt("room-one-c-note").contains(elementAt(SUGGESTION))).toBe(
+      false,
     );
   });
 });

@@ -38,7 +38,11 @@
 // longer does would be worse than either. `stepsLabel` is the fifth and latest: the owner made the
 // heading passive (*Ce este inclus*), so the Russian follows it into *Что включено* and matches the
 // `включено` its own rows already show.
-import type { DesignRoom, GenerationLog } from "@lemnaria/configurator-domain";
+import {
+  cornerDirectionOf,
+  type DesignRoom,
+  type GenerationLog,
+} from "@lemnaria/configurator-domain";
 import { useLocale, useTranslations } from "next-intl";
 
 import {
@@ -49,7 +53,14 @@ import {
   type GenerationRow,
   type GenerationRowStatus,
 } from "./generation-model";
-import { requiredFieldsFor } from "./room-url-state";
+import { PlanPreview } from "./plan-preview";
+import {
+  createRoomDraft,
+  withCornerDirection,
+  withStoredLength,
+  type RoomDraft,
+} from "./room-draft";
+import { parsedRoomLengthsOf, requiredFieldsFor } from "./room-url-state";
 import styles from "./room.module.css";
 import type { ActiveGenerationRun } from "./use-generation";
 
@@ -121,6 +132,7 @@ export function GenerationSteps({
         {run.phase === "failed" ? null : <StepList rows={run.rows} />}
         {run.phase === "composed" ? <DroppedRoles log={run.log} /> : null}
         <p className={styles.composeRule}>{translate("room.compose.rule")}</p>
+        <CompositionPlanAside room={run.room} />
       </div>
       <div className={styles.composeFooter}>
         <button
@@ -135,6 +147,40 @@ export function GenerationSteps({
       </div>
     </>
   );
+}
+
+/**
+ * **D1F's desktop-only aside: the room's own plan, static and beside the steps** (7L D10).
+ *
+ * The milestone's earlier idea — a preview that fills as bodies are placed — is struck by ruling
+ * R12's own derivation: `generateKitchen` is one synchronous call, so there is no progress to draw a
+ * picture of, and animating one would be animating a fiction (Q-7L-2, coordinator-confirmed). What
+ * ships instead is **the same static plan 1B already drew** for this room, from `PlanPreview` — the
+ * S2 component, unmarked, never a second layout function over the same draft.
+ *
+ * **`.composeAside` is what the base shell hides** (criterion 14): a phone customer's screen reader
+ * never reaches this subtree and it holds no tab stop, because the wrapper carries `display: none`
+ * outside the desktop block (`room.module.css`) rather than this component choosing not to render.
+ */
+function CompositionPlanAside({ room }: { readonly room: DesignRoom }) {
+  return (
+    <div className={styles.composeAside} data-testid="room-compose-plan">
+      <PlanPreview draft={roomDraftFor(room)} />
+    </div>
+  );
+}
+
+/** The stored draft a composed room's own numbers make — `PlanPreview` takes a `RoomDraft`, and this
+ *  is the composition's only route to one, built once here rather than threaded down from wherever a
+ *  design was minted. `parsedRoomLengthsOf` (`room-url-state.ts`) is the one place a `DesignRoom`'s
+ *  own numbers become wall/height fields, shared with `roomHrefFromDesignRoom`'s URL (7L review
+ *  finding F5), so this draft and that URL cannot map a stored room's numbers two different ways. */
+function roomDraftFor(room: DesignRoom): RoomDraft {
+  const draftWithDirection = withCornerDirection(
+    createRoomDraft(room.shape),
+    cornerDirectionOf(room),
+  );
+  return parsedRoomLengthsOf(room).reduce(withStoredLength, draftWithDirection);
 }
 
 /**

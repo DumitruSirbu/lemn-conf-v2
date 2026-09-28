@@ -94,6 +94,10 @@ declare const messages: {
       "tooLong": "{wall} prea lung"
     },
     "presetsAfterValid": "Presetele apar după ce toate valorile sunt valide.",
+    "suggestion": {
+      "title": "Sugestii",
+      "switchToLinear": "Treci la formă liniară pe peretele A"
+    },
     "compose": {
       "title": "Preset",
       "heading": "Ți-o construim pe a ta",

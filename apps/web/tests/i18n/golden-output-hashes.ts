@@ -70,6 +70,10 @@
  * **Grown by one, never rebaselined, by M7 wave 7E3c review round 2 (R2.1)** — `share.retry`, the
  * error state's own label once its retry button stopped always reading `share.create`. **One added
  * and no existing hash moved.**
+ *
+ * **Grown again, never rebaselined, by M7 wave 7L slice S3** (ADR 0113 decision 2) —
+ * `room.suggestion.title` and `room.suggestion.switchToLinear`, D1C's *Sugestii* card as written.
+ * **Two added and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -843,6 +847,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
   "room.shapes.linear.short":
     "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
+  "room.suggestion.switchToLinear":
+    "68a5810059a860e72ea1a261376ab4d0ebd1a3bf929a34010dc635fd9c3d8c10",
+  "room.suggestion.title":
+    "c23397d70ed65e109abe6595fb567572033196460be1c8d98c2f3165910faa0a",
   "room.title":
     "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
   "room.unitMillimetres":

@@ -42,7 +42,7 @@ import { useTranslations } from "next-intl";
 // `useSearchParams` is read from `next/navigation` rather than from `@/i18n/navigation`: next-intl
 // wraps the navigations that need a locale prefix, and a query is the same query in both locales.
 import { useSearchParams } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 // **A temporary cross-route coupling, and it is the coupling ruling R5 exists to delete.** A second
 // screen reaching into the editor's route folder for a shared control is the wrong end state; R5
@@ -86,6 +86,13 @@ import {
 import { parseRoomUrlState } from "./room-url-state";
 import { ShapeChips, ShapePicker, ShapeRefusal } from "./shape-picker";
 import { useTypingPause } from "./use-typing-pause";
+import { ValidationSuggestion } from "./validation-suggestion";
+
+/** The *Liniară* chip's own control, which the suggestion card moves focus to once it activates it
+ *  and its own card unmounts (D8). Scoped to the dimensions column rather than `document`, so this
+ *  never reaches past the one row of chips it means. */
+const LINEAR_CHIP_CONTROL_SELECTOR =
+  '[data-testid="room-shape-chip-control-linear"]';
 
 export interface RoomScreenProps {
   /** The policy the cards are offered against. Defaulted rather than threaded through the page, so
@@ -307,11 +314,34 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
   });
   const noteId = useId();
   const refusalId = useId();
+  const suggestionId = useId();
   const refusedShape = oneC.isShapeRefused ? draft.shape : undefined;
+  const dimensionsBodyRef = useRef<HTMLDivElement>(null);
 
   function edit(nextDraft: RoomDraft): void {
     noteEdit({ before: draft, after: nextDraft });
     setDraft(nextDraft);
+  }
+
+  /** The one place a shape is chosen from 1B on — the chips' own handler (`onChoose` below) and,
+   *  since D8, the suggestion card's. Both call this and nothing else, so the card writes, composes
+   *  and navigates nothing the chip would not (7L criterion 12). */
+  function chooseShape(shape: RoomShape): void {
+    edit(withRoomShape(draft, shape));
+  }
+
+  /**
+   * **The suggestion card, activated** (D8). It runs the *Liniară* chip's own handler and then, since
+   * the card that had focus has just unmounted, moves focus to the chip it agrees with — never
+   * `document.body`. The chip is looked up by its own `data-testid` rather than held in a ref shared
+   * across two files, because `shape-picker.tsx` is read-only in this slice (7L plan §4, S3's file
+   * list).
+   */
+  function chooseLinearFromSuggestion(): void {
+    chooseShape("linear");
+    dimensionsBodyRef.current
+      ?.querySelector<HTMLInputElement>(LINEAR_CHIP_CONTROL_SELECTOR)
+      ?.focus();
   }
 
   /**
@@ -353,13 +383,11 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
 
   return (
     <>
-      <div className={styles.dimensionsBody}>
+      <div className={styles.dimensionsBody} ref={dimensionsBodyRef}>
         <ShapeChips
           chosenShape={draft.shape}
           describedBy={refusalIdFor(refusedShape, refusalId)}
-          onChoose={(chosen) => {
-            edit(withRoomShape(draft, chosen));
-          }}
+          onChoose={chooseShape}
         />
         <ShapeRefusal id={refusalId} refusedShape={refusedShape} />
         <PlanPreview draft={draft} markedWalls={oneC.markedWalls} />
@@ -367,6 +395,7 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
           draft={draft}
           fieldReasons={oneC.fieldReasons}
           unreadableFields={oneC.unreadableFields}
+          suggestionId={oneC.isLinearSuggested ? suggestionId : undefined}
           onEnterLength={(field, text) => {
             const typed = withEnteredText(draft, { field, text });
             noteKeystroke({ before: draft, after: typed });
@@ -378,10 +407,23 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
         />
         <OneCStatus
           roomReasons={oneC.roomReasons}
-          isLinearSuggested={oneC.isLinearSuggested}
           isNoteShown={oneC.isNoteShown}
           noteId={noteId}
-        />
+          // F1 (7L QA): a room-level reason names no field, so it is the only surface left to
+          // reference the suggestion from when it fires with zero field reasons (e.g.
+          // ROOM_TOO_SMALL_FOR_KITCHEN over 1800×1200×2600mm, direction left).
+          suggestionId={
+            oneC.isLinearSuggested && oneC.fieldReasons.length === 0
+              ? suggestionId
+              : undefined
+          }
+        >
+          <ValidationSuggestion
+            isShown={oneC.isLinearSuggested}
+            id={suggestionId}
+            onChooseLinear={chooseLinearFromSuggestion}
+          />
+        </OneCStatus>
       </div>
       <div className={styles.dimensionsFooter}>
         <button

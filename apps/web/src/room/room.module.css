@@ -663,20 +663,63 @@
 }
 
 /**
- * **1C's status region** — the room's reason and the note, announced politely (`room-screen.tsx`).
- * It is in the tree from 1B on, empty, so an announcement fires when its content changes. Empty, it
- * gives back the column's gap in front of it: a U's column has 2.6 px to spare at 1B (7F2 S0),
- * and a box with nothing in it must not spend a gap.
+ * **1C's two status regions** — the room's reason (`.oneCReasons`) and the note (`.oneCNote`), each
+ * announced politely (`one-c-status.tsx`). Both are in the tree from 1B on, empty, so an announcement
+ * fires when their own content changes; the suggestion (D9) is a plain sibling between them, in
+ * neither region. `.oneCStatus` itself carries no role — it is a layout wrapper only.
+ *
+ * **Spacing is per pair, not a blanket `gap`** (wave 7L D9): `.oneCReasons` and `.oneCNote` are
+ * unconditionally present, so a `gap` here would reserve one even between two regions that are both
+ * empty — exactly the space a U's column has none to spare (2.6 px at 1B, 7F2 S0). Each piece's own
+ * leading margin fires only when something visible actually precedes it, by `:has(p)` reading whether
+ * a region (or the suggestion, which is never empty while mounted) holds a paragraph.
  */
 .oneCStatus {
+  display: flex;
+  flex-direction: column;
+}
+
+.oneCReasons,
+.oneCNote {
   display: flex;
   flex-direction: column;
   gap: var(--column-gap);
 }
 
-/* Both status regions, empty, give back the gap of whichever column they stand in. */
+.oneCReasons:has(p) + .suggestionGroup,
+.oneCReasons:has(p) + .oneCNote:has(p) {
+  margin-block-start: var(--column-gap);
+}
+
+.suggestionGroup + .oneCNote:has(p) {
+  margin-block-start: var(--column-gap);
+}
+
+/**
+ * Both status regions, empty, give back the gap of whichever column they stand in. `.oneCStatus`
+ * itself is never childless (its two regions are always present), so its own version of the trick
+ * reads whether either region — or the suggestion between them — actually holds a paragraph.
+ *
+ * **Known quirk, measured and left as-is (7L review finding F7): this margin does nothing in the
+ * desktop grid.** `.dimensionsBody`'s desktop rule makes `.shapeRefusal`/`.oneCStatus` grid items
+ * (`grid-template-rows: repeat(5, auto) 1fr`); a grid item's margin only repositions the item within
+ * its own row's track — it cannot reach into a *different* track's row-gap the way a flex item's
+ * margin reaches into the single gap between two flow siblings. Measured 2026-09-29 at 1440 x 900: an
+ * empty `.shapeRefusal` still costs a full 32 px between `.shapeChips` and `.fields` (two 16 px
+ * row-gaps either side of its own now-0-height track) instead of flex's single 16 px — a real,
+ * visible doubling in the common case (no shape refused). `.oneCStatus`'s own case is not visible:
+ * it is the grid's *last* content row, so the same waste is absorbed by the trailing `1fr` filler
+ * track with nothing positioned relative to that boundary. A grid-native fix was attempted — moving
+ * an empty `.shapeRefusal` out of the auto-placed row order via `grid-row` and a `:has()`-driven
+ * shorter `grid-template-rows` — and rejected: giving `.shapeRefusal` an explicit `grid-row` makes
+ * the *sparse* auto-placement algorithm skip that row for every item placed after it in the DOM,
+ * which pushed `.shapeChips` (declared first, but auto-placed) into the *next* row instead of
+ * sharing it, undoing the fix and shifting the whole column. Left as a known, bounded visual quirk
+ * (an extra 16 px above the fields row, not below any other visible content) rather than risking a
+ * layout regression across every 1B/1D shape combination for a spacing difference this small.
+ */
 .shapeRefusal:empty,
-.oneCStatus:empty {
+.oneCStatus:not(:has(p)) {
   margin-block-start: calc(-1 * var(--column-gap));
 }
 
@@ -716,6 +759,22 @@
   text-align: center;
   background: var(--refusal);
   border-radius: 50%;
+}
+
+/**
+ * **D1C's *Sugestii* card** (`validation-suggestion.tsx`, `Desktop.dc.html:247-253`), wave 7L D8.
+ * `.suggestionGroup` wraps the clause both shells draw and the card the desktop layout adds; on the
+ * phone the group is a plain column of one visible child, since `.suggestionCard` below is hidden by
+ * the base shell (7L criterion 14 — desktop-only means no box and no tab stop on the phone, not a
+ * conditional render). The desktop block below fills it in.
+ */
+.suggestionGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.suggestionCard {
+  display: none;
 }
 
 /* The frame's two-control footer (`:180-185`). `Înapoi` is 96 px wide and `Continuă` takes the rest. */
@@ -966,6 +1025,15 @@
   font: 400 12px/1.5 var(--font-ui);
   color: var(--ink-muted);
   text-wrap: pretty;
+}
+
+/**
+ * **The 1F aside — the room's own static plan, desktop only** (wave 7L D10). Hidden by the base shell
+ * rather than left unrendered, so a phone customer's screen reader never meets it and it holds no tab
+ * stop (7L criterion 14); the desktop block gives it its grid position and its own width cap.
+ */
+.composeAside {
+  display: none;
 }
 
 .composeFooter {
@@ -1394,21 +1462,141 @@
   }
 
   /**
+   * **D1C's *Sugestii* card** (`Desktop.dc.html:247-253`). `.suggestionGroup` becomes the frame's
+   * own gap between the clause and the card; `.suggestionCard` is un-hidden here, the one base-shell
+   * `display: none` this file names rather than leaves silent (criterion 2, 14), and is itself the
+   * frame's title-above-row column. `.suggestionAction` is the row: the button frame `:250-252` draws.
+   */
+  .suggestionGroup {
+    gap: 10px;
+  }
+
+  .suggestionCard {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .suggestionTitle {
+    font: 700 13px/1 var(--font-ui);
+  }
+
+  .suggestionAction {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 15px 16px;
+    font: 400 14px/1 var(--font-ui);
+    color: inherit;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .suggestionArrow {
+    font-size: 18px;
+    color: var(--accent);
+  }
+
+  /**
    * **The help target moves from bleeding past the field into the next column's own** (7L A16):
    * mobile bleeds it into the page's empty 18 px padding, which a row of fields has none of between
    * columns — the next field's own box starts there instead. Flush against the field's own right
    * edge (`right: 0` rather than a negative bleed), the 44 px target stays inside its own column at
    * every field count, including a U room's narrowest (`Perete C` beside a 44 px square in a
    * ~118 px column) — checked by hand against the shortest label and the tightest column this file
-   * has. The glyph keeps the same "12 px inside the box's own edge" reading (`:565`'s comment) with
-   * the bleed term dropped, since there is no bleed left to add it to.
+   * has. **The glyph's own offset is re-measured below (7L review finding F6)**, against where the
+   * unit text actually centres once it is centred rather than read off the "12 px inside the box's
+   * own edge" reading (`:565`'s comment), which assumed a box sized to its content — no longer true
+   * once the floor two rules down gives the box more width than a short locale's text fills.
    */
   .lengthHelpButton {
     right: 0;
   }
 
+  /**
+   * **19 px, not the un-floored box's 12 px (7L review finding F6).** Measured against
+   * `.fieldUnit`'s own centred text, in a headless Chromium at 1440 x 900, both locales: with the
+   * unit centred in its (now floored) box, its visual centre sits at the *same* point in `ro` and
+   * `ru` — because both "mm" and "мм" are narrower than the 24 px floor, the floor alone decides the
+   * centre, not the glyph. 19 px puts the glyph's own centre within a sub-pixel of that point in
+   * both. The button's own 44 px hit area is `.lengthHelpButton`'s, untouched by this — only the
+   * icon inside it moves.
+   */
   .lengthHelpGlyph {
-    right: 12px;
+    right: 19px;
+  }
+
+  /**
+   * **The unit keeps the button clear of the input, in every locale** (7L QA finding, defect 3): the
+   * checked-by-hand case above still measured the input's box, not its right *edge* against the
+   * button flush at `right: 0` above it — the two share the same column, so the only thing standing
+   * between them is `.fieldBox`'s own trailing content, `.fieldUnit`. Romanian's "mm" happens to hold
+   * that line; Russian's narrower "мм" does not, and the button's 44 px square reaches over the
+   * input's own top-right corner by a couple of pixels. A floor under the unit's own width, rather
+   * than a number added to the button, keeps the fix where the two boxes actually meet and asks
+   * nothing of a locale this file has not seen yet — `.fieldValue`'s `flex: 1` gives back whatever
+   * width the floor takes.
+   *
+   * **Centred, not left-aligned (7L review finding F6).** Left-aligned (the default), the unit's own
+   * visual centre drifts toward the box's left edge as the gap between the text and the 24 px floor
+   * grows — by a *different* amount per locale, since "mm" and "мм" are not the same width — which is
+   * what knocked `.lengthHelpGlyph` above off-centre once that floor could exceed either locale's own
+   * content. Centred, the text's own visual centre is the floor's own centre in both locales alike,
+   * whichever text is narrower than it (measured above): one glyph offset serves both.
+   */
+  .fieldUnit {
+    min-width: 24px;
+    text-align: center;
+  }
+
+  /* ── D1F `:464-526` — a 620 px steps column beside a plan panel that fills what is left ─────────── */
+
+  /**
+   * **The same two-track shape `.dimensionsBody` draws, with D1F's own figures** (7L D10, A15):
+   * `56px 64px` padding and a 620 px column (`Desktop.dc.html:475`) rather than D1B's 520 and
+   * `52px 40px`. `grid-template-rows: repeat(5, auto) 1fr` gives `.composeAside`'s row span (below) a
+   * real last line to stretch to, exactly as `.dimensionsBody`'s own trailing `1fr` does for
+   * `.planCard` — this column's five rows are `.composeIntro`, `.composeNotice`, `.composeSteps`,
+   * `.composeDropped` and `.composeRule`; a run with nothing dropped leaves that row's track empty,
+   * 0 px tall, as it already is on the phone.
+   */
+  .composeBody {
+    display: grid;
+    grid-template-columns: 620px minmax(0, 1fr);
+    grid-template-rows: repeat(5, auto) 1fr;
+    column-gap: 56px;
+    justify-content: center;
+    align-items: stretch;
+    padding: 56px 64px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .composeIntro,
+  .composeNotice,
+  .composeSteps,
+  .composeDropped,
+  .composeRule {
+    grid-column: 1;
+  }
+
+  /**
+   * **The plan itself, unmarked and static** (D10). `.planCard`'s own desktop rule (D1B's section,
+   * above) already sets its width, padding and gap — this wrapper exists only so the base shell has
+   * one thing to hide (criterion 14) and so D1F's own 840 px cap (`Desktop.dc.html:509`) can override
+   * D1B's 900, since the one `.planCard` is shared by both frames. `display: flex` with a single
+   * child gives that child the wrapper's full stretched height for free, the same way a grid item
+   * would — no inline height is written here or anywhere below it.
+   */
+  .composeAside {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    max-width: 840px;
   }
 
   /* ── The two-button footers, D1B/D1C/D1F `:190-193, 266-269` — *Înapoi* left, the CTA right ──────── */
