@@ -33,19 +33,43 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
+Last updated: 2026-09-28 — **M7 wave 7J is DONE** (straight kitchens through composition, 1200–6000 mm
+on one wall, no corner). See the [7J close-out](milestones/M7-room-and-presets.md#7j-close-out--2026-09-28)
+and the M7 row below (the 7I entry directly below this one is superseded, kept for its detail).
+**Next wave: 7K** (the mobile gate — full e2e touch flow through all six Step-1 states into the
+editor), then 7L, then Gate M7-C, per the recorded order. Final `pnpm ci:local` at the review-fix
+commit (`d00cfc0`): **ALL GATES GREEN** — domain 5018/5018, persistence 559/559, three-adapter
+3642/3642, web 4719/4719, e2e 446 passed (2 skipped), build/boundary/lockfile/SCA all PASS. QA found
+and fixed one camera button reading pressed after a stale wall-B view; review found and fixed four
+minor findings (ADR/plan wording, the S0 census reconstruction, test-cast hygiene) — see the close-out
+for detail. Two camera-framing follow-ups are on the record, not blockers: a 1200 mm straight kitchen
+framed too tightly and a 6000 mm one cropped at both ends by the default presets (geometry confirmed
+correct by interactive rotation; a preset-tuning task, not scoped to a wave).
+
+**Owner actions needed before this branch deploys:** the migrations `0005`/`0006` and the
+`design_share_links` grant, previously listed here as owed, are **done** — migrations 1-6 and the
+grant are now applied on production (`lemn-conf-v2`), the real preview branch
+(`lemn-conf-v2-preview`), and staging (confirmed already current). This happened out of its originally
+planned "preview then production" order, during the 7J visual-verification pass, because
+`MIGRATION_DATABASE_URL` in `.env.migration.local` pointed at production all along — the `preview`
+argument to `migrate`/`migrate:status` is currently a display label only, not a database selector.
+The owner was informed mid-session and approved proceeding; net effect matches what was already owed,
+just completed without a fresh go-ahead for the production step specifically. **No**
+`VISITOR_ROTATION_SECRET` is needed (the wave that would have required it was reverted the same day it
+was added). **New, not yet scoped:** the owner asked for a cleanup pass on this project's `.env*.local`
+file layout, which is confusing enough to have caused the above — a follow-up task, not started. The
+runner's own CI verdict is still outstanding for 7T, 7F4b, 7E4, 7E3a, 7E3c, 7E3b, 7I and now 7J alike —
+one owner-dispatched `workflow_dispatch` of `ci.yml` settles all eight.
+
 Last updated: 2026-09-24 — **M7 wave 7I is DONE** (mirrored right-hand L; a mirror that works on one
 group). See the RESUME HERE entry under *What to do next* (the 7E3b entry below it is superseded,
-kept for its detail) and the M7 row below. **Next wave: 7J** (straight kitchens), then 7K, 7L, per
+kept for its detail) and the M7 row below. ~~**Next wave: 7J** (straight kitchens), then 7K, 7L, per
 the recorded order and the owner's Q-7J-1 answer (one maximum, 6000 mm, per kitchen shape unless
-7J's planning shows a real need for 6300 mm on a straight wall). The runner's own CI verdict is still
+7J's planning shows a real need for 6300 mm on a straight wall).~~ The runner's own CI verdict is still
 outstanding for 7T, 7F4b, 7E4, 7E3a, 7E3c, 7E3b and now 7I alike — one owner-dispatched
-`workflow_dispatch` of `ci.yml` settles all seven. **Owner actions needed before this branch
-deploys:** migrations `0005` and `0006` must be applied to `lemn-conf-v2-preview` then production,
-followed by the grant on `design_share_links` — **no** `VISITOR_ROTATION_SECRET` is needed (the wave
-that would have required it was reverted the same day it was added) — see the RESUME HERE entry for
-detail. Review the new leaf `panel.widthStepNoteRight` (ro/ru), and note that left-hand kitchens'
-wall-B side words and width-step note now read the other way — a correctness fix found while
-building the mirror, not a regression from it.
+`workflow_dispatch` of `ci.yml` settles all seven. Review the new leaf `panel.widthStepNoteRight`
+(ro/ru), and note that left-hand kitchens' wall-B side words and width-step note now read the other
+way — a correctness fix found while building the mirror, not a regression from it.
 
 Last updated: 2026-09-23, later than 7E3c below — **M7 wave 7E3b is DONE** (a design opens only in its
 owning browser). See the RESUME HERE entry under *What to do next* (the 7E3c entry below it is

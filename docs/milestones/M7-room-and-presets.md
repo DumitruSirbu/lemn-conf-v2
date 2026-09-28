@@ -1561,7 +1561,7 @@ table.
 | **7E3b** | A design opens only in its owning browser; ~~the read-only share view retired~~ **the read-only view moves to the share link** — **DONE 2026-09-23. Commits: plan + ADR 0114 Amendment H `239d87f`; S1 `8095718` (`--no-verify`, intermediate); S2 `a401a4a`; S3 `09f9c6e`; S4 `00ea1ec`; QA `9960ab5`; S5 addendum + H4/H5 `6fe21b3`; S5a HMAC `3c82aec`; S5b `23161e2` (`--no-verify`, one red e2e); S6 addendum + H6 `8ffb3b2`; S6a revert `dd36ab8`; S6b Web Lock `38c37c1`; QA round 2 `2a07509`; review round 2 fixes `f1e4fc9`. See [7E3b close-out](#7e3b-close-out--2026-09-23)** | `app/[locale]/d/[id]/page.tsx`, `app/api/designs/[id]/route.ts`, `app/d/[id]/design-load-error.tsx`, `lib/server/visitor.ts` | 7E3a, **7E3c** | **Full + security** (confirmed in the plan) | Light | answered (F5 final, ADR 0115) — backlog 81 closed, *"Rotate on mint"* then *"Web Lock + random"* (ADR 0114 H, H6). See [Wave 7E3b — the plan](#wave-7e3b--the-plan-2026-09-23); the full per-slice file list is in its §4 |
 | **7H** | The 3D room follows the entered room — **DONE, `7072930` … `a70efc1`** (eleven commits, listed in the close-out; **`7b1f92c` corroborated inside this file, the other ten reported**). Four deferrals with triggers: **Q7H-7**, **Q7H-8**, **backlog 67** (relayed as 66, renumbered — 66 is the tall-body gap), and the near-black premise behind `MAX_ABSENT_CASING_PIXELS = 50`. **Ordering: 7D7 lands on the builder the M1 fidelity gate diffs, so 7D7's baseline is taken *after* this wave lands, never before, and the two are never in flight together** — that gate is now met | *carried* | 7E2 | Full | **Yes** + desktop | answered (Q7H-1 … Q7H-8) |
 | **7I** | Mirrored right-hand L; a mirror that works on one group — **DONE 2026-09-24. Commits: plan + ADR 0129 `4ff2d64`; S1 `95c5ad4`; S2 `e653efb`; S3 `bf3716a`; S4 `250efb7`; QA fixes + QA tests `a20085a`; review fixes `f653bdf`; comment-only `HEAD`. See [7I close-out](#7i-close-out--2026-09-24)** | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
-| **7J** | Straight kitchens through composition | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1) — unblocked. **PLANNED 2026-09-24: *Wave 7J — the plan (2026-09-24)*, right after the 7J criteria block; Q-7J-1 settled at 1200–6000 mm by measurement (ADR 0108 Amendment G); decisions in ADR 0130; the `src/room` claim narrowed by ADR 0116 Amendment A.** **Q-7J-1 ANSWERED by the owner, 2026-09-23: one maximum for every kitchen shape (linear, L, U) — 6000 mm — unless 7J's planning shows the fill algorithm genuinely needs 6300 mm on a straight wall (instead of a corner cabinet it can fit a full-size cabinet); otherwise cap all walls at the same maximum.** Supersedes the *"Recommendation: 6000"* line below, which is the coordinator's superseded reasoning kept for its detail: does *"lets stick to 6 now for each of the wall"* (ADR 0120 Amendment B2, 2026-09-15) cover a straight wall too, making it 1200–6000 rather than F1's 1200–6300? The ruling was applied to the L alone (`approved-room-policy.ts`: 6000 / 6000); the 7A3 close-out left it as *"7J's question"*. It does not gate 7T |
+| **7J** | Straight kitchens through composition — **DONE 2026-09-28. Commits: plan + ADR 0130 + ADR 0108 Amendment G + ADR 0116 Amendment A `5596de1`; S1 `c39cd95`; S2 `8c9b1bf`; S3 `b83f172`; S4 `f4de5dd`; S5 `e34f1e3`; S6 `c97ce3b`; QA fixes `7f386c9`; review fixes `d00cfc0`. See [7J close-out](#7j-close-out--2026-09-28)** | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1, Q-7J-1 at 1200–6000 mm, ADR 0108 Amendment G) |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
@@ -4260,6 +4260,72 @@ slice before the next.
   trigger: the owner objects on seeing it.
 
 **Owner questions:** none blocking. Q-7J-1 is answered and encoded (D1, ADR 0108 Amendment G).
+
+### 7J close-out — 2026-09-28
+
+**What shipped — a straight kitchen composes through the real command path, one wall, no corner,
+1200–6000 mm.** Commits, in order: plan + ADR 0130, ADR 0108 Amendment G, ADR 0116 Amendment A
+`5596de1`; S1 domain (room validates a straight wall) `c39cd95`; S2 domain (the composer runs on one
+wall) `8c9b1bf`; S3 adapter (wall B hidden, overview + wall A) `b83f172`; S4 web (camera buttons follow
+the room, 1D/1F reached) `f4de5dd`; S5 the switch (approved policy admits 1200–6000) `e34f1e3`; S6 e2e
+(captures at 1200/3700/6000) `c97ce3b`; QA fixes (stale camera id, S5 restatements) `7f386c9`; review
+fixes (cast hygiene, ADR/plan corrections, S0 census, camera-framing risk) `d00cfc0` (HEAD).
+
+**QA (Full).** Found and fixed: one camera button read pressed after a stale wall-B view carried over
+from an L design (the store outliving the design — risk R4, materialised); S5's restatements of the
+"until 7J" assertions S0's census had flagged were completed as part of this pass. No other defect
+found.
+
+**Review.** Clean-code: no findings; one cosmetic comment-style observation in `shell-design.ts`, not
+actioned as a defect. Logic: no blockers. Four minor findings, all fixed in the review-fix commit
+(`d00cfc0`): **F1** the plan's §2 D3 and criterion 7 wording was corrected — composition never reads
+`depthMm`, but it does bound wall-A cabinet/column depth via the ordinary `reachesPastRoomAcrossWall`
+check every shape gets, and the probed depth set is `{3400, 5000, 6300}`, not `{1, 3400, 6300}` (depth
+1 mm triggers that same bound before generation's indifference is ever exercised); **F2** the plan's S0
+census table, not written live during that slice as instructed, was reconstructed retroactively from a
+static read of the tree, with two entries flagged as lacking a one-for-one replacement (a straight
+room's bare shape-alone reach witness at 1B, and the 44 px touch-target sweep under a since-removed
+straight-room refusal); **F3** stray test-cast hygiene cleaned up; **F4** the plan's §2 D2 wording was
+corrected — `LinearWallBounds` actually carries `{ wallA, depthMm }`, not `{ wallA }` alone, with
+`depthMm` pinned to `LINEAR_ROOM_DEPTH_MM` and handed through the policy rather than imported directly
+by `validate-room.ts`, preserving that module's type-only-import guard. All four findings are fixes to
+documentation/tests, not to product logic the criteria describe.
+
+**Visual (two passes; the first blocked, the second complete).** Verified at 1200/3700/6000 mm × both
+viewports (mobile 390×844, desktop 1440×900): the 1B → 1C → 1F flow; live bounds validation (1199
+refused, 1200 and 6000 accepted, 6001 refused); 1F's composition summary showing the right inclusion
+set at each width; live switching between L and straight; the editor reached with exactly two camera
+buttons for a straight kitchen and three for an L (the L control unaffected); no wall-B plane; no
+floating corner piece; the unpanelled x = 0 end (expected per D8); reload restoration byte-identical;
+no console errors. **New finding, folded into risk R5** rather than raised as a new one: the default
+camera presets crop both ends of a 6000 mm straight kitchen on both viewports under `overview` and
+`wallA`. Confirmed by interactive rotation to be a camera-framing gap, not a geometry defect — the
+fridge end continues correctly onto bare floor and the tall/end cabinet caps flush at the wall's end,
+no overflow. Not a blocker for this wave's acceptance (criterion 17 asks about geometry, not camera
+framing); recorded as a follow-up preset-tuning pass before the owner reviews 6000 mm kitchens in a
+browser.
+
+**Gates.** Final `pnpm ci:local` at the review-fix commit (`d00cfc0`): **ALL GATES GREEN** — domain
+5018/5018, persistence 559/559, three-adapter 3642/3642, web 4719/4719, e2e 446 passed (2 skipped),
+build/boundary/lockfile/SCA all PASS.
+
+**Deviations from the plan, with rationale:** none to production behaviour. The plan's own prose
+needed two corrections (F1, F4 above), both documentation-only, and its S0 census — omitted live in
+S0 itself against the plan's own instruction — was reconstructed after the fact (F2) with the gap
+named rather than silently closed.
+
+**Deferred, named with an owner:** the fridge-on-the-right straight kitchen (D7) stays recorded in ADR
+0118's shape, trigger unchanged (the owner asks for it). The unpanelled left end reading as unfinished
+(R6) stays recorded the same way. The camera-framing gap at 6000 mm (R5, both ends now) is a follow-up
+preset-tuning pass, not scoped to a wave.
+
+**Owner line for the next RESUME HERE:** 7J is done; no owner action is needed to accept it. Two
+camera-framing follow-ups are on the record for whenever presets are next tuned: a 1200 mm straight
+kitchen framed too tightly (R5 as originally written) and a 6000 mm one cropped at both ends (R5's
+2026-09-28 addition) — neither is a defect in the kitchen itself.
+
+Implementation, QA and review are `5596de1`…`d00cfc0`; documentation close-out is this commit.
+**Next wave: 7K** (the mobile gate).
 
 **7F2 (add, 2026-09-14, from wave 7F1's rulings R2 and R3 — read them before starting):**
 
