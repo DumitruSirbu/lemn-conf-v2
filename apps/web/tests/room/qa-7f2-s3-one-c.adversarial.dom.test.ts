@@ -799,7 +799,7 @@ function approvedLWallBounds(): LWallBounds {
  *  is left to fabricate this way — linear's own real bounds are the approved policy's since 7J S5, so
  *  stating it again here would just restate what "approved" already covers. U has none of its own
  *  yet (M7B's), and `BuildableShapes` has no `U` key to add honestly, hence the cast. */
-function policyAlsoStating(shape: RoomShape): RoomPolicy {
+function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {

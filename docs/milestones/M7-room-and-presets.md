@@ -4062,20 +4062,30 @@ checked-in `dist`), script `7j-measure.mjs`; **[inf]** inference, owed a test.
   the extra 300 mm buys no cabinet and raises the mean bare end from 174 to 351 mm; the owner's
   premise — a straight wall gains a full-size cabinet where the corner stood — is already true at
   6000 (G6's last sentence). Height is the shared 2200–3900.
-- **D2 — Policy structure.** `BuildableShapes.linear?: LinearWallBounds = { wallA }` — **no
+- **D2 — Policy structure.** ~~`BuildableShapes.linear?: LinearWallBounds = { wallA }`~~ — **no
   `minimumKitchen` block**: with no corner the coupled rule (ADR 0108 C) collapses to *wall A ≥ sink +
   hob*, which is the wall's minimum. `ENGINE_ROOM_LIMITS.linear.wallA` = `{ sink + hob via
   generatedRequiredWidthMm, MAX_ROOM_WIDTH_MM }` = 1200 / 6300, derived (ADR 0108 decision 6); the
   approved 1200 equals it (B1 permits equality). No new `RoomIssueCode` (7F2 §8 item 3's compile
   guard stays untouched); a short straight wall is `WALL_TOO_SHORT` on `wallA`, never
-  `ROOM_TOO_SMALL_FOR_KITCHEN`.
+  `ROOM_TOO_SMALL_FOR_KITCHEN`. **Correction, 2026-09-28 (review finding F4):**
+  `LinearWallBounds` actually carries `{ wallA, depthMm }` (`room-policy.ts:55-58`), with `depthMm`
+  pinned to `LINEAR_ROOM_DEPTH_MM` and never varying; it is handed through the policy rather than
+  imported directly by `validate-room.ts` to preserve that module's type-only-import guard against a
+  cabinet-depth reader (`room-policy.ts:50-54`). See ADR 0130 decision 1's correction.
 - **D3 — `depthMm` of a straight room is the drawn floor's depth in front of the run, never a
   wall**, fixed by validation to `LINEAR_ROOM_DEPTH_MM` = the seeded shell's 3400
   (`SCENE_SHELL_DEPTH_MM`, `design-bounds.ts`, exported under the new name — the one depth the
   product has drawn without being told). Mapping: `{ shape: "linear", widthMm: A, depthMm: 3400,
-  heightMm }`, four keys. Generation never reads it (A7). *Rejected:* `depthMm = widthMm` (a 6 m
-  floor for a 6 m run); an optional/union `depthMm` (ripples into every reader and the stored-document
-  contract for a value only the drawing uses); a newly chosen number (no source).
+  heightMm }`, four keys. ~~Generation never reads it (A7).~~ **Correction, 2026-09-28 (review
+  finding F1):** *composition* never reads it — the composer places bodies with no reference to it,
+  which is what A7's property test holds — but it does bound wall-A cabinet/column depth via the
+  ordinary `reachesPastRoomAcrossWall` check every room shape gets (`validate-design.ts:617-625`),
+  since a straight room's drawn floor is only `LINEAR_ROOM_DEPTH_MM` = 3400 mm deep in front of the
+  run. A cabinet whose own declared depth exceeds that gets refused, same as for any room. *Rejected:*
+  `depthMm = widthMm` (a 6 m floor for a 6 m run); an optional/union `depthMm` (ripples into every
+  reader and the stored-document contract for a value only the drawing uses); a newly chosen number
+  (no source).
 - **D4 — A straight room has no wall B: `wallLengthMm("B", linear) = 0`** (extends ADR 0065 decision
   5 to a shape it never saw). A wall-B placement in a straight document is then marked overflowing —
   the truth — and the reading-order key (G4) sees wall A wider for every straight room without a
@@ -4119,13 +4129,33 @@ checked-in `dist`), script `7j-measure.mjs`; **[inf]** inference, owed a test.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
-| **S0 census** (no production) | In a throwaway worktree at the wave base, apply S5's policy line alone; run domain + web unit suites; list every red and every e2e assertion that names `linear`; classify each as *"until 7J" — restate in S5* or *defect — add to S1–S4*. Table appended here. | none | §1 G8, G9, G15; §2 D10; 7F1 criterion 3; 7F2 §8; `agent-coordination.md` (worktree bases) |
+| **S0 census** (no production) | In a throwaway worktree at the wave base, apply S5's policy line alone; run domain + web unit suites; list every red and every e2e assertion that names `linear`; classify each as *"until 7J" — restate in S5* or *defect — add to S1–S4*. Table appended below, S0 census sub-section. | none | §1 G8, G9, G15; §2 D10; 7F1 criterion 3; 7F2 §8; `agent-coordination.md` (worktree bases) |
 | **S1 domain — room** | (1) `LinearWallBounds`, `BuildableShapes.linear?`, `ENGINE_ROOM_LIMITS.linear` derived (D2); (2) `validateRoomInput` maps linear (D3), L path untouched; (3) `LINEAR_ROOM_DEPTH_MM` (D3); (4) `wallLengthMm` (D4); (5) `cornerDirectionOf` (D7) | `room/room-policy.ts`, `room/validate-room.ts`, `design-bounds.ts`, `room/corner-direction.ts`, `queries/overflowing-placements.ts` | §2 D1–D4, D7; ADR 0108 decisions 6–8, Amendments B, C, E, G; ADR 0116; ADR 0065 decision 5; ADR 0129 D2–D3; `approved-room-policy.test.ts`, `room-policy.test.ts`, `validate-room*.test.ts` |
 | **S2 domain — generation** | (1) `buildLinearShellDesign` + `linearShellFloorRuns` (D5); (2) dispatch in `generateKitchen`, `isFreeEndBody`, `replayGenerationLog` (D6); (3) the composer reads a one-wall run (D6); (4) exports; (5) A5–A8 tests | `generation/shell-design.ts` (+ one new module if the implementer splits it), `generation/generate-kitchen.ts`, `generation/generation-priorities.ts`, `index.ts` | §1 G3–G7; §2 D4–D6; ADR 0110 A1, A4, D2, E3, I, M (F12), 7D2 criteria 1–14; ADR 0120 E; `shell-design.ts`, `generate-kitchen.ts`, `run-layout.ts`, `tall-end-rule.ts`, `dishwasher-beside-the-sink.ts:136-185`; `7j-measure.mjs` |
 | **S3 adapter** | (1) wall-B plane hidden for a straight room, signature gains the shape (D8); (2) presets for one wall (D9); (3) exports; (4) A11–A12 tests + a generated-linear parity sample | `three-adapter/src/kitchen-shell.ts`, `src/stage.ts`, `src/index.ts` | §1 G11–G13; §2 D7–D9; DEVELOPMENT-SPEC §2, §6.1, §6.4; `product-invariants.md`; skill `lemnaria-3d-reference`; ADR 0120 D2–D3; ADR 0129 D4, D6; the 7H close-out |
 | **S4 web** | (1) camera buttons from `cameraPresetsForRoom`; (2) stale `wallB` → `overview`; (3) delete the 1D guard; (4) 1F summary by `requiredFieldsFor` + leaf ro/ru, lock and golden manifest move by exactly that leaf | `app/configurator/configure/configure-screen.tsx`, `scene/scene-view.ts` (or `camera-preset-store.ts`), `room/room-url-state.ts`, `room/generation-steps.tsx`; catalogues `messages/ro.json`, `ru.json` (+ generated `ro.d.json.ts`) | §1 G9, G12; §2 D9–D10; ADR 0116 + Amendment A; ADR 0113; ADR 0126; C-7F2-3; `room-url-state.test.ts`, `generation-steps.dom.test.ts` |
 | **S5 the switch** | (1) `linear: { wallA: 1200–6000 }` in `APPROVED_ROOM_POLICY` + pins; (2) S0's restatements, each citing this row; (3) delete the linear casts, re-comment the U ones (D11); (4) 7F2's positive arm by name; (5) `SHAPES_WITH_APPROVED_BOUNDS` | `room/approved-room-policy.ts` | §2 D1, D2, D10, D11; S0's table; ADR 0108 Amendment G; 7F2 criterion 10 and §8; `qa-7f2-s4-shape-refusal.adversarial.test.ts` |
 | **S6 flow + capture** | (1) e2e: *Liniară* → 1B → 1D → 1F → editor, mobile + desktop; (2) reload on the room query and `/d/{id}`; (3) captures | e2e spec only | §4 A13, A16, A17; `browser-and-visual-qa.md`; ADR 0105; the 7I S4 capture route |
+
+##### S0 census — reconstructed retroactively, 2026-09-28 (review finding F2)
+
+**S0's table was not written live during that slice, contrary to this plan's own instruction.** It is
+reconstructed here during the review-fix step, from a static read of the tree at `7f386c9` (no
+throwaway worktree, no live red/green run) — evidence for what currently exists to cover each
+behaviour named, not a re-execution of S0's original procedure. The two entries the logic reviewer
+flagged as lacking a one-for-one replacement are marked as such; every other entry cites the file and
+line now covering the behaviour, drawn from the code's own "7J S5" comments left at each restatement
+site.
+
+| Original assertion | Disposition | Now covered by |
+| --- | --- | --- |
+| `shape=linear` alone carries a shape refusal at 1B/1C (web dom, `qa-7f2-s4-shape-refusal.adversarial.dom.test.ts`, the "refused on shape alone" sweep) | Restated in S5 | `apps/web/tests/room/qa-7f2-s4-shape-refusal.adversarial.dom.test.ts:398-405` (comment names the three dropped fixtures and where each now lives); `apps/web/tests/room/room-url-state.test.ts:417-432, 452-459`; `apps/web/tests/room/room-issue-model.test.ts:577-587` |
+| A round trip refuses the fully parsed `linear` shape (web, `room-url-state.test.ts`, domain hand-off describe block) | Restated in S5 | `apps/web/tests/room/room-url-state.test.ts:436-449` (only `U` remains in the refusal `it.each`) and `:451-459` (linear's round trip now accepted) |
+| The 1C suggestion is never shown for an accepted/refused `linear` entry under the interim policy | Restated in S5 | `apps/web/tests/room/room-issue-model.test.ts:598-628` (oracle is the real domain's verdict, `it.each(FIELD_ARMS)`) and `:639-649` |
+| Following a shape chip to `linear` from 1B shows a refusal, then clears on choosing `L` | Restated in S5 | `apps/web/tests/room/room-screen.dom.test.ts:728-738` ("follows a chip to linear without ever showing a refusal") |
+| A straight room's fields (1200–6000/2200–3900 boundary cases) are field-judged once shape-alone refusal no longer applies (web e2e, fit/targets) | Restated in S5 | `apps/web/tests/e2e/room-length-fields-fit.e2e.spec.ts:132-137` (a straight room's own worst case) |
+| **A straight room's shape-alone refusal reaching 1B with no field mark — the "a straight room at 1B" reach witness** | **Removed, no direct replacement found** | Static read found no test asserting a bare `shape=linear` (no wall/height) still reaches or stops at 1B under the *new* policy with the same assertions the removed witness made (field marks, reason text). `room-url-state.test.ts:414-432` restates the adjacent "ignores unknown keys" behaviour but does not reassert the 1B-reach shape of the original witness. Per the logic reviewer's spot check: nothing currently covers this one-for-one. |
+| **The empty/filled straight rows in `qa-7f2-s4-shape-refusal.adversarial.e2e.spec.ts` (~lines 193–200): every control of an empty/filled straight room under its own refusal keeps 44 px and nothing scrolls sideways** | **Removed, no direct replacement found** | The code comment at `apps/web/tests/e2e/qa-7f2-s4-shape-refusal.adversarial.e2e.spec.ts:193-194` asserts `room-length-fields-fit.e2e.spec.ts` "covers its own targets at 1B/1D/1C now," but that file's straight-room assertions (`:73-96` help-target sizing, `:202-244` reachability/clipping) test a different concern — field-fit and reachability, not the 44 px touch-target scan across shape chips, corner controls, back and continue that the removed rows ran under a still-refused straight room. Since a straight room is no longer refused by shape at all, the original scenario (control sizing *under a shape refusal*) no longer exists to test; no test reasserts 44 px targets for a straight room's controls under whatever refusal it can still carry (an out-of-range field). Per the logic reviewer's spot check: nothing currently covers this one-for-one. |
 
 Order **S0 → S1 → S2 → S3 → S4 → S5 → S6**; S3 and S4's `src/room` items may run in parallel
 (disjoint files). **S5 lands last among production slices**, so the approved policy admits a straight
@@ -4169,8 +4199,14 @@ slice before the next.
    one oven; an upper over every base below the wall row, a hood over the hob, none over a
    full-height body; a dishwasher only along the wall beside the sink; any block at the x = W end.
    **[unit]**
-7. **`depthMm` is never read by generation:** for a straight room, `depthMm` ∈ {1, 3400, 6300} yields
-   designs equal except `room.depthMm`. **[unit]**
+7. ~~**`depthMm` is never read by generation:** for a straight room, `depthMm` ∈ {1, 3400, 6300}
+   yields designs equal except `room.depthMm`.~~ **Correction, 2026-09-28 (review finding F1):** the
+   probed set is `depthMm` ∈ {3400, 5000, 6300}, not {1, 3400, 6300} — depth 1 mm is dropped because it
+   triggers the ordinary `reachesPastRoomAcrossWall` depth-bound refusal (`validate-design.ts:617-625`)
+   before generation's own indifference to the field is ever exercised; it is not a composition defect.
+   Composition itself never reads `depthMm` for a straight room: designs across the probed set are
+   equal except `room.depthMm`. **[unit]**
+   (`packages/configurator-domain/tests/generation/generate-kitchen.linear.test.ts:226-255`).
 8. **Witnesses, through `generateKitchen`:** 3700 × 2600 is G7's six bodies in that order; 6000 ×
    2600 leaves 0 mm bare; 1200 holds a sink and a hob only. **If S2 measures otherwise, stop and
    report** — G5–G7 are a model. **[unit]**
@@ -4211,7 +4247,15 @@ slice before the next.
 - **R3 — a shared-helper refactor moves the L.** A1's baselines are byte-compared.
 - **R4 — a stale camera id throws in the editor** (the store outlives a design). A12.
 - **R5 — 3400 mm of floor frames a 1200 run poorly.** A17's gate; the remedy is the preset target,
-  not the depth.
+  not the depth. **Materialised at the other end too, 2026-09-28 (visual verification pass):** at
+  6000 mm (the maximum), neither the `overview` nor `wallA` default preset fits the full run in
+  frame on either viewport — both ends are cropped by the camera. Confirmed **not** a geometry
+  defect: rotating the model interactively shows the fridge end continuing onto bare floor (correct,
+  D8) and the tall/end cabinet capping flush at the wall's end (no overflow). R5 was written only
+  against the short-room (1200 mm) case; it applies symmetrically at the long end and the same
+  remedy (retune the preset target/distance for the straight shape, not the geometry) covers both.
+  Not a blocker for this wave's acceptance (A17 asks about geometry, not camera framing), but worth
+  a follow-up preset tuning pass before the owner reviews 6000 mm kitchens in a browser.
 - **R6 — the unpanelled left end reads as unfinished to the owner.** Recorded in ADR 0118's shape;
   trigger: the owner objects on seeing it.
 

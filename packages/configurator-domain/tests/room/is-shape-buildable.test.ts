@@ -36,7 +36,7 @@ const BUILDABLE_SHAPES_MOVED = [
 /** A policy that is not the product's: it states a shape's bounds the way M7B will state the U's.
  *  7J S5 discharges this cast for `linear` — that shape's bounds are `APPROVED_ROOM_POLICY`'s own
  *  now — so the fabrication below is only ever asked to stand in for U, its last live case. */
-function policyAlsoStating(shape: RoomShape): RoomPolicy {
+function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
@@ -87,6 +87,7 @@ describe("isShapeBuildable — it reads the policy rather than naming a shape", 
     const statesOnlyU: RoomPolicy = {
       ...APPROVED_ROOM_POLICY,
       buildableShapes: {
+        // U has no bounds of its own yet, hence the cast; M7B is its discharge wave.
         U: lWallBoundsOf(APPROVED_ROOM_POLICY),
       } as BuildableShapes,
     };

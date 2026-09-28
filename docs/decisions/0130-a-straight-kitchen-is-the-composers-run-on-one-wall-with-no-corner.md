@@ -26,13 +26,27 @@ body on wall B, no overflow and a bare end ≤ 599 mm; the owner's own 3700 mm k
 ## Decision
 
 1. **Bounds: wall A 1200–6000 mm; height shared 2200–3900** (ADR 0108 Amendment G). The policy states
-   `linear: { wallA }` and **no `minimumKitchen`**: with no corner, *"must hold a sink and a hob"*
+   ~~`linear: { wallA }`~~ **and no `minimumKitchen`**: with no corner, *"must hold a sink and a hob"*
    (ADR 0108 C, F6) is exactly *wall A ≥ sink + hob*. `ENGINE_ROOM_LIMITS.linear.wallA` is derived —
    sink + hob from `GENERATION_PRIORITIES`, maximum `MAX_ROOM_WIDTH_MM` — and the approved literals sit
    inside it. No new issue code.
+   **Correction, 2026-09-28 (review finding F4):** `LinearWallBounds` actually carries
+   `{ wallA, depthMm }`, not `{ wallA }` alone (`room-policy.ts:55-58`). `depthMm` is fixed at
+   `LINEAR_ROOM_DEPTH_MM` and never varies across a policy — it is not a second bound to tune. It rides
+   on the policy interface, rather than being imported directly by `validate-room.ts`, because that
+   module holds its own guard (*"`validate-room.ts` can read no depth…"*) to type-only imports so it can
+   never reach a cabinet-depth reader; a value import of this unrelated room depth would weaken that
+   guard's mechanism for every depth, not only the one a straight room is exempt from
+   (`room-policy.ts:50-54`, `validate-room.ts:165-169`).
 2. **`depthMm` of a straight room is the drawn floor's depth in front of the run, never a wall.**
    Validation writes `LINEAR_ROOM_DEPTH_MM`, the seeded shell's 3400 mm (`design-bounds.ts`), so a
-   stored straight room keeps the four-key shape every reader expects. Generation never reads it.
+   stored straight room keeps the four-key shape every reader expects. ~~Generation never reads it.~~
+   **Correction, 2026-09-28 (review finding F1):** *composition* never reads it — the composer places
+   bodies with no reference to it. It is not true of generation as a whole: `depthMm` still bounds
+   wall-A cabinet/column depth through the ordinary `reachesPastRoomAcrossWall` check
+   (`validate-design.ts:617-625`) every room shape gets, since a straight room's drawn floor is only
+   3400 mm deep in front of the run. A cabinet whose own declared depth exceeds that is refused, same
+   as for any other shape.
 3. **A straight room has no wall B: `wallLengthMm("B", linear) = 0`.** Extends
    [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 5 (*"each wall's
    own run"*) to a shape with one wall; a wall-B body in a straight document is marked, not refused.

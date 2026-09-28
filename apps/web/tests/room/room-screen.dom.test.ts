@@ -109,7 +109,7 @@ const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 /** The shapes `APPROVED_ROOM_POLICY` refuses today. `linear` joined the L in wave 7J (ADR 0108
  *  Amendment G); `U` waits on M7B — its card is drawn and its dead end is deliberate (the owner's
  *  F8 ruling, 2026-09-14). */
-const REFUSED_SHAPES: readonly RoomShape[] = ["U"];
+const REFUSED_SHAPES: readonly ["U"] = ["U"];
 
 /** Read by path rather than through `new URL(…, import.meta.url)`: under `happy-dom` the module URL
  *  is not a `file:` one, and `readFileSync` refuses it. */
@@ -134,7 +134,7 @@ const ROOM_PAGE_SOURCE = readFileSync(
  * policy that states its bounds, the twin of `configurator-domain`'s own
  * `tests/room/is-shape-buildable.test.ts`. Only `U` still needs a fabricated policy, until M7B.
  */
-function policyAlsoStating(shape: RoomShape): RoomPolicy {
+function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {

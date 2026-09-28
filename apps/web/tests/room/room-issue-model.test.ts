@@ -142,7 +142,7 @@ function approvedL(): LWallBounds {
 /** R8's fabricated policy (ADR 0116): a second shape stated with the L's bounds — only ever called
  *  with U below, which has no bounds of its own yet (M7B's) and no key in `BuildableShapes` to add
  *  one honestly, hence the cast. Linear needs no such fabrication since 7J S5: it is real. */
-function policyAlsoStating(shape: RoomShape): RoomPolicy {
+function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {

@@ -241,7 +241,7 @@ function approvedLWallBounds(): LWallBounds {
  *  is fabricated through this path now — linear's own real bounds are the approved policy's since 7J
  *  S5, so "also stating linear" would just restate "approved". U has none of its own yet (M7B's), and
  *  `BuildableShapes` has no `U` key to add honestly, hence the cast. */
-function policyAlsoStating(shape: RoomShape): RoomPolicy {
+function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
@@ -256,7 +256,7 @@ function policyAlsoStating(shape: RoomShape): RoomPolicy {
  *  are both optional, so `{}` already satisfies it without naming M7B. */
 const POLICY_BUILDING_NOTHING: RoomPolicy = {
   ...APPROVED_ROOM_POLICY,
-  buildableShapes: {} as BuildableShapes,
+  buildableShapes: {},
 };
 
 const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
