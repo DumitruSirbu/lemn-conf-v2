@@ -43,15 +43,36 @@ string including its password, forcing a rotation.
 
 ## Which file holds what
 
-| File | Holds | Notes |
-| --- | --- | --- |
-| `.env.local` | `DATABASE_URL` | The application's least-privilege role. `vercel env pull` rewrites this file wholesale. |
-| `.env.migration.local` | `MIGRATION_DATABASE_URL` | Privileged owner role. Migrations only — the app role deliberately cannot run DDL. |
-| `.env.test.local` | `TEST_DATABASE_URL` | The dedicated test database. Read first by `load-env.ts`, so it wins. |
-| `.env.prod.local` | Production and preview owner/app URLs | Operator use. Never read by the application. |
-| `.env.example` | Key names only, no values | Tracked in git; the others are covered by `.gitignore`'s `.env*.local`. |
+**There are two files named `.env.local`, at two different paths, pointing at two different
+databases — this is the single most common source of confusion in this repo and has caused a real
+incident (below).** `next dev` reads env only from `apps/web/` (its own project directory) and never
+walks up to the repo root, while `vercel env pull` (run from the repo root) always rewrites the
+repo-root file. Neither tool touches the other's file.
+
+| File | Holds | Neon branch | Notes |
+| --- | --- | --- | --- |
+| **repo-root** `.env.local` | `DATABASE_URL`, `VERCEL_OIDC_TOKEN` | **`lemn-conf-v2` — PRODUCTION** | Written by `vercel env pull`, which manages Vercel's **Development** environment variables — meaning Vercel's own dashboard has `DATABASE_URL` for "Development" set to production. `next dev`/`pnpm dev` never reads this file. Do not repoint local dev at it. |
+| **`apps/web/.env.local`** | `DATABASE_URL` | **`lemn-conf-v2-preview`** | What the dev server (and this checkout's e2e runs against a `next start`) actually reads. Has its own header comment explaining the split — read it before assuming "`.env.local`" means the repo-root file. |
+| `.env.migration.local` | `MIGRATION_DATABASE_URL` | **`lemn-conf-v2` — PRODUCTION**, owner role | The **only** migration credential in this checkout right now. Migrations only — the app role deliberately cannot run DDL. |
+| `.env.test.local` | `TEST_DATABASE_URL` | `lemn-conf-v2-staging`, owner role | The dedicated test database. Read first by `load-env.ts`, so it wins. Despite the name, not a staging *deployment* environment — see the file's own header. |
+| `.env.prod.local` | `OWNER_DATABASE_URL`/`APP_DATABASE_URL` (production), `PREVIEW_OWNER_DATABASE_URL`/`PREVIEW_DATABASE_URL` (preview) | production + preview | Operator reference only. Never read by any script. The only place an owner-role credential for `lemn-conf-v2-preview` exists — needed to migrate or grant on preview, since `.env.migration.local` can't reach it. |
+| `.env.example` | Key names only, no values | — | Tracked in git; the others are covered by `.gitignore`'s `.env*.local`. Its own comments are the fullest explanation of this split — read it first if any of the above is unclear. |
 
 Put overrides in the specific file, **not** `.env.local` — `vercel env pull` would discard them.
+
+**The `migrate`/`migrate:status <environment>` argument is a printed label, not a database
+selector.** `pnpm --filter @lemnaria/persistence run migrate preview` does **not** migrate
+`lemn-conf-v2-preview` — it migrates whatever `MIGRATION_DATABASE_URL` currently is (production,
+per the table above), and merely prints `preview` next to the database name it actually reached so
+a human can compare the two and catch a mismatch. This is deliberate (ADR 0096 decision 4: the tool
+refuses to guess an environment, so it makes you declare one and shows you the truth beside it) —
+but it depends on someone reading the printed database name and noticing a mismatch, which does not
+always happen. **Incident, 2026-09-28:** an agent session read `preview` as a selector, ran
+`migrate preview`, and applied migrations 0005/0006 to production ahead of the documented
+"preview then production" order (additive, no data lost, but done without a fresh go-ahead for
+production specifically). To actually reach preview, pass `PREVIEW_OWNER_DATABASE_URL` (from
+`.env.prod.local`) as `MIGRATION_DATABASE_URL` for that one invocation — never edit
+`.env.migration.local` to do it.
 
 ## Test-database isolation
 
