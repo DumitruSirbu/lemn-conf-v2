@@ -222,7 +222,15 @@ function assertModelAgreesWithDomain(
   };
   const expected = {
     surface: expectedSurfaceOf(issues),
-    isLinearSuggested: false,
+    // 7J S5: the straight kitchen's own bounds are in `APPROVED_ROOM_POLICY` now, so this is the
+    // real domain's verdict on wall A and the height alone — never a hardcoded `false` — exactly
+    // the same oracle `room-issue-model.test.ts`'s own restatement derives.
+    isLinearSuggested:
+      issues.length > 0 &&
+      validateRoomInput(
+        { shape: "linear", wallAMm: room.wallA, heightMm: room.height },
+        APPROVED_ROOM_POLICY,
+      ).ok,
     isShapeRefused: false,
     unreadableFields: [],
   };

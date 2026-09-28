@@ -649,8 +649,13 @@ describe("1C is announced into a status region that was already there (F3)", () 
     expect(status.querySelector("[data-testid^='room-length-reason-']")).toBe(
       null,
     );
+    // 7J S5: this room's wall A (3600) and height (2600) now validate as a straight kitchen on
+    // their own (ADR 0108 Amendment G), so the status carries the suggestion beside the presets
+    // note — the same room `qa-7f2-s4-shape-refusal.adversarial.test.ts`'s "shows for an L refused
+    // on a field" fixture names — where it used to carry the note alone.
     expect(status.textContent).toBe(
-      elementAt("room-presets-after-valid").textContent,
+      elementAt("room-linear-suggestion").textContent +
+        elementAt("room-presets-after-valid").textContent,
     );
   });
 

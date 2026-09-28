@@ -1093,9 +1093,14 @@ describe("the sub-state markers read the live query and lag the field by the set
 describe("the policy stays the only buildability answer under a hostile query", () => {
   it("offers no way on from a room the approved policy does not state", () => {
     // A U room fully answered by the URL is 1C, not 1D: the CTA is refused because the policy
-    // states no U bounds, and never because a component spelled the letter. Wave 7J adds them and
-    // this test is then a live case rather than a refusal — the premise is asserted, not assumed.
-    expect(Object.keys(APPROVED_ROOM_POLICY.buildableShapes)).toEqual(["L"]);
+    // states no U bounds, and never because a component spelled the letter. 7J S5 added the
+    // straight kitchen's — this premise line is restated to that, and the U subject below is
+    // unmoved: the policy still states no U bounds, so this stays a live case rather than a
+    // refusal — the premise is asserted, not assumed.
+    expect(Object.keys(APPROVED_ROOM_POLICY.buildableShapes)).toEqual([
+      "L",
+      "linear",
+    ]);
 
     render(
       "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",

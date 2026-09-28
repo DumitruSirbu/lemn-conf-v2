@@ -411,6 +411,9 @@ describe("room URL state boundary", () => {
     });
   });
 
+  // 7J S5: 3.6 × 2.5 m is inside the straight kitchen's own approved range (1200–6000, 2200–3900),
+  // so this now reaches 1D rather than stopping at 1C — the room-irrelevant keys are still ignored,
+  // which is what this test is about.
   it("ignores unknown and shape-irrelevant keys", () => {
     const state = parseRoomUrlState({
       shape: "linear",
@@ -423,14 +426,16 @@ describe("room URL state boundary", () => {
     });
 
     expect(state).toMatchObject({
-      substate: "1C",
+      substate: "1D",
       input: { shape: "linear", wallAMm: 3600, heightMm: 2500 },
     });
   });
 });
 
 describe("room URL state domain hand-off", () => {
-  it.each(["linear", "U"] as const)(
+  // 7J S5: only U reaches the domain's shape-alone refusal now — `inputFor("linear")`'s 3600 × 2500
+  // is inside the straight kitchen's own approved range, so the round trip reaches 1D instead.
+  it.each(["U"] as const)(
     "lets the domain refuse the fully parsed %s shape",
     (shape) => {
       const query = asNextSearchParams(serialiseRoomInput(inputFor(shape)));
@@ -442,6 +447,17 @@ describe("room URL state domain hand-off", () => {
       });
     },
   );
+
+  // 7J S5: the round trip a straight kitchen now completes, ADR 0108 Amendment G's own bounds.
+  it("lets the domain accept the fully parsed linear shape", () => {
+    const query = asNextSearchParams(serialiseRoomInput(inputFor("linear")));
+
+    expect(parseRoomUrlState(query)).toMatchObject({
+      substate: "1D",
+      input: inputFor("linear"),
+      markedFields: [],
+    });
+  });
 
   it("publishes public domain issues without replacing them at the web boundary", () => {
     expect(

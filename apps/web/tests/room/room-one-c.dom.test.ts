@@ -687,17 +687,25 @@ describe("the Continue button leads on exactly when the room is one the domain a
     );
   });
 
-  it.each(["U", "linear"] as const)(
-    "is inactive for a filled %s room, which the policy does not build",
-    (shape) => {
-      const search = refusedShapeSearch(shape);
-      expect(parsed(search).substate).toBe("1C");
+  it("is inactive for a filled U room, which the policy does not build", () => {
+    const search = refusedShapeSearch("U");
+    expect(parsed(search).substate).toBe("1C");
 
-      render(search);
+    render(search);
 
-      expect(continueButton().disabled).toBe(true);
-    },
-  );
+    expect(continueButton().disabled).toBe(true);
+  });
+
+  // 7J S5: this same fixture — wall A 3000, height 2600 — is now a straight room the approved
+  // policy accepts (ADR 0108 Amendment G), so it reaches 1D and leads Continue on.
+  it("is active for the same filled linear room, which the policy now builds", () => {
+    const search = refusedShapeSearch("linear");
+    expect(parsed(search).substate).toBe("1D");
+
+    render(search);
+
+    expect(continueButton().disabled).toBe(false);
+  });
 
   it("does nothing at all when tapped inactive: no navigation and no composition", () => {
     render("shape=L&wallA=3.6&wallB=0.45&height=2.6&direction=left");
@@ -899,16 +907,36 @@ describe("a changed sentence mid-burst is a new problem and waits for the pause 
 });
 
 describe("a chip chosen outside a burst shows its 1C at once (R1.4)", () => {
+  // 7J S5: `A_VALID_ROOM`'s wall A (3600) and height (2600) carry over to the linear chip and
+  // validate as a straight room on their own (ADR 0108 Amendment G), so that fixture no longer
+  // reaches 1C on the chip swap. A valid L whose wall A sits below the straight kitchen's own
+  // 1200 mm minimum (900, holding the kitchen through wall B alone) keeps the field present but
+  // invalid, which is what this test is about — restated from a fixture that used to be refused for
+  // a different reason (the shape).
+  const A_VALID_L_BELOW_LINEAR_MIN =
+    "shape=L&wallA=0.9&wallB=3&height=2.5&direction=left";
+
   it("shows the note as soon as the linear chip is chosen from a valid L", () => {
     // A chip is not typing: `noteEdit` carries a burst already running and never starts one. The
     // corner arm is equivalent and not repeated — a mirror never changes whether a room is valid.
-    render(A_VALID_ROOM);
+    render(A_VALID_L_BELOW_LINEAR_MIN);
+    expect(parsed(A_VALID_L_BELOW_LINEAR_MIN).substate).toBe("1D");
     expect(isNoteShown()).toBe(false);
 
     click("room-shape-chip-control-linear");
 
     expect(isNoteShown()).toBe(true);
     expect(continueButton().disabled).toBe(true);
+  });
+
+  it("shows no note when the linear chip is chosen from a valid L whose fields carry over as valid", () => {
+    render(A_VALID_ROOM);
+    expect(isNoteShown()).toBe(false);
+
+    click("room-shape-chip-control-linear");
+
+    expect(isNoteShown()).toBe(false);
+    expect(continueButton().disabled).toBe(false);
   });
 });
 

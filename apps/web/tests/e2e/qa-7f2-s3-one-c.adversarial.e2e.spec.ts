@@ -90,7 +90,14 @@ const COLUMN_GAP_PX = 16;
  *  and outgrows the U's 2.6 px of slack by design (Q-7F2-2 (a)); the fits spec measures that column
  *  by reach instead. The region's own cost is still the first two claims, in every shape. */
 const ONE_B_AND_ONE_C = {
-  linear: { oneB: "shape=linear", oneC: null, holdsItsFieldsAtOneB: true },
+  // 7J S5: the straight kitchen is buildable now (ADR 0108 Amendment G), so it reaches 1C for real
+  // — a wall A too short for it (0.8 m) is this shape's own worst case, restated from `oneC: null`,
+  // which held while every straight room was refused on its shape alone.
+  linear: {
+    oneB: "shape=linear",
+    oneC: "shape=linear&wallA=0.8&height=2.6",
+    holdsItsFieldsAtOneB: true,
+  },
   L: {
     oneB: "shape=L&direction=left",
     oneC: TOO_SMALL,
@@ -123,7 +130,8 @@ for (const locale of LOCALES) {
         ).toBeGreaterThanOrEqual(-SUB_PIXEL_PX);
       }
 
-      if (rooms.oneC === null) return;
+      // 7J S5: every shape now has a reachable 1C (`ONE_B_AND_ONE_C`'s own `oneC`, no longer
+      // `null` for linear), so there is no early-return arm left to guard.
       await page.goto(`/${locale}/configurator/room?${rooms.oneC}`);
       await expect(page.getByTestId("room-presets-after-valid")).toBeVisible();
       const atOneC = await statusBelowFields(page);

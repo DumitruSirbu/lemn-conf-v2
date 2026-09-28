@@ -431,24 +431,43 @@ describe("the marks are exactly the refused walls, taken from the domain directl
     },
   );
 
-  it.each(SHAPES.filter((shape) => shape !== "L"))(
-    "marks no wall of a %s, which is refused on its shape before any field is judged",
-    (shape) => {
-      fc.assert(
-        fc.property(anyTypedRoom, (room) => {
-          const draft = draftOf({ ...room, shape });
+  it("marks no wall of a U, which is refused on its shape before any field is judged", () => {
+    fc.assert(
+      fc.property(anyTypedRoom, (room) => {
+        const draft = draftOf({ ...room, shape: "U" });
 
-          expect(markedWallsFromTheIssueModel(draft)).toEqual([]);
-          expect(
-            marksOn(
-              markPlanWalls(planOf(draft), markedWallsFromTheIssueModel(draft)),
-            ),
-          ).toEqual([]);
-        }),
-        { numRuns: SAMPLES_PER_ARM },
-      );
-    },
-  );
+        expect(markedWallsFromTheIssueModel(draft)).toEqual([]);
+        expect(
+          marksOn(
+            markPlanWalls(planOf(draft), markedWallsFromTheIssueModel(draft)),
+          ),
+        ).toEqual([]);
+      }),
+      { numRuns: SAMPLES_PER_ARM },
+    );
+  });
+
+  // 7J S5: a straight kitchen is field-judged now (ADR 0108 Amendment G), so wall A marks the same
+  // way an L's wall B does above — restated from "marks no wall of a linear", which held before
+  // this wave.
+  it("marks wall A of a linear as too short at every prefix below the minimum", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 1199 }), (prefixMm) => {
+        const draft = draftTyped(
+          "linear",
+          { wallA: prefixMm, height: 2600 },
+          "left",
+        );
+
+        expect(
+          marksOn(
+            markPlanWalls(planOf(draft), markedWallsFromTheIssueModel(draft)),
+          ),
+        ).toEqual([{ wall: "A", labelKey: TOO_SHORT }]);
+      }),
+      { numRuns: 99 },
+    );
+  });
 
   it("marks no wall when the room is refused only as too small for the kitchen", () => {
     // 900 x 2160 x 2200: `room-screen.dom.test.ts`'s own too-small fixture, every field in range.

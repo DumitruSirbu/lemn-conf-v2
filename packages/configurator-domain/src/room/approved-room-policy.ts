@@ -6,8 +6,9 @@
 // **Literals, on purpose** (Amendment B decision B1): the owner approved numbers, not formulas, so a
 // later engineering change must not move them silently. They are held inside `ENGINE_ROOM_LIMITS`
 // by `approved-room-policy.test.ts`, which also pins each value, so editing one here is a deliberate,
-// visible change. The L only: straight and U-shaped rooms stay refused until their own waves put
-// their bounds to the owner (decision B2).
+// visible change. The L and, since wave 7J, the straight kitchen; a U-shaped room stays refused
+// until its own wave puts its bounds to the owner (decision B2).
+import { LINEAR_ROOM_DEPTH_MM } from "../design-bounds.js";
 import type { RoomPolicy } from "./room-policy.js";
 
 // Both wall maxima are the owner's 6000 mm per wall (ADR 0120 Amendment B2, owner 2026-09-15:
@@ -37,6 +38,15 @@ const APPROVED_L_CORNER_REACH_WALL_B_MM = 1000;
 const APPROVED_CEILING_MIN_MM = 2200;
 const APPROVED_CEILING_MAX_MM = 3900;
 
+// ADR 0108 Amendment G (owner, 2026-09-23, Q-7J-1): one maximum for every wall of every shape,
+// 6000 mm — measured against a straight wall specifically and found to cost nothing (wave 7J's plan,
+// G6): the mean bare end at 6001–6300 is roughly double 1200–6000's, 6000 fills exactly, and no
+// length past it holds a single body more. 1200 is the owner's minimum kitchen with no corner to
+// clear — a 600 mm sink plus a 600 mm hob, wall A's own bound rather than a coupled two-wall rule
+// (ADR 0130 D2).
+const APPROVED_LINEAR_WALL_A_MIN_MM = 1200;
+const APPROVED_LINEAR_WALL_A_MAX_MM = 6000;
+
 export const APPROVED_ROOM_POLICY: RoomPolicy = {
   approval: "owner-approved",
   buildableShapes: {
@@ -58,6 +68,13 @@ export const APPROVED_ROOM_POLICY: RoomPolicy = {
           wallB: APPROVED_L_CORNER_REACH_WALL_B_MM,
         },
       },
+    },
+    linear: {
+      wallA: {
+        minMm: APPROVED_LINEAR_WALL_A_MIN_MM,
+        maxMm: APPROVED_LINEAR_WALL_A_MAX_MM,
+      },
+      depthMm: LINEAR_ROOM_DEPTH_MM,
     },
   },
   heightBounds: {

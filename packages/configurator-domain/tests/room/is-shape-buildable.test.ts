@@ -16,14 +16,14 @@ import { lWallBoundsOf } from "../support/room-input.js";
 const EVERY_ROOM_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
 /**
- * The shapes the owner has approved bounds for **as of 2026-09-14** — a running record, not a
- * prohibition. `linear` is already owner-approved at 1200–6300 mm and is held out of the policy
- * until wave 7J (ADR 0108 Amendment D); `U` has never been put to the owner and is M7B.
+ * The shapes the owner has approved bounds for — a running record, not a prohibition. `linear`
+ * joined the L in wave 7J (ADR 0108 Amendment G, D11); `U` has never been put to the owner and is
+ * M7B.
  *
  * **When a wave adds a shape here:** add it to this list too, and change nothing under
  * `apps/web/src/room` — an edit needed there means a caller named a shape instead of asking.
  */
-const SHAPES_WITH_APPROVED_BOUNDS: readonly RoomShape[] = ["L"];
+const SHAPES_WITH_APPROVED_BOUNDS: readonly RoomShape[] = ["linear", "L"];
 
 /** What a reader of the failure needs, since the expected set is meant to grow. */
 const BUILDABLE_SHAPES_MOVED = [
@@ -33,9 +33,9 @@ const BUILDABLE_SHAPES_MOVED = [
   "A shape that lost its bounds is a policy change the owner has to have ruled on.",
 ].join(" ");
 
-/** A policy that is not the product's: it states a second shape's bounds the way wave 7J will state
- *  the straight kitchen's. `BuildableShapes` declares only the L today, so the fabricated key is
- *  asserted once, here — the shape of that type is the wave that widens it's business. */
+/** A policy that is not the product's: it states a shape's bounds the way M7B will state the U's.
+ *  7J S5 discharges this cast for `linear` — that shape's bounds are `APPROVED_ROOM_POLICY`'s own
+ *  now — so the fabrication below is only ever asked to stand in for U, its last live case. */
 function policyAlsoStating(shape: RoomShape): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
@@ -71,16 +71,28 @@ describe("isShapeBuildable — against the owner-approved policy", () => {
 });
 
 describe("isShapeBuildable — it reads the policy rather than naming a shape", () => {
-  it.each(["linear", "U"] as const)(
-    "turns %s buildable as soon as a policy states its bounds, with no change to the predicate",
-    (shape) => {
-      expect(isShapeBuildable(shape, APPROVED_ROOM_POLICY)).toBe(false);
-      expect(isShapeBuildable(shape, policyAlsoStating(shape))).toBe(true);
-    },
-  );
+  // 7J S5: `linear` is real now — `APPROVED_ROOM_POLICY` itself is the policy that turned it
+  // buildable, discharging this cast (D11). Only U still needs a fabricated policy, and its own
+  // wave is M7B.
+  it("turns U buildable as soon as a policy states its bounds, with no change to the predicate", () => {
+    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(false);
+    expect(isShapeBuildable("U", policyAlsoStating("U"))).toBe(true);
+  });
+
+  it("is already buildable for linear, under the real approved policy, with no cast", () => {
+    expect(isShapeBuildable("linear", APPROVED_ROOM_POLICY)).toBe(true);
+  });
 
   it("does not turn a shape buildable that the fabricated policy left out", () => {
-    expect(isShapeBuildable("U", policyAlsoStating("linear"))).toBe(false);
+    const statesOnlyU: RoomPolicy = {
+      ...APPROVED_ROOM_POLICY,
+      buildableShapes: {
+        U: lWallBoundsOf(APPROVED_ROOM_POLICY),
+      } as BuildableShapes,
+    };
+
+    expect(isShapeBuildable("linear", statesOnlyU)).toBe(false);
+    expect(isShapeBuildable("L", statesOnlyU)).toBe(false);
   });
 
   it("answers no for every shape when a policy states none", () => {

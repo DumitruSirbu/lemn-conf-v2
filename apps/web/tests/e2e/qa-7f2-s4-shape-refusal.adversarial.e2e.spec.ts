@@ -115,7 +115,9 @@ for (const locale of LOCALES) {
     }
   });
 
-  test(`the empty refusal region costs an L's 1B column nothing, and a straight room's refusal one gap, in ${locale}`, async ({
+  // 7J S5: `shape=linear` alone no longer carries a shape refusal (ADR 0108 Amendment G) — `U` is
+  // this measurement's fixture instead, restated from a straight room's own refusal.
+  test(`the empty refusal region costs an L's 1B column nothing, and a U's refusal one gap, in ${locale}`, async ({
     page,
   }) => {
     await page.goto(`/${locale}/configurator/room?shape=L&direction=left`);
@@ -128,29 +130,28 @@ for (const locale of LOCALES) {
       detailL,
     ).toBeLessThan(SUB_PIXEL_PX);
 
-    await page.goto(`/${locale}/configurator/room?shape=linear`);
+    await page.goto(`/${locale}/configurator/room?shape=U`);
     await expect(page.getByTestId("room-shape-refusal")).toBeVisible();
-    const underLinear = await regionAfter(page, "room-shape-chips");
-    const detailLinear = JSON.stringify(underLinear);
+    const underU = await regionAfter(page, "room-shape-chips");
+    const detailU = JSON.stringify(underU);
     expect(
       Math.abs(
-        underLinear.regionTopPx -
-          underLinear.previousBottomPx -
-          DIMENSIONS_GAP_PX,
+        underU.regionTopPx - underU.previousBottomPx - DIMENSIONS_GAP_PX,
       ),
-      detailLinear,
+      detailU,
     ).toBeLessThan(SUB_PIXEL_PX);
     expect(
       Math.abs(
-        underLinear.nextTopPx -
-          (underLinear.regionTopPx + underLinear.regionHeightPx) -
+        underU.nextTopPx -
+          (underU.regionTopPx + underU.regionHeightPx) -
           DIMENSIONS_GAP_PX,
       ),
-      detailLinear,
+      detailU,
     ).toBeLessThan(SUB_PIXEL_PX);
   });
 
-  for (const shape of ["U", "linear"] as const) {
+  // 7J S5: only U is refused on its shape alone at 1A now (ADR 0108 Amendment G).
+  for (const shape of ["U"] as const) {
     test(`1A under a refused ${shape} card clips neither its note nor any target, and every target is ${String(TOUCH_TARGET_PX)} px, in ${locale}`, async ({
       page,
     }) => {
@@ -189,14 +190,14 @@ for (const locale of LOCALES) {
     });
   }
 
+  // 7J S5: an empty or filled straight room is no longer refused on its shape (ADR 0108 Amendment
+  // G) — `room-length-fields-fit.e2e.spec.ts` covers its own targets at 1B/1D/1C now.
   for (const [name, query] of [
     ["an empty U", "shape=U&direction=left"],
     [
       "a filled U",
       "shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left",
     ],
-    ["an empty straight room", "shape=linear"],
-    ["a filled straight room", "shape=linear&wallA=3.6&height=2.6"],
   ] as const) {
     test(`every control of ${name} under its refusal is ${String(TOUCH_TARGET_PX)} px and nothing scrolls sideways, in ${locale}`, async ({
       page,

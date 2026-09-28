@@ -10,6 +10,7 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
+  validateRoomInput,
   type BuildableShapes,
   type CornerDirection,
   type LWallBounds,
@@ -532,12 +533,14 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     },
   );
 
-  it("refuses the two shapes the approved policy does not build, and not the L", () => {
+  // 7J S5: the straight kitchen joins the L under the approved policy (ADR 0108 Amendment G), so
+  // only the U — never put to the owner — is refused as its shape alone now.
+  it("refuses the one shape the approved policy does not build, and not the L or linear", () => {
     const refused = ROOM_SHAPES.filter(
       (shape) => viewOf(createRoomDraft(shape)).isShapeRefused,
     );
 
-    expect(refused).toEqual(["linear", "U"]);
+    expect(refused).toEqual(["U"]);
   });
 
   it("stops refusing a shape the moment a policy states it, with no other change", () => {
@@ -551,7 +554,7 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     expect(view.isShapeRefused).toBe(false);
   });
 
-  it.each(["linear", "U"] as const)(
+  it.each(["U"] as const)(
     "keeps the %s refusal out of the room-level slot at 1C",
     (shape) => {
       const draft = draftTyped({
@@ -568,39 +571,81 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     },
   );
 
+  // 7J S5: this same entry — wall A 2200, height 2500 — is now a straight room the approved policy
+  // accepts, so it reaches 1D rather than stopping at a shape refusal.
+  it("accepts a straight kitchen at 1D with the same fields that used to refuse it", () => {
+    const draft = draftTyped({
+      shape: "linear",
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
+    });
+
+    const view = viewOf(draft);
+
+    expect(stateOfDraft(draft).substate).toBe("1D");
+    expect(view.isShapeRefused).toBe(false);
+  });
+
   it("publishes the shape refusal through the SHAPE_NOT_BUILDABLE leaf", () => {
     expect(SHAPE_REFUSAL_MESSAGE_KEY).toBe("room.issue.shapeNotBuildable");
   });
 });
 
 // ---------------------------------------------------------------------------------------------
-// Criterion 10's model arm — no linear suggestion before 7J
+// Criterion 10's model arm — the straight kitchen's suggestion is the domain's own answer (7J S5)
 // ---------------------------------------------------------------------------------------------
 
-describe("no straight kitchen is suggested while the domain builds none", () => {
+describe("the straight kitchen is suggested exactly when 1C has a reason and wall A validates one", () => {
+  // 7J S5: `APPROVED_ROOM_POLICY` now states the straight kitchen's own bounds, so the arms whose
+  // wall A already sits inside them (the `ok`-ranged ones — "B short", "B long" and "too small")
+  // suggest it for real; the arms whose wall A is outside them (the L's own short/long ranges,
+  // always clear of 1200–6000) still do not. The oracle is the real domain's answer on wall A and
+  // the height alone, never a hardcoded `false` — restated from "suggests nothing under the approved
+  // policy", which held for every arm before this wave.
   it.each(FIELD_ARMS)(
-    "suggests nothing under the approved policy: $name",
+    "matches the domain's own verdict on wall A and height: $name",
     ({ room }) => {
       fc.assert(
         fc.property(room, (mm) => {
-          expect(viewOf(lDraft(mm)).isLinearSuggested).toBe(false);
+          const validatesAsStraight = validateRoomInput(
+            { shape: "linear", wallAMm: mm.wallA, heightMm: mm.height },
+            APPROVED_ROOM_POLICY,
+          ).ok;
+          const view = viewOf(lDraft(mm));
+          // 1C "has a reason" through either slot — a field's own, or the room-level one
+          // `ROOM_TOO_SMALL_FOR_KITCHEN` carries (the "too small" arm's own case, which names no
+          // field at all).
+          const hasAReason =
+            view.fieldReasons.length > 0 || view.roomReasons.length > 0;
+
+          expect(view.isLinearSuggested).toBe(
+            hasAReason && validatesAsStraight,
+          );
         }),
         { numRuns: SAMPLES_PER_ARM },
       );
     },
   );
 
-  it.each(["linear", "U"] as const)(
-    "suggests nothing for a refused %s shape",
-    (shape) => {
-      const draft = draftTyped({
-        shape,
-        texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
-      });
+  it("suggests nothing for a refused U shape", () => {
+    const draft = draftTyped({
+      shape: "U",
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
+    });
 
-      expect(viewOf(draft).isLinearSuggested).toBe(false);
-    },
-  );
+    expect(viewOf(draft).isLinearSuggested).toBe(false);
+  });
+
+  // 7J S5: this entry is no longer a refused shape — it is itself a straight room the policy
+  // accepts — and a room the domain accepts has no reason to append the suggestion to.
+  it("suggests nothing for an accepted linear shape, which has no reason to append it to", () => {
+    const draft = draftTyped({
+      shape: "linear",
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
+    });
+
+    expect(stateOfDraft(draft).substate).toBe("1D");
+    expect(viewOf(draft).isLinearSuggested).toBe(false);
+  });
 
   it("keeps the suggestion's leaf in the catalogue for wave 7J to switch on", () => {
     expect(LINEAR_SUGGESTION_MESSAGE_KEY).toBe("room.issue.orChooseLinear");

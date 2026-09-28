@@ -30,6 +30,7 @@ import {
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import {
   lInputFromRoom,
+  linearWallBoundsOf,
   lWallBoundsOf,
   validateRoom,
 } from "../support/room-input.js";
@@ -85,6 +86,20 @@ const POLICY_FIELDS: readonly PolicyField[] = [
       ...policy,
       heightBounds: { ...policy.heightBounds, maxMm },
     }),
+  },
+  // 7J S5, ADR 0130 D2: the straight kitchen's one wall, joining the L's two above.
+  {
+    name: "linear wall A",
+    boundsOf: (policy) => linearWallBoundsOf(policy).wallA,
+    withMaximum: (policy, maxMm) => {
+      const walls = linearWallBoundsOf(policy);
+      return {
+        ...policy,
+        buildableShapes: {
+          linear: { ...walls, wallA: { ...walls.wallA, maxMm } },
+        },
+      };
+    },
   },
 ];
 
@@ -170,14 +185,25 @@ describe("APPROVED_ROOM_POLICY — the owner's ruling", () => {
       cornerReachMm: { wallA: 900, wallB: 1000 },
     });
   });
+
+  // 7J S5, ADR 0108 Amendment G / Q-7J-1: the straight wall's own bounds, pinned the same way the
+  // L's six values are, so an edit to either is a deliberate, visible diff.
+  it("pins the straight kitchen's wall A at 1200-6000 mm", () => {
+    expect(linearWallBoundsOf(APPROVED_ROOM_POLICY).wallA).toStrictEqual({
+      minMm: 1200,
+      maxMm: 6000,
+    });
+  });
 });
 
 describe("APPROVED_ROOM_POLICY — held inside the engine's limits", () => {
-  it("builds the L and only shapes the engine can build", () => {
+  // 7J S5: the straight kitchen joins the L (ADR 0108 Amendment G); a U stays engine-only until its
+  // own wave, so the guard's "every approved shape is one the engine can build" still has content.
+  it("builds the L and the straight kitchen — only shapes the engine can build", () => {
     const approvedShapes = Object.keys(APPROVED_ROOM_POLICY.buildableShapes);
     const engineShapes = Object.keys(ENGINE_ROOM_LIMITS.buildableShapes);
 
-    expect(approvedShapes).toEqual(["L"]);
+    expect(approvedShapes).toEqual(["L", "linear"]);
     expect(approvedShapes.every((shape) => engineShapes.includes(shape))).toBe(
       true,
     );

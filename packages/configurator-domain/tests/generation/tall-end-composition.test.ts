@@ -734,6 +734,9 @@ describe("the room rule is unmoved (criterion 17)", () => {
   it("keeps the approved policy's own numbers where the wave found them", () => {
     // The wall maxima were 6300 / 5100 when 7D3 left them; M7 7A3 moved both to the owner's 6000 mm
     // (ADR 0120 Amendment B2). Everything else here is still what 7D3 found.
+    //
+    // 7J S5, ADR 0108 Amendment G: the straight kitchen's own wall A, 1200–6000, joins the L here —
+    // the one shape this fixed snapshot did not carry before wave 7J admitted it.
     expect(APPROVED_ROOM_POLICY).toEqual({
       approval: "owner-approved",
       buildableShapes: {
@@ -746,6 +749,10 @@ describe("the room rule is unmoved (criterion 17)", () => {
             hobWidthMm: 600,
             cornerReachMm: { wallA: 900, wallB: 1000 },
           },
+        },
+        linear: {
+          wallA: { minMm: 1200, maxMm: 6000 },
+          depthMm: 3400,
         },
       },
       heightBounds: { minMm: 2200, maxMm: 3900 },

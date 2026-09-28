@@ -129,21 +129,18 @@ const REACH_WITNESSES: readonly ReachWitness[] = [
     shown: [REFUSAL, NOTE],
     mustScroll: false,
   },
+  // 7J S5: a straight room is field-judged now (ADR 0108 Amendment G) — 0.8 m is too short for its
+  // own wall A (1200 mm minimum) and 2 m too low a ceiling, so this is two field reasons and the
+  // note, restated from the shape refusal it carried while every straight room was refused.
   {
-    name: "a straight room at 1C",
+    name: "a straight room at 1C's worst case",
     query: "shape=linear&wallA=0.8&height=2",
-    shown: [REFUSAL, NOTE],
+    shown: ["room-length-reason-wallA", "room-length-reason-height", NOTE],
     mustScroll: false,
   },
   {
     name: "a U room at 1B",
     query: "shape=U&direction=left",
-    shown: [REFUSAL],
-    mustScroll: false,
-  },
-  {
-    name: "a straight room at 1B",
-    query: "shape=linear",
     shown: [REFUSAL],
     mustScroll: false,
   },
@@ -246,8 +243,9 @@ async function expectEveryTargetReachable(
   }
 }
 
+// 7J S5: only U is refused on its shape alone at 1A now (ADR 0108 Amendment G).
 for (const locale of LOCALES) {
-  for (const shape of ["linear", "U"] as const) {
+  for (const shape of ["U"] as const) {
     test(`1A's column holds the refusal under the ${shape} card, the cards, the note and the Continue button without clipping in ${locale}`, async ({
       page,
     }) => {

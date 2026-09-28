@@ -348,8 +348,15 @@ function runStep(step: Step): void {
 }
 
 describe("the refusal follows the shape on screen and nothing else (criterion 9), over sequences", () => {
+  // 7J S5: the suggestion's own correctness — exactly when 1C has a reason and wall A validates as
+  // a straight room — is swept exhaustively in `room-issue-model.test.ts` and
+  // `qa-7f2-s1-issue-model.adversarial.test.ts`; before this wave it could never fire under any
+  // real policy, so a blanket "never shown" belonged here too. It can fire now (an L refused on
+  // wall B whose wall A and height happen to validate on their own), so this sweep's own subject —
+  // the shape refusal, said once, from one region — is asserted without also pinning the
+  // suggestion's presence, which this sweep's random walk does not model.
   it.each(POLICIES)(
-    "is shown exactly when the policy does not build the chosen shape, said once, from one region, with no linear suggestion — policy %s",
+    "is shown exactly when the policy does not build the chosen shape, said once, from one region — policy %s",
     (_, policy) => {
       fc.assert(
         fc.property(
@@ -374,7 +381,6 @@ describe("the refusal follows the shape on screen and nothing else (criterion 9)
               expect(elementAt(REFUSAL_STATUS), detail).toBe(region);
               expect(region.getAttribute("role"), detail).toBe("status");
               expectTheChipsDescribedByTheRefusal(isRefused, detail);
-              expect(maybeAt(SUGGESTION), detail).toBe(null);
             }
           },
         ),
@@ -384,12 +390,18 @@ describe("the refusal follows the shape on screen and nothing else (criterion 9)
   );
 });
 
+// 7J S5: a straight kitchen is buildable now (ADR 0108 Amendment G), so the three fixtures that
+// used to belong in the "refused on shape alone" sweep below no longer do — `A_FILLED_LINEAR`
+// (3600 × 2600) is accepted at 1D, `shape=linear` alone is missing fields at 1B, and
+// `shape=linear&wallA=99&height=0.5` is refused on its *fields*, not its shape, so it now marks
+// wallA and height instead of carrying no field mark. Each is covered by its own real behaviour in
+// `room-url-state.test.ts` (1B/1D), `room-issue-model.test.ts` and
+// `qa-7f2-s1-issue-model.adversarial.test.ts` (field refusal) — none of it a shape refusal, which
+// is this describe's own subject.
 describe("a deep link is refused on its first frame, whatever its fields hold", () => {
   it.each([
     ["an empty U", "shape=U"],
-    ["an empty straight room", "shape=linear"],
     ["a filled U", A_FILLED_U],
-    ["a filled straight room", A_FILLED_LINEAR],
     [
       "a U with every field out of range",
       "shape=U&wallA=0.1&wallB=9&wallC=0.1&height=9&direction=right",
@@ -398,7 +410,6 @@ describe("a deep link is refused on its first frame, whatever its fields hold", 
       "a U with unreadable and repeated fields",
       "shape=U&wallA=abc&wallB=2.4&wallB=3&height=-1",
     ],
-    ["a straight room far out of range", "shape=linear&wallA=99&height=0.5"],
   ])("refuses %s, marks no field and suggests nothing", (_, search) => {
     render(search);
 
@@ -479,7 +490,10 @@ function regionsChangedBy(gesture: () => void): readonly string[] {
 
 describe("what a chip tap announces", () => {
   it("replaces the sentence node — so it is announced again — when one refused chip is swapped for the other", () => {
-    render("shape=U&direction=left");
+    // 7J S5: linear is buildable under the real approved policy, so it is no longer a second
+    // refused shape to swap into — `POLICY_BUILDING_NOTHING` keeps both refused, which is this
+    // test's own subject (the re-announcement), not which shapes the real policy happens to build.
+    render("shape=U&direction=left", POLICY_BUILDING_NOTHING);
     const sentence = elementAt(REFUSAL);
 
     click("room-shape-chip-control-linear");
@@ -538,11 +552,14 @@ function russianCatalogue(): readonly [CatalogueLocale, Catalogue] {
 }
 
 describe("the refusal in Russian", () => {
-  it("draws the Russian sentence once, under the chips, for a filled straight room", () => {
+  // 7J S5: a filled straight room is accepted under the real approved policy now, so it carries no
+  // shape refusal to draw in either language — a filled U is this test's fixture instead, still
+  // refused (a U is M7B's).
+  it("draws the Russian sentence once, under the chips, for a filled U", () => {
     const [locale, messages] = russianCatalogue();
     screenMessages = messages;
     screenLocale = locale;
-    render(A_FILLED_LINEAR);
+    render(A_FILLED_U);
 
     expect(elementAt(REFUSAL).textContent).toBe(
       requireLeafAt(screenMessages, "room.issue.shapeNotBuildable"),

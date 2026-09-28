@@ -97,7 +97,9 @@ describe("the suggestion's positive arm, with the domain accepting a straight ro
   it("is not shown when the domain refuses the straight room too — the gate is the domain's answer", () => {
     straightRooms.isAccepted = false;
 
-    expect(isSuggestedFor(lRoom("3600", "450", "2600"))).toBe(false);
+    // 7J S5: the double's fallback now reaches the real domain, which accepts a straight kitchen —
+    // so wall A here must be outside its own approved range (1200–6000), not merely wall B's.
+    expect(isSuggestedFor(lRoom("100", "450", "2600"))).toBe(false);
     expect(straightRooms.asked).not.toHaveLength(0);
   });
 });

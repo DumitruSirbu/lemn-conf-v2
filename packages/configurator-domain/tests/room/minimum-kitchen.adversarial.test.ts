@@ -182,11 +182,6 @@ describe("validateRoomInput — 7A2 coupled predicate", () => {
 
   it.each([
     {
-      shape: "linear",
-      wallAMm: undefined,
-      heightMm: Number.NaN,
-    },
-    {
       shape: "U",
       wallAMm: undefined,
       wallBMm: -1,
@@ -198,6 +193,25 @@ describe("validateRoomInput — 7A2 coupled predicate", () => {
     expect(validateRoomInput(input, APPROVED_ROOM_POLICY)).toStrictEqual({
       ok: false,
       issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+    });
+  });
+
+  // 7J S5, ADR 0108 Amendment G: `APPROVED_ROOM_POLICY` now states linear bounds, so this input is
+  // judged field by field like an L rather than refused as its shape alone — restated from "refuses
+  // another shape alone", which held for linear before this wave.
+  it("judges a straight kitchen field by field rather than refusing its shape alone", () => {
+    const input = {
+      shape: "linear",
+      wallAMm: undefined,
+      heightMm: Number.NaN,
+    } satisfies RoomInput;
+
+    expect(validateRoomInput(input, APPROVED_ROOM_POLICY)).toStrictEqual({
+      ok: false,
+      issues: [
+        { field: "wallA", code: "VALUE_MISSING" },
+        { field: "height", code: "VALUE_NOT_WHOLE_MILLIMETRES" },
+      ],
     });
   });
 });

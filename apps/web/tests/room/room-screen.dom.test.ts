@@ -24,6 +24,7 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
+  validateRoomInput,
   type BuildableShapes,
   type LWallBounds,
   type RoomPolicy,
@@ -105,9 +106,10 @@ const QUERY_FOR: Readonly<Record<Substate, RoomSearchParams>> = {
 /** Every shape the picker draws, in the frame's order down the screen. */
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
-/** The shapes `APPROVED_ROOM_POLICY` refuses today. `linear` waits on wave 7J's bounds and `U` on
- *  M7B; both cards are drawn and both dead ends are deliberate (the owner's F8 ruling, 2026-09-14). */
-const REFUSED_SHAPES: readonly RoomShape[] = ["linear", "U"];
+/** The shapes `APPROVED_ROOM_POLICY` refuses today. `linear` joined the L in wave 7J (ADR 0108
+ *  Amendment G); `U` waits on M7B — its card is drawn and its dead end is deliberate (the owner's
+ *  F8 ruling, 2026-09-14). */
+const REFUSED_SHAPES: readonly RoomShape[] = ["U"];
 
 /** Read by path rather than through `new URL(…, import.meta.url)`: under `happy-dom` the module URL
  *  is not a `file:` one, and `readFileSync` refuses it. */
@@ -125,14 +127,12 @@ const ROOM_PAGE_SOURCE = readFileSync(
 /**
  * **R8, and the cast it confines** (ADR 0116). Criterion 3's real claim is that the CTA asks
  * `isShapeBuildable` instead of spelling `L`, and the only way to prove it is to render against a
- * policy that states a *second* shape's bounds — which `BuildableShapes`, declaring `L?` alone,
- * refuses to let anyone construct. The type is deliberately narrow: widening it would make it
- * typechecked to populate bounds `validateRoomInput` still refuses, so two authorities would
- * disagree about one question.
+ * policy that states a *second* shape's bounds — which `BuildableShapes` used to declare only `L?`
+ * for, before wave 7J widened it to the straight kitchen's own `linear?` too.
  *
- * So the cast lives here, once, named — the twin of `configurator-domain`'s own
- * `tests/room/is-shape-buildable.test.ts:39-45`. **Wave 7J deletes both**, and their absence is what
- * proves the widening was real.
+ * **7J S5 discharges this cast for `linear`** (D11): `APPROVED_ROOM_POLICY` itself is now the
+ * policy that states its bounds, the twin of `configurator-domain`'s own
+ * `tests/room/is-shape-buildable.test.ts`. Only `U` still needs a fabricated policy, until M7B.
  */
 function policyAlsoStating(shape: RoomShape): RoomPolicy {
   return {
@@ -143,6 +143,13 @@ function policyAlsoStating(shape: RoomShape): RoomPolicy {
     } as BuildableShapes,
   };
 }
+
+/** Refuses every shape, so any two of the three cards can stand in for "two refused shapes" in a
+ *  test about the announcement mechanics rather than about which shapes the real policy builds. */
+const POLICY_BUILDING_NOTHING: RoomPolicy = {
+  ...APPROVED_ROOM_POLICY,
+  buildableShapes: {},
+};
 
 function approvedLWallBounds(): LWallBounds {
   const bounds = APPROVED_ROOM_POLICY.buildableShapes.L;
@@ -416,6 +423,19 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(false);
   });
 
+  // 7J S5: linear is buildable under the real approved policy now (ADR 0108 Amendment G), so
+  // choosing it at 1A leads Continue on exactly as choosing the L does — restated from "records the
+  // choice of linear and still refuses to continue", which held while every straight room was
+  // refused.
+  it("continues once linear is chosen, with no fields typed yet", () => {
+    render(QUERY_FOR["1A"]);
+
+    choose("linear");
+
+    expect(shapeControl("linear").checked).toBe(true);
+    expect(continueButton().disabled).toBe(false);
+  });
+
   it.each(REFUSED_SHAPES)(
     "enables %s against a policy that states its bounds, with no edit to the component",
     (shape) => {
@@ -646,8 +666,11 @@ describe("the shape refusal is the policy's, at 1A (7F2 criterion 9)", () => {
     },
   );
 
+  // 7J S5: linear is real now, so `POLICY_BUILDING_NOTHING` keeps both cards refused — this test's
+  // own subject is the re-announcement mechanics, not which two shapes the real policy happens to
+  // refuse.
   it("announces the refusal again when one refused card is swapped for the other", () => {
-    render(QUERY_FOR["1A"]);
+    render(QUERY_FOR["1A"], { policy: POLICY_BUILDING_NOTHING });
     const region = elementAt(REFUSAL_STATUS);
     choose("linear");
     const first = elementAt(REFUSAL);
@@ -702,6 +725,18 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
     },
   );
 
+  // 7J S5: linear is buildable now, so following its chip from 1B draws no refusal at all —
+  // restated from "follows a chip to linear and back at once", which held while it was refused.
+  it("follows a chip to linear without ever showing a refusal", () => {
+    render(QUERY_FOR["1B"]);
+    const region = elementAt(REFUSAL_STATUS);
+
+    chooseChip("linear");
+
+    expect(elementAt(REFUSAL_STATUS)).toBe(region);
+    expect(isRefusalShown()).toBe(false);
+  });
+
   it("describes only the chosen chip by the refusal while it is refused, and no chip once L is", () => {
     // Coordinator ruling, 2026-09-22 (review R1.2): an unchosen chip — the buildable L among them —
     // is never described by a sentence about another shape, which browse mode would read on it.
@@ -721,8 +756,9 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
     ).toEqual([]);
   });
 
+  // 7J S5: `POLICY_BUILDING_NOTHING` again — see the 1A version of this test.
   it("announces the refusal again when one refused chip is swapped for the other", () => {
-    render(QUERY_FOR["1B"]);
+    render(QUERY_FOR["1B"], { policy: POLICY_BUILDING_NOTHING });
     chooseChip("linear");
     const first = elementAt(REFUSAL);
 
@@ -786,11 +822,12 @@ describe("the refusal's words (7F2 criteria 2 and 9)", () => {
   );
 });
 
-describe("no linear suggestion before wave 7J, and the switch is the domain's (7F2 criterion 10)", () => {
-  /** One room per code 1C can carry, in the URL's metres, and one per refused shape. */
+describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7F2 criterion 10)", () => {
+  /** One room per code 1C can carry. `SHAPE_NOT_BUILDABLE`'s own witness is `FILLED.U` alone now —
+   *  `FILLED.linear` (7J S5, ADR 0108 Amendment G) is itself an *accepted* straight room, so it
+   *  reaches 1D rather than witnessing a 1C code. */
   const WITNESSES: readonly (readonly [string, RoomSearchParams])[] = [
     ["SHAPE_NOT_BUILDABLE", FILLED.U],
-    ["SHAPE_NOT_BUILDABLE", FILLED.linear],
     ["ROOM_TOO_SMALL_FOR_KITCHEN", QUERY_FOR["1C"]],
     ["WALL_TOO_SHORT", { ...QUERY_FOR["1D"], wallB: "0.45" }],
     ["WALL_TOO_LONG", { ...QUERY_FOR["1D"], wallA: "6.5" }],
@@ -805,6 +842,26 @@ describe("no linear suggestion before wave 7J, and the switch is the domain's (7
       : [];
   }
 
+  /** The real gate (`room-issue-model.ts`'s `isLinearSuggested`), read from the same 1C state the
+   *  screen renders from: a reason other than the shape's own, and wall A with the height
+   *  validating as a straight room on their own. */
+  function expectedSuggestionFor(query: RoomSearchParams): boolean {
+    const state = parseRoomUrlState(query);
+    if (state.substate !== "1C") return false;
+    const hasAReason = state.issues.some(
+      (issue) => issue.code !== "SHAPE_NOT_BUILDABLE",
+    );
+    if (!hasAReason) return false;
+    return validateRoomInput(
+      {
+        shape: "linear",
+        wallAMm: state.input.wallAMm,
+        heightMm: state.input.heightMm,
+      },
+      APPROVED_ROOM_POLICY,
+    ).ok;
+  }
+
   it("has a witness for every code 1C can carry, and each witness carries its code", () => {
     expect(new Set(WITNESSES.map(([code]) => code))).toEqual(
       new Set(Object.keys(ROOM_ISSUE_MESSAGE_KEYS)),
@@ -814,13 +871,18 @@ describe("no linear suggestion before wave 7J, and the switch is the domain's (7
     }
   });
 
+  // 7J S5: the suggestion shows exactly when the real domain's gate says so — no longer a blanket
+  // absence, which held while every straight room was refused. `WALL_TOO_SHORT`'s witness (wall A
+  // 3600, height 2500, wall B too short) is the one case among these where it now shows.
   it.each(WITNESSES)(
-    "is absent at 1C for %s under the approved policy",
-    (_, query) => {
+    "matches the real gate at 1C for %s under the approved policy",
+    (code, query) => {
       render(query);
 
       expect(maybeAt("room-presets-after-valid")).not.toBe(null);
-      expect(maybeAt(LINEAR_SUGGESTION)).toBe(null);
+      expect(maybeAt(LINEAR_SUGGESTION) !== null, code).toBe(
+        expectedSuggestionFor(query),
+      );
     },
   );
 
@@ -828,21 +890,6 @@ describe("no linear suggestion before wave 7J, and the switch is the domain's (7
     "is absent at 1B for %s under the approved policy",
     (shape) => {
       render({ shape, direction: "left" });
-
-      expect(maybeAt(LINEAR_SUGGESTION)).toBe(null);
-    },
-  );
-
-  it.each(WITNESSES)(
-    "stays absent at 1C for %s under a policy stating the straight kitchen, while the domain refuses it",
-    (_, query) => {
-      // **The negative arm only.** The gate is `validateRoomInput({shape: "linear", …}, policy).ok`,
-      // and `validateRoomInput` refuses every non-L room whatever the policy states
-      // (`validate-room.ts:76`), so no policy this package can build makes it true. **The positive
-      // arm is wave 7J's** (7F2 section 8, item 1): once linear validates, a filled L whose wall A
-      // is a valid straight run and whose wall B is too short must show `room-linear-suggestion`
-      // after its reason — a gate stuck at `false` is invisible until then.
-      render(query, { policy: policyAlsoStating("linear") });
 
       expect(maybeAt(LINEAR_SUGGESTION)).toBe(null);
     },
