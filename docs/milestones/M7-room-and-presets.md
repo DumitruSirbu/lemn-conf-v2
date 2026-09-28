@@ -631,6 +631,10 @@ Surfaces:
 
 - **Mobile (gate):** all six states complete by touch at 390 × 844, including reaching the editor
   from a chosen preset and from a bespoke composition. This is the phase gate.
+  **Annotated 2026-09-28 by wave 7K's plan (D1, D2), not amended:** the preset half has no surface in
+  M7 — the preset story, 7F3 included, is past M8 by the 2026-09-15 and 2026-09-22 rulings — so 7K
+  gates the bespoke-composition path and the preset half moves with 7F3. Q-7K-2 asks the coordinator
+  to confirm the reading. See [*Wave 7K — the plan*](#wave-7k--the-plan-2026-09-28).
 - **Desktop (same phase, separate line):** D1A–D1F, with the step labels in the top bar rather than
   a progress bar, the large live plan beside the fields, and the four-up preset grid.
 
@@ -1163,7 +1167,9 @@ decide and record.
 1D → 1E → **Folosește** → editor at `/d/{id}`; a room no preset fits → 1F → editor; Back from the
 editor returns to the room with its values; a reload on `/d/{id}` and on a room query restores each;
 the card's price equals the editor's. What M7's specs add to the `mobile` leg is reported against ADR
-0105's 45-minute ceiling.
+0105's 45-minute ceiling. **Expanded 2026-09-28 into [*Wave 7K — the plan*](#wave-7k--the-plan-2026-09-28),
+which is the binding version:** 1E, **Folosește** and the card's price have no surface in M7 (D2); the
+rest becomes criteria 7K-A1…A20.
 
 **7L — the desktop line.** D1A–D1F: step labels in the top bar, not a progress bar; the large live
 plan beside the fields; D1C's actionable suggestion (its wording follows Q5); the four-up grid; D1F's
@@ -1563,7 +1569,7 @@ table.
 | **7I** | Mirrored right-hand L; a mirror that works on one group — **DONE 2026-09-24. Commits: plan + ADR 0129 `4ff2d64`; S1 `95c5ad4`; S2 `e653efb`; S3 `bf3716a`; S4 `250efb7`; QA fixes + QA tests `a20085a`; review fixes `f653bdf`; comment-only `HEAD`. See [7I close-out](#7i-close-out--2026-09-24)** | *carried*, plus the per-group primitive, plus `apps/web/src/room/room-url-state.ts` | 7H | Full | **Yes** | answered (Q6) |
 | **7J** | Straight kitchens through composition — **DONE 2026-09-28. Commits: plan + ADR 0130 + ADR 0108 Amendment G + ADR 0116 Amendment A `5596de1`; S1 `c39cd95`; S2 `8c9b1bf`; S3 `b83f172`; S4 `f4de5dd`; S5 `e34f1e3`; S6 `c97ce3b`; QA fixes `7f386c9`; review fixes `d00cfc0`. See [7J close-out](#7j-close-out--2026-09-28)** | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1, Q-7J-1 at 1200–6000 mm, ADR 0108 Amendment G) |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
-| **7K** | The mobile gate | `apps/web/tests/e2e/*` | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | — |
+| **7K** | The mobile gate — **PLANNED 2026-09-28, see [Wave 7K — the plan](#wave-7k--the-plan-2026-09-28)**: four inherited specs plus one new touch-driven spec; the preset arm moves with 7F3 (D2) | `apps/web/tests/e2e/mobile-gate.e2e.spec.ts`, `tests/e2e/support/step-one-by-touch.ts` (both new); no production file | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | Q-7K-1 (real device, not blocking); Q-7K-2 (coordinator confirmation) |
 | **7L** | The desktop line | *carried* | 7F1–7F4 | Light | Desktop | — |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
 
@@ -4325,7 +4331,305 @@ kitchen framed too tightly (R5 as originally written) and a 6000 mm one cropped 
 2026-09-28 addition) — neither is a defect in the kitchen itself.
 
 Implementation, QA and review are `5596de1`…`d00cfc0`; documentation close-out is this commit.
-**Next wave: 7K** (the mobile gate).
+**Next wave: 7K** (the mobile gate). **Planned 2026-09-28 — see *Wave 7K — the plan (2026-09-28)*
+directly below.**
+
+### Wave 7K — the plan (2026-09-28)
+
+**Goal.** Prove, on the `mobile` Playwright project at 390 × 844 and **by touch**, that a customer
+can walk every Step-1 state the product draws today into the editor at `/d/{id}`, leave it by every
+Back the product offers, reload at every addressable state, and come back — and that nothing is
+written, lost or duplicated on the way. **This is a test-writing wave: no production file changes.**
+**Tier: Light (tests)** — adversarial QA, then one combined reviewer. **Visual: Yes — the phase
+gate** (a verifier walks the same journeys in a production build). Code read at `642ce47`. Decision
+records: **none new** — see §7.
+
+**What "the gate" is, in one sentence:** the M7 mobile gate is the **manifest** below — four specs
+earlier waves wrote and 7K inherits unchanged, plus one new spec that closes the gaps they leave. It
+is not a rewrite of any of them.
+
+#### 1. Ground truth
+
+Tiers: **[src]** read in the tree at `642ce47`; **[doc]** quoted from a record; **[inf]** inference,
+owed a test or a measurement. No suite or gate was run by the architect: G6's counts are `grep` over
+the tree at `642ce47`, every other figure is quoted, and the timings this wave needs are owed by S0.
+
+| # | Fact | Tier |
+| --- | --- | --- |
+| G1 | **The charter.** Original row: *"touch through all six states into the editor, Back, reload, restore"*, files `apps/web/tests/e2e/*` only (`:935`); revised row: depends on all UI waves, 7E3a, 7E3c, 7E3b (`:1572`); carried criterion: 1A → 1B → 1C → fix → 1D → 1E → **Folosește** → editor; a room no preset fits → 1F → editor; Back returns the room; reload on `/d/{id}` and on a room query restores; the card's price equals the editor's; M7's specs reported against ADR 0105 (`:1166-1172`). M7's own gate: *"all six states complete by touch at 390 × 844, including reaching the editor from a chosen preset and from a bespoke composition"* (`:632-633`). | [doc] |
+| G2 | **Obligations other waves handed to 7K:** 7F4b-44's journey spec, *"7K inherits this spec rather than rewriting it"* (`:18497-18500`); 7F1-D45's traversal spec, same words (Q-D45-2, `:18028-18030`); 7E2's carry-forward (d), the evaluated-design round trip (the *Carried forward from 7E2's close-out* blocks directly after this plan); **"7K (add)"** — a returning visitor opening `/` lands on their design, `/configurator/configure` never shows an editor, no customer journey reaches the save-as-preset control (between those two blocks); 7F3's *"the editor's figure equals the card's (asserted in 7K)"* (`:1090-1091`); 7P2's AU12 sweep (`:21162-21168`). | [doc] |
+| G3 | **The preset story is past M8** — 7P1, 7P2, 7G, 7B, 7C (`:1552-1556`, coordinator 2026-09-15) and 7F3 (`:1561`, coordinator 2026-09-22); the live order is `… → 7J → 7K → 7L` (`:1615`). Consequently no preset list, card, *Folosește* or save-as-preset control exists: `git grep` over `apps/web/src` for `preset-authoring`, `saveAsPreset`, `save-as-preset` returns nothing, and the Playwright `webServer.env` sets only `DATABASE_URL` and the selection-debug flag (`playwright.config.ts:100-107`). | [doc] + [src] |
+| G4 | **What the product draws per sub-state.** `data-room-substate` is one parse of the live query: **1A** no shape, **1B** a field or the direction missing, **1C** complete and refused, **1D** complete and valid (`room-url-state.ts:51-125`; `room-screen.tsx:153-157`). **1F is client state, never a URL** (`room-screen.tsx:106-115`, R13) and is drawn inside the dimensions step (`:345-353`). The marker **"1D" names a valid room at the form** — frame 1B's layout with *Continuă* enabled — and *Continuă* goes straight to composition: `departTo("presets")` then `run.compose(room)` (`:335-343`). Mockup frame 1D's skeletons (`Mobil.dc.html:251-300`) and frame 1E's list (`:301-403`) are **not drawn** by anything. | [src] |
+| G5 | **The inherited journeys.** `room-to-editor.qa.e2e.spec.ts:47-88` (L, left, `ro`: 1A → 1B → typed → 1F → editor → *‹ Cameră* → 1D refilled); `room-traversal.qa.e2e.spec.ts:45-137` (*Înapoi* + browser Back/Forward inside Step 1, the I5 flush); `support/linear-flow.ts:68-131` (straight: 1A → 1B → 1D, reload at 1D, 1F → editor, reload at `/d/{id}`, back link, share view); `support/mirror-flow.ts:261-449` via `mirror-real-flow.e2e.spec.ts` (right-hand L, reload, back link with `direction=right`, share view). | [src] |
+| G6 | **None of them is driven by touch.** Counted in the tree: `.tap(`/`touchscreen` occurrences — `room-to-editor` 0, `room-traversal` 0, `linear-flow.ts` 0, `mirror-flow.ts` 0 (its one match is a comment explaining why it uses `.click()`, `:122-124`); `.click(` — 5, 7, 4, 7. The `mobile` project sets `hasTouch` and `isMobile` (`playwright.config.ts:45-56`), and under it `.click()` dispatches mouse events, not a touch sequence. **No Step-1 journey has ever been walked by touch in the suite**; the only Step-1 taps are isolated (`qa-7f2-s3-one-c.adversarial.e2e.spec.ts:241`, three in `qa-7f2-s5b-unreadable`). | [src]; the click/tap dispatch difference is Playwright's documented behaviour, [inf] until S1 observes it |
+| G7 | **The precedent that tap and click differ in this product:** ADR 0023 — a light-tier *test* wave (M4 4D) found that one touch on the canvas also pressed the sheet's control under the finger, and landed a behaviour fix. | [doc] |
+| G8 | **1C is reached only by deep link.** Every 1C spec opens a pre-built query with `goto` and drives fields with `fill` (`qa-7f2-s3-one-c.adversarial.e2e.spec.ts:31-83, 176-228, 230-267`). **No spec types into 1C and corrects out of it on the way to the editor.** | [src] |
+| G9 | **Resume is proved only over API mints.** `mintSeededDesign` is a `fetch("POST /api/designs")` from the room page (`support/seeded-design.ts:41-78`); `configure-route.e2e.spec.ts:43-127, 164-183` and `qa-7e3a-visitor.adversarial.e2e.spec.ts:239-251` resume onto such mints. **No spec resumes onto a design Step 1 composed.** Minting again in one browser rotates the visitor value and moves the earlier row to it, so the earlier design stays openable there (`configure-route.e2e.spec.ts:170-172`, ADR 0114 Amendment H1). | [src] + [doc] |
+| G10 | **Browser Back and Forward from the editor are unasserted.** `goBack`/`goForward` appear only in `room-traversal.qa` (inside Step 1) and `share-design.e2e.spec.ts:124-130`. The hand-off is a localized **`push`** (`use-generation.ts:434`), so a Back from the editor lands on the room query `departTo("presets")` pushed. `next.config.ts` does not set `cacheComponents` (per `handoff-across-a-hidden-route.dom.test.ts:13-15`), so the room screen remounts on that Back today. | [src] |
+| G11 | **The round trip is component-only.** `room-handoff.dom.test.ts:587-615` deep-equals the `PUT` body and the read-back against `generateKitchen`'s design through a **stubbed** fetch. The server stores `CurrentDesignSchema.safeParse(...).data` (`api/designs/[id]/route.ts:216-226`), so a schema that strips or defaults a key is visible only on a real row. 7F4b's close-out: criterion 43's deep equality *"was not checked from a browser"* (`:18689-18694`). | [src] + [doc] |
+| G12 | **Leaving 1F mid-write is unverified in a browser** — 7F4b criterion 42, *"Not verifiable from a browser"* (`:18684-18688`). The owner's ruling on that state (2026-09-17, same close-out): no new 1F state; the customer reaches the orphaned design by **resuming**. Chrome's own network emulation is already used to stretch a round trip (`room-late-echo.e2e.spec.ts:8-11, 37`). | [doc] + [src] |
+| G13 | **No composing journey runs in Russian.** Every spec in G5 opens `/ro/...`. Russian through to the editor was walked once, by hand, in 7F4b's visual gate. | [src] + [doc] |
+| G14 | **The editor's readout.** `selection-debug` publishes `data-selection-id`, `data-design-id` and the scene's bodies and camera (`selection-debug.tsx:78-84`; `mirror-flow.ts:101-153` reads them); the flag is set by the `webServer` (`playwright.config.ts:106`). A canvas pixel constant is a function of (room, rail state) — 7H's finding — so a composed design's tap point must be measured, never stored. | [src] + [doc] |
+| G15 | **The step pill.** Every Step-1 sub-state draws `top-bar-step` with `configure.step` at `{ step: 1, totalSteps: 4 }` (`room-screen.tsx:100, 184-190`); the editor draws it at step 2 (`i18n/content.ts:635-636`). | [src] |
+| G16 | **ADR 0105's figures are pre-M7:** mobile leg 120 tests in 28.6 minutes on the runner (2026-09-10); ceiling **45 per leg** (`ci.yml:265`). The suite has since grown to **446 passed** locally at `d00cfc0` (STATUS, 7J close-out). **No `ci.yml` run has ever executed on this branch** (7F4b close-out; STATUS lists eight waves awaiting it). Local runs serve `next dev`, not a build (`playwright.config.ts:83-85`). | [doc] + [src] |
+| G17 | **The Step-1 test helpers exist in four copies** — `roomScreen`, `typeLength`, `idInEditorUrl` are declared separately in `room-to-editor.qa`, `linear-flow.ts`, `mirror-flow.ts` and `qa-7j-straight-captures.ts`. | [src] |
+
+#### 2. Decisions
+
+- **D1 — "All six states", at HEAD, are 1A, 1B, 1C, 1D, 1F and the editor.** Frame 1D's skeletons
+  and frame 1E's list are not drawn (G4), so the gate asserts the marker **1D** as the product draws
+  it — a valid room at the form, *Continuă* enabled, nothing persisted — and asserts **the absence of
+  a state between 1D and 1F**: one tap on *Continuă* at 1D shows 1F and then the editor, with no
+  other pathname visited. *Rejected:* counting 1E as gated because its URL marker cannot occur — a
+  gate that passes over a surface that does not exist is the vacuous guard
+  `engineering-conventions.md` forbids.
+- **D2 — The preset arm leaves 7K by derivation, not by choice.** Out: 1E, *Folosește*, the card's
+  price equalling the editor's, the evaluated-design round trip **on a preset**, and the
+  save-as-preset absence sweep (AU12). Each reads a surface the 2026-09-15 and 2026-09-22 rulings put
+  past M8 (G3); none is written as an assertion against an absent control. They move with 7F3 and 7P2
+  and revive with them. The evaluated-design round trip is **not** dropped: it is asserted on the
+  **composed** design (D7), which is the only design Step 1 creates today. The M7 *Mobile (gate)*
+  criterion is annotated in place (`:632-633`) so a reader of the milestone's own gate sees this.
+- **D3 — Inherit, do not rewrite.** `room-to-editor.qa`, `room-traversal.qa`, `linear-flow*` and
+  `mirror-real-flow*` (with their `support/` modules) are the named witnesses of 7F4b-44,
+  7F1-D45-23, 7J-A16 and 7I-A17. **7K changes none of them.** *Rejected:* converting their `.click()`
+  to `.tap()` — it would change what four closed waves' criteria were proved by, under a tier with no
+  logic review, and a mouse-driven journey beside a touch-driven one is itself coverage (G7: the two
+  can differ).
+- **D4 — One new spec and one support module.** `apps/web/tests/e2e/mobile-gate.e2e.spec.ts` (no
+  `.desktop.` in the name, so the `mobile` project runs it and the `desktop` project never does —
+  `playwright.config.ts:49, 64`) and `apps/web/tests/e2e/support/step-one-by-touch.ts`. The support
+  module carries navigation and readout helpers only; **every assertion stays in the spec**
+  (`browser-and-visual-qa.md`, *Browser test design*). The scene readout and projection helpers are
+  **imported** from `support/mirror-flow.ts`, which already exports them, not copied. *Rejected:*
+  folding G17's four copies into the new module now — the same reason as D3; recorded as a
+  **coordinator-only follow-up** (a behaviour-free test refactor) with no wave assigned.
+- **D5 — "By touch" is a rule on the new spec, not a style.** Every control is activated with
+  `locator.tap()` or `page.touchscreen.tap()` — shape cards, chips, corner toggle, fields (focus),
+  *Continuă*, *Înapoi*, *‹ Cameră*, the canvas. Digits are typed with `pressSequentially`, which is
+  what a soft keyboard produces. **No `.click()`, no `page.mouse`, no `fill` over a length, and no
+  `goto` to a room query** — every state is reached from the one before it. The only navigations
+  not caused by a tap are `reload()`, `goBack()`/`goForward()`, and `goto` of the entry routes `/ro`
+  and `/ro/configurator/configure` (resume) or of a design's own `/d/{id}` (D8's "still openable").
+- **D6 — Shapes and locales.** **L runs the full journey twice: `{ ro, left }` and `{ ru, right }`.**
+  The right-hand case is the round trip's **discriminating case** (ADR 0121): only a right-hand
+  document carries the optional `cornerDirection` key (ADR 0129 D2), which a strict schema is the
+  likeliest thing to drop; and Russian is a chrome axis the stored document must never see (7E2
+  criterion 6). Test titles name both axes. **The straight kitchen runs a targeted journey in `ro`**:
+  touch, its own 1C (wall A, no wall B field, no corner toggle), the round trip (its `depthMm` is
+  fixed by validation, not typed — ADR 0130 D3), and a browser Back from the editor; its reloads,
+  back link and share view are `linear-flow`'s and are not repeated. **U** gets one tap at 1A: refused,
+  *Continuă* disabled, then **L** chosen and *Continuă* enabled — the refusal must not strand the
+  customer; its own refusal coverage is 7F2's and M7B's. *Rejected:* L alone (the straight room's 1C
+  field and room mapping differ and nothing drives them by touch); every shape × both locales (a full
+  composition per case against ADR 0105's ceiling, for axes other specs already hold); a property
+  over rooms (the domain's properties own the range — the gate owns the journey; one interior room
+  per shape plus one boundary value at 1C).
+- **D7 — The round trip's oracle.** The test captures the **real** `PUT /api/designs/{id}` body the
+  browser sent (`page.on("request")`, observation only) and reads `GET /api/designs/{id}` from the same
+  browser; the two designs deep-equal. **Independent of both:** the stored `room` equals the
+  millimetres the test typed (for the straight room, `depthMm` equals ADR 0130 D3's 3400, written as a
+  named test constant citing the ADR, never imported from the domain), `presetId` is `null`, and
+  `room.cornerDirection` is present **iff** the case is right-hand. *Rejected:* recomputing
+  `generateKitchen` inside the Playwright worker — it imports `three-adapter` and a Node probe into
+  e2e, a second authority on geometry, to re-prove the half `room-handoff.dom.test.ts:594-596`
+  already holds (the `PUT` body is the generated design). Chained, the two tests cover
+  *generated → sent → stored → read*.
+- **D8 — Every Back, and one new witness.** (a) *‹ Cameră* tapped in the editor → 1D, fields
+  refilled. (b) **Browser Back from the editor** → the room query, the form (not 1F), fields
+  intact, **no `POST`, no composition**; Forward → the same `/d/{id}` and the same
+  `data-design-id`, no `POST`. (c) After (b), *Continuă* again → exactly one more `POST`, a **new** id,
+  and the first id still opens in this browser (ADR 0111 decision 5; G9). (d) **Resume**: `/ro` and
+  `/ro/configurator/configure` land on the newest composed design. (e) **Leaving 1F mid-write** —
+  Chrome's network emulation (G12's precedent) holds the write; *Înapoi* is tapped in 1F while the
+  `POST` or `PUT` is observed **in flight** (the precondition is asserted, never assumed); the page
+  never reaches `/d/`; the form shows the typed room; and a later `/ro` resumes onto the design whose
+  write landed — 7F4b criterion 42's browser half and the owner's 2026-09-17 ruling, end to end. **If
+  (e) cannot be made to hold its precondition on every run, the implementer stops and reports**; it
+  is not converted to a timing sleep and it is not skipped silently.
+- **D9 — The editor end is touched, not only reached.** On the composed kitchen, read the scene
+  readout at the default camera, choose a **base-row** body whose projected centre lies inside the
+  canvas's middle 80 % (mirror-flow's rule, `:308-341`), tap it with the touchscreen, and assert
+  `data-selection-id` is that placement, `editor-panel` is shown, and **no `PUT` follows** (ADR 0023's
+  must-not, on a composed design). Never a stored pixel constant (G14).
+- **D10 — A defect the gate finds is a finding, not a test edit.** The failing test stays red and
+  unweakened; the implementer stops and reports; the coordinator dispatches the product fix
+  separately, because 7K's file list is tests only (ADR 0023 is the precedent of a test wave that
+  found a product defect). `test.fail` is used only with a named wave owing the flip
+  (`engineering-conventions.md`, *A deferred test has two shapes*).
+- **D11 — ADR 0105's measurement is local, and says so.** Three local figures on the `mobile`
+  project: the leg's total at the wave base, the share of it spent in spec files M7 added or changed
+  (`git diff --name-status 995ad03 <base> -- apps/web/tests/e2e`), and the new spec's own duration.
+  The runner figure is owed by the owner's `workflow_dispatch` of `ci.yml` — already outstanding for
+  eight waves — and **no local figure is scaled into a runner projection** (R4).
+- **D12 — The visual gate is a verifier's walk, not the spec's screenshots.** A production build
+  (`next build` + `next start`, no watcher), 390 × 844, both locales, both shapes, captures written
+  **outside the tree** (`browser-and-visual-qa.md`). The spec itself writes no screenshot.
+
+#### 3. The gate manifest
+
+| Spec | What it gates | Written by |
+| --- | --- | --- |
+| `room-to-editor.qa.e2e.spec.ts` | L, `ro`, by mouse: 1A → 1F → editor → *‹ Cameră* → 1D refilled | 7F4b (criterion 44) |
+| `room-traversal.qa.e2e.spec.ts` | *Înapoi* and browser Back/Forward inside Step 1; the I5 flush | 7F1-D45 (criterion 23) |
+| `linear-flow.e2e.spec.ts` + `support/linear-flow.ts` | the straight kitchen: reload at 1D and `/d/{id}`, back link, share view | 7J (A16) |
+| `mirror-real-flow.e2e.spec.ts` + `support/mirror-flow.ts` | the right-hand L: reflection, reload, back link, share view | 7I (A17) |
+| **`mobile-gate.e2e.spec.ts`** (new) | **by touch**: 1C typed and corrected, reloads at 1A–1D, the round trip, the editor touched, browser Back/Forward from the editor, re-compose, resume, leaving 1F mid-write, Russian | **7K** |
+
+#### 4. Slices
+
+| Slice | Must-fix items (≤ 5) | Files | Reading |
+| --- | --- | --- | --- |
+| **S0 census** (no code) | (1) At the wave base, run the four inherited specs and the whole `mobile` project locally with a JSON reporter written to the session scratchpad; (2) sum per-file durations and classify each file added or changed since `995ad03`; (3) re-confirm G6, G8–G13 at the base by `rtk proxy` grep (a gap that has closed since planning is removed from S1/S2, not re-covered); (4) record all of it in an *S0 census* sub-section **appended to this plan, live, in this slice** — 7J's S0 was reconstructed after the fact (7J close-out F2) and this one is not | none | §1 G5–G13, G16; §2 D11; ADR 0105; `ci-and-local-gates.md` (*The `rtk` proxy*); `agent-coordination.md` (*Agent worktrees arrive at the session's starting commit*) |
+| **S1 the L journey by touch** | (1) `support/step-one-by-touch.ts`: tap/type/read helpers and two request recorders (`/api/designs` `POST` count; captured `PUT` bodies), no assertions; (2) the `{ ro, left }` / `{ ru, right }` journey: 1A (U refused → L) → 1B (toggle both ways) → 1C typed at wall A 899 → reload → corrected → 1D → reloads at 1A (chosen card), 1B, 1C, 1D; (3) *Continuă* → 1F → editor with no other pathname, pill at step 2, `/d/{id}` with no query, reload restores; (4) the round trip (D7) and the editor touched (D9); (5) *‹ Cameră* tapped → 1D refilled | `tests/e2e/mobile-gate.e2e.spec.ts` (new), `tests/e2e/support/step-one-by-touch.ts` (new) | §1 G4–G8, G11, G14, G15; §2 D1, D4–D7, D9, D10; §5 A1–A10, A16; ADR 0111 decisions 2, 3, 5; ADR 0129 D2; ADR 0121; ADR 0125 (the 900 mm wall-A minimum); ADR 0126 (whole millimetres); ADR 0023; `room-screen.tsx:100-353`; `room-url-state.ts:51-170`; `use-generation.ts:400-440`; `api/designs/[id]/route.ts:180-230`; `room-to-editor.qa.e2e.spec.ts` (the pattern, not to edit); `support/mirror-flow.ts:101-209, 308-356`; `support/minted-designs.ts`; `browser-and-visual-qa.md` |
+| **S2 Backs, resume, straight** | (1) browser Back/Forward from the editor (D8 b); (2) re-compose after Back, and the first design still opens (D8 c); (3) resume through `/ro` and `/ro/configurator/configure` (D8 d); (4) leaving 1F mid-write (D8 e); (5) the straight journey in `ro` (D6) | the same two files | §1 G9, G10, G12; §2 D6, D8, D10; §5 A11–A16; ADR 0111 decision 5; ADR 0114 Amendment H1; ADR 0130 D3, D7, D9; ADR 0108 Amendment G (the 1200 mm minimum); 7F4b criteria 39–43 and close-out (`:18684-18694`) with the owner's 2026-09-17 ruling; `room-late-echo.e2e.spec.ts:1-54` (network emulation); `configure-route.e2e.spec.ts:164-183`; `support/linear-flow.ts` (what not to repeat) |
+| **S3 the visual gate + ADR 0105 report** (verifier agent, owns the tree for its run) | (1) walk both L cases and the straight case in a production build at 390 × 844; (2) capture 1A, 1B, 1C, 1D, 1F and the editor per case, outside the tree; (3) inspect each against frames 1A/1B/1C/1F (`Mobil.dc.html:48-250, 404-461`); (4) record console errors; (5) the D11 figures after S2, beside S0's | none | §2 D1, D11, D12; §5 A19–A20; the *not a bug* list in §5; `browser-and-visual-qa.md` in full; DEVELOPMENT-SPEC §10, §10.1; mockup frames 1A–1C, 1F |
+
+Order **S0 → S1 → S2 → S3**, one at a time, the tree frozen between them; QA after S1 and after S2.
+S1 and S2 edit the same two files, so they are never in flight together.
+
+- **Reading, QA:** this plan §1–§6; ADR 0111 decisions 2, 3, 5; ADR 0023; ADR 0121;
+  `engineering-conventions.md`, *Coverage an adversarial pass owes* and *Three guards that look
+  thorough and cannot fail*; `docs/WORKFLOW.md` **R6**; the slice diff; `use-generation.ts:400-440`,
+  `room-screen.tsx:335-343`, `api/designs/[id]/route.ts:180-230` (the sabotage sites in A17).
+- **Reading, combined reviewer:** §2 D1–D12, §3, §5; `browser-and-visual-qa.md`, *Browser test
+  design*; `engineering-conventions.md`, *Tests*; the wave diff; the four inherited specs (to confirm
+  they are untouched and the new spec does not duplicate them).
+- **Reading, visual reviewer:** §2 D1, D12; §5 A20 and the *not a bug* list; the 7H, 7I and 7J
+  close-outs' deferrals; `browser-and-visual-qa.md`; mockup frames 1A–1C and 1F; the capture set.
+
+#### 5. Acceptance criteria (7K-A1 …)
+
+Every criterion is **[e2e]** on the `mobile` project unless marked otherwise. "The journey" means
+each of the two L cases unless the criterion names the straight one.
+
+1. **By touch, and nothing but.** In `mobile-gate.e2e.spec.ts` and its support module, `git grep`
+   finds no `.click(`, no `page.mouse`, no `.fill(` on a length field and no `goto` whose argument
+   contains `configurator/room?`. Every state is reached from the previous one by a tap or typed
+   digits (D5). **[review]** + grep
+2. **1A.** The U card tapped → the shape refusal shows and *Continuă* is disabled; the L card tapped →
+   the refusal is gone and *Continuă* enabled. **Reload with a card chosen** → 1A, **no card chosen,
+   *Continuă* disabled** (the choice is not in the URL, ADR 0111 decision 3). **Must not:** a
+   *Continuă* left enabled after the reload.
+3. **1B.** *Continuă* tapped → 1B, the pill named `configure.step` at step 1 of 4. The corner toggle
+   tapped to each side at least once → the URL's `direction` follows every tap, and the case leaves
+   1B on its own direction. After the first field settles, **reload** → 1B, that field refilled, the
+   others empty.
+4. **1C, typed and corrected.** With every field typed and wall A at **899** (the approved minimum is
+   900 — `approved-room-policy.ts:20`, ADR 0125) → `data-room-substate` **1C**, `room-length-reason-wallA` visible, `room-plan-label-wallA`
+   `data-marked="true"`, `room-presets-after-valid` visible, *Continuă* disabled. **Reload** → the
+   same, with the wall A field reading `899`. Wall A re-typed to the case's room by the keyboard →
+   **1D**, the reason gone, the wall unmarked, *Continuă* enabled. **Must not:** reaching 1D by
+   `goto`.
+5. **1D, and nothing persisted before it is left.** At 1D, reload → 1D with every field as typed.
+   **From the first tap at 1A to the tap on *Continuă* at 1D — every reload included — zero `POST`
+   and zero `PUT` to `/api/designs`** (ADR 0111 decision 3).
+6. **1D → 1F → editor, with no screen between.** One tap on *Continuă* at 1D → `room-compose`
+   visible with the top bar still at step 1, then `/{locale}/d/{id}` with **no query string**; between
+   the tap and the editor **no other pathname** is committed to the main frame; **exactly one `POST`**;
+   the editor's pill is at step 2 and `data-design-id` equals the id in the URL. `room-compose-dropped`
+   is absent (the chosen room places every core role — if it does not, the room is changed; the
+   generator's boundary is not this gate's subject).
+7. **The round trip (D7).** The captured `PUT` body deep-equals the `design` of `GET /api/designs/{id}`
+   read from the same browser; the stored `room` equals the typed millimetres; `presetId` is `null`;
+   `room.cornerDirection` is `"right"` in the right-hand case and **absent** in the left-hand one.
+   **Must not:** either side of the deep equality supplied by the test's own constants.
+8. **Reload on `/d/{id}`** → the same `data-design-id`, the editor drawn, **no `POST`**.
+9. **The editor touched (D9).** A base-row body chosen from the scene readout and tapped on the
+   touchscreen → `data-selection-id` is that placement and `editor-panel` is shown; **no `PUT`
+   follows the selection**. No canvas coordinate in the spec is a literal.
+10. **‹ Cameră, tapped** → the room query of the stored room, **1D**, every field refilled as typed,
+    the case's direction checked.
+11. **Browser Back from the editor** (a fresh arrival at the editor) → the room query, **the form, not
+    1F**, every field as typed, **no `POST` and no composition**; **Forward** → the same `/d/{id}`,
+    the same `data-design-id`, no `POST`.
+12. **Choosing again after Back** → exactly one more `POST`, a **different** id; afterwards the first
+    id's `/d/{id}` still opens in this browser with its own `data-design-id` (ADR 0111 decision 5).
+13. **Resume** → `/{locale}` and `/{locale}/configurator/configure` each land on the **newest**
+    composed design's `/d/{id}`; neither URL is ever the committed URL of an editor.
+14. **Leaving 1F mid-write (D8 e).** Under Chrome's network emulation, *Înapoi* tapped in 1F while a
+    `POST` or `PUT` to `/api/designs` is observed in flight (**asserted**, not assumed) → the form
+    shows the typed room, the page **never** commits a `/d/` URL for at least the emulated round trip
+    plus the settle, and once the write has landed, `/{locale}` resumes onto that design. Its id is
+    registered for cleanup from the observed response. **Stop and report** if the precondition cannot
+    be held.
+15. **The straight kitchen, in `ro`.** *Liniară* tapped → 1B shows **one** length field plus the
+    height and **no corner toggle**; wall A typed at **1199** (the approved minimum is 1200 —
+    `approved-room-policy.ts:47`, ADR 0108 Amendment G) → 1C on wall A, *Continuă* disabled; corrected → 1D → one tap → editor with **two** camera
+    buttons; the round trip holds with `room` = `{ shape: "linear", widthMm: <typed>, depthMm: 3400,
+    heightMm: <typed> }` and **no** `cornerDirection` key; browser Back → the form with wall A and
+    height intact, no `POST`.
+16. **Hygiene, per test.** Zero `pageerror` events; every id minted is deleted in `afterAll` (ADR
+    0006), including 14's; each test runs in its own context and depends on no other test's rows.
+17. **The gate bites (R6), [QA].** Each sabotage below, applied to the build the suite actually runs
+    (`engineering-conventions.md`, *A surviving mutation may not have been applied*), turns at least
+    the named criterion red, and restoring it turns the suite green: the hand-off's `push` made a
+    `replace` (`use-generation.ts:434`) → 11; `CurrentDesignSchema`'s parse made to drop
+    `room.cornerDirection` on store → 7 **in the right-hand case only**, the left-hand case staying
+    green (the discriminator proves itself); *Continuă*'s handler made to compose twice → 6 or 12.
+    QA adds its own; a sabotage that reddens nothing is reported with the criterion that should have
+    owned it, never silently dropped. The other direction: a different interior room per shape,
+    typed in place of the chosen one, keeps the suite green.
+18. **Scope.** `git diff --name-only <wave base>` lists only the two new test files and documents;
+    the four inherited specs and their `support/` modules are byte-identical. **[review]**
+19. **ADR 0105 (D11).** The close-out quotes S0's and S3's local figures with the command that
+    produced them, and states that the runner figure is outstanding. **[doc]**
+20. **The visual gate (D12), [visual].** For each of the three cases, captures of 1A, 1B, 1C, 1D, 1F
+    and the editor, inspected against the frames: the pill *1/4* in every Step-1 capture and *2/4* in
+    the editor; no horizontal overflow; 1C's reason beside its field and the wall red; 1F's rows; the
+    composed kitchen drawn. Console read for errors. **What cannot be verified is stated** — at
+    minimum, real hardware touch.
+
+**Must not happen.** No production file changes. No assertion is weakened, deleted or skipped to
+reach green. No route interception that alters a response — observation only, and network emulation
+only in criterion 14. No stored canvas pixel constant. No `waitForTimeout` as synchronisation (a
+timing stimulus, as in `room-late-echo`, is stated as one). **Not a bug, and not to be filed from
+this gate:** part of a long wall off screen at a preset (Q7H-7); a marked body off screen at mobile
+(Q7H-8); the empty strip above the uppers (ADR 0110 E11); a 1200 mm straight kitchen framed tightly
+and a 6000 mm one cropped at both ends (7J R5); the straight kitchen's unpanelled x = 0 end (ADR 0130
+D8); mirrored appliances on a right-hand L (ADR 0129 decision 9 / 7I D11); the top bar reading
+*Cameră* rather than *Preset* at the 1D marker (frames title 1D *Preset*, but the product's 1D is the
+form — G4).
+
+#### 6. Risks
+
+- **R1 — Touch finds a product defect in a test-only wave.** Likely enough to plan for (G6, G7).
+  D10 routes it; the risk is a test "fixed" to green instead. A17 and QA guard it.
+- **R2 — The mid-write witness is timing-coupled (A14).** Mitigated by asserting the in-flight
+  precondition rather than sleeping; D8's stop-and-report is the escape hatch, not a skip.
+- **R3 — The mobile leg's runner time is unknown** (G16): 120 tests / 28.6 min before M7, 446 tests
+  locally now, and no runner has run this branch. 7K adds full compositions. D11 reports honestly;
+  the owner's `workflow_dispatch` is the only measurement that answers it, and it is the first
+  thing to read at M7's close.
+- **R4 — Round-trip false alarm.** A key the server legitimately normalises would redden A7 on a
+  correct product. If S1 finds one, **stop and report** with the key: it is either a schema defect or
+  a documented exception, and neither is the implementer's to decide (7E2 criterion 1 says deep-equal).
+- **R5 — 7L edits `room.module.css` and `room-screen.tsx`, which mobile shares.** The gate runs in
+  every `ci:local`, so 7L's QA inherits it; 7L's plan should name it in its QA reading.
+- **R6 — Duplication (G17).** D4 imports rather than copies where helpers are already exported; the
+  four legacy copies are a named follow-up, not debt this wave hides.
+- **R7 — Cleanup leaks** from criterion 14's orphaned write or a failed run. The id comes from the
+  observed `POST` response and is registered before any assertion can throw.
+
+#### 7. Records, and questions
+
+**No ADR is written for 7K.** Its decisions are test structure inside a charter the milestone already
+set, and D2 is a consequence of rulings already recorded. **Flagged for the coordinator, not
+blocking:** the preset story's deferral past M8 (2026-09-15, 2026-09-22) exists **only in this
+milestone file and `STATUS.md`** — no ADR records it (`git grep` over `docs/decisions` for "past M8"
+finds only the price dashboard's ADR 0062). 7K is where that deferral visibly narrows M7's own phase
+gate; when M7 is archived, the reason must survive in `docs/decisions/` (`docs/WORKFLOW.md` step 7).
+Recommended: a short ADR at M7's close-out, not in this wave.
+
+**Questions:**
+
+- **Q-7K-1 (owner, not blocking dispatch).** The gate is emulated touch in desktop Chromium; ADR
+  0023 says compatibility-click behaviour is *"worth re-checking on real hardware"*. Should M7's
+  phase gate include one walk of the journey on the owner's own phone before M7 closes? The wave
+  closes without it; M7's close-out would record the answer.
+- **Q-7K-2 (coordinator, confirmation).** D2's derivation: M7 closes with its *Mobile (gate)*
+  criterion met for the composed path only, the preset path re-gated when 7F3 revives. The architect
+  reads this as already decided by the 2026-09-22 ruling; confirm, or say where it is not.
 
 **7F2 (add, 2026-09-14, from wave 7F1's rulings R2 and R3 — read them before starting):**
 
