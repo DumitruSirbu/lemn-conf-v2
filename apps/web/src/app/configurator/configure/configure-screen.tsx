@@ -18,7 +18,7 @@ import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
 import { useCameraPreset } from "@/scene/camera-preset-store";
-import type { SceneView } from "@/scene/scene-view";
+import { presetForRoom, type SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
@@ -77,6 +77,13 @@ export function ConfigureScreen({
   // ADR 0130 D9: the room decides how many buttons this row draws — two for a straight kitchen,
   // three for an L — so a re-render that leaves `room` the same object does not rebuild the list.
   const cameraPresets = useMemo(() => cameraPresetsForRoom(room), [room]);
+  // QA finding Q1: `presetId` is the camera store's own, possibly-stale id (a straight room that
+  // outgrew a stored `"wallB"`, ADR 0130 D9) — `presetForRoom` is the same fallback `scene-view.ts`
+  // resolves the scene's own camera with, so the button marked pressed is the one actually shown.
+  const resolvedPresetId = useMemo(
+    () => presetForRoom(presetId, room).id,
+    [presetId, room],
+  );
 
   if (support === "unsupported") {
     return <WebGLUnavailable />;
@@ -175,7 +182,7 @@ export function ConfigureScreen({
                 key={preset.id}
                 type="button"
                 className={styles.preset}
-                aria-pressed={preset.id === presetId}
+                aria-pressed={preset.id === resolvedPresetId}
                 onClick={() => {
                   standAt(preset.id);
                 }}

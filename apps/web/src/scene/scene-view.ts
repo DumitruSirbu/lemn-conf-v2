@@ -45,8 +45,16 @@ export function resolveSceneView(
  *  outlives a room edit, so a customer who stood on *Perete B* and then shrank the room to a
  *  straight kitchen still has `"wallB"` recorded when this next resolves — a room that offers no
  *  such preset. Falls back to `overview` rather than throwing `findCameraPresetForRoom`'s own
- *  refusal, which is right for a genuinely unknown id but wrong for one only this room has outgrown. */
-function presetForRoom(id: CameraPresetId, room: DesignRoom): CameraPreset {
+ *  refusal, which is right for a genuinely unknown id but wrong for one only this room has outgrown.
+ *
+ *  **Exported for `configure-screen.tsx`'s own reason (QA finding Q1):** the preset row's
+ *  `aria-pressed` must mark the button this same fallback actually frames, not the store's raw,
+ *  possibly-stale id — a straight room stood on the store's stale `"wallB"` would otherwise press no
+ *  button at all, while the scene itself was already showing `overview`. */
+export function presetForRoom(
+  id: CameraPresetId,
+  room: DesignRoom,
+): CameraPreset {
   const offered = cameraPresetsForRoom(room).find((preset) => preset.id === id);
   return offered ?? findCameraPresetForRoom("overview", room);
 }

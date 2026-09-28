@@ -40,9 +40,9 @@ const APPROVED_CEILING_MAX_MM = 3900;
 
 // ADR 0108 Amendment G (owner, 2026-09-23, Q-7J-1): one maximum for every wall of every shape,
 // 6000 mm — measured against a straight wall specifically and found to cost nothing (wave 7J's plan,
-// G6): the mean bare end at 6001–6300 is roughly double 1200–6000's, 6000 fills exactly, and no
-// length past it holds a single body more. 1200 is the owner's minimum kitchen with no corner to
-// clear — a 600 mm sink plus a 600 mm hob, wall A's own bound rather than a coupled two-wall rule
+// G6, which carries the bare-end measurement this amendment's ruling rests on): 6000 fills exactly,
+// and no length past it holds a single body more. 1200 is the owner's minimum kitchen with no corner
+// to clear — a 600 mm sink plus a 600 mm hob, wall A's own bound rather than a coupled two-wall rule
 // (ADR 0130 D2).
 const APPROVED_LINEAR_WALL_A_MIN_MM = 1200;
 const APPROVED_LINEAR_WALL_A_MAX_MM = 6000;

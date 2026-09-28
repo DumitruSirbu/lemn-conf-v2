@@ -795,7 +795,10 @@ function approvedLWallBounds(): LWallBounds {
   return bounds;
 }
 
-/** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L's bounds. */
+/** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L's bounds. Only U
+ *  is left to fabricate this way — linear's own real bounds are the approved policy's since 7J S5, so
+ *  stating it again here would just restate what "approved" already covers. U has none of its own
+ *  yet (M7B's), and `BuildableShapes` has no `U` key to add honestly, hence the cast. */
 function policyAlsoStating(shape: RoomShape): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
@@ -808,7 +811,6 @@ function policyAlsoStating(shape: RoomShape): RoomPolicy {
 
 const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
   ["approved", APPROVED_ROOM_POLICY],
-  ["also stating linear", policyAlsoStating("linear")],
   ["also stating U", policyAlsoStating("U")],
 ];
 

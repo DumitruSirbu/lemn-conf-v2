@@ -116,8 +116,10 @@ export function resizeShellToRoom(input: ShellResizeInput): void {
 
 /** ADR 0130 D8: a straight room has no wall B, so its plane stands in the shell **hidden, not
  *  removed** — 7H's in-place resize and the kit's ownership of the geometry are both untouched, and
- *  the probe and picking are unaffected (G11): the probe reads only `wall_back`, and three's own
- *  raycaster traversal skips an invisible mesh before `pick`'s solids-first order ever sees it. */
+ *  the probe and picking are unaffected (G11): the probe reads only `wall_back`, and `wall_left`
+ *  carries no `placementId` at all — `pick`'s `firstSelectableHit`/`climbToSelectable` never climbs
+ *  to it regardless of visibility (QA finding Q5: three's raycaster does not filter by visibility,
+ *  `Raycaster.js:236-246` in the vendored 0.184). */
 function wallBPlaneVisibleFor(room: DesignRoom): boolean {
   return room.shape !== "linear";
 }

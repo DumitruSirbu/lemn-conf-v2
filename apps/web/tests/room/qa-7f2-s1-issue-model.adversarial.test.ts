@@ -566,7 +566,10 @@ describe("the §5 copy ships exactly as the owner approved it", () => {
   );
 });
 
-describe("the linear suggestion is catalogued and never surfaced under the approved policy", () => {
+// 7J S5, ADR 0108 Amendment G: `APPROVED_ROOM_POLICY` states the straight kitchen's own bounds now,
+// so the suggestion's positive arm is live under the real policy — restated below from "is off for
+// every shape, direction and typed text", which held while every straight room was refused.
+describe("the linear suggestion is catalogued and shows exactly when the domain says so", () => {
   it("is present in both catalogues", () => {
     expect(requireLeafAt(RO_CATALOGUE, "room.issue.orChooseLinear")).not.toBe(
       "",
@@ -576,7 +579,7 @@ describe("the linear suggestion is catalogued and never surfaced under the appro
     );
   });
 
-  it("is off for every shape, direction and typed text, including 1A, 1B, 1C and 1D", () => {
+  it("matches the real gate — a reason other than the shape's own, and wall A with the height validating as a straight room — for every shape, direction and typed text", () => {
     const anyText = fc.oneof(
       fc.constant(""),
       fc.string({ maxLength: 10 }),
@@ -597,8 +600,22 @@ describe("the linear suggestion is catalogued and never surfaced under the appro
             draftWithTexts(shape, texts),
             direction,
           );
+          const state = stateOfDraft(draft);
+          const expected =
+            state.substate === "1C" &&
+            state.issues.some(
+              (issue) => issue.code !== "SHAPE_NOT_BUILDABLE",
+            ) &&
+            validateRoomInput(
+              {
+                shape: "linear",
+                wallAMm: state.input.wallAMm,
+                heightMm: state.input.heightMm,
+              },
+              APPROVED_ROOM_POLICY,
+            ).ok;
 
-          expect(viewOfDraft(draft).isLinearSuggested).toBe(false);
+          expect(viewOfDraft(draft).isLinearSuggested).toBe(expected);
         },
       ),
       { numRuns: 2000 },
@@ -619,14 +636,20 @@ describe("the linear suggestion is catalogued and never surfaced under the appro
 // Criterion 9's model arm, over every policy that states any subset of the shapes
 // ---------------------------------------------------------------------------------------------
 
-/** R8's fabricated policy (ADR 0116), generalised: the approved policy stating exactly `shapes`, each
- *  with the L's bounds. A hard-coded shape list agrees with the approved policy and nothing else. */
+/** R8's fabricated policy (ADR 0116), generalised: the approved policy restricted to exactly
+ *  `shapes`. Linear and L keep the approved policy's own real bounds (7J S5) — only U still borrows
+ *  the L's, because U has none of its own yet (M7B's, ADR 0116); that borrowing is the only reason
+ *  this still casts to `BuildableShapes`, whose type has no `U` key to fabricate honestly. */
 function policyStating(shapes: readonly RoomShape[]): RoomPolicy {
   const lBounds = APPROVED_ROOM_POLICY.buildableShapes.L;
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: Object.fromEntries(
-      shapes.map((shape) => [shape, lBounds]),
+      shapes.map((shape) =>
+        shape === "U"
+          ? [shape, lBounds]
+          : [shape, APPROVED_ROOM_POLICY.buildableShapes[shape]],
+      ),
     ) as BuildableShapes,
   };
 }
