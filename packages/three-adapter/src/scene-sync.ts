@@ -72,6 +72,11 @@ export interface SolidSyncInput {
 export interface VoidSyncInput {
   readonly voidsRoot: THREE.Object3D;
   readonly voids: readonly VoidRecord[];
+  /** The room the voids stand in. Optional so every caller that predates the cutaway still
+   *  type-checks: given a room that is not a U, the recorded cut set is discarded rather than applied
+   *  (`applyRecordedCutaway`). The body sync always has the room and does the same, so a caller that
+   *  omits it is safe as long as it also syncs bodies when the room changes. */
+  readonly room?: DesignRoom | undefined;
 }
 
 /** Mounts the bodies that appeared, removes and disposes the ones that vanished or changed, and
@@ -118,7 +123,7 @@ export function syncSolidBodies(input: SolidSyncInput): void {
     kitchenFinish: input.kitchenFinish,
   });
   // ADR 0132 A8.2: a body mounted while a wall is cut away is mounted cut.
-  applyRecordedCutaway(input.solidsRoot);
+  applyRecordedCutaway(input.solidsRoot, input.room);
 }
 
 function mirroredPieceTest(
@@ -147,7 +152,7 @@ export function syncVoidMeshes(input: VoidSyncInput): void {
     input.voidsRoot.add(group);
   }
   // ADR 0132 A8.2: the whole void set is replaced on any change, so the cut set is re-applied to it.
-  applyRecordedCutaway(input.voidsRoot);
+  applyRecordedCutaway(input.voidsRoot, input.room);
 }
 
 /** What this body alone owns. Its materials come from `kit.M` and its cached geometries are shared

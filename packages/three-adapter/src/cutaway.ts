@@ -80,12 +80,37 @@ export function applyCutaway(
 }
 
 /** Applies the cut set the last `applyCutaway` recorded to `root`'s children — what a sync has just
- *  mounted. Nothing recorded means nothing cut. */
-export function applyRecordedCutaway(root: THREE.Object3D): void {
+ *  mounted. Nothing recorded means nothing cut.
+ *
+ *  **Only a U is ever cut** (A2). A stage is kept when the room changes shape in place (ADR 0074 d1),
+ *  so a set recorded while it showed a U must not reach an L or a straight room: given such a room,
+ *  the record is cleared and everything the cutaway hid is shown. A caller that cannot name the room
+ *  (`syncVoidMeshes`'s optional `room`) applies the record as it stands; the body sync, which always
+ *  has the room, is what clears it. */
+export function applyRecordedCutaway(
+  root: THREE.Object3D,
+  room?: DesignRoom,
+): void {
+  if (room !== undefined && room.shape !== "U") {
+    discardRecordedCutaway(root);
+    return;
+  }
   const recorded = recordHolderOf(root).userData[CUT_WALLS_KEY] as
     | readonly DesignWall[]
     | undefined;
   if (recorded !== undefined) applyWalls(root.children, recorded);
+}
+
+/** Clears the record and shows every object under the shared parent that a cutaway hid — the two
+ *  roots' children and the overlays beside them, and nothing hidden for another reason. */
+function discardRecordedCutaway(root: THREE.Object3D): void {
+  const holder = recordHolderOf(root);
+  holder.userData[CUT_WALLS_KEY] = [];
+  const candidates =
+    holder === root
+      ? root.children
+      : holder.children.flatMap((child) => [child, ...child.children]);
+  applyWalls(candidates, []);
 }
 
 function recordHolderOf(root: THREE.Object3D): THREE.Object3D {
