@@ -1925,7 +1925,7 @@ wall-C entries even though it has no wall C — `MAX_EMPTY_COLUMNS` is a global 
 one. An optional per-shape count check (walls × 631) would tighten this; it is recorded, not built.
 No owner, no phase.
 
-## 94. AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens — FOUND 2026-09-29, OWED TO U2-A2
+## 94. AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens — FOUND 2026-09-29, CLOSED 2026-09-29 (M7B wave U2)
 
 **Found by M7B wave U1's logic review** (R1.3; `docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance
 criterion 6 and *U1 close-out*). The property (1000 runs, `mirrorUDesign` reviewed, sabotage both ways
@@ -1933,6 +1933,11 @@ confirmed) exercised arbitrary U documents and a restated fixture rather than de
 `generateKitchen` actually produces for a U shell. This is not a defect in what shipped — U1 has no
 generator arm for a U yet — but the property should be re-run against real generated U shells once
 one exists. **Owed to wave U2's acceptance criterion A2**, not open-ended.
+
+**CLOSED 2026-09-29 — discharged by M7B wave U2.** AC6's mirror property now runs on real
+`buildUShellDesign` outputs through `mirrorUDesign`, 200 samples plus about 80 boundary rooms, zero
+findings, voids mirroring as predicted (`docs/milestones/M7B-u-shaped-rooms.md`, *U2 close-out*). No
+further action owed.
 
 ## 95. The A∩C corner sweep also marks a stray wall-C span on an L or straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
 

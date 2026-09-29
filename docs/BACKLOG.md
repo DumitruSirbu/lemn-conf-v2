@@ -124,7 +124,7 @@ status corrections, in one of these two files:
 | 91 | There is no full-height oven column without a microwave | open.md — owner, 2026-09-29 (M7B Q-U3, relayed); recorded at ADR 0110 Amendment N; not in M7B, no owner, no phase |
 | 92 | The largest storable design row grows to 523,972 bytes | open.md — found 2026-09-29 by M7B wave U1's security review (S1.1, Low); ADR 0019 SEC-001/DB-002's accepted risk should be re-measured; deferred to M8's launch gate |
 | 93 | No per-shape empty-column count check bounds an L/straight document's wall-C entries | open.md — found 2026-09-29 by M7B wave U1's security review (S1.2, Low); optional, not built, no owner, no phase |
-| 94 | AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens | open.md — found 2026-09-29 by M7B wave U1's logic review (R1.3); owed a re-run on real U shells in wave U2-A2 |
+| 94 | AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens | open.md — **CLOSED 2026-09-29 by M7B wave U2**: the property re-ran on real `buildUShellDesign` outputs (200 samples plus ~80 boundary rooms), 0 findings, voids mirroring |
 | 95 | The A∩C corner sweep also fires a mark-severity finding on L/straight documents with a stray wall-C span | open.md — found 2026-09-29 by M7B wave U1's logic review (R1.4, disagreement not a bug); AC2 not at risk; gating on `wallsOf` is optional, not done, no owner, no phase |
 
 ## 2026-09-06 audit note

@@ -606,8 +606,8 @@ PASS.
 - **M7 is closed (2026-09-29).** Nothing from M7 is open. Every M7 bullet below this one is history —
   kept for its detail, not because anything in it is still outstanding. The next milestone in the
   phase sequence is **M7B — U-shaped rooms** (confirmed by the owner, ~~plan not yet written~~
-  **plan written 2026-09-29; waves U0 and U1 done, next wave U2**; see
-  `milestones/M7B-u-shaped-rooms.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
+  ~~plan written 2026-09-29; waves U0 and U1 done, next wave U2~~ **waves U0–U2 done, next wave U3**;
+  see `milestones/M7B-u-shaped-rooms.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
 - ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
   RESUME HERE entry under *What to do next* for the current state: 7D5, 7D5b and 7F2 have since all
@@ -1137,6 +1137,42 @@ policy, so every per-endpoint limit is application code.
 > bytes. `pnpm ci:local` **not yet run** — it runs before the branch's first push.
 >
 > **Next wave: U2** — the right corner, the U shell, engine limits and depth change (plan § Wave U2).
+
+> **RESUME HERE — 2026-09-29. M7B wave U2 is DONE — the right corner, the U shell, engine limits and
+> depth change; still no shape validates in the product.** Branch `m7b-u-shaped-rooms` (wave base
+> `8e3cf5c`), not pushed. Commits, in order, all with hooks: S1 the right corner (synthesized L room
+> `(W, C)`; wall B relabelled to wall C; X-leg at `W − leftCentre`; `cornerOf`;
+> `twoCornersWallAMinimumMm` = 1800) `c14abb4`; S2 the U shell and engine limits (`buildUShellDesign`;
+> wall C reuses wall B's tiling plus F7's 100 mm reserve; `ENGINE_ROOM_LIMITS.U` derived;
+> `validateRoomInput` gains a U arm; `generateKitchen` refuses a U; the implementer found and fixed a
+> 1 mm mid-wall gap for an odd wall A) `065658f`; S3 depth change (`cornerTakingWallsOf`; wall C slides
+> the way wall B does) `5e53682`; QA tests `7efbf2b`; review round-1 fixes `7140eee`. Tier **Full**.
+>
+> **QA green, no production defects.** Oracles: self-mirror through `mirrorUDesign`, 200 samples plus
+> about 80 boundary rooms. AC6 byte identity: 18,203 compared, 0 mismatches; old documents 13,628
+> identical. **Backlog 94 (R1.3 from U1) is discharged**: AC6's mirror property now runs on real
+> `buildUShellDesign` outputs, zero findings, voids mirroring.
+>
+> **Reviews:** round 1, logic — changes required, all fixed in `7140eee`. **R1.1, High, a real defect
+> QA missed:** `cornerOf` reported an approved L's only corner as "right" at wall A ≤ 900 mm, even
+> length — customer-reachable (min 900) and U4 would have mirrored it; fixed so any non-U room answers
+> "left", with a regression test at 880/900/901. R1.2: `isShapeBuildable` accepted prototype-named
+> tags (predates U2), fixed with `Object.hasOwn`. R1.3: two sources of truth for corner-taking walls —
+> `WALL_THE_CORNER_IS_TAKEN_FROM` retired from the exports, `ownsTheCorner` and `slideReserveMm` now
+> read `cornerTakingWallsOf` (discharges ADR 0132 d7). R1.4: D11 is now an explicit `shape === "U"`
+> guard in `runEndPanelSeatM`. R1.5: a comment fix. Clean-code, changes required, fixed in `7140eee`:
+> C1.1 one shared `roomForTheRightCorner`; C1.2/C1.3 shorter shell functions; C1.4 one
+> `apps/web/tests/support/fabricated-u-policy.ts`. **Round 2 logic review: approve, no findings** — one
+> accepted gap, no direct `slideReserveMm` wall-C test because it is private and unreachable, **owed to
+> U3** once its composer builds a wall-C run.
+>
+> **Coordinator verification at `7140eee`:** domain 243 files / 5238 tests (built fresh); three-adapter
+> 98 / 3642; persistence 33 / 730; web 269 / 4760; the `kitchen-parts`/`reference` diff against
+> `8e3cf5c` is 0 bytes. `pnpm ci:local` **not yet run** — it runs before the branch's first push.
+>
+> **Next wave: U3** — composing a U across three walls (plan § Wave U3). It waits on no owner answer;
+> RQ1–RQ17 are all answered. U3 also owes the direct `slideReserveMm` wall-C test (round-2 review's
+> accepted gap).
 
 > **RESUME HERE — 2026-09-29, later the same day. M7B wave U0 is DONE.** Branch
 > `m7b-u-shaped-rooms`, created from M7's `m7-room-and-presets` tip at `5462a6c` (M7's PR is not yet

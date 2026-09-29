@@ -653,27 +653,79 @@ witness policy only.
 
 **Acceptance criteria.**
 
-1. **The right corner mirrors the left** (*property*, engine U range): the right corner's four
+1. **[met]** **The right corner mirrors the left** (*property*, engine U range): the right corner's four
    placements carry the left's build ids, and equal the left corner computed for the room with B and
    C swapped, reflected in `x = W/2`. The two X-legs never overlap; the right X-leg's far edge is `W`,
    ~~less at most the odd millimetre ADR 0132 places~~ **exactly (2026-09-29, ADR 0132 d4)**. No
    half-millimetre centre anywhere. `ENGINE_ROOM_LIMITS.U.wallA.minMm` is 1800, derived from the two
-   X-legs' reference widths. **[prop]**
-2. **The shell** (*property*, ≥ 200 samples over the engine U range plus every boundary): zero
+   X-legs' reference widths. **[prop]** — QA green; review R1.1 (2026-09-29) found `cornerOf`
+   misreported an approved L's only corner as "right" at wall A ≤ 900 mm even length, fixed in
+   `7140eee` (any non-U room now answers "left"; regression test at 880/900/901).
+2. **[met]** **The shell** (*property*, ≥ 200 samples over the engine U range plus every boundary): zero
    `validateDesignForCatalog` findings of either severity; every empty column ≤ 800 mm; floor and
    wall-only tiles on each of A, B and C cover their runs with no gap and no overlap; nothing recorded
-   over either corner zone. **[prop]**
-3. **Depth change** (600 → 700 on U shells): wall C's placements slide by exactly what wall B's do
+   over either corner zone. **[prop]** — the implementer found and fixed a 1 mm mid-wall gap for an
+   odd wall A during S2.
+3. **[met]** **Depth change** (600 → 700 on U shells): wall C's placements slide by exactly what wall B's do
    in the room with B and C swapped; wall A does not move; corner widths are frozen; the 30 mm
-   top-row residue is present on both side walls. **[unit] + [prop]**
-4. **No run-end panel** for any U: `runEndPanelSeatM` answers none (*property* over the range); the
-   L's and the straight room's answers are unchanged. **[prop]**
-5. **Engine limits and mapping.** `ENGINE_ROOM_LIMITS.U` holds no literal (a test reads its sources);
+   top-row residue is present on both side walls. **[unit] + [prop]** — `cornerTakingWallsOf` (S3,
+   `5e53682`); the round-2 logic review accepted that there is no direct `slideReserveMm` wall-C test
+   because it is private and unreachable — **owed to U3** once its composer builds a wall-C run.
+4. **[met]** **No run-end panel** for any U: `runEndPanelSeatM` answers none (*property* over the range); the
+   L's and the straight room's answers are unchanged. **[prop]** — review R1.4 made this an explicit
+   `shape === "U"` guard in `runEndPanelSeatM` (`7140eee`).
+5. **[met]** **Engine limits and mapping.** `ENGINE_ROOM_LIMITS.U` holds no literal (a test reads its sources);
    under a witness policy stating U, a valid U input maps to D1's shape and its issues name only
    `shape`, `wallA`, `wallB`, `wallC` or `height`, with **no number in any issue**; the approved policy
    still refuses a U. **[unit]**
-6. **The L and the straight kitchen are byte-identical** (U1-A1 re-run); `buildLShellDesign` still
-   refuses a U with `ROOM_NOT_L`. **[unit]**
+6. **[met]** **The L and the straight kitchen are byte-identical** (U1-A1 re-run); `buildLShellDesign` still
+   refuses a U with `ROOM_NOT_L`. **[unit]** — QA: 18,203 compared, 0 mismatches; 13,628 old documents
+   identical.
+
+### U2 close-out — 2026-09-29, at `7140eee`
+
+**Shipped.** A U shell with two structural corners exists, validates with zero findings across the
+engine's U range, survives a depth change, and `validateRoomInput` maps a U — under a test witness
+policy only (`isShapeBuildable("U", …)` still false; the approved policy is unchanged). Commits, in
+order, all with hooks: S1 the right corner (synthesized L room `(W, C)`; wall B relabelled to wall C;
+X-leg at `W − leftCentre`; `cornerOf`; `twoCornersWallAMinimumMm` = 1800) `c14abb4`; S2 the U shell and
+engine limits (`buildUShellDesign`; wall C reuses wall B's tiling plus F7's 100 mm reserve;
+`ENGINE_ROOM_LIMITS.U` derived; `validateRoomInput` gains a U arm; `generateKitchen` refuses a U) `065658f`;
+S3 depth change (`cornerTakingWallsOf`; wall C slides the way wall B does) `5e53682`; QA tests
+`7efbf2b`; review round-1 fixes `7140eee`.
+
+**Verification.** Tier Full. QA: oracles were self-mirror through `mirrorUDesign`, 200 samples plus
+about 80 boundary rooms. AC6 byte identity: 18,203 compared, 0 mismatches; old documents 13,628
+identical. No production defect found by QA. Coordinator verification at `7140eee`: domain 243 files /
+5238 tests (built fresh); three-adapter 98 / 3642; persistence 33 / 730; web 269 / 4760; the
+`kitchen-parts`/`reference` diff against wave base `8e3cf5c` is 0 bytes. `pnpm ci:local` has not been
+run; it runs before the branch's first push (not yet pushed).
+
+**Reviews.** Round 1, logic — changes required, all fixed in `7140eee`:
+- **R1.1 (High, a real defect QA missed).** `cornerOf` reported an approved L's only corner as "right"
+  at wall A ≤ 900 mm, even length. The customer can reach this (min 900), and U4 would have mirrored
+  it. Fixed: any room that is not a U answers "left". A regression test covers 880/900/901.
+- **R1.2.** `isShapeBuildable` accepted prototype-named tags — predates U2; fixed with `Object.hasOwn`.
+- **R1.3.** Two sources of truth for corner-taking walls: `WALL_THE_CORNER_IS_TAKEN_FROM` retired from
+  the exports; `ownsTheCorner` and `slideReserveMm` now read `cornerTakingWallsOf`. Discharges ADR 0132
+  d7.
+- **R1.4.** D11 is now an explicit `shape === "U"` guard in `runEndPanelSeatM`.
+- **R1.5.** A comment fix.
+
+Round 1, clean-code — changes required, fixed in `7140eee`: C1.1 one shared `roomForTheRightCorner`;
+C1.2 and C1.3 shorter shell functions; C1.4 one `apps/web/tests/support/fabricated-u-policy.ts`.
+
+**Round 2 logic review: approve, no findings.** One accepted gap: there is no direct `slideReserveMm`
+wall-C test, because it is private and unreachable. **Owed to U3** — a direct test, once its composer
+builds a wall-C run.
+
+**Documentation updated.** This close-out section and the criteria checkmarks above (AC1–AC6);
+`docs/STATUS.md` *What to do next* and the M7B summary bullet; `docs/backlog/open.md` and
+`docs/BACKLOG.md` entry 94, closed — AC6's mirror property now runs on real `buildUShellDesign`
+outputs, zero findings, voids mirroring, which discharges backlog 94 (R1.3 from U1).
+
+**Deferred work.** The direct `slideReserveMm` wall-C unit test, owed to **U3** once its composer
+builds a wall-C run (round-2 review's accepted gap).
 
 ---
 
