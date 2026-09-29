@@ -12,7 +12,11 @@
 // 0132 decision 8), and this module never asks the room for one at all.
 import type { DesignRoom, DesignWall } from "../design.js";
 import { wallLengthMm } from "../queries/overflowing-placements.js";
-import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
+import {
+  BOTTLE_CARGO_BUILD_ID,
+  DOOR_BASE_BUILD_ID,
+  THREE_DRAWER_BASE_BUILD_ID,
+} from "./body-choice.js";
 import { DISHWASHER_RUN_ITEM } from "./dishwasher-beside-the-sink.js";
 import { GENERATION_PRIORITIES } from "./generation-priorities.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
@@ -262,7 +266,21 @@ function idOf(item: CoreRunItem): string {
 interface PackedBackWall {
   readonly fits: boolean;
   readonly bases: readonly UPlannedGenerationBase[];
+  /** Whether the pack ever left wall A — when it did not, wall A's own lane has an offset left to
+   *  fill (the A4 correction, S3); when it did, wall A's own remainder is already under 600 mm by
+   *  construction (the item that overflowed did not fit what was left). */
+  readonly hasOverflowedOnce: boolean;
+  /** The offset the pack stopped at on wall A's own lane — meaningful only when it never overflowed,
+   *  and the start `wallAFill` continues from. */
+  readonly wallAOffsetMm: number;
 }
+
+const NOT_PACKED: PackedBackWall = {
+  fits: false,
+  bases: [],
+  hasOverflowedOnce: false,
+  wallAOffsetMm: 0,
+};
 
 /** *N3 revised* 5: the back wall packed from the fridge corner, in fixed reading order; what does
  *  not fit continues round the far corner onto the far wall, from its own corner. Detected by
@@ -282,13 +300,13 @@ function packBackWallAndOverflow(
   let hasOverflowedOnce = false;
   for (const item of items) {
     if (offsetMm + item.widthMm > lane.capacityMm) {
-      if (hasOverflowedOnce) return { fits: false, bases: [] };
+      if (hasOverflowedOnce) return NOT_PACKED;
       wall = farWall;
       lane = laneFar;
       offsetMm = 0;
       hasOverflowedOnce = true;
       if (offsetMm + item.widthMm > lane.capacityMm) {
-        return { fits: false, bases: [] };
+        return NOT_PACKED;
       }
     }
     const centreMm = lane.centreMmAt(offsetMm, item.widthMm);
@@ -303,7 +321,12 @@ function packBackWallAndOverflow(
     });
     offsetMm += item.widthMm;
   }
-  return { fits: true, bases };
+  return {
+    fits: true,
+    bases,
+    hasOverflowedOnce,
+    wallAOffsetMm: hasOverflowedOnce ? 0 : offsetMm,
+  };
 }
 
 /** *N3 revised* 5's three attempts, in the owner's own drop order: the dishwasher first, then the
@@ -317,8 +340,94 @@ function backWallAttempts(): readonly (readonly CoreRunItem[])[] {
   ];
 }
 
-/** The core run plus, once it composes, the tall layout and the one oven (S1's own must-fix items,
- *  and S2's: the fridge-to-free-end gap and the far wall's tower). S3 still owes the drawer count. */
+/** ADR 0108 H2 (RQ1's own default): the owner-approved U's floor on wall A — 2700 mm — and on each
+ *  side wall — 1000 mm, the narrowest corner's own reach (`corner-assembly-size.ts`'s proof that B
+ *  and C share it). Not yet stated anywhere else as a named figure: `APPROVED_ROOM_POLICY` gains the
+ *  U's own bounds at U6, so this is the one place `T_min` is assembled from the owner's own three
+ *  numbers rather than restated as `4700` directly (ADR 0102). */
+const APPROVED_U_FLOOR_MM = { wallA: 2700, sideWall: 1000 } as const;
+
+/** *N3 revised* 1's own `T_min`: the smallest total run an approved U can have, which is what
+ *  *N3 revised* 6's *"beyond the minimum"* means. */
+const DRAWER_TARGET_T_MIN_MM =
+  APPROVED_U_FLOOR_MM.wallA + 2 * APPROVED_U_FLOOR_MM.sideWall;
+
+/** *N3 revised* 6 (RQ6, RQ10): `N(T) = min(5, 3 + floor(max(0, T − T_min) / 2000))`, over the three
+ *  **entered** lengths — the same key *N3 revised* 1's large-U threshold and *N3 revised* 2's
+ *  fridge-wall choice both read. */
+function drawerTargetFor(room: DesignRoom): number {
+  const totalMm =
+    wallLengthMm("A", room) + wallLengthMm("B", room) + wallLengthMm("C", room);
+  return Math.min(
+    5,
+    3 + Math.floor(Math.max(0, totalMm - DRAWER_TARGET_T_MIN_MM) / 2000),
+  );
+}
+
+/** The A4 correction, with the bottle and the drawer count folded in: wall A's own run, past the
+ *  fixed core items, filled with the bottle first (*N3 revised* 7, RQ16 — the next cabinet after the
+ *  hob, when there is space), then door storage — upgraded to the drawer body up to the drawer
+ *  target (*N3 revised* 6) — down to a bare remainder under 600 mm (A4). Built with the bottle and the
+ *  drawers from the start, never as a width-preserving edit afterward: the bottle is 300 mm against
+ *  the fill's own 600 mm module, and editing an already-placed body's width in place would leave
+ *  every later one exactly where a wider body had put it.
+ *
+ *  Only reachable when the core never left wall A at all; where it overflowed, wall A's own
+ *  remainder is already under 600 mm by construction (`packBackWallAndOverflow`'s own comment), and
+ *  the bottle is omitted there rather than reaching into the far wall's own trailing fill — S2's
+ *  `u-tall-layout.ts` was not widened to carry a bottle candidate through, and this is reported as a
+ *  scope boundary rather than silently claimed complete. */
+function wallAFill(
+  wall: DesignWall,
+  lane: PackingLane,
+  startOffsetMm: number,
+  hasPreparation: boolean,
+  drawerTarget: number,
+): readonly UPlannedGenerationBase[] {
+  const bases: UPlannedGenerationBase[] = [];
+  let offsetMm = startOffsetMm;
+  const bottleFitsMm = lane.capacityMm - offsetMm;
+  if (bottleFitsMm >= BOTTLE_WIDTH_MM) {
+    const centreMm = lane.centreMmAt(offsetMm, BOTTLE_WIDTH_MM);
+    bases.push({
+      id: "bottle",
+      role: "storage",
+      buildId: BOTTLE_CARGO_BUILD_ID,
+      widthMm: BOTTLE_WIDTH_MM,
+      wall,
+      startMm: centreMm - BOTTLE_WIDTH_MM / 2,
+      endMm: centreMm + BOTTLE_WIDTH_MM / 2,
+    });
+    offsetMm += BOTTLE_WIDTH_MM;
+  }
+
+  const leftover = planLeftover(Math.max(0, lane.capacityMm - offsetMm));
+  let drawersPlaced = hasPreparation ? 1 : 0;
+  for (let index = 0; index < leftover.storageCount; index += 1) {
+    const isDrawer = drawersPlaced < drawerTarget;
+    const centreMm = lane.centreMmAt(offsetMm, STORAGE_BODY_WIDTH_MM);
+    bases.push({
+      id: `wall-a-fill:${wall}:${String(index)}`,
+      role: "storage",
+      buildId: isDrawer ? THREE_DRAWER_BASE_BUILD_ID : DOOR_BASE_BUILD_ID,
+      widthMm: STORAGE_BODY_WIDTH_MM,
+      wall,
+      startMm: centreMm - STORAGE_BODY_WIDTH_MM / 2,
+      endMm: centreMm + STORAGE_BODY_WIDTH_MM / 2,
+    });
+    if (isDrawer) drawersPlaced += 1;
+    offsetMm += STORAGE_BODY_WIDTH_MM;
+  }
+  return bases;
+}
+
+/** The catalogue's own declared bottle-cargo width (ADR 0110 Amendment H1, `optional-run-items.ts`'s
+ *  own `BOTTLE_CARGO`) — read as a value here rather than importing that module's L-specific
+ *  placement logic, which assumes a reading-order-and-cut model this composer does not have. */
+const BOTTLE_WIDTH_MM = 300;
+
+/** The core run plus, once it composes, the tall layout, the one oven, wall A's own A4 fill, the
+ *  bottle and the drawer count (S1, S2 and S3's own must-fix items, together). */
 export function planUKitchenComposition(
   input: PlanUKitchenCompositionInput,
 ): UKitchenCompositionPlan {
@@ -348,9 +457,20 @@ export function planUKitchenComposition(
       ...(fridge.dropped ? (["fridge"] as const) : []),
       ...(attemptIndex >= 2 ? (["preparation"] as const) : []),
     ];
+    const hasPreparation = attemptIndex < 2;
+    const wallAFillBases = packed.hasOverflowedOnce
+      ? []
+      : wallAFill(
+          "A",
+          laneA,
+          packed.wallAOffsetMm,
+          hasPreparation,
+          drawerTargetFor(room),
+        );
     const coreBases = [
       ...(fridge.dropped ? [] : fridge.bases),
       ...packed.bases,
+      ...wallAFillBases,
     ];
     const bases = withTheTallLayout({
       room,

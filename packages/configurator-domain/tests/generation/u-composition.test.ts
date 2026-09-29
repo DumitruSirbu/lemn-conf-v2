@@ -216,13 +216,16 @@ describe("the back wall packed from the fridge corner, with overflow (N3r 5)", (
     const plan = planFor(room);
     const onA = basesOn(plan, "A");
 
-    expect(onA.map((base) => base.role)).toStrictEqual([
+    // The first four are the fixed core; wall A's own remainder past the hob is the A4 correction
+    // (S3) — filled with storage, never asserted empty here, since that is this room's own capacity.
+    expect(onA.slice(0, 4).map((base) => base.role)).toStrictEqual([
       "sink",
       "storage",
       "preparation",
       "hob",
     ]);
     expect(onA[1]?.buildId).toBe("base-dishwasher");
+    expect(onA.slice(4).every((base) => base.role === "storage")).toBe(true);
   });
 
   it("puts the sink first in reading order on wall A, whichever side wall carries the fridge", () => {

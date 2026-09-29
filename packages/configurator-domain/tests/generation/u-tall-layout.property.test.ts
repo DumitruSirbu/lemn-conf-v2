@@ -161,20 +161,20 @@ function checkTowerCountFromCorner(room: DesignRoom): void {
   );
 }
 
-/** *N3 revised* names a bare run end explicitly for the fridge wall's own gap and the far wall's own
- *  tail — never for wall A, which this wave's plan never fills past its four fixed core items (no
- *  rule asks it to), so `remainderMm.A` can be large by design and is excluded here. */
+/** ADR 0110 A4: at most 599 mm of any run is left empty, on all three walls — the correction
+ *  reported 2026-09-29, S3's own must-fix item 5. Wall A's own remainder is bare only where the
+ *  fixed core already overflowed past it (`packBackWallAndOverflow`'s own comment: that remainder
+ *  is under 600 mm by construction there too). A dropped fridge (RQ9's own empty-population branch)
+ *  leaves its wall's own gap unattempted — there is no fridge to gap-fill from — so that wall's raw,
+ *  unconsumed capacity is not a "run end" this property covers. */
 function checkEveryBareRunEndUnder600(room: DesignRoom): void {
   const plan = planFor(room);
   if (!plan.minimumMet) return;
   const fridgeWall = fridgeWallOf(room);
   const farWall: DesignWall = fridgeWall === "B" ? "C" : "B";
-  // A dropped fridge (RQ9's own empty-population branch) leaves its wall's own gap unattempted —
-  // there is no fridge to gap-fill from — so that wall's raw, unconsumed capacity is not a "run
-  // end" this property covers.
-  const walls = plan.dropped.includes("fridge")
-    ? [farWall]
-    : [fridgeWall, farWall];
+  const walls: readonly DesignWall[] = plan.dropped.includes("fridge")
+    ? ["A", farWall]
+    : ["A", fridgeWall, farWall];
   for (const wall of walls) {
     expect(
       plan.remainderMm[wall],
