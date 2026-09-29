@@ -285,14 +285,15 @@ export type Corner = "left" | "right";
  *  not a corner body at all.
  *
  *  A wall-B or wall-C piece belongs to the corner its own wall shares with wall A — no ambiguity,
- *  because only one corner ever stands on either of those walls. Accordingly `cornerOf` answers
- *  `"left"` for wall B and `"right"` for wall C before it reads the room's shape, since wall C meets
- *  wall A only at their right-hand corner whatever the shape (ADR 0132 Amendment A6). Wall A's own piece, the X-leg, is
- *  the one body every corner puts there, so wall alone cannot answer for it on a U — this is the
- *  one place the query reads a coordinate, and only for a U, where it reads the room's own midpoint
- *  rather than comparing against another placement (ADR 0132 decision 2's own split: `w/2` for the
- *  left X-leg, `W − w/2` for the right). A U has no right-hand variant (ADR 0132 decision 8), so
- *  this reads the same way whatever the room's `cornerDirection`.
+ *  because only one corner ever stands on either of those walls. So `cornerOf` answers `"left"` for
+ *  wall B and `"right"` for wall C before it reads the room's shape: wall C meets wall A only at
+ *  their right-hand corner, whatever the shape (ADR 0132 Amendment A6).
+ *
+ *  Wall A's own piece, the X-leg, is the one body every corner puts there, so wall alone cannot
+ *  answer for it on a U — this is the one place the query reads a coordinate, and only for a U,
+ *  where it reads the room's own midpoint rather than comparing against another placement (ADR 0132
+ *  decision 2's own split: `w/2` for the left X-leg, `W − w/2` for the right). A U has no right-hand
+ *  variant (ADR 0132 decision 8), so this reads the same way whatever the room's `cornerDirection`.
  *
  *  **An L or a straight room has only ever one corner, always the left** — there is no midpoint
  *  question to ask. Reading the coordinate for every shape put the boundary in the wrong place: an

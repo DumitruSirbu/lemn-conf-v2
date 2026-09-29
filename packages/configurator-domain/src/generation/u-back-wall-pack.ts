@@ -4,32 +4,19 @@
 // preparation cabinet.
 import type { DesignWall } from "../design.js";
 import { DISHWASHER_RUN_ITEM } from "./dishwasher-beside-the-sink.js";
-import { GENERATION_PRIORITIES } from "./generation-priorities.js";
 import {
   plannedBaseAt,
   type GenerationAncillaryRunItem,
-  type GenerationCoreRole,
   type GenerationPriority,
   type UGenerationRun,
   type UPlannedGenerationBase,
+  type WallAReadingDirection,
 } from "./run-layout.js";
-
-/** The core role's own declared priority: its build id and width, read rather than restated. */
-export function declaredPriority(role: GenerationCoreRole): GenerationPriority {
-  const priority = GENERATION_PRIORITIES.find(
-    (candidate) => candidate.role === role,
-  );
-  if (!priority) {
-    throw new Error(
-      `u-back-wall-pack: GENERATION_PRIORITIES declares no ${role}`,
-    );
-  }
-  return priority;
-}
-
-const SINK_PRIORITY = declaredPriority("sink");
-const PREPARATION_PRIORITY = declaredPriority("preparation");
-const HOB_PRIORITY = declaredPriority("hob");
+import {
+  HOB_PRIORITY,
+  PREPARATION_PRIORITY,
+  SINK_PRIORITY,
+} from "./u-core-priorities.js";
 
 /** One wall's free run, read as a packing lane: how much of it there is, and where along the wall an
  *  item of a given width starts at a given reading-order offset from wherever this lane's own reading
@@ -52,14 +39,14 @@ export function laneFromTheCorner(
 }
 
 /** Wall A's own lane, read from whichever corner it shares with the fridge wall (*N3 revised* 5:
- *  "packed from the fridge corner") — increasing along-wall coordinate when the fridge is on wall B,
- *  decreasing when it is on wall C, the same "prefix wall reversed" shape `generation-priorities.ts`
- *  already reads wall A or wall B in for the L. */
+ *  "packed from the fridge corner") — the "prefix wall reversed" shape `generation-priorities.ts`
+ *  already reads wall A or wall B in for the L. `direction` is the fact `placedFridge` computed from
+ *  the fridge wall, so no wall letter is compared here. */
 export function wallALaneFromTheFridgeCorner(
-  fridgeWall: DesignWall,
+  direction: WallAReadingDirection,
   runA: UGenerationRun,
 ): PackingLane {
-  if (fridgeWall === "B") return laneFromTheCorner("A", runA);
+  if (direction === "increasing") return laneFromTheCorner("A", runA);
   return {
     wall: "A",
     capacityMm: runA.endMm - runA.startMm,

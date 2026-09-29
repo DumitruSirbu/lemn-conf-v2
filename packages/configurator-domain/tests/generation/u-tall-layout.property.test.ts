@@ -8,36 +8,39 @@
 // walls under 1700 mm, where the fridge is dropped), plus the same fixed boundary sweep. A fixed grid
 // counts each arm the rule branches on and holds it at 1 or more, so no property can pass by landing
 // only on an arm nobody changed.
+//
+// The fridge wall, the far wall, the drawer target, the run order and whether a tower is owed come from
+// `tests/support/u-plan-invariants.ts`, the independent oracle, rather than a copy of each here. What
+// this file still restates on purpose, because that module keeps it private, is ADR figures read
+// straight off the record: the entered-length count from the corner (`bodiesFromTheCornerFor`), the
+// entered length of a wall, and the drawer and tall-column predicates. None of them reads the planner's
+// own `baseCountFromTheCorner`, so a wrong boundary there disagrees with this file.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
 import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
 } from "../../src/index.js";
-import { planUKitchenComposition } from "../../src/generation/u-composition.js";
+import {
+  basesOn,
+  DECLARED_COLUMNS,
+  planFor,
+  uRoom,
+} from "../support/u-plan-fixtures.js";
+import {
+  drawerTargetOf,
+  farWallOf,
+  fridgeWallOf,
+  isLargeURoom,
+  runOrderOf,
+  towerIsOwed,
+} from "../support/u-plan-invariants.js";
 
 const RUNS = 200;
-
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
-function uRoom(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-  heightMm: number,
-): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm };
-}
 
 const sweptRoomArb = fc
   .tuple(
@@ -89,22 +92,6 @@ function boundaryRooms(): readonly DesignRoom[] {
   return rooms;
 }
 
-function planFor(room: DesignRoom) {
-  return planUKitchenComposition({
-    room,
-    runs: uShellFloorRuns(room),
-    columns: DECLARED,
-  });
-}
-
-function fridgeWallOf(room: DesignRoom): DesignWall {
-  return room.depthMm >= (room.wallCMm ?? 0) ? "B" : "C";
-}
-
-function isLargeU(room: DesignRoom): boolean {
-  return room.widthMm + room.depthMm + (room.wallCMm ?? 0) >= 10_000;
-}
-
 function ovenBearingCount(plan: ReturnType<typeof planFor>): number {
   return plan.bases.filter(
     (base) =>
@@ -128,7 +115,7 @@ function checkOneOven(room: DesignRoom): void {
 
 function checkNoPantryOnALargeUFarWall(room: DesignRoom): void {
   const plan = planFor(room);
-  if (!plan.minimumMet || !isLargeU(room)) return;
+  if (!plan.minimumMet || !isLargeURoom(room)) return;
   const farWall: DesignWall = fridgeWallOf(room) === "B" ? "C" : "B";
 
   expect(
@@ -197,10 +184,6 @@ const CORE_IDS = ["sink", "dishwasher", "preparation", "hob"];
 type Plan = ReturnType<typeof planFor>;
 type PlannedBase = Plan["bases"][number];
 
-function farWallOf(room: DesignRoom): DesignWall {
-  return fridgeWallOf(room) === "B" ? "C" : "B";
-}
-
 function enteredLengthMm(room: DesignRoom, wall: DesignWall): number {
   if (wall === "A") return room.widthMm;
   return wall === "B" ? room.depthMm : (room.wallCMm ?? 0);
@@ -209,12 +192,6 @@ function enteredLengthMm(room: DesignRoom, wall: DesignWall): number {
 /** *N3 revised* 3's count of base bodies from the corner for a wall over 3000 mm. */
 function bodiesFromTheCornerFor(enteredMm: number): number {
   return enteredMm <= 4000 ? 2 : 3;
-}
-
-/** *N3 revised* 6: `N(T) = min(5, 3 + floor(max(0, T - 4700) / 2000))` over the three entered lengths. */
-function drawerTargetOf(room: DesignRoom): number {
-  const totalMm = room.widthMm + room.depthMm + (room.wallCMm ?? 0);
-  return Math.min(5, 3 + Math.floor(Math.max(0, totalMm - 4700) / 2000));
 }
 
 function isDrawerCabinet(base: PlannedBase): boolean {
@@ -226,27 +203,11 @@ function isDrawerExtra(base: PlannedBase): boolean {
   return isDrawerCabinet(base) && base.role !== "preparation";
 }
 
-function wallBodiesOf(plan: Plan, wall: DesignWall): readonly PlannedBase[] {
-  return plan.bases
-    .filter((base) => base.wall === wall)
-    .sort((left, right) => left.startMm - right.startMm);
-}
-
-/** The plan's bases in run order (*N3 revised* 5): wall A read from the corner it shares with the
- *  fridge wall, then the far wall from its own corner. The fridge wall is never part of it. */
-function runOrderOf(room: DesignRoom, plan: Plan): readonly PlannedBase[] {
-  const wallA = wallBodiesOf(plan, "A");
-  return [
-    ...(fridgeWallOf(room) === "B" ? wallA : [...wallA].reverse()),
-    ...wallBodiesOf(plan, farWallOf(room)),
-  ];
-}
-
 /** AC1 (a): no drawer extra stands after the tower in run order (ADR 0110 N10.3 step 4, RQ19 (b)). */
 function checkNoDrawerExtraAfterTheTower(room: DesignRoom): void {
   const plan = planFor(room);
   if (!plan.minimumMet) return;
-  const order = runOrderOf(room, plan);
+  const order = runOrderOf({ room, plan, runs: uShellFloorRuns(room) });
   const towerIndex = order.findIndex((base) => base.buildId === OVEN_TOWER);
   if (towerIndex === -1) return;
 
@@ -287,7 +248,7 @@ function checkTheBottleCostsNoDrawerUnit(room: DesignRoom): void {
   if (!plan.minimumMet) return;
   if (plan.bases.filter(isDrawerCabinet).length >= drawerTargetOf(room)) return;
 
-  const order = runOrderOf(room, plan);
+  const order = runOrderOf({ room, plan, runs: uShellFloorRuns(room) });
   const hobIndex = order.findIndex((base) => base.role === "hob");
   const plainDoorsAfterTheHob = order
     .slice(hobIndex + 1)
@@ -320,7 +281,7 @@ function checkTheTowersBound(room: DesignRoom): void {
   const plan = planFor(room);
   if (!plan.minimumMet) return;
   const farWall = farWallOf(room);
-  const bodies = wallBodiesOf(plan, farWall);
+  const bodies = basesOn(plan, farWall);
   const towerIndex = bodies.findIndex((base) => base.buildId === OVEN_TOWER);
   if (towerIndex === -1) return;
 
@@ -368,36 +329,6 @@ function checkTheTowersBound(room: DesignRoom): void {
   }
 }
 
-/** Whether a tower stands on the far wall with no bottle and no drawer extras before it, restated
- *  from the wall's geometry (*N3 revised* 10, RQ17) rather than read from the plan: over 3000 mm, the
- *  overflowed core and the doors up to `n` and then the tower must fit the run; at 3000 mm or less, at
- *  least one whole module must remain after the overflow. This is what AC1 (e) holds the plan to. */
-function towerStoodBeforeN10(room: DesignRoom, plan: Plan): boolean {
-  if (plan.dropped.length > 0 || room.heightMm < DECLARED.columnHeightMm) {
-    return false;
-  }
-  const farWall = farWallOf(room);
-  const run = uShellFloorRuns(room)[farWall];
-  const overflowedCore = wallBodiesOf(plan, farWall).filter((base) =>
-    CORE_IDS.includes(base.id),
-  );
-  const overflowMm = overflowedCore.reduce(
-    (sum, base) => sum + base.widthMm,
-    0,
-  );
-  const enteredMm = enteredLengthMm(room, farWall);
-  if (enteredMm <= 3000) {
-    return run.endMm - run.startMm - overflowMm >= PLAIN_MODULE_MM;
-  }
-  const bodiesBeforeTheTower = Math.max(
-    bodiesFromTheCornerFor(enteredMm),
-    overflowedCore.length,
-  );
-  return (
-    (bodiesBeforeTheTower + 1) * PLAIN_MODULE_MM <= run.endMm - run.startMm
-  );
-}
-
 /** AC1 (e), the tower's half: no room loses or gains its tower against the layout with nothing added. */
 function checkTheTowerIsNeitherLostNorGained(room: DesignRoom): void {
   const plan = planFor(room);
@@ -405,7 +336,7 @@ function checkTheTowerIsNeitherLostNorGained(room: DesignRoom): void {
   const towerStands = plan.bases.some((base) => base.buildId === OVEN_TOWER);
 
   expect(towerStands, JSON.stringify(room)).toBe(
-    towerStoodBeforeN10(room, plan),
+    towerIsOwed({ room, plan, runs: uShellFloorRuns(room) }),
   );
 }
 
@@ -416,17 +347,20 @@ function checkTheBottleOrADrawerFollowsAFarWallHob(room: DesignRoom): void {
   const plan = planFor(room);
   if (!plan.minimumMet) return;
   const farWall = farWallOf(room);
-  const bodies = wallBodiesOf(plan, farWall);
+  const bodies = basesOn(plan, farWall);
   const hobIndex = bodies.findIndex((base) => base.role === "hob");
   const hob = bodies[hobIndex];
   if (hob === undefined) return;
   const hasColumn = bodies.some((base) => isTallColumn(base.buildId));
   const runEndMm = uShellFloorRuns(room)[farWall].endMm;
-  if (hasColumn || runEndMm - hob.endMm < DECLARED.bottleWidthMm) return;
+  if (hasColumn || runEndMm - hob.endMm < DECLARED_COLUMNS.bottleWidthMm)
+    return;
 
   const next = bodies[hobIndex + 1];
   if (next?.buildId === BOTTLE) {
-    expect(next.widthMm, JSON.stringify(room)).toBe(DECLARED.bottleWidthMm);
+    expect(next.widthMm, JSON.stringify(room)).toBe(
+      DECLARED_COLUMNS.bottleWidthMm,
+    );
     return;
   }
   expect(next !== undefined && isDrawerExtra(next), JSON.stringify(room)).toBe(
@@ -474,7 +408,7 @@ function farWallHobArmsOf(context: HobWallArmContext): readonly HobWallArm[] {
   if (!towerStands) return [];
   if (hasBottle) return ["far-wall-hob-tower-and-bottle"];
   const runEndMm = uShellFloorRuns(room)[farWallOf(room)].endMm;
-  return runEndMm - hob.endMm >= DECLARED.bottleWidthMm
+  return runEndMm - hob.endMm >= DECLARED_COLUMNS.bottleWidthMm
     ? ["far-wall-hob-tower-no-bottle"]
     : [];
 }
@@ -482,7 +416,7 @@ function farWallHobArmsOf(context: HobWallArmContext): readonly HobWallArm[] {
 function backWallHobArmsOf(context: HobWallArmContext): readonly HobWallArm[] {
   const { room, plan, hasBottle } = context;
   const arms: HobWallArm[] = [];
-  const order = runOrderOf(room, plan);
+  const order = runOrderOf({ room, plan, runs: uShellFloorRuns(room) });
   const hobIndex = order.findIndex((base) => base.role === "hob");
   const coreWidthMm = order
     .slice(0, hobIndex + 1)
@@ -491,10 +425,10 @@ function backWallHobArmsOf(context: HobWallArmContext): readonly HobWallArm[] {
     uShellFloorRuns(room).A.endMm -
     uShellFloorRuns(room).A.startMm -
     coreWidthMm;
-  if (!hasBottle && freeAfterTheHobMm >= DECLARED.bottleWidthMm) {
+  if (!hasBottle && freeAfterTheHobMm >= DECLARED_COLUMNS.bottleWidthMm) {
     arms.push("back-wall-hob-bottle-yields-to-a-drawer");
   }
-  const farBodies = wallBodiesOf(plan, farWallOf(room));
+  const farBodies = basesOn(plan, farWallOf(room));
   const towerIndex = farBodies.findIndex((base) => base.buildId === OVEN_TOWER);
   const beforeTheTower = farBodies.slice(0, Math.max(0, towerIndex));
   const n = bodiesFromTheCornerFor(enteredLengthMm(room, farWallOf(room)));
@@ -586,12 +520,12 @@ function measureTheRecordedGrid(): GridMeasurement {
         if (!plan.minimumMet) continue;
         composed += 1;
         towersByPosition[towerBucketOf(plan.towerPosition)] += 1;
-        for (const base of wallBodiesOf(plan, farWallOf(room))) {
+        for (const base of basesOn(plan, farWallOf(room))) {
           if (base.buildId !== PANTRY) continue;
           farWallPantryCount += 1;
           farWallPantryWidthMm += base.widthMm;
         }
-        const signature = wallBodiesOf(plan, fridgeWallOf(room))
+        const signature = basesOn(plan, fridgeWallOf(room))
           .map(
             (base) =>
               `${base.buildId}@${String(base.startMm)}-${String(base.endMm)}`,

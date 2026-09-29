@@ -6,31 +6,10 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
-  uShellFloorRuns,
-  type DesignRoom,
-  type DesignWall,
-} from "../../src/index.js";
-import { planUKitchenComposition } from "../../src/generation/u-composition.js";
+import { type DesignRoom, type DesignWall } from "../../src/index.js";
+import { basesOn, planFor, uRoom } from "../support/u-plan-fixtures.js";
 
 const RUNS = 200;
-
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
-function uRoom(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-  heightMm: number,
-): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm };
-}
 
 const wallAArb = fc.integer({ min: 2700, max: 6000 });
 const sideWallArb = fc.integer({ min: 1000, max: 6000 });
@@ -57,18 +36,6 @@ function boundaryRooms(): readonly DesignRoom[] {
     rooms.push(uRoom(widthMm, 3000, 3000, 2600)); // B = C
   }
   return rooms;
-}
-
-function planFor(room: DesignRoom) {
-  return planUKitchenComposition({
-    room,
-    runs: uShellFloorRuns(room),
-    columns: DECLARED,
-  });
-}
-
-function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
-  return plan.bases.filter((base) => base.wall === wall);
 }
 
 function expectedFridgeWall(room: DesignRoom): DesignWall {

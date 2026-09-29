@@ -12,10 +12,9 @@ import {
   type UGenerationRun,
   type UPlacementPosition,
   type UPlannedGenerationBase,
+  type WallAReadingDirection,
 } from "./run-layout.js";
-import { declaredPriority } from "./u-back-wall-pack.js";
-
-const FRIDGE_PRIORITY = declaredPriority("fridge");
+import { FRIDGE_PRIORITY } from "./u-core-priorities.js";
 
 /** Door storage on the fridge wall, named `storage:${wall}:${index}`. */
 const STORAGE_ID_PREFIX = "storage";
@@ -23,6 +22,7 @@ const STORAGE_ID_PREFIX = "storage";
 export interface FridgePlacement {
   readonly fridgeWall: DesignWall;
   readonly farWall: DesignWall;
+  readonly wallADirection: WallAReadingDirection;
   readonly bases: readonly UPlannedGenerationBase[];
   readonly dropped: boolean;
   /** `undefined` where `dropped` is `true`: no fridge stands, so it has no counted position. */
@@ -42,10 +42,11 @@ export function placedFridge(
   runs: Readonly<Record<DesignWall, UGenerationRun>>,
 ): FridgePlacement {
   const { primary, secondary } = fridgeWallCandidates(room);
+  const primaryOnFridgeWall = wallRoles(primary, secondary);
   return (
-    placementOn({ fridgeWall: primary, farWall: secondary }, room, runs) ??
-    placementOn({ fridgeWall: secondary, farWall: primary }, room, runs) ??
-    droppedFridgePlacement({ fridgeWall: primary, farWall: secondary }, runs)
+    placementOn(primaryOnFridgeWall, room, runs) ??
+    placementOn(wallRoles(secondary, primary), room, runs) ??
+    droppedFridgePlacement(primaryOnFridgeWall, runs)
   );
 }
 
@@ -67,6 +68,24 @@ function fridgeWallCandidates(room: DesignRoom): FridgeWallCandidates {
 interface WallRoles {
   readonly fridgeWall: DesignWall;
   readonly farWall: DesignWall;
+  readonly wallADirection: WallAReadingDirection;
+}
+
+function wallRoles(fridgeWall: DesignWall, farWall: DesignWall): WallRoles {
+  return {
+    fridgeWall,
+    farWall,
+    wallADirection: wallAReadingDirectionFor(fridgeWall),
+  };
+}
+
+/** Wall A is read from the corner it shares with the fridge wall: wall B's is A's own start, so the
+ *  coordinate increases; wall C's is A's end, so it decreases. This is the one place that fact is
+ *  read off a wall letter, and every later decision takes the direction it returns. */
+function wallAReadingDirectionFor(
+  fridgeWall: DesignWall,
+): WallAReadingDirection {
+  return fridgeWall === "B" ? "increasing" : "decreasing";
 }
 
 function placementOn(
@@ -79,7 +98,7 @@ function placementOn(
     room,
     runs[walls.fridgeWall],
   );
-  return layout.placed
+  return layout.isPlaced
     ? {
         ...walls,
         bases: layout.bases,
@@ -112,12 +131,14 @@ function droppedFridgePlacement(
   };
 }
 
-interface FridgeWallLayout {
-  readonly placed: boolean;
+interface PlacedFridgeWallLayout {
+  readonly isPlaced: true;
   readonly bases: readonly UPlannedGenerationBase[];
-  /** *N3 revised* 3's own count, or `"free-end"` — meaningless where `placed` is `false`. */
+  /** *N3 revised* 3's own count, or `"free-end"`. */
   readonly position: UPlacementPosition;
 }
+
+type FridgeWallLayout = PlacedFridgeWallLayout | { readonly isPlaced: false };
 
 /** Where the fridge and its counted bases stand on `wall`, or nothing when even the fridge alone
  *  does not fit the wall's own free run — `n` falls by one at a time until it does, and at `n = 0`
@@ -130,7 +151,7 @@ function fridgeWallLayout(
 ): FridgeWallLayout {
   const capacityMm = run.endMm - run.startMm;
   if (capacityMm < FRIDGE_PRIORITY.widthMm) {
-    return { placed: false, bases: [], position: "free-end" };
+    return { isPlaced: false };
   }
   let n = baseCountFromTheCorner(wallLengthMm(wall, room));
   while (
@@ -151,7 +172,7 @@ function fridgeWallLayout(
 function fridgeAtTheFreeEnd(
   wall: DesignWall,
   run: UGenerationRun,
-): FridgeWallLayout {
+): PlacedFridgeWallLayout {
   const { storageCount } = planLeftover(
     run.endMm - run.startMm - FRIDGE_PRIORITY.widthMm,
   );
@@ -169,7 +190,7 @@ function fridgeCountedFromTheCorner(
   wall: DesignWall,
   run: UGenerationRun,
   n: number,
-): FridgeWallLayout {
+): PlacedFridgeWallLayout {
   const storage = doorBasesFrom({
     wall,
     startMm: run.startMm,
@@ -178,7 +199,7 @@ function fridgeCountedFromTheCorner(
   });
   const fridgeStartMm = run.startMm + n * STORAGE_BODY_WIDTH_MM;
   return {
-    placed: true,
+    isPlaced: true,
     bases: [...storage, fridgeBase(wall, fridgeStartMm)],
     position: n,
   };

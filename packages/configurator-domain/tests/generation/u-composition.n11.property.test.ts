@@ -11,10 +11,6 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
@@ -26,41 +22,31 @@ import {
   isTheBottleNotOwedToADrawerArm,
   uPlanFindings,
 } from "../support/u-plan-invariants.js";
+import {
+  basesOn,
+  DECLARED_COLUMNS,
+  uRoom,
+} from "../support/u-plan-fixtures.js";
 
 const RUNS = 300;
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
 const MODULE_MM = 600;
 const COLUMN_HEIGHT_MM = 2200;
 /** ADR 0110 E3 clause 4: "the engine limits … admit 860 mm" — the top of the base row. */
 const ENGINE_HEIGHT_FLOOR_MM = 860;
 const TALL_COLUMN_BUILD_IDS = ["tall-pantry", "tall-oven-tower"];
 
-function uRoom(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-  heightMm = 2600,
-): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm };
-}
-
 function planWithRuns(room: DesignRoom) {
   const runs = uShellFloorRuns(room);
-  const plan = planUKitchenComposition({ room, runs, columns: DECLARED });
+  const plan = planUKitchenComposition({
+    room,
+    runs,
+    columns: DECLARED_COLUMNS,
+  });
   return { room, runs, plan };
 }
 
 type Planned = ReturnType<typeof planWithRuns>;
 type PlannedBase = Planned["plan"]["bases"][number];
-
-function basesOn(planned: Planned, wall: DesignWall): readonly PlannedBase[] {
-  return planned.plan.bases
-    .filter((base) => base.wall === wall)
-    .sort((left, right) => left.startMm - right.startMm);
-}
 
 function isDrawerExtra(base: PlannedBase): boolean {
   return (
@@ -118,7 +104,7 @@ function fridgeWallGridRooms(): readonly DesignRoom[] {
 
 function sideWallLeadingGapFindings(planned: Planned): readonly string[] {
   return (["B", "C"] as const).flatMap((wall) => {
-    const first = basesOn(planned, wall)[0];
+    const first = basesOn(planned.plan, wall)[0];
     return first !== undefined && first.startMm !== planned.runs[wall].startMm
       ? [
           `${wall}: ${String(first.startMm - planned.runs[wall].startMm)} mm bare at the corner`,
@@ -206,12 +192,15 @@ function checkTheBottleAndTheDrawersOnWallA(room: DesignRoom): void {
   const planned = planWithRuns(room);
   const freeMm = freeAfterTheHobOnWallAMm(planned);
   if (!planned.plan.minimumMet || freeMm === undefined) return;
-  const onWallA = basesOn(planned, "A");
+  const onWallA = basesOn(planned.plan, "A");
   const bottle = onWallA.find((base) => base.buildId === "base-bottle-cargo");
   const drawersOnWallA = onWallA.filter(isDrawerExtra).length;
   const label = `${JSON.stringify(room)} (${String(freeMm)} mm free after the hob)`;
 
-  if (freeMm >= MODULE_MM && freeMm < MODULE_MM + DECLARED.bottleWidthMm) {
+  if (
+    freeMm >= MODULE_MM &&
+    freeMm < MODULE_MM + DECLARED_COLUMNS.bottleWidthMm
+  ) {
     expect(bottle, label).toBeUndefined();
     expect(drawersOnWallA, label).toBeGreaterThanOrEqual(1);
   }

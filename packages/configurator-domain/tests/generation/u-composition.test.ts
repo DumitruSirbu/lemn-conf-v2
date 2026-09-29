@@ -4,58 +4,19 @@
 // fires on any orderable room (`u-composition.ts`'s own proof, restated in its head comment).
 import { describe, expect, it } from "vitest";
 
-import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
-  uShellFloorRuns,
-  type DesignRoom,
-  type DesignWall,
-} from "../../src/index.js";
+import { uShellFloorRuns, type DesignWall } from "../../src/index.js";
 import {
   LARGE_U_TOTAL_MM,
   isLargeU,
   planUKitchenComposition,
   type UGenerationRun,
 } from "../../src/generation/u-composition.js";
-
-/** The catalogue's own declared column sizes, read the way `generateKitchen` reads them — the same
- *  fixture `tall-end-rule.test.ts` uses, so a U test and an L test read one catalogue. */
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
-function uRoom(overrides: Partial<DesignRoom> = {}): DesignRoom {
-  return {
-    shape: "U",
-    widthMm: 3600,
-    depthMm: 2400,
-    wallCMm: 2200,
-    heightMm: 2600,
-    ...overrides,
-  };
-}
-
-function runsOf(
-  room: DesignRoom,
-): Readonly<Record<DesignWall, UGenerationRun>> {
-  return uShellFloorRuns(room);
-}
-
-function planFor(room: DesignRoom) {
-  return planUKitchenComposition({
-    room,
-    runs: runsOf(room),
-    columns: DECLARED,
-  });
-}
-
-function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
-  return plan.bases
-    .filter((base) => base.wall === wall)
-    .sort((left, right) => left.startMm - right.startMm);
-}
+import {
+  basesOn,
+  DECLARED_COLUMNS,
+  planFor,
+  uRoomOverriding,
+} from "../support/u-plan-fixtures.js";
 
 describe("LARGE_U_TOTAL_MM and isLargeU", () => {
   it("is the owner's 10 m threshold", () => {
@@ -63,12 +24,16 @@ describe("LARGE_U_TOTAL_MM and isLargeU", () => {
   });
 
   it("reads the three entered walls, never a free-run capacity", () => {
-    const atTheThreshold = uRoom({
+    const atTheThreshold = uRoomOverriding({
       widthMm: 4000,
       depthMm: 3000,
       wallCMm: 3000,
     });
-    const justUnder = uRoom({ widthMm: 3999, depthMm: 3000, wallCMm: 3000 });
+    const justUnder = uRoomOverriding({
+      widthMm: 3999,
+      depthMm: 3000,
+      wallCMm: 3000,
+    });
 
     expect(isLargeU(atTheThreshold)).toBe(true);
     expect(isLargeU(justUnder)).toBe(false);
@@ -77,7 +42,7 @@ describe("LARGE_U_TOTAL_MM and isLargeU", () => {
 
 describe("the fridge wall (N3r 2)", () => {
   it("stands on wall B when B is wider", () => {
-    const plan = planFor(uRoom({ depthMm: 3600, wallCMm: 2200 }));
+    const plan = planFor(uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }));
 
     expect(basesOn(plan, "B").some((base) => base.role === "fridge")).toBe(
       true,
@@ -88,7 +53,7 @@ describe("the fridge wall (N3r 2)", () => {
   });
 
   it("stands on wall C when C is wider", () => {
-    const plan = planFor(uRoom({ depthMm: 2200, wallCMm: 3600 }));
+    const plan = planFor(uRoomOverriding({ depthMm: 2200, wallCMm: 3600 }));
 
     expect(basesOn(plan, "C").some((base) => base.role === "fridge")).toBe(
       true,
@@ -99,7 +64,7 @@ describe("the fridge wall (N3r 2)", () => {
   });
 
   it("stands on wall B when the two side walls are equal", () => {
-    const plan = planFor(uRoom({ depthMm: 3000, wallCMm: 3000 }));
+    const plan = planFor(uRoomOverriding({ depthMm: 3000, wallCMm: 3000 }));
 
     expect(basesOn(plan, "B").some((base) => base.role === "fridge")).toBe(
       true,
@@ -107,7 +72,7 @@ describe("the fridge wall (N3r 2)", () => {
   });
 
   it("is dropped when neither side wall holds it, and the back wall still composes", () => {
-    const room = uRoom({ depthMm: 1000, wallCMm: 1000 });
+    const room = uRoomOverriding({ depthMm: 1000, wallCMm: 1000 });
     const plan = planFor(room);
 
     expect(plan.bases.some((base) => base.role === "fridge")).toBe(false);
@@ -120,13 +85,17 @@ describe("the fridge wall (N3r 2)", () => {
   // wall by entered length is always the wider wall by free-run capacity too, so a fabricated `runs`
   // record, not a real shell's, is the only way to exercise it.
   it("falls back to the other side wall when a hand-built run makes the wider one too short (ADR 0123)", () => {
-    const room = uRoom({ depthMm: 3600, wallCMm: 2200 }); // B wider by entered length
+    const room = uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }); // B wider by entered length
     const runs: Readonly<Record<DesignWall, UGenerationRun>> = {
-      ...runsOf(room),
+      ...uShellFloorRuns(room),
       B: { wall: "B", startMm: 900, endMm: 950 }, // fabricated: 50 mm free run, too short for the fridge
     };
 
-    const plan = planUKitchenComposition({ room, runs, columns: DECLARED });
+    const plan = planUKitchenComposition({
+      room,
+      runs,
+      columns: DECLARED_COLUMNS,
+    });
 
     expect(basesOn(plan, "C").some((base) => base.role === "fridge")).toBe(
       true,
@@ -147,25 +116,25 @@ describe("the dropped fridge's wall (N9.2)", () => {
   it.each([
     {
       name: "2700 / 1600 / 1600: wall B, one door base filling the 600 mm run",
-      room: uRoom({ widthMm: 2700, depthMm: 1600, wallCMm: 1600 }),
+      room: uRoomOverriding({ widthMm: 2700, depthMm: 1600, wallCMm: 1600 }),
       wall: "B" as const,
       remainderMm: 0,
     },
     {
       name: "3000 / 1000 / 1600: wall C (the wider), one door base filling the 600 mm run",
-      room: uRoom({ widthMm: 3000, depthMm: 1000, wallCMm: 1600 }),
+      room: uRoomOverriding({ widthMm: 3000, depthMm: 1000, wallCMm: 1600 }),
       wall: "C" as const,
       remainderMm: 0,
     },
     {
       name: "3000 / 1690 / 1690: wall B, one door base and a 90 mm bare end",
-      room: uRoom({ widthMm: 3000, depthMm: 1690, wallCMm: 1690 }),
+      room: uRoomOverriding({ widthMm: 3000, depthMm: 1690, wallCMm: 1690 }),
       wall: "B" as const,
       remainderMm: 90,
     },
   ])("$name", ({ room, wall, remainderMm }) => {
     const plan = planFor(room);
-    const run = runsOf(room)[wall];
+    const run = uShellFloorRuns(room)[wall];
     const onWall = basesOn(plan, wall);
 
     expect(plan.dropped).toContain("fridge");
@@ -176,14 +145,22 @@ describe("the dropped fridge's wall (N9.2)", () => {
   });
 
   it("pins the first witness's own run, 900 to 1500 mm", () => {
-    const room = uRoom({ widthMm: 2700, depthMm: 1600, wallCMm: 1600 });
+    const room = uRoomOverriding({
+      widthMm: 2700,
+      depthMm: 1600,
+      wallCMm: 1600,
+    });
     const onB = basesOn(planFor(room), "B");
 
     expect([onB[0]?.startMm, onB[0]?.endMm]).toStrictEqual([900, 1500]);
   });
 
   it("never makes a fridge-wall body a drawer unit, however many drawer units the room is owed", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 1699, wallCMm: 1699 });
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 1699,
+      wallCMm: 1699,
+    });
     const plan = planFor(room);
     const onFridgeWall = basesOn(plan, "B");
 
@@ -197,10 +174,10 @@ describe("the dropped fridge's wall (N9.2)", () => {
 
 describe("the fridge's own count from the corner (N3r 3)", () => {
   it("stands last on its wall, after door storage from the corner, at 3000 mm or less (N11.1)", () => {
-    const plan = planFor(uRoom({ depthMm: 3000, wallCMm: 1200 }));
+    const plan = planFor(uRoomOverriding({ depthMm: 3000, wallCMm: 1200 }));
     const onB = basesOn(plan, "B");
     const fridgeIndex = onB.findIndex((base) => base.role === "fridge");
-    const runB = runsOf(plan.room).B;
+    const runB = uShellFloorRuns(plan.room).B;
     const fridge = onB[fridgeIndex];
 
     expect(fridgeIndex).toBe(onB.length - 1);
@@ -209,7 +186,7 @@ describe("the fridge's own count from the corner (N3r 3)", () => {
   });
 
   it("stands after exactly 2 storage bases from the corner, at 3001-4000 mm", () => {
-    const plan = planFor(uRoom({ depthMm: 3600, wallCMm: 1200 }));
+    const plan = planFor(uRoomOverriding({ depthMm: 3600, wallCMm: 1200 }));
     const onB = basesOn(plan, "B");
     const fridgeIndex = onB.findIndex((base) => base.role === "fridge");
 
@@ -218,7 +195,7 @@ describe("the fridge's own count from the corner (N3r 3)", () => {
   });
 
   it("stands after exactly 3 storage bases from the corner, above 4000 mm", () => {
-    const plan = planFor(uRoom({ depthMm: 4200, wallCMm: 1200 }));
+    const plan = planFor(uRoomOverriding({ depthMm: 4200, wallCMm: 1200 }));
     const onB = basesOn(plan, "B");
     const fridgeIndex = onB.findIndex((base) => base.role === "fridge");
 
@@ -227,7 +204,7 @@ describe("the fridge's own count from the corner (N3r 3)", () => {
   });
 
   it("fills the fridge-to-free-end gap with tall-pantry columns on a long fridge wall (N3r 4, RQ13)", () => {
-    const room = uRoom({ depthMm: 4200, wallCMm: 1200 });
+    const room = uRoomOverriding({ depthMm: 4200, wallCMm: 1200 });
     const plan = planFor(room);
     const onB = basesOn(plan, "B");
     const fridgeIndex = onB.findIndex((base) => base.role === "fridge");
@@ -265,7 +242,11 @@ function firstInReadingOrderOnA(
 
 describe("the back wall packed from the fridge corner, with overflow (N3r 5)", () => {
   it("packs sink, dishwasher, preparation, hob in reading order when wall A holds all four", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 2400, wallCMm: 2200 });
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 2400,
+      wallCMm: 2200,
+    });
     const capacityA = uShellFloorRuns(room).A;
     if (capacityA.endMm - capacityA.startMm < 2400) {
       throw new Error("premise: wall A must hold all four 600 mm core items");
@@ -287,15 +268,19 @@ describe("the back wall packed from the fridge corner, with overflow (N3r 5)", (
   });
 
   it("puts the sink first in reading order on wall A, whichever side wall carries the fridge", () => {
-    const withFridgeOnB = planFor(uRoom({ depthMm: 3600, wallCMm: 2200 }));
-    const withFridgeOnC = planFor(uRoom({ depthMm: 2200, wallCMm: 3600 }));
+    const withFridgeOnB = planFor(
+      uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }),
+    );
+    const withFridgeOnC = planFor(
+      uRoomOverriding({ depthMm: 2200, wallCMm: 3600 }),
+    );
 
     expect(firstInReadingOrderOnA(withFridgeOnB, "B")?.role).toBe("sink");
     expect(firstInReadingOrderOnA(withFridgeOnC, "C")?.role).toBe("sink");
   });
 
   it("continues round the far corner when wall A runs out, in the same reading order", () => {
-    const room = uRoom();
+    const room = uRoomOverriding();
     const capacityA = uShellFloorRuns(room).A;
     if (capacityA.endMm - capacityA.startMm >= 2400) {
       throw new Error(
@@ -315,7 +300,11 @@ describe("the back wall packed from the fridge corner, with overflow (N3r 5)", (
   });
 
   it("drops the dishwasher first when the run still does not fit, keeping the preparation cabinet", () => {
-    const room = uRoom({ widthMm: 3600, depthMm: 3600, wallCMm: 1000 });
+    const room = uRoomOverriding({
+      widthMm: 3600,
+      depthMm: 3600,
+      wallCMm: 1000,
+    });
     const capacityA = uShellFloorRuns(room).A;
     const capacityFar = uShellFloorRuns(room).C;
     const combinedMm =
@@ -340,7 +329,7 @@ describe("the back wall packed from the fridge corner, with overflow (N3r 5)", (
 
 describe("determinism", () => {
   it("gives the same input a byte-identical plan", () => {
-    const room = uRoom();
+    const room = uRoomOverriding();
     const first = JSON.stringify(planFor(room));
     const second = JSON.stringify(planFor(room));
 

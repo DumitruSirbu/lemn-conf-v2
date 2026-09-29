@@ -15,10 +15,12 @@ import {
 } from "./body-choice.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
+  basesAlongWall,
   enteredTotalMm,
   sumWidths,
   type UGenerationRun,
   type UPlannedGenerationBase,
+  type WallAReadingDirection,
 } from "./run-layout.js";
 import type { PackedBackWall, PackingLane } from "./u-back-wall-pack.js";
 import {
@@ -113,14 +115,14 @@ function panDrawerCountFor(args: {
 export function withDrawerUnitsAfterTheHob(
   bases: readonly UPlannedGenerationBase[],
   args: {
-    readonly fridgeWall: DesignWall;
+    readonly wallADirection: WallAReadingDirection;
     readonly farWall: DesignWall;
     readonly extraCount: number;
     readonly hasPreparation: boolean;
   },
 ): readonly UPlannedGenerationBase[] {
-  const { fridgeWall, farWall, extraCount, hasPreparation } = args;
-  const runOrder = runOrderedBases(bases, fridgeWall, farWall);
+  const { wallADirection, farWall, extraCount, hasPreparation } = args;
+  const runOrder = runOrderedBases(bases, wallADirection, farWall);
   const extraIds = drawerSlotIds(runOrder, extraCount);
   const panbankCount = panDrawerCountFor({
     extraCount: extraIds.length,
@@ -164,17 +166,12 @@ function drawerSlotIds(
  *  bases rather than an offset still being packed. */
 function runOrderedBases(
   bases: readonly UPlannedGenerationBase[],
-  fridgeWall: DesignWall,
+  wallADirection: WallAReadingDirection,
   farWall: DesignWall,
 ): readonly UPlannedGenerationBase[] {
-  const onA = bases
-    .filter((base) => base.wall === "A")
-    .sort((left, right) => left.startMm - right.startMm);
-  const aInRunOrder = fridgeWall === "B" ? onA : [...onA].reverse();
-  const onFar = bases
-    .filter((base) => base.wall === farWall)
-    .sort((left, right) => left.startMm - right.startMm);
-  return [...aInRunOrder, ...onFar];
+  const onA = basesAlongWall(bases, "A");
+  const aInRunOrder = wallADirection === "increasing" ? onA : onA.reverse();
+  return [...aInRunOrder, ...basesAlongWall(bases, farWall)];
 }
 
 /** What the far wall keeps, whatever stands before its tower: N10.3 steps 2 and 3. Read off the

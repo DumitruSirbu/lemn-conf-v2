@@ -9,16 +9,11 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
   generateKitchen,
-  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
 } from "../../src/index.js";
-import { planUKitchenComposition } from "../../src/generation/u-composition.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   DIGEST_OCCURRED_AT,
@@ -30,30 +25,14 @@ import {
   uPlanFindings,
   type URuns,
 } from "../support/u-plan-invariants.js";
+import { planFor, uRoom } from "../support/u-plan-fixtures.js";
 
 const SAMPLES = 1500;
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
 /** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` on the tree
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
  *  module). 933 rooms: 900 L rooms (no corner direction, left, right) and 33 straight rooms. */
 const PRE_WAVE_L_AND_LINEAR_DIGEST =
   "3ed0b98c05af4526f8ee6a7dda466d68e3b79fcfd4f605185663b0b453713fd1";
-
-function uRoom(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-  heightMm = 2600,
-): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm };
-}
-
-function planFor(room: DesignRoom, runs: URuns = uShellFloorRuns(room)) {
-  return planUKitchenComposition({ room, runs, columns: DECLARED });
-}
 
 function findingsFor(room: DesignRoom): readonly string[] {
   const runs = uShellFloorRuns(room);

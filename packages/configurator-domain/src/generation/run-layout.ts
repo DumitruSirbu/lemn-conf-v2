@@ -95,6 +95,12 @@ export interface UPlannedGenerationBase {
  *  to read a plan's own bases back apart). */
 export type UPlacementPosition = "free-end" | number;
 
+/** The direction wall A's run is read in, from the corner it shares with the fridge wall: the
+ *  along-wall coordinate increases when that corner is wall A's own start, and decreases when it is
+ *  wall A's end (*N3 revised* 5's "packed from the fridge corner"). Computed once, from the fridge
+ *  wall (`u-fridge-wall.ts`), and read by every later decision that walks wall A in run order. */
+export type WallAReadingDirection = "increasing" | "decreasing";
+
 /** The U's own plan — `KitchenCompositionPlan`'s shape over three walls instead of two. No insert
  *  happens from this type (U3a's own scope); `generateKitchen` reads it starting U3b. */
 export interface UKitchenCompositionPlan {
@@ -193,6 +199,57 @@ export function doorBasesFrom(spec: {
       wall,
       startMm: startMm + index * STORAGE_BODY_WIDTH_MM,
     }),
+  );
+}
+
+/** A body to place: what `plannedBaseAt` takes besides its role, wall and start. */
+type BodyToPlace = Pick<UPlannedGenerationBase, "id" | "buildId" | "widthMm">;
+
+/** `bodies` one after another on `wall` as storage, each starting where `startMmAt` says for its
+ *  reading-order offset from the first body's own start and its width. The start function is the
+ *  only thing that differs between a wall read in increasing coordinates and one read from its far
+ *  end. */
+export function placedInSequence(spec: {
+  readonly wall: DesignWall;
+  readonly bodies: readonly BodyToPlace[];
+  readonly startMmAt: (offsetMm: number, widthMm: number) => number;
+}): readonly UPlannedGenerationBase[] {
+  const { wall, bodies, startMmAt } = spec;
+  let offsetMm = 0;
+  return bodies.map((body) => {
+    const placed = plannedBaseAt({
+      id: body.id,
+      role: "storage",
+      buildId: body.buildId,
+      widthMm: body.widthMm,
+      wall,
+      startMm: startMmAt(offsetMm, body.widthMm),
+    });
+    offsetMm += body.widthMm;
+    return placed;
+  });
+}
+
+/** A start function for a wall read in increasing along-wall coordinates from `startMm`. */
+export function increasingFrom(startMm: number): (offsetMm: number) => number {
+  return (offsetMm) => startMm + offsetMm;
+}
+
+/** The bases standing on `wall`, in the order they were given. */
+export function basesOnWall(
+  bases: readonly UPlannedGenerationBase[],
+  wall: DesignWall,
+): UPlannedGenerationBase[] {
+  return bases.filter((base) => base.wall === wall);
+}
+
+/** The bases standing on `wall`, in increasing along-wall order. */
+export function basesAlongWall(
+  bases: readonly UPlannedGenerationBase[],
+  wall: DesignWall,
+): UPlannedGenerationBase[] {
+  return basesOnWall(bases, wall).sort(
+    (left, right) => left.startMm - right.startMm,
   );
 }
 

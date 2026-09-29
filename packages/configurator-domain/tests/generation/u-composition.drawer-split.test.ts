@@ -5,20 +5,10 @@
 // height 2600.
 import { describe, expect, it } from "vitest";
 
-import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
-  uShellFloorRuns,
-  type DesignRoom,
-  type DesignWall,
-} from "../../src/index.js";
+import { type DesignRoom, type DesignWall } from "../../src/index.js";
 import { planUKitchenComposition } from "../../src/generation/u-composition.js";
+import { planFor, uRoom } from "../support/u-plan-fixtures.js";
 
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
 const PAN_DRAWER = "base-panbank";
 const THREE_DRAWER = "base-3drawer";
 
@@ -29,18 +19,6 @@ interface SweptRoom {
   readonly plan: CompositionPlan;
   readonly drawerCabinetCount: number;
   readonly panDrawerCount: number;
-}
-
-function uRoom(widthMm: number, depthMm: number, wallCMm: number): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm: 2600 };
-}
-
-function planFor(room: DesignRoom): CompositionPlan {
-  return planUKitchenComposition({
-    room,
-    runs: uShellFloorRuns(room),
-    columns: DECLARED,
-  });
 }
 
 function countBuild(plan: CompositionPlan, buildId: string): number {

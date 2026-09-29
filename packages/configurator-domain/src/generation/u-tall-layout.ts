@@ -23,8 +23,9 @@ import {
 import {
   baseCountFromTheCorner,
   doorBasesFrom,
+  increasingFrom,
   isLargeU,
-  plannedBaseAt,
+  placedInSequence,
   SHORT_SIDE_WALL_MAX_MM,
   sumWidths,
   type UGenerationRun,
@@ -123,15 +124,15 @@ function pantriesInGap(
   declared: DeclaredColumnSizes,
 ): readonly UPlannedGenerationBase[] {
   const widthsMm = pantryWidthsFor(gapEndMm - gapStartMm, declared);
-  return placedInSequence(
+  return placedInSequence({
     wall,
-    gapStartMm,
-    widthsMm.map((widthMm, index) => ({
+    startMmAt: increasingFrom(gapStartMm),
+    bodies: widthsMm.map((widthMm, index) => ({
       id: `fridge-gap:${wall}:${String(index)}`,
       buildId: DOOR_COLUMN_BUILD_ID,
       widthMm,
     })),
-  );
+  });
 }
 
 /** The pantry widths a gap of `gapMm` fills to, corner end first: whole 600 mm modules, the last one
@@ -225,37 +226,16 @@ function standingBeforeTheTower(
 ): StandingBeforeTheTower {
   const { farWall, runs, overflowBases, bodiesBeforeTheTower } = input;
   const overflowWidthMm = sumWidths(overflowBases);
-  const bases = placedInSequence(
-    farWall,
-    runs[farWall].startMm + overflowWidthMm,
-    bodiesBeforeTheTower,
-  );
+  const bases = placedInSequence({
+    wall: farWall,
+    startMmAt: increasingFrom(runs[farWall].startMm + overflowWidthMm),
+    bodies: bodiesBeforeTheTower,
+  });
   return {
     bases,
     widthMm: overflowWidthMm + sumWidths(bases),
     count: overflowBases.length + bases.length,
   };
-}
-
-/** `bodies` side by side from `startMm`, in increasing along-wall order. */
-function placedInSequence(
-  wall: DesignWall,
-  startMm: number,
-  bodies: readonly UBodyAfterTheHob[],
-): readonly UPlannedGenerationBase[] {
-  let cursorMm = startMm;
-  return bodies.map((body) => {
-    const placed = plannedBaseAt({
-      id: body.id,
-      role: "storage",
-      buildId: body.buildId,
-      widthMm: body.widthMm,
-      wall,
-      startMm: cursorMm,
-    });
-    cursorMm += body.widthMm;
-    return placed;
-  });
 }
 
 function affordableFarWallLayout(args: {
@@ -329,7 +309,14 @@ function freeEndBases(args: {
     widthMm: column.widthMm,
   }));
   const columnsStartMm = startMm + doorCount * STORAGE_BODY_WIDTH_MM;
-  return [...doors, ...placedInSequence(farWall, columnsStartMm, columnBodies)];
+  return [
+    ...doors,
+    ...placedInSequence({
+      wall: farWall,
+      startMmAt: increasingFrom(columnsStartMm),
+      bodies: columnBodies,
+    }),
+  ];
 }
 
 /** *N3 revised* 10: at 10 m or more the tower stands alone, with no pantry generated — the same
@@ -479,7 +466,11 @@ function towerAndPantriesFrom(args: {
     buildId: DOOR_COLUMN_BUILD_ID,
     widthMm: STORAGE_BODY_WIDTH_MM,
   }));
-  return placedInSequence(farWall, startMm, [tower, ...pantries]);
+  return placedInSequence({
+    wall: farWall,
+    startMmAt: increasingFrom(startMm),
+    bodies: [tower, ...pantries],
+  });
 }
 
 /** How many pantry modules the run holds outboard of the tower, at most the block's other columns. */

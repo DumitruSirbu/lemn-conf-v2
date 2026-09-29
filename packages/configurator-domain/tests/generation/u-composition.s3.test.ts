@@ -5,48 +5,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
-  uShellFloorRuns,
-  type DesignRoom,
-  type DesignWall,
-} from "../../src/index.js";
-import { planUKitchenComposition } from "../../src/generation/u-composition.js";
-
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
-function uRoom(overrides: Partial<DesignRoom> = {}): DesignRoom {
-  return {
-    shape: "U",
-    widthMm: 3600,
-    depthMm: 2400,
-    wallCMm: 2200,
-    heightMm: 2600,
-    ...overrides,
-  };
-}
-
-function planFor(room: DesignRoom) {
-  return planUKitchenComposition({
-    room,
-    runs: uShellFloorRuns(room),
-    columns: DECLARED,
-  });
-}
-
-function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
-  return plan.bases
-    .filter((base) => base.wall === wall)
-    .sort((left, right) => left.startMm - right.startMm);
-}
+  basesOn,
+  planFor,
+  uRoomOverriding,
+} from "../support/u-plan-fixtures.js";
 
 describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   it("counts the preparation cabinet as the first unit, with no extra unit below the next band", () => {
-    const room = uRoom({ widthMm: 4600, depthMm: 1000, wallCMm: 1000 }); // T = 6600, N(T) = 3
+    const room = uRoomOverriding({
+      widthMm: 4600,
+      depthMm: 1000,
+      wallCMm: 1000,
+    }); // T = 6600, N(T) = 3
     const plan = planFor(room);
     if (!plan.minimumMet || plan.dropped.includes("preparation")) {
       throw new Error(
@@ -63,7 +33,7 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   });
 
   it("never counts base-hob-2drawer as a drawer unit (RQ15)", () => {
-    const room = uRoom({ depthMm: 3600, wallCMm: 2200 }); // composes a tower, base-hob-2drawer
+    const room = uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }); // composes a tower, base-hob-2drawer
     const plan = planFor(room);
     if (!plan.bases.some((base) => base.buildId === "tall-oven-tower")) {
       throw new Error("premise: this room must compose a tower");
@@ -81,7 +51,11 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
 
   it("adds extra drawer units, up to the target, once the total run passes T_min", () => {
     // A generous room with ample wall-A fill capacity for extra drawer units to land in.
-    const room = uRoom({ widthMm: 6000, depthMm: 2400, wallCMm: 2200 }); // T = 10 600
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 2400,
+      wallCMm: 2200,
+    }); // T = 10 600
     const plan = planFor(room);
     const drawerCount = plan.bases.filter(
       (base) =>
@@ -94,7 +68,7 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   });
 
   it("yields when the room has too few slots to reach the target (RQ6)", () => {
-    const room = uRoom({ depthMm: 1200, wallCMm: 1200 }); // small U, few storage slots
+    const room = uRoomOverriding({ depthMm: 1200, wallCMm: 1200 }); // small U, few storage slots
     const plan = planFor(room);
     const drawerCount = plan.bases.filter(
       (base) =>
@@ -111,7 +85,11 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
 // answered, the extras split between the pan drawer and the 3-drawer rather than staying one body.
 describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)", () => {
   it("never confines the extras to wall A when the target needs more than wall A can hold", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 }); // T = 18 000, N(T) = 5
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 6000,
+      wallCMm: 6000,
+    }); // T = 18 000, N(T) = 5
     const plan = planFor(room);
     const farWall =
       plan.bases.find((base) => base.role === "fridge")?.wall === "B"
@@ -128,7 +106,11 @@ describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)"
   });
 
   it("never places an extra on the fridge wall — it stands before the sink in run order", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 });
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 6000,
+      wallCMm: 6000,
+    });
     const plan = planFor(room);
     const fridgeWall = plan.bases.find((base) => base.role === "fridge")?.wall;
 
@@ -141,7 +123,11 @@ describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)"
   });
 
   it("takes the pan drawer first, nearest the hob, up to floor(N/2), before any 3-drawer extra", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 }); // N(T) = 5
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 6000,
+      wallCMm: 6000,
+    }); // N(T) = 5
     const plan = planFor(room);
     const onA = basesOn(plan, "A");
     const hobIndex = onA.findIndex((base) => base.role === "hob");
@@ -157,7 +143,11 @@ describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)"
   });
 
   it("keeps the preparation cabinet as base-3drawer, never converted to a pan drawer", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 });
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 6000,
+      wallCMm: 6000,
+    });
     const plan = planFor(room);
     const preparation = plan.bases.find((base) => base.role === "preparation");
 
@@ -167,21 +157,21 @@ describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)"
 
 describe("the plan's own position field for the fridge and the tower (AC3)", () => {
   it("reads 'free-end' for a fridge wall at or under 3000 mm entered", () => {
-    const room = uRoom({ depthMm: 3000, wallCMm: 1200 });
+    const room = uRoomOverriding({ depthMm: 3000, wallCMm: 1200 });
     const plan = planFor(room);
 
     expect(plan.fridgePosition).toBe("free-end");
   });
 
   it("reads the counted-from-corner number above 3000 mm entered", () => {
-    const room = uRoom({ depthMm: 3600, wallCMm: 1200 });
+    const room = uRoomOverriding({ depthMm: 3600, wallCMm: 1200 });
     const plan = planFor(room);
 
     expect(plan.fridgePosition).toBe(2);
   });
 
   it("is undefined when the fridge was dropped", () => {
-    const room = uRoom({ depthMm: 1000, wallCMm: 1000 });
+    const room = uRoomOverriding({ depthMm: 1000, wallCMm: 1000 });
     const plan = planFor(room);
 
     expect(plan.dropped).toContain("fridge");
@@ -189,9 +179,11 @@ describe("the plan's own position field for the fridge and the tower (AC3)", () 
   });
 
   it("reads the tower's own position, or undefined when the hob keeps its own oven", () => {
-    const withTower = planFor(uRoom({ depthMm: 3600, wallCMm: 2200 }));
+    const withTower = planFor(
+      uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }),
+    );
     const withoutTower = planFor(
-      uRoom({ widthMm: 3000, depthMm: 1000, wallCMm: 1000 }),
+      uRoomOverriding({ widthMm: 3000, depthMm: 1000, wallCMm: 1000 }),
     );
 
     expect(withTower.towerPosition).not.toBeUndefined();
@@ -206,7 +198,11 @@ describe("the bottle, the next cabinet after the hob (N3r 7, RQ16)", () => {
   it("stands as the first item of wall A's own A4 fill, when there is one and no drawer cabinet outranks it", () => {
     // ADR 0110 N10.3 step 5 (RQ21): at 6000 / 2400 / 2200 a pan drawer takes the bottle's place, so
     // the bottle is exercised where wall A's free run holds it and no drawer cabinet is owed more.
-    const room = uRoom({ widthMm: 4000, depthMm: 4500, wallCMm: 1200 });
+    const room = uRoomOverriding({
+      widthMm: 4000,
+      depthMm: 4500,
+      wallCMm: 1200,
+    });
     const plan = planFor(room);
     const onA = basesOn(plan, "A");
     const hobIndex = onA.findIndex((base) => base.role === "hob");
@@ -223,7 +219,7 @@ describe("the bottle, the next cabinet after the hob (N3r 7, RQ16)", () => {
   it("is omitted, not refused, when wall A's own fill is empty", () => {
     // The default room already overflows the hob onto the far wall, leaving nothing on wall A to
     // fill (confirmed by `u-composition.test.ts`'s own "continues round the far corner" case).
-    const room = uRoom();
+    const room = uRoomOverriding();
     const plan = planFor(room);
     if (!plan.bases.some((base) => base.role === "hob" && base.wall !== "A")) {
       throw new Error("premise: this room must overflow the hob off wall A");
@@ -238,7 +234,11 @@ describe("the bottle, the next cabinet after the hob (N3r 7, RQ16)", () => {
 
 describe("the A4 wall-A fill correction", () => {
   it("fills wall A's own remainder with door storage down to a bare end under 600 mm", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 2400, wallCMm: 2200 });
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 2400,
+      wallCMm: 2200,
+    });
     const plan = planFor(room);
 
     expect(plan.remainderMm.A).toBeGreaterThanOrEqual(0);
@@ -262,7 +262,7 @@ describe("the A4 wall-A fill correction", () => {
 // model.
 describe("the dishwasher stands beside the sink by construction (M1)", () => {
   it("is always the item immediately after the sink, on the sink's own wall", () => {
-    const room = uRoom();
+    const room = uRoomOverriding();
     const plan = planFor(room);
     const sinkWall = plan.bases.find((base) => base.role === "sink")?.wall;
     const onSinkWall = basesOn(plan, sinkWall ?? "A");

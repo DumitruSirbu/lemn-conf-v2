@@ -5,9 +5,11 @@
 // extras and the tower. `u-tall-layout.ts` lays out the fridge gap and the far wall. This module runs
 // the attempts in order and assembles what they return.
 //
-// **Wall letters never compare against a wall a customer typed, other than to choose the fridge wall
-// once** (ADR 0110 I's role-versus-letter lesson): every decision after `placedFridge` reads the
-// fridge-wall and far-wall *roles* it computes, never `"B"` or `"C"` compared against each other again.
+// **A wall letter is read in two places, both in `u-fridge-wall.ts`** (ADR 0110 I's role-versus-letter
+// lesson): `fridgeWallCandidates` compares the two side walls' entered lengths to choose the fridge
+// wall, and `wallAReadingDirectionFor` turns that choice into the direction wall A is read in. Every
+// decision after `placedFridge` reads the fridge-wall and far-wall *roles* and that direction it
+// computes, never `"B"` or `"C"`.
 //
 // **No corner-turn field is read.** A U carries none past `DesignRoomSchema`'s own refusal (ADR
 // 0132 decision 8), and this module never asks the room for one at all.
@@ -16,13 +18,16 @@ import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
 import { GENERATION_PRIORITIES } from "./generation-priorities.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
-  plannedBaseAt,
+  basesAlongWall,
+  basesOnWall,
+  placedInSequence,
   sumWidths,
   type GenerationCoreRole,
   type UGenerationRun,
   type UKitchenCompositionPlan,
   type UPlacementPosition,
   type UPlannedGenerationBase,
+  type WallAReadingDirection,
 } from "./run-layout.js";
 import type { DeclaredColumnSizes } from "./tall-end-rule.js";
 import {
@@ -84,7 +89,7 @@ function backWallLanesFor(
   runs: Readonly<Record<DesignWall, UGenerationRun>>,
 ): BackWallLanes {
   return {
-    wallA: wallALaneFromTheFridgeCorner(fridge.fridgeWall, runs.A),
+    wallA: wallALaneFromTheFridgeCorner(fridge.wallADirection, runs.A),
     far: laneFromTheCorner(fridge.farWall, runs[fridge.farWall]),
   };
 }
@@ -173,10 +178,10 @@ function hobRunContextOf(context: AttemptContext): HobRunContext {
 }
 
 function drawerUnitWalls(fridge: FridgePlacement): {
-  readonly fridgeWall: DesignWall;
+  readonly wallADirection: WallAReadingDirection;
   readonly farWall: DesignWall;
 } {
-  return { fridgeWall: fridge.fridgeWall, farWall: fridge.farWall };
+  return { wallADirection: fridge.wallADirection, farWall: fridge.farWall };
 }
 
 /** The tall layout's input for the far wall and the fridge's gap, with no bottle and no extras
@@ -267,27 +272,11 @@ function wallAFill(args: {
     buildId: DOOR_BASE_BUILD_ID,
     widthMm: STORAGE_BODY_WIDTH_MM,
   }));
-  return placedAlong(lane, startOffsetMm, [...bodiesAfterTheHob, ...doors]);
-}
-
-/** `bodies` one after another along `lane`, from `startOffsetMm` in the lane's own reading direction. */
-function placedAlong(
-  lane: PackingLane,
-  startOffsetMm: number,
-  bodies: readonly UBodyAfterTheHob[],
-): readonly UPlannedGenerationBase[] {
-  let offsetMm = startOffsetMm;
-  return bodies.map((body) => {
-    const placed = plannedBaseAt({
-      id: body.id,
-      role: "storage",
-      buildId: body.buildId,
-      widthMm: body.widthMm,
-      wall: lane.wall,
-      startMm: lane.startMmAt(offsetMm, body.widthMm),
-    });
-    offsetMm += body.widthMm;
-    return placed;
+  return placedInSequence({
+    wall: lane.wall,
+    bodies: [...bodiesAfterTheHob, ...doors],
+    startMmAt: (bodyOffsetMm, widthMm) =>
+      lane.startMmAt(startOffsetMm + bodyOffsetMm, widthMm),
   });
 }
 
@@ -295,10 +284,7 @@ function floorWidthsMmOf(
   bases: readonly UPlannedGenerationBase[],
 ): Readonly<Record<DesignWall, readonly number[]>> {
   const widthsOf = (wall: DesignWall): readonly number[] =>
-    bases
-      .filter((base) => base.wall === wall)
-      .sort((left, right) => left.startMm - right.startMm)
-      .map((base) => base.widthMm);
+    basesAlongWall(bases, wall).map((base) => base.widthMm);
   return { A: widthsOf("A"), B: widthsOf("B"), C: widthsOf("C") };
 }
 
@@ -307,9 +293,7 @@ function remainderMmOf(
   bases: readonly UPlannedGenerationBase[],
 ): Readonly<Record<DesignWall, number>> {
   const remainderOf = (wall: DesignWall): number => {
-    const consumedMm = bases
-      .filter((base) => base.wall === wall)
-      .reduce((sum, base) => sum + base.widthMm, 0);
+    const consumedMm = sumWidths(basesOnWall(bases, wall));
     const run = runs[wall];
     return run.endMm - run.startMm - consumedMm;
   };

@@ -10,44 +10,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
 } from "../../src/index.js";
-import { planUKitchenComposition } from "../../src/generation/u-composition.js";
-
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
-function uRoom(overrides: Partial<DesignRoom> = {}): DesignRoom {
-  return {
-    shape: "U",
-    widthMm: 3600,
-    depthMm: 2400,
-    wallCMm: 2200,
-    heightMm: 2600,
-    ...overrides,
-  };
-}
-
-function planFor(room: DesignRoom) {
-  return planUKitchenComposition({
-    room,
-    runs: uShellFloorRuns(room),
-    columns: DECLARED,
-  });
-}
-
-function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
-  return plan.bases
-    .filter((base) => base.wall === wall)
-    .sort((left, right) => left.startMm - right.startMm);
-}
+import {
+  basesOn,
+  planFor,
+  uRoomOverriding,
+} from "../support/u-plan-fixtures.js";
 
 function ovenBearingBases(plan: ReturnType<typeof planFor>) {
   return plan.bases.filter(
@@ -78,7 +49,7 @@ function roomWithGapIn(minMm: number, maxMm: number): DesignRoom {
   // wall C stays the shortest possible side wall throughout, so wall B — whose own entered length
   // this sweeps — is always the fridge wall and the gap varies with it alone.
   for (let depthMm = 1700; depthMm <= 6000; depthMm += 1) {
-    const room = uRoom({ depthMm, wallCMm: 1000 });
+    const room = uRoomOverriding({ depthMm, wallCMm: 1000 });
     const gap = fridgeGapMm(room, planFor(room));
     if (gap !== undefined && gap >= minMm && gap <= maxMm) return room;
   }
@@ -111,7 +82,7 @@ describe("the fridge-to-free-end gap (N3r 4, RQ13)", () => {
   });
 
   it("fills a large gap with 600 mm pantries, the outermost widened to absorb the remainder", () => {
-    const room = uRoom({ depthMm: 4700, wallCMm: 1200 }); // n = 3, a generous gap follows
+    const room = uRoomOverriding({ depthMm: 4700, wallCMm: 1200 }); // n = 3, a generous gap follows
     const plan = planFor(room);
     const pantries = basesOn(plan, "B").filter(
       (base) => base.buildId === "tall-pantry",
@@ -127,7 +98,7 @@ describe("the fridge-to-free-end gap (N3r 4, RQ13)", () => {
   });
 
   it("has no pantry gap on the fridge wall when the fridge was dropped", () => {
-    const room = uRoom({ depthMm: 1000, wallCMm: 1000 });
+    const room = uRoomOverriding({ depthMm: 1000, wallCMm: 1000 });
     const plan = planFor(room);
 
     expect(plan.dropped).toContain("fridge");
@@ -139,7 +110,7 @@ describe("the fridge-to-free-end gap (N3r 4, RQ13)", () => {
 
 describe("the far wall's tower (N3r 10, RQ5)", () => {
   it("stands at its own free end on a far wall of 3000 mm or less, remainder bare beyond it", () => {
-    const room = uRoom({ depthMm: 3600, wallCMm: 2200 }); // B fridge wall, C far wall ≤ 3000
+    const room = uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }); // B fridge wall, C far wall ≤ 3000
     const plan = planFor(room);
     const onFar = basesOn(plan, "C");
     const towerIndex = onFar.findIndex(
@@ -154,7 +125,7 @@ describe("the far wall's tower (N3r 10, RQ5)", () => {
   });
 
   it("stands after n counted bases from the corner on a far wall over 3000 mm", () => {
-    const room = uRoom({ depthMm: 4600, wallCMm: 3600 }); // B fridge wall, C far wall > 3000 (n = 2)
+    const room = uRoomOverriding({ depthMm: 4600, wallCMm: 3600 }); // B fridge wall, C far wall > 3000 (n = 2)
     const plan = planFor(room);
     const onFar = basesOn(plan, "C");
     const towerIndex = onFar.findIndex(
@@ -183,7 +154,7 @@ describe("the far wall's tower (N3r 10, RQ5)", () => {
     // `tall-end-rule.test.ts` witnesses for the L, reached here through a real U room.
     let found: { room: DesignRoom; remainderMm: number } | undefined;
     for (let wallCMm = 1600; wallCMm <= 2900 && !found; wallCMm += 1) {
-      const room = uRoom({ depthMm: 4700, wallCMm });
+      const room = uRoomOverriding({ depthMm: 4700, wallCMm });
       const plan = planFor(room);
       const onFar = basesOn(plan, "C");
       const tower = onFar.find((base) => base.buildId === "tall-oven-tower");
@@ -205,7 +176,11 @@ describe("the far wall's tower (N3r 10, RQ5)", () => {
   });
 
   it("generates no pantry on a large U's far wall, though the fridge wall may still carry one", () => {
-    const room = uRoom({ widthMm: 4000, depthMm: 4200, wallCMm: 3600 }); // total ≥ 10 000
+    const room = uRoomOverriding({
+      widthMm: 4000,
+      depthMm: 4200,
+      wallCMm: 3600,
+    }); // total ≥ 10 000
     const plan = planFor(room);
 
     expect(
@@ -216,7 +191,7 @@ describe("the far wall's tower (N3r 10, RQ5)", () => {
 
 describe("exactly one oven (N3r 9, E4)", () => {
   it("keeps base-hob-oven and no tower when no tower stands", () => {
-    const room = uRoom({ depthMm: 1500, wallCMm: 1000 }); // small U, no room for a tower
+    const room = uRoomOverriding({ depthMm: 1500, wallCMm: 1000 }); // small U, no room for a tower
     const plan = planFor(room);
     if (plan.bases.some((base) => base.buildId === "tall-oven-tower")) {
       throw new Error("premise: this room must compose no tower");
@@ -229,7 +204,7 @@ describe("exactly one oven (N3r 9, E4)", () => {
   });
 
   it("swaps the hob to base-hob-2drawer wherever a tower stands", () => {
-    const room = uRoom({ depthMm: 3600, wallCMm: 2200 });
+    const room = uRoomOverriding({ depthMm: 3600, wallCMm: 2200 });
     const plan = planFor(room);
     if (!plan.bases.some((base) => base.buildId === "tall-oven-tower")) {
       throw new Error("premise: this room must compose a tower");

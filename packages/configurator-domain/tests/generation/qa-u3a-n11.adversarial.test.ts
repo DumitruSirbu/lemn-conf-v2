@@ -11,38 +11,13 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  declaredColumnSizes,
-  KITCHEN_L_DESIGN,
-  uShellFloorRuns,
-  type DesignRoom,
-  type DesignWall,
-} from "../../src/index.js";
-import { planUKitchenComposition } from "../../src/generation/u-composition.js";
+import { uShellFloorRuns, type DesignWall } from "../../src/index.js";
 import {
   holdsTheMinimumKitchen,
   uPlanFindings,
   type URuns,
 } from "../support/u-plan-invariants.js";
-
-const DECLARED = declaredColumnSizes(
-  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
-);
-
-function uRoom(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-  heightMm = 2600,
-): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm };
-}
-
-function planFor(room: DesignRoom, runs: URuns = uShellFloorRuns(room)) {
-  return planUKitchenComposition({ room, runs, columns: DECLARED });
-}
+import { planFor, uRoom } from "../support/u-plan-fixtures.js";
 
 /** A wall's bodies from its corner, as `buildId@start-end`. */
 function bodiesOn(
