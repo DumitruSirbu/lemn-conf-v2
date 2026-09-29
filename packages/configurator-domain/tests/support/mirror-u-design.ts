@@ -140,7 +140,7 @@ export function mirroredVoids(
 ): ComparableVoid[] {
   return comparableVoids(
     voids.map((record) => {
-      const col = mirroredColumnKey(record.col, widthMm);
+      const col = mirroredColumnKey(record, widthMm);
       return {
         ...record,
         id: col + record.id.slice(record.col.length),
@@ -176,16 +176,16 @@ export function comparableVoids(
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
-/** `W|along` → the key the mirrored column is filed under. A side wall keeps its along text
- *  verbatim (`-0.00` included) and swaps its letter. Wall A's along is re-derived from whole
- *  millimetres (`W − a`), never from the rounded two-decimal text, so a centre the generator put on
- *  the 10 mm key grid lands on exactly the key the engine derives for it. */
-function mirroredColumnKey(col: string, widthMm: number): string {
-  const [wallText = "", alongText = ""] = col.split("|");
+/** The key the mirrored column is filed under. A side wall keeps its along text verbatim (`-0.00`
+ *  included) and swaps its letter. Wall A's key is re-derived from the column's own centre, `W − x`
+ *  on whole millimetres — never from the key's two-decimal text, which has already rounded the
+ *  centre (902 mm keys as `0.90`, and `W − 900` is not `W − 902`). */
+function mirroredColumnKey(record: VoidRecord, widthMm: number): string {
+  const [wallText = "", alongText = ""] = record.col.split("|");
   const wall = wallText as DesignWall;
   if (wall !== "A") return `${MIRRORED_WALL[wall]}|${alongText}`;
-  const alongMm = Math.round(Number(alongText) * MILLIMETRES_PER_METRE);
-  return deriveColumnKeyAt("A", (widthMm - alongMm) / MILLIMETRES_PER_METRE);
+  const centreMm = Math.round(record.x * MILLIMETRES_PER_METRE);
+  return deriveColumnKeyAt("A", (widthMm - centreMm) / MILLIMETRES_PER_METRE);
 }
 
 function rounded(value: number): number {
