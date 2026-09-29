@@ -17,6 +17,7 @@ import {
   RUN_END_PANEL_SEEDED_X_M,
   type Kit,
 } from "./kitchen-parts.js";
+import { floorDepthMm } from "./room-extent.js";
 import { isMesh, isTexture, toMaterials } from "./three-guards.js";
 
 /** The floor and the two wall planes run this far past the corner into the other wall's direction.
@@ -176,11 +177,6 @@ function drawnRoomSignature(room: DesignRoom): string {
  *  the shell's lifetime exactly: a shell that is dropped takes its record with it, and a second
  *  shell built from the same kit starts with none. */
 const DRAWN_ROOM_KEY = "drawnRoom";
-
-/** The floor reaches the farther of the two side walls; a room with no wall C has 0 for it. */
-function floorDepthMm(room: DesignRoom): number {
-  return Math.max(room.depthMm, wallLengthMm("C", room));
-}
 
 function resizeFloor(kit: Kit, floor: Mesh, room: DesignRoom): void {
   const drawnWidthM = drawnWallLengthM(room.widthMm);

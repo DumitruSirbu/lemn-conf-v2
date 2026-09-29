@@ -19,7 +19,8 @@ declare const messages: {
     "cameraPresets": {
       "overview": "Vedere generală",
       "wallA": "Perete A",
-      "wallB": "Perete B"
+      "wallB": "Perete B",
+      "wallC": "Perete C"
     },
     "loading": "Se încarcă modelul 3D…",
     "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",

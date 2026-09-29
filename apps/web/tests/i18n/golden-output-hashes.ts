@@ -404,6 +404,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "093642fdd3ae144d6efee42eefcf43c9154528c47e2d692700ef8ff3481de870",
   "content.static.configure.cameraPresets.wallB":
     "0fe4c619c2a80b68bc95fd2d2c66e91880ebbf887c4213cceaff0a2209277f97",
+  "content.static.configure.cameraPresets.wallC":
+    "3c9eb93e9ab7686ae3bb2a8b146948e745a027877479fdca591dc25c758047d3",
   "content.static.configure.loading":
     "fff58e0d5274b9323b1d417339767816cc64fdbb2be12d731af5db285f61b75a",
   "content.static.configure.locale":
