@@ -1,6 +1,7 @@
-// ADR 0132 Amendment A2: a U's side-wall presets stand where the opposite side wall's cabinets are,
-// so the run the eye stands in (or behind) is cut away — not drawn and not pickable — for as long as
-// the eye is there. `cutawayWallsFor` answers which runs, from the camera's position alone (so an
+// ADR 0132 Amendment A2: in a U, any wall whose body zone the eye stands in or behind, within that
+// wall's run, is cut away — not drawn and not pickable — for as long as the eye is there. The side
+// presets are the common case (each stands where the opposite side wall's cabinets are); an orbit can
+// reach wall A's zone too. `cutawayWallsFor` answers which runs, from the camera's position alone (so an
 // orbit gets the same answer as a preset); `applyCutaway` makes the scene agree. Picking needs no
 // knowledge of either: it skips whatever is not drawn (`picking.ts`).
 import {
@@ -22,7 +23,7 @@ import { wallOf } from "./wall-tag.js";
  *  file holds it as a test's private constant. */
 const EYE_CLEARANCE_M = 0.05;
 
-const SIDE_WALLS: readonly DesignWall[] = ["B", "C"];
+const U_WALLS: readonly DesignWall[] = ["A", "B", "C"];
 
 const FLOOR_STANDING_BANDS: readonly Band[] = ["base", "column"];
 
@@ -33,9 +34,10 @@ const HIDDEN_BY_CUTAWAY_KEY = "hiddenByCutaway";
 const bodyZoneDepthByCabinetDepthMm = new Map<number, number>();
 
 /**
- * The side walls of a U whose run the eye stands in or behind.
+ * The walls of a U whose body zone the eye stands in or behind.
  *
- * A run counts only where the eye is level with it — past the run's end the room is open, and an eye
+ * A wall counts only where the eye is level with its run, from one end to the other (0 to its
+ * length, measured along the wall from its corner) — beyond either end the room is open, and an eye
  * there looks in over nothing. **An L and a straight room never cut anything away.** Throws for a
  * cabinet depth the catalogue is not declared at, as building that catalogue does.
  */
@@ -46,9 +48,7 @@ export function cutawayWallsFor(
 ): readonly DesignWall[] {
   if (room.shape !== "U") return [];
   const zoneDepthM = bodyZoneDepthM(cabinetDepthMm);
-  return SIDE_WALLS.filter((wall) =>
-    isEyeInBodyZone(eye, wall, room, zoneDepthM),
-  );
+  return U_WALLS.filter((wall) => isEyeInBodyZone(eye, wall, room, zoneDepthM));
 }
 
 /**
@@ -77,10 +77,22 @@ function isEyeInBodyZone(
   room: DesignRoom,
   zoneDepthM: number,
 ): boolean {
-  const [x, , z] = eye;
-  const distanceFromPlaneM = wall === "B" ? x : toMetres(room.widthMm) - x;
-  const isLevelWithRun = z <= toMetres(wallLengthMm(wall, room));
+  const { distanceFromPlaneM, alongM } = eyeRelativeTo(wall, eye, room);
+  const isLevelWithRun =
+    alongM >= 0 && alongM <= toMetres(wallLengthMm(wall, room));
   return isLevelWithRun && distanceFromPlaneM < zoneDepthM;
+}
+
+/** Wall A's plane is z = 0 with its run along x from 0 to W; wall B's is x = 0 with its run along z;
+ *  wall C's is x = W, fronting -x, with its run along z. A negative distance is behind the plane. */
+function eyeRelativeTo(
+  wall: DesignWall,
+  [x, , z]: Vector3Tuple,
+  room: DesignRoom,
+): { readonly distanceFromPlaneM: number; readonly alongM: number } {
+  if (wall === "A") return { distanceFromPlaneM: z, alongM: x };
+  const distanceFromPlaneM = wall === "B" ? x : toMetres(room.widthMm) - x;
+  return { distanceFromPlaneM, alongM: z };
 }
 
 /** From the wall's plane to the front of the deepest floor-standing body the catalogue builds at
