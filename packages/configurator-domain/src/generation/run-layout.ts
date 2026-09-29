@@ -101,8 +101,8 @@ export type UPlacementPosition = "free-end" | number;
  *  wall (`u-fridge-wall.ts`), and read by every later decision that walks wall A in run order. */
 export type WallAReadingDirection = "increasing" | "decreasing";
 
-/** The U's own plan — `KitchenCompositionPlan`'s shape over three walls instead of two. No insert
- *  happens from this type (U3a's own scope); `generateKitchen` reads it starting U3b. */
+/** The U's own plan — `KitchenCompositionPlan`'s shape over three walls instead of two, which
+ *  `generateKitchen` reads to compose a U. */
 export interface UKitchenCompositionPlan {
   readonly room: DesignRoom;
   /** Spatial order, corner to free end on each wall, matching the shell's tile order. */

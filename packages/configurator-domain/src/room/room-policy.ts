@@ -80,9 +80,11 @@ export interface UMinimumKitchen {
   readonly isRequired: boolean;
   readonly sinkWidthMm: number;
   readonly hobWidthMm: number;
-  /** What each run gives up to its corners before a body can stand. Wall A gives up both X-legs
-   *  together (H3's 1800 at the approved figures, 900 at each end); a side wall gives up one corner's
-   *  reach and the slide reserve its run keeps at its end (H3's 1000, the 900 reach and the 100 mm). */
+  /** The run's corner allowance: what each run gives up to its corners before a body can stand.
+   *  The approved literals (U6) are H3's 1800 on wall A, both X-legs together, and 1000 on a side wall,
+   *  one corner's 900 mm reach plus the 100 mm slide reserve its run keeps at its end. The engine's
+   *  values are a guard floor beneath them: wall A's is `twoCornersWallAMinimumMm()`, which is 1800 too,
+   *  and a side wall's is `wallMinimumMm("B")`, 880, which leaves the slide reserve out. */
   readonly cornerReachMm: {
     readonly wallA: number;
     readonly sideWall: number;
@@ -175,9 +177,10 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
       wallA: { minMm: twoCornersWallAMinimumMm(), maxMm: MAX_ROOM_WIDTH_MM },
       wallB: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
       wallC: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
-      // ADR 0108 H3, derived like the L's: the two X-legs are what wall A's minimum already clears, and a
-      // side wall's is the narrowest corner's reach. The approved 900 / 1000 (and the 100 mm slide
-      // reserve inside it) are U6's literals, guarded against these.
+      // ADR 0108 H3, derived like the L's, as a guard floor and not the product's figures: wall A's
+      // allowance is the two X-legs its own minimum already clears, and a side wall's is the narrowest
+      // corner's reach, which excludes the 100 mm slide reserve. The approved 1800 and 1000 are U6's
+      // literals, and enter `APPROVED_ROOM_POLICY` guarded against these.
       minimumKitchen: {
         isRequired: false,
         sinkWidthMm: generatedRequiredWidthMm("sink"),
@@ -222,7 +225,9 @@ function generatedRequiredWidthMm(
  *  **The approved minima are deliberately above it**: `approved-room-policy.ts` holds the owner's
  *  900 and 1000 while this reads 880 on both walls, and that margin is pinned — not merely allowed
  *  — by `approved-room-policy.test.ts` (ADR 0108 B1 permits a margin; only the owner may choose
- *  one, which is M7's Q-K1). */
+ *  one, which is M7's Q-K1). That pin is the L's. Nothing pins a margin for the U's figures yet:
+ *  `room-policy.test.ts` pins only that the engine's U bounds and minimum kitchen are derived from
+ *  the sources named above, and the approved U literals arrive with their own pin at U6. */
 function wallMinimumMm(wall: DesignWall): number {
   return narrowestCornerReachMm(wall).wallMinimumMm;
 }

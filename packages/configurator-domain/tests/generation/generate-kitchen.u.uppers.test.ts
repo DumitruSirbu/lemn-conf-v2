@@ -195,7 +195,7 @@ describe("a large U's back-wall voids stay open and take a wall cabinet (U3b AC6
     }
   });
 
-  it("a void narrower than the cabinet's own minimum is the 100 mm sliver the shell's 800 mm cap leaves at each corner strip, and it answers WIDTH_TOO_SMALL", () => {
+  it("6000 / 6000 / 6000: every void narrower than the cabinet's own minimum is the 100 mm sliver the shell's 800 mm cap leaves at a corner strip, and answers WIDTH_TOO_SMALL", () => {
     const verdicts = wallCabinetVerdictsOnWallA(
       composeU(uRoom(6000, 6000, 6000)),
     );

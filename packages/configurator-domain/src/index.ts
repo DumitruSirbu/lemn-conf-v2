@@ -312,7 +312,7 @@ export * from "./generation/leftover-rule.js";
 export * from "./generation/body-choice.js";
 export { DISHWASHER_PLANNED_WIDTH_MM } from "./generation/dishwasher-beside-the-sink.js";
 export * from "./generation/generation-priorities.js";
-// The U's own three-wall plan (ADR 0110 Amendment N), pure and not yet called by `generateKitchen`.
+// The U's own three-wall plan (ADR 0110 Amendment N), pure, and the plan `generateKitchen` composes a U from.
 // `UKitchenCompositionPlan` and `UPlannedGenerationBase` are `run-layout.ts`'s, re-exported here
 // directly because `generation-priorities.ts` — the only other re-exporter of that module's types —
 // is not touched for the U.
