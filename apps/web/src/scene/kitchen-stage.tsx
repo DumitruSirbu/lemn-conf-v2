@@ -356,7 +356,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       // one more surface it already overrides the rest of.
       kitchenFinish: finish ?? kitchenFinish,
     });
-    syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids });
+    syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids, room: designRoom });
     if (finish) applyFinish(collectFronts(stage.room), stage.kit.M, finish);
     invalidate();
   }, [stage, records, designRoom, voids, finish, kitchenFinish, invalidate]);

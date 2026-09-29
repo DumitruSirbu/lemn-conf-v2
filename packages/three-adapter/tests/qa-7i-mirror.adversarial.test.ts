@@ -81,7 +81,11 @@ function mountKitchen(
     room: design.room,
   });
   const voidsRoot = new THREE.Group();
-  syncVoidMeshes({ voidsRoot, voids: voidsOf(voidsDesign) });
+  syncVoidMeshes({
+    voidsRoot,
+    voids: voidsOf(voidsDesign),
+    room: voidsDesign.room,
+  });
   const root = new THREE.Group();
   root.add(solidsRoot, voidsRoot);
   root.updateWorldMatrix(true, true);

@@ -40,8 +40,7 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
-
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
+import { acceptedU, OCCURRED_AT } from "./support/u-scene.js";
 
 /** The cabinet depth every room in this file is designed at (`buildUShellDesign`'s default). */
 const CABINET_DEPTH_MM = 600;
@@ -49,17 +48,6 @@ const CABINET_DEPTH_MM = 600;
 beforeAll(() => {
   installHeadlessDocument();
 });
-
-function acceptedU(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-): DesignRoom {
-  return buildUShellDesign({
-    room: { shape: "U", widthMm, depthMm, wallCMm, heightMm: 2600 },
-    occurredAt: OCCURRED_AT,
-  }).room;
-}
 
 /** The approved U's narrowest wall A (ADR 0108 H4, RQ1), a symmetric 3 m U, and one either side of
  *  the eye's fixed 4.15 m. */

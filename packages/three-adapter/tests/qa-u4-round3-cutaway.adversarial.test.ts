@@ -11,17 +11,13 @@
 //   cut is re-applied for each room. The stale record an L inherits without that re-apply is
 //   QA's open finding, kept out of this file.
 import {
-  buildKitchenLBodyCatalog,
   buildLShellDesign,
   buildUShellDesign,
   deriveRecordedColumns,
-  derivePlacementRecords,
   recomputeVoids,
   toMetres,
   type Design,
-  type DesignPlacement,
   type DesignRoom,
-  type DesignWall,
 } from "@lemnaria/configurator-domain";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import * as THREE from "three";
@@ -39,10 +35,19 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import {
+  acceptedU,
+  OCCURRED_AT,
+  recordsOf,
+  seated,
+} from "./support/u-scene.js";
 
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 const CABINET_DEPTH_MM = 600;
-/** ADR 0108 H2's measured deepest floor bodies plus 7H's 50 mm, pinned independently of the source. */
+/** ADR 0108 H2's measured deepest floor bodies (`fridge-free-700` at 600, `base-hob-oven` at 700),
+ *  plus 7H's 50 mm clearance (ADR 0132 A2). **A deliberate independent pin**, as
+ *  `qa-u4-fix-cutaway.adversarial.test.ts` has it: the source reads these through
+ *  `occupiedDepthOfEntryM` and `EYE_CLEARANCE_M`, and a test that read them the same way could not
+ *  notice that path going wrong. The 0.05 is written here for the same reason. */
 const ZONE_M = { 600: 0.742 + 0.05, 700: 0.748 + 0.05 } as const;
 /** How far in front of its wall a top-row body's front stands: the deepest top-row carcass is well
  *  under this, so a point here is on or just in front of the row the customer taps. */
@@ -54,18 +59,6 @@ beforeAll(() => {
   installHeadlessDocument();
 });
 
-function acceptedU(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-  heightMm = 2600,
-): DesignRoom {
-  return buildUShellDesign({
-    room: { shape: "U", widthMm, depthMm, wallCMm, heightMm },
-    occurredAt: OCCURRED_AT,
-  }).room;
-}
-
 type SideWall = "B" | "C";
 const oppositeOf = (wall: SideWall): SideWall => (wall === "B" ? "C" : "B");
 const presetOf = (wall: SideWall): "wallB" | "wallC" =>
@@ -76,63 +69,6 @@ const runM = (room: DesignRoom, wall: SideWall): number =>
 // ------------------------------------------------------------------------------------------------
 // A8.1's blocker case, clicked in a real scene.
 // ------------------------------------------------------------------------------------------------
-
-function seated(
-  kit: Kit,
-  spec: {
-    readonly id: string;
-    readonly wall: DesignWall;
-    readonly alongMm: number;
-    readonly y0Mm: number;
-    readonly buildId: string;
-    readonly heightMm: number;
-  },
-): DesignPlacement {
-  const probeRoom: DesignRoom = {
-    shape: "L",
-    widthMm: 3560,
-    depthMm: 2920,
-    heightMm: 2600,
-  };
-  const probe: Design = {
-    ...buildLShellDesign({ room: probeRoom, occurredAt: OCCURRED_AT }),
-    placements: [
-      {
-        id: "probe",
-        wall: "A",
-        alongMm: 1000,
-        y0Mm: 0,
-        body: { buildId: spec.buildId, widthMm: 600, heightMm: spec.heightMm },
-      },
-    ],
-  };
-  const root = new THREE.Group();
-  syncSolidBodies({
-    kit,
-    solidsRoot: root,
-    records: derivePlacementRecords(
-      probe,
-      buildKitchenLBodyCatalog(CABINET_DEPTH_MM),
-    ),
-    room: probeRoom,
-  });
-  const body = required(root.children[0], "the probe body");
-  body.position.set(0, 0, 0);
-  body.updateWorldMatrix(true, true);
-  const rearM = -new THREE.Box3().setFromObject(body).min.z;
-  return {
-    id: spec.id,
-    wall: spec.wall,
-    alongMm: spec.alongMm,
-    y0Mm: spec.y0Mm,
-    body: {
-      buildId: spec.buildId,
-      widthMm: 600,
-      heightMm: spec.heightMm,
-      seatDepthMm: Math.round(2 * rearM * 1000),
-    },
-  };
-}
 
 const BLOCKERS = [
   ["a tall pantry", "tall-pantry-600", 0, 2200],
@@ -187,10 +123,7 @@ describe.each(REVIEWER_CASES)(
         syncSolidBodies({
           kit,
           solidsRoot,
-          records: derivePlacementRecords(
-            design,
-            buildKitchenLBodyCatalog(CABINET_DEPTH_MM),
-          ),
+          records: recordsOf(design),
           room,
         });
         stageRoot.updateMatrixWorld(true);
@@ -402,10 +335,7 @@ function stageFor(room: DesignRoom): Stage {
 }
 
 function show(stage: Stage, design: Design): void {
-  const records = derivePlacementRecords(
-    design,
-    buildKitchenLBodyCatalog(CABINET_DEPTH_MM),
-  );
+  const records = recordsOf(design);
   syncSolidBodies({
     kit: stage.kit,
     solidsRoot: stage.solidsRoot,
@@ -418,6 +348,7 @@ function show(stage: Stage, design: Design): void {
       records,
       deriveRecordedColumns(records, design, toMetres(design.room.widthMm)),
     ),
+    room: design.room,
   });
 }
 

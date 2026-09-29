@@ -3,22 +3,17 @@
 // `applyCornerDirection` (ADR 0129 decision 4) — never one group about the room's centre line, which
 // ADR 0129 rejected because its plane would move with every resize.
 //
-// Which pieces are the right corner's is the domain's answer (`cornerOf`, ADR 0121). This module
-// reads that answer and compares no position of its own. Everything else in a U — wall C's own
-// bodies included — is drawn at its world frame, unmirrored (Q-U5).
-import {
-  buildKitchenLBodyCatalog,
-  cornerOf,
-  toMillimetres,
-  type BodyCatalog,
-  type DesignPlacement,
-  type DesignRoom,
-  type PlacementRecord,
+// Which pieces are the right corner's is the domain's answer (`cornerOf`, ADR 0121), carried on every
+// `PlacementRecord` as `corner` (ADR 0132 A8.4). This module reads that answer and compares no
+// position of its own. Everything else in a U — wall C's own bodies included — is drawn at its world
+// frame, unmirrored (Q-U5).
+import type {
+  DesignRoom,
+  PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { applyCornerDirection } from "./corner-direction.js";
-import type { Kit } from "./kitchen-parts.js";
 
 export const RIGHT_CORNER_WRAPPER_NAME = "right_corner_wrapper";
 
@@ -28,16 +23,13 @@ const NO_RIGHT_CORNER_PIECES: ReadonlySet<string> = new Set();
  *  an L or a straight room has one corner, always the left (`cornerOf`'s own rule), so nothing
  *  outside a U is ever wrapped and its scene is exactly what it was before wrappers existed. */
 export function rightCornerRecordIds(input: {
-  readonly kit: Kit;
   readonly room: DesignRoom;
   readonly records: readonly PlacementRecord[];
 }): ReadonlySet<string> {
   if (input.room.shape !== "U") return NO_RIGHT_CORNER_PIECES;
 
-  const catalog = catalogueTheKitBuildsWith(input.kit);
   const rightPieces = input.records.filter(
-    (record) =>
-      cornerOf(placementStandingFor(record), input.room, catalog) === "right",
+    (record) => record.corner === "right",
   );
   return new Set(rightPieces.map((record) => record.id));
 }
@@ -52,38 +44,4 @@ export function wrapInRightCornerMirror(body: THREE.Group): THREE.Group {
   wrapper.add(body);
   applyCornerDirection(wrapper, "right");
   return wrapper;
-}
-
-/** `cornerOf` reads a `DesignPlacement`, and the scene is handed `PlacementRecord`s derived from
- *  them. A record carries every fact the query reads — its id, wall, build id and, on wall A, its
- *  centre along the wall, which `frame.x` is in metres — so the placement is stood back up from it
- *  rather than threading the design through a seam that carries records only. */
-function placementStandingFor(record: PlacementRecord): DesignPlacement {
-  return {
-    id: record.id,
-    wall: record.wall,
-    alongMm: toMillimetres(record.frame.x),
-    y0Mm: toMillimetres(record.frame.y0),
-    body: {
-      buildId: record.buildId,
-      widthMm: record.widthMm,
-      heightMm: record.heightMm,
-    },
-  };
-}
-
-/** A structural corner is a fact of the body's own definition, at whatever cabinet depth the
- *  catalogue is built for, so the one built at the kit's own depth answers for every record. It is
- *  kept beside the kit it was built for, and dies with it. */
-const CATALOGUES_BY_KIT = new WeakMap<Kit, BodyCatalog>();
-
-function catalogueTheKitBuildsWith(kit: Kit): BodyCatalog {
-  const known = CATALOGUES_BY_KIT.get(kit);
-  if (known) return known;
-
-  const built = buildKitchenLBodyCatalog(
-    toMillimetres(kit.depths.cabinetDepthM),
-  );
-  CATALOGUES_BY_KIT.set(kit, built);
-  return built;
 }

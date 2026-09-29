@@ -601,8 +601,9 @@ export function paintRunEndPanel(input: RunEndPanelFinishInput): void {
 /** The shell is the one `solidsRoot` child `syncSolidBodies` did not mount, which is the manifest's
  *  meaning stated structurally. Identifying it by name would be a naming convention doing a
  *  safety job: a customer body is a `solidsRoot` child too, so a name search here could reach into
- *  one and move a mesh a placement owns — the same failure as that earlier one, from the other
- *  direction. */
+ *  one and move a mesh a placement owns. That is `syncRunEndPanel`'s own failure (a shell that read
+ *  records could put a deleted body back as shell) arriving from the other side: there the shell
+ *  took over a body, here the panel's lookup would take over a body's mesh. */
 function findRunEndPanel(solidsRoot: Object3D): Object3D | undefined {
   const shell = solidsRoot.children.find(
     (child) => child.userData[PLACEMENT_ID_KEY] === undefined,

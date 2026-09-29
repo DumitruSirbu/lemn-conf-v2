@@ -72,11 +72,10 @@ export interface SolidSyncInput {
 export interface VoidSyncInput {
   readonly voidsRoot: THREE.Object3D;
   readonly voids: readonly VoidRecord[];
-  /** The room the voids stand in. Optional so every caller that predates the cutaway still
-   *  type-checks: given a room that is not a U, the recorded cut set is discarded rather than applied
-   *  (`applyRecordedCutaway`). The body sync always has the room and does the same, so a caller that
-   *  omits it is safe as long as it also syncs bodies when the room changes. */
-  readonly room?: DesignRoom | undefined;
+  /** The room the voids stand in. Required: given a room that is not a U, the recorded cut set is
+   *  discarded rather than applied (`applyRecordedCutaway`), so a caller that could not name it
+   *  would leave a cut recorded for a U applied to an L. */
+  readonly room: DesignRoom;
 }
 
 /** Mounts the bodies that appeared, removes and disposes the ones that vanished or changed, and
@@ -85,7 +84,7 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   const missing = new Map(input.records.map((record) => [record.id, record]));
   // ADR 0132 decision 2: the right corner's pieces are drawn mirrored, each in its own wrapper. A
   // piece's side is part of what it is drawn as, so it is part of its signature below.
-  const isMirrored = mirroredPieceTest(input);
+  const rightCornerIds = rightCornerRecordIds(input);
 
   for (const child of [...input.solidsRoot.children]) {
     const placementId = child.userData[PLACEMENT_ID_KEY] as string | undefined;
@@ -94,7 +93,7 @@ export function syncSolidBodies(input: SolidSyncInput): void {
     if (
       record &&
       child.userData[BODY_SIGNATURE_KEY] ===
-        signBody(record, isMirrored(record))
+        signatureOnScreen(record, rightCornerIds)
     ) {
       missing.delete(placementId);
       continue;
@@ -104,7 +103,9 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   }
 
   for (const record of missing.values()) {
-    input.solidsRoot.add(mountBody(input.kit, record, isMirrored(record)));
+    input.solidsRoot.add(
+      mountOnScreen({ kit: input.kit, record, rightCornerIds }),
+    );
   }
 
   // ADR 0045: the shell's run-end panel closes whatever base run is on screen, so it is re-derived
@@ -124,13 +125,6 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   });
   // ADR 0132 A8.2: a body mounted while a wall is cut away is mounted cut.
   applyRecordedCutaway(input.solidsRoot, input.room);
-}
-
-function mirroredPieceTest(
-  input: SolidSyncInput,
-): (record: PlacementRecord) => boolean {
-  const rightCornerIds = rightCornerRecordIds(input);
-  return (record) => rightCornerIds.has(record.id);
 }
 
 /** Replaces the whole void set whenever anything about it changed, and does nothing when nothing
@@ -205,29 +199,66 @@ function signVoid(voidRecord: VoidRecord): string {
   ].join("|");
 }
 
-/** What is returned is what `solidsRoot` holds and what picking and the highlight find by
- *  `placementId`: the body itself, or — for a right-corner piece — the wrapper that mirrors it. The
- *  frame and both tags belong to that outer object, so a mirrored piece is seated, found, outlined
- *  and marked exactly as an unmirrored one is. */
-function mountBody(
-  kit: Kit,
+/** What `solidsRoot` holds for `record`: the body itself, or — for a right-corner piece — the
+ *  wrapper that mirrors it. */
+function mountOnScreen(input: {
+  readonly kit: Kit;
+  readonly record: PlacementRecord;
+  readonly rightCornerIds: ReadonlySet<string>;
+}): THREE.Group {
+  return input.rightCornerIds.has(input.record.id)
+    ? mountMirroredBody(input.kit, input.record)
+    : mountBody(input.kit, input.record);
+}
+
+function signatureOnScreen(
   record: PlacementRecord,
-  isMirrored: boolean,
-): THREE.Group {
+  rightCornerIds: ReadonlySet<string>,
+): string {
+  return rightCornerIds.has(record.id)
+    ? signMirroredBody(record)
+    : signBody(record);
+}
+
+function mountBody(kit: Kit, record: PlacementRecord): THREE.Group {
   const body = buildBody(kit, record);
-  const mounted = isMirrored ? wrapInRightCornerMirror(body) : body;
+  dressBody(kit, body, record);
+  return seatMounted(body, record, signBody(record));
+}
+
+function mountMirroredBody(kit: Kit, record: PlacementRecord): THREE.Group {
+  const body = buildBody(kit, record);
+  dressBody(kit, body, record);
+  return seatMounted(
+    wrapInRightCornerMirror(body),
+    record,
+    signMirroredBody(record),
+  );
+}
+
+/** What picking and the highlight find by `placementId` is the outer object — the body, or the
+ *  wrapper that mirrors it — so the frame and both tags belong to it, and a mirrored piece is
+ *  seated, found, outlined and marked exactly as an unmirrored one is. */
+function seatMounted(
+  mounted: THREE.Group,
+  record: PlacementRecord,
+  signature: string,
+): THREE.Group {
   mounted.position.set(record.frame.x, record.frame.y0, record.frame.z);
   mounted.rotation.y = record.frame.ry;
   mounted.userData[PLACEMENT_ID_KEY] = record.id;
   tagWall(mounted, record.wall);
-  mounted.userData[BODY_SIGNATURE_KEY] = signBody(record, isMirrored);
+  mounted.userData[BODY_SIGNATURE_KEY] = signature;
+  return mounted;
+}
+
+function dressBody(kit: Kit, body: THREE.Group, record: PlacementRecord): void {
   // Set both ways, never only hidden: `buildDecomposedBody` ships the seeded `*-top` bodies with
   // their handles already hidden — the decomposition-parity gate holds them to the reference
   // room's own hide — so a recorded non-push mode has to *un*-hide them or a choice the domain
   // accepted would never reach the screen, which is the failure §6.5 exists to prevent.
   setHandlesVisible(body, !hidesHandles(record));
   applyRecordedAppearance(kit, body, record);
-  return mounted;
 }
 
 /** §5.5: finish and handle are recorded **per placement**, so they are applied to this body alone
@@ -325,8 +356,8 @@ function hidesHandles(record: PlacementRecord): boolean {
   });
 }
 
-function signBody(record: PlacementRecord, isMirrored: boolean): string {
-  const signature = [
+function signBody(record: PlacementRecord): string {
+  return [
     record.buildId,
     record.widthMm,
     record.heightMm,
@@ -343,10 +374,13 @@ function signBody(record: PlacementRecord, isMirrored: boolean): string {
     // `finishKey` — leaves every signature identical, the sync concludes nothing moved, and the
     // scene keeps the old colour: exactly the case ADR 0099 exists for, silently unpainted.
     finishSignature(record.drawnFinish),
-  ];
-  // Appended only when true, so every unmirrored body keeps the signature it always had.
-  if (isMirrored) signature.push(MIRRORED_SIGNATURE_PART);
-  return signature.join("|");
+  ].join("|");
+}
+
+/** `signBody`'s signature with the mirror appended, so every unmirrored body keeps the signature it
+ *  always had and a piece changing sides is a changed signature. */
+function signMirroredBody(record: PlacementRecord): string {
+  return `${signBody(record)}|${MIRRORED_SIGNATURE_PART}`;
 }
 
 const MIRRORED_SIGNATURE_PART = "right-corner-mirror";

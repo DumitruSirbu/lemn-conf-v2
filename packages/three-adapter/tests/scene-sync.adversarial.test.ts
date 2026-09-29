@@ -36,6 +36,9 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+/** The room the void sets stand in: the seeded L, which is never cut. */
+const L_ROOM = KITCHEN_L_DESIGN.room;
+
 const WALL_ROW_Y0_M = 1.5;
 const SIGNATURE_FLOW_CYCLES = 10;
 
@@ -439,9 +442,9 @@ describe("syncVoidMeshes detects a change the id list cannot see", () => {
   it("remounts a void whose id survived but whose height changed", () => {
     const before = makeVoidRecord("A|2.00:v0:1.70", 1.7, 0.5);
     const after = makeVoidRecord("A|2.00:v0:1.70", 1.7, 0.9);
-    syncVoidMeshes({ voidsRoot, voids: [before] });
+    syncVoidMeshes({ voidsRoot, voids: [before], room: L_ROOM });
 
-    syncVoidMeshes({ voidsRoot, voids: [after] });
+    syncVoidMeshes({ voidsRoot, voids: [after], room: L_ROOM });
 
     const box = new THREE.Box3().setFromObject(voidsRoot);
     expect(box.max.y - box.min.y).toBeCloseTo(after.h - 0.028, 3);
@@ -450,9 +453,9 @@ describe("syncVoidMeshes detects a change the id list cannot see", () => {
   it("remounts when the ids match but the order does not", () => {
     const low = makeVoidRecord("A|2.00:v0:1.50", 1.5, 0.7);
     const high = makeVoidRecord("A|2.00:v1:2.20", 2.2, 0.4);
-    syncVoidMeshes({ voidsRoot, voids: [low, high] });
+    syncVoidMeshes({ voidsRoot, voids: [low, high], room: L_ROOM });
 
-    syncVoidMeshes({ voidsRoot, voids: [high, low] });
+    syncVoidMeshes({ voidsRoot, voids: [high, low], room: L_ROOM });
 
     expect(voidsRoot.children[0]?.userData["voidId"]).toBe(high.id);
   });
@@ -469,23 +472,24 @@ describe("syncVoidMeshes detects a change the id list cannot see", () => {
       field === "id"
         ? { ...before, id: "A|2.00:v0:1.71" }
         : { ...before, [field]: before[field] + 0.05 };
-    syncVoidMeshes({ voidsRoot, voids: [before] });
+    syncVoidMeshes({ voidsRoot, voids: [before], room: L_ROOM });
     const mountedMesh = voidsRoot.children[0];
 
-    syncVoidMeshes({ voidsRoot, voids: [after] });
+    syncVoidMeshes({ voidsRoot, voids: [after], room: L_ROOM });
 
     expect(voidsRoot.children[0]).not.toBe(mountedMesh);
   });
 
   it("does not churn on a span change, which no mounted mesh reads", () => {
     const before = makeVoidRecord("A|2.00:v0:1.70", 1.7, 0.5);
-    syncVoidMeshes({ voidsRoot, voids: [before] });
+    syncVoidMeshes({ voidsRoot, voids: [before], room: L_ROOM });
     const mountedMesh = voidsRoot.children[0];
     const boxBefore = new THREE.Box3().setFromObject(voidsRoot).clone();
 
     syncVoidMeshes({
       voidsRoot,
       voids: [{ ...before, spanY0: 0.86, spanH: 1.74 }],
+      room: L_ROOM,
     });
 
     expect(voidsRoot.children[0]).toBe(mountedMesh);
@@ -493,11 +497,19 @@ describe("syncVoidMeshes detects a change the id list cannot see", () => {
   });
 
   it("disposes a replaced void's own materials and nothing shared", () => {
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v0", 1.5, 0.4)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v0", 1.5, 0.4)],
+      room: L_ROOM,
+    });
     const owned = materialsOf(voidsRoot);
     const disposed = recordDisposals();
 
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v1", 2.2, 0.4)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v1", 2.2, 0.4)],
+      room: L_ROOM,
+    });
 
     expect(owned.length).toBeGreaterThan(0);
     for (const material of owned)

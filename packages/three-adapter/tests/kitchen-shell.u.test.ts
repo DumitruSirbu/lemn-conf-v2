@@ -34,8 +34,8 @@ import {
   type RecordedShellChild,
 } from "./support/non-u-shells-before-wall-c.js";
 import { describeStructure } from "./support/structure.js";
+import { OCCURRED_AT } from "./support/u-scene.js";
 
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 /** Ruled fixed at 300 mm and written out here rather than imported, as the neighbouring shell suites
  *  do: a constant read from the module under test would agree with itself. */
 const CORNER_OVERHANG_M = 0.3;

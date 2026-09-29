@@ -15,17 +15,13 @@
 // - picking from a side preset in a real scene: past a cut-away wall's body **and** its voids, to the
 //   looked-at wall's own void.
 import {
-  buildKitchenLBodyCatalog,
   buildUShellDesign,
   deriveRecordedColumns,
-  derivePlacementRecords,
   recomputeVoids,
   toMetres,
   type Design,
-  type DesignPlacement,
   type DesignRoom,
   type DesignWall,
-  type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -45,8 +41,13 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import {
+  acceptedU,
+  OCCURRED_AT,
+  recordsOf,
+  seated,
+} from "./support/u-scene.js";
 
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 const CABINET_DEPTH_MM = 600;
 /** ADR 0108 H2's measured deepest floor bodies (`fridge-free-700` at 600, `base-hob-oven` at 700),
  *  plus 7H's 50 mm clearance (ADR 0132 A2). **A deliberate independent pin**: the source reads these
@@ -60,17 +61,6 @@ const EYE_HEIGHT_M = 2;
 beforeAll(() => {
   installHeadlessDocument();
 });
-
-function acceptedU(
-  widthMm: number,
-  depthMm: number,
-  wallCMm: number,
-): DesignRoom {
-  return buildUShellDesign({
-    room: { shape: "U", widthMm, depthMm, wallCMm, heightMm: 2600 },
-    occurredAt: OCCURRED_AT,
-  }).room;
-}
 
 // ------------------------------------------------------------------------------------------------
 // The cut set's edges.
@@ -209,73 +199,6 @@ interface Scene {
   readonly voidsRoot: THREE.Group;
 }
 
-function measuredRearOverhangM(
-  kit: Kit,
-  buildId: string,
-  heightMm: number,
-): number {
-  const probeRoom: DesignRoom = {
-    shape: "L",
-    widthMm: 3560,
-    depthMm: 2920,
-    heightMm: 2600,
-  };
-  const records = derivePlacementRecords(
-    {
-      ...buildUShellDesign({
-        room: acceptedU(3000, 3000, 3000),
-        occurredAt: OCCURRED_AT,
-      }),
-      room: probeRoom,
-      placements: [
-        {
-          id: "probe",
-          wall: "A",
-          alongMm: 1000,
-          y0Mm: 0,
-          body: { buildId, widthMm: 600, heightMm },
-        },
-      ],
-    },
-    buildKitchenLBodyCatalog(CABINET_DEPTH_MM),
-  );
-  const root = new THREE.Group();
-  syncSolidBodies({ kit, solidsRoot: root, records, room: probeRoom });
-  const body = required(root.children[0], "the probe body");
-  body.position.set(0, 0, 0);
-  body.updateWorldMatrix(true, true);
-  return -new THREE.Box3().setFromObject(body).min.z;
-}
-
-function seated(
-  kit: Kit,
-  spec: Omit<DesignPlacement, "body"> & {
-    readonly buildId: string;
-    readonly heightMm: number;
-  },
-): DesignPlacement {
-  const rearM = measuredRearOverhangM(kit, spec.buildId, spec.heightMm);
-  return {
-    id: spec.id,
-    wall: spec.wall,
-    alongMm: spec.alongMm,
-    y0Mm: spec.y0Mm,
-    body: {
-      buildId: spec.buildId,
-      widthMm: 600,
-      heightMm: spec.heightMm,
-      seatDepthMm: Math.round(2 * rearM * 1000),
-    },
-  };
-}
-
-function recordsOf(design: Design): PlacementRecord[] {
-  return derivePlacementRecords(
-    design,
-    buildKitchenLBodyCatalog(CABINET_DEPTH_MM),
-  );
-}
-
 function syncScene(scene: Scene, design: Design): void {
   const records = recordsOf(design);
   syncSolidBodies({
@@ -292,6 +215,7 @@ function syncScene(scene: Scene, design: Design): void {
   syncVoidMeshes({
     voidsRoot: scene.voidsRoot,
     voids: recomputeVoids(records, columns),
+    room: design.room,
   });
   scene.stageRoot.updateMatrixWorld(true);
 }
