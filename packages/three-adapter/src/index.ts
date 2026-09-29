@@ -112,6 +112,8 @@ export {
   type VoidMesh,
 } from "./void-mesh.js";
 
+export { applyCutaway, cutawayWallsFor } from "./cutaway.js";
+
 export {
   climbToSelectable,
   createPickingRaycaster,

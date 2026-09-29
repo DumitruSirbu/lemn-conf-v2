@@ -416,7 +416,7 @@ export function findCameraPresetForRoom(
 
 function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
   const target = targetInRoom(reference.id, room);
-  const direction = viewingDirectionOf(reference);
+  const direction = viewingDirectionIn(reference, room);
   return {
     id: reference.id,
     position: [
@@ -431,10 +431,10 @@ function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
 /** Where each **reference** preset looks. Wall A runs along +x from the corner and wall B along +z,
  *  so the middle of each is half its entered length; the eye is at half the kitchen's height. The
  *  overview looks at the middle of the drawn floor, whose depth is the farther of the side walls, so
- *  a U's overview holds all three runs (D13) and an L's is exactly what it was. A `switch` over the
- *  union rather than a table, so a further preset cannot be added without deciding this. `wallC`
- *  shares wall B's arm because it is only ever framed through wall B's reference view, on the
- *  stand-in room `(W, C)` (`wallCPresetsOf`), and then reflected. */
+ *  a U's overview is centred on all three runs (D13, A3) and an L's is exactly what it was. A
+ *  `switch` over the union rather than a table, so a further preset cannot be added without deciding
+ *  this. `wallC` shares wall B's arm because it is only ever framed through wall B's reference view,
+ *  on the stand-in room `(W, C)` (`wallCPresetsOf`), and then reflected. */
 function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
   const widthM = toMetres(room.widthMm);
   const eyeM = KITCHEN_TOP_M / 2;
@@ -447,6 +447,21 @@ function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
     case "wallC":
       return [0, eyeM, toMetres(room.depthMm) / 2];
   }
+}
+
+/** The direction a preset stands in for this room. **A U's overview looks in from its open side**
+ *  (ADR 0132 Amendment A3): the U is open on +z only, so its eye stands on the centre line, at
+ *  `x = W/2`, looking along −z, where every run's fronts face it. Same distance and same elevation
+ *  as the reference — only the horizontal bearing is turned, so the kitchen's own angle is kept.
+ *  Every other preset, and an L's and a straight room's overview, keeps the reference's direction. */
+function viewingDirectionIn(
+  reference: CameraPreset,
+  room: DesignRoom,
+): Vector3Tuple {
+  const direction = viewingDirectionOf(reference);
+  if (room.shape !== "U" || reference.id !== "overview") return direction;
+  const [x, elevation, z] = direction;
+  return [0, elevation, Math.hypot(x, z)];
 }
 
 /** The direction the reference stands in, as a unit vector. Read off `CAMERA_PRESETS` rather than

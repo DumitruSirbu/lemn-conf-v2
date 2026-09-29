@@ -1,9 +1,13 @@
 // M7B wave U4 slice S3 (D13; acceptance criterion 4; §11 row 21): a U's four camera presets.
 //
-// `wallC` is `wallB` reflected in x = W/2 with C in place of B, `overview` looks at the middle of the
-// drawn floor (the farther of the side walls, so all three runs are in it), and the L and the
-// straight room offer exactly what they offered before. The U rooms are ones the product accepts:
-// each is round-tripped through the domain's own `buildUShellDesign` before it is measured.
+// `wallC` is `wallB` reflected in x = W/2 with C in place of B. `overview` looks at the middle of the
+// drawn floor (the farther of the side walls) from the U's open side: on the centre line, looking
+// along -z (ADR 0132 Amendment A3). Its horizontal reach is not asserted beyond wall A's middle, and
+// no preset is asked to hold a whole wall: at 390 x 844 the frame is about 1.6 m wide (A4). The L and
+// the straight room offer exactly what they offered before (`stage.non-u-presets.test.ts`). The U
+// rooms are ones the product accepts: each is round-tripped through the domain's own
+// `buildUShellDesign` before it is measured.
+import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   buildUShellDesign,
   type DesignRoom,
@@ -55,8 +59,18 @@ const MAXIMUM_U = acceptedU({
   wallCMm: 6300,
   heightMm: 3900,
 });
+/** AC4 (c)'s five rooms: the engine's minimum U, the approved minimum wall A with the shortest
+ *  sides, a symmetric 3 m U, a middle U with unequal sides, and the maximum. */
 const SAMPLED_US = [
   ["minimum", MINIMUM_U],
+  [
+    "2700 x 1600 x 1600",
+    acceptedU({ ...MIDDLE_U, widthMm: 2700, depthMm: 1600, wallCMm: 1600 }),
+  ],
+  [
+    "3000 x 3000 x 3000",
+    acceptedU({ ...MIDDLE_U, widthMm: 3000, depthMm: 3000, wallCMm: 3000 }),
+  ],
   ["middle", MIDDLE_U],
   ["maximum", MAXIMUM_U],
 ] as const;
@@ -169,7 +183,10 @@ describe("wallC is wallB reflected in x = W/2 with C in place of B (D13)", () =>
   });
 });
 
-describe("overview holds all three runs (D13)", () => {
+describe("overview looks in from the U's open side, on the centre line (ADR 0132 A3)", () => {
+  /** A front's plane, from its wall: the deepest floor body (ADR 0108 H2, 742 mm at depth 600). */
+  const DEEPEST_FRONT_M = 0.742;
+
   it.each(SAMPLED_US)(
     "%s U: looks at the middle of the drawn floor, depth max(B, C) / 2",
     (_name, room) => {
@@ -180,6 +197,51 @@ describe("overview holds all three runs (D13)", () => {
 
       expect(target[0]).toBeCloseTo(metres(room.widthMm) / 2, 9);
       expect(target[2]).toBeCloseTo(farthestWallM / 2, 9);
+    },
+  );
+
+  it.each(SAMPLED_US)(
+    "%s U: stands at x = W / 2 and looks along -z: the eye is on the centre line, on the open side",
+    (_name, room) => {
+      const { position, target } = presetOf("overview", room);
+
+      expect(position[0]).toBeCloseTo(metres(room.widthMm) / 2, 9);
+      expect(position[2]).toBeGreaterThan(target[2]);
+    },
+  );
+
+  it.each(SAMPLED_US)(
+    "%s U: keeps an L's distance and elevation: only the bearing is turned",
+    (_name, room) => {
+      const uOverview = presetOf("overview", room);
+      const lOverview = presetOf("overview", {
+        ...L_ROOM,
+        heightMm: room.heightMm,
+      });
+      const offsetOf = (preset: CameraPreset) =>
+        new THREE.Vector3(...preset.position).sub(
+          new THREE.Vector3(...preset.target),
+        );
+
+      const u = offsetOf(uOverview);
+      const l = offsetOf(lOverview);
+
+      expect(u.length()).toBeCloseTo(l.length(), 9);
+      expect(u.y).toBeCloseTo(l.y, 9);
+    },
+  );
+
+  it.each(SAMPLED_US)(
+    "%s U: every run's fronts face the eye: it is in front of wall A, wall B and wall C's deepest body",
+    (_name, room) => {
+      const [x, , z] = presetOf("overview", room).position;
+
+      expect(z, "in front of wall A's fronts").toBeGreaterThan(DEEPEST_FRONT_M);
+      expect(x, "in front of wall B's fronts").toBeGreaterThan(DEEPEST_FRONT_M);
+      expect(
+        metres(room.widthMm) - x,
+        "in front of wall C's fronts",
+      ).toBeGreaterThan(DEEPEST_FRONT_M);
     },
   );
 
@@ -296,7 +358,7 @@ describe("§11 row 21 at 390 x 844: the top row stays on screen from every prese
   );
 
   it.each(SAMPLED_US)(
-    "%s U: the overview puts every wall's top row inside the viewport vertically, tap-sized",
+    "%s U: the overview puts every wall's top row inside the viewport vertically, tap-sized, and wall A's middle on screen",
     (_name, room) => {
       const overview = presetOf("overview", room);
       const middles = wallMiddlesOf(room);
@@ -304,6 +366,42 @@ describe("§11 row 21 at 390 x 844: the top row stays on screen from every prese
       for (const wall of ["wallA", "wallB", "wallC"] as const) {
         expectRowOnScreenVertically(topRowAt(overview, middles[wall]), wall);
       }
+      const wallA = topRowAt(overview, middles.wallA);
+      expect(wallA.x, "wall A's middle").toBeGreaterThanOrEqual(0);
+      expect(wallA.x, "wall A's middle").toBeLessThanOrEqual(PHONE.width);
+    },
+  );
+
+  const approvedU = fc
+    .record({
+      widthMm: fc.integer({ min: 2700, max: 6000 }),
+      depthMm: fc.integer({ min: 1000, max: 6000 }),
+      wallCMm: fc.integer({ min: 1000, max: 6000 }),
+      heightMm: fc.integer({ min: 2200, max: 3900 }),
+    })
+    .map((dimensions): DesignRoom => ({ shape: "U", ...dimensions }));
+
+  propertyTest.prop([approvedU], { numRuns: 250 })(
+    "across the approved U range: each wall preset frames its own wall's top row, and the overview every wall's, tap-sized",
+    (room) => {
+      const middles = wallMiddlesOf(room);
+
+      for (const id of ["wallA", "wallB", "wallC"] as const) {
+        const row = topRowAt(presetOf(id, room), middles[id]);
+        expectRowOnScreenVertically(row, id);
+        expect(row.x, `${id}: middle of its wall`).toBeGreaterThanOrEqual(0);
+        expect(row.x, `${id}: middle of its wall`).toBeLessThanOrEqual(
+          PHONE.width,
+        );
+      }
+      const overview = presetOf("overview", room);
+      for (const wall of ["wallA", "wallB", "wallC"] as const) {
+        expectRowOnScreenVertically(topRowAt(overview, middles[wall]), wall);
+      }
+      expect(topRowAt(overview, middles.wallA).x).toBeGreaterThanOrEqual(0);
+      expect(topRowAt(overview, middles.wallA).x).toBeLessThanOrEqual(
+        PHONE.width,
+      );
     },
   );
 

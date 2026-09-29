@@ -19,6 +19,7 @@ import * as THREE from "three";
 import { transformRelativeTo } from "./relative-transform.js";
 import { isMesh, toMaterials } from "./three-guards.js";
 import { NOOP_RAYCAST } from "./void-mesh.js";
+import { inheritWallTag } from "./wall-tag.js";
 
 /**
  * The mark's own colour, and it is deliberately **not** `SELECTION_HIGHLIGHT_COLOR`.
@@ -96,6 +97,7 @@ export function buildOverflowMark(input: OverflowMarkInput): OverflowMark {
 
   const group = new THREE.Group();
   group.name = "overflow_mark";
+  inheritWallTag(group, input.target);
   group.add(wash);
   group.matrixAutoUpdate = false;
   group.matrix.copy(transformRelativeTo(input.parent, input.target));

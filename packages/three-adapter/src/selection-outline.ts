@@ -27,6 +27,7 @@ import type { SelectionKind } from "./picking.js";
 import { transformRelativeTo } from "./relative-transform.js";
 import { isMesh, toMaterials } from "./three-guards.js";
 import { NOOP_RAYCAST } from "./void-mesh.js";
+import { inheritWallTag } from "./wall-tag.js";
 
 /**
  * Signal red, chosen for contrast against the **declared** palette: the warm paper/stage background
@@ -214,6 +215,7 @@ export function buildSelectionOutline(
 
   const group = new THREE.Group();
   group.name = "selection_outline";
+  inheritWallTag(group, input.target);
   group.add(occludedLine, casingLine, visibleLine);
   group.matrixAutoUpdate = false;
   group.matrix.copy(transformRelativeTo(input.parent, input.target));
