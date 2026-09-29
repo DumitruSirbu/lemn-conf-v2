@@ -2,7 +2,9 @@
 // heights 2200, 2600 and 3900, `generateKitchen` either refuses exactly the rooms U3a's plan refuses,
 // or composes a design that: breaks none of the plan's rules (`uPlanFindings`, re-derived from the room
 // and the runs), overflows nowhere, is deterministic, replays from its own log, carries exactly one
-// oven, leaves under 600 mm bare (under 300 mm on wall A), and puts every body where the plan put it.
+// oven, leaves under 600 mm bare (under 300 mm on wall A), puts every body where the plan put it, and
+// keeps the U's rules for its uppers: one hood over the hob, no upper over a full-height body or a
+// corner zone, wall A base-only in a large U, and an upper over every other base.
 // The composed count is checked so the property cannot pass by landing on refusals.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
@@ -20,6 +22,7 @@ import {
   spanMismatchesOf,
   uPlanOf,
 } from "../support/generated-u.js";
+import { upperFindings } from "../support/generated-u-uppers.js";
 import { engineUWallBounds } from "../support/room-input.js";
 import { uPlanFindings } from "../support/u-plan-invariants.js";
 
@@ -61,6 +64,7 @@ function checkGeneratedU(room: DesignRoom): "composed" | "refused" {
 
   expect(uPlanFindings({ room, runs, plan }), label).toStrictEqual([]);
   expect(findOverflowingPlacementIds(design), label).toStrictEqual([]);
+  expect(upperFindings(room, result), label).toStrictEqual([]);
   expect(spanMismatchesOf(result), label).toStrictEqual([]);
   expect(
     design.placements.filter((placement) =>

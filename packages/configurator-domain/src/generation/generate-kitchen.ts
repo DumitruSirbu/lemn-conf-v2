@@ -58,6 +58,12 @@ import {
   type WidthBoundMm,
 } from "./tall-end-rule.js";
 import { planUKitchenComposition } from "./u-composition.js";
+import {
+  isAnUpperOwedOver,
+  upperBuildIdOver,
+  upperRoleOver,
+  WALL_ROW_Y0_MM,
+} from "./upper-policy.js";
 
 /** What a generated kitchen was composed from: the L's or the straight room's two-wall plan, or the
  *  U's three-wall one. Every field `generateKitchen` reads is common to both. */
@@ -145,9 +151,6 @@ interface GenerationWorld {
 }
 
 const EMPTY_PARAMS = {} as const;
-const WALL_ROW_Y0_MM = 1500;
-const WALL_CABINET_BUILD_ID = "wall-cabinet";
-const HOOD_BUILD_ID = "hood";
 
 /** The shell copies the reference kitchen's settings whatever room it is built for
  *  (`shell-design.ts`), so the catalogue the plan reads the block's declared sizes from is knowable
@@ -446,11 +449,16 @@ function compose(args: {
   // Every base is settled before any upper is attempted. A refusal is atomic in `insertBody`, so it
   // is logged and the base beneath it remains byte-identical.
   for (const planned of plannedBases) {
-    if (risesIntoWallRow(args.catalog, planned.buildId)) continue;
+    if (
+      !isAnUpperOwedOver(planned, {
+        room: args.input.room,
+        catalog: args.catalog,
+      })
+    )
+      continue;
     const baseId = placedBaseIds.get(planned.id);
-    const upperBuildId =
-      planned.role === "hob" ? HOOD_BUILD_ID : WALL_CABINET_BUILD_ID;
-    const upperRole = planned.role === "hob" ? "hood" : "upper";
+    const upperBuildId = upperBuildIdOver(planned);
+    const upperRole = upperRoleOver(planned);
     const upperId = `${upperRole}:${planned.id}`;
     if (!baseId) {
       steps.push(
@@ -479,6 +487,7 @@ function compose(args: {
   if (!hasMinimum)
     return refused(args.plan, args.input.occurredAt, steps, commands);
 
+  if (args.input.room.shape === "U") assertAHoodStandsOverTheHob(steps);
   assertExactlyOneOven(world.design);
   assertGeneratedDesign(world.design, args.catalog);
   return {
@@ -569,20 +578,6 @@ function insertPlannedBase(
     commands: logged,
     ...(pendingResize === undefined ? {} : { pendingResize }),
   };
-}
-
-/** ADR 0110 Amendment E7: an upper is attempted above a base only where the body's declared top is
- *  at or below the wall row's floor. A body that reaches past it — the fridge today, a full-height
- *  column tomorrow — leaves no opening there, and reading the catalogue's declared height rather
- *  than a list of role names means a new full-height body needs no second place to be remembered. */
-function risesIntoWallRow(catalog: BodyCatalog, buildId: string): boolean {
-  const declaredTopMm = catalog.get(buildId)?.nominalHeightMm;
-  if (declaredTopMm === undefined) {
-    throw new Error(
-      `generateKitchen: ${buildId} declares no height, so no upper can be ruled above it`,
-    );
-  }
-  return declaredTopMm > WALL_ROW_Y0_MM;
 }
 
 function insertUpper(
@@ -768,6 +763,17 @@ function assertExactlyOneOven(design: Design): void {
   if (ovenCount === 1) return;
   throw new Error(
     `generateKitchen: a generated kitchen carries exactly one oven and this one carries ${String(ovenCount)}`,
+  );
+}
+
+/** ADR 0110 *N3 revised* 11 (RQ7): the hood over the hob is mandatory in every U, and stays where a
+ *  large U's back wall is otherwise base-only. A refused hood ships a hob with nothing over it, so it
+ *  throws as a missing oven does. */
+function assertAHoodStandsOverTheHob(steps: readonly GenerationStep[]): void {
+  const hood = steps.find((step) => step.role === "hood");
+  if (hood?.status === "placed") return;
+  throw new Error(
+    "generateKitchen: a U's hob has no hood over it, and the hood is mandatory in every U",
   );
 }
 
