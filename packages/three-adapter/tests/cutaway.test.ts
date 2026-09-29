@@ -214,6 +214,135 @@ describe("cutawayWallsFor over the approved U range", () => {
   });
 });
 
+describe("cutawayWallsFor: wall A is cut like the others, from its own plane z = 0 and along its run x = 0..W (A2)", () => {
+  const widthM = U_ROOM.widthMm / 1000;
+
+  it("cuts A for an eye inside its zone, level with its run", () => {
+    expect(cutawayWallsFor([1.5, 1.3, 0.3], U_ROOM, 600)).toEqual(["A"]);
+    expect(cutawayWallsFor([1.5, 1.3, 0.79], U_ROOM, 600)).toEqual(["A"]);
+    expect(cutawayWallsFor([1.5, 1.3, 0.795], U_ROOM, 600)).toEqual([]);
+  });
+
+  it("cuts A for an eye behind its plane, level with its run", () => {
+    expect(cutawayWallsFor([1.5, 1.3, -2], U_ROOM, 600)).toEqual(["A"]);
+  });
+
+  it("reads A's zone from the cabinet depth: an eye at z = 0.795 is clear at 600 and inside at 700", () => {
+    expect(cutawayWallsFor([1.5, 1.3, 0.795], U_ROOM, 600)).toEqual([]);
+    expect(cutawayWallsFor([1.5, 1.3, 0.795], U_ROOM, 700)).toEqual(["A"]);
+  });
+
+  it("cuts A only within its run: x = 0 to W", () => {
+    expect(cutawayWallsFor([-0.5, 1.3, 0.3], U_ROOM, 600)).not.toContain("A");
+    expect(
+      cutawayWallsFor([widthM + 0.5, 1.3, 0.3], U_ROOM, 600),
+    ).not.toContain("A");
+    expect(cutawayWallsFor([0.1, 1.3, 0.3], U_ROOM, 600)).toContain("A");
+    expect(cutawayWallsFor([widthM - 0.1, 1.3, 0.3], U_ROOM, 600)).toContain(
+      "A",
+    );
+  });
+
+  it("cuts A together with a side wall where the eye stands in both zones, in A, B, C order", () => {
+    expect(cutawayWallsFor([0.3, 1.3, 0.3], U_ROOM, 600)).toEqual(["A", "B"]);
+    expect(cutawayWallsFor([widthM - 0.3, 1.3, 0.3], U_ROOM, 600)).toEqual([
+      "A",
+      "C",
+    ]);
+  });
+
+  it("bounds a side run at both ends: an eye behind wall A (z < 0) is not level with wall B or wall C", () => {
+    expect(cutawayWallsFor([-1, 1.3, -2], U_ROOM, 600)).toEqual([]);
+    expect(cutawayWallsFor([widthM + 1, 1.3, -2], U_ROOM, 600)).toEqual([]);
+    expect(cutawayWallsFor([0.3, 1.3, -0.1], U_ROOM, 600)).toEqual(["A"]);
+    expect(cutawayWallsFor([-1, 1.3, 0], U_ROOM, 600)).toEqual(["B"]);
+  });
+
+  it.each([
+    ["L", { shape: "L", widthMm: 3700, depthMm: 3400, heightMm: 2600 }],
+    [
+      "straight",
+      { shape: "linear", widthMm: 3700, depthMm: 3400, heightMm: 2600 },
+    ],
+  ] as const)(
+    "%s: an eye in or behind wall A's zone still cuts nothing",
+    (_n, room) => {
+      expect(cutawayWallsFor([1.5, 1.3, 0.3], room, 600)).toEqual([]);
+      expect(cutawayWallsFor([1.5, 1.3, -2], room, 600)).toEqual([]);
+    },
+  );
+});
+
+describe("the presets' cut sets are what they were before wall A joined the test (A2 pin)", () => {
+  /** The rule as it stood at the U4 fix: walls B and C only, a side run level up to its end. Every
+   *  preset's eye has z > 0, so the added lower bound cannot change it. */
+  function sideWallsOnlyCutSet(
+    eye: Vector3Tuple,
+    room: DesignRoom,
+    depth: CabinetDepthMm,
+  ): DesignWall[] {
+    const [x, , z] = eye;
+    const cut: DesignWall[] = [];
+    if (z <= room.depthMm / 1000 && x < zoneM(depth)) cut.push("B");
+    if (
+      z <= (room.wallCMm ?? 0) / 1000 &&
+      room.widthMm / 1000 - x < zoneM(depth)
+    )
+      cut.push("C");
+    return cut;
+  }
+
+  const cutSetOf = (room: DesignRoom, id: CameraPresetId): DesignWall[] => {
+    const preset = required(
+      cameraPresetsForRoom(room).find((p) => p.id === id),
+      id,
+    );
+    return [...cutawayWallsFor(preset.position, room, 600)];
+  };
+  const uRoom = (widthMm: number, depthMm: number, wallCMm: number) =>
+    ({ shape: "U", widthMm, depthMm, wallCMm, heightMm: 2600 }) as const;
+
+  it.each([
+    ["3000 x 3000 x 3000", uRoom(3000, 3000, 3000), [[], [], ["C"], ["B"]]],
+    ["2700 x 1600 x 1600", uRoom(2700, 1600, 1600), [[], [], ["C"], ["B"]]],
+    ["4500 x 3000 x 3600", uRoom(4500, 3000, 3600), [[], [], ["C"], ["B"]]],
+    ["6000 x 3000 x 3000", uRoom(6000, 3000, 3000), [[], [], [], []]],
+  ] as const)(
+    "%s: overview, wallA, wallB and wallC cut %j",
+    (_name, room, expected) => {
+      const ids = ["overview", "wallA", "wallB", "wallC"] as const;
+
+      expect(ids.map((id) => cutSetOf(room, id))).toEqual(expected);
+    },
+  );
+
+  propertyTest.prop(
+    [
+      fc.record({
+        shape: fc.constant("U" as const),
+        widthMm: fc.integer({ min: 2700, max: 6000 }),
+        depthMm: fc.integer({ min: 1000, max: 6000 }),
+        wallCMm: fc.integer({ min: 1000, max: 6000 }),
+        heightMm: fc.integer({ min: 2200, max: 3900 }),
+      }),
+      fc.constantFrom<CabinetDepthMm>(600, 700),
+    ],
+    { numRuns: 300 },
+  )(
+    "across the approved range every preset's cut set equals the side-walls-only rule's, and never holds A",
+    (room, depth) => {
+      for (const preset of cameraPresetsForRoom(room)) {
+        const cutAway = [...cutawayWallsFor(preset.position, room, depth)];
+
+        expect(cutAway, preset.id).toEqual(
+          sideWallsOnlyCutSet(preset.position, room, depth),
+        );
+        expect(cutAway, preset.id).not.toContain("A");
+      }
+    },
+  );
+});
+
 describe("applyCutaway", () => {
   interface Stage {
     readonly kit: Kit;
@@ -434,6 +563,29 @@ describe("applyCutaway", () => {
     applyCutaway(stage.solidsRoot, stage.voidsRoot, ["B", "C"]);
 
     expect(shell.visible).toBe(true);
+  });
+
+  it('under ["A"] both X-legs, wall A\'s outline and nothing on B or C are hidden', () => {
+    const stage = mountStage();
+
+    applyCutaway(stage.solidsRoot, stage.voidsRoot, ["A"]);
+
+    for (const id of ["p25", "right-p25"]) {
+      const xLeg = required(
+        stage.solidsRoot.children.find((c) => c.userData["placementId"] === id),
+        id,
+      );
+      expect(wallOf(xLeg), id).toBe("A");
+      expect(xLeg.visible, id).toBe(false);
+    }
+    for (const wall of ["B", "C"] as const) {
+      for (const object of objectsOn(stage, wall)) {
+        expect(isDrawn(object), `wall ${wall}: ${object.name}`).toBe(true);
+      }
+    }
+    for (const object of objectsOn(stage, "A")) {
+      expect(isDrawn(object), object.name || "a wall-A body").toBe(false);
+    }
   });
 
   it("works when the two roots have no common parent yet", () => {
