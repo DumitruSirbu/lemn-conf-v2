@@ -19,7 +19,7 @@ export interface RecordedShellChild {
 }
 
 /** Keyed by room: `L` and `linear` are 3700 x 3400 x 2600, `LOdd` is an L of 2313 x 4127 x 2401. */
-export const SHELLS_AT_30A4EA1: Readonly<
+export const NON_U_SHELLS_BEFORE_WALL_C: Readonly<
   Record<"L" | "linear" | "LOdd", readonly RecordedShellChild[]>
 > = {
   L: [

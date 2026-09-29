@@ -5,7 +5,8 @@
 //
 // - the zone's edge to a micrometre at both declared depths, read against ADR 0108 H2's measured
 //   742 and 748 mm (never through `occupiedDepthOfEntryM`, which is what the code reads);
-// - the run's edges: the eye exactly at a run's end, a millimetre past it, and B ≠ C both ways;
+// - the run's ends: the eye exactly at a run's end, a millimetre past it and far past it, and B ≠ C
+//   both ways. There is no run bound (A8.1): a wall is cut wherever along it the eye is;
 // - overlays built while their target is already cut away, and a re-sync after a cutaway: nothing may
 //   be left in the wrong visible state once `applyCutaway` runs again, and a restore must show all of
 //   it;
@@ -48,7 +49,9 @@ import { required } from "./support/required.js";
 const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 const CABINET_DEPTH_MM = 600;
 /** ADR 0108 H2's measured deepest floor bodies (`fridge-free-700` at 600, `base-hob-oven` at 700),
- *  plus 7H's 50 mm clearance (ADR 0132 A2). */
+ *  plus 7H's 50 mm clearance (ADR 0132 A2). **A deliberate independent pin**: the source reads these
+ *  through `occupiedDepthOfEntryM` and `EYE_CLEARANCE_M`, and a test that read them the same way could
+ *  not notice that path going wrong. The 0.05 is written here for the same reason. */
 const ZONE_M = { 600: 0.742 + 0.05, 700: 0.748 + 0.05 } as const;
 /** A micrometre: well above the float noise of a millimetre sum, well below any real distance. */
 const MICROMETRE_M = 1e-6;
@@ -137,14 +140,14 @@ describe("cutawayWallsFor at the zone's edge, to a micrometre, at both declared 
   );
 });
 
-describe("cutawayWallsFor at a run's end, with B ≠ C both ways", () => {
+describe("cutawayWallsFor at and past a run's end, with B ≠ C both ways (A8.1: no run bound)", () => {
   const cases = [
     ["B < C", acceptedU(3000, 1000, 6000)],
     ["B > C", acceptedU(3000, 6000, 1000)],
   ] as const;
 
   it.each(cases)(
-    "%s: an eye behind a wall is cut exactly up to that wall's own run end, and not a millimetre past it",
+    "%s: an eye behind a wall is cut at the wall's own run end, a millimetre past it and far past it",
     (_name, room) => {
       const widthM = room.widthMm / 1000;
       const runEndM: Record<"B" | "C", number> = {
@@ -154,38 +157,36 @@ describe("cutawayWallsFor at a run's end, with B ≠ C both ways", () => {
       const behind: Record<"B" | "C", number> = { B: -1, C: widthM + 1 };
 
       for (const wall of ["B", "C"] as const) {
-        const atEnd: Vector3Tuple = [behind[wall], EYE_HEIGHT_M, runEndM[wall]];
-        const pastEnd: Vector3Tuple = [
-          behind[wall],
-          EYE_HEIGHT_M,
-          runEndM[wall] + 0.001,
-        ];
+        for (const beyondEndM of [0, 0.001, 3]) {
+          const eye: Vector3Tuple = [
+            behind[wall],
+            EYE_HEIGHT_M,
+            runEndM[wall] + beyondEndM,
+          ];
 
-        expect(cutawayWallsFor(atEnd, room, CABINET_DEPTH_MM), wall).toEqual([
-          wall,
-        ]);
-        expect(cutawayWallsFor(pastEnd, room, CABINET_DEPTH_MM), wall).toEqual(
-          [],
-        );
+          expect(
+            cutawayWallsFor(eye, room, CABINET_DEPTH_MM),
+            `${wall} + ${String(beyondEndM)}`,
+          ).toEqual([wall]);
+        }
       }
     },
   );
 
   it.each(cases)(
-    "%s: each side preset cuts exactly the far wall when its eye is level with the far run, and nothing otherwise",
+    "%s: each side preset cuts the far wall exactly when its eye is in or behind the far wall's zone, level with the run or not",
     (_name, room) => {
       const widthM = room.widthMm / 1000;
       const presets = [
-        ["wallB", "C", required(room.wallCMm, "wallCMm") / 1000],
-        ["wallC", "B", room.depthMm / 1000],
+        ["wallB", "C"],
+        ["wallC", "B"],
       ] as const;
 
-      for (const [id, farWall, farRunM] of presets) {
+      for (const [id, farWall] of presets) {
         const eye = findCameraPresetForRoom(id, room).position;
         const distanceFromFarPlaneM =
           farWall === "C" ? widthM - eye[0] : eye[0];
-        const isInFarZone =
-          eye[2] <= farRunM && distanceFromFarPlaneM < ZONE_M[600];
+        const isInFarZone = distanceFromFarPlaneM < ZONE_M[600];
 
         expect(cutawayWallsFor(eye, room, CABINET_DEPTH_MM), id).toEqual(
           isInFarZone ? [farWall] : [],
