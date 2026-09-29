@@ -45,10 +45,8 @@ const LEAVING: readonly (readonly [string, (page: Page) => Promise<void>])[] = [
     "a tap on the L chip",
     (page) => page.getByTestId("room-shape-chip-L").click(),
   ],
-  [
-    "a tap on the corner",
-    (page) => page.getByTestId("room-corner-right").click(),
-  ],
+  // "A tap on the corner" is not in this list for a U, and was until M7B U5 S1: a U has one hand, so
+  // it draws no corner toggle to tap (Q-U4 (b), ADR 0132 decision 8). The test below holds that.
   [
     "a tap on the inactive Continue",
     (page) => page.getByTestId("room-continue").click({ force: true }),
@@ -73,6 +71,15 @@ for (const locale of LOCALES) {
       await expect(page.getByTestId("room-length-wallB")).toHaveValue("abc");
     });
   }
+
+  test(`draws no corner toggle for a U to leave a field by, in ${locale}`, async ({
+    page,
+  }) => {
+    await dirtyWallB(page, locale);
+
+    await expect(page.getByTestId("room-corner")).toHaveCount(0);
+    await expect(page.getByTestId("room-corner-right")).toHaveCount(0);
+  });
 
   // The sentence is inserted under wall A on pointerdown, before the click. Wall B's help button sits
   // below it and moves down by the sentence's height between the press and the release.

@@ -594,7 +594,8 @@ function sharesItsBarWithAnother(
  * Three arrangements are proved not to meet, and they are tried in this order:
  *
  * 1. **Both inside**, when the gap between the two bars holds both labels each at its widest
- *    (`widestLabelPx`) — frame 1B's own placement for wall B.
+ *    (`widestLabelPx`, which counts a marked wall's reason as well as its length) — frame 1B's own
+ *    placement for wall B.
  * 2. **Both outside**, each on its own bar's outer side, when the box has the room for both there.
  *    B's label then lies wholly left of B's bar and C's wholly right of C's, and B's bar is never
  *    right of C's, so they cannot intersect however narrow the gap.
@@ -710,13 +711,33 @@ const LABEL_FIXED_EM = 3.7;
 /** The widest a digit is set in the screen's face, generously: tabular figures are 0,556 em. */
 const LABEL_DIGIT_EM = 0.6;
 
-/** An upper bound on a wall's length label, from what the label says and never from a measured
- *  string: the text is `{wall} · {millimetres} mm`, so its width is bounded by its digit count times
- *  the line it is set on (`labelLinePx` is the font size, `plan-preview.tsx`'s `--plan-label-line`).
- *  A bound and not a measurement, so it is allowed to be a little wide and never allowed to be narrow. */
+/** The widest a character of a frame-1C reason is set in the screen's face, generously (Latin and
+ *  Cyrillic bold capitals and lower-case are 0,5–0,75 em; the mean over these sentences is well under). */
+const LABEL_CHARACTER_EM = 0.6;
+
+/** **The longest reason a wall's label can be marked with, in characters** — `{wall} {reason}`, in
+ *  either locale: *"B слишком короткая"* is 18. Held to the catalogue by
+ *  `plan-preview-model.facing-labels.test.ts`, which fails if a reason grows past it, so the bound is
+ *  a fact about copy the model checks and does not read. */
+export const PLAN_LABEL_REASON_MAX_CHARACTERS = 18;
+
+/** An upper bound on the text a wall's label can be showing, from what the text says and never from a
+ *  measured string. **It is the wider of the two things the label can read**: the length,
+ *  `{wall} · {millimetres} mm`, bounded by its digit count; and frame 1C's reason
+ *  (`markPlanWalls`), bounded by its character count. Both times the line it is set on
+ *  (`labelLinePx` is the font size, `plan-preview.tsx`'s `--plan-label-line`).
+ *
+ *  **Why the reason is always counted, marked or not.** Marking is a second step that keeps the
+ *  geometry it is given (`markPlanWalls`), so a label placed for its length and later written as a
+ *  reason — 52 px wider in ru at the phone — was already standing where the other wall's label
+ *  reaches (QA, U5). The placement cannot know which walls will be refused, so it leaves room for the
+ *  wider text on every facing wall. A bound and not a measurement, so it is allowed to be a little
+ *  wide and never allowed to be narrow. */
 function widestLabelPx(bar: PlanWallBar, metrics: PlanPreviewMetrics): number {
   const digits = String(bar.lengthMm).length;
-  return (LABEL_FIXED_EM + LABEL_DIGIT_EM * digits) * metrics.labelLinePx;
+  const lengthEm = LABEL_FIXED_EM + LABEL_DIGIT_EM * digits;
+  const reasonEm = PLAN_LABEL_REASON_MAX_CHARACTERS * LABEL_CHARACTER_EM;
+  return Math.max(lengthEm, reasonEm) * metrics.labelLinePx;
 }
 
 /** Every wall but the one leaving the corner down the screen stands on the far side of the drawing. */
