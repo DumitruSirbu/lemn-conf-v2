@@ -56,8 +56,9 @@ function ovenBearingBases(plan: ReturnType<typeof planFor>) {
   );
 }
 
-/** The fridge wall's own gap after the fridge (and its counted bases), or `undefined` when the
- *  fridge was dropped. */
+/** The fridge wall's own gap after a counted fridge, or `undefined` when the fridge was dropped or
+ *  stands at the free end — there the bare remainder beyond it is never a gap to fill (ADR 0110
+ *  N11.1). */
 function fridgeGapMm(
   room: DesignRoom,
   plan: ReturnType<typeof planFor>,
@@ -67,7 +68,9 @@ function fridgeGapMm(
   const fridgeEndMm = basesOn(plan, fridgeWall).find(
     (base) => base.role === "fridge",
   )?.endMm;
-  if (fridgeEndMm === undefined) return undefined;
+  if (fridgeEndMm === undefined || plan.fridgePosition === "free-end") {
+    return undefined;
+  }
   return uShellFloorRuns(room)[fridgeWall].endMm - fridgeEndMm;
 }
 

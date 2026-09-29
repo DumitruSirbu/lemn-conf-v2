@@ -1,7 +1,9 @@
 // M7B U3a AC2 — the model's seven witnesses (ADR 0110 N4′, corrected 2026-09-29 on U3a's
 // stop-and-report, then again on RQ18's answer, and once more by N10.6: only 5000 / 4000 / 3000
-// moved), and the six rooms N10.6 adds. Each room is read exactly as N4′ and N10.6 read it: bodies
-// per wall, from the corner outward. This file is the regression pin `docs/milestones/M7B-u-shaped-
+// moved), the six rooms N10.6 adds, and the rooms ADR 0110 N11.5 moves or pins. Each room is read
+// exactly as N4′ and N10.6 read it: bodies per wall, from the corner outward. The N11.5 rows also
+// pin every body's start and end, because comparing `(role, buildId)` alone is how N11.1's fridge
+// moving by up to 599 mm passed unseen. This file is the regression pin `docs/milestones/M7B-u-shaped-
 // rooms.md` U3a-AC2 asks for; a diff here is either a rule change the architect must adjudicate, or
 // a bug in this plan.
 import { describe, expect, it } from "vitest";
@@ -21,8 +23,13 @@ const DECLARED = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
 );
 
-function uRoom(widthMm: number, depthMm: number, wallCMm: number): DesignRoom {
-  return { shape: "U", widthMm, depthMm, wallCMm, heightMm: 2600 };
+function uRoom(
+  widthMm: number,
+  depthMm: number,
+  wallCMm: number,
+  heightMm = 2600,
+): DesignRoom {
+  return { shape: "U", widthMm, depthMm, wallCMm, heightMm };
 }
 
 function planFor(room: DesignRoom) {
@@ -38,6 +45,27 @@ function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
     .filter((base) => base.wall === wall)
     .sort((left, right) => left.startMm - right.startMm)
     .map((base) => ({ role: base.role, buildId: base.buildId }));
+}
+
+function positionedBasesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
+  return plan.bases
+    .filter((base) => base.wall === wall)
+    .sort((left, right) => left.startMm - right.startMm)
+    .map((base) => ({
+      role: base.role,
+      buildId: base.buildId,
+      startMm: base.startMm,
+      endMm: base.endMm,
+    }));
+}
+
+function body(
+  buildId: string,
+  startMm: number,
+  endMm: number,
+  role = "storage",
+) {
+  return { role, buildId, startMm, endMm };
 }
 
 describe("N4′'s seven witnesses (U3a AC2)", () => {
@@ -156,6 +184,9 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
   });
 
   it("6000 / 6000 / 6000: tie to B, 4 pantries, 5 drawer units — 2 panbank on A, 2 on C, tower at 3 from the corner", () => {
+    // ADR 0110 N11.2 first moved this room (the bottle dropped for a third drawer on A); the owner's
+    // RQ23 answer, "Bottle + drawers", put it back: 1800 mm free after the hob leaves wall A two
+    // drawers behind the bottle. Pinned with positions under N11.2's own describe below.
     const plan = planFor(uRoom(6000, 6000, 6000));
 
     expect(basesOn(plan, "B")).toStrictEqual([
@@ -292,5 +323,202 @@ describe("ADR 0110 N10.6's six added witnesses (U3a AC2)", () => {
       { role: "storage", buildId: "tall-pantry" },
     ]);
     expect(plan.remainderMm.C).toBe(0);
+  });
+});
+
+describe("ADR 0110 N11.1: a free-end fridge stands right after its door storage, the remainder beyond it (U3a AC2)", () => {
+  it("3600 / 2400 / 2000: B is door base 900-1500 and fridge 1500-2200, with 100 mm bare beyond; A and C unchanged", () => {
+    const plan = planFor(uRoom(3600, 2400, 2000));
+
+    expect(positionedBasesOn(plan, "B")).toStrictEqual([
+      body("base-cabinet", 900, 1500),
+      body("fridge-free", 1500, 2200, "fridge"),
+    ]);
+    expect(plan.remainderMm.B).toBe(100);
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      body("base-sink", 900, 1500, "sink"),
+      body("base-dishwasher", 1500, 2100),
+      body("base-3drawer", 2100, 2700, "preparation"),
+    ]);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-hob-oven", 900, 1500, "hob"),
+      body("base-bottle-cargo", 1500, 1800),
+    ]);
+  });
+
+  it("3600 / 2800 / 2800: B is door base 900-1500 and fridge 1500-2200, with 500 mm bare and no pantry beyond it; C unchanged", () => {
+    const plan = planFor(uRoom(3600, 2800, 2800));
+
+    expect(positionedBasesOn(plan, "B")).toStrictEqual([
+      body("base-cabinet", 900, 1500),
+      body("fridge-free", 1500, 2200, "fridge"),
+    ]);
+    expect(plan.remainderMm.B).toBe(500);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-hob-2drawer", 900, 1500, "hob"),
+      body("tall-oven-tower", 1500, 2100),
+      body("tall-pantry", 2100, 2700),
+    ]);
+  });
+
+  it("4000 / 2000 / 2000: B is the fridge alone at 900-1600, with 300 mm bare beyond it", () => {
+    const plan = planFor(uRoom(4000, 2000, 2000));
+
+    expect(positionedBasesOn(plan, "B")).toStrictEqual([
+      body("fridge-free", 900, 1600, "fridge"),
+    ]);
+    expect(plan.remainderMm.B).toBe(300);
+  });
+});
+
+describe("ADR 0110 N11.2 with RQ23: the drawer takes the hob's place where the bottle would leave wall A none, and the bottle stands where a drawer follows it (U3a AC2)", () => {
+  const A_UP_TO_THE_HOB = [
+    body("base-sink", 900, 1500, "sink"),
+    body("base-dishwasher", 1500, 2100),
+    body("base-3drawer", 2100, 2700, "preparation"),
+    body("base-hob-2drawer", 2700, 3300, "hob"),
+  ];
+
+  it("4800 / 4400 / 4400, exactly 600 mm after the hob: the pan drawer stands at 3300-3900 and the bottle is dropped (owner)", () => {
+    const plan = planFor(uRoom(4800, 4400, 4400));
+
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      ...A_UP_TO_THE_HOB,
+      body("base-panbank", 3300, 3900),
+    ]);
+    expect(plan.remainderMm.A).toBe(0);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-panbank", 900, 1500),
+      body("base-3drawer", 1500, 2100),
+      body("base-3drawer", 2100, 2700),
+      body("tall-oven-tower", 2700, 3300),
+      body("base-cabinet", 3300, 3900),
+    ]);
+    expect(plan.remainderMm.C).toBe(400);
+  });
+
+  it("4900 / 4000 / 4000, 700 mm after the hob: the pan drawer takes 3300-3900, no bottle, 100 mm bare", () => {
+    const plan = planFor(uRoom(4900, 4000, 4000));
+
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      ...A_UP_TO_THE_HOB,
+      body("base-panbank", 3300, 3900),
+    ]);
+    expect(plan.remainderMm.A).toBe(100);
+  });
+
+  it("5100 / 2000 / 2000, 900 mm after the hob: the bottle stands, then the pan drawer", () => {
+    const plan = planFor(uRoom(5100, 2000, 2000));
+
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      ...A_UP_TO_THE_HOB,
+      body("base-bottle-cargo", 3300, 3600),
+      body("base-panbank", 3600, 4200),
+    ]);
+    expect(plan.remainderMm.A).toBe(0);
+  });
+
+  it("5400 / 3400 / 3400, 1200 mm after the hob: the bottle stands, then a pan drawer (RQ23: bottle + drawers)", () => {
+    const plan = planFor(uRoom(5400, 3400, 3400));
+
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      ...A_UP_TO_THE_HOB,
+      body("base-bottle-cargo", 3300, 3600),
+      body("base-panbank", 3600, 4200),
+    ]);
+    expect(plan.remainderMm.A).toBe(300);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-panbank", 900, 1500),
+      body("base-3drawer", 1500, 2100),
+      body("base-3drawer", 2100, 2700),
+      body("tall-oven-tower", 2700, 3300),
+    ]);
+  });
+
+  it("6000 / 6000 / 6000, 1800 mm after the hob: the bottle stands, then two pan drawers, with 300 mm bare (RQ23)", () => {
+    const plan = planFor(uRoom(6000, 6000, 6000));
+
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      ...A_UP_TO_THE_HOB,
+      body("base-bottle-cargo", 3300, 3600),
+      body("base-panbank", 3600, 4200),
+      body("base-panbank", 4200, 4800),
+    ]);
+    expect(plan.remainderMm.A).toBe(300);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-3drawer", 900, 1500),
+      body("base-3drawer", 1500, 2100),
+      body("base-cabinet", 2100, 2700),
+      body("tall-oven-tower", 2700, 3300),
+      body("base-cabinet", 3300, 3900),
+      body("base-cabinet", 3900, 4500),
+      body("base-cabinet", 4500, 5100),
+      body("base-cabinet", 5100, 5700),
+    ]);
+    expect(plan.remainderMm.C).toBe(200);
+  });
+});
+
+describe("ADR 0110 N11.3: the sink never leaves wall A (U3a AC2)", () => {
+  it("2399 / 3000 / 3000, 599 mm free on A: refused, minimumMet false", () => {
+    const plan = planFor(uRoom(2399, 3000, 3000));
+
+    expect(plan.minimumMet).toBe(false);
+    expect(plan.bases).toStrictEqual([]);
+  });
+
+  it("2400 / 3000 / 3000, 600 mm free on A: the sink stands at 900-1500, and the rest of the core is on C", () => {
+    const plan = planFor(uRoom(2400, 3000, 3000));
+
+    expect(plan.minimumMet).toBe(true);
+    expect(positionedBasesOn(plan, "A")).toStrictEqual([
+      body("base-sink", 900, 1500, "sink"),
+    ]);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-dishwasher", 900, 1500),
+      body("base-3drawer", 1500, 2100, "preparation"),
+      body("base-hob-oven", 2100, 2700, "hob"),
+    ]);
+    expect(positionedBasesOn(plan, "B")).toStrictEqual([
+      body("base-cabinet", 900, 1500),
+      body("base-cabinet", 1500, 2100),
+      body("fridge-free", 2100, 2800, "fridge"),
+    ]);
+  });
+});
+
+describe("ADR 0110 N11.4: a room lower than the column takes door bases in the fridge gap (U3a AC2)", () => {
+  const FRIDGE_WALL_UP_TO_THE_GAP = [
+    body("base-cabinet", 900, 1500),
+    body("base-cabinet", 1500, 2100),
+    body("fridge-free", 2100, 2800, "fridge"),
+  ];
+
+  it("3600 / 3500 / 2200 at 2199 mm: a door base stands at 2800-3400, and no tall column stands anywhere", () => {
+    const plan = planFor(uRoom(3600, 3500, 2200, 2199));
+
+    expect(positionedBasesOn(plan, "B")).toStrictEqual([
+      ...FRIDGE_WALL_UP_TO_THE_GAP,
+      body("base-cabinet", 2800, 3400),
+    ]);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-hob-oven", 900, 1500, "hob"),
+      body("base-panbank", 1500, 2100),
+    ]);
+    expect(plan.towerPosition).toBeUndefined();
+  });
+
+  it("3600 / 3500 / 2200 at 2200 mm: the pantry stands at 2800-3400 and the tower on C, as in N4′", () => {
+    const plan = planFor(uRoom(3600, 3500, 2200, 2200));
+
+    expect(positionedBasesOn(plan, "B")).toStrictEqual([
+      ...FRIDGE_WALL_UP_TO_THE_GAP,
+      body("tall-pantry", 2800, 3400),
+    ]);
+    expect(positionedBasesOn(plan, "C")).toStrictEqual([
+      body("base-hob-2drawer", 900, 1500, "hob"),
+      body("tall-oven-tower", 1500, 2100),
+    ]);
+    expect(plan.towerPosition).toBe("free-end");
   });
 });

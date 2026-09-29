@@ -196,15 +196,16 @@ describe("the dropped fridge's wall (N9.2)", () => {
 });
 
 describe("the fridge's own count from the corner (N3r 3)", () => {
-  it("stands at the free end with no cabinets from the corner, at 3000 mm or less", () => {
+  it("stands last on its wall, after door storage from the corner, at 3000 mm or less (N11.1)", () => {
     const plan = planFor(uRoom({ depthMm: 3000, wallCMm: 1200 }));
     const onB = basesOn(plan, "B");
     const fridgeIndex = onB.findIndex((base) => base.role === "fridge");
+    const runB = runsOf(plan.room).B;
+    const fridge = onB[fridgeIndex];
 
     expect(fridgeIndex).toBe(onB.length - 1);
-    expect(onB[fridgeIndex]?.endMm).toBe(
-      runsOf(planFor(uRoom({ depthMm: 3000, wallCMm: 1200 })).room).B.endMm,
-    );
+    expect(fridge?.startMm).toBe(runB.startMm + fridgeIndex * 600);
+    expect(runB.endMm - (fridge?.endMm ?? 0)).toBeLessThan(600);
   });
 
   it("stands after exactly 2 storage bases from the corner, at 3001-4000 mm", () => {

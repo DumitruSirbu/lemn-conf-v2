@@ -121,28 +121,27 @@ function fridgeWallLayout(
     : fridgeCountedFromTheCorner(wall, run, n);
 }
 
-/** *N3 revised* 3's short-wall case: the fridge flush at the free end, and door storage filling in
- *  from the corner — `planLeftover`'s own leftover convention, the bare remainder (< 600 mm, A4)
- *  left at the corner, nearest the open end this sub-run is filled from. */
+/** *N3 revised* 3's short-wall case (ADR 0110 N11.1): door storage from the corner, the fridge directly
+ *  after it, and the bare remainder (< 600 mm, A4) beyond the fridge at the free end — the L's own
+ *  convention, where a fridge "at the free end" is the last body before it. That remainder stays bare:
+ *  the pantry gap belongs to a counted position only, so `planUTallLayout` is given no gap here. */
 function fridgeAtTheFreeEnd(
   wall: DesignWall,
   run: UGenerationRun,
 ): FridgeWallLayout {
-  const fridgeStartMm = run.endMm - FRIDGE_PRIORITY.widthMm;
-  const leftover = planLeftover(fridgeStartMm - run.startMm);
-  const bases: UPlannedGenerationBase[] = [];
-  let cursorMm = run.startMm + leftover.remainderMm;
-  for (let index = 0; index < leftover.storageCount; index += 1) {
-    bases.push(storageBase(wall, cursorMm, index));
-    cursorMm += STORAGE_BODY_WIDTH_MM;
-  }
-  bases.push(fridgeBase(wall, fridgeStartMm));
-  return { placed: true, bases, position: "free-end" };
+  const { storageCount } = planLeftover(
+    run.endMm - run.startMm - FRIDGE_PRIORITY.widthMm,
+  );
+  return {
+    ...fridgeCountedFromTheCorner(wall, run, storageCount),
+    position: "free-end",
+  };
 }
 
 /** *N3 revised* 3's long-wall case: `n` bases from the corner, then the fridge. The stretch from the
  *  fridge to the free end is deliberately left unfilled here — S2's own gap to tile with
- *  `tall-pantry` columns (*N3 revised* 4), read off this plan's `remainderMm` for the fridge wall. */
+ *  `tall-pantry` columns (*N3 revised* 4), read off this plan's `remainderMm` for the fridge wall.
+ *  `fridgeAtTheFreeEnd` reuses it with the count that leaves a bare remainder under one module. */
 function fridgeCountedFromTheCorner(
   wall: DesignWall,
   run: UGenerationRun,
@@ -299,6 +298,11 @@ function wallALaneFromTheFridgeCorner(
 
 type CoreRunItem = GenerationPriority | GenerationAncillaryRunItem;
 
+/** The sink is the first item and never leaves wall A (*N3 revised* 5, ADR 0110 N11.3, ADR 0108 H3). */
+function isTheSink(item: CoreRunItem): boolean {
+  return item.role === SINK_PRIORITY.role;
+}
+
 function idOf(item: CoreRunItem): string {
   return "id" in item ? item.id : item.role;
 }
@@ -340,7 +344,7 @@ function packBackWallAndOverflow(
   let hasOverflowedOnce = false;
   for (const item of items) {
     if (offsetMm + item.widthMm > lane.capacityMm) {
-      if (hasOverflowedOnce) return NOT_PACKED;
+      if (hasOverflowedOnce || isTheSink(item)) return NOT_PACKED;
       wall = farWall;
       lane = laneFar;
       offsetMm = 0;
@@ -675,6 +679,8 @@ interface RunAfterTheHob {
   readonly farWallBeforeTheTower: readonly UBodyBeforeTheTower[];
   /** The drawer extras standing in run order after the hob, on both walls together. */
   readonly extraCount: number;
+  /** Of `extraCount`, those standing on the hob's own wall. */
+  readonly hobWallExtraCount: number;
 }
 
 interface RunAfterTheHobProblem {
@@ -686,16 +692,24 @@ interface RunAfterTheHobProblem {
   readonly freeAfterTheHobMm: number;
 }
 
-/** The single step deciding whether the bottle stays (N10.3 step 5 (iii), RQ21, owner 2026-09-29):
- *  a drawer cabinet outranks the bottle, so the bottle stays only where the run keeps at least the
- *  drawer count it would have without it. Owner-confirmed on the tall oven's wall (RQ20, RQ21) and,
- *  by the owner's answer of 2026-09-29, on wall A too. To lift it on either wall, change this
- *  function alone. */
-function bottleCostsNoDrawerUnit(
-  extraCountWithBottle: number,
-  extraCountWithoutBottle: number,
-): boolean {
-  return extraCountWithBottle >= extraCountWithoutBottle;
+/** The single step deciding whether the bottle stays. It stays only where it costs no drawer unit the
+ *  owner protects (ADR 0110 N10.3 step 5 (iii), N11.2):
+ *  - the room keeps at least the drawer count it would have without the bottle (RQ21, owner
+ *    2026-09-29: a drawer cabinet outranks the bottle), and
+ *  - the hob's wall is not emptied of drawers by it: where, without the bottle, the wall holds a drawer
+ *    unit after the hob and with it holds none, the drawer takes the place (owner, N11.2: *"if is
+ *    exactly 600 drawer should have priority"*). Where the bottle leaves the wall one drawer or more,
+ *    the bottle stays with the drawers after it (owner, RQ23: *"Bottle + drawers"*).
+ *  To lift either rule, change this function alone. */
+function bottleCostsNoDrawerUnit(args: {
+  readonly withBottle: RunAfterTheHob;
+  readonly withoutBottle: RunAfterTheHob;
+}): boolean {
+  const { withBottle, withoutBottle } = args;
+  const costsTheRoomADrawer = withBottle.extraCount < withoutBottle.extraCount;
+  const emptiesTheHobWall =
+    withoutBottle.hobWallExtraCount >= 1 && withBottle.hobWallExtraCount === 0;
+  return !costsTheRoomADrawer && !emptiesTheHobWall;
 }
 
 function keepTheBottleOnlyIfItCostsNoDrawerUnit(args: {
@@ -704,10 +718,7 @@ function keepTheBottleOnlyIfItCostsNoDrawerUnit(args: {
 }): RunAfterTheHob {
   const { withoutBottle, withBottle } = args;
   if (withBottle === undefined) return withoutBottle;
-  return bottleCostsNoDrawerUnit(
-    withBottle.extraCount,
-    withoutBottle.extraCount,
-  )
+  return bottleCostsNoDrawerUnit({ withBottle, withoutBottle })
     ? withBottle
     : withoutBottle;
 }
@@ -735,6 +746,7 @@ function runAfterAFarWallHob(problem: RunAfterTheHobProblem): RunAfterTheHob {
         ...extraSlotsOn(problem.fit.tallInput.farWall, extraCount),
       ],
       extraCount,
+      hobWallExtraCount: extraCount,
     };
   };
   return keepTheBottleOnlyIfItCostsNoDrawerUnit({
@@ -770,6 +782,7 @@ function runAfterAWallAHob(problem: RunAfterTheHobProblem): RunAfterTheHob {
         farWallExtraCount,
       ),
       extraCount: wallAExtraCount + farWallExtraCount,
+      hobWallExtraCount: wallAExtraCount,
     };
   };
   return keepTheBottleOnlyIfItCostsNoDrawerUnit({
@@ -877,12 +890,23 @@ function tallLayoutInputWithNothingAdded(
     runs: context.runs,
     fridgeWall: fridge.fridgeWall,
     farWall: fridge.farWall,
-    fridgeEndMm: coreBases.find((base) => base.role === "fridge")?.endMm,
+    fridgeEndMm: fridgeGapStartMm(fridge, coreBases),
     overflowBases: coreBases.filter((base) => base.wall === fridge.farWall),
     bodiesBeforeTheTower: [],
     coreSurvivedWhole: !context.coreDropped,
     declared: context.columns,
   };
+}
+
+/** Where the fridge's own gap to the free end starts, or `undefined` when it has none to fill: a dropped
+ *  fridge leaves none (N9.2), and a fridge at the free end leaves a bare remainder under one module
+ *  that stays bare (N11.1). Only a counted fridge (*N3 revised* 4) gets its pantry gap. */
+function fridgeGapStartMm(
+  fridge: FridgePlacement,
+  coreBases: readonly UPlannedGenerationBase[],
+): number | undefined {
+  if (fridge.dropped || fridge.position === "free-end") return undefined;
+  return coreBases.find((base) => base.role === "fridge")?.endMm;
 }
 
 /** The core run plus, once it composes, the tall layout, the one oven, wall A's own A4 fill, the

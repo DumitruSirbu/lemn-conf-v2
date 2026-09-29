@@ -144,6 +144,12 @@ function geometryFindings({ runs, plan }: UPlanContext): readonly string[] {
         findings.push(`bare gap between ${previous.id} and ${base.id}`);
       }
     });
+    const first = onWall[0];
+    if (wall !== "A" && first && first.startMm !== runs[wall].startMm) {
+      findings.push(
+        `bare gap between wall ${wall}'s corner-side run start and ${first.id}`,
+      );
+    }
     const bareMm = plan.remainderMm[wall];
     if (bareMm < 0 || bareMm > MAX_BARE_END_MM) {
       findings.push(`wall ${wall} bare end ${String(bareMm)} mm`);
@@ -176,10 +182,11 @@ function ovenFindings({ plan }: UPlanContext): readonly string[] {
   return findings;
 }
 
-/** *N3 revised* 2-4 and N9.2: the fridge on the wider wall at its count from the corner, only
- *  pantries beyond it, and nothing on that wall ever a drawer unit, the bottle or a core body. A
- *  dropped fridge's wall is door bases from its corner. */
-function fridgeWallFindings({
+/** *N3 revised* 2-4, N9.2 and ADR 0110 N11.1: the fridge on the wider wall at its count from the
+ *  corner, nothing on that wall ever a drawer unit, the bottle or a core body, and past the fridge only
+ *  what the rule allows — pantries after a counted fridge, nothing after a free-end one. A dropped
+ *  fridge's wall is door bases from its corner. */
+export function fridgeWallFindings({
   room,
   runs,
   plan,
@@ -212,33 +219,32 @@ function fridgeWallFindings({
   }
   if (fridge.wall !== wall)
     findings.push(`fridge on ${fridge.wall}, not ${wall}`);
-  findings.push(...fridgePlaceFindings({ room, runs, fridge, wall }));
-  const beyond = onWall.filter((base) => base.startMm >= fridge.endMm);
-  if (beyond.some((base) => base.buildId !== PANTRY)) {
-    findings.push(
-      "something other than a pantry between the fridge and the free end",
-    );
-  }
-  if (
-    beyond.some(
-      (base) => base.widthMm < PANTRY_MIN_MM || base.widthMm > PANTRY_MAX_MM,
-    )
-  ) {
-    findings.push("a fridge-gap pantry outside 400-800 mm");
-  }
-  if (runs[wall].endMm - fridge.endMm >= PANTRY_MIN_MM && beyond.length === 0) {
-    findings.push("a fridge gap of 400 mm or more with no pantry");
-  }
+  const placement = { room, runs, fridge, wall, onWall };
+  const count = basesBeforeTheFridgeFor(placement);
+  findings.push(
+    ...(count === 0
+      ? fridgeAtTheFreeEndFindings(placement)
+      : countedFridgeFindings({ ...placement, count })),
+  );
   return findings;
 }
 
-function fridgePlaceFindings(args: {
+interface FridgePlacement {
   readonly room: DesignRoom;
   readonly runs: URuns;
   readonly fridge: Base;
   readonly wall: DesignWall;
-}): readonly string[] {
-  const { room, runs, fridge, wall } = args;
+  readonly onWall: readonly Base[];
+}
+
+/** *N3 revised* 3: 0 (at the free end) for a wall of 3000 mm or less, 2 for 3001-4000, 3 above, and
+ *  it falls one at a time where the bases and the fridge do not fit the wall's free run. */
+function basesBeforeTheFridgeFor({
+  room,
+  runs,
+  fridge,
+  wall,
+}: FridgePlacement): number {
   const run = runs[wall];
   const lengthMm = enteredMm(room, wall);
   let count = lengthMm <= SHORT_WALL_MAX_MM ? 0 : lengthMm <= 4000 ? 2 : 3;
@@ -247,13 +253,82 @@ function fridgePlaceFindings(args: {
     count * MODULE_MM + fridge.widthMm > run.endMm - run.startMm
   )
     count -= 1;
-  const isAtTheFreeEnd = fridge.endMm === run.endMm;
-  if (count === 0) {
-    return isAtTheFreeEnd ? [] : ["fridge not at the free end"];
+  return count;
+}
+
+/** N11.1, *N3 revised* 3 ("door storage between it and the corner and any bare remainder beyond it"):
+ *  door bases contiguous from the run's start, the fridge last, and under one module bare beyond it
+ *  with nothing standing there — no pantry and no door, whatever the remainder's width. */
+function fridgeAtTheFreeEndFindings({
+  runs,
+  fridge,
+  wall,
+  onWall,
+}: FridgePlacement): readonly string[] {
+  const findings: string[] = [];
+  const run = runs[wall];
+  const beforeTheFridge = onWall.filter(
+    (base) => base.startMm < fridge.startMm,
+  );
+  const isDoorStorageFromTheCorner =
+    beforeTheFridge.every(
+      (base, index) =>
+        base.buildId === DOOR &&
+        base.startMm === run.startMm + index * MODULE_MM,
+    ) && fridge.startMm === run.startMm + beforeTheFridge.length * MODULE_MM;
+  if (!isDoorStorageFromTheCorner) {
+    findings.push(
+      "a free-end fridge is not door storage from the corner and then the fridge",
+    );
   }
-  return fridge.startMm === run.startMm + count * MODULE_MM
-    ? []
-    : [`fridge not after ${String(count)} bases from the corner`];
+  if (onWall[onWall.length - 1] !== fridge) {
+    findings.push("something stands beyond a free-end fridge");
+  }
+  if (run.endMm - fridge.endMm >= MODULE_MM) {
+    findings.push("a free-end fridge leaves a whole module or more bare");
+  }
+  return findings;
+}
+
+/** *N3 revised* 3-4: `count` door bases from the corner, then the fridge, then only pantries of
+ *  400-800 mm — or, in a room lower than the column, door bases (N11.4) — and a gap of 400 mm or more
+ *  is never left empty. Applies to a counted position only. */
+function countedFridgeFindings({
+  room,
+  runs,
+  fridge,
+  wall,
+  onWall,
+  count,
+}: FridgePlacement & { readonly count: number }): readonly string[] {
+  const findings: string[] = [];
+  const run = runs[wall];
+  if (fridge.startMm !== run.startMm + count * MODULE_MM) {
+    findings.push(`fridge not after ${String(count)} bases from the corner`);
+  }
+  const beyond = onWall.filter((base) => base.startMm >= fridge.endMm);
+  const gapBuildId = room.heightMm < COLUMN_HEIGHT_MM ? DOOR : PANTRY;
+  if (beyond.some((base) => base.buildId !== gapBuildId)) {
+    findings.push(
+      `something other than ${gapBuildId} between the fridge and the free end`,
+    );
+  }
+  if (
+    beyond.some(
+      (base) =>
+        base.buildId === PANTRY &&
+        (base.widthMm < PANTRY_MIN_MM || base.widthMm > PANTRY_MAX_MM),
+    )
+  ) {
+    findings.push("a fridge-gap pantry outside 400-800 mm");
+  }
+  const smallestFillMm = gapBuildId === PANTRY ? PANTRY_MIN_MM : MODULE_MM;
+  if (run.endMm - fridge.endMm >= smallestFillMm && beyond.length === 0) {
+    findings.push(
+      `a fridge gap of ${String(smallestFillMm)} mm or more with no ${gapBuildId}`,
+    );
+  }
+  return findings;
 }
 
 /** *N3 revised* 5: sink first, then dishwasher, preparation, hob, contiguous in run order; the

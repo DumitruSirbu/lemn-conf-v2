@@ -153,7 +153,10 @@ function checkFridgeGapFillOrBare(room: DesignRoom): void {
       base.buildId === "tall-pantry" &&
       base.startMm >= fridge.endMm,
   );
-  if (gapMm < 400) {
+  if (plan.fridgePosition === "free-end") {
+    // ADR 0110 N11.1: past a free-end fridge the remainder stays bare, whatever its width.
+    expect(pantriesAfterFridge, JSON.stringify(room)).toHaveLength(0);
+  } else if (gapMm < 400) {
     expect(pantriesAfterFridge, JSON.stringify(room)).toHaveLength(0);
   } else {
     expect(pantriesAfterFridge.length, JSON.stringify(room)).toBeGreaterThan(0);
@@ -554,15 +557,21 @@ interface GridMeasurement {
 }
 
 /** What `84bab2e` produced over N4's grid (A 2700-6000, B and C 1000-6000, step 100, h 2600), read
- *  from a build of that commit with the same definitions this file uses. The towers, the far wall's
- *  pantries and the fridge wall are exactly what N10.3 promises not to move. */
+ *  from a build of that commit with the same definitions this file uses. The towers and the far wall's
+ *  pantries are exactly what N10.3 promises not to move.
+ *
+ *  **The fridge-wall digest is no longer `84bab2e`'s** (`803680d6…4b34fe`). ADR 0110 N11.1 moved the
+ *  fridge wall in 10 178 rooms: a fridge at the free end now stands right after its door storage, with
+ *  the bare remainder beyond it, where `84bab2e` put the remainder between the corner and the first
+ *  body. `5d2962d4…fdfc2` is the digest of N11.1's rule, reproduced from a build of the fix and equal
+ *  to the value the architect's model recorded in N11.1. Every other field is still `84bab2e`'s. */
 const RECORDED_AT_84BAB2E: GridMeasurement = {
   composed: 86_706,
   towersByPosition: { n2: 16_487, n3: 13_600, freeEnd: 26_216, none: 30_403 },
   farWallPantryCount: 680,
   farWallPantryWidthMm: 449_200,
   fridgeWallDigest:
-    "803680d674e11193e9d3f765fad0183e42b8a20e32087e1940764c5c454b34fe",
+    "5d2962d48475ef6e7dde181952f0e692e109ba1ed8a827ad8e39c5b39ecfdfc2",
 };
 
 function measureTheRecordedGrid(): GridMeasurement {
@@ -639,7 +648,7 @@ describe("planUKitchenComposition holds AC1's S2 share", () => {
   );
 
   propertyTest.prop([sweptRoomArb], { numRuns: RUNS })(
-    "the fridge-to-free-end gap takes a pantry at 400 mm and above, and stays bare under it",
+    "the fridge-to-free-end gap of a counted fridge takes a pantry at 400 mm and above, and stays bare under it; a free-end fridge has no gap (N11.1)",
     checkFridgeGapFillOrBare,
   );
 
@@ -706,7 +715,7 @@ describe("planUKitchenComposition holds AC1's S2 share", () => {
     for (const room of gridRooms) checkTheHobWallFittingRule(room);
   });
 
-  it("leaves the towers, the far wall's pantries and the fridge wall exactly as 84bab2e had them (AC1 e)", () => {
+  it("leaves the towers and the far wall's pantries as 84bab2e had them, and moves the fridge wall exactly as N11.1 rules (AC1 e, AC3 vi)", () => {
     const measured = measureTheRecordedGrid();
 
     expect(measured).toStrictEqual(RECORDED_AT_84BAB2E);

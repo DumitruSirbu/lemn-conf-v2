@@ -37,9 +37,9 @@ export interface UTallLayoutInput {
   readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
   readonly fridgeWall: DesignWall;
   readonly farWall: DesignWall;
-  /** Where the fridge's own footprint ends on `fridgeWall`, or `undefined` when *N3 revised* 2
-   *  dropped it — there is then no gap to fill; that wall takes door
-   *  bases from its corner instead (ADR 0110 N9.2). */
+  /** Where the fridge's own footprint ends on `fridgeWall` when it leaves a gap to fill, or `undefined`
+   *  when it leaves none: *N3 revised* 2 dropped it (that wall takes door bases from its corner instead,
+   *  ADR 0110 N9.2), or it stands at the free end with its bare remainder beyond it (N11.1). */
   readonly fridgeEndMm: number | undefined;
   /** S1's own bodies already standing on the far wall, from the back wall's overflow — read, never
    *  rebuilt, so this module places nothing S1 already placed. */
@@ -79,18 +79,26 @@ export function planUTallLayout(input: UTallLayoutInput): UTallLayoutResult {
   const fridgeGapBases =
     input.fridgeEndMm === undefined
       ? []
-      : pantriesInGap(
-          input.fridgeWall,
-          input.fridgeEndMm,
-          input.runs[input.fridgeWall].endMm,
-          input.declared,
-        );
+      : fridgeGapFill(input, input.fridgeEndMm);
   const far = farWallLayout(input);
   return {
     bases: [...fridgeGapBases, ...far.bases],
     hobBuildId: far.hobBuildId,
     towerPosition: far.towerPosition,
   };
+}
+
+/** The fridge-to-free-end gap: `tall-pantry` columns, or — in a room lower than the column — A4's door
+ *  bases, since E3 clause 4's reason (a column the room cannot hold would be refused at insert time)
+ *  reaches every generated full-height column (ADR 0110 N11.4). */
+function fridgeGapFill(
+  input: UTallLayoutInput,
+  gapStartMm: number,
+): readonly UPlannedGenerationBase[] {
+  const gapEndMm = input.runs[input.fridgeWall].endMm;
+  return input.room.heightMm < input.declared.columnHeightMm
+    ? doorFill(input.fridgeWall, gapStartMm, gapEndMm, "fridge-gap")
+    : pantriesInGap(input.fridgeWall, gapStartMm, gapEndMm, input.declared);
 }
 
 /** *N3 revised* 4 (RQ13): the fridge-to-free-end gap takes `tall-pantry` columns at every size,
