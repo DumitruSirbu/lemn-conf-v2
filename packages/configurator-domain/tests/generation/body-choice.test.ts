@@ -300,7 +300,10 @@ const REPOSITORY_ROOT = path.resolve(
   "..",
   "..",
 );
+// `.claude` holds agents' git worktrees — whole copies of this repository — so walking it counts
+// every module twice.
 const NOT_SOURCE = new Set([
+  ".claude",
   ".git",
   ".next",
   ".turbo",
