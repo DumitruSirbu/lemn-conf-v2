@@ -606,8 +606,13 @@ PASS.
 - **M7 is closed (2026-09-29).** Nothing from M7 is open. Every M7 bullet below this one is history —
   kept for its detail, not because anything in it is still outstanding. The next milestone in the
   phase sequence is **M7B — U-shaped rooms** (confirmed by the owner, ~~plan not yet written~~
-  ~~plan written 2026-09-29; waves U0 and U1 done, next wave U2~~ **waves U0–U2 done, next wave U3**;
-  see `milestones/M7B-u-shaped-rooms.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
+  ~~plan written 2026-09-29; waves U0 and U1 done, next wave U2~~ ~~waves U0–U2 done, next wave U3~~
+  **waves U0–U2 done; U3 was re-cut 2026-09-29 into U3a (the U plan) and U3b (generating a U), each
+  with its own QA and review, order now U2 → {U3a → U3b ∥ U4}, U6 depends on U3b. U3a's
+  implementation (S1–S3) is complete but not closed: the 7J A8 stop-and-report rule fired on
+  AC2/AC3 (3 of 7 witness rooms diverge, 41,448-vs-0 drawer-unit mismatch across the grid) and U3a's
+  QA is waiting on the architect's model-vs-rule verdict** — see the RESUME HERE entry under *What to
+  do next*; see `milestones/M7B-u-shaped-rooms.md`. Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
 - ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
   RESUME HERE entry under *What to do next* for the current state: 7D5, 7D5b and 7F2 have since all
@@ -1105,6 +1110,26 @@ one WAF `rate_limit` rule.** A second returns a misleading 401; the edge cannot 
 policy, so every per-endpoint limit is application code.
 
 ## What to do next
+
+> **RESUME HERE — 2026-09-29. M7B wave U3 was re-cut into U3a (the U plan) and U3b (generating a
+> U), each with its own QA and review; order is now U2 → {U3a → U3b ∥ U4}, and U6 depends on U3b.
+> U3a's implementation is complete (S1 core run `d3db323`, S2 tall layout `9ca72bb`, S3 drawers/
+> bottle/A4 fill `e443ed2`; all four packages green at `e443ed2` per the implementer — domain 5286,
+> three-adapter 3642, persistence 730, web 4760) but the wave is not closed: the 7J A8
+> stop-and-report rule fired on AC2/AC3.** 4 of N4′'s 7 witness rooms match exactly; 3 diverge on
+> wall A's drawer and bottle capacity (4000/4500/1200, 5000/4000/3000, and 6000/6000/6000 — the last
+> gets 3 drawer units against a target of 5). Across the 88,434-room grid, "≥ 3 drawer units after
+> the hob" is 41,448 in the model against 0 in the plan; the implementer placed extra drawer units
+> on wall A only. **The architect is adjudicating model versus rule** — see
+> `milestones/M7B-u-shaped-rooms.md` and ADR 0110 for the ruling once it lands.
+>
+> **Next steps, in order:** (1) the architect's verdict on model vs. rule; (2) if the rule is wrong,
+> fixes to the plan/model per the verdict; (3) U3a's QA, which was waiting on that verdict.
+>
+> Also note (owner direction, 2026-09-29): agents must now run on the model their `.claude/agents/*.md`
+> file declares, passed explicitly at dispatch. The developer for U1–U3a ran as a named teammate
+> without an explicit model and may have run on the session's Opus model rather than its declared
+> Sonnet; from now on the model is set explicitly.
 
 > **RESUME HERE — 2026-09-29. M7B wave U1 is DONE — the stored U and wall C in the domain; no shape
 > validates yet.** Branch `m7b-u-shaped-rooms` (wave base `0e6d332`), not pushed. Commits, in order,
