@@ -358,13 +358,16 @@ test or a capture in U4.
 | **U0** | Census, measurements, ADR 0132, owner questions put | Light (one logic reviewer on ADR 0132 and the census) | No | — | Q-U1…Q-U5 answered 2026-09-29; raises RQ1–RQ12 |
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
-| **U3** | Composing a U across three walls | **Full** | No | U2; **Q-U3**, **RQ1–RQ17** (all answered 2026-09-29) | — (no owner question remains) |
+| ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
+| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — |
+| **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
-| **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | U3, U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
+| **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
 | **U7** | Mobile gate, desktop line, e2e, captures — the phase gate | Light | **Yes** | U6 | — |
 
-Order **U0 → U1 → U2 → {U3 ∥ U4} → U5 → U6 → U7**. U3 (domain) and U4 (adapter) touch disjoint
+Order **U0 → U1 → U2 → {U3 ∥ U4} → U5 → U6 → U7**. **2026-09-29: U3 is U3a → U3b, so the order is
+U0 → U1 → U2 → {U3a → U3b ∥ U4} → U5 → U6 → U7.** U3 (domain) and U4 (adapter) touch disjoint
 packages and may run in parallel **only in separate worktrees** (`WORKFLOW.md` R2; worktree bases per
 `agent-coordination.md`). QA gates review in every wave; the tree is frozen for every measurement (R1).
 
@@ -729,7 +732,7 @@ builds a wall-C run (round-2 review's accepted gap).
 
 ---
 
-### Wave U3 — composing a U (blocked on Q-U3)
+### Wave U3 — composing a U (blocked on Q-U3) — **superseded 2026-09-29 by Waves U3a and U3b below**
 
 **Goal.** `generateKitchen` composes a U by the owner's Q-U3 ruling, through `insertBody` alone,
 and Step 1's minimum-kitchen gate agrees with it. **The slice table is provisional**: Q-U3 (b)
@@ -744,6 +747,21 @@ split. Criterion 1's *"exactly one oven"* **stands for every U** (RQ5: the gener
 E4 unchanged). Criterion 3's witnesses are **N4′**'s. **Added criterion (RQ7):** in a large U the
 hood stands over the hob, and wall A's wall and top rows carry **voids and no body**, so the editor
 can insert middle and top units there.
+
+**Re-cut 2026-09-29 (after U1 and U2 closed; every owner answer is in ADR 0110 N, *N3 revised*, N6
+and N6′).** The table below and the criteria under it are **superseded by Waves U3a and U3b**, which
+follow this section. They are kept for history. Each old criterion is re-homed as its dated line
+says.
+
+**Why two waves (R8).** The first reason is size: the owner's arrangement is a new composer (N2), not
+a third wall added to the L's prefix-and-suffix cut, and it has twelve rules (*N3 revised* 1–12)
+across roughly nine production files, well over one wave's limits. The second is the stop rule. N4′'s
+witnesses are a *model*, and 7J A8's stop-and-report rule is cheapest to apply to a **pure plan**,
+before any `insertBody`, shell or upper is involved. **U3a** ends when the plan reproduces N4′.
+**U3b** wires that plan into `generateKitchen`. Each wave has its own QA and review, and U3b does not
+start until U3a is committed. **The L's composer is not edited for the U** (`generation-priorities.ts`
+keeps `TwoWallDispatch`, `run-layout.ts:12-16`). The U planner is a sibling that reuses the leaves:
+`planLeftover`, `planTallEndBlock`, the dishwasher leaf, and `body-choice.ts`'s ids.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
@@ -783,15 +801,107 @@ can insert middle and top units there.
 
 ---
 
+### Wave U3a — the U plan (pure; no insert) — cut 2026-09-29
+
+**Goal.** A pure function `planUKitchenComposition(room, runs, columns)` returns a three-wall plan
+(bases per wall, floor widths per wall, remainders, dropped roles, `minimumMet`) under ADR 0110 *N3
+revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and nothing calls it from
+`generateKitchen` yet, so the L and the straight kitchen cannot move.
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S1 the core run** | (1) A three-wall plan type (`UKitchenCompositionPlan`, `Record<DesignWall, …>` over A, B, C; the L's `TwoWallDispatch` untouched). (2) The fridge wall: the wider side wall, B when B = C, the other side wall if the fridge does not fit, dropped only if neither fits (*N3r* 2; RQ2, RQ9). The RQ9 branch is kept with a declared witness (ADR 0123) because its population measures 0. (3) The fridge after `n` bases **counted from the corner**: free end if the wall is ≤ 3000, 2 bases for 3001–4000, 3 bases above 4000, and `n` falls when it does not fit (*N3r* 3). (4) The back wall packed from the fridge corner: sink, dishwasher, preparation, hob. Overflow continues round the far corner. The dishwasher is dropped first, then the preparation (*N3r* 5; RQ4, RQ12). (5) `LARGE_U_TOTAL_MM` (10 000) is a named owner constant with its provenance (*N3r* 1) | new `generation/u-composition.ts`; `generation/run-layout.ts` (the plan type only) | ADR 0110 N1, N2, *N3 revised* 1–3, 5, N6; A1, A2, A4; ADR 0120 E (not applied to a U, N2); ADR 0123; `uShellFloorRuns` (`shell-design.ts:806-830`); `generation-priorities.ts:40-165` as the pattern, not an edit site |
+| **S2 the tall layout and the oven** | (1) The fridge-to-free-end gap takes `tall-pantry` columns at every size: 600 mm each, the outermost widened up to 800; a 400–599 gap takes one pantry at its width; under 400 stays bare (*N3r* 4; RQ13). (2) The far wall: overflowed bodies, then door bases up to `n` from the corner. Overflowed bodies count toward `n`, and the tower follows them directly where they exceed it. Then **one** `tall-oven-tower`. Below 10 m, pantries stand outboard up to a three-column block (E2, E12, E3 clauses 1 and 4; RQ11). At 10 m or more the tower stands alone. The rest of the run is door bases (*N3r* 10; RQ5, RQ14). (3) A far wall ≤ 3000 takes the tower or block at its free end. **A lone tower stands with its remainder, ≤ 599 mm, bare** (RQ17), departing from E6.2 **for a U only**. `planTallEndBlock`'s L behaviour does not change. (4) Exactly one generated oven: the tower with `base-hob-2drawer`, or `base-hob-oven` (*N3r* 9; E4) | new `generation/u-tall-layout.ts`; `generation/tall-end-rule.ts` (only if a U-only option is needed, with an L byte-identity test); `generation/u-composition.ts` | *N3 revised* 4, 9, 10; N6′ RQ13, RQ14, RQ17; ADR 0110 E2, E3, E4, E6, E12, I; `tall-end-rule.ts` whole (197 lines) |
+| **S3 drawers, dishwasher, bottle** | (1) Drawer units: `N(T) = min(5, 3 + ⌊max(0, T − 4700) / 2000⌋)`, counting `base-3drawer` and `base-panbank` only. The preparation cabinet is the first unit, and `base-hob-2drawer` does not count (RQ15). Extras take door slots after the hob. The count yields (*N3r* 6; RQ6, RQ10). Key it on the two owner-named build ids as data (ADR 0121), not on a general drawer classifier, which F7 declines. (2) The dishwasher beside the sink (M1), through the existing leaf, and (e)'s drawer swap if that reaches a U. (3) The bottle on **the next cabinet after the hob along the run**, when there is space (*N3r* 7; RQ16). (4) The threshold drawer is replaced by `N(T)` (*N3r* 8, labelled a default). (5) The pan drawer counts as a drawer unit | `generation/u-composition.ts`; `generation/dishwasher-beside-the-sink.ts` (only if its across-the-corner adjacency must read a second corner); `generation/optional-run-items.ts` (bottle placement reused, U arm only) | *N3 revised* 6–8; N6 RQ6, RQ10; N6′ RQ15, RQ16; ADR 0110 F5, F7, H1, J, K, L, M1, M2; `body-choice.ts`; `dishwasher-beside-the-sink.ts:1-130` |
+
+- **Reading, QA:** this wave's rows and criteria; ADR 0110 N (N1–N6′, especially *N3 revised* and
+  N4′); `u0-measure-rq.mjs` as the model the witnesses came from (scratchpad; the witnesses are
+  quoted in N4′); `engineering-conventions.md`, *Coverage an adversarial pass owes*; skill
+  `javascript-testing-expert`; the slice diff.
+- **Reading, logic reviewer:** ADR 0110 A1, A2, A4, E2–E6, E12, F7, H1, I, J–M, N (all of it); ADR 0120
+  E; ADR 0123; ADR 0132; the wave diff with `generation-priorities.ts`, which is the L's composer, for
+  comparison.
+- **Reading, clean-code reviewer:** the slice table; `engineering-conventions.md`; the wave diff.
+
+**Acceptance criteria.**
+
+1. **The rules hold** (*property*: ≥ 200 samples over A 2700–6000 and B, C 1000–6000, at h 2200,
+   2600 and 3900, plus the boundaries 3000/3001, 4000/4001, T = 9999/10 000, B = C, and RQ9's declared
+   witness). The fridge stands on *N3r* 2's wall at *N3r* 3's count from the corner. The sink is the
+   first body on wall A. The back-wall and overflow order is sink, dishwasher, preparation, hob. Every
+   plan has exactly one oven. The tower stands at its count from the corner. No pantry on the far wall
+   of a large U. A pantry or bare gap between the fridge and the free end at every size. Drawer units
+   ≤ `N(T)`, with `base-hob-2drawer` never counted. The bottle is directly after the hob when it
+   stands. Every bare run end is < 600 mm, RQ17's lone-tower remainder
+   (≤ 599) included. The plan is deterministic. **[prop]**
+2. **Witnesses** (N4′'s seven rooms, `u0-measure-rq.mjs` with `RQ13_TALL=1 TOWER_BARE=1`): the plan's
+   bodies per wall, in order, equal N4′'s predicted rows, and 2700 / 1000 / 1000 is `minimumMet:
+   false`. **If the plan measures otherwise, stop and report** before U3b. N4′ was a model (7J A8's
+   rule), and the architect decides whether the model or the rule is wrong. **[unit]**
+3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
+   counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
+   difference is reported with its room. **[unit] + [report]**
+4. **The L and the straight kitchen are byte-identical**: U1-A1's re-run, plus
+   `planKitchenComposition`'s output over its recorded baselines. **[unit]**
+5. **Must not:** any edit to `generation-priorities.ts`; `cornerDirection` read; a wall letter compared
+   inside the U planner other than through the fridge-wall and far-wall roles it computes (ADR 0110
+   I's lesson on role versus letter). **[review]**
+
+### Wave U3b — generating a U — cut 2026-09-29
+
+**Goal.** `generateKitchen` composes a U from U3a's plan, through `insertBody` alone, onto
+`buildUShellDesign`. Every U gets its hood, and a large U's back wall keeps its upper voids. Step 1's
+minimum-kitchen gate agrees with the generator.
+
+| Slice | Must-fix items (≤ 5) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S1 dispatch** | (1) Retire `refuseAGeneratedU` (`generate-kitchen.ts:262-270`). (2) `shellRunsFor` → `uShellFloorRuns`, and `buildShellFor` → `buildUShellDesign` with `compositionPlan.floorWidthsMm` over A, B and C. (3) `isFreeEndBody` for both side walls' free ends. (4) `replayGenerationLog` replays a U. (5) **The owed direct `slideReserveMm` wall-C test** (U2 close-out, round-2 review's accepted gap), written against the first composed wall-C run: wall C's run ends 100 mm short of `wallCMm`, exactly as wall B's does in the room with B and C swapped | `generation/generate-kitchen.ts`; `generation/shell-design.ts` (only if `UShellCompositionPlan` needs a field) | U2 close-out; ADR 0110 decisions 1–6, B, D (revised); ADR 0108 H3 (the 100 mm reserve); `generate-kitchen.ts:140-230, 480-560, 680-799`; `shell-design.ts:575-640, 800-830` |
+| **S2 uppers and the hood** | (1) **The hood is mandatory over the hob in every U** (*N3r* 11; RQ7). (2) In a large U, **no generated body in wall A's wall or top rows**, and the shell's voids there remain. (3) Uppers over the far wall's door bases (RQ14) and over the back wall below 10 m. (4) No upper over a full-height body (E7) or over **either** corner zone (7D2 c. 14; backlog 63's class at A∩C) | `generation/generate-kitchen.ts` (the upper loop, `:393-410`); a new leaf `generation/upper-policy.ts` if the loop needs one, to keep `generate-kitchen.ts` from growing | *N3 revised* 11; N6 RQ7; N6′ RQ14; ADR 0110 C, E7, 7D2 c. 14; backlog 63; `generate-kitchen.ts:380-560` |
+| **S3 the minimum kitchen** | (1) **`UMinimumKitchen` lands here**: the policy type on `UWallBounds`, and `ENGINE_ROOM_LIMITS.U.minimumKitchen` derived with no literal. Correct `room-policy.ts:76-78`'s comment, which names *"U3 S3"* (R1.5), to this slice. The approved literals enter at **U6**, not here. (2) `validateRoomInput`'s U predicate (ADR 0108 H3): `freeA ≥ 1200`, or `freeA ≥ 600` and the narrower side wall's (C when B = C) `free ≥ 600`, with `freeA = A − 1800` and `free = side − 1000`, the 1000 including the 100 mm reserve. It returns `ROOM_TOO_SMALL_FOR_KITCHEN` on the room field, with no number (RQ8). (3) The validator ⇔ generator property | `room/room-policy.ts`; `room/validate-room.ts` | ADR 0108 C, E, *Implementation record*, H2–H5; RQ1, RQ8; ADR 0116 decision 1; `room-policy.ts:60-100`; `validate-room.ts` whole |
+
+- **Reading, QA:** this wave's rows and criteria; U3a's close-out; ADR 0110 *N3 revised* 11, N4′;
+  ADR 0108 H3; 7J's composition criteria (archived plan `:4214-4237`) as the pattern;
+  `engineering-conventions.md`; skill `javascript-testing-expert`; the slice diff.
+- **Reading, logic reviewer:** ADR 0110 decisions 1–6, C, E7, N; ADR 0108 C, E, H; ADR 0116; ADR 0117;
+  the U2 close-out's owed test; the wave diff with `generate-kitchen.ts`.
+- **Reading, clean-code reviewer:** the slice table; `engineering-conventions.md`; the wave diff.
+
+**Acceptance criteria.** These are old U3 criteria 1–6, re-homed 2026-09-29, plus the owed test.
+
+1. **Composition** (old criterion 1; *property*, ≥ 200 samples over the approved-shaped U range under
+   a witness policy, at h 2200, 2600 and 3900, plus H3's boundary pairs): zero findings and no
+   overflowing placement. Deterministic, and the log replays to the design. Exactly one oven. No oven
+   beside the fridge. No upper over a full-height body or either corner zone. A hood over the hob.
+   Bare run ends < 600 mm. The body order along the path equals U3a's plan. **[prop]**
+2. **Validator ⇔ generator** (old criterion 2): over the same range plus H3's boundary pairs
+   (2999/3000 at B = C = 1000 and 1599; C 1599/1600 at A 2700 and 2999, B = 6000), the gate passes
+   **iff** `generateKitchen` places a sink and a hob. **[prop]**
+3. **Witnesses** (old criterion 3): N4′'s seven rooms, through `generateKitchen`, place the bodies U3a
+   criterion 2 fixed. **If the generator measures otherwise, stop and report** (7J A8). **[unit]**
+4. **The L and the straight kitchen are byte-identical** (old criterion 4). **[unit]**
+5. **Must not** (old criterion 5): a generated body written other than by `insertBody`;
+   `cornerDirection` read by generation; `isShapeBuildable("U", APPROVED_ROOM_POLICY)` true.
+   **[review] + [unit]**
+6. **Hood and back-wall voids** (old criterion 6; RQ7): every U has a hood over its hob. In a large U,
+   wall A's wall and top rows hold voids and no body, and each accepts a `wall-cabinet` through
+   `insertBody`. **[prop] + [unit]**
+7. **The owed `slideReserveMm` wall-C test** (U2 close-out): a composed wall-C run ends exactly 100 mm
+   short of `wallCMm`, equal to wall B's in the swapped room. Sabotage (R6): drop the reserve for C,
+   and the test goes red. **[unit]**
+
+---
+
 ### Wave U4 — drawing a U (adapter)
 
-**Goal.** A U design draws to *The 3D contract for a U*: wall C, the reflected right-hand group,
-picking, outline, overflow mark, cameras and lights — correct at both reflection parities, captured.
+**Goal.** A U design draws to *The 3D contract for a U*: wall C, ~~the reflected right-hand group~~
+**the right corner's four wrappers**, picking, outline, overflow mark, cameras and lights — correct at
+~~both reflection parities~~ **the two parities a U has (a wall-C body, +1; a right-corner piece, −1),
+2026-09-29** — captured.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
 | **S1 the shell** | (1) Wall C's plane (D12); (2) floor depth `max(B, C)`; (3) signature includes shape and C; (4) no run-end panel on a U | `kitchen-shell.ts` | D11, D12; G8; 7H and 7J close-outs (archived plan, by section); ADR 0120 D2–D3 |
-| **S2 the right corner's wrappers** | ~~(1) Wall-C bodies and right-corner pieces (by `cornerOf`) in one group reflected in `x = W/2`; (2) void meshes likewise~~ **2026-09-29 (ADR 0132 d1–d2): (1) the four right-corner pieces (by `cornerOf`) each in a wrapper group mirrored by `applyCornerDirection`; (2) wall-C bodies and voids drawn at their world frames, unmirrored**; (3) overflow mark and selection outline on wall C and on a mirrored corner piece; (4) picking climbs through a wrapper | `scene-sync.ts`, `selection-outline.ts`, `picking.ts` (~~`void-mesh.ts`, `overflow-mark.ts`~~: no change under α — census U28, U29) | D2, D4; ADR 0129 D4–D7 + Amendment (a); `DEVELOPMENT-SPEC.md` §6.1, §6.2; `corner-direction.ts`; the 7I QA findings (archived plan, *7I close-out*) |
+| **S2 the right corner's wrappers** | ~~(1) Wall-C bodies and right-corner pieces (by `cornerOf`) in one group reflected in `x = W/2`; (2) void meshes likewise~~ **2026-09-29 (ADR 0132 d1–d2): (1) the four right-corner pieces (by `cornerOf`) each in a wrapper group mirrored by `applyCornerDirection`; (2) wall-C bodies and voids drawn at their world frames, unmirrored**; (3) overflow mark and selection outline on wall C and on a mirrored corner piece; (4) picking climbs through a wrapper | `scene-sync.ts`, `selection-outline.ts`, `picking.ts` (~~`void-mesh.ts`, `overflow-mark.ts`~~: no change under α — census U28, U29) | **2026-09-29, from U2 as shipped:** `cornerOf(placement, room, catalog)` takes a **catalogue** (the adapter passes the one it builds with). It answers `undefined` for a non-corner body, `"left"` for wall B and for any room that is not a U (R1.1, `7140eee`), `"right"` for wall C, and on wall A of a U it answers by `alongMm` against `W / 2`. The right corner's placements are U2's: `rightCornerAssemblyWidthsMm` and `roomForTheRightCorner`, with the X-leg at `W − leftCentre` (`c14abb4`). The corner-taking walls are read through `cornerTakingWallsOf`, not the retired `WALL_THE_CORNER_IS_TAKEN_FROM`. D2, D4; ADR 0129 D4–D7 + Amendment (a); `DEVELOPMENT-SPEC.md` §6.1, §6.2; `corner-direction.ts`; the 7I QA findings (archived plan, *7I close-out*) |
 | **S3 cameras and lights** | (1) `wallC` preset (D13); (2) `overview` for three runs; (3) the light rig per ADR 0132 after captures (D14); (4) exports | `stage.ts`, `index.ts` | D13, D14; G9, G10; §6.4; §11 row 21; backlog 16; 7J R5 |
 
 - **Reading, QA:** *The 3D contract for a U*; D2, D4, D11–D14; ADR 0129 + Amendment; skill
@@ -804,8 +914,9 @@ picking, outline, overflow mark, cameras and lights — correct at both reflecti
 
 **Acceptance criteria.**
 
-1. **Anchors, with the real probe** over a generated U sample (U3's, or U2's shells with bodies
-   inserted if U3 has not landed): every wall-C body's back face on wall C's plane at 0.000; the right
+1. **Anchors, with the real probe** over a generated U sample (~~U3's~~ **U3b's, 2026-09-29**, or U2's
+   `buildUShellDesign` shells with bodies inserted if U3b has not landed; the four corner pieces are
+   already present in every U2 shell): every wall-C body's back face on wall C's plane at 0.000; the right
    X-leg at −0.020 (ADR 0025 mirrored); no two bodies intersect; no two stone volumes interpenetrate
    at the A∩C corner; the right X-leg's plinth recess reads its own `LD` only. **[unit] + [parity]**
 2. **Reflection parity is captured, not only asserted.** ~~In a left-hand and a right-hand U~~
