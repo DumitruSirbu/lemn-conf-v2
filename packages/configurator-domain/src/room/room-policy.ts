@@ -9,7 +9,10 @@
 //
 // Nothing it imports reaches back into `room/`: a cycle here would bind a bound to `undefined` and
 // compare every value against it silently, the failure `module-grid.ts`'s head comment records.
-import { narrowestCornerReachMm } from "../corner-assembly-size.js";
+import {
+  narrowestCornerReachMm,
+  twoCornersWallAMinimumMm,
+} from "../corner-assembly-size.js";
 import {
   LINEAR_ROOM_DEPTH_MM,
   MAX_ROOM_DEPTH_MM,
@@ -69,12 +72,23 @@ export interface LMinimumKitchen {
   };
 }
 
+/** A U's three walls (ADR 0132 decision 2). Wall C mirrors wall B's own run, so no fourth bound
+ *  exists here. **No `minimumKitchen` yet**: the coupled fit rule for a U is ADR 0108 Amendment H3's
+ *  own — sink on the back wall, wall A or the far side wall long enough — and it lands with the
+ *  owner's approved bounds at U6, not this wave (Amendment H is context only here). */
+export interface UWallBounds {
+  readonly wallA: MillimetreBounds;
+  readonly wallB: MillimetreBounds;
+  readonly wallC: MillimetreBounds;
+}
+
 /** A shape is buildable exactly when its walls' bounds are stated here, so a buildable shape cannot
  *  lack them. The L and the straight kitchen can be stated (ADR 0108 decision 8, extended by ADR
- *  0130 decision 2); a U is M7B's. */
+ *  0130 decision 2); the U's own bounds are M7B U2 S2's, still `interim-unapproved` until U6. */
 export interface BuildableShapes {
   readonly L?: LWallBounds;
   readonly linear?: LinearWallBounds;
+  readonly U?: UWallBounds;
 }
 
 /** Whether the owner has ruled on these bounds. Load-bearing (ADR 0108, *Consequences*): no surface,
@@ -131,6 +145,17 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
         maxMm: MAX_ROOM_WIDTH_MM,
       },
       depthMm: LINEAR_ROOM_DEPTH_MM,
+    },
+    // ADR 0132 decision 4: wall A now clears two corners, not one, so its minimum is
+    // `twoCornersWallAMinimumMm()` rather than `wallMinimumMm("A")`. Wall C's own minimum is wall
+    // B's: the right corner's narrowest reach on wall C is the same figure `narrowestCornerReachMm`
+    // gives wall B's own (`corner-assembly-size.ts`'s right-corner head comment — the formula reads
+    // only the cabinet depth and the catalogue, never which corner is asking), and that function
+    // cannot itself be asked for a wall it holds no assembly piece on.
+    U: {
+      wallA: { minMm: twoCornersWallAMinimumMm(), maxMm: MAX_ROOM_WIDTH_MM },
+      wallB: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
+      wallC: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
     },
   },
   heightBounds: { minMm: baseRowTopMm(), maxMm: MAX_ROOM_HEIGHT_MM },

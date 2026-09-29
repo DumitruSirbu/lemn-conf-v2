@@ -11,11 +11,11 @@ import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
   validateRoomInput,
-  type BuildableShapes,
   type CornerDirection,
   type LWallBounds,
   type RoomPolicy,
   type RoomShape,
+  type UWallBounds,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -139,16 +139,24 @@ function approvedL(): LWallBounds {
   return bounds;
 }
 
-/** R8's fabricated policy (ADR 0116): a second shape stated with the L's bounds — only ever called
- *  with U below, which has no bounds of its own yet (M7B's) and no key in `BuildableShapes` to add
- *  one honestly, hence the cast. Linear needs no such fabrication since 7J S5: it is real. */
+/** L's own bounds, reshaped into `UWallBounds` — wall C stands in for wall B's, the domain's own
+ *  proof that the right corner's narrowest reach on wall C equals wall B's (`corner-assembly-
+ *  size.ts`'s right-corner head comment). `APPROVED_ROOM_POLICY` states no U bounds of its own yet
+ *  (the owner rules on them at U6), so this is a fabrication, not a read of the real policy. */
+function approvedUStandIn(): UWallBounds {
+  const l = approvedL();
+  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
+}
+
+/** R8's fabricated policy (ADR 0116): a second shape stated with L-derived bounds — only ever
+ *  called with U below. Linear needs no such fabrication since 7J S5: it is real. */
 function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
       ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedL(),
-    } as BuildableShapes,
+      [shape]: approvedUStandIn(),
+    },
   };
 }
 

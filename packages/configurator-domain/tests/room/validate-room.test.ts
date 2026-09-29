@@ -15,6 +15,7 @@ import {
   acceptedRoom,
   engineLinearWallBounds,
   engineLWallBounds,
+  engineUWallBounds,
   lInputWithField,
   validateRoom,
   validLInput,
@@ -33,21 +34,76 @@ const L_FIELD_KEYS = [
 const NOT_WHOLE_MILLIMETRES = [3600.5, NaN, Infinity, -Infinity] as const;
 
 describe("validateRoomInput — the shape is judged first and alone", () => {
-  it("refuses a U as its shape alone, even with every wall a valid L wall", () => {
-    const walls = engineLWallBounds();
-
+  // M7B U2 S2: `ENGINE_ROOM_LIMITS` now states U bounds, so a U is no longer refused as its shape
+  // alone — it is judged field by field, exactly an L and the straight kitchen already are. Shape
+  // refusal for a U still exists; it needs a policy that states no U bounds, `APPROVED_ROOM_POLICY`
+  // being one until the owner rules on it (U6).
+  it("judges a U field by field once the policy states its bounds, missing fields included", () => {
     const result = validateRoom({
       shape: "U",
-      wallAMm: walls.wallA.minMm,
-      wallBMm: walls.wallB.minMm,
-      wallCMm: walls.wallA.minMm,
-      heightMm: ENGINE_ROOM_LIMITS.heightBounds.minMm,
+      wallAMm: undefined,
+      wallBMm: undefined,
+      wallCMm: undefined,
+      heightMm: undefined,
       cornerDirection: "left",
     });
 
     expect(result).toEqual({
       ok: false,
+      issues: [
+        { field: "wallA", code: "VALUE_MISSING" },
+        { field: "wallB", code: "VALUE_MISSING" },
+        { field: "wallC", code: "VALUE_MISSING" },
+        { field: "height", code: "VALUE_MISSING" },
+      ],
+    });
+  });
+
+  it("refuses a U as its shape alone under a policy that states no U bounds", () => {
+    const buildsNoU: RoomPolicy = {
+      ...ENGINE_ROOM_LIMITS,
+      buildableShapes: { L: engineLWallBounds() },
+    };
+
+    const result = validateRoom(
+      {
+        shape: "U",
+        wallAMm: undefined,
+        wallBMm: undefined,
+        wallCMm: undefined,
+        heightMm: undefined,
+        cornerDirection: "left",
+      },
+      buildsNoU,
+    );
+
+    expect(result).toEqual({
+      ok: false,
       issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+    });
+  });
+
+  it("accepts a valid U, mapping its three walls onto D1's stored shape", () => {
+    const walls = engineUWallBounds();
+
+    const result = validateRoom({
+      shape: "U",
+      wallAMm: walls.wallA.minMm,
+      wallBMm: walls.wallB.minMm,
+      wallCMm: walls.wallC.minMm,
+      heightMm: ENGINE_ROOM_LIMITS.heightBounds.minMm,
+      cornerDirection: "left",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      room: {
+        shape: "U",
+        widthMm: walls.wallA.minMm,
+        depthMm: walls.wallB.minMm,
+        wallCMm: walls.wallC.minMm,
+        heightMm: ENGINE_ROOM_LIMITS.heightBounds.minMm,
+      },
     });
   });
 

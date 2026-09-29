@@ -14,10 +14,10 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
-  type BuildableShapes,
   type LWallBounds,
   type RoomPolicy,
   type RoomShape,
+  type UWallBounds,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement, type ReactElement } from "react";
@@ -238,17 +238,25 @@ function approvedLWallBounds(): LWallBounds {
   return bounds;
 }
 
-/** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L's bounds. Only U
- *  is fabricated through this path now — linear's own real bounds are the approved policy's since 7J
- *  S5, so "also stating linear" would just restate "approved". U has none of its own yet (M7B's), and
- *  `BuildableShapes` has no `U` key to add honestly, hence the cast. */
+/** L's own bounds, reshaped into `UWallBounds` — wall C stands in for wall B's, the domain's own
+ *  proof that the right corner's narrowest reach on wall C equals wall B's (`corner-assembly-
+ *  size.ts`'s right-corner head comment). `APPROVED_ROOM_POLICY` states no U bounds of its own yet
+ *  (the owner rules on them at U6), so this is a fabrication, not a read of the real policy. */
+function approvedUWallBoundsStandIn(): UWallBounds {
+  const l = approvedLWallBounds();
+  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
+}
+
+/** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L-derived bounds.
+ *  Only U is fabricated through this path now — linear's own real bounds are the approved policy's
+ *  since 7J S5, so "also stating linear" would just restate "approved". */
 function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
       ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedLWallBounds(),
-    } as BuildableShapes,
+      [shape]: approvedUWallBoundsStandIn(),
+    },
   };
 }
 

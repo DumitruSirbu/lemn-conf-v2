@@ -238,6 +238,7 @@ export type {
   MillimetreBounds,
   RoomPolicy,
   RoomPolicyApproval,
+  UWallBounds,
 } from "./room/room-policy.js";
 export {
   validateRoomInput,
@@ -289,16 +290,22 @@ export { cornerOf, type Corner } from "./corner-assembly-size.js";
 export {
   buildLinearShellDesign,
   buildLShellDesign,
+  buildUShellDesign,
   linearShellFloorRuns,
   LinearShellInputError,
   lShellFloorRuns,
   LShellInputError,
+  uShellFloorRuns,
+  UShellInputError,
   type LinearShellCompositionPlan,
   type LinearShellDesignInput,
   type LinearShellInputRefusal,
   type LShellCompositionPlan,
   type LShellDesignInput,
   type LShellInputRefusal,
+  type UShellCompositionPlan,
+  type UShellDesignInput,
+  type UShellInputRefusal,
 } from "./generation/shell-design.js";
 export * from "./generation/leftover-rule.js";
 export * from "./generation/body-choice.js";

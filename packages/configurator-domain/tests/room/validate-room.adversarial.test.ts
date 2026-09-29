@@ -852,7 +852,9 @@ describe("validateRoomInput is pure", () => {
   it("hands out a fresh refusal each call, so a caller editing one cannot change the next", () => {
     const input = { ...lInputAtMinimaOf(ENGINE_ROOM_LIMITS), shape: "U" };
     const first = judge(input, ENGINE_ROOM_LIMITS);
-    if (first.ok) throw new Error("a U must be refused");
+    if (first.ok)
+      throw new Error("an L's own walls must not fit the U's minima");
+    const beforeMutation = structuredClone(first);
 
     (first.issues as RoomIssue[]).push({
       field: "wallA",
@@ -860,7 +862,7 @@ describe("validateRoomInput is pure", () => {
     });
     Object.assign(first.issues[0] as object, { minMm: 900 });
 
-    expect(judge(input, ENGINE_ROOM_LIMITS)).toStrictEqual(SHAPE_ALONE);
+    expect(judge(input, ENGINE_ROOM_LIMITS)).toStrictEqual(beforeMutation);
   });
 });
 

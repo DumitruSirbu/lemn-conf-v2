@@ -42,11 +42,13 @@ import {
   toMillimetres,
   type Design,
 } from "../../src/index.js";
+import { twoCornersWallAMinimumMm } from "../../src/corner-assembly-size.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   engineLinearWallBounds,
   engineLWallBounds,
+  engineUWallBounds,
   lInputFromRoom,
   validateRoom,
 } from "../support/room-input.js";
@@ -107,13 +109,15 @@ describe("ENGINE_ROOM_LIMITS — never presented as the owner's", () => {
     expect(ENGINE_ROOM_LIMITS.approval).toBe("interim-unapproved");
   });
 
-  // ADR 0130 D2 (7J S1): the engine's own limits now derive a straight kitchen's bounds too, ahead of
-  // the owner-approved policy stating them (ADR 0108 Amendment G, wave 7J S5) — this object was
-  // always the floor and ceiling a product policy sits inside, and a U is still M7B's.
-  it("builds the L and the straight kitchen, and no other shape", () => {
+  // ADR 0130 D2 (7J S1): the engine's own limits now derive a straight kitchen's bounds too, ahead
+  // of the owner-approved policy stating them (ADR 0108 Amendment G, wave 7J S5) — this object was
+  // always the floor and ceiling a product policy sits inside. M7B U2 S2 adds the U's own bounds
+  // here, still `interim-unapproved`; the owner's own U bounds land in `APPROVED_ROOM_POLICY` at U6.
+  it("builds the L, the straight kitchen and the U, and no other shape", () => {
     expect(Object.keys(ENGINE_ROOM_LIMITS.buildableShapes)).toEqual([
       "L",
       "linear",
+      "U",
     ]);
   });
 });
@@ -247,6 +251,41 @@ describe("ENGINE_ROOM_LIMITS.linear — derived, and states no minimumKitchen", 
   });
 });
 
+// M7B U2 S2 (AC5): the U's three walls, still `interim-unapproved` and derived the same way the L's
+// and the straight kitchen's are — no chosen number, only what `corner-assembly-size.ts` and
+// `design-bounds.ts` already state. The regex sweep above already proves no numeric literal stands
+// in `room-policy.ts`'s text; these compare the *values* with the sources ADR 0132 decision 4 names.
+describe("ENGINE_ROOM_LIMITS.U — derived, no minimumKitchen yet", () => {
+  it("wall A's minimum clears both corners' X-legs, never one corner's own reach", () => {
+    expect(engineUWallBounds().wallA.minMm).toBe(twoCornersWallAMinimumMm());
+    expect(engineUWallBounds().wallA.minMm).toBeGreaterThan(
+      narrowestCornerReachMm("A").wallMinimumMm,
+    );
+  });
+
+  // Wall C's own narrowest reach cannot be read from `narrowestCornerReachMm("C")` — the assembly
+  // holds no wall-C piece to derive it from (`corner-assembly-size.ts`'s own guard) — so it reads
+  // wall B's, the number the right corner's own reach is proven identical to.
+  it("wall B's and wall C's minima both read the narrowest corner's reach on wall B", () => {
+    const walls = engineUWallBounds();
+
+    expect(walls.wallB.minMm).toBe(narrowestCornerReachMm("B").wallMinimumMm);
+    expect(walls.wallC.minMm).toBe(narrowestCornerReachMm("B").wallMinimumMm);
+  });
+
+  it("every wall's maximum is the same storage ceiling every other wall reads", () => {
+    const walls = engineUWallBounds();
+
+    expect(walls.wallA.maxMm).toBe(MAX_ROOM_WIDTH_MM);
+    expect(walls.wallB.maxMm).toBe(MAX_ROOM_DEPTH_MM);
+    expect(walls.wallC.maxMm).toBe(MAX_ROOM_DEPTH_MM);
+  });
+
+  it("states no minimumKitchen key at all — ADR 0108 Amendment H3's coupled rule is U6's", () => {
+    expect("minimumKitchen" in engineUWallBounds()).toBe(false);
+  });
+});
+
 describe("ENGINE_ROOM_LIMITS — every room it accepts is a room a design can store", () => {
   // ADR 0108 decision 7: an owner maximum above storage lands as a deliberate `design-bounds.ts`
   // change, never as a policy value the write seam then refuses.
@@ -254,6 +293,9 @@ describe("ENGINE_ROOM_LIMITS — every room it accepts is a room a design can st
     ["wall A", () => engineLWallBounds().wallA, MAX_ROOM_WIDTH_MM],
     ["wall B", () => engineLWallBounds().wallB, MAX_ROOM_DEPTH_MM],
     ["linear wall A", () => engineLinearWallBounds().wallA, MAX_ROOM_WIDTH_MM],
+    ["U wall A", () => engineUWallBounds().wallA, MAX_ROOM_WIDTH_MM],
+    ["U wall B", () => engineUWallBounds().wallB, MAX_ROOM_DEPTH_MM],
+    ["U wall C", () => engineUWallBounds().wallC, MAX_ROOM_DEPTH_MM],
     ["height", () => ENGINE_ROOM_LIMITS.heightBounds, MAX_ROOM_HEIGHT_MM],
   ] as const)(
     "%s stays inside the wire bound for its axis",

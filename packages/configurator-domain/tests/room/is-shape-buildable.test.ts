@@ -7,11 +7,10 @@ import { describe, expect, it } from "vitest";
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
-  type BuildableShapes,
   type RoomPolicy,
   type RoomShape,
 } from "../../src/index.js";
-import { lWallBoundsOf } from "../support/room-input.js";
+import { engineUWallBounds } from "../support/room-input.js";
 
 const EVERY_ROOM_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
@@ -33,16 +32,18 @@ const BUILDABLE_SHAPES_MOVED = [
   "A shape that lost its bounds is a policy change the owner has to have ruled on.",
 ].join(" ");
 
-/** A policy that is not the product's: it states a shape's bounds the way M7B will state the U's.
- *  7J S5 discharges this cast for `linear` — that shape's bounds are `APPROVED_ROOM_POLICY`'s own
- *  now — so the fabrication below is only ever asked to stand in for U, its last live case. */
+/** A policy that is not the product's: it states the U's bounds the way `APPROVED_ROOM_POLICY` will
+ *  once the owner rules on them (U6). `ENGINE_ROOM_LIMITS`' own U bounds stand in — real
+ *  `UWallBounds` (M7B U2 S2), not a cast borrowed from the L's differently-shaped bounds — so this
+ *  fabrication only ever moves *which* policy states them, never their type. 7J S5 discharged the
+ *  equivalent fabrication for `linear`, whose bounds are `APPROVED_ROOM_POLICY`'s own now. */
 function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
       ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: lWallBoundsOf(APPROVED_ROOM_POLICY),
-    } as BuildableShapes,
+      [shape]: engineUWallBounds(),
+    },
   };
 }
 
@@ -87,9 +88,9 @@ describe("isShapeBuildable — it reads the policy rather than naming a shape", 
     const statesOnlyU: RoomPolicy = {
       ...APPROVED_ROOM_POLICY,
       buildableShapes: {
-        // U has no bounds of its own yet, hence the cast; M7B is its discharge wave.
-        U: lWallBoundsOf(APPROVED_ROOM_POLICY),
-      } as BuildableShapes,
+        // `APPROVED_ROOM_POLICY` has no U bounds of its own yet; the engine's real ones stand in.
+        U: engineUWallBounds(),
+      },
     };
 
     expect(isShapeBuildable("linear", statesOnlyU)).toBe(false);

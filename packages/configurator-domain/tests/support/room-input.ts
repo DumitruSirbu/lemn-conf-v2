@@ -18,6 +18,7 @@ import {
   type RoomInput,
   type RoomPolicy,
   type RoomValidation,
+  type UWallBounds,
 } from "../../src/index.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 
@@ -85,6 +86,20 @@ export function linearWallBoundsOf(policy: RoomPolicy): LinearWallBounds {
 
 export function engineLinearWallBounds(): LinearWallBounds {
   return linearWallBoundsOf(ENGINE_ROOM_LIMITS);
+}
+
+/** A policy's U walls. Optional in `RoomPolicy`; M7B U2 S2 states it in `ENGINE_ROOM_LIMITS`, never
+ *  yet in `APPROVED_ROOM_POLICY` (that is U6's). */
+export function uWallBoundsOf(policy: RoomPolicy): UWallBounds {
+  const walls = policy.buildableShapes.U;
+  if (walls === undefined) {
+    throw new Error("the policy states no U walls");
+  }
+  return walls;
+}
+
+export function engineUWallBounds(): UWallBounds {
+  return uWallBoundsOf(ENGINE_ROOM_LIMITS);
 }
 
 /** A linear room `policy` accepts. */

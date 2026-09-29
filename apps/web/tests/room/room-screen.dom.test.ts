@@ -25,10 +25,10 @@ import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
   validateRoomInput,
-  type BuildableShapes,
   type LWallBounds,
   type RoomPolicy,
   type RoomShape,
+  type UWallBounds,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement } from "react";
@@ -124,23 +124,32 @@ const ROOM_PAGE_SOURCE = readFileSync(
   "utf8",
 );
 
+/** L's own bounds, reshaped into `UWallBounds` — wall C stands in for wall B's, the domain's own
+ *  proof that the right corner's narrowest reach on wall C equals wall B's (`corner-assembly-
+ *  size.ts`'s right-corner head comment). `APPROVED_ROOM_POLICY` states no U bounds of its own yet
+ *  (the owner rules on them at U6), so this is a fabrication, not a read of the real policy. */
+function approvedUWallBoundsStandIn(): UWallBounds {
+  const l = approvedLWallBounds();
+  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
+}
+
 /**
- * **R8, and the cast it confines** (ADR 0116). Criterion 3's real claim is that the CTA asks
+ * **R8, and the fabrication it confines** (ADR 0116). Criterion 3's real claim is that the CTA asks
  * `isShapeBuildable` instead of spelling `L`, and the only way to prove it is to render against a
  * policy that states a *second* shape's bounds — which `BuildableShapes` used to declare only `L?`
  * for, before wave 7J widened it to the straight kitchen's own `linear?` too.
  *
- * **7J S5 discharges this cast for `linear`** (D11): `APPROVED_ROOM_POLICY` itself is now the
- * policy that states its bounds, the twin of `configurator-domain`'s own
- * `tests/room/is-shape-buildable.test.ts`. Only `U` still needs a fabricated policy, until M7B.
+ * **7J S5 discharges this fabrication for `linear`** (D11): `APPROVED_ROOM_POLICY` itself is now
+ * the policy that states its bounds, the twin of `configurator-domain`'s own
+ * `tests/room/is-shape-buildable.test.ts`. Only `U` still needs a fabricated policy, until U6.
  */
 function policyAlsoStating(shape: "U"): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
       ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedLWallBounds(),
-    } as BuildableShapes,
+      [shape]: approvedUWallBoundsStandIn(),
+    },
   };
 }
 

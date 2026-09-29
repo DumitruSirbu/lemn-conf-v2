@@ -193,6 +193,7 @@ function buildShellFor(args: {
 export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
+  refuseAGeneratedU(input.room);
   const catalog = buildKitchenLBodyCatalog(PLANNING_CABINET_DEPTH_MM);
   const plan = planKitchenComposition({
     room: input.room,
@@ -256,6 +257,16 @@ function declaredHeightMm(catalog: BodyCatalog, buildId: string): number {
     throw new Error(`generateKitchen: ${buildId} declares no height`);
   }
   return heightMm;
+}
+
+/** M7B U2 S2: the U shell exists (`buildUShellDesign`), but composition's own runs and this
+ *  function's dispatch are U3's — refused here, cleanly and by name, rather than left to fall
+ *  through to `shellRunsFor`'s L-shaped runs and then `buildLShellDesign`'s unrelated `ROOM_NOT_L`. */
+function refuseAGeneratedU(room: Design["room"]): void {
+  if (room.shape !== "U") return;
+  throw new Error(
+    "generateKitchen: a U room has no generation dispatch yet (M7B U3)",
+  );
 }
 
 function refuseAnUnplannedShellDepth(shell: Design): void {

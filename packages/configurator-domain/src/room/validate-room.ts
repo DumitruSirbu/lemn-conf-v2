@@ -7,6 +7,7 @@ import type {
   LWallBounds,
   MillimetreBounds,
   RoomPolicy,
+  UWallBounds,
 } from "./room-policy.js";
 
 export type RoomShape = "linear" | "L" | "U";
@@ -73,23 +74,34 @@ export function validateRoomInput(
   input: RoomInput,
   policy: RoomPolicy,
 ): RoomValidation {
-  if (input.shape === "L") {
-    const lWallBounds = policy.buildableShapes.L;
-    if (lWallBounds === undefined) return shapeNotBuildable();
-    return validateLRoom(input, {
-      walls: lWallBounds,
-      height: policy.heightBounds,
-    });
+  switch (input.shape) {
+    case "L": {
+      const lWallBounds = policy.buildableShapes.L;
+      if (lWallBounds === undefined) return shapeNotBuildable();
+      return validateLRoom(input, {
+        walls: lWallBounds,
+        height: policy.heightBounds,
+      });
+    }
+    case "linear": {
+      const linearWallBounds = policy.buildableShapes.linear;
+      if (linearWallBounds === undefined) return shapeNotBuildable();
+      return validateLinearRoom(input, {
+        walls: linearWallBounds,
+        height: policy.heightBounds,
+      });
+    }
+    case "U": {
+      const uWallBounds = policy.buildableShapes.U;
+      if (uWallBounds === undefined) return shapeNotBuildable();
+      return validateURoom(input, {
+        walls: uWallBounds,
+        height: policy.heightBounds,
+      });
+    }
+    default:
+      return shapeNotBuildable();
   }
-  if (input.shape === "linear") {
-    const linearWallBounds = policy.buildableShapes.linear;
-    if (linearWallBounds === undefined) return shapeNotBuildable();
-    return validateLinearRoom(input, {
-      walls: linearWallBounds,
-      height: policy.heightBounds,
-    });
-  }
-  return shapeNotBuildable();
 }
 
 /** A fresh object on every call — never a shared constant — so a caller that mutates one refusal
@@ -208,8 +220,50 @@ function holdsMinimumKitchen(
   );
 }
 
+interface URoomBounds {
+  readonly walls: UWallBounds;
+  readonly height: MillimetreBounds;
+}
+
+/** ADR 0132 decision 8 / Q-U4(b): a U carries no corner direction at all — the toggle is hidden at
+ *  entry, so `input.cornerDirection` is never read here (ADR 0108 decision 5's rule, extended) and
+ *  never written onto the room; `DesignRoomSchema` itself refuses a U that carries one. **No
+ *  coupled minimum-kitchen gate yet** (`UWallBounds`'s own comment): every field bound is what
+ *  `bounds` states and nothing more, the same shape the straight room's validator already has. */
+function validateURoom(input: URoomInput, bounds: URoomBounds): RoomValidation {
+  const wallA = judgeField(
+    input.wallAMm,
+    wallRule("wallA", bounds.walls.wallA),
+  );
+  const wallB = judgeField(
+    input.wallBMm,
+    wallRule("wallB", bounds.walls.wallB),
+  );
+  const wallC = judgeField(
+    input.wallCMm,
+    wallRule("wallC", bounds.walls.wallC),
+  );
+  const height = judgeField(input.heightMm, heightRule(bounds.height));
+  if (!wallA.ok || !wallB.ok || !wallC.ok || !height.ok) {
+    return {
+      ok: false,
+      issues: [wallA, wallB, wallC, height].flatMap(issuesOf),
+    };
+  }
+  return {
+    ok: true,
+    room: {
+      shape: "U",
+      widthMm: wallA.valueMm,
+      depthMm: wallB.valueMm,
+      wallCMm: wallC.valueMm,
+      heightMm: height.valueMm,
+    },
+  };
+}
+
 function wallRule(
-  field: "wallA" | "wallB",
+  field: "wallA" | "wallB" | "wallC",
   bounds: MillimetreBounds,
 ): FieldRule {
   return {

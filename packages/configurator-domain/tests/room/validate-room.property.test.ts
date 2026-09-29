@@ -182,15 +182,6 @@ describe.each(SWEPT_POLICIES)("validateRoomInput under %s", (_name, policy) => {
 });
 
 describe("validateRoomInput — the shape is judged first, whatever the dimensions", () => {
-  it("refuses any U as its shape alone, including missing and invalid dimensions", () => {
-    fc.assert(
-      fc.property(anyURoomInput, (input) => {
-        expect(validateRoom(input)).toEqual(SHAPE_ALONE);
-      }),
-      { numRuns: RUNS_PER_ARM },
-    );
-  });
-
   // ADR 0130 D2 (wave 7J S1): `ENGINE_ROOM_LIMITS` now states linear bounds, so shape-alone refusal
   // for a straight kitchen needs a policy that does not — the engine's own limits are no longer one.
   it("refuses any straight kitchen as its shape alone under a policy that states no linear bounds", () => {
@@ -202,6 +193,22 @@ describe("validateRoomInput — the shape is judged first, whatever the dimensio
     fc.assert(
       fc.property(anyLinearRoomInput, (input) => {
         expect(validateRoom(input, buildsNoLinear)).toEqual(SHAPE_ALONE);
+      }),
+      { numRuns: RUNS_PER_ARM },
+    );
+  });
+
+  // M7B U2 S2: `ENGINE_ROOM_LIMITS` now states U bounds too, so shape-alone refusal for a U needs a
+  // policy that does not — `APPROVED_ROOM_POLICY` is one until the owner rules on the U (U6).
+  it("refuses any U as its shape alone under a policy that states no U bounds", () => {
+    const buildsNoU: RoomPolicy = {
+      ...ENGINE_ROOM_LIMITS,
+      buildableShapes: { L: engineLWallBounds() },
+    };
+
+    fc.assert(
+      fc.property(anyURoomInput, (input) => {
+        expect(validateRoom(input, buildsNoU)).toEqual(SHAPE_ALONE);
       }),
       { numRuns: RUNS_PER_ARM },
     );
