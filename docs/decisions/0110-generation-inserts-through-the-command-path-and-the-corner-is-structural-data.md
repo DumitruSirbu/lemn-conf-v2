@@ -3930,7 +3930,7 @@ Quotations are verbatim, typos included, as relayed by the coordinator.
 | Record | What it said | What changes, and on whose authority |
 | --- | --- | --- |
 | *N3 revised* 6 (2026-09-29) | *"The count yields to the dishwasher, the fridge, the tower, the pantries and the bottle"* | **Reversed for the bottle** by RQ21 (owner). The count now outranks the bottle. The other four stand, **pantries included** (see N10.7) |
-| *N3 revised* 7 (2026-09-29) | The bottle's *"width comes out of the remainder before A4's door fill, as in the L"* | **Narrowed** by RQ21 (owner). The bottle takes its width first only where that costs no drawer unit the count still owes. The owner's words carry no wall, so the rule reaches wall A and a far wall without a tower too *(derived; the falsifier is an owner answer confining RQ21 to the tall oven's wall)*. The L already ranks its pan drawer above the bottle (K2, *"the pan drawer wins"* [doc-quoted]), so the U now follows the L more closely than before |
+| *N3 revised* 7 (2026-09-29) | The bottle's *"width comes out of the remainder before A4's door fill, as in the L"* | **Narrowed** by RQ21 (owner). The bottle takes its width first only where that costs no drawer unit the count still owes. The owner's words carry no wall, so the rule reaches wall A and a far wall without a tower too *(derived; the falsifier is an owner answer confining RQ21 to the tall oven's wall)*. The L already ranks its pan drawer above the bottle (K2, *"the pan drawer wins"* [doc-quoted]), so the U now follows the L more closely than before. **Wall A confirmed 2026-09-29 (owner, N10.9): "Drawer cabinet wins". RQ21 on wall A is owner-confirmed, no longer derived.** ~~The falsifier, an owner answer confining RQ21 to the tall oven's wall, did not occur.~~ The far-wall-without-a-tower half of the reach remains derived |
 | *N3 revised* 10's derived clause, and RQ5 | Overflowed bodies count toward `n`, and the tower follows them where they exceed it. RQ5: *"2-3 cabinets from corner"* | **Widened.** The far-wall bottle and the far wall's drawer extras also stand before the tower, and the tower shifts. `n` becomes a floor, not an exact place. For a far-wall hob, the drawers are owner-backed: RQ19 (b) says *"between hob and tall oven"*. The bottle rests on RQ20's reading, which is an *inference* (N10.1 item 3). For a back-wall hob it is **derived** (N10.3 step 4) |
 | N9.3 and N9.4, RQ20's default | *"No bottle between the hob and a tall column on the far wall"* | **Superseded** by RQ20 (owner) |
 | N9.1 and N9.4, RQ19 (b)'s default | *"Keep them there"*, meaning extras beyond the tower | **Superseded** by RQ19 (b) (owner) |
@@ -4066,6 +4066,9 @@ the tower. Rooms added:
 
 #### N10.7 — left open, non-blocking; the built rule does not wait on either
 
+> **Both answered 2026-09-29 — see N10.9.** Wall A: drawer cabinet wins (confirmed). Pantries: pantry
+> wins (RQ22 closed). The bullets below are kept as written.
+
 - **Pantries against drawer units** (*N3 revised* 6's *"yields to … the pantries"*, which stands).
   RQ21 did not mention pantries. The far wall has a pantry in only **676** grid rooms. If drawers and
   the bottle outranked pantries, **all 676** would lose one, and 587 more rooms would change. This
@@ -4086,3 +4089,23 @@ the tower. Rooms added:
   follow Amendment C and E7 as before.
 - **Sweep:** the records in N10.2's table. N8 is otherwise unchanged. The L's J, K and L amendments
   are not touched.
+
+#### N10.9 — two owner answers and the implementation, 2026-09-29 (appended; nothing above is erased)
+
+Both answers were given through a multiple-choice question the coordinator wrote, so they are
+**relayed selections**, not verbatim quotations.
+
+- **Wall A (N10.7's second bullet).** Asked: *"Back wall, when after the hob there is room for either
+  the 300 mm bottle or a 600 mm pan-drawer cabinet, but not both (13,608 room sizes, e.g.
+  5000/4000/3000): which wins?"* The owner picked **"Drawer cabinet wins"**. RQ21 on wall A is now
+  **owner-confirmed**. The 13,608 rooms of N10.7 stand as built. Still derived: RQ21's reach to a far
+  wall without a tower.
+- **Far-wall pantries (the candidate RQ22 of N10.7's first bullet).** Asked: *"Side wall with a tall
+  pantry (676 room sizes): if there isn't room for both, which wins — the tall pantry or a drawer
+  cabinet?"* The owner picked **"Pantry wins"**. This **confirms *N3 revised* 6's ranking**
+  (pantries outrank the count). **RQ22 is closed as answered**; no rule changes.
+- **Implemented at `3f53a62`** (*"the hob wall's fitting rule: drawers before the tower, bottle
+  yields (N10)"*). Per the implementer's report, not re-run by the scribe: domain suite 250 files /
+  5330 tests green. AC3's figures match the architect's model across all 86,706 grid rooms: 0 towers
+  or pantries lost, 0 drawer extras after the tower (18,602 before), 13,608 rooms gain a drawer, and
+  the largest bare end is 500 / 500 / 500. U3a's adversarial QA had not reported when this was written.

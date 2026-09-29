@@ -904,6 +904,12 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    witness, 5000/4000/3000, now has 4 cabinets, so that test moves to **3000 / 4500 / 4500**
    (preparation, 1 `base-panbank`, 1 `base-3drawer`). The stop-and-report rule applies to these rows
    as to N4′'s.
+   **2026-09-29, owner answers and build (ADR 0110 N10.9).** Wall A's RQ21 is owner-confirmed
+   (*"Drawer cabinet wins"*, relayed selection); far-wall pantries outrank drawer cabinets (*"Pantry
+   wins"*, relayed), so RQ22 is closed and N3r6's ranking stands. N10 is implemented at `3f53a62`;
+   domain 250 files / 5330 tests green per the implementer, AC3 matches the model over all 86,706 grid
+   rooms (0 towers or pantries lost, 0 drawer extras after the tower against 18,602 before, 13,608
+   rooms gain a drawer, largest bare end 500 / 500 / 500). Adversarial QA was still running.
 3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
    counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
    difference is reported with its room. **[unit] + [report]**
