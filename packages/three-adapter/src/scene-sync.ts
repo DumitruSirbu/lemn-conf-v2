@@ -36,6 +36,7 @@ import {
   isMesh,
   toMaterials,
 } from "./three-guards.js";
+import { tagWall } from "./wall-tag.js";
 import { buildVoidMesh } from "./void-mesh.js";
 
 /** What picking climbs to (`picking.ts`) and what the selection highlight looks up. */
@@ -208,6 +209,7 @@ function mountBody(
   mounted.position.set(record.frame.x, record.frame.y0, record.frame.z);
   mounted.rotation.y = record.frame.ry;
   mounted.userData[PLACEMENT_ID_KEY] = record.id;
+  tagWall(mounted, record.wall);
   mounted.userData[BODY_SIGNATURE_KEY] = signBody(record, isMirrored);
   // Set both ways, never only hidden: `buildDecomposedBody` ships the seeded `*-top` bodies with
   // their handles already hidden — the decomposition-parity gate holds them to the reference

@@ -4,6 +4,8 @@
 import * as THREE from "three";
 import type { VoidRecord } from "@lemnaria/configurator-domain";
 
+import { tagWall } from "./wall-tag.js";
+
 /** `DEVELOPMENT-SPEC.md` §6.1: void meshes are inset 14 mm from their frame. */
 export const VOID_INSET_M = 0.014;
 
@@ -69,6 +71,7 @@ export function buildVoidMesh(voidRecord: VoidRecord): VoidMesh {
   );
   group.rotation.y = voidRecord.ry;
   group.userData["voidId"] = voidRecord.id;
+  tagWall(group, voidRecord.wall);
 
   return { group, box, edges };
 }
