@@ -26,7 +26,11 @@ import { STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
  *  because the oven has moved into a column. */
 export const OVEN_TOWER_BUILD_ID = "tall-oven-tower";
 export const DOOR_COLUMN_BUILD_ID = "tall-pantry";
-const HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID = "base-hob-2drawer";
+/** The hob a block's own tower leaves behind — exported (M7B U3a slice S2) so the U's own tall
+ *  layout, which stands a lone tower this module's own E6.2 would refuse (RQ17, U-only), can name
+ *  the same id rather than a second literal of it. Nothing about the L reads this export; only the
+ *  string moved from private to public. */
+export const HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID = "base-hob-2drawer";
 
 /** The owner's own *"two, three columns"* (E2.2), and **the one number this rule states**. Every
  *  other figure the rule produces — the 3300 / 3900 / 4500 mm of the block's own wall that the three

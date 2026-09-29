@@ -5,6 +5,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  declaredColumnSizes,
+  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
@@ -15,6 +19,12 @@ import {
   planUKitchenComposition,
   type UGenerationRun,
 } from "../../src/generation/u-composition.js";
+
+/** The catalogue's own declared column sizes, read the way `generateKitchen` reads them — the same
+ *  fixture `tall-end-rule.test.ts` uses, so a U test and an L test read one catalogue. */
+const DECLARED = declaredColumnSizes(
+  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
+);
 
 function uRoom(overrides: Partial<DesignRoom> = {}): DesignRoom {
   return {
@@ -34,7 +44,11 @@ function runsOf(
 }
 
 function planFor(room: DesignRoom) {
-  return planUKitchenComposition({ room, runs: runsOf(room) });
+  return planUKitchenComposition({
+    room,
+    runs: runsOf(room),
+    columns: DECLARED,
+  });
 }
 
 function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {
@@ -112,7 +126,7 @@ describe("the fridge wall (N3r 2)", () => {
       B: { wall: "B", startMm: 900, endMm: 950 }, // fabricated: 50 mm free run, too short for the fridge
     };
 
-    const plan = planUKitchenComposition({ room, runs });
+    const plan = planUKitchenComposition({ room, runs, columns: DECLARED });
 
     expect(basesOn(plan, "C").some((base) => base.role === "fridge")).toBe(
       true,
@@ -154,14 +168,20 @@ describe("the fridge's own count from the corner (N3r 3)", () => {
     expect(onB.slice(0, 3).every((base) => base.role === "storage")).toBe(true);
   });
 
-  it("leaves the fridge-to-free-end gap as remainderMm on a long fridge wall, unfilled by S1", () => {
+  it("fills the fridge-to-free-end gap with tall-pantry columns on a long fridge wall (N3r 4, RQ13)", () => {
     const room = uRoom({ depthMm: 4200, wallCMm: 1200 });
     const plan = planFor(room);
     const onB = basesOn(plan, "B");
-    const lastMm = onB.at(-1)?.endMm ?? 0;
+    const fridgeIndex = onB.findIndex((base) => base.role === "fridge");
+    const afterFridge = onB.slice(fridgeIndex + 1);
 
-    expect(plan.remainderMm.B).toBe(runsOf(room).B.endMm - lastMm);
-    expect(plan.remainderMm.B).toBeGreaterThan(0);
+    expect(afterFridge.length).toBeGreaterThan(0);
+    expect(afterFridge.every((base) => base.buildId === "tall-pantry")).toBe(
+      true,
+    );
+    // A4, as everywhere else: what the pantries cannot absorb is bare, and less than one module.
+    expect(plan.remainderMm.B).toBeLessThan(600);
+    expect(plan.remainderMm.B).toBeGreaterThanOrEqual(0);
   });
 });
 

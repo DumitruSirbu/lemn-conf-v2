@@ -1,0 +1,401 @@
+// M7B U3a slice S2 — the tall layout and the one oven (ADR 0110 *N3 revised* 4, 9, 10; N6′ RQ13,
+// RQ14, RQ17). Two independent fills feed off S1's core-run plan: the fridge-to-free-end gap on the
+// fridge's own wall (always pantries, at every size — RQ13), and the far wall's own run (overflow,
+// counted door bases, one tower, outboard pantries below 10 m, and a trailing door fill).
+//
+// **`planTallEndBlock` is reused unchanged for the far wall's own ≤ 3000 mm free-end case** — the
+// same free-end-block shape Amendment E already gives the L, wired through the same leaf. Its L
+// behaviour is untouched; this module's only edit to `tall-end-rule.ts` was exporting an
+// already-private constant (S2's own head comment there). RQ17's lone-tower-bare-remainder rule,
+// which departs from that leaf's own E6.2 for a U only, is applied as a thin override **here**, never
+// inside the leaf.
+import type { DesignRoom, DesignWall } from "../design.js";
+import { wallLengthMm } from "../queries/overflowing-placements.js";
+import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
+import { hobWithItsOwnOvenBuildId } from "./generation-priorities.js";
+import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
+import {
+  baseCountFromTheCorner,
+  isLargeU,
+  type UGenerationRun,
+  type UPlannedGenerationBase,
+} from "./run-layout.js";
+import {
+  DOOR_COLUMN_BUILD_ID,
+  HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID,
+  OVEN_TOWER_BUILD_ID,
+  planTallEndBlock,
+  type DeclaredColumnSizes,
+  type TallEndRuleInput,
+} from "./tall-end-rule.js";
+
+export interface UTallLayoutInput {
+  readonly room: DesignRoom;
+  readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
+  readonly fridgeWall: DesignWall;
+  readonly farWall: DesignWall;
+  /** Where the fridge's own footprint ends on `fridgeWall`, or `undefined` when *N3 revised* 2
+   *  dropped it — there is then no gap to fill (RQ9's own empty-population branch). */
+  readonly fridgeEndMm: number | undefined;
+  /** S1's own bodies already standing on the far wall, from the back wall's overflow — read, never
+   *  rebuilt, so this module places nothing S1 already placed. */
+  readonly overflowBases: readonly UPlannedGenerationBase[];
+  /** E3 clause 1, read off S1's own plan: whether every core role survived. */
+  readonly coreSurvivedWhole: boolean;
+  readonly declared: DeclaredColumnSizes;
+}
+
+export interface UTallLayoutResult {
+  readonly bases: readonly UPlannedGenerationBase[];
+  /** *N3 revised* 9 (E4 unchanged): which hob build id the one generated oven leaves the plan with. */
+  readonly hobBuildId: string;
+}
+
+/** The fridge-to-free-end gap and the far wall's own layout, together — the far wall's own hob
+ *  decision is the plan's only oven decision (E4, *N3 revised* 9): the fridge wall never carries a
+ *  hob and never a tower. */
+export function planUTallLayout(input: UTallLayoutInput): UTallLayoutResult {
+  const fridgeGapBases =
+    input.fridgeEndMm === undefined
+      ? []
+      : pantriesInGap(
+          input.fridgeWall,
+          input.fridgeEndMm,
+          input.runs[input.fridgeWall].endMm,
+          input.declared,
+        );
+  const far = farWallLayout(input);
+  return {
+    bases: [...fridgeGapBases, ...far.bases],
+    hobBuildId: far.hobBuildId,
+  };
+}
+
+/** *N3 revised* 4 (RQ13): the fridge-to-free-end gap takes `tall-pantry` columns at every size,
+ *  below 10 m and above it alike — 600 mm each, the outermost (nearest the free end) widened up to
+ *  the row's own declared ceiling to absorb the remainder; a gap under one whole module but at
+ *  least the row's own declared floor takes one pantry at its own width; under that floor stays
+ *  bare. */
+function pantriesInGap(
+  wall: DesignWall,
+  gapStartMm: number,
+  gapEndMm: number,
+  declared: DeclaredColumnSizes,
+): readonly UPlannedGenerationBase[] {
+  const widthsMm = pantryWidthsFor(gapEndMm - gapStartMm, declared);
+  let cursorMm = gapStartMm;
+  return widthsMm.map((widthMm, index) => {
+    const base = columnBase(
+      wall,
+      cursorMm,
+      `fridge-gap:${wall}:${String(index)}`,
+      DOOR_COLUMN_BUILD_ID,
+      widthMm,
+    );
+    cursorMm += widthMm;
+    return base;
+  });
+}
+
+/** The pantry widths a gap of `gapMm` fills to, corner end first: whole 600 mm modules, the last one
+ *  widened up to the row's own declared ceiling to absorb what does not divide evenly, or a single
+ *  custom-width pantry for a gap under one whole module but at least the row's own declared floor.
+ *  Under that floor returns no pantry at all — the gap stays bare, exactly as `planLeftover`'s own
+ *  remainder does everywhere else (A4). Both bounds are the catalogue's own — reading them off
+ *  `declared` rather than a literal is criterion 23's own rule, the same one `tall-end-rule.ts`
+ *  states for the block's columns. */
+function pantryWidthsFor(
+  gapMm: number,
+  declared: DeclaredColumnSizes,
+): readonly number[] {
+  if (gapMm < declared.doorColumnWidthMm.minMm) return [];
+  const wholeModules = Math.floor(gapMm / STORAGE_BODY_WIDTH_MM);
+  if (wholeModules === 0) return [gapMm];
+  const remainderMm = gapMm - wholeModules * STORAGE_BODY_WIDTH_MM;
+  if (remainderMm === 0) {
+    return Array.from({ length: wholeModules }, () => STORAGE_BODY_WIDTH_MM);
+  }
+  const mergedWidthMm = STORAGE_BODY_WIDTH_MM + remainderMm;
+  if (mergedWidthMm <= declared.doorColumnWidthMm.maxMm) {
+    return [
+      ...Array.from({ length: wholeModules - 1 }, () => STORAGE_BODY_WIDTH_MM),
+      mergedWidthMm,
+    ];
+  }
+  // The remainder cannot merge into the row's own ceiling: it stays bare beyond the last whole
+  // pantry, the same "give up the last millimetre" shape the shell's own odd spans take.
+  return Array.from({ length: wholeModules }, () => STORAGE_BODY_WIDTH_MM);
+}
+
+interface FarWallLayout {
+  readonly bases: readonly UPlannedGenerationBase[];
+  readonly hobBuildId: string;
+}
+
+function farWallLayout(input: UTallLayoutInput): FarWallLayout {
+  const { farWall, room, runs, overflowBases, coreSurvivedWhole, declared } =
+    input;
+  const run = runs[farWall];
+  const overflowWidthMm = sumWidths(overflowBases);
+  const hobWithOwnOven = hobWithItsOwnOvenBuildId();
+  const affordable =
+    coreSurvivedWhole && room.heightMm >= declared.columnHeightMm;
+
+  if (!affordable) {
+    return {
+      bases: doorFill(
+        farWall,
+        run.startMm + overflowWidthMm,
+        run.endMm,
+        "far-door",
+      ),
+      hobBuildId: hobWithOwnOven,
+    };
+  }
+
+  const enteredMm = wallLengthMm(farWall, room);
+  return enteredMm <= 3000
+    ? towerAtTheFreeEnd({
+        farWall,
+        run,
+        overflowWidthMm,
+        room,
+        declared,
+        hobWithOwnOven,
+      })
+    : towerCountedFromTheCorner({
+        farWall,
+        run,
+        room,
+        overflowWidthMm,
+        declared,
+        hobWithOwnOven,
+      });
+}
+
+/** *N3 revised* 10's short-far-wall case (RQ17): the tower, or the block, stands at the free end —
+ *  `planTallEndBlock`'s own free-end shape, reused whole. Where that leaf's own E6.2 would refuse a
+ *  lone tower because its remainder cannot merge, this U-only override stands the tower anyway and
+ *  leaves that remainder bare (≤ 599 mm, A4), which the leaf itself must not be taught to do — its L
+ *  behaviour stays exactly E6.2's own. */
+function towerAtTheFreeEnd(args: {
+  readonly farWall: DesignWall;
+  readonly run: UGenerationRun;
+  readonly overflowWidthMm: number;
+  readonly room: DesignRoom;
+  readonly declared: DeclaredColumnSizes;
+  readonly hobWithOwnOven: string;
+}): FarWallLayout {
+  const { farWall, run, overflowWidthMm, room, declared, hobWithOwnOven } =
+    args;
+  const availableMm = Math.max(0, run.endMm - run.startMm - overflowWidthMm);
+  const leftover = planLeftover(availableMm);
+  // *N3 revised* 10: at 10 m or more the tower stands alone, with no pantry generated — the same
+  // gate `towerCountedFromTheCorner` applies to its own outboard pantries, read here too so the
+  // free-end case cannot grow the block past the tower on a large U. The block's own leftover count
+  // is capped to at most one module *before* `planTallEndBlock` sees it, so its own merge arithmetic
+  // still runs correctly on the capped scenario; the modules this frees up stand as ordinary door
+  // storage instead, never dropped.
+  const blockStorageCountMm = isLargeU(room)
+    ? Math.min(1, leftover.storageCount)
+    : leftover.storageCount;
+  const extraStorageCount = leftover.storageCount - blockStorageCountMm;
+  const blockInput: TallEndRuleInput = {
+    coreSurvivedWhole: true,
+    // *N3 revised* 7 / RQ11: a U's tall block never needs the hob on this same wall.
+    hobStandsOnTheFreeEndWall: true,
+    freeEndStorageCount: blockStorageCountMm,
+    freeEndRemainderMm: leftover.remainderMm,
+    roomHeightMm: room.heightMm,
+    hobWithItsOwnOvenBuildId: hobWithOwnOven,
+    declared,
+  };
+  const block = withRQ17Override(planTallEndBlock(blockInput), blockInput);
+
+  let cursorMm = run.startMm + overflowWidthMm;
+  const bases: UPlannedGenerationBase[] = [];
+  for (let index = 0; index < extraStorageCount; index += 1) {
+    bases.push(
+      storageBase(farWall, cursorMm, `far-door:${farWall}:${String(index)}`),
+    );
+    cursorMm += STORAGE_BODY_WIDTH_MM;
+  }
+  for (
+    let index = extraStorageCount;
+    index < extraStorageCount + block.storageCount;
+    index += 1
+  ) {
+    bases.push(
+      storageBase(farWall, cursorMm, `far-door:${farWall}:${String(index)}`),
+    );
+    cursorMm += STORAGE_BODY_WIDTH_MM;
+  }
+  for (const [index, column] of block.columns.entries()) {
+    bases.push(
+      columnBase(
+        farWall,
+        cursorMm,
+        `column:${farWall}:${String(index)}`,
+        column.buildId,
+        column.widthMm,
+      ),
+    );
+    cursorMm += column.widthMm;
+  }
+  return { bases, hobBuildId: block.hobBuildId };
+}
+
+/** RQ17: a lone tower `planTallEndBlock`'s own E6.2 would refuse — its merge with the free end's
+ *  remainder falls outside the door column's declared bound, or the block is a single fixed-width
+ *  column that cannot merge at all — stands anyway on a U, with that remainder left bare. Applied
+ *  only where the leaf's own clauses (E3 1, 3, 4) already held; a genuinely unaffordable block is
+ *  left exactly as the leaf answered it. */
+function withRQ17Override(
+  block: ReturnType<typeof planTallEndBlock>,
+  input: TallEndRuleInput,
+): ReturnType<typeof planTallEndBlock> {
+  if (block.columns.length > 0) return block;
+  const wasAffordable =
+    input.coreSurvivedWhole &&
+    input.hobStandsOnTheFreeEndWall &&
+    input.freeEndStorageCount >= 1 &&
+    input.roomHeightMm >= input.declared.columnHeightMm;
+  if (!wasAffordable) return block;
+  return {
+    columns: [
+      { buildId: OVEN_TOWER_BUILD_ID, widthMm: input.declared.columnWidthMm },
+    ],
+    storageCount: input.freeEndStorageCount - 1,
+    remainderMm: input.freeEndRemainderMm,
+    hobBuildId: HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID,
+  };
+}
+
+/** *N3 revised* 10's long-far-wall case: `n` counted door bases from the corner (item 3's own table,
+ *  reused for the tower's own count — RQ5's *"both from corner"*), the overflowed bodies counting
+ *  toward `n` and the tower following them directly where they already exceed it; then the tower;
+ *  then, below 10 m, up to two more pantry columns outboard of it (E2, E12, RQ11); then a trailing
+ *  door fill for the rest of the run (RQ14). No merge is attempted at the trailing fill's own end —
+ *  it is an ordinary `planLeftover` remainder, A4's rule holding as it does everywhere else the tall
+ *  block does not reach a wall's own free end. */
+function towerCountedFromTheCorner(args: {
+  readonly farWall: DesignWall;
+  readonly run: UGenerationRun;
+  readonly room: DesignRoom;
+  readonly overflowWidthMm: number;
+  readonly declared: DeclaredColumnSizes;
+  readonly hobWithOwnOven: string;
+}): FarWallLayout {
+  const { farWall, run, room, overflowWidthMm, declared, hobWithOwnOven } =
+    args;
+  const enteredMm = wallLengthMm(farWall, room);
+  const n = baseCountFromTheCorner(enteredMm);
+  const overflowCount = overflowWidthMm / STORAGE_BODY_WIDTH_MM;
+  const extraDoorsBeforeTower = Math.max(0, n - overflowCount);
+
+  let cursorMm = run.startMm + overflowWidthMm;
+  const bases: UPlannedGenerationBase[] = [];
+  for (let index = 0; index < extraDoorsBeforeTower; index += 1) {
+    if (cursorMm + STORAGE_BODY_WIDTH_MM > run.endMm) break;
+    bases.push(
+      storageBase(farWall, cursorMm, `far-n:${farWall}:${String(index)}`),
+    );
+    cursorMm += STORAGE_BODY_WIDTH_MM;
+  }
+
+  let towerStood = false;
+  let hobBuildId = hobWithOwnOven;
+  if (cursorMm + declared.columnWidthMm <= run.endMm) {
+    bases.push(
+      columnBase(
+        farWall,
+        cursorMm,
+        `column:${farWall}:0`,
+        OVEN_TOWER_BUILD_ID,
+        declared.columnWidthMm,
+      ),
+    );
+    cursorMm += declared.columnWidthMm;
+    towerStood = true;
+    hobBuildId = HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID;
+
+    if (!isLargeU(room)) {
+      for (let index = 1; index <= 2; index += 1) {
+        if (cursorMm + STORAGE_BODY_WIDTH_MM > run.endMm) break;
+        bases.push(
+          columnBase(
+            farWall,
+            cursorMm,
+            `column:${farWall}:${String(index)}`,
+            DOOR_COLUMN_BUILD_ID,
+            STORAGE_BODY_WIDTH_MM,
+          ),
+        );
+        cursorMm += STORAGE_BODY_WIDTH_MM;
+      }
+    }
+  }
+
+  bases.push(...doorFill(farWall, cursorMm, run.endMm, "far-tail"));
+  return { bases, hobBuildId: towerStood ? hobBuildId : hobWithOwnOven };
+}
+
+/** *N3 revised* 3's own table, read again here for the tower's own count on the far wall (RQ5:
+ *  *"both from corner"*) — imported from `u-composition.ts` rather than restated, so the fridge's own
+ *  count and the tower's own count cannot part on the same boundary. */
+
+function doorFill(
+  wall: DesignWall,
+  startMm: number,
+  endMm: number,
+  idPrefix: string,
+): readonly UPlannedGenerationBase[] {
+  const leftover = planLeftover(Math.max(0, endMm - startMm));
+  let cursorMm = startMm;
+  const bases: UPlannedGenerationBase[] = [];
+  for (let index = 0; index < leftover.storageCount; index += 1) {
+    bases.push(
+      storageBase(wall, cursorMm, `${idPrefix}:${wall}:${String(index)}`),
+    );
+    cursorMm += STORAGE_BODY_WIDTH_MM;
+  }
+  return bases;
+}
+
+function storageBase(
+  wall: DesignWall,
+  startMm: number,
+  id: string,
+): UPlannedGenerationBase {
+  return {
+    id,
+    role: "storage",
+    buildId: DOOR_BASE_BUILD_ID,
+    widthMm: STORAGE_BODY_WIDTH_MM,
+    wall,
+    startMm,
+    endMm: startMm + STORAGE_BODY_WIDTH_MM,
+  };
+}
+
+function columnBase(
+  wall: DesignWall,
+  startMm: number,
+  id: string,
+  buildId: string,
+  widthMm: number,
+): UPlannedGenerationBase {
+  return {
+    id,
+    role: "storage",
+    buildId,
+    widthMm,
+    wall,
+    startMm,
+    endMm: startMm + widthMm,
+  };
+}
+
+function sumWidths(bases: readonly UPlannedGenerationBase[]): number {
+  return bases.reduce((sum, base) => sum + base.widthMm, 0);
+}

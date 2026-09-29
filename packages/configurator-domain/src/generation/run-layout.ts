@@ -98,6 +98,42 @@ export interface UKitchenCompositionPlan {
   readonly remainderMm: Readonly<Record<DesignWall, number>>;
 }
 
+/** One of the three walls' free run, corner to free end — `uShellFloorRuns`'s own shape
+ *  (`shell-design.ts:806-830`), restated here so `u-composition.ts` and `u-tall-layout.ts` share one
+ *  type rather than each naming a dependency on the shell builder, or on each other. */
+export interface UGenerationRun {
+  readonly wall: DesignWall;
+  readonly startMm: number;
+  readonly endMm: number;
+}
+
+/** ADR 0110 *N3 revised* 1: the entered total run at or above which a U is "large", driving the
+ *  tall-cabinet, oven and back-wall rules `u-composition.ts` and `u-tall-layout.ts` own. Owner,
+ *  relayed (N1.3's follow-up): *"one 'large U' threshold, A + B + C ≥ 10 m"*. Ten metres over the
+ *  three **entered** lengths — never the free-run capacity, the same "entered, not capacity" key ADR
+ *  0120 E2 ruled for the L's own wall assignment. Kept here rather than in either composer, so
+ *  neither restates it for the other (ADR 0102). */
+export const LARGE_U_TOTAL_MM = 10_000;
+
+export function isLargeU(room: DesignRoom): boolean {
+  if (room.wallCMm === undefined) {
+    throw new Error(
+      "isLargeU: the room carries no wallCMm to sum a U's total run from",
+    );
+  }
+  return room.widthMm + room.depthMm + room.wallCMm >= LARGE_U_TOTAL_MM;
+}
+
+/** *N3 revised* 3's own table (RQ3's *"both from corner"*): `n` base cabinets stand between a
+ *  corner and the fridge, or — RQ5's *"both from corner"* again — between a corner and the tower on
+ *  a long far wall. One function, so `u-composition.ts`'s own count and `u-tall-layout.ts`'s cannot
+ *  part on the same boundary (ADR 0102). Zero at 3000 mm or less; two at 3001-4000; three above. */
+export function baseCountFromTheCorner(enteredLengthMm: number): 0 | 2 | 3 {
+  if (enteredLengthMm <= 3000) return 0;
+  if (enteredLengthMm <= 4000) return 2;
+  return 3;
+}
+
 export function fitsAcrossTheCorner(
   readingOrder: readonly GenerationRunItem[],
   cut: number,

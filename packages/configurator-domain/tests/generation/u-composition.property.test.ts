@@ -7,6 +7,10 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  declaredColumnSizes,
+  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
@@ -14,6 +18,10 @@ import {
 import { planUKitchenComposition } from "../../src/generation/u-composition.js";
 
 const RUNS = 200;
+
+const DECLARED = declaredColumnSizes(
+  buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
+);
 
 function uRoom(
   widthMm: number,
@@ -52,7 +60,11 @@ function boundaryRooms(): readonly DesignRoom[] {
 }
 
 function planFor(room: DesignRoom) {
-  return planUKitchenComposition({ room, runs: uShellFloorRuns(room) });
+  return planUKitchenComposition({
+    room,
+    runs: uShellFloorRuns(room),
+    columns: DECLARED,
+  });
 }
 
 function basesOn(plan: ReturnType<typeof planFor>, wall: DesignWall) {

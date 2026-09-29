@@ -16,47 +16,31 @@ import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
 import { DISHWASHER_RUN_ITEM } from "./dishwasher-beside-the-sink.js";
 import { GENERATION_PRIORITIES } from "./generation-priorities.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
-import type {
-  GenerationAncillaryRunItem,
-  GenerationCoreRole,
-  GenerationPriority,
-  UKitchenCompositionPlan,
-  UPlannedGenerationBase,
+import {
+  baseCountFromTheCorner,
+  type GenerationAncillaryRunItem,
+  type GenerationCoreRole,
+  type GenerationPriority,
+  type UGenerationRun,
+  type UKitchenCompositionPlan,
+  type UPlannedGenerationBase,
 } from "./run-layout.js";
+import type { DeclaredColumnSizes } from "./tall-end-rule.js";
+import { planUTallLayout } from "./u-tall-layout.js";
 
-/** ADR 0110 *N3 revised* 1: the entered total run at or above which a U is "large", driving the
- *  tall-cabinet, oven and back-wall rules S2 and S3 own. Owner, relayed (N1.3's follow-up):
- *  *"one 'large U' threshold, A + B + C ≥ 10 m"*. Ten metres over the three **entered** lengths —
- *  never the free-run capacity, the same "entered, not capacity" key ADR 0120 E2 ruled for the L's
- *  own wall assignment. */
-export const LARGE_U_TOTAL_MM = 10_000;
-
-export function isLargeU(room: DesignRoom): boolean {
-  return totalRunMm(room) >= LARGE_U_TOTAL_MM;
-}
-
-function totalRunMm(room: DesignRoom): number {
-  if (room.wallCMm === undefined) {
-    throw new Error(
-      "u-composition: the room carries no wallCMm to sum a U's total run from",
-    );
-  }
-  return room.widthMm + room.depthMm + room.wallCMm;
-}
-
-/** One of the three walls' free run, corner to free end — `uShellFloorRuns`'s own shape
- *  (`shell-design.ts:806-830`), restated as an input here so this module names no dependency on the
- *  shell builder, only on the span it already publishes. */
-export interface UGenerationRun {
-  readonly wall: DesignWall;
-  readonly startMm: number;
-  readonly endMm: number;
-}
+export {
+  isLargeU,
+  LARGE_U_TOTAL_MM,
+  type UGenerationRun,
+} from "./run-layout.js";
 
 export interface PlanUKitchenCompositionInput {
   /** A room `validateRoomInput` accepted for the U policy. */
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
+  /** The catalogue's declared sizes for the full-height block (M7B U3a slice S2), read by
+   *  `generateKitchen` the same way the L's own `planKitchenComposition` reads it. */
+  readonly columns: DeclaredColumnSizes;
 }
 
 const FRIDGE_PRIORITY = declaredPriority("fridge");
@@ -89,16 +73,6 @@ function fridgeWallCandidates(room: DesignRoom): FridgeWallCandidates {
     : { primary: "C", secondary: "B" };
 }
 
-/** *N3 revised* 3: `n` base cabinets stand between the corner and the fridge, counted from the
- *  corner. Zero at 3000 mm or less — the fridge stands at the free end instead, storage filling in
- *  from the corner; two at 3001-4000 mm; three above 4000 mm. The boundaries are *derived*, the
- *  counts the owner's own (RQ3's *"both from corner"*). */
-function fridgeBaseCountFor(enteredLengthMm: number): 0 | 2 | 3 {
-  if (enteredLengthMm <= 3000) return 0;
-  if (enteredLengthMm <= 4000) return 2;
-  return 3;
-}
-
 interface FridgeWallLayout {
   readonly placed: boolean;
   readonly bases: readonly UPlannedGenerationBase[];
@@ -118,7 +92,7 @@ function fridgeWallLayout(
     return { placed: false, bases: [] };
   }
   const enteredMm = wallLengthMm(wall, room);
-  let n = fridgeBaseCountFor(enteredMm);
+  let n = baseCountFromTheCorner(enteredMm);
   while (
     n > 0 &&
     n * STORAGE_BODY_WIDTH_MM + FRIDGE_PRIORITY.widthMm > capacityMm
@@ -343,14 +317,12 @@ function backWallAttempts(): readonly (readonly CoreRunItem[])[] {
   ];
 }
 
-/** The core run's plan: the fridge wall and its counted placement, and the back wall packed from the
- *  fridge's own corner with overflow onto the far wall (S1's own must-fix items). S2 and S3 extend
- *  this plan with the tall layout, the oven and the drawer count; this function's own output already
- *  carries every wall's unconsumed `remainderMm` for them to read. */
+/** The core run plus, once it composes, the tall layout and the one oven (S1's own must-fix items,
+ *  and S2's: the fridge-to-free-end gap and the far wall's tower). S3 still owes the drawer count. */
 export function planUKitchenComposition(
   input: PlanUKitchenCompositionInput,
 ): UKitchenCompositionPlan {
-  const { room, runs } = input;
+  const { room, runs, columns } = input;
   const fridge = placedFridge(room, runs);
   const laneA = wallALaneFromTheFridgeCorner(fridge.fridgeWall, runs.A);
   const laneFar = laneFromTheCorner(runs[fridge.farWall]);
@@ -376,7 +348,19 @@ export function planUKitchenComposition(
       ...(fridge.dropped ? (["fridge"] as const) : []),
       ...(attemptIndex >= 2 ? (["preparation"] as const) : []),
     ];
-    const bases = [...(fridge.dropped ? [] : fridge.bases), ...packed.bases];
+    const coreBases = [
+      ...(fridge.dropped ? [] : fridge.bases),
+      ...packed.bases,
+    ];
+    const bases = withTheTallLayout({
+      room,
+      runs,
+      fridgeWall: fridge.fridgeWall,
+      farWall: fridge.farWall,
+      coreDropped: dropped.length > 0,
+      coreBases,
+      declared: columns,
+    });
     return {
       room,
       bases,
@@ -395,6 +379,42 @@ export function planUKitchenComposition(
     minimumMet: false,
     remainderMm: remainderMmOf(runs, []),
   };
+}
+
+/** The core run's own bases, plus the fridge wall's pantry-filled gap and the far wall's tower (S2):
+ *  a fixed-width hob base already stands in `coreBases`, so its own build id is swapped for the
+ *  tower's oven decision rather than a second hob being placed. */
+function withTheTallLayout(args: {
+  readonly room: DesignRoom;
+  readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
+  readonly fridgeWall: DesignWall;
+  readonly farWall: DesignWall;
+  readonly coreDropped: boolean;
+  readonly coreBases: readonly UPlannedGenerationBase[];
+  readonly declared: DeclaredColumnSizes;
+}): readonly UPlannedGenerationBase[] {
+  const fridgeBaseEndMm = args.coreBases.find(
+    (base) => base.role === "fridge",
+  )?.endMm;
+  const overflowBases = args.coreBases.filter(
+    (base) => base.wall === args.farWall,
+  );
+  const tall = planUTallLayout({
+    room: args.room,
+    runs: args.runs,
+    fridgeWall: args.fridgeWall,
+    farWall: args.farWall,
+    fridgeEndMm: fridgeBaseEndMm,
+    overflowBases,
+    coreSurvivedWhole: !args.coreDropped,
+    declared: args.declared,
+  });
+  return [
+    ...args.coreBases.map((base) =>
+      base.role === "hob" ? { ...base, buildId: tall.hobBuildId } : base,
+    ),
+    ...tall.bases,
+  ];
 }
 
 function floorWidthsMmOf(
