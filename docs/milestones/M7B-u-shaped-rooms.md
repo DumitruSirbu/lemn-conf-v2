@@ -359,7 +359,7 @@ test or a capture in U4.
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
-| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. **RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built** |
+| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. ~~**RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built**~~ **RQ19, RQ20 and RQ21 answered 2026-09-29 (ADR 0110 N10). RQ19 (a) is built at `84bab2e`; RQ19 (b), RQ20 and RQ21 are owed before QA** |
 | **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
@@ -821,6 +821,7 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
 | **S1 the core run** | (1) A three-wall plan type (`UKitchenCompositionPlan`, `Record<DesignWall, …>` over A, B, C; the L's `TwoWallDispatch` untouched). (2) The fridge wall: the wider side wall, B when B = C, the other side wall if the fridge does not fit, dropped only if neither fits (*N3r* 2; RQ2, RQ9). The RQ9 branch is kept with a declared witness (ADR 0123) because its population measures 0. (3) The fridge after `n` bases **counted from the corner**: free end if the wall is ≤ 3000, 2 bases for 3001–4000, 3 bases above 4000, and `n` falls when it does not fit (*N3r* 3). (4) The back wall packed from the fridge corner: sink, dishwasher, preparation, hob. Overflow continues round the far corner. The dishwasher is dropped first, then the preparation (*N3r* 5; RQ4, RQ12). (5) `LARGE_U_TOTAL_MM` (10 000) is a named owner constant with its provenance (*N3r* 1) | new `generation/u-composition.ts`; `generation/run-layout.ts` (the plan type only) | ADR 0110 N1, N2, *N3 revised* 1–3, 5, N6; A1, A2, A4; ADR 0120 E (not applied to a U, N2); ADR 0123; `uShellFloorRuns` (`shell-design.ts:806-830`); `generation-priorities.ts:40-165` as the pattern, not an edit site |
 | **S2 the tall layout and the oven** | (1) The fridge-to-free-end gap takes `tall-pantry` columns at every size: 600 mm each, the outermost widened up to 800; a 400–599 gap takes one pantry at its width; under 400 stays bare (*N3r* 4; RQ13). (2) The far wall: overflowed bodies, then door bases up to `n` from the corner. Overflowed bodies count toward `n`, and the tower follows them directly where they exceed it. Then **one** `tall-oven-tower`. Below 10 m, pantries stand outboard up to a three-column block (E2, E12, E3 clauses 1 and 4; RQ11). At 10 m or more the tower stands alone. The rest of the run is door bases (*N3r* 10; RQ5, RQ14). (3) A far wall ≤ 3000 takes the tower or block at its free end. **A lone tower stands with its remainder, ≤ 599 mm, bare** (RQ17), departing from E6.2 **for a U only**. `planTallEndBlock`'s L behaviour does not change. (4) Exactly one generated oven: the tower with `base-hob-2drawer`, or `base-hob-oven` (*N3r* 9; E4) | new `generation/u-tall-layout.ts`; `generation/tall-end-rule.ts` (only if a U-only option is needed, with an L byte-identity test); `generation/u-composition.ts` | *N3 revised* 4, 9, 10; N6′ RQ13, RQ14, RQ17; ADR 0110 E2, E3, E4, E6, E12, I; `tall-end-rule.ts` whole (197 lines) |
 | **S3 drawers, dishwasher, bottle** | (1) Drawer units: `N(T) = min(5, 3 + ⌊max(0, T − 4700) / 2000⌋)`, counting `base-3drawer` and `base-panbank` only. The preparation cabinet is the first unit, and `base-hob-2drawer` does not count (RQ15). Extras take door slots after the hob. The count yields (*N3r* 6; RQ6, RQ10). Key it on the two owner-named build ids as data (ADR 0121), not on a general drawer classifier, which F7 declines. (2) The dishwasher beside the sink (M1), through the existing leaf, and (e)'s drawer swap if that reaches a U. (3) The bottle on **the next cabinet after the hob along the run**, when there is space (*N3r* 7; RQ16). (4) The threshold drawer is replaced by `N(T)` (*N3r* 8, labelled a default). (5) The pan drawer counts as a drawer unit | `generation/u-composition.ts`; `generation/dishwasher-beside-the-sink.ts` (only if its across-the-corner adjacency must read a second corner); `generation/optional-run-items.ts` (bottle placement reused, U arm only) | *N3 revised* 6–8; N6 RQ6, RQ10; N6′ RQ15, RQ16; ADR 0110 F5, F7, H1, J, K, L, M1, M2; `body-choice.ts`; `dishwasher-beside-the-sink.ts:1-130` |
+| **N10 fix (2026-09-29, before QA)** | (1) Drawer extras stand **before the tower**, and the tower shifts: `max(n, bodies before it)`, where the far-wall bottle and extras count as base bodies. The tower stays at the free end of a far wall ≤ 3000 (N10.3 step 4; RQ19 (b)). (2) The bottle stands directly after a far-wall hob even when a tower stands on that wall, but only if the tower and the pantries still stand (N10.3 step 5; RQ20). (3) On every wall, the bottle drops whenever it would lower the run's drawer-unit count (RQ21): wall A's fill and the no-tower far wall included. (4) The tower's existence and the pantry count are decided before either, as at `84bab2e`, and never undone (N10.3 steps 2–3). (5) Tests per AC1 (a)–(e), AC2's added rooms, and AC3's pins | `generation/u-composition.ts`; `generation/u-tall-layout.ts` | ADR 0110 N10 (all of it), *N3 revised* 6, 7, 10, N9.3; `u-composition.ts` whole; `u-tall-layout.ts:130-330` |
 
 - **Reading, QA:** this wave's rows and criteria; ADR 0110 N (N1–N6′, especially *N3 revised* and
   N4′); `u0-measure-rq.mjs` as the model the witnesses came from (scratchpad; the witnesses are
@@ -847,8 +848,31 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    1 522 rooms, not RQ9's empty population. That exclusion is withdrawn. So that the property actually
    visits the drop band, ≥ 200 of its samples are drawn with both side walls in 1000–1699. **Added:**
    where the hob stands on the far wall, no tall column stands on that wall, and ≥ 300 mm of run
-   follows the hob, the next body after the hob is the bottle. Where a tall column follows the hob on
-   the far wall, no bottle stands between them (RQ20's default).
+   follows the hob, the next body after the hob is the bottle. ~~Where a tall column follows the hob on
+   the far wall, no bottle stands between them (RQ20's default).~~
+   **2026-09-29 (ADR 0110 N10.3; RQ19 (b), RQ20, RQ21 answered).** The RQ20-default clause is
+   withdrawn. The tower clause *"stands at its count from the corner"* becomes the bound below. Each
+   of these is a **[prop]** over the same sampled range:
+   - **(a) No drawer extra after the tower.** In run order (wall A from the fridge corner, then the
+     far wall from its corner), no `base-3drawer` or `base-panbank` other than the preparation cabinet
+     stands after the `tall-oven-tower`.
+   - **(b) The bottle stands directly after the hob.** Where a `base-bottle-cargo` stands, it is on
+     the hob's wall, and its near edge is the hob's far edge in run direction. This holds on either
+     wall, with or without a tower.
+   - **(c) The bottle never costs a drawer unit (RQ21).** In every plan with fewer drawer cabinets
+     than `N(T)`: (i) no plain `base-cabinet` stands after the hob in run order; (ii) on the bottle's
+     wall, `remainderMm` + `bottleWidthMm` + every widened pantry's width over 600 is < 600.
+   - **(d) The tower's bound.** On a far wall over 3000 mm, the number of bodies before the tower is at
+     most `max(n, overflowed core + bottle on that wall + drawer extras on that wall)`. Every body
+     before it is overflowed core, the bottle, a drawer extra, or a plain door. A plain door appears
+     only when the room already has `N(T)` drawer cabinets. A far wall of 3000 mm or less keeps the
+     tower or block at its free end, and nothing stands beyond the block except RQ17's bare remainder.
+   - **(e) Must not:** a room lose its tower, or gain one, relative to the same room at `84bab2e`
+     (AC3's pin); a pantry lost or narrowed on the far wall; any body on the fridge wall change.
+   - **Arm floors.** The sweep's fixed grid counts each arm and holds it ≥ 1: far-wall hob with a tower
+     and a bottle; far-wall hob with a tower and no bottle because the tower or a drawer takes the room;
+     back-wall hob that drops the bottle for a drawer (RQ21); back-wall hob with drawer extras past `n`
+     before the tower. This way a property cannot pass by landing only on arms nobody changed.
 2. **Witnesses** (N4′'s seven rooms, `u0-measure-rq.mjs` with `RQ13_TALL=1 TOWER_BARE=1`): the plan's
    bodies per wall, in order, equal N4′'s predicted rows, and 2700 / 1000 / 1000 is `minimumMet:
    false`. **If the plan measures otherwise, stop and report** before U3b. N4′ was a model (7J A8's
@@ -869,6 +893,17 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    (N9.3). **The fridge wall's 600 mm bare end is a plan defect** (N9.2): a dropped fridge's wall is
    left empty. Both fixes land before U3a QA. After them, AC2 must match 7 of 7 corrected rows, and
    AC3's pin of largest bare 500 / 500 / 500 must hold. Neither has been measured yet.
+   **2026-09-29, RQ19 (a) (`84bab2e`):** 5000/4000/3000's wall C is `base-panbank`, `base-3drawer`,
+   tower. **2026-09-29, ADR 0110 N10.6 (RQ19 (b), RQ20, RQ21):** among N4′'s seven, only **5000 /
+   4000 / 3000** moves again. It becomes A: sink, dishwasher, preparation, `base-hob-2drawer`,
+   `base-panbank` (bare 200, **no bottle**); C: `base-panbank`, `base-3drawer`, tower (bare 200), with
+   4 drawer cabinets. The architect's model measured the other six unchanged. **Six rooms are
+   added**, each pinned wall by wall exactly as N10.6 predicts: 3000/4500/4500, 2700/4000/4000,
+   2700/3700/3700, 4200/3400/3400, 4800/1000/1000, 3600/2800/2800 (and 3600/3500/2200, already a
+   witness, now pinned as RQ20's *"without bottle"* case). The drawer-split test's 3-cabinet
+   witness, 5000/4000/3000, now has 4 cabinets, so that test moves to **3000 / 4500 / 4500**
+   (preparation, 1 `base-panbank`, 1 `base-3drawer`). The stop-and-report rule applies to these rows
+   as to N4′'s.
 3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
    counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
    difference is reported with its room. **[unit] + [report]**
@@ -877,6 +912,14 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    emits. The bottle-affected bare and drawer figures are not held to N4′. The exact matches (composed
    86 706 / refused 1 728, fridge 3-from-corner / other-side / dropped, hob wall, large-U no-tower,
    one oven, max bare 500) stand as regression pins.
+   **2026-09-29 (ADR 0110 N10.5), after the N10 change:** (i) **the tower tallies do not move.**
+   Rooms with a tower, split by `towerPosition` (`n`, free end, none), equal the same tallies taken
+   at `84bab2e` before the change. The implementer measures both and quotes them. (ii) The largest
+   bare end is 500 / 500 / 500 on wall A / fridge wall / far wall. (iii) The drawer-cabinet
+   histogram, 0–5, equals N10.5's *under N10* row: 4 968 / 27 118 / 13 172 / 14 572 / 9 937 /
+   16 939. (iv) No room has fewer drawer cabinets than at `84bab2e`. (v) Zero rooms have a drawer
+   extra after the tower, down from 18 602. Items (iii) and (v) come from a model, so a difference is
+   reported with its room rather than fixed to match (7J A8).
 4. **The L and the straight kitchen are byte-identical**: U1-A1's re-run, plus
    `planKitchenComposition`'s output over its recorded baselines. **[unit]**
 5. **Must not:** any edit to `generation-priorities.ts`; `cornerDirection` read; a wall letter compared
