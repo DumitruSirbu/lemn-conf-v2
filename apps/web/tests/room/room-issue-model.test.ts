@@ -15,7 +15,6 @@ import {
   type LWallBounds,
   type RoomPolicy,
   type RoomShape,
-  type UWallBounds,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -44,6 +43,7 @@ import {
   requireLeafAt,
   translatorFor,
 } from "../support/catalogues";
+import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
 
 const SAMPLES_PER_ARM = 100;
 
@@ -139,15 +139,6 @@ function approvedL(): LWallBounds {
   return bounds;
 }
 
-/** L's own bounds, reshaped into `UWallBounds` — wall C stands in for wall B's, the domain's own
- *  proof that the right corner's narrowest reach on wall C equals wall B's (`corner-assembly-
- *  size.ts`'s right-corner head comment). `APPROVED_ROOM_POLICY` states no U bounds of its own yet
- *  (the owner rules on them at U6), so this is a fabrication, not a read of the real policy. */
-function approvedUStandIn(): UWallBounds {
-  const l = approvedL();
-  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
-}
-
 /** R8's fabricated policy (ADR 0116): a second shape stated with L-derived bounds — only ever
  *  called with U below. Linear needs no such fabrication since 7J S5: it is real. */
 function policyAlsoStating(shape: "U"): RoomPolicy {
@@ -155,7 +146,7 @@ function policyAlsoStating(shape: "U"): RoomPolicy {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
       ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedUStandIn(),
+      [shape]: approvedUWallBoundsStandIn(),
     },
   };
 }

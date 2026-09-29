@@ -74,8 +74,8 @@ export interface LMinimumKitchen {
 
 /** A U's three walls (ADR 0132 decision 2). Wall C mirrors wall B's own run, so no fourth bound
  *  exists here. **No `minimumKitchen` yet**: the coupled fit rule for a U is ADR 0108 Amendment H3's
- *  own — sink on the back wall, wall A or the far side wall long enough — and it lands with the
- *  owner's approved bounds at U6, not this wave (Amendment H is context only here). */
+ *  own — sink on the back wall, wall A or the far side wall long enough — and it lands at U3 S3, not
+ *  this wave (Amendment H is context only here). */
 export interface UWallBounds {
   readonly wallA: MillimetreBounds;
   readonly wallB: MillimetreBounds;
@@ -105,14 +105,17 @@ export interface RoomPolicy {
  *  ADR 0108 decision 3 lets a surface learn about a shape it offers. It reads the policy's data
  *  rather than naming a shape, so a shape starts being offered by gaining its bounds in
  *  `APPROVED_ROOM_POLICY` and by no edit to any caller — which is how wave 7J turns the straight
- *  kitchen on without touching a component. */
+ *  kitchen on without touching a component.
+ *
+ *  **`Object.hasOwn`, never a plain index read** (R1.2). `statedShapes[shape]` answers for
+ *  `"toString"`, `"__proto__"` and `"constructor"` too — every `BuildableShapes` object inherits
+ *  them from `Object.prototype`, whatever bounds it actually states — so a caller handed one of
+ *  those three strings as `shape` would read a buildable room that is not a `RoomShape` at all. */
 export function isShapeBuildable(
   shape: RoomShape,
   policy: RoomPolicy,
 ): boolean {
-  const statedShapes: Readonly<Partial<Record<RoomShape, unknown>>> =
-    policy.buildableShapes;
-  return statedShapes[shape] !== undefined;
+  return Object.hasOwn(policy.buildableShapes, shape);
 }
 
 /** **Not a product bound — none of these is** (ADR 0108 decision 6, Amendment B). The minima are what

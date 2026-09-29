@@ -44,24 +44,21 @@ import type {
   PlacementRecord,
 } from "./void-engine.js";
 
-/** **The wall whose run the corner is taken out of.** Wall A is anchored at the corner and wall B
- *  begins past it, so a deeper corner consumes wall B's length and never wall A's. Named rather
- *  than written as a bare `"B"` at the one comparison below, because the asymmetry is a product
- *  fact — §2's two walls are geometrically symmetric and it is the *design* that puts the corner
- *  bodies on wall A. */
-export const WALL_THE_CORNER_IS_TAKEN_FROM: WallId = "B";
-
 /** **Which walls a corner's own depth increase eats into, per shape** (ADR 0132 decision 7, M7B U2
- *  S3/D9). An L has one corner, taking wall B's run; a U has two — the left corner still takes wall
- *  B's, the right corner takes wall C's, the same way ADR 0132 decision 1 draws wall C as its own
- *  world wall rather than wall B reflected; a straight room has no corner and takes nothing.
+ *  S3/D9, retired from the single `WALL_THE_CORNER_IS_TAKEN_FROM` constant by review round 1, R1.3).
+ *  An L has one corner, taking wall B's run; a U has two — the left corner still takes wall B's, the
+ *  right corner takes wall C's, the same way ADR 0132 decision 1 draws wall C as its own world wall
+ *  rather than wall B reflected; a straight room has no corner and takes nothing.
  *
- *  **`WALL_THE_CORNER_IS_TAKEN_FROM` is not retired.** Every synthetic single-corner room this
- *  module's siblings build — `corner-assembly-size.ts`'s right-corner room and
- *  `generation/shell-design.ts`'s wall-C reuse, both ADR 0132's "the along values the corner rule
- *  gives for the L room (W, C)" — is shape `"L"` by construction, so reading this set at `"L"`
- *  returns the identical singleton `{B}` those two modules already compare against directly. Neither
- *  needs to be told a shape to keep behaving exactly as it did before this function existed. */
+ *  **Every reader outside this module goes through this function now, and none holds a bare wall
+ *  letter of its own.** `corner-assembly-size.ts`'s `ownsTheCorner` and
+ *  `generation/shell-design.ts`'s `slideReserveMm` both used to compare against the retired constant
+ *  directly; a direct wall-C call — neither module makes one today, both stand inside a synthetic
+ *  two-wall room, but a future caller (U3's composer is the likely first) could — read a wall-C
+ *  piece as owning the corner the way wall A does, or gave it no depth-change reserve at all. Both
+ *  now read `cornerTakingWallsOf("U")`, the superset `{B, C}`: wall C never appears in an L's own
+ *  calls, so the wider set answers exactly as `{B}` did for every wall those two ever ask about
+ *  outside a U. */
 export function cornerTakingWallsOf(
   shape: DesignRoomShape,
 ): ReadonlySet<WallId> {
@@ -74,6 +71,12 @@ export function cornerTakingWallsOf(
       return CORNER_TAKING_WALLS_NONE;
   }
 }
+
+/** **The wall whose run the corner is taken out of, on an L** — wall A is anchored at the corner
+ *  and wall B begins past it, so a deeper corner consumes wall B's length and never wall A's. Kept
+ *  as the private source `cornerTakingWallsOf("L")`'s own singleton is built from, so the L's one
+ *  wall letter is still named in exactly one place. */
+const WALL_THE_CORNER_IS_TAKEN_FROM: WallId = "B";
 
 const CORNER_TAKING_WALLS_L: ReadonlySet<WallId> = new Set([
   WALL_THE_CORNER_IS_TAKEN_FROM,

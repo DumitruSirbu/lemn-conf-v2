@@ -15,8 +15,8 @@
 // which is also what makes the two-locale pass meaningful: the same assertions run against `ru`.
 //
 // **Wave 7F2 slice S4 lives here too** — the shape refusal at 1A, 1B and 1C and the linear-suggestion
-// hook (criteria 2, 9, 10, 12 and 16) — because its fabricated-policy arm needs this file's one ADR
-// 0116 cast, and a second copy of that cast is what the record forbids.
+// hook (criteria 2, 9, 10, 12 and 16) — because its fabricated-policy arm needs a second shape's
+// bounds; `../support/fabricated-u-policy` is the one place that fabrication is written (C1.4).
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -25,10 +25,8 @@ import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
   validateRoomInput,
-  type LWallBounds,
   type RoomPolicy,
   type RoomShape,
-  type UWallBounds,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement } from "react";
@@ -72,6 +70,7 @@ import {
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
+import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
 
 /** One locale's catalogue as one argument, so a render cannot be given the Russian messages under
  *  the Romanian locale. `CATALOGUES` is the shared pair every i18n sweep travels with. */
@@ -124,15 +123,6 @@ const ROOM_PAGE_SOURCE = readFileSync(
   "utf8",
 );
 
-/** L's own bounds, reshaped into `UWallBounds` — wall C stands in for wall B's, the domain's own
- *  proof that the right corner's narrowest reach on wall C equals wall B's (`corner-assembly-
- *  size.ts`'s right-corner head comment). `APPROVED_ROOM_POLICY` states no U bounds of its own yet
- *  (the owner rules on them at U6), so this is a fabrication, not a read of the real policy. */
-function approvedUWallBoundsStandIn(): UWallBounds {
-  const l = approvedLWallBounds();
-  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
-}
-
 /**
  * **R8, and the fabrication it confines** (ADR 0116). Criterion 3's real claim is that the CTA asks
  * `isShapeBuildable` instead of spelling `L`, and the only way to prove it is to render against a
@@ -159,16 +149,6 @@ const POLICY_BUILDING_NOTHING: RoomPolicy = {
   ...APPROVED_ROOM_POLICY,
   buildableShapes: {},
 };
-
-function approvedLWallBounds(): LWallBounds {
-  const bounds = APPROVED_ROOM_POLICY.buildableShapes.L;
-  if (bounds === undefined) {
-    throw new Error(
-      "the approved policy states no L bounds to fabricate a second buildable shape from",
-    );
-  }
-  return bounds;
-}
 
 /** A module's code with its prose stripped out. The pill's own comment quotes the *1/4* it draws, as
  *  it should, and a must-not about a **literal** has to read the code rather than the sentence

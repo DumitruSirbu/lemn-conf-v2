@@ -9,10 +9,13 @@ import { describe, expect, it } from "vitest";
 import {
   cornerAlongWallCentreMm,
   cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
   cornerOf,
   rightCornerAlongWallCentreMm,
   rightCornerAssemblyWidthsMm,
   twoCornersWallAMinimumMm,
+  type CornerAssemblyWidthsMm,
+  type CornerBand,
 } from "../src/corner-assembly-size.js";
 import type { DesignPlacement, DesignRoom } from "../src/design.js";
 import { buildKitchenLBodyCatalog } from "../src/fixtures/kitchen-l-design.js";
@@ -267,7 +270,10 @@ describe("cornerOf (ADR 0121, D3)", () => {
     ).toBe("right");
   });
 
-  it("reads a wall-A piece before the room's midpoint as the left corner", () => {
+  // The midpoint split is a U's own rule (two X-legs share wall A). It reads `room.shape` first
+  // (R1.1) precisely so this comparison is never reached for an L, whose one X-leg has no second
+  // corner to be split from.
+  it("reads a wall-A piece before the room's midpoint as the left corner, on a U", () => {
     expect(
       cornerOf(
         placementAt("A", room.widthMm / 2 - 1, "base-corner-x-900"),
@@ -277,7 +283,7 @@ describe("cornerOf (ADR 0121, D3)", () => {
     ).toBe("left");
   });
 
-  it("reads a wall-A piece at or past the room's midpoint as the right corner", () => {
+  it("reads a wall-A piece at or past the room's midpoint as the right corner, on a U", () => {
     expect(
       cornerOf(
         placementAt("A", room.widthMm / 2, "base-corner-x-900"),
@@ -304,5 +310,80 @@ describe("cornerOf (ADR 0121, D3)", () => {
     // The signature itself is the proof: `cornerOf` cannot read a second placement's position
     // because it is never handed one.
     expect(cornerOf.length).toBe(3);
+  });
+
+  // **R1.1 regression.** An L has one corner, always the left one, whatever its wall-A X-leg's own
+  // along-wall coordinate — there is no second corner for a midpoint split to distinguish it from.
+  // Before this fix, an L at its own approved minimum (900 mm, even) put the X-leg's centre exactly
+  // on `W / 2` and read it as "right": a corner that does not exist, reported for the one that does.
+  it.each([880, 900, 901])(
+    "reads an L's own wall-A X-leg as the left corner, at its own wall-A centre, for W = %i",
+    (widthMm) => {
+      const lRoom: DesignRoom = {
+        shape: "L",
+        widthMm,
+        depthMm: 1000,
+        heightMm: 2600,
+      };
+
+      expect(
+        cornerOf(
+          placementAt("A", widthMm / 2, "base-corner-x-900"),
+          lRoom,
+          CATALOG,
+        ),
+      ).toBe("left");
+    },
+  );
+});
+
+// =================================================================================================
+// R1.3 regression: `ownsTheCorner` reads `cornerTakingWallsOf("U")` now, not the retired
+// `WALL_THE_CORNER_IS_TAKEN_FROM` constant — so a piece literally labelled wall C, never routed
+// through `rightCornerAssemblyWidthsMm`'s own relabelling, reads exactly as wall B's own piece does
+// in the room `roomForTheRightCorner` would build. Before the fix, `ownsTheCorner({wall:"C"})` read
+// `"C" !== "B"` as true — wall C treated as owning the corner the way wall A does — so every wall-C
+// near edge came back 0 instead of wall B's own nonzero one.
+// =================================================================================================
+
+describe("R1.3 — a direct wall-C piece, not routed through relabelling", () => {
+  it("reads the same near edge and far edge wall B gets in the room the right corner is sized in", () => {
+    const room = uRoom();
+    const mirrored = mirroredLRoom(room);
+    const widthsB = cornerAssemblyWidthsMm({
+      cabinetDepthMm: 600,
+      room: mirrored,
+    });
+    // A widths object whose pieces are labelled wall C directly — test data built by hand, never
+    // through `rightCornerAssemblyWidthsMm`'s own `relabelledToTheRightCorner`, so this reaches
+    // `nearEdgeMm`/`ownsTheCorner` with a literal `{wall: "C", ...}` the way a caller outside this
+    // module's own relabelling (U3's composer is the likely first) eventually will.
+    const widthsC: CornerAssemblyWidthsMm = {
+      ...widthsB,
+      pieces: widthsB.pieces.map((piece) =>
+        piece.wall === "B" ? { ...piece, wall: "C" as const } : piece,
+      ),
+    };
+
+    for (const band of [
+      "base",
+      "wall",
+      "top",
+    ] as const satisfies readonly CornerBand[]) {
+      const edgeB = cornerFarEdgeMm({
+        widths: widthsB,
+        cabinetDepthMm: 600,
+        wall: "B",
+        band,
+      });
+      const edgeC = cornerFarEdgeMm({
+        widths: widthsC,
+        cabinetDepthMm: 600,
+        wall: "C",
+        band,
+      });
+
+      expect(edgeC.farEdgeMm, band).toBe(edgeB.farEdgeMm);
+    }
   });
 });

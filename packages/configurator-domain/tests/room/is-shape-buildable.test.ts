@@ -107,4 +107,22 @@ describe("isShapeBuildable — it reads the policy rather than naming a shape", 
       expect(isShapeBuildable(shape, emptyPolicy)).toBe(false);
     }
   });
+
+  // **R1.2 regression.** Every `BuildableShapes` object inherits these four from `Object.prototype`,
+  // whatever bounds it actually states — a plain `statedShapes[shape] !== undefined` read them as
+  // "buildable" no policy ever stated. `Object.hasOwn` is what tells an inherited answer from a
+  // stated one.
+  it.each(["toString", "__proto__", "constructor", "hasOwnProperty"])(
+    "answers no for the inherited property %s, on every policy including one that states none",
+    (name) => {
+      const emptyPolicy: RoomPolicy = {
+        ...APPROVED_ROOM_POLICY,
+        buildableShapes: {},
+      };
+      const hostile = name as RoomShape;
+
+      expect(isShapeBuildable(hostile, APPROVED_ROOM_POLICY)).toBe(false);
+      expect(isShapeBuildable(hostile, emptyPolicy)).toBe(false);
+    },
+  );
 });

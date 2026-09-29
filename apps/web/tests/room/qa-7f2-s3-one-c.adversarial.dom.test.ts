@@ -20,10 +20,8 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
-  type LWallBounds,
   type RoomPolicy,
   type RoomShape,
-  type UWallBounds,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement, type ReactElement } from "react";
@@ -71,6 +69,7 @@ import {
 
 import roMessages from "../../src/messages/ro.json";
 import { requireLeafAt } from "../support/catalogues";
+import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
 
 const EVERY_LENGTH_FIELD: readonly RoomLengthField[] = [
   "wallA",
@@ -828,23 +827,6 @@ describe("edits that are not a digit keep to the one clock", () => {
 // ---------------------------------------------------------------------------------------------
 // The one clock, over sequences — including a fabricated policy
 // ---------------------------------------------------------------------------------------------
-
-function approvedLWallBounds(): LWallBounds {
-  const bounds = APPROVED_ROOM_POLICY.buildableShapes.L;
-  if (bounds === undefined) {
-    throw new Error("the approved policy states no L bounds");
-  }
-  return bounds;
-}
-
-/** L's own bounds, reshaped into `UWallBounds` — wall C stands in for wall B's, the domain's own
- *  proof that the right corner's narrowest reach on wall C equals wall B's (`corner-assembly-
- *  size.ts`'s right-corner head comment). `APPROVED_ROOM_POLICY` states no U bounds of its own yet
- *  (the owner rules on them at U6), so this is a fabrication, not a read of the real policy. */
-function approvedUWallBoundsStandIn(): UWallBounds {
-  const l = approvedLWallBounds();
-  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
-}
 
 /** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L-derived bounds.
  *  Only U is left to fabricate this way — linear's own real bounds are the approved policy's since

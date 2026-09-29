@@ -101,11 +101,20 @@ const PANEL_HALF_THICKNESS_M = RUN_END_PANEL_THICKNESS_M / 2;
  *  assumed a wall the product never learns; D2 found it false and kept the behaviour, so do not read
  *  the veto's correctness off that reason. Equality fits, as everywhere else (ADR 0083 decision 3), so
  *  a run ending exactly the panel's gap and slab short of that end keeps it. `room` is required rather
- *  than optional: a call without it would be a veto that silently never fires. */
+ *  than optional: a call without it would be a veto that silently never fires.
+ *
+ *  **A U draws no run-end panel at all** (D11, made a rule rather than a coincidence at R1.4). Wall A
+ *  runs between two corners on a U, so it has no free end for a finished panel to close against —
+ *  every base run on it ends at the right corner's own far edge, exactly where `passesWallAEnd`
+ *  already vetoes an L's panel for reaching the wall's own end (`run-end-panel.test.ts`'s own proof
+ *  that this held *before* the guard, by the same arithmetic; the guard makes the shape read first
+ *  rather than leaving the property to that coincidence, ADR 0121's own instruction to check what
+ *  the room is). */
 export function runEndPanelSeatM(
   records: readonly PlacementRecord[],
   room: DesignRoom,
 ): number | undefined {
+  if (room.shape === "U") return undefined;
   const runEndM = baseRunRightEdgeM(records);
   if (runEndM === undefined) return undefined;
 

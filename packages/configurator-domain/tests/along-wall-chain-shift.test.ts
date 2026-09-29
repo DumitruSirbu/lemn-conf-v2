@@ -15,7 +15,7 @@ import {
   alongWallShiftByColumnMm,
   alongWallShiftMm,
   cornerReachAlongWallMm,
-  WALL_THE_CORNER_IS_TAKEN_FROM,
+  cornerTakingWallsOf,
 } from "../src/along-wall-chain-shift.js";
 import {
   FOLLOWS_CABINET_DEPTH,
@@ -174,8 +174,16 @@ describe("which placements the corner reaches", () => {
     shape: "L" as const,
   };
 
-  it("takes the wall it is declared to take from, and no other", () => {
-    expect(WALL_THE_CORNER_IS_TAKEN_FROM).toBe("B");
+  it("takes the wall it is declared to take from on an L, and no other", () => {
+    expect([...cornerTakingWallsOf("L")]).toStrictEqual(["B"]);
+  });
+
+  // R1.3: a direct wall-C call is the superset `{B, C}`'s job, not the L's own singleton — wall C
+  // never appears in an L's `TileRun`s or `CornerAssemblyPiece`s, so this is what `ownsTheCorner`
+  // and `slideReserveMm` read for every wall, and it agrees with the L's own set on "A" and "B".
+  it("takes both wall B and wall C on a U, and neither on a straight room", () => {
+    expect([...cornerTakingWallsOf("U")].sort()).toStrictEqual(["B", "C"]);
+    expect([...cornerTakingWallsOf("linear")]).toStrictEqual([]);
   });
 
   // Wall A is anchored at the corner (ADR 0083 decision 1), so a deeper corner never shortens it.

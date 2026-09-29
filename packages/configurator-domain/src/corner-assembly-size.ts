@@ -33,7 +33,7 @@
 // B's bound and wall B's run origin are different figures and always have been. **Nothing here
 // imports from `room/`** — a cycle would bind a bound to `undefined` at module load and compare
 // every value against it silently, the failure `room/room-policy.ts`'s own head comment names.
-import { WALL_THE_CORNER_IS_TAKEN_FROM } from "./along-wall-chain-shift.js";
+import { cornerTakingWallsOf } from "./along-wall-chain-shift.js";
 import {
   baseSeatDepthMm,
   INSERTABLE_BODY_DEFINITIONS,
@@ -286,11 +286,18 @@ export type Corner = "left" | "right";
  *
  *  A wall-B or wall-C piece belongs to the corner its own wall shares with wall A — no ambiguity,
  *  because only one corner ever stands on either of those walls. Wall A's own piece, the X-leg, is
- *  the one body every corner puts there, so wall alone cannot answer for it; this is the one place
- *  the query reads a coordinate, and it reads the room's own midpoint rather than comparing against
- *  another placement (ADR 0132 decision 2's own split: `w/2` for the left X-leg, `W − w/2` for the
- *  right). A U has no right-hand variant (ADR 0132 decision 8), so this reads the same way whatever
- *  the room's `cornerDirection`. */
+ *  the one body every corner puts there, so wall alone cannot answer for it on a U — this is the
+ *  one place the query reads a coordinate, and only for a U, where it reads the room's own midpoint
+ *  rather than comparing against another placement (ADR 0132 decision 2's own split: `w/2` for the
+ *  left X-leg, `W − w/2` for the right). A U has no right-hand variant (ADR 0132 decision 8), so
+ *  this reads the same way whatever the room's `cornerDirection`.
+ *
+ *  **An L or a straight room has only ever one corner, always the left** — there is no midpoint
+ *  question to ask. Reading the coordinate for every shape put the boundary in the wrong place: an
+ *  L's own wall A can be as short as 900 mm (`APPROVED_L_WALL_A_MIN_MM`), which is `W`'s own
+ *  midpoint's *twice*, so its one X-leg can sit exactly at `W / 2` and read as "right" — a corner
+ *  that does not exist reported for one that does (R1.1). A U's own wall A is never under 1800 mm
+ *  (`twoCornersWallAMinimumMm`), which is what keeps the midpoint question meaningful only there. */
 export function cornerOf(
   placement: DesignPlacement,
   room: DesignRoom,
@@ -301,6 +308,7 @@ export function cornerOf(
   }
   if (placement.wall === "B") return "left";
   if (placement.wall === "C") return "right";
+  if (room.shape !== "U") return "left";
   return placement.alongMm < room.widthMm / 2 ? "left" : "right";
 }
 
@@ -330,11 +338,16 @@ export function rightCornerAssemblyWidthsMm(
 /** ADR 0132 decision 2's own phrase: "the along values the corner rule gives for the L room
  *  (W, C)". An L-shaped room standing in for the real U, its depth wall C's own run — the one place
  *  a U's `wallCMm` enters the corner rule; everything after this is entry point 1's unchanged
- *  arithmetic, read for a room that happens to be synthetic. */
-function roomForTheRightCorner(room: DesignRoom): DesignRoom {
+ *  arithmetic, read for a room that happens to be synthetic.
+ *
+ *  **Exported since review round 1 (C1.1)**: `generation/shell-design.ts`'s wall-C tiling reuse
+ *  built an identical three-line copy of this synthesis (`roomMirroredForWallC`) rather than import
+ *  a function this module kept private. One export and one caller now share the one derivation, the
+ *  same way `cornerOf` is the one place a placement's corner is ever read. */
+export function roomForTheRightCorner(room: DesignRoom): DesignRoom {
   if (room.wallCMm === undefined) {
     throw new Error(
-      "rightCornerAssemblyWidthsMm: the room carries no wallCMm to size the right corner against",
+      "roomForTheRightCorner: the room carries no wallCMm to size the right corner against",
     );
   }
   return {
@@ -419,8 +432,9 @@ function referenceWidthMm(piece: CornerAssemblyPiece): number {
 /** Where a piece starts along its own wall: past whatever the **other** wall's run puts in front of
  *  the corner in that row.
  *
- *  Wall A owns the corner and starts at 0 (`WALL_THE_CORNER_IS_TAKEN_FROM` names the asymmetry).
- *  Wall B starts past wall A's own body in the same row — the base run's X-leg front plane in the
+ *  Wall A owns the corner and starts at 0 (`cornerTakingWallsOf` names the asymmetry: wall A is
+ *  never in the set a corner is taken from, on any shape). Wall B starts past wall A's own body in
+ *  the same row — the base run's X-leg front plane in the
  *  base row (ADR 0025's `d − 20`, so 580 at 600 mm and 680 at 700) and §7's head-clearance depth in
  *  the wall and top rows (330 and 400). **The two rows therefore part by 250 mm at 600 and 280 at
  *  700 rather than by a constant**, which is the arithmetic ADR 0089's two chains express and the
@@ -436,9 +450,17 @@ function nearEdgeMm(
 }
 
 /** Wall A's pieces start at the corner itself, so nothing of the other wall stands in front of them
- *  and nothing of the other wall moves them. */
+ *  and nothing of the other wall moves them.
+ *
+ *  **`cornerTakingWallsOf("U")` rather than a bare wall-B comparison** (R1.3): every call this
+ *  module makes stands inside a synthetic two-wall room (`roomForTheRightCorner`'s own "L room (W,
+ *  C)"), so `piece.wall` is always `"A"` or `"B"` here today and the wider set answers exactly as
+ *  the old bare comparison did. It is the set a **direct** wall-C piece would need — a caller
+ *  outside this module's own relabelling, most likely U3's composer — and reading it from one
+ *  answer rather than the bare constant is what keeps that future call from reporting a wall-C
+ *  piece as owning the corner the way wall A does. */
 function ownsTheCorner(piece: CornerAssemblyPiece): boolean {
-  return piece.wall !== WALL_THE_CORNER_IS_TAKEN_FROM;
+  return !cornerTakingWallsOf("U").has(piece.wall);
 }
 
 function standsInTheBaseRow(piece: CornerAssemblyPiece): boolean {

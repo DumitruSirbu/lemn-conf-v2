@@ -559,12 +559,44 @@ describe("ADR 0045's anti-invariant: the seat is a pure function of the records"
 });
 
 // M7B U2 slice S1 (ADR 0132 decision 7, D11): "both ends of wall A are corners, so
-// `runEndPanelSeatM` answers none for every U". No code changed here to make this true — it falls
-// out of the existing wall-A-end veto (`passesWallAEnd`) once the right corner's own X-leg is the
-// right-most wall-A base body: its far edge lands exactly at the room's width (D4's finding), which
-// is `wallLengthMm("A", room)` for any room, U included, so the veto that already fires for a run
-// flush to wall A's own end fires here for the same reason.
+// `runEndPanelSeatM` answers none for every U". Review round 1's R1.4 made this a rule rather than a
+// coincidence: `runEndPanelSeatM` now reads `room.shape` first, so it holds even when nothing about
+// the run's own geometry would otherwise veto it — QA's own hand-built U below has no right corner
+// at all, so before the fix nothing stopped a seat from being reported.
 describe("D11 — no run-end panel on a U", () => {
+  // **R1.4 regression.** No right-corner placement stands on wall A at all, so the old
+  // `passesWallAEnd` veto — keyed off the right-most wall-A base body's own far edge — has nothing
+  // to compare the run against: `wallLengthMm("A", room)` is 3600, the run's own outer face lands at
+  // 1210, and nothing vetoes it. Before R1.4 this drew a panel on a U with no right corner built
+  // yet; the shape guard now answers none regardless of what stands on wall A.
+  it("answers none for a hand-built U carrying no right corner at all", () => {
+    const room: DesignRoom = {
+      shape: "U",
+      widthMm: 3600,
+      depthMm: 2400,
+      wallCMm: 2200,
+      heightMm: 2600,
+    };
+    const design: Design = {
+      room,
+      presetId: null,
+      placements: [
+        {
+          id: "base-only-run",
+          wall: "A",
+          alongMm: 900,
+          y0Mm: 0,
+          body: { buildId: "base-cabinet", widthMm: 600, heightMm: 820 },
+        },
+      ],
+      createdAt: "2026-09-29T00:00:00.000Z",
+      updatedAt: "2026-09-29T00:00:00.000Z",
+    };
+    const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
+
+    expect(runEndPanelSeatM(records, room)).toBeUndefined();
+  });
+
   it("answers none once the right corner's own X-leg is the right-most wall-A base body", () => {
     const room: DesignRoom = {
       shape: "U",
