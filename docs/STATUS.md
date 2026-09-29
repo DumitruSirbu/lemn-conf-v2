@@ -541,7 +541,7 @@ gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The 
 `milestones/done/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125, 0129, 0131 |
-| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ ~~plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0 (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only)~~ **U0 is DONE (Light tier, one logic reviewer, no blockers): ADR 0132 Accepted; owner answers Q-U1–Q-U5 and RQ1–RQ17 recorded in ADR 0108 Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C; backlog 91. No wave now waits on an owner answer. Next wave U1** (the stored U and wall C; domain; Full tier plus security on S2). **Update 2026-09-29: U0–U2 done; U3 re-cut into U3a and U3b. U3a is implemented through `3f53a62` (N10 fitting rule), in adversarial QA, then review; not closed. U3b next. See *What to do next*.** | Yes — `milestones/M7B-u-shaped-rooms.md` |
+| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ ~~plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0 (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only)~~ **U0 is DONE (Light tier, one logic reviewer, no blockers): ADR 0132 Accepted; owner answers Q-U1–Q-U5 and RQ1–RQ17 recorded in ADR 0108 Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C; backlog 91. No wave now waits on an owner answer. Next wave U1** (the stored U and wall C; domain; Full tier plus security on S2). ~~**Update 2026-09-29: U0–U2 done; U3 re-cut into U3a and U3b. U3a is implemented through `3f53a62` (N10 fitting rule), in adversarial QA, then review; not closed. U3b next. See *What to do next*.**~~ **Update 2026-09-29, later: U0–U2 and U3a are DONE (U3a closed at `38d6be7`; close-out in the milestone file). U3b S0 (test fixtures and the deferred clean-code minors) is in progress, then S1–S3. U4 is in review round 3, not closed. See *What to do next*.** | Yes — `milestones/M7B-u-shaped-rooms.md` |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
 | M5B — Manual UX remediation (branch `ux-manual-fixes`, merged) | **Done, 2026-09-02** — all eleven waves shipped | No — `milestones/done/M5B-manual-ux-remediation.md`, ADRs 0043–0051 |
@@ -608,9 +608,11 @@ PASS.
   phase sequence is **M7B — U-shaped rooms** (confirmed by the owner, ~~plan not yet written~~
   ~~plan written 2026-09-29; waves U0 and U1 done, next wave U2~~ ~~waves U0–U2 done, next wave U3~~
   **waves U0–U2 done; U3 was re-cut 2026-09-29 into U3a (the U plan) and U3b (generating a U), each
-  with its own QA and review, order now U2 → {U3a → U3b ∥ U4}, U6 depends on U3b. U3a's
+  with its own QA and review, order now U2 → {U3a → U3b ∥ U4}, U6 depends on U3b.~~ ~~U3a's
   implementation is complete through `3f53a62` but not closed: the A8 stop was adjudicated and the
-  owner's answers are recorded, and U3a's adversarial QA is running** — see the RESUME HERE entry
+  owner's answers are recorded, and U3a's adversarial QA is running~~ **U3a is DONE (closed at
+  `38d6be7`, 2026-09-29): QA green twice, logic review approved, clean-code review approved with
+  minors. U3b S0 is in progress; U4 is in review round 3, not closed** — see the RESUME HERE entry
   under *What to do next*; see `milestones/M7B-u-shaped-rooms.md`. Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
 - ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
@@ -1110,25 +1112,41 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-29, later. M7B wave U3a (the U plan) is implemented but not closed; U3a's
-> adversarial QA is running.** Order is U2 → {U3a → U3b ∥ U4}; U6 depends on U3b. Landed since the
-> RQ18 fix `44ad180`, in order: `58376f4` Sonnet role cards pinned to Sonnet 5.5; `10212fd` the N9
-> rulings; `711d3d0` the dropped fridge wall's fill and the far-wall bottle; `84bab2e` RQ19 (a) split
-> (pan drawers by the drawer count the room gets); `5055cf8` N10 docs (RQ19–RQ21, the hob wall's
-> fitting rule); `3f53a62` the N10 fitting rule (drawers before the tower, bottle yields). At
-> `3f53a62` the implementer reports domain 250 files / 5330 tests green (not re-run by the scribe);
-> AC3 matches the architect's model over all 86,706 grid rooms: 0 towers or pantries lost, 0 drawer
-> extras after the tower (18,602 before), 13,608 rooms gain a drawer, largest bare end 500 / 500 / 500.
+> **RESUME HERE — 2026-09-29, latest. M7B wave U3a (the U plan) is DONE, closed at `38d6be7`. U3b S0
+> is in progress. U4 is in review round 3.** Branch `m7b-u-shaped-rooms`, not pushed.
 >
-> **Owner answers, 2026-09-29** (detail: ADR 0110 N10, N10.9): RQ19 (a) and (b), RQ20 and RQ21
-> answered and built; the tall oven is always kept; **wall A: "Drawer cabinet wins"** over the 300 mm
-> bottle (RQ21 on wall A now owner-confirmed); **far-wall pantries: "Pantry wins"** over a drawer
-> cabinet (N3r6 confirmed, RQ22 closed). The last two are relayed selections. Nothing is open for the
-> owner or the architect.
+> **U3a.** Commits, in order: S1 `d3db323`, S2 `9ca72bb`, S3 `e443ed2`; RQ18 fix `44ad180`; N9 fixes
+> `711d3d0`; RQ19 (a) `84bab2e`; N10 `3f53a62`; QA `79f84ca` and its guard fix `6527ba3`; N11 fix
+> `27e28da`; QA round 2 `76392f0`; B0 invariant `0b1ef7e`; clean-code refactor `38d6be7`. Architect
+> docs: `10212fd`, `5055cf8`, `b0f6e83`, `458cbaa` (ADR 0110 N9, N10, N11). QA round 1 green at
+> `79f84ca` and round 2 green at `76392f0`, 0 production defects in each. Logic review: round 1
+> changes required (4 findings, all ruled in N11); round 2 approve, one test-coverage minor, fixed in
+> `0b1ef7e`. Clean-code review: round 1 changes required; round 2 approve with minors. Full
+> close-out: `milestones/M7B-u-shaped-rooms.md`, *U3a close-out — 2026-09-29*.
 >
-> **Next steps, in order:** (1) U3a adversarial QA (running); (2) U3a review, then close; (3) U3b.
-> Branch `m7b-u-shaped-rooms` is not pushed; `ci:local` has not been run.
+> **Measured by the coordinator at `38d6be7`:** domain 253 files / 5407 tests green; the L/straight
+> digest `3ed0b98c…3fd1` unchanged (AC4); the plan digests byte-identical across the refactor; grid of
+> 86,706 rooms composed, largest bare end 500/500/500, drawer histogram
+> 4968/27118/13172/14572/9937/16939. **Implementer-reported, not re-run by the scribe:** three-adapter
+> 108 / 4038 and web 269 / 4760 green.
 >
+> **Owner answers recorded:** RQ18–RQ23; the tall oven is always kept; wall A "Drawer cabinet wins";
+> "Pantry wins"; RQ23 "Bottle + drawers".
+>
+> **U3b S0 (in progress)** carries the clean-code round-2 minors: test fixtures, `u-core-priorities.ts`,
+> one placement helper, the single run-direction fact, a `FridgeWallLayout` union, the `cornerOf`
+> comment reflow, and the `bottleWidthMm` = 300 pin. **Still open as a minor and not in S0:** the
+> literal `2700`/`1000` in `APPROVED_U_FLOOR_MM`, deferred to U6. **Owed by U3b S1 (N11.6):** in
+> 30,450 rooms with the fridge on C, wall A's remainder sits at its low end; the plan carries only
+> widths, so U3b's generated positions must equal the plan's (U3b AC1).
+>
+> M7B U4 (drawing a U, adapter) — review round 2 adjudicated 2026-09-29 (ADR 0132 A8, `4eb5058`): logic blocker ruled a contract defect in A2's run bound (2,218 / 2,850 approved rooms lost the wall-C/B top-row click to an upper / tall column at the other wall's free end); round 3 (five adapter items) removes the bound and makes the cutaway survive syncs. Q-U4-cam answered "Hide them". U4's visual criteria (AC2, AC4 [visual], AC5) and the light rig (D14) moved to U5 AC9–AC11; D14 is owed by U5's close and U6 depends on it. Not closed: round 3, then QA and review.
+>
+> U4's merges: S1–S3 `7de0bd8`, fix `df91e82`, round 2 `9178de8`.
+>
+> **Next steps, in order:** (1) U4 round 3, then QA, review, close; (2) U3b S0, then S1–S3 each with QA
+> and review; (3) U5, U6, U7. The branch is not pushed and `ci:local` has not been run.
+
 > Also note (owner direction, 2026-09-29): agents must now run on the model their `.claude/agents/*.md`
 > file declares, passed explicitly at dispatch. The developer for U1–U3a ran as a named teammate
 > without an explicit model and may have run on the session's Opus model rather than its declared

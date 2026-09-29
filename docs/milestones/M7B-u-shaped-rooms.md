@@ -368,7 +368,7 @@ test or a capture in U4.
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
-| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. ~~**RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built**~~ **RQ19, RQ20 and RQ21 answered 2026-09-29 (ADR 0110 N10). RQ19 (a) is built at `84bab2e`; RQ19 (b), RQ20 and RQ21 are owed before QA** |
+| **U3a** — **Done 2026-09-29, closed at `38d6be7`** (see *U3a close-out*) | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. ~~**RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built**~~ **RQ19, RQ20 and RQ21 answered 2026-09-29 (ADR 0110 N10). ~~RQ19 (a) is built at `84bab2e`; RQ19 (b), RQ20 and RQ21 are owed before QA~~ RQ19 (a) was built at `84bab2e`; RQ19 (b), RQ20 and RQ21 at `3f53a62`; N11 at `27e28da`; RQ18–RQ23 are answered** |
 | **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
@@ -746,6 +746,52 @@ outputs, zero findings, voids mirroring, which discharges backlog 94 (R1.3 from 
 
 **Deferred work.** The direct `slideReserveMm` wall-C unit test, owed to **U3** once its composer
 builds a wall-C run (round-2 review's accepted gap).
+
+---
+
+### U3a close-out — 2026-09-29, at `38d6be7`
+
+**Shipped.** `planUKitchenComposition`, a pure three-wall U plan; it inserts nothing and nothing calls
+it from `generateKitchen`. Commits, in order, on `m7b-u-shaped-rooms`, not pushed: S1 `d3db323`, S2
+`9ca72bb`, S3 `e443ed2`; RQ18 fix `44ad180`; N9 fixes `711d3d0`; RQ19 (a) `84bab2e`; N10 fitting rule
+`3f53a62`; QA `79f84ca` and its guard fix `6527ba3`; N11 fix `27e28da`; QA round 2 `76392f0`; B0
+invariant `0b1ef7e`; clean-code refactor `38d6be7`. Architect documents: `10212fd`, `5055cf8`,
+`b0f6e83`, `458cbaa` (ADR 0110 N9, N10, N11).
+
+**Owner answers recorded.** RQ18–RQ23; the tall oven is always kept; wall A "Drawer cabinet wins";
+far-wall "Pantry wins"; RQ23 "Bottle + drawers". The two selections named in quotes are relayed
+selections, not verbatim owner text.
+
+**Verification.** Tier Full. QA round 1 green at `79f84ca`, round 2 green at `76392f0`, 0 production
+defects in each. Coordinator's own run at `38d6be7`: domain 253 files / 5407 tests green; the
+L/straight digest `3ed0b98c…3fd1` is unchanged (AC4); the plan digests are byte-identical across the
+refactor. Grid: 86,706 rooms composed, largest bare end 500/500/500, drawer histogram
+4968/27118/13172/14572/9937/16939. **Implementer-reported, not re-run by the scribe:** three-adapter
+108 / 4038 and web 269 / 4760 green. `pnpm ci:local` has not been run; the branch is not pushed.
+
+**Reviews.**
+- Logic, round 1: changes required, 4 findings, all ruled in ADR 0110 N11 and fixed (`27e28da`).
+- Logic, round 2: approve, with one test-coverage minor, fixed in `0b1ef7e`.
+- Clean-code, round 1: changes required (Dispatch B's refactor, `38d6be7`).
+- Clean-code, round 2: approve with minors, deferred as below.
+
+**Deviations, with rationale.** U3 was split into U3a and U3b (R8) on 2026-09-29. The N9, N10 and N11
+rulings each changed behaviour after the first slices shipped, because owner answers RQ18–RQ23 and the
+logic review's round-1 findings arrived mid-wave; each is recorded in ADR 0110 and its tests were
+re-pinned rather than the code tuned to a model.
+
+**Documentation updated.** This close-out, the wave table row and the stale U3a row text above;
+`docs/STATUS.md` (M7B phase-table row, *What is open right now*, and a new RESUME HERE block replacing
+U3a's in-progress one); ADR 0110 N9–N11 by the architect (commits above).
+
+**Deferred work.**
+- **U3b S0, in progress:** test fixtures, `u-core-priorities.ts`, one placement helper, the single
+  run-direction fact, a `FridgeWallLayout` union, the `cornerOf` comment reflow, and the
+  `bottleWidthMm` = 300 pin.
+- **U6:** the literal `2700`/`1000` in `APPROVED_U_FLOOR_MM` (a recorded minor, not in S0).
+- **U3b S1 (N11.6):** in 30,450 rooms with the fridge on C, wall A's remainder sits at its low end.
+  The plan carries only widths, so U3b's generated positions must equal the plan's. The criterion is
+  in U3b AC1.
 
 ---
 
