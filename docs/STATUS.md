@@ -541,7 +541,7 @@ gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The 
 `milestones/done/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125, 0129, 0131 |
-| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; planned in its own file once M7's domain waves land | Yes, when starting |
+| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ **plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0** (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only) | Yes — `milestones/M7B-u-shaped-rooms.md` |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
 | M5B — Manual UX remediation (branch `ux-manual-fixes`, merged) | **Done, 2026-09-02** — all eleven waves shipped | No — `milestones/done/M5B-manual-ux-remediation.md`, ADRs 0043–0051 |
@@ -605,8 +605,8 @@ PASS.
 
 - **M7 is closed (2026-09-29).** Nothing from M7 is open. Every M7 bullet below this one is history —
   kept for its detail, not because anything in it is still outstanding. The next milestone in the
-  phase sequence is **M7B — U-shaped rooms** (confirmed by the owner, plan not yet written; see
-  `milestones/README.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
+  phase sequence is **M7B — U-shaped rooms** (confirmed by the owner, ~~plan not yet written~~
+  **plan written 2026-09-29, next wave U0**; see `milestones/M7B-u-shaped-rooms.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
 - ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
   RESUME HERE entry under *What to do next* for the current state: 7D5, 7D5b and 7F2 have since all
@@ -1112,9 +1112,12 @@ policy, so every per-endpoint limit is application code.
 > `milestones/done/M7-room-and-presets.md`; do not open it except for a historical question.
 >
 > **Next milestone: M7B — U-shaped rooms**, confirmed by the owner as its own phase between M7 and
-> M8 (`milestones/README.md`). No plan is written for it yet — that is the next planning task, not an
+> M8 (`milestones/README.md`). ~~No plan is written for it yet — that is the next planning task, not an
 > implementation to start from an existing dispatch. Read `milestones/README.md` for the phase
-> sequence and cross-cutting rules before drafting it. The preset story (search, evaluation,
+> sequence and cross-cutting rules before drafting it.~~ **Plan written 2026-09-29:
+> [`milestones/M7B-u-shaped-rooms.md`](milestones/M7B-u-shaped-rooms.md) — eight waves, U0–U7. Next:
+> wave U0** (the census, the measurements the owner questions need, ADR 0132, and putting Q-U1–Q-U5
+> to the owner); U0 changes no production file. The preset story (search, evaluation,
 > application, the thumbnail rig) is deferred past M8 by ADR 0131 and is not part of M7B.
 >
 > **Still outstanding, carried from M7 and earlier, none of it blocking M7B's planning:** the runner's

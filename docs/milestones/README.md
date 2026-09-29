@@ -63,7 +63,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M6](M6-price-and-global-settings.md) | Price bar, breakdown, whole-kitchen settings — 2D, 2E | **mobile-gated** |
 | [M6B](M6B-internationalization.md) | Internationalization — Romanian becomes a source locale instead of a hardcoded one; ~~ten waves~~ **thirteen** (planned 2026-09-06, ADR 0095); closes ADR 0001 decision 5. **Every wave shipped by 2026-09-10 (6B-i `87429ca`, 6B-j `aff9a2c`).** ~~blocked on Gate O2 — the owner reads the Russian~~ **DONE — Gate O2 closed 2026-09-11 and merged to `main` via PR #8** | app + domain |
 | [M7](done/M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor — **DONE, closed 2026-09-29**. Preset story deferred past M8, ADR 0131 | **mobile-gated** |
-| M7B | U-shaped rooms — ~~**proposed** 2026-09-11, on the owner's Q5 answer to M7 (*"we should support at the end all kitchen shapes (exluding island)"*); not objected to; still the owner's to confirm~~ **confirmed by the owner 2026-09-11: *"Yeah let make separate"*** — its own milestone between M7 and M8; plan not yet written. **Next milestone as of M7's 2026-09-29 close.** | domain + adapter |
+| [M7B](M7B-u-shaped-rooms.md) | U-shaped rooms — ~~**proposed** 2026-09-11, on the owner's Q5 answer to M7 (*"we should support at the end all kitchen shapes (exluding island)"*); not objected to; still the owner's to confirm~~ **confirmed by the owner 2026-09-11: *"Yeah let make separate"*** — its own milestone between M7 and M8; ~~plan not yet written~~ **PLANNED — plan written 2026-09-29: eight waves U0–U7; owner questions Q-U1–Q-U5 are put in U0 and gate U3 and U6 only.** **Next milestone as of M7's 2026-09-29 close; next wave U0.** | domain + adapter, **mobile-gated** (U7) |
 | [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure | **mobile-gated** |
 
 ## Why M5B sits between M5 and M6
@@ -100,6 +100,20 @@ the domain — both read surfaces M6's pricing waves are still writing.
 screens. That is two whole screens of copy. Authoring it as keys costs nothing; authoring it as
 hardcoded Romanian buys a later phase the job of hunting it down — which is what already happened
 once, and is why `apps/web/src/content/ro.ts` carries an M8 `contactPlaceholder` stub today.
+
+## Why M7B sits between M7 and M8
+
+Confirmed by the owner on 2026-09-11 (*"Yeah let make separate"*), answering M7's Q5 (*"need to do
+also the U shaped - this can be a hard milstone maybe multiple"*). The reasons are the M7 re-plan's,
+recorded in the archived plan's *Scope, and a confirmed split: M7 and M7B* and summarised in
+[`M7B-u-shaped-rooms.md`](M7B-u-shaped-rooms.md):
+
+**After M7**, because a U is built from M7's parts — the per-group mirror (7I, ADR 0129), the shell
+and composition (7D1/7D2), the Step 1 screens and the approved-policy mechanism — and because its
+bounds need the owner with the shape on screen. **Before M8**, because M8's review groups wall →
+band → order, and doing M8 first would rework it for wall C. **Its own milestone**, because a third
+wall reaches the stored document and every site keyed on two walls across M2–M6 code. Nothing ships
+before every milestone is done, so the split costs no release.
 
 ## Why this sequence
 
@@ -193,4 +207,5 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 | Click reachability of occluded placements (§6.4) | M2, carried |
 | Unifying occupied swap sets with the fit-filtered catalogue (§13.3 q1) | M4, carried |
 | Run re-split (§13.3 q2) | **half closed by M5B** — the mechanism ships (ADR 0046); the combination offer stays open and carried |
-| Linear and U room layouts, per-wall band data (§13.3 q4) | out of scope, carried |
+| Linear and U room layouts, per-wall band data (§13.3 q4) | ~~out of scope, carried~~ **linear shipped in M7 wave 7J (ADR 0130); U is M7B.** `LEVELS` stay constants for every wall (M7 re-plan); per-wall data is transform, length and corner reach |
+| U-shaped room bounds, the walkway between side runs, three-wall composition, the toggle on a U (M7B Q-U1–Q-U5) | M7B (put in wave U0) |
