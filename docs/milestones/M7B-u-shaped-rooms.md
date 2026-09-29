@@ -1557,6 +1557,161 @@ does not go live on a lighting nobody has seen.
 4. **Casts**: `git grep "as BuildableShapes"` returns nothing under `packages/` or `apps/`. **[review]**
 5. **The card continues** with no component edit: *În formă de U* → *Continuă* → 1B. **[dom]**
 
+### U6 S0 census — 2026-09-30, at `ad63a8b`
+
+**Method (observed).** A worktree at `ad63a8b`, S1's policy line applied alone and uncommitted, then
+reverted (`git diff HEAD` empty afterwards): a `U` entry in `APPROVED_ROOM_POLICY` with wall A 2700–6000,
+walls B and C 1000–6000, and `minimumKitchen` `{ isRequired: true, sinkWidthMm: 600, hobWidthMm: 600,
+cornerReachMm: { wallA: 1800, sideWall: 1000 } }` (ADR 0108 H1–H4, RQ1 and RQ8; the 600 mm widths are
+the L's, Amendment E). Domain, web and three-adapter unit suites ran through `rtk proxy pnpm run test`.
+e2e was **not run** (no database credentials): its rows come from a static grep of `apps/web/tests/e2e`
+and are **source-verified, not measured**.
+
+A direct probe of the built domain with the line applied reproduced ADR 0108 H3's table exactly: 2699/3000/3000
+`WALL_TOO_SHORT` on A; 2700/1000/1000, 2999/1000/1000 and 2999/6000/1599 `ROOM_TOO_SMALL_FOR_KITCHEN`;
+3000/1000/1000, 2700/1600/1600 and 2999/6000/1600 accepted; 6001 `WALL_TOO_LONG` on A and on C; 999 on B
+`WALL_TOO_SHORT`.
+
+| Suite | Result with the line applied |
+| --- | --- |
+| `packages/configurator-domain` | 13 failed, 5529 passed (5542), 11 of 269 files. **8 are switch reds (D1–D8).** 5 are timeouts (below) |
+| `apps/web` | **39 failed**, 4848 passed (4887), 16 of 279 files (W1–W39) |
+| `packages/three-adapter` | 0 failed, 4091 passed (117 files) |
+| e2e | not run; 11 refusal rows (E1–E11) and 8 layout witnesses to verify (V1–V8) |
+
+**Five domain timeouts are not switch reds.** `composed-floor-is-recorded-whole.adversarial.test.ts:127`
+(5 s), `qa-7d3-tall-end-block.adversarial.test.ts:463` (10 s), `qa-7d4-composed-bodies.adversarial.test.ts:360`
+(5 s), `qa-u3b-generating-a-u.adversarial.test.ts:128` (5 s) and `shell-design.adversarial.test.ts:1266` (10 s)
+timed out in the full run (75 s of wall clock for 608 s of cumulative test time). Re-run alone with
+`--no-file-parallelism` and the line still applied, all five passed (the isolated run's only red was D7). Whether
+they also time out at the base under the same load was **not measured**.
+
+**Classes.** 54 *restate in S1* (D 8, W 39, E 7), 4 *removed, no replacement* (E3, E4, E5, E9), **0 defects,
+back to its wave**. Every red is a test pinning "a U is refused" or "a U's fields are not judged", which B2's
+sequencing and H4 end on purpose (ADR 0108 B2: a U stays refused until its wave; H4: `isShapeBuildable("U",
+APPROVED_ROOM_POLICY)` stays false until U6). No red exposed a wrong verdict: every U the policy now accepts
+or refuses is the one H3 predicts. Two facts shape how the web rows restate:
+
+- After S1 **no shape is refused by `APPROVED_ROOM_POLICY`**, so `room-shape-refusal` cannot draw in the
+  shipped app. Each web row that needs a refusal restates onto a fabricated policy that states no U (ADR 0116 A2:
+  a fabrication is confined to a test), for which `POLICY_BUILDING_NOTHING` and `policyAlsoStating` already exist.
+- A U's fields **are** judged now, so a wall C can carry a field reason and a plan mark.
+
+**Cites, abbreviated in the table.** **B2→H4**: ADR 0108 B2 ended by H4 and this wave's S1 (1). **H**: ADR 0108
+H1–H3 (bounds, walkway, the predicate). **116**: ADR 0116 A2 (a fabricated policy lives in a test) and A3. **G**:
+ADR 0108 G. **S1(n)**: this wave's S1 item n. **AC**: this wave's criteria.
+
+**Domain reds** (`packages/configurator-domain/tests/`, line of the test, the failing assertion in brackets).
+
+| # | Test | What it asserts | Class | Cites |
+| --- | --- | --- | --- | --- |
+| D1 | `qa-m7b-u2.adversarial.test.ts:641` [653] | a U 3000/2000/2500 at h 2600 under the approved policy is `SHAPE_NOT_BUILDABLE` on `shape`; observed `ok: true` | restate in S1: the verdict becomes acceptance, with H3's boundary pairs beside it | B2→H4; S1(1); AC2 |
+| D2 | `room/approved-room-policy.test.ts:202` [206] | the approved shapes are exactly `["L","linear"]` | restate in S1: `["L","U","linear"]`, and the approved ⊆ engine guard and the G maxima test gain the U | B1; G; S1(1),(2) |
+| D3 | `room/is-shape-buildable.test.ts:51` [56] | the shapes the approved policy builds equal `SHAPES_WITH_APPROVED_BOUNDS` (`["linear","L"]`); its own failure text says a wave that adds a shape edits that list | restate in S1: add `"U"` | 116 A3; the file's own note; S1(3) |
+| D4 | `room/is-shape-buildable.test.ts:78` [79] | `isShapeBuildable("U", APPROVED)` is false and true under `policyAlsoStating("U")` | restate in S1: the "reads the policy" contrast moves to a policy stating no U | 116 A2; B2→H4 |
+| D5 | `room/minimum-kitchen.adversarial.test.ts:192` [193] | a U with `wallA` undefined, B −1, C ∞, height 0 is `SHAPE_NOT_BUILDABLE` alone; observed four field issues (wallA `VALUE_MISSING`, wallB `WALL_TOO_SHORT`, wallC `VALUE_NOT_WHOLE_MILLIMETRES`, height `HEIGHT_TOO_LOW`) and no shape issue | restate in S1: a U is judged field by field, as the test just below does for linear (7J S5) | B2→H4; S1(3) |
+| D6 | `room/u-minimum-kitchen.test.ts:106` [107] | "leaves a U unbuildable under the approved policy, whose literals enter at U6" | restate in S1: the literals are pinned and the U is buildable | H1–H4; S1(1); AC2 |
+| D7 | `generation/qa-u3b-generating-a-u.adversarial.test.ts:155` [156] | "keeps a U off the approved policy until U6" | restate in S1: as D6, or retire it in favour of AC1's per-commit check | B2→H4; AC1 |
+| D8 | `generation/tall-end-composition.test.ts:739` [745] | `APPROVED_ROOM_POLICY` `toEqual` a fixed snapshot of L, linear and heights; observed the added `U` entry equals H's literals exactly | restate in S1: add the U to the snapshot | H1–H4; S1(1) |
+
+**Web reds** (`apps/web/tests/room/`, line of the test, the failing assertion in brackets). "Fabricated" means a
+policy that states no U.
+
+| # | Test | What it asserts | Class | Cites |
+| --- | --- | --- | --- | --- |
+| W1 | `one-c-surfaces.test.ts:125` [130] | a chip moved to U mid-burst makes `isShapeRefused` true at once | restate in S1: fabricated | B2→H4; 116 |
+| W2 | `plan-preview-model-marking.test.ts:415` [418], corner left | no wall of a U is marked, however far out of range, because a U is refused on its shape | restate in S1: a U's marks are its field issues, wall C included (the sibling test at :422 already marks C by id) | H; S1(3) |
+| W3 | `plan-preview-model-marking.test.ts:415` [418], corner right | as W2 | restate in S1 | H; S1(3) |
+| W4 | `qa-7f1-d45-convergence.adversarial.test.ts:1097` [1103] | the approved shapes are `["L","linear"]`, and a fully answered U URL gets no way on | restate in S1: the premise line gains `"U"`, the hostile-query subject moves to fabricated | B2→H4; 116 |
+| W5 | `qa-7f1-url-seam.adversarial.test.ts:437` [456] | a U's walls fill from the URL and round-trip, and Continue is disabled; only the last line is red | restate in S1: Continue is enabled | B2→H4; AC5 |
+| W6 | `qa-7f2-s1b-millimetres.adversarial.dom.test.ts:205` [210], ro | an old U link (4000/2400/2180, h 2700) refills as millimetres and lands on 1C ("a shape the policy refuses") | restate in S1: 1D; the refill subject is unchanged | H; B2→H4 |
+| W7 | `qa-7f2-s1b-millimetres.adversarial.dom.test.ts:205` [210], ru | as W6 | restate in S1 | H; B2→H4 |
+| W8 | `qa-7f2-s2-red-wall.adversarial.test.ts:438` [439] | a U's marked walls are empty for any typed room | restate in S1: as W2 | H; S1(3) |
+| W9 | `qa-7f2-s3-one-c.adversarial.dom.test.ts:579` [583] | choosing the U chip outside a burst shows 1C's note (a room refused by shape alone) | restate in S1: fabricated | B2→H4; 116 |
+| W10 | `qa-7f2-s4-shape-refusal.adversarial.dom.test.ts:410` [413], an empty U | refused on the first frame: refusal shown once, no field marked, no suggestion, Continue disabled | restate in S1: fabricated | B2→H4; 116 |
+| W11 | same, a filled U | as W10 | restate in S1: fabricated | B2→H4; 116 |
+| W12 | same, a U with every field out of range | as W10. Under the approved policy this URL is now three field refusals, covered by W2 and W8's restatement | restate in S1: fabricated | B2→H4; H |
+| W13 | same, a U with unreadable and repeated fields | as W10 | restate in S1: fabricated | B2→H4; 116 |
+| W14 | `qa-7f2-s4-shape-refusal.adversarial.dom.test.ts:425` [431] | a Back that lands on a U while an L is typed is refused, and clears on the way back | restate in S1: fabricated | B2→H4; 116 |
+| W15 | same file `:502` [511] | the refusal region empties and refills in place on U, L, U | restate in S1: fabricated | B2→H4; 116 |
+| W16 | same file `:514` [530] | one tap from a valid L whose walls fill a U changes the refusal and the note regions; observed none change | restate in S1: fabricated | B2→H4; 116 |
+| W17 | same file `:536` [543] | a tap to an empty U changes only the refusal region; observed none | restate in S1: fabricated | B2→H4; 116 |
+| W18 | same file `:561` [119] | the Russian refusal sentence draws once under the chips for a filled U | restate in S1: fabricated | B2→H4; 116 |
+| W19 | `qa-7f2-s5-incomplete-plan.adversarial.dom.test.ts:398` [401] | a filled U (0.8/7/0.05, h 1.5) draws three bars and the refusal, and the 1C note alone | restate in S1: the refusal claim moves to fabricated. The same room under the approved policy carries three field reasons | B2→H4; H |
+| W20 | `qa-7f2-s5-incomplete-plan.adversarial.test.ts:407` [407] | a U's shape refusal stands alone: no field reason, no marked wall, plan drawn or empty | restate in S1: as W19 | B2→H4; H |
+| W21 | `room-issue-model.test.ts:538` [543] | the shapes the approved policy refuses are `["U"]`; observed `[]` | restate in S1: `[]`. The `ROOM_SHAPES` sweep at :526 still carries the general claim and passes | B2→H4 |
+| W22 | `room-issue-model.test.ts:557` [569] | a U 2200/2000/2000 at h 2500 is 1C with no field reason and a shape refusal; observed one field reason (wallA) | restate in S1: 1C from wall A's `WALL_TOO_SHORT`, no shape refusal | H1 |
+| W23 | `room-issue-model.test.ts:629` [635] | "suggests nothing for a refused U shape"; observed `isLinearSuggested: true` for that room | restate in S1: the suggestion follows its shape-independent gate. See the flag below | plan, *Owner questions* (dated line "no new 1C suggestion for a U"); `validatesAsStraightRoom` |
+| W24 | `room-one-c.dom.test.ts:690` [692] | Continue is inactive for a filled U (substate 1C) | restate in S1: 1D, Continue active | B2→H4; AC5 |
+| W25 | `room-one-c.dom.test.ts:806` [809] | the note shows for a room refused by shape alone (a U) | restate in S1: fabricated | B2→H4; 116 |
+| W26 | `room-screen.dom.test.ts:394` [403] | choosing the U card records it and Continue stays disabled | restate in S1: Continue is enabled. This is AC5 | B2→H4; AC5 |
+| W27 | `room-screen.dom.test.ts:642` [223] | the cards' group is described by the refusal while U is chosen | restate in S1: fabricated | B2→H4; 116 |
+| W28 | `room-screen.dom.test.ts:701` [710] | a chip to U and back shows the refusal in the region that was already there | restate in S1: fabricated | B2→H4; 116 |
+| W29 | `room-screen.dom.test.ts:729` [223] | only the chosen chip is described by the refusal | restate in S1: fabricated | B2→H4; 116 |
+| W30 | `room-screen.dom.test.ts:759` [760] | a filled U shows the refusal and the note and no room reason (substate 1C) | restate in S1: fabricated | B2→H4; 116 |
+| W31 | `room-screen.dom.test.ts:785` [223], ro | the refusal's words carry no digit, code, unit, internal reason or shape name | restate in S1: fabricated (the catalogue leaf is unchanged) | B2→H4; 116 |
+| W32 | `room-screen.dom.test.ts:785` [223], ru | as W31 | restate in S1: fabricated | B2→H4; 116 |
+| W33 | `room-screen.dom.test.ts:854` [859] | every code 1C can carry has a witness; `SHAPE_NOT_BUILDABLE`'s is a filled U | restate in S1: its witness renders under fabricated, so the exhaustiveness check stays | B2→H4; 116 |
+| W34 | `room-screen.dom.test.ts:867` [871] | at 1C the suggestion matches the real gate for each witness, under the approved policy | restate in S1: the `SHAPE_NOT_BUILDABLE` row under fabricated | B2→H4; 116 |
+| W35 | `room-screen.dom.test.ts:889` [891] | a refused U at 1C keeps three chips and no corner toggle, and L brings the toggle back | restate in S1: fabricated | B2→H4; 116 |
+| W36 | `room-screen.u-witness.dom.test.ts:147` [191] | the walk 1A, 1B, 1D, 1F under the witness policy, ending on `isShapeBuildable("U", APPROVED) === false`; only that last line is red | restate in S1: drop or invert the last line. The screen-policy claim stands | B2→H4; 116 |
+| W37 | `room-screen.u-witness.dom.test.ts:194` [197] | the same URL under the approved policy stays at 1C | restate in S1: the contrast policy is fabricated | B2→H4; 116 |
+| W38 | `room-url-state.test.ts:451` [455] | a fully parsed U is 1C with `SHAPE_NOT_BUILDABLE` and marked field `shape`; observed 1D | restate in S1: 1D with the input, the refusal witness under fabricated | B2→H4; 116 |
+| W39 | `step-one-carries-a-u.test.ts:143` [152] | "is still refused by shape under the approved policy" | restate in S1: invert, as the file's other tests already reach 1D under the witness | B2→H4 |
+
+**e2e rows (static, not run).** Each names a U refusal, or asserts on the refusal region only a U could draw.
+
+| # | Test | What it asserts | Class | Cites |
+| --- | --- | --- | --- | --- |
+| E1 | `room-desktop-line.desktop.e2e.spec.ts:390` (the U half, 406–408) | the U card shows `room-shape-refusal` and Continue is disabled; the Continue-geometry half is unaffected | restate in S1: U chosen, no refusal, Continue enabled | B2→H4; AC5 |
+| E2 | `mobile-gate.e2e.spec.ts:123`, the step "1A — U refused, L taken" (125–128) | tapping the U card shows the refusal and disables Continue, then L clears it | restate in S1: U taken and Continue enabled, then L | B2→H4; AC5 |
+| E3 | `qa-7f2-s4-shape-refusal.adversarial.e2e.spec.ts:70` | the refusal under the 1A U card has the frame's colours | **removed, no replacement.** No card, chip or URL in the shipped app draws that region once all three shapes build, and a seam to draw it is barred. Its tokens are measured on 1C's reasons at `:30`, the same `.screen` scope | B2→H4; S1 |
+| E4 | `qa-7f2-s4-shape-refusal.adversarial.e2e.spec.ts:120` (the `shape=U` half, from 133) | a U's refusal at 1B costs one gap; the L half asserts the empty region costs nothing | **removed, no replacement** for the U half; the L half stays. Same reason as E3 | B2→H4; S1 |
+| E5 | `qa-7f2-s4-shape-refusal.adversarial.e2e.spec.ts:154` | 1A under a refused U card clips neither its note nor any target | **removed, no replacement.** Same reason as E3. 1A with a shape chosen is measured at `:92` | B2→H4; S1 |
+| E6 | `qa-7f2-s4-shape-refusal.adversarial.e2e.spec.ts:195` (test at 202), an empty and a filled U | every control is 44 px and nothing scrolls sideways "under its refusal" | restate in S1: the same 44 px scan on a U at 1B and 1D, no refusal expected. The filled U (3.6/2.4/2.4) is now 1D | B2→H4; H |
+| E7 | `room-length-fields-fit.e2e.spec.ts:151` (witnesses `:127-131` and `:141-145`) | "a U room at 1C's worst case" shows `[REFUSAL, NOTE]`, and "a U room at 1B" shows `[REFUSAL]` | restate in S1: 1C's worst case shows the three field reasons and the note; the 1B witness drops `REFUSAL` and may join `SHAPES_FITTING_AT_ONE_B` once measured | B2→H4; H |
+| E8 | `room-length-fields-fit.e2e.spec.ts:172` | the three unreadable sentences and the refusal of a U can be reached; the refusal is awaited at 176 and `mustScroll` is true (919 px in 709 measured under the refusal) | restate in S1: no `REFUSAL` wait, and re-measure whether the column still scrolls | B2→H4 |
+| E9 | `room-length-fields-fit.e2e.spec.ts:248` | 1A's column holds the refusal under the U card without clipping | **removed, no replacement.** Same reason as E3 | B2→H4; S1 |
+| E10 | `qa-7f2-s3-one-c.adversarial.e2e.spec.ts:114`, the `U` entry of `ONE_B_AND_ONE_C` (106–110) | at 1C a U's status region costs one gap; its `oneC` is 3.6/2.4/2.4, h 2.6, "1C on its shape" | restate in S1: that URL is now 1D and the test would wait for a note that is gone. `oneC` becomes a U with a real field reason, and `holdsItsFieldsAtOneB` is re-measured | H |
+| E11 | `qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts:144` | "three explained walls under its refusal": the column scrolls (`scrollHeight > clientHeight`, measured 919 in 709) | restate in S1: drop the words and re-measure the scroll pin | B2→H4; H |
+
+**e2e layout witnesses to verify** (they name no refusal, but measure a column the refusal region used to occupy, or
+land a U on 1D where it landed on 1C). Any of these may go red in the first e2e run and is then a restate, not a defect.
+
+- **V1** `qa-7f2-s3-one-c.adversarial.e2e.spec.ts:52` (U at `WORST_CASE.U`, 0.8/0.8/0.8 at h 2): still 1C by its fields; compares 1C's touch targets with 1B's.
+- **V2** `qa-7f2-s5-incomplete-plan.adversarial.e2e.spec.ts:85`: its comment names the refusal, and typing wall C 1200 on a 3.6/2.4 U now reaches 1D.
+- **V3** `qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts:59`, `:86`, `:102`, `:118`, `:275`, `:304` (each opens `A_VALID_U`, `:21`): the U starts at 1D, not 1C.
+- **V4** `room-desktop-line.desktop.e2e.spec.ts:419` (`ONE_B_STATES`, "a U room", 161–175; its comment says "the refused U").
+- **V5** `room-desktop-line.desktop.e2e.spec.ts:486` (`FITTED_ROOMS`, "a U room" 3/2.5/2, at `:220`): now 1D.
+- **V6** `room-desktop-line.desktop.e2e.spec.ts:941` (criterion 16, `linear`, `L`, `U` at 1B).
+- **V7** `room-desktop-line.desktop.e2e.spec.ts:983` (criterion 17, "1B, a U room").
+- **V8** `room-length-fields-fit.e2e.spec.ts:72` (help targets for each shape at 1B, U included).
+
+**Flags for the coordinator.**
+
+1. **W23 is the one product-visible consequence.** A U whose wall A is below 2700 mm but whose wall A and
+   height validate as a straight room now gets *"a straight kitchen would fit"* at 1C. The plan records "no new 1C
+   suggestion for a U (the straight-room suggestion keeps its shape-independent gate)". I read that as keeping
+   the gate as is, so W23 restates. If the owner meant a U gets none, that is a production change and a new decision,
+   not a test edit.
+2. **The refusal region becomes dead in the product.** After S1 only a fabricated policy reaches
+   `room-shape-refusal` and the `room.issue.shapeNotBuildable` leaf. Removing them touches the copy lock and the
+   golden hashes (ADR 0113), so this census does not; the four *removed* e2e rows are the only cost of leaving them.
+3. **The cast count is one, not seven.** `git grep "as BuildableShapes"` under `packages/` and `apps/` returns a
+   single expression: `apps/web/tests/room/qa-7f2-s1-issue-model.adversarial.test.ts:653` (its doc at `:642`, the
+   import at `:23`). ADR 0116 A2 counted seven at `8cd084b`; 7J deleted the linear ones. S1 item (4) and AC4 say "the
+   seven", and both mean this one. That test's U branch borrows the L's bounds (`[shape, lBounds]`), which S1 makes
+   unnecessary. Whether `Object.fromEntries` then types without a cast is not tried here.
+4. **Green tests that S1 may retire, not reds:** the fabricated U policies `U_WITNESS_POLICY`
+   (`packages/configurator-domain/tests/support/u-witness-policy.ts`), `policyStatingU` and
+   `approvedUWallBoundsStandIn` (`apps/web/tests/support/fabricated-u-policy.ts`), and the four `policyAlsoStating("U")`
+   copies. Their `interim-unapproved` or `isRequired: false` values now differ from the approved policy's.
+   `tests/room/room-screen.dom.test.ts:428` ("enables U against a policy that states its bounds") passes and
+   is now vacuous. Stale comments: `apps/web/tests/e2e/support/u-design.ts:3`, `room-desktop-line.desktop.e2e.spec.ts:161`.
+5. **No test now pins the approved U's guard.** `POLICY_FIELDS` in `approved-room-policy.test.ts` lists the L's
+   walls A and B, the height and the straight wall A only, and the storability property at `:442` draws L rooms
+   only (`approvedRoomInput`, `:420`). So S1 (1) and (2) add tests for the U, not only edits.
+
 ---
 
 ### Wave U7 — the mobile gate, the desktop line, captures (the phase gate)
