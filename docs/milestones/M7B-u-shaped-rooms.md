@@ -1089,7 +1089,7 @@ minimum-kitchen gate agrees with the generator.
 | --- | --- | --- | --- |
 | **S1 the shell** | (1) Wall C's plane (D12); (2) floor depth `max(B, C)`; (3) signature includes shape and C; (4) no run-end panel on a U | `kitchen-shell.ts` | D11, D12; G8; 7H and 7J close-outs (archived plan, by section); ADR 0120 D2–D3 |
 | **S2 the right corner's wrappers** | ~~(1) Wall-C bodies and right-corner pieces (by `cornerOf`) in one group reflected in `x = W/2`; (2) void meshes likewise~~ **2026-09-29 (ADR 0132 d1–d2): (1) the four right-corner pieces (by `cornerOf`) each in a wrapper group mirrored by `applyCornerDirection`; (2) wall-C bodies and voids drawn at their world frames, unmirrored**; (3) overflow mark and selection outline on wall C and on a mirrored corner piece; (4) picking climbs through a wrapper | `scene-sync.ts`, `selection-outline.ts`, `picking.ts` (~~`void-mesh.ts`, `overflow-mark.ts`~~: no change under α — census U28, U29) | **2026-09-29, from U2 as shipped:** `cornerOf(placement, room, catalog)` takes a **catalogue** (the adapter passes the one it builds with). It answers `undefined` for a non-corner body, `"left"` for wall B ~~and for any room that is not a U~~ **and for wall A outside a U** (R1.1, `7140eee`), `"right"` for wall C **in any shape, answered before the shape is read (corrected 2026-09-29, ADR 0132 A6)**, and on wall A of a U it answers by `alongMm` against `W / 2`. The right corner's placements are U2's: `rightCornerAssemblyWidthsMm` and `roomForTheRightCorner`, with the X-leg at `W − leftCentre` (`c14abb4`). The corner-taking walls are read through `cornerTakingWallsOf`, not the retired `WALL_THE_CORNER_IS_TAKEN_FROM`. D2, D4; ADR 0129 D4–D7 + Amendment (a); `DEVELOPMENT-SPEC.md` §6.1, §6.2; `corner-direction.ts`; the 7I QA findings (archived plan, *7I close-out*) |
-| **S3 cameras and lights** | (1) `wallC` preset (D13); (2) `overview` for three runs; (3) the light rig per ADR 0132 after captures (D14); (4) exports | `stage.ts`, `index.ts` | D13, D14; G9, G10; §6.4; §11 row 21; backlog 16; 7J R5 |
+| **S3 cameras and lights** | (1) `wallC` preset (D13); (2) `overview` for three runs; (3) ~~the light rig per ADR 0132 after captures (D14)~~ **moved to U5 (AC11), 2026-09-29, ADR 0132 A8.5**; (4) exports | `stage.ts`, `index.ts` | D13, D14; G9, G10; §6.4; §11 row 21; backlog 16; 7J R5 |
 
 - **Reading, QA:** *The 3D contract for a U*; D2, D4, D11–D14; ADR 0129 + Amendment; skill
   `lemnaria-3d-reference`; `browser-and-visual-qa.md`; the slice diff.
@@ -1114,7 +1114,30 @@ rows 2, 21 and 22: QA, then logic and clean-code review.
   `browser-and-visual-qa.md`.
 - **Reading, reviewers:** as the U4 lines above, plus ADR 0132 Amendment A.
 - **Not in this dispatch:** the web calling `applyCutaway` on every camera change (U5 S2 item (5)).
-  Owner question Q-U4-cam is non-blocking; default (A), hide, is what F3 builds.
+  Owner question Q-U4-cam is non-blocking; default (A), hide, is what F3 builds. **Answered
+  2026-09-29: "Hide them" (ADR 0132 A8.3).**
+
+**U4 round 3, after review round 2 (2026-09-29, ADR 0132 A8).** One developer dispatch,
+`packages/three-adapter` only. Tier: the **logic** reviewer's round 3, scoped to A8.1 and A8.2,
+after QA. The clean-code reviewer re-checks R3.3–R3.5 in the same round.
+
+| Item | What | Production files | Acceptance tests |
+| --- | --- | --- | --- |
+| **R3.1 — BLOCKER: no run bound** (A8.1) | `cutawayWallsFor` cuts a U's wall whenever the eye stands in or behind its body zone. The along bound (`isLevelWithRun`) is deleted for all three walls. | `cutaway.ts` | **Regressions:** 2700/1600/2400 from `wallC`, with an upper and then a tall column at B's free end: the click selects C's top-row body. The mirror 2700/2400/1600 from `wallB`. **Restated QA pins:** `qa-u4-fix-cutaway.adversarial.test.ts:140-171` (past the run's end, the wall is still cut); `qa-u4-fix-cutaway-wall-a` (an eye behind A and in B's zone cuts both). **Property** (≥ 200 samples over the approved U range): from `wallB` and `wallC`, the line to the subject's top row at its middle, ± 0.4 m and ± 0.8 m (within the run) crosses no uncut wall's zone box. **Pins:** `wallA` and the overview cut nothing over the approved range; at A = 1900 `wallA` cuts C, and at A = 2000 it cuts nothing (the engine band, A8.1). R6: restore the bound, and the regressions go red |
+| **R3.2 — the cutaway survives a sync** (A8.2) | `applyCutaway` records the cut set on the shared parent. `syncSolidBodies` and `syncVoidMeshes` apply it to what they mount, before returning. | `cutaway.ts`, `scene-sync.ts` | With `["C"]` applied, a `syncVoidMeshes` (as after a delete) and a `syncSolidBodies` leave every wall-C object invisible and unpickable. With `[]` applied, they leave everything drawn. R6: remove the re-apply, and the tests go red |
+| **R3.3 — presets** (review round 2, low 5 and optional) | `targetInRoom` takes only the three reference ids: a narrowed type, so the `wallC` arm cannot exist. `wallCPresetsOf` shares one `reflectAbout` with the reflection it performs. | `stage.ts` | `targetInRoom`'s parameter type excludes `wallC`, so `tsc` refuses the arm. Every existing preset test stays green |
+| **R3.4 — one source for each constant** (clean-code must-fix) | `U_WALLS` comes from the domain's `wallsOf("U")`. `EYE_CLEARANCE_M` is **one exported source constant**, imported by `tests/cutaway.test.ts:45` and `qa-7h-preset-stands-clear.adversarial.test.ts:67`. QA's `ZONE_M` (0.742, 0.748) stays, commented as a **deliberate independent pin** of ADR 0108 H2's measured values. | `cutaway.ts`, `index.ts` | `git grep -n "0.05"` over the adapter's cutaway tests finds only the import. The suite is unchanged |
+| **R3.5 — the `cornerOf` guard, and the hash names** (A8.4; clean-code optional) | A test: a wall-B or wall-C corner record whose `frame.x` would read the other way on wall A still wraps by its wall. Rename `shell-recorded-at-30a4ea1.ts` and `SHELLS_AT_30A4EA1` to what they record, and drop the `db9c402` hashes from `kitchen-shell.ts:531,603` (comments). | `kitchen-shell.ts` (comments only) | The guard test. R6: make `cornerOf` read `alongMm` on B, and it goes red |
+
+- **Deferred to U5 S0:** the two catalogue-at-depth caches (a `Map` in `cutaway`, a `WeakMap` in
+  `right-corner-wrapper`); `mirroredPieceTest` and the boolean flags in `scene-sync.ts`; the U4 test
+  files' helper duplication; and splitting the 1 051-line `qa-u4-drawing-a-u.adversarial.test.ts`.
+  All are behaviour-free, and U5 S0 already touches `right-corner-wrapper.ts` (A8.4).
+- **Reading, developer:** ADR 0132 A2 and A8; AC4 (restated); `cutaway.ts`; `scene-sync.ts:78-170`;
+  `stage.ts:360-460`; `right-corner-wrapper.ts:27-72`; `corner-assembly-size.ts:275-312`; the two QA
+  cutaway files; the logic reviewer's `eye.mjs`, `click.mjs`, `sweep.mjs` and `sweep-tall.mjs` (the
+  session scratchpad).
+- **Reading, QA and the logic reviewer:** the same list, plus the round-3 diff.
 - **Reading, logic reviewer:** D2, D4, D12–D14; ADR 0025, 0121, 0129, 0132; §6.1, §6.2, §11 rows 2,
   19, 21, 22; the wave diff.
 - **Reading, clean-code reviewer:** the slice table; `engineering-conventions.md`; the wave diff.
@@ -1133,7 +1156,8 @@ rows 2, 21 and 22: QA, then logic and clean-code review.
    −1):** a wall-C door front paints non-zero pixels; the selection outline on a wall-C body **and on
    the right X-leg** paints red pixels comparable to its wall-B / left twin (7I's 0-pixel class); a
    wall-C void mesh is visible; **a wall-C body's hinge and handle sides are its own, not wall B's
-   reflected (Q-U5).** **[visual]**
+   reflected (Q-U5).** **[visual]** **2026-09-29: not captured in U4, because no U reaches a web
+   surface before U5. It moves to U5 AC9 (ADR 0132 A8.5).**
 3. **Picking on wall C** and on a right-corner piece (~~both parities~~ 2026-09-29: the two parities of criterion 2): §11 row 2 (the base slot of a cleared column selects the base
    slot) and row 22 (delete, then click another cabinet, selects it). No `Mesh`, `Line` or `Points` in
    the scene has a negative scale component (a test walks the graph). **[unit] + [e2e-able]**
@@ -1157,17 +1181,25 @@ rows 2, 21 and 22: QA, then logic and clean-code review.
      preset, with `applyCutaway(cutawayWallsFor(eye))` applied, a ray from the eye to the centre of
      the top-row body's front, at the preset's own wall's middle, **picks that body**. Also:
      - no drawn body contains any preset's eye;
-     - the overview and `wallA` cut nothing away;
-     - every run's fronts face the overview's eye.
+     - the overview and `wallA` cut nothing away ~~;~~ **over the approved U range. In the engine
+       band only, at W < 1.91 m, `wallA`'s eye stands in wall C's zone and C is cut: the rule
+       working, not an exception (2026-09-29, ADR 0132 A8.1);**
+     - every run's fronts face the overview's eye;
+     - **(2026-09-29, A8.1)** a wall is cut whenever the eye is in or behind its zone, wherever
+       along the wall. From `wallB` and `wallC`, no line to the subject's top row (middle, ± 0.4 m,
+       ± 0.8 m) crosses an uncut zone.
    - **(e) Must not:**
      - a requirement that every wall be held horizontally from every preset;
      - a cutaway in an L or a straight room;
      - a cut-away body or void returned by `pick`;
      - a room term in `PRESET_DISTANCE_M`.
 
-   **[unit] + [prop] + [visual]**
+   **[unit] + [prop] + [visual]** **2026-09-29: the `[visual]` half is not captured in U4. It moves
+   to U5 AC10 (ADR 0132 A8.5). The unit and property halves stay U4's.**
 5. **Lights**: a captured comparison of a wall-C front against its wall-B twin in a symmetric U,
    judged by the visual reviewer, and ADR 0132 records the choice D14 left open. **[visual]**
+   **2026-09-29: not built or captured in U4. It moves to U5 AC11, with S3 (3). D14's choice is owed
+   by U5's close, and U6 depends on it (ADR 0132 A8.5).**
 6. **Shell**: wall C visible only for a U; floor depth `max(B, C) + overhang`; switching between an
    L and a U at equal `W × D × H` redraws. **[unit]**
 7. **Must not:** `DoubleSide` on any body material; a second reflection primitive;
@@ -1182,8 +1214,9 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
+| **S0 carried from U4 (2026-09-29, ADR 0132 A8.4). Light tier: behaviour-free apart from one record field** | (1) `derivePlacementRecords` carries `corner` (`cornerOf`'s answer) on every `PlacementRecord`; (2) the adapter's right-corner wrapper reads `record.corner`, and `placementStandingFor` is deleted; (3) one catalogue-at-depth cache, replacing `cutaway`'s `Map` and `right-corner-wrapper`'s `WeakMap`; (4) `scene-sync.ts`'s `mirroredPieceTest` and its boolean flags split into named functions; (5) the U4 test files' shared helpers go to one support module, and the 1 051-line `qa-u4-drawing-a-u.adversarial.test.ts` is split by subject | `void-engine.ts` (domain, `derivePlacementRecords`), `right-corner-wrapper.ts`, `cutaway.ts`, `scene-sync.ts` | ADR 0132 A8.4; ADR 0121; the U4 round-2 clean-code findings |
 | **S1 Step 1** | (1) Delete the 1D U throw; (2) `roomHrefFromDesignRoom` and `parsedRoomLengthsOf` for a U (wall C; ~~direction per Q-U4~~ **no direction: the toggle is hidden for a U and a `direction` on a U URL is ignored, the preview unmirrored — Q-U4 (b), 2026-09-29**); (3) 1F's summary from `wallsOf`; (4) `requiredFieldsFor` and `DRAWABLE_WALLS` from `wallsOf` (backlog 76); (5) facing labels never overlap (backlog 72) | `room/room-url-state.ts`, `room/generation-steps.tsx`, `room/plan-preview-model.ts` | G11, G12; D7, D16; Q-U4's record; ADR 0116 + A, 0126, 0127, 0104 B; backlog 72, 76 |
-| **S2 the editor** | (1) `crossesOnScreen` for C, by projection (D15); (2) the width-step note follows it; (3) camera chip leaf `configure.cameraPresets.wallC`, ro/ru, lock and golden manifest; (4) the capture route accepts `wallC`; **(5) added 2026-09-29 (ADR 0132 A2): the scene applies `applyCutaway(cutawayWallsFor(camera.position, room, depth))` on every camera change, preset ease and orbit alike, before the next pick. e2e: in 3000/3000/3000 on `Perete B`, a tap on wall B's top row selects it; after orbiting back to the overview, wall C draws again** | `i18n/content.ts`, `panel/panel-model.ts`, `messages/ro.json`, `messages/ru.json` (+ generated `ro.d.json.ts`), `app/internal/scene-shot/shot-request.ts` | D13, D15; ADR 0129 Amendment (b); ADR 0095, 0113; `qa-7i-screen-side.adversarial.test.ts` |
+| **S2 the editor** | (1) `crossesOnScreen` for C, by projection (D15); (2) the width-step note follows it; (3) camera chip leaf `configure.cameraPresets.wallC`, ro/ru, lock and golden manifest; (4) the capture route accepts `wallC`; **(5) added 2026-09-29 (ADR 0132 A2): the scene applies `applyCutaway(cutawayWallsFor(camera.position, room, depth))` on every camera change, preset ease and orbit alike, before the next pick. e2e: in 3000/3000/3000 on `Perete B`, a tap on wall B's top row selects it; after orbiting back to the overview, wall C draws again.** **Widened 2026-09-29 (A8.2, A8.3): it re-applies also after mounting the selection outline or an overflow mark, before the next render or pick. When the cut set comes to include the selected body's or void's wall, the selection is cleared and the panel closes. The e2e adds: on `Perete B`, delete a wall-B body, then tap B's top row, and it selects; select a wall-C body from the overview, tap `Perete B`, and the panel closes** | `i18n/content.ts`, `panel/panel-model.ts`, `messages/ro.json`, `messages/ru.json` (+ generated `ro.d.json.ts`), `app/internal/scene-shot/shot-request.ts` | D13, D15; ADR 0129 Amendment (b); ADR 0095, 0113; `qa-7i-screen-side.adversarial.test.ts` |
 
 - **Reading, QA:** G11, G12; D7, D13, D15, D16; ADR 0116 + A; `browser-and-visual-qa.md`; the slice
   diff.
@@ -1214,6 +1247,18 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 8. **Must not:** a component under `apps/web/src/room` compares a shape to `"U"` outside the named
    sites (the ADR 0116 A1 form: *the screen asks the domain*); `isShapeBuildable("U", APPROVED)` true.
    **[review]**
+9. **Reflection parity, captured** (moved from U4 AC2, 2026-09-29, ADR 0132 A8.5). U4 AC2's
+   checklist, captured through the capture route: a wall-C door front paints; the outline on a wall-C
+   body and on the right X-leg paints, comparably to its left twins; a wall-C void is visible; the
+   hinge and handle sides are wall C's own. **[visual]**
+10. **Cameras, captured** (moved from U4 AC4's `[visual]` half). At 390 × 844 and at desktop, over
+    U4 AC4's five rooms: each wall preset shows its own wall's top row, with the opposite run cut
+    away where A2 cuts it, and nothing drawn in front of the subject. The overview faces every run's
+    fronts. **[visual]**
+11. **Lights, decided** (moved from U4 AC5 and S3 (3), D14). A captured comparison of a wall-C front
+    against its wall-B twin in a symmetric U, judged by the visual reviewer. ADR 0132 records D14's
+    choice by a dated line, and if the choice changes the rig, `stage.ts` changes in this wave. **Owed
+    by U5's close; U6 does not start without it.** **[visual]**
 
 ---
 
@@ -1221,6 +1266,9 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 **Goal.** U's owner-approved bounds enter `APPROVED_ROOM_POLICY`, the U card continues, and every
 "U is refused" assertion is restated or retired on the record.
+
+**Depends on (2026-09-29, ADR 0132 A8.5):** U5 AC9–AC11 closed, D14's choice among them. The U card
+does not go live on a lighting nobody has seen.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
@@ -1270,10 +1318,13 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
    `/d/{id}` restores; the share view draws the same U. **Added 2026-09-29 (RQ7):** on a large U,
    insert a wall cabinet above a base on wall A. **[e2e]**
 2. **Desktop** (1440 × 900): the same flow; the phone captures of criterion 3 unchanged by it. **[e2e]**
-3. **Captures**: {Q-U1 minimum, a middle U, the maximum} × {left, right} × {`overview`, `wallA`,
-   `wallB`, `wallC`} × {mobile, desktop}. Checklist per frame: wall C's plane present; fronts face the
-   room; no floating corner piece; the right corner reads as the left's mirror; nothing past a wall's
-   end; the top row visible. **[visual]**
+3. **Captures**: {Q-U1 minimum, a middle U, the maximum} × ~~{left, right} ×~~ {`overview`, `wallA`,
+   `wallB`, `wallC`} × {mobile, desktop}. **2026-09-29: `{left, right}` is removed. A U has one hand
+   (ADR 0132 d8, Q-U4 (b)).** Checklist per frame: wall C's plane present; fronts face the room; no
+   floating corner piece; the right corner reads as the left's mirror; nothing past a wall's end;
+   the top row visible ~~.~~ **from each wall's own preset, and vertically from the overview (U4
+   AC4); from a side preset, the opposite run cut away where A2 cuts it (ADR 0132 A8.1).**
+   **[visual]**
 4. **Gates**: whole-tree `pnpm format:check` last; `pnpm ci:local` green on a clean tree (R8); the
    e2e additions reported against ADR 0105's ceiling. **[gate]**
 
@@ -1292,8 +1343,10 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
   captures both parities; a mesh-only assertion is not accepted.~~
   **R3, restated 2026-09-29:** there is no nested reflection (no U is right-handed, ADR 0132 d8). The
   risk is 7I's class on **the four right-corner pieces**, the only −1 bodies in a U. U4-A2 captures an
-  outline on the right X-leg; a mesh-only assertion is not accepted.
-- **R4 — Wall C is unlit by the key light** (G10, [inf]). U4-A5 decides it on pixels.
+  outline on the right X-leg; a mesh-only assertion is not accepted. **2026-09-29: the capture
+  moves to U5 AC9 (ADR 0132 A8.5).**
+- **R4 — Wall C is unlit by the key light** (G10, [inf]). ~~U4-A5~~ **U5 AC11 (2026-09-29, ADR 0132
+  A8.5)** decides it on pixels, by U5's close. U6 depends on it.
 - **R5 — The byte cap grows** at a public write seam. U1 S2 carries a security reviewer; the 413 test
   is re-run at the new cap.
 - **R6 — The e2e suite grows past what ADR 0105 budgeted.** U7 reports minutes added; a split, not a

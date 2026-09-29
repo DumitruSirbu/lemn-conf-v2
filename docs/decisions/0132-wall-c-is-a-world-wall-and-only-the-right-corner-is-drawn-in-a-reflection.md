@@ -2,7 +2,7 @@
 
 Status: Accepted — M7B wave U0's logic review, 2026-09-29 (no blockers). **Amendment A, 2026-09-29:**
 a U's side-wall presets cut away the run their eye stands in, and its overview looks in from the open
-side on the centre line (U4 QA)
+side on the centre line (U4 QA). **A8, 2026-09-29:** A2's run bound withdrawn; the cutaway survives a sync; Q-U4-cam answered "Hide them"; D14 owed by U5's close
 Date: 2026-09-29
 Type: Finding + Decision (architect), on owner rulings of 2026-09-29 relayed by the coordinator
 Milestone: M7B, wave U0 (`docs/milestones/M7B-u-shaped-rooms.md`, *Wave U0*, *U0 census*, *U0
@@ -386,3 +386,144 @@ row 21 (A2 (b)).
   - The owner answers Q-U4-cam with (B).
   - An L's orbit behind wall A or B is reported as a defect. The same cutaway would then be
     extended to the L, which today is deliberately untouched.
+
+### A8 — U4 review, round 2 (2026-09-29): A2's run bound is withdrawn, the cutaway survives a sync, and D14 moves to U5
+
+The U4 fix's round 2 was merged at `9178de8`. HEAD is `38d6be7`. The logic review returned a
+**blocker**; the clean-code review approved with two must-fix items. Figures are **[measured]** by
+the architect against the adapter's `dist/` build of HEAD, over A1's grid (88 434 rooms), with the
+engine band A 1800–2600 (23 409 rooms) added. Scripts: the session scratchpad's `u4r3/sweep.mjs`,
+`u4r3/sweep-engine.mjs` and `u4r3/extra.mjs`, all run with `rtk proxy node`. They use the
+reviewer's segment-against-box test, and reproduce the reviewer's figures exactly.
+
+#### A8.1 — the blocker: A2 tested where the eye is, not what the sight line crosses. **The run bound is withdrawn**
+
+**The case.** In a 2700/1600/2400 U, the `wallC` eye is at (−1.449, 2.020, 1.666). That is behind
+B's plane, but 66 mm past the end of B's 1.6 m run, so A2's *"within that wall's run"* cut nothing.
+The ray to wall C's top-row middle then crosses B's zone at z ≈ 1.50 m, inside B's run, and a body
+at B's free end takes the click.
+
+*Measured at HEAD:*
+
+| Where the click is lost | Rooms, per side preset | Across both presets |
+| --- | ---: | ---: |
+| to an upper at the other side wall's free end | 1 109 | 2 218 |
+| to a tall column there | 1 425 | 2 850 |
+
+Tall columns at the free end are the normal case: ADR 0110 *N3 revised* 4 puts pantries there. So
+AC4(d), §11 row 21, and A2's own restated rule (*"no drawn body … stands between the eye and its
+subject"*) all fail. **A2 is a contract defect in its own wording, not a coding slip.** The bound's
+stated reason, *"beyond either end the room is open, and an eye there looks in over nothing"*, is
+false as soon as a sight line enters the run at an angle.
+
+**Ruling.** A wall of a U is cut away whenever the eye stands in or behind its body zone, **wherever
+along the wall the eye is**. The run bound (round 2's `0 ≤ along ≤ length`) is withdrawn for all
+three walls.
+
+*Derived.* If the eye stands in or behind a run's body zone, it is at or behind that run's fronts.
+From there it can see only that run's backs, ends and carcass interiors, whatever its position along
+the wall. Cutting that run therefore never removes a front the customer could have used.
+
+Two alternatives were considered:
+
+- **Testing the sight line to the orbit target.** Refused. It tests one ray. A frame is about 1.6 m
+  wide, and rays to its edges can cross a zone that the centre ray misses.
+- **Extending the bound by "the eye's reach".** This is the same rule with a parameter the room does
+  not supply.
+
+*Measured with the rule (the model's copy of it):*
+
+- On A1's grid and on the engine band, **no** click is lost to an upper or a tall column, from
+  either side preset.
+- **No** top-row point at the middle ± 0.4 m or ± 0.8 m (within the run) has its line cross an
+  uncut side zone. At HEAD, 2 491 rooms per preset have one.
+- Cut sets change for 29 900 of the 353 736 preset evaluations on A1's grid (4 presets per room).
+  All of them are side presets.
+- **`wallA` and the overview cut nothing anywhere in the approved range**, so this is unchanged.
+- **Stated because it does change, in the engine band only:** at A = 1800 and 1900 (W < 1.91 m),
+  `wallA`'s eye, at x = W/2 + 0.163, stands inside wall C's zone, and C is cut. That is the rule
+  working: the eye is inside where C's cabinets are. At HEAD, `wallA` already cut something in 1 938
+  engine-band rooms.
+
+AC4(d) is restated to say so.
+
+**Tests this changes.**
+
+- `qa-u4-fix-cutaway.adversarial.test.ts:140-171` (*"not a millimetre past it"*). Past the run's
+  end, the wall is still cut.
+- Round 2's `qa-u4-fix-cutaway-wall-a` pins. An eye behind wall A that is also in B's zone now cuts
+  both.
+
+#### A8.2 — A7's "every camera change" was too narrow: the cut set must survive a sync
+
+*Source-verified.* The logic reviewer reports that `syncVoidMeshes` replaces the whole void set, so
+a delete on `Perete B` brings wall C's voids back until the camera moves. A7 and U5 S2 (5) named
+only camera changes.
+
+**Ruling.** No object keyed to a cut wall is drawn or picked, whatever mounted it and whenever.
+Responsibility follows who mounts what:
+
+- **The adapter** mounts bodies (`syncSolidBodies`) and voids (`syncVoidMeshes`). Each of them
+  applies the cut set that the last `applyCutaway` recorded on the same parent, before returning.
+  This is U4 round 3.
+- **The web** mounts the selection outline and overflow marks. It re-applies after mounting either
+  of them, and on every camera change, before the next render or pick. This is U5 S2 (5), and its
+  e2e is extended with a delete on `Perete B`, then a tap on B's top row.
+
+#### A8.3 — Q-U4-cam answered, and a selection does not outlive its cut-away body
+
+**Owner, 2026-09-29, relayed by the coordinator:** Q-U4-cam answered **"Hide them"** (a *relayed
+selection*). That is option (A), the default A5 built. A5's question is closed.
+
+**Ruling, on the logic review's low finding.** When the cut set comes to include the wall of the
+selected body or void, **the selection is cleared**, and the panel closes with it.
+
+*Derived.*
+
+- A selection is a pick result (§6.1), and a cut-away object is never picked (A2).
+- A panel acting on a cabinet the customer cannot see, such as delete, replace or width, acts
+  unseen.
+
+This is not put to the owner. It follows from *"Hide them"*: a hidden cabinet is not an editable
+one. The selection state is the web's, so the item is in U5 S2 (5).
+
+#### A8.4 — `cornerOf` from a rebuilt placement: sound today, fixed properly in U5 S0
+
+*Source-verified.* `placementStandingFor` (`right-corner-wrapper.ts:61-72`) fills `alongMm` from
+`frame.x` for every wall. On walls B and C, `frame.x` is across the wall, not along it. It is sound
+today only because `cornerOf` answers B and C by wall before it reads `alongMm`
+(`corner-assembly-size.ts:301-312`).
+
+**Ruling.**
+
+- **U4 round 3 adds a guard test.** A wall-B or wall-C corner record whose `frame.x` would read the
+  other way on wall A still wraps by its wall.
+- **The fix goes to U5 S0.** `derivePlacementRecords` carries `corner` on the record (domain), the
+  adapter reads it, and `placementStandingFor` is deleted. It is a domain change, and U4 is
+  adapter-only.
+
+#### A8.5 — the visual criteria and D14 move to U5, and U6 depends on them
+
+**Unbuilt or uncaptured at U4's close:**
+
+- U4 AC2 (parity captured);
+- AC4's `[visual]` clause;
+- AC5 and S3 (3), the light rig (D14).
+
+No U reaches a web surface before U5, whose S2 (4) is what lets the capture route take `wallC`. So
+all of them become U5 acceptance criteria.
+
+**D14's choice is owed by U5's close. U6 depends on it:** the U card does not go live on a lighting
+choice nobody has seen. R3 and R4 in the M7B plan are repointed to U5.
+
+#### A8.6 — sweep
+
+| Record | Effect |
+| --- | --- |
+| A2 | The run bound is withdrawn (A8.1) |
+| A5 | Answered: "Hide them" (A8.3) |
+| A7 | Widened to every mount (A8.2) |
+| D14 | Owed by U5's close (A8.5) |
+| M7B U4 AC4(d) | Restated (A8.1) |
+| M7B U5 S2 (5) | Widened (A8.2, A8.3) |
+| M7B U7 AC3 | `{left, right}` removed, because a U has one hand (decision 8) |
