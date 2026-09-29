@@ -236,33 +236,19 @@ function ComposeCta({
   );
 }
 
-/** The catalogue's two summary leaves name one wall (`roomSummaryLinear`) and two (`roomSummary`). */
-const MOST_WALLS_A_SUMMARY_NAMES = 2;
-
 /** Frame 1F's one-line room, in the whole millimetres the customer typed (ADR 0126). The numbers are
  *  ICU arguments, exactly as `room.planWallLabel`'s are, so their form is the catalogue's and a digit
  *  is never concatenated into a sentence.
  *
- *  **Which sentence, decided by how many walls the domain gives the shape** (`wallsOf`, M7B plan D7;
- *  ADR 0130 D10): a straight room's own entered fields are wall A and height, never a second wall —
- *  `room.depthMm` is the drawn floor's depth in front of the run (ADR 0130 D3), not a length the
- *  customer typed, so the summary must not print it as though it were one. The count is read rather
- *  than the shape compared, so a wave that widens a shape's walls moves this summary with it.
- *
- *  **A shape with three walls has no sentence yet, and this throws for it rather than print two of
- *  them.** The catalogue's two summary leaves name one wall and two; a U's summary needs a leaf that
- *  names three, which is new customer-visible copy (ro and ru, the copy lock, the golden manifest) and
- *  is owed before U6 turns the U card live. Failing closed is `explanationKeyFor`'s own stance in
- *  `dimensions-form.tsx`, for the same reason: a summary silently missing wall C would tell a
- *  customer their room is a different room. */
+ *  **Which leaf, decided by how many walls the domain gives the shape** (`wallsOf`, M7B plan D7; ADR
+ *  0130 D10): one wall reads `roomSummaryLinear`, two `roomSummary`, three `roomSummaryU`. A straight
+ *  room's own entered fields are wall A and height, never a second wall — `room.depthMm` is the drawn
+ *  floor's depth in front of the run (ADR 0130 D3), not a length the customer typed, so the summary
+ *  must not print it as though it were one. The count is read rather than the shape compared, so a
+ *  wave that widens a shape's walls moves this summary with it. */
 function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
   const wallCount = wallsOf(room.shape).length;
-  if (wallCount > MOST_WALLS_A_SUMMARY_NAMES) {
-    throw new Error(
-      `1F has no summary sentence for a room of ${String(wallCount)} walls: it needs a new leaf`,
-    );
-  }
   const shape = translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]);
 
   return (
@@ -273,14 +259,34 @@ function RoomSummary({ room }: { readonly room: DesignRoom }) {
             wallA: room.widthMm,
             height: room.heightMm,
           })
-        : translate("room.compose.roomSummary", {
-            shape,
-            wallA: room.widthMm,
-            wallB: room.depthMm,
-            height: room.heightMm,
-          })}
+        : wallCount === 2
+          ? translate("room.compose.roomSummary", {
+              shape,
+              wallA: room.widthMm,
+              wallB: room.depthMm,
+              height: room.heightMm,
+            })
+          : translate("room.compose.roomSummaryU", {
+              shape,
+              wallA: room.widthMm,
+              wallB: room.depthMm,
+              wallC: wallCOf(room),
+              height: room.heightMm,
+            })}
     </span>
   );
+}
+
+/** Wall C's length through the one `DesignRoom` mapping (`parsedRoomLengthsOf`), which refuses a U
+ *  that carries none rather than printing another wall's number in its place. */
+function wallCOf(room: DesignRoom): number {
+  const wallC = parsedRoomLengthsOf(room).find(
+    (length) => length.field === "wallC",
+  );
+  if (wallC === undefined) {
+    throw new Error("1F's summary asked for wall C of a room that has none");
+  }
+  return wallC.millimetres;
 }
 
 /**
