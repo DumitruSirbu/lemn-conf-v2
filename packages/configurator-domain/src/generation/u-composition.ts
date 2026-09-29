@@ -507,27 +507,38 @@ function hasATallColumnOn(
   );
 }
 
-/** *N3 revised* 6's own split, once RQ18 (b) replaced "the extras are all one build id": of the
- *  `drawerTarget − (prep counted or not)` extra units still owed past the preparation cabinet, the
- *  pan drawers (`PAN_DRAWER_BASE_BUILD_ID`) come first, up to `floor(drawerTarget / 2)` — the
- *  owner's own table at *N3 revised* 6 — and the rest are `THREE_DRAWER_BASE_BUILD_ID`. */
-function drawerExtrasFor(
-  drawerTarget: number,
-  hasPreparation: boolean,
-): { readonly panbankCount: number; readonly threeDrawerCount: number } {
-  const panbankCount = Math.floor(drawerTarget / 2);
-  const threeDrawerCount = Math.max(
-    0,
-    drawerTarget - (hasPreparation ? 1 : 0) - panbankCount,
-  );
-  return { panbankCount, threeDrawerCount };
+/** The most pan drawers (`PAN_DRAWER_BASE_BUILD_ID`) a room gets, whatever its size: the owner's own
+ *  table, *"if 4+ 2 - pan drawers"* (ADR 0110 *N3 revised* 6, RQ18 (b)). */
+const MAX_PAN_DRAWER_COUNT = 2;
+
+/** The drawer-cabinet count from which the owner's split leaves room for a second pan drawer. */
+const TWO_PAN_DRAWER_MIN_CABINET_COUNT = 4;
+
+/** *N3 revised* 6's own split of the extra drawer units — how many are pan drawers, the rest being
+ *  three-drawers. It is keyed on the drawer cabinets the room **actually gets** (the preparation
+ *  cabinet plus the extras that found a door slot), not on its size-derived `drawerTarget` (owner,
+ *  RQ19 (a), 2026-09-29: *"yes when 3 drawer cabinets need to be placed 1 is pan and 2 are 3 drawers
+ *  cabinet"*). Three cabinets are 1 pan drawer and 2 three-drawers (the preparation plus one extra);
+ *  four or more are 2 pan drawers. Below three the RQ18 table stands: pan drawers are kept first,
+ *  so a lone extra is a pan drawer. */
+function panDrawerCountFor(args: {
+  readonly extraCount: number;
+  readonly hasPreparation: boolean;
+}): number {
+  const { extraCount, hasPreparation } = args;
+  const cabinetCount = extraCount + (hasPreparation ? 1 : 0);
+  const panbankCap =
+    cabinetCount >= TWO_PAN_DRAWER_MIN_CABINET_COUNT ? MAX_PAN_DRAWER_COUNT : 1;
+  return Math.min(extraCount, panbankCap);
 }
 
 /** *N3 revised* 6, RQ18 (a): the extra drawer units are never confined to wall A — they take door
  *  slots **in run order**, continuing round the far corner onto the far wall's own door bases where
  *  wall A's own fill runs out. Applied once the whole plan's bases are known, because the far wall's
  *  own door bases are S2's `u-tall-layout.ts` output, not this module's. The fridge wall is never a
- *  candidate: it stands before the sink in run order (*N3 revised* 6's own adjudication). */
+ *  candidate: it stands before the sink in run order (*N3 revised* 6's own adjudication). The
+ *  extras are as many as `drawerTarget` still owes **and** the door slots after the hob can hold;
+ *  that capacity-limited number is what `panDrawerCountFor` splits (RQ19 (a)). */
 function withDrawerUnitsAfterTheHob(
   bases: readonly UPlannedGenerationBase[],
   fridgeWall: DesignWall,
@@ -539,28 +550,28 @@ function withDrawerUnitsAfterTheHob(
   const hobIndex = runOrder.findIndex((base) => base.role === "hob");
   if (hobIndex === -1) return bases;
 
-  const { panbankCount, threeDrawerCount } = drawerExtrasFor(
-    drawerTarget,
+  const doorSlotIds = runOrder
+    .slice(hobIndex + 1)
+    .filter(
+      (base) => base.role === "storage" && base.buildId === DOOR_BASE_BUILD_ID,
+    )
+    .map((base) => base.id);
+  const extrasOwed = Math.max(0, drawerTarget - (hasPreparation ? 1 : 0));
+  const extraIds = doorSlotIds.slice(0, extrasOwed);
+  if (extraIds.length === 0) return bases;
+
+  const panbankCount = panDrawerCountFor({
+    extraCount: extraIds.length,
     hasPreparation,
+  });
+  const buildIdById = new Map(
+    extraIds.map((id, index) => [
+      id,
+      index < panbankCount
+        ? PAN_DRAWER_BASE_BUILD_ID
+        : THREE_DRAWER_BASE_BUILD_ID,
+    ]),
   );
-  let panbankLeft = panbankCount;
-  let threeDrawerLeft = threeDrawerCount;
-  const buildIdById = new Map<string, string>();
-  for (const base of runOrder.slice(hobIndex + 1)) {
-    if (base.role !== "storage" || base.buildId !== DOOR_BASE_BUILD_ID) {
-      continue;
-    }
-    if (panbankLeft > 0) {
-      buildIdById.set(base.id, PAN_DRAWER_BASE_BUILD_ID);
-      panbankLeft -= 1;
-    } else if (threeDrawerLeft > 0) {
-      buildIdById.set(base.id, THREE_DRAWER_BASE_BUILD_ID);
-      threeDrawerLeft -= 1;
-    } else {
-      break;
-    }
-  }
-  if (buildIdById.size === 0) return bases;
   return bases.map((base) => {
     const buildId = buildIdById.get(base.id);
     return buildId === undefined ? base : { ...base, buildId };

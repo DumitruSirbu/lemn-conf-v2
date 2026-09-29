@@ -145,9 +145,12 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
     // cabinets", *N3 revised* 6) these are the run's own next eligible door slots past the hob, on
     // the same footing as the far wall's counted-from-corner slots the 6000/6000/6000 witness pins
     // below. ADR 0110 N9.1 rules that these two bases are drawer units and the plan is right.
+    // RQ19 (a), owner, 2026-09-29: the room gets 3 drawer cabinets (the preparation and these two),
+    // and 3 cabinets are 1 pan drawer and 2 three-drawers — so nearest the hob, a panbank, then a
+    // 3-drawer. Before the ruling the split was keyed on the size-derived target and gave 2 panbanks.
     expect(basesOn(plan, "C")).toStrictEqual([
       { role: "storage", buildId: "base-panbank" },
-      { role: "storage", buildId: "base-panbank" },
+      { role: "storage", buildId: "base-3drawer" },
       { role: "storage", buildId: "tall-oven-tower" },
     ]);
     expect(plan.remainderMm.C).toBe(200);
