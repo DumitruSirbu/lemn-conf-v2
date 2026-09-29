@@ -1,9 +1,9 @@
-// M7B wave U4 fix, adversarial QA — ADR 0132 Amendment A2 read literally: "In a U, **any wall** whose
-// body zone the camera's eye stands in or behind, **within that wall's run**, is cut away", and "it
-// reads where the camera is, not which preset it is, so an orbit gets the same answer as a preset"
-// (the configure screen's `OrbitControls` are unconstrained). `cutawayWallsFor` tests walls B and C
-// only (`SIDE_WALLS`), and treats any z up to a side run's end as level with it, a negative z
-// included.
+// M7B wave U4 fix, adversarial QA — ADR 0132 Amendment A2 as amended by A8.1: "a wall of a U is cut
+// away whenever the eye stands in or behind its body zone, wherever along the wall the eye is". A2's
+// "any wall" includes wall A, and A2's "it reads where the camera is, not which preset it is, so an
+// orbit gets the same answer as a preset" makes these orbit eyes binding (the configure screen's
+// `OrbitControls` are unconstrained). A8.1 withdrew the run bound, so an eye behind wall A that is
+// also behind wall B's plane cuts both walls, before wall B's run begins or not.
 import {
   buildUShellDesign,
   type DesignRoom,
