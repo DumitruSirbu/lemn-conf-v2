@@ -606,7 +606,8 @@ PASS.
 - **M7 is closed (2026-09-29).** Nothing from M7 is open. Every M7 bullet below this one is history —
   kept for its detail, not because anything in it is still outstanding. The next milestone in the
   phase sequence is **M7B — U-shaped rooms** (confirmed by the owner, ~~plan not yet written~~
-  **plan written 2026-09-29, next wave U0**; see `milestones/M7B-u-shaped-rooms.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
+  **plan written 2026-09-29; waves U0 and U1 done, next wave U2**; see
+  `milestones/M7B-u-shaped-rooms.md`). Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
 - ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
   RESUME HERE entry under *What to do next* for the current state: 7D5, 7D5b and 7F2 have since all
@@ -1104,6 +1105,38 @@ one WAF `rate_limit` rule.** A second returns a misleading 401; the edge cannot 
 policy, so every per-endpoint limit is application code.
 
 ## What to do next
+
+> **RESUME HERE — 2026-09-29. M7B wave U1 is DONE — the stored U and wall C in the domain; no shape
+> validates yet.** Branch `m7b-u-shaped-rooms` (wave base `0e6d332`), not pushed. Commits, in order,
+> all with hooks: S1 schema and wall identity `f1d4813` (also pulls three `apps/web` data arms forward
+> from U5 S1 so web stays green: `SHAPE_SHORT_MESSAGE_KEY.U`, `DESIGN_ROOM_LENGTHS.U`,
+> `display-order-convergence`); S2 storage bounds `7e3b99d` (`MAX_PLACEMENTS` 186→279,
+> `MAX_EMPTY_COLUMNS` 1262→1893, `MAX_COLUMN_EXTENTS` 186→279, `MAX_DESIGN_BYTES` 349,656→523,972; no
+> migration arm owed, ADR 0053); S3 wall C's world geometry `54501bb` (α: origin `(W,0,0)`, +Z, front
+> −X, yaw −π/2; column keys prefix the wall letter; room width threaded as a number, not `DesignRoom`);
+> S4 validation and display `c25e5a4` (the A∩C corner sweep; B and C never corner partners;
+> across-room bound `max(depth, wallC)`); QA tests `c45cbdb`; review round 1 fixes `836a4f3` (R1.1
+> `widthM` → `roomWidthM`; C1.1 a shared `assertGeneratedOnTwoWalls` helper; R1.2 the one-reader scan
+> allows `design.ts` exactly once). Tier **Full** plus security on S2. S3 touched 6 production files,
+> over the 5-file limit, named in the plan and recorded in the dispatch.
+>
+> **QA green, no production defects.** AC1: 18,203 L/straight rooms compared base vs tip, 0 mismatches,
+> `kitchen-parts.ts`/`reference/` diff empty. AC2: 13,628 old documents identical. AC6: a
+> mirror-equivariance property, 1000 runs, reviewed `mirrorUDesign` utility, sabotage both ways
+> confirmed. One `it.fails` pins that wall C does not slide on a depth change (D9), owed by **U2 S3**.
+>
+> **Reviews:** logic — approve (R1.1, R1.2 fixed; R1.3 notes AC6 ran on arbitrary U documents and a
+> restated fixture, not generated U kitchens — re-run on real U shells in **U2-A2**; R1.4 is a
+> disagreement, not a bug: the A∩C sweep also fires on L/straight documents where a stray wall-C span
+> gets an extra mark-severity finding — AC2 is not at risk; gating on `wallsOf` is optional, recorded,
+> not done). Clean-code — approve (C1.1 fixed). Security — pass, three Low/Info findings recorded
+> below and in the backlog (91's neighbours, 92–95).
+>
+> **Coordinator verification at `836a4f3`:** domain 238 files / 5116 tests passed; three-adapter 98 /
+> 3642; persistence 33 / 730; web 269 / 4760; `kitchen-parts`/`reference` diff against `0e6d332` is 0
+> bytes. `pnpm ci:local` **not yet run** — it runs before the branch's first push.
+>
+> **Next wave: U2** — the right corner, the U shell, engine limits and depth change (plan § Wave U2).
 
 > **RESUME HERE — 2026-09-29, later the same day. M7B wave U0 is DONE.** Branch
 > `m7b-u-shaped-rooms`, created from M7's `m7-room-and-presets` tip at `5462a6c` (M7's PR is not yet

@@ -1905,3 +1905,41 @@ one `UPDATE designs SET visitor_hash = …` unconditionally; nothing bounds how 
 trigger it. ADR 0114 decision 7 already names M8's limiter and WAF scope as the control for mint
 abuse generally; this is that same gap, named for the rotation write specifically rather than built
 here. No owner yet; phase is M8.
+
+## 92. SEC-U1.1 — the largest storable design row grows to 523,972 bytes — FOUND 2026-09-29, DEFERRED TO M8's LAUNCH GATE
+
+**Found by M7B wave U1's security review** (S1.1, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+close-out*). Wave U1's storage-bounds slice (S2, `7e3b99d`) re-derives `MAX_DESIGN_BYTES` from
+186→279 placements and 1262→1893 empty columns for the third wall run: 349,656 → 523,972 bytes, a
+1.5× growth over the two-wall figure. This grows the accepted risk
+[ADR 0019](../decisions/0019-security-baseline-writes-throttling-retention.md)'s SEC-001/DB-002
+section already carries for the write route's per-row body cap. **M8's launch gate should re-measure
+the backup's per-row budget at 523,972 bytes** before it is treated as settled. No owner yet; phase
+is M8.
+
+## 93. SEC-U1.2 — no per-shape empty-column count check bounds an L/straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
+
+**Found by M7B wave U1's security review** (S1.2, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+close-out*). After U1, an L or straight document may carry up to 1893 empty columns and marked
+wall-C entries even though it has no wall C — `MAX_EMPTY_COLUMNS` is a global cap, not a per-shape
+one. An optional per-shape count check (walls × 631) would tighten this; it is recorded, not built.
+No owner, no phase.
+
+## 94. AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens — FOUND 2026-09-29, OWED TO U2-A2
+
+**Found by M7B wave U1's logic review** (R1.3; `docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance
+criterion 6 and *U1 close-out*). The property (1000 runs, `mirrorUDesign` reviewed, sabotage both ways
+confirmed) exercised arbitrary U documents and a restated fixture rather than designs
+`generateKitchen` actually produces for a U shell. This is not a defect in what shipped — U1 has no
+generator arm for a U yet — but the property should be re-run against real generated U shells once
+one exists. **Owed to wave U2's acceptance criterion A2**, not open-ended.
+
+## 95. The A∩C corner sweep also marks a stray wall-C span on an L or straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
+
+**Found by M7B wave U1's logic review** (R1.4, a disagreement rather than a bug;
+`docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance criterion 7 and *U1 close-out*). The A∩C
+corner-overlap sweep (`findCornerOverlaps`) runs unconditionally, so it also fires on an L or straight
+document that happens to carry a stray wall-C span, producing an extra mark-severity finding there.
+Acceptance criterion 2 (old documents load with identical findings) is not at risk, because no
+generated L or straight document carries a wall-C span. Gating the sweep on `wallsOf(shape)` so it
+skips wall C entirely for a shape that lacks it is optional and was left undone. No owner, no phase.

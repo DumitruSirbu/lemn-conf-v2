@@ -551,35 +551,86 @@ through the void engine under ADR 0132's representation — and nothing a custom
 
 **Acceptance criteria.**
 
-1. **The L and the straight kitchen are byte-identical.** Every recorded generation baseline and
-   every L or straight design the product generates serialises exactly as at the wave base;
+1. **[met]** **The L and the straight kitchen are byte-identical.** Every recorded generation baseline
+   and every L or straight design the product generates serialises exactly as at the wave base;
    `git diff <base> -- packages/three-adapter/src/kitchen-parts.ts packages/three-adapter/reference/`
-   is empty. **[unit] + [parity]**
-2. **Old documents still load** (*property*): every document valid at the wave base — the fixture
-   corpus plus generated L and straight rooms — parses and validates with identical findings after.
-   **[prop]**
-3. **The schema's shape.** A U with its C key parses; a U without it, and an L or straight room
-   with it, are refused at the schema. A wall-C placement in an L or straight document is **marked**
-   overflowing, never refused (D6). **[unit]**
-4. **`wallsOf`** is exactly `[A]`, `[A, B]`, `[A, B, C]`; `wallLengthMm` follows D6 for all nine
-   (shape, wall) pairs. **[unit]**
-5. **Storage.** The re-derived `MAX_PLACEMENTS`, `MAX_EMPTY_COLUMNS` and `MAX_DESIGN_BYTES` are
-   reported with the before/after figures from the test run, not from G16's arithmetic; a U packed to
-   `MAX_PLACEMENTS` with the narrowest catalogue body across three walls and three bands serialises
-   under `MAX_DESIGN_BYTES` and parses; the write route answers 413 at one byte over. **[unit]**
-6. **Mirror equivariance** (*property*; ~~under β~~ **under α, 2026-09-29: `mirror` also maps world `x ↦ W − x`; it covers validation and voids only, never composition, which the owner ruled independent (Q-U5)**): with `mirror(D)` swapping walls B ↔ C and sending
+   is empty. **[unit] + [parity]** — QA: 18,203 L/straight rooms compared base vs tip, 0 mismatches;
+   the `kitchen-parts.ts`/`reference/` diff is empty.
+2. **[met]** **Old documents still load** (*property*): every document valid at the wave base — the
+   fixture corpus plus generated L and straight rooms — parses and validates with identical findings
+   after. **[prop]** — QA: 13,628 old documents identical.
+3. **[met]** **The schema's shape.** A U with its C key parses; a U without it, and an L or straight
+   room with it, are refused at the schema. A wall-C placement in an L or straight document is
+   **marked** overflowing, never refused (D6). **[unit]**
+4. **[met]** **`wallsOf`** is exactly `[A]`, `[A, B]`, `[A, B, C]`; `wallLengthMm` follows D6 for all
+   nine (shape, wall) pairs. **[unit]**
+5. **[met]** **Storage.** The re-derived `MAX_PLACEMENTS`, `MAX_EMPTY_COLUMNS` and `MAX_DESIGN_BYTES`
+   are reported with the before/after figures from the test run, not from G16's arithmetic; a U packed
+   to `MAX_PLACEMENTS` with the narrowest catalogue body across three walls and three bands serialises
+   under `MAX_DESIGN_BYTES` and parses; the write route answers 413 at one byte over. **[unit]** —
+   shipped: `MAX_PLACEMENTS` 186→279, `MAX_EMPTY_COLUMNS` 1262→1893, `MAX_COLUMN_EXTENTS` 186→279,
+   `MAX_DESIGN_BYTES` 349,656→523,972 (`7e3b99d`).
+6. **[met]** **Mirror equivariance** (*property*; ~~under β~~ **under α, 2026-09-29: `mirror` also maps
+   world `x ↦ W − x`; it covers validation and voids only, never composition, which the owner ruled
+   independent (Q-U5)**): with `mirror(D)` swapping walls B ↔ C and sending
    a wall-A centre `a` to `W − a`, for generated U designs `validateDesignForCatalog(mirror(D))` equals
    the mirror of `D`'s findings and `recomputeVoids(mirror(D))` the mirror of `D`'s voids. `mirror` is
    a reviewed test utility. **Sabotage both ways (R6):** break the C arm of one S3 helper → red; move
-   an unrelated wall-A body → green. **[prop]**
-7. **The right corner is checked like the left.** A recorded span on wall C overlapping a body at the
-   A∩C corner reports `RECORDED_SPAN_OVERLAPS_CORNER_BODY` exactly where its wall-B twin does at A∩B;
-   B and C spans never compare against each other. **[unit]**
-8. **Wall C keys never collide** with wall B's at the same along value; §11 rows 1, 17 and 18 hold on
-   wall C with no UI. **[unit]**
-9. **Must not:** `isShapeBuildable("U", APPROVED_ROOM_POLICY)` is true (checked at every commit);
-   `cornerDirection` is read anywhere but `cornerDirectionOf`; a product bound enters
+   an unrelated wall-A body → green. **[prop]** — QA: 1000 runs, `mirrorUDesign` reviewed, sabotage
+   both ways confirmed. **Logic review R1.3 (2026-09-29): the property ran on arbitrary U documents
+   and a restated fixture, not generated U kitchens — owed a re-run on real U shells in U2-A2.**
+7. **[met]** **The right corner is checked like the left.** A recorded span on wall C overlapping a
+   body at the A∩C corner reports `RECORDED_SPAN_OVERLAPS_CORNER_BODY` exactly where its wall-B twin
+   does at A∩B; B and C spans never compare against each other. **[unit]** — **Logic review R1.4
+   (2026-09-29, disagreement, not a bug):** the A∩C sweep also runs on L/straight documents, where a
+   stray wall-C span can produce an extra mark-severity finding; AC2 is not at risk. Gating the sweep
+   on `wallsOf` is optional and recorded, not done.
+8. **[met]** **Wall C keys never collide** with wall B's at the same along value; §11 rows 1, 17 and
+   18 hold on wall C with no UI. **[unit]**
+9. **[met]** **Must not:** `isShapeBuildable("U", APPROVED_ROOM_POLICY)` is true (checked at every
+   commit); `cornerDirection` is read anywhere but `cornerDirectionOf`; a product bound enters
    `DesignRoomSchema` (ADR 0108 alternatives). **[unit] + [review]**
+
+### U1 close-out — 2026-09-29, at `836a4f3`
+
+**Shipped.** The U room and wall C are representable, bounded, validated and derived through the void
+engine under ADR 0132's representation (α, wall C a world wall); nothing a customer can reach changes
+(`isShapeBuildable("U", …)` is still false). Commits, in order, all with hooks: S1 schema and wall
+identity `f1d4813` (also carries three `apps/web` data arms forward from U5 S1 so web stays green:
+`SHAPE_SHORT_MESSAGE_KEY.U`, `DESIGN_ROOM_LENGTHS.U`, `display-order-convergence`); S2 storage bounds
+`7e3b99d`; S3 wall C's world geometry `54501bb`; S4 validation and display `c25e5a4`; QA tests
+`c45cbdb`; review round 1 fixes `836a4f3`.
+
+**Deviation.** S3 touched 6 production files — `module-grid.ts`, `void-engine.ts`, `room-transforms.ts`,
+`frozen-map-at-cabinet-depth.ts`, `commands/along-wall.ts`, `commands/insert-fit.ts` — one over the
+plan's 5-file limit; the plan named `frozen-map-at-cabinet-depth.ts` as a 2026-09-29 addition from the
+U0 census (row U12), and the dispatch recorded the overage rather than splitting the slice.
+
+**Verification.** Tier Full plus security on S2, as the wave table names. QA: AC1 18,203 L/straight
+rooms compared base vs tip, 0 mismatches, `kitchen-parts.ts`/`reference/` diff empty; AC2 13,628 old
+documents identical; AC6 a mirror-equivariance property, 1000 runs, reviewed `mirrorUDesign` utility,
+sabotage both ways confirmed. No production defect found. Coordinator verification at `836a4f3`: domain
+238 files / 5116 tests passed, three-adapter 98 / 3642, persistence 33 / 730, web 269 / 4760;
+`kitchen-parts`/`reference` diff against wave base `0e6d332` is 0 bytes. `pnpm ci:local` has not been
+run; it runs before the branch's first push (not yet pushed).
+
+**Reviews.** Logic: approve. R1.1 (rename `widthM` → `roomWidthM`) and R1.2 (the one-reader scan allows
+`design.ts` exactly once) fixed in `836a4f3`. R1.3 and R1.4 are notes, not defects — carried above at
+their criteria and owed to **U2-A2** (R1.3) or left optional (R1.4). Clean-code: approve, C1.1 (a
+shared `assertGeneratedOnTwoWalls` helper) fixed in `836a4f3`. Security: pass, three findings, none
+blocking — recorded in `docs/BACKLOG.md`/`docs/backlog/open.md` entries 92–94: S1.1 (Low, the largest
+storable row grows to 523,972 bytes, ADR 0019 SEC-001/DB-002's accepted risk should be re-measured at
+M8's launch gate), S1.2 (Low, an optional per-shape empty-column count check, not built), S1.3 (Info,
+the 12-mechanisms-per-body pricing assumption predates this wave, still undeclared as a constant).
+
+**Documentation updated.** This close-out section and the criteria checkmarks above; `docs/STATUS.md`
+*What to do next* and the M7B summary bullet; `docs/BACKLOG.md` and `docs/backlog/open.md` (entries
+92–95).
+
+**Deferred work.** Wall C's frozen-map/depth-change behaviour (D9) stays pinned by an `it.fails`, owed
+to **U2 S3**. AC6's re-run on generated U shells is owed to **U2-A2** (R1.3). The A∩C sweep's optional
+`wallsOf` gate is unscheduled (R1.4, backlog 95). M8's launch gate owes a re-measure of the per-row
+storage budget (backlog 92).
 
 ---
 
