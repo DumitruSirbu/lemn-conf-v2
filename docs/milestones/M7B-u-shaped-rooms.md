@@ -359,7 +359,7 @@ test or a capture in U4.
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
-| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — |
+| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — **2026-09-29: RQ18 open (drawer placement), non-blocking, default built** |
 | **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
@@ -838,9 +838,19 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    bodies per wall, in order, equal N4′'s predicted rows, and 2700 / 1000 / 1000 is `minimumMet:
    false`. **If the plan measures otherwise, stop and report** before U3b. N4′ was a model (7J A8's
    rule), and the architect decides whether the model or the rule is wrong. **[unit]**
+   **Adjudicated 2026-09-29 (the stop fired at S3, `e443ed2`):** 4 of 7 rooms matched. 4000/4500/1200
+   and 5000/4000/3000 were **model** errors: the model placed no bottle. N4′'s rows are corrected by a
+   dated line (ADR 0110 N4′). The 6000/6000/6000 drawer count is a **rule** defect: extras were
+   confined to wall A, while *N3 revised* 6 takes them in run order across the far corner. The code
+   changes, and the room expects 5 units under RQ18's default. Re-run against the corrected rows.
 3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
    counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
    difference is reported with its room. **[unit] + [report]**
+   **2026-09-29:** the drawer and position tallies are re-run on one definition (N4′'s note): units =
+   `base-3drawer` + `base-panbank`, the preparation included, and positions read from a field the plan
+   emits. The bottle-affected bare and drawer figures are not held to N4′. The exact matches (composed
+   86 706 / refused 1 728, fridge 3-from-corner / other-side / dropped, hob wall, large-U no-tower,
+   one oven, max bare 500) stand as regression pins.
 4. **The L and the straight kitchen are byte-identical**: U1-A1's re-run, plus
    `planKitchenComposition`'s output over its recorded baselines. **[unit]**
 5. **Must not:** any edit to `generation-priorities.ts`; `cornerDirection` read; a wall letter compared
