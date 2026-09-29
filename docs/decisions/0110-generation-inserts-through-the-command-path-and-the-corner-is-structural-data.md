@@ -4389,6 +4389,12 @@ the model's:
 - **If they differ**, the difference is reported with its rooms and adjudicated (7J A8). The
   developer does not tune the code to match either set.
 
+**The implementation, measured by the architect on 2026-09-29.** The measurement used a `tsc` build
+of HEAD `91ae4d3`'s committed `packages/configurator-domain` (via `git archive`, so the uncommitted
+U3b S1 work is excluded), in the same harness. **All three digests equal the model's RQ23 digests
+above: h 2600 `d7c86c26…016b3b`, h 2199 `ae17976d…a9bcb`, engine band `5f833603…a71a09`.** The
+implementation matches the model. N11.8 moves all three again.
+
 **The witnesses.** Each wall is read from its corner. Positions are along-wall millimetres. Every
 other N4′ and N10.6 witness measures unchanged.
 
@@ -4409,7 +4415,9 @@ other N4′ and N10.6 witness measures unchanged.
 - *Measured.* After N11, **30 450** composed grid rooms have wall A's first body standing past the
   start of A's run. Every one of them has the fridge on wall C.
 - *Doc-quoted, why the plan is right.* *N3 revised* 5 packs wall A *"from the fridge corner"*. With
-  the fridge on C, the remainder therefore lands correctly at the B-corner end. Example: in
+  the fridge on C, the remainder therefore lands correctly at the B-corner end. **Superseded
+  2026-09-29 by N11.8:** such a remainder cannot be built through `insertBody`, so it moves to wall
+  A's high end. Example: in
   2700/1600/1700 the sink stands at A 1200–1800, with 900–1200 bare.
 - *Source-verified, why the shell cannot reproduce it.* `wallAFreeRunTilesForU` tiles `floorWidthsMm.A`
   from `floorSpan.startMm` (`shell-design.ts:750-786`, through `plannedFloorTiles`, `:429-434`). The
@@ -4442,3 +4450,235 @@ other N4′ and N10.6 witness measures unchanged.
 
   The L's records are not touched.
 - **Owner:** ~~RQ23 is open and non-blocking. Its default is built.~~ RQ23 was answered on 2026-09-29, *"Bottle + drawers"* (N11.2). No owner question remains on U3a.
+
+### N11.8 — U3b S1's stop: wall A's remainder goes to its high end, the right-hand end facing it, in every U. Owner question RQ24 is non-blocking
+
+**What stopped S1.** The developer tried to build N11.6's criterion with a leading-gap field on the U
+shell plan. That placed 65 868 of 86 706 composed grid rooms exactly, and **threw in 20 838**
+(`plannedVoid`: *"no A opening covers [1000, 1600] at 0"*). Those are exactly the rooms where the
+low-end gap plus the first body is ≤ 800 mm.
+
+The cause:
+
+- ADR 0046 merges adjacent empty columns up to 800 mm when they are derived, so the gap tile and
+  the first body's tile become one column.
+- `insertBody` seats a body at its column's **left** edge, which is ADR 0046's owner ruling of
+  2026-09-01.
+- So the body lands on the gap's side.
+
+*Measured by the architect* at HEAD `91ae4d3`, with the committed domain built through `git archive`
+into the session scratchpad (`u3b/gaps.mjs`, `u3b/digest.mjs`, run via `rtk proxy node`). This
+**reproduces the developer's 20 838 exactly.**
+
+- **31 329** composed grid rooms have a leading gap on wall A: 30 909 with the fridge on C, and 420
+  with the fridge dropped and C its primary wall.
+- By gap size: 100 mm, 10 419 rooms; 200 mm, 10 419; 300 mm, 3 849; 400 mm, 3 321; 500 mm, 3 321.
+- All of the 100 and 200 mm gaps merge with a 600 mm body (**20 838**). The other **10 491** stand
+  alone and place correctly today.
+
+**Classification: a contract gap.** Two dated records meet in these rooms and cannot both hold
+through `insertBody`:
+
+- *N3 revised* 5 and RQ12 (a relayed selection): *"packed from the fridge corner"*. N11.6 derived
+  from this that the remainder belongs at wall A's low end when the fridge is on C.
+- ADR 0046, the owner: *"the LEFT edge of the span — the lower along-wall coordinate — always"*.
+  The whenever-it-helps alternative was **rejected by the owner** because *"it would put the gap on a
+  different side depending on a predicate the customer cannot see"*.
+
+N11.6 missed this conflict when it called the plan right.
+
+**Ruling (the default built; RQ24 below).** On every U, **wall A's bodies stand contiguous from wall
+A's low end (the A∩B corner), and wall A's remainder, under 600 mm (A4), sits at its high end**:
+
+- The run order is unchanged: from the fridge corner, sink first (*N3 revised* 5). With the fridge
+  on C, the whole block is justified to the low end, and the gap stands between the sink and the
+  A∩C corner.
+- With the fridge on B, nothing moves, because the remainder is already at the high end.
+
+The evidence:
+
+- *Source-verified, and derived from it.* The remainder then sits where every `insertBody` split
+  already puts one. `plannedFloorTiles` tiles the widths from the run start with the leftover last
+  (`shell-design.ts:429-438`). A merge of the trailing gap with the last body's tile is harmless,
+  because the body seats left and the gap stays right.
+- **No shell field and no command change are needed**, and N11.6's criterion (generated spans equal
+  the plan's) holds by construction.
+- *Measured, on the modelled rule:* in all 86 706 grid rooms, every wall-A first body stands at A's
+  run start, and A's largest remainder stays 500 mm.
+
+**Alternatives refused:**
+
+| Option | Why refused |
+| --- | --- |
+| **A**, reading wall A from its low end in every U | It puts the sink at the far corner, away from the fridge whenever the fridge is on C. That contradicts *N3 revised* 5's order, not just its gap |
+| **B**, not recording sub-merge gaps | It breaks every free run being recorded whole (ADR 0044, 0046) |
+| **C**, the first body absorbing the gap | It works only for fit-width bodies, and the span then differs from the plan |
+| **D**, a right-anchored insert | It is a seating the editor does not have, which ADR 0046's owner ruling rejected. A generation-only primitive would also break decisions 1–2 and U3b AC5: generation writes only through the editor's own `insertBody` |
+| Moving only the 20 838 merging rooms | The gap's side would depend on its width, which is the unpredictability ADR 0046's owner refused |
+
+**What this departs from, named rather than overridden silently.**
+
+- In the 31 329 fridge-on-C rooms, *N3 revised* 5's *"packed from the fridge corner"* (RQ12) now
+  holds for the **order** but not for the **position**. The sink stands 100–500 mm from the A∩C
+  corner rather than against it.
+- RQ12's question was packing against centring under a window, and it did not ask about a gap of
+  under 600 mm. **So this is put to the owner as RQ24, with the default built.**
+- ADR 0046 is **applied, not amended**.
+- N11.6's *"the plan is right"* is superseded (dated line there).
+
+**Measured, the model's digests under N11.8** (N11.5's format; `u3b/digest.mjs`):
+
+| Sweep | Rooms whose wall A moves | Digest |
+| --- | ---: | --- |
+| grid, h 2600 | 31 329 | `9e1c0fc8e0c839409372cdc3d38327a44556ca6f49b92fc943075bd606b4e626` |
+| grid, h 2199 | 31 719 | `47a5e1727966066d93c562d4ca4c683b0a2e4c9036d2633f8121446222983d65` |
+| engine band A 1800–2699 step 50, h 2600 | 4 950 | `d4a63e4d8370211ceb80495ffeeb8f5df8ae43f7ac4a2e82d602205df6a35c08` |
+
+Only wall A positions move. Order, widths, remainders and the other walls are untouched. **The h 2600 and h 2199
+digests are superseded by N11.9's (RQ25's fill). The engine-band digest stands.** The
+implementation reports its own digests. A mismatch is reported with its rooms, never tuned to match
+(7J A8).
+
+**Witnesses:**
+
+- **2700 / 1600 / 1700.** Fridge on C; A's run is 900–1800. The sink stands at A **900–1500** (was
+  1200–1800), with 300 mm bare at 1500–1800. This case stands alone at HEAD.
+- **3100 / 1000 / 1100.** The fridge and the preparation are dropped; C is the fridge's primary
+  wall. A's run is 900–2200. It was `base-hob-oven` 1000–1600 and `base-sink` 1600–2200, with 100 mm
+  bare at the B corner. That is a merging case, which throws in S1 today. **Under N11.8:**
+  `base-hob-oven` 900–1500, `base-sink` 1500–2100, 100 mm bare at 2100–2200.
+
+#### RQ24 — owner question (non-blocking; default (A) built)
+
+**Answered 2026-09-29: "Right end (Recommended)" (relayed selection), with a note that became RQ25 (N11.9).**
+
+> *"Back wall, when the fridge is on the right-hand side wall (31,329 room sizes, e.g. 2700 × 1600 ×
+> 1700). The back-wall cabinets fill the wall except for a small bare gap of 100–500 mm (100 mm:
+> 10,419 rooms; 200 mm: 10,419; 300 mm: 3,849; 400 mm: 3,321; 500 mm: 3,321). Where should the gap
+> be?*
+>
+> *(A) Recommended: at the right end, between the sink and the right corner.*
+> `│ left corner │ … drawers │ hob │ prep │ dishwasher │ sink │ gap │ right corner │ → fridge wall`
+> *Every other gap the kitchen gets, and every gap the editor leaves when you remove or narrow a
+> cabinet, is on the right too. So it always looks the same, and it needs no new rule.*
+>
+> *(B) At the left end, so the sink stays tight in the right corner next to the fridge.*
+> `│ left corner │ gap │ … drawers │ hob │ prep │ dishwasher │ sink │ right corner │ → fridge wall`
+> *This needs a special way of placing cabinets that the editor does not have. It goes against your
+> 2026-09-01 rule that a cabinet always sits at the left of its space."*
+
+**It does not block S1.** S1 builds (A).
+
+An answer of (B) is not a one-line change. It reopens ADR 0046 for generation (a right-seated
+insert, or an offset that survives the merge), and S1's plan change is reverted. It would be its
+own wave, planned then.
+
+#### N11.9 — RQ24 answered, and RQ25: a U back wall's remainder of 300 mm or more takes a door base (2026-09-29)
+
+**The owner's answers, 2026-09-29, relayed by the coordinator.** Each was given by multiple choice.
+
+1. **RQ24:** **"Right end (Recommended)"**, a *relayed selection*. The preview shown was `│ left
+   corner │ drawers │ hob │ prep │ dishwasher │ sink │ GAP │ right corner │ → fridge wall`. N11.8's
+   default is now owner-confirmed.
+2. **The owner's note on that answer**, verbatim: *"and instead of gap 2 doors or 1 door cabinet
+   (rule 1 door if less than 400mm)"*.
+3. **Scope follow-up (RQ25a)**, a *relayed selection*. The question: *"Does that apply only to this
+   back-wall gap, or to every leftover gap in a U (side walls' ends too)? Earlier the rule was 'let
+   the edges empty' for gaps under 600."* The answer: **"Back wall only"**. The side walls' ends stay
+   bare, as before.
+4. **Tiny-gap follow-up (RQ25b)**, a *relayed selection*. The question: *"what if the gap is
+   100–200 mm?"* The answer: **"Fill from 300 mm"**. A gap of 100–200 mm stays bare.
+
+**The rule, for a U's wall A only (RQ25).** The rest of the plan is decided first, with nothing
+changed: the core, the bottle, the drawer units and their conversion, and A4's 600 mm door fill.
+Then wall A's remainder, `r` (< 600, at A's high end by N11.8), is treated as follows:
+
+- **`r` ≥ 300:** it takes one `base-cabinet` of exactly `r`, standing at A's high end, and wall A's
+  bare end becomes 0.
+- **`r` < 300:** it stays bare.
+
+What this departs from:
+
+- It departs from A4's *"the remainder, at most 599 mm, stays"* and from Amendment D2's *"let the
+  edges empty"*, **for a U's wall A only**, by the owner's RQ25.
+- The side walls of a U, and every wall of an L or a straight kitchen, are untouched.
+
+**The catalogue: every width exists, but the door count at 400–499 differs from the owner's note.**
+*Source-verified at HEAD `91ae4d3`:*
+
+- `base-cabinet` is one row with `widthFlex: "fit"` and a **continuous** bound of 200–800 mm
+  (`HINGED_CABINET_WIDTHS`, `catalog.ts:151-180`). Its 50 mm `sizesMm` are only the customer's
+  stepper. So **every whole-mm width from 300 to 599 is buildable, and no catalogue addition is
+  needed**, including a 347 on the 1 mm grid.
+- The door count follows the width through `TWO_DOOR_MIN_WIDTH_MM = 500` (`door-count.ts`):
+  **200–499 has one door, 500–800 has two.** That is ADR 0035 decision 4, the owner, 2026-08-28:
+  *"make it still 500 … and two doors start from 500"*.
+- ADR 0033 makes the door count *"a consequence of the width, never a separate product to pick"*.
+  So a 400 or 450 mm fill builds **one** door, where the note asks for two. The two owner rulings
+  disagree for 400–499 only. At 300–399, both say one door, and at 500–599 both say two.
+- **This is put to the owner as RQ26 (below).** The default is the catalogue as it stands.
+
+**Fridge on B: the fill applies there too** (*derived*).
+
+- RQ25a asked back wall against side walls, and did not ask about the fridge's side. Under N11.8,
+  wall A's remainder is always at its high end.
+- So "back wall only" reads as **every U's wall A**. The coordinator's gloss, "the back-wall gap next
+  to the sink", describes the fridge-on-C picture the owner was shown.
+- **Falsifier:** an owner answer restricting the fill to the fridge-on-C case. That would remove the
+  11 001 fridge-on-B rooms below.
+
+**Not a drawer unit, and last in the order** (*derived*).
+
+- *N3 revised* 6 counts drawer units by build id (`base-3drawer`, `base-panbank`), so a
+  `base-cabinet` fill is never one.
+- The fill is added **after** `withDrawerUnitsAfterTheHob`. That function converts `base-cabinet`
+  storage slots after the hob into drawer units (`u-drawer-units.ts:79`, source-verified). A fill
+  added earlier could be converted into a drawer body of the wrong width.
+- The fill decides nothing upstream. The bottle rule (RQ21, RQ23) and the drawer count read wall A's
+  run **before** the fill, exactly as now.
+- So the properties that read `remainderMm` for that purpose (U3a AC1 (c)(ii) and (c)(iii)) read
+  `remainderMm` **plus the fill's width**.
+- (c)(i)'s *"no plain `base-cabinet` after the hob"* exempts the fill: it is under 600 mm and can
+  never hold a drawer unit.
+
+*Measured on the model* (`u3b/rq25.mjs`, run with `rtk proxy node` over HEAD's committed planner
+with N11.8 and RQ25 applied):
+
+| Sweep | Rooms with a fill | 300 mm | 400 mm | 500 mm | Fridge on C / B / dropped | Digest |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| grid, h 2600 | **21 501** | 7 893 | 6 804 | 6 804 | 10 491 / 11 001 / 9 | `6046ca18decf8d32d2cb5d55f5300fe56aea38236d53fe60e5a09fa47f57475c` |
+| grid, h 2199 | 23 013 | 8 685 | 7 164 | 7 164 | 11 235 / 11 769 / 9 | `43097f1c8ed0fe4fe6ff1a9fa37e8b470f76363c13b2e7ac999c35efa6aa9b0d` |
+| engine band A 1800–2699 step 50 | 0 (A's remainder ≤ 250 there) | — | — | — | — | `d4a63e4d…df6a35c08` (= N11.8) |
+
+- **The drawer histogram is unchanged** at h 2600: 4 968 / 27 118 / 13 172 / 14 572 / 9 937 / 16 939.
+- 18 225 of the 21 501 fills are in rooms whose hob went round onto the far wall.
+- **These digests supersede N11.8's at h 2600 and h 2199.** The implementation reports its own, and
+  a mismatch is reported with its rooms (7J A8).
+
+**Witnesses:**
+
+- **2700 / 1600 / 1700.** Fridge on C. A's run is 900–1800, with the sink at 900–1500 (N11.8); the
+  300 mm at 1500–1800 now takes a one-door `base-cabinet`, so A is bare 0.
+- **3100 / 1000 / 1100.** The 100 mm stays bare (under 300).
+- A 400 mm fill room and a 500 mm fill room, taken from the model's output: the implementer quotes
+  one of each from its own sweep, and pins it.
+
+#### RQ26 — owner question (non-blocking; default (A) built)
+
+> *"A 400–499 mm cabinet: one door or two? You asked for the back-wall gap to get '2 doors or 1 door
+> cabinet (1 door if less than 400mm)'. The catalogue follows your 2026-08-28 rule instead, which is
+> that every hinged cabinet up to 499 mm has one door and two doors start from 500. With the gap
+> filled, 6,804 room sizes get a 400 mm cabinet there.*
+>
+> *(A) Recommended: keep 'two doors from 500' everywhere. The gap cabinet at 400–499 has one door,
+> exactly like the same cabinet you'd pick in the editor.*
+>
+> *(B) Two doors from 400, for every hinged cabinet in the catalogue, base and wall. Every
+> 400–499 cabinet changes its doors, handles and price.*
+>
+> *(A cabinet whose door count differs from the catalogue only because the generator placed it is
+> not offered: the same width would then be two different cabinets.)"*
+
+**It does not block S1.** Under either answer the fill is a `base-cabinet` of the remainder's
+width. (B) is a catalogue change (`TWO_DOOR_MIN_WIDTH_MM`, a dated amendment to ADR 0035 decision 4,
+and the price book), not a composition change. It would be its own item.

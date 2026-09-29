@@ -791,7 +791,8 @@ U3a's in-progress one); ADR 0110 N9–N11 by the architect (commits above).
 - **U6:** the literal `2700`/`1000` in `APPROVED_U_FLOOR_MM` (a recorded minor, not in S0).
 - **U3b S1 (N11.6):** in 30,450 rooms with the fridge on C, wall A's remainder sits at its low end.
   The plan carries only widths, so U3b's generated positions must equal the plan's. The criterion is
-  in U3b AC1.
+  in U3b AC1. **Resolved 2026-09-29 by ADR 0110 N11.8:** wall A's remainder moves to its high end in
+  every U (31 329 rooms at HEAD). Owner question RQ24 is non-blocking, with default (A) built.
 
 ---
 
@@ -1080,8 +1081,17 @@ minimum-kitchen gate agrees with the generator.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
-| **S1 dispatch** | (1) Retire `refuseAGeneratedU` (`generate-kitchen.ts:262-270`). (2) `shellRunsFor` → `uShellFloorRuns`, and `buildShellFor` → `buildUShellDesign` with `compositionPlan.floorWidthsMm` over A, B and C. (3) `isFreeEndBody` for both side walls' free ends. (4) `replayGenerationLog` replays a U. (5) **The owed direct `slideReserveMm` wall-C test** (U2 close-out, round-2 review's accepted gap), written against the first composed wall-C run: wall C's run ends 100 mm short of `wallCMm`, exactly as wall B's does in the room with B and C swapped | `generation/generate-kitchen.ts`; `generation/shell-design.ts` (only if `UShellCompositionPlan` needs a field) | U2 close-out; ADR 0110 decisions 1–6, B, D (revised), **N11.6 (wall A's low-end remainder; U3b AC1)**; ADR 0108 H3 (the 100 mm reserve); `generate-kitchen.ts:140-230, 480-560, 680-799`; `shell-design.ts:575-640, 800-830` |
-| **S2 uppers and the hood** | (1) **The hood is mandatory over the hob in every U** (*N3r* 11; RQ7). (2) In a large U, **no generated body in wall A's wall or top rows**, and the shell's voids there remain. (3) Uppers over the far wall's door bases (RQ14) and over the back wall below 10 m. (4) No upper over a full-height body (E7) or over **either** corner zone (7D2 c. 14; backlog 63's class at A∩C) | `generation/generate-kitchen.ts` (the upper loop, `:393-410`); a new leaf `generation/upper-policy.ts` if the loop needs one, to keep `generate-kitchen.ts` from growing | *N3 revised* 11; N6 RQ7; N6′ RQ14; ADR 0110 C, E7, 7D2 c. 14; backlog 63; `generate-kitchen.ts:380-560` |
+| **S1 dispatch** | (1) Retire `refuseAGeneratedU` (`generate-kitchen.ts:262-270`). (2) `shellRunsFor` → `uShellFloorRuns`, and `buildShellFor` → `buildUShellDesign` with `compositionPlan.floorWidthsMm` over A, B and C. **Revised 2026-09-29 (ADR 0110 N11.8, on S1's stop):**
+- The U plan justifies wall A's bodies to A's low end, with run order unchanged. A's remainder then always sits at A's high end, and the widths tile from the run start exactly as the L's do.
+- **No `wallALeadingGapMm` field**, and no command change. The developer's leading-gap field is withdrawn.
+- The plan change is one post-pass in the U planner (`u-back-wall-pack.ts` or `u-composition.ts`, the developer's choice). U3a's invariant *"wall A's first body at A's run start; A's remainder at its high end"* goes into `tests/support/u-plan-invariants.ts`.
+- **Widened 2026-09-29 (ADR 0110 N11.9, RQ24 and RQ25 answered).** The same post-pass, as its **last** step, after `withDrawerUnitsAfterTheHob`, gives wall A's remainder `r` one `base-cabinet` of exactly `r` when 300 ≤ `r` < 600. Under 300 stays bare.
+  - This applies on **every** U's wall A, whichever wall holds the fridge.
+  - The fill is never a drawer unit, and never a drawer slot.
+  - Its door count is the catalogue's (`deriveDoorCount`; RQ26 is open, non-blocking).
+  - `remainderMm.A` and `floorWidthsMm.A` report the post-fill plan.
+  - `u-plan-invariants.ts` gains *"wall A's bare end < 300; a wall-A fill only at A's high end, 300–599 wide"*. AC1 (c)(i) exempts the fill, and (c)(ii) and (c)(iii) read `remainderMm.A` plus the fill's width. (3) `isFreeEndBody` for both side walls' free ends. (4) `replayGenerationLog` replays a U. (5) **The owed direct `slideReserveMm` wall-C test** (U2 close-out, round-2 review's accepted gap), written against the first composed wall-C run: wall C's run ends 100 mm short of `wallCMm`, exactly as wall B's does in the room with B and C swapped | `generation/generate-kitchen.ts`; `generation/shell-design.ts` (~~only if `UShellCompositionPlan` needs a field~~ **no new field, N11.8**); `generation/u-back-wall-pack.ts` or `u-composition.ts` (N11.8's post-pass) | **ADR 0110 N11.8 and ADR 0046 (the left-seat owner ruling it applies);** U2 close-out; ADR 0110 decisions 1–6, B, D (revised), **N11.6 (wall A's low-end remainder; U3b AC1)**; ADR 0108 H3 (the 100 mm reserve); `generate-kitchen.ts:140-230, 480-560, 680-799`; `shell-design.ts:575-640, 800-830` |
+| **S2 uppers and the hood** | (1) **The hood is mandatory over the hob in every U** (*N3r* 11; RQ7). (2) In a large U, **no generated body in wall A's wall or top rows**, and the shell's voids there remain. (3) Uppers over the far wall's door bases (RQ14) and over the back wall below 10 m. **(2026-09-29, N11.9)** This includes wall A's 300–599 mm remainder fill, which is a door base like any other. `wall-cabinet` shares the hinged 200–800 bound (`catalog.ts:143-180`), so its upper matches its width. (4) No upper over a full-height body (E7) or over **either** corner zone (7D2 c. 14; backlog 63's class at A∩C) | `generation/generate-kitchen.ts` (the upper loop, `:393-410`); a new leaf `generation/upper-policy.ts` if the loop needs one, to keep `generate-kitchen.ts` from growing | *N3 revised* 11; N6 RQ7; N6′ RQ14; ADR 0110 C, E7, 7D2 c. 14; backlog 63; `generate-kitchen.ts:380-560` |
 | **S3 the minimum kitchen** | (1) **`UMinimumKitchen` lands here**: the policy type on `UWallBounds`, and `ENGINE_ROOM_LIMITS.U.minimumKitchen` derived with no literal. Correct `room-policy.ts:76-78`'s comment, which names *"U3 S3"* (R1.5), to this slice. The approved literals enter at **U6**, not here. (2) `validateRoomInput`'s U predicate (ADR 0108 H3): `freeA ≥ 1200`, or `freeA ≥ 600` and the narrower side wall's (C when B = C) `free ≥ 600`, with `freeA = A − 1800` and `free = side − 1000`, the 1000 including the 100 mm reserve. It returns `ROOM_TOO_SMALL_FOR_KITCHEN` on the room field, with no number (RQ8). (3) The validator ⇔ generator property | `room/room-policy.ts`; `room/validate-room.ts` | ADR 0108 C, E, *Implementation record*, H2–H5; RQ1, RQ8; ADR 0116 decision 1; `room-policy.ts:60-100`; `validate-room.ts` whole |
 
 - **Reading, QA:** this wave's rows and criteria; U3a's close-out; ADR 0110 *N3 revised* 11, N4′;
@@ -1106,6 +1116,26 @@ minimum-kitchen gate agrees with the generator.
    - So S1 item 2 must carry the offset or tile wall A from its far end; the choice is S1's.
    - Witness: 2700/1600/1700, where the sink stands at A 1200–1800.
    - R6: tile from the span's start, and this criterion goes red.
+
+   **Revised 2026-09-29 (ADR 0110 N11.8).** The plan now justifies wall A to its low end, so the
+   witnesses become:
+   - 2700/1600/1700: the sink at A **900–1500**, with 300 mm bare at the A∩C end;
+   - 3100/1000/1100 (a merging case): `base-hob-oven` 900–1500, `base-sink` 1500–2100, 100 mm bare.
+
+   Added:
+   - **every approved grid room (A 2700–6000, B and C 1000–6000, step 100, h 2600) generates
+     without a throw**, and with zero span mismatch against its plan on all three walls. The 20 838
+     rooms that threw are the regression population;
+   - the whole-plan digests equal ~~N11.8's~~ **N11.9's** model (h 2600 `6046ca18…f57475c`, h 2199
+     `43097f1c…6aa9b0d`, engine band `d4a63e4d…df6a35c08`), or each difference is reported with its
+     room (7J A8);
+   - **(N11.9, RQ25)** in the 21 501 grid rooms whose wall A remainder is 300–599 mm, a
+     `base-cabinet` of exactly that width stands at A's high end, and wall A's bare end is 0.
+     Elsewhere wall A's bare end is under 300. The side walls' bare ends are unchanged. The drawer
+     histogram is unchanged. 2700/1600/1700: a one-door `base-cabinet` at A 1500–1800. Pin one
+     400 mm and one 500 mm fill room from the sweep. R6: drop the fill, and these go red. Move the
+     fill before the drawer conversion, and the histogram changes;
+   - R6: put wall A's remainder back at its low end, and the grid throws again.
 2. **Validator ⇔ generator** (old criterion 2): over the same range plus H3's boundary pairs
    (2999/3000 at B = C = 1000 and 1599; C 1599/1600 at A 2700 and 2999, B = 6000), the gate passes
    **iff** `generateKitchen` places a sink and a hob. **[prop]**
