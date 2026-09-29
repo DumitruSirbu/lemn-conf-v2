@@ -68,13 +68,36 @@ session can learn fast where the project stands, without reading eight phase pla
 > 3642/3642, web 4756/4756, e2e 520 passed, build/boundary/lockfile/SCA all PASS.
 >
 > **M7's build sequence (`… → 7J → 7K → 7L`) is now complete, and Gate M7-C is withdrawn (ADR 0113) —
-> but M7 itself is not yet closed.** Two decision records the 7L plan names as owed "by M7's close" are
+> but M7 itself is not yet closed.** ~~Two decision records the 7L plan names as owed "by M7's close" are
 > still outstanding: (1) the preset-path deferral past M8 (7P1, 7P2, 7G, 7B, 7C, 7F3 — already
 > deferred in practice by the 2026-09-15/2026-09-22 rulings, but with no ADR of its own yet), first
 > recommended at 7K's close-out; (2) a dated amendment to ADR 0104 recording how Q-7L-1's answer
 > (shipped at its interim, option (b) — none of D1B's extra heading/note/plan-hint text drawn, still
 > open for the owner to override) settles DEVELOPMENT-SPEC §10's "same copy" against ADR 0104's
-> "frames as specification." Neither is a coding task. **Do not declare M7 closed until both exist.**
+> "frames as specification." Neither is a coding task. **Do not declare M7 closed until both exist.**~~
+> **Both decision records now exist (written 2026-09-29):**
+>
+> 1. **The preset deferral:**
+>    [ADR 0131](decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md).
+>    - **What moved past M8:** 7P1, 7P2, 7G, 7B, 7C and 7F3.
+>    - **Who ruled it:** the owner's direction of 2026-09-15 (relayed); the coordinator's derivation
+>      of 7B/7C the same day; the coordinator's 7F3 ruling of 2026-09-22.
+>    - **What M7 shipped instead:** every buildable shape goes from its dimensions straight to 1F
+>      composition, with no preset code under `apps/web/src`, re-grepped at `a989a85`.
+>    - **What a reviver inherits:** among other things, the owner's copy-on-use ruling. That ruling is
+>      not in ADR 0112, and an amendment to 0112 is owed when the work is revived.
+> 2. **Q-7L-1's answer:**
+>    [ADR 0104 Amendment B](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own).
+>    - **The ruling:** the owner answered **(b), final** (relayed). D1B's heading, on-site note and
+>      plan hint are never drawn, so desktop draws no text the phone's 1B does not.
+>    - **Why decision 1 does not settle it:** ADR 0104 decision 1 does not answer the question either
+>      way. Decision 7 does.
+>    - **What the amendment narrows:** how decision 1's doctrine reaches Step 1's copy. ADR 0113
+>      decision 5 carries a pointer.
+>    - **Code:** no change; the shipped interim is the answer.
+>
+> What remains for M7's close is the phase outcome and the archival (`docs/WORKFLOW.md` step 7). It
+> is not declared here.
 
 Last updated: 2026-09-28 — **M7 wave 7J is DONE** (straight kitchens through composition, 1200–6000 mm
 on one wall, no corner). See the [7J close-out](milestones/M7-room-and-presets.md#7j-close-out--2026-09-28)

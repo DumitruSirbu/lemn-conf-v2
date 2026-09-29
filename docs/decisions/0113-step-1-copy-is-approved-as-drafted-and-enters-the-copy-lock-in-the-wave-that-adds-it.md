@@ -6,6 +6,14 @@ Type: Decision (owner ruling)
 Milestone: M7 — every wave that adds a message leaf (architect's re-plan,
 `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-09-29 — decision 5 is read with ADR 0104 Amendment B.**
+[ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own)
+records the owner's final answer to Q-7L-1. Desktop frame D1B's heading, on-site-measurement note and
+plan hint are not drawn, because the phone's frame has no such text. Decision 5's *"used as written
+where a frame has it"* still governs how frame wording is worded once it is drawn. It is not
+authority for shipping a sentence that only one of the two mockup files draws; for that, see that
+amendment's B4. Nothing here is struck.
+
 ## Context
 
 The M7 plan's Q8 asked whether the owner wanted to review Step 1's new wording once, at the end of

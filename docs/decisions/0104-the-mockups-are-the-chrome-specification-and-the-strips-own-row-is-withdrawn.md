@@ -4,6 +4,8 @@ Status: Accepted — **supersedes [ADR 0094](0094-the-strip-gets-its-own-row-and
 decision 2 and amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 decisions 2, 3, 4 and 8.** ADR 0082 decisions 1 (as amended), 5, 6 and 7 stand and are **enforced**.
 **Amendment A (2026-09-10)** records two owner rulings taken against frame D2A itself.
+**Amendment B (2026-09-29)** records the owner's final answer to Q-7L-1 — D1B's heading, on-site
+note and plan hint are not drawn — and how a desktop frame's text is read against decisions 1 and 7.
 Date: 2026-09-09 (decisions 3, 8 and 9 rewritten the same day on the owner's second and third rulings)
 Type: Decision (owner ruling) + adjudication
 Milestone: M6 — opens the wave planned in
@@ -555,3 +557,195 @@ chip a link to the other locale, and ADR 0107 decision 1 makes it a **language d
 unaffected** — `Verifică designul` is still drawn as a `div` and wired to nothing until M8 — but its
 precedent no longer exists on the screen, and a reader looking for the inert caret will not find one.
 The frames still draw the chip closed, which is what it looks like until it is opened.
+
+## Amendment B, 2026-09-29 — Q-7L-1 answered: D1B's heading, on-site note and plan hint are not drawn, and a desktop frame's text is not authority on its own
+
+**What this amendment does.** It records an owner ruling, and it states how far decision 1's doctrine
+reaches when M7 applies it to Step 1's frames. It also records wave 7L's departures from frames
+D1A–D1F, as the 7L plan asked (*"recommended as a dated amendment to ADR 0104 carrying §3's departure
+list"*). **Nothing above is struck.** Decisions 1 and 7 stand as written; this amendment narrows how
+decision 1 is read for Step 1's copy, using decision 7.
+
+**Citations.** A bare `:N` cites `docs/milestones/M7-room-and-presets.md` as it stood at `a989a85`.
+Each claim is labelled **[doc-quoted]**, **[source-verified]** (read or `git grep`ped at `a989a85`)
+or **[inference]**.
+
+### B1. The question
+
+Frame D1B (`docs/design/mockups/Lemnaria Configurator Desktop.dc.html`) draws three texts that phone
+frame 1B does not [source-verified]:
+
+| element | text | frame line |
+| --- | --- | --- |
+| heading | *"Dimensiunile camerei"* | `Desktop.dc.html:118` (and D1C, `:217`) |
+| info note | *"Măsurile aproximative sunt în regulă acum — înainte de producție facem oricum o măsurare la fața locului."* | `Desktop.dc.html:176` |
+| plan hint | *"Planul se actualizează la tastare și se oglindește odată cu cotul."* | `Desktop.dc.html:186` |
+
+A fourth text, D1B's lead *"Măsoară de la perete la perete, pe podea."* (`Desktop.dc.html:119`), was
+**excluded under every option**, because it contradicts the owner's 2026-09-16 ruling
+(`:5118-5120`). Q-7L-1 (`:5114-5126`) offered three options:
+
+- **(a)** Draw all three on desktop only.
+- **(b)** Draw none of them. This was the architect's recommendation and the interim that 7L shipped.
+- **(c)** Also drop D1C's card wording.
+
+### B2. The ruling
+
+**Option (b), final — draw none of the three.** This is the owner's answer, **relayed** by the
+coordinator on 2026-09-29 as final. **It is the permanent answer, not an interim.** The relay names
+(b), not (c). So D1C's *Sugestii* card keeps the frame's own words as 7L shipped them:
+`room.suggestion.title` and `room.suggestion.switchToLinear`, `apps/web/src/messages/ro.json`
+[source-verified]. That the card is unaffected is **[inference]** from the relay naming (b). It would
+be falsified by a later owner statement that (c) was meant.
+
+### B3. The two objections to drawing them
+
+**1. Two of the three contradict shipped product meaning.**
+[ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment C1 rules that the number the customer enters is *"the length they want furnished. Not the
+wall's real length."* Amendment D1 adds that *"the entered number is the whole of what the product
+knows about that wall"*. D3 quotes the owner: *"you have no idea what is the real room size and we
+don't care about"* [doc-quoted].
+
+- **The info note contradicts this.** It calls the entered numbers *approximate measurements* to be
+  corrected later by an on-site measurement. Under C1/D1 the number is a decision the customer made,
+  not a measurement of the room, and the product never learns the room. The phone already tells the
+  customer the opposite beside the fields: `room.lengthsHint`, *"Introdu lungimea dulapurilor dorite,
+  nu lungimea peretelui."* (`ro.json:59`) [source-verified].
+- **The heading also works against it.** *"Dimensiunile camerei"* names the input as the room's
+  dimensions, which *"invites wall-to-wall numbers, which the hint beside the fields exists to
+  prevent"* (Q-7L-1, `:5121-5122`) [doc-quoted].
+- **The plan hint breaks on a shape the product now builds.** It promises the plan *"se oglindește
+  odată cu cotul"*, and a straight kitchen has no corner. Wave 7J made straight kitchens buildable
+  after the frame was drawn. The frame predates a product fact, just as decision 3 records that D2A
+  *"draws three because it predates the colour"*. **[inference]** that the frame's author did not
+  intend the hint for a straight room.
+- **The on-site measurement is not refused as a fact.** Only its placement in Step 1 is. The approved
+  phone frames draw it where it belongs, attached to the **price**:
+  - frame 3B, *"Suma finală se stabilește după măsurarea la fața locului"*
+    (`Lemnaria Configurator Mobil.dc.html:1146`);
+  - frame 5A, *"programăm măsurarea la fața locului"* (`:1448`);
+  - M8's criterion, *"subject to on-site measurement"*
+    (`docs/milestones/M8-review-contact-success.md:251`) [source-verified].
+
+  That promise already has a home in M8. On Step 1 it would attach to the typed numbers, and C1/D1
+  rule that those are not measurements. **[inference]**
+
+**2. The phone has no counterpart for two of the three, so drawing them would be new desktop-only
+copy.**
+
+- **The heading and the info note appear nowhere on the phone.** They are absent from frame 1B
+  (`Mobil.dc.html:101-188`) and from the shipped phone Step 1.
+- **The plan hint's sentence appears in frame 1B only as the designer's annotation.** The annotation
+  reads *"Planul 2D se actualizează la tastare și se oglindește odată cu toggle-ul"*
+  (`Mobil.dc.html:186`). It is a note to the implementer, not text drawn for the customer. M7 made it
+  a behaviour criterion, *"The 2D plan preview updates as the customer types and mirrors with the
+  toggle"* (`:585`), and the phone performs it without saying it [doc-quoted].
+- **None of the three is a message leaf.** `git grep` for all three texts over `apps/web/src` exits 1
+  [source-verified]. So none has entered the copy lock under
+  [ADR 0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md)
+  decision 2, none has a Russian draft, and no one has read any of them in a built screen.
+- **Drawing them would add three desktop-only leaves whose only review is the frame itself.** Against
+  that stand `DEVELOPMENT-SPEC.md:445`, *"Same rules, same copy, different chrome"*, and M7's own
+  validation criterion, *"Desktop uses its extra space for an actionable suggestion, not for more
+  prose"* (`:597`) [doc-quoted].
+
+### B4. How this squares with decision 1, and what it narrows
+
+**Decision 1's reach.** Decision 1's grant is screen 2's chrome, and its own text says it *"does not
+extend the frames' authority beyond chrome… `DEVELOPMENT-SPEC.md` remains the behavioural contract"*.
+The 2026-09-21 sweep addendum above says the same: decision 1 *"is silent about a product mockup
+outside it"* [doc-quoted].
+
+**How M7 extended it to Step 1.** M7 has nonetheless applied the doctrine to Step 1's frames, in four
+places:
+
+- 7F1's F8, the owner's *"use the design that was proposed"* (`:4669`);
+- ADR 0113 decision 5, *"Mockup wording is still used as written where a frame has it (ADR 0104
+  makes the frames the chrome specification)"*;
+- 7F2's reading of the chips in 1C (`:4669-4677`);
+- the whole of the 7L plan [doc-quoted].
+
+This amendment records how far that extension reaches for **copy**.
+
+**Why *"A frame is silent about behaviour it does not draw"* does not decide Q-7L-1.** That sentence
+in decision 1 covers the opposite case. A frame that omits something the product has does not delete
+it: ADR 0065's sentence and ADR 0099's colour on screen 2, and on Step 1 the chips and corner toggle
+that frame 1C does not draw (`:4669-4677`). The sentence does not say that a frame which *draws*
+something obliges the product to ship it, and Q-7L-1 is exactly that converse. So decision 1 does not
+answer it either way:
+
+- phone frame 1B's silence about the three texts forbids nothing;
+- desktop frame D1B's drawing them licenses nothing on its own.
+
+**Decision 7 is what answers it.** When the two files disagree about copy, neither frame wins by
+frame authority. §10.1 admits no copy fork per viewport. *"A wave does not reconcile ruled copy on
+its own… because the reference is what disagrees with itself"*, and the divergence goes to the owner.
+Q-7L-1 is a decision-7 case on Step 1, and it was handled exactly that way: 7L shipped the
+conservative interim, asked the question, and the owner ruled.
+
+**The rule for Step 1, as this amendment records it.** For screen 2, decision 7 already says the
+same, so nothing changes there:
+
+1. **A frame's declared numbers and structure are still the target** (decision 1, unchanged). 7L's
+   bands, columns, gaps and type sizes follow D1A–D1C and D1F, and the departures are named in B6.
+2. **Text drawn in one file's frame and absent from the other file's frame of the same state does not
+   ship on the frame's authority alone.** It needs either an owner ruling, or a milestone criterion
+   that asks for that element on that shell. D1C's *Sugestii* card is the one element in Step 1 with
+   such a criterion (`:597`), and it ships.
+3. **A sentence that contradicts an owner ruling on what the product means ships under no answer.**
+   This covers D1B's lead, and now the info note.
+4. **Where a frame's text *is* drawn, ADR 0113 decision 5's "as written" still governs.** This
+   amendment narrows **whether** frame text ships, not **how** it is worded once it does.
+
+**Rejected reading:** *"the desktop frame draws it, decision 1 makes frames the specification, so it
+ships."* That reading would make decision 1 override decision 7 on the one question decision 7 exists
+to settle. It would also ship a sentence that contradicts ADR 0120 C1/D1, a behavioural ruling that
+decision 1 expressly leaves outside the frames' authority.
+
+### B5. The final state
+
+**D1B at desktop draws no text that the phone's 1B does not draw.** That text is:
+
+- the shape chips;
+- the plan with its caption and wall labels;
+- the corner question and its hint, for L and U;
+- the length and height fields, with their labels and help;
+- the lengths hint;
+- the footer.
+
+These are laid out to D1B's metrics, with B6's named departures.
+
+**D1C adds only the *Sugestii* card**, which only 1C's refused state reaches.
+
+**No leaf for the heading, the note or the plan hint exists**, and none may be added without a new,
+dated owner ruling that reopens this amendment. **No code changes.** The product has shipped this
+state since 7L at its interim, and the interim is now final. The 7L plan's R8 (*"Q-7L-1 answers (a)
+after S3 has landed"*) is spent.
+
+### B6. Wave 7L's departures from frames D1A–D1F, and the authority for each
+
+| Departure | Authority |
+| --- | --- |
+| D1D's skeletons and D1E's four-up grid are not built | The preset story is past M8: [ADR 0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md); 7L D1 |
+| The corner toggle sits above the fields, where D1B draws it below them | 7L D4. There is one DOM (§10.1), and CSS `order` would split focus order from paint order (WCAG 2.4.3 / 1.3.2). Shown to the owner, not asked |
+| D1B/D1C's lead is not drawn | ADR 0120 C1/D1; excluded from every Q-7L-1 option |
+| D1B's heading, info note and plan hint are not drawn | **This amendment**, B2–B4 |
+| D1C's reason sentence is 7F2's `room.issue.*`, not the frame's | 7F2 §5; ADR 0120 C1 and decision 3 |
+| D1A's merged lead, *Înălțime*, *‹ Înapoi*'s text, and D1F's *Ce așezăm* / *așezat* use the shipped leaves | 7L D11: one leaf per thing, no string forked for one meaning; D1F's status words are the owner's *inclus* |
+| D1F's title reads *Preset*, not *Cameră* | 7F4 R14 |
+| D1F's preview is the room's static plan, not one that *"fills as bodies are placed"* | 7F4 R12 (one synchronous call; a paced reveal would animate a fiction); 7L D10; Q-7L-2 confirmed by the coordinator |
+| Length values are in millimetres where the frames draw metres | [ADR 0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md) |
+| The frames are 1920 px wide, so their column widths are read as maxima at 1440 and at 900 | 7L G15 |
+
+### B7. Sweep for this amendment
+
+| Record | What it says | Settled how |
+| --- | --- | --- |
+| Decision 1 here | Frames are the chrome specification; *"a frame is silent about behaviour it does not draw"* | **Unchanged and not struck.** Its extension to Step 1's copy is bounded by B4's rules 2–3. |
+| Decision 7 here | When the two files disagree on copy, nothing forks and the owner rules | **The operative precedent.** Applied to Step 1. |
+| [ADR 0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md) decision 5 | Mockup wording is used as written where a frame has it | **Read with B4 rule 4.** It governs how frame wording is worded, not whether a one-shell sentence ships. A dated pointer is added there. |
+| [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) C1, D1, D3 | The number is the run to furnish; the product never learns the room | **The ruling B3's first objection rests on.** Untouched. |
+| `DEVELOPMENT-SPEC.md` §10 (`:445`), §10.1 | Same rules, same copy; one implementation | **Obeyed.** |
+| M7 criteria `:585`, `:597` | The plan updates and mirrors; desktop uses its space for a suggestion, not more prose | **Met.** The behaviour ships silently on both shells, and the suggestion is the one desktop-only element. |
+| M8 criterion (`M8-review-contact-success.md:251`) | The estimate is subject to on-site measurement | **Where the on-site promise lives.** Unaffected. |

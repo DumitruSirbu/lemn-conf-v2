@@ -15,6 +15,12 @@ product decision belongs — the generator's or a preset's; 0118 says when engin
 now or at a named trigger.** A wave asking *"is this correctness or is this taste?"* (decision 5
 here) often has a second question behind it: *"and has the problem occurred at all?"*
 
+**Pointer, 2026-09-29 — the preset half is past M8.**
+[ADR 0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
+records that the preset waves this record cites (7B, 7C, 7P1, 7P2, 7G, and 7F3's list) are deferred
+past M8. Until they return, the generation half of this record is the only one that is live, and
+every design Step 1 creates is generation's baseline. The division of labour ruled here is unchanged.
+
 ## Context
 
 Two records already exist either side of this one and neither states it.

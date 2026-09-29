@@ -12,6 +12,12 @@ baseline, and the owner's taste enters through presets. It is the authority on *
 belong to a preset rather than to a generator rule; this record stays the authority on **what** a
 preset is. Waves 7B and 7C read it before deciding anything an adaptation drops.
 
+**Pointer, 2026-09-29 — its waves are past M8.**
+[ADR 0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
+records that 7B and 7C moved past M8 with the rest of the preset story (coordinator, 2026-09-15). They
+moved by derivation: matching searches a library that does not exist until the owner authors one.
+Nothing here is struck. The rules stand, unbuilt, and M7 closed without them.
+
 ## Context
 
 Frames 1E/D1E list *"Bucătării care încap"*: only presets that fit, each with its own **Folosește**,

@@ -1580,7 +1580,7 @@ table.
 | **7J** | Straight kitchens through composition — **DONE 2026-09-28. Commits: plan + ADR 0130 + ADR 0108 Amendment G + ADR 0116 Amendment A `5596de1`; S1 `c39cd95`; S2 `8c9b1bf`; S3 `b83f172`; S4 `f4de5dd`; S5 `e34f1e3`; S6 `c97ce3b`; QA fixes `7f386c9`; review fixes `d00cfc0`. See [7J close-out](#7j-close-out--2026-09-28)** | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1, Q-7J-1 at 1200–6000 mm, ADR 0108 Amendment G) |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate — **DONE 2026-09-28. Commits: plan `d0a21a2`; S0-S2 implementation `d841d9a`; review fixes `daea173` (HEAD). See [7K close-out](#7k-close-out--2026-09-28)** | `apps/web/tests/e2e/mobile-gate.e2e.spec.ts`, `tests/e2e/support/step-one-by-touch.ts` (both new); no production file | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | answered (Q-7K-1 no; Q-7K-2 yes) |
-| **7L** | The desktop line — **DONE 2026-09-29. Commits: plan (+ S0-S2 implementation) `1e1bf6e`; S3-S6 + review fixes `86f6dc4`; R9 documentation `4962fa8`. See [7L close-out](#7l-close-out--2026-09-29)**; D1A, D1B, D1C, D1F (D1D/D1E move with 7F3) | ~~*carried*~~ **corrected by the plan:** `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `plan-preview-model.ts`, `src/room/validation-suggestion.tsx` (new), `one-c-status.tsx`, `dimensions-form.tsx`, `generation-steps.tsx` (+ messages; + one `.desktop.e2e` spec) | 7F1–7F4 | Light | Desktop | Q-7L-1 still open (shipped at its interim, option (b)); Q-7L-2 confirmed by coordinator — see the close-out |
+| **7L** | The desktop line — **DONE 2026-09-29. Commits: plan (+ S0-S2 implementation) `1e1bf6e`; S3-S6 + review fixes `86f6dc4`; R9 documentation `4962fa8`. See [7L close-out](#7l-close-out--2026-09-29)**; D1A, D1B, D1C, D1F (D1D/D1E move with 7F3) | ~~*carried*~~ **corrected by the plan:** `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `plan-preview-model.ts`, `src/room/validation-suggestion.tsx` (new), `one-c-status.tsx`, `dimensions-form.tsx`, `generation-steps.tsx` (+ messages; + one `.desktop.e2e` spec) | 7F1–7F4 | Light | Desktop | ~~Q-7L-1 still open (shipped at its interim, option (b))~~ **Q-7L-1 answered 2026-09-29, option (b), final** ([ADR 0104 Amendment B](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own)); Q-7L-2 confirmed by coordinator — see the close-out |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
 
 **Two defects in the table above, found during 7D3's close-out on 2026-09-15, recorded and
@@ -4781,7 +4781,8 @@ product one, made because the planned filter returned a meaningless 100%.
 
 **Deferred, named with an owner:** the M7-close ADR recording the preset-path deferral past M8
 (§7 of the 7K plan, "flagged for the coordinator, not blocking") — recommended at M7's own
-close-out, not this wave. The i18n helper duplication (review, above) — coordinator follow-up
+close-out, not this wave. **Written 2026-09-29 as
+[ADR 0131](../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md).** The i18n helper duplication (review, above) — coordinator follow-up
 alongside the plan's G17 census, not a required fix. Real-hardware touch verification — out of
 scope per Q-7K-1's owner answer, re-openable if ever wanted before M7 closes.
 
@@ -4930,7 +4931,8 @@ its frame. Anything else that differs from D1A–D1C or D1F is a defect.
 
 - **The corner toggle above the fields** (D4).
 - **D1B/D1C's lead not drawn** (D11, ADR 0120 C1).
-- **D1B's heading, info note and plan hint not drawn** — interim, Q-7L-1.
+- **D1B's heading, info note and plan hint not drawn** — ~~interim, Q-7L-1~~ **final, Q-7L-1
+  answered (b) on 2026-09-29** (ADR 0104 Amendment B, which records this list as B6).
 - **D1C's reason sentence** is 7F2's `room.issue.*`, not the frame's (7F2 §5, ADR 0120 C1).
 - **D1A's lead, *Înălțime*, *‹ Înapoi*'s text, D1F's *Ce așezăm*/*așezat*** — the shipped leaves
   (D11); the *‹* is drawn as decoration.
@@ -5104,13 +5106,21 @@ flagged for the coordinator:** Q-7L-1's answer settles how DEVELOPMENT-SPEC §10
 against ADR 0104's *frames as specification* for Step 1, whichever way it goes — so it must reach
 `docs/decisions/` by M7's close, recommended as a dated amendment to ADR 0104 carrying §3's departure
 list. **Also flagged:** *"then Gate M7-C"* in the 7K close-out and `STATUS.md:65` is stale (G16) —
-after 7L comes M7's close, which also owes the preset-deferral ADR 7K §7 recommended.
+after 7L comes M7's close, which also owes the preset-deferral ADR 7K §7 recommended. **Both records
+written 2026-09-29:** [ADR 0104 Amendment B](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own)
+(Q-7L-1's answer and §3's departure list, as B6) and
+[ADR 0131](../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
+(the preset deferral).
 
 **For the owner's eye, not a question:** the corner toggle stays above the length fields at desktop
 (D4), where D1B draws it below them — so keyboard focus follows what the customer sees.
 
 **Questions:**
 
+- **Q-7L-1 — ANSWERED 2026-09-29 by the owner (relayed by the coordinator): (b), final, not an
+  interim.** Recorded as
+  [ADR 0104 Amendment B](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own).
+  R8 is spent. The question as it was put, kept verbatim:
 - **Q-7L-1 (owner, not blocking dispatch).** The desktop frames draw text the phone frames do not:
   D1B's heading *"Dimensiunile camerei"*, its note *"Măsurile aproximative sunt în regulă acum —
   înainte de producție facem oricum o măsurare la fața locului."*, and its plan hint *"Planul se
@@ -5220,18 +5230,38 @@ judgment, not a defect. **R9** (the pre-hydration plan-flash) — accepted as a 
 its trigger to revisit is a requirement for a true zero-flash guarantee (a server-side viewport hint, or
 the owner reporting the flash as visibly jarring in practice).
 
-**Two documentation obligations 7L's own plan named, still owed and not discharged by this close-out**
+~~**Two documentation obligations 7L's own plan named, still owed and not discharged by this close-out**
 (§7 of the 7L plan, `:5099-5107`): (1) the preset-path deferral past M8 — first recommended at 7K's own
 close-out (`:4782-4784`) as an ADR owed "at M7's close," restated here as still outstanding; (2) a dated
 amendment to ADR 0104 recording how Q-7L-1's answer (shipped at its interim, option (b): none of D1B's
 extra heading/note/plan-hint text drawn) settles DEVELOPMENT-SPEC §10's "same copy" against ADR 0104's
 "frames as specification" for Step 1 — owed "by M7's close" regardless of which way Q-7L-1 is finally
 answered. Neither is a coding task; both are decision records this close-out flags rather than writes,
-per this role's remit.
+per this role's remit.~~ **Both obligations discharged 2026-09-29:**
 
-**Owner line for the next RESUME HERE:** Q-7L-1 (draw D1B's extra heading/note/plan-hint text?) is
+1. **The preset-path deferral:**
+   [ADR 0131](../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md).
+   It records:
+   - what is deferred: 7P1, 7P2, 7G, 7B, 7C and 7F3;
+   - who ruled it and when: the owner's direction of 2026-09-15 (relayed), the coordinator's
+     derivation of 7B/7C that day, and the coordinator's 7F3 ruling of 2026-09-22;
+   - the reasons as recorded;
+   - what M7 shipped instead: every buildable shape goes from its dimensions straight to 1F
+     composition, re-grepped at `a989a85`;
+   - what a reviver inherits, including the owner's copy-on-use ruling, which is in no other record.
+2. **Q-7L-1's answer:**
+   [ADR 0104 Amendment B](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own).
+   - **The ruling:** option (b), final, relayed. None of D1B's heading, on-site note or plan hint is
+     drawn.
+   - **The reasons:** ADR 0120 C1/D1, and the phone having no counterpart text.
+   - **How it squares with decision 1:** that decision does not answer the question either way.
+     Decision 7 does, and the amendment narrows how decision 1's doctrine reaches Step 1's copy.
+   - **Departures:** this plan's §3 list, recorded as B6.
+
+~~**Owner line for the next RESUME HERE:** Q-7L-1 (draw D1B's extra heading/note/plan-hint text?) is
 **still open** — the product ships at its recommended interim, option (b), drawing none of them, until
-the owner answers. Q-7L-2 (confirm D10's derivation that the "fills as bodies are placed" criterion is
+the owner answers.~~ **Q-7L-1 answered 2026-09-29, option (b), final** (ADR 0104 Amendment B). No code
+changes, because the interim that shipped is the answer. Q-7L-2 (confirm D10's derivation that the "fills as bodies are placed" criterion is
 struck by R12) was **confirmed by the coordinator**. No further owner action is required to accept 7L
 itself.
 

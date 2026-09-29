@@ -6,6 +6,14 @@ Date: 2026-09-11
 Type: Decision (owner ruling + engineering)
 Milestone: M7 — waves 7P1, 7P2, 7G (architect's re-plan, `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-09-29 — its waves are past M8, and one owner ruling about it is not in it.**
+[ADR 0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
+records the owner's direction of 2026-09-15, relayed, that storage, authoring and the admin panel come
+after M8. 7P1, 7P2 and 7G did not ship in M7. ADR 0131 §4 also quotes the owner's **copy-on-use**
+ruling of the same day: presets live in their own table, only the administrator updates them, and
+using one copies it into a new private design. **That ruling is not recorded in this ADR.** A reviver
+writes its amendment here before planning 7P1. Nothing below is struck.
+
 ## Context
 
 The owner's answer to the M7 plan's Q4, verbatim (2026-09-11):

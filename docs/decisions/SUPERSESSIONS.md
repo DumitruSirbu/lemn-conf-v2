@@ -49,6 +49,23 @@ replaced it — nothing is deleted or rewritten silently.
 - **ADR 0104** decision 6's *precedent* — the inert `RO ▾` locale caret — → **spent**, not
   contradicted (Amendment A2). Wave 6B-i made the chip a link and **ADR 0107** decision 1 makes it a
   language dropdown; `Verifică designul` is still drawn inert until M8.
+- **ADR 0104** decision 1's doctrine, as M7 extended it to Step 1's frames, and **ADR 0113** decision
+  5's *"mockup wording is still used as written where a frame has it"* → **narrowed for copy, not
+  struck**, by **ADR 0104 Amendment B** (2026-09-29), on the owner's final answer to Q-7L-1 (relayed).
+  Text drawn in one mockup file and absent from the other file's frame of the same state does not ship
+  on the frame's authority alone. It needs an owner ruling or a milestone criterion. A sentence that
+  contradicts an owner ruling on what the product means ships under no answer. So desktop frame D1B's
+  heading, on-site-measurement note and plan hint are not drawn. Decision 7 is the operative precedent,
+  and ADR 0113 decision 5 still governs how frame wording is worded once it is drawn. Listed here
+  because *"the desktop frame draws it and ADR 0104 makes frames the specification"* is exactly the
+  citation that amendment answers.
+- **M7's preset waves** (7P1, 7P2, 7G, 7B, 7C, 7F3) and the preset halves of M7's *Mobile (gate)* and
+  *Desktop* criteria → **deferred past M8** and recorded by **ADR 0131** (2026-09-29). The rulings are
+  the owner's direction of 2026-09-15 (relayed), the coordinator's derivation of 7B/7C the same day,
+  and the coordinator's ruling on 7F3 of 2026-09-22. This supersedes milestone prose, not a decision
+  record. **ADRs 0109, 0112 and 0117 stand unamended, and are unbuilt.** ADR 0112 is also
+  **incomplete**: the owner's 2026-09-15 copy-on-use ruling is quoted in ADR 0131 §4 and not in 0112,
+  and its amendment is owed when the work is revived.
 - **ADR 0099** decision 8's placement (the reset drawn as a chip inside the colour row) → **amended**
   by that record's **Amendment D** on the owner's ruling of 2026-09-10: its own full-width row under
   the colour control, because a reset that can scroll out of sight is the one-way door decision 8

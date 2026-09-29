@@ -182,14 +182,14 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 | Whether the nightly export excludes the contact table, or Blob gains its own PII retention story | M8, settle before |
 | The Hobby-plan cron frequency limit, and how the export runs where `pg_dump` is unavailable | M2 wave 2B |
 | Exact wall-length and room-height bounds | M7 |
-| The real "≤ 30 cm adjustment" preset-fit threshold | M7 |
+| ~~The real "≤ 30 cm adjustment" preset-fit threshold~~ — retired by ADR 0109 Amendment A; the mechanism this threshold belonged to is superseded | closed |
 | Bespoke-generation priority thresholds | M7 |
 | Approved discrete width sets and filler rules | M5, M7 |
 | Sample/commercial price amounts and what the estimate includes | M6, M8 |
 | Consent and legal copy; whether a response timeframe may be promised | M8 |
 | Screen 5's route — `/configurator/success` or `/configurator/done` | M8 |
 | Desktop chrome for screens 3–5 | M8 |
-| Real per-preset geometry recipes | M7 |
+| ~~Real per-preset geometry recipes~~ — the whole preset story (authoring, matching, adaptation) deferred past M8 by ADR 0131 | M8+, per ADR 0131 |
 | Click reachability of occluded placements (§6.4) | M2, carried |
 | Unifying occupied swap sets with the fit-filtered catalogue (§13.3 q1) | M4, carried |
 | Run re-split (§13.3 q2) | **half closed by M5B** — the mechanism ships (ADR 0046); the combination offer stays open and carried |
