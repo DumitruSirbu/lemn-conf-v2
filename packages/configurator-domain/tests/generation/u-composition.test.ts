@@ -138,6 +138,63 @@ describe("the fridge wall (N3r 2)", () => {
   });
 });
 
+// ADR 0110 N9.2: a dropped fridge leaves its wall's free run to A4, which forbids a bare run end of
+// 600 mm or more — so the wall takes door bases from its corner and the remainder (< 600 mm) stays at
+// the free end. These bases stand before the sink in run order, so none is ever a drawer unit.
+describe("the dropped fridge's wall (N9.2)", () => {
+  const DRAWER_UNIT_BUILD_IDS = ["base-3drawer", "base-panbank"];
+
+  it.each([
+    {
+      name: "2700 / 1600 / 1600: wall B, one door base filling the 600 mm run",
+      room: uRoom({ widthMm: 2700, depthMm: 1600, wallCMm: 1600 }),
+      wall: "B" as const,
+      remainderMm: 0,
+    },
+    {
+      name: "3000 / 1000 / 1600: wall C (the wider), one door base filling the 600 mm run",
+      room: uRoom({ widthMm: 3000, depthMm: 1000, wallCMm: 1600 }),
+      wall: "C" as const,
+      remainderMm: 0,
+    },
+    {
+      name: "3000 / 1690 / 1690: wall B, one door base and a 90 mm bare end",
+      room: uRoom({ widthMm: 3000, depthMm: 1690, wallCMm: 1690 }),
+      wall: "B" as const,
+      remainderMm: 90,
+    },
+  ])("$name", ({ room, wall, remainderMm }) => {
+    const plan = planFor(room);
+    const run = runsOf(room)[wall];
+    const onWall = basesOn(plan, wall);
+
+    expect(plan.dropped).toContain("fridge");
+    expect(onWall).toHaveLength(1);
+    expect(onWall[0]?.buildId).toBe("base-cabinet");
+    expect(onWall[0]?.startMm).toBe(run.startMm);
+    expect(plan.remainderMm[wall]).toBe(remainderMm);
+  });
+
+  it("pins the first witness's own run, 900 to 1500 mm", () => {
+    const room = uRoom({ widthMm: 2700, depthMm: 1600, wallCMm: 1600 });
+    const onB = basesOn(planFor(room), "B");
+
+    expect([onB[0]?.startMm, onB[0]?.endMm]).toStrictEqual([900, 1500]);
+  });
+
+  it("never makes a fridge-wall body a drawer unit, however many drawer units the room is owed", () => {
+    const room = uRoom({ widthMm: 6000, depthMm: 1699, wallCMm: 1699 });
+    const plan = planFor(room);
+    const onFridgeWall = basesOn(plan, "B");
+
+    expect(plan.dropped).toContain("fridge");
+    expect(onFridgeWall.length).toBeGreaterThan(0);
+    expect(
+      onFridgeWall.some((base) => DRAWER_UNIT_BUILD_IDS.includes(base.buildId)),
+    ).toBe(false);
+  });
+});
+
 describe("the fridge's own count from the corner (N3r 3)", () => {
   it("stands at the free end with no cabinets from the corner, at 3000 mm or less", () => {
     const plan = planFor(uRoom({ depthMm: 3000, wallCMm: 1200 }));

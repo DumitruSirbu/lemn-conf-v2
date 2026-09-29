@@ -51,6 +51,9 @@ export interface DeclaredColumnSizes {
   /** The door column's bound; it is the one `'fit'` full-height row (ADR 0048). */
   readonly doorColumnWidthMm: WidthBoundMm;
   readonly columnHeightMm: number;
+  /** The widest width the bottle cargo row declares — the module a generated run chooses (ADR 0110
+   *  Amendment H1), read by the U's bottle; the L keeps its own `BOTTLE_CARGO` item. */
+  readonly bottleWidthMm: number;
 }
 
 export interface TallEndRuleInput {

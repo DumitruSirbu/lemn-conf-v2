@@ -58,7 +58,7 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
     expect(plan.towerPosition).toBeUndefined();
   });
 
-  it("3600 / 2400 / 2000: B fridge (bare 100), A core, C hob only, no tower", () => {
+  it("3600 / 2400 / 2000: B fridge (bare 100), A core, C hob + bottle (bare 100), no tower", () => {
     const plan = planFor(uRoom(3600, 2400, 2000));
 
     expect(basesOn(plan, "B")).toStrictEqual([
@@ -71,10 +71,13 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
       { role: "storage", buildId: "base-dishwasher" },
       { role: "preparation", buildId: "base-3drawer" },
     ]);
+    // ADR 0110 N9.3: with no tall column on the far wall and 400 mm after the hob, the bottle stands
+    // directly after the hob; N4′ read C as the hob alone with 400 mm bare before that ruling.
     expect(basesOn(plan, "C")).toStrictEqual([
       { role: "hob", buildId: "base-hob-oven" },
+      { role: "storage", buildId: "base-bottle-cargo" },
     ]);
-    expect(plan.remainderMm.C).toBe(400);
+    expect(plan.remainderMm.C).toBe(100);
     expect(plan.towerPosition).toBeUndefined();
   });
 
@@ -141,8 +144,7 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
     // RQ18 answered where the extra drawer units stand. Under RQ18 (a) ("the far wall's first base
     // cabinets", *N3 revised* 6) these are the run's own next eligible door slots past the hob, on
     // the same footing as the far wall's counted-from-corner slots the 6000/6000/6000 witness pins
-    // below. The code takes them; **flagged for the architect rather than forced to the older
-    // prose**, per this wave's own stop-and-report rule.
+    // below. ADR 0110 N9.1 rules that these two bases are drawer units and the plan is right.
     expect(basesOn(plan, "C")).toStrictEqual([
       { role: "storage", buildId: "base-panbank" },
       { role: "storage", buildId: "base-panbank" },

@@ -161,7 +161,7 @@ describe("planUKitchenComposition holds N3r 2, 3 and 5 (AC1's own share)", () =>
       const fridgeIndex = onFridgeWall.findIndex(
         (base) => base.role === "fridge",
       );
-      if (fridgeIndex === -1) return; // the fridge was dropped (RQ9, unreachable in-range) or absent
+      if (fridgeIndex === -1) return; // the fridge was dropped (ADR 0110 N9.2): its wall holds door bases only
 
       expect(
         onFridgeWall

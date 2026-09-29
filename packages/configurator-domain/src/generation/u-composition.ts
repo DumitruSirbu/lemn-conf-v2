@@ -31,7 +31,11 @@ import {
   type UPlacementPosition,
   type UPlannedGenerationBase,
 } from "./run-layout.js";
-import type { DeclaredColumnSizes } from "./tall-end-rule.js";
+import {
+  DOOR_COLUMN_BUILD_ID,
+  OVEN_TOWER_BUILD_ID,
+  type DeclaredColumnSizes,
+} from "./tall-end-rule.js";
 import { planUTallLayout } from "./u-tall-layout.js";
 
 export {
@@ -154,8 +158,16 @@ function storageBase(
   startMm: number,
   index: number,
 ): UPlannedGenerationBase {
+  return doorBaseWithId(wall, startMm, `storage:${wall}:${String(index)}`);
+}
+
+function doorBaseWithId(
+  wall: DesignWall,
+  startMm: number,
+  id: string,
+): UPlannedGenerationBase {
   return {
-    id: `storage:${wall}:${String(index)}`,
+    id,
     role: "storage",
     buildId: DOOR_BASE_BUILD_ID,
     widthMm: STORAGE_BODY_WIDTH_MM,
@@ -182,7 +194,7 @@ interface FridgePlacement {
   readonly farWall: DesignWall;
   readonly bases: readonly UPlannedGenerationBase[];
   readonly dropped: boolean;
-  /** `undefined` where `dropped` is `true` (RQ9's own empty-population branch). */
+  /** `undefined` where `dropped` is `true`: no fridge stands, so it has no counted position. */
   readonly position: UPlacementPosition | undefined;
 }
 
@@ -230,10 +242,24 @@ function placedFridge(
   return {
     fridgeWall: candidates.primary,
     farWall: candidates.secondary,
-    bases: [],
+    bases: doorBasesFromTheCorner(candidates.primary, runs[candidates.primary]),
     dropped: true,
     position: undefined,
   };
+}
+
+/** ADR 0110 N9.2: a dropped fridge leaves its wall's whole free run empty, and A4 forbids a bare run
+ *  end of 600 mm or more. The wall takes door bases from its corner, and the bare remainder (< 600 mm)
+ *  stays at the free end. These bases stand before the sink in run order, so they never become
+ *  drawer units. */
+function doorBasesFromTheCorner(
+  wall: DesignWall,
+  run: UGenerationRun,
+): readonly UPlannedGenerationBase[] {
+  const { storageCount } = planLeftover(run.endMm - run.startMm);
+  return Array.from({ length: storageCount }, (_, index) =>
+    storageBase(wall, run.startMm + index * STORAGE_BODY_WIDTH_MM, index),
+  );
 }
 
 /** One wall's free run, read as a packing lane: how much of it is left at a given reading-order
@@ -383,29 +409,21 @@ function drawerTargetFor(room: DesignRoom): number {
  *
  *  Only reachable when the core never left wall A at all; where it overflowed, wall A's own
  *  remainder is already under 600 mm by construction (`packBackWallAndOverflow`'s own comment), and
- *  the bottle is omitted there rather than reaching into the far wall's own trailing fill — S2's
- *  `u-tall-layout.ts` was not widened to carry a bottle candidate through, and this is reported as a
- *  scope boundary rather than silently claimed complete. */
-function wallAFill(
-  wall: DesignWall,
-  lane: PackingLane,
-  startOffsetMm: number,
-): readonly UPlannedGenerationBase[] {
+ *  the bottle after a far-wall hob is `withTheBottleAfterAFarWallHob`'s (ADR 0110 N9.3). */
+function wallAFill(args: {
+  readonly wall: DesignWall;
+  readonly lane: PackingLane;
+  readonly startOffsetMm: number;
+  readonly bottleWidthMm: number;
+}): readonly UPlannedGenerationBase[] {
+  const { wall, lane, startOffsetMm, bottleWidthMm } = args;
   const bases: UPlannedGenerationBase[] = [];
   let offsetMm = startOffsetMm;
   const bottleFitsMm = lane.capacityMm - offsetMm;
-  if (bottleFitsMm >= BOTTLE_WIDTH_MM) {
-    const centreMm = lane.centreMmAt(offsetMm, BOTTLE_WIDTH_MM);
-    bases.push({
-      id: "bottle",
-      role: "storage",
-      buildId: BOTTLE_CARGO_BUILD_ID,
-      widthMm: BOTTLE_WIDTH_MM,
-      wall,
-      startMm: centreMm - BOTTLE_WIDTH_MM / 2,
-      endMm: centreMm + BOTTLE_WIDTH_MM / 2,
-    });
-    offsetMm += BOTTLE_WIDTH_MM;
+  if (bottleFitsMm >= bottleWidthMm) {
+    const centreMm = lane.centreMmAt(offsetMm, bottleWidthMm);
+    bases.push(bottleBase(wall, centreMm - bottleWidthMm / 2, bottleWidthMm));
+    offsetMm += bottleWidthMm;
   }
 
   // The drawer build ids are decided once the run's own far wall is known too
@@ -426,6 +444,67 @@ function wallAFill(
     offsetMm += STORAGE_BODY_WIDTH_MM;
   }
   return bases;
+}
+
+function bottleBase(
+  wall: DesignWall,
+  startMm: number,
+  widthMm: number,
+): UPlannedGenerationBase {
+  return {
+    id: "bottle",
+    role: "storage",
+    buildId: BOTTLE_CARGO_BUILD_ID,
+    widthMm,
+    wall,
+    startMm,
+    endMm: startMm + widthMm,
+  };
+}
+
+/** ADR 0110 N9.3 (*N3 revised* 7): where the hob went round the corner and no tall column stands on
+ *  its wall, everything after it is door storage or bare wall, so the bottle stands directly after
+ *  the hob when `bottleWidthMm` of run follows it, and the door fill is redone on what is left. With
+ *  a tall column present the plan is untouched: no bottle between the hob and a column (RQ20's
+ *  default). Applied before the drawer count, so the extra drawer units land after the bottle. */
+function withTheBottleAfterAFarWallHob(args: {
+  readonly bases: readonly UPlannedGenerationBase[];
+  readonly farWall: DesignWall;
+  readonly run: UGenerationRun;
+  readonly bottleWidthMm: number;
+}): readonly UPlannedGenerationBase[] {
+  const { bases, farWall, run, bottleWidthMm } = args;
+  const hob = bases.find((base) => base.role === "hob");
+  if (hob === undefined || hob.wall !== farWall) return bases;
+  if (hasATallColumnOn(bases, farWall)) return bases;
+  if (run.endMm - hob.endMm < bottleWidthMm) return bases;
+
+  const bottleEndMm = hob.endMm + bottleWidthMm;
+  const { storageCount } = planLeftover(run.endMm - bottleEndMm);
+  const doorsAfterTheBottle = Array.from({ length: storageCount }, (_, index) =>
+    doorBaseWithId(
+      farWall,
+      bottleEndMm + index * STORAGE_BODY_WIDTH_MM,
+      `far-bottle-fill:${farWall}:${String(index)}`,
+    ),
+  );
+  return [
+    ...bases.filter((base) => base.wall !== farWall || base.endMm <= hob.endMm),
+    bottleBase(farWall, hob.endMm, bottleWidthMm),
+    ...doorsAfterTheBottle,
+  ];
+}
+
+function hasATallColumnOn(
+  bases: readonly UPlannedGenerationBase[],
+  wall: DesignWall,
+): boolean {
+  return bases.some(
+    (base) =>
+      base.wall === wall &&
+      (base.buildId === OVEN_TOWER_BUILD_ID ||
+        base.buildId === DOOR_COLUMN_BUILD_ID),
+  );
 }
 
 /** *N3 revised* 6's own split, once RQ18 (b) replaced "the extras are all one build id": of the
@@ -507,11 +586,6 @@ function runOrderedBases(
   return [...aInRunOrder, ...onFar];
 }
 
-/** The catalogue's own declared bottle-cargo width (ADR 0110 Amendment H1, `optional-run-items.ts`'s
- *  own `BOTTLE_CARGO`) — read as a value here rather than importing that module's L-specific
- *  placement logic, which assumes a reading-order-and-cut model this composer does not have. */
-const BOTTLE_WIDTH_MM = 300;
-
 /** The core run plus, once it composes, the tall layout, the one oven, wall A's own A4 fill, the
  *  bottle and the drawer count (S1, S2 and S3's own must-fix items, together). */
 export function planUKitchenComposition(
@@ -546,12 +620,13 @@ export function planUKitchenComposition(
     const hasPreparation = attemptIndex < 2;
     const wallAFillBases = packed.hasOverflowedOnce
       ? []
-      : wallAFill("A", laneA, packed.wallAOffsetMm);
-    const coreBases = [
-      ...(fridge.dropped ? [] : fridge.bases),
-      ...packed.bases,
-      ...wallAFillBases,
-    ];
+      : wallAFill({
+          wall: "A",
+          lane: laneA,
+          startOffsetMm: packed.wallAOffsetMm,
+          bottleWidthMm: columns.bottleWidthMm,
+        });
+    const coreBases = [...fridge.bases, ...packed.bases, ...wallAFillBases];
     const tall = withTheTallLayout({
       room,
       runs,
@@ -562,7 +637,12 @@ export function planUKitchenComposition(
       declared: columns,
     });
     const bases = withDrawerUnitsAfterTheHob(
-      tall.bases,
+      withTheBottleAfterAFarWallHob({
+        bases: tall.bases,
+        farWall: fridge.farWall,
+        run: runs[fridge.farWall],
+        bottleWidthMm: columns.bottleWidthMm,
+      }),
       fridge.fridgeWall,
       fridge.farWall,
       drawerTargetFor(room),

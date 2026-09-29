@@ -36,7 +36,8 @@ export interface UTallLayoutInput {
   readonly fridgeWall: DesignWall;
   readonly farWall: DesignWall;
   /** Where the fridge's own footprint ends on `fridgeWall`, or `undefined` when *N3 revised* 2
-   *  dropped it — there is then no gap to fill (RQ9's own empty-population branch). */
+   *  dropped it — there is then no gap to fill; that wall takes door
+   *  bases from its corner instead (ADR 0110 N9.2). */
   readonly fridgeEndMm: number | undefined;
   /** S1's own bodies already standing on the far wall, from the back wall's overflow — read, never
    *  rebuilt, so this module places nothing S1 already placed. */

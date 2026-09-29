@@ -37,6 +37,7 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "./generation-priorities.js";
+import { BOTTLE_CARGO_BUILD_ID } from "./body-choice.js";
 import type { TwoWallDispatch } from "./run-layout.js";
 import {
   buildLinearShellDesign,
@@ -219,6 +220,7 @@ export function declaredColumnSizes(catalog: BodyCatalog): DeclaredColumnSizes {
     columnWidthMm: soleDeclaredWidthMm(catalog, OVEN_TOWER_BUILD_ID),
     doorColumnWidthMm: declaredWidthBoundMm(catalog, DOOR_COLUMN_BUILD_ID),
     columnHeightMm: declaredHeightMm(catalog, OVEN_TOWER_BUILD_ID),
+    bottleWidthMm: widestDeclaredWidthMm(catalog, BOTTLE_CARGO_BUILD_ID),
   };
 }
 
@@ -239,6 +241,14 @@ function declaredWidthBoundMm(
     throw new Error(`generateKitchen: ${buildId} declares no width bound`);
   }
   return { minMm: bound.minMm, maxMm: bound.maxMm };
+}
+
+function widestDeclaredWidthMm(catalog: BodyCatalog, buildId: string): number {
+  const ranges = declaredEntry(catalog, buildId).widthRangesMm;
+  if (!ranges || ranges.length === 0) {
+    throw new Error(`generateKitchen: ${buildId} declares no width bound`);
+  }
+  return Math.max(...ranges.map((range) => range.maxMm));
 }
 
 function soleDeclaredWidthMm(catalog: BodyCatalog, buildId: string): number {
