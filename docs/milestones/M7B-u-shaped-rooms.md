@@ -359,7 +359,7 @@ test or a capture in U4.
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
-| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — **2026-09-29: RQ18 open (drawer placement), non-blocking, default built** |
+| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)** |
 | **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
@@ -843,6 +843,10 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    dated line (ADR 0110 N4′). The 6000/6000/6000 drawer count is a **rule** defect: extras were
    confined to wall A, while *N3 revised* 6 takes them in run order across the far corner. The code
    changes, and the room expects 5 units under RQ18's default. Re-run against the corrected rows.
+   **RQ18 answered 2026-09-29:** round the corner, confirmed. The extras are `base-panbank` first, up
+   to two, nearest the hob, and the rest are `base-3drawer` (*N3 revised* 6's table). So 6000/6000/6000
+   is A: bottle, 2 × `base-panbank`; C: 2 × `base-3drawer` first. **The code must stop placing only
+   `base-3drawer` extras.**
 3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
    counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
    difference is reported with its room. **[unit] + [report]**

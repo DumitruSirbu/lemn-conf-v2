@@ -3539,10 +3539,21 @@ corner; ADR 0108 H3). So a side wall's free run is `side − 1000`.
    bases from the corner. The fridge wall is never used, because it stands before the sink. This is
    what N4′'s model computed. S3 confined the extras to wall A, and **that is the defect**. The
    placement is the architect's derivation, not an owner ruling, so it is put to the owner as
-   **RQ18** (N6″), and until then it is the default. **Extra units are `base-3drawer`** *(derived,
-   accepted from S3)*. The owner counted `base-panbank` as a unit but named no slot for it, and in a U
-   the slot Amendment K1 gives the pan drawer, directly after the hob, is the bottle's (RQ16). So no
-   generated U places a pan drawer until RQ18 (b) says otherwise.
+   **RQ18** (N6″). ~~Until then it is the default.~~ **The owner confirmed it the same day (RQ18 (a)).**
+   ~~**Extra units are `base-3drawer`** *(derived, accepted from S3)*. The owner counted `base-panbank`
+   as a unit but named no slot for it, … So no generated U places a pan drawer until RQ18 (b) says
+   otherwise.~~ **Overturned 2026-09-29 by RQ18 (b), owner:** the preparation cabinet stays
+   `base-3drawer`. The extras are `base-panbank` first, up to two, in the drawer slots nearest the hob
+   (directly after the bottle, in run order), and the rest are `base-3drawer`:
+
+   | Units `N` | Preparation | `base-panbank` | `base-3drawer` extras |
+   | ---: | :---: | ---: | ---: |
+   | 2 (the count yielded) | 1 | 1 | 0 |
+   | 3 | 1 | 1 | 1 |
+   | 4 | 1 | 2 | 1 |
+   | 5 | 1 | 2 | 2 |
+
+   When the count yields, the pan drawers are kept first.
 7. **The bottle** *(owner, RQ10)*: immediately beside the hob's cabinet when there is space. The
    owner's *"on right side"* is **the next cabinet after the hob along the run** (RQ16, relayed
    selection). **2026-09-29:** its width comes out of the remainder before A4's door fill, as in the L,
@@ -3611,7 +3622,7 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
 | 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob, ~~(dishwasher dropped; bare 400)~~ **bottle (bare 100)**; the dishwasher is dropped. C: empty (bare 200). No tower |
 | 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage, tower (bare 200 beyond it, RQ17) |
-| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × `base-3drawer` (bare 300)**. C: 3 storage **(the first 2 are `base-3drawer` under RQ18's default)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)** |
+| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × ~~`base-3drawer`~~ `base-panbank` (bare 300; RQ18 (b), 2026-09-29)**. C: 3 storage **(the first 2 are `base-3drawer`, RQ18)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)** |
 
 **Corrected 2026-09-29 on U3a's stop-and-report (AC2).** Four witnesses matched. The three rows above
 were **the model's error, except the 6000 drawer count, which is the plan's**. The model placed no
@@ -3639,13 +3650,20 @@ emits (bases from the corner, or free end), never on a heuristic.
 
 ~~**No residual owner question remains on U composition.** U3 waits on no owner answer.~~
 
-### N6″ — one residual question raised by U3a's stop-and-report, 2026-09-29 *(open; has a default)*
+### N6″ — one residual question raised by U3a's stop-and-report, 2026-09-29 *(**answered the same day**)*
 
 | # | Question | Default |
 | --- | --- | --- |
 | RQ18 | (a) When wall A has no more room after the hob, do the extra drawer units (the 4th and 5th in a large U) continue round the corner onto the far wall's first base cabinets, or stay on the back wall, so the kitchen has fewer drawers but keeps them near the hob? (b) Should any of them be a pan-drawer (2-drawer) cabinet rather than a 3-drawer? | (a) **Continue round the corner** (*N3 revised* 6), which reaches 5 at 6000/6000/6000 where the back wall alone gives 3. (b) **All 3-drawer** |
 
-**The owner's words leave this open.** The owner asked for *"more drawer cabinets (more than 2,
+**Answered 2026-09-29, relayed by the coordinator.** (a) **"Round the corner"** (relayed selection).
+This matches the default. (b), verbatim: *"like if 3 cabinets 1 pan drawer 2 cabinets with 3 drawers
+if 4+ 2 - pan drawers, rest 3 doors"*. A follow-up (relayed selection) confirmed that *"rest"* means
+**3-drawer** cabinets, and that the pan drawers take the drawer slots **nearest the hob**, directly
+after the bottle. The preparation cabinet stays `base-3drawer`. **This departs from default (b)** and
+is recorded at *N3 revised* 6. **No owner question remains on U composition.**
+
+~~**The owner's words leave this open.**~~ *(What follows was the question's framing before the answer.)* The owner asked for *"more drawer cabinets (more than 2,
 depending on width maybe 4-5"* and ruled *"count yields"*, but never said where the extras stand. The
 L's own drawer rule keeps them *"near"*, astride the hob (H1). **U3a is not blocked:** it builds the
 default, and an answer of *"stay on the back wall"* is a one-lane change.
