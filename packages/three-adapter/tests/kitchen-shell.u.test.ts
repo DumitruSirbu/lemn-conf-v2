@@ -30,9 +30,9 @@ import {
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
 import {
-  SHELLS_AT_30A4EA1,
+  NON_U_SHELLS_BEFORE_WALL_C,
   type RecordedShellChild,
-} from "./support/shell-recorded-at-30a4ea1.js";
+} from "./support/non-u-shells-before-wall-c.js";
 import { describeStructure } from "./support/structure.js";
 
 const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
@@ -434,7 +434,7 @@ describe("the L and straight shells are byte-identical to the shells before wall
 
       const drawn = shell.children.map(recordedFactsOf);
 
-      expect(drawn).toStrictEqual(SHELLS_AT_30A4EA1[recordedKey]);
+      expect(drawn).toStrictEqual(NON_U_SHELLS_BEFORE_WALL_C[recordedKey]);
     },
   );
 
@@ -459,10 +459,13 @@ describe("the L and straight shells are byte-identical to the shells before wall
       .map(recordedFactsOf);
 
     expect(fiveOriginals.map(withoutMapRepeat)).toStrictEqual(
-      SHELLS_AT_30A4EA1.L.map(withoutMapRepeat),
+      NON_U_SHELLS_BEFORE_WALL_C.L.map(withoutMapRepeat),
     );
     fiveOriginals.forEach((child, index) => {
-      const recorded = required(SHELLS_AT_30A4EA1.L[index], child.name);
+      const recorded = required(
+        NON_U_SHELLS_BEFORE_WALL_C.L[index],
+        child.name,
+      );
       expect(child.mapRepeat?.length, child.name).toBe(
         recorded.mapRepeat?.length,
       );

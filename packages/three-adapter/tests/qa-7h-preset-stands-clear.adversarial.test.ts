@@ -29,6 +29,7 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { EYE_CLEARANCE_M } from "../src/cutaway.js";
 import { disposeKit } from "../src/kit-disposal.js";
 import { buildKitchenShell } from "../src/kitchen-shell.js";
 import { makeKit } from "../src/kitchen-parts.js";
@@ -60,11 +61,6 @@ const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
  *  at `room-transforms.ts:29-49`, which `kitchen-shell.ts` adopts. An eye at a negative x or z is
  *  therefore behind a wall, looking at the back of it. */
 const BEHIND_A_WALL_M = 0;
-
-/** How close the eye may come to a solid before the customer is inside it rather than looking at
- *  it. Generous on purpose: this is not a framing margin, it is the difference between a kitchen
- *  and the inside of a carcass. */
-const CLEARANCE_M = 0.05;
 
 /** The eight corners of the policy box, the seeded triple, and the two shapes the constant distance
  *  is most exposed to: the deepest shallow room and the shallowest deep one. */
@@ -247,7 +243,7 @@ function expectClearOfEvery(
   const eye = new THREE.Vector3(...preset.position);
 
   for (const { label, box } of obstacles) {
-    const swollen = box.clone().expandByScalar(CLEARANCE_M);
+    const swollen = box.clone().expandByScalar(EYE_CLEARANCE_M);
     expect(
       swollen.containsPoint(eye),
       `${preset.id} stands inside ${label}`,

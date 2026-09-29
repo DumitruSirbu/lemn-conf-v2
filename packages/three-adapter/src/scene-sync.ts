@@ -19,6 +19,7 @@ import {
 import * as THREE from "three";
 
 import { rebuildDepthM } from "./catalog-bodies.js";
+import { applyRecordedCutaway } from "./cutaway.js";
 import {
   applyBlackHandleMaterial,
   setHandlesVisible,
@@ -116,6 +117,8 @@ export function syncSolidBodies(input: SolidSyncInput): void {
     solidsRoot: input.solidsRoot,
     kitchenFinish: input.kitchenFinish,
   });
+  // ADR 0132 A8.2: a body mounted while a wall is cut away is mounted cut.
+  applyRecordedCutaway(input.solidsRoot);
 }
 
 function mirroredPieceTest(
@@ -143,6 +146,8 @@ export function syncVoidMeshes(input: VoidSyncInput): void {
     group.userData[VOID_SIGNATURE_KEY] = signVoid(voidRecord);
     input.voidsRoot.add(group);
   }
+  // ADR 0132 A8.2: the whole void set is replaced on any change, so the cut set is re-applied to it.
+  applyRecordedCutaway(input.voidsRoot);
 }
 
 /** What this body alone owns. Its materials come from `kit.M` and its cached geometries are shared

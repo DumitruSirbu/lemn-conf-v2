@@ -133,7 +133,18 @@ interface ClickCase {
   /** Whether the eye stands behind the far wall's plane, so that wall's cabinets are on the sight
    *  line. Otherwise the eye is in front of the plane but inside the wall's body zone. */
   readonly isEyeBehindFarPlane: boolean;
+  /** What stands on the far wall where the sight line crosses it. */
+  readonly farBody: FarBodyKind;
 }
+
+type FarBodyKind = "upper" | "column";
+
+/** An upper at the top row's own height band, and a full-height pantry (ADR 0110 N3 puts pantries at
+ *  a side wall's free end). Both cover the sight line where it crosses the far plane. */
+const FAR_BODIES = {
+  upper: { buildId: "wall-2door-600", y0Mm: 1500, heightMm: 700 },
+  column: { buildId: "tall-pantry-600", y0Mm: 0, heightMm: 2200 },
+} as const;
 
 /** QA's room (3000³), the room where the eye is behind the plane at the approved minimum, and the
  *  room where it stands in the far wall's body zone instead (wallB's eye at x = 4.149 m, wall C's
@@ -150,8 +161,33 @@ const CLICK_CASES: readonly ClickCase[] = (
     room,
     lookedAt,
     isEyeBehindFarPlane,
+    farBody: "upper" as const,
   })),
 );
+
+/** A8.1: the eye is behind the far wall's plane but **past the end of the far wall's run** (the
+ *  `wallC` eye of 2700 x 1600 x 2400 is at z = 1.666 against a wall B of 1.6 m), yet the sight line to
+ *  the top row crosses the plane inside the run, at B's free end. Each room from the side preset that
+ *  has this shape, with an upper and then a tall column standing there. */
+const FREE_END_CASES: readonly ClickCase[] = (
+  [
+    ["2700 x 1600 x 2400", acceptedU(2700, 1600, 2400), "C"],
+    ["2700 x 2400 x 1600", acceptedU(2700, 2400, 1600), "B"],
+  ] as const
+).flatMap(([name, room, lookedAt]) =>
+  (["upper", "column"] as const).map((farBody) => ({
+    name: `${name} (past the far run's end)`,
+    room,
+    lookedAt,
+    isEyeBehindFarPlane: true,
+    farBody,
+  })),
+);
+
+const EVERY_CLICK_CASE: readonly ClickCase[] = [
+  ...CLICK_CASES,
+  ...FREE_END_CASES,
+];
 
 const presetIdOf = (wall: SideWallId): "wallB" | "wallC" =>
   wall === "B" ? "wallB" : "wallC";
@@ -301,7 +337,7 @@ describe("§11 row 21: a click on a side wall's top row from its own preset sele
     readonly aim: THREE.Vector3;
   }
 
-  function sceneFor({ room, lookedAt }: ClickCase): Scene {
+  function sceneFor({ room, lookedAt, farBody }: ClickCase): Scene {
     const farWall = oppositeOf(lookedAt);
     const eye = new THREE.Vector3(
       ...findCameraPresetForRoom(presetIdOf(lookedAt), room).position,
@@ -320,16 +356,14 @@ describe("§11 row 21: a click on a side wall's top row from its own preset sele
       topRow.id,
       lookedAt,
     );
-    const farUpper = seatedPlacement(kit, {
-      id: `${farWall}-upper`,
+    const farBlocker = seatedPlacement(kit, {
+      id: `${farWall}-${farBody}`,
       wall: farWall,
       alongMm: blockerAlongMm(eye, aim, room, farWall),
-      y0Mm: 1500,
-      buildId: "wall-2door-600",
-      heightMm: 700,
+      ...FAR_BODIES[farBody],
     });
     return {
-      solidsRoot: mountedRoot(kit, room, [topRow, farUpper]),
+      solidsRoot: mountedRoot(kit, room, [topRow, farBlocker]),
       eye,
       aim,
     };
@@ -341,8 +375,8 @@ describe("§11 row 21: a click on a side wall's top row from its own preset sele
     return pick(raycaster, scene.solidsRoot, new THREE.Group())?.id;
   }
 
-  it.each(CLICK_CASES)(
-    "$name from the $lookedAt-side preset: the far wall is cut away and the top row is selected",
+  it.each(EVERY_CLICK_CASE)(
+    "$name from the $lookedAt-side preset, far $farBody: the far wall is cut away and the top row is selected",
     (clickCase) => {
       const { room, lookedAt } = clickCase;
       const scene = sceneFor(clickCase);
@@ -357,14 +391,30 @@ describe("§11 row 21: a click on a side wall's top row from its own preset sele
     },
   );
 
-  it.each(CLICK_CASES.filter((c) => c.isEyeBehindFarPlane))(
-    "$name from the $lookedAt-side preset: without the cutaway the far wall's upper takes the click",
+  it.each(EVERY_CLICK_CASE.filter((c) => c.isEyeBehindFarPlane))(
+    "$name from the $lookedAt-side preset, far $farBody: without the cutaway the far wall's body takes the click",
     (clickCase) => {
       const scene = sceneFor(clickCase);
 
       const selected = clickAt(scene);
 
-      expect(selected).toBe(`${oppositeOf(clickCase.lookedAt)}-upper`);
+      expect(selected).toBe(
+        `${oppositeOf(clickCase.lookedAt)}-${clickCase.farBody}`,
+      );
+    },
+  );
+
+  it.each(FREE_END_CASES)(
+    "$name from the $lookedAt-side preset: the eye really is past the far wall's run while the sight line crosses inside it",
+    (clickCase) => {
+      const { room, lookedAt } = clickCase;
+      const farWall = oppositeOf(lookedAt);
+      const scene = sceneFor(clickCase);
+      const t = crossingOf(scene.eye, scene.aim, planeXOf(room, farWall));
+      const crossingZM = scene.eye.z + t * (scene.aim.z - scene.eye.z);
+
+      expect(scene.eye.z * 1000).toBeGreaterThan(runMmOf(room, farWall));
+      expect(crossingZM * 1000).toBeLessThan(runMmOf(room, farWall));
     },
   );
 

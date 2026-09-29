@@ -255,6 +255,14 @@ export interface CameraPreset {
  *  it and it is derived from wall B's (`wallCPresetFor`). */
 export type CameraPresetId = "overview" | "wallA" | "wallB" | "wallC";
 
+/** The three views the reference library has. Framing reads only these, so a `wallC` arm in it is a
+ *  compile error rather than dead code. */
+type ReferencePresetId = Exclude<CameraPresetId, "wallC">;
+
+interface ReferenceCameraPreset extends CameraPreset {
+  readonly id: ReferencePresetId;
+}
+
 /**
  * The reference library's three views, drawn on its one 4.2 x 3.4 m room — `DEVELOPMENT-SPEC.md`
  * §6.4. The recorded starting point, and **no longer what the app reads**: `cameraPresetsForRoom`
@@ -271,12 +279,14 @@ export type CameraPresetId = "overview" | "wallA" | "wallB" | "wallC";
  * ceiling* half — the presets frame the **kitchen**, and the ceiling is permitted above the frame —
  * while leaving the 37 px failure exactly where it was.
  */
-export const CAMERA_PRESETS: readonly CameraPreset[] = [
+export const CAMERA_PRESETS: readonly ReferenceCameraPreset[] = [
   { id: "overview", position: [4.3, 3.0, 5.3], target: [1.6, 1.35, 0.85] },
   { id: "wallA", position: [1.9, 2.1, 5.6], target: [1.7, 1.35, 0.45] },
   { id: "wallB", position: [5.4, 2.2, 2.3], target: [0.5, 1.35, 1.75] },
 ];
 
+export function findCameraPreset(id: ReferencePresetId): ReferenceCameraPreset;
+export function findCameraPreset(id: CameraPresetId): CameraPreset;
 export function findCameraPreset(id: CameraPresetId): CameraPreset {
   const preset = CAMERA_PRESETS.find((candidate) => candidate.id === id);
   if (!preset) throw new Error(`Unknown camera preset: ${id}`);
@@ -358,8 +368,7 @@ export function cameraPresetsForRoom(
 /** D13: `wallC` is `wallB` reflected in `x = W/2` with `C` in place of `B`. Wall B's reference view is
  *  framed on this room with wall C's length standing where wall B's does — wall B's target reads
  *  `depthMm` and nothing else about the side walls — and then reflected about the room's centre
- *  line, which is `W + mirroredX("right", x)`: the one negation `mirroredX` performs, moved by the
- *  room's width.
+ *  line: the reflection about x = 0 (`reflectAbout`), moved by the room's width.
  *  It is a camera position and a target, never a `Group`, so `applyCornerDirection` does not apply
  *  and no second scene reflection exists. */
 function wallCPresetsOf(room: DesignRoom): readonly CameraPreset[] {
@@ -370,11 +379,10 @@ function wallCPresetsOf(room: DesignRoom): readonly CameraPreset[] {
     depthMm: wallLengthMm("C", room),
   });
   const widthM = toMetres(room.widthMm);
-  const reflected = (point: Vector3Tuple): Vector3Tuple => [
-    widthM + mirroredX("right", point[0]),
-    point[1],
-    point[2],
-  ];
+  const reflected = (point: Vector3Tuple): Vector3Tuple => {
+    const [x, y, z] = reflectAbout("right", point);
+    return [widthM + x, y, z];
+  };
   return [
     {
       id: "wallC",
@@ -390,17 +398,19 @@ function mirroredPreset(
 ): CameraPreset {
   return {
     id: preset.id,
-    position: [
-      mirroredX(direction, preset.position[0]),
-      preset.position[1],
-      preset.position[2],
-    ],
-    target: [
-      mirroredX(direction, preset.target[0]),
-      preset.target[1],
-      preset.target[2],
-    ],
+    position: reflectAbout(direction, preset.position),
+    target: reflectAbout(direction, preset.target),
   };
+}
+
+/** The one reflection the presets perform: `direction`'s negation of a point's x, about the plane
+ *  x = 0 (wall B's plane). A right-hand room's presets use it as it stands; wall C's are wall B's
+ *  reflected once and then shifted by the room's width. */
+function reflectAbout(
+  direction: CornerDirection,
+  point: Vector3Tuple,
+): Vector3Tuple {
+  return [mirroredX(direction, point[0]), point[1], point[2]];
 }
 
 export function findCameraPresetForRoom(
@@ -414,7 +424,10 @@ export function findCameraPresetForRoom(
   return preset;
 }
 
-function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
+function framedOnRoom(
+  reference: ReferenceCameraPreset,
+  room: DesignRoom,
+): CameraPreset {
   const target = targetInRoom(reference.id, room);
   const direction = viewingDirectionIn(reference, room);
   return {
@@ -433,9 +446,9 @@ function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
  *  overview looks at the middle of the drawn floor, whose depth is the farther of the side walls, so
  *  a U's overview is centred on all three runs (D13, A3) and an L's is exactly what it was. A
  *  `switch` over the union rather than a table, so a further preset cannot be added without deciding
- *  this. `wallC` shares wall B's arm because it is only ever framed through wall B's reference view,
- *  on the stand-in room `(W, C)` (`wallCPresetsOf`), and then reflected. */
-function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
+ *  this. It takes the reference ids only: `wallC` is framed through wall B's reference view, on the
+ *  stand-in room `(W, C)` (`wallCPresetsOf`), and then reflected. */
+function targetInRoom(id: ReferencePresetId, room: DesignRoom): Vector3Tuple {
   const widthM = toMetres(room.widthMm);
   const eyeM = KITCHEN_TOP_M / 2;
   switch (id) {
@@ -444,7 +457,6 @@ function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
     case "wallA":
       return [widthM / 2, eyeM, 0];
     case "wallB":
-    case "wallC":
       return [0, eyeM, toMetres(room.depthMm) / 2];
   }
 }
@@ -455,7 +467,7 @@ function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
  *  as the reference — only the horizontal bearing is turned, so the kitchen's own angle is kept.
  *  Every other preset, and an L's and a straight room's overview, keeps the reference's direction. */
 function viewingDirectionIn(
-  reference: CameraPreset,
+  reference: ReferenceCameraPreset,
   room: DesignRoom,
 ): Vector3Tuple {
   const direction = viewingDirectionOf(reference);
@@ -466,7 +478,7 @@ function viewingDirectionIn(
 
 /** The direction the reference stands in, as a unit vector. Read off `CAMERA_PRESETS` rather than
  *  restated, so the three angles have one declaration. */
-function viewingDirectionOf(reference: CameraPreset): Vector3Tuple {
+function viewingDirectionOf(reference: ReferenceCameraPreset): Vector3Tuple {
   const offset: Vector3Tuple = [
     reference.position[0] - reference.target[0],
     reference.position[1] - reference.target[1],

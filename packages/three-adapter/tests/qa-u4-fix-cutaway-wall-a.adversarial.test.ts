@@ -39,10 +39,10 @@ describe("A2: in a U, any wall whose body zone the eye is in or behind is cut aw
   });
 });
 
-describe("A2: a side wall is cut only for an eye within that wall's run", () => {
-  it("does not cut wall B for an eye behind wall A, before wall B's run begins at z = 0", () => {
+describe("A2 with A8.1: a wall is cut wherever along it the eye is, so an eye behind wall A and in B's zone cuts both", () => {
+  it("cuts wall B, and wall A, for an eye behind wall A that is also behind wall B's plane", () => {
     const eye: Vector3Tuple = [-1, 1.3, -2];
 
-    expect(cutawayWallsFor(eye, U_ROOM, CABINET_DEPTH_MM)).not.toContain("B");
+    expect(cutawayWallsFor(eye, U_ROOM, CABINET_DEPTH_MM)).toEqual(["A", "B"]);
   });
 });

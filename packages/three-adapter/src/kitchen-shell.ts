@@ -528,7 +528,8 @@ export interface RunEndPanelInput {
  *  seats it, and shows or hides it. Re-deriving the seat, the veto or either slab constant here
  *  would restore the two-derivation defect the move closed.
  *
- *  This re-crosses the seam `db9c402` closed, and stays on the narrow side of it deliberately:
+ *  This re-crosses the seam an earlier fix closed (a shell that read records could put a deleted body
+ *  back as shell), and stays on the narrow side of it deliberately:
  *  membership is still the literal manifest above, so no record can create the panel and none can
  *  remove it. Only `position.x` and `visible` are derived, and `visible` is a projection of the
  *  record set onto a boolean — a hidden panel that was always shell cannot be a body outliving its
@@ -600,7 +601,8 @@ export function paintRunEndPanel(input: RunEndPanelFinishInput): void {
 /** The shell is the one `solidsRoot` child `syncSolidBodies` did not mount, which is the manifest's
  *  meaning stated structurally. Identifying it by name would be a naming convention doing a
  *  safety job: a customer body is a `solidsRoot` child too, so a name search here could reach into
- *  one and move a mesh a placement owns — `db9c402`'s shape, from the other direction. */
+ *  one and move a mesh a placement owns — the same failure as that earlier one, from the other
+ *  direction. */
 function findRunEndPanel(solidsRoot: Object3D): Object3D | undefined {
   const shell = solidsRoot.children.find(
     (child) => child.userData[PLACEMENT_ID_KEY] === undefined,

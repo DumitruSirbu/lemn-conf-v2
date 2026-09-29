@@ -1,14 +1,18 @@
-// ADR 0132 Amendment A2: in a U, any wall whose body zone the eye stands in or behind, within that
-// wall's run, is cut away — not drawn and not pickable — for as long as the eye is there. The side
-// presets are the common case (each stands where the opposite side wall's cabinets are); an orbit can
-// reach wall A's zone too. `cutawayWallsFor` answers which runs, from the camera's position alone (so an
-// orbit gets the same answer as a preset); `applyCutaway` makes the scene agree. Picking needs no
-// knowledge of either: it skips whatever is not drawn (`picking.ts`).
+// ADR 0132 Amendment A2 (run bound withdrawn by A8.1): in a U, a wall is cut away — not drawn and not
+// pickable — whenever the camera's eye stands in or behind its body zone, wherever along the wall the
+// eye is. From there the eye sees only that wall's backs, ends and carcass interiors, so cutting it
+// never removes a front the customer could have used. The side presets are the common case (each
+// stands where the opposite side wall's cabinets are); an orbit can reach any wall's zone.
+//
+// `cutawayWallsFor` answers which walls, from the camera's position alone (so an orbit gets the same
+// answer as a preset); `applyCutaway` makes the scene agree and records the answer, so that what a
+// later sync mounts is cut too (A8.2). Picking needs no knowledge of either: it skips whatever is not
+// drawn (`picking.ts`).
 import {
   buildKitchenLBodyCatalog,
   occupiedDepthOfEntryM,
   toMetres,
-  wallLengthMm,
+  wallsOf,
   type Band,
   type DesignRoom,
   type DesignWall,
@@ -18,12 +22,12 @@ import type * as THREE from "three";
 import type { Vector3Tuple } from "./stage.js";
 import { wallOf } from "./wall-tag.js";
 
-/** How close the eye may come to a body before it is inside it rather than looking at it. The value
- *  wave 7H's `qa-7h-preset-stands-clear` test uses for the same question; restated because that
- *  file holds it as a test's private constant. */
-const EYE_CLEARANCE_M = 0.05;
+/** How close the eye may come to a body before it is inside it rather than looking at it. Exported
+ *  so the tests that ask the same question (wave 7H's preset-stands-clear QA, the cutaway suite)
+ *  read this one value. */
+export const EYE_CLEARANCE_M = 0.05;
 
-const U_WALLS: readonly DesignWall[] = ["A", "B", "C"];
+const U_WALLS: readonly DesignWall[] = wallsOf("U");
 
 const FLOOR_STANDING_BANDS: readonly Band[] = ["base", "column"];
 
@@ -31,15 +35,17 @@ const FLOOR_STANDING_BANDS: readonly Band[] = ["base", "column"];
  *  shows something that was hidden for another reason. */
 const HIDDEN_BY_CUTAWAY_KEY = "hiddenByCutaway";
 
+/** Where `applyCutaway` records the cut set: on the parent the roots share (the room), or on a root
+ *  that has none. The syncs read it from the same place, so they need be handed nothing. */
+const CUT_WALLS_KEY = "cutawayWalls";
+
 const bodyZoneDepthByCabinetDepthMm = new Map<number, number>();
 
 /**
- * The walls of a U whose body zone the eye stands in or behind.
+ * The walls of a U whose body zone the eye stands in or behind, in wall order.
  *
- * A wall counts only where the eye is level with its run, from one end to the other (0 to its
- * length, measured along the wall from its corner) — beyond either end the room is open, and an eye
- * there looks in over nothing. **An L and a straight room never cut anything away.** Throws for a
- * cabinet depth the catalogue is not declared at, as building that catalogue does.
+ * **An L and a straight room never cut anything away.** Throws for a cabinet depth the catalogue is
+ * not declared at, as building that catalogue does.
  */
 export function cutawayWallsFor(
   eye: Vector3Tuple,
@@ -48,7 +54,9 @@ export function cutawayWallsFor(
 ): readonly DesignWall[] {
   if (room.shape !== "U") return [];
   const zoneDepthM = bodyZoneDepthM(cabinetDepthMm);
-  return U_WALLS.filter((wall) => isEyeInBodyZone(eye, wall, room, zoneDepthM));
+  return U_WALLS.filter(
+    (wall) => distanceFromPlaneM(wall, eye, room) < zoneDepthM,
+  );
 }
 
 /**
@@ -56,43 +64,54 @@ export function cutawayWallsFor(
  * the ones a previous call hid and this one no longer cuts. Idempotent, and it only flips `visible`:
  * nothing is rebuilt or disposed.
  *
- * Marks and outlines are mounted by the caller beside `solidsRoot` and `voidsRoot` (on the room), so
- * they are found there. A body mounted after this ran is drawn until it runs again.
+ * The cut set is recorded on the shared parent, and `syncSolidBodies` and `syncVoidMeshes` apply it
+ * to what they mount (`applyRecordedCutaway`). Marks and outlines are mounted by the caller beside
+ * the roots (on the room), so they are found there, and the caller re-applies after mounting one.
  */
 export function applyCutaway(
   solidsRoot: THREE.Object3D,
   voidsRoot: THREE.Object3D,
   walls: readonly DesignWall[],
 ): void {
+  for (const root of new Set([solidsRoot, voidsRoot])) {
+    recordHolderOf(root).userData[CUT_WALLS_KEY] = [...walls];
+  }
+  applyWalls(cuttableObjects(solidsRoot, voidsRoot), walls);
+}
+
+/** Applies the cut set the last `applyCutaway` recorded to `root`'s children — what a sync has just
+ *  mounted. Nothing recorded means nothing cut. */
+export function applyRecordedCutaway(root: THREE.Object3D): void {
+  const recorded = recordHolderOf(root).userData[CUT_WALLS_KEY] as
+    | readonly DesignWall[]
+    | undefined;
+  if (recorded !== undefined) applyWalls(root.children, recorded);
+}
+
+function recordHolderOf(root: THREE.Object3D): THREE.Object3D {
+  return root.parent ?? root;
+}
+
+function applyWalls(
+  objects: readonly THREE.Object3D[],
+  walls: readonly DesignWall[],
+): void {
   const cutWalls = new Set(walls);
-  for (const object of cuttableObjects(solidsRoot, voidsRoot)) {
+  for (const object of objects) {
     const wall = wallOf(object);
     setCutAway(object, wall !== undefined && cutWalls.has(wall));
   }
 }
 
-function isEyeInBodyZone(
-  eye: Vector3Tuple,
-  wall: DesignWall,
-  room: DesignRoom,
-  zoneDepthM: number,
-): boolean {
-  const { distanceFromPlaneM, alongM } = eyeRelativeTo(wall, eye, room);
-  const isLevelWithRun =
-    alongM >= 0 && alongM <= toMetres(wallLengthMm(wall, room));
-  return isLevelWithRun && distanceFromPlaneM < zoneDepthM;
-}
-
-/** Wall A's plane is z = 0 with its run along x from 0 to W; wall B's is x = 0 with its run along z;
- *  wall C's is x = W, fronting -x, with its run along z. A negative distance is behind the plane. */
-function eyeRelativeTo(
+/** How far in front of the wall's plane the eye is; negative is behind it. Wall A's plane is z = 0,
+ *  wall B's is x = 0, and wall C's is x = W, fronting -x. */
+function distanceFromPlaneM(
   wall: DesignWall,
   [x, , z]: Vector3Tuple,
   room: DesignRoom,
-): { readonly distanceFromPlaneM: number; readonly alongM: number } {
-  if (wall === "A") return { distanceFromPlaneM: z, alongM: x };
-  const distanceFromPlaneM = wall === "B" ? x : toMetres(room.widthMm) - x;
-  return { distanceFromPlaneM, alongM: z };
+): number {
+  if (wall === "A") return z;
+  return wall === "B" ? x : toMetres(room.widthMm) - x;
 }
 
 /** From the wall's plane to the front of the deepest floor-standing body the catalogue builds at
