@@ -156,7 +156,7 @@ function draftWithTexts(
 /** The walls the URL parser calls missing or unreadable for this draft — the 1B question, asked the
  *  way every 1C surface asks it. At 1C and 1D it calls none. */
 function wallsTheParserMisses(draft: RoomDraft): readonly RoomLengthField[] {
-  const state = draftStateOf(draft);
+  const state = draftStateOf(draft, APPROVED_ROOM_POLICY);
   if (state.substate !== "1B") return [];
   return state.markedFields.filter((field): field is RoomLengthField =>
     WALL_FIELDS.includes(field as RoomLengthField),
@@ -328,7 +328,7 @@ function surfacesOf(
 ) {
   return presentOneC({
     draft,
-    draftState: draftStateOf(draft),
+    draftState: draftStateOf(draft, APPROVED_ROOM_POLICY),
     policy: APPROVED_ROOM_POLICY,
     typing:
       draftBeforeTyping === undefined

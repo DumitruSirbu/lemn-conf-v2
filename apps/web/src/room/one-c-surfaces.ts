@@ -71,7 +71,10 @@ export function presentOneC(inputs: OneCInputs): OneCPresentation {
       isContinueActive: isContinueActiveAt(inputs, false),
     };
   }
-  const stateBeforeTyping = draftStateOf(inputs.typing.draftBeforeTyping);
+  const stateBeforeTyping = draftStateOf(
+    inputs.typing.draftBeforeTyping,
+    inputs.policy,
+  );
   return {
     surfaces: stillShowing(
       now,
@@ -158,10 +161,17 @@ export function roomInDraft(draftState: RoomUrlState): DesignRoom | undefined {
   return draftState.substate === "1D" ? draftState.room : undefined;
 }
 
-/** The draft's own canonical query, parsed: the room the URL is about to hold. */
-export function draftStateOf(draft: RoomDraft): RoomUrlState {
+/** The draft's own canonical query, parsed: the room the URL is about to hold. **Judged against the
+ *  screen's own policy**, the one its cards and its *Continuă* are offered against: a screen handed
+ *  another policy reads its room the same way it reads its shapes, or a shape it offers would never
+ *  reach 1D. */
+export function draftStateOf(
+  draft: RoomDraft,
+  policy: RoomPolicy,
+): RoomUrlState {
   return parseRoomUrlState(
     queryEntriesOf(canonicalRoomQuery(draft).toString()),
+    policy,
   );
 }
 

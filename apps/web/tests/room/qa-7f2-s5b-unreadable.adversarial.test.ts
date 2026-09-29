@@ -80,7 +80,7 @@ function unreadableShown(
 ): readonly RoomLengthField[] {
   return presentOneC({
     draft,
-    draftState: draftStateOf(draft),
+    draftState: draftStateOf(draft, APPROVED_ROOM_POLICY),
     policy: APPROVED_ROOM_POLICY,
     typing:
       before === undefined
@@ -124,7 +124,7 @@ describe("the unreadable fields are the entry parser's non-empty refusals, among
       fc.property(anyDraft, (draft) => {
         if (expectedUnreadable(draft).length === 0) return;
 
-        expect(draftStateOf(draft).substate).toBe("1B");
+        expect(draftStateOf(draft, APPROVED_ROOM_POLICY).substate).toBe("1B");
       }),
       { numRuns: SAMPLES },
     );

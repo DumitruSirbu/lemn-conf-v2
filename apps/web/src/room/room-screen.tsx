@@ -107,7 +107,7 @@ const STEP_ONE_OF_FOUR = { step: 1, totalSteps: 4 } as const;
 
 export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   const liveQuery = queryFromSearchParams(useSearchParams());
-  const liveState = parseRoomUrlState(liveQuery);
+  const liveState = parseRoomUrlState(liveQuery, policy);
   const shapeInTheUrl = roomShapeInState(liveState);
   // **The composition lives here so the top bar can read it** (wave 7F4 ruling R14, ground truth
   // G11): frames 1A–1C title the screen *Cameră* and 1D–1F title it *Preset*, and the bar is drawn
@@ -305,7 +305,7 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
   const translate = useTranslations();
   const { draft, setDraft, departTo } = useRoomQuerySync(seedShape);
   const { typing, noteKeystroke, noteEdit, endPause } = useTypingPause(draft);
-  const draftState = draftStateOf(draft);
+  const draftState = draftStateOf(draft, policy);
   const { surfaces: oneC, isContinueActive: canContinue } = presentOneC({
     draft,
     draftState,

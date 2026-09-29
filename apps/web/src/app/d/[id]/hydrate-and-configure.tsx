@@ -8,11 +8,20 @@ import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-/** Replaces the store with a loaded design before the configurator screen mounts, so the first
- *  frame it renders is already the loaded design — never a flash of the seeded fixture. Hydrating
- *  during render (guarded by the id comparison, not an effect) is what makes that ordering hold:
- *  by the time `ConfigureScreen` reads the store for its own first render, this component's body
- *  has already run. */
+/** Replaces the store with a loaded design before the configurator screen mounts, so a client render
+ *  of `ConfigureScreen` reads the loaded design. Hydrating during render (guarded by the id
+ *  comparison, not an effect) is what makes that ordering hold on the client: by the time the screen
+ *  reads the store for its own render, this component's body has already run.
+ *
+ *  **It does not hold for the server render or for the hydration render, and a flash of the seeded
+ *  design is known.** zustand answers `useSyncExternalStore`'s *server snapshot* with
+ *  `getInitialState()`, so the server-rendered HTML — and React's hydration pass over it — shows the
+ *  store's initial, seeded L (three camera presets, its title and price) until the first client commit
+ *  swaps in the loaded design. Measured 2026-09-30: the HTML of a straight design's editor holds three
+ *  preset buttons though the design has two, which is what made `linear-flow` race. **Deliberately
+ *  not fixed in M7B U5**: it affects every non-L design on load and is tracked as a backlog item
+ *  (docs/backlog/open.md). Until it is fixed, a test that reads the chrome must poll for the loaded
+ *  design's answer (`toHaveCount`), never take a `count()` the moment the title is visible. */
 export function HydrateAndConfigure({
   design,
   designId,

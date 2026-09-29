@@ -1,5 +1,6 @@
 import {
   APPROVED_ROOM_POLICY,
+  carriesCornerDirection,
   cornerDirectionOf,
   validateRoomInput,
   wallsOf,
@@ -79,24 +80,22 @@ export type RoomUrlState =
 const ROOM_SHAPES = new Set<RoomShape>(["linear", "L", "U"]);
 const CORNER_DIRECTIONS = new Set<CornerDirection>(["left", "right"]);
 
-/** The shapes with a single hand (ADR 0132 decision 8, Q-U4 (b): a U is always left-hand, so it
- *  shows no toggle, carries no `direction`, and its plan is drawn unmirrored). **The one place the
- *  screen spells which shape that is** — every other site asks `carriesCornerDirection` or
- *  `hasOneHand` (ADR 0116 Amendment A1's *the screen asks* form, for the one fact the domain
- *  publishes no query for). */
-const ONE_HANDED_SHAPES: ReadonlySet<RoomShape> = new Set<RoomShape>(["U"]);
+/** A U's one hand (ADR 0132 decision 8, Q-U4 (b)): the value `URoomInput` is given, never read from
+ *  the URL. */
 const ONLY_HAND_OF_A_U = "left" as const satisfies CornerDirection;
 
+/** Whether a shape has a corner and yet no direction to choose — a U (ADR 0132 decision 8, Q-U4 (b):
+ *  it shows no toggle, carries no `direction`, and its plan is drawn unmirrored). **Derived from the
+ *  domain's two answers, never spelled** (AC8): the shape turns a corner (`wallsOf`) and does not
+ *  carry a corner direction (`carriesCornerDirection`, beside `cornerDirectionOf`). A straight room
+ *  has neither, and is not one-handed: it has nothing to be handed. */
 export function hasOneHand(shape: RoomShape): boolean {
-  return ONE_HANDED_SHAPES.has(shape);
+  return turnsACorner(shape) && !carriesCornerDirection(shape);
 }
 
-/** Whether a shape turns a corner the customer chooses the direction of, and so whether it carries
- *  the toggle and a `direction` in its URL (criterion 6). Stated once here so no component spells a
- *  shape's name to decide it: a straight room has no corner, and a U has one hand. */
-export function carriesCornerDirection(shape: RoomShape): boolean {
-  return turnsACorner(shape) && !hasOneHand(shape);
-}
+/** Whether a shape carries the toggle and a `direction` in its URL (criterion 6) is the domain's
+ *  answer, `carriesCornerDirection`, re-exported so the screens keep reading it from here. */
+export { carriesCornerDirection };
 
 /** Whether a shape has more than the one wall a straight room has — read from the domain's own
  *  answer (`wallsOf`), so a wall count is never restated as a shape's name. */

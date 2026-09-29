@@ -61,7 +61,7 @@ function lRoom(wallA: string, wallB: string, height: string): RoomDraft {
 function isSuggestedFor(draft: RoomDraft): boolean {
   return deriveRoomIssueView({
     draft,
-    draftState: draftStateOf(draft),
+    draftState: draftStateOf(draft, APPROVED_ROOM_POLICY),
     policy: APPROVED_ROOM_POLICY,
   }).isLinearSuggested;
 }
@@ -111,7 +111,7 @@ describe("the suggestion follows its reasons through a burst", () => {
 
     const presented = presentOneC({
       draft: refused,
-      draftState: draftStateOf(refused),
+      draftState: draftStateOf(refused, APPROVED_ROOM_POLICY),
       policy: APPROVED_ROOM_POLICY,
       typing: {
         isTyping: true,
@@ -129,7 +129,7 @@ describe("the suggestion follows its reasons through a burst", () => {
 
     const presented = presentOneC({
       draft: now,
-      draftState: draftStateOf(now),
+      draftState: draftStateOf(now, APPROVED_ROOM_POLICY),
       policy: APPROVED_ROOM_POLICY,
       typing: { isTyping: true, draftBeforeTyping: before, draftInBurst: now },
     });
@@ -148,7 +148,7 @@ describe("the suggestion follows its reasons through a burst", () => {
 
     const presented = presentOneC({
       draft: now,
-      draftState: draftStateOf(now),
+      draftState: draftStateOf(now, APPROVED_ROOM_POLICY),
       policy: APPROVED_ROOM_POLICY,
       typing: { isTyping: true, draftBeforeTyping: before, draftInBurst: now },
     });
