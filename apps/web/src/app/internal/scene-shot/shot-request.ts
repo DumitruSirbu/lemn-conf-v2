@@ -3,6 +3,7 @@ import {
   LEGACY_ENUM_FINISHES,
   type Finish,
 } from "@lemnaria/configurator-domain";
+import type { CameraPresetId } from "@lemnaria/three-adapter";
 
 /** The conditions `design-source/Modern Kitchen Cabinets 3D (3)/preset-shots.html` pinned. */
 const DEFAULT_WIDTH = 960;
@@ -30,6 +31,24 @@ export interface SceneShotRequest {
   position: [number, number, number];
   target: [number, number, number];
   finish: Finish;
+  /** A camera preset by name, resolved against the room the stage holds. **Present only when the
+   *  query named one the editor offers** (`overview`, `wallA`, `wallB`, `wallC`); it then frames the
+   *  shot and `pos` and `target` are not read. A preset the room does not offer — `wallC` in an L —
+   *  frames the overview, as the editor's own chip row does (`presetForRoom`). */
+  view?: CameraPresetId;
+}
+
+/** Every preset id the editor's chip row can name, `wallC` a U's own (M7B D13). Spelled here rather
+ *  than derived, because a query string is untrusted text and this is the whole of what it may pick. */
+const PRESET_IDS: readonly CameraPresetId[] = [
+  "overview",
+  "wallA",
+  "wallB",
+  "wallC",
+];
+
+function parseView(raw: string | undefined): CameraPresetId | undefined {
+  return PRESET_IDS.find((id) => id === raw);
 }
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
@@ -82,7 +101,9 @@ function parseFinish(raw: string | undefined): Finish {
 export function parseSceneShotRequest(
   params: RawSearchParams,
 ): SceneShotRequest {
+  const view = parseView(single(params, "view"));
   return {
+    ...(view === undefined ? {} : { view }),
     width: parseSize(single(params, "w"), {
       fallback: DEFAULT_WIDTH,
       maximum: MAX_WIDTH,

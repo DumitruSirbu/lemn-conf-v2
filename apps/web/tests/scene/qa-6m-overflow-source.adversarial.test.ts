@@ -147,6 +147,8 @@ vi.mock("@lemnaria/three-adapter", async () => {
       },
     ),
     syncVoidMeshes: vi.fn(),
+    applyCutaway: vi.fn(),
+    cutawayWallsFor: vi.fn(() => []),
   };
 });
 

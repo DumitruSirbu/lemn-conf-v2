@@ -277,6 +277,14 @@ function resolveKindLabel(
  * | A    | right     | left                    |
  * | B    | left      | left                    |
  * | B    | right     | right                   |
+ * | C    | left      | right                   |
+ * | C    | right     | left                    |
+ *
+ * **Wall C (M7B U5 S2, D15) is wall B's row turned over**, because its camera is wall B's reflected in
+ * x = W/2 (ADR 0132 decision 1): it crosses for a *right*-hand room. A U has no right-hand variant
+ * (decision 8; `cornerDirectionOf` answers left for it), so in the product wall C never crosses —
+ * the right row is what the rule answers for a room that cannot exist, kept so the rule stays the
+ * camera's and not a guess. `cross-on-screen.projection.test.ts` measures all six pairs.
  *
  * So the crossing — screen word is the domain word's opposite — happens on wall A for a
  * right-hand room and on wall B for a **left**-hand one (wall B's own mapping is already crossed
@@ -290,7 +298,8 @@ export function crossesOnScreen(
 ): boolean {
   return (
     (wall === "A" && cornerDirection === "right") ||
-    (wall === "B" && cornerDirection === "left")
+    (wall === "B" && cornerDirection === "left") ||
+    (wall === "C" && cornerDirection === "right")
   );
 }
 
