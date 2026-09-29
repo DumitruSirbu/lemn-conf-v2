@@ -126,6 +126,8 @@ status corrections, in one of these two files:
 | 93 | No per-shape empty-column count check bounds an L/straight document's wall-C entries | open.md — found 2026-09-29 by M7B wave U1's security review (S1.2, Low); optional, not built, no owner, no phase |
 | 94 | AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens | open.md — **CLOSED 2026-09-29 by M7B wave U2**: the property re-ran on real `buildUShellDesign` outputs (200 samples plus ~80 boundary rooms), 0 findings, voids mirroring |
 | 95 | The A∩C corner sweep also fires a mark-severity finding on L/straight documents with a stray wall-C span | open.md — found 2026-09-29 by M7B wave U1's logic review (R1.4, disagreement not a bug); AC2 not at risk; gating on `wallsOf` is optional, not done, no owner, no phase |
+| 96 | The engine's minimum-kitchen figures omit the 100 mm reserve, so they cannot be switched on as a gate | open.md — found 2026-09-30 at M7B wave U3b's close-out; latent (`isRequired: false`), U6 brings the approved 1000; no owner until U6 |
+| 97 | Generation below the approved ceiling floor (2200) throws for every shape | open.md — found 2026-09-30 at M7B wave U3b's close-out; a U throws from 1900 (RQ7's hood), the L succeeds at 2000; unreachable under approved heights; no owner, no phase |
 
 ## 2026-09-06 audit note
 

@@ -614,7 +614,10 @@ PASS.
   `38d6be7`, 2026-09-29): QA green twice, logic review approved, clean-code review approved with
   minors.** ~~U3b S0 is in progress; U4 is in review round 3, not closed~~ **U4 is DONE (closed at
   `7f129fa`, 2026-09-29). U3b S1 is in progress (N11.8–N11.9 plus generation); U5 follows U3b
-  and starts with S0** — see the RESUME HERE entry
+  and starts with S0** ~~U3b S1 is in progress~~ **2026-09-30: U0–U2, U3a, U3b and U4 are DONE. U5 is
+  in progress: S0 merged at `664eee6`, S1 merged at `739f9e2`, S2 in progress. Next: U5 S2 → U5
+  QA/review/visual (AC9–AC11; D14 lights owed before U6) → U6 → U7. Not pushed; `ci:local` not run.**
+  See the RESUME HERE entry
   under *What to do next*; see `milestones/M7B-u-shaped-rooms.md`. Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
 - ~~**M7 wave 7D7 is complete through documentation close-out `71e6ba3`…**~~ **SUPERSEDED — see the
@@ -1114,7 +1117,33 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-29, latest. M7B waves U3a (the U plan, closed at `38d6be7`) and U4 (drawing
+> **RESUME HERE — 2026-09-30, latest. M7B waves U0–U2, U3a, U3b and U4 are DONE. U5 is in progress: S0
+> and S1 merged, S2 in progress.** Branch `m7b-u-shaped-rooms`, not pushed; `pnpm ci:local` has not
+> been run.
+>
+> **U3b (generating a U), DONE 2026-09-30.** Commits: S0 `939a6ed` (shared U fixtures,
+> `u-core-priorities.ts`, one `placedInSequence`, `WallAReadingDirection`, the `FridgeWallLayout` union,
+> the `bottleWidthMm` pin), S1 `2e028ac` (`generateKitchen` composes a U; N11.8, N11.9), S2 `5bf8582`
+> (uppers and hood, `upper-policy.ts`), S3 `b0cf2cc` (`UMinimumKitchen`, H3 gate in `validateURoom`), QA
+> `8775b7c` (green, 0 production defects), and a comment fix commit (`5fb03ed`).
+> Domain suite 268 files / 5533 tests (QA's run). Grid: 86,706 composed, 1,728 refused (= H3), spans
+> match the plan on all three walls; 97,868 QA boundary rooms, gate ⇔ generator, 0 mismatches. Logic
+> review approve (4 minors); clean-code approve (minors; findings 3–7 deferred to U6 as a test-support
+> item). Four dated U3b plan corrections (one is the S0 deviation) and the U5 AC6 correction are in
+> `milestones/M7B-u-shaped-rooms.md`, *U3b close-out — 2026-09-30*. Two new backlog items: 96 (the
+> engine's minimum-kitchen figures omit the 100 mm reserve; latent) and 97 (generation below 2200
+> throws; unreachable).
+>
+> **U5, not closed.** S0 merged at `664eee6`; S1 merged at `739f9e2` (commits `baeac9d`, `b4bfd8b`; web
+> 273 files / 4824 tests, measured by the coordinator after the merge); S2 in progress in a worktree.
+> U5 AC6 corrected to two leaves per locale. S1 visual-review items for the U5 visual pass: desktop
+> 900–1180 px (plan box 190–474 px wide, the stacked fallback does the work, a box shorter than two
+> label lines can still overlap) and marked-wall labels (up to about 117 px) not guaranteed apart.
+>
+> **Next steps, in order:** U5 S2 → U5 QA, review and visual (AC9–AC11; D14's lights are owed before
+> U6) → U6 → U7. Not pushed; `ci:local` not run.
+
+> **RESUME HERE — 2026-09-29, superseded by the entry above. M7B waves U3a (the U plan, closed at `38d6be7`) and U4 (drawing
 > a U, adapter, closed at `7f129fa`) are DONE. U3b S1 is in progress (ADR 0110 N11.8–N11.9 plus
 > generation).** Branch `m7b-u-shaped-rooms`, not pushed; `pnpm ci:local` has not been run.
 >

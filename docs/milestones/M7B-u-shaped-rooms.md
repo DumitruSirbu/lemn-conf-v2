@@ -369,9 +369,9 @@ test or a capture in U4.
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
 | **U3a** — **Done 2026-09-29, closed at `38d6be7`** (see *U3a close-out*) | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. ~~**RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built**~~ **RQ19, RQ20 and RQ21 answered 2026-09-29 (ADR 0110 N10). ~~RQ19 (a) is built at `84bab2e`; RQ19 (b), RQ20 and RQ21 are owed before QA~~ RQ19 (a) was built at `84bab2e`; RQ19 (b), RQ20 and RQ21 at `3f53a62`; N11 at `27e28da`; RQ18–RQ23 are answered** |
-| **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
+| **U3b** — **Done 2026-09-30** (S0 `939a6ed`, S1 `2e028ac`, S2 `5bf8582`, S3 `b0cf2cc`, QA `8775b7c`, plus a comment fix commit (`5fb03ed`); see *U3b close-out*) | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** — **Done 2026-09-29, closed at `7f129fa`** (see *U4 close-out*; AC2, AC4 [visual], AC5 and the D14 light rig deferred to U5 AC9–AC11) | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
-| **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
+| **U5** — **In progress 2026-09-30** (S0 merged at `664eee6`, S1 merged at `739f9e2`, S2 in progress in a worktree; see *U5 progress*) | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
 | **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
 | **U7** | Mobile gate, desktop line, e2e, captures — the phase gate | Light | **Yes** | U6 | — |
 
@@ -842,6 +842,81 @@ captured, because no U reaches a web surface before U5 (A8.5).
 
 ---
 
+### U3b close-out — 2026-09-30
+
+**Shipped.** `generateKitchen` composes a U through `insertBody` alone, with the hood and the back-wall
+voids, and Step 1's minimum-kitchen gate agrees with it. Not pushed. Commits, in order, on
+`m7b-u-shaped-rooms`:
+- **S0 `939a6ed`:** behaviour-free apart from the deviation below. Shared U test fixtures,
+  `u-core-priorities.ts`, one `placedInSequence`, `WallAReadingDirection`, the `FridgeWallLayout` union,
+  the `bottleWidthMm` pin.
+- **S1 `2e028ac`:** `generateKitchen` composes a U. N11.8's justification (`justifiedToTheLowEnd`) and
+  N11.9's back-wall fill (`withTheBackWallFill`).
+- **S2 `5bf8582`:** uppers and hood, `upper-policy.ts`.
+- **S3 `b0cf2cc`:** `UMinimumKitchen` and the H3 gate in `validateURoom`.
+- **QA `8775b7c`:** green, 0 production defects.
+- **Comment and test-name fix:** comment fix commit (`5fb03ed`).
+
+**Verification.** Tier Full. Domain suite 268 files / 5533 tests, from QA's run (not re-run by the
+scribe). Measured, as reported to the scribe by the coordinator:
+- Plan digests equal N11.9's model: h 2600 `6046ca18…`, h 2199 `43097f1c…`, engine band `d4a63e4d…`.
+  The L/straight digest `3ed0b98c…3fd1` is unchanged (AC4).
+- Grid: 86,706 rooms composed and 1,728 refused (= H3); every span matches the plan on all three walls;
+  21,501 fills.
+- QA: 97,868 boundary rooms, gate ⇔ generator, 0 mismatches.
+- Logic reviewer: 4,356 generated U rooms, 0 throws, 120 refusals (= H3); the hood over the hob in every
+  U; no upper outside a floor run or over a body taller than 1500 mm; a large U's wall A has only the
+  hood.
+
+`pnpm ci:local` has not been run; the branch is not pushed.
+
+**Reviews.**
+- Logic: approve, 4 minors.
+- Clean-code: approve, with minors. Findings 1–2 (stale comments) are fixed in the comment fix commit.
+  Findings 3–7 are deferred (below).
+
+**Deviations, with rationale.**
+- **S0 was not test-only.** The plan said `tests/support/u-room.ts`, test-only, no count change. What
+  shipped is `u-plan-fixtures.ts`, some production refactor, and +1 test. No rationale
+  was handed to the scribe beyond the fact; the coordinator may add one.
+- **Four criterion corrections**, recorded under *Dated plan corrections, 2026-09-30* in Wave U3b:
+  AC6 and S2 item (2); AC1's R6 clause; the S1 note on `slideReserveMm`; the S0 row.
+
+**Documentation updated.** This close-out and the wave-table row; U3b's dated corrections; U5 AC6;
+`docs/STATUS.md`; `docs/BACKLOG.md` and `docs/backlog/open.md` (entries 96 and 97).
+
+**Deferred work, with owners.**
+1. **Owner U6, as a named S0-style test-support item (clean-code findings 3–7):**
+   - shared oracle constants for H3's figures;
+   - `WALL_ROW_FLOOR_MM`, `LARGE_U_TOTAL_MM` and `isLargeURoom` are duplicated;
+   - `?? 0` on `wallCMm` in `slide-reserve-wall-c.test.ts`;
+   - the long support helpers `floorFindings`, `upperFindings`, `owedUpperFindings` and
+     `wallCabinetVerdictsOnWallA`;
+   - `generate-kitchen.ts`: four shape probes and its 857 lines;
+   - `justifiedToTheLowEnd`'s home and the `wall-a-remainder:A` id constant.
+2. **Backlog 96** (the engine's minimum-kitchen figures omit the 100 mm reserve): latent; U6 brings the
+   approved 1000.
+3. **Backlog 97** (generation below the 2200 ceiling floor throws): unreachable under approved heights.
+
+---
+
+### U5 progress — 2026-09-30 (not closed)
+
+- **S0** merged at `664eee6`.
+- **S1** merged at `739f9e2` (S1 commits `baeac9d` and `b4bfd8b`). Web 273 files / 4824 tests, measured
+  by the coordinator after the merge.
+- **S2** is in progress in a worktree.
+- **AC6 corrected** to two leaves per locale (see AC6 below).
+
+**S1 visual-review items, for U5's visual pass (AC9–AC11 and AC4):**
+1. Desktop 900–1180 px: the plan box is 190–474 px wide, and the stacked fallback does the work. A box
+   shorter than two label lines can still overlap.
+2. Marked-wall labels (up to about 117 px of reason text) are not guaranteed apart.
+
+**Still owed by U5's close:** QA, review, and the visual pass (AC9–AC11; D14's lights before U6).
+
+---
+
 ### Wave U3 — composing a U (blocked on Q-U3) — **superseded 2026-09-29 by Waves U3a and U3b below**
 
 **Goal.** `generateKitchen` composes a U by the owner's Q-U3 ruling, through `insertBody` alone,
@@ -1114,6 +1189,19 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
 
 ### Wave U3b — generating a U — cut 2026-09-29
 
+**Dated plan corrections, 2026-09-30, at close (recorded so no criterion edit goes unrecorded):**
+1. **AC6 and S2 item (2).** No generated body except the hood (RQ7, *N3 revised* 11); every void at
+   least a `wall-cabinet`'s minimum width accepts one; narrower voids stand only at the corner strips
+   or over wall A's bare end (< 300 mm), since ADR 0043/0046 make such voids legal.
+2. **AC1's R6 clause** ("Moving the fill before the drawer conversion changes the histogram")
+   cannot hold: the conversion takes the first `extraCount` door bases in run order, and the count is
+   unchanged. The ordering is guarded instead by the 5400/3400/3400 witness (the fill pinned as a
+   `base-cabinet` at 4200–4500) and by the span-equality test. 1,695 grid rooms would expose it.
+3. **S1 note.** Wall C's `slideReserveMm` is exercised through wall B's builder on the mirrored room.
+   The test asserts the absolute `wallCMm − 100`, so it is direct (the logic reviewer confirmed).
+4. **S0 row.** The text below says `tests/support/u-room.ts`, test-only, no count change. What shipped
+   is `u-plan-fixtures.ts`, some production refactor, and +1 test (deviation; see the close-out).
+
 **U3b S0, test-only, before S1 (added 2026-09-29, deferred from U3a Dispatch B).** One
 `tests/support/u-room.ts` exports `uRoom`, `planFor`, `basesOn` and `bodiesOn`. It replaces their
 nine private copies, and `u-tall-layout.property.test.ts` stops redefining what
@@ -1364,6 +1452,9 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
    **[unit]**
 6. **Copy**: exactly one new leaf per locale; the copy lock and golden manifest move by exactly it;
    its provenance recorded as drafted (no frame supplies it). **[unit] + [review]**
+   **Corrected 2026-09-30 (coordinator's ruling):** two leaves per locale in U5, not one: the `wallC`
+   camera chip (shipped in U4 S3, `b3c9e10`) and `room.compose.roomSummaryU` (U5 S1, `b4bfd8b`).
+   Both are numeric format with no new words, provenance drafted.
 7. **The phone is unmoved** for L and straight: 7L S6's byte-identical mobile control, re-run.
    **[visual]**
 8. **Must not:** a component under `apps/web/src/room` compares a shape to `"U"` outside the named

@@ -1948,3 +1948,18 @@ document that happens to carry a stray wall-C span, producing an extra mark-seve
 Acceptance criterion 2 (old documents load with identical findings) is not at risk, because no
 generated L or straight document carries a wall-C span. Gating the sweep on `wallsOf(shape)` so it
 skips wall C entirely for a shape that lacks it is optional and was left undone. No owner, no phase.
+
+## 96. The engine's minimum-kitchen figures omit the 100 mm reserve, so they cannot be switched on as a gate — FOUND 2026-09-30, LATENT, U6 BRINGS THE APPROVED FIGURE
+
+**Found by M7B wave U3b's close-out** (`docs/milestones/M7B-u-shaped-rooms.md`, *U3b close-out*). The
+engine's minimum-kitchen figures, L and U alike (`wallMinimumMm` 880), exclude the 100 mm reserve, so
+they cannot be turned on as a gate without adding it. With the gate forced on, 2,160 of 36,506 sampled U
+rooms (sides 1480–1599, for example 2400/6000/1599) pass the gate while the generator refuses them.
+**Latent:** the engine gate is `isRequired: false`, and U6 brings the approved 1000. No owner until U6.
+
+## 97. Generation below the approved ceiling floor (2200) throws for every shape — FOUND 2026-09-30, UNREACHABLE UNDER APPROVED HEIGHTS
+
+**Found by M7B wave U3b's close-out** (same source). `generateKitchen` throws below the approved
+ceiling floor of 2200 for every shape. A U throws already at 1900–2199 because of RQ7's mandatory hood
+("a U's hob has no hood over it"), where the L succeeds at 2000. Not reachable under approved heights.
+No owner, no phase.
