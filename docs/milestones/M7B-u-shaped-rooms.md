@@ -370,7 +370,7 @@ test or a capture in U4.
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
 | **U3a** — **Done 2026-09-29, closed at `38d6be7`** (see *U3a close-out*) | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. ~~**RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built**~~ **RQ19, RQ20 and RQ21 answered 2026-09-29 (ADR 0110 N10). ~~RQ19 (a) is built at `84bab2e`; RQ19 (b), RQ20 and RQ21 are owed before QA~~ RQ19 (a) was built at `84bab2e`; RQ19 (b), RQ20 and RQ21 at `3f53a62`; N11 at `27e28da`; RQ18–RQ23 are answered** |
 | **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
-| **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
+| **U4** — **Done 2026-09-29, closed at `7f129fa`** (see *U4 close-out*; AC2, AC4 [visual], AC5 and the D14 light rig deferred to U5 AC9–AC11) | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
 | **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
 | **U7** | Mobile gate, desktop line, e2e, captures — the phase gate | Light | **Yes** | U6 | — |
@@ -793,6 +793,52 @@ U3a's in-progress one); ADR 0110 N9–N11 by the architect (commits above).
   The plan carries only widths, so U3b's generated positions must equal the plan's. The criterion is
   in U3b AC1. **Resolved 2026-09-29 by ADR 0110 N11.8:** wall A's remainder moves to its high end in
   every U (31 329 rooms at HEAD). Owner question RQ24 is non-blocking, with default (A) built.
+
+---
+
+### U4 close-out — 2026-09-29, at `7f129fa`
+
+**Shipped.** The adapter draws a U: the shell with wall C, the right corner's four wrappers, picking
+through a wrapper, cameras (`wallC`, a U overview), and a cutaway of the walls the eye stands in or
+behind (`cutawayWallsFor`, `applyCutaway`), which survives a sync. Not pushed. Commits, in order, all
+2026-09-29 on `m7b-u-shaped-rooms`: S1 `a638f0a`, S2 `a090398`, S3 `b3c9e10`, merged at `7de0bd8`; QA
+round 1 `e223e44` (RED: the camera eye stood behind the opposite wall in narrow Us); adjudication
+`ab6d285` (ADR 0132 Amendment A); fix `e752ac3`, merged at `df91e82`; QA round 2 `60d4875` (RED: wall A
+was not cut); fix `cde76ea`, merged at `9178de8`; review-round-2 adjudication `4eb5058` (ADR 0132 A8);
+round 3 `4a0d63c`, merged at `91ae4d3`; QA round 3 `9263a70` (RED: a U's recorded cut was re-applied to an
+L); round 4 `2a13d4f`, merged at `7f129fa`.
+
+**Verification.** Tier Full. Coordinator's run at `7f129fa`: the three-adapter suite, 112 files and 4090
+tests green. **Implementer-reported, not re-run by the scribe:** web 269 files / 4760 tests green.
+Logic review round 3: "minor concerns"; the round-2 blocker is resolved, with 0 sight lines crossing an
+uncut zone over 223,686 room-depth cases. `pnpm ci:local` has not been run; the branch is not pushed.
+
+**Reviews.**
+- Review round 2: logic BLOCKER (A2's run bound; ruled a contract defect, ADR 0132 A8.1), clean-code
+  approve with 2 must-fix items.
+- Review round 3: logic "minor concerns" (findings 1–3 below); clean-code approve with minors.
+
+**Owner answers recorded.** Q-U4-cam: "Hide them" (already in ADR 0132 A8.3).
+
+**Deviations, with rationale.** The reflected-group design was replaced by right-corner wrappers (ADR
+0132 d1–d2). Two QA REDs and one blocker changed the camera contract mid-wave (ADR 0132 Amendment A, A8),
+and the run bound in A2 was withdrawn. U4's visual criteria and the D14 light rig were not built or
+captured, because no U reaches a web surface before U5 (A8.5).
+
+**Documentation updated.** This close-out and the wave-table row; U5 S2 (5) and S0 text below;
+`docs/STATUS.md`; ADR 0132 A8.2 (dated widening) and new A8.7; ADR 0110 N11.9 (RQ26 answered).
+
+**Deferred work, with owners.**
+1. **U5 S2 (5) is widened** (logic finding 1, MEDIUM): the web recomputes `cutawayWallsFor` and calls
+   `applyCutaway` on every camera change, every change of `designRoom` or `cabinetDepthMm`, every new
+   `stage`, and after mounting an overlay. Owner: U5 S2.
+2. **`room: designRoom` to `syncVoidMeshes`** at `kitchen-stage.tsx:359`; consider making `room` required
+   on `syncVoidMeshes` and `applyRecordedCutaway`. Owner: U5 S0 and S2.
+3. **Known limits (ADR 0132 A8.7), LOW:** the cut rule ignores eye height (bound by
+   `eye.y < KITCHEN_TOP_M` if orbit reports arrive); in the engine band (W < 1.91 m) `wallA` cuts C, not
+   customer-reachable. Owner: none until reported.
+4. **U5 S0 clean-up:** see U5 S0 item (6).
+5. **Visual items** (AC2, AC4 [visual], AC5, D14): U5 AC9–AC11, unchanged.
 
 ---
 
@@ -1290,9 +1336,9 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
-| **S0 carried from U4 (2026-09-29, ADR 0132 A8.4). Light tier: behaviour-free apart from one record field** | (1) `derivePlacementRecords` carries `corner` (`cornerOf`'s answer) on every `PlacementRecord`; (2) the adapter's right-corner wrapper reads `record.corner`, and `placementStandingFor` is deleted; (3) one catalogue-at-depth cache, replacing `cutaway`'s `Map` and `right-corner-wrapper`'s `WeakMap`; (4) `scene-sync.ts`'s `mirroredPieceTest` and its boolean flags split into named functions; (5) the U4 test files' shared helpers go to one support module, and the 1 051-line `qa-u4-drawing-a-u.adversarial.test.ts` is split by subject | `void-engine.ts` (domain, `derivePlacementRecords`), `right-corner-wrapper.ts`, `cutaway.ts`, `scene-sync.ts` | ADR 0132 A8.4; ADR 0121; the U4 round-2 clean-code findings |
+| **S0 carried from U4 (2026-09-29, ADR 0132 A8.4). Light tier: behaviour-free apart from one record field** | (1) `derivePlacementRecords` carries `corner` (`cornerOf`'s answer) on every `PlacementRecord`; (2) the adapter's right-corner wrapper reads `record.corner`, and `placementStandingFor` is deleted; (3) one catalogue-at-depth cache, replacing `cutaway`'s `Map` and `right-corner-wrapper`'s `WeakMap`; (4) `scene-sync.ts`'s `mirroredPieceTest` and its boolean flags split into named functions; (5) the U4 test files' shared helpers go to one support module, and the 1 051-line `qa-u4-drawing-a-u.adversarial.test.ts` is split by subject; **(6) added 2026-09-29 at U4's close (ADR 0132 A8.7):** `mirroredPieceTest`'s flags (with 4); the U4 test-helper duplication (`OCCURRED_AT`, `PHONE`, `acceptedU`, `recordsOf`, mount helpers) lands before any new `qa-u4-*` file; `ZONE_M` re-declared unlabelled at `qa-u4-round3-cutaway.adversarial.test.ts:46`; the vague prose at `kitchen-shell.ts:~604`; the unchecked `userData` casts (`wallOf`, `CUT_WALLS_KEY`); the `EYE_CLEARANCE_M` public export, kept only if the web reads it; `room` made required on `syncVoidMeshes` and `applyRecordedCutaway` | `void-engine.ts` (domain, `derivePlacementRecords`), `right-corner-wrapper.ts`, `cutaway.ts`, `scene-sync.ts`, `kitchen-shell.ts` (prose), `index.ts` | ADR 0132 A8.4, A8.7; ADR 0121; the U4 round-2 clean-code findings |
 | **S1 Step 1** | (1) Delete the 1D U throw; (2) `roomHrefFromDesignRoom` and `parsedRoomLengthsOf` for a U (wall C; ~~direction per Q-U4~~ **no direction: the toggle is hidden for a U and a `direction` on a U URL is ignored, the preview unmirrored — Q-U4 (b), 2026-09-29**); (3) 1F's summary from `wallsOf`; (4) `requiredFieldsFor` and `DRAWABLE_WALLS` from `wallsOf` (backlog 76); (5) facing labels never overlap (backlog 72) | `room/room-url-state.ts`, `room/generation-steps.tsx`, `room/plan-preview-model.ts` | G11, G12; D7, D16; Q-U4's record; ADR 0116 + A, 0126, 0127, 0104 B; backlog 72, 76 |
-| **S2 the editor** | (1) `crossesOnScreen` for C, by projection (D15); (2) the width-step note follows it; (3) camera chip leaf `configure.cameraPresets.wallC`, ro/ru, lock and golden manifest; (4) the capture route accepts `wallC`; **(5) added 2026-09-29 (ADR 0132 A2): the scene applies `applyCutaway(cutawayWallsFor(camera.position, room, depth))` on every camera change, preset ease and orbit alike, before the next pick. e2e: in 3000/3000/3000 on `Perete B`, a tap on wall B's top row selects it; after orbiting back to the overview, wall C draws again.** **Widened 2026-09-29 (A8.2, A8.3): it re-applies also after mounting the selection outline or an overflow mark, before the next render or pick. When the cut set comes to include the selected body's or void's wall, the selection is cleared and the panel closes. The e2e adds: on `Perete B`, delete a wall-B body, then tap B's top row, and it selects; select a wall-C body from the overview, tap `Perete B`, and the panel closes** | `i18n/content.ts`, `panel/panel-model.ts`, `messages/ro.json`, `messages/ru.json` (+ generated `ro.d.json.ts`), `app/internal/scene-shot/shot-request.ts` | D13, D15; ADR 0129 Amendment (b); ADR 0095, 0113; `qa-7i-screen-side.adversarial.test.ts` |
+| **S2 the editor** | (1) `crossesOnScreen` for C, by projection (D15); (2) the width-step note follows it; (3) camera chip leaf `configure.cameraPresets.wallC`, ro/ru, lock and golden manifest; (4) the capture route accepts `wallC`; **(5) added 2026-09-29 (ADR 0132 A2): the scene applies `applyCutaway(cutawayWallsFor(camera.position, room, depth))` on every camera change, preset ease and orbit alike, before the next pick. e2e: in 3000/3000/3000 on `Perete B`, a tap on wall B's top row selects it; after orbiting back to the overview, wall C draws again.** **Widened 2026-09-29 (A8.2, A8.3): it re-applies also after mounting the selection outline or an overflow mark, before the next render or pick. When the cut set comes to include the selected body's or void's wall, the selection is cleared and the panel closes. The e2e adds: on `Perete B`, delete a wall-B body, then tap B's top row, and it selects; select a wall-C body from the overview, tap `Perete B`, and the panel closes.** **Widened again 2026-09-29, at U4's close (A8.2, A8.7): one effect, keyed on the camera, `designRoom`, `cabinetDepthMm`, `stage` and the controls' change event, recomputes `cutawayWallsFor` and calls `applyCutaway`, and it also runs after mounting an overlay (outline or mark). A depth change rebuilds the stage with no record while `reseatHoldingCamera` holds the camera still, and an in-place U resize re-applies a record computed for the old W. The e2e adds: on `Perete B`, switch the depth, then tap B's top row. `kitchen-stage.tsx:359` passes `room: designRoom` to `syncVoidMeshes`.** | `i18n/content.ts`, `panel/panel-model.ts`, `messages/ro.json`, `messages/ru.json` (+ generated `ro.d.json.ts`), `app/internal/scene-shot/shot-request.ts` | D13, D15; ADR 0129 Amendment (b); ADR 0095, 0113; `qa-7i-screen-side.adversarial.test.ts` |
 
 - **Reading, QA:** G11, G12; D7, D13, D15, D16; ADR 0116 + A; `browser-and-visual-qa.md`; the slice
   diff.

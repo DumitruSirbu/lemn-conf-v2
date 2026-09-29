@@ -470,6 +470,15 @@ Responsibility follows who mounts what:
   of them, and on every camera change, before the next render or pick. This is U5 S2 (5), and its
   e2e is extended with a delete on `Perete B`, then a tap on B's top row.
 
+**Widened 2026-09-29, at U4's close (logic review round 3, finding 1, MEDIUM).** The web also
+rebuilds the stage, and two cases break "whenever" (*inference from the review's
+report; U5's e2e is what falsifies it*): a depth change rebuilds the stage with no record while
+`reseatHoldingCamera` holds the camera still, and an in-place U resize re-applies a record computed for
+the old W. So U5 S2 (5) recomputes `cutawayWallsFor` and calls `applyCutaway` on **every camera change,
+every change of `designRoom` or `cabinetDepthMm`, every new `stage`, and after mounting an overlay
+(outline or mark)**. Suggested form: one effect keyed on all of these plus the controls' change event.
+The e2e adds: on `Perete B`, switch the depth, then tap B's top row.
+
 #### A8.3 — Q-U4-cam answered, and a selection does not outlive its cut-away body
 
 **Owner, 2026-09-29, relayed by the coordinator:** Q-U4-cam answered **"Hide them"** (a *relayed
@@ -515,6 +524,32 @@ all of them become U5 acceptance criteria.
 
 **D14's choice is owed by U5's close. U6 depends on it:** the U card does not go live on a lighting
 choice nobody has seen. R3 and R4 in the M7B plan are repointed to U5.
+
+#### A8.7 — U4 close-out (2026-09-29, at `7f129fa`): deferrals and known limits
+
+*Source: the round-3 logic and clean-code reviews, relayed by the coordinator.* Q-U4-cam's answer,
+"Hide them", is already recorded in A8.3.
+
+**Known limits beside A8.1** (logic finding 2, LOW). Neither is fixed in U4.
+
+- The cut rule ignores eye height. An overhead orbit above a side run cuts it. If orbit reports arrive,
+  bound the cut by `eye.y < KITCHEN_TOP_M`.
+- In the engine band (W < 1.91 m), the `wallA` eye cuts C although it is about 137 mm in front of C's
+  600 mm fronts. That band is not customer-reachable.
+
+**Owed to U5.**
+
+- **S2 (5), widened** (A8.2's dated line above).
+- **`room: designRoom` at `kitchen-stage.tsx:359`** (clean-code R1, logic finding 3): U5 passes it to
+  `syncVoidMeshes`. U5 S0 also considers making `room` required on `syncVoidMeshes` and
+  `applyRecordedCutaway`.
+- **S0 clean-up:** the two catalogue-at-depth caches; `mirroredPieceTest` and its boolean flags; the U4
+  test-helper duplication (`OCCURRED_AT`, `PHONE`, `acceptedU`, `recordsOf`, mount helpers), landing
+  before any new `qa-u4-*` file; splitting the 1,051-line `qa-u4-drawing-a-u.adversarial.test.ts`;
+  `ZONE_M` re-declared unlabelled at `qa-u4-round3-cutaway.adversarial.test.ts:46`; the vague prose at
+  `kitchen-shell.ts:~604`; the unchecked `userData` casts (`wallOf`, `CUT_WALLS_KEY`); the
+  `EYE_CLEARANCE_M` public export, kept only if the web reads it; and A8.4's `record.corner`.
+- **A8.5's visual items** stay in U5: AC2, AC4 [visual], AC5, and the D14 light rig (U5 AC9–AC11).
 
 #### A8.6 — sweep
 

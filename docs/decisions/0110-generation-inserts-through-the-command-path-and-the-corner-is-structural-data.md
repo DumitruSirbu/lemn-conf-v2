@@ -4663,7 +4663,11 @@ with N11.8 and RQ25 applied):
 - A 400 mm fill room and a 500 mm fill room, taken from the model's output: the implementer quotes
   one of each from its own sweep, and pins it.
 
-#### RQ26 — owner question (non-blocking; default (A) built)
+#### RQ26 — owner question (non-blocking; default (A) built) — **ANSWERED 2026-09-29: "Two doors from 500 (Recommended)"**
+
+**Answered 2026-09-29 (a relayed selection, not verbatim owner text): "Two doors from 500
+(Recommended)"**, which is option (A). The 400–499 back-wall fill cabinet keeps one door, and ADR 0035
+decision 4 stands unchanged. Nothing is owed by this question; the text below is kept as asked.
 
 > *"A 400–499 mm cabinet: one door or two? You asked for the back-wall gap to get '2 doors or 1 door
 > cabinet (1 door if less than 400mm)'. The catalogue follows your 2026-08-28 rule instead, which is
