@@ -3647,7 +3647,7 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
 | 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob, ~~(dishwasher dropped; bare 400)~~ **bottle (bare 100)**; the dishwasher is dropped. C: empty (bare 200). No tower |
 | 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage **(both `base-panbank`, RQ18 (a), N9.1)**, tower (bare 200 beyond it, RQ17). **3 drawer units (the preparation and 2 on C) of `N(T)` = 5; the count yields.** ~~2 × `base-panbank`~~ **`base-panbank`, `base-3drawer` (RQ19 (a), `84bab2e`).** **Moves again under N10 (RQ21): A: sink, dishwasher, preparation, hob, `base-panbank` (bare 200), no bottle. C: `base-panbank`, `base-3drawer`, tower (bare 200). 4 drawer units** |
-| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × ~~`base-3drawer`~~ `base-panbank` (bare 300; RQ18 (b), 2026-09-29)**. C: 3 storage **(the first 2 are `base-3drawer`, RQ18)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)**. **Moves again under N11.2 (the RQ23 default): A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0), no bottle. C: `base-3drawer`, 2 × `base-cabinet`, tower, 4 × `base-cabinet` (bare 200). Still 5 drawer cabinets, 2 of them pan drawers** |
+| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × ~~`base-3drawer`~~ `base-panbank` (bare 300; RQ18 (b), 2026-09-29)**. C: 3 storage **(the first 2 are `base-3drawer`, RQ18)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)**. ~~**Moves again under N11.2 (the RQ23 default): A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0), no bottle. C: `base-3drawer`, 2 × `base-cabinet`, tower, 4 × `base-cabinet` (bare 200). Still 5 drawer cabinets, 2 of them pan drawers**~~ **2026-09-29: RQ23 answered "Bottle + drawers" (N11.2), so this row does not move; it stands as N10 left it** |
 
 **Corrected 2026-09-29 on U3a's stop-and-report (AC2).** Four witnesses matched. The three rows above
 were **the model's error, except the 6000 drawer count, which is the plan's**. The model placed no
@@ -4245,7 +4245,7 @@ count and nothing changes. Measured: 0 far-wall-hob rooms change.
   | *N3 revised* 7, and N10.2's row for it | The bottle's width comes out of the remainder only where that costs no drawer unit the count still owes | **Narrowed** by this answer (owner). Where the bottle would cost the hob's wall a drawer unit, it drops, even when the room's total would not fall |
   | N10.9, wall A (relayed selection) | "Drawer cabinet wins", where the room's drawer count would fall | **Consistent, and widened** by this answer (owner) from the room's count to the hob's wall's count |
   | N10.1 item 5, N10.4 (owner) | Hob → bottle → drawers | **Unchanged** wherever the bottle stands |
-  | N4′'s 6000 / 6000 / 6000 witness | A: bottle, 2 × `base-panbank`. C: 2 × `base-3drawer` first | **Moves** (N11.5); the row carries a dated note. It stays 5 drawer cabinets, 2 of them pan drawers |
+  | N4′'s 6000 / 6000 / 6000 witness | A: bottle, 2 × `base-panbank`. C: 2 × `base-3drawer` first | ~~**Moves** (N11.5); the row carries a dated note. It stays 5 drawer cabinets, 2 of them pan drawers~~ **Unchanged, by RQ23 (below)** |
 
 **RQ23 (non-blocking; the default is built).** The question, as it is to be put: *"Back wall, with
 1200–1800 mm free after the hob (3,276 room sizes, e.g. 5400/3400/3400). The bottle and one drawer
@@ -4253,6 +4253,50 @@ cabinet fit after the hob, but the bottle pushes a second drawer cabinet round t
 side wall. Today (the default): two drawer cabinets after the hob, and no bottle. Or: keep the
 bottle, then one drawer cabinet, with the other drawer cabinet on the side wall?"* Either answer
 changes only `bottleCostsNoDrawerUnit` and the three 1200–1800 witnesses.
+
+**RQ23 answered, 2026-09-29 (relayed selection): "Bottle + drawers".** The option read *"with this
+much space, keep the bottle next to the hob and put the drawers after it"*, previewed as `│ HOB │
+BOTTLE 300 │ PAN 600 │ …`. **This departs from the default built above**, which is superseded. The
+passages it overturns are kept as written: the 1200–1800 rows of the band table, the *"default built
+is the whole class"* bullet, and the table row saying 6000/6000/6000 *moves*.
+
+**The wall-A rule as answered** (the coordinator's combination of the two answers, relayed to the
+developer the same day). On wall A, the bottle yields **only** when both hold:
+
+- without the bottle, wall A holds at least one drawer unit after the hob; and
+- with the bottle, it holds none.
+
+RQ21's rule, that the bottle never costs the room a drawer unit, still applies. For a far-wall hob,
+nothing changes. By the space free after the hob on wall A:
+
+| Free after the hob | Outcome |
+| --- | --- |
+| 600 | drawer |
+| 700–800 | drawer |
+| 900–1100 | bottle + drawer |
+| 1200–1800 | bottle + drawers |
+
+*Owner-backed:* 600 (the note) and 1200–1800 (RQ23). *Unchanged from N10:* 900–1100, and every band
+where the bottle stands. *Inference:* 700–800, the same shape as 600, as argued above.
+
+**Re-measured** on the model with this rule, on N4′'s grid:
+
+- **1 323** rooms change: 441 at exactly 600, and 882 at 700–800. Every one has its hob on wall A,
+  drops the bottle, and moves one drawer unit from the far wall onto wall A.
+- The rooms at 1200–1800 no longer change.
+- The drawer histogram, the towers and the pantries are unchanged.
+
+**Witnesses:**
+
+- **4800 / 4400 / 4400** changes as N11.5 states.
+- **5400 / 3400 / 3400** and **6000 / 6000 / 6000** do not move. They are pinned **unchanged**, as
+  RQ23's own witnesses. The dated note on N4′'s 6000 row is struck.
+
+**The records reached:**
+
+- *N3 revised* 7 and N10.2 are narrowed only for wall A's 600–899 band.
+- N10.9's *"Drawer cabinet wins"* is widened to that band only.
+- N10.1 item 5 (hob → bottle → drawers) is **confirmed** by the owner for 900 mm and more.
 
 #### N11.3 — the sink never leaves wall A (logic finding 3: an implementation defect)
 
@@ -4311,8 +4355,10 @@ instead: 600 mm each, with a remainder under 600 mm left bare.
 
 #### N11.5 — the four rulings measured together, and the witnesses that change
 
-With all four rulings applied, **14 771** grid rooms change: 10 178 on the fridge wall and 4 599 on
-wall A and the far wall, with 6 rooms in both sets.
+~~With all four rulings applied, **14 771** grid rooms change: 10 178 on the fridge wall and 4 599 on
+wall A and the far wall, with 6 rooms in both sets.~~ **2026-09-29, after RQ23 (N11.2):** with all
+four rulings applied, **11 501** grid rooms change: 10 178 on the fridge wall only, and 1 323 on wall
+A and the far wall. No room is in both sets.
 
 These do not change:
 
@@ -4330,9 +4376,18 @@ reported with its room, not fixed to match (7J A8).
 
 | Sweep | Composed | N11 model | HEAD, same harness |
 | --- | ---: | --- | --- |
-| grid, h 2600 | 86 706 | `76f0533699f69cb83821b5ef401239e0c861084ce5fb0326490d9162b5885005` | `02c55d1a…09933` |
-| grid, h 2199 | 86 706 | `1008bf5d55419f4f6f1476a65563d6558280463174454d5af41503da3d15af07` | `9f4e74fa…405f9` |
-| engine band A 1800–2699 step 50, h 2600 | 12 150 (HEAD 30 402) | `5f833603d4e638c729faa98b3c302839c9874ff15716194a49c0079866a71a09` | `7d32b41e…f31ff` |
+| grid, h 2600 | 86 706 | ~~`76f0533699f69cb83821b5ef401239e0c861084ce5fb0326490d9162b5885005`~~ **`d7c86c26fffebdbe55dd5174e1dc98edd2a21458d5a389e512216eb9ef016b3b` (RQ23)** | `02c55d1a…09933` |
+| grid, h 2199 | 86 706 | ~~`1008bf5d55419f4f6f1476a65563d6558280463174454d5af41503da3d15af07`~~ **`ae17976d6dc65b878d9ef5f04d207e8fe0168d4e78347c9041b298397dfa9bcb` (RQ23)** | `9f4e74fa…405f9` |
+| engine band A 1800–2699 step 50, h 2600 | 12 150 (HEAD 30 402) | `5f833603d4e638c729faa98b3c302839c9874ff15716194a49c0079866a71a09` (RQ23 does not reach it) | `7d32b41e…f31ff` |
+
+**2026-09-29: the struck digests are the pre-RQ23 model.** The bold ones are the architect's model
+under RQ23's answer. **They are the model's, not yet the implementation's.** Once the developer
+reports the digests their Dispatch A build produces, the implementation's are recorded here, beside
+the model's:
+
+- **If they match**, the row says so.
+- **If they differ**, the difference is reported with its rooms and adjudicated (7J A8). The
+  developer does not tune the code to match either set.
 
 **The witnesses.** Each wall is read from its corner. Positions are along-wall millimetres. Every
 other N4′ and N10.6 witness measures unchanged.
@@ -4343,8 +4398,8 @@ other N4′ and N10.6 witness measures unchanged.
 | 3600 / 2800 / 2800 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 500 beyond, no pantry. C unchanged |
 | 4000 / 2000 / 2000 | N11.1 | B: fridge 900–1600, bare 300 beyond |
 | 4800 / 4400 / 4400 | N11.2, exactly 600 | A: …, `base-hob-2drawer` 2700–3300, `base-panbank` 3300–3900 (bare 0, no bottle). C: `base-panbank`, `base-3drawer`, `base-3drawer`, tower 2700–3300, `base-cabinet` (bare 400). **Was** A: …, hob, bottle (bare 300); C: 2 × `base-panbank`, 2 × `base-3drawer`, tower |
-| 5400 / 3400 / 3400 | N11.2, 1200 | A: …, hob, 2 × `base-panbank` (bare 0). C: 2 × `base-3drawer`, tower 2100–2700, `base-cabinet`. **Was** A: …, hob, bottle, `base-panbank` (bare 300); C: `base-panbank`, 2 × `base-3drawer`, tower |
-| 6000 / 6000 / 6000 | N11.2, 1800 | A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0). C: `base-3drawer`, 2 × `base-cabinet`, tower at 2700–3300 (`n` = 3), 4 × `base-cabinet` (bare 200). B unchanged. Still 5 drawer cabinets, 2 of them pan drawers |
+| 5400 / 3400 / 3400 | N11.2, 1200 | ~~A: …, hob, 2 × `base-panbank` (bare 0). C: 2 × `base-3drawer`, tower 2100–2700, `base-cabinet`.~~ **RQ23: unchanged.** A: …, `base-hob-2drawer`, bottle, `base-panbank` (bare 300). C: `base-panbank`, 2 × `base-3drawer`, tower 2700–3300 |
+| 6000 / 6000 / 6000 | N11.2, 1800 | ~~A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0). C: `base-3drawer`, 2 × `base-cabinet`, tower at 2700–3300 (`n` = 3), 4 × `base-cabinet` (bare 200).~~ **RQ23: unchanged, as N10 left it.** A: …, hob, bottle, 2 × `base-panbank` (bare 300). C: 2 × `base-3drawer`, `base-cabinet`, tower, 4 × `base-cabinet` (bare 200) |
 | 2399 / 3000 / 3000 | N11.3 | `minimumMet: false` (freeA 599) |
 | 2400 / 3000 / 3000 | N11.3 | Composes: the sink at A 900–1500 (freeA 600); C: dishwasher, preparation, `base-hob-oven`. B, per N11.1: 2 × `base-cabinet` 900–2100, fridge 2100–2800 |
 | 3600 / 3500 / 2200, h 2199 | N11.4 | B: 2 × `base-cabinet`, fridge 2100–2800, `base-cabinet` 2800–3400, no pantry. At h 2200, the pantry stands, as in N4′ |
@@ -4379,11 +4434,11 @@ other N4′ and N10.6 witness measures unchanged.
   | N3 item 3, *N3 revised* 3 | Now built as written (N11.1) |
   | N9.2's description of `fridgeAtTheFreeEnd` | Superseded by N11.1; N9.2 carries a dated pointer |
   | *N3 revised* 7, N10.2 | Narrowed (N11.2) |
-  | N10.9 | Widened (N11.2) |
-  | N4′'s 6000 / 6000 / 6000 row | Moves; the row carries a dated note |
+  | N10.9 | Widened to wall A's 600–899 band (N11.2, RQ23) |
+  | N4′'s 6000 / 6000 / 6000 row | ~~Moves; the row carries a dated note~~ Unchanged after RQ23; the note is struck |
   | N3 item 4, ADR 0108 H3 | Now enforced (N11.3) |
   | E3 clause 4 | Reach widened to every generated column in a U (N11.4) |
   | U3b S1 item 2 | Gains N11.6's criterion |
 
   The L's records are not touched.
-- **Owner:** RQ23 is open and non-blocking. Its default is built.
+- **Owner:** ~~RQ23 is open and non-blocking. Its default is built.~~ RQ23 was answered on 2026-09-29, *"Bottle + drawers"* (N11.2). No owner question remains on U3a.
