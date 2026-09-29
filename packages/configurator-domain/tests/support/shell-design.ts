@@ -18,6 +18,7 @@ import {
   projectFrozenMap,
   recomputeVoids,
   setCabinetDepth,
+  toMetres,
   toMillimetres,
   wallLengthMm,
   withFrozenMap,
@@ -270,7 +271,11 @@ export function facesOf(design: Design): ShellFaces {
   const records = derivePlacementRecords(design, SHELL_CATALOG);
   return {
     records,
-    recorded: deriveRecordedColumns(records, design),
+    recorded: deriveRecordedColumns(
+      records,
+      design,
+      toMetres(design.room.widthMm),
+    ),
     voids: recomputeVoids(records, deriveColumns(records, design, design.room)),
   };
 }

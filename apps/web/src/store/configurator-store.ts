@@ -28,6 +28,7 @@ import {
   setHardwareTier as setHardwareTierOnDesign,
   setMaterialTier as setMaterialTierOnDesign,
   setWidth as setWidthOnDesign,
+  toMetres,
   type BodyCatalog,
   type BodyProbeFactory,
   type Column,
@@ -377,7 +378,11 @@ function deriveGeometry(design: Design, catalog: BodyCatalog) {
   // bounds what is published and does not rewrite what is recorded — otherwise a space flush to a
   // wall's end loses 100 mm at 700 and keeps the loss at 600, one command at a time.
   const columns = deriveColumns(records, stored, design.room);
-  const recordedColumns = deriveRecordedColumns(records, stored);
+  const recordedColumns = deriveRecordedColumns(
+    records,
+    stored,
+    toMetres(design.room.widthMm),
+  );
   const voids = recomputeVoids(records, columns);
   return { records, columns, recordedColumns, voids };
 }

@@ -5,10 +5,13 @@ export interface Vector3 {
 }
 
 /** `"C"` is ADR 0132 decision 1's world wall — origin `(W, 0, 0)`, tangent `+Z`, front normal `−X`,
- *  yaw `−π/2`, where `W` is the room's `widthMm`. Widened here (U1 slice S1) only so a `DesignWall`
- *  of `"C"` type-checks against every reader of this type; its transform is room-dependent and this
- *  module's `WALL_TRANSFORMS` is not, so the transform itself is U1 slice S3's, not this one's —
- *  `getWallTransform("C")` throws until then. */
+ *  yaw `−π/2`, where `W` is the room's width, in metres. `getWallTransform` and
+ *  `deriveCabinetWorldTransform` take it for exactly this — α means wall C is its own world frame,
+ *  not wall B's canonical one reflected (ADR 0132 decisions 1–2), so `widthM` is the one fact this
+ *  module reads about the room, and the one place it reads it. A bare number rather than a
+ *  `DesignRoom`, deliberately: this module stays a geometry leaf with no wire-shape import, and a
+ *  caller that means the room's *bounds* (`wallLengthMm`, `validateRoomInput`) cannot reach for this
+ *  function by mistake — the two take different things. */
 export type WallId = "A" | "B" | "C";
 
 export interface WallTransform {
@@ -29,6 +32,10 @@ export interface CabinetTransformInput {
   readonly alongM: number;
   readonly y0M: number;
   readonly depthM: number;
+  /** Metres. Only wall C's transform reads this (its origin is `(W, 0, 0)`); wall A and wall B's are
+   *  room-independent constants. Required on every call regardless, so a caller cannot compile a
+   *  placement onto wall C without the one fact its world position needs. */
+  readonly widthM: number;
 }
 
 /**
@@ -53,13 +60,18 @@ const WALL_TRANSFORMS: Record<Exclude<WallId, "C">, WallTransform> = {
   },
 };
 
-export function getWallTransform(wallId: WallId): WallTransform {
+export function getWallTransform(
+  wallId: WallId,
+  widthM: number,
+): WallTransform {
   if (wallId === "C") {
-    // ADR 0132 decision 1: wall C's transform takes the room's width and this function takes no
-    // room. Wiring that in is U1 slice S3's, not slice S1's type-level widening.
-    throw new Error(
-      "getWallTransform: wall C has no world transform yet (M7B wave U1 slice S3)",
-    );
+    return {
+      wallId: "C",
+      origin: { x: widthM, y: 0, z: 0 },
+      tangent: { x: 0, y: 0, z: 1 },
+      frontNormal: { x: -1, y: 0, z: 0 },
+      yawRadians: -Math.PI / 2,
+    };
   }
   return WALL_TRANSFORMS[wallId];
 }
@@ -77,7 +89,7 @@ export function deriveCabinetWorldTransform(
     throw new RangeError("depthM must be a finite positive number");
   }
 
-  const wall = getWallTransform(input.wall);
+  const wall = getWallTransform(input.wall, input.widthM);
   const halfDepthM = input.depthM / 2;
   return {
     position: {

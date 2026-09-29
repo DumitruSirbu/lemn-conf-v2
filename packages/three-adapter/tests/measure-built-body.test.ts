@@ -1,5 +1,6 @@
 import {
   buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
   measurableSeatOf,
   type MeasurableSeatedOn,
 } from "@lemnaria/configurator-domain";
@@ -394,6 +395,7 @@ function seat(
     alongM,
     y0M,
     depthM: 2 * measurement.seatOffsetM,
+    widthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
   });
 
   const body = buildCatalogBody(kit, probeRequest.buildId, probeRequest);

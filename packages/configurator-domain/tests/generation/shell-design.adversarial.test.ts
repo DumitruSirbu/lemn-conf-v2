@@ -50,6 +50,7 @@ import {
   RUN_END_PANEL_GAP_M,
   RUN_END_PANEL_THICKNESS_M,
   runEndPanelSeatM,
+  toMetres,
   toMillimetres,
   validateDesignForCatalog,
   validateRoomInput,
@@ -255,7 +256,11 @@ function facesAt(design: Design, cabinetDepthMm: number): ShellFacesAt {
   const records = derivePlacementRecords(design, catalog);
   return {
     records,
-    recorded: deriveRecordedColumns(records, design),
+    recorded: deriveRecordedColumns(
+      records,
+      design,
+      toMetres(design.room.widthMm),
+    ),
     voids: recomputeVoids(records, deriveColumns(records, design, design.room)),
     catalog,
   };
@@ -400,7 +405,10 @@ describe("buildLShellDesign over the approved range and its edges", () => {
       );
       const saved = withFrozenMap(
         loaded,
-        projectFrozenMap(deriveRecordedColumns(records, loaded), records),
+        projectFrozenMap(
+          deriveRecordedColumns(records, loaded, toMetres(loaded.room.widthMm)),
+          records,
+        ),
       );
 
       expect(canonicalSerializeDesign(loaded)).toBe(

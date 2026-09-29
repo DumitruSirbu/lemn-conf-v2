@@ -33,6 +33,7 @@ import {
   openingFromPlacement,
 } from "../../src/commands/insert-fit.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
+import { toMetres } from "../../src/millimetres.js";
 import { resolveRebuildBody } from "../../src/commands/resolve-column-members.js";
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
 import { cabinetDepthMmOf } from "../../src/design.js";
@@ -314,10 +315,14 @@ function planningOperandsOf(
 
   const heldRecords = derivePlacementRecords(design, previousCatalog);
   const slidRecords = derivePlacementRecords(slidDesign, previousCatalog);
-  const frozen = deriveRecordedColumns(heldRecords, {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  const frozen = deriveRecordedColumns(
+    heldRecords,
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    toMetres(design.room.widthMm),
+  );
 
   return {
     records: derivePlacementRecords(

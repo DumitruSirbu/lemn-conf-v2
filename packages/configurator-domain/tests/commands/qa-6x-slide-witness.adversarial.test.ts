@@ -49,6 +49,7 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { frozenExtentsSlidAlongTheWall } from "../../src/frozen-map-at-cabinet-depth.js";
+import { toMetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
 import {
   fatalDesignValidationIssues,
@@ -210,10 +211,14 @@ function planningMapsOf(design: Design, cabinetDepthMm: number): PlanningMaps {
 
   const heldRecords = derivePlacementRecords(design, previousCatalog);
   const slidRecords = derivePlacementRecords(slidDesign, previousCatalog);
-  const frozen = deriveRecordedColumns(heldRecords, {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  const frozen = deriveRecordedColumns(
+    heldRecords,
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    toMetres(design.room.widthMm),
+  );
   const records = derivePlacementRecords(
     { ...slidDesign, settings: { ...slidDesign.settings, cabinetDepthMm } },
     catalog,

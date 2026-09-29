@@ -5,6 +5,7 @@ import {
   type DesignPlacement,
   type DesignWall,
 } from "../design.js";
+import { toMetres } from "../millimetres.js";
 import { findOverflowingPlacementIds } from "../queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../validate-design.js";
 import {
@@ -612,7 +613,11 @@ function runCommand(
 
 function loadWorld(design: Design, catalog: BodyCatalog): GenerationWorld {
   const records = derivePlacementRecords(design, catalog);
-  const recordedColumns = deriveRecordedColumns(records, design);
+  const recordedColumns = deriveRecordedColumns(
+    records,
+    design,
+    toMetres(design.room.widthMm),
+  );
   const columns = deriveColumns(records, design, design.room);
   return {
     design,

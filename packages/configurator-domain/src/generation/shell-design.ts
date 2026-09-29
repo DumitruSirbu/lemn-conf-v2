@@ -56,7 +56,7 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "../fixtures/kitchen-l-design.js";
-import { toExactMillimetres } from "../millimetres.js";
+import { toExactMillimetres, toMetres } from "../millimetres.js";
 import { LEVELS } from "../module-grid.js";
 import { occupiedDepthOfEntryM } from "../occupied-depth.js";
 import { wallLengthMm } from "../queries/overflowing-placements.js";
@@ -640,7 +640,10 @@ function canonicalised(design: Design): Design {
   const records = derivePlacementRecords(design, SHELL_CATALOG);
   return withFrozenMap(
     design,
-    projectFrozenMap(deriveRecordedColumns(records, design), records),
+    projectFrozenMap(
+      deriveRecordedColumns(records, design, toMetres(design.room.widthMm)),
+      records,
+    ),
   );
 }
 

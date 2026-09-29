@@ -298,7 +298,11 @@ function heldRunAcrossTheCommand(
     previousCatalog,
   );
   return {
-    frozen: deriveRecordedColumns(heldRecords, storedFrozenMapOf(input.design)),
+    frozen: deriveRecordedColumns(
+      heldRecords,
+      storedFrozenMapOf(input.design),
+      toMetres(input.design.room.widthMm),
+    ),
     membersShiftMmByColumn: alongWallShiftByColumnMm(heldRecords, slidRecords),
     previousRecords: slidRecords,
     previousCabinetDepthMm,

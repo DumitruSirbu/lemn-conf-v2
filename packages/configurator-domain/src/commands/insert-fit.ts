@@ -72,8 +72,9 @@ const COORDINATE_EPSILON_M = 1e-6;
 export interface InsertOpening {
   readonly col: string;
   readonly wall: DesignWall;
-  /** The along-wall coordinate: `x` on wall A, `z` on wall B. ADR 0011 Gap D — the wall-normal
-   *  coordinate is *not* taken from here; it comes from the body's own measured seat. */
+  /** The along-wall coordinate: `x` on wall A, `z` on wall B or C (ADR 0132 decision 1). ADR 0011
+   *  Gap D — the wall-normal coordinate is *not* taken from here; it comes from the body's own
+   *  measured seat. */
   readonly alongM: number;
   readonly w: number;
   /** **How deep the opening is** — a `ClearanceM`, not the depth a body is built to.

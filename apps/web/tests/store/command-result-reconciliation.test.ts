@@ -7,6 +7,7 @@ import {
   derivePlacementRecords,
   reconcileSuccessfulCommandResult,
   removePlacement,
+  toMetres,
   type Design,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -36,6 +37,7 @@ describe("the web store consumes domain command-result reconciliation", () => {
     const previousRecordedColumns = deriveRecordedColumns(
       derivePlacementRecords(DESIGN, catalog),
       DESIGN,
+      toMetres(DESIGN.room.widthMm),
     );
     const result = removePlacement({
       design: DESIGN,
