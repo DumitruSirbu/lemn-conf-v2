@@ -492,7 +492,7 @@ describe("the sentence belongs to the field that was left", () => {
           );
           const view = deriveRoomIssueView({
             draft,
-            draftState: draftStateOf(draft),
+            draftState: draftStateOf(draft, APPROVED_ROOM_POLICY),
             policy: APPROVED_ROOM_POLICY,
           });
           if (view.unreadableFields.length > 0) {

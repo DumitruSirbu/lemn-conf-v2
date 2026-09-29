@@ -38,7 +38,7 @@ function lRoom(wallA: string, wallB = "2400", height = "2600"): RoomDraft {
 function viewOf(draft: RoomDraft): RoomIssueView {
   return deriveRoomIssueView({
     draft,
-    draftState: draftStateOf(draft),
+    draftState: draftStateOf(draft, APPROVED_ROOM_POLICY),
     policy: APPROVED_ROOM_POLICY,
   });
 }
@@ -93,7 +93,7 @@ describe("presentOneC applies the rule to the draft a burst began from", () => {
     const now = lRoom("650");
     const inputs = {
       draft: now,
-      draftState: draftStateOf(now),
+      draftState: draftStateOf(now, APPROVED_ROOM_POLICY),
       policy: APPROVED_ROOM_POLICY,
     };
 
@@ -116,7 +116,7 @@ describe("the shape refusal answers the chip, not the clock (7F2 S4)", () => {
   function midBurst(before: RoomDraft, now: RoomDraft) {
     return presentOneC({
       draft: now,
-      draftState: draftStateOf(now),
+      draftState: draftStateOf(now, APPROVED_ROOM_POLICY),
       policy: APPROVED_ROOM_POLICY,
       typing: typingFrom(before, now),
     }).surfaces;

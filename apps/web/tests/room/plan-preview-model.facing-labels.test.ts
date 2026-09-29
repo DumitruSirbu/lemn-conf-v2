@@ -16,7 +16,7 @@ import {
   DEFAULT_PLAN_PREVIEW_METRICS,
   derivePlanPreview,
   markPlanWalls,
-  PLAN_LABEL_REASON_MAX_CHARACTERS,
+  PLAN_LABEL_REASON_MAX_EM,
   type DrawnPlanPreview,
   type PlanBox,
   type PlanPreviewMetrics,
@@ -29,6 +29,7 @@ import {
   type RoomLengthField,
 } from "@/room/room-draft";
 
+import { REASON_GLYPH_ADVANCE_EM } from "../support/plan-reason-glyphs";
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
 import {
@@ -385,35 +386,161 @@ describe.each(ARMS)("facing labels when 1C marks walls — $name", (arm) => {
   );
 });
 
-describe("the placement's reason bound is a fact about the copy", () => {
-  it.each([
+describe("the placement's reason bound is guarded by width, not by length of string", () => {
+  const REASONS = [
     ["ro", roMessages],
     ["ru", ruMessages],
-  ] as const)(
-    "holds every %s reason within PLAN_LABEL_REASON_MAX_CHARACTERS, wall letter included",
-    (_locale, messages) => {
-      const reasons = Object.values(messages.room.planWallIssue);
+  ] as const;
 
-      expect(reasons.length).toBeGreaterThan(0);
-      for (const reason of reasons) {
-        expect(
-          reason.replace("{wall}", "B").length,
-          reason,
-        ).toBeLessThanOrEqual(PLAN_LABEL_REASON_MAX_CHARACTERS);
+  /** What a browser draws for `text`, from the measured glyph table; a letter it has not measured is
+   *  an error, so a new reason cannot ship before it has been. */
+  function summedAdvanceEm(text: string): number {
+    let sum = 0;
+    for (const letter of text) {
+      const advance = REASON_GLYPH_ADVANCE_EM[letter];
+      if (advance === undefined) {
+        throw new Error(`no measured advance for ${JSON.stringify(letter)}`);
       }
-    },
-  );
+      sum += advance;
+    }
+    return sum;
+  }
 
-  it("is not slack: the longest reason in the catalogues reaches it", () => {
-    const longest = Math.max(
-      ...[roMessages, ruMessages].flatMap((messages) =>
-        Object.values(messages.room.planWallIssue).map(
-          (reason) => reason.replace("{wall}", "B").length,
+  function everyReasonAsDrawn(): readonly (readonly [string, string])[] {
+    return REASONS.flatMap(([locale, messages]) =>
+      Object.values(messages.room.planWallIssue).flatMap((reason) =>
+        (["A", "B", "C"] as const).map(
+          (wall) => [locale, reason.replace("{wall}", wall)] as const,
         ),
       ),
     );
+  }
 
-    expect(longest).toBe(PLAN_LABEL_REASON_MAX_CHARACTERS);
+  it("has a measured advance for every letter either catalogue spells a reason with", () => {
+    expect(everyReasonAsDrawn().length).toBeGreaterThan(0);
+    for (const [, text] of everyReasonAsDrawn()) {
+      expect(() => summedAdvanceEm(text), text).not.toThrow();
+    }
+  });
+
+  it("holds every reason, in both locales and for every wall letter, within PLAN_LABEL_REASON_MAX_EM", () => {
+    for (const [locale, text] of everyReasonAsDrawn()) {
+      expect(summedAdvanceEm(text), `${locale}: ${text}`).toBeLessThanOrEqual(
+        PLAN_LABEL_REASON_MAX_EM,
+      );
+    }
+  });
+
+  it("is not slack: the widest reason reaches within 15% of the bound", () => {
+    const widest = Math.max(
+      ...everyReasonAsDrawn().map(([, text]) => summedAdvanceEm(text)),
+    );
+
+    expect(widest).toBeGreaterThan(PLAN_LABEL_REASON_MAX_EM * 0.85);
+  });
+
+  it("agrees with QA's whole-string measurement of the widest reason, to a hundredth of an em", () => {
+    const measuredWholeEm = 116.59 / 11;
+
+    expect(summedAdvanceEm("B слишком короткая")).toBeGreaterThanOrEqual(
+      measuredWholeEm,
+    );
+    expect(summedAdvanceEm("B слишком короткая")).toBeLessThan(
+      measuredWholeEm + 0.02,
+    );
+  });
+
+  it("would catch what a character count let through: as many letters, spelled wide", () => {
+    const eighteenCharacters = `B ${"ш".repeat(16)}`;
+
+    expect(eighteenCharacters.length).toBe(18);
+    expect(summedAdvanceEm(eighteenCharacters)).toBeGreaterThan(
+      PLAN_LABEL_REASON_MAX_EM,
+    );
+  });
+});
+
+describe("a facing wall's whole label stays in the box, marked or not", () => {
+  /** A wall's length is what makes it marked: below Q-U1's 1000 it reads *too short*, above its 6000
+   *  *too long*, and in between it reads its length. The pairing is what a room can be, so the sweep
+   *  asks for a label to stay in the box only where 1C would really have written it. */
+  function lengthThatReads(text: LabelText): fc.Arbitrary<number> {
+    if (text === "length") return fc.integer({ min: 1000, max: 6000 });
+    if (text === "tooShort") return fc.integer({ min: 300, max: 999 });
+    return fc.integer({ min: 6001, max: 9000 });
+  }
+
+  /** **Both walls marked too short**: the class the visual review found (ru, 900 px window,
+   *  3000 x 300 x 200). Short bars leave rows beneath them, which is where the placement puts a label
+   *  no bar-side room can hold. Not swept, and named as limits rather than passed over: two walls both
+   *  too *long* draw a sliver with no room beneath it, so a 148 px reason has nowhere in a 190 px box;
+   *  and an unmarked pair at a 283 px box with one deep wall is as cramped. Unmarked labels in the box
+   *  are `qa-7f2-s2-red-wall`'s property, at the phone. The slice's report records both limits. */
+  const anyRoomAndTexts = fc
+    .constantFrom<LabelText>("tooShort")
+    .map((text) => ({
+      B: text,
+      C: text,
+    }))
+    .chain((texts) =>
+      fc
+        .record({
+          wallA: fc.integer(APPROVED_U.wallA),
+          wallB: lengthThatReads(texts.B),
+          wallC: lengthThatReads(texts.C),
+        })
+        .map((walls) => ({ texts, walls })),
+    );
+
+  it.each(ARMS)("keeps B's and C's labels inside the box — $name", (arm) => {
+    fc.assert(
+      fc.property(
+        anyRoomAndTexts,
+        ANY_LOCALE,
+        arm.box,
+        ({ texts, walls }, locale, box) => {
+          const plan = markedU(walls, texts, box, arm.metrics);
+
+          for (const id of ["B", "C"] as const) {
+            const rect = markedLabelRectPx(
+              wallOf(plan, id),
+              texts[id],
+              locale,
+              arm.metrics,
+            );
+            expect(
+              rect.leftPx,
+              `${id} ${locale} ${JSON.stringify(texts)} ${JSON.stringify(walls)} in ${JSON.stringify(box)}: ${JSON.stringify(rect)}`,
+            ).toBeGreaterThanOrEqual(-1e-9);
+            expect(
+              rect.rightPx,
+              `${id} in ${JSON.stringify(box)}`,
+            ).toBeLessThanOrEqual(box.widthPx + 1e-9);
+          }
+        },
+      ),
+      { numRuns: SAMPLES },
+    );
+  });
+
+  it("keeps ru's two reasons inside a 190 px box, at the 900 px window's 3000 x 300 x 200", () => {
+    const metrics = DESKTOP_METRICS;
+    const box = { widthPx: 190, heightPx: 239 };
+    const plan = markedU(
+      { wallA: 3000, wallB: 300, wallC: 200 },
+      { B: "tooShort", C: "tooShort" },
+      box,
+      metrics,
+    );
+
+    const b = markedLabelRectPx(wallOf(plan, "B"), "tooShort", "ru", metrics);
+    const c = markedLabelRectPx(wallOf(plan, "C"), "tooShort", "ru", metrics);
+
+    expect(intersect(b, c)).toBe(false);
+    for (const rect of [b, c]) {
+      expect(rect.leftPx).toBeGreaterThanOrEqual(0);
+      expect(rect.rightPx).toBeLessThanOrEqual(box.widthPx);
+    }
   });
 });
 

@@ -528,6 +528,9 @@ function besideTheWall(
   const facing = facingWallOf(bar, bars, box, metrics);
   const pair = facing === undefined ? undefined : { bar, facing, box, metrics };
   const arrangement = pair === undefined ? undefined : arrangementOf(pair);
+  if (pair !== undefined && arrangement === "beneath") {
+    return beneathLabel(pair);
+  }
   const topPx =
     pair !== undefined && arrangement === "stacked"
       ? stackedTopPx(pair)
@@ -591,7 +594,7 @@ function sharesItsBarWithAnother(
  * room — the room's inside, for both — so a U drawn narrower than two labels put *"B · 2400 mm"* and
  * *"C · 2400 mm"* on the same pixels, and the customer read *"B · 24002400 mm"*.
  *
- * Three arrangements are proved not to meet, and they are tried in this order:
+ * Four arrangements are proved not to meet, and they are tried in this order:
  *
  * 1. **Both inside**, when the gap between the two bars holds both labels each at its widest
  *    (`widestLabelPx`, which counts a marked wall's reason as well as its length) — frame 1B's own
@@ -599,13 +602,18 @@ function sharesItsBarWithAnother(
  * 2. **Both outside**, each on its own bar's outer side, when the box has the room for both there.
  *    B's label then lies wholly left of B's bar and C's wholly right of C's, and B's bar is never
  *    right of C's, so they cannot intersect however narrow the gap.
- * 3. **Stacked**, when the box is too narrow for either: C's line is moved below B's (or B's above
+ * 3. **Beneath**, when neither fits: both labels on their own rows under the bars, the near wall's
+ *    first, each held inside the box. No bar reaches those rows, so the pair cannot meet and neither is
+ *    printed over a bar. It needs the room under the lower bar, which a short wall leaves and a deep
+ *    one — whose drawing is narrow, so the outside arrangement fits — does not.
+ * 4. **Stacked**, when the box is too narrow for either: C's line is moved below B's (or B's above
  *    C's, if the box floor stops it), so the two lines share no pixel row and the sides no longer
  *    matter. A label that is clipped is worse than one that is moved a line, so this is the last
  *    resort and not the first.
  *
- * Only walls whose label lines share pixel rows can meet, so a wall whose line is clear of the
- * other's is not a facing wall at all.
+ * Two walls are facing when their labels could meet: their lines share pixel rows, or either line
+ * crosses the other wall's bar (a label wider than the gap between the bars reaches it from a row of
+ * its own). A wall whose line is clear of the other's line and bar is not a facing wall at all.
  */
 function facingWallOf(
   bar: PlanWallBar,
@@ -614,13 +622,15 @@ function facingWallOf(
   metrics: PlanPreviewMetrics,
 ): PlanWallBar | undefined {
   const lineTopPx = lineBesideTheWallTopPx(bar, box, metrics);
-  return bars.find(
-    (other) =>
-      other.wall !== bar.wall &&
-      !runsAcrossTheScreen(other) &&
-      Math.abs(lineBesideTheWallTopPx(other, box, metrics) - lineTopPx) <
-        metrics.labelLinePx,
-  );
+  return bars.find((other) => {
+    if (other.wall === bar.wall || runsAcrossTheScreen(other)) return false;
+    const otherLineTopPx = lineBesideTheWallTopPx(other, box, metrics);
+    return (
+      Math.abs(otherLineTopPx - lineTopPx) < metrics.labelLinePx ||
+      crossesTheLine(other, lineTopPx, metrics) ||
+      crossesTheLine(bar, otherLineTopPx, metrics)
+    );
+  });
 }
 
 interface FacingLabels {
@@ -630,16 +640,18 @@ interface FacingLabels {
   readonly metrics: PlanPreviewMetrics;
 }
 
-type FacingArrangement = "inside" | "outside" | "stacked";
+type FacingArrangement = "inside" | "outside" | "beneath" | "stacked";
 
 function arrangementOf(pair: FacingLabels): FacingArrangement {
   if (labelsFitBetween(pair)) return "inside";
   if (labelsFitOutside(pair)) return "outside";
+  if (labelsFitBeneath(pair)) return "beneath";
   return "stacked";
 }
 
 /** Which side of its own bar a label takes in an arrangement that decides it; `undefined` for
- *  stacked, whose lines cannot meet whichever side each takes, and for a wall with no facing wall. */
+ *  stacked, whose lines cannot meet whichever side each takes, for beneath, which places both labels
+ *  itself, and for a wall with no facing wall. */
 function sideOf(
   bar: PlanWallBar,
   arrangement: FacingArrangement | undefined,
@@ -703,6 +715,44 @@ function labelsFitOutside(pair: FacingLabels): boolean {
   );
 }
 
+/** Below both bars there is a full box width of free pixel rows, and it is the one place a label the
+ *  box's width barely holds can stand clear of every bar. Two rows are needed there (one per label, so
+ *  the pair cannot meet), a gap under the lower bar, and a box at least as wide as the widest text. */
+function labelsFitBeneath(pair: FacingLabels): boolean {
+  const { bar, facing, box, metrics } = pair;
+  const belowBothPx = Math.max(bottomEdgePx(bar), bottomEdgePx(facing));
+  const lastRowBottomPx =
+    belowBothPx + metrics.labelGapPx + 2 * metrics.labelLinePx;
+  const widestPx = Math.max(
+    widestLabelPx(bar, metrics),
+    widestLabelPx(facing, metrics),
+  );
+  return lastRowBottomPx <= box.heightPx && widestPx <= box.widthPx;
+}
+
+/** **Beneath**: the near wall's label on the first row under the bars, starting at its own bar's left
+ *  edge, and the far wall's on the row after it, ending at its own bar's right edge — each pulled back
+ *  just far enough to stay inside the box. The rows are the two walls' own and no bar reaches them, so
+ *  the labels cannot meet each other or be printed over a bar, whatever the text. */
+function beneathLabel(pair: FacingLabels): PlanWallLabelPx {
+  const { bar, facing, box, metrics } = pair;
+  const isFar = isTheFarWall(bar);
+  const belowBothPx = Math.max(bottomEdgePx(bar), bottomEdgePx(facing));
+  const firstRowPx = belowBothPx + metrics.labelGapPx;
+  const labelPx = widestLabelPx(bar, metrics);
+  return isFar
+    ? {
+        xPx: Math.max(Math.min(rightEdgePx(bar), box.widthPx), labelPx),
+        topPx: firstRowPx + metrics.labelLinePx,
+        alignment: "rightAligned",
+      }
+    : {
+        xPx: Math.min(Math.max(bar.xPx, 0), box.widthPx - labelPx),
+        topPx: firstRowPx,
+        alignment: "leftAligned",
+      };
+}
+
 /** Em of `"{wall} · {n} mm"` that do not depend on the number: the letter, the two spaces and the
  *  middle dot, the unit, all at their widest. Measured at 64,2 px for *"A · 3600 mm"* in Chromium at
  *  `700 11px Helvetica` (7F2 S2 QA), which is 5,84 em; four digits are 2,4 em of that bound. */
@@ -711,20 +761,22 @@ const LABEL_FIXED_EM = 3.7;
 /** The widest a digit is set in the screen's face, generously: tabular figures are 0,556 em. */
 const LABEL_DIGIT_EM = 0.6;
 
-/** The widest a character of a frame-1C reason is set in the screen's face, generously (Latin and
- *  Cyrillic bold capitals and lower-case are 0,5–0,75 em; the mean over these sentences is well under). */
-const LABEL_CHARACTER_EM = 0.6;
-
-/** **The longest reason a wall's label can be marked with, in characters** — `{wall} {reason}`, in
- *  either locale: *"B слишком короткая"* is 18. Held to the catalogue by
- *  `plan-preview-model.facing-labels.test.ts`, which fails if a reason grows past it, so the bound is
- *  a fact about copy the model checks and does not read. */
-export const PLAN_LABEL_REASON_MAX_CHARACTERS = 18;
+/** **The widest a frame-1C reason can be set, in em of the label's own font** — `{wall} {reason}`, in
+ *  either locale. The widest in the catalogues today is *"B слишком короткая"*, measured 10,60 em
+ *  whole in Chromium at `700 Helvetica`; this is that with a tenth to spare (11,7 em), so a rounding
+ *  in a browser's own metrics does not put a label a pixel wider than the room reserved.
+ *
+ *  **It is guarded by width, not by length of string.** A count of characters cannot see that *ш*,
+ *  *щ*, *ж*, *ю* and *м* are 0,72–0,89 em where *т* is 0,50, so a future reason of the same length
+ *  spelled in wide letters would have passed a character count and overlapped. The test sums every
+ *  reason's glyph advances (`tests/support/plan-reason-glyphs.ts`, measured) and holds the sum to this
+ *  number, and it fails on a letter the table has not measured. */
+export const PLAN_LABEL_REASON_MAX_EM = 11.7;
 
 /** An upper bound on the text a wall's label can be showing, from what the text says and never from a
  *  measured string. **It is the wider of the two things the label can read**: the length,
  *  `{wall} · {millimetres} mm`, bounded by its digit count; and frame 1C's reason
- *  (`markPlanWalls`), bounded by its character count. Both times the line it is set on
+ *  (`markPlanWalls`), bounded by `PLAN_LABEL_REASON_MAX_EM`. Both times the line it is set on
  *  (`labelLinePx` is the font size, `plan-preview.tsx`'s `--plan-label-line`).
  *
  *  **Why the reason is always counted, marked or not.** Marking is a second step that keeps the
@@ -736,8 +788,7 @@ export const PLAN_LABEL_REASON_MAX_CHARACTERS = 18;
 function widestLabelPx(bar: PlanWallBar, metrics: PlanPreviewMetrics): number {
   const digits = String(bar.lengthMm).length;
   const lengthEm = LABEL_FIXED_EM + LABEL_DIGIT_EM * digits;
-  const reasonEm = PLAN_LABEL_REASON_MAX_CHARACTERS * LABEL_CHARACTER_EM;
-  return Math.max(lengthEm, reasonEm) * metrics.labelLinePx;
+  return Math.max(lengthEm, PLAN_LABEL_REASON_MAX_EM) * metrics.labelLinePx;
 }
 
 /** Every wall but the one leaving the corner down the screen stands on the far side of the drawing. */

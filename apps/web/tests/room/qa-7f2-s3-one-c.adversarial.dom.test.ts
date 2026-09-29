@@ -243,8 +243,11 @@ function isAnyOneCSurfaceShown(): boolean {
   );
 }
 
+/** The oracle reads a room the way the screen does, against **the screen's own policy** (M7B U5
+ *  review: `RoomScreen`'s `policy` now reaches the URL parse), so a policy that builds a U reaches 1D
+ *  here as it does on screen. Undefined is the approved policy, the parser's own default. */
 function parsed(search: string): RoomUrlState {
-  return parseRoomUrlState(queryEntriesOf(search));
+  return parseRoomUrlState(queryEntriesOf(search), screenPolicy);
 }
 
 function pushedStates(): readonly RoomUrlState[] {

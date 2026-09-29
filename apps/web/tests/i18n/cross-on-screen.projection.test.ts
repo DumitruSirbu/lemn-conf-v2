@@ -1,5 +1,14 @@
 // M7B U5 S2, acceptance criterion 5 (D15): `crossesOnScreen` is held to the real camera, for every wall
-// a room can have, in both directions.
+// a room can have.
+//
+// **What is measured and what is derived, kept apart (U5 review).** The three `left` pairs are the
+// evidence: two points projected through the real camera preset `cameraPresetsForRoom` returns for a
+// left-hand room, which is every room a U can be. The three `right` pairs are **not a measurement**:
+// no right-hand U exists, so no real camera stands for one, and the `right` preset here is the left one
+// with its x negated by `mirroredX` — D4's reflection applied by the test. Projecting a reflection
+// through a reflected camera answers "the opposite of `left`" by construction, so a `right` row
+// asserts that the table is consistent with D4, and it cannot show that wall C's `left` row is right.
+// The `left` arm can.
 //
 // `qa-7i-screen-side.adversarial.test.ts` (three-adapter) proved walls A and B by projecting two points
 // a metre apart along a wall's own +along axis through that wall's camera preset. It could not be
@@ -40,20 +49,24 @@ const METRE = 1;
 
 type WallCase = readonly [DesignWall, CornerDirection];
 
-const EVERY_PAIR: readonly WallCase[] = [
+/** **Measured**: a real preset of a left-hand room, which is every room a U can be. */
+const MEASURED_PAIRS: readonly WallCase[] = [
   ["A", "left"],
-  ["A", "right"],
   ["B", "left"],
-  ["B", "right"],
   ["C", "left"],
+];
+
+/** **Derived**, not measured: the reflection of the measured cameras (see the head of this file). */
+const REFLECTED_PAIRS: readonly WallCase[] = [
+  ["A", "right"],
+  ["B", "right"],
   ["C", "right"],
 ];
 
-/** The wall's preset in a left-hand room, reflected the way D4's mirror reflects a right-hand room's
- *  (`mirroredX` on the camera's and the target's x). **A U is never right-hand**
- *  (`cornerDirectionOf` answers left for it, so `cameraPresetsForRoom` never mirrors one), so the
- *  `right` arm of every pair is the hypothetical the rule would have to answer if a right-hand U
- *  ever existed — measured here the one way the 7I table measured A and B. */
+/** The wall's preset in a left-hand room; for `right`, that preset reflected the way D4's mirror
+ *  reflects a right-hand room's (`mirroredX` on the camera's and the target's x). **The `right` preset
+ *  is this test's own reflection, not a camera the product builds**: a U is never right-hand
+ *  (`cornerDirectionOf` answers left for it, so `cameraPresetsForRoom` never mirrors one). */
 function presetFor(wall: DesignWall, direction: CornerDirection): CameraPreset {
   const id = `wall${wall}` as const;
   const found = cameraPresetsForRoom(U_ROOM).find((preset) => preset.id === id);
@@ -123,8 +136,8 @@ function screenSideOfPlusAlong(
   return { side: movedBy > 0 ? "right" : "left", movedBy };
 }
 
-describe("crossesOnScreen agrees with the camera, for all six (wall, direction) pairs (D15)", () => {
-  it.each(EVERY_PAIR)(
+describe("crossesOnScreen agrees with the real camera, for the three walls of a left-hand room (D15, AC5)", () => {
+  it.each(MEASURED_PAIRS)(
     "wall %s, direction %s: +along on screen and the crossing agree",
     (wall, direction) => {
       const { side } = screenSideOfPlusAlong(wall, direction);
@@ -133,7 +146,7 @@ describe("crossesOnScreen agrees with the camera, for all six (wall, direction) 
     },
   );
 
-  it.each(EVERY_PAIR)(
+  it.each(MEASURED_PAIRS)(
     "wall %s, direction %s: the two points really differ on screen",
     (wall, direction) => {
       const { movedBy } = screenSideOfPlusAlong(wall, direction);
@@ -145,6 +158,20 @@ describe("crossesOnScreen agrees with the camera, for all six (wall, direction) 
   it("never crosses on wall C in a U, which has one hand and is always left", () => {
     expect(crossesOnScreen("C", "left")).toBe(false);
   });
+});
+
+describe("crossesOnScreen is consistent with D4's reflection, for the three right-hand rows (derived, not measured)", () => {
+  it.each(REFLECTED_PAIRS)(
+    "wall %s, direction %s: the reflected camera turns the left answer over",
+    (wall, direction) => {
+      const { side } = screenSideOfPlusAlong(wall, direction);
+
+      expect(crossesOnScreen(wall, direction)).toBe(side === "left");
+      expect(crossesOnScreen(wall, direction)).toBe(
+        !crossesOnScreen(wall, "left"),
+      );
+    },
+  );
 
   it("turns wall C over against wall B, as the reflection that makes its camera does", () => {
     expect(crossesOnScreen("C", "left")).toBe(!crossesOnScreen("B", "left"));
