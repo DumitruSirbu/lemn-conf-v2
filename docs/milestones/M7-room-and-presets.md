@@ -1580,7 +1580,7 @@ table.
 | **7J** | Straight kitchens through composition — **DONE 2026-09-28. Commits: plan + ADR 0130 + ADR 0108 Amendment G + ADR 0116 Amendment A `5596de1`; S1 `c39cd95`; S2 `8c9b1bf`; S3 `b83f172`; S4 `f4de5dd`; S5 `e34f1e3`; S6 `c97ce3b`; QA fixes `7f386c9`; review fixes `d00cfc0`. See [7J close-out](#7j-close-out--2026-09-28)** | `room/approved-room-policy.ts` (the linear bounds), `generation/shell-design.ts`, `room/validate-room.ts` | 7D2, 7F2 | Full | **Yes** | answered (F1, Q-7J-1 at 1200–6000 mm, ADR 0108 Amendment G) |
 | ↳ | **Owes, from 7F1's ruling R8 (2026-09-14):** widen `BuildableShapes`, `ENGINE_ROOM_LIMITS`, `APPROVED_ROOM_POLICY` and `validateRoomInput` **together**, and delete both `as BuildableShapes` test helpers in the same wave. **Must change nothing under `apps/web/src/room`** — that is 7F1 criterion 3's claim, and 7J is its test | | | | | |
 | **7K** | The mobile gate — **DONE 2026-09-28. Commits: plan `d0a21a2`; S0-S2 implementation `d841d9a`; review fixes `daea173` (HEAD). See [7K close-out](#7k-close-out--2026-09-28)** | `apps/web/tests/e2e/mobile-gate.e2e.spec.ts`, `tests/e2e/support/step-one-by-touch.ts` (both new); no production file | all UI waves, 7E3a, 7E3c, 7E3b | Light (tests) | **Yes — the phase gate** | answered (Q-7K-1 no; Q-7K-2 yes) |
-| **7L** | The desktop line — **PLANNED 2026-09-28, see [Wave 7L — the plan](#wave-7l--the-plan-2026-09-28)**; D1A, D1B, D1C, D1F (D1D/D1E move with 7F3) | ~~*carried*~~ **corrected by the plan:** `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `plan-preview-model.ts`, `src/room/validation-suggestion.tsx` (new), `one-c-status.tsx`, `dimensions-form.tsx`, `generation-steps.tsx` (+ messages; + one `.desktop.e2e` spec) | 7F1–7F4 | Light | Desktop | Q-7L-1 (owner, not blocking), Q-7L-2 (coordinator) |
+| **7L** | The desktop line — **DONE 2026-09-29. Commits: plan (+ S0-S2 implementation) `1e1bf6e`; S3-S6 + review fixes `86f6dc4`; R9 documentation `4962fa8`. See [7L close-out](#7l-close-out--2026-09-29)**; D1A, D1B, D1C, D1F (D1D/D1E move with 7F3) | ~~*carried*~~ **corrected by the plan:** `room.module.css`, `room-screen.tsx`, `plan-preview.tsx`, `plan-preview-model.ts`, `src/room/validation-suggestion.tsx` (new), `one-c-status.tsx`, `dimensions-form.tsx`, `generation-steps.tsx` (+ messages; + one `.desktop.e2e` spec) | 7F1–7F4 | Light | Desktop | Q-7L-1 still open (shipped at its interim, option (b)); Q-7L-2 confirmed by coordinator — see the close-out |
 | ~~**Gate M7-C**~~ | ~~Owner copy review~~ — **withdrawn by ADR 0113** | | | | | |
 
 **Two defects in the table above, found during 7D3's close-out on 2026-09-15, recorded and
@@ -5127,6 +5127,115 @@ after 7L comes M7's close, which also owes the preset-deferral ADR 7K §7 recomm
 - **Q-7L-2 (coordinator, confirmation).** D10's derivation: the milestone criterion *"a preview that
   fills as bodies are placed"* (`:628`) is struck by R12 — the preview is the room's own plan, static.
   The architect reads this as already decided by R12; confirm, or say where it is not.
+
+### 7L close-out — 2026-09-29
+
+**What shipped — the desktop line: D1A, D1B, D1C and D1F at `min-width: 900px`, one implementation
+shared with the phone.** Commits, in order: plan `1e1bf6e` — **this commit's diff also contains S0-S2's
+implementation** (`plan-preview-model.ts`, `plan-preview.tsx`, `room.module.css` and their tests): a
+labelling mismatch against the plan's own slice table, worth recording plainly rather than glossing
+over, since S0-S2 shipped alongside the plan text instead of as its own commit. S3-S6 + review-fix
+round `86f6dc4` (the suggestion card, D1F's static plan, the desktop e2e gate, and the review's fixes).
+R9 documentation `4962fa8` (HEAD) — the pre-hydration plan-flash risk, accepted and bounded by
+coordinator ruling.
+
+**S0-S2 (baselines and the measured plan).** The desktop baseline was captured and confirmed
+byte-identical to the mobile baseline, both pre- and post-S1's CSS shell change. `derivePlanPreview`
+gained its three metrics as input, defaulting to today's constants (D6 a); the pinned regression test
+proves the mobile default path — the 2-arg call, default metrics — is byte-identical to the wave-base
+function, so S2 needed no escalation to Full tier under D6's own trigger. Two pre-existing CSS bugs
+were found and fixed as an unavoidable side effect of making S2's own deliverable render as specified,
+not scope creep: a `grid-row: 1/-1` that never actually spanned past row 1 for lack of an explicit
+`grid-template-rows`, and a bare `1fr` field-column track whose unclamped minimum caused silent
+overflow.
+
+**S3 (the suggestion).** Confirmed by source reading that the desktop suggestion card runs the
+*Liniară* chip's own `chooseShape` call site (D8) rather than a parallel rule. The suggestion moved out
+of every ARIA live region per 7J's R1.4 handover (D9); offending fields' `aria-describedby` now chains
+reason then suggestion.
+
+**S4 (D1F).** Gained a static plan aside at desktop, reusing `PlanPreview` verbatim through a new
+`roomDraftFor`/`parsedRoomLengthsOf` helper — later found by review to duplicate an existing mapping in
+`room-url-state.ts`, and consolidated in the review-fix round.
+
+**S5 (the desktop spec).** New `room-desktop-line.desktop.e2e.spec.ts`, 69 tests, sabotage-verified: 7
+real sabotage mutations correctly reddened their named criteria, one negative control correctly stayed
+green. Found and fixed two real production defects along the way: a Russian-locale help-button/input
+overlap (`.fieldUnit { min-width: 24px }`), and a plan-box border-sizing bug causing a spurious second
+measurement (a shared `planBoxBorderStyle()` helper). A third finding — a brief pre-hydration flash of
+phone-sized content on desktop before fill-mode measurement resolves — is architecturally unavoidable
+without breaking the phone's SSR byte-identity guarantee (the server has no viewport hint); accepted by
+coordinator ruling as **R9**, with criterion 8's bound tightened from an unproven flat 12 to
+per-environment exact-measured values (dev ≤ 7, CI/production ≤ 4 paints, both measured over 20 runs
+and sabotage-verified to actually catch a regression of the fixes that shrank the window).
+
+**S6 (visual verification).** Confirmed D1A-D1F render correctly in both locales at 1440×900, and that
+mobile (390×844) is a byte-for-byte-unaffected control. Console clean throughout every journey. Both
+S5 bug fixes visually/numerically confirmed (the RU help button now has a measured 5px gap from the
+input, no overlap). One non-blocking UX observation recorded, not a defect: the desktop suggestion card
+and the phone-style clause both render together at 1C, which reads as mildly redundant on a wide
+screen — flagged for the owner's eventual judgment, not fixed.
+
+**Logic review.** One BLOCKER found and fixed: a room-level-only validation reason (e.g.
+`ROOM_TOO_SMALL_FOR_KITCHEN` on an 1800×1200×2600mm L room, which produces zero field reasons) left the
+suggestion referenced by no live region and no field's `aria-describedby` — a real accessibility
+regression from pre-7L behaviour. Fixed by wiring the room-level reason's own `aria-describedby` to the
+suggestion when it fires with no field reasons, with a regression test pinning the exact reported room.
+Six further findings, all fixed: criterion 12's missing [dom] property test added (two populations —
+field-reason and room-reason — 100 fast-check runs each, sabotage-verified against two independent
+mutations); the criterion-8 pre-hydration bound tightened from an unproven flat 12 to the per-environment
+exact-measured values above, after the reviewer showed 12 would not have caught a full regression of
+the S5 fixes; the `roomDraftFor`/`room-url-state.ts` mapping duplication consolidated into one shared
+`parsedRoomLengthsOf` helper; a visual regression from the RU help-button fix (the unit text's
+left-alignment inside its new min-width box knocked the "?" glyph off-centre) corrected with
+`text-align: center` plus a re-measured glyph offset; an empty-region grid row-gap quirk (a real,
+measured 16px extra spacing above the fields whenever no shape is refused at desktop, caused by CSS
+Grid not absorbing a child's negative margin the way flex does) investigated, a fix attempted and found
+to break row placement elsewhere, and correctly left as a documented known quirk rather than risking an
+unproven CSS restructuring.
+
+**Clean-code review.** No blockers. Two non-blocking notes, neither required for this Light-tier wave:
+parameter sprawl in `plan-preview-model.ts`'s layout helpers now carrying both `box` and `metrics` as
+separate positional arguments at nearly every call site (a candidate for a bundled context object,
+opportunistic); a small i18n message-loading helper in the new e2e spec duplicates ~8 lines already in
+`support/step-one-by-touch.ts` (isolated, low severity).
+
+**Gates.** Final `pnpm ci:local`: **ALL GATES GREEN** — domain 5018/5018, persistence 730/730,
+three-adapter 3642/3642, web 4756/4756, e2e 520 passed, build/boundary/lockfile/SCA all PASS (SCA shows
+one pre-existing moderate-severity advisory below the gate's `--audit-level=high` threshold, unrelated
+to this wave, not a new introduction).
+
+**Deviations from the plan, with rationale:** the S0-S2 labelling mismatch above (implementation shipped
+inside the plan commit rather than its own, per the plan's slice table) — a reporting artefact of how
+the work was committed, not a scope or behaviour change; every slice's own must-fix items were still
+delivered and verified in order. No production behaviour departs from §2's decisions beyond §3's own
+listed departures from the frames, which the plan itself called out in advance.
+
+**Deferred / accepted, each with its trigger:** the clean-code parameter-sprawl note above — opportunistic,
+no trigger set. The i18n message-loading duplication in the new e2e spec — coordinator follow-up
+alongside 7K's own similar note, not a required fix. The empty-region grid row-gap quirk — documented
+known quirk; re-open if a future CSS restructuring of that region is undertaken for another reason. The
+desktop-suggestion-card/phone-clause redundancy at 1C — UX observation for the owner's eventual
+judgment, not a defect. **R9** (the pre-hydration plan-flash) — accepted as a bounded, known limitation;
+its trigger to revisit is a requirement for a true zero-flash guarantee (a server-side viewport hint, or
+the owner reporting the flash as visibly jarring in practice).
+
+**Two documentation obligations 7L's own plan named, still owed and not discharged by this close-out**
+(§7 of the 7L plan, `:5099-5107`): (1) the preset-path deferral past M8 — first recommended at 7K's own
+close-out (`:4782-4784`) as an ADR owed "at M7's close," restated here as still outstanding; (2) a dated
+amendment to ADR 0104 recording how Q-7L-1's answer (shipped at its interim, option (b): none of D1B's
+extra heading/note/plan-hint text drawn) settles DEVELOPMENT-SPEC §10's "same copy" against ADR 0104's
+"frames as specification" for Step 1 — owed "by M7's close" regardless of which way Q-7L-1 is finally
+answered. Neither is a coding task; both are decision records this close-out flags rather than writes,
+per this role's remit.
+
+**Owner line for the next RESUME HERE:** Q-7L-1 (draw D1B's extra heading/note/plan-hint text?) is
+**still open** — the product ships at its recommended interim, option (b), drawing none of them, until
+the owner answers. Q-7L-2 (confirm D10's derivation that the "fills as bodies are placed" criterion is
+struck by R12) was **confirmed by the coordinator**. No further owner action is required to accept 7L
+itself.
+
+Implementation, review and documentation are `1e1bf6e`…`4962fa8`.
 
 ## Wave 7D1 — dispatchable punch list
 

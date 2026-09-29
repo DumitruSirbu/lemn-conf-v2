@@ -33,37 +33,48 @@ session can learn fast where the project stands, without reading eight phase pla
 > **After the gate, M6B owes only the push, and the owner has now explicitly authorised it.** The
 > rebase rewrote the branch's history, so it can only be force-pushed.
 
-> **RESUME HERE — 2026-09-28, later than 7J below. M7 wave 7K ("the mobile gate") is DONE.** The full
-> mobile customer journey is proven by touch, not click, across the L (`{ro, left}`, `{ru, right}`)
-> and straight (`ro`) cases, plus Back/Forward, resume, a mid-write leave and a U-refusal tap. Full
-> close-out: [`milestones/M7-room-and-presets.md`, *7K close-out —
-> 2026-09-28*](milestones/M7-room-and-presets.md#7k-close-out--2026-09-28), directly after the 7K
+> **RESUME HERE — 2026-09-29. M7 wave 7L ("the desktop line") is DONE — and it is M7's last build
+> wave.** Step 1 now draws D1A, D1B, D1C and D1F at `min-width: 900px`, from the same components,
+> rules and copy the phone uses, with the phone unmoved by a pixel. Full close-out:
+> [`milestones/M7-room-and-presets.md`, *7L close-out —
+> 2026-09-29*](milestones/M7-room-and-presets.md#7l-close-out--2026-09-29), directly after the 7L
 > plan.
 >
-> **What shipped.** One new spec (`mobile-gate.e2e.spec.ts`, 5 tests) plus one support module
-> (`step-one-by-touch.ts`); the four inherited specs (`room-to-editor.qa`, `room-traversal.qa`,
-> `linear-flow*`, `mirror-real-flow*`) verified untouched and still green. Commits, in order: plan
-> `d0a21a2`; S0-S2 implementation `d841d9a`; review fixes (teardown captures a mid-flight mint, an
-> additive check on requests) `daea173` (HEAD).
+> **What shipped.** Commits, in order: plan `1e1bf6e` (this commit's diff also contains S0-S2's
+> implementation — a labelling mismatch noted plainly in the close-out); S3-S6 + review fixes
+> `86f6dc4`; R9 documentation `4962fa8` (HEAD). The measured, fill-mode large plan (S2); D1C's
+> actionable suggestion reusing the *Liniară* chip's own handler and closing 7J's R1.4 live-region
+> handover (S3); D1F's static plan aside (S4); a new 69-test desktop e2e spec,
+> sabotage-verified (S5); a full visual pass at 1440×900 in both locales plus a byte-identical mobile
+> control (S6).
 >
-> **QA (sabotage against criterion 17) and review found no blocker.** The hand-off `push`→`replace`
-> reddens Back; dropping `cornerDirection` on store reddens the round trip **in the right-hand case
-> only**, proving the discriminator; a literal "compose twice" reddens nothing, correctly, because of
-> an existing run-token guard (verified sound by the reviewer). Review found and fixed two logic
-> issues (an orphaned-design cleanup race; a fixed-wait check strengthened to an additive
-> request-level check) and noted one low-severity, non-blocking duplication (an i18n loading helper),
-> both in the close-out.
+> **QA and review found and fixed real defects, none blocking after fixes.** S5 found a Russian-locale
+> help-button/input overlap and a plan-box border-sizing bug causing a spurious second measurement,
+> both fixed. Review's logic pass found one BLOCKER — a room-level-only validation reason left the
+> suggestion wired to no live region and no field, a real accessibility regression — fixed with a
+> regression test pinning the reported room, plus six further fixes (a missing property test, the
+> criterion-8 pre-hydration bound tightened to per-environment measured values, a mapping duplication
+> consolidated, a visual regression from the RU fix corrected, and a CSS row-gap quirk investigated and
+> correctly left as a documented known quirk). Clean-code review found no blockers, two non-blocking
+> notes only.
 >
-> **Both owner-facing questions are closed, not just answered.** Q-7K-1 (should M7's gate include a
-> real-phone walkthrough) — **owner said no**, emulated touch is enough; M7 closes without one.
-> Q-7K-2 (does the gate cover only the composed path) — **coordinator confirmed yes**.
+> **R9, accepted by coordinator ruling:** a brief pre-hydration flash of phone-sized plan content at
+> desktop before fill-mode measurement resolves, unavoidable without breaking the phone's SSR
+> byte-identity guarantee. Bounded per-environment (dev ≤ 7, CI/production ≤ 4 paints over 20 runs),
+> sabotage-verified. Trigger to revisit: a true zero-flash requirement (a server-side viewport hint, or
+> the owner reporting it as jarring).
 >
-> **Final `pnpm ci:local` at `daea173`: ALL GATES GREEN** — domain 5018/5018, persistence 559/559,
-> three-adapter 3642/3642, web 4719/4719, e2e 451 passed (2 skipped, up from 446 pre-wave),
-> build/boundary/lockfile/SCA all PASS.
+> **Final `pnpm ci:local`: ALL GATES GREEN** — domain 5018/5018, persistence 730/730, three-adapter
+> 3642/3642, web 4756/4756, e2e 520 passed, build/boundary/lockfile/SCA all PASS.
 >
-> **Next wave: 7L** (the desktop line, D1A–D1F), then Gate M7-C, per the recorded order. No owner
-> action is needed to accept 7K.
+> **M7's build sequence (`… → 7J → 7K → 7L`) is now complete, and Gate M7-C is withdrawn (ADR 0113) —
+> but M7 itself is not yet closed.** Two decision records the 7L plan names as owed "by M7's close" are
+> still outstanding: (1) the preset-path deferral past M8 (7P1, 7P2, 7G, 7B, 7C, 7F3 — already
+> deferred in practice by the 2026-09-15/2026-09-22 rulings, but with no ADR of its own yet), first
+> recommended at 7K's close-out; (2) a dated amendment to ADR 0104 recording how Q-7L-1's answer
+> (shipped at its interim, option (b) — none of D1B's extra heading/note/plan-hint text drawn, still
+> open for the owner to override) settles DEVELOPMENT-SPEC §10's "same copy" against ADR 0104's
+> "frames as specification." Neither is a coding task. **Do not declare M7 closed until both exist.**
 
 Last updated: 2026-09-28 — **M7 wave 7J is DONE** (straight kitchens through composition, 1200–6000 mm
 on one wall, no corner). See the [7J close-out](milestones/M7-room-and-presets.md#7j-close-out--2026-09-28)
