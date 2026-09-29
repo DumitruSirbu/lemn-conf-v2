@@ -235,7 +235,7 @@ function atCurrentCabinetDepth(
   slid: ReadonlyMap<string, Column>,
   input: FrozenMapAtCabinetDepthInput,
 ): ReadonlyMap<string, Column> {
-  const widthM = toMetres(input.room.widthMm);
+  const roomWidthM = toMetres(input.room.widthMm);
   // No stored half on either call: these two maps are only ever read for the depth their **members**
   // imply, and restoring the frozen entries into them would answer with the very numbers being
   // re-measured.
@@ -266,7 +266,7 @@ function atCurrentCabinetDepth(
     ) {
       continue;
     }
-    republished.set(key, atDepthM(column, published, widthM));
+    republished.set(key, atDepthM(column, published, roomWidthM));
   }
   return republished;
 }
@@ -508,16 +508,16 @@ const FROZEN_SURPLUS_EPSILON_M = 1e-9;
 function atDepthM(
   column: Column,
   published: PublishedDepth,
-  widthM: number,
+  roomWidthM: number,
 ): Column {
-  const wall = getWallTransform(column.wall, widthM);
+  const wall = getWallTransform(column.wall, roomWidthM);
   const alongM = wall.tangent.x * column.x + wall.tangent.z * column.z;
   const { position } = deriveCabinetWorldTransform({
     wall: column.wall,
     alongM,
     y0M: columnFloorM(column),
     depthM: published.d,
-    widthM,
+    roomWidthM,
   });
   const moved: MutableColumn = {
     ...column,

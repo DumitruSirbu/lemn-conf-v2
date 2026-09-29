@@ -64,7 +64,7 @@ describe("deriveCabinetWorldTransform", () => {
         alongM: 1.3,
         y0M: 0,
         depthM: 0.6,
-        widthM: ROOM_WIDTH_M,
+        roomWidthM: ROOM_WIDTH_M,
       }),
     ).toEqual({
       position: { x: 1.3, y: 0, z: 0.3 },
@@ -79,7 +79,7 @@ describe("deriveCabinetWorldTransform", () => {
         alongM: 1.2,
         y0M: 0,
         depthM: 0.6,
-        widthM: ROOM_WIDTH_M,
+        roomWidthM: ROOM_WIDTH_M,
       }),
     ).toEqual({
       position: { x: 0.3, y: 0, z: 1.2 },
@@ -97,7 +97,7 @@ describe("deriveCabinetWorldTransform", () => {
         alongM: 1.2,
         y0M: 0,
         depthM: 0.6,
-        widthM: ROOM_WIDTH_M,
+        roomWidthM: ROOM_WIDTH_M,
       }),
     ).toEqual({
       position: { x: ROOM_WIDTH_M - 0.3, y: 0, z: 1.2 },
@@ -112,7 +112,7 @@ describe("deriveCabinetWorldTransform", () => {
         alongM: 0.4,
         y0M: 1.5,
         depthM: 0.56,
-        widthM: ROOM_WIDTH_M,
+        roomWidthM: ROOM_WIDTH_M,
       }).position.y,
     ).toBe(1.5);
   });
@@ -131,7 +131,7 @@ describe("deriveCabinetWorldTransform", () => {
           alongM,
           y0M,
           depthM,
-          widthM: ROOM_WIDTH_M,
+          roomWidthM: ROOM_WIDTH_M,
         }),
       ).toThrow(RangeError);
     },

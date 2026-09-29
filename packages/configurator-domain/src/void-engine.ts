@@ -558,7 +558,7 @@ function lookupDefinition(
 function deriveFrame(
   placement: DesignPlacement,
   definition: BodyDefinition,
-  widthM: number,
+  roomWidthM: number,
 ): Frame {
   // ADR 0011 Gap B: an inserted body carries its own measured seat, because `frameDepthMm` is a
   // measurement of one specific seeded body and cannot seat a parameterised one.
@@ -570,7 +570,7 @@ function deriveFrame(
     alongM: toMetres(placement.alongMm),
     y0M: toMetres(placement.y0Mm),
     depthM,
-    widthM,
+    roomWidthM,
   });
   const heightMm = definition.frameHeightMm ?? placement.body.heightMm;
   return {
@@ -590,10 +590,10 @@ export function derivePlacementRecords(
   design: Design,
   catalog: BodyCatalog,
 ): PlacementRecord[] {
-  const widthM = toMetres(design.room.widthMm);
+  const roomWidthM = toMetres(design.room.widthMm);
   return design.placements.map((placement) => {
     const definition = lookupDefinition(catalog, placement.body.buildId);
-    const frame = deriveFrame(placement, definition, widthM);
+    const frame = deriveFrame(placement, definition, roomWidthM);
     // "Rotated" names which axis is along, never a specific wall (ADR 0132 decision 1): wall C's
     // along is `+z`, the same axis wall B's is, so it reads exactly as B does here.
     const rotated = placement.wall !== "A";
@@ -649,14 +649,14 @@ export function derivePlacementRecords(
 function originOnWall(
   member: PlacementRecord,
   centreM: number,
-  widthM: number,
+  roomWidthM: number,
 ): { readonly x: number; readonly z: number } {
   if (member.wall === "A") return { x: member.frame.x, z: centreM };
   if (member.wall === "B") return { x: centreM, z: member.frame.z };
   // ADR 0132 decision 1: wall C is a world wall at `x = W`, fronts `−X` — the mirror image of wall
   // B's own `x = centreM`, reflected about `W`'s own plane rather than about the room's centre line
   // (the room-centre reflection is ADR 0129's rejected alternative, kept out of the domain).
-  return { x: widthM - centreM, z: member.frame.z };
+  return { x: roomWidthM - centreM, z: member.frame.z };
 }
 
 function groupByColumn(
@@ -695,7 +695,7 @@ export interface FrozenMapDocument {
 function restoredColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument,
-  widthM: number,
+  roomWidthM: number,
 ): Map<string, ColumnExtent> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
@@ -744,7 +744,7 @@ function restoredColumns(
       key,
       wall: orientation.wall,
       ry: orientation.frame.ry,
-      ...originOnWall(orientation, centre, widthM),
+      ...originOnWall(orientation, centre, roomWidthM),
       w: width,
       d: clearanceM,
       depthFromBuildId: deepest.buildId,
@@ -752,8 +752,8 @@ function restoredColumns(
       regions,
     });
   }
-  addStoredEmptyColumns(columns, stored.emptyColumns ?? [], widthM);
-  addStoredColumnExtents(columns, stored.columnExtents ?? [], widthM);
+  addStoredEmptyColumns(columns, stored.emptyColumns ?? [], roomWidthM);
+  addStoredColumnExtents(columns, stored.columnExtents ?? [], roomWidthM);
   return columns;
 }
 
@@ -956,7 +956,7 @@ type MutableColumnExtent = {
  *  pair uncapped declines. Two pipelines differing by one stage change no published answer; one
  *  pipeline with a moved stage changes some.
  *
- *  **It takes `widthM`, never a `DesignRoom`, and that is the signature saying what the two faces
+ *  **It takes `roomWidthM`, never a `DesignRoom`, and that is the signature saying what the two faces
  *  still differ by (M7B U1 slice S3).** `restoredColumns` needs the room's width for wall C's world
  *  coordinate (ADR 0132 decision 1: `x = W − centre`; wall A's and wall B's origin is the room's own
  *  corner and needs no room fact at all). That is a coordinate the map always carried for A and B —
@@ -968,11 +968,11 @@ type MutableColumnExtent = {
 export function deriveRecordedColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument = {},
-  widthM: number,
+  roomWidthM: number,
 ): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
-      restoredColumns(records, stored, widthM),
+      restoredColumns(records, stored, roomWidthM),
       records,
     ),
     records,
@@ -1094,9 +1094,9 @@ function followsTheSetting(record: PlacementRecord): boolean {
 function addStoredEmptyColumns(
   columns: Map<string, ColumnExtent>,
   emptyColumns: readonly EmptyColumn[],
-  widthM: number,
+  roomWidthM: number,
 ): void {
-  restoreStoredExtents(columns, emptyColumns, widthM);
+  restoreStoredExtents(columns, emptyColumns, roomWidthM);
 }
 
 /** ADR 0053: the frozen extents of the columns that **do** hold a member, restored over the ones
@@ -1124,9 +1124,9 @@ function addStoredEmptyColumns(
 function addStoredColumnExtents(
   columns: Map<string, ColumnExtent>,
   columnExtents: readonly StoredColumnExtent[],
-  widthM: number,
+  roomWidthM: number,
 ): void {
-  restoreStoredExtents(columns, columnExtents, widthM);
+  restoreStoredExtents(columns, columnExtents, roomWidthM);
 }
 
 /** One entry, one slot, through `toColumnExtent` — the same conversion for both stored arrays,
@@ -1134,17 +1134,17 @@ function addStoredColumnExtents(
 function restoreStoredExtents(
   columns: Map<string, ColumnExtent>,
   stored: readonly EmptyColumn[],
-  widthM: number,
+  roomWidthM: number,
 ): void {
   for (const entry of stored) {
-    const extent = toColumnExtent(entry, widthM);
+    const extent = toColumnExtent(entry, roomWidthM);
     columns.set(extent.key, extent);
   }
 }
 
 function toColumnExtent(
   emptyColumn: EmptyColumn,
-  widthM: number,
+  roomWidthM: number,
 ): ColumnExtent {
   const alongM = toMetres(emptyColumn.alongMm);
   const depthM = toMetres(emptyColumn.depthMm);
@@ -1158,7 +1158,7 @@ function toColumnExtent(
     alongM,
     y0M,
     depthM,
-    widthM,
+    roomWidthM,
   });
   const extent: ColumnExtent = {
     key: deriveColumnKeyAt(emptyColumn.wall, alongM),

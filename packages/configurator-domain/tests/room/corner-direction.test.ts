@@ -185,7 +185,13 @@ describe("room.cornerDirection has exactly one production reader across the work
   // kitchen. That question — what a stored direction means — still has exactly one answer, in
   // `cornerDirectionOf`; this is the schema's own combinatorics, the same kind of check that already
   // ties `wallCMm`'s presence to `shape`.
+  //
+  // **Exempted from the zero-reads rule below, never from the scan.** `design.ts` is still read and
+  // counted — R1.2's review finding — so a *second* `room.cornerDirection` read landing there, one
+  // that actually interprets the direction rather than merely checking its presence, still fails the
+  // scan instead of vanishing into a file-level exemption.
   const SCHEMA_STRUCTURAL_REFUSAL = "design.ts";
+  const SCHEMA_STRUCTURAL_REFUSAL_READS = 1;
 
   // Review L1.6: `cornerDirectionOf` is the one reader for *every* consumer of a stored room, not
   // just this package's own source — `three-adapter` and the web app each hold a `DesignRoom` too
@@ -205,6 +211,14 @@ describe("room.cornerDirection has exactly one production reader across the work
     },
   ];
 
+  function timesTheStoredFieldIsRead(src: string, file: string): number {
+    const content = readFileSync(path.join(src, file), "utf8");
+    const matches = content.match(
+      new RegExp(READS_THE_STORED_FIELD.source, "g"),
+    );
+    return matches?.length ?? 0;
+  }
+
   function offendersAcrossWorkspace(): string[] {
     return WORKSPACE_ROOTS.flatMap(({ label, src }) =>
       readdirSync(src, { recursive: true, withFileTypes: true })
@@ -216,18 +230,21 @@ describe("room.cornerDirection has exactly one production reader across the work
         .map((entry) =>
           path.relative(src, path.join(entry.parentPath, entry.name)),
         )
-        .filter(
-          (file) =>
-            !(
-              label === "configurator-domain" &&
-              (file === READER || file === SCHEMA_STRUCTURAL_REFUSAL)
-            ),
-        )
-        .filter((file) =>
-          READS_THE_STORED_FIELD.test(
+        .filter((file) => !(label === "configurator-domain" && file === READER))
+        .filter((file) => {
+          if (
+            label === "configurator-domain" &&
+            file === SCHEMA_STRUCTURAL_REFUSAL
+          ) {
+            return (
+              timesTheStoredFieldIsRead(src, file) >
+              SCHEMA_STRUCTURAL_REFUSAL_READS
+            );
+          }
+          return READS_THE_STORED_FIELD.test(
             readFileSync(path.join(src, file), "utf8"),
-          ),
-        )
+          );
+        })
         .map((file) => `${label}/${file}`),
     );
   }
@@ -238,6 +255,12 @@ describe("room.cornerDirection has exactly one production reader across the work
 
   it("does read it there, so the pattern is not vacuous", () => {
     expect(READS_THE_STORED_FIELD.test(sourceOf(READER))).toBe(true);
+  });
+
+  it("allows design.ts's own structural refusal exactly once, never twice", () => {
+    expect(timesTheStoredFieldIsRead(SOURCE, SCHEMA_STRUCTURAL_REFUSAL)).toBe(
+      SCHEMA_STRUCTURAL_REFUSAL_READS,
+    );
   });
 });
 
