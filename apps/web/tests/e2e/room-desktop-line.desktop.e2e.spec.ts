@@ -174,6 +174,11 @@ const ONE_B_STATES = [
   { name: "a U room", shape: "U", query: "shape=U&direction=left" },
 ] as const;
 
+/** Which shapes draw the corner toggle. **Restated 2026-09-30 (M7B U5 S1; Q-U4 (b), ADR 0132
+ *  decision 8): a U has one hand, so it draws none** — as a straight room, which has no corner, draws
+ *  none. This spec expected the toggle on a U while nothing had said what a U's corner meant. */
+const DRAWS_THE_CORNER_TOGGLE = { L: true, linear: false, U: false } as const;
+
 /** 1B for each shape, as the settle writes it: a straight room carries no direction (ADR 0130 D7). */
 const ONE_B_QUERY = {
   L: "shape=L&direction=left",
@@ -459,7 +464,7 @@ test.describe("criterion 6: D1B", () => {
           );
         }
 
-        if (state.shape === "linear") {
+        if (!DRAWS_THE_CORNER_TOGGLE[state.shape]) {
           expect(layout.corner, detail).toBeNull();
         } else {
           expect(layout.corner, detail).not.toBeNull();

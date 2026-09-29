@@ -51,12 +51,23 @@ function idInEditorUrl(url: string): string {
   return decodeURIComponent(id);
 }
 
-/** The camera group's own buttons — two for a straight design (ADR 0130 D9), never three. */
-async function cameraPresetButtonCount(page: Page): Promise<number> {
-  return page
-    .getByRole("group", { name: ro.configure.cameraGroupLabel })
-    .getByRole("button")
-    .count();
+/** The camera group's own buttons — two for a straight design (ADR 0130 D9), never three.
+ *
+ *  **A retrying assertion, never a `count()`.** The page's server render and its hydration read the
+ *  store's *initial* state (zustand answers `getInitialState()` to `useSyncExternalStore`'s server
+ *  snapshot), which is the seeded L with its three presets; the loaded design replaces it on the first
+ *  client commit. So a `count()` taken the moment the title is visible can land before that commit and
+ *  read three (seen once in a full run and once in eight repeats). `toHaveCount` polls until the
+ *  loaded design's answer stands. */
+async function expectCameraPresetButtons(
+  page: Page,
+  expected: number,
+): Promise<void> {
+  await expect(
+    page
+      .getByRole("group", { name: ro.configure.cameraGroupLabel })
+      .getByRole("button"),
+  ).toHaveCount(expected);
 }
 
 /**
@@ -95,12 +106,12 @@ export async function runLinearFlow(
   const designId = idInEditorUrl(page.url());
   mintedIds.push(designId);
   await expect(page.getByTestId("top-bar-title")).toBeVisible();
-  expect(await cameraPresetButtonCount(page)).toBe(2);
+  await expectCameraPresetButtons(page, 2);
 
   // Reload on `/d/{id}` restores the same design.
   await page.reload();
   await expect(page.getByTestId("top-bar-title")).toBeVisible();
-  expect(await cameraPresetButtonCount(page)).toBe(2);
+  await expectCameraPresetButtons(page, 2);
 
   // The back link returns Step 1 filled in with the room the customer typed.
   //
@@ -124,7 +135,7 @@ export async function runLinearFlow(
     const sharePage = await shareContext.newPage();
     await openSharedDesign(sharePage, sharePath);
     await expect(sharePage.locator("canvas")).toBeVisible();
-    expect(await cameraPresetButtonCount(sharePage)).toBe(2);
+    await expectCameraPresetButtons(sharePage, 2);
   } finally {
     await shareContext.close();
   }

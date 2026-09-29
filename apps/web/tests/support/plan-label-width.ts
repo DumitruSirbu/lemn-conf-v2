@@ -17,3 +17,28 @@ export function measuredLabelWidthPx(
   const atMeasuredSize = BASE_PX + PX_PER_DIGIT * String(millimetres).length;
   return Math.ceil((atMeasuredSize * fontPx) / MEASURED_AT_PX);
 }
+
+/**
+ * **Frame 1C's marked label**, *"B prea scurt"* in ro and *"B слишком короткая"* in ru, in place of the
+ * length (`markPlanWalls`). Measured by QA on 2026-09-30 in Chromium with `measureText` at the label's
+ * computed font, `700 11px Helvetica, Arial, sans-serif` with tabular digits (`room-plan-label-B` at
+ * 390 x 844); the length label measured 64.20 px in the same run, the figure above, which ties the two.
+ * The ru reason is 52 px wider than the length label at the phone.
+ */
+const MARKED_AT_MEASURED_PX = {
+  ro: { tooShort: 64.19, tooLong: 60.51 },
+  ru: { tooShort: 116.59, tooLong: 111.84 },
+} as const;
+
+export type MarkedLabelLocale = keyof typeof MARKED_AT_MEASURED_PX;
+export type MarkedLabelReason = keyof (typeof MARKED_AT_MEASURED_PX)["ro"];
+
+export function measuredMarkedLabelWidthPx(
+  locale: MarkedLabelLocale,
+  reason: MarkedLabelReason,
+  fontPx: number,
+): number {
+  return Math.ceil(
+    (MARKED_AT_MEASURED_PX[locale][reason] * fontPx) / MEASURED_AT_PX,
+  );
+}

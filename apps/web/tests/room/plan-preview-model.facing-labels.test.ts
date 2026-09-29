@@ -15,6 +15,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PLAN_PREVIEW_METRICS,
   derivePlanPreview,
+  markPlanWalls,
+  PLAN_LABEL_REASON_MAX_CHARACTERS,
   type DrawnPlanPreview,
   type PlanBox,
   type PlanPreviewMetrics,
@@ -27,7 +29,14 @@ import {
   type RoomLengthField,
 } from "@/room/room-draft";
 
-import { measuredLabelWidthPx } from "../support/plan-label-width";
+import roMessages from "../../src/messages/ro.json";
+import ruMessages from "../../src/messages/ru.json";
+import {
+  measuredLabelWidthPx,
+  measuredMarkedLabelWidthPx,
+  type MarkedLabelLocale,
+  type MarkedLabelReason,
+} from "../support/plan-label-width";
 
 /** The phone's own plan box: 390 px less the screen's and the card's padding at the frame's height,
  *  less the hairline border spent out of both axes (`plan-preview.tsx`, `PAINTED_PLAN_BOX`). */
@@ -259,6 +268,186 @@ describe("the room backlog 72 was found in", () => {
     const c = labelRectPx(wallOf(plan, "C"), DEFAULT_PLAN_PREVIEW_METRICS);
 
     expect(intersect(b, c)).toBe(false);
-    expect(b.rightPx).toBeLessThanOrEqual(c.leftPx);
+    // Apart on the page by columns or by rows: since U5 a label is placed for the wider text it may
+    // read, a 4000 x 2400 x 2400 U at the phone stacks them, and a stacked pair is not side by side.
+    const isBesideEachOther = b.rightPx <= c.leftPx || c.rightPx <= b.leftPx;
+    const isOnSeparateRows = b.bottomPx <= c.topPx || c.bottomPx <= b.topPx;
+    expect(isBesideEachOther || isOnSeparateRows).toBe(true);
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Frame 1C marks a wall by writing its reason where its length was (`markPlanWalls`), keeping the
+// geometry it is handed — so the labels have to be placed for the wider of the two texts.
+// ---------------------------------------------------------------------------------------------
+
+/** What a facing wall's label reads: its length, or the reason frame 1C wrote in its place. */
+type LabelText = "length" | MarkedLabelReason;
+
+const ANY_LABEL_TEXT = fc.constantFrom<LabelText>(
+  "length",
+  "tooShort",
+  "tooLong",
+);
+const ANY_LOCALE = fc.constantFrom<MarkedLabelLocale>("ro", "ru");
+
+/** A wall is refused below Q-U1's 1000 and above its 6000 (ADR 0108 H4), so a marked wall can measure
+ *  what an unmarked one cannot; the sweep reaches both, whichever text the wall is given. */
+const REFUSED_SIDE_MM = { min: 300, max: 9000 } as const;
+
+function markedLabelRectPx(
+  wall: PlanWallRect,
+  text: LabelText,
+  locale: MarkedLabelLocale,
+  metrics: PlanPreviewMetrics,
+): RectPx {
+  const widthPx =
+    text === "length"
+      ? measuredLabelWidthPx(wall.lengthMm, metrics.labelLinePx)
+      : measuredMarkedLabelWidthPx(locale, text, metrics.labelLinePx);
+  const { xPx, topPx, alignment } = wall.labelPx;
+  const leftPx = {
+    centred: xPx - widthPx / 2,
+    leftAligned: xPx,
+    rightAligned: xPx - widthPx,
+  }[alignment];
+  return {
+    leftPx,
+    topPx,
+    rightPx: leftPx + widthPx,
+    bottomPx: topPx + metrics.labelLinePx,
+  };
+}
+
+function markedU(
+  walls: Parameters<typeof uDraft>[0],
+  texts: { readonly B: LabelText; readonly C: LabelText },
+  box: PlanBox,
+  metrics: PlanPreviewMetrics,
+): DrawnPlanPreview {
+  const plan = drawn(walls, box, metrics);
+  const marks = (["B", "C"] as const).flatMap((wall) =>
+    texts[wall] === "length"
+      ? []
+      : [{ wall, labelKey: `room.planWallIssue.${texts[wall]}` as const }],
+  );
+  const marked = markPlanWalls(plan, marks);
+  if (marked.kind !== "drawn") throw new Error("a marked plan is still drawn");
+  return marked;
+}
+
+describe.each(ARMS)("facing labels when 1C marks walls — $name", (arm) => {
+  it.each(RANGES)(
+    "never intersect, in ro and ru, whichever text each side wall reads, over %s and the lengths 1C refuses",
+    (_rangeName, range) => {
+      fc.assert(
+        fc.property(
+          fc.record({
+            wallA: fc.integer(range.wallA),
+            wallB: fc.integer({
+              min: Math.min(REFUSED_SIDE_MM.min, range.side.min),
+              max: Math.max(REFUSED_SIDE_MM.max, range.side.max),
+            }),
+            wallC: fc.integer({
+              min: Math.min(REFUSED_SIDE_MM.min, range.side.min),
+              max: Math.max(REFUSED_SIDE_MM.max, range.side.max),
+            }),
+          }),
+          fc.record({ B: ANY_LABEL_TEXT, C: ANY_LABEL_TEXT }),
+          ANY_LOCALE,
+          arm.box,
+          (walls, texts, locale, box) => {
+            const plan = markedU(walls, texts, box, arm.metrics);
+
+            const b = markedLabelRectPx(
+              wallOf(plan, "B"),
+              texts.B,
+              locale,
+              arm.metrics,
+            );
+            const c = markedLabelRectPx(
+              wallOf(plan, "C"),
+              texts.C,
+              locale,
+              arm.metrics,
+            );
+
+            expect(
+              intersect(b, c),
+              `${locale} ${JSON.stringify(texts)}: B ${JSON.stringify(b)} against C ${JSON.stringify(c)} ` +
+                `for ${JSON.stringify(walls)} in ${JSON.stringify(box)}`,
+            ).toBe(false);
+          },
+        ),
+        { numRuns: SAMPLES },
+      );
+    },
+  );
+});
+
+describe("the placement's reason bound is a fact about the copy", () => {
+  it.each([
+    ["ro", roMessages],
+    ["ru", ruMessages],
+  ] as const)(
+    "holds every %s reason within PLAN_LABEL_REASON_MAX_CHARACTERS, wall letter included",
+    (_locale, messages) => {
+      const reasons = Object.values(messages.room.planWallIssue);
+
+      expect(reasons.length).toBeGreaterThan(0);
+      for (const reason of reasons) {
+        expect(
+          reason.replace("{wall}", "B").length,
+          reason,
+        ).toBeLessThanOrEqual(PLAN_LABEL_REASON_MAX_CHARACTERS);
+      }
+    },
+  );
+
+  it("is not slack: the longest reason in the catalogues reaches it", () => {
+    const longest = Math.max(
+      ...[roMessages, ruMessages].flatMap((messages) =>
+        Object.values(messages.room.planWallIssue).map(
+          (reason) => reason.replace("{wall}", "B").length,
+        ),
+      ),
+    );
+
+    expect(longest).toBe(PLAN_LABEL_REASON_MAX_CHARACTERS);
+  });
+});
+
+describe("the rooms QA found the marked labels meeting in", () => {
+  it.each([
+    [
+      "the phone, 2700 x 850 x 850, ru, both side walls too short",
+      { wallA: 2700, wallB: 850, wallC: 850 },
+      PHONE_BOX,
+      DEFAULT_PLAN_PREVIEW_METRICS,
+    ],
+    [
+      "a 1020 x 600 desktop window (a 310 x 251 box), 2700 x 300 x 300, ru, both too short",
+      { wallA: 2700, wallB: 300, wallC: 300 },
+      { widthPx: 310, heightPx: 251 },
+      DESKTOP_METRICS,
+    ],
+  ] as const)(
+    "keeps B's and C's reasons apart at %s",
+    (_name, walls, box, metrics) => {
+      const plan = markedU(
+        walls,
+        { B: "tooShort", C: "tooShort" },
+        box,
+        metrics,
+      );
+
+      const b = markedLabelRectPx(wallOf(plan, "B"), "tooShort", "ru", metrics);
+      const c = markedLabelRectPx(wallOf(plan, "C"), "tooShort", "ru", metrics);
+
+      expect(
+        intersect(b, c),
+        `${JSON.stringify(b)} against ${JSON.stringify(c)}`,
+      ).toBe(false);
+    },
+  );
 });
