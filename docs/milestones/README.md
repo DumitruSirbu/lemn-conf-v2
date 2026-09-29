@@ -62,8 +62,8 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M5B](done/M5B-manual-ux-remediation.md) | Manual UX remediation — eleven findings from a hand session, and the column algebra they exposed — **DONE 2026-09-02** (archived) | domain + adapter + panel |
 | [M6](M6-price-and-global-settings.md) | Price bar, breakdown, whole-kitchen settings — 2D, 2E | **mobile-gated** |
 | [M6B](M6B-internationalization.md) | Internationalization — Romanian becomes a source locale instead of a hardcoded one; ~~ten waves~~ **thirteen** (planned 2026-09-06, ADR 0095); closes ADR 0001 decision 5. **Every wave shipped by 2026-09-10 (6B-i `87429ca`, 6B-j `aff9a2c`).** ~~blocked on Gate O2 — the owner reads the Russian~~ **DONE — Gate O2 closed 2026-09-11 and merged to `main` via PR #8** | app + domain |
-| [M7](M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor — **IN PROGRESS**, wave 7A shipped 2026-09-11 (`8df0d49`) | **mobile-gated** |
-| M7B | U-shaped rooms — ~~**proposed** 2026-09-11, on the owner's Q5 answer to M7 (*"we should support at the end all kitchen shapes (exluding island)"*); not objected to; still the owner's to confirm~~ **confirmed by the owner 2026-09-11: *"Yeah let make separate"*** — its own milestone between M7 and M8; plan not yet written | domain + adapter |
+| [M7](done/M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor — **DONE, closed 2026-09-29**. Preset story deferred past M8, ADR 0131 | **mobile-gated** |
+| M7B | U-shaped rooms — ~~**proposed** 2026-09-11, on the owner's Q5 answer to M7 (*"we should support at the end all kitchen shapes (exluding island)"*); not objected to; still the owner's to confirm~~ **confirmed by the owner 2026-09-11: *"Yeah let make separate"*** — its own milestone between M7 and M8; plan not yet written. **Next milestone as of M7's 2026-09-29 close.** | domain + adapter |
 | [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure | **mobile-gated** |
 
 ## Why M5B sits between M5 and M6

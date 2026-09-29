@@ -1,5 +1,14 @@
 # M7 — Screen 1: room shape, dimensions, presets, bespoke fallback
 
+> **Do not read this plan.** M7 is **closed** (2026-09-29). Everything a session needs is
+> summarised in `docs/STATUS.md`; the durable "why" is in `docs/decisions/` — see in particular
+> [ADR 0131](../../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
+> (the preset-path deferral) and
+> [ADR 0104 Amendment B](../../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-b-2026-09-29--q-7l-1-answered-d1bs-heading-on-site-note-and-plan-hint-are-not-drawn-and-a-desktop-frames-text-is-not-authority-on-its-own).
+> This file is history: intentions, corrections and close-outs recorded at the time, some later
+> superseded within the file itself. Open it only to answer a historical question — what a wave
+> originally committed to, or what evidence closed it.
+
 > **STATUS: IN PROGRESS.** Depends on M6 (shipped). Summary: `docs/STATUS.md`. **Wave 7A shipped
 > 2026-09-11 at `8df0d49`**, ~~next wave 7D1~~ **wave 7D1 shipped at `f5b4cd9`** — both on branch
 > `m7-room-and-presets`; their close-outs are below. F1–F7 are all answered and M7B is confirmed by
