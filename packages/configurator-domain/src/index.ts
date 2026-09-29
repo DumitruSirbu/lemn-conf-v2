@@ -278,6 +278,12 @@ export {
   type NarrowestCornerReach,
   type SizedCornerPiece,
 } from "./corner-assembly-size.js";
+// ADR 0121, ADR 0132 decision 2 (M7B U2 slice S1): which of a U's two corners a structural piece
+// belongs to — the one fact the adapter reads to choose a right corner's mirrored wrapper, and
+// never a position it compares itself (`cornerOf`'s own head comment). The right corner's own
+// sizing and placement stay unexported, the same choice `cornerAlongWallCentreMm` already made:
+// nothing outside the domain places a corner, only reads which one a piece is in.
+export { cornerOf, type Corner } from "./corner-assembly-size.js";
 // The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the
 // corner that fits under its ceiling, and every free run recorded as empty space.
 export {

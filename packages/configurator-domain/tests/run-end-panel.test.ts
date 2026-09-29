@@ -11,6 +11,11 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
+  rightCornerAlongWallCentreMm,
+  rightCornerAssemblyWidthsMm,
+} from "../src/corner-assembly-size.js";
+import type { Design, DesignRoom } from "../src/design.js";
+import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
@@ -21,7 +26,6 @@ import {
   RUN_END_PANEL_THICKNESS_M,
   runEndPanelSeatM,
 } from "../src/run-end-panel.js";
-import type { DesignRoom } from "../src/design.js";
 import {
   derivePlacementRecords,
   type PlacementRecord,
@@ -552,4 +556,57 @@ describe("ADR 0045's anti-invariant: the seat is a pure function of the records"
       );
     },
   );
+});
+
+// M7B U2 slice S1 (ADR 0132 decision 7, D11): "both ends of wall A are corners, so
+// `runEndPanelSeatM` answers none for every U". No code changed here to make this true — it falls
+// out of the existing wall-A-end veto (`passesWallAEnd`) once the right corner's own X-leg is the
+// right-most wall-A base body: its far edge lands exactly at the room's width (D4's finding), which
+// is `wallLengthMm("A", room)` for any room, U included, so the veto that already fires for a run
+// flush to wall A's own end fires here for the same reason.
+describe("D11 — no run-end panel on a U", () => {
+  it("answers none once the right corner's own X-leg is the right-most wall-A base body", () => {
+    const room: DesignRoom = {
+      shape: "U",
+      widthMm: 3600,
+      depthMm: 2400,
+      wallCMm: 2200,
+      heightMm: 2600,
+    };
+    const cabinetDepthMm = 600;
+    const widths = rightCornerAssemblyWidthsMm({ cabinetDepthMm, room });
+    const xLeg = widths.pieces.find(
+      (piece) => piece.wall === "A" && piece.band === "base",
+    );
+    if (!xLeg) throw new Error("the right corner built no X-leg");
+    const centre = rightCornerAlongWallCentreMm({
+      widths,
+      cabinetDepthMm,
+      wall: "A",
+      band: "base",
+    });
+
+    const design: Design = {
+      room,
+      presetId: null,
+      placements: [
+        {
+          id: "right-x-leg",
+          wall: "A",
+          alongMm: centre.alongMm,
+          y0Mm: 0,
+          body: {
+            buildId: "base-corner-x-900",
+            widthMm: xLeg.widthMm,
+            heightMm: 820,
+          },
+        },
+      ],
+      createdAt: "2026-09-29T00:00:00.000Z",
+      updatedAt: "2026-09-29T00:00:00.000Z",
+    };
+    const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
+
+    expect(runEndPanelSeatM(records, room)).toBeUndefined();
+  });
 });

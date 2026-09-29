@@ -39,9 +39,10 @@ import {
   INSERTABLE_BODY_DEFINITIONS,
   wallCarcassDepthMm,
 } from "./catalog.js";
-import type { DesignRoom, DesignWall } from "./design.js";
+import type { DesignPlacement, DesignRoom, DesignWall } from "./design.js";
 import { wallLengthMm } from "./queries/overflowing-placements.js";
 import { declaredCabinetDepthsMm, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
+import type { BodyCatalog } from "./void-engine.js";
 
 /** The rows a corner piece stands in. `column` is not among them: no corner piece is full height
  *  (ADR 0021, ADR 0025). */
@@ -253,6 +254,151 @@ function offeredCabinetDepthsMm(): readonly number[] {
     );
   }
   return cabinetDepthsMm;
+}
+
+// =================================================================================================
+// M7B U2 S1 — the right corner (ADR 0132 decision 2). A U's second corner, at A∩C, is the left
+// corner's own rule run again: entry points 1 and 2 above, called with wall C's run standing in for
+// wall B's — "the along values the corner rule gives for the L room (W, C)", ADR 0132's own phrase
+// — and their output relabelled from wall B to wall C. The X-leg (wall A) is the one piece both
+// corners share a wall with, so it is not relabelled; it is reflected about the room's own width
+// instead, `W − centreMm`, which is what a piece already computed for wall B's frame becomes once
+// its wall is wall C's instead (ADR 0132 decision 1: wall C's world frame is wall B's own mirrored
+// about `x = W`, never about the room's centre line).
+//
+// **No reflection primitive is added to the domain.** This is ordinary arithmetic on an already-
+// domain-canonical number (`W − centreMm`), the same shape `originOnWall`'s wall-C arm and
+// `deriveCabinetWorldTransform`'s wall-C frame already use (`room-transforms.ts`, `void-engine.ts`,
+// M7B U1 slice S3) — not a `Group`-level reflection, which ADR 0129 D1/D5 keeps out of the domain
+// entirely.
+// =================================================================================================
+
+/** Which side of the room a corner assembly stands on — never a direction a customer chose
+ *  (`cornerDirection` is a different fact, ADR 0129 D2), only which of the U's two corners a
+ *  structural piece belongs to. */
+export type Corner = "left" | "right";
+
+/** ADR 0121: which corner `placement` belongs to, identified by what it is — a structural corner
+ *  body (`catalog`'s own `structuralReason: "corner"`, ADR 0021, read rather than listed, so a
+ *  fourth corner build id needs no second list here to keep in step) and which wall it stands on —
+ *  never by comparing its position against another placement's. `undefined` for anything that is
+ *  not a corner body at all.
+ *
+ *  A wall-B or wall-C piece belongs to the corner its own wall shares with wall A — no ambiguity,
+ *  because only one corner ever stands on either of those walls. Wall A's own piece, the X-leg, is
+ *  the one body every corner puts there, so wall alone cannot answer for it; this is the one place
+ *  the query reads a coordinate, and it reads the room's own midpoint rather than comparing against
+ *  another placement (ADR 0132 decision 2's own split: `w/2` for the left X-leg, `W − w/2` for the
+ *  right). A U has no right-hand variant (ADR 0132 decision 8), so this reads the same way whatever
+ *  the room's `cornerDirection`. */
+export function cornerOf(
+  placement: DesignPlacement,
+  room: DesignRoom,
+  catalog: BodyCatalog,
+): Corner | undefined {
+  if (catalog.get(placement.body.buildId)?.structuralReason !== "corner") {
+    return undefined;
+  }
+  if (placement.wall === "B") return "left";
+  if (placement.wall === "C") return "right";
+  return placement.alongMm < room.widthMm / 2 ? "left" : "right";
+}
+
+/** The right corner's four along-wall widths, in the room's own real coordinates (D5). Sized by
+ *  entry point 1's own rule, run against wall C's run instead of wall B's, with wall B's pieces
+ *  relabelled to wall C afterward.
+ *
+ *  **The X-leg sizes identically to the left corner's own**, and this is not asserted separately —
+ *  it falls out of entry point 1 unchanged: `widthInRoomMm` for the wall-A piece reads
+ *  `wallLengthMm("A", room)` and `cabinetDepthMm` alone, neither of which differs between the two
+ *  corners, so the same arithmetic on the same inputs gives the same width (D5's "wall A carries
+ *  both X-legs" needs no second formula, only two calls). */
+export function rightCornerAssemblyWidthsMm(
+  query: CornerAssemblyQuery,
+): CornerAssemblyWidthsMm {
+  const sized = cornerAssemblyWidthsMm({
+    cabinetDepthMm: query.cabinetDepthMm,
+    room: roomForTheRightCorner(query.room),
+  });
+  return {
+    cabinetDepthMm: sized.cabinetDepthMm,
+    room: query.room,
+    pieces: sized.pieces.map(relabelledToTheRightCorner),
+  };
+}
+
+/** ADR 0132 decision 2's own phrase: "the along values the corner rule gives for the L room
+ *  (W, C)". An L-shaped room standing in for the real U, its depth wall C's own run — the one place
+ *  a U's `wallCMm` enters the corner rule; everything after this is entry point 1's unchanged
+ *  arithmetic, read for a room that happens to be synthetic. */
+function roomForTheRightCorner(room: DesignRoom): DesignRoom {
+  if (room.wallCMm === undefined) {
+    throw new Error(
+      "rightCornerAssemblyWidthsMm: the room carries no wallCMm to size the right corner against",
+    );
+  }
+  return {
+    shape: "L",
+    widthMm: room.widthMm,
+    depthMm: room.wallCMm,
+    heightMm: room.heightMm,
+  };
+}
+
+function relabelledToTheRightCorner(piece: SizedCornerPiece): SizedCornerPiece {
+  return piece.wall === "B" ? { ...piece, wall: "C" } : piece;
+}
+
+/** The inverse relabelling, so a right corner's own widths (wall A and wall C) can be handed to
+ *  entry point 2's unchanged functions, which read a wall-B piece for anything that is not wall A
+ *  (`ownsTheCorner`, `nearEdgeMm`). Never exported: a caller outside this module has no reason to
+ *  hold a corner's widths under the wrong corner's wall letters even momentarily. */
+function asLeftCornerWidths(
+  widths: CornerAssemblyWidthsMm,
+): CornerAssemblyWidthsMm {
+  return {
+    ...widths,
+    pieces: widths.pieces.map((piece) =>
+      piece.wall === "C" ? { ...piece, wall: "B" } : piece,
+    ),
+  };
+}
+
+/** Where one right-corner piece is centred along its wall (D4). The three returns (wall C) stand at
+ *  the along values entry point 2 gives the left corner's own wall-B piece in the room
+ *  `roomForTheRightCorner` built — unreflected, because wall C's own along runs the same direction
+ *  wall B's does (ADR 0132 decision 1), so nothing here mirrors it a second time. The X-leg (wall A)
+ *  is the left X-leg's centre reflected about the room's own width, `W − centreMm` (ADR 0132
+ *  decision 2) — algebraically exact on whole millimetres, because both `W` and the left centre
+ *  already are (D4's odd-millimetre finding, ADR 0132 decision 4): there is no second refusal to
+ *  raise here that entry point 2 has not already raised on the left corner's own numbers. */
+export function rightCornerAlongWallCentreMm(
+  query: CornerFarEdgeQuery,
+): CornerAlongWallCentre {
+  const leftStyle = cornerAlongWallCentreMm({
+    ...query,
+    wall: query.wall === "C" ? "B" : query.wall,
+    widths: asLeftCornerWidths(query.widths),
+  });
+  if (query.wall === "A") {
+    return {
+      wall: "A",
+      band: query.band,
+      alongMm: query.widths.room.widthMm - leftStyle.alongMm,
+    };
+  }
+  return { wall: "C", band: query.band, alongMm: leftStyle.alongMm };
+}
+
+/** The least length wall A may have and still hold both of a U's corners without their X-legs
+ *  overlapping (ADR 0132 decision 4) — the sum of each X-leg's own reference width, and deliberately
+ *  **not** twice `narrowestCornerReachMm("A")`'s 880: U0 measured the two X-legs overlapping only
+ *  below 1800 mm, which is `2 × REFERENCE_CORNER_REACH_MM`, because each X-leg's own ceiling is the
+ *  whole of wall A (`widthInRoomMm`) and both reach the reference 900 mm whenever their own side of
+ *  wall A is at least that long. This is `ENGINE_ROOM_LIMITS.U.wallA.minMm`'s derivation source; the
+ *  literal itself is U2 slice S2's to declare. */
+export function twoCornersWallAMinimumMm(): number {
+  return REFERENCE_CORNER_REACH_MM * 2;
 }
 
 /** The reference kitchen's own corner: **900 mm along each wall at the declared 600 mm depth**, and
