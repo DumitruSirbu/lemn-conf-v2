@@ -23,6 +23,7 @@ import { planUKitchenComposition } from "../../src/generation/u-composition.js";
 import {
   fridgeWallFindings,
   fridgeWallOf,
+  isTheBottleNotOwedToADrawerArm,
   uPlanFindings,
 } from "../support/u-plan-invariants.js";
 
@@ -499,5 +500,45 @@ describe("no generated tall column stands in a room lower than the column (N11.4
 
     expect(lowRoomsWithADoorBaseGap).toBeGreaterThanOrEqual(1);
     expect(tallRoomsWithAPantryGap).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The bottle is not dropped while the far wall can take the drawer — N11.2, RQ23, RQ21
+// ---------------------------------------------------------------------------------------------
+
+/** A in 100 mm steps and both side walls in 200 mm steps: the arm needs a wall-A hob with 1200 mm or
+ *  more free after it, and the far wall's width decides whether it can take the displaced drawer. */
+function bottleNotOwedGridRooms(): readonly DesignRoom[] {
+  const rooms: DesignRoom[] = [];
+  for (let widthMm = 2700; widthMm <= 6000; widthMm += 100) {
+    for (let depthMm = 1000; depthMm <= 6000; depthMm += 200) {
+      for (let wallCMm = 1000; wallCMm <= 6000; wallCMm += 200) {
+        rooms.push(uRoom(widthMm, depthMm, wallCMm));
+      }
+    }
+  }
+  return rooms;
+}
+
+describe("the bottle is not dropped while the far wall can take the drawer (N11.2, RQ23, RQ21)", () => {
+  it("finds no plain door base on the far wall wherever a room at N(T) has no bottle over 1200 mm free after a wall-A hob", () => {
+    let roomsInTheArm = 0;
+    const failing: string[] = [];
+    for (const room of bottleNotOwedGridRooms()) {
+      const { runs, plan } = planWithRuns(room);
+      if (
+        !plan.minimumMet ||
+        !isTheBottleNotOwedToADrawerArm({ room, runs, plan })
+      ) {
+        continue;
+      }
+      roomsInTheArm += 1;
+      if (uPlanFindings({ room, runs, plan }).length > 0)
+        failing.push(JSON.stringify(room));
+    }
+
+    expect(roomsInTheArm).toBeGreaterThanOrEqual(300);
+    expect(failing).toStrictEqual([]);
   });
 });

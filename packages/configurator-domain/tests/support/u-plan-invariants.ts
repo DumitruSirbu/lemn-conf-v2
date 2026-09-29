@@ -123,6 +123,7 @@ export function uPlanFindings(context: UPlanContext): readonly string[] {
     ...towerFindings(context),
     ...sinkOnWallAFindings(context),
     ...wallABottleFindings(context),
+    ...bottleDroppedWhileTheFarWallCanTakeTheDrawerFindings(context),
   ];
 }
 
@@ -184,6 +185,39 @@ function wallABottleFindings(context: UPlanContext): readonly string[] {
     ];
   }
   return [];
+}
+
+/** The arm where RQ23 and RQ21 together say the bottle must not have been dropped: the hob is on wall
+ *  A with 1200 mm or more free after it, the bottle would cost wall A one slot without emptying it
+ *  (`free mod 600 < 300`), no bottle stands, and the room is already at `N(T)`. */
+export function isTheBottleNotOwedToADrawerArm(context: UPlanContext): boolean {
+  const freeMm = freeAfterAWallAHobMm(context);
+  if (freeMm === undefined) return false;
+  const hasBottle = context.plan.bases.some((base) => base.buildId === BOTTLE);
+  const drawerCount = context.plan.bases.filter(isDrawerUnit).length;
+  return (
+    freeMm >= 2 * MODULE_MM &&
+    freeMm % MODULE_MM < BOTTLE_WIDTH_MM &&
+    !hasBottle &&
+    drawerCount >= drawerTargetOf(context.room)
+  );
+}
+
+/** N11.2 with RQ23 and RQ21, in the arm above: a plain door base on the far wall shows the far wall
+ *  could have taken the displaced drawer, so the bottle was dropped for nothing. */
+function bottleDroppedWhileTheFarWallCanTakeTheDrawerFindings(
+  context: UPlanContext,
+): readonly string[] {
+  if (!isTheBottleNotOwedToADrawerArm(context)) return [];
+  const plainDoorsOnTheFarWall = basesOn(
+    context.plan,
+    farWallOf(context.room),
+  ).filter((base) => base.buildId === DOOR);
+  return plainDoorsOnTheFarWall.length === 0
+    ? []
+    : [
+        "the bottle was dropped although the far wall could have taken the displaced drawer",
+      ];
 }
 
 /** Every body inside its wall's run, no two overlapping, no gap between two bodies, and every bare
