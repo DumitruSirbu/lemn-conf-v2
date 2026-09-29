@@ -404,7 +404,10 @@ Preserved here verbatim from that column so nothing is lost by the table's slimm
   cabinets"*), recorded at N6 and *N3 revised* 4. RQ3's *"Two"* is superseded by *"Yes, both from
   corner"*: the count is taken from the corner.
 - **ADR 0110** E6.2's *"that block is not planned at all"* → **departed from for a U's lone free-end
-  oven tower**, pending RQ17 (N6′), so that the owner's *"place one"* holds.
+  oven tower**, ruled by RQ17 (N6′, 2026-09-29), so that the owner's *"place one"* holds.
+- **ADR 0110** Amendment N1.4's *"tall optional in a large U"* → **narrowed to the far wall** by RQ13
+  (*"Tall cabinets anyway"*, 2026-09-29). Pantries fill the gap between the fridge and the free end at
+  every size.
 - **ADR 0120** Amendment E's wider-wall rule (sink and hob on the wider wall, fridge on the narrower) →
   **not applied to a U** by ADR 0110 **Amendment N2** (2026-09-29): in a U the sink is on the back wall
   and the fridge on the wider side wall. It stands for the L.

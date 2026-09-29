@@ -16,7 +16,9 @@
 > RQ1–RQ12), each with a default; U3 is not dispatched until they are answered or their defaults
 > accepted**, and U6 waits on RQ1 and RQ8. **Later the same day the owner answered RQ1–RQ12** (ADR
 > 0110 N6, ADR 0108 H2–H3); ADR 0132 is **Accepted** on the logic review. **U6 no longer waits on the
-> owner; U3 waits on RQ13–RQ17** (N6′) or their defaults.
+> owner; U3 waits on RQ13–RQ17** (N6′) or their defaults. **RQ13–RQ17 were answered later the same
+> day (N6′). No wave waits on the owner**, and U3's re-cut is the architect's to make before
+> dispatch.
 
 Status: planned. Depends on M7 (closed). Blocks M8 (M8's review groups by wall → band → order).
 Reference: mockup frames 1A and 1B (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html`);
@@ -301,7 +303,7 @@ written for two walls and one cut.
   N1; rules N3; measured N4; **twelve residual questions N6 (RQ1–RQ12), each with a default**. The
   (a)/(b) comparison was not measured: the owner chose neither. U3 is not dispatched until the RQs
   are answered or their defaults accepted. **RQ1–RQ12 answered 2026-09-29** (N6); rules revised (*N3
-  revised*), re-measured (N4′); **five new residual questions RQ13–RQ17** (N6′) gate U3.
+  revised*), re-measured (N4′); **five new residual questions RQ13–RQ17** (N6′), **answered the same day**.
 
 **Q-U4 — What the corner-direction toggle means on a U.** *Blocks U5's Step 1 wording only.*
 **(2026-09-29: answered (b) below; it now also drives U1 S1's schema refusal of `cornerDirection:
@@ -356,7 +358,7 @@ test or a capture in U4.
 | **U0** | Census, measurements, ADR 0132, owner questions put | Light (one logic reviewer on ADR 0132 and the census) | No | — | Q-U1…Q-U5 answered 2026-09-29; raises RQ1–RQ12 |
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
-| **U3** | Composing a U across three walls | **Full** | No | U2; **Q-U3**, **RQ1–RQ12** (all answered 2026-09-29); **RQ13–RQ17** | ADR 0110 N6′'s residual questions, or their defaults accepted |
+| **U3** | Composing a U across three walls | **Full** | No | U2; **Q-U3**, **RQ1–RQ17** (all answered 2026-09-29) | — (no owner question remains) |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
 | **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | U3, U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
@@ -521,7 +523,8 @@ threshold drawer. U3-A3 holds the generator to its witnesses.
 open with defaults. They gate U3, and RQ1 and RQ8 also gate U6. U1, U2, U4 and U5 do not wait on
 them. **Later on 2026-09-29 the owner answered all twelve** (ADR 0110 N6; ADR 0108 H2, H3), and ADR
 0132 was accepted on the logic review. The model was re-run on the revised rules
-(`u0-measure-rq.mjs`, ADR 0110 N4′). **RQ13–RQ17** (N6′) now gate U3 alone, and U6 waits on no owner
+(`u0-measure-rq.mjs`, ADR 0110 N4′). ~~**RQ13–RQ17** (N6′) now gate U3 alone~~ **RQ13–RQ17 were answered the same day (N6′), so U3 waits on
+no owner answer either**, and U6 waits on no owner
 answer.
 
 ---
@@ -632,7 +635,8 @@ touches far fewer files than (a); the architect re-cuts it after the answer, by 
 applies (a three-wall run with two cuts is closer to (a) than (b)), so expect U3 to split. Criterion 1's
 *"exactly one oven"* reads **N3.8** (two towers in a large U); criterion 3's witnesses are N4's.~~
 **2026-09-29, revised on the RQ answers:** Q-U3 (c) and RQ1–RQ12 are answered (ADR 0110 N, *N3
-revised*). The re-cut is owed after **RQ13–RQ17** (N6′) or their defaults; R8 applies, so expect U3 to
+revised*). The re-cut ~~is owed after **RQ13–RQ17** (N6′) or their defaults~~ **waits on no owner answer: RQ13–RQ17
+were answered the same day (N6′)**; R8 applies, so expect U3 to
 split. Criterion 1's *"exactly one oven"* **stands for every U** (RQ5: the generator places one tower;
 E4 unchanged). Criterion 3's witnesses are **N4′**'s. **Added criterion (RQ7):** in a large U the
 hood stands over the hob, and wall A's wall and top rows carry **voids and no body**, so the editor
