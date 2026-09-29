@@ -3668,6 +3668,18 @@ depending on width maybe 4-5"* and ruled *"count yields"*, but never said where 
 L's own drawer rule keeps them *"near"*, astride the hob (H1). **U3a is not blocked:** it builds the
 default, and an answer of *"stay on the back wall"* is a one-lane change.
 
+### N6‴ — the preparation cabinet, confirmed by the owner, 2026-09-29
+
+The owner, unprompted, describing the U kitchen (verbatim, typos included): *"btw if there is place
+the cavbinet between sink / dishwasher and hob will be great to be a 3 drawer to store there the
+kitchen spoons, knifes used or food preparation"*.
+
+This **confirms Amendment F5** (the preparation cabinet's body is `base-3drawer`) for the U shape,
+rather than changing it. The code already does this — `generation-priorities.ts:93-95` — and the U
+planner reads the same priorities table. Per RQ18 (N6″), the preparation cabinet is **drawer unit 1**
+in the drawer count that RQ18's extras (`base-panbank`, then `base-3drawer`) are counted against. No
+rule changes; this is an owner confirmation of existing, shipped behaviour.
+
 ### N7 — what this amendment does not change
 
 The L and the straight kitchen are untouched: every rule above is scoped to `shape === "U"`, and
@@ -3678,7 +3690,7 @@ withdrawn, and the (a)/(b) comparison was not measured, because the owner chose 
 
 | Record | Effect |
 | --- | --- |
-| This record, A1, A2, A4, H1 | **Kept.** The order along the run, the minimum kitchen, the leftover rule and the drawer group astride the hob all hold in a U |
+| This record, A1, A2, A4, H1 | **Kept.** The order along the run, the minimum kitchen, the leftover rule and the drawer group astride the hob all hold in a U. **A4's ≤ 599 mm fill applies to all three walls of a U, including wall A after the hob** — a coordinator correction (2026-09-29) of the implementer's first reading, which had confined it to walls B/C |
 | This record, E3 clause 2 | **Not required in a U** (N3.7, pending RQ11); stands for the L |
 | This record, E4 | ~~**Narrowed for the large U** by owner ruling (N3.8)~~ **Unchanged for every U (RQ5, 2026-09-29)** |
 | This record, E6.2 | **Departed from for a U's lone free-end tower**, ruled by RQ17 (*N3 revised* 10) |

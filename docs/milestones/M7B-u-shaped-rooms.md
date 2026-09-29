@@ -375,6 +375,14 @@ packages and may run in parallel **only in separate worktrees** (`WORKFLOW.md` R
 request merges — the coordinator records which in the U1 close-out — pushed early and merged to
 `main` through GitHub (`WORKFLOW.md`, *A milestone's branch is kept, pushed, and merged on GitHub*).
 
+**2026-09-29: `m7-room-and-presets` carries three M7B docs commits above its M7 tip.** `dd9f63a`
+(plan), `3e76ea6` and `5462a6c` (U0) were made on `m7-room-and-presets` before `m7b-u-shaped-rooms`
+was branched from it at `5462a6c`. So the local M7 branch holds those 3 commits above `5fbcad7` (the
+commit the M7B plan was read at, and M7's true tip), while origin's `m7-room-and-presets` is at
+`8e7b59f`. The coordinator offered to move the local M7 branch back to `5fbcad7`. **The owner said:
+"keep like this."** Consequence: pushing `m7-room-and-presets` as it stands would carry the M7B docs
+commits into M7's pull request.
+
 ---
 
 ### Wave U0 — census, measurements, decisions (no production code)

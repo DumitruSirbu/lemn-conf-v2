@@ -1120,16 +1120,23 @@ policy, so every per-endpoint limit is application code.
 > wall A's drawer and bottle capacity (4000/4500/1200, 5000/4000/3000, and 6000/6000/6000 — the last
 > gets 3 drawer units against a target of 5). Across the 88,434-room grid, "≥ 3 drawer units after
 > the hob" is 41,448 in the model against 0 in the plan; the implementer placed extra drawer units
-> on wall A only. **The architect is adjudicating model versus rule** — see
-> `milestones/M7B-u-shaped-rooms.md` and ADR 0110 for the ruling once it lands.
+> on wall A only. **The architect has adjudicated (2026-09-29):** 2 model errors (4000/4500/1200 and
+> 5000/4000/3000 — the model placed no bottle) and 1 rule defect (6000/6000/6000 — extras were
+> confined to wall A instead of continuing round the corner in run order). This raised **RQ18**, which
+> the owner answered the same day: (a) extras continue round the corner; (b) `base-panbank` first, up
+> to two, nearest the hob, then `base-3drawer`. See `milestones/M7B-u-shaped-rooms.md` and ADR 0110
+> N6″/N8.
 >
-> **Next steps, in order:** (1) the architect's verdict on model vs. rule; (2) if the rule is wrong,
-> fixes to the plan/model per the verdict; (3) U3a's QA, which was waiting on that verdict.
+> **Next steps, in order:** (1) the RQ18 drawer-placement fix, in progress by the developer at the
+> time of writing; (2) **the owner asked to stop once this developer round finishes** — commit the fix
+> if green, then stop; **no QA has been dispatched for it yet**; (3) resume with U3a's QA on the next
+> session.
 >
 > Also note (owner direction, 2026-09-29): agents must now run on the model their `.claude/agents/*.md`
 > file declares, passed explicitly at dispatch. The developer for U1–U3a ran as a named teammate
 > without an explicit model and may have run on the session's Opus model rather than its declared
-> Sonnet; from now on the model is set explicitly.
+> Sonnet; from now on the model is set explicitly. Detail: `docs/best-practices/agent-coordination.md`,
+> *Dispatch on the model the role card declares, passed explicitly*.
 
 > **RESUME HERE — 2026-09-29. M7B wave U1 is DONE — the stored U and wall C in the domain; no shape
 > validates yet.** Branch `m7b-u-shaped-rooms` (wave base `0e6d332`), not pushed. Commits, in order,
@@ -1206,6 +1213,13 @@ policy, so every per-endpoint limit is application code.
 > Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C, backlog 91); owner answers RQ13–RQ17
 > `5462a6c`. Both docs commits ran with hooks; the hook's build steps passed. Tier **Light**, one logic
 > reviewer, no blockers — its minor findings were folded into `3e76ea6` and `5462a6c` directly.
+>
+> **Branch state (owner ruling, 2026-09-29):** `dd9f63a`, `3e76ea6` and `5462a6c` were made on
+> `m7-room-and-presets` before `m7b-u-shaped-rooms` branched from it at `5462a6c`, so the local M7
+> branch holds those 3 M7B docs commits above `5fbcad7` (M7's true tip), while origin's
+> `m7-room-and-presets` is still at `8e7b59f`. Offered a reset of the local M7 branch to `5fbcad7`,
+> **the owner said: "keep like this."** Pushing `m7-room-and-presets` as it stands will carry the M7B
+> docs commits into M7's pull request. See `milestones/M7B-u-shaped-rooms.md`, *Branch*.
 >
 > **Key outcomes** (detail in `milestones/M7B-u-shaped-rooms.md` and ADR 0132): wall C is a world wall,
 > and only the four right-corner pieces are drawn in a reflection (α); wall A's approved minimum is

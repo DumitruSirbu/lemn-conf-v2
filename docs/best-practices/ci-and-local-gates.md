@@ -162,6 +162,12 @@ credentials. The full gate runs before the push instead.
 
 Do not bypass the hook with `git commit --no-verify`. If the hook is wrong, fix the hook.
 
+**Practical constraint, observed 2026-09-29:** the auto-mode permission classifier denied a
+`--no-verify` docs commit even though `WORKFLOW.md` permits `--no-verify` on intermediate commits.
+When the harness blocks a `--no-verify` that policy allows, the fallback is to commit **with hooks**
+instead of arguing with the classifier — the coordinator did this for the M7B U0 docs commits
+(`3e76ea6`, `5462a6c`), and both passed the hook's build steps anyway.
+
 ### `pnpm typecheck` is the only gate that typechecks a test file
 
 **`lint` does not, and `test` does not.** A brief that asks for "lint, the suite and `format:check`" has

@@ -225,6 +225,19 @@ states.
 Not merely because memory is one operator's and the docs are everyone's, but because a lesson nobody
 can review is a lesson nobody can correct — see `documentation.md`, *Project knowledge lives in git*.
 
+## Dispatch on the model the role card declares, passed explicitly
+
+Every `.claude/agents/*.md` role card declares a `model:` in its frontmatter. **Pass that model
+explicitly at dispatch.** The named-teammate spawn path can otherwise inherit the coordinating
+session's own model instead of the role's declared one.
+
+**Owner ruling, 2026-09-29.** The developer for M7B waves U1–U3a ran as a named teammate without an
+explicit model and may have run on the session's Opus model rather than `configurator-developer.md`'s
+declared Sonnet. The owner's instruction: *"don't stop just take into account to use correct the
+model"* — i.e. this is a going-forward dispatch discipline, not a reason to redo the affected waves.
+The owner also asked about "Sonnet 5.5"; the coordinator's answer at the time was that Sonnet 5 is the
+latest it knows of, and the `sonnet` alias resolves to whatever the installed Claude Code maps it to.
+
 ## Spending review effort well
 
 Review agents are expensive — most of the cost is a cold start re-reading the spec, the ADRs and the
