@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { DesignRoom, GenerateKitchenResult } from "../../src/index.js";
 import { generateU, spanMismatchesOf } from "./generated-u.js";
 import { upperFindings } from "./generated-u-uppers.js";
+import { gateVerdictFor } from "./u-witness-policy.js";
 
 export interface GridSliceReport {
   readonly composed: number;
@@ -53,6 +54,10 @@ export function sweepGridSlice(
         const outcome = generateOrDescribeThrow(room);
         if (typeof outcome === "string") {
           problems.push(`${roomKey(room)} threw: ${outcome}`);
+        } else if (outcome.ok !== gateVerdictFor(room).ok) {
+          problems.push(
+            `${roomKey(room)} the U gate and the generator disagree`,
+          );
         } else if (outcome.ok) {
           composed += 1;
           problems.push(
@@ -91,7 +96,7 @@ export function describeGridSlice(
   toWallAMm: number,
 ): void {
   describe(`every approved grid room with A ${String(fromWallAMm)}-${String(toWallAMm)} generates (U3b AC1, N11.6)`, () => {
-    it("without a throw, every body stands where the plan put it on all three walls, and the uppers keep the U's rules", () => {
+    it("without a throw, every body stands where the plan put it on all three walls, the uppers keep the U's rules, and the minimum-kitchen gate agrees with the generator", () => {
       const report = sweepGridSlice(fromWallAMm, toWallAMm);
 
       expect(report.problems.slice(0, 10)).toStrictEqual([]);

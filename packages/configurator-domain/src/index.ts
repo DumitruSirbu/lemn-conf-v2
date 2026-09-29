@@ -238,6 +238,7 @@ export type {
   MillimetreBounds,
   RoomPolicy,
   RoomPolicyApproval,
+  UMinimumKitchen,
   UWallBounds,
 } from "./room/room-policy.js";
 export {

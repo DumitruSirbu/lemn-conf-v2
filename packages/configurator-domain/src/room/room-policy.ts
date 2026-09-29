@@ -72,14 +72,30 @@ export interface LMinimumKitchen {
   };
 }
 
+/** The U's coupled fit rule's own figures (ADR 0108 Amendment H3, landed by M7B U3b S3): the sink
+ *  stands on the back wall, and the hob follows it on wall A or round the far corner onto the far side
+ *  wall. `ENGINE_ROOM_LIMITS` carries the derived figures as a guard source and leaves the rule off,
+ *  as it does for the L; the owner-approved literals enter `APPROVED_ROOM_POLICY` at U6. */
+export interface UMinimumKitchen {
+  readonly isRequired: boolean;
+  readonly sinkWidthMm: number;
+  readonly hobWidthMm: number;
+  /** What each run gives up to its corners before a body can stand. Wall A gives up both X-legs
+   *  together (H3's 1800 at the approved figures, 900 at each end); a side wall gives up one corner's
+   *  reach and the slide reserve its run keeps at its end (H3's 1000, the 900 reach and the 100 mm). */
+  readonly cornerReachMm: {
+    readonly wallA: number;
+    readonly sideWall: number;
+  };
+}
+
 /** A U's three walls (ADR 0132 decision 2). Wall C mirrors wall B's own run, so no fourth bound
- *  exists here. **No `minimumKitchen` yet**: the coupled fit rule for a U is ADR 0108 Amendment H3's
- *  own — sink on the back wall, wall A or the far side wall long enough — and it lands at U3 S3, not
- *  this wave (Amendment H is context only here). */
+ *  exists here. Its coupled fit rule is ADR 0108 Amendment H3's own, stated once for the room. */
 export interface UWallBounds {
   readonly wallA: MillimetreBounds;
   readonly wallB: MillimetreBounds;
   readonly wallC: MillimetreBounds;
+  readonly minimumKitchen: UMinimumKitchen;
 }
 
 /** A shape is buildable exactly when its walls' bounds are stated here, so a buildable shape cannot
@@ -159,6 +175,18 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
       wallA: { minMm: twoCornersWallAMinimumMm(), maxMm: MAX_ROOM_WIDTH_MM },
       wallB: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
       wallC: { minMm: wallMinimumMm("B"), maxMm: MAX_ROOM_DEPTH_MM },
+      // ADR 0108 H3, derived like the L's: the two X-legs are what wall A's minimum already clears, and a
+      // side wall's is the narrowest corner's reach. The approved 900 / 1000 (and the 100 mm slide
+      // reserve inside it) are U6's literals, guarded against these.
+      minimumKitchen: {
+        isRequired: false,
+        sinkWidthMm: generatedRequiredWidthMm("sink"),
+        hobWidthMm: generatedRequiredWidthMm("hob"),
+        cornerReachMm: {
+          wallA: twoCornersWallAMinimumMm(),
+          sideWall: wallMinimumMm("B"),
+        },
+      },
     },
   },
   heightBounds: { minMm: baseRowTopMm(), maxMm: MAX_ROOM_HEIGHT_MM },

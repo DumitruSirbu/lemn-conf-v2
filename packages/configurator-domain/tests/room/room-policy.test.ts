@@ -255,7 +255,7 @@ describe("ENGINE_ROOM_LIMITS.linear — derived, and states no minimumKitchen", 
 // and the straight kitchen's are — no chosen number, only what `corner-assembly-size.ts` and
 // `design-bounds.ts` already state. The regex sweep above already proves no numeric literal stands
 // in `room-policy.ts`'s text; these compare the *values* with the sources ADR 0132 decision 4 names.
-describe("ENGINE_ROOM_LIMITS.U — derived, no minimumKitchen yet", () => {
+describe("ENGINE_ROOM_LIMITS.U — derived, with its minimum kitchen", () => {
   it("wall A's minimum clears both corners' X-legs, never one corner's own reach", () => {
     expect(engineUWallBounds().wallA.minMm).toBe(twoCornersWallAMinimumMm());
     expect(engineUWallBounds().wallA.minMm).toBeGreaterThan(
@@ -281,8 +281,31 @@ describe("ENGINE_ROOM_LIMITS.U — derived, no minimumKitchen yet", () => {
     expect(walls.wallC.maxMm).toBe(MAX_ROOM_DEPTH_MM);
   });
 
-  it("states no minimumKitchen key at all — ADR 0108 Amendment H3's coupled rule is U6's", () => {
-    expect("minimumKitchen" in engineUWallBounds()).toBe(false);
+  it.each(["sink", "hob"] as const)(
+    "takes the generated %s width for its minimum kitchen from the required composition priority (ADR 0108 H3)",
+    (role) => {
+      const priority = GENERATION_PRIORITIES.find(
+        (candidate) => candidate.role === role,
+      );
+
+      expect(priority?.required).toBe(true);
+      expect(engineUWallBounds().minimumKitchen[`${role}WidthMm`]).toBe(
+        priority?.widthMm,
+      );
+    },
+  );
+
+  it("derives the minimum kitchen's corner reaches from the bounds that already clear them: two X-legs on wall A, one narrowest reach on a side wall", () => {
+    const walls = engineUWallBounds();
+
+    expect(walls.minimumKitchen.cornerReachMm).toStrictEqual({
+      wallA: walls.wallA.minMm,
+      sideWall: walls.wallB.minMm,
+    });
+  });
+
+  it("keeps the derived minimum informational in the engine envelope; the owner's literals are U6's", () => {
+    expect(engineUWallBounds().minimumKitchen.isRequired).toBe(false);
   });
 });
 

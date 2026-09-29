@@ -19,5 +19,21 @@ export function approvedUWallBoundsStandIn(): UWallBounds {
       "the approved policy states no L bounds to fabricate the U's from",
     );
   }
-  return { wallA: l.wallA, wallB: l.wallB, wallC: l.wallB };
+  return {
+    wallA: l.wallA,
+    wallB: l.wallB,
+    wallC: l.wallB,
+    // The coupled kitchen rule is left off, as `ENGINE_ROOM_LIMITS.U` leaves it: every suite that
+    // borrows this stand-in tests a field bound or a shape card, never the U's own gate. The figures
+    // are the approved L's, reshaped — wall A gives up two X-legs, a side wall its one corner's reach.
+    minimumKitchen: {
+      isRequired: false,
+      sinkWidthMm: l.minimumKitchen.sinkWidthMm,
+      hobWidthMm: l.minimumKitchen.hobWidthMm,
+      cornerReachMm: {
+        wallA: 2 * l.minimumKitchen.cornerReachMm.wallA,
+        sideWall: l.minimumKitchen.cornerReachMm.wallB,
+      },
+    },
+  };
 }

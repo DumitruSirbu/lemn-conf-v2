@@ -7,6 +7,7 @@ import type {
   LWallBounds,
   MillimetreBounds,
   RoomPolicy,
+  UMinimumKitchen,
   UWallBounds,
 } from "./room-policy.js";
 
@@ -227,9 +228,9 @@ interface URoomBounds {
 
 /** ADR 0132 decision 8 / Q-U4(b): a U carries no corner direction at all — the toggle is hidden at
  *  entry, so `input.cornerDirection` is never read here (ADR 0108 decision 5's rule, extended) and
- *  never written onto the room; `DesignRoomSchema` itself refuses a U that carries one. **No
- *  coupled minimum-kitchen gate yet** (`UWallBounds`'s own comment): every field bound is what
- *  `bounds` states and nothing more, the same shape the straight room's validator already has. */
+ *  never written onto the room; `DesignRoomSchema` itself refuses a U that carries one. Every field is
+ *  judged first; then, where the policy requires it, the coupled minimum-kitchen gate (ADR 0108 H3),
+ *  refused on the room-level field with no number (RQ8), exactly as for the L. */
 function validateURoom(input: URoomInput, bounds: URoomBounds): RoomValidation {
   const wallA = judgeField(
     input.wallAMm,
@@ -250,6 +251,22 @@ function validateURoom(input: URoomInput, bounds: URoomBounds): RoomValidation {
       issues: [wallA, wallB, wallC, height].flatMap(issuesOf),
     };
   }
+  if (
+    bounds.walls.minimumKitchen.isRequired &&
+    !holdsUMinimumKitchen(
+      {
+        wallAMm: wallA.valueMm,
+        wallBMm: wallB.valueMm,
+        wallCMm: wallC.valueMm,
+      },
+      bounds.walls.minimumKitchen,
+    )
+  ) {
+    return {
+      ok: false,
+      issues: [{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }],
+    };
+  }
   return {
     ok: true,
     room: {
@@ -260,6 +277,27 @@ function validateURoom(input: URoomInput, bounds: URoomBounds): RoomValidation {
       heightMm: height.valueMm,
     },
   };
+}
+
+/** ADR 0108 H3: the sink stands on wall A, and the hob follows it on wall A or on the far side wall,
+ *  the narrower of the two (C when they are equal), and never on the fridge wall. So the room holds a
+ *  kitchen when wall A's free run takes both, or takes the sink while the far wall's takes the hob. */
+function holdsUMinimumKitchen(
+  wallsMm: {
+    readonly wallAMm: number;
+    readonly wallBMm: number;
+    readonly wallCMm: number;
+  },
+  minimum: UMinimumKitchen,
+): boolean {
+  const { sinkWidthMm, hobWidthMm, cornerReachMm } = minimum;
+  const freeAMm = wallsMm.wallAMm - cornerReachMm.wallA;
+  const farWallMm = Math.min(wallsMm.wallBMm, wallsMm.wallCMm);
+  const freeFarMm = farWallMm - cornerReachMm.sideWall;
+  return (
+    freeAMm >= sinkWidthMm + hobWidthMm ||
+    (freeAMm >= sinkWidthMm && freeFarMm >= hobWidthMm)
+  );
 }
 
 function wallRule(
