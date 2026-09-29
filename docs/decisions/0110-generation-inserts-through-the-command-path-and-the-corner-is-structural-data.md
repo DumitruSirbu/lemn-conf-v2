@@ -3643,11 +3643,11 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | --- | --- |
 | 2700 / 1000 / 1000 | **Refused** |
 | 3000 / 1000 / 1000 | No fridge (neither side wall holds it). A: sink, hob (`base-hob-oven`). No tower |
-| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
+| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100 **beyond the fridge, at the free end: N11.1**). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
 | 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
 | 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob, ~~(dishwasher dropped; bare 400)~~ **bottle (bare 100)**; the dishwasher is dropped. C: empty (bare 200). No tower |
 | 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage **(both `base-panbank`, RQ18 (a), N9.1)**, tower (bare 200 beyond it, RQ17). **3 drawer units (the preparation and 2 on C) of `N(T)` = 5; the count yields.** ~~2 × `base-panbank`~~ **`base-panbank`, `base-3drawer` (RQ19 (a), `84bab2e`).** **Moves again under N10 (RQ21): A: sink, dishwasher, preparation, hob, `base-panbank` (bare 200), no bottle. C: `base-panbank`, `base-3drawer`, tower (bare 200). 4 drawer units** |
-| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × ~~`base-3drawer`~~ `base-panbank` (bare 300; RQ18 (b), 2026-09-29)**. C: 3 storage **(the first 2 are `base-3drawer`, RQ18)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)** |
+| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × ~~`base-3drawer`~~ `base-panbank` (bare 300; RQ18 (b), 2026-09-29)**. C: 3 storage **(the first 2 are `base-3drawer`, RQ18)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)**. **Moves again under N11.2 (the RQ23 default): A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0), no bottle. C: `base-3drawer`, 2 × `base-cabinet`, tower, 4 × `base-cabinet` (bare 200). Still 5 drawer cabinets, 2 of them pan drawers** |
 
 **Corrected 2026-09-29 on U3a's stop-and-report (AC2).** Four witnesses matched. The three rows above
 were **the model's error, except the 6000 drawer count, which is the plan's**. The model placed no
@@ -3828,7 +3828,9 @@ in run order (*N3 revised* 6).
   stands (`doorFill`, `u-tall-layout.ts:369-385`, filled from `run.startMm`), and it is *N3 revised*
   3's convention of bare wall beyond the last body. **Alternative refused:** the remainder at the
   corner, which is `fridgeAtTheFreeEnd`'s convention. That exists to keep the fridge flush with the
-  free end, and without a fridge nothing needs to be flush.
+  free end, and without a fridge nothing needs to be flush. **2026-09-29, N11.1:** this sentence
+  described `fridgeAtTheFreeEnd`'s convention and did not rule on it. N11.1 rules it a defect: with a
+  fridge too, the remainder goes beyond the fridge, at the free end.
 
 #### N9.3 — found while adjudicating: the bottle is never placed when the hob has gone round the corner
 
@@ -4109,3 +4111,279 @@ Both answers were given through a multiple-choice question the coordinator wrote
   5330 tests green. AC3's figures match the architect's model across all 86,706 grid rooms: 0 towers
   or pantries lost, 0 drawer extras after the tower (18,602 before), 13,608 rooms gain a drawer, and
   the largest bare end is 500 / 500 / 500. U3a's adversarial QA had not reported when this was written.
+
+### N11 — U3a review round 1: four logic findings adjudicated, and the owner's wall-A answer, 2026-09-29
+
+U3a's logic and clean-code reviews both returned *changes required*. This section rules on the logic
+review's four findings and records the owner's answer to the wall-A question the second finding
+raised. The clean-code findings are behaviour-free and are not ruled here; they are folded into the
+M7B plan's U3a punch list (Dispatch B).
+
+**How the figures were taken.** Figures are **[measured]** by the architect at `7de0bd8`. The domain
+source is unchanged since `6527ba3`: `git diff --stat 6527ba3 7de0bd8 -- packages/configurator-domain`
+is empty. The source was built with `tsc -p tsconfig.build.json` into the session scratchpad
+(`n11/dom`). A patched copy (`n11/dom-n11`) applies the four rulings below, each behind its own
+switch, so every figure belongs to one ruling. Everything ran through `rtk proxy node`.
+
+The grid is N4′'s: A 2700–6000, B and C 1000–6000, step 100, height 2600, unless a figure says
+otherwise. **The unpatched build reproduces every recorded pin**: 86 706 composed; towers by position
+16 487 / 13 600 / 26 216 / 30 403; far-wall pantries 680, 449 200 mm; fridge-wall digest
+`803680d6…4b34fe`; and the drawer histogram in N10.5's *under N10* row. So the harness and the test
+suite read HEAD the same way.
+
+Claims are labelled *owner* (verbatim), *relayed selection*, *doc-quoted*, *source-verified* (this
+repository at `7de0bd8`), *derived*, or *inference*.
+
+#### N11.1 — the fridge wall's bare remainder belongs beyond the fridge, not at the corner (logic finding 1: an implementation defect and a test-fidelity defect)
+
+**Ruling.** This applies to a fridge wall of 3000 mm or less. Door storage stands from the corner,
+the fridge stands directly after it, and the bare remainder (under 600 mm, A4) is left beyond the
+fridge, at the free end. **That remainder stays bare.** No pantry and no door goes in it, whatever
+its width. The counted case, `n` = 2 or 3, does not change.
+
+- *Doc-quoted, the rule.* The record states it three times:
+  - N3 item 3: *"the fridge stands at the free end, with any bare remainder beyond it at the free end
+    (the L's convention)"*.
+  - *N3 revised* 3: *"the fridge stands at the free end, with door storage between it and the corner
+    and any bare remainder beyond it"*.
+  - Amendment D2: *"on each wall the composed bodies are packed from the corner outward, and the
+    leftover gathers at the wall's free end"*.
+- *Source-verified, the L's convention.* `generation-priorities.ts:236-237` reads: *"Storage on the
+  prefix wall stands nearest the corner … that makes the fridge [2100, 2800] while the free-end
+  remainder stays beyond it"*. In the L, a fridge "at the free end" has always meant the last body
+  before the free end, with the remainder beyond it.
+- *Source-verified, the defect.* `fridgeAtTheFreeEnd` (`u-composition.ts:127-141`) starts the storage
+  at `run.startMm + leftover.remainderMm` and stands the fridge flush with `run.endMm`. The remainder
+  therefore sits between the corner and the first body. Example: in 4000/2000/2000, B's run is
+  900–1900, the fridge stands at 1200–1900, and 300 mm is bare at the corner.
+- *Source-verified, why the shell could not build it either.* The plan gives the shell widths only
+  (`floorWidthsMmOf`, `u-composition.ts:977-986`). The shell tiles those widths from the span's
+  corner-side start (`plannedFloorTiles`, `shell-design.ts:429-434`). Wall C reuses wall B's builder
+  (`:796-803`). *Inference:* U3b would place 4000/2000/2000's fridge at 900–1600 whatever the plan
+  said. U3b is not built yet, so this is inferred from the mechanism, not observed.
+- **The reading refused.** The owner said *"If the wall with fridge is really wide like more than 3
+  meters, the fridge is not at the edge"* (N1.2). So on a shorter wall the fridge **is** at the edge,
+  and the built code honours that to the millimetre. The reading is refused for two reasons:
+  - The record states the rule twice, and D2 once more, and each time "at the free end" allows a
+    remainder under 600 mm beyond the fridge. The L has always done exactly this.
+  - N9.2 described `fridgeAtTheFreeEnd`'s convention (*"That exists to keep the fridge flush with the
+    free end"*) while refusing that convention for a dropped fridge's wall. N9.2 described it and did
+    not rule on it. **N11.1 is the ruling**, and N9.2 carries a dated pointer to it.
+- *Derived, why the remainder stays bare.* *N3 revised* 3 names this exact case and calls the
+  remainder *bare*. *N3 revised* 4's pantry gap comes from the owner's *"on wide wall between fridge
+  and wall edge"*, which is the wall over 3 m.
+  - *Source-verified, in the U0 scratchpad:* N4′'s model placed nothing beyond a free-end fridge
+    (`u0-measure-rq.mjs`, `unitOnSideWall`, `beyondMm: 0`). N4′'s pantry tallies assume that.
+  - **The alternative was measured and refused:** filling a 400–599 mm remainder with a pantry would
+    add a pantry beyond the fridge in **3 936** rooms.
+- *Source-verified, the test-fidelity defect.* The tests pinned the planner, not the rule:
+  - `tests/support/u-plan-invariants.ts:250` requires `fridge.endMm === run.endMm`. That is the
+    planner's convention.
+  - The witness helper compares `(role, buildId)` only, never a position
+    (`u-composition.witnesses.test.ts:36-41`).
+  - `u-tall-layout.property.test.ts:556-566` pins the fridge wall's digest as *"exactly what N10.3
+    promises not to move"*. That froze the defect in place.
+- *Measured.* **10 178** rooms change, all on the fridge wall. No other wall moves, and no tower,
+  pantry, drawer count or bottle changes. The largest bare end stays 500 / 500 / 500. In the test's
+  own format, the fridge-wall digest becomes
+  `5d2962d48475ef6e7dde181952f0e692e109ba1ed8a827ad8e39c5b39ecfdfc2`.
+
+#### N11.2 — the owner's answer: where a drawer fits right after the hob on wall A, it takes the place, and the bottle yields (logic finding 2)
+
+**The question and the answer, 2026-09-29.** The coordinator asked this as a multiple choice, and
+relayed the answer:
+
+> *"Back wall, 600 mm free after the hob (4,599 room sizes, e.g. 4800/4400/4400). Today the bottle
+> goes next to the hob, and the drawer cabinet that would have fit there moves round the corner onto
+> the side wall — the room keeps the same number of drawers either way. Which do you want?"*
+
+The owner selected **"Drawer by the hob"** (*pan-drawer right after the hob; the bottle is
+dropped*). That is a *relayed selection*. The owner added a note, recorded here verbatim as relayed
+(*owner*): *"if is exactly 600 drawer should have priority"*.
+
+**Ruling.** The bottle stands directly after the hob only where both of these hold:
+
+- it costs **the hob's own wall** none of the drawer units that wall would hold without it; and
+- it costs the room none (RQ21, unchanged).
+
+The decision point stays `bottleCostsNoDrawerUnit`. It now compares two counts: the hob's wall's and
+the room's. For a far-wall hob, the hob's wall holds every extra, so the two counts are the same
+count and nothing changes. Measured: 0 far-wall-hob rooms change.
+
+- *Measured.* **4 599** rooms change, and every one has its hob on wall A. In all of them:
+  - the bottle is dropped, and a drawer unit moves from the far wall onto wall A;
+  - the room's drawer count does not change (the histogram is identical to N10.5's *under N10*
+    row); and
+  - no tower or pantry moves.
+
+  The rooms split by how much of wall A's run is free after the hob:
+
+  | Free after the hob | Rooms | Drawer extras on wall A, before → after | Example |
+  | --- | ---: | --- | --- |
+  | exactly 600 | 441 | 0 → 1 | 4800 / 4400 / 4400 |
+  | 700 – 800 | 882 | 0 → 1 | 4900 / 4000 / 4000 |
+  | 1200 – 1400 | 2 187 | 1 → 2 | 5400 / 3400 / 3400 |
+  | 1800 | 1 089 | 2 → 3 | 6000 / 6000 / 6000 |
+
+- **What is owner-backed and what is inferred.**
+  - The **441** rooms at exactly 600 are the owner's own case.
+  - **700–800** is the same shape: one drawer fits after the hob, but not a drawer and the bottle
+    together. *Inference:* "exactly 600" is read as "room for the 600 mm drawer, and not for both".
+  - **1200–1800** lies inside the population the question named (4 599), but outside the note's
+    literal "exactly 600". This is *inference*, and it is the one part the note could undo.
+- **RQ23 goes to the owner, non-blocking, and the default built is the whole class the question
+  named.** *Derived:* the question describes one harm, a drawer that would stand on wall A pushed
+  round the corner by the bottle, and that harm is the same in all four bands. A rule confined to
+  600–899 would also give a longer wall A fewer drawers near the hob than a shorter one gets.
+- **Where both fit, nothing changes.** The order hob → bottle → drawers (N10.1 item 5, RQ16) stands
+  wherever the bottle costs wall A no drawer. With 900–1100 or 1500–1700 free after the hob, wall A
+  holds the same drawers with the bottle or without it. Measured: 0 of those rooms change.
+- *The earlier records this answer reaches, named rather than overridden silently:*
+
+  | Record | What it said | What changes, and on whose authority |
+  | --- | --- | --- |
+  | *N3 revised* 7, and N10.2's row for it | The bottle's width comes out of the remainder only where that costs no drawer unit the count still owes | **Narrowed** by this answer (owner). Where the bottle would cost the hob's wall a drawer unit, it drops, even when the room's total would not fall |
+  | N10.9, wall A (relayed selection) | "Drawer cabinet wins", where the room's drawer count would fall | **Consistent, and widened** by this answer (owner) from the room's count to the hob's wall's count |
+  | N10.1 item 5, N10.4 (owner) | Hob → bottle → drawers | **Unchanged** wherever the bottle stands |
+  | N4′'s 6000 / 6000 / 6000 witness | A: bottle, 2 × `base-panbank`. C: 2 × `base-3drawer` first | **Moves** (N11.5); the row carries a dated note. It stays 5 drawer cabinets, 2 of them pan drawers |
+
+**RQ23 (non-blocking; the default is built).** The question, as it is to be put: *"Back wall, with
+1200–1800 mm free after the hob (3,276 room sizes, e.g. 5400/3400/3400). The bottle and one drawer
+cabinet fit after the hob, but the bottle pushes a second drawer cabinet round the corner onto the
+side wall. Today (the default): two drawer cabinets after the hob, and no bottle. Or: keep the
+bottle, then one drawer cabinet, with the other drawer cabinet on the side wall?"* Either answer
+changes only `bottleCostsNoDrawerUnit` and the three 1200–1800 witnesses.
+
+#### N11.3 — the sink never leaves wall A (logic finding 3: an implementation defect)
+
+**Ruling.** A back-wall pack in which the sink would not stand on wall A is refused, like any other
+pack that does not fit. When every attempt is refused, the plan is `minimumMet: false`.
+
+- *Doc-quoted.*
+  - N3 item 4: *"The sink must stand on wall A."*
+  - ADR 0108 H3: *"the sink stands on the back wall (A)"*. Its predicate: `freeA ≥ 1200`, or
+    `freeA ≥ 600` and `freeFar ≥ 600`.
+  - U3a AC1: *"The sink is the first body on wall A."*
+  - *N3 revised* 5 restates the order and does not relax any of these.
+- *Source-verified.* `packBackWallAndOverflow` (`u-composition.ts:341-351`) overflows whichever item
+  does not fit, the first one included. At 2300/3000/3000 (freeA 500), the sink, the preparation and
+  the hob stand on wall C, and the plan reports `minimumMet: true`.
+- *Measured.*
+  - On the approved grid (A ≥ 2700, so freeA ≥ 900), no room changes. The defect is unreachable
+    there.
+  - Sweep over the engine band: A 1800–3100 in steps of 50, plus A 2390–2410 and 2990–3010 in steps
+    of 1, with B and C 1000–6000 in steps of 100. HEAD composes **33 462** rooms that H3 refuses, and
+    in every one of them the sink is off wall A.
+  - With the guard, the planner agrees with H3 in **every** sampled room.
+  - The boundary: 2399/3000/3000 is refused, and 2400/3000/3000 composes with the sink at A 900–1500.
+- **Fixed in U3a.** U3b's AC2 (*validator ⇔ generator*) is an "if and only if" over this planner, and
+  the fix is one guard.
+
+#### N11.4 — no generated tall column in a room lower than the column (logic finding 4: a contract gap, closed by E3 clause 4's own reason)
+
+**Ruling.** E3 clause 4 applies to **every** generated full-height column in a U: the tower, the far
+wall's pantries, **and the fridge-gap pantries**. Where the room is lower than
+`declared.columnHeightMm`, the gap between the fridge and the free end takes A4's door bases
+instead: 600 mm each, with a remainder under 600 mm left bare.
+
+- *Doc-quoted, why this is a contract gap.*
+  - E3 clause 4 states its own reason: *"it fires for the engine limits … and it is what stops a
+    planned tower from being refused at insert time"*. That reason concerns the column's height, not
+    its being a tower.
+  - The fridge-gap pantry is the same 2200 mm column row (`declared.columnHeightMm`).
+  - *N3 revised* 4 introduced these columns without restating a height clause, and *N3 revised* 10
+    restates clause 4 only for the far wall. So the record never ruled on this; it is not an
+    implementation choice.
+- *Source-verified.* The far wall checks the room's height (`u-tall-layout.ts:180-181`). The fridge
+  gap does not (`:79-87`, `:101-120`).
+- *Derived, the fallback.* With no column allowed, A4 governs the gap: *"every bare run end of 600 mm
+  or more receives 600 mm storage bases"*.
+- *Measured.*
+  - At height 2000 and at height 2199, HEAD gives **69 440** grid rooms a 2200 mm fridge-gap pantry.
+    With the ruling, none, and every wall still ends with under 600 mm bare.
+  - At height 2200, no room changes.
+  - Unreachable under the approved policy (heights 2200–3900, ADR 0108 H1). Reachable under the
+    engine limits, whose height floor is the top of the base row.
+- **Fixed in U3a now.** It is the same file and one condition, and it means U3b's generator never
+  meets an insert-time refusal it would have to plan around.
+- **Not reached by this ruling:** the freestanding fridge (1850 mm, `catalog.ts:280`), which the L
+  places under the same engine limits. That is a question for the L, and it is not ruled here.
+
+#### N11.5 — the four rulings measured together, and the witnesses that change
+
+With all four rulings applied, **14 771** grid rooms change: 10 178 on the fridge wall and 4 599 on
+wall A and the far wall, with 6 rooms in both sets.
+
+These do not change:
+
+- composed rooms: 86 706;
+- towers by position: 16 487 / 13 600 / 26 216 / 30 403;
+- far-wall pantries: 680, 449 200 mm;
+- the drawer histogram: 4 968 / 27 118 / 13 172 / 14 572 / 9 937 / 16 939;
+- the largest bare end: 500 / 500 / 500;
+- exactly one oven in every plan; and
+- the bottle, wherever it stands, directly after the hob.
+
+**Whole-plan digests of the model.** Each digest covers every wall's `buildId@start-end`, ids
+excluded, together with `minimumMet`. These are the targets Dispatch A must reproduce. A mismatch is
+reported with its room, not fixed to match (7J A8).
+
+| Sweep | Composed | N11 model | HEAD, same harness |
+| --- | ---: | --- | --- |
+| grid, h 2600 | 86 706 | `76f0533699f69cb83821b5ef401239e0c861084ce5fb0326490d9162b5885005` | `02c55d1a…09933` |
+| grid, h 2199 | 86 706 | `1008bf5d55419f4f6f1476a65563d6558280463174454d5af41503da3d15af07` | `9f4e74fa…405f9` |
+| engine band A 1800–2699 step 50, h 2600 | 12 150 (HEAD 30 402) | `5f833603d4e638c729faa98b3c302839c9874ff15716194a49c0079866a71a09` | `7d32b41e…f31ff` |
+
+**The witnesses.** Each wall is read from its corner. Positions are along-wall millimetres. Every
+other N4′ and N10.6 witness measures unchanged.
+
+| A / B / C | Ruling | Predicted |
+| --- | --- | --- |
+| 3600 / 2400 / 2000 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 100 beyond. A and C unchanged |
+| 3600 / 2800 / 2800 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 500 beyond, no pantry. C unchanged |
+| 4000 / 2000 / 2000 | N11.1 | B: fridge 900–1600, bare 300 beyond |
+| 4800 / 4400 / 4400 | N11.2, exactly 600 | A: …, `base-hob-2drawer` 2700–3300, `base-panbank` 3300–3900 (bare 0, no bottle). C: `base-panbank`, `base-3drawer`, `base-3drawer`, tower 2700–3300, `base-cabinet` (bare 400). **Was** A: …, hob, bottle (bare 300); C: 2 × `base-panbank`, 2 × `base-3drawer`, tower |
+| 5400 / 3400 / 3400 | N11.2, 1200 | A: …, hob, 2 × `base-panbank` (bare 0). C: 2 × `base-3drawer`, tower 2100–2700, `base-cabinet`. **Was** A: …, hob, bottle, `base-panbank` (bare 300); C: `base-panbank`, 2 × `base-3drawer`, tower |
+| 6000 / 6000 / 6000 | N11.2, 1800 | A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0). C: `base-3drawer`, 2 × `base-cabinet`, tower at 2700–3300 (`n` = 3), 4 × `base-cabinet` (bare 200). B unchanged. Still 5 drawer cabinets, 2 of them pan drawers |
+| 2399 / 3000 / 3000 | N11.3 | `minimumMet: false` (freeA 599) |
+| 2400 / 3000 / 3000 | N11.3 | Composes: the sink at A 900–1500 (freeA 600); C: dishwasher, preparation, `base-hob-oven`. B, per N11.1: 2 × `base-cabinet` 900–2100, fridge 2100–2800 |
+| 3600 / 3500 / 2200, h 2199 | N11.4 | B: 2 × `base-cabinet`, fridge 2100–2800, `base-cabinet` 2800–3400, no pantry. At h 2200, the pantry stands, as in N4′ |
+
+#### N11.6 — found while adjudicating, for U3b: wall A's remainder at its low end cannot be built from widths alone
+
+- *Measured.* After N11, **30 450** composed grid rooms have wall A's first body standing past the
+  start of A's run. Every one of them has the fridge on wall C.
+- *Doc-quoted, why the plan is right.* *N3 revised* 5 packs wall A *"from the fridge corner"*. With
+  the fridge on C, the remainder therefore lands correctly at the B-corner end. Example: in
+  2700/1600/1700 the sink stands at A 1200–1800, with 900–1200 bare.
+- *Source-verified, why the shell cannot reproduce it.* `wallAFreeRunTilesForU` tiles `floorWidthsMm.A`
+  from `floorSpan.startMm` (`shell-design.ts:750-786`, through `plannedFloorTiles`, `:429-434`). The
+  plan carries widths without an offset, so the shell would put that sink at 900–1500.
+- **Classification: a contract gap between U3a's plan type and U3b's shell input.** It is not a U3a
+  defect and is not fixed here. **U3b S1 owns it** (item 2, wiring `buildUShellDesign`), and the
+  mechanism is U3b's choice: an offset carried in the plan, or tiling wall A from its far end.
+- **The criterion U3b must meet:** every generated body's along-wall span equals the plan's, on all
+  three walls.
+
+#### N11.7 — consequences and sweep
+
+- **Code.**
+  - **Dispatch A** (U3a): `u-composition.ts` and `u-tall-layout.ts` only. The L and the straight
+    kitchen stay byte-identical (U3a AC4).
+  - **Dispatch B**, the clean-code refactor, follows it and must leave every N11.5 figure unchanged.
+  - Both punch lists are in the M7B plan, under U3a.
+- **Records reached:**
+
+  | Record | Effect |
+  | --- | --- |
+  | N3 item 3, *N3 revised* 3 | Now built as written (N11.1) |
+  | N9.2's description of `fridgeAtTheFreeEnd` | Superseded by N11.1; N9.2 carries a dated pointer |
+  | *N3 revised* 7, N10.2 | Narrowed (N11.2) |
+  | N10.9 | Widened (N11.2) |
+  | N4′'s 6000 / 6000 / 6000 row | Moves; the row carries a dated note |
+  | N3 item 4, ADR 0108 H3 | Now enforced (N11.3) |
+  | E3 clause 4 | Reach widened to every generated column in a U (N11.4) |
+  | U3b S1 item 2 | Gains N11.6's criterion |
+
+  The L's records are not touched.
+- **Owner:** RQ23 is open and non-blocking. Its default is built.

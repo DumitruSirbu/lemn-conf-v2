@@ -822,6 +822,8 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
 | **S2 the tall layout and the oven** | (1) The fridge-to-free-end gap takes `tall-pantry` columns at every size: 600 mm each, the outermost widened up to 800; a 400–599 gap takes one pantry at its width; under 400 stays bare (*N3r* 4; RQ13). (2) The far wall: overflowed bodies, then door bases up to `n` from the corner. Overflowed bodies count toward `n`, and the tower follows them directly where they exceed it. Then **one** `tall-oven-tower`. Below 10 m, pantries stand outboard up to a three-column block (E2, E12, E3 clauses 1 and 4; RQ11). At 10 m or more the tower stands alone. The rest of the run is door bases (*N3r* 10; RQ5, RQ14). (3) A far wall ≤ 3000 takes the tower or block at its free end. **A lone tower stands with its remainder, ≤ 599 mm, bare** (RQ17), departing from E6.2 **for a U only**. `planTallEndBlock`'s L behaviour does not change. (4) Exactly one generated oven: the tower with `base-hob-2drawer`, or `base-hob-oven` (*N3r* 9; E4) | new `generation/u-tall-layout.ts`; `generation/tall-end-rule.ts` (only if a U-only option is needed, with an L byte-identity test); `generation/u-composition.ts` | *N3 revised* 4, 9, 10; N6′ RQ13, RQ14, RQ17; ADR 0110 E2, E3, E4, E6, E12, I; `tall-end-rule.ts` whole (197 lines) |
 | **S3 drawers, dishwasher, bottle** | (1) Drawer units: `N(T) = min(5, 3 + ⌊max(0, T − 4700) / 2000⌋)`, counting `base-3drawer` and `base-panbank` only. The preparation cabinet is the first unit, and `base-hob-2drawer` does not count (RQ15). Extras take door slots after the hob. The count yields (*N3r* 6; RQ6, RQ10). Key it on the two owner-named build ids as data (ADR 0121), not on a general drawer classifier, which F7 declines. (2) The dishwasher beside the sink (M1), through the existing leaf, and (e)'s drawer swap if that reaches a U. (3) The bottle on **the next cabinet after the hob along the run**, when there is space (*N3r* 7; RQ16). (4) The threshold drawer is replaced by `N(T)` (*N3r* 8, labelled a default). (5) The pan drawer counts as a drawer unit | `generation/u-composition.ts`; `generation/dishwasher-beside-the-sink.ts` (only if its across-the-corner adjacency must read a second corner); `generation/optional-run-items.ts` (bottle placement reused, U arm only) | *N3 revised* 6–8; N6 RQ6, RQ10; N6′ RQ15, RQ16; ADR 0110 F5, F7, H1, J, K, L, M1, M2; `body-choice.ts`; `dishwasher-beside-the-sink.ts:1-130` |
 | **N10 fix (2026-09-29, before QA)** | (1) Drawer extras stand **before the tower**, and the tower shifts: `max(n, bodies before it)`, where the far-wall bottle and extras count as base bodies. The tower stays at the free end of a far wall ≤ 3000 (N10.3 step 4; RQ19 (b)). (2) The bottle stands directly after a far-wall hob even when a tower stands on that wall, but only if the tower and the pantries still stand (N10.3 step 5; RQ20). (3) On every wall, the bottle drops whenever it would lower the run's drawer-unit count (RQ21): wall A's fill and the no-tower far wall included. (4) The tower's existence and the pantry count are decided before either, as at `84bab2e`, and never undone (N10.3 steps 2–3). (5) Tests per AC1 (a)–(e), AC2's added rooms, and AC3's pins | `generation/u-composition.ts`; `generation/u-tall-layout.ts` | ADR 0110 N10 (all of it), *N3 revised* 6, 7, 10, N9.3; `u-composition.ts` whole; `u-tall-layout.ts:130-330` |
+| **N11 Dispatch A — review round 1's behaviour fixes (2026-09-29).** Tier **Full**: QA re-runs adversarially on N11, then the logic reviewer's round 2, scoped to N11. The clean-code round 2 waits for Dispatch B | **(A1) N11.1, the fridge wall.** On a fridge wall of 3000 mm or less (`fridgeAtTheFreeEnd`, `u-composition.ts:127-141`), storage stands from `run.startMm`, the fridge directly after it, and the remainder beyond it. That remainder takes **no** fridge-gap body: the pantry gap exists only at a counted position (`n` ≥ 1). **Tests:** rewrite `fridgePlaceFindings` (`tests/support/u-plan-invariants.ts:235-257`) from *N3 revised* 3, not from the planner. In the free-end case, the fridge wall's bodies are contiguous from `run.startMm`, the fridge is last, and `run.endMm − fridge.endMm` < 600 with nothing beyond it. Scope the 400 mm gap finding (`:229-231`) to counted positions. Pin **positions** on the fridge wall for 3600/2400/2000, 3600/2800/2800 and 4000/2000/2000. **(A2) N11.2, the bottle on wall A.** `bottleCostsNoDrawerUnit` compares the hob's wall's extra count as well as the room's; `runAfterAWallAHob`'s result carries wall A's count. **Tests:** witnesses 4800/4400/4400, 5400/3400/3400, and 6000/6000/6000 re-pinned (`u-composition.witnesses.test.ts:158`, `qa-u3a-u-plan.adversarial.test.ts:283-300`). AC1 (c)(iii). An arm floor ≥ 1 per band of N11.2's table. **(A3) N11.3, the sink.** Refuse a pack whose sink would leave wall A (`packBackWallAndOverflow`, `:341-351`). **Tests:** 2399/3000/3000 refused, 2400/3000/3000 composed; the H3 property (AC1, N11). **(A4) N11.4, the height.** Where `room.heightMm < declared.columnHeightMm`, the fridge gap takes A4's door bases, not pantries (`planUTallLayout`, `u-tall-layout.ts:79-87`). **Tests:** 3600/3500/2200 at h 2199 and at h 2200; the height property (AC1, N11). **(A5) AC3's pins.** In `RECORDED_AT_84BAB2E` (`u-tall-layout.property.test.ts:556-566`), the fridge-wall digest becomes N11.1's value, and its comment says why: N11.1 moved the fridge wall in 10 178 rooms. Every other field stays. Report the three N11.5 whole-plan digests, reproduced from a `tsc` build of the fix. A mismatch is stop-and-report (7J A8), never fix-to-match. **Every item needs R6 sabotage:** revert the one fix, and its tests go red | `generation/u-composition.ts`; `generation/u-tall-layout.ts` | ADR 0110 **N11 (all of it)**, *N3 revised* 3–7, N10.3, E3; ADR 0108 H3; `u-composition.ts` whole; `u-tall-layout.ts:75-150`; `tests/support/u-plan-invariants.ts`; `u-tall-layout.property.test.ts:540-720`; `u-composition.witnesses.test.ts`; this wave's AC1–AC3 *N11* blocks |
+| **N11 Dispatch B — review round 1's clean-code refactor (2026-09-29)**, after A is green and committed. **No behaviour change.** Tier: the clean-code reviewer's round 2 only, with no QA. The coordinator verifies byte-identity (AC6). **About 8 production files, over the ~5 limit; named here as `docs/WORKFLOW.md` requires.** Three are carved out of one file, and two are comment-only, so the review round is the mini-review | **(B1) Split `u-composition.ts`.** `u-fridge-wall.ts` gets the fridge wall's choice and placement and a dropped fridge's door fill. `u-back-wall-pack.ts` gets the lanes, the pack and the attempts table. `u-drawer-units.ts` gets the drawer target, the split, the conversion, run order, and N10.3's fit of the run after the hob, including `bottleCostsNoDrawerUnit`. `u-composition.ts` keeps `planUKitchenComposition`, the attempt's assembly, the tall-layout input, floor widths and remainders. `index.ts`'s export surface does not change. **(B2) Every function ≤ 20 lines.** This covers `planUKitchenComposition`, `composeTheAttempt`, `packBackWallAndOverflow`, `withDrawerUnitsAfterTheHob`, `wallAFill`, `towerAtTheFreeEnd`, `towerCountedFromTheCorner` and `farWallLayout`. `backWallAttempts` becomes a `const` table whose rows carry `hasPreparation`, and `dropped` is derived from it, which retires `attemptIndex >= 2` and `< 2`. **(B3) One base constructor.** `plannedBaseAt` and `doorBasesFrom` in `run-layout.ts` replace the ~8 duplicated `UPlannedGenerationBase` literals: `storageBase` ×2, `doorBaseWithId`, `fridgeBase`, `columnBase`, `wallAFill`'s two, the pack's, and `placeBodiesBeforeTheTower`'s. Name the constants: the side wall's 3000 mm (one constant, used twice), `Math.min(5, …)`, `/ 2000`, and the pantry loop's `2` (= `MAX_TALL_BLOCK_COLUMNS − 1`). Add one `enteredTotalMm(room)` shared by `isLargeU` and `drawerTargetFor`. **(B4) Comments and names.** Remove commit hashes from code and test comments (say "the layout with nothing added"). `RECORDED_AT_84BAB2E` becomes a named pin whose doc cites ADR 0110 N10.5 and N11.5. Fix the stale or false comments: `u-tall-layout.ts:441-443` (an orphan doc; delete it); `:8-13` (the leaf edit also exported `HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID`); `tall-end-rule.ts:29-33`; `u-composition.ts:1-5, 143-145, 306-316` (the slice framing); `index.ts:314-318`. Remove `withRQ17Override`'s dead terms (two inputs that are always true there). Renames: `blockStorageCountMm` → `blockStorageCount`; `UBodyBeforeTheTower` → a name true on both walls (e.g. `UBodyAfterTheHob`). **Deferred:** the test-fixture consolidation (`uRoom`, `planFor` and `basesOn` in 9 files, and the helpers `u-tall-layout.property.test.ts` redefines) goes to **U3b S0** below. B's evidence of byte-identity is an unchanged test suite, and rewriting nine test files in the same dispatch would remove that control | `generation/u-composition.ts`; new `generation/u-fridge-wall.ts`, `generation/u-back-wall-pack.ts`, `generation/u-drawer-units.ts`; `generation/u-tall-layout.ts`; `generation/run-layout.ts`; `generation/tall-end-rule.ts` and `index.ts` (comments only) | The clean-code review's round-1 findings; `engineering-conventions.md`; ADR 0110 N11.5 (the figures that must not move); `u-composition.ts`, `u-tall-layout.ts` and `run-layout.ts` whole |
 
 - **Reading, QA:** this wave's rows and criteria; ADR 0110 N (N1–N6′, especially *N3 revised* and
   N4′); `u0-measure-rq.mjs` as the model the witnesses came from (scratchpad; the witnesses are
@@ -831,6 +833,14 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
   E; ADR 0123; ADR 0132; the wave diff with `generation-priorities.ts`, which is the L's composer, for
   comparison.
 - **Reading, clean-code reviewer:** the slice table; `engineering-conventions.md`; the wave diff.
+- **Reading, N11 round 2 (2026-09-29).**
+  - **QA, after Dispatch A:** ADR 0110 N11; the AC1–AC3 *N11* blocks below;
+    `tests/support/u-plan-invariants.ts`; skill `javascript-testing-expert`; Dispatch A's diff.
+  - **Logic reviewer, after A:** ADR 0110 N11, *N3 revised* 3–7, N10.3, E3; ADR 0108 H3;
+    `generation-priorities.ts:220-260` for the L's fridge convention; Dispatch A's diff; your own
+    round-1 findings.
+  - **Clean-code reviewer, after Dispatch B:** your round-1 findings; `engineering-conventions.md`;
+    AC6; Dispatch B's diff.
 
 **Acceptance criteria.**
 
@@ -873,6 +883,33 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
      and a bottle; far-wall hob with a tower and no bottle because the tower or a drawer takes the room;
      back-wall hob that drops the bottle for a drawer (RQ21); back-wall hob with drawer extras past `n`
      before the tower. This way a property cannot pass by landing only on arms nobody changed.
+   **2026-09-29 (ADR 0110 N11, review round 1; Dispatch A).** Each item below is a **[prop]** over the
+   same sampled range unless it says otherwise, and each one is R6-sabotaged: revert its fix, and it
+   goes red.
+   - **(f) The fridge's place (N11.1).** This replaces `fridgePlaceFindings`' free-end clause, which
+     tested the planner rather than the rule. On a fridge wall of 3000 mm or less:
+     - the wall's bodies are contiguous from `run.startMm`, door bases first and the fridge last;
+     - `run.endMm − fridge.endMm` is < 600, and nothing stands beyond the fridge;
+     - the fridge gap's pantry clause (*"a gap of 400 mm or more takes a pantry"*) applies only at a
+       counted position.
+
+     **Must not:** a bare gap between a side wall's corner-side run start and its first body.
+   - **(c)(iii) The bottle never costs its own wall a drawer (N11.2).** Where the bottle stands on
+     wall A and any drawer extra stands on the far wall, wall A's `remainderMm` + `bottleWidthMm` is
+     < 600. **Arm floors:** at least one room in each N11.2 band (exactly 600, 700–800, 1200–1400,
+     1800 free after the hob) drops the bottle, and at least one room with 900–1100 free after the
+     hob keeps it.
+   - **(g) The sink stands on wall A (N11.3).** Swept over A 1800–3100 and B, C 1000–6000, with
+     ≥ 200 samples, of which ≥ 50 have `freeA` < 600:
+     - `minimumMet` holds **iff** ADR 0108 H3's predicate does (`freeA ≥ 1200`, or `freeA ≥ 600`
+       and the far wall's free run ≥ 600, with the far wall being the narrower side wall, C on a
+       tie);
+     - every composed plan's sink is on wall A.
+   - **(h) No tall column in a room lower than it (N11.4).** Swept at h from the engine floor to 2199,
+     and at 2200, 2600 and 3900:
+     - no `tall-pantry` or `tall-oven-tower` stands in a plan whose room is lower than
+       `declared.columnHeightMm`;
+     - every wall still ends with under 600 mm bare.
 2. **Witnesses** (N4′'s seven rooms, `u0-measure-rq.mjs` with `RQ13_TALL=1 TOWER_BARE=1`): the plan's
    bodies per wall, in order, equal N4′'s predicted rows, and 2700 / 1000 / 1000 is `minimumMet:
    false`. **If the plan measures otherwise, stop and report** before U3b. N4′ was a model (7J A8's
@@ -910,6 +947,17 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    domain 250 files / 5330 tests green per the implementer, AC3 matches the model over all 86,706 grid
    rooms (0 towers or pantries lost, 0 drawer extras after the tower against 18,602 before, 13,608
    rooms gain a drawer, largest bare end 500 / 500 / 500). Adversarial QA was still running.
+   **2026-09-29, review round 1 (ADR 0110 N11.5).** **Nine rows**, each pinned **with positions**
+   wall by wall, exactly as N11.5's table predicts:
+   - 3600/2400/2000, 3600/2800/2800 and 4000/2000/2000: the fridge wall (N11.1);
+   - 4800/4400/4400, 5400/3400/3400 and 6000/6000/6000: the bottle yields on wall A (N11.2).
+     6000/6000/6000's earlier row is superseded;
+   - 2399/3000/3000 refused and 2400/3000/3000 composed (N11.3);
+   - 3600/3500/2200 at h 2199 against h 2200 (N11.4).
+
+   The drawer-split witness 6000/6000/6000 keeps 2 `base-panbank` and 3 `base-3drawer`. Every other
+   row measures unchanged. **The witness helper must compare `startMm` and `endMm` on the rows N11
+   moves.** It compared `(role, buildId)` only, and that is how N11.1 passed unseen.
 3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
    counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
    difference is reported with its room. **[unit] + [report]**
@@ -926,13 +974,40 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    16 939. (iv) No room has fewer drawer cabinets than at `84bab2e`. (v) Zero rooms have a drawer
    extra after the tower, down from 18 602. Items (iii) and (v) come from a model, so a difference is
    reported with its room rather than fixed to match (7J A8).
+   **2026-09-29, review round 1 (ADR 0110 N11.5), after Dispatch A:**
+   - (i)–(v) above hold unchanged, including the tower tallies 16 487 / 13 600 / 26 216 / 30 403, the
+     far wall's pantries (680, 449 200 mm) and the drawer histogram.
+   - (vi) The fridge-wall digest is
+     `5d2962d48475ef6e7dde181952f0e692e109ba1ed8a827ad8e39c5b39ecfdfc2`.
+   - (vii) Against the implementer's own HEAD-versus-fix comparison: **14 771** rooms change, namely
+     10 178 on the fridge wall only, 4 599 on wall A and the far wall, and 6 in both.
+   - (viii) The three whole-plan digests in N11.5's table are reproduced exactly.
+
+   A mismatch is reported with its room, never fixed to match (7J A8).
 4. **The L and the straight kitchen are byte-identical**: U1-A1's re-run, plus
    `planKitchenComposition`'s output over its recorded baselines. **[unit]**
 5. **Must not:** any edit to `generation-priorities.ts`; `cornerDirection` read; a wall letter compared
    inside the U planner other than through the fridge-wall and far-wall roles it computes (ADR 0110
    I's lesson on role versus letter). **[review]**
+6. **Dispatch B is byte-identical** (added 2026-09-29, review round 1). The coordinator builds
+   Dispatch A's commit and Dispatch B's commit with `tsc` into a scratchpad, and compares:
+   - N11.5's three sweeps, digested **with ids included** (stricter than N11.5's id-free digests),
+     over every `UKitchenCompositionPlan` field: `bases`, `floorWidthsMm`, `remainderMm`, `dropped`,
+     `minimumMet`, `fridgePosition` and `towerPosition`;
+   - AC4's L and straight baselines.
+
+   All must be identical. The domain suite passes with **no test changed except B4's comment and
+   pin-name edits**; `git diff --stat` over `tests/` shows only those. `index.ts`'s export surface is
+   unchanged. **Must not:** any figure in N11.5 move. **[unit] + [report]**
 
 ### Wave U3b — generating a U — cut 2026-09-29
+
+**U3b S0, test-only, before S1 (added 2026-09-29, deferred from U3a Dispatch B).** One
+`tests/support/u-room.ts` exports `uRoom`, `planFor`, `basesOn` and `bodiesOn`. It replaces their
+nine private copies, and `u-tall-layout.property.test.ts` stops redefining what
+`tests/support/u-plan-invariants.ts` already exports. The tier is coordinator-only: no production
+file changes, and the suite's test count and results do not change. U3b's own generation tests are
+then written against the shared module.
 
 **Goal.** `generateKitchen` composes a U from U3a's plan, through `insertBody` alone, onto
 `buildUShellDesign`. Every U gets its hood, and a large U's back wall keeps its upper voids. Step 1's
@@ -940,7 +1015,7 @@ minimum-kitchen gate agrees with the generator.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
-| **S1 dispatch** | (1) Retire `refuseAGeneratedU` (`generate-kitchen.ts:262-270`). (2) `shellRunsFor` → `uShellFloorRuns`, and `buildShellFor` → `buildUShellDesign` with `compositionPlan.floorWidthsMm` over A, B and C. (3) `isFreeEndBody` for both side walls' free ends. (4) `replayGenerationLog` replays a U. (5) **The owed direct `slideReserveMm` wall-C test** (U2 close-out, round-2 review's accepted gap), written against the first composed wall-C run: wall C's run ends 100 mm short of `wallCMm`, exactly as wall B's does in the room with B and C swapped | `generation/generate-kitchen.ts`; `generation/shell-design.ts` (only if `UShellCompositionPlan` needs a field) | U2 close-out; ADR 0110 decisions 1–6, B, D (revised); ADR 0108 H3 (the 100 mm reserve); `generate-kitchen.ts:140-230, 480-560, 680-799`; `shell-design.ts:575-640, 800-830` |
+| **S1 dispatch** | (1) Retire `refuseAGeneratedU` (`generate-kitchen.ts:262-270`). (2) `shellRunsFor` → `uShellFloorRuns`, and `buildShellFor` → `buildUShellDesign` with `compositionPlan.floorWidthsMm` over A, B and C. (3) `isFreeEndBody` for both side walls' free ends. (4) `replayGenerationLog` replays a U. (5) **The owed direct `slideReserveMm` wall-C test** (U2 close-out, round-2 review's accepted gap), written against the first composed wall-C run: wall C's run ends 100 mm short of `wallCMm`, exactly as wall B's does in the room with B and C swapped | `generation/generate-kitchen.ts`; `generation/shell-design.ts` (only if `UShellCompositionPlan` needs a field) | U2 close-out; ADR 0110 decisions 1–6, B, D (revised), **N11.6 (wall A's low-end remainder; U3b AC1)**; ADR 0108 H3 (the 100 mm reserve); `generate-kitchen.ts:140-230, 480-560, 680-799`; `shell-design.ts:575-640, 800-830` |
 | **S2 uppers and the hood** | (1) **The hood is mandatory over the hob in every U** (*N3r* 11; RQ7). (2) In a large U, **no generated body in wall A's wall or top rows**, and the shell's voids there remain. (3) Uppers over the far wall's door bases (RQ14) and over the back wall below 10 m. (4) No upper over a full-height body (E7) or over **either** corner zone (7D2 c. 14; backlog 63's class at A∩C) | `generation/generate-kitchen.ts` (the upper loop, `:393-410`); a new leaf `generation/upper-policy.ts` if the loop needs one, to keep `generate-kitchen.ts` from growing | *N3 revised* 11; N6 RQ7; N6′ RQ14; ADR 0110 C, E7, 7D2 c. 14; backlog 63; `generate-kitchen.ts:380-560` |
 | **S3 the minimum kitchen** | (1) **`UMinimumKitchen` lands here**: the policy type on `UWallBounds`, and `ENGINE_ROOM_LIMITS.U.minimumKitchen` derived with no literal. Correct `room-policy.ts:76-78`'s comment, which names *"U3 S3"* (R1.5), to this slice. The approved literals enter at **U6**, not here. (2) `validateRoomInput`'s U predicate (ADR 0108 H3): `freeA ≥ 1200`, or `freeA ≥ 600` and the narrower side wall's (C when B = C) `free ≥ 600`, with `freeA = A − 1800` and `free = side − 1000`, the 1000 including the 100 mm reserve. It returns `ROOM_TOO_SMALL_FOR_KITCHEN` on the room field, with no number (RQ8). (3) The validator ⇔ generator property | `room/room-policy.ts`; `room/validate-room.ts` | ADR 0108 C, E, *Implementation record*, H2–H5; RQ1, RQ8; ADR 0116 decision 1; `room-policy.ts:60-100`; `validate-room.ts` whole |
 
@@ -958,6 +1033,14 @@ minimum-kitchen gate agrees with the generator.
    overflowing placement. Deterministic, and the log replays to the design. Exactly one oven. No oven
    beside the fridge. No upper over a full-height body or either corner zone. A hood over the hob.
    Bare run ends < 600 mm. The body order along the path equals U3a's plan. **[prop]**
+   **2026-09-29 (ADR 0110 N11.6).** Not only the order: **every generated body's along-wall span
+   equals the plan's `startMm`/`endMm`, on all three walls.**
+   - Why order is not enough: 30 450 grid rooms (every one with the fridge on wall C) plan wall A's
+     remainder at its **low** end. `floorWidthsMm` carries no offset, and `plannedFloorTiles` tiles
+     from the span's start.
+   - So S1 item 2 must carry the offset or tile wall A from its far end; the choice is S1's.
+   - Witness: 2700/1600/1700, where the sink stands at A 1200–1800.
+   - R6: tile from the span's start, and this criterion goes red.
 2. **Validator ⇔ generator** (old criterion 2): over the same range plus H3's boundary pairs
    (2999/3000 at B = C = 1000 and 1599; C 1599/1600 at A 2700 and 2999, B = 6000), the gate passes
    **iff** `generateKitchen` places a sink and a hob. **[prop]**
