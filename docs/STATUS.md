@@ -541,7 +541,7 @@ gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The 
 `milestones/done/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125, 0129, 0131 |
-| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ **plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0** (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only) | Yes — `milestones/M7B-u-shaped-rooms.md` |
+| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ ~~plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0 (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only)~~ **U0 is DONE (Light tier, one logic reviewer, no blockers): ADR 0132 Accepted; owner answers Q-U1–Q-U5 and RQ1–RQ17 recorded in ADR 0108 Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C; backlog 91. No wave now waits on an owner answer. Next wave U1** (the stored U and wall C; domain; Full tier plus security on S2) | Yes — `milestones/M7B-u-shaped-rooms.md` |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
 | M5B — Manual UX remediation (branch `ux-manual-fixes`, merged) | **Done, 2026-09-02** — all eleven waves shipped | No — `milestones/done/M5B-manual-ux-remediation.md`, ADRs 0043–0051 |
@@ -1104,6 +1104,23 @@ one WAF `rate_limit` rule.** A second returns a misleading 401; the edge cannot 
 policy, so every per-endpoint limit is application code.
 
 ## What to do next
+
+> **RESUME HERE — 2026-09-29, later the same day. M7B wave U0 is DONE.** Branch
+> `m7b-u-shaped-rooms`, created from M7's `m7-room-and-presets` tip at `5462a6c` (M7's PR is not yet
+> merged to main; the new branch is not pushed yet). Commits, in order: plan `dd9f63a`; U0 `3e76ea6`
+> (census, measurements, ADR 0132 Accepted, owner answers Q-U1–Q-U5 and RQ1–RQ12 recorded in ADR 0108
+> Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C, backlog 91); owner answers RQ13–RQ17
+> `5462a6c`. Both docs commits ran with hooks; the hook's build steps passed. Tier **Light**, one logic
+> reviewer, no blockers — its minor findings were folded into `3e76ea6` and `5462a6c` directly.
+>
+> **Key outcomes** (detail in `milestones/M7B-u-shaped-rooms.md` and ADR 0132): wall C is a world wall,
+> and only the four right-corner pieces are drawn in a reflection (α); wall A's approved minimum is
+> 2700 mm (1200 mm walkway + 2 × 748); the owner's U composition — fridge on the wider side wall,
+> counted from the corner; sink on the back wall; a 10 m large-U threshold; one oven tower; the
+> corner-direction toggle is hidden for a U. **No wave now waits on an owner answer.**
+>
+> **Next wave: U1** — the stored U and wall C; domain; Full tier plus security on S2. S1 was
+> dispatched 2026-09-29. See `milestones/M7B-u-shaped-rooms.md` for scope.
 
 > **RESUME HERE — 2026-09-29. M7 is closed.** Its build sequence (`… → 7J → 7K → 7L`) is complete,
 > Gate M7-C is withdrawn (ADR 0113), and both decision records the close required now exist: ADR 0131
