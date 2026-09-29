@@ -24,10 +24,9 @@ import {
   type CameraPresetId,
 } from "../src/stage.js";
 import { required } from "./support/required.js";
+import { OCCURRED_AT, PHONE } from "./support/u-scene.js";
 
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 /** The gate viewport (§11 row 21's mobile metric). */
-const PHONE = { width: 390, height: 844 };
 const MIN_TAP_TARGET_PX = 44;
 const TOP_ROW_BOTTOM_M = 2.2;
 const TOP_ROW_TOP_M = 2.6;

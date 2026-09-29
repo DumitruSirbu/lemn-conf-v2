@@ -25,6 +25,10 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import { acceptedU } from "./support/u-scene.js";
+
+/** The walls these voids stand on are a U's: B and C are only ever drawn there. */
+const U_ROOM = acceptedU(3000, 3000, 3000);
 
 beforeAll(() => {
   installHeadlessDocument();
@@ -97,6 +101,7 @@ describe("pick skips what is not drawn", () => {
     syncVoidMeshes({
       voidsRoot: voids,
       voids: [voidAt("B", "b-void", 0, 0.9)],
+      room: U_ROOM,
     });
 
     expect(pickAmong(solids, voids)).toBe("b-void");
@@ -116,6 +121,7 @@ describe("pick skips what is not drawn", () => {
     syncVoidMeshes({
       voidsRoot: voids,
       voids: [voidAt("C", "c-void", 0, 0.9)],
+      room: U_ROOM,
     });
     required(voids.children[0], "the void").visible = false;
 
@@ -159,7 +165,11 @@ describe("§11 row 22 with the filter: voids never swallow clicks, and a cut-awa
     const solids = new THREE.Group();
     solids.add(box("base-1", 0, 1));
     const voids = new THREE.Group();
-    syncVoidMeshes({ voidsRoot: voids, voids: [voidAt("B", "b-void", 0, 1)] });
+    syncVoidMeshes({
+      voidsRoot: voids,
+      voids: [voidAt("B", "b-void", 0, 1)],
+      room: U_ROOM,
+    });
 
     expect(pickAmong(solids, voids)).toBe("base-1");
   });
@@ -170,7 +180,11 @@ describe("§11 row 22 with the filter: voids never swallow clicks, and a cut-awa
     tagWall(cabinet, "B");
     solids.add(cabinet);
     const voids = new THREE.Group();
-    syncVoidMeshes({ voidsRoot: voids, voids: [voidAt("C", "c-void", 0, 1)] });
+    syncVoidMeshes({
+      voidsRoot: voids,
+      voids: [voidAt("C", "c-void", 0, 1)],
+      room: U_ROOM,
+    });
 
     applyCutaway(solids, voids, ["C"]);
 
@@ -179,7 +193,11 @@ describe("§11 row 22 with the filter: voids never swallow clicks, and a cut-awa
 
   it("selects nothing at a cut-away wall's void with no drawn body behind it", () => {
     const voids = new THREE.Group();
-    syncVoidMeshes({ voidsRoot: voids, voids: [voidAt("C", "c-void", 0, 1)] });
+    syncVoidMeshes({
+      voidsRoot: voids,
+      voids: [voidAt("C", "c-void", 0, 1)],
+      room: U_ROOM,
+    });
 
     applyCutaway(new THREE.Group(), voids, ["C"]);
 
@@ -207,6 +225,7 @@ describe("§11 row 2 with the filter: the base slot of a cleared column, not the
     syncVoidMeshes({
       voidsRoot: voids,
       voids: [...SLOTS("B"), ...SLOTS("C").map((v) => ({ ...v, x: 3 }))],
+      room: U_ROOM,
     });
 
     applyCutaway(new THREE.Group(), voids, ["C"]);
@@ -216,7 +235,11 @@ describe("§11 row 2 with the filter: the base slot of a cleared column, not the
 
   it("selects nothing on a column whose wall is cut away", () => {
     const voids = new THREE.Group();
-    syncVoidMeshes({ voidsRoot: voids, voids: SLOTS("C") });
+    syncVoidMeshes({
+      voidsRoot: voids,
+      voids: SLOTS("C"),
+      room: U_ROOM,
+    });
 
     applyCutaway(new THREE.Group(), voids, ["C"]);
 

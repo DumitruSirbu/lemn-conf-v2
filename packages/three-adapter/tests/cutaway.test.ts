@@ -43,8 +43,7 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
-
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
+import { OCCURRED_AT } from "./support/u-scene.js";
 
 /** ADR 0108 H2, measured: the deepest floor-standing body's `occupiedDepthOfEntryM`, in metres. */
 const DEEPEST_FLOOR_BODY_M = { 600: 0.742, 700: 0.748 } as const;
@@ -532,7 +531,7 @@ describe("applyCutaway", () => {
     solidsRoot.add(buildKitchenShell(kit, U_ROOM));
     stageRoot.add(solidsRoot, voidsRoot);
     syncSolidBodies({ kit, solidsRoot, records, room: U_ROOM });
-    syncVoidMeshes({ voidsRoot, voids: VOIDS });
+    syncVoidMeshes({ voidsRoot, voids: VOIDS, room: U_ROOM });
     stageRoot.updateMatrixWorld(true);
 
     const overlayOn = (placementId: string) => {
@@ -756,7 +755,11 @@ describe("applyCutaway", () => {
       const stage = mountStage();
       applyCutaway(stage.solidsRoot, stage.voidsRoot, ["C"]);
 
-      syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids: editedVoids });
+      syncVoidMeshes({
+        voidsRoot: stage.voidsRoot,
+        voids: editedVoids,
+        room: U_ROOM,
+      });
 
       expect(
         stage.voidsRoot.children.map((g) => [wallOf(g), g.visible]),
@@ -815,7 +818,11 @@ describe("applyCutaway", () => {
       applyCutaway(stage.solidsRoot, stage.voidsRoot, ["C"]);
       applyCutaway(stage.solidsRoot, stage.voidsRoot, []);
 
-      syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids: editedVoids });
+      syncVoidMeshes({
+        voidsRoot: stage.voidsRoot,
+        voids: editedVoids,
+        room: U_ROOM,
+      });
       syncSolidBodies({
         kit: stage.kit,
         solidsRoot: stage.solidsRoot,
@@ -842,7 +849,11 @@ describe("applyCutaway", () => {
       applyCutaway(stage.solidsRoot, stage.voidsRoot, ["B", "C"]);
       applyCutaway(stage.solidsRoot, stage.voidsRoot, ["B"]);
 
-      syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids: editedVoids });
+      syncVoidMeshes({
+        voidsRoot: stage.voidsRoot,
+        voids: editedVoids,
+        room: U_ROOM,
+      });
 
       expect(
         stage.voidsRoot.children.map((g) => [wallOf(g), g.visible]),
@@ -857,7 +868,7 @@ describe("applyCutaway", () => {
   it("works when the two roots have no common parent yet", () => {
     const solidsRoot = new THREE.Group();
     const voidsRoot = new THREE.Group();
-    syncVoidMeshes({ voidsRoot, voids: VOIDS });
+    syncVoidMeshes({ voidsRoot, voids: VOIDS, room: U_ROOM });
 
     applyCutaway(solidsRoot, voidsRoot, ["C"]);
 

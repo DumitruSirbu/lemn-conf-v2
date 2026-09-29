@@ -42,8 +42,8 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
+import { OCCURRED_AT } from "./support/u-scene.js";
 
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 const BOUNDS_TOLERANCE_M = 1e-6;
 /** Selection and mark hulls stand proud of the body they cover by a few millimetres
  *  (`selection-outline.ts` 3 mm, `overflow-mark.ts` 2 mm); this is the most a hull may differ. */
@@ -160,7 +160,11 @@ function mountDesign(kit: Kit, design: Design): MountedU {
     design,
     toMetres(design.room.widthMm),
   );
-  syncVoidMeshes({ voidsRoot, voids: recomputeVoids(records, columns) });
+  syncVoidMeshes({
+    voidsRoot,
+    voids: recomputeVoids(records, columns),
+    room: design.room,
+  });
   stageRoot.updateMatrixWorld(true);
   return { kit, design, records, stageRoot, solidsRoot, voidsRoot };
 }

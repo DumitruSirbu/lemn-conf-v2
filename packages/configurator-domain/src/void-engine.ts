@@ -25,6 +25,7 @@ import {
   LEVEL_SNAP_M,
 } from "./module-grid.js";
 import { deriveCabinetWorldTransform } from "./room-transforms.js";
+import { cornerOf, type Corner } from "./corner-of.js";
 
 // The column model has one front door, so everything that already reads `LEVELS`, `LEVEL_SNAP_M` or
 // `deriveColumnKeyAt` from here goes on doing so. They are **defined** in `module-grid.ts`, which
@@ -381,6 +382,11 @@ export interface PlacementRecord {
   readonly depthRule?: CabinetDepthRule;
   readonly col: string;
   readonly wall: DesignWall;
+  /** **Which of the room's corners this body is a structural piece of** — `cornerOf`'s own answer
+   *  (ADR 0121), asked once here where the placement, the room and the catalogue are all in hand, so
+   *  no reader has to stand a placement back up from a record to ask it again (ADR 0132 A8.4).
+   *  Absent for a body that is not a corner piece. `"right"` occurs only in a U. */
+  readonly corner?: Corner;
   readonly rotated: boolean;
   readonly band: Band;
   readonly widthMm: number;
@@ -597,6 +603,7 @@ export function derivePlacementRecords(
     // "Rotated" names which axis is along, never a specific wall (ADR 0132 decision 1): wall C's
     // along is `+z`, the same axis wall B's is, so it reads exactly as B does here.
     const rotated = placement.wall !== "A";
+    const corner = cornerOf(placement, design.room, catalog);
     const drawnFinish = drawnFinishOf({
       rule: bodyFinishRuleOf({
         buildId: placement.body.buildId,
@@ -617,6 +624,7 @@ export function derivePlacementRecords(
         : {}),
       col: deriveColumnKey(placement.wall, frame),
       wall: placement.wall,
+      ...(corner !== undefined ? { corner } : {}),
       rotated,
       band: definition.band,
       widthMm: placement.body.widthMm,

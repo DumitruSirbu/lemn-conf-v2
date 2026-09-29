@@ -20,7 +20,7 @@ import {
 import type * as THREE from "three";
 
 import type { Vector3Tuple } from "./stage.js";
-import { wallOf } from "./wall-tag.js";
+import { isDesignWall, wallOf } from "./wall-tag.js";
 
 /** How close the eye may come to a body before it is inside it rather than looking at it. Exported
  *  so the tests that ask the same question (wave 7H's preset-stands-clear QA, the cutaway suite)
@@ -84,21 +84,27 @@ export function applyCutaway(
  *
  *  **Only a U is ever cut** (A2). A stage is kept when the room changes shape in place (ADR 0074 d1),
  *  so a set recorded while it showed a U must not reach an L or a straight room: given such a room,
- *  the record is cleared and everything the cutaway hid is shown. A caller that cannot name the room
- *  (`syncVoidMeshes`'s optional `room`) applies the record as it stands; the body sync, which always
- *  has the room, is what clears it. */
+ *  the record is cleared and everything the cutaway hid is shown. Both syncs pass the room they were
+ *  handed, so neither can leave a stale record applied. */
 export function applyRecordedCutaway(
   root: THREE.Object3D,
-  room?: DesignRoom,
+  room: DesignRoom,
 ): void {
-  if (room !== undefined && room.shape !== "U") {
+  if (room.shape !== "U") {
     discardRecordedCutaway(root);
     return;
   }
-  const recorded = recordHolderOf(root).userData[CUT_WALLS_KEY] as
-    | readonly DesignWall[]
-    | undefined;
+  const recorded = recordedCutWallsOf(recordHolderOf(root));
   if (recorded !== undefined) applyWalls(root.children, recorded);
+}
+
+/** `userData` is `any`: what `applyCutaway` recorded is trusted only if it is still a list of walls. */
+function recordedCutWallsOf(
+  holder: THREE.Object3D,
+): readonly DesignWall[] | undefined {
+  const recorded: unknown = holder.userData[CUT_WALLS_KEY];
+  if (!Array.isArray(recorded)) return undefined;
+  return recorded.every(isDesignWall) ? recorded : undefined;
 }
 
 /** Clears the record and shows every object under the shared parent that a cutaway hid — the two

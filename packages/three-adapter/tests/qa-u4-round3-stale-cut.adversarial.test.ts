@@ -29,8 +29,7 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
-
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
+import { OCCURRED_AT } from "./support/u-scene.js";
 
 beforeAll(() => {
   installHeadlessDocument();
@@ -71,6 +70,7 @@ describe("a U's recorded cut does not reach an L synced onto the same stage", ()
           records,
           deriveRecordedColumns(records, design, toMetres(design.room.widthMm)),
         ),
+        room: design.room,
       });
     };
     show(U_DESIGN);

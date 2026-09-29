@@ -26,8 +26,8 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
+import { OCCURRED_AT } from "./support/u-scene.js";
 
-const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
 const EVERY_WALL: readonly DesignWall[] = ["A", "B", "C"];
 
 const DESIGNS = {
@@ -66,7 +66,7 @@ function mountStage() {
   solidsRoot.add(buildKitchenShell(kit, DESIGNS.U.room));
   room.add(solidsRoot, voidsRoot);
 
-  function show(shape: Shape, options: { readonly passRoomToVoids: boolean }) {
+  function show(shape: Shape) {
     const design = DESIGNS[shape];
     const records = derivePlacementRecords(
       design,
@@ -80,7 +80,7 @@ function mountStage() {
     syncVoidMeshes({
       voidsRoot,
       voids,
-      ...(options.passRoomToVoids ? { room: design.room } : {}),
+      room: design.room,
     });
   }
   const wallKeyed = () =>
@@ -98,52 +98,43 @@ function mountStage() {
   return { show, wallKeyed, hiddenWalls, cut, voidsRoot };
 }
 
-const BOTH_WAYS = [
-  ["passing the room to the void sync", true],
-  ["not passing it", false],
-] as const;
-
+// The void sync's `room` is required, so the arm that once ran each of these without it (the record
+// applied as it stood) can no longer be written; every sync below hands both syncs their room.
 describe("a recorded cut set applies only to a U", () => {
-  it.each(BOTH_WAYS)(
-    "U then L, %s: every body and void of the L is drawn",
-    (_name, passRoomToVoids) => {
-      const stage = mountStage();
-      stage.show("U", { passRoomToVoids });
-      stage.cut(["B"]);
-      expect(stage.hiddenWalls().length).toBeGreaterThan(0);
+  it("U then L: every body and void of the L is drawn", () => {
+    const stage = mountStage();
+    stage.show("U");
+    stage.cut(["B"]);
+    expect(stage.hiddenWalls().length).toBeGreaterThan(0);
 
-      stage.show("L", { passRoomToVoids });
+    stage.show("L");
 
-      expect(stage.wallKeyed().length).toBeGreaterThan(0);
-      expect(stage.hiddenWalls()).toEqual([]);
-    },
-  );
+    expect(stage.wallKeyed().length).toBeGreaterThan(0);
+    expect(stage.hiddenWalls()).toEqual([]);
+  });
 
-  it.each(BOTH_WAYS)(
-    "U, L, straight, U, %s: nothing is hidden by a stale record, and a U cut again holds through a sync",
-    (_name, passRoomToVoids) => {
-      const stage = mountStage();
-      stage.show("U", { passRoomToVoids });
-      stage.cut(EVERY_WALL);
+  it("U, L, straight, U: nothing is hidden by a stale record, and a U cut again holds through a sync", () => {
+    const stage = mountStage();
+    stage.show("U");
+    stage.cut(EVERY_WALL);
 
-      stage.show("L", { passRoomToVoids });
-      expect(stage.hiddenWalls(), "L").toEqual([]);
-      stage.show("linear", { passRoomToVoids });
-      expect(stage.hiddenWalls(), "straight").toEqual([]);
-      stage.show("U", { passRoomToVoids });
-      expect(stage.hiddenWalls(), "U again, before a new cut").toEqual([]);
+    stage.show("L");
+    expect(stage.hiddenWalls(), "L").toEqual([]);
+    stage.show("linear");
+    expect(stage.hiddenWalls(), "straight").toEqual([]);
+    stage.show("U");
+    expect(stage.hiddenWalls(), "U again, before a new cut").toEqual([]);
 
-      stage.cut(["C"]);
-      stage.show("U", { passRoomToVoids });
-      const hidden = stage.hiddenWalls();
-      expect(hidden.length, "U re-cut").toBeGreaterThan(0);
-      expect(new Set(hidden)).toEqual(new Set(["C"]));
-    },
-  );
+    stage.cut(["C"]);
+    stage.show("U");
+    const hidden = stage.hiddenWalls();
+    expect(hidden.length, "U re-cut").toBeGreaterThan(0);
+    expect(new Set(hidden)).toEqual(new Set(["C"]));
+  });
 
   it("a void-only sync of an L, given its room, discards the stale record and shows everything it hid", () => {
     const stage = mountStage();
-    stage.show("U", { passRoomToVoids: true });
+    stage.show("U");
     stage.cut(["B"]);
     const design = DESIGNS.L;
     const records = derivePlacementRecords(
@@ -171,19 +162,18 @@ describe("a recorded cut set applies only to a U", () => {
         maxLength: 8,
       }),
       fc.subarray([...EVERY_WALL]),
-      fc.boolean(),
     ],
     { numRuns: 60 },
   )(
     "over any sequence of shapes an L or a straight room never has a hidden wall-keyed object after a sync, and a U hides only what was cut",
-    (shapes, walls, passRoomToVoids) => {
+    (shapes, walls) => {
       const stage = mountStage();
 
       for (const shape of shapes) {
-        stage.show(shape, { passRoomToVoids });
+        stage.show(shape);
         if (shape === "U") {
           stage.cut(walls);
-          stage.show("U", { passRoomToVoids });
+          stage.show("U");
           expect(
             stage.hiddenWalls().every((wall) => walls.includes(wall ?? "A")),
           ).toBe(true);

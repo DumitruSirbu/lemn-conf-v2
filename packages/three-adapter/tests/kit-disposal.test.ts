@@ -149,7 +149,11 @@ function mountStage(kit: Kit): MountedStage {
     records: SEEDED_RECORDS,
     room: KITCHEN_L_DESIGN.room,
   });
-  syncVoidMeshes({ voidsRoot, voids: [MOUNTED_VOID] });
+  syncVoidMeshes({
+    voidsRoot,
+    voids: [MOUNTED_VOID],
+    room: KITCHEN_L_DESIGN.room,
+  });
 
   return {
     kit,
