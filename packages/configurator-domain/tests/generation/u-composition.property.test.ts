@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { type DesignRoom, type DesignWall } from "../../src/index.js";
 import { basesOn, planFor, uRoom } from "../support/u-plan-fixtures.js";
+import { isWallAFill } from "../support/u-plan-invariants.js";
 
 const RUNS = 200;
 
@@ -72,7 +73,7 @@ describe("planUKitchenComposition holds N3r 2, 3 and 5 (AC1's own share)", () =>
       const plan = planFor(room);
       if (!plan.minimumMet) return;
       const fridgeWall = expectedFridgeWall(room);
-      const onA = basesOn(plan, "A");
+      const onA = basesOn(plan, "A").filter((base) => !isWallAFill(base));
       const first =
         fridgeWall === "B"
           ? onA.reduce<(typeof onA)[number] | undefined>(

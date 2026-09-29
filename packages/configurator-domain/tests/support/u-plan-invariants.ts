@@ -25,6 +25,10 @@ export type URuns = Readonly<
 
 const MODULE_MM = 600;
 const MAX_BARE_END_MM = 599;
+/** ADR 0110 N11.9 (RQ25): wall A's remainder of 300-599 mm takes a door base, so what stays bare on
+ *  wall A is under 300 mm. */
+const MAX_WALL_A_BARE_END_MM = 299;
+const MIN_WALL_A_FILL_MM = 300;
 const T_MIN_MM = 4700;
 const LARGE_U_TOTAL_MM = 10_000;
 const COLUMN_HEIGHT_MM = 2200;
@@ -85,12 +89,29 @@ function basesOn(plan: Plan, wall: DesignWall): readonly Base[] {
     .sort((left, right) => left.startMm - right.startMm);
 }
 
+/** ADR 0110 N11.9: the one door base standing at wall A's high end, narrower than a module, that
+ *  takes the remainder the plan would otherwise leave. Wall A's A4 fill is always a whole module, so
+ *  a narrower door base on wall A is this fill or nothing. */
+export function isWallAFill(base: Base): boolean {
+  return base.wall === "A" && base.buildId === DOOR && base.widthMm < MODULE_MM;
+}
+
 /** *N3 revised* 6's run order: wall A read from the fridge corner, then the far wall from its own
- *  corner. The fridge wall is not part of it. */
+ *  corner. The fridge wall is not part of it, and neither is wall A's fill: it takes the remainder
+ *  after the run and belongs to no place in it (N11.9). */
 export function runOrderOf({ room, plan }: UPlanContext): readonly Base[] {
-  const onA = basesOn(plan, "A");
+  const onA = basesOn(plan, "A").filter((base) => !isWallAFill(base));
   const wallAInRunOrder = fridgeWallOf(room) === "B" ? onA : [...onA].reverse();
   return [...wallAInRunOrder, ...basesOn(plan, farWallOf(room))];
+}
+
+/** Wall A's remainder before the fill stood on it: what the run leaves after every other body. The
+ *  bottle rule and the drawer count decide on this figure (N11.9). */
+export function remainderBeforeTheFillMm(plan: Plan, wall: DesignWall): number {
+  const fillMm = basesOn(plan, wall)
+    .filter(isWallAFill)
+    .reduce((sum, base) => sum + base.widthMm, 0);
+  return plan.remainderMm[wall] + fillMm;
 }
 
 function coreRoleOf(base: Base): string {
@@ -145,16 +166,21 @@ function sinkOnWallAFindings({ plan }: UPlanContext): readonly string[] {
   return sink?.wall === "A" ? [] : ["the sink is not on wall A"];
 }
 
-/** Wall A's run left after a wall-A hob, read in run direction (away from the fridge corner). */
+/** Wall A's run left after a wall-A hob, read in run direction (away from the fridge corner): the
+ *  run less every body from the sink through the hob. Read off widths rather than positions, because
+ *  wall A's block stands at its low end whichever corner it was packed from (N11.8). */
 export function freeAfterAWallAHobMm(
   context: UPlanContext,
 ): number | undefined {
-  const hob = context.plan.bases.find((base) => base.role === "hob");
+  const order = runOrderOf(context);
+  const hobIndex = order.findIndex((base) => base.role === "hob");
+  const hob = order[hobIndex];
   if (hob?.wall !== "A") return undefined;
   const runA = context.runs.A;
-  return fridgeWallOf(context.room) === "B"
-    ? runA.endMm - hob.endMm
-    : hob.startMm - runA.startMm;
+  const coreMm = order
+    .slice(0, hobIndex + 1)
+    .reduce((sum, base) => sum + base.widthMm, 0);
+  return runA.endMm - runA.startMm - coreMm;
 }
 
 /** N11.2 with RQ23, on a wall-A hob. With `free` mm after the hob and the 300 mm bottle:
@@ -242,18 +268,40 @@ function geometryFindings({ runs, plan }: UPlanContext): readonly string[] {
       }
     });
     const first = onWall[0];
-    if (wall !== "A" && first && first.startMm !== runs[wall].startMm) {
+    if (first && first.startMm !== runs[wall].startMm) {
       findings.push(
-        `bare gap between wall ${wall}'s corner-side run start and ${first.id}`,
+        `bare gap between wall ${wall}'s run start and ${first.id}`,
       );
     }
     const bareMm = plan.remainderMm[wall];
-    if (bareMm < 0 || bareMm > MAX_BARE_END_MM) {
+    const maxBareMm = wall === "A" ? MAX_WALL_A_BARE_END_MM : MAX_BARE_END_MM;
+    if (bareMm < 0 || bareMm > maxBareMm) {
       findings.push(`wall ${wall} bare end ${String(bareMm)} mm`);
     }
   }
+  findings.push(...wallAFillFindings({ runs, plan }));
   const ids = plan.bases.map((base) => base.id);
   if (new Set(ids).size !== ids.length) findings.push("duplicate body ids");
+  return findings;
+}
+
+/** ADR 0110 N11.9: a wall-A fill stands only at wall A's high end, 300-599 mm wide, and at most one of
+ *  them; a narrower door base on any other wall is not a fill and is not looked for there. */
+function wallAFillFindings({
+  runs,
+  plan,
+}: Pick<UPlanContext, "runs" | "plan">): readonly string[] {
+  const fills = plan.bases.filter(isWallAFill);
+  const findings: string[] = [];
+  if (fills.length > 1) findings.push("more than one wall-A fill");
+  for (const fill of fills) {
+    if (fill.endMm !== runs.A.endMm) {
+      findings.push(`wall-A fill ${fill.id} is not at wall A's high end`);
+    }
+    if (fill.widthMm < MIN_WALL_A_FILL_MM) {
+      findings.push(`wall-A fill ${fill.id} is ${String(fill.widthMm)} mm`);
+    }
+  }
   return findings;
 }
 
@@ -541,7 +589,9 @@ function drawersBeatTheBottleFindings(
       .filter((base) => base.buildId === PANTRY && base.widthMm > MODULE_MM)
       .reduce((sum, base) => sum + base.widthMm - MODULE_MM, 0);
     if (
-      plan.remainderMm[bottle.wall] + bottle.widthMm + widenedMm >=
+      remainderBeforeTheFillMm(plan, bottle.wall) +
+        bottle.widthMm +
+        widenedMm >=
       MODULE_MM
     ) {
       findings.push(

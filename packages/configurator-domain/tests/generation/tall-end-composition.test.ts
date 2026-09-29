@@ -28,6 +28,7 @@ import {
 } from "../../src/index.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
+import { twoWallPlanOf } from "../support/two-wall-plan-of.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
@@ -690,7 +691,7 @@ describe("every planned body is attempted exactly once (criterion 15)", () => {
           probeAt: createFakeProbeFactory(),
         });
         if (!result.ok) return;
-        if (blockOf(result.log.plan).length > 0) withABlock += 1;
+        if (blockOf(twoWallPlanOf(result.log)).length > 0) withABlock += 1;
         const baseStepIds = result.log.steps
           .filter((step) => !["upper", "hood"].includes(step.role))
           .map((step) => step.id);

@@ -31,6 +31,7 @@ import {
   type GenerationStep,
 } from "../../src/index.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
+import { twoWallPlanOf } from "../support/two-wall-plan-of.js";
 import {
   createFakeProbe,
   createFakeProbeFactory,
@@ -748,17 +749,18 @@ describe("7D2 command and log truth", () => {
     );
     expect(step?.id).toBe("sink");
     expect(resize.widthMm).toBe(600);
-    const planned = result.log.plan.bases.find((base) => base.id === step?.id);
+    const plan = twoWallPlanOf(result.log);
+    const planned = plan.bases.find((base) => base.id === step?.id);
     expect(planned).toBeDefined();
     if (!planned) return;
     expect(planned.endMm).toBe(
       Math.max(
-        ...result.log.plan.bases
+        ...plan.bases
           .filter((base) => base.wall === planned.wall)
           .map((base) => base.endMm),
       ),
     );
-    expect(result.log.plan.remainderMm[planned.wall]).toBeLessThanOrEqual(200);
+    expect(plan.remainderMm[planned.wall]).toBeLessThanOrEqual(200);
     expect(
       result.design.placements.find(
         (placement) => placement.id === resize.placementId,

@@ -280,6 +280,8 @@ describe("heights at the column's 2200 mm and above (U3a AC1)", () => {
         "base-bottle-cargo",
         "base-panbank",
         "base-panbank",
+        // ADR 0110 N11.9 (RQ25): wall A's 300 mm remainder takes a door base.
+        "base-cabinet",
       ]);
     },
   );

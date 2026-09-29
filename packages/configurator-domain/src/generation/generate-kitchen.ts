@@ -35,15 +35,21 @@ import {
   type GenerationCoreRole,
   type GenerationRun,
   type KitchenCompositionPlan,
-  type PlannedGenerationBase,
 } from "./generation-priorities.js";
 import { BOTTLE_CARGO_BUILD_ID } from "./body-choice.js";
-import type { TwoWallDispatch } from "./run-layout.js";
+import type {
+  TwoWallDispatch,
+  UGenerationRun,
+  UKitchenCompositionPlan,
+  UPlannedGenerationBase,
+} from "./run-layout.js";
 import {
   buildLinearShellDesign,
   buildLShellDesign,
+  buildUShellDesign,
   linearShellFloorRuns,
   lShellFloorRuns,
+  uShellFloorRuns,
 } from "./shell-design.js";
 import {
   DOOR_COLUMN_BUILD_ID,
@@ -51,6 +57,11 @@ import {
   type DeclaredColumnSizes,
   type WidthBoundMm,
 } from "./tall-end-rule.js";
+import { planUKitchenComposition } from "./u-composition.js";
+
+/** What a generated kitchen was composed from: the L's or the straight room's two-wall plan, or the
+ *  U's three-wall one. Every field `generateKitchen` reads is common to both. */
+export type GenerationPlan = KitchenCompositionPlan | UKitchenCompositionPlan;
 
 export type GenerationPlanningReason =
   | {
@@ -103,7 +114,7 @@ export type GenerationStep =
 export interface GenerationLog {
   /** The shell and commands share this timestamp, making the log replayable on its own. */
   readonly occurredAt: string;
-  readonly plan: KitchenCompositionPlan;
+  readonly plan: GenerationPlan;
   readonly steps: readonly GenerationStep[];
   readonly commands: readonly GenerationCommand[];
 }
@@ -167,40 +178,56 @@ function shellRunsFor(
   return lShellFloorRuns(room);
 }
 
-/** ADR 0130 D5/D6: the shell dispatch, kept to one place so a wave that adds a third shape edits one
+/** ADR 0130 D5/D6: the shell dispatch, kept to one place so a wave that adds a fourth shape edits one
  *  function rather than every call site `buildLShellDesign` used to have alone. */
 function buildShellFor(args: {
   readonly room: Design["room"];
   readonly occurredAt: string;
-  readonly plan: KitchenCompositionPlan;
+  readonly plan: GenerationPlan;
 }): Design {
-  if (args.room.shape === "linear") {
+  const { room, occurredAt, plan } = args;
+  if (isUKitchenPlan(plan)) return buildUShellFor(room, occurredAt, plan);
+  if (room.shape === "linear") {
     return buildLinearShellDesign({
-      room: args.room,
-      occurredAt: args.occurredAt,
-      compositionPlan: { floorWidthsMm: args.plan.floorWidthsMm.A },
+      room,
+      occurredAt,
+      compositionPlan: { floorWidthsMm: plan.floorWidthsMm.A },
     });
   }
   return buildLShellDesign({
-    room: args.room,
-    occurredAt: args.occurredAt,
-    compositionPlan: { floorWidthsMm: args.plan.floorWidthsMm },
+    room,
+    occurredAt,
+    compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
   });
 }
 
-/** Composes one deterministic kitchen — an L or a straight run (ADR 0130) — through the same command
+/** Whether `plan` is a U's three-wall plan, and so may carry bases on wall C. */
+export function isUKitchenPlan(
+  plan: GenerationPlan,
+): plan is UKitchenCompositionPlan {
+  return plan.room.shape === "U";
+}
+
+function buildUShellFor(
+  room: Design["room"],
+  occurredAt: string,
+  plan: UKitchenCompositionPlan,
+): Design {
+  return buildUShellDesign({
+    room,
+    occurredAt,
+    compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
+  });
+}
+
+/** Composes one deterministic kitchen — an L, a straight run (ADR 0130) or a U — through the same command
  *  and frozen-map funnel as the editor. One probe lease brackets the entire attempt, including a
  *  minimum refusal or a throw. */
 export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
-  refuseAGeneratedU(input.room);
   const catalog = buildKitchenLBodyCatalog(PLANNING_CABINET_DEPTH_MM);
-  const plan = planKitchenComposition({
-    room: input.room,
-    runs: shellRunsFor(input.room),
-    columns: declaredColumnSizes(catalog),
-  });
+  const plan = planComposition(input.room, declaredColumnSizes(catalog));
   const shell = buildShellFor({
     room: input.room,
     occurredAt: input.occurredAt,
@@ -210,6 +237,20 @@ export function generateKitchen(
   const lease = input.probeAt(cabinetDepthMmOf(shell));
 
   return lease.use((probe) => compose({ shell, catalog, plan, probe, input }));
+}
+
+function planComposition(
+  room: Design["room"],
+  columns: DeclaredColumnSizes,
+): GenerationPlan {
+  if (room.shape === "U") {
+    return planUKitchenComposition({
+      room,
+      runs: uShellFloorRuns(room),
+      columns,
+    });
+  }
+  return planKitchenComposition({ room, runs: shellRunsFor(room), columns });
 }
 
 /** ADR 0102: the block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the
@@ -269,16 +310,6 @@ function declaredHeightMm(catalog: BodyCatalog, buildId: string): number {
   return heightMm;
 }
 
-/** M7B U2 S2: the U shell exists (`buildUShellDesign`), but composition's own runs and this
- *  function's dispatch are U3's — refused here, cleanly and by name, rather than left to fall
- *  through to `shellRunsFor`'s L-shaped runs and then `buildLShellDesign`'s unrelated `ROOM_NOT_L`. */
-function refuseAGeneratedU(room: Design["room"]): void {
-  if (room.shape !== "U") return;
-  throw new Error(
-    "generateKitchen: a U room has no generation dispatch yet (M7B U3)",
-  );
-}
-
 function refuseAnUnplannedShellDepth(shell: Design): void {
   if (cabinetDepthMmOf(shell) === PLANNING_CABINET_DEPTH_MM) return;
   throw new Error(
@@ -289,7 +320,7 @@ function refuseAnUnplannedShellDepth(shell: Design): void {
 function compose(args: {
   readonly shell: Design;
   readonly catalog: BodyCatalog;
-  readonly plan: KitchenCompositionPlan;
+  readonly plan: GenerationPlan;
   readonly probe: BodyProbe;
   readonly input: GenerateKitchenInput;
 }): GenerateKitchenResult {
@@ -312,12 +343,13 @@ function compose(args: {
     return refused(args.plan, args.input.occurredAt, steps, commands);
   }
 
-  const plannedByRole = new Map<GenerationCoreRole, PlannedGenerationBase>(
-    args.plan.bases
+  const plannedBases: readonly UPlannedGenerationBase[] = args.plan.bases;
+  const plannedByRole = new Map<GenerationCoreRole, UPlannedGenerationBase>(
+    plannedBases
       .filter(
         (
           base,
-        ): base is PlannedGenerationBase & {
+        ): base is UPlannedGenerationBase & {
           readonly role: GenerationCoreRole;
         } => base.role !== "storage",
       )
@@ -367,7 +399,7 @@ function compose(args: {
 
   // Storage is the leftover rule, after all four priority items, and each physical body has one
   // deterministic log row rather than hiding a repeated insertion behind a count.
-  for (const planned of args.plan.bases.filter(
+  for (const planned of plannedBases.filter(
     (base) => base.role === "storage",
   )) {
     const applied = insertPlannedBase(
@@ -413,7 +445,7 @@ function compose(args: {
 
   // Every base is settled before any upper is attempted. A refusal is atomic in `insertBody`, so it
   // is logged and the base beneath it remains byte-identical.
-  for (const planned of args.plan.bases) {
+  for (const planned of plannedBases) {
     if (risesIntoWallRow(args.catalog, planned.buildId)) continue;
     const baseId = placedBaseIds.get(planned.id);
     const upperBuildId =
@@ -463,7 +495,7 @@ function compose(args: {
 
 function insertPlannedBase(
   world: GenerationWorld,
-  planned: PlannedGenerationBase,
+  planned: UPlannedGenerationBase,
   probe: BodyProbe,
   occurredAt: string,
 ): {
@@ -698,11 +730,21 @@ function alongM(record: VoidRecord, wall: DesignWall): number {
 }
 
 function isFreeEndBody(
-  planned: PlannedGenerationBase,
+  planned: UPlannedGenerationBase,
   room: Design["room"],
 ): boolean {
-  const run = shellRunsFor(room)[planned.wall];
+  const run = floorRunOf(room, planned.wall);
   return run.endMm - planned.endMm <= 200;
+}
+
+/** The floor run `wall` of `room` was planned against: a U's three, or the L's and the straight
+ *  room's two. Wall C exists in a U alone. */
+function floorRunOf(room: Design["room"], wall: DesignWall): UGenerationRun {
+  if (room.shape === "U") return uShellFloorRuns(room)[wall];
+  if (wall === "C") {
+    throw new Error(`generateKitchen: a ${room.shape} room has no wall C`);
+  }
+  return shellRunsFor(room)[wall];
 }
 
 function placementById(design: Design, id: string): DesignPlacement {
@@ -775,7 +817,7 @@ function baseAbsentReason(): GenerationPlanningReason {
 }
 
 function refused(
-  plan: KitchenCompositionPlan,
+  plan: GenerationPlan,
   occurredAt: string,
   steps: readonly GenerationStep[],
   commands: readonly GenerationCommand[],

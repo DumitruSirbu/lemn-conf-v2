@@ -9,6 +9,7 @@ import {
   planFor,
   uRoomOverriding,
 } from "../support/u-plan-fixtures.js";
+import { isWallAFill } from "../support/u-plan-invariants.js";
 
 describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   it("counts the preparation cabinet as the first unit, with no extra unit below the next band", () => {
@@ -129,7 +130,7 @@ describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)"
       wallCMm: 6000,
     }); // N(T) = 5
     const plan = planFor(room);
-    const onA = basesOn(plan, "A");
+    const onA = basesOn(plan, "A").filter((base) => !isWallAFill(base));
     const hobIndex = onA.findIndex((base) => base.role === "hob");
     const afterHobOnA = onA.slice(hobIndex + 1);
 

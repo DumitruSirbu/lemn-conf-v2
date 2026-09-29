@@ -65,6 +65,7 @@ import {
   roomKey,
 } from "../support/composed-run-baseline.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
+import { twoWallPlanOf } from "../support/two-wall-plan-of.js";
 import {
   createFakeProbe,
   createFakeProbeFactory,
@@ -1370,7 +1371,7 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
           return;
         }
         // 7D5 S3 / Q-H5: S2's plan first, as in criterion 2's sweep above.
-        const undone = withTheThresholdDrawerUndone(kitchen.log.plan);
+        const undone = withTheThresholdDrawerUndone(twoWallPlanOf(kitchen.log));
         if (undone.kind === "unruled") {
           unexpected.push(`${roomKey(room)} ${undone.reason}`);
           return;
@@ -1387,7 +1388,10 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
           (base) => base.buildId === BOTTLE_CARGO_BUILD_ID,
         );
         if (wallRowSteps(kitchen).length > 0) withUppers += 1;
-        const movedByTheReKey = reKeyedByWave7D8(room, kitchen.log.plan);
+        const movedByTheReKey = reKeyedByWave7D8(
+          room,
+          twoWallPlanOf(kitchen.log),
+        );
         if (movedByTheReKey) arms.moved += 1;
         else arms.outsideTheReKey += 1;
         if (hasBottle) {

@@ -222,6 +222,8 @@ describe("RQ21 against RQ23 at 1200 mm after a wall-A hob", () => {
       ...WALL_A_CORE,
       "base-bottle-cargo@3300-3600",
       "base-panbank@3600-4200",
+      // ADR 0110 N11.9 (RQ25): the 300 mm that stood bare takes a door base.
+      "base-cabinet@4200-4500",
     ]);
     expect(bodiesOn(plan, "C")).toStrictEqual([
       "base-panbank@900-1500",

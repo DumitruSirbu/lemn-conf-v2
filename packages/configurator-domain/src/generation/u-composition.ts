@@ -3,7 +3,9 @@
 // fridge on it. `u-back-wall-pack.ts` packs the core run along wall A from the fridge's corner, with
 // overflow onto the far wall. `u-drawer-units.ts` fits the run after the hob: the bottle, the drawer
 // extras and the tower. `u-tall-layout.ts` lays out the fridge gap and the far wall. This module runs
-// the attempts in order and assembles what they return.
+// the attempts in order and assembles what they return, then finishes wall A in two steps: its bodies
+// are justified to its low end (ADR 0110 N11.8), and its remainder of 300-599 mm takes a door base
+// (N11.9). Both come last, so nothing upstream reads them.
 //
 // **A wall letter is read in two places, both in `u-fridge-wall.ts`** (ADR 0110 I's role-versus-letter
 // lesson): `fridgeWallCandidates` compares the two side walls' entered lengths to choose the fridge
@@ -20,6 +22,7 @@ import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
   basesAlongWall,
   basesOnWall,
+  increasingFrom,
   placedInSequence,
   sumWidths,
   type GenerationCoreRole,
@@ -32,6 +35,7 @@ import {
 import type { DeclaredColumnSizes } from "./tall-end-rule.js";
 import {
   BACK_WALL_ATTEMPTS,
+  justifiedToTheLowEnd,
   laneFromTheCorner,
   packBackWallAndOverflow,
   wallALaneFromTheFridgeCorner,
@@ -68,8 +72,9 @@ export interface PlanUKitchenCompositionInput {
 }
 
 /** The fridge wall, the back wall's core run with overflow, the tall layout, the one oven, wall A's
- *  own A4 fill, the bottle and the drawer count. The first back-wall attempt that packs is the plan;
- *  when none does, the room does not meet the minimum kitchen. */
+ *  own A4 fill, the bottle and the drawer count, then wall A justified low and its remainder filled.
+ *  The first back-wall attempt that packs is the plan; when none does, the room does not meet the
+ *  minimum kitchen. */
 export function planUKitchenComposition(
   input: PlanUKitchenCompositionInput,
 ): UKitchenCompositionPlan {
@@ -106,7 +111,12 @@ interface AttemptContext {
 
 function composedPlan(context: AttemptContext): UKitchenCompositionPlan {
   const { room, runs, fridge } = context;
-  const { bases, towerPosition } = composeTheAttempt(context);
+  const composed = composeTheAttempt(context);
+  const bases = withTheBackWallFill(
+    justifiedToTheLowEnd(composed.bases, runs.A),
+    runs.A,
+  );
+  const { towerPosition } = composed;
   return {
     room,
     bases,
@@ -117,6 +127,43 @@ function composedPlan(context: AttemptContext): UKitchenCompositionPlan {
     fridgePosition: fridge.dropped ? undefined : fridge.position,
     towerPosition,
   };
+}
+
+/** ADR 0110 N11.9 (RQ25, owner 2026-09-29): a remainder of at least 300 mm on the back wall takes a
+ *  door base, and under that stays bare. Below 300 mm a door base is not offered on a wall the owner
+ *  asked to keep bare there (RQ25b). */
+const BACK_WALL_FILL_MIN_WIDTH_MM = 300;
+
+const BACK_WALL_FILL_ID = "wall-a-remainder:A";
+
+/** Wall A's remainder of 300-599 mm as one door base of exactly that width at wall A's high end. It is
+ *  the plan's **last** step, after `withDrawerUnitsAfterTheHob`: that function converts the plain door
+ *  bases after the hob into drawer units, and a fill standing there earlier could become a drawer
+ *  body of the wrong width. Never a drawer unit, and nothing upstream reads it — the bottle rule and
+ *  the drawer count decide on the run before it. The width is the remainder's, so its door count is
+ *  the catalogue's (`deriveDoorCount`), never this plan's. */
+function withTheBackWallFill(
+  bases: readonly UPlannedGenerationBase[],
+  runA: UGenerationRun,
+): readonly UPlannedGenerationBase[] {
+  const consumedMm = sumWidths(basesOnWall(bases, "A"));
+  const remainderMm = runA.endMm - runA.startMm - consumedMm;
+  const isFillable =
+    remainderMm >= BACK_WALL_FILL_MIN_WIDTH_MM &&
+    remainderMm < STORAGE_BODY_WIDTH_MM;
+  if (!isFillable) return bases;
+  const fill = placedInSequence({
+    wall: "A",
+    startMmAt: increasingFrom(runA.startMm + consumedMm),
+    bodies: [
+      {
+        id: BACK_WALL_FILL_ID,
+        buildId: DOOR_BASE_BUILD_ID,
+        widthMm: remainderMm,
+      },
+    ],
+  });
+  return [...bases, ...fill];
 }
 
 function refusedPlan(

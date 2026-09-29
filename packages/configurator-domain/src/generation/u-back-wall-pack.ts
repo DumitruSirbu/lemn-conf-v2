@@ -5,6 +5,7 @@
 import type { DesignWall } from "../design.js";
 import { DISHWASHER_RUN_ITEM } from "./dishwasher-beside-the-sink.js";
 import {
+  basesOnWall,
   plannedBaseAt,
   type GenerationAncillaryRunItem,
   type GenerationPriority,
@@ -52,6 +53,25 @@ export function wallALaneFromTheFridgeCorner(
     capacityMm: runA.endMm - runA.startMm,
     startMmAt: (offsetMm, widthMm) => runA.endMm - offsetMm - widthMm,
   };
+}
+
+/** ADR 0110 N11.8: wall A's bodies stand contiguous from its low end, whichever corner the run was
+ *  packed from, and the remainder sits at the high end. `insertBody` seats a body at the left edge
+ *  of its column (ADR 0046), so a remainder at the low end would merge with the first body's tile and
+ *  put that body on the wrong side of it. The run order is unchanged; only the block moves. */
+export function justifiedToTheLowEnd(
+  bases: readonly UPlannedGenerationBase[],
+  runA: UGenerationRun,
+): readonly UPlannedGenerationBase[] {
+  const onWallA = basesOnWall(bases, "A");
+  if (onWallA.length === 0) return bases;
+  const shiftMm =
+    runA.startMm - Math.min(...onWallA.map((base) => base.startMm));
+  return bases.map((base) =>
+    base.wall === "A"
+      ? plannedBaseAt({ ...base, startMm: base.startMm + shiftMm })
+      : base,
+  );
 }
 
 export type CoreRunItem = GenerationPriority | GenerationAncillaryRunItem;

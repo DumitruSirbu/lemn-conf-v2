@@ -36,6 +36,7 @@ import {
   farWallOf,
   fridgeWallOf,
   isLargeURoom,
+  remainderBeforeTheFillMm,
   runOrderOf,
   towerIsOwed,
 } from "../support/u-plan-invariants.js";
@@ -267,7 +268,9 @@ function checkTheBottleCostsNoDrawerUnit(room: DesignRoom): void {
       0,
     );
   expect(
-    plan.remainderMm[bottle.wall] + bottle.widthMm + widenedPantryExcessMm,
+    remainderBeforeTheFillMm(plan, bottle.wall) +
+      bottle.widthMm +
+      widenedPantryExcessMm,
     JSON.stringify(room),
   ).toBeLessThan(PLAIN_MODULE_MM);
 }

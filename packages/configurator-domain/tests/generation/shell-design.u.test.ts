@@ -8,6 +8,7 @@ import {
   buildUShellDesign,
   DesignSchema,
   generateKitchen,
+  isUKitchenPlan,
   LShellInputError,
   UShellInputError,
   type DesignRoom,
@@ -139,16 +140,17 @@ describe("buildLShellDesign — still refuses a U (AC6)", () => {
   });
 });
 
-describe("generateKitchen — refuses a U cleanly until U3 (dispatch only)", () => {
-  it("throws rather than composing over a U's own walls", () => {
+describe("generateKitchen — dispatches a U to its own shell (U3b)", () => {
+  it("composes a U at its engine minima instead of refusing it as it did until U3b", () => {
     const room = engineUAtMinima();
 
-    expect(() =>
-      generateKitchen({
-        room,
-        occurredAt: SHELL_OCCURRED_AT,
-        probeAt: createFakeProbeFactory(),
-      }),
-    ).toThrow(/U room has no generation dispatch/);
+    const result = generateKitchen({
+      room,
+      occurredAt: SHELL_OCCURRED_AT,
+      probeAt: createFakeProbeFactory(),
+    });
+
+    expect(isUKitchenPlan(result.log.plan)).toBe(true);
+    expect(result.log.plan.room).toStrictEqual(room);
   });
 });
