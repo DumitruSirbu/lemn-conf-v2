@@ -1,6 +1,7 @@
 import {
   runEndPanelSeatM,
   toMetres,
+  wallLengthMm,
   type DesignRoom,
   type Finish,
   type PlacementRecord,
@@ -33,6 +34,11 @@ const FLOOR_NAME = "floor";
 const WALL_A_PLANE_NAME = "wall_back";
 /** Wall B's plane: x = 0, fronts +X, `rotation.y = π/2`. */
 const WALL_B_PLANE_NAME = "wall_left";
+/** Wall C's plane: x = W, fronts −X, `rotation.y = −π/2`. The reference builder has no such wall, so
+ *  the shell adds it the first time a U is drawn — never in an L or straight shell that has not been
+ *  a U, which therefore keep exactly the reference's five children — and from then on hides it, never
+ *  removes it, whenever the room is not a U. */
+const WALL_C_PLANE_NAME = "wall_right";
 const BACKSPLASH_NAME = "backsplash_wall_a";
 
 /** The immutable room children in `docs/design/SPEC.md`'s L-shape scene. Customer bodies are
@@ -56,9 +62,10 @@ const KITCHEN_L_SHELL_CHILD_NAMES = new Set([
  *
  * **The drawn wall is the entered wall.** The builder's own room is one specific L-shape, and a
  * customer's room matches it in roughly one case in a hundred; the five children it hands back are
- * therefore resized to `room` before anyone sees them. Nothing here reads a placement, a record,
- * the catalogue or a cabinet depth — ADR 0083 decision 2: the room is never a function of the
- * depth. */
+ * therefore resized to `room` before anyone sees them. A U's wall C is not among them — the builder
+ * has none — and joins the shell only when a U is first drawn (`resizeShellToRoom`). Nothing here
+ * reads a placement, a record, the catalogue or a cabinet depth — ADR 0083 decision 2: the room is
+ * never a function of the depth. */
 export function buildKitchenShell(kit: Kit, room: DesignRoom): Group {
   const shell = kit.builders["kitchen-l"]();
   const discarded = shell.children.filter(isCustomerBody);
@@ -94,12 +101,14 @@ export interface ShellResizeInput {
  * disagrees with the room it produces is a defect no unit test on either side can catch — each
  * stays self-consistent, and only a customer holding the two views side by side would see it.
  *
- * **Four of the five children move; the fifth does not.** The floor follows both floor axes, wall
- * A's plane follows `widthMm`, wall B's follows `depthMm`, both planes' height follows `heightMm`,
- * and the wall-A backsplash follows `widthMm` with its start pinned at the corner. The run-end
- * panel is not touched at all: ADR 0045 makes its seat a function of the **records**, written by
- * `syncRunEndPanel`, and widening the room for a fixed record set must leave it exactly where it
- * was.
+ * **Every child but one moves.** The floor follows both floor axes (its depth is the farther of walls
+ * B and C, M7B D12), wall A's plane follows `widthMm`, wall B's follows `depthMm`, wall C's (drawn
+ * only for a U) stands at `x = widthMm` and follows `wallCMm`, every plane's height follows
+ * `heightMm`, and the wall-A backsplash follows `widthMm` with its start pinned at the corner. The
+ * run-end panel is not touched at all: ADR 0045 makes its seat a function of the **records**,
+ * written by `syncRunEndPanel`, and widening the room for a fixed record set must leave it exactly
+ * where it was. A U has no such panel to seat: `runEndPanelSeatM` answers none for it (M7B D11), so
+ * the same sync hides it.
  *
  * **No body moves.** Customer bodies are `syncSolidBodies`' and are not children of the shell.
  */
@@ -110,6 +119,7 @@ export function resizeShellToRoom(input: ShellResizeInput): void {
   resizeFloor(kit, shellChild(shell, FLOOR_NAME), room);
   resizeWallAPlane(shellChild(shell, WALL_A_PLANE_NAME), room);
   resizeWallBPlane(shellChild(shell, WALL_B_PLANE_NAME), room);
+  resizeWallCPlane(shell, room);
   resizeBacksplash(kit, shellChild(shell, BACKSPLASH_NAME), room);
   shell.userData[DRAWN_ROOM_KEY] = drawnRoomSignature(room);
 }
@@ -122,6 +132,12 @@ export function resizeShellToRoom(input: ShellResizeInput): void {
  *  `Raycaster.js:236-246` in the vendored 0.184). */
 function wallBPlaneVisibleFor(room: DesignRoom): boolean {
   return room.shape !== "linear";
+}
+
+/** M7B D12: wall C exists only in a U. Like wall B's plane it is hidden, never removed, in every
+ *  other room, for the same reasons. */
+function wallCPlaneVisibleFor(room: DesignRoom): boolean {
+  return room.shape === "U";
 }
 
 /**
@@ -148,9 +164,12 @@ function isAlreadyDrawnAt(shell: Object3D, room: DesignRoom): boolean {
 
 /** ADR 0130 D8: gains the shape, so an L and a straight room standing at the same three dimensions
  *  are not read as the same drawn picture — wall B's visibility is a function of the shape and
- *  nothing else in these three numbers says so. */
+ *  nothing else in these three numbers says so. M7B D12 adds wall C's length, which a U alone has:
+ *  it moves the floor's depth and wall C's plane, and nothing else in the signature says so. The
+ *  shapes that have no wall C sign it as 0, so their signature differs from a U's at any C. */
 function drawnRoomSignature(room: DesignRoom): string {
-  return `${room.shape}:${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
+  const dimensions = `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
+  return `${room.shape}:${dimensions}:c${String(wallLengthMm("C", room))}`;
 }
 
 /** Where the signature above is kept. On the shell rather than in a module-scope map, so it shares
@@ -158,9 +177,14 @@ function drawnRoomSignature(room: DesignRoom): string {
  *  shell built from the same kit starts with none. */
 const DRAWN_ROOM_KEY = "drawnRoom";
 
+/** The floor reaches the farther of the two side walls; a room with no wall C has 0 for it. */
+function floorDepthMm(room: DesignRoom): number {
+  return Math.max(room.depthMm, wallLengthMm("C", room));
+}
+
 function resizeFloor(kit: Kit, floor: Mesh, room: DesignRoom): void {
   const drawnWidthM = drawnWallLengthM(room.widthMm);
-  const drawnDepthM = drawnWallLengthM(room.depthMm);
+  const drawnDepthM = drawnWallLengthM(floorDepthMm(room));
   const slab = boxSizeOf(floor);
 
   // The top face tiles across the slab's width and depth, so both are the map's world axes. The
@@ -197,6 +221,53 @@ function resizeWallBPlane(plane: Mesh, room: DesignRoom): void {
   // `syncRunEndPanel` follows, so a design switching shape is a pure function of the room and not
   // of whichever shape happened to draw the shell first.
   plane.visible = wallBPlaneVisibleFor(room);
+}
+
+/** Wall C runs along world z from the A∩C corner, at x = W, so `rotation.y` (−π/2, set at
+ *  creation) is left alone exactly as wall B's is: the plane's width axis is the world's z.
+ *
+ *  A shell that has never been a U has no wall C to redraw, and a room that is not a U asks for none. */
+function resizeWallCPlane(shell: Object3D, room: DesignRoom): void {
+  const plane = wallCPlaneOf(shell) ?? wallCPlaneAddedFor(shell, room);
+  if (!plane) return;
+
+  const drawnLengthM = drawnWallLengthM(wallLengthMm("C", room));
+  const heightM = toMetres(room.heightMm);
+
+  replacePlane(plane, drawnLengthM, heightM);
+  plane.position.set(
+    toMetres(room.widthMm),
+    heightM / 2,
+    alongWallCentreM(drawnLengthM),
+  );
+  plane.visible = wallCPlaneVisibleFor(room);
+}
+
+function wallCPlaneOf(shell: Object3D): Mesh | undefined {
+  const plane = shell.children.find(
+    (child) => child.name === WALL_C_PLANE_NAME,
+  );
+  return plane && isMesh(plane) ? plane : undefined;
+}
+
+/** Wall C paints as wall B does — the same front-face-only material, so no `DoubleSide` (M7B
+ *  criterion 7) — and turns the other way, to face −X. Its geometry is a placeholder the resize in
+ *  progress replaces at once; like the other planes' it is private to this mesh. */
+function wallCPlaneAddedFor(
+  shell: Object3D,
+  room: DesignRoom,
+): Mesh | undefined {
+  if (!wallCPlaneVisibleFor(room)) return undefined;
+
+  const wallBPlane = shellChild(shell, WALL_B_PLANE_NAME);
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    wallBPlane.material,
+  );
+  plane.name = WALL_C_PLANE_NAME;
+  plane.rotation.y = -Math.PI / 2;
+  shell.add(plane);
+  return plane;
 }
 
 /** The backsplash means *"behind the worktop"*, and it follows the **room's** wall A rather than
