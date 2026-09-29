@@ -50,6 +50,7 @@ const DEEP_CATALOG = buildKitchenLBodyCatalog(DEEP_MM);
 const MOVE = {
   fromCabinetDepthMm: SHALLOW_MM,
   toCabinetDepthMm: DEEP_MM,
+  shape: "L",
 } as const;
 
 function changeTo(design: Design, cabinetDepthMm: number): Design {

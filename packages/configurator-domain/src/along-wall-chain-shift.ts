@@ -34,7 +34,7 @@ import {
   type AlongWallDepthChain,
 } from "./cabinet-depth-rule.js";
 import { baseCarcassDepthMm, wallCarcassSeatDepthMm } from "./catalog.js";
-import type { DesignPlacement } from "./design.js";
+import type { DesignPlacement, DesignRoomShape } from "./design.js";
 import { toExactMillimetres } from "./millimetres.js";
 import { alongWallCoordinate } from "./module-grid.js";
 import type { WallId } from "./room-transforms.js";
@@ -50,6 +50,39 @@ import type {
  *  fact — §2's two walls are geometrically symmetric and it is the *design* that puts the corner
  *  bodies on wall A. */
 export const WALL_THE_CORNER_IS_TAKEN_FROM: WallId = "B";
+
+/** **Which walls a corner's own depth increase eats into, per shape** (ADR 0132 decision 7, M7B U2
+ *  S3/D9). An L has one corner, taking wall B's run; a U has two — the left corner still takes wall
+ *  B's, the right corner takes wall C's, the same way ADR 0132 decision 1 draws wall C as its own
+ *  world wall rather than wall B reflected; a straight room has no corner and takes nothing.
+ *
+ *  **`WALL_THE_CORNER_IS_TAKEN_FROM` is not retired.** Every synthetic single-corner room this
+ *  module's siblings build — `corner-assembly-size.ts`'s right-corner room and
+ *  `generation/shell-design.ts`'s wall-C reuse, both ADR 0132's "the along values the corner rule
+ *  gives for the L room (W, C)" — is shape `"L"` by construction, so reading this set at `"L"`
+ *  returns the identical singleton `{B}` those two modules already compare against directly. Neither
+ *  needs to be told a shape to keep behaving exactly as it did before this function existed. */
+export function cornerTakingWallsOf(
+  shape: DesignRoomShape,
+): ReadonlySet<WallId> {
+  switch (shape) {
+    case "L":
+      return CORNER_TAKING_WALLS_L;
+    case "U":
+      return CORNER_TAKING_WALLS_U;
+    case "linear":
+      return CORNER_TAKING_WALLS_NONE;
+  }
+}
+
+const CORNER_TAKING_WALLS_L: ReadonlySet<WallId> = new Set([
+  WALL_THE_CORNER_IS_TAKEN_FROM,
+]);
+const CORNER_TAKING_WALLS_U: ReadonlySet<WallId> = new Set([
+  WALL_THE_CORNER_IS_TAKEN_FROM,
+  "C",
+]);
+const CORNER_TAKING_WALLS_NONE: ReadonlySet<WallId> = new Set();
 
 /** Which chain's corner reach to measure, at which setting. */
 export interface CornerReachQuery {
@@ -108,6 +141,9 @@ export interface AlongWallPositionQuery {
   readonly catalog: BodyCatalog;
   readonly fromCabinetDepthMm: number;
   readonly toCabinetDepthMm: number;
+  /** Which walls take a corner on this room (M7B U2 S3, D9) — `cornerTakingWallsOf`'s own answer for
+   *  the design's shape. */
+  readonly shape: DesignRoomShape;
 }
 
 /** **Where this placement stands along its wall at the new setting.**
@@ -117,14 +153,16 @@ export interface AlongWallPositionQuery {
  *  catalogue keeps its own rather than being guessed at — the same stance `setCabinetDepth` takes one
  *  file over, where an unresolvable body becomes a refusal instead of a silent rewrite.
  *
- *  **Asked of every wall-B body, not only the ones whose depth follows the setting.** The two are
- *  different questions: `depthFollowsSetting` says whether a body is rebuilt, and this says where it
- *  stands. A freestanding fridge is 742 mm deep in both kitchens and ADR 0058's pinned tops finish at
- *  600 in both — and all of them still slide, because the corner in front of them took more wall.
- *  Excluding them would leave the run overlapping itself where the pinned rows begin. */
+ *  **Asked of every body on a corner-taking wall, not only the ones whose depth follows the
+ *  setting.** The two are different questions: `depthFollowsSetting` says whether a body is rebuilt,
+ *  and this says where it stands. A freestanding fridge is 742 mm deep in both kitchens and ADR
+ *  0058's pinned tops finish at 600 in both — and all of them still slide, because the corner in
+ *  front of them took more wall. Excluding them would leave the run overlapping itself where the
+ *  pinned rows begin. On a U this is wall B's own bodies for the left corner and wall C's for the
+ *  right, each following its own corner and never the other's (`cornerTakingWallsOf`). */
 export function alongWallPositionAtMm(query: AlongWallPositionQuery): number {
   const { placement } = query;
-  if (placement.wall !== WALL_THE_CORNER_IS_TAKEN_FROM)
+  if (!cornerTakingWallsOf(query.shape).has(placement.wall))
     return placement.alongMm;
   const definition = query.catalog.get(placement.body.buildId);
   if (!definition) return placement.alongMm;
@@ -206,6 +244,9 @@ export interface AlongWallExtentPositionQuery {
    *  rung that is exact and land on a declaration instead. `undefined` is the member-less answer and
    *  is stated, not defaulted into. */
   readonly membersShiftMm: number | undefined;
+  /** Which walls take a corner on this room (M7B U2 S3, D9) — `cornerTakingWallsOf`'s own answer for
+   *  the design's shape. */
+  readonly shape: DesignRoomShape;
 }
 
 /** **Where this frozen extent stands along its wall at the new setting** — ADR 0090 decision 2 as its
@@ -221,7 +262,9 @@ export interface AlongWallExtentPositionQuery {
  *  zero — the worst guess available, wrong by the full 100 mm, which is what Amendment A overturned
  *  decision 4a for.
  *
- *  1. **Wall A** — unchanged. Wall A is anchored at the corner and does not move at any setting.
+ *  1. **A wall no corner is taken from** — unchanged. Wall A is anchored at both of a U's corners
+ *     and never moves at any setting; on an L or a U, wall B or wall C moves only when its own
+ *     corner is the one that deepened (`cornerTakingWallsOf`, M7B U2 S3/D9).
  *  2. **The column holds a member** — the delta its own members moved, from `membersShiftMm`. Exact,
  *     and it reads no chain and no source at all: an extent *is* the column those members are in, and
  *     the command has just computed where every one of them stands. This rung is decision 2's own
@@ -255,7 +298,7 @@ export function alongWallExtentPositionAtMm(
   const { extent } = query;
   const alongMm = toExactMillimetres(alongWallCoordinate(extent.wall, extent));
   if (alongMm === undefined) return undefined;
-  if (extent.wall !== WALL_THE_CORNER_IS_TAKEN_FROM) return alongMm;
+  if (!cornerTakingWallsOf(query.shape).has(extent.wall)) return alongMm;
   if (query.membersShiftMm !== undefined) {
     return alongMm + query.membersShiftMm;
   }

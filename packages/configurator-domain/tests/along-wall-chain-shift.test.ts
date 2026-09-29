@@ -168,7 +168,11 @@ describe("the two chains", () => {
 
 describe("which placements the corner reaches", () => {
   const catalog = buildKitchenLBodyCatalog(DEEP_MM);
-  const move = { fromCabinetDepthMm: SHALLOW_MM, toCabinetDepthMm: DEEP_MM };
+  const move = {
+    fromCabinetDepthMm: SHALLOW_MM,
+    toCabinetDepthMm: DEEP_MM,
+    shape: "L" as const,
+  };
 
   it("takes the wall it is declared to take from, and no other", () => {
     expect(WALL_THE_CORNER_IS_TAKEN_FROM).toBe("B");
@@ -221,6 +225,7 @@ describe("which frozen extents the corner reaches", () => {
     fromCabinetDepthMm: SHALLOW_MM,
     toCabinetDepthMm: DEEP_MM,
     membersShiftMm: undefined,
+    shape: "L" as const,
   };
 
   /** A frozen extent at an along-wall centre on wall B, shaped as `deriveColumns` builds one: the
@@ -355,6 +360,7 @@ describe("which frozen extents the corner reaches", () => {
         fromCabinetDepthMm: DEEP_MM,
         toCabinetDepthMm: SHALLOW_MM,
         membersShiftMm: undefined,
+        shape: "L",
       });
 
       expect(back, source).toBe(615);
@@ -364,7 +370,11 @@ describe("which frozen extents the corner reaches", () => {
 
 describe("how far a column's own members moved", () => {
   const catalog = buildKitchenLBodyCatalog(DEEP_MM);
-  const move = { fromCabinetDepthMm: SHALLOW_MM, toCabinetDepthMm: DEEP_MM };
+  const move = {
+    fromCabinetDepthMm: SHALLOW_MM,
+    toCabinetDepthMm: DEEP_MM,
+    shape: "L" as const,
+  };
 
   /** The seeded kitchen's records at 600, and the same bodies where the corner leaves them at 700 —
    *  the exact pair `setCabinetDepth` builds rung 2's operand from. */

@@ -339,6 +339,7 @@ function planningOperandsOf(
         heldRecords,
         slidRecords,
       ),
+      room: design.room,
     }),
   };
 }

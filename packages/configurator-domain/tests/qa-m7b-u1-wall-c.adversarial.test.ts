@@ -646,17 +646,13 @@ describe("atDepthM's wall-C arm — a depth change republishes a wall-C column p
     expect(onC.x).toBeCloseTo(U_ROOM.widthMm / 1000 - onC.d / 2, 9);
   });
 
-  // **Expected to fail until U2 S3 (D9, ADR 0132 decision 7).** Wall B's chain slides at a depth
-  // change because the corner is taken from it; wall C's does not yet, because the corner-taking set
-  // is still `{B}`. U2 S3 makes it `{B, C}` and this goes red — flip it to `it`, do not delete it.
-  it.fails(
-    "slides wall C's run along its wall exactly as wall B's (owed by U2 S3, D9)",
-    () => {
-      const { onB, onC } = columnsAt700();
+  // **Flipped by U2 S3** (D9, ADR 0132 decision 7): the corner-taking set is now `{B, C}` for a U,
+  // so wall C's chain slides exactly as wall B's.
+  it("slides wall C's run along its wall exactly as wall B's", () => {
+    const { onB, onC } = columnsAt700();
 
-      expect(onC.z).toBeCloseTo(onB.z, 9);
-    },
-  );
+    expect(onC.z).toBeCloseTo(onB.z, 9);
+  });
 });
 
 // =================================================================================================

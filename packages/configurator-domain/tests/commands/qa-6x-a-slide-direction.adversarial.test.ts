@@ -155,6 +155,7 @@ function slideOperandsOf(
     cabinetDepthMm,
     previousCabinetDepthMm,
     membersShiftMmByColumn: alongWallShiftByColumnMm(heldRecords, slidRecords),
+    room: design.room,
   };
 }
 

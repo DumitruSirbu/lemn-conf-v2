@@ -196,6 +196,7 @@ function planningOperandsOf(
         heldRecords,
         slidRecords,
       ),
+      room: design.room,
     }),
     room: design.room,
   };

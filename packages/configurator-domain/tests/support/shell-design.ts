@@ -159,6 +159,7 @@ export function wallBReserveMm(): number {
         catalog: SHELL_CATALOG,
         fromCabinetDepthMm: SHELL_CABINET_DEPTH_MM,
         toCabinetDepthMm,
+        shape: "L",
       }) - floorPiece.alongMm,
   );
   return Math.max(0, ...shiftsMm);

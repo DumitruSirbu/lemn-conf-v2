@@ -118,6 +118,10 @@ export interface FrozenExtentsSlideQuery {
   readonly cabinetDepthMm: number;
   readonly previousCabinetDepthMm: number;
   readonly membersShiftMmByColumn: ReadonlyMap<string, number>;
+  /** Which walls take a corner on this room (M7B U2 S3, D9) — a U's wall C slides on its own corner
+   *  exactly as wall B does on the left one, and `cornerTakingWallsOf` is what tells the two ladder
+   *  functions below which walls that is, for this design's shape. */
+  readonly room: DesignRoom;
 }
 
 /** ADR 0090 decisions 1 and 2: every positioned fact in the map moved onto the chain the body it
@@ -161,6 +165,7 @@ function alongWallQueryFor(
     fromCabinetDepthMm: input.previousCabinetDepthMm,
     toCabinetDepthMm: input.cabinetDepthMm,
     membersShiftMm: input.membersShiftMmByColumn.get(extent.key),
+    shape: input.room.shape,
   };
 }
 

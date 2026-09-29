@@ -237,6 +237,7 @@ function planningMapsOf(design: Design, cabinetDepthMm: number): PlanningMaps {
           heldRecords,
           slidRecords,
         ),
+        room: design.room,
       }),
       design.room,
     ),
