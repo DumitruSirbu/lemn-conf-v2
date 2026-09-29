@@ -53,7 +53,7 @@ import {
   type RoomFieldReason,
   type RoomIssueMessageKey,
 } from "./room-issue-model";
-import { requiredFieldsFor } from "./room-url-state";
+import { requiredFieldsFor, turnsACorner } from "./room-url-state";
 import styles from "./room.module.css";
 import { WallLengthHelp } from "./wall-length-help";
 
@@ -485,7 +485,7 @@ function isWallLengthField(field: RoomLengthField): field is WallLengthField {
  *  so the throw is for a wall the shape does not have — never a customer's state. */
 function explanationKeyFor(wall: WallLengthField, shape: RoomShape) {
   const explanation = WALL_LENGTH_HELP[wall].explanation;
-  if (carriesCornerDirection(shape)) return explanation.cornerRoom;
+  if (turnsACorner(shape)) return explanation.cornerRoom;
   if ("straightRoom" in explanation) return explanation.straightRoom;
   throw new Error(
     `No explanation for ${wall} in a ${shape} room: that shape has no such wall.`,

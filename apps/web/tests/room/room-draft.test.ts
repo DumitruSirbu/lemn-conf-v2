@@ -228,8 +228,10 @@ describe("carriesCornerDirection", () => {
   it.each([
     ["linear", false],
     ["L", true],
-    ["U", true],
-  ] as const)("says %s turns a corner: %s", (shape, carries) => {
+    // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): a U turns a corner but has one hand, so it carries
+    // no toggle and no `direction`.
+    ["U", false],
+  ] as const)("says %s carries a corner direction: %s", (shape, carries) => {
     expect(carriesCornerDirection(shape)).toBe(carries);
   });
 });

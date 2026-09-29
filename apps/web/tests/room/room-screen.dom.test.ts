@@ -890,11 +890,14 @@ describe("1C with the refusal removes nothing (7F2 criterion 12)", () => {
     render(FILLED.U);
     expect(isRefusalShown()).toBe(true);
     expect(everyChipControl()).toHaveLength(3);
+    // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): the U itself draws no toggle, so the toggle is
+    // reached after the chip moves to L, where it exists.
+    expect(maybeAt("room-corner")).toBe(null);
 
+    chooseChip("L");
     act(() => {
       elementAt("room-corner-control-right").click();
     });
-    chooseChip("L");
 
     expect(chipControl("L").checked).toBe(true);
     expect(isRefusalShown()).toBe(false);

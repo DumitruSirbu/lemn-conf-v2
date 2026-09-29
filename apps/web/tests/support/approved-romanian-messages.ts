@@ -200,6 +200,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       // reason every drafted leaf is: a leaf `ro.json` holds and this file omits fails the equality.
       roomSummaryLinear:
         "{shape} · {wallA, number, ::group-off} mm · h {height, number, ::group-off} mm",
+      // M7B wave U5 S1 (ruling 2026-09-30) — **drafted, not approved**: no frame draws a U's 1F
+      // summary, so this restates `roomSummary`'s own shape with a third length, `× {wallC}`, for the
+      // three walls `wallsOf("U")` names. It carries no word the approved leaf does not: only the
+      // numbers and the separators, so the Russian is the same sentence with `мм`.
+      roomSummaryU:
+        "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} mm · h {height, number, ::group-off} mm",
       noPresetNotice:
         "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
       stepsLabel: "Ce este inclus, în ordinea priorității",

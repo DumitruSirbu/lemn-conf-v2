@@ -570,6 +570,13 @@ const ROOM_RENDER_ARGUMENTS: Readonly<
     wallA: 3600,
     height: 2600,
   },
+  "room.compose.roomSummaryU": {
+    shape: "U",
+    wallA: 3600,
+    wallB: 2400,
+    wallC: 1200,
+    height: 2600,
+  },
   "room.compose.rowLabel": { role: "Sink", extent: "600" },
   "room.compose.rowWidth": { millimetres: 600 },
   "room.compose.dropped": { roles: "Fridge" },

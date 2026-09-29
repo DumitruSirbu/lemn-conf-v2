@@ -231,8 +231,9 @@ describe("an old link arriving in either locale refills millimetres and settles 
       settle();
 
       expect(browser.replace.mock.calls.length).toBeLessThanOrEqual(1);
+      // No `direction`, though the old link carried one: a U has one hand (M7B U5 S1, Q-U4 (b)).
       expect(browser.search).toBe(
-        "shape=U&wallA=4&wallB=2.4&wallC=2.18&height=2.7&direction=right",
+        "shape=U&wallA=4&wallB=2.4&wallC=2.18&height=2.7",
       );
       expect(fieldValues(requiredFieldsFor("U"))).toEqual([
         "4000",

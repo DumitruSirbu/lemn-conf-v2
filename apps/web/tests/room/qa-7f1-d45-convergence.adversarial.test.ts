@@ -682,8 +682,9 @@ describe("a repeated key is not a value, on every field the contract covers", ()
     // **`right` first on purpose.** With `left` first, a reader that silently took the first of two
     // answers would produce the same `left` the draft starts at, and the test would pass over the
     // defect it exists to catch — the vacuous pass this whole seam is exposed to.
+    // An L, not a U (restated 2026-09-29, M7B U5 S1): a U carries no `direction` to answer twice.
     render(
-      "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=right&direction=left",
+      "shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=right&direction=left",
     );
     settle();
 
@@ -965,14 +966,16 @@ describe("the departure state machine, over sequences rather than single taps", 
     click(DEPART_TO_PRESETS);
     browser.replace.mockClear();
 
-    arriveAt("shape=U&wallA=4.2&wallB=3.1&wallC=2.18&height=2.5");
+    // An L (restated 2026-09-29, M7B U5 S1): a U arrives already canonical, with no `direction` to
+    // add, so it owes no canonicalising write; an L without one does.
+    arriveAt("shape=L&wallA=4.2&wallB=3.1&height=2.5");
     settle();
     settle();
 
     expect(browser.push).not.toHaveBeenCalled();
     expect(browser.replace).toHaveBeenCalledTimes(1);
     expect(browser.replace).toHaveBeenCalledWith(
-      "/ro/configurator/room?shape=U&wallA=4.2&wallB=3.1&wallC=2.18&height=2.5&direction=left",
+      "/ro/configurator/room?shape=L&wallA=4.2&wallB=3.1&height=2.5&direction=left",
       { scroll: false },
     );
   });

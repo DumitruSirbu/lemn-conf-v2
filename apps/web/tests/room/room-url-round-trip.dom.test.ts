@@ -519,13 +519,28 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
     // D4's fix is that this re-seeds rather than leaving the room the customer has left standing.
     render(THE_BACK_LINK);
 
+    arriveAt("?shape=L&wallA=4.2&wallB=3.1&height=2.5&direction=right");
+
+    expect(fieldFor("wallA").value).toBe("4200");
+    expect(fieldFor("wallB").value).toBe("3100");
+    expect(cornerControl("right").checked).toBe(true);
+  });
+
+  // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): the U arm of the test above named a direction and
+  // expected the toggle to show it. A U has one hand, so the link's direction is ignored and no
+  // toggle is drawn.
+  it("re-seeds a U's three walls when it arrives, ignoring a direction the link names", () => {
+    render(THE_BACK_LINK);
+
     arriveAt(
       "?shape=U&wallA=4.2&wallB=3.1&wallC=2.18&height=2.5&direction=right",
     );
 
     expect(fieldFor("wallA").value).toBe("4200");
     expect(fieldFor("wallC").value).toBe("2180");
-    expect(cornerControl("right").checked).toBe(true);
+    expect(
+      container.querySelector("[data-testid^='room-corner-control-']"),
+    ).toBeNull();
   });
 
   it("asks the router for nothing when the room that arrives is already canonical", () => {

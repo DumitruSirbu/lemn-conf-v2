@@ -197,8 +197,9 @@ describe("a link written before S1b refills the millimetres it always meant (tas
       direction: "left",
     });
 
+    // No `direction` for a U (M7B U5 S1, Q-U4 (b)): it has one hand.
     expect(canonicalRoomQuery(arrived).toString()).toBe(
-      "shape=U&wallA=4&wallB=2.4&wallC=2.18&height=2.7&direction=left",
+      "shape=U&wallA=4&wallB=2.4&wallC=2.18&height=2.7",
     );
   });
 });

@@ -22,10 +22,10 @@
 // holding one rectangle at a time cannot see any of that. What this module never decides is how wide
 // a label comes out: it places an anchor and states which way the text grows from it, and the
 // browser measures the type.
-import type { CornerDirection } from "@lemnaria/configurator-domain";
+import { wallsOf, type CornerDirection } from "@lemnaria/configurator-domain";
 
 import type { RoomDraft, RoomLengthField } from "./room-draft";
-import { requiredFieldsFor } from "./room-url-state";
+import { fieldOfWall, hasOneHand } from "./room-url-state";
 
 export type PlanWallId = "A" | "B" | "C";
 
@@ -210,14 +210,6 @@ interface DrawableWall {
   readonly field: RoomLengthField;
 }
 
-/** The walls a plan can draw, each with the field that gives it its length. The height is a field
- *  and not a wall: this is the view from above. */
-const DRAWABLE_WALLS: readonly DrawableWall[] = [
-  { wall: "A", field: "wallA" },
-  { wall: "B", field: "wallB" },
-  { wall: "C", field: "wallC" },
-];
-
 interface DrawableLength {
   readonly wall: PlanWallId;
   readonly millimetres: number;
@@ -255,9 +247,17 @@ export function derivePlanPreview(
     box,
     metrics,
   );
-  return draft.cornerDirection === MIRRORED_CORNER_DIRECTION
-    ? reflectPlanPreview(drawn)
-    : drawn;
+  return isDrawnReflected(draft) ? reflectPlanPreview(drawn) : drawn;
+}
+
+/** A draft that says `right` is drawn reflected — except a U, which has one hand (ADR 0132 decision
+ *  8, Q-U4 (b)): a `right` left over from an L the customer looked at first must not turn a U's
+ *  plan into a right-hand one the 3D room will never be. */
+function isDrawnReflected(draft: RoomDraft): boolean {
+  return (
+    draft.cornerDirection === MIRRORED_CORNER_DIRECTION &&
+    !hasOneHand(draft.shape)
+  );
 }
 
 /**
@@ -525,13 +525,20 @@ function besideTheWall(
   box: PlanBox,
   metrics: PlanPreviewMetrics,
 ): PlanWallLabelPx {
-  const topPx = lineBesideTheWallTopPx(bar, box, metrics);
+  const facing = facingWallOf(bar, bars, box, metrics);
+  const pair = facing === undefined ? undefined : { bar, facing, box, metrics };
+  const arrangement = pair === undefined ? undefined : arrangementOf(pair);
+  const topPx =
+    pair !== undefined && arrangement === "stacked"
+      ? stackedTopPx(pair)
+      : lineBesideTheWallTopPx(bar, box, metrics);
   const crossing = bars.filter((other) =>
     crossesTheLine(other, topPx, metrics),
   );
   const towardsTheRight = sharesItsBarWithAnother(bar, crossing)
     ? isTheFarWall(bar)
-    : freeToTheRightPx(bar, crossing, box) >= freeToTheLeftPx(bar, crossing);
+    : (sideOf(bar, arrangement) ??
+      freeToTheRightPx(bar, crossing, box) >= freeToTheLeftPx(bar, crossing));
 
   return {
     xPx: insideTheBoxPx(anchorBesidePx(bar, towardsTheRight, metrics), box),
@@ -576,6 +583,140 @@ function sharesItsBarWithAnother(
       other.xPx === bar.xPx &&
       other.widthPx === bar.widthPx,
   );
+}
+
+/**
+ * **Two walls that face each other write their labels so the labels cannot meet** (backlog 72). A
+ * U's walls B and C both run down the screen and both used to label towards whichever side had more
+ * room — the room's inside, for both — so a U drawn narrower than two labels put *"B · 2400 mm"* and
+ * *"C · 2400 mm"* on the same pixels, and the customer read *"B · 24002400 mm"*.
+ *
+ * Three arrangements are proved not to meet, and they are tried in this order:
+ *
+ * 1. **Both inside**, when the gap between the two bars holds both labels each at its widest
+ *    (`widestLabelPx`) — frame 1B's own placement for wall B.
+ * 2. **Both outside**, each on its own bar's outer side, when the box has the room for both there.
+ *    B's label then lies wholly left of B's bar and C's wholly right of C's, and B's bar is never
+ *    right of C's, so they cannot intersect however narrow the gap.
+ * 3. **Stacked**, when the box is too narrow for either: C's line is moved below B's (or B's above
+ *    C's, if the box floor stops it), so the two lines share no pixel row and the sides no longer
+ *    matter. A label that is clipped is worse than one that is moved a line, so this is the last
+ *    resort and not the first.
+ *
+ * Only walls whose label lines share pixel rows can meet, so a wall whose line is clear of the
+ * other's is not a facing wall at all.
+ */
+function facingWallOf(
+  bar: PlanWallBar,
+  bars: readonly PlanWallBar[],
+  box: PlanBox,
+  metrics: PlanPreviewMetrics,
+): PlanWallBar | undefined {
+  const lineTopPx = lineBesideTheWallTopPx(bar, box, metrics);
+  return bars.find(
+    (other) =>
+      other.wall !== bar.wall &&
+      !runsAcrossTheScreen(other) &&
+      Math.abs(lineBesideTheWallTopPx(other, box, metrics) - lineTopPx) <
+        metrics.labelLinePx,
+  );
+}
+
+interface FacingLabels {
+  readonly bar: PlanWallBar;
+  readonly facing: PlanWallBar;
+  readonly box: PlanBox;
+  readonly metrics: PlanPreviewMetrics;
+}
+
+type FacingArrangement = "inside" | "outside" | "stacked";
+
+function arrangementOf(pair: FacingLabels): FacingArrangement {
+  if (labelsFitBetween(pair)) return "inside";
+  if (labelsFitOutside(pair)) return "outside";
+  return "stacked";
+}
+
+/** Which side of its own bar a label takes in an arrangement that decides it; `undefined` for
+ *  stacked, whose lines cannot meet whichever side each takes, and for a wall with no facing wall. */
+function sideOf(
+  bar: PlanWallBar,
+  arrangement: FacingArrangement | undefined,
+): boolean | undefined {
+  if (arrangement === "inside") return !isTheFarWall(bar);
+  if (arrangement === "outside") return isTheFarWall(bar);
+  return undefined;
+}
+
+/** The line this wall is written on once the two facing lines are stacked. The far wall's line goes
+ *  below the near one's; when the box floor stops that, the near one's goes above the far one's,
+ *  never above its own bar's top, where wall A's bar ends. **A box too short to hold both lines
+ *  keeps each where it was**: moving a label off the box is worse than two that share a row. */
+function stackedTopPx(pair: FacingLabels): number {
+  const { bar, facing, box, metrics } = pair;
+  const near = isTheFarWall(bar) ? facing : bar;
+  const far = near === bar ? facing : bar;
+  const nearNaturalPx = lineBesideTheWallTopPx(near, box, metrics);
+  const farPx = Math.min(
+    Math.max(
+      lineBesideTheWallTopPx(far, box, metrics),
+      nearNaturalPx + metrics.labelLinePx,
+    ),
+    box.heightPx - metrics.labelLinePx,
+  );
+  const nearPx = Math.max(
+    Math.min(nearNaturalPx, farPx - metrics.labelLinePx),
+    near.yPx,
+  );
+  const holdsBothLines = nearPx + metrics.labelLinePx <= farPx;
+  if (!holdsBothLines) return lineBesideTheWallTopPx(bar, box, metrics);
+  return bar === near ? nearPx : farPx;
+}
+
+function leftAndRightOf(
+  pair: FacingLabels,
+): readonly [PlanWallBar, PlanWallBar] {
+  return pair.bar.xPx <= pair.facing.xPx
+    ? [pair.bar, pair.facing]
+    : [pair.facing, pair.bar];
+}
+
+function labelsFitBetween(pair: FacingLabels): boolean {
+  const [left, right] = leftAndRightOf(pair);
+  const gapPx = right.xPx - rightEdgePx(left);
+  const neededPx =
+    widestLabelPx(left, pair.metrics) +
+    widestLabelPx(right, pair.metrics) +
+    2 * pair.metrics.labelGapPx;
+  return gapPx >= neededPx;
+}
+
+function labelsFitOutside(pair: FacingLabels): boolean {
+  const [left, right] = leftAndRightOf(pair);
+  const leftRoomPx = left.xPx - pair.metrics.labelGapPx;
+  const rightRoomPx =
+    pair.box.widthPx - rightEdgePx(right) - pair.metrics.labelGapPx;
+  return (
+    leftRoomPx >= widestLabelPx(left, pair.metrics) &&
+    rightRoomPx >= widestLabelPx(right, pair.metrics)
+  );
+}
+
+/** Em of `"{wall} · {n} mm"` that do not depend on the number: the letter, the two spaces and the
+ *  middle dot, the unit, all at their widest. Measured at 64,2 px for *"A · 3600 mm"* in Chromium at
+ *  `700 11px Helvetica` (7F2 S2 QA), which is 5,84 em; four digits are 2,4 em of that bound. */
+const LABEL_FIXED_EM = 3.7;
+
+/** The widest a digit is set in the screen's face, generously: tabular figures are 0,556 em. */
+const LABEL_DIGIT_EM = 0.6;
+
+/** An upper bound on a wall's length label, from what the label says and never from a measured
+ *  string: the text is `{wall} · {millimetres} mm`, so its width is bounded by its digit count times
+ *  the line it is set on (`labelLinePx` is the font size, `plan-preview.tsx`'s `--plan-label-line`).
+ *  A bound and not a measurement, so it is allowed to be a little wide and never allowed to be narrow. */
+function widestLabelPx(bar: PlanWallBar, metrics: PlanPreviewMetrics): number {
+  const digits = String(bar.lengthMm).length;
+  return (LABEL_FIXED_EM + LABEL_DIGIT_EM * digits) * metrics.labelLinePx;
 }
 
 /** Every wall but the one leaving the corner down the screen stands on the far side of the drawing. */
@@ -677,11 +818,15 @@ function reflectedXPx(xPx: number, box: PlanBox): number {
   return box.widthPx - xPx;
 }
 
-/** The walls this shape asks about, from the parser's own field list. A field the shape does not ask
- *  for is not drawn even when it still holds a value the customer typed under another shape. */
+/** The walls this shape has, from the domain's own answer (`wallsOf`) — the same enumeration
+ *  `requiredFieldsFor` reads, so the plan and the form cannot disagree about a shape (backlog 76). A
+ *  field the shape does not have is not drawn even when it still holds a value the customer typed
+ *  under another shape. */
 function wallsAskedForBy(draft: RoomDraft): readonly DrawableWall[] {
-  const askedFor = requiredFieldsFor(draft.shape);
-  return DRAWABLE_WALLS.filter((wall) => askedFor.includes(wall.field));
+  return wallsOf(draft.shape).map((wall) => ({
+    wall,
+    field: fieldOfWall(wall),
+  }));
 }
 
 /**

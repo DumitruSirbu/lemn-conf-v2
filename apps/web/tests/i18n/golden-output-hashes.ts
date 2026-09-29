@@ -74,6 +74,11 @@
  * **Grown again, never rebaselined, by M7 wave 7L slice S3** (ADR 0113 decision 2) —
  * `room.suggestion.title` and `room.suggestion.switchToLinear`, D1C's *Sugestii* card as written.
  * **Two added and no existing hash moved.**
+ *
+ * **Grown by one, never rebaselined, by M7B wave U5 slice S1** (ADR 0113 decision 2) —
+ * `room.compose.roomSummaryU`, a U's 1F summary: `roomSummary`'s own sentence with a third length.
+ * Drafted, not approved (no frame draws it), by the coordinator's ruling of 2026-09-30. **One added
+ * and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -751,6 +756,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "06065b68375cce3c5819420945aecfb25e48f7f57fba6d780bdf635dc77c5f15",
   "room.compose.roomSummaryLinear":
     "f9beb57a2564c46d0537452a037ebc9c342634d8962561d03e9dc1180218dffa",
+  "room.compose.roomSummaryU":
+    "0aa60830d53eb2b51215311ea072060585e1d8b625811400d079c77c793c4304",
   "room.compose.rowLabel":
     "4d23f6e72dbf5825d76c75e692b6f3771038943e7899c38c93cb9a9040bc8d32",
   "room.compose.rowWidth":

@@ -680,3 +680,90 @@ describe("the composed plan aside maps a DesignRoom the one way parsedRoomLength
     expect(planLabelText("B")).toBeNull();
   });
 });
+
+/**
+ * **M7B U5 S1, acceptance criterion 2, and the 1F aside for a U.** A U's 1F summary shows wall A,
+ * wall B, wall C and the height, and the desktop aside draws the plan with all three walls. The
+ * sentence is `room.compose.roomSummaryU`, drafted 2026-09-30 by the coordinator's ruling: the approved
+ * leaf's own shape with a third length. Rendered here straight through `GenerationSteps` because no
+ * U reaches 1F under the approved policy until U6 (`isShapeBuildable("U", APPROVED_ROOM_POLICY)` is
+ * false) — the witness is the room handed to the screen, which is what a U 1D would hand it.
+ * The unit is spelled here, as the block above does, so a template that lost it or grouped thousands
+ * could not agree with itself.
+ */
+describe("a U's summary names its three walls (M7B U5 S1, criterion 2)", () => {
+  const SWEPT_RUNS = 100;
+  const LARGEST_MM = 9_000_000;
+
+  interface UWalls {
+    readonly widthMm: number;
+    readonly depthMm: number;
+    readonly wallCMm: number;
+    readonly heightMm: number;
+  }
+
+  function summaryOfU(walls: UWalls, catalogue: RenderLocale): string {
+    renderRun({ phase: "failed", room: { shape: "U", ...walls } }, catalogue);
+    const summary = container.querySelector(
+      '[data-testid="room-compose-summary"]',
+    );
+    if (summary === null) throw new Error("1F drew no room summary");
+    return summary.textContent;
+  }
+
+  it.each([
+    ["ro", ROMANIAN, "mm"],
+    ["ru", RUSSIAN, "мм"],
+  ] as const)(
+    "writes A, B, C and the height as digits and the unit, in %s",
+    (_locale, catalogue, unit) => {
+      const lengthMm = fc.integer({ min: 1, max: LARGEST_MM });
+      fc.assert(
+        fc.property(
+          lengthMm,
+          lengthMm,
+          lengthMm,
+          lengthMm,
+          (widthMm, depthMm, wallCMm, heightMm) => {
+            expect(
+              summaryOfU({ widthMm, depthMm, wallCMm, heightMm }, catalogue),
+            ).toBe(
+              `${catalogue.messages.room.shapes.U.short} · ${String(widthMm)} × ` +
+                `${String(depthMm)} × ${String(wallCMm)} ${unit} · h ${String(heightMm)} ${unit}`,
+            );
+          },
+        ),
+        { numRuns: SWEPT_RUNS },
+      );
+    },
+  );
+
+  it("does not print wall B's number in wall C's place: the two differ on screen", () => {
+    const text = summaryOfU(
+      { widthMm: 4500, depthMm: 3010, wallCMm: 3620, heightMm: 2600 },
+      ROMANIAN,
+    );
+
+    expect(text).toContain("3010 × 3620");
+  });
+
+  it("draws all three walls in the composed plan aside, wall C from wallCMm", () => {
+    renderRun({
+      phase: "failed",
+      room: {
+        shape: "U",
+        widthMm: 4500,
+        depthMm: 3010,
+        wallCMm: 3620,
+        heightMm: 2600,
+      },
+    });
+
+    const label = (wall: "A" | "B" | "C") =>
+      container.querySelector(`[data-testid="room-plan-label-${wall}"]`)
+        ?.textContent ?? null;
+    expect(label("A")).toContain("4500");
+    expect(label("B")).toContain("3010");
+    expect(label("C")).toContain("3620");
+  });
+});

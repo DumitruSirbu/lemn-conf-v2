@@ -40,6 +40,7 @@
 // `включено` its own rows already show.
 import {
   cornerDirectionOf,
+  wallsOf,
   type DesignRoom,
   type GenerationLog,
 } from "@lemnaria/configurator-domain";
@@ -60,7 +61,7 @@ import {
   withStoredLength,
   type RoomDraft,
 } from "./room-draft";
-import { parsedRoomLengthsOf, requiredFieldsFor } from "./room-url-state";
+import { parsedRoomLengthsOf } from "./room-url-state";
 import styles from "./room.module.css";
 import type { ActiveGenerationRun } from "./use-generation";
 
@@ -239,31 +240,53 @@ function ComposeCta({
  *  ICU arguments, exactly as `room.planWallLabel`'s are, so their form is the catalogue's and a digit
  *  is never concatenated into a sentence.
  *
- *  **Which leaf, decided by `requiredFieldsFor(room.shape)`** (ADR 0130 D10): a straight room's own
- *  entered fields are wall A and height, never a second wall — `room.depthMm` is the drawn floor's
- *  depth in front of the run (ADR 0130 D3), not a length the customer typed, so the summary must not
- *  print it as though it were one. The field set is read rather than the shape compared a second
- *  time here, so a wave that widens a shape's fields moves this summary with it. */
+ *  **Which leaf, decided by how many walls the domain gives the shape** (`wallsOf`, M7B plan D7; ADR
+ *  0130 D10): one wall reads `roomSummaryLinear`, two `roomSummary`, three `roomSummaryU`. A straight
+ *  room's own entered fields are wall A and height, never a second wall — `room.depthMm` is the drawn
+ *  floor's depth in front of the run (ADR 0130 D3), not a length the customer typed, so the summary
+ *  must not print it as though it were one. The count is read rather than the shape compared, so a
+ *  wave that widens a shape's walls moves this summary with it. */
 function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
-  const carriesWallB = requiredFieldsFor(room.shape).includes("wallB");
+  const wallCount = wallsOf(room.shape).length;
+  const shape = translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]);
 
   return (
     <span className={styles.composeSummary} data-testid="room-compose-summary">
-      {carriesWallB
-        ? translate("room.compose.roomSummary", {
-            shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
+      {wallCount === 1
+        ? translate("room.compose.roomSummaryLinear", {
+            shape,
             wallA: room.widthMm,
-            wallB: room.depthMm,
             height: room.heightMm,
           })
-        : translate("room.compose.roomSummaryLinear", {
-            shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
-            wallA: room.widthMm,
-            height: room.heightMm,
-          })}
+        : wallCount === 2
+          ? translate("room.compose.roomSummary", {
+              shape,
+              wallA: room.widthMm,
+              wallB: room.depthMm,
+              height: room.heightMm,
+            })
+          : translate("room.compose.roomSummaryU", {
+              shape,
+              wallA: room.widthMm,
+              wallB: room.depthMm,
+              wallC: wallCOf(room),
+              height: room.heightMm,
+            })}
     </span>
   );
+}
+
+/** Wall C's length through the one `DesignRoom` mapping (`parsedRoomLengthsOf`), which refuses a U
+ *  that carries none rather than printing another wall's number in its place. */
+function wallCOf(room: DesignRoom): number {
+  const wallC = parsedRoomLengthsOf(room).find(
+    (length) => length.field === "wallC",
+  );
+  if (wallC === undefined) {
+    throw new Error("1F's summary asked for wall C of a room that has none");
+  }
+  return wallC.millimetres;
 }
 
 /**
