@@ -133,13 +133,14 @@ describe("the cap and the byte budget carry each other", () => {
     ).toBeLessThanOrEqual(MAX_DESIGN_BYTES);
   });
 
-  /** The cap is the number of distinct column keys two walls can present, and the entries below
-   *  prove why that and not a width: 1 mm strips 10 mm apart are legal, non-overlapping and
-   *  distinctly keyed, so any cap derived from a width floor or from §2's bands refuses a document
-   *  the domain's own rules accept. Pinned as the arithmetic, not as 1262 alone. */
+  /** The cap is the number of distinct column keys the wire shape's walls can present, and the
+   *  entries below prove why that and not a width: 1 mm strips 10 mm apart are legal, non-overlapping
+   *  and distinctly keyed, so any cap derived from a width floor or from §2's bands refuses a
+   *  document the domain's own rules accept. Pinned as the arithmetic, not as 1893 alone. */
   it("is derived from the key resolution, not from a width or a band count", () => {
-    // Wall A's and wall B's runs are both 6300 since ADR 0124; the longer of the two was already 6300.
-    expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 2);
+    // Walls A, B and C's runs are all 6300 (ADR 0124 for B, ADR 0132 decision 6 for C); the longest
+    // of the three was already 6300.
+    expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 3);
     expect(MAX_EMPTY_COLUMNS).toBeGreaterThan(MAX_PLACEMENTS);
   });
 

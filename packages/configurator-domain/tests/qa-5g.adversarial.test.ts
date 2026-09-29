@@ -220,7 +220,12 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
    *  and nothing else bounds what the migration produces, so this is the one place it can be said.
    *
    *  **Not reachable from an honest document** — the shipped kitchen derives thirteen columns in
-   *  total against a bound of 1262 — so this is a hostile-input refusal, not a share link at risk. */
+   *  total against a bound of 1893 (M7B wave U1 slice S2, ADR 0132 decision 5) — so this is a
+   *  hostile-input refusal, not a share link at risk.
+   *
+   *  **146 entries, not 98**: each 10 000 mm entry splits into 13 pieces at the 800 mm ceiling (12
+   *  full plus a 400 mm remainder), and 98 × 13 = 1274 no longer exceeds the wave's wider bound.
+   *  146 × 13 = 1898 does, with the same margin 98 held over the narrower one. */
   it("refuses a version 1 document whose normalisation would exceed the entry bound", () => {
     // A storable room, not a policy one (M7 7A3): the migration is judged here, not Step 1.
     const wideRoom: Design = {
@@ -229,7 +234,7 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     };
     const stored = withEntries(
       wideRoom,
-      Array.from({ length: 98 }, (_unused, index) =>
+      Array.from({ length: 146 }, (_unused, index) =>
         emptyColumnAt(1000 + index * 20, 10_000),
       ),
     );
