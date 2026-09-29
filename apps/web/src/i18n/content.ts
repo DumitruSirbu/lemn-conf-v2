@@ -646,6 +646,7 @@ export function resolveContent(translate: ContentTranslator) {
         overview: translate("configure.cameraPresets.overview"),
         wallA: translate("configure.cameraPresets.wallA"),
         wallB: translate("configure.cameraPresets.wallB"),
+        wallC: translate("configure.cameraPresets.wallC"),
       },
       loading: translate("configure.loading"),
       overflowWarning: translate("configure.overflowWarning"),

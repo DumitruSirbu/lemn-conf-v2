@@ -29,6 +29,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       overview: "Vedere generală",
       wallA: "Perete A",
       wallB: "Perete B",
+      wallC: "Perete C",
     },
     loading: "Se încarcă modelul 3D…",
     overflowWarning:

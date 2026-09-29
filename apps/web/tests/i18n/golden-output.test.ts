@@ -187,7 +187,8 @@ describe("golden-output fixture coverage", () => {
   });
 
   it("has one unique stable id for every fixture", () => {
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(122);
+    // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(123);
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     expect(ROOM_FIXTURES).toHaveLength(71);
@@ -195,7 +196,8 @@ describe("golden-output fixture coverage", () => {
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
-    expect(GOLDEN_FIXTURES).toHaveLength(391);
+    // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
+    expect(GOLDEN_FIXTURES).toHaveLength(392);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

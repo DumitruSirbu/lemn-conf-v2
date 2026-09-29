@@ -1,6 +1,11 @@
 export { applyCornerDirection, mirroredX } from "./corner-direction.js";
 
 export {
+  RIGHT_CORNER_WRAPPER_NAME,
+  rightCornerRecordIds,
+} from "./right-corner-wrapper.js";
+
+export {
   makeKit,
   PARTS,
   type BaseCabinetOptions,

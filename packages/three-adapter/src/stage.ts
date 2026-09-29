@@ -9,12 +9,14 @@ import {
   cornerDirectionOf,
   LEVELS,
   toMetres,
+  wallLengthMm,
   type CornerDirection,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { mirroredX } from "./corner-direction.js";
+import { floorDepthMm } from "./room-extent.js";
 import { context2d } from "./three-guards.js";
 
 /** CSS colour behind the (alpha) canvas, and the background the reference preset shots were
@@ -249,7 +251,9 @@ export interface CameraPreset {
   readonly target: Vector3Tuple;
 }
 
-export type CameraPresetId = "overview" | "wallA" | "wallB";
+/** `wallC` is a U's own: the reference library has no such view, so `CAMERA_PRESETS` does not hold
+ *  it and it is derived from wall B's (`wallCPresetFor`). */
+export type CameraPresetId = "overview" | "wallA" | "wallB" | "wallC";
 
 /**
  * The reference library's three views, drawn on its one 4.2 x 3.4 m room — `DEVELOPMENT-SPEC.md`
@@ -331,17 +335,53 @@ const PRESET_DISTANCE_M =
  * never a wall (D3) — there is nothing there for a preset to be *of*. Filtered here rather than
  * left for a caller to skip, so `cameraPresetsForRoom`'s own length answers "how many walls does
  * this room have" without a second reading of the shape.
+ *
+ * **A U offers a fourth, `wallC`** (M7B D13), last in the list: `[overview, wallA, wallB, wallC]`.
+ * A U is never right-hand (`cornerDirectionOf` answers left for it, ADR 0132 decision 8), so the
+ * mirror above does not apply to it and `wallC` is the only reflection a U's presets contain.
  */
 export function cameraPresetsForRoom(
   room: DesignRoom,
 ): readonly CameraPreset[] {
-  const canonical = CAMERA_PRESETS.filter(
-    (reference) => room.shape !== "linear" || reference.id !== "wallB",
-  ).map((reference) => framedOnRoom(reference, room));
+  const canonical = [
+    ...CAMERA_PRESETS.filter(
+      (reference) => room.shape !== "linear" || reference.id !== "wallB",
+    ).map((reference) => framedOnRoom(reference, room)),
+    ...wallCPresetsOf(room),
+  ];
   const direction = cornerDirectionOf(room);
   return direction === "left"
     ? canonical
     : canonical.map((preset) => mirroredPreset(preset, direction));
+}
+
+/** D13: `wallC` is `wallB` reflected in `x = W/2` with `C` in place of `B`. Wall B's reference view is
+ *  framed on this room with wall C's length standing where wall B's does — wall B's target reads
+ *  `depthMm` and nothing else about the side walls — and then reflected about the room's centre
+ *  line, which is `W + mirroredX("right", x)`: the one negation `mirroredX` performs, moved by the
+ *  room's width.
+ *  It is a camera position and a target, never a `Group`, so `applyCornerDirection` does not apply
+ *  and no second scene reflection exists. */
+function wallCPresetsOf(room: DesignRoom): readonly CameraPreset[] {
+  if (room.shape !== "U") return [];
+  const wallB = findCameraPreset("wallB");
+  const framed = framedOnRoom(wallB, {
+    ...room,
+    depthMm: wallLengthMm("C", room),
+  });
+  const widthM = toMetres(room.widthMm);
+  const reflected = (point: Vector3Tuple): Vector3Tuple => [
+    widthM + mirroredX("right", point[0]),
+    point[1],
+    point[2],
+  ];
+  return [
+    {
+      id: "wallC",
+      position: reflected(framed.position),
+      target: reflected(framed.target),
+    },
+  ];
 }
 
 function mirroredPreset(
@@ -388,20 +428,24 @@ function framedOnRoom(reference: CameraPreset, room: DesignRoom): CameraPreset {
   };
 }
 
-/** Where each preset looks. Wall A runs along +x from the corner and wall B along +z, so the middle
- *  of each is half its entered length; the eye is at half the kitchen's height. A `switch` over the
- *  union rather than a table, so a fourth preset cannot be added without deciding this. */
+/** Where each **reference** preset looks. Wall A runs along +x from the corner and wall B along +z,
+ *  so the middle of each is half its entered length; the eye is at half the kitchen's height. The
+ *  overview looks at the middle of the drawn floor, whose depth is the farther of the side walls, so
+ *  a U's overview holds all three runs (D13) and an L's is exactly what it was. A `switch` over the
+ *  union rather than a table, so a further preset cannot be added without deciding this. `wallC`
+ *  shares wall B's arm because it is only ever framed through wall B's reference view, on the
+ *  stand-in room `(W, C)` (`wallCPresetsOf`), and then reflected. */
 function targetInRoom(id: CameraPresetId, room: DesignRoom): Vector3Tuple {
   const widthM = toMetres(room.widthMm);
-  const depthM = toMetres(room.depthMm);
   const eyeM = KITCHEN_TOP_M / 2;
   switch (id) {
     case "overview":
-      return [widthM / 2, eyeM, depthM / 2];
+      return [widthM / 2, eyeM, toMetres(floorDepthMm(room)) / 2];
     case "wallA":
       return [widthM / 2, eyeM, 0];
     case "wallB":
-      return [0, eyeM, depthM / 2];
+    case "wallC":
+      return [0, eyeM, toMetres(room.depthMm) / 2];
   }
 }
 
