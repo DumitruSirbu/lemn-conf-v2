@@ -68,6 +68,36 @@ export interface KitchenCompositionPlan {
   readonly remainderMm: Readonly<Record<TwoWallDispatch, number>>;
 }
 
+// M7B U3a slice S1: the U's own three-wall plan (ADR 0110 Amendment N). A three-wall composition is
+// a different shape of thing from the L's two-wall reading order and cut — a U has two corners and
+// two side walls that never mirror each other (ADR 0132 Q-U5) — so it gets its own plan type rather
+// than a `DesignWall` squeezed into `TwoWallDispatch`'s two slots. `TwoWallDispatch` and
+// `KitchenCompositionPlan` are untouched; nothing above this line changed for the U.
+
+/** One base the U planner placed, on whichever of the three walls it stands on — `PlannedGenerationBase`'s
+ *  own shape, `wall` widened to `DesignWall` since a U plan places bases on A, B and C alike. */
+export interface UPlannedGenerationBase {
+  readonly id: string;
+  readonly role: GenerationBaseRole;
+  readonly buildId: string;
+  readonly widthMm: number;
+  readonly wall: DesignWall;
+  readonly startMm: number;
+  readonly endMm: number;
+}
+
+/** The U's own plan — `KitchenCompositionPlan`'s shape over three walls instead of two. No insert
+ *  happens from this type (U3a's own scope); `generateKitchen` reads it starting U3b. */
+export interface UKitchenCompositionPlan {
+  readonly room: DesignRoom;
+  /** Spatial order, corner to free end on each wall, matching the shell's tile order. */
+  readonly bases: readonly UPlannedGenerationBase[];
+  readonly floorWidthsMm: Readonly<Record<DesignWall, readonly number[]>>;
+  readonly dropped: readonly GenerationCoreRole[];
+  readonly minimumMet: boolean;
+  readonly remainderMm: Readonly<Record<DesignWall, number>>;
+}
+
 export function fitsAcrossTheCorner(
   readingOrder: readonly GenerationRunItem[],
   cut: number,
