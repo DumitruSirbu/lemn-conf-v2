@@ -1191,6 +1191,11 @@ change, and 7H is confirmed correct twice over rather than merely "shipped no de
 
 ## Amendment E — 2026-09-17: Amendment C2's obligation has a home, and the key is the entered wall length
 
+> **Scoped 2026-09-29 by [ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+> Amendment N2 (owner, M7B Q-U3):** in a U the sink stands on the back wall whatever its length, and the
+> fridge on the wider *side* wall, so this amendment's wider-wall rule is not applied to a U. It stands
+> unchanged for the L.
+
 > **Read the letter carefully: this is *ADR 0120* Amendment E, and it is not *ADR 0110* Amendment E.**
 > The two records share a letter and are cited within a paragraph of each other throughout this
 > milestone. ADR 0110's Amendment E is the **tall-unit and oven** amendment; this one is the

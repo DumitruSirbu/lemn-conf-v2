@@ -3,7 +3,7 @@
 Status: Accepted (**Amendment A, 2026-09-11** — the L wall minima hold the corner at every declared
 cabinet depth, so wall B's is 1000, not 900; **Amendment B, 2026-09-11** — the owner approved the L
 bounds: wall A 900–6300, wall B 1000–5100, ceiling 2200–3900, held as product data inside the
-engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal; **Amendment F, 2026-09-18** — Amendment A ruling 1 is narrowed to the corner's floor widths at a `(depth, room)` argument, not the reference-sized far edge at a depth alone, and the approved 900/1000 are recorded as [ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)'s deliberate margin above the derived 880/880 floor; **2026-09-21, decision 4's unit — see [ADR 0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)** — decision 4's rule (whole millimetres, parsed once at the form boundary, on the digit string) stands; only the displayed unit the parser reads changes, from metres to millimetres, by owner ruling, in wave 7F2 slice S1b; **Amendment G, 2026-09-24** — one maximum for every wall: a straight wall is 1200–6000 mm, superseding Amendment D's 6300, on the owner's Q-7J-1 ruling and wave 7J's measurement)
+engine's limits; **Amendment C, 2026-09-11** — a coupled two-wall rule: the room must hold a sink and a hob, measured against the owner's *"900 ... 1500 ... ideally 2000"*; see the end; **Amendment D, 2026-09-11** — the owner approved straight walls 1200–6300 mm and ruled the coupled rule (F1, F6); **Amendment E, 2026-09-12** — the generated target is a 600 mm sink plus a 600 mm hob, correcting only C/D's derived 1160/2160 figures; manual 560 mm sinks remain legal; **Amendment F, 2026-09-18** — Amendment A ruling 1 is narrowed to the corner's floor widths at a `(depth, room)` argument, not the reference-sized far edge at a depth alone, and the approved 900/1000 are recorded as [ADR 0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md)'s deliberate margin above the derived 880/880 floor; **2026-09-21, decision 4's unit — see [ADR 0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md)** — decision 4's rule (whole millimetres, parsed once at the form boundary, on the digit string) stands; only the displayed unit the parser reads changes, from metres to millimetres, by owner ruling, in wave 7F2 slice S1b; **Amendment G, 2026-09-24** — one maximum for every wall: a straight wall is 1200–6000 mm, superseding Amendment D's 6300, on the owner's Q-7J-1 ruling and wave 7J's measurement; **Amendment H, 2026-09-29** — the U's bounds (Q-U1, relayed), a 1200 mm walkway held at the deepest body (Q-U2, relayed) raising wall A's U minimum to a measured 2696, approved at 2700 (RQ1), and the U's minimum-kitchen predicate with its boundary pairs, refusal ruled (RQ8))
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — wave 7A (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -365,7 +365,9 @@ fit any. The question goes back to the owner (milestone follow-up F6).
    code changes in the policy's data, not in the validator.
 
 **Linear, later (wave 7J):** the same rule on one run — at least 1160 with a 560 sink, 1200 at standard
-widths, which is why F1 proposes 1200. **U (M7B):** the same rule across three runs, with two corners.
+widths, which is why F1 proposes 1200. **U (M7B):** ~~the same rule across three runs, with two corners~~
+**replaced by Amendment H3 (2026-09-29)**: the sink's wall is fixed (the back wall), so the rule is not
+symmetric over the three runs.
 
 ## Amendment D — 2026-09-11: the owner's answers to F1 and F6
 
@@ -599,3 +601,98 @@ test holds the approved wall maxima of every stated shape equal. M7B's U inherit
 **Not re-asked.** The owner asked to be told only if 6300 was needed; it is not, so this is recorded
 rather than put back to them. `approved-room-policy.test.ts`' pin and `is-shape-buildable.test.ts`'
 *"1200–6300"* comment move with it in wave 7J S5.
+
+## Amendment H — 2026-09-29: the U's bounds, a 1200 mm walkway, and the U's minimum kitchen
+
+**Relayed.** The owner answered M7B's Q-U1 and Q-U2 on 2026-09-29, and the coordinator relayed the
+answers. Both answers are selections of options the plan wrote, so they are recorded as **relayed
+selections, not quotations** (`docs/best-practices/documentation.md`, *Mark a relayed answer as
+relayed*). The plan is `docs/milestones/M7B-u-shaped-rooms.md`, *Owner questions*. Figures are
+**[measured]** by `u0-measure.mjs` (kept by name in the U0 scratchpad) against a `tsc` build of
+`packages/configurator-domain/src` at `dd9f63a`, unless labelled otherwise.
+
+### H1 — Q-U1, the bounds: the proposal accepted as written
+
+The owner accepted the proposal as written: **wall A 1800–6000 mm, walls B and C 1000–6000 mm each,
+height 2200–3900 mm** (relayed). The maxima are Amendment G's one maximum. The side-wall minima are the
+L's approved wall-B minimum, 1000 each, with ADR 0125's margin. **Wall A's 1800 is overtaken by H2**,
+as the relay itself anticipated (*"it will likely raise A's 1800 floor"*).
+
+### H2 — Q-U2, the walkway: 1200 mm, held at the deepest cabinet depth the editor offers
+
+The owner chose option (b) with the number **1200 mm**: the minimum clear floor between the two facing
+side runs, held at the deepest cabinet depth the editor offers (relayed). This is Amendment A's
+precedent. A bound holds at every declared depth, so a later depth change cannot make an accepted room
+invalid.
+
+**What "the facing runs" are, measured.** The walkway is taken to the front of the **deepest
+floor-standing body the catalogue builds** at that depth, not to the worktop line. A customer may later
+insert that body on either side wall, and the rule has to hold for it too:
+
+| Cabinet depth | Deepest floor body (`occupiedDepthOfEntryM`) | Wall A minimum for 1200 | For comparison, the worktop line |
+| --- | --- | --- | --- |
+| 600 | `fridge-free-700`, 742 mm | 2684 | 620 → 2440 |
+| 700 | `base-hob-oven`, 748 mm | **2696** | 720 → 2640 |
+
+**Wall A's minimum for a U is 2696 mm, held at every declared depth** (`1200 + 2 × 748`). The two
+X-legs never bind first: they need 1800 (ADR 0132 decision 4).
+
+~~**The approved literal is an owner question** (M7B plan, *U0 measurements*, residual question RQ1).
+The choice is 2696 exactly, or 2700 … **Recommended default: 2700.** It is interim until answered.~~
+**Answered 2026-09-29, RQ1 (relayed selection): 2700 mm** is the approved U wall-A minimum, 4 mm
+above the measured walkway floor, in the spirit of ADR 0125's margin. It enters `APPROVED_ROOM_POLICY`
+in U6, held inside `ENGINE_ROOM_LIMITS.U` by the B1 guard.
+
+### H3 — the U's minimum kitchen, the predicate the owner's arrangement implies
+
+The owner's *"must hold sink + hob"* (Amendment D, F6) covers every shape. Under ADR 0110 Amendment N,
+the **sink stands on the back wall (A)**, and the hob follows it along the run: on A, or round the far
+corner onto the **far side wall**. The far side wall is the one that does not carry the fridge, which
+is the narrower side wall, or C when B = C. The fridge wall never carries the hob. With the approved
+corner reaches, wall A's free run is `A − 1800` (an X-leg of 900 at each end). A side wall's free run is
+`side − 1000`. That is the corner's 900 mm reach at the shell's 600 mm depth, **plus the 100 mm reserve
+the run keeps at its end for a later 600 → 700 depth change**. Wall B has always kept that reserve, and
+**wall C keeps the same 100 mm** (measured through `lShellFloorRuns` per corner). The 1000 equals the
+approved corner reach at every depth (Amendment A). The U passes when:
+
+- `freeA ≥ 1200`, or
+- `freeA ≥ 600` and `freeFar ≥ 600`.
+
+Above the walkway floor, `freeA ≥ 896`, so the sink always fits, and the predicate reads **A ≥ 3000,
+or the far side wall ≥ 1600**. The exact boundaries, measured through the U0 model with the shell's
+own floor runs (`lShellFloorRuns` per corner):
+
+| Fixed | Refuses | Accepts |
+| --- | ---: | ---: |
+| B = C = 1000 | A = 2999 | A = 3000 |
+| B = C = 1599 | A = 2999 | A = 3000 |
+| A = 2999, B = 6000 (the fridge wall) | C = 1599 | C = 1600 |
+| A = 2700, B = 6000 | C = 1599 | C = 1600 |
+
+On the step-100 grid (A 2700–6000, B and C 1000–6000), **1728 of 88 434 rooms are refused**.
+
+~~**Pending residual question RQ8.** The question is whether such a room is refused, or whether its hob
+may stand on the fridge wall instead. The interim is **refuse** …~~ **Answered 2026-09-29, RQ8
+(relayed selection): refuse.** Such a room gets `ROOM_TOO_SMALL_FOR_KITCHEN` on the room-level field,
+with no number, exactly as for the L. It becomes U3 criterion 2's boundary set. The table's pairs stand
+at RQ1's 2700. Re-measured on the revised composition model (`u0-measure-rq.mjs`, ADR 0110 N4′), the
+refusal count is unchanged at 1728, and B = C = 1600 accepts at the floor, A = 2700. RQ9's fallback
+(the fridge on the other side wall) fired in **0** grid rooms, so *"the far side wall is the narrower
+one"* holds everywhere the product admits.
+
+### H4 — what U6 enters, and what stays the engine's
+
+The approved U is: wall A **2700**–6000 (RQ1), walls B and C 1000–6000 each, height 2200–3900,
+and a U minimum kitchen with corner reaches 900 on each end of A and 1000 on each side wall.
+`ENGINE_ROOM_LIMITS.U` is derived with no literals: wall A from the two X-legs' reference widths
+(1800, ADR 0132 decision 4), side walls from `narrowestCornerReachMm("B")` (880), and the maximum from
+`MAX_ROOM_*`. **Where the walkway lives is U2's to derive, and it stays inside the engine's limits by
+the B1 guard.** The walkway is a product bound, so it belongs to the approved policy only.
+`isShapeBuildable("U", APPROVED_ROOM_POLICY)` stays false until U6 (decision B2, kept).
+
+### H5 — what this amendment does not decide
+
+The size threshold (a total run of 10 m or more) is a **composition** rule, not a room bound. It lives
+in ADR 0110 Amendment N and is never a validation code. Amendment C's *"U (M7B): the same rule across
+three runs, with two corners"* was the architect's sentence and not a ruling. **H3 replaces it**: the
+rule is not symmetric over the three runs, because the sink's wall is fixed.

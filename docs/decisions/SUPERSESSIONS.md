@@ -395,3 +395,27 @@ Preserved here verbatim from that column so nothing is lost by the table's slimm
   *"both helpers"* → **narrowed** by its **Amendment A** (2026-09-24): the diff there is exactly
   `room-url-state.ts` and `generation-steps.tsx` (C-7F2-3); the casts are seven, and only the
   `linear` ones are deleted in 7J — the `U` ones are M7B's.
+- ~~**ADR 0110** E4's *"never two"* ovens → **narrowed for a U whose entered walls total 10 m or more** by
+  that record's **Amendment N3.8** (2026-09-29), on the owner's M7B Q-U3 ruling (*"Two tall ovens+mw"*,
+  relayed).~~ **Withdrawn the same day:** the owner's RQ5 (*"Place one, allow second and third"*)
+  keeps E4 unchanged for every U. Recorded at ADR 0110 Amendment N6 and *N3 revised* 9.
+- **ADR 0110** Amendment N1.7's *"prioritize the regular base ones"* (between the fridge and the free
+  end) → **superseded below 10 m** by the owner's later answer the same day (*"… should be placed tall
+  cabinets"*), recorded at N6 and *N3 revised* 4. RQ3's *"Two"* is superseded by *"Yes, both from
+  corner"*: the count is taken from the corner.
+- **ADR 0110** E6.2's *"that block is not planned at all"* → **departed from for a U's lone free-end
+  oven tower**, pending RQ17 (N6′), so that the owner's *"place one"* holds.
+- **ADR 0120** Amendment E's wider-wall rule (sink and hob on the wider wall, fridge on the narrower) →
+  **not applied to a U** by ADR 0110 **Amendment N2** (2026-09-29): in a U the sink is on the back wall
+  and the fridge on the wider side wall. It stands for the L.
+- **ADR 0108** Amendment C's *"U (M7B): the same rule across three runs, with two corners"* (the
+  architect's sentence, never a ruling) → **replaced** by ADR 0108 **Amendment H3** (2026-09-29): the
+  U's minimum kitchen is not symmetric over the three runs, because the sink's wall is fixed.
+- **ADR 0108** Amendment H1's approved U wall-A minimum of 1800 mm (Q-U1, relayed) → **raised** by
+  **Amendment H2** the same day: the owner's 1200 mm walkway (Q-U2), held at the deepest floor body,
+  measures 2696. The literal is residual question RQ1.
+- **Frame 1B's note** *"Toggle-ul apare doar pentru L și U"* → **the U half is withdrawn** by ADR 0104
+  **Amendment C** (2026-09-29), on the owner's Q-U4 ruling (b).
+- **M7B plan** D2 (β, wall C in wall B's mirror frame), D4 (one group reflected in `x = W/2`) and D5
+  (the odd millimetre) → **replaced** by **ADR 0132** decisions 1, 2 and 4 (2026-09-29), on the owner's
+  Q-U5 ruling and U0's census. The plan carries dated correction lines.

@@ -121,6 +121,7 @@ status corrections, in one of these two files:
 | 88 | SEC-7E3b.1 — an attacker's rows planted under a fixated value move into the victim's identity on rotation | open.md — found 2026-09-23 by M7 wave 7E3b's security review (R4); owner to decide: record or prefer browser-minted rows on resume |
 | 89 | R2.2 / SEC-7E3b.2 — the create-design lock covers only the mint `POST`; a save-vs-rotation race can revert the jar to a value owning nothing | open.md — found 2026-09-23 by M7 wave 7E3b's logic and security reviews independently; recorded to tell the owner, not fixed |
 | 90 | SEC-7E3b.3 — the rotation `UPDATE` has no rate limit | open.md — found 2026-09-23 by M7 wave 7E3b's security review; deferred to M8's limiter (ADR 0114 decision 7) |
+| 91 | There is no full-height oven column without a microwave | open.md — owner, 2026-09-29 (M7B Q-U3, relayed); recorded at ADR 0110 Amendment N; not in M7B, no owner, no phase |
 
 ## 2026-09-06 audit note
 

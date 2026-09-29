@@ -104,3 +104,12 @@ string; it is the swapped note, shown whenever the crossing condition above hold
 Full criterion-by-criterion record, QA and review detail:
 [`milestones/M7-room-and-presets.md`, *7I close-out —
 2026-09-24*](../milestones/M7-room-and-presets.md#7i-close-out--2026-09-24).
+
+## Pointer — 2026-09-29, M7B wave U0
+
+**The question this record left to M7B, *"whether a right corner becomes walls A + C"*, is answered by
+[ADR 0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md): no.** A
+right-hand L stays a reflected left L (ADR 0132 decision 3). A U's right corner uses decision 4's
+primitive on groups, one wrapper per corner piece reflected about its own origin (ADR 0132 decision 2).
+It does not use one group reflected in the room's centre line, which this record's alternatives
+already rejected. On the owner's Q-U5 ruling, wall C's other bodies are drawn unmirrored.

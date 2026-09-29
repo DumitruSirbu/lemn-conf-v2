@@ -6,6 +6,8 @@ decisions 2, 3, 4 and 8.** ADR 0082 decisions 1 (as amended), 5, 6 and 7 stand a
 **Amendment A (2026-09-10)** records two owner rulings taken against frame D2A itself.
 **Amendment B (2026-09-29)** records the owner's final answer to Q-7L-1 — D1B's heading, on-site
 note and plan hint are not drawn — and how a desktop frame's text is read against decisions 1 and 7.
+**Amendment C (2026-09-29)** records the owner's Q-U4 ruling (M7B): the corner-direction toggle is
+hidden for a U, departing from frame 1B's note *"Toggle-ul apare doar pentru L și U"*.
 Date: 2026-09-09 (decisions 3, 8 and 9 rewritten the same day on the owner's second and third rulings)
 Type: Decision (owner ruling) + adjudication
 Milestone: M6 — opens the wave planned in
@@ -749,3 +751,29 @@ after S3 has landed"*) is spent.
 | `DEVELOPMENT-SPEC.md` §10 (`:445`), §10.1 | Same rules, same copy; one implementation | **Obeyed.** |
 | M7 criteria `:585`, `:597` | The plan updates and mirrors; desktop uses its space for a suggestion, not more prose | **Met.** The behaviour ships silently on both shells, and the suggestion is the one desktop-only element. |
 | M8 criterion (`M8-review-contact-success.md:251`) | The estimate is subject to on-site measurement | **Where the on-site promise lives.** Unaffected. |
+
+## Amendment C, 2026-09-29 — Q-U4 answered: the corner-direction toggle is hidden for a U, departing from frame 1B's note
+
+**What this amendment does.** It records an owner ruling that departs from a frame, which is why it is
+recorded here (M7B plan, Q-U4: *"departs from frame 1B's note, so it needs the owner under ADR
+0104"*). **Nothing above is struck.**
+
+**The frame** [source-verified, `docs/design/mockups/Lemnaria Configurator Mobil.dc.html:186`]: frame
+1B's annotation ends *"Toggle-ul apare doar pentru L și U."* No frame draws a U's 1B, 1C or 1F (M7B
+plan, G13).
+
+**The ruling.** The owner chose option **(b): hide the toggle for a U**. This is a **relayed selection**
+of an option the M7B plan offered, answered on 2026-09-29 and relayed by the coordinator. It is not a
+quotation. The owner rejected (a), which would have kept the toggle mirroring the whole U as the shipped
+2D preview does, and (c), which would have given the toggle a product meaning. **It is final, not an
+interim.**
+
+**How it squares with decisions 1 and 7 and with Amendment B.** Under Amendment B, a frame's text is
+not authority on its own, and where frame and ruling disagree the owner rules (decision 7's
+precedent). The note is a frame annotation about when a control is shown. The owner has now ruled on
+the U half of it, and the L half stands: the toggle still shows for an L.
+
+**What it means for the build** is recorded as [ADR 0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md)
+decision 8. No U is right-handed. The URL's `direction` is neither written nor read for a U. The plan
+preview draws a U unmirrored. A U document refuses `cornerDirection: "right"`. The wording change in
+Step 1 is M7B wave U5's.

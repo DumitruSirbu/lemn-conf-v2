@@ -1,6 +1,6 @@
 # ADR 0110 — Generation inserts through the command path, starting from a shell of empty space, and the corner is structural data
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of ~~wall A and nowhere else~~ **the suffix wall — the *"nowhere else"* was OVERTURNED by an owner ruling and the block follows the run onto wall B where wall B is wider; see Amendment I** — excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence; **Amendment F, 2026-09-15, wave 7D4's slice S0, F0–F14** — a long storage run is composed, not repeated: the owner's four statements of 2026-09-14; a four-step storage cycle `[base-3drawer, base-cabinet, base-panbank, base-cabinet]` whose even split is a consequence of its shape and **not a ratio constant**, advanced as **one sequence per kitchen across the corner** from wall B's free end, so wall B's slot count sets wall A's phase; the preparation cabinet becomes `base-3drawer`, amending **A1's *interim data* and not its order**, with *drawers before the hob* recorded as a preference the owner softened and the criterion it would have justified deleted; **this wave changes a body's identity and never its width**, on the inclusive 800 mm merge cap; **a module is identified by what composed it — never by its role and never by its width**, through one exported predicate, because a block column carries `role: "storage"` deliberately under E5 clause 2 and role-scoping is wrong on 32.8 % of placed rooms against correct output (**and the citation "E5.2" names a section E does not contain**); the catalogue's own `fronts` declaration stays the one authority for a drawer front; the wall row composes exactly what it composes today with **no lift and no open shelf generated**, the owner having priced the lift and declined it, and the top row's stretch-ceiling lift rule recorded and not built; the variety's measured **+8.6 %** so the choice is a knowing one; the dishwasher and the bottle cargo recorded and **deferred to wave 7D5**; a new leaf in `configurator-domain` must be exported from `src/index.ts` or the build emits nothing for it; and **two of the wave's criteria corrected — the one-declaration-site grep scoped to composed-body declaration sites, and the id-convention count replaced by a pinned site set**; **F15** closes the dangling citations by carrying the dropped-roles sentence's shape and naming where the owner's wording ruling lives. **Written after the slice it ratifies, which F0 records rather than conceals**; **Amendment G, 2026-09-16, G1–G8 — drawers are anchored to the work, not distributed by a pattern**: the owner corrected the cycle within a day of its acceptance — *"is not like in chess"* — and gave the placement rule directly, so **F3 and F4 are superseded and struck in place** while F1, F2, F5–F15 stand and **F6's provenance discriminator is untouched, because it names a slot's origin and never its body**. Drawer cabinets are anchored **between the sink and the hob**, ideally two; **everything after the hob and after the tall cabinets takes doors**, and so does everywhere else. **The ratio stops being a rule and becomes a consequence of the room**, which is what ADR 0117 asks for and what F3 reached only by argument — so **no criterion may assert a 3-and-3 proportion**, and four of wave 7D4's are withdrawn. Measured against the slots that exist: **a storage slot never stands between the sink and the hob on one wall** — there is exactly one module there and it is the preparation cabinet — so the rule reduces to *the preparation cabinet is a drawer* (already F5) plus *every storage slot is a door* (already today's output), and it composes **zero drawer storage cabinets in all 149 151 rooms that have storage**, at a **31.9 %** fleet-wide drawer share falling to **10–19 %** in long runs. **The *ideally two* is a width change and is never free** — a second module costs a storage cabinet in 45.1 % of rooms, a block column in 31.1 %, a core role in 15.6 %, and nothing in 0.0 % — so it is ruled to **one** pending the owner, and belongs to 7D5 if it is ever two. **`STORAGE_CYCLE` and `base-panbank`'s only caller die with F3**; the owner said twice the rule is not strict, so **G2 is a set of defaults and no criterion may assert it as an invariant**; **Amendment H, 2026-09-16, H1–H8 — the owner's run order, and the split between waves 7D4 and 7D5**: the owner gave the whole order rather than choosing between the coordinator's two candidate placements — **fridge → [door, if space] → sink → drawer [+ a second, if space] → hob → bottle cabinet → [a third drawer, if the run is long] → doors to fill → tall cabinets at the edge** — which **supersedes G2** and reconciles the two readings before it: *"after the hob, doors"* means **after the drawer group**, and the drawers are **one group astride the hob**. **Two of the order's five clauses are already built** — the fridge→sink stretch and the post-hob fill are wall B's and wall A's storage, doors today, **which answers Q-G1 in the affirmative from the owner's own mouth** — and the tall cabinets are Amendment E's block, so **the order adds exactly two modules, both width changes: a 300 mm bottle cabinet and a 600 mm second drawer**. Measured, the order gives **29.8 % drawers at the owner's own six-cabinet run** against G2's 16.7 %, and its residual shortfall falls in runs of 7 and 8 — **exactly the band the unmodelled third clause covers, so the gap is ours and not the rule's**. **G5's *"a second drawer cabinet is never free" is WITHDRAWN**: it displaces a storage slot one-for-one and the cabinet count does not change, so **Q-G3 dissolves** — the error was counting slots and calling the result a kitchen. The bottle cabinet is **free in 45.7 %** of rooms, moves Amendment E's block table **cleanly by +300** (3600/4200/4800), and **refutes D2.2's absorb-window warning by measurement** — 39 530 rooms in the window with and without it — which is struck rather than left standing. **7D4 keeps only the width-neutral part** (preparation and the first post-hob storage become drawer bodies, **1.31 drawers at run 6, and no criterion may claim it meets the proportion**) and **7D5 takes the order**, grouped by what re-baselines the run's arithmetic exactly as F-era D11 grouped the dishwasher and the cargo. **All three phrasings of this rule are recorded with their dates and none is smoothed away**; none of the three corrections was caught by a test or a review, only by asking; **Amendment I, 2026-09-17, written for wave 7D8 slice S1(a) and recording an owner ruling of 2026-09-16 — the block follows the run rather than the letter A, and A1's order survives its own mirror**: shown both measured arms, the owner chose **follow-the-run — 144 866 blocks with 47 175 on wall B and nobody losing one** — over **confinement to physical wall A — 97 691, costing 12 900 kitchens a block they have today**, so **Amendment E's E2 *"and nowhere else"* is OVERTURNED in its wall** while **E2's refusal of the corner end, and E3–E7 and E10–E13 entire, are untouched**. The engineering argument that reaches the same answer — E's stated reason was about *the free end the layout leaves*, not about the letter A (`tall-end-rule.ts:51-53`) — is **kept and explicitly demoted to a reason rather than a permission: the owner did not need it and the ruling does not rest on it** (ADR 0120 D2's lesson applied). On **Amendment A1 the verdict is deliberately split, against the wave plan's tidier "restated, not broken", which this record was asked to check rather than transcribe**: A1's **order** is **RESTATED** and unamended, on the owner's own *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink, cabinets, fridge"*; A1's **second sentence** — *"on a left-corner L the run reads from wall B's free end"* — is **CORRECTED** to *the prefix wall's free end*, because it is stated unqualifiedly and is **false in 82 395 of 211 551 placed rooms** after the wave; and *"left to right as seen from inside the room"* is **narrowed to the direction *along the run*, which A1's own *"the fridge is not tied to a wall"* already pointed at**. The reader's rule: **a mirrored kitchen is not A1 violated; a run that does not read fridge → sink → preparation → hob in *either* direction is.** Q-7D8-2 — whether the rule may cost a cabinet — is **left open and not prejudged**)
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q3: the kitchen reads fridge → sink → preparation → hob-with-oven, its minimum is a sink and a hob, and at most 599 mm of any run is left empty; also corrects a false claim about ADR 0015 in the M7 plan; **Amendment B, 2026-09-11** — the shell is authored for its room: corner columns derived, free runs tiled with neutral depth sources, wall B planned against the deepest declared depth; **Amendment C, 2026-09-11** — the owner ruled F2 (upper cabinets and a hood), F3 (fridge first, then preparation) and F7 (keep the 100 mm wall-B reserve, an exception to the 599 mm rule); **Amendment D, 2026-09-11** — how a composed kitchen reaches its widths: insert, then `setWidth`, packed against the corner; Amendment B gains **B3a, 2026-09-11** — wall A's floor run stops short by the run-end panel's footprint; **Amendment D, revised 2026-09-11 (7D1 logic review R1.1)** — composition plans each row's widths first and the shell is tiled at exactly those boundaries; insert-then-`setWidth` is withdrawn except at a wall's free end; **Clarification, 2026-09-12** — core selection lets storage yield before a core role, then Amendment A4 refills every final remainder of at least 600 mm; **Correction, 2026-09-13** — odd physical spans plan to their whole-millimetre reachable end, correcting the 1699 witness's planned remainder from 99 to 98 mm without changing the 200 mm usable-remainder rule; **Amendment E, 2026-09-14, drafted for wave 7D3; reviewed and accepted 2026-09-15 by the coordinator with five presentation corrections applied and no ruling, threshold or measurement changed, E1–E13** — the owner's tall-unit and oven rules: symmetry is not a rule of composition; the full-height **block of up to three columns** stands at the free end of ~~wall A and nowhere else~~ **the suffix wall — the *"nowhere else"* was OVERTURNED by an owner ruling and the block follows the run onto wall B where wall B is wider; see Amendment I** — excluding the fridge, and is **one `tall-oven-tower` innermost plus up to two `tall-pantry` outboard** — at most one fridge column, at most one oven column, any number of door columns; the planner takes the largest block that fits, and the threshold follows the block size (**3300 / 3900 / 4500 mm** of wall A, measured); the hob's base follows the oven tower so a kitchen has exactly one oven and never zero; the outermost `'fit'` body absorbs the free-end remainder, which E12's order makes the block's own last column; no upper stands above a full-height body; **no oven ever stands beside the fridge — adjacency is barred, not proximity, and *"minimum have another cabinets between them"* satisfies it; a thermal constraint as well as a workflow one**, already satisfied by Amendment A1's reading order and asserted rather than gated; the generated fridge stays `fridge-free` and is not moved, A1's cooking order winning where the two disagree; **the top row stays excluded, now owner-confirmed**, its eventual replacement being taller uppers rather than a composed row; and new full-height body types wait for beta (backlog 66). E9's pantry deferral is **superseded within the day** by E12 and kept for its sequence; **Amendment F, 2026-09-15, wave 7D4's slice S0, F0–F14** — a long storage run is composed, not repeated: the owner's four statements of 2026-09-14; a four-step storage cycle `[base-3drawer, base-cabinet, base-panbank, base-cabinet]` whose even split is a consequence of its shape and **not a ratio constant**, advanced as **one sequence per kitchen across the corner** from wall B's free end, so wall B's slot count sets wall A's phase; the preparation cabinet becomes `base-3drawer`, amending **A1's *interim data* and not its order**, with *drawers before the hob* recorded as a preference the owner softened and the criterion it would have justified deleted; **this wave changes a body's identity and never its width**, on the inclusive 800 mm merge cap; **a module is identified by what composed it — never by its role and never by its width**, through one exported predicate, because a block column carries `role: "storage"` deliberately under E5 clause 2 and role-scoping is wrong on 32.8 % of placed rooms against correct output (**and the citation "E5.2" names a section E does not contain**); the catalogue's own `fronts` declaration stays the one authority for a drawer front; the wall row composes exactly what it composes today with **no lift and no open shelf generated**, the owner having priced the lift and declined it, and the top row's stretch-ceiling lift rule recorded and not built; the variety's measured **+8.6 %** so the choice is a knowing one; the dishwasher and the bottle cargo recorded and **deferred to wave 7D5**; a new leaf in `configurator-domain` must be exported from `src/index.ts` or the build emits nothing for it; and **two of the wave's criteria corrected — the one-declaration-site grep scoped to composed-body declaration sites, and the id-convention count replaced by a pinned site set**; **F15** closes the dangling citations by carrying the dropped-roles sentence's shape and naming where the owner's wording ruling lives. **Written after the slice it ratifies, which F0 records rather than conceals**; **Amendment G, 2026-09-16, G1–G8 — drawers are anchored to the work, not distributed by a pattern**: the owner corrected the cycle within a day of its acceptance — *"is not like in chess"* — and gave the placement rule directly, so **F3 and F4 are superseded and struck in place** while F1, F2, F5–F15 stand and **F6's provenance discriminator is untouched, because it names a slot's origin and never its body**. Drawer cabinets are anchored **between the sink and the hob**, ideally two; **everything after the hob and after the tall cabinets takes doors**, and so does everywhere else. **The ratio stops being a rule and becomes a consequence of the room**, which is what ADR 0117 asks for and what F3 reached only by argument — so **no criterion may assert a 3-and-3 proportion**, and four of wave 7D4's are withdrawn. Measured against the slots that exist: **a storage slot never stands between the sink and the hob on one wall** — there is exactly one module there and it is the preparation cabinet — so the rule reduces to *the preparation cabinet is a drawer* (already F5) plus *every storage slot is a door* (already today's output), and it composes **zero drawer storage cabinets in all 149 151 rooms that have storage**, at a **31.9 %** fleet-wide drawer share falling to **10–19 %** in long runs. **The *ideally two* is a width change and is never free** — a second module costs a storage cabinet in 45.1 % of rooms, a block column in 31.1 %, a core role in 15.6 %, and nothing in 0.0 % — so it is ruled to **one** pending the owner, and belongs to 7D5 if it is ever two. **`STORAGE_CYCLE` and `base-panbank`'s only caller die with F3**; the owner said twice the rule is not strict, so **G2 is a set of defaults and no criterion may assert it as an invariant**; **Amendment H, 2026-09-16, H1–H8 — the owner's run order, and the split between waves 7D4 and 7D5**: the owner gave the whole order rather than choosing between the coordinator's two candidate placements — **fridge → [door, if space] → sink → drawer [+ a second, if space] → hob → bottle cabinet → [a third drawer, if the run is long] → doors to fill → tall cabinets at the edge** — which **supersedes G2** and reconciles the two readings before it: *"after the hob, doors"* means **after the drawer group**, and the drawers are **one group astride the hob**. **Two of the order's five clauses are already built** — the fridge→sink stretch and the post-hob fill are wall B's and wall A's storage, doors today, **which answers Q-G1 in the affirmative from the owner's own mouth** — and the tall cabinets are Amendment E's block, so **the order adds exactly two modules, both width changes: a 300 mm bottle cabinet and a 600 mm second drawer**. Measured, the order gives **29.8 % drawers at the owner's own six-cabinet run** against G2's 16.7 %, and its residual shortfall falls in runs of 7 and 8 — **exactly the band the unmodelled third clause covers, so the gap is ours and not the rule's**. **G5's *"a second drawer cabinet is never free" is WITHDRAWN**: it displaces a storage slot one-for-one and the cabinet count does not change, so **Q-G3 dissolves** — the error was counting slots and calling the result a kitchen. The bottle cabinet is **free in 45.7 %** of rooms, moves Amendment E's block table **cleanly by +300** (3600/4200/4800), and **refutes D2.2's absorb-window warning by measurement** — 39 530 rooms in the window with and without it — which is struck rather than left standing. **7D4 keeps only the width-neutral part** (preparation and the first post-hob storage become drawer bodies, **1.31 drawers at run 6, and no criterion may claim it meets the proportion**) and **7D5 takes the order**, grouped by what re-baselines the run's arithmetic exactly as F-era D11 grouped the dishwasher and the cargo. **All three phrasings of this rule are recorded with their dates and none is smoothed away**; none of the three corrections was caught by a test or a review, only by asking; **Amendment I, 2026-09-17, written for wave 7D8 slice S1(a) and recording an owner ruling of 2026-09-16 — the block follows the run rather than the letter A, and A1's order survives its own mirror**: shown both measured arms, the owner chose **follow-the-run — 144 866 blocks with 47 175 on wall B and nobody losing one** — over **confinement to physical wall A — 97 691, costing 12 900 kitchens a block they have today**, so **Amendment E's E2 *"and nowhere else"* is OVERTURNED in its wall** while **E2's refusal of the corner end, and E3–E7 and E10–E13 entire, are untouched**. The engineering argument that reaches the same answer — E's stated reason was about *the free end the layout leaves*, not about the letter A (`tall-end-rule.ts:51-53`) — is **kept and explicitly demoted to a reason rather than a permission: the owner did not need it and the ruling does not rest on it** (ADR 0120 D2's lesson applied). On **Amendment A1 the verdict is deliberately split, against the wave plan's tidier "restated, not broken", which this record was asked to check rather than transcribe**: A1's **order** is **RESTATED** and unamended, on the owner's own *"sometimes the arrangement is in mirror, like hub, cabinets (drawers), sink, cabinets, fridge"*; A1's **second sentence** — *"on a left-corner L the run reads from wall B's free end"* — is **CORRECTED** to *the prefix wall's free end*, because it is stated unqualifiedly and is **false in 82 395 of 211 551 placed rooms** after the wave; and *"left to right as seen from inside the room"* is **narrowed to the direction *along the run*, which A1's own *"the fridge is not tied to a wall"* already pointed at**. The reader's rule: **a mirrored kitchen is not A1 violated; a run that does not read fridge → sink → preparation → hob in *either* direction is.** Q-7D8-2 — whether the rule may cost a cabinet — is **left open and not prejudged**; **Amendment N, 2026-09-29** — a U is composed by the owner's own arrangement (M7B Q-U3 (c)): fridge on the wider side wall, sink on the back wall, one run over three walls, a 10 m large-U threshold driving tall cabinets and a base-only back wall; ADR 0120 E not applied to a U; the owner answered all twelve residual questions the same day — the fridge and the one oven tower counted from the corner, E4 unchanged — and five new ones, RQ13–RQ17, carry defaults)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -691,6 +691,11 @@ figures that had been floated in discussion and then wrongly retired — arrived
 and recorded as measurements.
 
 ### E4 — exactly one oven: never two, and never zero
+
+> ~~**Narrowed 2026-09-29 by Amendment N3.8 (owner, M7B Q-U3, relayed):** in a U whose entered walls
+> total 10 m or more, the generator may place two `tall-oven-tower` columns.~~ **Narrowing withdrawn
+> the same day (Amendment N, RQ5, owner verbatim *"Place one, allow second and third"*): E4 stands for
+> every shape, a U included.** The generator places one oven; a customer may add more in the editor.
 
 *"In this case you'll have two ovens… so if you will add the tall cabinet with oven and microwave, in
 this case you will choose hob with drawers. In case that you don't have this tall cabinet… we add the
@@ -3280,3 +3285,341 @@ coupling; not fixed in this wave.**
 **Wave 7D5b shipped, 2026-09-21 — the close-out, gate figures and commit hashes are recorded in
 [`docs/milestones/M7-room-and-presets.md`, *7D5b close-out — 2026-09-21*](../milestones/M7-room-and-presets.md#7d5b-close-out--2026-09-21),
 not restated here.**
+
+## Amendment N — 2026-09-29: how a U kitchen is composed (M7B Q-U3), from the owner's own arrangement
+
+**Written before code, in M7B wave U0.** The plan is `docs/milestones/M7B-u-shaped-rooms.md`, *Owner
+questions*, Q-U3, and *U0 measurements*. The owner answered on 2026-09-29 and the coordinator relayed
+the answer. The owner chose **option (c), their own arrangement**. That is neither the plan's (a) nor
+its (b), and the plan's lean towards (b) is withdrawn. Figures are **[measured]** by `u0-measure.mjs`
+(kept by name in the U0 scratchpad; `tsc` build of `packages/configurator-domain/src` at `dd9f63a`).
+They come from a **model** of the rules below, not from the generator. U3 must reproduce the model's
+witnesses, or stop and report (U3-A3). Each rule is labelled *owner*, *owner (relayed)*, *derived*
+(an inference from the owner's words, and a falsifier is named where one exists), or *default pending
+RQn* (a residual owner question, listed in N6).
+
+### N1 — the owner's words, 2026-09-29
+
+Items 1, 2, 3 (first line) and 7 are verbatim, typos included, as relayed by the coordinator. Items
+3 (follow-up), 4, 5 and 6 are **relayed selections of offered options**, not quotations.
+
+1. *"Need to start from the edge wall (furniture wanted width on that wall) that is wider and paste
+   there the fridge and already based on this go fo next sink , place for processing, hob, tall
+   cabinets and so on. Such U shape kitchen are popular not apartments but in homes, and in this case
+   the sink is placed in the middle wall because there is biggest propability to have window. I now we
+   din't add windows and doors t o 3D model but just basic on statistic is like this. even there are a
+   lot of place rarely are 2 fridges, can be a big one 2 doors (that we don't have) can be 2 ovens like
+   2 near full heigh cabinets with ovens (but in that case no need to have 2 microwaves (we miss an oven
+   cabinets wiithout microwave), so U shape is like 2 L shapes in mirror but only with one fridge, one
+   sink and can be with 2 ovens but preferable with tall cabinet oven + microwavce because there is
+   enought place. In this u shape need more drawer cabinets (more than 2, depending on width maybe 4-5,
+   and tall cabinets at sides or if there in sum are near 10 liniear meters can be just standard
+   cabinets , and on one wall only base cabinets in general, because is very expesive to add so much
+   funriture. So ask more calrification questions if needed because in U shape is most diverse
+   possible ways to add cabinets"*
+2. On the hob: *"If i look at the U that is upside down , the top wall (middle one will potentially
+   get the sink, the dishwasher near sink and prep, now if the fridge is on the right wall (remember
+   looking upside down the U), the order should start from right (fridge, sink, dishwasher prep, hob,
+   other cabinets, tall cabinets..... If the wall with firdge is really wide like more than 3 meters,
+   the fridge is not at the edge but like more in the middle and after it tall cabinets from it till
+   wall edge. If the wider wall is the left one (again U is update down) the everything starts with a
+   frigde from left and next based on existing logic, and same rule if wall is very wide, place fridge
+   more in the middle more near to sink (orpimization of movement)"*
+3. On which wall is base-only: *"Depends on size"*. Relayed follow-up: **one "large U" threshold,
+   A + B + C ≥ 10 m, drives all three size rules, and the base-only wall is the back wall (A).**
+4. Tall cabinets, relayed selection: **"Big U: no tall needed"**. Below about 10 m of total run, tall
+   cabinets go at the side-wall ends. At 10 m or more, standard base and upper cabinets are enough, and
+   tall ones are optional.
+5. Ovens, relayed selection: **"Two tall ovens+mw"**. In a large U, two tall oven+microwave cabinets are
+   allowed, using what exists today. A tall oven-only cabinet does not exist, so it goes to the backlog
+   as a catalogue gap and is **not added in M7B** (N5).
+6. Drawers, relayed selection: **"Min 3, +1 per 2 m"**. That is at least three drawer units, plus one
+   for every ~2 m of total run beyond the minimum, capped at 5. *"Beyond the minimum"* was left for the
+   architect to define (N3.6).
+7. The fridge on a fridge wall wider than 3 m. The coordinator's reading, *"1–2 tall cabinets between
+   fridge and free end"*, was corrected by the owner, verbatim: *"1-2 full width cabinet (minimum 600
+   mm)"*, then *"not tall, regular one base one, between fridge can be tall cabinets but prioritize the
+   regular base ones"*.
+
+On Q-U5, recorded verbatim at ADR 0132: *"… the rest should be independent one from another (as
+mentioned on one wall will be frodge on another no)"*. **Wall C is composed on its own terms, never as
+wall B's mirror.**
+
+### N2 — the arrangement, read as one run *(derived; the coordinator's summary, checked against N1)*
+
+One run over three walls, with one fridge and one sink:
+
+> fridge wall's free end → [1–2 base cabinets, if that wall is over 3 m] → **fridge** → storage →
+> *corner* → **sink → dishwasher → preparation → hob** → drawer and door cabinets → *corner* → the far
+> side wall's storage → tall cabinets at its free end (below 10 m)
+
+This is ADR 0110 A1's order (*fridge → sink → preparation → hob*), with M's dishwasher beside the sink
+and H1's drawer group, **anchored differently**. In an L, the sink and hob follow the wider wall (ADR
+0120 E). **In a U the sink is on the back wall whatever its length**, and the fridge is on the wider
+*side* wall. **ADR 0120 E is therefore not applied to a U** (owner, N1.1–N1.2). It stands unchanged for
+the L.
+
+*"2 L shapes in mirror"* (N1.1) is read as a description of the shape's two corners, not as a
+composition rule. The owner's next clause, *"but only with one fridge, one sink"*, and the Q-U5 answer
+both rule out composing wall C as wall B's mirror *(derived)*.
+
+### N3 — the rules, precisely
+
+> **Revised 2026-09-29 by *N3 revised* below**, on the owner's answers to RQ1–RQ12. Items 2, 3, 6, 7,
+> 8, 9 and 11 are restated there; **where the two differ, *N3 revised* governs.** This first draft is
+> kept, not rewritten, so the reader sees what each answer moved.
+
+1. **Large U** *(owner, relayed)*: `T = A + B + C` from the **entered** lengths (ADR 0120 E2's key)
+   and `T ≥ 10 000 mm`. That one flag drives N3.7, N3.8 and N3.9.
+2. **The fridge wall** *(owner)* is the wider side wall by entered length. **When B = C**, it is wall B
+   *(default pending RQ2)*, which is the L's own tie rule, *"equal walls keep wall B as the prefix"*
+   (`generation-priorities.ts:60-61` [source-verified]). The other side wall is the **far wall**.
+3. **The fridge's place** *(owner)*. On a fridge wall of 3000 mm or less, the fridge stands at the free
+   end, with any bare remainder beyond it at the free end (the L's convention). On a fridge wall over
+   3000 mm, `k` full-width regular base cabinets (door body, 600 mm) stand between the fridge and the
+   free end, and **`k = 1`** *(default pending RQ3; the owner said "1-2")*. Tall bodies there are
+   allowed but never generated (*"prioritize the regular base ones"*). Storage modules fill between the
+   fridge and the corner. If `k` modules plus the fridge do not fit, `k` falls. If the fridge alone
+   does not fit, **the fridge is dropped** *(default pending RQ9)*, as the L's drop order drops it first.
+4. **The back wall** *(owner)*. From the corner shared with the fridge wall, packed in order: sink,
+   dishwasher, preparation, hob *(packing, rather than centring the sink under a likely window, is the
+   default pending RQ12)*. **The sink must stand on wall A.** Above the walkway floor (ADR 0108 H2)
+   wall A's free run is at least 896 mm, so it always does [measured].
+5. **When the back wall runs out** *(default pending RQ4)*, the run continues round the far corner. The
+   bodies that did not fit stand first on the far wall, in order. If they still do not fit, the
+   dishwasher is dropped first and then the preparation cabinet. The sink and the hob are required
+   (A2). The minimum kitchen this implies is ADR 0108 H3.
+6. **Drawer units** *(owner, relayed; the definition is derived)*:
+   `N(T) = min(5, 3 + floor(max(0, T − T_min) / 2000))`. Here `T_min` is the smallest total run an
+   approved U can have: `A_min + 1000 + 1000`, which is **4700** with RQ1's default `A_min = 2700`. So
+   *"beyond the minimum"* means *beyond the smallest U the product admits*:
+
+   | Total run T (mm) | Drawer units |
+   | --- | ---: |
+   | 4700 – 6699 | 3 |
+   | 6700 – 8699 | 4 |
+   | 8700 and above (max 18 000) | 5 |
+
+   A drawer unit is a `base-3drawer` or a `base-panbank`. The preparation cabinet counts as the first
+   one, and `base-hob-2drawer` does not count *(default pending RQ6)*. Extra units take door storage
+   slots in reading order, starting after the hob, which is H1's group astride the hob. They never
+   displace a core body or the dishwasher. **`N` is a ceiling the room may not reach**: a room with too
+   few slots gets fewer (measured in N4).
+7. **Tall cabinets** *(owner, relayed)*. **Below 10 m**, Amendment E's block stands at the **far wall's
+   free end**, capped at three columns, with E3 clauses 1, 3 and 4 and E6 unchanged. E3 clause 2 (*the
+   hob on the block's wall*) is **not required in a U** *(default pending RQ11)*, because in a U the
+   hob is normally on the back wall. **At 10 m or more**, no door (pantry) column is generated.
+8. **Ovens** *(owner, relayed; placement is a default pending RQ5)*. **Below 10 m, E4 stands: exactly
+   one oven.** **At 10 m or more, two `tall-oven-tower` columns** stand side by side at the far wall's
+   free end, where the block would stand, and the hob is `base-hob-2drawer`. With one free module there
+   is one tower. With none, the hob keeps its own oven, so E4's *"never zero"* holds. **E4's "never two"
+   is narrowed for the large U by the owner's own ruling (N1.5).** E10 (no oven beside the fridge) holds
+   by construction: the fridge is on the other side wall.
+9. **The back wall is base-only in a large U** *(owner, relayed)*. At 10 m or more, no wall-row or
+   top-row cabinet is generated on wall A. **The hood over the hob stays** *(default pending RQ7)*. The
+   owner's reason was cost (*"very expesive to add so much funriture"*), and a hood is an appliance, not
+   furniture. Below 10 m, the uppers follow Amendments C and E7 and 7D2's no-upper-over-a-corner-zone,
+   at **both** corners.
+10. **Unchanged** *(owner, earlier)*: decisions 1–2 (`insertBody` only); declared widths; leftover
+    ≤ 599 mm per run end (A4); no upper over a full-height body (E7); a hood over the hob; E10.
+11. **The L's optional items in a U** *(default pending RQ10)*. The pan drawer (K) counts as a drawer
+    unit. The threshold drawer (L) is replaced by N3.6's count. The bottle (J) is tried after the drawer
+    units, on the hob's wall, as in the L.
+
+### N4 — what the rules produce, measured on the model
+
+> **Superseded 2026-09-29 by N4′** (the model re-run on *N3 revised*). The figures below describe the
+> first draft's defaults, including two towers and a fridge counted from the free end, and are kept
+> only as the record of what the owner was shown.
+
+The grid is A 2700–6000, B and C 1000–6000, step 100: 88 434 rooms at planning depth 600 and height
+2600. Every default above is applied, with `k = 1`.
+
+| Outcome | Rooms |
+| --- | ---: |
+| Composed / refused by the minimum kitchen (ADR 0108 H3) | 86 706 / 1 728 |
+| Large U (T ≥ 10 m) / smaller | 63 475 / 23 231 |
+| Fridge on its wall / dropped (the fridge wall cannot hold 700) | 85 184 / 1 522 |
+| `k = 0` (fridge at the free end, or no fridge: 1 522 of these) / one base cabinet in (`k = 1`) | 14 346 / 72 360 |
+| Dishwasher kept / dropped | 73 962 / 12 744 |
+| Preparation kept / dropped | 81 738 / 4 968 |
+| **Hob on the back wall / round the corner on the far wall** | **56 331 / 30 375** |
+| Smaller U: no tall / oven tower / tower + 1 pantry / tower + 2 pantries | 20 171 / 2 380 / 676 / 4 |
+| Large U: two oven towers / one / none (hob keeps its oven) | 40 450 / 11 229 / 11 796 |
+| Drawer target reached, extra units after the hob only | 10 047 |
+| Drawer target reached, extra units in any door slot | 53 038 |
+| At least 3 drawer units, any door slot | 75 109 |
+| Largest bare run end, fridge / back / far wall | 500 / 500 / 500 mm |
+
+**With `k = 2` instead**, 6 112 rooms keep no module between the fridge and the corner, and rooms with
+at least three drawer units fall from 75 109 to 68 149. **So `k = 1` is the default.**
+
+**The drawer target is the finding.** With extra units allowed only after the hob, N(T) is reached in
+**10 047 of 86 706** composed rooms. With any door slot allowed, 53 038 reach it. The owner's
+*"more drawer cabinets (more than 2 …)"* therefore competes with the dishwasher, the tall block and the
+two towers for the same modules. **RQ6 asks which of them yields.**
+
+**Witnesses** for U3-A3, with bodies per wall read from the corner outward. "F" is the fridge wall, and
+"far" is the other side wall.
+
+| A / B / C | Predicted |
+| --- | --- |
+| 2700 / 1000 / 1000 | **Refused** (minimum kitchen) |
+| 3000 / 1000 / 1000 | A: sink, hob. No fridge, dishwasher or preparation. No tall |
+| 3600 / 2400 / 2000 | F = B: 1 storage, fridge (bare 100). A: sink, dishwasher, preparation. Far = C: hob (bare 400). No tall. 1 oven |
+| 5000 / 4000 / 3000 | Large. F = B: 2 storage, fridge, 1 base (`k = 1`, bare 500). A: sink, dishwasher, preparation, hob, 1 storage (bare 200). Far = C: 1 storage, 2 oven towers (bare 200). No uppers on A |
+| 6000 / 6000 / 6000 | Large. F = B (tie): 6 storage, fridge, 1 base (bare 100). A: sink, dishwasher, preparation, hob, 3 storage. Far = C: 6 storage, 2 oven towers (bare 200). 5 drawer units |
+
+### N5 — the catalogue gap
+
+There is no full-height oven column without a microwave. This is recorded as **backlog 91** and not
+added in M7B (N1.5). ~~A large U's second tower is `tall-oven-tower` until that backlog item is
+decided.~~ **2026-09-29, RQ5:** the generator places one tower. A second or third is the customer's,
+and today it can only be a `tall-oven-tower`.
+
+### N6 — residual owner questions RQ1–RQ12: **all answered 2026-09-29**
+
+Asked with the defaults below, and answered the same day, relayed by the coordinator. **Free text is
+verbatim, typos included. An option pick is marked *relayed selection* and is not a quotation.**
+
+| # | Question | Default offered | Answer |
+| --- | --- | --- | --- |
+| RQ1 | Is wall A's approved U minimum 2696 exactly, or 2700? | 2700 | **2700** (relayed selection). ADR 0108 H2 |
+| RQ2 | Which side wall takes the fridge when B = C? | Wall B | **Wall B** (relayed selection) |
+| RQ3 | On a fridge wall over 3 m, one base cabinet or two between the fridge and the free end? | 1 | *"Two"* (relayed selection), **then superseded by the placement clarification**: *"Yes, both from corner"* (relayed selection). The count is taken **from the corner**, not from the free end |
+| RQ4 | Back wall full: does the hob go round the corner, or do the dishwasher and preparation yield? | Round the corner | **Round the corner** (relayed selection) |
+| RQ5 | Large U: place two oven towers, or place one and allow the second? Where? | Place two | Verbatim: *"Place one, allow second and third .... but if the wall have 6 meters same as with fridge place them 2-3 cabinets from corner, 3-4 meters width 2 cabinets, more than 4 meters 3 cabinets between"* |
+| — | Placement clarification (the coordinator's framing, accepted) | — | *"Yes, both from corner"* (relayed selection). The fridge and the tall oven both stand after base cabinets counted **from the corner**: 2 on a 3–4 m wall, 3 over 4 m, and at the free end at 3 m or less |
+| — | Tall cabinets below 10 m | — | Verbatim: *"on wide wall between fridge and wall edge (not corner but edge) can be and I think should be placed tall cabinets"*. This **supersedes N1.7's *"prioritize the regular base ones"*** for that gap |
+| RQ6 | What counts as a drawer unit, and what yields? | 3-drawer and pan-drawer; the count yields | *"3-drawer + pan; count yields"* (relayed selection), **refined by RQ10** |
+| RQ7 | Does a large U's base-only back wall carry the hood? | Yes | Verbatim: *"The hood over hob is mandatory, and we will generate a back wall with only base cabinets but there should be possible to add the middle and top once if needed"* |
+| RQ8 | Refuse a U too small for sink + hob in this order? | Refuse | **Refuse** (relayed selection). ADR 0108 H3 |
+| RQ9 | A fridge wall too short for the fridge? | Drop | **Try the other side wall first; drop only if neither fits** (relayed selection) |
+| RQ10 | The L's bottle, pan drawer and threshold drawer in a U? | Pan counts; threshold replaced; bottle after | Verbatim: *"the bottle cabinets is near the cabinet that have the hob on right side if there is enough space, drawers are counter 3 and 2 drawers cabinets"*. **The threshold drawer was not addressed**, so its default stands, labelled as a default |
+| RQ11 | Below 10 m, may the tall block stand when the hob is on the back wall? | Yes | **Yes** (relayed selection) |
+| RQ12 | Sink packed from the fridge corner, or centred? | Packed | **Packed from the fridge corner** (relayed selection) |
+
+### N3 revised — the rules as the RQ answers leave them (2026-09-29)
+
+Labels as in N3. *"From the corner"* counts **base bodies standing between the corner's free-run
+start and the unit**. A side wall's free run starts past the corner's reach (900 mm at the shell's
+600 mm depth) and **stops 100 mm short of the wall's end**. That is the reserve wall B's run keeps for
+a later 600 → 700 depth change, and **wall C keeps the same 100 mm** (`lShellFloorRuns`, measured per
+corner; ADR 0108 H3). So a side wall's free run is `side − 1000`.
+
+1. **Large U**: unchanged. `A + B + C ≥ 10 000` over the entered lengths.
+2. **The fridge wall** *(owner, RQ2, RQ9)* is the wider side wall, or B when B = C. If the fridge does
+   not fit there, it goes on the other side wall. It is dropped only if neither side wall holds it.
+   **Measured: the fallback never fires on the approved grid (0 rooms)**, because a side wall too short
+   for the fridge means the narrower one is too. It is a ruled branch with an empty population, so it
+   is kept with a declared witness (ADR 0123).
+3. **The fridge's place** *(owner, placement clarification)*. On a fridge wall of 3000 mm or less, the
+   fridge stands at the free end, with door storage between it and the corner and any bare remainder
+   beyond it. On a 3001–4000 mm wall, **2** base cabinets stand between the corner and the fridge. Over
+   4000 mm, **3**. The boundaries *"3–4 m"* = 3001–4000 are *derived*. Where `n` cabinets plus the
+   fridge do not fit, `n` falls.
+4. **Between the fridge and the free end** *(owner, verbatim above)*. **Below 10 m**, this gap takes
+   `tall-pantry` columns: 600 mm each, the outermost widened up to 800 mm to absorb the remainder (E6).
+   A 400–599 mm gap takes one pantry at its own width, and a gap under 400 mm stays bare. **At 10 m or
+   more** it takes regular door base cabinets *(default pending RQ13)*.
+5. **The back wall** *(owner, RQ4, RQ12)*. Packed from the fridge corner: sink, dishwasher,
+   preparation, hob. What does not fit continues round the far corner. If the run still does not fit,
+   the dishwasher is dropped first and then the preparation cabinet.
+6. **Drawer units** *(owner, RQ6, RQ10)*. `N(T)` as in N3.6, with `T_min = 4700` (RQ1). A drawer unit
+   is a **3-drawer** (`base-3drawer`) or **2-drawer** cabinet. The catalogue's 2-drawer base is
+   `base-panbank` (`carriesDrawers(2)`, `catalog.ts:743-748` [source-verified]), so **there is no
+   catalogue gap here**. The preparation cabinet counts as the first unit. Whether `base-hob-2drawer`
+   counts is *default pending RQ15: it does not*. **The count yields** to the dishwasher, the fridge,
+   the tower, the pantries and the bottle. Extra units take door slots after the hob.
+7. **The bottle** *(owner, RQ10)*: immediately beside the hob's cabinet when there is space. The
+   owner's *"on right side"* is read as **after the hob along the run** *(default pending RQ16)*.
+8. **The threshold drawer** (L): replaced by `N(T)` *(default; RQ10 did not address it)*.
+9. **The oven** *(owner, RQ5; E4 unchanged)*. **Every U gets exactly one generated oven**: one
+   `tall-oven-tower` with `base-hob-2drawer`, or `base-hob-oven` with no tower. A customer may add a
+   second or a third tower in the editor, which has no oven-count rule (backlog 70 [doc-quoted]).
+10. **The tall layout, in full:**
+    - **Fridge wall:** `n` base cabinets from the corner (item 3), then the fridge, then item 4's gap
+      to the free end.
+    - **Far wall:** the bodies that overflowed round the corner come first, then door storage up to
+      `n` base bodies from the corner, with `n` from the far wall's own length by item 3's rule
+      *(owner, RQ5)*. Overflowed bodies count toward `n`, and where they exceed it the tower follows
+      them directly *(derived)*. Then the tower. **Below 10 m**, pantry columns stand outboard of it
+      up to Amendment E's three-column block (E2, E12; RQ11: whichever wall the hob is on). E3
+      clauses 1 (fridge and preparation kept) and 4 (height) still apply. Past the block, door
+      storage runs to the free end *(default pending RQ14)*. **At 10 m or more** the tower stands
+      alone, with no pantry generated.
+    - **A far wall of 3000 mm or less** takes the tower, or the block, at its free end, as in
+      Amendment E. **A lone tower that cannot absorb the free end's remainder stands anyway, with that
+      remainder (≤ 599 mm) bare beyond it** *(default pending RQ17)*. That departs, for a U only, from
+      E6.2's *"that block is not planned at all"*, because under E6.2 the owner's *"place one"* is lost
+      in 17 335 more large rooms (N4′).
+11. **The hood and the base-only back wall** *(owner, RQ7)*. The hood over the hob is **mandatory in
+    every U**. In a large U, wall A's wall and top rows get **no generated body, and generation only**:
+    the shell's wall-row and top-row voids on A remain, so the editor can insert there.
+    **Source-verified:** generation places each upper by `insertBody` into the shell's wall-row void
+    (`generate-kitchen.ts:393-410, 533-560`), so an upper that is not inserted leaves its void behind.
+    **Inference, falsified by U3 criterion 6 and U7-A1:** the editor's ordinary insert reaches that
+    void. **So no editor change is owed.** U3 owns the voids and the hood (criterion 6), and U7 owns
+    the insert on screen.
+12. Unchanged: N3.10 (`insertBody` only, widths, leftover ≤ 599 mm, E7, E10).
+
+### N4′ — the revised rules, measured on the model
+
+The model is `u0-measure-rq.mjs`, kept by name in the U0 scratchpad, on the same build and grid as N4
+(88 434 rooms, depth 600, height 2600). Its output is `u0-measure-rq-towerbare.out`, which is run
+with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 alternative.
+
+| Outcome | Rooms |
+| --- | ---: |
+| Composed / refused (ADR 0108 H3) | 86 706 / 1 728 |
+| Fridge at the free end / 2 from the corner / 3 from the corner / on the other side wall / dropped | 12 824 / 17 320 / 55 040 / **0** / 1 522 |
+| Smaller U with pantries between the fridge and the free end | 8 882 of 23 231 |
+| Hob on the back wall / round the corner | 56 331 / 30 375 |
+| Large U tower: from the corner / at the free end / none | 29 936 / 21 743 / 11 796 (E6.2 instead: none 29 131) |
+| Smaller U tower: at the free end (with 0 / 1 / 2 pantries) / from the corner (0 / 1) / none | 3 917 / 552 / 4 / 95 / 56 / 18 607 |
+| Generated ovens per kitchen | exactly 1, always |
+| Drawer target reached, extras after the hob / in any door slot; ≥ 3 units after the hob | 16 968 / 61 394; 41 448 |
+| Largest bare run end, fridge / back / far wall | 500 / 500 / 500 mm |
+
+**Witnesses** for U3-A3 (they replace N4's). Each wall reads from its corner outward:
+
+| A / B / C | Predicted |
+| --- | --- |
+| 2700 / 1000 / 1000 | **Refused** |
+| 3000 / 1000 / 1000 | No fridge (neither side wall holds it). A: sink, hob (`base-hob-oven`). No tower |
+| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100). A: sink, dishwasher, preparation. C: hob (bare 400). No tower, `base-hob-oven` |
+| 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
+| 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob (dishwasher dropped; bare 400). C: empty (bare 200). No tower |
+| 5000 / 4000 / 3000 | Large. B: 2 base, fridge, 1 door (bare 500). A: sink, dishwasher, preparation, hob, 1 storage (bare 200); no uppers, with voids. C: 2 storage, tower (bare 200 beyond it, RQ17) |
+| 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, 4 doors (bare 100). A: sink, dishwasher, preparation, hob, 3 storage. C: 3 storage, tower, 4 storage (bare 200). 5 drawer units |
+
+### N6′ — residual questions left after the answers *(each with a default; they gate U3 only)*
+
+| # | Question | Default |
+| --- | --- | --- |
+| RQ13 | In a large U, what fills the gap between the fridge and the fridge wall's free end? The owner's *"should be placed tall cabinets"* was given for below 10 m, and *"Big U: no tall needed"* stands | Regular door base cabinets |
+| RQ14 | Far wall, below 10 m: past the three-column block, is the rest door storage, or pantries to the free end? | Door storage |
+| RQ15 | Does `base-hob-2drawer` count as a drawer unit? | No |
+| RQ16 | The bottle's *"right side"* of the hob: after the hob along the run, or to the right as one faces the wall? | After the hob along the run |
+| RQ17 | A lone oven tower at a free end with a remainder it cannot absorb: stand, with the remainder bare beyond it, or not placed (E6.2)? | Stand (17 335 more large U get their tower) |
+
+### N7 — what this amendment does not change
+
+The L and the straight kitchen are untouched: every rule above is scoped to `shape === "U"`, and
+U3-A4 holds both byte-identical. Decisions 1–2 bind unchanged. The plan's Q-U3 options (a) and (b) are
+withdrawn, and the (a)/(b) comparison was not measured, because the owner chose neither.
+
+### N8 — sweep
+
+| Record | Effect |
+| --- | --- |
+| This record, A1, A2, A4, H1 | **Kept.** The order along the run, the minimum kitchen, the leftover rule and the drawer group astride the hob all hold in a U |
+| This record, E3 clause 2 | **Not required in a U** (N3.7, pending RQ11); stands for the L |
+| This record, E4 | ~~**Narrowed for the large U** by owner ruling (N3.8)~~ **Unchanged for every U (RQ5, 2026-09-29)** |
+| This record, E6.2 | **Departed from for a U's lone free-end tower**, pending RQ17 (*N3 revised* 10) |
+| This record, I (the block follows the run) | **Consistent**: the U's block stands at the run's far free end |
+| This record, J, K, L | RQ10: the bottle sits beside the hob (side pending RQ16); a 2-drawer counts; the threshold drawer is replaced by default |
+| [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) E | **Not applied to a U** (N2); stands for the L |
+| [ADR 0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Consistent. This is the owner's own baseline, not a preset |
+| [ADR 0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) | Representation. Composition does not read which wall is drawn mirrored |
+| [ADR 0108](0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md) H | The minimum-kitchen predicate these rules imply |

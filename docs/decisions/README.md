@@ -152,6 +152,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0129](0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | A right-hand L is the left-hand design drawn in a reflection, and the reflection is a per-group primitive | Proposed |
 | [0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) | A straight kitchen is the composer's run on one wall with no corner | Proposed |
 | [0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md) | The preset story is deferred past M8, and every room goes from its dimensions straight to composition | Accepted |
+| [0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) | Wall C is a world wall, and only the right corner is drawn in a reflection | Accepted |
 
 ## Adding the next one
 

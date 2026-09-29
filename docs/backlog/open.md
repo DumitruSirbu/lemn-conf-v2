@@ -62,6 +62,30 @@ fidelity and parity coverage every body carries. The composition side is cheap b
 E12.1 already says *"any number of door columns"*, so a new door column enters the block as **data**
 with no rule change. **The expensive half is the body; the cheap half is using it.**
 
+## 91. There is no full-height oven column without a microwave — RECORDED 2026-09-29, NOT IN M7B
+
+> **Owner, 2026-09-29, relayed by the coordinator** while answering M7B's Q-U3 (how a U kitchen is
+> composed), verbatim with its typos: *"can be 2 ovens like 2 near full heigh cabinets with ovens (but
+> in that case no need to have 2 microwaves (we miss an oven cabinets wiithout microwave)"*. The
+> coordinator's relay adds: note it for the backlog as a catalogue gap, and **do not add it in M7B**.
+> Recorded at [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+> Amendment N, N5.
+
+**What is true in the code** (read at `dd9f63a`). `buildInsertableBodyDefinitions`
+(`packages/configurator-domain/src/catalog.ts`) declares one oven column, `tall-oven-tower`: fixed at
+600 mm, and it holds an oven and a microwave. No column holds an oven alone. This is the *"compact /
+midi housing"* gap that entry 66 lists, now named by the owner for a particular use.
+
+**Why it matters for M7B.** ~~In a large U, Amendment N lets the generator place two oven columns.~~
+**2026-09-29, RQ5:** the generator places **one** oven column. The owner's *"allow second and third"*
+leaves further ovens to the customer, and today the only column a customer can add is
+`tall-oven-tower`, so every extra oven brings a microwave the owner says is not needed.
+
+**What deciding it would cost.** Entry 66 lists the cost: a catalogue row, an adapter builder, a price
+rule, a `kind` leaf in both message catalogues and fidelity coverage. On the composition side, a U's
+second oven column then changes build id, which is data only. Entry 66's gate, beta feedback before
+new cabinets, applies unless the owner rules otherwise. No owner, no phase.
+
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
 > **STILL OPEN, and now half planned.** ~~The re-split half now has its mechanism: [ADR 0037](../decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~

@@ -8,6 +8,15 @@
 > Q-U1…Q-U5 to the owner. U0 changes no production file. Four owner questions gate U3 and U6 only;
 > U1, U2, U4 and U5 can proceed on their interims because nothing a customer can reach changes
 > until U6 (see *Why nothing is reachable before U6*).
+>
+> **2026-09-29, wave U0 (uncommitted, awaiting its logic review):** the owner answered Q-U1…Q-U5
+> before U0's measurements (relayed; recorded at ADR 0108 H, ADR 0110 N, ADR 0104 C, ADR 0132). U0's
+> census, measurements and ADR 0132 (*Proposed*) are below (*U0 census*, *U0 measurements*). Q-U3 was
+> answered with the owner's own arrangement, which leaves **twelve residual questions (ADR 0110 N6,
+> RQ1–RQ12), each with a default; U3 is not dispatched until they are answered or their defaults
+> accepted**, and U6 waits on RQ1 and RQ8. **Later the same day the owner answered RQ1–RQ12** (ADR
+> 0110 N6, ADR 0108 H2–H3); ADR 0132 is **Accepted** on the logic review. **U6 no longer waits on the
+> owner; U3 waits on RQ13–RQ17** (N6′) or their defaults.
 
 Status: planned. Depends on M7 (closed). Blocks M8 (M8's review groups by wall → band → order).
 Reference: mockup frames 1A and 1B (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html`);
@@ -134,7 +143,8 @@ Owner-decided matters are in *Owner questions*, not here.
   M7 re-plan); the hazard runs backward only (an older build refuses a U), the same no-rollback note
   `DesignSettingsSchema.finish` carries. *Rejected:* a `walls: {A, B, C}` record (rewrites every
   document's bytes and every reader); folding C into `depthMm` (loses C). The key's name is
-  ADR 0132's to confirm.
+  ADR 0132's to confirm. **Settled 2026-09-29 (ADR 0132 d6):** the key is `wallCMm`; a U refuses
+  `cornerDirection: "right"` at the schema (Q-U4 (b)); `"left"` and absence stay valid.
 - **D2 — Wall C lives in a canonical frame: its mirror twin's.** A wall-C placement's `alongMm` is
   measured from the A∩C corner, and every domain frame for a wall-C body is the frame its twin on
   wall B would have (across-wall coordinate from `x = 0`). World `x ↦ W − x` is applied in **one
@@ -146,6 +156,11 @@ Owner-decided matters are in *Owner questions*, not here.
   forks every across-wall site (G5's `originOnWall`, occupied depth, corner overlap, chain shift)
   into a third arm. **ADR 0132 chooses on U0's measured fork counts for both**; D2 is the starting
   hypothesis because it is the one the recorded doctrine points at. [inf]
+  ~~β~~ **Corrected 2026-09-29 (U0; ADR 0132 d1): α — wall C is a world wall** (origin `(W,0,0)`,
+  tangent `+Z`, fronts `−X`, yaw `−π/2`). The owner's Q-U5 ruling makes wall C independent and
+  unmirrored, and the census finds wall C's along (`+z`) shared with wall B under both
+  representations, so β's advantage does not exist; α-only forks 6, β-only 6 rows / 7 changes, 22
+  owed under both (*U0 census*).
 - **D3 — A right-hand L stays a reflected left L.** It is not re-expressed as walls A + C: no
   version-keyed migration arm, no second representation of one kitchen, every stored right-hand
   document byte-identical. This answers the question ADR 0129 left to M7B.
@@ -157,12 +172,21 @@ Owner-decided matters are in *Owner questions*, not here.
   never a position the adapter compares (ADR 0121). The adapter draws the right corner's pieces and
   every wall-C body inside one group reflected in `x = W/2` with `applyCornerDirection` — ADR 0129
   D4's *"on one group"*, used as it was built to be. No new catalogue entry, no new price.
+  **Corrected 2026-09-29 (U0; ADR 0132 d2):** the domain places the right corner's pieces in world
+  frames (α); the adapter draws **each of the four in its own wrapper group reflected about the
+  piece's own origin**, not one group in `x = W/2` — that plane is ADR 0129's rejected room-centre
+  line. Every other wall-C body is drawn unmirrored (Q-U5).
 - **D5 — Two corners on one wall A.** Each corner is sized by the existing rule (largest even
   whole-millimetre width ≤ the reference, above the one-door floor; `corner-assembly-size.ts`) against
   its own side wall; wall A carries both X-legs, which never overlap. **An odd `W` gives up its
   millimetre where ADR 0132 says** — the right X-leg's centre `W − width/2` is a half millimetre for
   an odd `W` and `cornerAlongWallCentreMm` refuses it, so the rule must be chosen, not discovered
   (7D1-P's P3 gives the precedent: the odd millimetre goes at the far end). [src] + [inf]
+  **Corrected 2026-09-29 (U0 measured; ADR 0132 d4):** the premise is false — corner widths are
+  always even, so `W − width/2` is whole for every whole `W` (0 half-millimetre centres over 16 964
+  rooms per depth); the odd millimetre lands in wall A's free run, which the shell already tiles.
+  **New finding:** the two X-legs overlap for A 1760–1799, so the U's engine floor on wall A is
+  **1800**, not 1760.
 - **D6 — Wall lengths.** `wallLengthMm("C")` is `wallCMm` for a U and `0` for an L or a straight
   room (ADR 0130 D3's rule extended: a wall-C body in a document without one is marked, not
   refused).
@@ -196,14 +220,21 @@ Owner-decided matters are in *Owner questions*, not here.
 - **D15 — Screen words on wall C.** `crossesOnScreen` gains wall C, **derived by projecting +along
   through the `wallC` camera** as ADR 0129 Amendment (b) did for A and B, not assumed. The predicted
   answer — C crosses iff the direction is right — is [inf] until that test exists.
+  **Re-predicted 2026-09-29 (ADR 0132 d7):** a U has no right-hand variant (Q-U4 (b)), so the
+  prediction is *wall C never crosses*; still [inf] until U5-A5.
 - **D16 — Step 1.** The U card turns live only by gaining bounds in `APPROVED_ROOM_POLICY` (ADR 0116
   decision 1); `BuildableShapes.U`, `ENGINE_ROOM_LIMITS.U` and `validateRoomInput`'s U arm widen in
   U2, the approved literals in U6. U has no preset (ADR 0131): 1D goes straight to 1F composition.
+  **Added 2026-09-29 (Q-U4 (b); ADR 0104 C, ADR 0132 d8):** Step 1 hides the toggle for a U; a U
+  never carries a direction; the preview draws a U unmirrored.
 - **D17 — Composition** goes through `insertBody` and nothing else (ADR 0110 decisions 1–2), keeps
   every rule that is not about *which wall* (drop order, widths, leftover ≤ 599 mm, exactly one
   oven, no oven beside the fridge, no upper over a full-height body or a corner zone, a hood over the
   hob), and distributes the owner's order across three walls **as Q-U3 rules**. Recorded as ADR 0110
-  Amendment N.
+  Amendment N. **Recorded 2026-09-29:** the owner's arrangement (Q-U3 (c)), ADR 0110 N3 and *N3
+  revised*; ~~D17's *"exactly one oven"* is narrowed for a large U (N3.8)~~ **D17's *"exactly one
+  oven"* stands for every U (RQ5, same day: the generator places one tower, a customer may add
+  more).**
 
 ## Owner questions
 
@@ -225,6 +256,9 @@ recorded verbatim (or marked *relayed*, `documentation.md`), dated, in the recor
   depends on Q-U3** (which walls may carry the sink and the hob) and is shown to the owner as
   measured boundary pairs, as ADR 0108 Amendment E did for the L.
 - *Until answered:* engine limits only, derived (U2); no U validates in the product.
+- **Answered 2026-09-29 (relayed selection): the proposal as written** — A 1800–6000, B and C
+  1000–6000, height 2200–3900. A's 1800 is raised by Q-U2 (ADR 0108 H1–H2). The minimum-kitchen
+  predicate is ADR 0108 H3 (sink on the back wall; A ≥ 3000 or the far side wall ≥ 1600).
 
 **Q-U2 — The walkway between the two side runs.** *Blocks U6.* Recorded in ADR 0108 Amendment H.
 
@@ -241,6 +275,9 @@ fronts stand much closer than a person needs to work between them (U0 measures t
 - *Recommended:* (b), with the owner's number. A U whose sides nearly touch is a room the product
   would build and nobody can use.
 - *Until answered:* (a), engine-side only; unreachable until U6.
+- **Answered 2026-09-29 (relayed selection): (b), 1200 mm.** Measured (*U0 measurements*, M1): the
+  deepest floor body is `base-hob-oven` at 748 mm (700 depth), so **wall A ≥ 2696**; RQ1 (relayed
+  selection, same day): **the approved literal is 2700** (ADR 0108 H2).
 
 **Q-U3 — How a U kitchen is composed.** *Blocks U3.* Recorded in ADR 0110 Amendment N.
 
@@ -260,8 +297,15 @@ written for two walls and one cut.
   from those numbers. The architect's lean is **(b)**, on ADR 0117 (*"generation produces the cheap
   correct baseline"*), with (a) available later as an amendment; the lean is not a decision.
 - *Until answered:* U3 is not dispatched.
+- **Answered 2026-09-29: (c), the owner's own arrangement** — verbatim and relayed parts at ADR 0110
+  N1; rules N3; measured N4; **twelve residual questions N6 (RQ1–RQ12), each with a default**. The
+  (a)/(b) comparison was not measured: the owner chose neither. U3 is not dispatched until the RQs
+  are answered or their defaults accepted. **RQ1–RQ12 answered 2026-09-29** (N6); rules revised (*N3
+  revised*), re-measured (N4′); **five new residual questions RQ13–RQ17** (N6′) gate U3.
 
 **Q-U4 — What the corner-direction toggle means on a U.** *Blocks U5's Step 1 wording only.*
+**(2026-09-29: answered (b) below; it now also drives U1 S1's schema refusal of `cornerDirection:
+"right"` on a U — ADR 0132 d6.)*
 Recorded in ADR 0132. A U has two corners, but frame 1B's note says the toggle appears for L and U,
 and the shipped 2D preview mirrors a whole U (G11) — a right-hand U draws wall B on the right.
 
@@ -272,6 +316,8 @@ and the shipped 2D preview mirrors a whole U (G11) — a right-hand U draws wall
   independently of the lengths.
 - *Recommended:* (a) — it is the mockup's behaviour and adds no rule. *Until answered:* (a); the
   validator carries the direction for a U and `cornerDirectionOf` returns it.
+- **Answered 2026-09-29 (relayed selection): (b), hide it for a U** — ADR 0104 Amendment C (a
+  departure from frame 1B's note); engine consequences ADR 0132 d8: no right-hand U exists.
 
 **Q-U5 — Mirrored cabinets on wall C (a confirmation; blocks nothing).** Under D2 and D4, in
 **every** U — left-hand included — wall C's cabinets and the right corner are drawn as the mirror
@@ -280,6 +326,10 @@ This is the owner's own Q6 wording (*"this mirroring especially of corner cabine
 building the U shape kitchens"*) carried to wall C, and ADR 0129 D9 already accepts mirrored
 appliances. *Interim and recommended:* mirrored. **Trigger** (ADR 0118): the owner objects on seeing
 a U — the remedy is then an un-mirroring wrapper per wall-C body in the adapter, not a domain change.
+**Answered 2026-09-29 — the premise REJECTED** (verbatim, relayed): *"In U shape is not like the left
+and right are mirrored only the corner cabinets, the rest should be independent one from another (as
+mentioned on one wall will be frodge on another no)"*. Only the right corner is mirrored; wall C is
+composed independently and drawn unmirrored. Recorded at ADR 0132 (d1, d2), which chooses α on it.
 
 **Not asked, recorded instead:** no new 1C suggestion for a U (the straight-room suggestion keeps its
 shape-independent gate, `room-issue-model.ts`, `validatesAsStraightRoom`); unpanelled free ends of
@@ -293,23 +343,23 @@ test or a capture in U4.
 | Element | Coordinate anchor | Scaling rule | Structural dependency |
 | --- | --- | --- | --- |
 | **World** | Origin on the floor at the A∩B corner; +Y up; wall A along +X, both side walls along +Z (unchanged, `DEVELOPMENT-SPEC.md` §2). | Metres in the scene, whole millimetres in the document; a non-integral value refused, never rounded. | — |
-| **Wall C** | Plane `x = W` (`W` = `widthMm` in metres), fronts face −X, world yaw −π/2; along = world `z`, from the A∩C corner. Domain frames are the wall-B twin's (D2); world `x = W − x_canonical`. | Plane length `C + CORNER_OVERHANG_M`, height `H`. | Hidden for L and straight; never removed from the shell (7H in-place resize, kit ownership). |
-| **Right corner X-leg** | On wall A, far edge at `W` (less the odd millimetre per D5); reflected in `x = W/2` from the left X-leg's canonical build. | Width from the corner rule (D5), frozen after generation (ADR 0089). | Plinth recess from its **own** `LD` only (`SPEC.md`'s *"the one that broke before"*); seats at −0.020 (ADR 0025, row 19 mirrored); its worktop covers the A∩C corner. |
-| **Right corner returns** | On wall C at the along values the left returns have on wall B. | As the left returns; widths frozen. | The base return's worktop **butts** the X-leg's slab — no two stone volumes interpenetrate, no coplanar faces. |
-| **Wall-C cabinets** | Back face on wall C's plane at 0.000 (row 19), inside the reflected group. | Each body's own `SPEC.md` rule; appliances, sinks and handles fixed size. | Every host dependency of the L (cut worktop and open frame under a sink, open bands in an oven tower) holds unmirrored-in-kind: the reflection moves geometry, it may not drop a part. |
-| **Reflection parity** | At most two reflections compose — the root (right-hand U) and the right-hand group — so a wall-C body's world determinant is negative in a left-hand U and positive in a right-hand one. | — | Face winding left to the renderer (ADR 0129 D5); `DoubleSide` only on the selection outline (ADR 0129 Amendment (a)); `applyCornerDirection` never on a leaf. |
+| **Wall C** | Plane `x = W` (`W` = `widthMm` in metres), fronts face −X, world yaw −π/2; along = world `z`, from the A∩C corner. ~~Domain frames are the wall-B twin's (D2); world `x = W − x_canonical`.~~ **2026-09-29 (ADR 0132 d1): domain frames are world frames (α).** | Plane length `C + CORNER_OVERHANG_M`, height `H`. | Hidden for L and straight; never removed from the shell (7H in-place resize, kit ownership). |
+| **Right corner X-leg** | On wall A, far edge at `W` ~~(less the odd millimetre per D5); reflected in `x = W/2` from the left X-leg's canonical build~~ **exactly (2026-09-29, ADR 0132 d4: no odd millimetre reaches a corner); centred at `W − w/2`, drawn in its own wrapper group mirrored about its own origin (d2).** | Width from the corner rule (D5), frozen after generation (ADR 0089). | Plinth recess from its **own** `LD` only (`SPEC.md`'s *"the one that broke before"*); seats at −0.020 (ADR 0025, row 19 mirrored); its worktop covers the A∩C corner. |
+| **Right corner returns** | On wall C at the along values the corner rule gives for the L room `(W, C)`; each drawn in its own mirrored wrapper group (2026-09-29, ADR 0132 d2). | As the left returns; widths frozen. | The base return's worktop **butts** the X-leg's slab — no two stone volumes interpenetrate, no coplanar faces. |
+| **Wall-C cabinets** | Back face on wall C's plane at 0.000 (row 19), ~~inside the reflected group~~ **drawn unmirrored at their world frames (2026-09-29, Q-U5; ADR 0132 d1).** | Each body's own `SPEC.md` rule; appliances, sinks and handles fixed size. | Every host dependency of the L (cut worktop and open frame under a sink, open bands in an oven tower) holds unmirrored-in-kind: the reflection moves geometry, it may not drop a part. |
+| **Reflection parity** | ~~At most two reflections compose — the root (right-hand U) and the right-hand group — so a wall-C body's world determinant is negative in a left-hand U and positive in a right-hand one.~~ **Corrected 2026-09-29 (Q-U4 (b), Q-U5; ADR 0132 d2, d8): no U is right-handed, so no root reflection; every wall-C body has determinant +1; exactly the four right-corner pieces have −1, each through its own wrapper.** | — | Face winding left to the renderer (ADR 0129 D5); `DoubleSide` only on the selection outline (ADR 0129 Amendment (a)); `applyCornerDirection` never on a leaf. |
 
 ## Waves
 
 | Wave | Goal | Tier | Visual | Depends on | Owner input |
 | --- | --- | --- | --- | --- | --- |
-| **U0** | Census, measurements, ADR 0132, owner questions put | Light (one logic reviewer on ADR 0132 and the census) | No | — | Puts Q-U1…Q-U5 |
+| **U0** | Census, measurements, ADR 0132, owner questions put | Light (one logic reviewer on ADR 0132 and the census) | No | — | Q-U1…Q-U5 answered 2026-09-29; raises RQ1–RQ12 |
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
-| **U3** | Composing a U across three walls | **Full** | No | U2; **Q-U3** | Q-U3; Q-U1/Q-U2 for its sweep range (engine range if unanswered) |
-| **U4** | Drawing a U: shell, reflected group, picking, cameras, lights | **Full** | **Yes** | U2 | Q-U5 (non-blocking) |
+| **U3** | Composing a U across three walls | **Full** | No | U2; **Q-U3**, **RQ1–RQ12** (all answered 2026-09-29); **RQ13–RQ17** | ADR 0110 N6′'s residual questions, or their defaults accepted |
+| **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
-| **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | U3, U4, U5; **Q-U1, Q-U2** | Q-U1, Q-U2 |
+| **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | U3, U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
 | **U7** | Mobile gate, desktop line, e2e, captures — the phase gate | Light | **Yes** | U6 | — |
 
 Order **U0 → U1 → U2 → {U3 ∥ U4} → U5 → U6 → U7**. U3 (domain) and U4 (adapter) touch disjoint
@@ -352,6 +402,128 @@ answered or carrying its interim; the later waves' reading lists corrected again
 5. **Must not:** any change under `packages/*/src`, `apps/web/src` or any test directory
    (`git diff <base> --stat` over them is empty).
 
+### U0 census — 2026-09-29, at `dd9f63a`
+
+**Method.** The commands are in the U0 scratchpad script `u0-census.sh`, which is kept by name. It is
+run from the repository root through `rtk proxy` (R9), over
+`packages/configurator-domain/src packages/persistence/src packages/three-adapter/src apps/web/src`
+with the paths **expanded by the shell**. A quoted `'packages/*/src'` pathspec matches nothing and
+silently gives **0**, which happened once during this census and was caught before any count was
+used. Headline counts (lines / files), condensed to three per line with values unchanged:
+
+```
+rtk proxy bash u0-census.sh
+-w DesignWall: 85 / 18            -w WallId: 7 / 2               -w rotated: 13 / 8
+-w RoomShape: 46 / 9              -w DesignRoomShape: 1 / 1      -w cornerDirection: 50 / 12
+-w WALL_THE_CORNER_IS_TAKEN_FROM: 8 / 3                          -w wallLengthMm: 24 / 11
+-w CameraPresetId: 13 / 4         -E "[ABC]": 96 / 22            -E "(L|linear|U)": 52 / 19
+-E \.depthMm: 27 / 13             -E "(wallA|wallB|wallC|overview)": 67 / 12
+files: 55
+```
+
+One extra grep looked for coordinate reads that carry no wall literal:
+`rtk proxy git grep -n -E -e '(frame|position|record|column|member|origin|transform)\.(x|z)([^a-zA-Z]|$)' -- packages/configurator-domain/src`
+(~~24~~ **27 lines** — corrected 2026-09-29 on U0's logic review, re-run with the same command). The adapter's frame readers were found with
+`rtk proxy git grep -n -E -e 'frame\.(x|z|ry)|\.ry\b|yawRadians|rotation\.y' -- packages/three-adapter/src apps/web/src`.
+
+**Classes:** *along* = reads only the along-wall coordinate; *across* = reads the across-wall or
+world coordinate; *dispatch* = branches on shape or wall; *display* = words, ranks, cameras or copy;
+*none* = not a wall site. **Cost:** *both* = a C or U arm is owed under α and under β; *0* = no
+change; *α* / *β* = a fork only that representation needs.
+
+| # | Site | Class | α | β |
+| --- | --- | --- | --- | --- |
+| U1 | `design.ts:48, 51` — wall and shape enums | dispatch | both | both |
+| U2 | `room-transforms.ts:7, 34-49, 55-80` — `WallId`, `WALL_TRANSFORMS` | across | **α**: the C transform takes `W` | 0 (C reuses B's) |
+| U3 | `void-engine.ts:545-546, 594, 613-615` — `rotated`, column key | along | both | both |
+| U4 | `module-grid.ts:68` — key prefix; **a C body keys `A\|` today and collides with wall A** | along | both | both |
+| U5 | 10 along-only expressions: `module-grid.ts:83, 93`; `commands/along-wall.ts:9`; `insert-fit.ts:105, 147`; `generate-kitchen.ts:670`; `merge-empty-columns.ts:146, 415`; `split-oversized-empty-columns.ts:143`; `void-engine.ts:1261` | along | 0 | 0 |
+| U6 | `merge-empty-columns.ts:331` — `?? "A"` fallback | along | 0 | 0 |
+| U7 | `queries/overflowing-placements.ts:50-56` — `wallLengthMm` | dispatch | both | both |
+| U8 | Readers through `wallLengthMm`: `clip-empty-columns-at-wall-end.ts:86, 108`; `overflowing-placements.ts:35`; `validate-design.ts:1231` | along | 0 | 0 |
+| U9 | `void-engine.ts:644-651` — `originOnWall` | across | **α**: C arm `x = W − centre` | 0 |
+| U10 | `void-engine.ts:567` — `deriveFrame` → transform | across | **α**: pass the room | 0 |
+| U11 | `void-engine.ts:1131` — `toColumnExtent` → transform | across | **α**: pass the room | 0 |
+| U12 | `frozen-map-at-cabinet-depth.ts:508-520` — `atDepthM` → transform (**not in the plan's seed list, G5**) | across | **α**: pass the room | 0 |
+| U13 | `validate-design.ts:617-625` — `reachesPastRoomAcrossWall` (the wall-A arm reads `max(B, C)`; the non-A arm is already right for C) | across | both | both |
+| U14 | `validate-design.ts:917-960` — `findCornerOverlaps`, gaining the A∩C corner | across | both | both |
+| U15 | `along-wall-chain-shift.ts:52, 127, 258` — the corner-taking wall becomes a set | dispatch | both | both |
+| U16 | `corner-assembly-size.ts:63-68, 149, 295` — the right corner's pieces | dispatch | both | both |
+| U17 | `run-end-panel.ts:121, 132, 146` — none for a U | dispatch | both | both |
+| U18 | `generation/shell-design.ts:169-187, 321, 449-548` — the U shell | dispatch | both | both |
+| U19 | `generation-priorities.ts:77-82, 256, 322`; `run-layout.ts:50-62` — composition | dispatch | both | both (β's reuse of B's algebra is void under Q-U5) |
+| U20 | `generate-kitchen.ts:155-186` — shell and runs dispatch | dispatch | both | both |
+| U21 | `room/room-policy.ts:113-121`; `room/validate-room.ts`; `room/corner-direction.ts`; `index.ts` | dispatch | both | both |
+| U22 | `queries/design-projection.ts:70` — `WALL_DISPLAY_RANK` | display | both | both |
+| U23 | Type positions only: `command-result.ts:37`; `describe-selection.ts:35`; `insert-fit.ts:74`; `validate-design.ts:704, 891`; `merge-empty-columns.ts:82, 181`; `void-engine.ts:383, 427, 526`; `corner-assembly-size.ts:52-119` | none | 0 | 0 |
+| U24 | `fixtures/kitchen-l-design.ts` (29 literals); `migrate-design.ts:217, 278` | none | 0 | 0 |
+| U25 | *(new)* the one canonical→world projection (plan D2) | across | — | **β** |
+| U26 | `three-adapter/src/scene-sync.ts:181-182, 294-297` — mount at `frame.x/z/ry` | across | **α**: a wrapper per right-corner piece | **β**: a reflected group, **plus an unmirroring wrapper per body** (Q-U5) — 2 changes |
+| U27 | `kitchen-shell.ts:31-47, 123, 153, 163, 188, 199` — wall C's plane | across | both | both |
+| U28 | `void-mesh.ts:70` | across | 0 | **β** |
+| U29 | `overflow-mark.ts` | across | 0 | **β** |
+| U30 | `selection-outline.ts` | across | 0 (`DoubleSide` already covers the four −1 pieces) | **β** |
+| U31 | `picking.ts` | across | 0 (verify the climb through a wrapper) | **β** |
+| U32 | `stage.ts:252, 271-273, 339, 394-403` (cameras), `:107-108` (lights) | display | both | both |
+| U33 | `kitchen-parts.ts:854-867` — reference corner widths | none | 0 | 0 |
+| U34 | `apps/web/src/i18n/content.ts:288-295` — `crossesOnScreen` | display | both | both |
+| U35 | `panel/panel-model.ts:1230-1318` — width note, follows U34 | display | both | both |
+| U36 | `room/room-url-state.ts:114-118, 150-167, 192` | dispatch | both | both |
+| U37 | `room/plan-preview-model.ts:202-219, 388-429, 722` (backlog 72, 76) | display | both | both |
+| U38 | `room-draft.ts`, `room-query-sync.ts`, `room-screen.tsx`, `shape-picker.tsx`, `dimensions-form.tsx`, `generation-steps.tsx:240-254`, `room-issue-model.ts:94`, `price/starting-price.ts` — already U-aware (G11); the toggle is hidden (Q-U4) | dispatch | both | both |
+| U39 | `messages/ro.json`, `ru.json`, `ro.d.json.ts` — the `wallC` camera leaf | display | both | both |
+| U40 | `scene/camera-preset-store.ts`, `scene/scene-view.ts`, `configure-screen.tsx`, `three-adapter/src/index.ts` — typed preset ids | display | 0 | 0 |
+| U41 | `rotated` meaning cookie rotation or appearing in a comment: `api/designs/[id]/route.ts:165`, `api/designs/route.ts:70`, `lib/server/visitor.ts:107`, `persistence/create-design-lock.ts:46`, `neon-configuration-repository.ts:105`, `void-mesh.ts:29`, `kitchen-parts.ts:2375` | none | 0 | 0 |
+
+**Totals:** 41 rows, **22 owed under both, 8 no change, 6 α-only (U2, U9–U12, U26), 6 β-only rows
+carrying 7 changes (U25, U26 ×2, U28–U31)**. The decision on these numbers is ADR 0132 decision 1.
+
+**Findings against the plan's seed list (G5):** U4's collision, where a C body keys `A|` and would
+collide with wall A; U12, which the seed list omitted and U1 S3 now lists; and the plan's claim that
+*"occupied depth"* forks under α, which it does not, because it is a distance and not a coordinate.
+
+### U0 measurements — 2026-09-29, `tsc` build of `src` at `dd9f63a`
+
+The build is `npx tsc --project tsconfig.build.json --outDir <scratchpad>/domain-dd9f63a`, exit 0,
+never the checked-in `dist`. The script is `u0-measure.mjs`, kept by name in the U0 scratchpad, and
+was run as `rtk proxy node u0-measure.mjs`. Output excerpted: some lines are omitted and none is
+altered. The full output is `u0-measure.out` beside the script:
+
+```
+## M1 walkway
+depth 600: deepest floor body fridge-free-700 742 mm -> wall A min 2684; worktop line 620 mm -> 2440
+depth 700: deepest floor body base-hob-oven 748 mm -> wall A min 2696; worktop line 720 mm -> 2640
+held at every declared depth: wall A >= 2696
+
+## M2 corners (engine range A 1760..6000, B/C 880..6000, step 1 on A)
+depth 600: rooms 16964, X-leg overlaps 160, half-mm right X-leg centres 0, odd wall-A free runs 8480, min free run -40
+depth 700: rooms 16964, X-leg overlaps 160, half-mm right X-leg centres 0, odd wall-A free runs 8480, min free run -40
+witness 2701 x 1000 @600: A/base=900 B/base=320 B/wall=570 B/top=570
+
+## M4 minimum kitchen (sink on A; hob on A or on the far = narrower side wall)
+B=C=1000: smallest accepting A = 3000 (A=2999 refuses: true)
+B=C=1599: smallest accepting A = 3000 (A=2999 refuses: true)
+B=C=1600: smallest accepting A = 2400 (A=2399 refuses: true)
+A=2700, B=6000 (fridge wall): smallest accepting C = 1600 (C=1599 refuses: true)
+A=2999, B=6000 (fridge wall): smallest accepting C = 1600 (C=1599 refuses: true)
+refused by the predicate on the step-100 grid: 1728 of 88434
+```
+
+M3, the composition model of the owner's arrangement with every residual default, and its `k = 2`
+variant, are tabulated at ADR 0110 **N4** together with the witnesses. The drawer table is at **N3.6**.
+The Q-U3 (a)/(b) comparison the slice table named was **dropped**, because the owner chose (c). **The
+model is not the generator.** It models the core run, the fridge offset, the tall rule, the ovens and
+the drawer count at planning depth 600. It does not model uppers, the bottle, the pan drawer or the
+threshold drawer. U3-A3 holds the generator to its witnesses.
+
+**What this closes and what it leaves.** Q-U1…Q-U5 are answered (relayed; see each question). ADR
+0132 is written and is *Proposed* until the logic review accepts it. **RQ1–RQ12** (ADR 0110 N6) are
+open with defaults. They gate U3, and RQ1 and RQ8 also gate U6. U1, U2, U4 and U5 do not wait on
+them. **Later on 2026-09-29 the owner answered all twelve** (ADR 0110 N6; ADR 0108 H2, H3), and ADR
+0132 was accepted on the logic review. The model was re-run on the revised rules
+(`u0-measure-rq.mjs`, ADR 0110 N4′). **RQ13–RQ17** (N6′) now gate U3 alone, and U6 waits on no owner
+answer.
+
 ---
 
 ### Wave U1 — the stored U and wall C (domain; no shape validates)
@@ -363,7 +535,7 @@ through the void engine under ADR 0132's representation — and nothing a custom
 | --- | --- | --- | --- |
 | **S1 schema and wall identity** | (1) `"C"` wall, `"U"` shape, the U room key with its iff-refinement (D1); (2) `WallId` widened; (3) `wallLengthMm("C")` (D6); (4) `wallsOf(shape)` (D7), exported; (5) `cornerDirectionOf` per Q-U4's interim | `design.ts`, `room-transforms.ts`, `queries/overflowing-placements.ts`, `room/corner-direction.ts`, one new `room/walls-of-shape.ts`; `index.ts` | D1, D3, D6, D7; ADR 0132; ADR 0053, 0065 d5, 0129 D2, 0130 D3; `design.test.ts`, `overflowing-placements*.test.ts`, `corner-direction.test.ts` |
 | **S2 storage bounds** | (1) Third wall run and `WALL_COUNT` (D8); (2) `MAX_*` re-derived; (3) confirm no `migrate-design.ts` arm is owed; (4) a max-packed U parses under the cap; (5) the route's 413 still fires one byte over | `design-bounds.ts` (+ `migrate-design.ts` only if S2 finds an arm owed) | D8; G15, G16; ADR 0019 (SEC-002), 0053, 0124; `design-bounds.test.ts`, `qa-5h.adversarial.test.ts`, the route's size-limit tests |
-| **S3 geometry on wall C** | (1) Column keys `C\|…`; (2) wall-C frames per D2 (or α); (3) the one world-projection function; (4) along/origin helpers wall-aware; (5) fit reads wall C | `module-grid.ts`, `void-engine.ts`, `room-transforms.ts`, `commands/along-wall.ts`, `commands/insert-fit.ts` | D2, D10; U0 census rows for these files; `DEVELOPMENT-SPEC.md` §3, §4; ADR 0031, 0046, 0052 |
+| **S3 geometry on wall C** | (1) Column keys `C\|…`; (2) wall-C **world** frames (α, ADR 0132 d1 — 2026-09-29): the C transform takes `W`; (3) ~~the one world-projection function~~ its three callers pass the room (census U10–U12); (4) along/origin helpers wall-aware (`originOnWall`'s C arm); (5) fit reads wall C | `module-grid.ts`, `void-engine.ts`, `room-transforms.ts`, **`frozen-map-at-cabinet-depth.ts` (added 2026-09-29, census U12)**, `commands/along-wall.ts`, `commands/insert-fit.ts` | D2, D10; U0 census rows for these files; `DEVELOPMENT-SPEC.md` §3, §4; ADR 0031, 0046, 0052 |
 | **S4 validation and display** | (1) Across-room bounds (D10); (2) `findCornerOverlaps` at A∩C; (3) opposite side runs never corner partners; (4) `WALL_DISPLAY_RANK` gains C; (5) `endsPastWall` on C | `validate-design.ts`, `queries/design-projection.ts` | D4, D10; ADR 0069, 0090 B; `validate-design*.test.ts` |
 
 - **Reading, QA:** this wave's rows and criteria; ADR 0132; `engineering-conventions.md`, *Coverage
@@ -392,7 +564,7 @@ through the void engine under ADR 0132's representation — and nothing a custom
    reported with the before/after figures from the test run, not from G16's arithmetic; a U packed to
    `MAX_PLACEMENTS` with the narrowest catalogue body across three walls and three bands serialises
    under `MAX_DESIGN_BYTES` and parses; the write route answers 413 at one byte over. **[unit]**
-6. **Mirror equivariance** (*property*, under β): with `mirror(D)` swapping walls B ↔ C and sending
+6. **Mirror equivariance** (*property*; ~~under β~~ **under α, 2026-09-29: `mirror` also maps world `x ↦ W − x`; it covers validation and voids only, never composition, which the owner ruled independent (Q-U5)**): with `mirror(D)` swapping walls B ↔ C and sending
    a wall-A centre `a` to `W − a`, for generated U designs `validateDesignForCatalog(mirror(D))` equals
    the mirror of `D`'s findings and `recomputeVoids(mirror(D))` the mirror of `D`'s voids. `mirror` is
    a reviewed test utility. **Sabotage both ways (R6):** break the C arm of one S3 helper → red; move
@@ -430,7 +602,9 @@ witness policy only.
 1. **The right corner mirrors the left** (*property*, engine U range): the right corner's four
    placements carry the left's build ids, and equal the left corner computed for the room with B and
    C swapped, reflected in `x = W/2`. The two X-legs never overlap; the right X-leg's far edge is `W`,
-   less at most the odd millimetre ADR 0132 places. No half-millimetre centre anywhere. **[prop]**
+   ~~less at most the odd millimetre ADR 0132 places~~ **exactly (2026-09-29, ADR 0132 d4)**. No
+   half-millimetre centre anywhere. `ENGINE_ROOM_LIMITS.U.wallA.minMm` is 1800, derived from the two
+   X-legs' reference widths. **[prop]**
 2. **The shell** (*property*, ≥ 200 samples over the engine U range plus every boundary): zero
    `validateDesignForCatalog` findings of either severity; every empty column ≤ 800 mm; floor and
    wall-only tiles on each of A, B and C cover their runs with no gap and no overlap; nothing recorded
@@ -454,6 +628,15 @@ witness policy only.
 **Goal.** `generateKitchen` composes a U by the owner's Q-U3 ruling, through `insertBody` alone,
 and Step 1's minimum-kitchen gate agrees with it. **The slice table is provisional**: Q-U3 (b)
 touches far fewer files than (a); the architect re-cuts it after the answer, by dated line.
+~~**2026-09-29:** Q-U3 was answered (c) — ADR 0110 N. The re-cut is owed **after RQ1–RQ12** (N6); R8
+applies (a three-wall run with two cuts is closer to (a) than (b)), so expect U3 to split. Criterion 1's
+*"exactly one oven"* reads **N3.8** (two towers in a large U); criterion 3's witnesses are N4's.~~
+**2026-09-29, revised on the RQ answers:** Q-U3 (c) and RQ1–RQ12 are answered (ADR 0110 N, *N3
+revised*). The re-cut is owed after **RQ13–RQ17** (N6′) or their defaults; R8 applies, so expect U3 to
+split. Criterion 1's *"exactly one oven"* **stands for every U** (RQ5: the generator places one tower;
+E4 unchanged). Criterion 3's witnesses are **N4′**'s. **Added criterion (RQ7):** in a large U the
+hood stands over the hob, and wall A's wall and top rows carry **voids and no body**, so the editor
+can insert middle and top units there.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
@@ -485,6 +668,11 @@ touches far fewer files than (a); the architect re-cuts it after the answer, by 
 4. **The L and the straight kitchen are byte-identical** against every recorded baseline. **[unit]**
 5. **Must not:** a generated body written other than by `insertBody` (ADR 0110 decision 2);
    `cornerDirection` read by generation (ADR 0129 D1). **[review] + [unit]**
+6. **Added 2026-09-29 (RQ7, RQ5; ADR 0110 *N3 revised*).** Every U carries a hood over its hob. In a
+   large U, wall A's wall and top rows hold **voids and no body**, and each void accepts a
+   `wall-cabinet` insert through `insertBody`. Every U has **exactly one** oven: one `tall-oven-tower`
+   with `base-hob-2drawer`, or `base-hob-oven` with no tower. The fridge and the tower stand at
+   *N3 revised*'s count of base bodies from the corner. **[prop] + [unit]**
 
 ---
 
@@ -496,7 +684,7 @@ picking, outline, overflow mark, cameras and lights — correct at both reflecti
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
 | **S1 the shell** | (1) Wall C's plane (D12); (2) floor depth `max(B, C)`; (3) signature includes shape and C; (4) no run-end panel on a U | `kitchen-shell.ts` | D11, D12; G8; 7H and 7J close-outs (archived plan, by section); ADR 0120 D2–D3 |
-| **S2 the right-hand group** | (1) Wall-C bodies and right-corner pieces (by `cornerOf`) in one group reflected in `x = W/2`; (2) void meshes likewise; (3) overflow mark and selection outline on wall C; (4) picking climbs through the group | `scene-sync.ts`, `void-mesh.ts`, `overflow-mark.ts`, `selection-outline.ts`, `picking.ts` | D2, D4; ADR 0129 D4–D7 + Amendment (a); `DEVELOPMENT-SPEC.md` §6.1, §6.2; `corner-direction.ts`; the 7I QA findings (archived plan, *7I close-out*) |
+| **S2 the right corner's wrappers** | ~~(1) Wall-C bodies and right-corner pieces (by `cornerOf`) in one group reflected in `x = W/2`; (2) void meshes likewise~~ **2026-09-29 (ADR 0132 d1–d2): (1) the four right-corner pieces (by `cornerOf`) each in a wrapper group mirrored by `applyCornerDirection`; (2) wall-C bodies and voids drawn at their world frames, unmirrored**; (3) overflow mark and selection outline on wall C and on a mirrored corner piece; (4) picking climbs through a wrapper | `scene-sync.ts`, `selection-outline.ts`, `picking.ts` (~~`void-mesh.ts`, `overflow-mark.ts`~~: no change under α — census U28, U29) | D2, D4; ADR 0129 D4–D7 + Amendment (a); `DEVELOPMENT-SPEC.md` §6.1, §6.2; `corner-direction.ts`; the 7I QA findings (archived plan, *7I close-out*) |
 | **S3 cameras and lights** | (1) `wallC` preset (D13); (2) `overview` for three runs; (3) the light rig per ADR 0132 after captures (D14); (4) exports | `stage.ts`, `index.ts` | D13, D14; G9, G10; §6.4; §11 row 21; backlog 16; 7J R5 |
 
 - **Reading, QA:** *The 3D contract for a U*; D2, D4, D11–D14; ADR 0129 + Amendment; skill
@@ -513,10 +701,13 @@ picking, outline, overflow mark, cameras and lights — correct at both reflecti
    inserted if U3 has not landed): every wall-C body's back face on wall C's plane at 0.000; the right
    X-leg at −0.020 (ADR 0025 mirrored); no two bodies intersect; no two stone volumes interpenetrate
    at the A∩C corner; the right X-leg's plinth recess reads its own `LD` only. **[unit] + [parity]**
-2. **Reflection parity is captured, not only asserted.** In a left-hand and a right-hand U: a wall-C
-   door front paints non-zero pixels; the selection outline on a wall-C body paints red pixels
-   comparable to its wall-B twin (7I's 0-pixel class); a wall-C void mesh is visible. **[visual]**
-3. **Picking on wall C**, both parities: §11 row 2 (the base slot of a cleared column selects the base
+2. **Reflection parity is captured, not only asserted.** ~~In a left-hand and a right-hand U~~
+   **(2026-09-29: a U has one hand; the two parities are a wall-C body, +1, and a right-corner piece,
+   −1):** a wall-C door front paints non-zero pixels; the selection outline on a wall-C body **and on
+   the right X-leg** paints red pixels comparable to its wall-B / left twin (7I's 0-pixel class); a
+   wall-C void mesh is visible; **a wall-C body's hinge and handle sides are its own, not wall B's
+   reflected (Q-U5).** **[visual]**
+3. **Picking on wall C** and on a right-corner piece (~~both parities~~ 2026-09-29: the two parities of criterion 2): §11 row 2 (the base slot of a cleared column selects the base
    slot) and row 22 (delete, then click another cabinet, selects it). No `Mesh`, `Line` or `Points` in
    the scene has a negative scale component (a test walks the graph). **[unit] + [e2e-able]**
 4. **Cameras.** `cameraPresetsForRoom(U)` ids are `[overview, wallA, wallB, wallC]`; L and straight
@@ -539,7 +730,7 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
-| **S1 Step 1** | (1) Delete the 1D U throw; (2) `roomHrefFromDesignRoom` and `parsedRoomLengthsOf` for a U (wall C, direction per Q-U4); (3) 1F's summary from `wallsOf`; (4) `requiredFieldsFor` and `DRAWABLE_WALLS` from `wallsOf` (backlog 76); (5) facing labels never overlap (backlog 72) | `room/room-url-state.ts`, `room/generation-steps.tsx`, `room/plan-preview-model.ts` | G11, G12; D7, D16; Q-U4's record; ADR 0116 + A, 0126, 0127, 0104 B; backlog 72, 76 |
+| **S1 Step 1** | (1) Delete the 1D U throw; (2) `roomHrefFromDesignRoom` and `parsedRoomLengthsOf` for a U (wall C; ~~direction per Q-U4~~ **no direction: the toggle is hidden for a U and a `direction` on a U URL is ignored, the preview unmirrored — Q-U4 (b), 2026-09-29**); (3) 1F's summary from `wallsOf`; (4) `requiredFieldsFor` and `DRAWABLE_WALLS` from `wallsOf` (backlog 76); (5) facing labels never overlap (backlog 72) | `room/room-url-state.ts`, `room/generation-steps.tsx`, `room/plan-preview-model.ts` | G11, G12; D7, D16; Q-U4's record; ADR 0116 + A, 0126, 0127, 0104 B; backlog 72, 76 |
 | **S2 the editor** | (1) `crossesOnScreen` for C, by projection (D15); (2) the width-step note follows it; (3) camera chip leaf `configure.cameraPresets.wallC`, ro/ru, lock and golden manifest; (4) the capture route accepts `wallC` | `i18n/content.ts`, `panel/panel-model.ts`, `messages/ro.json`, `messages/ru.json` (+ generated `ro.d.json.ts`), `app/internal/scene-shot/shot-request.ts` | D13, D15; ADR 0129 Amendment (b); ADR 0095, 0113; `qa-7i-screen-side.adversarial.test.ts` |
 
 - **Reading, QA:** G11, G12; D7, D13, D15, D16; ADR 0116 + A; `browser-and-visual-qa.md`; the slice
@@ -552,7 +743,8 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 **Acceptance criteria.**
 
 1. **Round trip** (*property*, any valid U room under the witness policy): room → URL → parse →
-   the same room, direction included; `roomHrefFromDesignRoom` → parse → the same room. **[prop]**
+   the same room, ~~direction included~~ **with no direction; a U URL carrying `direction=right` parses to
+   the same left U, and no toggle renders for a U (2026-09-29, Q-U4 (b))**; `roomHrefFromDesignRoom` → parse → the same room. **[prop]**
 2. **1D and 1F**: a valid U reaches 1D without throwing; 1F's summary shows A, B, C and height, read
    through `wallsOf`; the L and straight summaries are unchanged. **[dom]**
 3. **One enumeration**: `requiredFieldsFor` and the preview's walls derive from `wallsOf`; a test
@@ -591,7 +783,7 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 1. **Sequencing**: `isShapeBuildable("U", APPROVED_ROOM_POLICY)` is false at every M7B commit before
    S1's (checked per commit). **[QA]**
-2. **Bounds**, each at its approved value: min − 1 → `WALL_TOO_SHORT`, min and max accepted,
+2. **Bounds**, each at its approved value (**wall A's minimum is 2700 — RQ1, ADR 0108 H2, 2026-09-29**): min − 1 → `WALL_TOO_SHORT`, min and max accepted,
    max + 1 → `WALL_TOO_LONG`, for A, B and C; the minimum-kitchen and walkway boundary pairs
    recorded in ADR 0108 Amendment H; no number in any issue; the approved literals pinned and held
    inside `ENGINE_ROOM_LIMITS.U`; all shapes' wall maxima equal. **[unit]**
@@ -619,11 +811,12 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 **Acceptance criteria.**
 
-1. **Mobile** (390 × 844, touch): 1A *În formă de U* → 1B (three fields; the toggle per Q-U4) → 1C
+1. **Mobile** (390 × 844, touch): 1A *În formă de U* → 1B (three fields; ~~the toggle per Q-U4~~ **no toggle, Q-U4 (b), 2026-09-29**) → 1C
    for a U below its minimum (a field or room reason, no number) → corrected → 1D → 1F → the editor at
    `/d/{id}`; select a wall-C body; replace it; delete it; insert into the freed wall-C opening; step
    its width; change the cabinet depth 600 → 700 and see wall C slide; reload on the room query and on
-   `/d/{id}` restores; the share view draws the same U. **[e2e]**
+   `/d/{id}` restores; the share view draws the same U. **Added 2026-09-29 (RQ7):** on a large U,
+   insert a wall cabinet above a base on wall A. **[e2e]**
 2. **Desktop** (1440 × 900): the same flow; the phone captures of criterion 3 unchanged by it. **[e2e]**
 3. **Captures**: {Q-U1 minimum, a middle U, the maximum} × {left, right} × {`overview`, `wallA`,
    `wallB`, `wallC`} × {mobile, desktop}. Checklist per frame: wall C's plane present; fronts face the
@@ -636,11 +829,18 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
 
 - **R1 — A shared-helper change moves the L.** Every wave re-runs the byte-identity criterion
   against the recorded baselines; the L is the regression surface, not the U.
-- **R2 — A canonical frame read as a world coordinate** (β's specific hazard): a consumer treats a
+- ~~**R2 — A canonical frame read as a world coordinate** (β's specific hazard): a consumer treats a
   wall-C frame as world `x`. Mitigated by one projection function, U1-A6's mirror equivariance with
-  sabotage both ways, and a reviewer grep for `frame.x` reads outside the named sites.
-- **R3 — Nested reflections reintroduce 7I's invisible-outline class** at the other parity. U4-A2
-  captures both parities; a mesh-only assertion is not accepted.
+  sabotage both ways, and a reviewer grep for `frame.x` reads outside the named sites.~~
+  **R2, restated 2026-09-29 (α, ADR 0132 d1): a wall-C world frame computed without the room.** A
+  transform caller that does not pass `W` puts wall C at `x = 0`, on top of wall B. Mitigated by U1-A6
+  (mirror equivariance over validation and voids, sabotage both ways) and a reviewer grep that every
+  caller of the wall-C transform (census U10–U12) passes the room.
+- ~~**R3 — Nested reflections reintroduce 7I's invisible-outline class** at the other parity. U4-A2
+  captures both parities; a mesh-only assertion is not accepted.~~
+  **R3, restated 2026-09-29:** there is no nested reflection (no U is right-handed, ADR 0132 d8). The
+  risk is 7I's class on **the four right-corner pieces**, the only −1 bodies in a U. U4-A2 captures an
+  outline on the right X-leg; a mesh-only assertion is not accepted.
 - **R4 — Wall C is unlit by the key light** (G10, [inf]). U4-A5 decides it on pixels.
 - **R5 — The byte cap grows** at a public write seam. U1 S2 carries a security reviewer; the 413 test
   is re-run at the new cap.
