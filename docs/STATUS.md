@@ -1127,10 +1127,26 @@ policy, so every per-endpoint limit is application code.
 > to two, nearest the hob, then `base-3drawer`. See `milestones/M7B-u-shaped-rooms.md` and ADR 0110
 > N6″/N8.
 >
-> **Next steps, in order:** (1) the RQ18 drawer-placement fix, in progress by the developer at the
-> time of writing; (2) **the owner asked to stop once this developer round finishes** — commit the fix
-> if green, then stop; **no QA has been dispatched for it yet**; (3) resume with U3a's QA on the next
-> session.
+> **The RQ18 drawer-placement fix landed at `44ad180`** — extra drawer units now take door slots after
+> the hob in run order (wall A first, then the far wall counted from its corner, never the fridge
+> wall), pan-drawers first then 3-drawer, and the plan now emits `fridgePosition`/`towerPosition`. The
+> implementer reports all suites green (domain 249 files / 5301 tests, three-adapter 3642, persistence
+> 730, web 4760; kitchen-parts/reference diff empty). AC2 now matches 6 of N4′'s 7 witnesses exactly,
+> including 6000/6000/6000 with 5 drawer units; AC3's grid position-field tallies match N4′ exactly
+> (drawer tallies can't be compared — N4′'s model never placed a bottle).
+>
+> **Two items are open for the architect (m7b-u0) before U3a QA can run:** (1) 5000/4000/3000 — RQ18's
+> rule converts wall C's two free-end leftover-fill storage bases into `base-panbank`, but N4′'s wall-C
+> text for that room predates RQ18; the architect must decide whether the witness text needs the RQ18
+> annotation, or whether leftover-fill bases in a far wall of ≤ 3000 mm fall outside RQ18(a). (2) The
+> fridge wall's largest bare run end measures 600 mm, not N4′'s 500 — pre-existing (confirmed with
+> `git stash` on the pre-fix code), and ADR 0110 A4 caps a bare end at 599, so this is probably a
+> defect. **The session stopped here on the owner's instruction.**
+>
+> **Next steps, in order:** (1) the architect adjudicates the two items above; (2) any fix goes through
+> a developer dispatched with `model: sonnet`; (3) U3a adversarial QA (configurator-qa, `model: opus`);
+> (4) U3a review, then close; (5) U3b. Branch `m7b-u-shaped-rooms` is not pushed; `ci:local` has not
+> been run.
 >
 > Also note (owner direction, 2026-09-29): agents must now run on the model their `.claude/agents/*.md`
 > file declares, passed explicitly at dispatch. The developer for U1–U3a ran as a named teammate
