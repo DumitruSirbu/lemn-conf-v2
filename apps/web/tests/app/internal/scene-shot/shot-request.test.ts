@@ -157,3 +157,50 @@ describe("parseSceneShotRequest", () => {
     });
   });
 });
+
+describe("parseSceneShotRequest, the view (M7B U5 S2)", () => {
+  it.each(["overview", "wallA", "wallB", "wallC"] as const)(
+    "accepts the editor's own preset %s by name",
+    (id) => {
+      expect(parseSceneShotRequest({ view: id }).view).toBe(id);
+    },
+  );
+
+  it("names no view by default, so every existing capture is the fixed pos and target it was", () => {
+    expect(parseSceneShotRequest({})).not.toHaveProperty("view");
+    expect(parseSceneShotRequest({ pos: "5.5,3.2,4.4" })).not.toHaveProperty(
+      "view",
+    );
+  });
+
+  it("refuses a name that is not a preset, and one that only looks like one", () => {
+    for (const hostile of [
+      "wallD",
+      "WALLC",
+      "wallc",
+      " wallC",
+      "wallC ",
+      "",
+      "__proto__",
+      "constructor",
+      "1",
+    ]) {
+      expect(
+        parseSceneShotRequest({ view: hostile }),
+        JSON.stringify(hostile),
+      ).not.toHaveProperty("view");
+    }
+  });
+
+  it("reads a repeated view by its first value, as every other parameter is", () => {
+    expect(parseSceneShotRequest({ view: ["wallC", "wallB"] }).view).toBe(
+      "wallC",
+    );
+  });
+
+  it("keeps the pos and target it was given beside a view, for a reader that wants both", () => {
+    expect(
+      parseSceneShotRequest({ view: "wallC", pos: "5.5,3.2,4.4" }),
+    ).toMatchObject({ view: "wallC", position: [5.5, 3.2, 4.4] });
+  });
+});

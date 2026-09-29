@@ -30,6 +30,7 @@ export default async function SceneShotPage({
       position={request.position}
       target={request.target}
       finish={request.finish}
+      {...(request.view === undefined ? {} : { view: request.view })}
     />
   );
 }

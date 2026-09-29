@@ -127,6 +127,8 @@ vi.mock("@lemnaria/three-adapter", async (importOriginal) => {
     resizeShellToRoom: harness.resizeShellToRoom,
     syncSolidBodies: harness.syncSolidBodies,
     syncVoidMeshes: vi.fn(),
+    applyCutaway: vi.fn(),
+    cutawayWallsFor: vi.fn(() => []),
   };
 });
 

@@ -3,6 +3,7 @@
 import {
   applyCornerDirection,
   applyCornerDirectionToLightRig,
+  applyCutaway,
   applyFinish,
   buildKitchenShell,
   buildOverflowMark,
@@ -15,6 +16,7 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  cutawayWallsFor,
   disposeKit,
   disposeKitAndStage,
   disposeOverflowMark,
@@ -27,6 +29,7 @@ import {
   seatObjectOnStage,
   syncSolidBodies,
   syncVoidMeshes,
+  type Vector3Tuple,
 } from "@lemnaria/three-adapter";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -40,7 +43,10 @@ import {
   resolvedDefaultFinishOf,
   type BodyProbeFactory,
   type CornerDirection,
+  type DesignWall,
   type Finish,
+  type PlacementRecord,
+  type VoidRecord,
 } from "@lemnaria/configurator-domain";
 
 import type { Selection } from "../store/apply-command-result";
@@ -103,6 +109,10 @@ const SETTLED_METRES = 1e-4;
 interface OrbitTarget {
   target: THREE.Vector3;
   update: () => void;
+  /** `OrbitControls` dispatches `change` whenever a drag, a wheel, damping or `update()` moves the
+   *  camera, which is every way the camera moves but a direct write to its position. */
+  addEventListener: (type: "change", listener: () => void) => void;
+  removeEventListener: (type: "change", listener: () => void) => void;
 }
 
 interface CameraGoal {
@@ -415,6 +425,27 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     invalidate();
   }, [stage, camera, controls, invalidate]);
 
+  // **The cut set's own functions are declared here, ahead of the picking effect that reads them**;
+  // the effect that applies them on every change of what they depend on is further down, after the
+  // two overlay effects (see its own comment).
+  const cutWallsKey = useRef("");
+  const applyCutSet = (walls: readonly DesignWall[]): void => {
+    applyCutaway(stage.solidsRoot, stage.voidsRoot, walls);
+    cutWallsKey.current = walls.join(",");
+    // A8.3: a hidden cabinet is not an editable one. A selection on a wall that has just been cut
+    // away is cleared, and the panel closes with it.
+    const selectedWall = wallOfSelection(selection, records, voids);
+    if (selectedWall !== undefined && walls.includes(selectedWall)) deselect();
+    invalidate();
+  };
+  const cutWallsNow = (): readonly DesignWall[] =>
+    cutawayWallsFor(eyeOf(camera), designRoom, cabinetDepthMm);
+  const followCameraRef = useRef<() => void>(() => undefined);
+  followCameraRef.current = () => {
+    const walls = cutWallsNow();
+    if (walls.join(",") !== cutWallsKey.current) applyCutSet(walls);
+  };
+
   // Row 2 / row 22 / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
   // listeners, not R3F's declarative pointer props: the drag-vs-click distinction needs the raw
   // pixel delta between down and up, which R3F's synthetic events do not expose as a pair.
@@ -441,6 +472,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       });
       if (movedLikeAnOrbit) return;
 
+      // The cut set is brought up to the camera as it is *now*, before the ray is cast: nothing a
+      // change event or a frame missed may be picked (A2, "no cut wall is ever picked").
+      followCameraRef.current();
       toNdc(event);
       raycaster.setFromCamera(pointerNdc, camera);
       const target = pick(raycaster, stage.solidsRoot, stage.voidsRoot);
@@ -534,6 +568,45 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     };
   }, [overflowingIds, stage, records, voids, invalidate]);
 
+  // **The cutaway, in the scene** (ADR 0132 Amendment A2, A8.2, A8.3; M7B U5 S2): in a U, a wall whose
+  // body zone the camera's eye stands in or behind is not drawn and not picked. *No cut wall is ever
+  // drawn or picked*, so this is the one place the answer is recomputed and applied, and it is
+  // recomputed from **the camera's position alone** — so a preset's ease, a free orbit and a wheel
+  // zoom get the same answer, and no preset id is read anywhere.
+  //
+  // **Declared after both overlay effects on purpose**, because the outline and the overflow marks
+  // are mounted by them, and a mark or outline mounted onto a cut wall is drawn until this has run:
+  // React runs effects in declaration order, so by the time this one does, both have mounted. The
+  // adapter's own syncs apply the recorded cut to the bodies and voids they mount
+  // (`applyRecordedCutaway`); the overlays are the web's, and this is where the web re-applies.
+  //
+  // **Keyed on everything that can change the answer or what it is applied to**: the room and the
+  // depth (`cutawayWallsFor` reads both — an in-place U resize moves wall C's plane, and a depth change
+  // rebuilds the stage with no record while `reseatHoldingCamera` holds the camera still), the stage,
+  // and the records, voids, selection and marks whose remount puts something new in the scene. The
+  // camera itself moves between renders, so it is followed by the controls' `change` event, by the
+  // frame loop's ease, and once more at the moment of a pick.
+  useEffect(() => {
+    applyCutSet(cutWallsNow());
+    const follow = () => {
+      followCameraRef.current();
+    };
+    controls?.addEventListener("change", follow);
+    return () => {
+      controls?.removeEventListener("change", follow);
+    };
+  }, [
+    stage,
+    designRoom,
+    cabinetDepthMm,
+    camera,
+    controls,
+    selection,
+    records,
+    voids,
+    overflowingIds,
+  ]);
+
   // R3F never disposes a `<primitive>`, by design: its reconciler skips disposal when
   // `instance.type === 'primitive'` because a primitive's lifetime is owned outside React. Every
   // object below is one, so without this a client-side remount strands a whole room's buffers,
@@ -574,6 +647,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     camera.position.lerp(pending.position, step);
     controls?.target.lerp(pending.target, step);
     controls?.update();
+    // Every step of a preset's ease is a camera move, so the cut set follows it frame by frame.
+    followCameraRef.current();
     const cameraSettled =
       camera.position.distanceTo(pending.position) < SETTLED_METRES;
     const targetSettled =
@@ -636,4 +711,22 @@ function findMountedPlacement(
       (child) => child.userData.placementId === placementId,
     ) ?? null
   );
+}
+
+function eyeOf(camera: THREE.Camera): Vector3Tuple {
+  return [camera.position.x, camera.position.y, camera.position.z];
+}
+
+/** The wall the selected body or void stands on, or `undefined` for no selection or a selection the
+ *  store no longer holds a record of. Read off the records the scene was synced from, so it is the
+ *  same wall the adapter tagged the mounted object with. */
+function wallOfSelection(
+  selection: Selection,
+  records: readonly PlacementRecord[],
+  voids: readonly VoidRecord[],
+): DesignWall | undefined {
+  if (!selection) return undefined;
+  const held: readonly { readonly id: string; readonly wall: DesignWall }[] =
+    selection.kind === "placement" ? records : voids;
+  return held.find((record) => record.id === selection.id)?.wall;
 }

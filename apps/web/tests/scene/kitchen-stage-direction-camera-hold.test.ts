@@ -121,6 +121,8 @@ vi.mock("@lemnaria/three-adapter", async (importOriginal) => {
     resizeShellToRoom: harness.resizeShellToRoom,
     syncSolidBodies: harness.syncSolidBodies,
     syncVoidMeshes: vi.fn(),
+    applyCutaway: vi.fn(),
+    cutawayWallsFor: vi.fn(() => []),
   };
 });
 
@@ -186,6 +188,8 @@ beforeEach(() => {
     controls: {
       target: new THREE.Vector3(9.9, -1.1, 2.2),
       update: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
     },
     gl: { domElement: fakeCanvas() },
     invalidate: harness.invalidate,

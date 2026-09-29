@@ -151,6 +151,8 @@ vi.mock("@lemnaria/three-adapter", async (importOriginal) => {
     seatObjectOnStage: vi.fn(),
     syncSolidBodies: vi.fn(),
     syncVoidMeshes: vi.fn(),
+    applyCutaway: vi.fn(),
+    cutawayWallsFor: vi.fn(() => []),
   };
 });
 
@@ -197,6 +199,8 @@ function designWith(room: DesignRoom): Design {
 interface FakeOrbitControls {
   target: THREE.Vector3;
   update: () => void;
+  addEventListener: () => void;
+  removeEventListener: () => void;
 }
 
 let controls: FakeOrbitControls;
@@ -224,7 +228,12 @@ beforeEach(() => {
 
   camera = new THREE.PerspectiveCamera(45, 390 / 789, 0.1, 500);
   camera.position.set(0, 0, 0);
-  controls = { target: new THREE.Vector3(), update: vi.fn() };
+  controls = {
+    target: new THREE.Vector3(),
+    update: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  };
   harness.threeState = {
     camera,
     controls,
