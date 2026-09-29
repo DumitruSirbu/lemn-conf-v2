@@ -140,6 +140,35 @@ describe("cornerDirectionOf", () => {
       expect(cornerDirectionOf(room)).toBe("left");
     },
   );
+
+  // ADR 0132 decision 8: a U has no right-hand variant, so this reads left for one whatever a
+  // stored document says — `DesignRoomSchema` refuses `"right"` on a U (ADR 0132 decision 6), but
+  // this function is the rule's own backstop, the same reasoning G6 already applies to a straight
+  // room.
+  it("answers left for a U with no cornerDirection key", () => {
+    const room: DesignRoom = {
+      shape: "U",
+      widthMm: 3600,
+      depthMm: 2400,
+      wallCMm: 2000,
+      heightMm: 2600,
+    };
+
+    expect(cornerDirectionOf(room)).toBe("left");
+  });
+
+  it("answers left for a U even if a stored document carries left explicitly", () => {
+    const room: DesignRoom = {
+      shape: "U",
+      widthMm: 3600,
+      depthMm: 2400,
+      wallCMm: 2000,
+      heightMm: 2600,
+      cornerDirection: "left",
+    };
+
+    expect(cornerDirectionOf(room)).toBe("left");
+  });
 });
 
 describe("room.cornerDirection has exactly one production reader across the workspace", () => {
@@ -150,6 +179,13 @@ describe("room.cornerDirection has exactly one production reader across the work
   // (a room-input draft, not a `DesignRoom`) once review L1.6 widened the scan to their `src` too.
   const READS_THE_STORED_FIELD = /\broom\.cornerDirection\b/;
   const READER = `room${path.sep}corner-direction.ts`;
+  // ADR 0132 decision 6: the schema itself refuses `cornerDirection: "right"` on a `"U"` — a
+  // structural refusal between two fields of the same document, decided before there is a `DesignRoom`
+  // to hand `cornerDirectionOf`, and never an interpretation of what a direction *does* to the
+  // kitchen. That question — what a stored direction means — still has exactly one answer, in
+  // `cornerDirectionOf`; this is the schema's own combinatorics, the same kind of check that already
+  // ties `wallCMm`'s presence to `shape`.
+  const SCHEMA_STRUCTURAL_REFUSAL = "design.ts";
 
   // Review L1.6: `cornerDirectionOf` is the one reader for *every* consumer of a stored room, not
   // just this package's own source — `three-adapter` and the web app each hold a `DesignRoom` too
@@ -180,7 +216,13 @@ describe("room.cornerDirection has exactly one production reader across the work
         .map((entry) =>
           path.relative(src, path.join(entry.parentPath, entry.name)),
         )
-        .filter((file) => !(label === "configurator-domain" && file === READER))
+        .filter(
+          (file) =>
+            !(
+              label === "configurator-domain" &&
+              (file === READER || file === SCHEMA_STRUCTURAL_REFUSAL)
+            ),
+        )
         .filter((file) =>
           READS_THE_STORED_FIELD.test(
             readFileSync(path.join(src, file), "utf8"),

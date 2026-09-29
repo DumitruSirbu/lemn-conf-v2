@@ -255,6 +255,8 @@ export {
 } from "./room/validate-room.js";
 // The one production reader of `DesignRoom.cornerDirection` (ADR 0129 D2).
 export { cornerDirectionOf } from "./room/corner-direction.js";
+// Which walls a shape has (ADR 0132 decision 5, M7B plan D7).
+export { wallsOf } from "./room/walls-of-shape.js";
 // **How wide the corner assembly is built** (7D6's J1′, ADR 0120 Amendment A). Three entry points
 // published and no fourth: `narrowestCornerReachMm` answers the *bound* and takes no room, the
 // other two answer one (depth, room), and their return types differ so the two questions cannot be

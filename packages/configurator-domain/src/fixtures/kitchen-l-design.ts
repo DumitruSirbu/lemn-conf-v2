@@ -63,7 +63,7 @@ import {
   cornerAssemblyWidthsMm,
   type CornerAssemblyPiece,
 } from "../corner-assembly-size.js";
-import type { Design, DesignPlacement } from "../design.js";
+import type { Design, DesignPlacement, DesignWall } from "../design.js";
 import {
   CARRIES_SINK,
   NO_SINK,
@@ -899,7 +899,10 @@ export const KITCHEN_L_BODY_CATALOG: BodyCatalog =
 
 function placement(
   id: string,
-  wall: "A" | "B",
+  // M7B U1 slice S1's minimal type-level fix: `piece.wall` (`CornerAssemblyPiece`) is `DesignWall`,
+  // widened to include `"C"` (ADR 0132) — this reference kitchen is an L and generates no wall-C
+  // piece, so the type only follows its caller; it names nothing new.
+  wall: DesignWall,
   alongMm: number,
   y0Mm: number,
   buildId: string,

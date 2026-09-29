@@ -4,7 +4,12 @@ export interface Vector3 {
   readonly z: number;
 }
 
-export type WallId = "A" | "B";
+/** `"C"` is ADR 0132 decision 1's world wall — origin `(W, 0, 0)`, tangent `+Z`, front normal `−X`,
+ *  yaw `−π/2`, where `W` is the room's `widthMm`. Widened here (U1 slice S1) only so a `DesignWall`
+ *  of `"C"` type-checks against every reader of this type; its transform is room-dependent and this
+ *  module's `WALL_TRANSFORMS` is not, so the transform itself is U1 slice S3's, not this one's —
+ *  `getWallTransform("C")` throws until then. */
+export type WallId = "A" | "B" | "C";
 
 export interface WallTransform {
   readonly wallId: WallId;
@@ -31,7 +36,7 @@ export interface CabinetTransformInput {
  * rotation.y=0); wall B is the left wall (plane x=0, fronts +X, rotation.y=π/2). Both walk
  * "along" from the corner where they meet (0,0,0).
  */
-const WALL_TRANSFORMS: Record<WallId, WallTransform> = {
+const WALL_TRANSFORMS: Record<Exclude<WallId, "C">, WallTransform> = {
   A: {
     wallId: "A",
     origin: { x: 0, y: 0, z: 0 },
@@ -49,6 +54,13 @@ const WALL_TRANSFORMS: Record<WallId, WallTransform> = {
 };
 
 export function getWallTransform(wallId: WallId): WallTransform {
+  if (wallId === "C") {
+    // ADR 0132 decision 1: wall C's transform takes the room's width and this function takes no
+    // room. Wiring that in is U1 slice S3's, not slice S1's type-level widening.
+    throw new Error(
+      "getWallTransform: wall C has no world transform yet (M7B wave U1 slice S3)",
+    );
+  }
   return WALL_TRANSFORMS[wallId];
 }
 

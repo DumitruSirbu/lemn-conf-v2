@@ -11,6 +11,7 @@ import {
   LShellInputError,
   lShellFloorRuns,
   type DesignRoom,
+  type DesignWall,
 } from "../../src/index.js";
 import {
   cornerAlongWallCentreMm,
@@ -250,9 +251,13 @@ function room(widthMm: number, depthMm: number): DesignRoom {
   return { shape: "L", widthMm, depthMm, heightMm: 2600 };
 }
 
+// M7B U1 slice S1's minimal type-level fix: `CornerAssemblyPiece.wall` (`DesignWall`) is widened to
+// include `"C"` (ADR 0132) — this sweep only ever produces `"A"`/`"B"` pieces today, and the `else`
+// branch below already answers wall B's rule for anything that is not wall A, which ADR 0132
+// decision 2 keeps true for wall C's returns too.
 function nearEdgeMm(
   cabinetDepthMm: number,
-  wall: "A" | "B",
+  wall: DesignWall,
   band: "base" | "wall" | "top",
 ) {
   if (wall === "A") return 0;

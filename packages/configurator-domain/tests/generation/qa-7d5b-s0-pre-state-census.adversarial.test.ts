@@ -87,6 +87,10 @@ import {
   type PlannedGenerationBase,
 } from "../../src/index.js";
 import { canonicalPlan } from "../support/composed-run-baseline.js";
+
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this census reads `lShellFloorRuns`' own two-wall composer. Wall C's own census is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
 import {
   beforeS1,
   decidedBeforeTheThresholdDrawer,
@@ -605,7 +609,7 @@ function censusAt(ceilingMm: number): Census {
 interface RoomReading {
   readonly where: string;
   readonly room: DesignRoom;
-  readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
   /** HEAD `acb7b6f`'s plan, reconstructed (`planBeforeS0b`) and proved against the pre-tower recording;
    *  exact because `countTowerOverBottle` shows HEAD's threshold rule added nothing where it differs. */
   readonly plan: KitchenCompositionPlan;
@@ -838,7 +842,7 @@ function compareTheConvertedRoom(
 
 function hasDoorCabinetBesideTheSink(
   plan: KitchenCompositionPlan,
-  runs: Readonly<Record<DesignWall, GenerationRun>>,
+  runs: Readonly<Record<TwoWallDispatch, GenerationRun>>,
 ): boolean {
   return (
     doorCabinetBesideTheSinkOnItsWall(plan) !== undefined ||
@@ -863,7 +867,7 @@ function doorCabinetBesideTheSinkOnItsWall(
  *  first module at the other wall's corner end. Both runs start at the corner (`lShellFloorRuns`). */
 function doorCabinetAcrossTheCornerFromTheSink(
   plan: KitchenCompositionPlan,
-  runs: Readonly<Record<DesignWall, GenerationRun>>,
+  runs: Readonly<Record<TwoWallDispatch, GenerationRun>>,
 ): PlannedGenerationBase | undefined {
   const sink = sinkOf(plan);
   if (sink.startMm !== runs[sink.wall].startMm) return undefined;
@@ -955,7 +959,7 @@ function countDrawerSwapEligibility(
 
 function isBesideTheSink(
   plan: KitchenCompositionPlan,
-  runs: Readonly<Record<DesignWall, GenerationRun>>,
+  runs: Readonly<Record<TwoWallDispatch, GenerationRun>>,
   base: PlannedGenerationBase,
 ): boolean {
   const sink = sinkOf(plan);

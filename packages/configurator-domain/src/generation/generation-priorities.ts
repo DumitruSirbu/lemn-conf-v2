@@ -20,6 +20,7 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
   type RunLayout,
+  type TwoWallDispatch,
   type WallCapacities,
 } from "./run-layout.js";
 import {
@@ -41,8 +42,8 @@ export type {
  *  out in reverse against that order (ADR 0110 D2), and it is read through `isLaidOutInReverse` by
  *  both places that reverse. */
 interface ReadingOrderWalls {
-  readonly prefix: DesignWall;
-  readonly suffix: DesignWall;
+  readonly prefix: TwoWallDispatch;
+  readonly suffix: TwoWallDispatch;
 }
 
 /**
@@ -110,7 +111,7 @@ export function hobWithItsOwnOvenBuildId(): string {
 }
 
 export interface GenerationRun {
-  readonly wall: DesignWall;
+  readonly wall: TwoWallDispatch;
   readonly startMm: number;
   readonly endMm: number;
 }
@@ -121,7 +122,7 @@ export interface GenerationRun {
  *  composition without tying the fridge to a wall. */
 export function planKitchenComposition(input: {
   readonly room: DesignRoom;
-  readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
   /** The catalogue's declared sizes for the full-height block, read by `generateKitchen`. Required,
    *  because a caller that omitted them would silently compose a kitchen the tall-end rule never
    *  saw. */
@@ -205,7 +206,7 @@ function chooseWallCut(
 /** Everything a plan is built from except how the run is read and cut across the corner. */
 interface PlanBasis {
   readonly room: DesignRoom;
-  readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
   readonly columns: DeclaredColumnSizes;
   readonly walls: ReadingOrderWalls;
   readonly kept: readonly GenerationPriority[];
@@ -318,7 +319,7 @@ function includesTheHob(items: readonly GenerationRunItem[]): boolean {
 function keyedOnWalls<Value>(
   walls: ReadingOrderWalls,
   byRole: { readonly prefix: Value; readonly suffix: Value },
-): Readonly<Record<DesignWall, Value>> {
+): Readonly<Record<TwoWallDispatch, Value>> {
   return walls.prefix === "A"
     ? { A: byRole.prefix, B: byRole.suffix }
     : { A: byRole.suffix, B: byRole.prefix };
@@ -413,7 +414,7 @@ interface StorageSlot {
  */
 function firstStorageSlotAfterTheHob(args: {
   readonly hobStandsOnTheSuffixWall: boolean;
-  readonly slotCounts: Readonly<Record<DesignWall, number>>;
+  readonly slotCounts: Readonly<Record<TwoWallDispatch, number>>;
   readonly walls: ReadingOrderWalls;
 }): StorageSlot | undefined {
   const { walls, slotCounts } = args;
@@ -489,7 +490,7 @@ function slotsInReadingOrder(args: {
 }
 
 function placeAlongRun(
-  wall: DesignWall,
+  wall: TwoWallDispatch,
   startMm: number,
   items: readonly WidthItem[],
 ): PlannedGenerationBase[] {

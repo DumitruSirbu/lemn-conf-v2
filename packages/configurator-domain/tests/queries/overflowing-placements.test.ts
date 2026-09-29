@@ -325,3 +325,54 @@ describe("wallLengthMm — a straight room has no wall B (ADR 0130 D4)", () => {
     expect(wallLengthMm("B", lRoom)).not.toBe(0);
   });
 });
+
+// ADR 0132 decision 5 (M7B wave U1 slice S1): wall C's run extends ADR 0130 D3/D4's rule — an L or
+// straight room has no wall C, so its run is 0, and a U's is `wallCMm`.
+describe("wallLengthMm — wall C (ADR 0132 decision 5)", () => {
+  const WALL_C_MM = 2000;
+  const uRoom: Design["room"] = {
+    shape: "U",
+    widthMm: 3600,
+    depthMm: 2400,
+    wallCMm: WALL_C_MM,
+    heightMm: 2600,
+  };
+
+  it("reads wall C as the room's wallCMm on a U", () => {
+    expect(wallLengthMm("C", uRoom)).toBe(WALL_C_MM);
+  });
+
+  it.each(["L", "linear"] as const)(
+    "reads wall C as 0 on a %s room, which has none",
+    (shape) => {
+      const room = designOf([]).room;
+      expect(wallLengthMm("C", { ...room, shape })).toBe(0);
+    },
+  );
+
+  it("marks a wall-C placement in an L document as overflowing rather than refusing it", () => {
+    const lRoom = designOf([]).room;
+    const strayOnC = designOf(
+      [{ ...placement("stray", "A", 0, 200), wall: "C" }],
+      lRoom,
+    );
+
+    expect(findOverflowingPlacementIds(strayOnC)).toEqual(["stray"]);
+  });
+
+  it("treats equality as fitting and one millimetre beyond wall C as overflow", () => {
+    const atEnd: DesignPlacement = {
+      ...placement("fits", "A", WALL_C_MM - 100),
+      wall: "C",
+    };
+    const onePast: DesignPlacement = {
+      ...placement("over", "A", WALL_C_MM - 99),
+      wall: "C",
+    };
+
+    expect(findOverflowingPlacementIds(designOf([atEnd], uRoom))).toEqual([]);
+    expect(findOverflowingPlacementIds(designOf([onePast], uRoom))).toEqual([
+      "over",
+    ]);
+  });
+});

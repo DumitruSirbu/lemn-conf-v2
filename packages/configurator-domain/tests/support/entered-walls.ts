@@ -23,6 +23,11 @@ import {
   type DesignWall,
 } from "../../src/index.js";
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// the wider/narrower question this file answers is the L composer's own — wall C is U3's third
+// wall, not a third answer to a two-wall question.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 /**
  * The wider entered wall: the one the run ends on, so the one the hob and the block stand on, and
  * the one read from the corner outward.
@@ -30,7 +35,7 @@ import {
  * **Wall A where the two are equal** — equal walls keep wall B as the reading order's prefix, which
  * is the answer every room had before the rule existed (ADR 0120 Amendment E).
  */
-export function widerEnteredWall(room: DesignRoom): DesignWall {
+export function widerEnteredWall(room: DesignRoom): TwoWallDispatch {
   return wallLengthMm("B", room) > wallLengthMm("A", room) ? "B" : "A";
 }
 
@@ -38,6 +43,6 @@ export function widerEnteredWall(room: DesignRoom): DesignWall {
  * The narrower entered wall: the reading order's prefix, laid out **against** that order from its
  * free end toward the corner, and wall B where the two are equal.
  */
-export function narrowerEnteredWall(room: DesignRoom): DesignWall {
+export function narrowerEnteredWall(room: DesignRoom): TwoWallDispatch {
   return widerEnteredWall(room) === "A" ? "B" : "A";
 }

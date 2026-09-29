@@ -45,6 +45,10 @@ import {
 } from "../../src/index.js";
 import { planTallEndBlock } from "../../src/generation/tall-end-rule.js";
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this suite declares `planKitchenComposition`'s own two-wall runs. Wall C's own suite is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 const DECLARED_COLUMNS = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
 );
@@ -283,7 +287,7 @@ function planForDeclaredRuns(
   room: DesignRoom,
   runLengthsMm: { readonly A: number; readonly B: number },
 ): KitchenCompositionPlan {
-  const runOf = (wall: DesignWall): GenerationRun => ({
+  const runOf = (wall: TwoWallDispatch): GenerationRun => ({
     wall,
     startMm: 0,
     endMm: runLengthsMm[wall],

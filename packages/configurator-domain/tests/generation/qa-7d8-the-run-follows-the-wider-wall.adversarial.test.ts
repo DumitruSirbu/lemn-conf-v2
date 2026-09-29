@@ -52,6 +52,10 @@ import {
 } from "../../src/index.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this suite reads `planKitchenComposition`'s own two-wall composer. Wall C's own suite is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
@@ -72,7 +76,9 @@ const RUN_ORDER: readonly GenerationCoreRole[] = GENERATION_PRIORITIES.map(
 
 function planFor(
   room: DesignRoom,
-  runs: Readonly<Record<DesignWall, GenerationRun>> = lShellFloorRuns(room),
+  runs: Readonly<Record<TwoWallDispatch, GenerationRun>> = lShellFloorRuns(
+    room,
+  ),
 ): KitchenCompositionPlan {
   return planKitchenComposition({ room, runs, columns: DECLARED_COLUMNS });
 }
@@ -86,11 +92,11 @@ function planFor(
  * the two agree only if both read the owner's wider-wall rule the same way (7D8 adjudication,
  * finding C2).
  */
-function wallReadInReverse(room: DesignRoom): DesignWall {
+function wallReadInReverse(room: DesignRoom): TwoWallDispatch {
   return narrowerEnteredWall(room);
 }
 
-function theOtherWall(wall: DesignWall): DesignWall {
+function theOtherWall(wall: TwoWallDispatch): TwoWallDispatch {
   return wall === "A" ? "B" : "A";
 }
 
@@ -285,8 +291,8 @@ describe("7b — the descending slot path, declared at the composer's boundary",
   ] as const satisfies readonly {
     readonly name: string;
     readonly room: DesignRoom;
-    readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
-    readonly reversedWall: DesignWall;
+    readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
+    readonly reversedWall: TwoWallDispatch;
   }[];
 
   it.each(DECLARED_ARMS)(

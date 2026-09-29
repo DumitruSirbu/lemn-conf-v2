@@ -64,6 +64,7 @@ const THE_COMPARATOR = compareDisplayOrder;
 const WALL_RANK: Readonly<Record<DisplayEntry["wall"], number>> = {
   A: 0,
   B: 1,
+  C: 2,
 };
 const BAND_RANK: Readonly<Record<DisplayEntry["band"], number>> = {
   base: 0,

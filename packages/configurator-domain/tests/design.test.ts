@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CabinetBodySchema, DesignSchema } from "../src/design.js";
+import {
+  CabinetBodySchema,
+  DesignRoomSchema,
+  DesignSchema,
+} from "../src/design.js";
 import { LEGACY_ENUM_FINISHES } from "../src/materials.js";
 
 const body = {
@@ -103,12 +107,25 @@ describe("DesignSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  // ADR 0132 decision 1 widened `DesignWallSchema` to include `"C"` this wave — see "accepts a
+  // wall-C placement" below — so an unknown wall now needs a letter the schema truly never named.
   it("rejects an unknown wall", () => {
+    const result = DesignSchema.safeParse({
+      ...design,
+      placements: [{ ...placement, wall: "D" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // ADR 0132 decision 1: wall C is additive, so an L document may carry a wall-C placement — the
+  // schema stores it whether or not the room it names has a wall C at all (ADR 0132 decision 5,
+  // `wallLengthMm`'s job, not this one's).
+  it("accepts a wall-C placement", () => {
     const result = DesignSchema.safeParse({
       ...design,
       placements: [{ ...placement, wall: "C" }],
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rejects a missing createdAt/updatedAt", () => {
@@ -143,5 +160,74 @@ describe("DesignSchema", () => {
       ],
     });
     expect(result.success).toBe(false);
+  });
+});
+
+// ADR 0132 decision 6 (M7B wave U1 slice S1): the stored U room, and `wallCMm`'s iff-refinement.
+describe("DesignRoomSchema — the U room (ADR 0132 decision 6)", () => {
+  const uRoom = {
+    shape: "U" as const,
+    widthMm: 3600,
+    depthMm: 2400,
+    wallCMm: 2000,
+    heightMm: 2600,
+  };
+
+  it("accepts a well-formed U room", () => {
+    expect(DesignRoomSchema.safeParse(uRoom).success).toBe(true);
+  });
+
+  it("refuses a U room with no wallCMm", () => {
+    const withoutWallC = {
+      shape: uRoom.shape,
+      widthMm: uRoom.widthMm,
+      depthMm: uRoom.depthMm,
+      heightMm: uRoom.heightMm,
+    };
+    expect(DesignRoomSchema.safeParse(withoutWallC).success).toBe(false);
+  });
+
+  it.each(["L", "linear"] as const)(
+    "refuses a %s room that carries wallCMm",
+    (shape) => {
+      const room = {
+        shape,
+        widthMm: 3600,
+        depthMm: 2400,
+        wallCMm: 2000,
+        heightMm: 2600,
+      };
+      expect(DesignRoomSchema.safeParse(room).success).toBe(false);
+    },
+  );
+
+  it('refuses cornerDirection: "right" on a U (Q-U4 (b), ADR 0104 Amendment C)', () => {
+    const result = DesignRoomSchema.safeParse({
+      ...uRoom,
+      cornerDirection: "right",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it.each([
+    ["an absent key", {}],
+    ["left", { cornerDirection: "left" }],
+  ])("still accepts a U with %s", (_name, extra) => {
+    const result = DesignRoomSchema.safeParse({ ...uRoom, ...extra });
+    expect(result.success).toBe(true);
+  });
+
+  it("leaves an L room byte-identical — no wallCMm key, cornerDirection still optional", () => {
+    const lRoom = {
+      shape: "L" as const,
+      widthMm: 3600,
+      depthMm: 2400,
+      heightMm: 2600,
+    };
+    expect(DesignRoomSchema.safeParse(lRoom).success).toBe(true);
+    expect(
+      DesignRoomSchema.safeParse({ ...lRoom, cornerDirection: "right" })
+        .success,
+    ).toBe(true);
   });
 });

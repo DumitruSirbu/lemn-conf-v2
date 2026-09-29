@@ -46,6 +46,10 @@ export const SINK_BUILD_ID = "base-sink";
 export const SHELL_CABINET_DEPTH_MM = cabinetDepthMmOf(KITCHEN_L_DESIGN);
 export const SHELL_CATALOG = buildKitchenLBodyCatalog(SHELL_CABINET_DEPTH_MM);
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this whole support module measures `buildLShellDesign`'s own two walls. Wall C's shell is U2's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 /** The shell for `room`, built at the one moment every shell test uses. */
 export function shellIn(room: DesignRoom): Design {
   return buildLShellDesign({ room, occurredAt: SHELL_OCCURRED_AT });
@@ -65,7 +69,7 @@ export function atCabinetDepth(design: Design, cabinetDepthMm: number): Design {
 }
 
 /** Both walls of an L. */
-export const WALLS: readonly DesignWall[] = ["A", "B"];
+export const WALLS: readonly TwoWallDispatch[] = ["A", "B"];
 
 /** Half-open along-wall interval in millimetres. */
 export interface IntervalMm {

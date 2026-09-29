@@ -63,6 +63,10 @@ vi.mock(
   },
 );
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this census reads `lShellFloorRuns`' own two-wall composer. Wall C's own census is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 const DECLARED_COLUMNS = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
 );
@@ -524,7 +528,7 @@ function dishwasherCensusAt(ceilingMm: number): DishwasherCensus {
 
 interface ComparedRoom {
   readonly where: string;
-  readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+  readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
   readonly afterS0b: KitchenCompositionPlan;
   /** S1's plan: the leaf on, S2's trades off. Named `live` because it was, until S2. */
   readonly live: KitchenCompositionPlan;
@@ -725,7 +729,7 @@ function facesTheSinkAcrossTheCorner(
   plan: KitchenCompositionPlan,
   where: {
     readonly dishwasher: PlannedGenerationBase;
-    readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
+    readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
   },
 ): boolean {
   const { dishwasher, runs } = where;

@@ -204,6 +204,15 @@ function assertWallSeatsAndIntersections(rendered: RenderedDesign): void {
   } as const;
   const seatErrors = placementBodies(rendered).flatMap(
     ({ body, placement }) => {
+      // M7B U1 slice S1's minimal type-level fix: `DesignPlacement["wall"]` is widened to include
+      // `"C"` (ADR 0132), but `generateKitchen` composes an L or a straight room in this wave — wall
+      // C's own parity suite is U4's — so every generated placement here is asserted onto the two
+      // walls it can reach.
+      if (placement.wall !== "A" && placement.wall !== "B") {
+        throw new Error(
+          `generated placement stands on an unexpected wall ${placement.wall}`,
+        );
+      }
       const box = new THREE.Box3().setFromObject(body);
       const back = placement.wall === "A" ? box.min.z : box.min.x;
       const expected =

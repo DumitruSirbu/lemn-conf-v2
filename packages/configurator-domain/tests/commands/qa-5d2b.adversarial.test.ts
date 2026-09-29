@@ -10,7 +10,7 @@
 // below now asserts the answer.
 import { describe, expect, it } from "vitest";
 
-import type { DesignPlacement } from "../../src/design.js";
+import type { DesignPlacement, DesignWall } from "../../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -47,8 +47,12 @@ function placement(
 
 const OVERLAP_EPSILON_M = 1e-6;
 
+// M7B U1 slice S1's minimal type-level fix: `Column["wall"]` (`DesignWall`) is widened to include
+// `"C"` (ADR 0132), and ADR 0132 decision 1 keeps wall C's along on world `z`, the same axis wall
+// B's already reads — so the `wall === "A" ? x : z` split below stays correct for every wall this
+// type now names.
 function alongOf(
-  wall: "A" | "B",
+  wall: DesignWall,
   at: { readonly x: number; readonly z: number },
 ): number {
   return wall === "A" ? at.x : at.z;

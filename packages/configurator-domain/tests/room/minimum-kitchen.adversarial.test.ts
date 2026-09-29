@@ -332,6 +332,14 @@ function placedWall(
     (candidate) => candidate.id === step.placementId,
   );
   if (!placement) throw new Error(`generated ${role} has no placement`);
+  // M7B U1 slice S1's minimal type-level fix: `DesignPlacement["wall"]` is widened to include `"C"`
+  // (ADR 0132), but `generateKitchen` composes an L or a straight room in this wave — wall C's own
+  // generator is U3's — so a generated sink or hob is asserted onto the two walls it can reach.
+  if (placement.wall !== "A" && placement.wall !== "B") {
+    throw new Error(
+      `generated ${role} stands on an unexpected wall ${placement.wall}`,
+    );
+  }
   return placement.wall;
 }
 
@@ -428,13 +436,15 @@ describe("7A2 — engine envelope and wire schema remain independent", () => {
     };
 
     expect(DesignRoomSchema.safeParse(room).success).toBe(false);
-    // ADR 0129 D2 added `cornerDirection` this wave; the assertion is still that this suite's
-    // *policy* key (`minimumKitchen`) is not among them, not that the schema never grows.
+    // ADR 0129 D2 added `cornerDirection`, and ADR 0132 decision 6 added `wallCMm`; the assertion
+    // is still that this suite's *policy* key (`minimumKitchen`) is not among them, not that the
+    // schema never grows.
     expect(DesignRoomSchema.keyof().options.sort()).toEqual([
       "cornerDirection",
       "depthMm",
       "heightMm",
       "shape",
+      "wallCMm",
       "widthMm",
     ]);
   });

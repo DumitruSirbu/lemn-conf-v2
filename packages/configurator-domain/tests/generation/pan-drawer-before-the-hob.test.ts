@@ -47,6 +47,11 @@ import {
 } from "../../src/index.js";
 import { planTallEndBlock } from "../../src/generation/tall-end-rule.js";
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this census is `lShellFloorRuns`' own two-wall composer, keyed the same way `LWall` is in
+// `shell-design.ts`. Wall C's own census is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 const DECLARED_COLUMNS = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
 );
@@ -85,8 +90,8 @@ function planFor(room: DesignRoom): KitchenCompositionPlan {
 
 /** The wider entered wall reads last, and the narrower one is read in reverse (ADR 0120 E). */
 function readingWallsOf(room: DesignRoom): {
-  readonly prefix: DesignWall;
-  readonly suffix: DesignWall;
+  readonly prefix: TwoWallDispatch;
+  readonly suffix: TwoWallDispatch;
 } {
   const isWallBWider = wallLengthMm("B", room) > wallLengthMm("A", room);
   return isWallBWider
@@ -346,9 +351,9 @@ describe("7D5 S2 — the hob on the wall read in reverse", () => {
   const NOTHING_FITS_MM = 250;
 
   function runsGivingThePrefixWall(
-    prefix: DesignWall,
+    prefix: TwoWallDispatch,
     capacityMm: number,
-  ): Readonly<Record<DesignWall, GenerationRun>> {
+  ): Readonly<Record<TwoWallDispatch, GenerationRun>> {
     const roomy = { startMm: 900, endMm: 900 + capacityMm };
     const cramped = { startMm: 900, endMm: 900 + NOTHING_FITS_MM };
     return prefix === "A"
@@ -500,7 +505,7 @@ interface DerivedRun {
 /** Everything about a room the derivation reads besides the run itself. */
 interface DerivationBasis {
   readonly room: DesignRoom;
-  readonly walls: Readonly<Record<ReadingSide, DesignWall>>;
+  readonly walls: Readonly<Record<ReadingSide, TwoWallDispatch>>;
   readonly capacities: Capacities;
   readonly dropped: readonly GenerationCoreRole[];
 }

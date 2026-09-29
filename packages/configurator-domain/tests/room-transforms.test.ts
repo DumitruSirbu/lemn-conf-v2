@@ -25,6 +25,13 @@ describe("getWallTransform", () => {
       yawRadians: Math.PI / 2,
     });
   });
+
+  // ADR 0132 decision 1: wall C's transform is room-dependent (its origin needs `W`), and this
+  // module takes no room — that wiring is M7B wave U1 slice S3's, not this widening's. `WallId`
+  // names `"C"` so every reader type-checks; this function still throws rather than answering wrong.
+  it("throws for wall C — its transform is not wired in yet (M7B wave U1 slice S3)", () => {
+    expect(() => getWallTransform("C")).toThrow(/wall C/);
+  });
 });
 
 describe("deriveCabinetWorldTransform", () => {

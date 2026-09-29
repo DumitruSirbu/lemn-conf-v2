@@ -36,6 +36,7 @@ import {
   type KitchenCompositionPlan,
   type PlannedGenerationBase,
 } from "./generation-priorities.js";
+import type { TwoWallDispatch } from "./run-layout.js";
 import {
   buildLinearShellDesign,
   buildLShellDesign,
@@ -154,7 +155,7 @@ const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
  *  narrow prefix wall already uses. */
 function shellRunsFor(
   room: Design["room"],
-): Readonly<Record<DesignWall, GenerationRun>> {
+): Readonly<Record<TwoWallDispatch, GenerationRun>> {
   if (room.shape === "linear") {
     return {
       A: linearShellFloorRuns(room),

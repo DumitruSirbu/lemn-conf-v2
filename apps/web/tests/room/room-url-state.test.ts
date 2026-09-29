@@ -1,8 +1,13 @@
-import type { CornerDirection, RoomShape } from "@lemnaria/configurator-domain";
+import type {
+  CornerDirection,
+  DesignRoom,
+  RoomShape,
+} from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
+  parsedRoomLengthsOf,
   parseRoomUrlState,
   roomHrefFromDesignRoom,
   serialiseRoomInput,
@@ -256,6 +261,28 @@ describe("roomHrefFromDesignRoom", () => {
     ]) {
       expect(query.has(forbidden)).toBe(false);
     }
+  });
+});
+
+// M7B wave U1 slice S1 (pulled forward from U5): `parsedRoomLengthsOf`'s U arm is data-only — no
+// live caller reaches a U room yet, `roomHrefFromDesignRoom` still throws before it (1D's own guard
+// above) — so this is the one paired test for the mapping itself.
+describe("parsedRoomLengthsOf — the U arm", () => {
+  it("reads all four lengths off a stored U room", () => {
+    const room: DesignRoom = {
+      shape: "U",
+      widthMm: 3600,
+      depthMm: 2400,
+      wallCMm: 2000,
+      heightMm: 2600,
+    };
+
+    expect(parsedRoomLengthsOf(room)).toEqual([
+      { field: "wallA", millimetres: 3600 },
+      { field: "wallB", millimetres: 2400 },
+      { field: "wallC", millimetres: 2000 },
+      { field: "height", millimetres: 2600 },
+    ]);
   });
 });
 

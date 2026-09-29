@@ -36,6 +36,10 @@ import { planTallEndBlock } from "../../src/generation/tall-end-rule.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { facesOf, openingIntervalOf } from "../support/shell-design.js";
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this suite reads `planKitchenComposition`'s own two-wall composer. Wall C's own suite is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const GRID_STEP_MM = 10;
 const BOTTLE_WIDTH_MM = 300;
@@ -447,10 +451,10 @@ function alongTheWall(
 }
 
 function readingWallsOf(room: DesignRoom): {
-  readonly prefix: DesignWall;
-  readonly suffix: DesignWall;
+  readonly prefix: TwoWallDispatch;
+  readonly suffix: TwoWallDispatch;
 } {
-  const prefix: DesignWall =
+  const prefix: TwoWallDispatch =
     wallLengthMm("B", room) > wallLengthMm("A", room) ? "A" : "B";
   return { prefix, suffix: prefix === "A" ? "B" : "A" };
 }
@@ -1049,13 +1053,13 @@ describe("7D5 S1 criterion 1 — the bottle follows the hob in the reading order
   ] as const satisfies readonly {
     readonly name: string;
     readonly room: DesignRoom;
-    readonly runs: Readonly<Record<DesignWall, GenerationRun>>;
-    readonly reversedWall: DesignWall;
+    readonly runs: Readonly<Record<TwoWallDispatch, GenerationRun>>;
+    readonly reversedWall: TwoWallDispatch;
   }[];
 
   function planOnDeclaredRuns(
     room: DesignRoom,
-    runs: Readonly<Record<DesignWall, GenerationRun>>,
+    runs: Readonly<Record<TwoWallDispatch, GenerationRun>>,
   ): KitchenCompositionPlan {
     return planKitchenComposition({ room, runs, columns: DECLARED_COLUMNS });
   }

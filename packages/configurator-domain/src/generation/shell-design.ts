@@ -46,7 +46,6 @@ import {
 import {
   cabinetDepthMmOf,
   DesignRoomSchema,
-  DesignWallSchema,
   type Design,
   type DesignPlacement,
   type DesignRoom,
@@ -200,8 +199,15 @@ export interface LShellDesignInput {
   readonly compositionPlan?: LShellCompositionPlan;
 }
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this builder is the L's own — `refuseUnbuildableInput` throws `ROOM_NOT_L` for any other shape —
+// so its tiling primitives stay keyed on the two walls it actually tiles. Wall C's own shell is U2's
+// (ADR 0132 D12), not a third key forced onto this one.
+type LWall = Extract<DesignWall, "A" | "B">;
+const L_SHELL_WALLS: readonly LWall[] = ["A", "B"];
+
 export interface LShellCompositionPlan {
-  readonly floorWidthsMm: Readonly<Record<DesignWall, readonly number[]>>;
+  readonly floorWidthsMm: Readonly<Record<LWall, readonly number[]>>;
 }
 
 /** Why the builder refused its input — a code, never a sentence (ADR 0095 decision 3). */
@@ -283,7 +289,7 @@ export function buildLShellDesign(input: LShellDesignInput): Design {
     createdAt: input.occurredAt,
     updatedAt: input.occurredAt,
   };
-  const tiles = DesignWallSchema.options.flatMap((wall) =>
+  const tiles = L_SHELL_WALLS.flatMap((wall) =>
     freeRunTiles(wall, input.room, input.compositionPlan),
   );
   return canonicalised(withFrozenMap(corner, { emptyColumns: tiles }));
@@ -368,7 +374,7 @@ function cornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
 /** One wall's free runs: the floor run from the corner's far edge to the planned end, and — where
  *  nothing structural stands above the corner's base, as on wall A — the wall-only run over it. */
 function freeRunTiles(
-  wall: DesignWall,
+  wall: LWall,
   room: DesignRoom,
   compositionPlan: LShellCompositionPlan | undefined,
 ): EmptyColumn[] {
@@ -508,12 +514,17 @@ function plannedEndMm(run: TileRun, room: DesignRoom): number {
 
 /** The two floor runs composition is allowed to plan, from the same private arithmetic the shell
  *  itself uses. Exporting the result prevents the planner from restating either corner reach or B's
- *  dynamic deepest-depth reserve. */
+ *  dynamic deepest-depth reserve.
+ *
+ *  **`DesignWall` narrowed to the L's own two walls** (M7B U1 slice S1's minimal type-level fix):
+ *  this builder is `refuseUnbuildableInput`'s, which throws `ROOM_NOT_L` for any other shape, so a
+ *  wall-C entry here would be a key this function can never produce. Wall C's own floor-run planner
+ *  is U2/U3's, on the U shell, not a third key forced onto this one. */
 export function lShellFloorRuns(room: DesignRoom): Readonly<
   Record<
-    DesignWall,
+    LWall,
     {
-      readonly wall: DesignWall;
+      readonly wall: LWall;
       readonly startMm: number;
       readonly endMm: number;
     }

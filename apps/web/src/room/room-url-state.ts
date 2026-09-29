@@ -170,7 +170,7 @@ export function roomHrefFromDesignRoom(room: DesignRoom): string {
 /** A length read off a stored `DesignRoom`, in the shape both `roomHrefFromDesignRoom`'s URL and
  *  `generation-steps.tsx`'s live 1F draft build a room draft's fields from. */
 export interface DesignRoomLength {
-  readonly field: "wallA" | "wallB" | "height";
+  readonly field: "wallA" | "wallB" | "wallC" | "height";
   readonly millimetres: number;
 }
 
@@ -181,6 +181,11 @@ export interface DesignRoomLength {
  * corner — a straight room's `depthMm` is the drawn floor's depth in front of the run (ADR 0130 D3),
  * never a wall the customer typed. A `Record` over `DesignRoom["shape"]`, so a shape `DesignRoom`
  * learns to carry a third wall in is a compile error here, not a call site silently missing one.
+ *
+ * **The U arm is data-only** (M7B wave U1 slice S1, pulled forward from U5): `wallCMm` maps to
+ * `"wallC"`, matching `room.wallLabel.wallC` and the URL's own `wallC` field (G11). It has no live
+ * caller yet — `roomHrefFromDesignRoom` below still throws before reaching a U (U5's to remove) —
+ * so this arm exists only so the `Record` stays exhaustive against the widened domain shape.
  */
 const DESIGN_ROOM_LENGTHS = {
   linear: (room) => [
@@ -192,9 +197,26 @@ const DESIGN_ROOM_LENGTHS = {
     { field: "wallB", millimetres: room.depthMm },
     { field: "height", millimetres: room.heightMm },
   ],
+  U: (room) => [
+    { field: "wallA", millimetres: room.widthMm },
+    { field: "wallB", millimetres: room.depthMm },
+    { field: "wallC", millimetres: requireWallCMm(room) },
+    { field: "height", millimetres: room.heightMm },
+  ],
 } as const satisfies Readonly<
   Record<DesignRoom["shape"], (room: DesignRoom) => readonly DesignRoomLength[]>
 >;
+
+/** `DesignRoom.wallCMm` is optional in the wire type even though the schema requires it on a `"U"`
+ *  (ADR 0132 decision 6's refinement is a runtime check, not a narrowed type) — so a well-formed U
+ *  room is asserted here rather than trusted, the same discipline `millimetresOf` below applies to a
+ *  missing field. */
+function requireWallCMm(room: DesignRoom): number {
+  if (room.wallCMm === undefined) {
+    throw new Error("a U room's own mapping carries no wallCMm");
+  }
+  return room.wallCMm;
+}
 
 export function parsedRoomLengthsOf(
   room: DesignRoom,

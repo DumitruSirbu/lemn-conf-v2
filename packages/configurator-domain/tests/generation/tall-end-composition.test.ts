@@ -37,6 +37,10 @@ const HOB_WITH_DRAWERS = "base-hob-2drawer";
 const HOB_WITH_OVEN = "base-hob-oven";
 const MAX_BLOCK_COLUMNS = 3;
 
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this suite reads `lShellFloorRuns`' own two-wall composer. Wall C's own suite is U3's.
+type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
+
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
@@ -120,7 +124,7 @@ function coreShapeOf(plan: KitchenCompositionPlan, room: DesignRoom) {
 /** 7D5b S2 / ADR 0110 M7/M10: whether a core module stands beyond the traded dishwasher on its wall —
  *  one of the bodies the trade shifted one module along the sink's wall. */
 function isBeyond(
-  core: { readonly wall: DesignWall; readonly startMm: number },
+  core: { readonly wall: TwoWallDispatch; readonly startMm: number },
   traded: PlannedBase,
 ): boolean {
   return core.wall === traded.wall && core.startMm >= traded.endMm;
@@ -188,7 +192,7 @@ function shiftedBy<
  * **Derived in `entered-walls.ts` from the room's two entered numbers rather than read back off the
  * plan**, so a block that moved to the other wall fails these assertions instead of redefining them.
  */
-function freeEndWallOf(room: DesignRoom): DesignWall {
+function freeEndWallOf(room: DesignRoom): TwoWallDispatch {
   return widerEnteredWall(room);
 }
 
