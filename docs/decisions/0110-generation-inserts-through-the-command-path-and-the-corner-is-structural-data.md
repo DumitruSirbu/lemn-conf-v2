@@ -3553,14 +3553,20 @@ corner; ADR 0108 H3). So a side wall's free run is `side − 1000`.
    | 4 | 1 | 2 | 1 |
    | 5 | 1 | 2 | 2 |
 
-   When the count yields, the pan drawers are kept first.
+   When the count yields, the pan drawers are kept first. *(**Derived**, 2026-09-29, from RQ18 (b)'s
+   "nearest the hob". A literal reading of the owner's "if 3 cabinets 1 pan drawer" gives a different
+   split where the count yields, so it is put back to the owner as **RQ19 (a)**, non-blocking; this
+   sentence is the default until then. See N9.1.)*
 7. **The bottle** *(owner, RQ10)*: immediately beside the hob's cabinet when there is space. The
    owner's *"on right side"* is **the next cabinet after the hob along the run** (RQ16, relayed
    selection). **2026-09-29:** its width comes out of the remainder before A4's door fill, as in the L,
    so a bottle can leave a larger bare end than a door module would (≤ 599 mm, A4 still holds). A U
    plan may place the bottle in its own code rather than through `optional-run-items.ts`, provided the
    bottle's build id and width are read from `body-choice.ts` and the catalogue and are not restated
-   (ADR 0102).
+   (ADR 0102). **2026-09-29 (N9.3):** this holds on the far wall too, when the hob has gone round the
+   corner. U3a S3 omitted the bottle there, and no record carries that omission, so it is a defect
+   where nothing else competes for the space. Where a tall column stands after the hob on the far wall,
+   the bottle waits on **RQ20**.
 8. **The threshold drawer** (L): replaced by `N(T)` *(default; RQ10 did not address it)*.
 9. **The oven** *(owner, RQ5; E4 unchanged)*. **Every U gets exactly one generated oven**: one
    `tall-oven-tower` with `base-hob-2drawer`, or `base-hob-oven` with no tower. A customer may add a
@@ -3610,7 +3616,7 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | Smaller U tower: at the free end (with 0 / 1 / 2 pantries) / from the corner (0 / 1) / none | 3 917 / 552 / 4 / 95 / 56 / 18 607 |
 | Generated ovens per kitchen | exactly 1, always |
 | Drawer target reached, extras after the hob / in any door slot; ≥ 3 units after the hob | 16 968 / ~~61 394~~ **47 091** (RQ13 takes the fridge wall's door slots); 41 448. **2026-09-29: not an oracle.** The model placed no bottle, so it overstated wall A's free slots, and U3a's AC3 counted differently (see the note under the witnesses) |
-| Largest bare run end, fridge / back / far wall | 500 / 500 / 500 mm |
+| Largest bare run end, fridge / back / far wall | 500 / 500 / 500 mm. **2026-09-29 (N9.2):** the plan measured 600 on the fridge wall, in 406 rooms that all drop the fridge. That is a plan defect, and the model's 500 stands |
 
 **Witnesses** for U3-A3 (they replace N4's). Each wall reads from its corner outward:
 
@@ -3618,10 +3624,10 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | --- | --- |
 | 2700 / 1000 / 1000 | **Refused** |
 | 3000 / 1000 / 1000 | No fridge (neither side wall holds it). A: sink, hob (`base-hob-oven`). No tower |
-| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100). A: sink, dishwasher, preparation. C: hob (bare 400). No tower, `base-hob-oven` |
+| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
 | 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
 | 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob, ~~(dishwasher dropped; bare 400)~~ **bottle (bare 100)**; the dishwasher is dropped. C: empty (bare 200). No tower |
-| 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage, tower (bare 200 beyond it, RQ17) |
+| 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage **(both `base-panbank`, RQ18 (a), N9.1)**, tower (bare 200 beyond it, RQ17). **3 drawer units (the preparation and 2 on C) of `N(T)` = 5; the count yields** |
 | 6000 / 6000 / 6000 | Large. B (tie): 3 base, fridge, ~~4 doors (bare 100)~~ **4 pantries, the outermost 700 (bare 0), RQ13**. A: sink, dishwasher, preparation, hob, ~~3 storage~~ **bottle, 2 × ~~`base-3drawer`~~ `base-panbank` (bare 300; RQ18 (b), 2026-09-29)**. C: 3 storage **(the first 2 are `base-3drawer`, RQ18)**, tower, 4 storage (bare 200). 5 drawer units **(the preparation, 2 on A, 2 on C)** |
 
 **Corrected 2026-09-29 on U3a's stop-and-report (AC2).** Four witnesses matched. The three rows above
@@ -3631,6 +3637,14 @@ the plan puts the bottle, 300 mm per S3, where the model put a door module or ba
 explains 4000/4500/1200 (400 = 300 + 100) and 5000/4000/3000 (800 = 300 + 500, too little left for a
 600 door). At 6000/6000/6000 the plan's 3 units come from confining the extras to wall A, which is
 the defect ruled at *N3 revised* 6. Under RQ18's default the room has 5.
+
+**Corrected again 2026-09-29, before U3a's QA (N9).** Two rows move. **5000/4000/3000:** the plan was
+right and the row's text was stale. RQ18 (a) puts the extra drawer units on the far wall's first base
+cabinets, and wall C's two bases are exactly those (N9.1). **3600/2400/2000:** the first correction
+counted this row as a match, but the plan and the model agreed only because each had left the bottle
+out. The model never placed one, and the plan omits it whenever the hob has gone round the corner
+(N9.3). With 400 mm after the hob, a bottle fits. So the row is a model error, and the plan has a
+defect.
 
 **AC3's drawer tallies are not comparable yet.** The model's "≥ 3 units" counted the preparation.
 The plan's figure of 0 means it did not count the preparation, or it counted wall A alone. U3a
@@ -3661,7 +3675,8 @@ This matches the default. (b), verbatim: *"like if 3 cabinets 1 pan drawer 2 cab
 if 4+ 2 - pan drawers, rest 3 doors"*. A follow-up (relayed selection) confirmed that *"rest"* means
 **3-drawer** cabinets, and that the pan drawers take the drawer slots **nearest the hob**, directly
 after the bottle. The preparation cabinet stays `base-3drawer`. **This departs from default (b)** and
-is recorded at *N3 revised* 6. **No owner question remains on U composition.**
+is recorded at *N3 revised* 6. ~~**No owner question remains on U composition.**~~ **2026-09-29: N9
+raises two more, RQ19 and RQ20. Both are non-blocking, and their defaults are built.**
 
 ~~**The owner's words leave this open.**~~ *(What follows was the question's framing before the answer.)* The owner asked for *"more drawer cabinets (more than 2,
 depending on width maybe 4-5"* and ruled *"count yields"*, but never said where the extras stand. The
@@ -3700,3 +3715,143 @@ withdrawn, and the (a)/(b) comparison was not measured, because the owner chose 
 | [ADR 0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Consistent. This is the owner's own baseline, not a preset |
 | [ADR 0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) | Representation. Composition does not read which wall is drawn mirrored |
 | [ADR 0108](0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md) H | The minimum-kitchen predicate these rules imply |
+
+### N9 — U3a's two open items, adjudicated before QA, 2026-09-29 (and a third, found doing it)
+
+The coordinator asked for these rulings after the RQ18 fix (`44ad180`), before U3a's adversarial QA.
+Figures are **[measured]** by the architect. `planUKitchenComposition` was built with `tsc` from
+`packages/configurator-domain/src` at `58376f4` and swept over N4′'s grid: A 2700–6000, B and C
+1000–6000, step 100, height 2600, runs from `uShellFloorRuns`. The sweep composes **86 706** rooms, as
+N4′ does. Each claim is labelled *doc-quoted*, *source-verified* (this repository's source at
+`58376f4`) or *inference*.
+
+#### N9.1 — 5000 / 4000 / 3000: wall C's two bases are drawer units. The witness text was stale, and the plan is right
+
+**Ruling.** The two door bases between wall C's corner and its free-end tower are `base-panbank`. The
+room has 3 drawer units of `N(T)` = 5: the preparation and those two. The count yields. N4′'s row is
+annotated, and the code does not change.
+
+- *Doc-quoted.* RQ18 (a) asked whether the extra units *"continue round the corner onto the far
+  wall's first base cabinets"* (N6″). The owner chose **"Round the corner"** (relayed selection).
+  *N3 revised* 6 reads that as *"then the far wall's door bases from the corner"*.
+- *Source-verified / measured.* Wall A has no door slot left after the hob: it ends with the bottle
+  and 500 mm bare. Wall C's bases stand at 900–1500 and 1500–2100, then the tower at 2100–2700. They
+  are the far wall's first base cabinets from the corner.
+- *Doc-quoted.* The question, the answer and *N3 revised* 6 put no condition on the far wall's
+  length. *N3 revised* 10's ≤ 3000 mm clause decides where the **tower** stands. It says nothing about
+  the door bases.
+- *Source-verified, then inference.* The two bases are the modules `towerAtTheFreeEnd` frees when a
+  large U caps the block at one module (`u-tall-layout.ts:207-210`, `extraStorageCount`). That is how
+  this code builds them. No owner answer and no record treats them as a separate category. F6 does
+  separate a door module from a tall column, and the plan honours that by converting only
+  `DOOR_BASE_BUILD_ID` bodies (`u-composition.ts:471`). No record separates one door module from
+  another by the step that placed it.
+
+**Alternative refused:** exclude a ≤ 3000 mm far wall's fill bases from RQ18 (a). No owner wording
+supports that. It would also leave this room with one drawer unit, the preparation, against the
+owner's *"Min 3"* (N1.6), while two door slots stand in the run after the hob.
+
+**A second question the row exposes, put to the owner as RQ19 (a), non-blocking.** The plan gives
+this room 2 pan drawers and no 3-drawer extra. It keys the split on `N(T)` = 5 and keeps the pan
+drawers first when the count yields (*N3 revised* 6, derived from RQ18 (b)'s *"nearest the hob"*). The
+owner's own words were *"if 3 cabinets 1 pan drawer 2 cabinets with 3 drawers if 4+ 2 - pan drawers"*.
+Read against the number of drawer cabinets the room actually gets (3), they give 1 pan drawer and 1
+extra 3-drawer. The owner's wording does not settle which count *"3 cabinets"* means. **The two
+readings differ in 13 571 rooms [measured].** The built default is the recorded sentence.
+
+**RQ19 (b), non-blocking.** In **18 602 rooms [measured]**, at least one extra drawer unit stands on
+the far side of the tall oven cabinet. The example is 2700/4000/4000, where wall C reads dishwasher,
+preparation, hob, tower, `base-panbank`. It happens when the door slots between the hob and the tower
+run out before the count does. In the example there are none, because the overflowed core already
+exceeds `n` and the tower follows the hob directly (*N3 revised* 10). Those bases are the far wall's first base
+cabinets after the hob in run order. So RQ18 (a) covers them *(inference: the owner chose more drawers
+over drawers near the hob, but was not shown a tall cabinet between them)*. The built default keeps
+them.
+
+#### N9.2 — the fridge wall's 600 mm bare end is an implementation defect, together with a test-fidelity defect
+
+**Ruling.** When the fridge is dropped, the plan leaves the fridge wall's whole free run empty. A4
+forbids that whenever the run is 600 mm or more. **The fix:** the dropped fridge's wall is filled
+from its corner with 600 mm door bases (`base-cabinet`), and the bare remainder, < 600 mm, is left
+at the free end. These bases are never drawer units, because the fridge wall stands before the sink
+in run order (*N3 revised* 6).
+
+- *Doc-quoted.* A4: *"every bare run end of 600 mm or more receives 600 mm storage bases until less
+  than 600 mm remains; the remainder, at most 599 mm, stays"*. The cap binds *"what the product
+  proposes"*. N8: *"A4's ≤ 599 mm fill applies to all three walls of a U"*. U3a AC1: *"Every bare
+  run end is < 600 mm"*. F7's exception does not apply, for two reasons. It concerns wall B's reserve
+  beyond the run's end, while this 600 mm is inside the run (`remainderMm`). And it also occurs on
+  wall C (3000/1000/1600), which F7 holds to 599 *"without exception"*. **The contract has no
+  gap.**
+- *Source-verified.* The dropped branch of `placedFridge` returns `bases: []` (`u-composition.ts:230-236`),
+  and `planUKitchenComposition` then discards the fridge wall's bases (`:550-554`). `planUTallLayout`
+  fills only the gap after a fridge (`u-tall-layout.ts:63-71`). Nothing else writes to that wall.
+- *Measured.* 406 grid rooms have `remainderMm` = 600 on the fridge wall. **All 406 drop the fridge,
+  and all 406 have an empty fridge wall.** An example is 2700/1600/1600: B's run is 900–1500, and
+  nothing stands on it. At 10 mm resolution the bare end reaches 690 mm (3000/1690/1690, B). Any run
+  shorter than the fridge's 700 mm width is left bare, so the bare end can reach 699 mm. The back wall
+  and the far wall peak at 500 mm, as N4′ does.
+- *Doc-quoted, the misreading behind it.* RQ9's **empty population** is the *other-side-wall
+  fallback*: *"the fallback never fires on the approved grid (0 rooms)"* (*N3 revised* 2). **The drop
+  is not empty.** It fires in **1 522 rooms** (N4′, and 1 522 measured at `58376f4`). The code and
+  the tests conflate the two. `u-composition.ts:185` and `u-tall-layout.ts:39` call the drop *"RQ9's
+  own empty-population branch"*. `u-tall-layout.property.test.ts:164-178` then **leaves the dropped
+  fridge's wall out of the bare-run-end property** on that premise, so the property could not fail
+  where the plan does. `u-tall-layout.property.test.ts:115` and `u-composition.property.test.ts:164`
+  repeat the premise. **The defect is pre-existing, and the RQ18 fix did not cause it** (the
+  implementer checked with `git stash`, per STATUS).
+- *Derived.* The remainder goes at the free end. That is the far wall's own door fill when no tower
+  stands (`doorFill`, `u-tall-layout.ts:369-385`, filled from `run.startMm`), and it is *N3 revised*
+  3's convention of bare wall beyond the last body. **Alternative refused:** the remainder at the
+  corner, which is `fridgeAtTheFreeEnd`'s convention. That exists to keep the fridge flush with the
+  free end, and without a fridge nothing needs to be flush.
+
+#### N9.3 — found while adjudicating: the bottle is never placed when the hob has gone round the corner
+
+**Ruling, in part.** This is an implementation defect wherever nothing else competes for the space
+after the hob. Where a tall column competes, the contract has a gap, which is put to the owner as
+RQ20.
+
+- *Doc-quoted.* *N3 revised* 7: the bottle stands *"immediately beside the hob's cabinet when there
+  is space"*, with *"its width [coming] out of the remainder before A4's door fill"*.
+- *Source-verified.* `wallAFill` is the only place the plan puts a bottle, and it runs only when the
+  core never left wall A (`u-composition.ts:547-549`). Its comment calls the far-wall omission *"a
+  scope boundary"* (`:384-388`). **No record carries that boundary.** A grep of this ADR, the M7B
+  plan, STATUS and BACKLOG finds nothing.
+- *Measured.* The hob stands on the far wall in **30 375** rooms, and **none of them has a bottle**.
+  They split three ways. In **6 021**, no tall column stands on that wall and 300 mm or more of run
+  follows the hob. In **8 822**, 300 mm or more stands between the hob and a tall column. In **9 025**,
+  the tall column follows the hob directly, so there is no space and no bottle is correct.
+- **Ruled: the 6 021.** Everything after the hob on that wall is door storage or bare wall, so the
+  bottle stands directly after the hob. Its 300 mm comes out of the remainder, and the door fill is
+  redone on what is left (*N3 revised* 7, as written). Witness **3600/2400/2000** changes: C reads
+  hob, bottle, bare 100 (N4′, corrected).
+- **Not ruled: the 8 822.** Here the bottle lands between the hob and the tower. On a far wall over
+  3000 mm, it either displaces a counted door base or pushes the tower along. *N3 revised*'s *"from
+  the corner counts base bodies"* suggests the bottle counts toward `n` *(inference)*. On a far wall
+  of 3000 mm or less, its 300 mm comes out of the leftover before the block and can cost the tower.
+  The L's precedent is split. Without a pan drawer, the bottle may cost a tall column (Amendment J).
+  With one, it gives way (K4). **So the owner decides (RQ20).** The built default is the plan's
+  current behaviour: no bottle between the hob and a tall column on the far wall.
+
+#### N9.4 — owner questions RQ19 and RQ20 (non-blocking; defaults built)
+
+| # | Question, as it is to be put | Default built |
+| --- | --- | --- |
+| RQ19 (a) | *"A U kitchen sometimes has room for fewer drawer cabinets than its size calls for. Take a 5000 / 4000 / 3000 room. Its size calls for 5, and it has room for 3: the 3-drawer preparation cabinet plus 2 more. Today both extras are pan-drawer cabinets. That follows your 'if 4+, 2 pan drawers', counted by the room's size. Did you mean the count the room actually gets instead? Then 3 cabinets would be 1 pan drawer and one more 3-drawer."* The readings differ in 13 571 rooms | 2 pan drawers (by size), pan drawers kept first |
+| RQ19 (b) | *"When the hob has gone round onto the side wall and the tall oven cabinet stands right after it, the extra drawer cabinets end up beyond the tall cabinet. For example: dishwasher, preparation, hob, tall oven, pan-drawer. Keep them there, or stop at the tall cabinet and have fewer drawers?"* 18 602 rooms | Keep them there |
+| RQ20 | *"When the hob has gone round onto the side wall and a tall cabinet stands one or two cabinets after it, should the bottle cabinet go right after the hob? That moves the tall cabinet 300 mm along, and on a short wall it can cost a door cabinet or the tall oven cabinet itself. Or should that wall go without the bottle?"* 8 822 rooms | Without the bottle |
+
+A different answer to any of the three changes one step in `u-composition.ts` or `u-tall-layout.ts`,
+plus its witnesses. None of them moves a core body, the fridge, the oven count or a bare end past A4.
+**U3a is not blocked**, which follows RQ18's precedent (N6″).
+
+#### N9.5 — consequences
+
+- **Code changes before U3a's QA:** N9.2 and N9.3's ruled part. The punch list is in the architect's
+  report to the coordinator, 2026-09-29, and the M7B plan's U3a AC1 and AC2 carry the test changes.
+- **AC3's regression pins do not change:** largest bare end 500 / 500 / 500 on the grid. After the
+  N9.2 fix, the fridge wall must measure 500, not 600. That is expected and has not been measured.
+- **U3b:** the dropped fridge's wall now carries door bases, so U3b's uppers loop meets side-wall door
+  bases in fridge-less rooms. No new rule applies. The uppers follow Amendment C and E7 as on any door
+  base.

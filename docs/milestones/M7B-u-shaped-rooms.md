@@ -359,7 +359,7 @@ test or a capture in U4.
 | **U1** | The stored U and wall C in the domain; no shape validates | **Full** + security (S2) | No | U0 (ADR 0132 accepted) | — |
 | **U2** | The right corner, the U shell, engine limits, depth change | **Full** | No | U1 | — |
 | ~~**U3**~~ | ~~Composing a U across three walls~~ **Split 2026-09-29 into U3a and U3b (R8)** | | | | |
-| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)** |
+| **U3a** | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. **RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built** |
 | **U3b** | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
@@ -842,6 +842,13 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    ≤ `N(T)`, with `base-hob-2drawer` never counted. The bottle is directly after the hob when it
    stands. Every bare run end is < 600 mm, RQ17's lone-tower remainder
    (≤ 599) included. The plan is deterministic. **[prop]**
+   **2026-09-29 (ADR 0110 N9.2, N9.3):** "every bare run end" covers **all three walls, including a
+   dropped fridge's wall**. The shipped property left that wall out on a false premise: the drop is
+   1 522 rooms, not RQ9's empty population. That exclusion is withdrawn. So that the property actually
+   visits the drop band, ≥ 200 of its samples are drawn with both side walls in 1000–1699. **Added:**
+   where the hob stands on the far wall, no tall column stands on that wall, and ≥ 300 mm of run
+   follows the hob, the next body after the hob is the bottle. Where a tall column follows the hob on
+   the far wall, no bottle stands between them (RQ20's default).
 2. **Witnesses** (N4′'s seven rooms, `u0-measure-rq.mjs` with `RQ13_TALL=1 TOWER_BARE=1`): the plan's
    bodies per wall, in order, equal N4′'s predicted rows, and 2700 / 1000 / 1000 is `minimumMet:
    false`. **If the plan measures otherwise, stop and report** before U3b. N4′ was a model (7J A8's
@@ -855,6 +862,13 @@ revised* 1–10, and it reproduces N4′'s witnesses. It inserts nothing and not
    to two, nearest the hob, and the rest are `base-3drawer` (*N3 revised* 6's table). So 6000/6000/6000
    is A: bottle, 2 × `base-panbank`; C: 2 × `base-3drawer` first. **The code must stop placing only
    `base-3drawer` extras.**
+   **Adjudicated again 2026-09-29, before QA (ADR 0110 N9):** **5000/4000/3000** is right as built.
+   Wall C's two bases are `base-panbank` under RQ18 (a), so the witness text was stale and is now
+   annotated. The room has 3 drawer units of `N(T)` = 5. **3600/2400/2000** changes: C reads hob,
+   bottle, bare 100. It had "matched" only because the model and the plan both left the bottle out
+   (N9.3). **The fridge wall's 600 mm bare end is a plan defect** (N9.2): a dropped fridge's wall is
+   left empty. Both fixes land before U3a QA. After them, AC2 must match 7 of 7 corrected rows, and
+   AC3's pin of largest bare 500 / 500 / 500 must hold. Neither has been measured yet.
 3. **The model's tallies**, as a regression and not an oracle: over N4′'s step-100 grid, the plan's
    counts for fridge position, hob wall, tower position and pantries equal N4′'s table, or every
    difference is reported with its room. **[unit] + [report]**
