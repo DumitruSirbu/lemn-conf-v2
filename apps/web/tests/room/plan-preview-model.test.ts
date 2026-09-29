@@ -530,8 +530,11 @@ describe("derivePlanPreview — two walls drawn on one bar are labelled on oppos
     const walls = { wallAMm: 360, wallBMm: 2400, wallCMm: 2300 };
     const left = drawnPlan(typedUDraft(walls, "left"), FRAME_PREVIEW_BOX);
 
+    // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): a U draft that says `right` is drawn as the left-hand
+    // one, unmirrored. The reflection itself is still what `reflectPlanPreview` does to a U's plan,
+    // which is what the assertions after it are about.
     expect(drawnPlan(typedUDraft(walls, "right"), FRAME_PREVIEW_BOX)).toEqual(
-      reflectPlanPreview(left),
+      left,
     );
     expect(wall(asDrawn(reflectPlanPreview(left)), "B").labelPx.alignment).toBe(
       "leftAligned",

@@ -91,26 +91,6 @@ const anyLDraft: fc.Arbitrary<RoomDraft> = fc
     ),
   );
 
-const anyUDraft: fc.Arbitrary<RoomDraft> = fc
-  .record({
-    wallAMm: everyMillimetreIn(approvedLWalls().wallA),
-    wallBMm: everyMillimetreIn(approvedLWalls().wallB),
-    wallCMm: everyMillimetreIn(approvedLWalls().wallB),
-    direction: anyCorner,
-  })
-  .map(({ wallAMm, wallBMm, wallCMm, direction }) =>
-    draftWith(
-      "U",
-      [
-        ["wallA", wallAMm],
-        ["wallB", wallBMm],
-        ["wallC", wallCMm],
-        ["height", APPROVED_ROOM_POLICY.heightBounds.minMm],
-      ],
-      direction,
-    ),
-  );
-
 const anyLinearDraft: fc.Arbitrary<RoomDraft> = fc
   .record({
     wallAMm: everyMillimetreIn(approvedLWalls().wallA),
@@ -144,9 +124,12 @@ const anyIncompleteLDraft: fc.Arbitrary<RoomDraft> = everyMillimetreIn(
   ),
 );
 
+// A U is deliberately not in this set since M7B U5 S1: its plan is drawn unmirrored (Q-U4 (b)) and its
+// facing labels are placed by a rule the frozen base does not have (backlog 72), so the base can no
+// longer be its oracle. It is held by `plan-preview-model.facing-labels.test.ts` instead. The L and the
+// straight room are what this test protects, and they are unmoved.
 const anyDraft: fc.Arbitrary<RoomDraft> = fc.oneof(
   anyLDraft,
-  anyUDraft,
   anyLinearDraft,
   anyIncompleteLDraft,
 );

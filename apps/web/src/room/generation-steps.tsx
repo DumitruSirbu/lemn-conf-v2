@@ -40,6 +40,7 @@
 // `включено` its own rows already show.
 import {
   cornerDirectionOf,
+  wallsOf,
   type DesignRoom,
   type GenerationLog,
 } from "@lemnaria/configurator-domain";
@@ -60,7 +61,7 @@ import {
   withStoredLength,
   type RoomDraft,
 } from "./room-draft";
-import { parsedRoomLengthsOf, requiredFieldsFor } from "./room-url-state";
+import { parsedRoomLengthsOf } from "./room-url-state";
 import styles from "./room.module.css";
 import type { ActiveGenerationRun } from "./use-generation";
 
@@ -235,31 +236,47 @@ function ComposeCta({
   );
 }
 
+/** The catalogue's two summary leaves name one wall (`roomSummaryLinear`) and two (`roomSummary`). */
+const MOST_WALLS_A_SUMMARY_NAMES = 2;
+
 /** Frame 1F's one-line room, in the whole millimetres the customer typed (ADR 0126). The numbers are
  *  ICU arguments, exactly as `room.planWallLabel`'s are, so their form is the catalogue's and a digit
  *  is never concatenated into a sentence.
  *
- *  **Which leaf, decided by `requiredFieldsFor(room.shape)`** (ADR 0130 D10): a straight room's own
- *  entered fields are wall A and height, never a second wall — `room.depthMm` is the drawn floor's
- *  depth in front of the run (ADR 0130 D3), not a length the customer typed, so the summary must not
- *  print it as though it were one. The field set is read rather than the shape compared a second
- *  time here, so a wave that widens a shape's fields moves this summary with it. */
+ *  **Which sentence, decided by how many walls the domain gives the shape** (`wallsOf`, M7B plan D7;
+ *  ADR 0130 D10): a straight room's own entered fields are wall A and height, never a second wall —
+ *  `room.depthMm` is the drawn floor's depth in front of the run (ADR 0130 D3), not a length the
+ *  customer typed, so the summary must not print it as though it were one. The count is read rather
+ *  than the shape compared, so a wave that widens a shape's walls moves this summary with it.
+ *
+ *  **A shape with three walls has no sentence yet, and this throws for it rather than print two of
+ *  them.** The catalogue's two summary leaves name one wall and two; a U's summary needs a leaf that
+ *  names three, which is new customer-visible copy (ro and ru, the copy lock, the golden manifest) and
+ *  is owed before U6 turns the U card live. Failing closed is `explanationKeyFor`'s own stance in
+ *  `dimensions-form.tsx`, for the same reason: a summary silently missing wall C would tell a
+ *  customer their room is a different room. */
 function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
-  const carriesWallB = requiredFieldsFor(room.shape).includes("wallB");
+  const wallCount = wallsOf(room.shape).length;
+  if (wallCount > MOST_WALLS_A_SUMMARY_NAMES) {
+    throw new Error(
+      `1F has no summary sentence for a room of ${String(wallCount)} walls: it needs a new leaf`,
+    );
+  }
+  const shape = translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]);
 
   return (
     <span className={styles.composeSummary} data-testid="room-compose-summary">
-      {carriesWallB
-        ? translate("room.compose.roomSummary", {
-            shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
+      {wallCount === 1
+        ? translate("room.compose.roomSummaryLinear", {
+            shape,
             wallA: room.widthMm,
-            wallB: room.depthMm,
             height: room.heightMm,
           })
-        : translate("room.compose.roomSummaryLinear", {
-            shape: translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]),
+        : translate("room.compose.roomSummary", {
+            shape,
             wallA: room.widthMm,
+            wallB: room.depthMm,
             height: room.heightMm,
           })}
     </span>

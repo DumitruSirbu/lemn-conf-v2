@@ -359,7 +359,11 @@ describe("a mark finds its wall by id, never by the side of the screen it is dra
     },
   );
 
-  it("paints wall B at the right-hand edge once a U is mirrored, and wall C at the left", () => {
+  // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): a U is never mirrored, so a `right` left on its draft
+  // by an L the customer looked at first leaves B at the left and C at the right. This test drew B on
+  // the right for a right-hand U while nothing had said a U has one hand. The mirror itself, and the
+  // mark finding its wall by id through it, are the L's and are held by the test below.
+  it("paints wall B at the left-hand edge of a U whose draft says right, and wall C at the right", () => {
     const plan = planOf(
       draftTyped("U", { wallA: 3600, wallB: 2400, wallC: 1200 }, "right"),
     );
@@ -368,7 +372,7 @@ describe("a mark finds its wall by id, never by the side of the screen it is dra
       { wall: "C", labelKey: TOO_LONG },
     ]);
 
-    expect(wallOf(marked, "B").xPx).toBeGreaterThan(wallOf(marked, "C").xPx);
+    expect(wallOf(marked, "B").xPx).toBeLessThan(wallOf(marked, "C").xPx);
     expect(wallOf(marked, "B").issueLabelKey).toBe(TOO_SHORT);
     expect(wallOf(marked, "C").issueLabelKey).toBe(TOO_LONG);
   });

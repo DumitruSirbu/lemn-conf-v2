@@ -444,13 +444,14 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
     settle();
 
     expect(fieldFor("wallC").value).toBe("2180");
+    // No `direction`: restated 2026-09-29 (M7B U5 S1, Q-U4 (b)) — a U has one hand, and the URL it
+    // writes back names none, though the one it was opened with did.
     expect([...new URLSearchParams(addressBar()).keys()]).toEqual([
       "shape",
       "wallA",
       "wallB",
       "wallC",
       "height",
-      "direction",
     ]);
     expect(continueButton().disabled).toBe(true);
   });
@@ -509,29 +510,42 @@ describe("buildability is the policy's answer and never a shape's letter (criter
 });
 
 describe("direction is written for every shape that carries the toggle (criterion 18)", () => {
-  it.each(["L", "U"] as const)(
-    "shows the toggle at left for %s and writes it on the first sync",
-    (shape) => {
-      expect(parseRoomUrlState({ shape }).substate).toBe("1B");
+  it("shows the toggle at left for an L and writes it on the first sync", () => {
+    expect(parseRoomUrlState({ shape: "L" }).substate).toBe("1B");
 
-      render(`?shape=${shape}`);
-      settle();
+    render("?shape=L");
+    settle();
 
-      expect(cornerControl("left").checked).toBe(true);
-      expect(new URLSearchParams(addressBar()).get("direction")).toBe("left");
-    },
-  );
+    expect(cornerControl("left").checked).toBe(true);
+    expect(new URLSearchParams(addressBar()).get("direction")).toBe("left");
+  });
 
-  it.each(["L", "U"] as const)(
-    "leaves the parser marking an absent direction for %s, rather than reading it as left",
-    (shape) => {
-      // The middle layer, kept separate from the draft's: the parser has never defaulted, and a
-      // form that taught it to would change 7E1's shipped contract.
-      const state = parseRoomUrlState({ shape });
+  it("leaves the parser marking an absent direction for an L, rather than reading it as left", () => {
+    // The middle layer, kept separate from the draft's: the parser has never defaulted, and a
+    // form that taught it to would change 7E1's shipped contract.
+    const state = parseRoomUrlState({ shape: "L" });
 
-      expect(state.markedFields).toContain("direction");
-    },
-  );
+    expect(state.markedFields).toContain("direction");
+  });
+
+  // Restated 2026-09-29 (M7B U5 S1; Q-U4 (b), ADR 0132 decision 8): a U has one hand, so it draws no
+  // toggle, writes no `direction`, and the parser marks nothing for its absence. These were the U
+  // arms of the two tests above, written while nothing had said what a U's corner meant.
+  it("draws no toggle for a U and writes no direction on the first sync", () => {
+    render("?shape=U");
+    settle();
+
+    expect(
+      container.querySelector("[data-testid^='room-corner-control-']"),
+    ).toBeNull();
+    expect(new URLSearchParams(addressBar()).has("direction")).toBe(false);
+  });
+
+  it("does not mark an absent direction for a U", () => {
+    const state = parseRoomUrlState({ shape: "U" });
+
+    expect(state.markedFields).not.toContain("direction");
+  });
 
   it("keeps the three layers apart: the toggle shows left where the parser marks it", () => {
     // Collapsing any layer into another is what ruling R6 was corrected over. Here both readings of

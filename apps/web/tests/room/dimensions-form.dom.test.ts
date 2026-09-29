@@ -203,8 +203,8 @@ describe("every length field is a text field with a numeric keypad (criterion 5,
 });
 
 describe("the corner toggle exists only for the shapes that turn one (criterion 6)", () => {
-  it.each(["L", "U"] as const)("offers both directions for %s", (shape) => {
-    render(createRoomDraft(shape));
+  it("offers both directions for an L", () => {
+    render(createRoomDraft("L"));
 
     expect(
       container.querySelectorAll("[data-testid^='room-corner-control-']")
@@ -213,6 +213,21 @@ describe("the corner toggle exists only for the shapes that turn one (criterion 
     expect(
       container.querySelector("[data-testid='room-corner']")?.textContent,
     ).toContain(roMessages.room.cornerQuestion);
+  });
+
+  // Restated 2026-09-29 (M7B U5 S1; Q-U4 (b), ADR 0132 decision 8): a U has one hand, so it shows no
+  // toggle. This test said U offered both directions while a U was unreachable and nothing had
+  // decided what its corner meant.
+  it("draws no toggle at all for a U, which has one hand", () => {
+    render(createRoomDraft("U"));
+
+    expect(
+      container.querySelectorAll("[data-testid='room-corner']").length,
+    ).toBe(0);
+    expect(
+      container.querySelectorAll("[data-testid^='room-corner-control-']")
+        .length,
+    ).toBe(0);
   });
 
   it("draws no toggle at all for a straight room", () => {

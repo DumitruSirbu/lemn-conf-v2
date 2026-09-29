@@ -680,3 +680,34 @@ describe("the composed plan aside maps a DesignRoom the one way parsedRoomLength
     expect(planLabelText("B")).toBeNull();
   });
 });
+
+/**
+ * **M7B U5 S1, acceptance criterion 2 — owed, and expected to fail until its copy lands.** A U's 1F
+ * summary shows wall A, wall B, wall C and the height. The catalogue has a summary leaf for one wall
+ * and one for two and none for three, so `RoomSummary` fails closed for a room of three walls instead
+ * of printing two of them, and this test asserts the behaviour the criterion asks for. **It is
+ * `it.fails` on purpose** (`engineering-conventions.md`, *A deferred test has two shapes*): it goes red
+ * the moment the third leaf exists, and flipping it to `it` is that change's own edit. The copy is a
+ * decision for the owner's side, not this slice's: see U5 S1's report.
+ */
+describe("a U's summary names its three walls (M7B U5 S1, criterion 2)", () => {
+  it.fails("shows A, B, C and the height, read through wallsOf", () => {
+    renderRun({
+      phase: "failed",
+      room: {
+        shape: "U",
+        widthMm: 4500,
+        depthMm: 3010,
+        wallCMm: 3620,
+        heightMm: 2600,
+      },
+    });
+
+    const summary = container.querySelector(
+      '[data-testid="room-compose-summary"]',
+    );
+    for (const length of ["4500", "3010", "3620", "2600"]) {
+      expect(summary?.textContent).toContain(length);
+    }
+  });
+});

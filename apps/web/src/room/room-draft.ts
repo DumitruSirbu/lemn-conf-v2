@@ -111,11 +111,10 @@ export function missingLengthFields(
   );
 }
 
-/** Whether a shape turns a corner, and so whether it carries the toggle at all (criterion 6). Stated
- *  once here so no component spells a shape's name to decide it. */
-export function carriesCornerDirection(shape: RoomShape): boolean {
-  return shape !== "linear";
-}
+/** Whether a shape carries the toggle at all (criterion 6) is `room-url-state.ts`'s to say, because
+ *  the URL parser needs the same answer and this module already imports that one. Re-exported so the
+ *  screens keep reading it from the draft. */
+export { carriesCornerDirection } from "./room-url-state";
 
 function withLengthText(
   draft: RoomDraft,

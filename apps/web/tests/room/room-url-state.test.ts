@@ -37,27 +37,23 @@ function lInput(direction: CornerDirection) {
   });
 }
 
-function uInput(direction: CornerDirection) {
-  return fc.record({
-    shape: fc.constant<"U">("U"),
-    wallAMm: ANY_SAFE_LENGTH_MM,
-    wallBMm: ANY_SAFE_LENGTH_MM,
-    wallCMm: ANY_SAFE_LENGTH_MM,
-    heightMm: ANY_SAFE_LENGTH_MM,
-    cornerDirection: fc.constant(direction),
-  });
-}
+/** A U has one hand (M7B U5 S1, Q-U4 (b)): its parsed input names `left` and nothing can change it. */
+const U_INPUT = fc.record({
+  shape: fc.constant<"U">("U"),
+  wallAMm: ANY_SAFE_LENGTH_MM,
+  wallBMm: ANY_SAFE_LENGTH_MM,
+  wallCMm: ANY_SAFE_LENGTH_MM,
+  heightMm: ANY_SAFE_LENGTH_MM,
+  cornerDirection: fc.constant<"left">("left"),
+});
 
 const L_LEFT_INPUT = lInput("left");
 const L_RIGHT_INPUT = lInput("right");
-const U_LEFT_INPUT = uInput("left");
-const U_RIGHT_INPUT = uInput("right");
 const ANY_PARSED_INPUT: fc.Arbitrary<ParsedRoomInput> = fc.oneof(
   LINEAR_INPUT,
   L_LEFT_INPUT,
   L_RIGHT_INPUT,
-  U_LEFT_INPUT,
-  U_RIGHT_INPUT,
+  U_INPUT,
 );
 
 function asNextSearchParams(params: URLSearchParams): RoomSearchParams {
@@ -85,18 +81,14 @@ describe("room URL state round-trip", () => {
     assertRoundTripIdentity(L_RIGHT_INPUT);
   });
 
-  it("is the identity for left-turning U inputs over safe integer dimensions", () => {
-    assertRoundTripIdentity(U_LEFT_INPUT);
-  });
-
-  it("is the identity for right-turning U inputs over safe integer dimensions", () => {
-    assertRoundTripIdentity(U_RIGHT_INPUT);
+  it("is the identity for U inputs over safe integer dimensions, which carry no direction", () => {
+    assertRoundTripIdentity(U_INPUT);
   });
 
   it.each([
     ["linear", ["shape", "wallA", "height"]],
     ["L", ["shape", "wallA", "wallB", "height", "direction"]],
-    ["U", ["shape", "wallA", "wallB", "wallC", "height", "direction"]],
+    ["U", ["shape", "wallA", "wallB", "wallC", "height"]],
   ] as const)("emits only the canonical keys for %s", (shape, expectedKeys) => {
     const input = inputFor(shape);
 
@@ -134,14 +126,6 @@ describe("room URL state round-trip", () => {
         wallCMm: lengthMm,
         heightMm: lengthMm,
         cornerDirection: "left",
-      },
-      {
-        shape: "U",
-        wallAMm: lengthMm,
-        wallBMm: lengthMm,
-        wallCMm: lengthMm,
-        heightMm: lengthMm,
-        cornerDirection: "right",
       },
     ] satisfies readonly ParsedRoomInput[]) {
       expect(
@@ -264,9 +248,9 @@ describe("roomHrefFromDesignRoom", () => {
   });
 });
 
-// M7B wave U1 slice S1 (pulled forward from U5): `parsedRoomLengthsOf`'s U arm is data-only — no
-// live caller reaches a U room yet, `roomHrefFromDesignRoom` still throws before it (1D's own guard
-// above) — so this is the one paired test for the mapping itself.
+// M7B wave U1 slice S1 (pulled forward from U5) wrote `parsedRoomLengthsOf`'s U arm as data only; U5
+// slice S1 gave it its callers, `roomHrefFromDesignRoom` and 1F's plan draft. This is the paired test
+// for the mapping itself.
 describe("parsedRoomLengthsOf — the U arm", () => {
   it("reads all four lengths off a stored U room", () => {
     const room: DesignRoom = {
@@ -434,7 +418,8 @@ describe("room URL state boundary", () => {
     ).toStrictEqual({
       substate: "1B",
       shape: "U",
-      markedFields: ["wallA", "wallB", "wallC", "height", "direction"],
+      // No `direction`: a U has one hand, so an unreadable one is ignored rather than marked.
+      markedFields: ["wallA", "wallB", "wallC", "height"],
     });
   });
 
@@ -649,6 +634,6 @@ function inputFor(shape: RoomShape): ParsedRoomInput {
     wallBMm: 2400,
     wallCMm: 3000,
     heightMm: 2500,
-    cornerDirection: "right",
+    cornerDirection: "left",
   };
 }

@@ -2,11 +2,14 @@ import {
   APPROVED_ROOM_POLICY,
   cornerDirectionOf,
   validateRoomInput,
+  wallsOf,
   type CornerDirection,
   type DesignRoom,
+  type DesignWall,
   type RoomField,
   type RoomInput,
   type RoomIssue,
+  type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 
@@ -40,7 +43,9 @@ type ParsedURoomInput = RoomInput & {
   readonly wallBMm: number;
   readonly wallCMm: number;
   readonly heightMm: number;
-  readonly cornerDirection: CornerDirection;
+  /** A U has one hand (ADR 0132 decision 8, Q-U4 (b)), so this is never read from the URL: the
+   *  domain's `URoomInput` still names the field, and this is the one value it is given. */
+  readonly cornerDirection: typeof ONLY_HAND_OF_A_U;
 };
 
 export type ParsedRoomInput =
@@ -66,7 +71,7 @@ export type RoomUrlState =
     }
   | {
       readonly substate: "1D";
-      readonly input: ParsedLRoomInput | ParsedLinearRoomInput;
+      readonly input: ParsedRoomInput;
       readonly room: DesignRoom;
       readonly markedFields: readonly [];
     };
@@ -74,9 +79,37 @@ export type RoomUrlState =
 const ROOM_SHAPES = new Set<RoomShape>(["linear", "L", "U"]);
 const CORNER_DIRECTIONS = new Set<CornerDirection>(["left", "right"]);
 
-/** Resolves the URL into the earliest room sub-state that can truthfully represent it. */
+/** The shapes with a single hand (ADR 0132 decision 8, Q-U4 (b): a U is always left-hand, so it
+ *  shows no toggle, carries no `direction`, and its plan is drawn unmirrored). **The one place the
+ *  screen spells which shape that is** — every other site asks `carriesCornerDirection` or
+ *  `hasOneHand` (ADR 0116 Amendment A1's *the screen asks* form, for the one fact the domain
+ *  publishes no query for). */
+const ONE_HANDED_SHAPES: ReadonlySet<RoomShape> = new Set<RoomShape>(["U"]);
+const ONLY_HAND_OF_A_U = "left" as const satisfies CornerDirection;
+
+export function hasOneHand(shape: RoomShape): boolean {
+  return ONE_HANDED_SHAPES.has(shape);
+}
+
+/** Whether a shape turns a corner the customer chooses the direction of, and so whether it carries
+ *  the toggle and a `direction` in its URL (criterion 6). Stated once here so no component spells a
+ *  shape's name to decide it: a straight room has no corner, and a U has one hand. */
+export function carriesCornerDirection(shape: RoomShape): boolean {
+  return turnsACorner(shape) && !hasOneHand(shape);
+}
+
+/** Whether a shape has more than the one wall a straight room has — read from the domain's own
+ *  answer (`wallsOf`), so a wall count is never restated as a shape's name. */
+export function turnsACorner(shape: RoomShape): boolean {
+  return wallsOf(shape).length > 1;
+}
+
+/** Resolves the URL into the earliest room sub-state that can truthfully represent it. The room is
+ *  judged against `policy`, which is the owner-approved one everywhere but a test that states a shape
+ *  the approved policy does not build yet (ADR 0116's witness). */
 export function parseRoomUrlState(
   searchParams: RoomSearchParams,
+  policy: RoomPolicy = APPROVED_ROOM_POLICY,
 ): RoomUrlState {
   const shapeValue = singleValue(searchParams.shape);
   if (!isRoomShape(shapeValue)) return invalidShape();
@@ -90,7 +123,7 @@ export function parseRoomUrlState(
   );
 
   const direction = directionFor(shapeValue, searchParams.direction);
-  if (shapeValue !== "linear" && direction === undefined) {
+  if (carriesCornerDirection(shapeValue) && direction === undefined) {
     markedFields.push("direction");
   }
   if (markedFields.length > 0) {
@@ -98,7 +131,7 @@ export function parseRoomUrlState(
   }
 
   const input = constructParsedInput(shapeValue, parsedLengths, direction);
-  const validation = validateRoomInput(input, APPROVED_ROOM_POLICY);
+  const validation = validateRoomInput(input, policy);
   if (!validation.ok) {
     return {
       substate: "1C",
@@ -106,15 +139,6 @@ export function parseRoomUrlState(
       issues: validation.issues,
       markedFields: validation.issues.map((issue) => issue.field),
     };
-  }
-  // ADR 0130 D2/D10 (wave 7J S4): the domain now maps both the L and the straight kitchen onto a
-  // `DesignRoom`, so `input` is one of the two shapes that can reach here — a U still cannot, and
-  // `validateRoomInput` refusing it as its shape alone (ADR 0108 decision 3) is what keeps this
-  // reachable only for the two ADR 0116 has designed.
-  if (input.shape === "U") {
-    throw new Error(
-      "Domain accepted a room shape without a DesignRoom mapping",
-    );
   }
   return {
     substate: "1D",
@@ -124,45 +148,56 @@ export function parseRoomUrlState(
   };
 }
 
-/** Emits only the canonical room keys used by the input's shape. */
+/** Emits only the canonical room keys used by the input's shape, in `requiredFieldsFor`'s order, so
+ *  the query cannot name a wall the shape does not have. */
 export function serialiseRoomInput(input: ParsedRoomInput): URLSearchParams {
+  const lengths = lengthsOfParsedInput(input);
   const params = new URLSearchParams();
   params.set("shape", input.shape);
-  params.set("wallA", metresTextForUrl(input.wallAMm));
-  if (input.shape !== "linear") {
-    params.set("wallB", metresTextForUrl(input.wallBMm));
+  for (const field of requiredFieldsFor(input.shape)) {
+    params.set(field, metresTextForUrl(requireParsed(lengths[field])));
   }
-  if (input.shape === "U") {
-    params.set("wallC", metresTextForUrl(input.wallCMm));
-  }
-  params.set("height", metresTextForUrl(input.heightMm));
-  if (input.shape !== "linear") {
-    params.set("direction", input.cornerDirection);
+  if (carriesCornerDirection(input.shape)) {
+    params.set("direction", requireDirection(directionOfParsedInput(input)));
   }
   return params;
+}
+
+function lengthsOfParsedInput(
+  input: ParsedRoomInput,
+): Readonly<Record<LengthField, number | undefined>> {
+  return {
+    wallA: input.wallAMm,
+    wallB: "wallBMm" in input ? input.wallBMm : undefined,
+    wallC: "wallCMm" in input ? input.wallCMm : undefined,
+    height: input.heightMm,
+  };
+}
+
+function directionOfParsedInput(
+  input: ParsedRoomInput,
+): CornerDirection | undefined {
+  return "cornerDirection" in input ? input.cornerDirection : undefined;
 }
 
 /**
  * Reopens Step 1 from a stored room without carrying document or presentation state in the URL.
  * ADR 0129 D9: the direction is `cornerDirectionOf(room)`, which maps an absent key to left — so a
- * document from before this wave still reopens on the left toggle, exactly as it always has.
+ * document from before this wave still reopens on the left toggle, exactly as it always has. A U's
+ * URL carries no direction at all (`serialiseRoomInput`).
  */
 export function roomHrefFromDesignRoom(room: DesignRoom): string {
-  const lengths = parsedRoomLengthsOf(room);
-  const input: ParsedRoomInput =
-    room.shape === "linear"
-      ? {
-          shape: "linear",
-          wallAMm: millimetresOf(lengths, "wallA"),
-          heightMm: millimetresOf(lengths, "height"),
-        }
-      : {
-          shape: "L",
-          wallAMm: millimetresOf(lengths, "wallA"),
-          wallBMm: millimetresOf(lengths, "wallB"),
-          heightMm: millimetresOf(lengths, "height"),
-          cornerDirection: cornerDirectionOf(room),
-        };
+  const lengths = Object.fromEntries(
+    parsedRoomLengthsOf(room).map((length) => [
+      length.field,
+      length.millimetres,
+    ]),
+  );
+  const input = constructParsedInput(
+    room.shape,
+    lengths,
+    cornerDirectionOf(room),
+  );
 
   return `/configurator/room?${serialiseRoomInput(input).toString()}`;
 }
@@ -182,10 +217,8 @@ export interface DesignRoomLength {
  * never a wall the customer typed. A `Record` over `DesignRoom["shape"]`, so a shape `DesignRoom`
  * learns to carry a third wall in is a compile error here, not a call site silently missing one.
  *
- * **The U arm is data-only** (M7B wave U1 slice S1, pulled forward from U5): `wallCMm` maps to
- * `"wallC"`, matching `room.wallLabel.wallC` and the URL's own `wallC` field (G11). It has no live
- * caller yet — `roomHrefFromDesignRoom` below still throws before reaching a U (U5's to remove) —
- * so this arm exists only so the `Record` stays exhaustive against the widened domain shape.
+ * **The U arm** maps `wallCMm` to `"wallC"`, matching `room.wallLabel.wallC` and the URL's own
+ * `wallC` field (G11); `roomHrefFromDesignRoom` reads it since M7B wave U5 slice S1.
  */
 const DESIGN_ROOM_LENGTHS = {
   linear: (room) => [
@@ -224,17 +257,6 @@ export function parsedRoomLengthsOf(
   return DESIGN_ROOM_LENGTHS[room.shape](room);
 }
 
-function millimetresOf(
-  lengths: readonly DesignRoomLength[],
-  field: DesignRoomLength["field"],
-): number {
-  const length = lengths.find((candidate) => candidate.field === field);
-  if (length === undefined) {
-    throw new Error(`a DesignRoom's own mapping carries no ${field}`);
-  }
-  return length.millimetres;
-}
-
 function invalidShape(): RoomUrlState {
   return { substate: "1A", markedFields: ["shape"] };
 }
@@ -259,15 +281,27 @@ export function isCornerDirection(
   return value !== undefined && CORNER_DIRECTIONS.has(value as CornerDirection);
 }
 
-/** The length fields a shape is entered with, in the order the URL and the form both read them.
- *  Exported rather than copied: a wall added to a shape here grows the query and the form together,
- *  so the two cannot disagree about what a shape is made of. */
-export function requiredFieldsFor(
-  shape: RoomShape,
-): readonly ("wallA" | "wallB" | "wallC" | "height")[] {
-  if (shape === "linear") return ["wallA", "height"];
-  if (shape === "L") return ["wallA", "wallB", "height"];
-  return ["wallA", "wallB", "wallC", "height"];
+type LengthField = "wallA" | "wallB" | "wallC" | "height";
+
+/** The field a wall's length is entered in. A `Record` over the domain's walls, so a wall the domain
+ *  learns is a compile error here. Exported for the plan preview, which draws walls and needs the
+ *  same answer the form and the URL have. */
+const FIELD_OF_WALL = {
+  A: "wallA",
+  B: "wallB",
+  C: "wallC",
+} as const satisfies Readonly<Record<DesignWall, LengthField>>;
+
+export function fieldOfWall(wall: DesignWall): Exclude<LengthField, "height"> {
+  return FIELD_OF_WALL[wall];
+}
+
+/** The length fields a shape is entered with, in the order the URL and the form both read them:
+ *  one per wall the domain says the shape has (`wallsOf`, M7B plan D7), then the height. Exported
+ *  rather than copied: a wall added to a shape in the domain grows the query, the form and the plan
+ *  together, so the three cannot disagree about what a shape is made of (backlog 76). */
+export function requiredFieldsFor(shape: RoomShape): readonly LengthField[] {
+  return [...wallsOf(shape).map(fieldOfWall), "height"];
 }
 
 function parseLength(value: RoomSearchParams[string]): number | undefined {
@@ -281,7 +315,7 @@ function directionFor(
   shape: RoomShape,
   value: RoomSearchParams[string],
 ): CornerDirection | undefined {
-  if (shape === "linear") return undefined;
+  if (!carriesCornerDirection(shape)) return undefined;
   const single = singleValue(value);
   return isCornerDirection(single) ? single : undefined;
 }
@@ -313,7 +347,7 @@ function constructParsedInput(
     wallBMm: requireParsed(lengths.wallB),
     wallCMm: requireParsed(lengths.wallC),
     heightMm: requireParsed(lengths.height),
-    cornerDirection: requireDirection(direction),
+    cornerDirection: ONLY_HAND_OF_A_U,
   };
 }
 
