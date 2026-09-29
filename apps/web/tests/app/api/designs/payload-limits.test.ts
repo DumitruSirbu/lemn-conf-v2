@@ -2,6 +2,9 @@ import {
   KITCHEN_L_DESIGN,
   MAX_DESIGN_BYTES,
   MAX_PLACEMENTS,
+  MAX_ROOM_DEPTH_MM,
+  MAX_ROOM_HEIGHT_MM,
+  MAX_ROOM_WIDTH_MM,
   DesignNotFoundError,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
@@ -667,5 +670,76 @@ describe("GET /api/designs/[id] with an unreadable stored row", () => {
     expect(line.length).toBeLessThan(400);
     expect(line).toContain("issue(s)");
     expect(line).not.toContain(LEAK_CANARY);
+  });
+});
+
+// M7B wave U1 QA, AC5: the write seam's cap at its exact edge, measured with the document the cap was
+// re-derived for — a U packed to `MAX_PLACEMENTS` across walls A, B and C — rather than with junk.
+// Padded with JSON whitespace, so the body is the same document at every size tried.
+describe("PUT /api/designs/[id] — a packed U at the byte cap (M7B U1, AC5)", () => {
+  function packedUDocument(): string {
+    const first = firstSeededPlacement();
+    const walls = ["A", "B", "C"] as const;
+    const placements = Array.from(
+      { length: MAX_PLACEMENTS },
+      (_unused, index) => ({
+        ...first,
+        id: `n${String(index)}`,
+        wall: walls[index % walls.length],
+        alongMm: 100 + index,
+      }),
+    );
+    return JSON.stringify({
+      ...KITCHEN_L_DESIGN,
+      room: {
+        shape: "U",
+        widthMm: MAX_ROOM_WIDTH_MM,
+        depthMm: MAX_ROOM_DEPTH_MM,
+        wallCMm: MAX_ROOM_DEPTH_MM,
+        heightMm: MAX_ROOM_HEIGHT_MM,
+      },
+      placements,
+    });
+  }
+
+  function paddedTo(document: string, totalBytes: number): string {
+    return (
+      document + " ".repeat(totalBytes - Buffer.byteLength(document, "utf8"))
+    );
+  }
+
+  it("builds a document that fits under the cap, so padding it is a fair probe", () => {
+    expect(Buffer.byteLength(packedUDocument(), "utf8")).toBeLessThan(
+      MAX_DESIGN_BYTES,
+    );
+  });
+
+  it("does not answer 413 at exactly MAX_DESIGN_BYTES", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: paddedTo(packedUDocument(), MAX_DESIGN_BYTES),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).not.toBe(413);
+  });
+
+  it("answers 413 at one byte over", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: paddedTo(packedUDocument(), MAX_DESIGN_BYTES + 1),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(413);
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
   });
 });
