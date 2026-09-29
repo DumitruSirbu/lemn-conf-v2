@@ -1,7 +1,9 @@
 // M7B U3a slice S2 — the tall layout and the one oven (ADR 0110 *N3 revised* 4, 9, 10; N6′ RQ13,
 // RQ14, RQ17). Two independent fills feed off S1's core-run plan: the fridge-to-free-end gap on the
 // fridge's own wall (always pantries, at every size — RQ13), and the far wall's own run (overflow,
-// counted door bases, one tower, outboard pantries below 10 m, and a trailing door fill).
+// the bodies placed after it, counted door bases, one tower, outboard pantries below 10 m, and a
+// trailing door fill). The bodies placed after the overflow are the bottle and the drawer extras, and
+// they always stand before the tower (ADR 0110 N10.3 step 4); the caller decides which stand.
 //
 // **`planTallEndBlock` is reused unchanged for the far wall's own ≤ 3000 mm free-end case** — the
 // same free-end-block shape Amendment E already gives the L, wired through the same leaf. Its L
@@ -42,9 +44,22 @@ export interface UTallLayoutInput {
   /** S1's own bodies already standing on the far wall, from the back wall's overflow — read, never
    *  rebuilt, so this module places nothing S1 already placed. */
   readonly overflowBases: readonly UPlannedGenerationBase[];
+  /** The far wall's bodies that must stand right after `overflowBases` and before the tower, in run
+   *  order: the bottle after a far-wall hob and the drawer-extra slots (ADR 0110 N10.3 step 4). They
+   *  are placed here, they count toward `n` as bodies, and their width comes out of the span the
+   *  tower or block has. Empty gives exactly the layout of `84bab2e`. */
+  readonly bodiesBeforeTheTower: readonly UBodyBeforeTheTower[];
   /** E3 clause 1, read off S1's own plan: whether every core role survived. */
   readonly coreSurvivedWhole: boolean;
   readonly declared: DeclaredColumnSizes;
+}
+
+/** One body `UTallLayoutInput.bodiesBeforeTheTower` asks the far wall to stand, before its position
+ *  is known: the layout gives it a wall and a start. */
+export interface UBodyBeforeTheTower {
+  readonly id: string;
+  readonly buildId: string;
+  readonly widthMm: number;
 }
 
 export interface UTallLayoutResult {
@@ -141,33 +156,93 @@ interface FarWallLayout {
 }
 
 function farWallLayout(input: UTallLayoutInput): FarWallLayout {
-  const { farWall, room, runs, overflowBases, coreSurvivedWhole, declared } =
-    input;
+  const {
+    farWall,
+    room,
+    runs,
+    overflowBases,
+    bodiesBeforeTheTower,
+    coreSurvivedWhole,
+    declared,
+  } = input;
   const run = runs[farWall];
   const overflowWidthMm = sumWidths(overflowBases);
+  const standingBefore = placeBodiesBeforeTheTower(
+    farWall,
+    run.startMm + overflowWidthMm,
+    bodiesBeforeTheTower,
+  );
+  const standing = {
+    widthMm: overflowWidthMm + sumWidths(standingBefore),
+    count: overflowBases.length + standingBefore.length,
+  };
   const hobWithOwnOven = hobWithItsOwnOvenBuildId();
   const affordable =
     coreSurvivedWhole && room.heightMm >= declared.columnHeightMm;
 
-  if (!affordable) {
-    return {
-      bases: doorFill(
+  const layout = affordable
+    ? affordableFarWallLayout({
         farWall,
-        run.startMm + overflowWidthMm,
-        run.endMm,
-        "far-door",
-      ),
-      hobBuildId: hobWithOwnOven,
-      towerPosition: undefined,
-    };
-  }
+        run,
+        room,
+        standing,
+        declared,
+        hobWithOwnOven,
+      })
+    : {
+        bases: doorFill(
+          farWall,
+          run.startMm + standing.widthMm,
+          run.endMm,
+          "far-door",
+        ),
+        hobBuildId: hobWithOwnOven,
+        towerPosition: undefined,
+      };
+  return { ...layout, bases: [...standingBefore, ...layout.bases] };
+}
 
-  const enteredMm = wallLengthMm(farWall, room);
-  return enteredMm <= 3000
+/** What already stands on the far wall before the tower's own layout starts: the overflowed core and
+ *  the bodies placed after it. `count` is a body count, never a width over 600 — a 300 mm bottle is
+ *  one of the `n` bodies from the corner (N10.3 step 4). */
+interface StandingBeforeTheTower {
+  readonly widthMm: number;
+  readonly count: number;
+}
+
+function placeBodiesBeforeTheTower(
+  wall: DesignWall,
+  startMm: number,
+  bodies: readonly UBodyBeforeTheTower[],
+): readonly UPlannedGenerationBase[] {
+  let cursorMm = startMm;
+  return bodies.map((body) => {
+    const placed = columnBase(
+      wall,
+      cursorMm,
+      body.id,
+      body.buildId,
+      body.widthMm,
+    );
+    cursorMm += body.widthMm;
+    return placed;
+  });
+}
+
+function affordableFarWallLayout(args: {
+  readonly farWall: DesignWall;
+  readonly run: UGenerationRun;
+  readonly room: DesignRoom;
+  readonly standing: StandingBeforeTheTower;
+  readonly declared: DeclaredColumnSizes;
+  readonly hobWithOwnOven: string;
+}): FarWallLayout {
+  const { farWall, run, room, standing, declared, hobWithOwnOven } = args;
+  return wallLengthMm(farWall, room) <= 3000
     ? towerAtTheFreeEnd({
         farWall,
         run,
-        overflowWidthMm,
+        standingWidthMm: standing.widthMm,
         room,
         declared,
         hobWithOwnOven,
@@ -176,7 +251,7 @@ function farWallLayout(input: UTallLayoutInput): FarWallLayout {
         farWall,
         run,
         room,
-        overflowWidthMm,
+        standing,
         declared,
         hobWithOwnOven,
       });
@@ -190,14 +265,14 @@ function farWallLayout(input: UTallLayoutInput): FarWallLayout {
 function towerAtTheFreeEnd(args: {
   readonly farWall: DesignWall;
   readonly run: UGenerationRun;
-  readonly overflowWidthMm: number;
+  readonly standingWidthMm: number;
   readonly room: DesignRoom;
   readonly declared: DeclaredColumnSizes;
   readonly hobWithOwnOven: string;
 }): FarWallLayout {
-  const { farWall, run, overflowWidthMm, room, declared, hobWithOwnOven } =
+  const { farWall, run, standingWidthMm, room, declared, hobWithOwnOven } =
     args;
-  const availableMm = Math.max(0, run.endMm - run.startMm - overflowWidthMm);
+  const availableMm = Math.max(0, run.endMm - run.startMm - standingWidthMm);
   const leftover = planLeftover(availableMm);
   // *N3 revised* 10: at 10 m or more the tower stands alone, with no pantry generated — the same
   // gate `towerCountedFromTheCorner` applies to its own outboard pantries, read here too so the
@@ -221,7 +296,7 @@ function towerAtTheFreeEnd(args: {
   };
   const block = withRQ17Override(planTallEndBlock(blockInput), blockInput);
 
-  let cursorMm = run.startMm + overflowWidthMm;
+  let cursorMm = run.startMm + standingWidthMm;
   const bases: UPlannedGenerationBase[] = [];
   for (let index = 0; index < extraStorageCount; index += 1) {
     bases.push(
@@ -288,8 +363,9 @@ function withRQ17Override(
 }
 
 /** *N3 revised* 10's long-far-wall case: `n` counted door bases from the corner (item 3's own table,
- *  reused for the tower's own count — RQ5's *"both from corner"*), the overflowed bodies counting
- *  toward `n` and the tower following them directly where they already exceed it; then the tower;
+ *  reused for the tower's own count — RQ5's *"both from corner"*), the overflowed bodies and the
+ *  bodies placed after them (N10.3 step 4) counting toward `n` as bodies, and the tower following
+ *  them directly where they already exceed it — `n` is a floor, not an exact place; then the tower;
  *  then, below 10 m, up to two more pantry columns outboard of it (E2, E12, RQ11); then a trailing
  *  door fill for the rest of the run (RQ14). No merge is attempted at the trailing fill's own end —
  *  it is an ordinary `planLeftover` remainder, A4's rule holding as it does everywhere else the tall
@@ -298,18 +374,16 @@ function towerCountedFromTheCorner(args: {
   readonly farWall: DesignWall;
   readonly run: UGenerationRun;
   readonly room: DesignRoom;
-  readonly overflowWidthMm: number;
+  readonly standing: StandingBeforeTheTower;
   readonly declared: DeclaredColumnSizes;
   readonly hobWithOwnOven: string;
 }): FarWallLayout {
-  const { farWall, run, room, overflowWidthMm, declared, hobWithOwnOven } =
-    args;
+  const { farWall, run, room, standing, declared, hobWithOwnOven } = args;
   const enteredMm = wallLengthMm(farWall, room);
   const n = baseCountFromTheCorner(enteredMm);
-  const overflowCount = overflowWidthMm / STORAGE_BODY_WIDTH_MM;
-  const extraDoorsBeforeTower = Math.max(0, n - overflowCount);
+  const extraDoorsBeforeTower = Math.max(0, n - standing.count);
 
-  let cursorMm = run.startMm + overflowWidthMm;
+  let cursorMm = run.startMm + standing.widthMm;
   const bases: UPlannedGenerationBase[] = [];
   for (let index = 0; index < extraDoorsBeforeTower; index += 1) {
     if (cursorMm + STORAGE_BODY_WIDTH_MM > run.endMm) break;
@@ -358,7 +432,8 @@ function towerCountedFromTheCorner(args: {
     hobBuildId: towerStood ? hobBuildId : hobWithOwnOven,
     // *N3 revised* 10 (RQ5, "both from corner"): `n`, not the door count actually placed before it —
     // an overflowed body counts toward `n` too, so a tower that stood right after the overflow, with
-    // `extraDoorsBeforeTower === 0`, still stands at `n` bases from the corner.
+    // `extraDoorsBeforeTower === 0`, still stands at `n` bases from the corner. N10.3 keeps this the
+    // reported category: it never reports how many bodies stand before the tower.
     towerPosition: towerStood ? n : undefined,
   };
 }

@@ -36,7 +36,12 @@ import {
   OVEN_TOWER_BUILD_ID,
   type DeclaredColumnSizes,
 } from "./tall-end-rule.js";
-import { planUTallLayout } from "./u-tall-layout.js";
+import {
+  planUTallLayout,
+  type UBodyBeforeTheTower,
+  type UTallLayoutInput,
+  type UTallLayoutResult,
+} from "./u-tall-layout.js";
 
 export {
   isLargeU,
@@ -399,36 +404,41 @@ function drawerTargetFor(room: DesignRoom): number {
   );
 }
 
-/** The A4 correction, with the bottle and the drawer count folded in: wall A's own run, past the
- *  fixed core items, filled with the bottle first (*N3 revised* 7, RQ16 — the next cabinet after the
- *  hob, when there is space), then door storage — upgraded to the drawer body up to the drawer
- *  target (*N3 revised* 6) — down to a bare remainder under 600 mm (A4). Built with the bottle and the
- *  drawers from the start, never as a width-preserving edit afterward: the bottle is 300 mm against
- *  the fill's own 600 mm module, and editing an already-placed body's width in place would leave
- *  every later one exactly where a wider body had put it.
+/** The A4 correction: wall A's own run, past the fixed core items, filled with the bodies that stand
+ *  right after the hob (the bottle, when N10.3 step 5 keeps it — *N3 revised* 7, RQ16), then door
+ *  storage down to a bare remainder under 600 mm (A4). Built with the bottle in place from the start,
+ *  never as a width-preserving edit afterward: the bottle is 300 mm against the fill's own 600 mm
+ *  module, and editing an already-placed body's width in place would leave every later one exactly
+ *  where a wider body had put it. Which door slots become drawer units is decided once the run's own
+ *  far wall is known too (`withDrawerUnitsAfterTheHob`), because the run continues onto it
+ *  (*N3 revised* 6, RQ18 (a)).
  *
  *  Only reachable when the core never left wall A at all; where it overflowed, wall A's own
  *  remainder is already under 600 mm by construction (`packBackWallAndOverflow`'s own comment), and
- *  the bottle after a far-wall hob is `withTheBottleAfterAFarWallHob`'s (ADR 0110 N9.3). */
+ *  the bottle after a far-wall hob is the far wall's own (`u-tall-layout.ts`, N10.3 step 4). */
 function wallAFill(args: {
   readonly wall: DesignWall;
   readonly lane: PackingLane;
   readonly startOffsetMm: number;
-  readonly bottleWidthMm: number;
+  readonly bodiesAfterTheHob: readonly UBodyBeforeTheTower[];
 }): readonly UPlannedGenerationBase[] {
-  const { wall, lane, startOffsetMm, bottleWidthMm } = args;
+  const { wall, lane, startOffsetMm, bodiesAfterTheHob } = args;
   const bases: UPlannedGenerationBase[] = [];
   let offsetMm = startOffsetMm;
-  const bottleFitsMm = lane.capacityMm - offsetMm;
-  if (bottleFitsMm >= bottleWidthMm) {
-    const centreMm = lane.centreMmAt(offsetMm, bottleWidthMm);
-    bases.push(bottleBase(wall, centreMm - bottleWidthMm / 2, bottleWidthMm));
-    offsetMm += bottleWidthMm;
+  for (const body of bodiesAfterTheHob) {
+    const centreMm = lane.centreMmAt(offsetMm, body.widthMm);
+    bases.push({
+      id: body.id,
+      role: "storage",
+      buildId: body.buildId,
+      widthMm: body.widthMm,
+      wall,
+      startMm: centreMm - body.widthMm / 2,
+      endMm: centreMm + body.widthMm / 2,
+    });
+    offsetMm += body.widthMm;
   }
 
-  // The drawer build ids are decided once the run's own far wall is known too
-  // (`withDrawerUnitsAfterTheHob`), not here: this fill's own door bases are only wall A's own
-  // stretch of a run that continues onto the far wall (*N3 revised* 6, RQ18 (a)).
   const leftover = planLeftover(Math.max(0, lane.capacityMm - offsetMm));
   for (let index = 0; index < leftover.storageCount; index += 1) {
     const centreMm = lane.centreMmAt(offsetMm, STORAGE_BODY_WIDTH_MM);
@@ -446,64 +456,10 @@ function wallAFill(args: {
   return bases;
 }
 
-function bottleBase(
-  wall: DesignWall,
-  startMm: number,
-  widthMm: number,
-): UPlannedGenerationBase {
-  return {
-    id: "bottle",
-    role: "storage",
-    buildId: BOTTLE_CARGO_BUILD_ID,
-    widthMm,
-    wall,
-    startMm,
-    endMm: startMm + widthMm,
-  };
-}
-
-/** ADR 0110 N9.3 (*N3 revised* 7): where the hob went round the corner and no tall column stands on
- *  its wall, everything after it is door storage or bare wall, so the bottle stands directly after
- *  the hob when `bottleWidthMm` of run follows it, and the door fill is redone on what is left. With
- *  a tall column present the plan is untouched: no bottle between the hob and a column (RQ20's
- *  default). Applied before the drawer count, so the extra drawer units land after the bottle. */
-function withTheBottleAfterAFarWallHob(args: {
-  readonly bases: readonly UPlannedGenerationBase[];
-  readonly farWall: DesignWall;
-  readonly run: UGenerationRun;
-  readonly bottleWidthMm: number;
-}): readonly UPlannedGenerationBase[] {
-  const { bases, farWall, run, bottleWidthMm } = args;
-  const hob = bases.find((base) => base.role === "hob");
-  if (hob === undefined || hob.wall !== farWall) return bases;
-  if (hasATallColumnOn(bases, farWall)) return bases;
-  if (run.endMm - hob.endMm < bottleWidthMm) return bases;
-
-  const bottleEndMm = hob.endMm + bottleWidthMm;
-  const { storageCount } = planLeftover(run.endMm - bottleEndMm);
-  const doorsAfterTheBottle = Array.from({ length: storageCount }, (_, index) =>
-    doorBaseWithId(
-      farWall,
-      bottleEndMm + index * STORAGE_BODY_WIDTH_MM,
-      `far-bottle-fill:${farWall}:${String(index)}`,
-    ),
-  );
-  return [
-    ...bases.filter((base) => base.wall !== farWall || base.endMm <= hob.endMm),
-    bottleBase(farWall, hob.endMm, bottleWidthMm),
-    ...doorsAfterTheBottle,
-  ];
-}
-
-function hasATallColumnOn(
-  bases: readonly UPlannedGenerationBase[],
-  wall: DesignWall,
-): boolean {
-  return bases.some(
-    (base) =>
-      base.wall === wall &&
-      (base.buildId === OVEN_TOWER_BUILD_ID ||
-        base.buildId === DOOR_COLUMN_BUILD_ID),
+function isTallColumn(base: UPlannedGenerationBase): boolean {
+  return (
+    base.buildId === OVEN_TOWER_BUILD_ID ||
+    base.buildId === DOOR_COLUMN_BUILD_ID
   );
 }
 
@@ -532,32 +488,38 @@ function panDrawerCountFor(args: {
   return Math.min(extraCount, panbankCap);
 }
 
-/** *N3 revised* 6, RQ18 (a): the extra drawer units are never confined to wall A — they take door
- *  slots **in run order**, continuing round the far corner onto the far wall's own door bases where
- *  wall A's own fill runs out. Applied once the whole plan's bases are known, because the far wall's
- *  own door bases are S2's `u-tall-layout.ts` output, not this module's. The fridge wall is never a
- *  candidate: it stands before the sink in run order (*N3 revised* 6's own adjudication). The
- *  extras are as many as `drawerTarget` still owes **and** the door slots after the hob can hold;
- *  that capacity-limited number is what `panDrawerCountFor` splits (RQ19 (a)). */
+/** *N3 revised* 6, RQ18 (a), N10.3 step 4: the extra drawer units are never confined to wall A —
+ *  they take door slots **in run order**, continuing round the far corner onto the far wall's own
+ *  door bases where wall A's own fill runs out — and they always stand **before the tower**: a slot
+ *  after the first tall column is never converted. Applied once the whole plan's bases are known,
+ *  because the far wall's own bases are `u-tall-layout.ts`'s output, not this module's. The fridge
+ *  wall is never a candidate: it stands before the sink in run order (*N3 revised* 6's own
+ *  adjudication). `extraCount` is what `runAfterAFarWallHob` or `runAfterAWallAHob` found the run can
+ *  hold; that capacity-limited number is what `panDrawerCountFor` splits (RQ19 (a)). */
 function withDrawerUnitsAfterTheHob(
   bases: readonly UPlannedGenerationBase[],
-  fridgeWall: DesignWall,
-  farWall: DesignWall,
-  drawerTarget: number,
-  hasPreparation: boolean,
+  args: {
+    readonly fridgeWall: DesignWall;
+    readonly farWall: DesignWall;
+    readonly extraCount: number;
+    readonly hasPreparation: boolean;
+  },
 ): readonly UPlannedGenerationBase[] {
+  const { fridgeWall, farWall, extraCount, hasPreparation } = args;
   const runOrder = runOrderedBases(bases, fridgeWall, farWall);
   const hobIndex = runOrder.findIndex((base) => base.role === "hob");
   if (hobIndex === -1) return bases;
 
-  const doorSlotIds = runOrder
-    .slice(hobIndex + 1)
+  const afterTheHob = runOrder.slice(hobIndex + 1);
+  const towerIndex = afterTheHob.findIndex(isTallColumn);
+  const beforeTheTower =
+    towerIndex === -1 ? afterTheHob : afterTheHob.slice(0, towerIndex);
+  const extraIds = beforeTheTower
     .filter(
       (base) => base.role === "storage" && base.buildId === DOOR_BASE_BUILD_ID,
     )
+    .slice(0, extraCount)
     .map((base) => base.id);
-  const extrasOwed = Math.max(0, drawerTarget - (hasPreparation ? 1 : 0));
-  const extraIds = doorSlotIds.slice(0, extrasOwed);
   if (extraIds.length === 0) return bases;
 
   const panbankCount = panDrawerCountFor({
@@ -597,8 +559,335 @@ function runOrderedBases(
   return [...aInRunOrder, ...onFar];
 }
 
+// ---------------------------------------------------------------------------------------------
+// ADR 0110 N10.3 — how the run after the hob is fitted. Priority, first to last: the core run and
+// the fridge wall; the tower; the pantries; the most drawer extras that fit before the tower; the
+// bottle, only where it costs none of those; then the pan-drawer split (`panDrawerCountFor`).
+// ---------------------------------------------------------------------------------------------
+
+/** What the far wall keeps, whatever stands before its tower: N10.3 steps 2 and 3. Read off the
+ *  layout with nothing added, which is the layout of `84bab2e`. */
+interface FarWallKeeps {
+  readonly hasTower: boolean;
+  readonly pantryCount: number;
+}
+
+function farWallKeepsOf(
+  layout: UTallLayoutResult,
+  farWall: DesignWall,
+): FarWallKeeps {
+  return {
+    hasTower: layout.towerPosition !== undefined,
+    pantryCount: layout.bases.filter(
+      (base) => base.wall === farWall && base.buildId === DOOR_COLUMN_BUILD_ID,
+    ).length,
+  };
+}
+
+/** The far wall's layout with nothing added, and what it must go on keeping. */
+interface FarWallFit {
+  readonly tallInput: UTallLayoutInput;
+  readonly keeps: FarWallKeeps;
+}
+
+function farWallFitOf(tallInput: UTallLayoutInput): FarWallFit {
+  return {
+    tallInput,
+    keeps: farWallKeepsOf(planUTallLayout(tallInput), tallInput.farWall),
+  };
+}
+
+/** Whether the far wall takes `bodies` after its overflow and still stands as at `84bab2e`: every
+ *  body inside the run, the tower standing exactly when it stood (never lost, never gained), and no
+ *  pantry fewer. The bottle is 300 mm against a door's 600, so a tower the far wall could not fit
+ *  before can become reachable once the bottle stands — that room stays without one. */
+function farWallTakes(
+  fit: FarWallFit,
+  bodies: readonly UBodyBeforeTheTower[],
+): boolean {
+  const { tallInput, keeps } = fit;
+  const layout = planUTallLayout({
+    ...tallInput,
+    bodiesBeforeTheTower: bodies,
+  });
+  const now = farWallKeepsOf(layout, tallInput.farWall);
+  const runEndMm = tallInput.runs[tallInput.farWall].endMm;
+  const isInsideTheRun = layout.bases.every(
+    (base) => base.wall !== tallInput.farWall || base.endMm <= runEndMm,
+  );
+  return (
+    isInsideTheRun &&
+    now.hasTower === keeps.hasTower &&
+    now.pantryCount >= keeps.pantryCount
+  );
+}
+
+/** A drawer-extra slot on the far wall: a door base until `withDrawerUnitsAfterTheHob` gives it its
+ *  drawer build id, once the run's whole count is known. */
+function extraSlotsOn(
+  wall: DesignWall,
+  count: number,
+): readonly UBodyBeforeTheTower[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `far-extra:${wall}:${String(index)}`,
+    buildId: DOOR_BASE_BUILD_ID,
+    widthMm: STORAGE_BODY_WIDTH_MM,
+  }));
+}
+
+/** The most extras, up to `owed`, the far wall takes after `standingFirst` — N10.3 step 4 — or
+ *  `undefined` when it refuses `standingFirst` even with no extras behind it. */
+function mostExtrasAfter(
+  fit: FarWallFit,
+  standingFirst: readonly UBodyBeforeTheTower[],
+  owed: number,
+): number | undefined {
+  for (let count = owed; count >= 0; count -= 1) {
+    const bodies = [
+      ...standingFirst,
+      ...extraSlotsOn(fit.tallInput.farWall, count),
+    ];
+    if (farWallTakes(fit, bodies)) return count;
+  }
+  return undefined;
+}
+
+function mostExtrasOnTheFarWall(fit: FarWallFit, owed: number): number {
+  return alwaysTaken(mostExtrasAfter(fit, [], owed));
+}
+
+/** With no bottle the far wall is offered the layout it already has, which it takes; `undefined`
+ *  there is a defect in `farWallTakes`, not a room to plan around. */
+function alwaysTaken<Taken>(taken: Taken | undefined): Taken {
+  if (taken === undefined) {
+    throw new Error(
+      "u-composition: the far wall refused the layout it already has",
+    );
+  }
+  return taken;
+}
+
+/** How the run after the hob stands, once fitted. */
+interface RunAfterTheHob {
+  /** Wall A's bodies right after the hob, when the hob stands on wall A. */
+  readonly wallAAfterTheHob: readonly UBodyBeforeTheTower[];
+  /** The far wall's bodies between its overflow and its tower. */
+  readonly farWallBeforeTheTower: readonly UBodyBeforeTheTower[];
+  /** The drawer extras standing in run order after the hob, on both walls together. */
+  readonly extraCount: number;
+}
+
+interface RunAfterTheHobProblem {
+  readonly fit: FarWallFit;
+  /** `drawerTarget`, less the preparation cabinet where it stands. */
+  readonly extrasOwed: number;
+  readonly bottle: UBodyBeforeTheTower;
+  /** Run that follows the hob on the hob's own wall. */
+  readonly freeAfterTheHobMm: number;
+}
+
+/** The single step deciding whether the bottle stays (N10.3 step 5 (iii), RQ21, owner 2026-09-29):
+ *  a drawer cabinet outranks the bottle, so the bottle stays only where the run keeps at least the
+ *  drawer count it would have without it. Owner-confirmed on the tall oven's wall (RQ20, RQ21) and,
+ *  by the owner's answer of 2026-09-29, on wall A too. To lift it on either wall, change this
+ *  function alone. */
+function bottleCostsNoDrawerUnit(
+  extraCountWithBottle: number,
+  extraCountWithoutBottle: number,
+): boolean {
+  return extraCountWithBottle >= extraCountWithoutBottle;
+}
+
+function keepTheBottleOnlyIfItCostsNoDrawerUnit(args: {
+  readonly withoutBottle: RunAfterTheHob;
+  readonly withBottle: RunAfterTheHob | undefined;
+}): RunAfterTheHob {
+  const { withoutBottle, withBottle } = args;
+  if (withBottle === undefined) return withoutBottle;
+  return bottleCostsNoDrawerUnit(
+    withBottle.extraCount,
+    withoutBottle.extraCount,
+  )
+    ? withBottle
+    : withoutBottle;
+}
+
+function canHoldTheBottle(problem: RunAfterTheHobProblem): boolean {
+  return problem.freeAfterTheHobMm >= problem.bottle.widthMm;
+}
+
+/** The hob went round the corner: the bottle, if it stands, and the extras all stand on the far
+ *  wall, before its tower. */
+function runAfterAFarWallHob(problem: RunAfterTheHobProblem): RunAfterTheHob {
+  const withStandingFirst = (
+    standingFirst: readonly UBodyBeforeTheTower[],
+  ): RunAfterTheHob | undefined => {
+    const extraCount = mostExtrasAfter(
+      problem.fit,
+      standingFirst,
+      problem.extrasOwed,
+    );
+    if (extraCount === undefined) return undefined;
+    return {
+      wallAAfterTheHob: [],
+      farWallBeforeTheTower: [
+        ...standingFirst,
+        ...extraSlotsOn(problem.fit.tallInput.farWall, extraCount),
+      ],
+      extraCount,
+    };
+  };
+  return keepTheBottleOnlyIfItCostsNoDrawerUnit({
+    withoutBottle: alwaysTaken(withStandingFirst([])),
+    withBottle: canHoldTheBottle(problem)
+      ? withStandingFirst([problem.bottle])
+      : undefined,
+  });
+}
+
+/** The hob stands on wall A: the bottle, if it stands, and the extras take wall A's door slots
+ *  first, and the extras still owed stand before the far wall's tower. */
+function runAfterAWallAHob(problem: RunAfterTheHobProblem): RunAfterTheHob {
+  const withStandingFirst = (
+    standingFirst: readonly UBodyBeforeTheTower[],
+  ): RunAfterTheHob => {
+    const standingWidthMm = standingFirst.reduce(
+      (sum, body) => sum + body.widthMm,
+      0,
+    );
+    const doorSlotsOnWallA = planLeftover(
+      Math.max(0, problem.freeAfterTheHobMm - standingWidthMm),
+    ).storageCount;
+    const wallAExtraCount = Math.min(problem.extrasOwed, doorSlotsOnWallA);
+    const farWallExtraCount = mostExtrasOnTheFarWall(
+      problem.fit,
+      problem.extrasOwed - wallAExtraCount,
+    );
+    return {
+      wallAAfterTheHob: standingFirst,
+      farWallBeforeTheTower: extraSlotsOn(
+        problem.fit.tallInput.farWall,
+        farWallExtraCount,
+      ),
+      extraCount: wallAExtraCount + farWallExtraCount,
+    };
+  };
+  return keepTheBottleOnlyIfItCostsNoDrawerUnit({
+    withoutBottle: withStandingFirst([]),
+    withBottle: canHoldTheBottle(problem)
+      ? withStandingFirst([problem.bottle])
+      : undefined,
+  });
+}
+
+/** Wall A's free run once the core stands, or the far wall's run after the hob — whichever wall the
+ *  hob is on. The hob is the last core item, so it is on the far wall exactly when the pack
+ *  overflowed. */
+function freeAfterTheHobMm(args: {
+  readonly packed: PackedBackWall;
+  readonly laneA: PackingLane;
+  readonly farRun: UGenerationRun;
+}): number {
+  const { packed, laneA, farRun } = args;
+  if (!packed.hasOverflowedOnce) {
+    return laneA.capacityMm - packed.wallAOffsetMm;
+  }
+  const hob = packed.bases.find((base) => base.role === "hob");
+  return hob === undefined ? 0 : farRun.endMm - hob.endMm;
+}
+
+function extrasOwedFor(room: DesignRoom, hasPreparation: boolean): number {
+  return Math.max(0, drawerTargetFor(room) - (hasPreparation ? 1 : 0));
+}
+
+interface AttemptContext {
+  readonly room: DesignRoom;
+  readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
+  readonly columns: DeclaredColumnSizes;
+  readonly fridge: FridgePlacement;
+  readonly laneA: PackingLane;
+  readonly packed: PackedBackWall;
+  readonly hasPreparation: boolean;
+  readonly coreDropped: boolean;
+}
+
+/** One packed attempt turned into bases: the core, then the run after the hob (N10.3), the tall
+ *  layout and the drawer units. */
+function composeTheAttempt(context: AttemptContext): {
+  readonly bases: readonly UPlannedGenerationBase[];
+  readonly towerPosition: UPlacementPosition | undefined;
+} {
+  const { room, runs, columns, fridge, laneA, packed, hasPreparation } =
+    context;
+  const coreBases = [...fridge.bases, ...packed.bases];
+  const tallInput = tallLayoutInputWithNothingAdded(context, coreBases);
+  const problem: RunAfterTheHobProblem = {
+    fit: farWallFitOf(tallInput),
+    extrasOwed: extrasOwedFor(room, hasPreparation),
+    bottle: {
+      id: "bottle",
+      buildId: BOTTLE_CARGO_BUILD_ID,
+      widthMm: columns.bottleWidthMm,
+    },
+    freeAfterTheHobMm: freeAfterTheHobMm({
+      packed,
+      laneA,
+      farRun: runs[fridge.farWall],
+    }),
+  };
+  const run = packed.hasOverflowedOnce
+    ? runAfterAFarWallHob(problem)
+    : runAfterAWallAHob(problem);
+  const wallAFillBases = packed.hasOverflowedOnce
+    ? []
+    : wallAFill({
+        wall: "A",
+        lane: laneA,
+        startOffsetMm: packed.wallAOffsetMm,
+        bodiesAfterTheHob: run.wallAAfterTheHob,
+      });
+  const tall = withTheTallLayout({
+    tallInput: {
+      ...tallInput,
+      bodiesBeforeTheTower: run.farWallBeforeTheTower,
+    },
+    coreBases: [...coreBases, ...wallAFillBases],
+  });
+  return {
+    bases: withDrawerUnitsAfterTheHob(tall.bases, {
+      fridgeWall: fridge.fridgeWall,
+      farWall: fridge.farWall,
+      extraCount: run.extraCount,
+      hasPreparation,
+    }),
+    towerPosition: tall.towerPosition,
+  };
+}
+
+/** The tall layout's input for the far wall and the fridge's gap, with no bottle and no extras
+ *  added — the layout of `84bab2e`. Wall A's fill is not needed to build it: `coreBases` only has to
+ *  carry the fridge and the far wall's overflow. */
+function tallLayoutInputWithNothingAdded(
+  context: AttemptContext,
+  coreBases: readonly UPlannedGenerationBase[],
+): UTallLayoutInput {
+  const { fridge } = context;
+  return {
+    room: context.room,
+    runs: context.runs,
+    fridgeWall: fridge.fridgeWall,
+    farWall: fridge.farWall,
+    fridgeEndMm: coreBases.find((base) => base.role === "fridge")?.endMm,
+    overflowBases: coreBases.filter((base) => base.wall === fridge.farWall),
+    bodiesBeforeTheTower: [],
+    coreSurvivedWhole: !context.coreDropped,
+    declared: context.columns,
+  };
+}
+
 /** The core run plus, once it composes, the tall layout, the one oven, wall A's own A4 fill, the
- *  bottle and the drawer count (S1, S2 and S3's own must-fix items, together). */
+ *  bottle and the drawer count (S1, S2 and S3's own must-fix items, together, fitted by ADR 0110
+ *  N10.3). */
 export function planUKitchenComposition(
   input: PlanUKitchenCompositionInput,
 ): UKitchenCompositionPlan {
@@ -628,37 +917,17 @@ export function planUKitchenComposition(
       ...(fridge.dropped ? (["fridge"] as const) : []),
       ...(attemptIndex >= 2 ? (["preparation"] as const) : []),
     ];
-    const hasPreparation = attemptIndex < 2;
-    const wallAFillBases = packed.hasOverflowedOnce
-      ? []
-      : wallAFill({
-          wall: "A",
-          lane: laneA,
-          startOffsetMm: packed.wallAOffsetMm,
-          bottleWidthMm: columns.bottleWidthMm,
-        });
-    const coreBases = [...fridge.bases, ...packed.bases, ...wallAFillBases];
-    const tall = withTheTallLayout({
+    const composed = composeTheAttempt({
       room,
       runs,
-      fridgeWall: fridge.fridgeWall,
-      farWall: fridge.farWall,
+      columns,
+      fridge,
+      laneA,
+      packed,
+      hasPreparation: attemptIndex < 2,
       coreDropped: dropped.length > 0,
-      coreBases,
-      declared: columns,
     });
-    const bases = withDrawerUnitsAfterTheHob(
-      withTheBottleAfterAFarWallHob({
-        bases: tall.bases,
-        farWall: fridge.farWall,
-        run: runs[fridge.farWall],
-        bottleWidthMm: columns.bottleWidthMm,
-      }),
-      fridge.fridgeWall,
-      fridge.farWall,
-      drawerTargetFor(room),
-      hasPreparation,
-    );
+    const bases = composed.bases;
     return {
       room,
       bases,
@@ -667,7 +936,7 @@ export function planUKitchenComposition(
       minimumMet: true,
       remainderMm: remainderMmOf(runs, bases),
       fridgePosition: fridge.dropped ? undefined : fridge.position,
-      towerPosition: tall.towerPosition,
+      towerPosition: composed.towerPosition,
     };
   }
 
@@ -687,33 +956,13 @@ export function planUKitchenComposition(
  *  a fixed-width hob base already stands in `coreBases`, so its own build id is swapped for the
  *  tower's oven decision rather than a second hob being placed. */
 function withTheTallLayout(args: {
-  readonly room: DesignRoom;
-  readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
-  readonly fridgeWall: DesignWall;
-  readonly farWall: DesignWall;
-  readonly coreDropped: boolean;
+  readonly tallInput: UTallLayoutInput;
   readonly coreBases: readonly UPlannedGenerationBase[];
-  readonly declared: DeclaredColumnSizes;
 }): {
   readonly bases: readonly UPlannedGenerationBase[];
   readonly towerPosition: UPlacementPosition | undefined;
 } {
-  const fridgeBaseEndMm = args.coreBases.find(
-    (base) => base.role === "fridge",
-  )?.endMm;
-  const overflowBases = args.coreBases.filter(
-    (base) => base.wall === args.farWall,
-  );
-  const tall = planUTallLayout({
-    room: args.room,
-    runs: args.runs,
-    fridgeWall: args.fridgeWall,
-    farWall: args.farWall,
-    fridgeEndMm: fridgeBaseEndMm,
-    overflowBases,
-    coreSurvivedWhole: !args.coreDropped,
-    declared: args.declared,
-  });
+  const tall = planUTallLayout(args.tallInput);
   return {
     bases: [
       ...args.coreBases.map((base) =>

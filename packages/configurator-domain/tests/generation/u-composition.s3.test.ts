@@ -203,8 +203,10 @@ describe("the plan's own position field for the fridge and the tower (AC3)", () 
 });
 
 describe("the bottle, the next cabinet after the hob (N3r 7, RQ16)", () => {
-  it("stands as the first item of wall A's own A4 fill, when there is one", () => {
-    const room = uRoom({ widthMm: 6000, depthMm: 2400, wallCMm: 2200 });
+  it("stands as the first item of wall A's own A4 fill, when there is one and no drawer cabinet outranks it", () => {
+    // ADR 0110 N10.3 step 5 (RQ21): at 6000 / 2400 / 2200 a pan drawer takes the bottle's place, so
+    // the bottle is exercised where wall A's free run holds it and no drawer cabinet is owed more.
+    const room = uRoom({ widthMm: 4000, depthMm: 4500, wallCMm: 1200 });
     const plan = planFor(room);
     const onA = basesOn(plan, "A");
     const hobIndex = onA.findIndex((base) => base.role === "hob");

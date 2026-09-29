@@ -47,6 +47,20 @@ function countBuild(plan: CompositionPlan, buildId: string): number {
   return plan.bases.filter((base) => base.buildId === buildId).length;
 }
 
+/** The drawer cabinets that are extras: every drawer cabinet but the preparation cabinet, which is
+ *  itself a `base-3drawer`. */
+function countExtras(plan: CompositionPlan, buildId: string): number {
+  return plan.bases.filter(
+    (base) => base.role === "storage" && base.buildId === buildId,
+  ).length;
+}
+
+function hasPreparationCabinet(plan: CompositionPlan): boolean {
+  return plan.bases.some(
+    (base) => base.role === "preparation" && base.buildId === THREE_DRAWER,
+  );
+}
+
 function sweptRooms(): readonly SweptRoom[] {
   const rooms: SweptRoom[] = [];
   for (let widthMm = 2700; widthMm <= 6000; widthMm += 100) {
@@ -176,11 +190,20 @@ describe("the pan-drawer split follows the drawer cabinets the room gets (RQ19 a
     expect(mixedRooms.length).toBeGreaterThan(10_000);
   });
 
-  it("5000 / 4000 / 3000, which gets 3 drawer cabinets, is the preparation, 1 panbank and 1 3-drawer", () => {
+  it("3000 / 4500 / 4500, which gets 3 drawer cabinets, is the preparation, 1 panbank and 1 3-drawer", () => {
+    const plan = planFor(uRoom(3000, 4500, 4500));
+
+    expect(hasPreparationCabinet(plan)).toBe(true);
+    expect(countExtras(plan, PAN_DRAWER)).toBe(1);
+    expect(countExtras(plan, THREE_DRAWER)).toBe(1);
+  });
+
+  it("5000 / 4000 / 3000, which gets 4 drawer cabinets (ADR 0110 N10.6), is the preparation, 2 panbanks and 1 3-drawer", () => {
     const plan = planFor(uRoom(5000, 4000, 3000));
 
-    expect(countBuild(plan, PAN_DRAWER)).toBe(1);
-    expect(countBuild(plan, THREE_DRAWER)).toBe(2);
+    expect(hasPreparationCabinet(plan)).toBe(true);
+    expect(countExtras(plan, PAN_DRAWER)).toBe(2);
+    expect(countExtras(plan, THREE_DRAWER)).toBe(1);
   });
 
   it("6000 / 6000 / 6000, which gets 5 drawer cabinets, has 2 panbanks and 3 3-drawers", () => {

@@ -168,7 +168,10 @@ describe("the far wall's tower (N3r 10, RQ5)", () => {
         .slice(0, towerIndex)
         .every((base) => base.buildId !== "tall-pantry"),
     ).toBe(true);
-    expect(towerIndex).toBeLessThanOrEqual(2);
+    // ADR 0110 N10.3 step 4: `n` is a floor, so a drawer extra may stand before the tower and push it
+    // to a third body. The tower still reports the category `n` (N3r 10).
+    expect(towerIndex).toBeLessThanOrEqual(3);
+    expect(plan.towerPosition).toBe(2);
   });
 
   it("stands with a bare remainder when a lone tower cannot merge with the free end (RQ17)", () => {

@@ -1,5 +1,6 @@
 // M7B U3a AC2 — the model's seven witnesses (ADR 0110 N4′, corrected 2026-09-29 on U3a's
-// stop-and-report, then again on RQ18's answer). Each room is read exactly as N4′ reads it: bodies
+// stop-and-report, then again on RQ18's answer, and once more by N10.6: only 5000 / 4000 / 3000
+// moved), and the six rooms N10.6 adds. Each room is read exactly as N4′ and N10.6 read it: bodies
 // per wall, from the corner outward. This file is the regression pin `docs/milestones/M7B-u-shaped-
 // rooms.md` U3a-AC2 asks for; a diff here is either a rule change the architect must adjudicate, or
 // a bug in this plan.
@@ -81,7 +82,7 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
     expect(plan.towerPosition).toBeUndefined();
   });
 
-  it("3600 / 3500 / 2200: B 2-from-corner fridge + pantry, A core, C hob + tower at the free end", () => {
+  it('3600 / 3500 / 2200: B 2-from-corner fridge + pantry, A core, C hob + tower at the free end (RQ20\'s "without bottle" case)', () => {
     const plan = planFor(uRoom(3600, 3500, 2200));
 
     expect(basesOn(plan, "B")).toStrictEqual([
@@ -122,7 +123,7 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
     expect(plan.towerPosition).toBeUndefined();
   });
 
-  it("5000 / 4000 / 3000: large U, B 2-from-corner + pantry, A core + bottle, C tower at the free end", () => {
+  it("5000 / 4000 / 3000: large U, B 2-from-corner + pantry, A core + a pan drawer and no bottle, C two drawers + tower at the free end", () => {
     const plan = planFor(uRoom(5000, 4000, 3000));
 
     expect(basesOn(plan, "B")).toStrictEqual([
@@ -132,22 +133,19 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
       { role: "storage", buildId: "tall-pantry" },
     ]);
     expect(plan.remainderMm.B).toBe(500);
+    // ADR 0110 N10.6 (RQ21): wall A holds either the bottle or a 600 mm pan drawer after the hob, and
+    // a drawer cabinet outranks the bottle, so the bottle drops and the room gets a fourth drawer
+    // cabinet: the preparation, this pan drawer, and wall C's two.
     expect(basesOn(plan, "A")).toStrictEqual([
       { role: "sink", buildId: "base-sink" },
       { role: "storage", buildId: "base-dishwasher" },
       { role: "preparation", buildId: "base-3drawer" },
       { role: "hob", buildId: "base-hob-2drawer" },
-      { role: "storage", buildId: "base-bottle-cargo" },
+      { role: "storage", buildId: "base-panbank" },
     ]);
-    expect(plan.remainderMm.A).toBe(500);
-    // N4′'s prose reads wall C's own first two bases as plain "storage" — text last revised before
-    // RQ18 answered where the extra drawer units stand. Under RQ18 (a) ("the far wall's first base
-    // cabinets", *N3 revised* 6) these are the run's own next eligible door slots past the hob, on
-    // the same footing as the far wall's counted-from-corner slots the 6000/6000/6000 witness pins
-    // below. ADR 0110 N9.1 rules that these two bases are drawer units and the plan is right.
-    // RQ19 (a), owner, 2026-09-29: the room gets 3 drawer cabinets (the preparation and these two),
-    // and 3 cabinets are 1 pan drawer and 2 three-drawers — so nearest the hob, a panbank, then a
-    // 3-drawer. Before the ruling the split was keyed on the size-derived target and gave 2 panbanks.
+    expect(plan.remainderMm.A).toBe(200);
+    // RQ19 (a): 4 drawer cabinets are 2 pan drawers and 2 three-drawers; the pan drawers stand
+    // nearest the hob in run order, so wall A's and wall C's first.
     expect(basesOn(plan, "C")).toStrictEqual([
       { role: "storage", buildId: "base-panbank" },
       { role: "storage", buildId: "base-3drawer" },
@@ -199,5 +197,100 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
         base.buildId === "base-3drawer" || base.buildId === "base-panbank",
     );
     expect(drawerUnits).toHaveLength(5);
+  });
+});
+
+describe("ADR 0110 N10.6's six added witnesses (U3a AC2)", () => {
+  it("3000 / 4500 / 4500: RQ20, RQ19 (b) and RQ19 (a) together — hob, bottle, two drawers, then the tower", () => {
+    const plan = planFor(uRoom(3000, 4500, 4500));
+
+    expect(basesOn(plan, "A")).toStrictEqual([
+      { role: "sink", buildId: "base-sink" },
+      { role: "storage", buildId: "base-dishwasher" },
+    ]);
+    expect(plan.remainderMm.A).toBe(0);
+    expect(basesOn(plan, "C")).toStrictEqual([
+      { role: "preparation", buildId: "base-3drawer" },
+      { role: "hob", buildId: "base-hob-2drawer" },
+      { role: "storage", buildId: "base-bottle-cargo" },
+      { role: "storage", buildId: "base-panbank" },
+      { role: "storage", buildId: "base-3drawer" },
+      { role: "storage", buildId: "tall-oven-tower" },
+    ]);
+    expect(plan.remainderMm.C).toBe(200);
+  });
+
+  it("2700 / 4000 / 4000: RQ19 (b) where the bottle cannot also fit — the drawer stands between the hob and the tower", () => {
+    const plan = planFor(uRoom(2700, 4000, 4000));
+
+    expect(basesOn(plan, "C")).toStrictEqual([
+      { role: "storage", buildId: "base-dishwasher" },
+      { role: "preparation", buildId: "base-3drawer" },
+      { role: "hob", buildId: "base-hob-2drawer" },
+      { role: "storage", buildId: "base-panbank" },
+      { role: "storage", buildId: "tall-oven-tower" },
+    ]);
+    expect(plan.remainderMm.C).toBe(0);
+  });
+
+  it("2700 / 3700 / 3700: RQ20 where the bottle fits — it stands directly after the hob and the tower follows", () => {
+    const plan = planFor(uRoom(2700, 3700, 3700));
+
+    expect(basesOn(plan, "C")).toStrictEqual([
+      { role: "storage", buildId: "base-dishwasher" },
+      { role: "preparation", buildId: "base-3drawer" },
+      { role: "hob", buildId: "base-hob-2drawer" },
+      { role: "storage", buildId: "base-bottle-cargo" },
+      { role: "storage", buildId: "tall-oven-tower" },
+    ]);
+    expect(plan.remainderMm.C).toBe(0);
+  });
+
+  it("4200 / 3400 / 3400: a back-wall hob's extras stand before the tower, which then stands at 3 bodies although n is 2", () => {
+    const plan = planFor(uRoom(4200, 3400, 3400));
+
+    expect(basesOn(plan, "A")).toStrictEqual([
+      { role: "sink", buildId: "base-sink" },
+      { role: "storage", buildId: "base-dishwasher" },
+      { role: "preparation", buildId: "base-3drawer" },
+      { role: "hob", buildId: "base-hob-2drawer" },
+    ]);
+    expect(plan.remainderMm.A).toBe(0);
+    const onC = basesOn(plan, "C");
+    expect(onC).toStrictEqual([
+      { role: "storage", buildId: "base-panbank" },
+      { role: "storage", buildId: "base-panbank" },
+      { role: "storage", buildId: "base-3drawer" },
+      { role: "storage", buildId: "tall-oven-tower" },
+    ]);
+    expect(onC.findIndex((base) => base.buildId === "tall-oven-tower")).toBe(3);
+    expect(plan.towerPosition).toBe(2);
+    expect(plan.remainderMm.C).toBe(0);
+  });
+
+  it("4800 / 1000 / 1000: RQ21 on wall A with no tower — the pan drawer stands where the bottle stood", () => {
+    const plan = planFor(uRoom(4800, 1000, 1000));
+
+    expect(plan.dropped).toContain("fridge");
+    expect(basesOn(plan, "A")).toStrictEqual([
+      { role: "sink", buildId: "base-sink" },
+      { role: "storage", buildId: "base-dishwasher" },
+      { role: "preparation", buildId: "base-3drawer" },
+      { role: "hob", buildId: "base-hob-oven" },
+      { role: "storage", buildId: "base-panbank" },
+    ]);
+    expect(plan.remainderMm.A).toBe(0);
+    expect(plan.towerPosition).toBeUndefined();
+  });
+
+  it("3600 / 2800 / 2800: the pantry outranks the drawer and the bottle (N3r 6) — hob, tower, pantry", () => {
+    const plan = planFor(uRoom(3600, 2800, 2800));
+
+    expect(basesOn(plan, "C")).toStrictEqual([
+      { role: "hob", buildId: "base-hob-2drawer" },
+      { role: "storage", buildId: "tall-oven-tower" },
+      { role: "storage", buildId: "tall-pantry" },
+    ]);
+    expect(plan.remainderMm.C).toBe(0);
   });
 });
