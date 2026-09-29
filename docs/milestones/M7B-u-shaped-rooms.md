@@ -371,7 +371,7 @@ test or a capture in U4.
 | **U3a** — **Done 2026-09-29, closed at `38d6be7`** (see *U3a close-out*) | The U plan: a pure three-wall composition plan, no insert | **Full** | No | U2; Q-U3, RQ1–RQ17 (answered) | — ~~**2026-09-29: RQ18 open (drawer placement), non-blocking, default built**~~ **RQ18 answered 2026-09-29: round the corner; pan drawers first (ADR 0110 *N3 revised* 6)**. ~~**RQ19, RQ20 raised 2026-09-29 (ADR 0110 N9.4): non-blocking, defaults built**~~ **RQ19, RQ20 and RQ21 answered 2026-09-29 (ADR 0110 N10). ~~RQ19 (a) is built at `84bab2e`; RQ19 (b), RQ20 and RQ21 are owed before QA~~ RQ19 (a) was built at `84bab2e`; RQ19 (b), RQ20 and RQ21 at `3f53a62`; N11 at `27e28da`; RQ18–RQ23 are answered** |
 | **U3b** — **Done 2026-09-30** (S0 `939a6ed`, S1 `2e028ac`, S2 `5bf8582`, S3 `b0cf2cc`, QA `8775b7c`, plus a comment fix commit (`5fb03ed`); see *U3b close-out*) | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** — **Done 2026-09-29, closed at `7f129fa`** (see *U4 close-out*; AC2, AC4 [visual], AC5 and the D14 light rig deferred to U5 AC9–AC11) | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
-| **U5** — **In progress 2026-09-30** (S0 merged at `664eee6`, S1 merged at `739f9e2`, S2 in progress in a worktree; see *U5 progress*) | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
+| **U5** — **Done 2026-09-30, closed at `8a30dbb`** (S0 `664eee6`, S1 merge `739f9e2`, S2 merge `2001c55`, QA `0166e7a`, QA fixes merge `93e2a2b`, review fixes merge `8a30dbb`; see *U5 close-out*) | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
 | **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
 | **U7** | Mobile gate, desktop line, e2e, captures — the phase gate | Light | **Yes** | U6 | — |
 
@@ -900,20 +900,68 @@ scribe). Measured, as reported to the scribe by the coordinator:
 
 ---
 
-### U5 progress — 2026-09-30 (not closed)
+### U5 progress — 2026-09-30 (superseded by *U5 close-out* below)
 
-- **S0** merged at `664eee6`.
-- **S1** merged at `739f9e2` (S1 commits `baeac9d` and `b4bfd8b`). Web 273 files / 4824 tests, measured
-  by the coordinator after the merge.
-- **S2** is in progress in a worktree.
-- **AC6 corrected** to two leaves per locale (see AC6 below).
+~~U5 in progress: S0 merged at `664eee6`, S1 at `739f9e2` (web 273 files / 4824 tests), S2 in a worktree;
+AC6 corrected to two leaves per locale; S1's visual-review items were desktop 900–1180 px label overlap
+and marked-wall labels (about 117 px of reason text) not guaranteed apart; QA, review and the visual pass
+still owed.~~ **All of it is resolved; see the close-out below.** The AC6 correction stands (AC6 below).
 
-**S1 visual-review items, for U5's visual pass (AC9–AC11 and AC4):**
-1. Desktop 900–1180 px: the plan box is 190–474 px wide, and the stacked fallback does the work. A box
-   shorter than two label lines can still overlap.
-2. Marked-wall labels (up to about 117 px of reason text) are not guaranteed apart.
+---
 
-**Still owed by U5's close:** QA, review, and the visual pass (AC9–AC11; D14's lights before U6).
+### U5 close-out — 2026-09-30, at `8a30dbb`
+
+**Shipped.** The editor and Step 1 carry a U, proved under a witness policy; the card is not live (U6).
+Not pushed. Commits, in order, on `m7b-u-shaped-rooms`:
+- **S0** `7dfa6de` (merge `664eee6`).
+- **S1** `baeac9d` and `b4bfd8b` (merge `739f9e2`).
+- **S2** `9424831` (merge `2001c55`).
+- **QA** `0166e7a`: e2e through a PUT-seeded U, Playwright `20 passed`.
+- **QA fixes** `55aee23` (merge `93e2a2b`): marked facing labels never overlap; 4 stale U e2e tests
+  restated per Q-U4 (b); the `linear-flow` chip-count race.
+- **Review fixes** `212b49a` (merge `8a30dbb`): label width guarded by a glyph-advance table,
+  `PLAN_LABEL_REASON_MAX_EM = 11.7`, plus a new "beneath" arrangement; `carriesCornerDirection(shape)` in
+  the domain and `ONE_HANDED_SHAPES` deleted; the circular `(C, right)` projection cases labelled as
+  derived; `RoomScreen` passes `policy` through to the URL parse and `draftStateOf`, with a new 1A→1F U
+  walk under the witness policy; the `hydrate-and-configure.tsx` comment corrected.
+
+**Verification.** Tier Light. Measured by the coordinator at `8a30dbb`: web 279 files / 4887 tests,
+domain 269 files / 5542 tests. **Implementer-reported, not re-run by the scribe:** three-adapter 4091;
+full e2e `540 passed, 2 skipped, 0 failed`. `pnpm ci:local` has not been run; the branch is not pushed.
+
+**QA.** The U e2e route needs no production seam: PUT accepts a U, because the write path checks schema
+and catalogue, not room policy. 0 overlaps in 714 real-page label pairs at 900–1180 px. All findings
+resolved (`55aee23`).
+
+**Reviews.**
+- **Logic:** minor concerns, no blocker. Findings 1–4 fixed in `212b49a`. Findings 5–6 are recorded
+  below: 5 is the unreachable arm; 6 is U6's slice and AC text (dated lines in Wave U6 and U7).
+- **Visual** (AC verdicts): AC9 PASS. AC10 PASS for 3000³, 4500/3000/3600 and 6000³ at both viewports;
+  on the phone overview, wall A's middle fills the frame and B/C are slivers, as revised by D13 / ADR
+  0132 A. AC7 PASS for Step 1: 18 screenshots pixel-identical to pre-M7B `dd9f63a`; the editor was
+  compared by inspection only. Labels pass; one ru clip at 900 px, fixed in `212b49a`.
+- **AC11 / D14 lights: KEEP the rig** (ADR 0132 Amendment B). Wall-C fronts measure about 3.6% darker
+  than wall B's (RGB 212 against 220; base fronts the same, both viewports). `stage.ts` does not change.
+  The owner was informed and did not object. This discharges "U6 does not start without it".
+
+**Deviations, with rationale.**
+- AC11 changed nothing in the rig: the measurement did not justify a mirrored key light (shadow cost, risk
+  to the L, about 4% gain).
+- 4 U e2e tests written before Q-U4 were restated, not deleted (Q-U4 (b): no toggle, no direction).
+
+**Known limit, kept.** The `crossesOnScreen (C, right)` arm is unreachable in the product (a U is always
+left-hand). It is kept and documented.
+
+**Documentation updated.** This close-out and the wave-table row; U6's slice text and AC2, U7's AC3 and
+a new e2e line (dated below); ADR 0132 Amendment B; `docs/STATUS.md`; `docs/BACKLOG.md` and
+`docs/backlog/open.md` (entries 98–100).
+
+**Deferred work, with owners.**
+1. **U6:** the four dated lines below (S1 (1), AC2, an e2e; U7 AC3 restated).
+2. **Backlog 98** (seeded-L flash on reload; a latent cross-request store write): not a U6 blocker; no
+   owner.
+3. **Backlog 99** (plan-preview label fit, three known limits): needs a copy or layout decision; no owner.
+4. **Backlog 100** (six orphan test-database rows): the owner decides.
 
 ---
 
@@ -1472,6 +1520,7 @@ stating U — so U6 can turn the card live with a policy line and nothing else.
     against its wall-B twin in a symmetric U, judged by the visual reviewer. ADR 0132 records D14's
     choice by a dated line, and if the choice changes the rig, `stage.ts` changes in this wave. **Owed
     by U5's close; U6 does not start without it.** **[visual]**
+    **Closed 2026-09-30: keep the rig; ADR 0132 Amendment B. `stage.ts` does not change.**
 
 ---
 
@@ -1486,7 +1535,7 @@ does not go live on a lighting nobody has seen.
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
 | **S0 census** (no production) | In a throwaway worktree at the wave base, apply S1's policy line alone; run domain and web unit suites; list every red and every e2e assertion naming a U refusal; classify each *restate in S1* or *defect — back to its wave*. Table appended here, **written live** (7J's F2 lesson) | none | 7J's S0 census and its two *removed, no replacement* rows (archived plan `:4165-4183`); `agent-coordination.md` (worktree bases) |
-| **S1 the switch** | (1) `U` bounds in `APPROVED_ROOM_POLICY` + pins + the approved ⊆ engine guard; (2) every wall maximum equal across shapes (Amendment G's test extended); (3) S0's restatements, each citing its row; (4) the seven `as BuildableShapes` casts deleted (G14) | `room/approved-room-policy.ts` | Q-U1, Q-U2 records (ADR 0108 H); ADR 0108 B1, G; ADR 0116 A2; S0's table |
+| **S1 the switch** | (1) `U` bounds in `APPROVED_ROOM_POLICY` + pins + the approved ⊆ engine guard **(dated 2026-09-30, U5 logic finding 6: with `minimumKitchen.isRequired: true` and H4's 1800 / 1000 reaches, guarded against the engine's. The engine's own flag is false, so copying the engine's shape without flipping it would admit rooms the generator refuses with `MINIMUM_NOT_MET`)**; (2) every wall maximum equal across shapes (Amendment G's test extended); (3) S0's restatements, each citing its row; (4) the seven `as BuildableShapes` casts deleted (G14) | `room/approved-room-policy.ts` | Q-U1, Q-U2 records (ADR 0108 H); ADR 0108 B1, G; ADR 0116 A2; S0's table |
 
 - **Reading, QA:** S0's table; ADR 0108 H; ADR 0116 + A; the slice diff; per-commit sequencing check.
 - **Reading, logic reviewer:** ADR 0108 (B1, G, H), 0116; S0's table; the wave diff.
@@ -1500,6 +1549,9 @@ does not go live on a lighting nobody has seen.
    max + 1 → `WALL_TOO_LONG`, for A, B and C; the minimum-kitchen and walkway boundary pairs
    recorded in ADR 0108 Amendment H; no number in any issue; the approved literals pinned and held
    inside `ENGINE_ROOM_LIMITS.U`; all shapes' wall maxima equal. **[unit]**
+   **Dated 2026-09-30 (U5 logic finding 6; checked against ADR 0108 H3's table and its RQ8 note):
+   2700/1000/1000 → `ROOM_TOO_SMALL_FOR_KITCHEN`; 3000/1000/1000 and 2700/1600/1600 accepted.**
+   **An e2e walks 1A→1D→1F for a U once the approved policy carries it (U6 or U7).**
 3. **The census closes**: every S0 red is either restated (citing its row) or a defect sent back; a
    row with no replacement is justified in the table, not left silent. **[review]**
 4. **Casts**: `git grep "as BuildableShapes"` returns nothing under `packages/` or `apps/`. **[review]**
@@ -1531,7 +1583,7 @@ does not go live on a lighting nobody has seen.
    `/d/{id}` restores; the share view draws the same U. **Added 2026-09-29 (RQ7):** on a large U,
    insert a wall cabinet above a base on wall A. **[e2e]**
 2. **Desktop** (1440 × 900): the same flow; the phone captures of criterion 3 unchanged by it. **[e2e]**
-3. **Captures**: {Q-U1 minimum, a middle U, the maximum} × ~~{left, right} ×~~ {`overview`, `wallA`,
+3. **Captures** (**dated 2026-09-30: "Q-U1 minimum" is restated as "the smallest accepted U"**): {Q-U1 minimum, a middle U, the maximum} × ~~{left, right} ×~~ {`overview`, `wallA`,
    `wallB`, `wallC`} × {mobile, desktop}. **2026-09-29: `{left, right}` is removed. A U has one hand
    (ADR 0132 d8, Q-U4 (b)).** Checklist per frame: wall C's plane present; fronts face the room; no
    floating corner piece; the right corner reads as the left's mirror; nothing past a wall's end;

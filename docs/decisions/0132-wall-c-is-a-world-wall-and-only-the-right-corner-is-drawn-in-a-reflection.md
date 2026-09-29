@@ -189,7 +189,7 @@ chosen.
 - **D13 (cameras): confirmed.** A U offers `overview`, `wallA`, `wallB` and `wallC`, and `wallC` is
   computed per room.
 - **D14 (lights): left open, as planned.** U4's captures decide it, and the choice is recorded here by
-  a dated line.
+  a dated line. **2026-09-30: keep the rig; see Amendment B.**
 - **D15 (screen words): re-predicted.** A U is always left-hand (decision 8). Wall C's `+along`
   (`+z`) projects screen-right through a camera looking `+X` [inference: `(1,0,0) × (0,1,0) = (0,0,1)`].
   So wall C's side words **do not cross** in any U. **Falsified** by U5-A5's projection test, which
@@ -562,3 +562,24 @@ choice nobody has seen. R3 and R4 in the M7B plan are repointed to U5.
 | M7B U4 AC4(d) | Restated (A8.1) |
 | M7B U5 S2 (5) | Widened (A8.2, A8.3) |
 | M7B U7 AC3 | `{left, right}` removed, because a U has one hand (decision 8) |
+
+## Amendment B — 2026-09-30: D14 (lights) decided at U5's close: keep the rig
+
+*Source: the U5 visual reviewer's measured capture, relayed by the coordinator; the scribe did not
+re-measure. Evidence tier: the measurement is reviewer-reported, the judgement is the reviewer's.*
+
+- **D14 — keep; decided at U5 close on the visual reviewer's measured capture; the owner was informed
+  and did not object.** The coordinator informed the owner. This is not an owner ruling on the lighting,
+  and it is recorded as relayed.
+- **The measurement.** Wall-C fronts are about 3.6% darker than wall B's (RGB 212 against 220; base
+  fronts the same), at both viewports. They read as one white kitchen.
+- **Alternative considered and rejected.** A mirrored key light would add shadow cost and risk changing
+  the L, for about 4% gain. So `stage.ts` does not change.
+- **Consequence.** A8.5's condition, "D14's choice is owed by U5's close; U6 does not start without it",
+  is discharged. U5 AC11 is closed on this record. Trigger to revisit (the scribe's proposal, not a ruling): a customer or the owner reports
+  wall C as dim (ADR 0118's form).
+
+| Record | Effect |
+| --- | --- |
+| D14 (decision 7) | Decided: keep the rig (Amendment B) |
+| A8.5, A8.6 | The "owed by U5's close" line is discharged |

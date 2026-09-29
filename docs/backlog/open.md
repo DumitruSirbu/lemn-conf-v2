@@ -1963,3 +1963,35 @@ rooms (sides 1480–1599, for example 2400/6000/1599) pass the gate while the ge
 ceiling floor of 2200 for every shape. A U throws already at 1900–2199 because of RQ7's mandatory hood
 ("a U's hob has no hood over it"), where the L succeeds at 2000. Not reachable under approved heights.
 No owner, no phase.
+
+## 98. A reload shows the seeded L (3 chips) before the loaded design — FOUND 2026-09-30, PRE-EXISTING, NOT A U6 BLOCKER
+
+**Found by M7B wave U5's QA and review** (`docs/milestones/M7B-u-shaped-rooms.md`, *U5 close-out*).
+Zustand 5.0.15's `useStore` server snapshot is `getInitialState()`, so server rendering and the
+hydration render show the seeded L (3 chips) before the loaded design. It affects every `/d/{id}` and
+`/s/{token}` load for every non-L design, and lasted about 130 ms in dev. Pre-existing since zustand 5,
+not a U6 blocker. It sits beside backlog 83, in the same component (`HydrateAndConfigure`); the code
+comment in `hydrate-and-configure.tsx` points here.
+
+**Side risk, for a security reviewer.** On the server, `hydrate` writes each request's design into the
+process-wide singleton store. Nothing server-rendered reads `getState()` today, so it is a latent
+cross-request leak: it becomes a real one the day something server-rendered does. No owner, no phase.
+
+## 99. Plan-preview label fit has known limits — FOUND 2026-09-30, RECORDED IN TEST COMMENTS, NOT FIXED
+
+**Found by M7B wave U5's review** (`212b49a` guarded label width with a glyph-advance table,
+`PLAN_LABEL_REASON_MAX_EM = 11.7`, and added a "beneath" arrangement; these cases remain):
+- two walls both over 6000 draw a sliver with no room beneath, so a 148 px ru reason cannot fit a 190 px
+  box;
+- an unmarked pair at a 283 px box with one deep wall is cramped;
+- mixed marked and unmarked pairs at mid lengths can overflow at the phone.
+
+All of these need a copy or layout decision (a wrapped or shorter reason), not a code fix. No owner, no
+phase.
+
+## 100. Six orphan design rows in the test database — FOUND 2026-09-30, OWNER DECIDES
+
+**Found by M7B wave U5's visual review.** It left 6 orphan design rows in the test database,
+`TEST_DATABASE_URL` (`lemn-conf-v2-staging`). Their ids were lost because run cleanup had no
+`DATABASE_URL` in the worker environment. **They were not deleted**, per the add-only rule
+(`docs/best-practices/environments-and-resources.md`); the owner decides whether to remove them.
