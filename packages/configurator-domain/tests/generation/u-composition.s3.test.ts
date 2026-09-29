@@ -107,6 +107,101 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   });
 });
 
+// U3a's stop-and-report (AC2/AC3) and RQ18: extras never confine to wall A, and once RQ18 (b)
+// answered, the extras split between the pan drawer and the 3-drawer rather than staying one body.
+describe("extra drawer units cross the far corner and split pan/3-drawer (RQ18)", () => {
+  it("never confines the extras to wall A when the target needs more than wall A can hold", () => {
+    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 }); // T = 18 000, N(T) = 5
+    const plan = planFor(room);
+    const farWall =
+      plan.bases.find((base) => base.role === "fridge")?.wall === "B"
+        ? "C"
+        : "B";
+
+    const drawersOnFar = plan.bases.filter(
+      (base) =>
+        base.wall === farWall &&
+        (base.buildId === "base-3drawer" || base.buildId === "base-panbank"),
+    );
+
+    expect(drawersOnFar.length).toBeGreaterThan(0);
+  });
+
+  it("never places an extra on the fridge wall — it stands before the sink in run order", () => {
+    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 });
+    const plan = planFor(room);
+    const fridgeWall = plan.bases.find((base) => base.role === "fridge")?.wall;
+
+    expect(
+      basesOn(plan, fridgeWall ?? "B").some(
+        (base) =>
+          base.buildId === "base-3drawer" || base.buildId === "base-panbank",
+      ),
+    ).toBe(false);
+  });
+
+  it("takes the pan drawer first, nearest the hob, up to floor(N/2), before any 3-drawer extra", () => {
+    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 }); // N(T) = 5
+    const plan = planFor(room);
+    const onA = basesOn(plan, "A");
+    const hobIndex = onA.findIndex((base) => base.role === "hob");
+    const afterHobOnA = onA.slice(hobIndex + 1);
+
+    // The bottle, then the pan drawers nearest the hob (N3r 6's own table: floor(5/2) = 2 on this
+    // room's own T), before any 3-drawer extra reaches wall A at all.
+    expect(afterHobOnA.map((base) => base.buildId)).toStrictEqual([
+      "base-bottle-cargo",
+      "base-panbank",
+      "base-panbank",
+    ]);
+  });
+
+  it("keeps the preparation cabinet as base-3drawer, never converted to a pan drawer", () => {
+    const room = uRoom({ widthMm: 6000, depthMm: 6000, wallCMm: 6000 });
+    const plan = planFor(room);
+    const preparation = plan.bases.find((base) => base.role === "preparation");
+
+    expect(preparation?.buildId).toBe("base-3drawer");
+  });
+});
+
+describe("the plan's own position field for the fridge and the tower (AC3)", () => {
+  it("reads 'free-end' for a fridge wall at or under 3000 mm entered", () => {
+    const room = uRoom({ depthMm: 3000, wallCMm: 1200 });
+    const plan = planFor(room);
+
+    expect(plan.fridgePosition).toBe("free-end");
+  });
+
+  it("reads the counted-from-corner number above 3000 mm entered", () => {
+    const room = uRoom({ depthMm: 3600, wallCMm: 1200 });
+    const plan = planFor(room);
+
+    expect(plan.fridgePosition).toBe(2);
+  });
+
+  it("is undefined when the fridge was dropped", () => {
+    const room = uRoom({ depthMm: 1000, wallCMm: 1000 });
+    const plan = planFor(room);
+
+    expect(plan.dropped).toContain("fridge");
+    expect(plan.fridgePosition).toBeUndefined();
+  });
+
+  it("reads the tower's own position, or undefined when the hob keeps its own oven", () => {
+    const withTower = planFor(uRoom({ depthMm: 3600, wallCMm: 2200 }));
+    const withoutTower = planFor(
+      uRoom({ widthMm: 3000, depthMm: 1000, wallCMm: 1000 }),
+    );
+
+    expect(withTower.towerPosition).not.toBeUndefined();
+    expect(
+      withoutTower.bases.some((base) => base.buildId === "tall-oven-tower"),
+    ).toBe(false);
+    expect(withoutTower.towerPosition).toBeUndefined();
+  });
+});
+
 describe("the bottle, the next cabinet after the hob (N3r 7, RQ16)", () => {
   it("stands as the first item of wall A's own A4 fill, when there is one", () => {
     const room = uRoom({ widthMm: 6000, depthMm: 2400, wallCMm: 2200 });

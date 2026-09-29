@@ -18,6 +18,7 @@ import {
   baseCountFromTheCorner,
   isLargeU,
   type UGenerationRun,
+  type UPlacementPosition,
   type UPlannedGenerationBase,
 } from "./run-layout.js";
 import {
@@ -49,6 +50,10 @@ export interface UTallLayoutResult {
   readonly bases: readonly UPlannedGenerationBase[];
   /** *N3 revised* 9 (E4 unchanged): which hob build id the one generated oven leaves the plan with. */
   readonly hobBuildId: string;
+  /** *N3 revised* 10's own count, or `"free-end"` — `undefined` where no tower stands at all (E4's
+   *  other branch, the hob keeps its own oven). AC3 reads this instead of re-deriving it from the
+   *  bases a plan already returned. */
+  readonly towerPosition: UPlacementPosition | undefined;
 }
 
 /** The fridge-to-free-end gap and the far wall's own layout, together — the far wall's own hob
@@ -68,6 +73,7 @@ export function planUTallLayout(input: UTallLayoutInput): UTallLayoutResult {
   return {
     bases: [...fridgeGapBases, ...far.bases],
     hobBuildId: far.hobBuildId,
+    towerPosition: far.towerPosition,
   };
 }
 
@@ -130,6 +136,7 @@ function pantryWidthsFor(
 interface FarWallLayout {
   readonly bases: readonly UPlannedGenerationBase[];
   readonly hobBuildId: string;
+  readonly towerPosition: UPlacementPosition | undefined;
 }
 
 function farWallLayout(input: UTallLayoutInput): FarWallLayout {
@@ -150,6 +157,7 @@ function farWallLayout(input: UTallLayoutInput): FarWallLayout {
         "far-door",
       ),
       hobBuildId: hobWithOwnOven,
+      towerPosition: undefined,
     };
   }
 
@@ -242,7 +250,14 @@ function towerAtTheFreeEnd(args: {
     );
     cursorMm += column.widthMm;
   }
-  return { bases, hobBuildId: block.hobBuildId };
+  const towerStood = block.columns.some(
+    (column) => column.buildId === OVEN_TOWER_BUILD_ID,
+  );
+  return {
+    bases,
+    hobBuildId: block.hobBuildId,
+    towerPosition: towerStood ? "free-end" : undefined,
+  };
 }
 
 /** RQ17: a lone tower `planTallEndBlock`'s own E6.2 would refuse — its merge with the free end's
@@ -337,7 +352,14 @@ function towerCountedFromTheCorner(args: {
   }
 
   bases.push(...doorFill(farWall, cursorMm, run.endMm, "far-tail"));
-  return { bases, hobBuildId: towerStood ? hobBuildId : hobWithOwnOven };
+  return {
+    bases,
+    hobBuildId: towerStood ? hobBuildId : hobWithOwnOven,
+    // *N3 revised* 10 (RQ5, "both from corner"): `n`, not the door count actually placed before it —
+    // an overflowed body counts toward `n` too, so a tower that stood right after the overflow, with
+    // `extraDoorsBeforeTower === 0`, still stands at `n` bases from the corner.
+    towerPosition: towerStood ? n : undefined,
+  };
 }
 
 /** *N3 revised* 3's own table, read again here for the tower's own count on the far wall (RQ5:

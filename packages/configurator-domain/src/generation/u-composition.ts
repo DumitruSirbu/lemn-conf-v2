@@ -15,6 +15,7 @@ import { wallLengthMm } from "../queries/overflowing-placements.js";
 import {
   BOTTLE_CARGO_BUILD_ID,
   DOOR_BASE_BUILD_ID,
+  PAN_DRAWER_BASE_BUILD_ID,
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
 import { DISHWASHER_RUN_ITEM } from "./dishwasher-beside-the-sink.js";
@@ -27,6 +28,7 @@ import {
   type GenerationPriority,
   type UGenerationRun,
   type UKitchenCompositionPlan,
+  type UPlacementPosition,
   type UPlannedGenerationBase,
 } from "./run-layout.js";
 import type { DeclaredColumnSizes } from "./tall-end-rule.js";
@@ -80,6 +82,8 @@ function fridgeWallCandidates(room: DesignRoom): FridgeWallCandidates {
 interface FridgeWallLayout {
   readonly placed: boolean;
   readonly bases: readonly UPlannedGenerationBase[];
+  /** *N3 revised* 3's own count, or `"free-end"` — meaningless where `placed` is `false`. */
+  readonly position: UPlacementPosition;
 }
 
 /** Where the fridge and its counted bases stand on `wall`, or nothing when even the fridge alone
@@ -93,7 +97,7 @@ function fridgeWallLayout(
 ): FridgeWallLayout {
   const capacityMm = run.endMm - run.startMm;
   if (capacityMm < FRIDGE_PRIORITY.widthMm) {
-    return { placed: false, bases: [] };
+    return { placed: false, bases: [], position: "free-end" };
   }
   const enteredMm = wallLengthMm(wall, room);
   let n = baseCountFromTheCorner(enteredMm);
@@ -124,7 +128,7 @@ function fridgeAtTheFreeEnd(
     cursorMm += STORAGE_BODY_WIDTH_MM;
   }
   bases.push(fridgeBase(wall, fridgeStartMm));
-  return { placed: true, bases };
+  return { placed: true, bases, position: "free-end" };
 }
 
 /** *N3 revised* 3's long-wall case: `n` bases from the corner, then the fridge. The stretch from the
@@ -142,7 +146,7 @@ function fridgeCountedFromTheCorner(
     cursorMm += STORAGE_BODY_WIDTH_MM;
   }
   bases.push(fridgeBase(wall, cursorMm));
-  return { placed: true, bases };
+  return { placed: true, bases, position: n };
 }
 
 function storageBase(
@@ -178,6 +182,8 @@ interface FridgePlacement {
   readonly farWall: DesignWall;
   readonly bases: readonly UPlannedGenerationBase[];
   readonly dropped: boolean;
+  /** `undefined` where `dropped` is `true` (RQ9's own empty-population branch). */
+  readonly position: UPlacementPosition | undefined;
 }
 
 /** *N3 revised* 2 (RQ2, RQ9): the fridge stands on the wider side wall, or the other side wall if it
@@ -204,6 +210,7 @@ function placedFridge(
       farWall: candidates.secondary,
       bases: onPrimary.bases,
       dropped: false,
+      position: onPrimary.position,
     };
   }
   const onSecondary = fridgeWallLayout(
@@ -217,6 +224,7 @@ function placedFridge(
       farWall: candidates.primary,
       bases: onSecondary.bases,
       dropped: false,
+      position: onSecondary.position,
     };
   }
   return {
@@ -224,6 +232,7 @@ function placedFridge(
     farWall: candidates.secondary,
     bases: [],
     dropped: true,
+    position: undefined,
   };
 }
 
@@ -381,8 +390,6 @@ function wallAFill(
   wall: DesignWall,
   lane: PackingLane,
   startOffsetMm: number,
-  hasPreparation: boolean,
-  drawerTarget: number,
 ): readonly UPlannedGenerationBase[] {
   const bases: UPlannedGenerationBase[] = [];
   let offsetMm = startOffsetMm;
@@ -401,24 +408,103 @@ function wallAFill(
     offsetMm += BOTTLE_WIDTH_MM;
   }
 
+  // The drawer build ids are decided once the run's own far wall is known too
+  // (`withDrawerUnitsAfterTheHob`), not here: this fill's own door bases are only wall A's own
+  // stretch of a run that continues onto the far wall (*N3 revised* 6, RQ18 (a)).
   const leftover = planLeftover(Math.max(0, lane.capacityMm - offsetMm));
-  let drawersPlaced = hasPreparation ? 1 : 0;
   for (let index = 0; index < leftover.storageCount; index += 1) {
-    const isDrawer = drawersPlaced < drawerTarget;
     const centreMm = lane.centreMmAt(offsetMm, STORAGE_BODY_WIDTH_MM);
     bases.push({
       id: `wall-a-fill:${wall}:${String(index)}`,
       role: "storage",
-      buildId: isDrawer ? THREE_DRAWER_BASE_BUILD_ID : DOOR_BASE_BUILD_ID,
+      buildId: DOOR_BASE_BUILD_ID,
       widthMm: STORAGE_BODY_WIDTH_MM,
       wall,
       startMm: centreMm - STORAGE_BODY_WIDTH_MM / 2,
       endMm: centreMm + STORAGE_BODY_WIDTH_MM / 2,
     });
-    if (isDrawer) drawersPlaced += 1;
     offsetMm += STORAGE_BODY_WIDTH_MM;
   }
   return bases;
+}
+
+/** *N3 revised* 6's own split, once RQ18 (b) replaced "the extras are all one build id": of the
+ *  `drawerTarget − (prep counted or not)` extra units still owed past the preparation cabinet, the
+ *  pan drawers (`PAN_DRAWER_BASE_BUILD_ID`) come first, up to `floor(drawerTarget / 2)` — the
+ *  owner's own table at *N3 revised* 6 — and the rest are `THREE_DRAWER_BASE_BUILD_ID`. */
+function drawerExtrasFor(
+  drawerTarget: number,
+  hasPreparation: boolean,
+): { readonly panbankCount: number; readonly threeDrawerCount: number } {
+  const panbankCount = Math.floor(drawerTarget / 2);
+  const threeDrawerCount = Math.max(
+    0,
+    drawerTarget - (hasPreparation ? 1 : 0) - panbankCount,
+  );
+  return { panbankCount, threeDrawerCount };
+}
+
+/** *N3 revised* 6, RQ18 (a): the extra drawer units are never confined to wall A — they take door
+ *  slots **in run order**, continuing round the far corner onto the far wall's own door bases where
+ *  wall A's own fill runs out. Applied once the whole plan's bases are known, because the far wall's
+ *  own door bases are S2's `u-tall-layout.ts` output, not this module's. The fridge wall is never a
+ *  candidate: it stands before the sink in run order (*N3 revised* 6's own adjudication). */
+function withDrawerUnitsAfterTheHob(
+  bases: readonly UPlannedGenerationBase[],
+  fridgeWall: DesignWall,
+  farWall: DesignWall,
+  drawerTarget: number,
+  hasPreparation: boolean,
+): readonly UPlannedGenerationBase[] {
+  const runOrder = runOrderedBases(bases, fridgeWall, farWall);
+  const hobIndex = runOrder.findIndex((base) => base.role === "hob");
+  if (hobIndex === -1) return bases;
+
+  const { panbankCount, threeDrawerCount } = drawerExtrasFor(
+    drawerTarget,
+    hasPreparation,
+  );
+  let panbankLeft = panbankCount;
+  let threeDrawerLeft = threeDrawerCount;
+  const buildIdById = new Map<string, string>();
+  for (const base of runOrder.slice(hobIndex + 1)) {
+    if (base.role !== "storage" || base.buildId !== DOOR_BASE_BUILD_ID) {
+      continue;
+    }
+    if (panbankLeft > 0) {
+      buildIdById.set(base.id, PAN_DRAWER_BASE_BUILD_ID);
+      panbankLeft -= 1;
+    } else if (threeDrawerLeft > 0) {
+      buildIdById.set(base.id, THREE_DRAWER_BASE_BUILD_ID);
+      threeDrawerLeft -= 1;
+    } else {
+      break;
+    }
+  }
+  if (buildIdById.size === 0) return bases;
+  return bases.map((base) => {
+    const buildId = buildIdById.get(base.id);
+    return buildId === undefined ? base : { ...base, buildId };
+  });
+}
+
+/** The plan's own bases, in the run's reading order (*N3 revised* 5's own direction): wall A read
+ *  from whichever corner the fridge wall shares with it, then the far wall from its own corner — the
+ *  same direction `wallALaneFromTheFridgeCorner` reads a *lane* in, restated over already-placed
+ *  bases rather than an offset still being packed. */
+function runOrderedBases(
+  bases: readonly UPlannedGenerationBase[],
+  fridgeWall: DesignWall,
+  farWall: DesignWall,
+): readonly UPlannedGenerationBase[] {
+  const onA = bases
+    .filter((base) => base.wall === "A")
+    .sort((left, right) => left.startMm - right.startMm);
+  const aInRunOrder = fridgeWall === "B" ? onA : [...onA].reverse();
+  const onFar = bases
+    .filter((base) => base.wall === farWall)
+    .sort((left, right) => left.startMm - right.startMm);
+  return [...aInRunOrder, ...onFar];
 }
 
 /** The catalogue's own declared bottle-cargo width (ADR 0110 Amendment H1, `optional-run-items.ts`'s
@@ -460,19 +546,13 @@ export function planUKitchenComposition(
     const hasPreparation = attemptIndex < 2;
     const wallAFillBases = packed.hasOverflowedOnce
       ? []
-      : wallAFill(
-          "A",
-          laneA,
-          packed.wallAOffsetMm,
-          hasPreparation,
-          drawerTargetFor(room),
-        );
+      : wallAFill("A", laneA, packed.wallAOffsetMm);
     const coreBases = [
       ...(fridge.dropped ? [] : fridge.bases),
       ...packed.bases,
       ...wallAFillBases,
     ];
-    const bases = withTheTallLayout({
+    const tall = withTheTallLayout({
       room,
       runs,
       fridgeWall: fridge.fridgeWall,
@@ -481,6 +561,13 @@ export function planUKitchenComposition(
       coreBases,
       declared: columns,
     });
+    const bases = withDrawerUnitsAfterTheHob(
+      tall.bases,
+      fridge.fridgeWall,
+      fridge.farWall,
+      drawerTargetFor(room),
+      hasPreparation,
+    );
     return {
       room,
       bases,
@@ -488,6 +575,8 @@ export function planUKitchenComposition(
       dropped,
       minimumMet: true,
       remainderMm: remainderMmOf(runs, bases),
+      fridgePosition: fridge.dropped ? undefined : fridge.position,
+      towerPosition: tall.towerPosition,
     };
   }
 
@@ -498,6 +587,8 @@ export function planUKitchenComposition(
     dropped: GENERATION_PRIORITIES.map((priority) => priority.role),
     minimumMet: false,
     remainderMm: remainderMmOf(runs, []),
+    fridgePosition: undefined,
+    towerPosition: undefined,
   };
 }
 
@@ -512,7 +603,10 @@ function withTheTallLayout(args: {
   readonly coreDropped: boolean;
   readonly coreBases: readonly UPlannedGenerationBase[];
   readonly declared: DeclaredColumnSizes;
-}): readonly UPlannedGenerationBase[] {
+}): {
+  readonly bases: readonly UPlannedGenerationBase[];
+  readonly towerPosition: UPlacementPosition | undefined;
+} {
   const fridgeBaseEndMm = args.coreBases.find(
     (base) => base.role === "fridge",
   )?.endMm;
@@ -529,12 +623,15 @@ function withTheTallLayout(args: {
     coreSurvivedWhole: !args.coreDropped,
     declared: args.declared,
   });
-  return [
-    ...args.coreBases.map((base) =>
-      base.role === "hob" ? { ...base, buildId: tall.hobBuildId } : base,
-    ),
-    ...tall.bases,
-  ];
+  return {
+    bases: [
+      ...args.coreBases.map((base) =>
+        base.role === "hob" ? { ...base, buildId: tall.hobBuildId } : base,
+      ),
+      ...tall.bases,
+    ],
+    towerPosition: tall.towerPosition,
+  };
 }
 
 function floorWidthsMmOf(

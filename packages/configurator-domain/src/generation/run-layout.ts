@@ -86,6 +86,13 @@ export interface UPlannedGenerationBase {
   readonly endMm: number;
 }
 
+/** Where the fridge or the far wall's tower stands, read as *N3 revised* 3 and 10 count it: the
+ *  number of base bodies between the corner and the item, or `"free-end"` where the item stands
+ *  flush against the wall's own free end instead (fixes RQ18's stop-and-report, AC3: a position
+ *  field replaces the heuristic classifiers `u-composition.test.ts` and `u-tall-layout.test.ts` used
+ *  to read a plan's own bases back apart). */
+export type UPlacementPosition = "free-end" | number;
+
 /** The U's own plan — `KitchenCompositionPlan`'s shape over three walls instead of two. No insert
  *  happens from this type (U3a's own scope); `generateKitchen` reads it starting U3b. */
 export interface UKitchenCompositionPlan {
@@ -96,6 +103,10 @@ export interface UKitchenCompositionPlan {
   readonly dropped: readonly GenerationCoreRole[];
   readonly minimumMet: boolean;
   readonly remainderMm: Readonly<Record<DesignWall, number>>;
+  /** `undefined` when the fridge was dropped (*N3 revised* 2's RQ9 branch). */
+  readonly fridgePosition: UPlacementPosition | undefined;
+  /** `undefined` when no oven tower stands (E4's other branch: the hob keeps its own oven). */
+  readonly towerPosition: UPlacementPosition | undefined;
 }
 
 /** One of the three walls' free run, corner to free end — `uShellFloorRuns`'s own shape
