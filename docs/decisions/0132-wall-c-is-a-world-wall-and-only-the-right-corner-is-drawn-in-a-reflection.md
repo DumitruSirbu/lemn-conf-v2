@@ -1,6 +1,8 @@
 # ADR 0132 — Wall C is a world wall, and only the right corner is drawn in a reflection
 
-Status: Accepted — M7B wave U0's logic review, 2026-09-29 (no blockers)
+Status: Accepted — M7B wave U0's logic review, 2026-09-29 (no blockers). **Amendment A, 2026-09-29:**
+a U's side-wall presets cut away the run their eye stands in, and its overview looks in from the open
+side on the centre line (U4 QA)
 Date: 2026-09-29
 Type: Finding + Decision (architect), on owner rulings of 2026-09-29 relayed by the coordinator
 Milestone: M7B, wave U0 (`docs/milestones/M7B-u-shaped-rooms.md`, *Wave U0*, *U0 census*, *U0
@@ -231,3 +233,156 @@ chosen.
 - ADR 0129 gains a pointer: its deferred question is answered here.
 - **Trigger** (ADR 0118): the owner objects to the right corner's mirrored pieces on seeing a U. The
   remedy is then an unmirrored build of those four pieces, an adapter change only.
+
+## Amendment A — 2026-09-29: a U's cameras. The side-wall presets cut away the run they stand in, and the overview looks in from the open side
+
+**Why this amendment exists.** U4's adversarial QA returned **RED** at `e223e44`:
+`packages/three-adapter/tests/qa-u4-preset-eye-in-the-u.adversarial.test.ts` has 17 tests, and 7 of
+them fail. The architect ran it at `458cbaa`, through `rtk proxy npx vitest run`, and got the same
+7 failures. The file is QA's, uncommitted.
+
+**What QA found.** The `wallB` preset's eye stands where a U's wall C and its cabinets are, and
+`wallC`'s eye stands in wall B's run the same way. In a 3000 × 3000 × 3000 U, a click from `wallB`
+aimed at wall B's top-row body selects a wall-C cabinet instead.
+
+The architect's own measurements use `cameraPresetsForRoom` from the adapter's `dist/` build (built
+by the pre-commit hook at `458cbaa`, from source unchanged since `b3c9e10`). They cover
+**88 434** rooms: A 2700–6000, B and C 1000–6000, step 100. Scripts: the session scratchpad's
+`u4/eyes.mjs` and `u4/overview.mjs`, run with `rtk proxy node`.
+
+Claims are labelled *doc-quoted*, *source-verified* (at `458cbaa`), *measured*, *derived*, or
+*inference*.
+
+### A1 — the defect, and a second one QA's sweep did not reach
+
+- *Source-verified.* The preset distance has no room term. `PRESET_DISTANCE_M` is
+  `(KITCHEN_TOP_M / 2 / tan 22.5°) × 1.35` = 4.237 m (`stage.ts:314-315`). Along the reference
+  `wallB` direction (0.979, 0.170, 0.110), that puts the eye at x = 4.149 m whatever the room is.
+  `wallC` is its reflection, at x = W − 4.149.
+- *Measured.* The `wallB` eye stands **behind wall C's plane**, within C's run, in **29 265**
+  rooms. It stands **inside wall C's body zone** (the deepest floor body, 742 mm at depth 600, plus
+  7H's 50 mm clearance) in another **15 608**. `wallC` mirrors both figures.
+- *Measured, a second defect QA did not test.* The U overview keeps the L's viewing direction,
+  which looks in from the +x, +z quadrant. An L is open on both of those sides; a U is open on +z
+  only. So the overview's eye stands at x = W/2 + 2.095, and **wall C's base fronts face away from
+  it in 72 828 rooms** (its upper fronts in 57 222). The customer sees the backs and ends of wall C's
+  cabinets. The overview "passes" QA's test only because QA asked where the eye stands, not which
+  way the fronts face.
+- *Measured, what the overview shows horizontally.* On a coarser sample of 5 292 rooms, at
+  390 × 844, the current overview leaves wall A's middle off screen in 3 264 rooms, wall C's middle
+  in all 5 292, and wall B's in 4 511.
+
+### A2 — the rule for the side-wall presets: keep the distance, and cut away the run the eye stands in
+
+**Ruling.** A U's `wallB` and `wallC` presets keep the kitchen-derived distance and the reference
+direction, unchanged. The fix is a cutaway:
+
+- **Which runs are cut away.** In a U, any wall whose **body zone** the camera's eye stands in or
+  behind, within that wall's run, is cut away. The body zone is the deepest floor body the
+  catalogue builds at the design's cabinet depth (`occupiedDepthOfEntryM`, ADR 0108 H2's measure),
+  plus 7H's 50 mm clearance.
+- **What "cut away" means.** That run's bodies, voids, overflow marks and outline are **not drawn
+  and not pickable** for as long as the eye is there.
+- **It reads where the camera is, not which preset it is,** so an orbit gets the same answer as a
+  preset. The configure screen's `OrbitControls` are unconstrained (`kitchen-canvas.tsx:54`,
+  source-verified), which is why this matters.
+- **An L and a straight room never cut anything away.**
+
+*The evidence:*
+
+- *Doc-quoted.*
+  - §11 row 21: *"Top row reachable from all 3 camera presets | projects well inside the
+    viewport"*. "Reachable" is a click, so occlusion counts.
+  - §6.4: *"all must frame floor to ceiling or the top row becomes unclickable"*.
+  - D13: *"§11 row 21 holds from all four"*.
+- *Source-verified.* The distance carries no room term on purpose (`stage.ts:304-312`): *"A distance
+  derived from the room's length would pull back as the wall grew and take the row with it"*. Keeping
+  the distance keeps row 21's pixel budget exactly as the L has it.
+- *Source-verified: where 7H's rule comes from, and what it is for.* The eye-in-the-room rule is a
+  test's statement (the header of `qa-7h-preset-stands-clear.adversarial.test.ts`). No ADR records
+  it. Its stated purpose is that the customer never sees *"the inside of a carcass"* or looks at the
+  back of a wall, and that nothing stands between the eye and its subject.
+  - The cutaway meets that purpose: the only run the eye could be inside, or look through, is not
+    drawn.
+  - The rule is therefore **restated for a U**: *no drawn body contains the eye or stands between
+    the eye and its subject*. An L's presets keep the literal form, since they never stand in a run.
+
+*The alternatives, refused:*
+
+- **(b) Clamp the eye inside the walkway.** *Derived from the constants above.* In a 2700 mm U, the
+  eye can stand at most x = 1.908 m, that is 1.948 m from wall B. At 45° vertical, the frame there is
+  1.61 m tall and, at 390 × 844, 0.75 m wide. Centred at 1.3 m, it runs 0.49–2.11 m, so **the top
+  row (2.2–2.6 m) is out of frame** and row 21 breaks. Raising the target loses the base row instead.
+- **(c) Look in obliquely from the U's open side.** *Inference.* The fridge wall's free end carries
+  tall pantries at every size (ADR 0110 *N3 revised* 4), and the far wall often carries the tower.
+  From the open side, those columns stand in front of the rest of the wall. That is §6.4's own
+  *"known unsolved"* class, *"wall-B columns seen edge-on"*.
+- **(d) A widened field of view or a steep overhead view.** *Derived.* Holding 0–2.6 m from 1.9 m
+  away needs roughly an 85° vertical field. From overhead, the fronts foreshorten to about 0.45 of
+  their height, and the uppers hide the base fronts. Both trade a small defect for a visible
+  distortion.
+
+### A3 — the U overview looks in from the open side, on the centre line
+
+**Ruling.** A U's overview:
+
+- keeps its target (W/2, KITCHEN_TOP/2, floorDepth/2), the kitchen-derived distance and the
+  reference elevation (17.6°);
+- stands on the room's centre line, **x = W/2**, looking in along −z.
+
+*Derived:* the U's only open side is +z. So its eye stands in the U's open side, every run's fronts
+face it, and nothing is cut away. An L and a straight room keep exactly the preset they have.
+
+*Measured,* on the 5 292-room sample at 390 × 844:
+
+- every wall's top row lies inside the viewport vertically, at **62.7 px or more** (row 21 needs
+  44);
+- wall A's middle is on screen horizontally in **every** room;
+- wall B's and wall C's middles are off screen horizontally in every room, which is no worse than
+  now.
+
+### A4 — what "every top row from every preset" can mean on a phone
+
+*Derived.* At the 4.237 m distance, a 45° vertical field and 390 × 844, the frame is about 3.5 m
+tall and **1.62 m wide** at the target. No preset can hold a whole wall of up to 6 m horizontally,
+and no overview can hold three walls. So D13's *"overview … holds three runs"* and U4 AC4's
+*"the top row of every wall … from all four presets"* **are withdrawn as written.** Their
+replacements are in the M7B plan's U4 AC4 and D13, both dated today:
+
+- each wall's preset makes its own wall's top row tap-sized and **clickable**, at the wall's middle;
+- the overview frames every top row vertically, faces every run's fronts, and holds wall A's middle.
+
+### A5 — owner question Q-U4-cam (non-blocking; the default is built)
+
+The question, as it is to be put:
+
+> *"In a U-shaped kitchen, when you tap 'Wall B' (or 'Wall C'), the camera stands where the opposite
+> side wall's cabinets are, so those cabinets would block the view. Which do you want? (A) Hide the
+> opposite wall's cabinets while you look at this wall. They come back in the other views.
+> (B) Show them faint and see-through. Either way they cannot be clicked from this view."*
+
+**Default: (A), and it is built.** It needs no transparent material and no sorting, and it cannot
+look like a rendering fault. (B) is additive: a material state on the same cut set, with the same
+tests. A third option, standing closer inside the room, is **not offered**, because it breaks §11
+row 21 (A2 (b)).
+
+### A6 — `cornerOf`'s wording, reconciled
+
+- *Source-verified* (`corner-assembly-size.ts:301-312`): `cornerOf` answers `"right"` for a wall-C
+  corner piece **before** it reads the shape. Wall C shares a corner with wall A only at A∩C, so
+  that answer is right whatever the shape.
+- The M7B plan's U4 S2 text, *"`"left"` … for any room that is not a U"*, was wrong about wall C.
+  **It is corrected to match the code.**
+- The domain comment is accurate but leaves the order implicit. It gains one sentence in U3a
+  Dispatch B (B4, comment only).
+- *Not verified:* whether the domain admits a wall-C placement outside a U. The adapter wraps
+  nothing outside a U, per QA, so nothing depends on the answer.
+
+### A7 — consequences
+
+- The punch list is in the M7B plan's U4 section: *U4 fix*, five items, adapter only.
+- The web applies the cutaway on every camera change. That is added as U5 S2 item (5).
+- **Triggers:**
+  - The owner answers Q-U4-cam with (B).
+  - An L's orbit behind wall A or B is reported as a defect. The same cutaway would then be
+    extended to the L, which today is deliberately untouched.
