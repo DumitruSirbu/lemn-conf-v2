@@ -36,7 +36,7 @@ const DECLARED = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
 );
 
-/** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` at `d3db323^`, the tree
+/** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` on the tree
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
  *  module). 933 rooms: 900 L rooms (no corner direction, left, right) and 33 straight rooms. */
 const PRE_WAVE_L_AND_LINEAR_DIGEST =

@@ -353,11 +353,10 @@ function modulesNamingTheConvention(): readonly string[] {
 
 describe("criterion 22 — nothing else in the repository knows the id convention", () => {
   it("names it in the predicate that reads it and its two writers, and nowhere else in src", () => {
-    // **M7B U3a slice S1** adds the U's own storage bases as a third writer,
-    // `generation/u-composition.ts` — the identical `storage:<wall>:<index>` convention
-    // `generation-priorities.ts` already writes for the L, deliberately reused rather than a
-    // second one invented, so `isComposedStorageSlot` recognizes a U's storage bases the same way
-    // once S3 wires the dishwasher and drawer logic in for a U.
+    // The U's own fridge-wall storage bases are a third writer, `generation/u-fridge-wall.ts` — the
+    // identical `storage:<wall>:<index>` convention `generation-priorities.ts` already writes for
+    // the L, deliberately reused rather than a second one invented, so `isComposedStorageSlot`
+    // recognizes a U's storage bases the same way once a U is generated.
     const shipped = modulesNamingTheConvention().filter((file) =>
       file.includes(`${path.sep}src${path.sep}`),
     );
@@ -382,7 +381,7 @@ describe("criterion 22 — nothing else in the repository knows the id conventio
         "configurator-domain",
         "src",
         "generation",
-        "u-composition.ts",
+        "u-fridge-wall.ts",
       ),
     ]);
   });

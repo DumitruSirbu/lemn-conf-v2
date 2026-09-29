@@ -311,10 +311,10 @@ export * from "./generation/leftover-rule.js";
 export * from "./generation/body-choice.js";
 export { DISHWASHER_PLANNED_WIDTH_MM } from "./generation/dishwasher-beside-the-sink.js";
 export * from "./generation/generation-priorities.js";
-// M7B U3a slice S1 — the U's own three-wall plan (ADR 0110 Amendment N), pure and not yet wired
-// into `generateKitchen` (U3b's own job). `UKitchenCompositionPlan` and `UPlannedGenerationBase` are
-// `run-layout.ts`'s, re-exported here directly because `generation-priorities.ts` — the only other
-// re-exporter of that module's types — is not touched for the U.
+// The U's own three-wall plan (ADR 0110 Amendment N), pure and not yet called by `generateKitchen`.
+// `UKitchenCompositionPlan` and `UPlannedGenerationBase` are `run-layout.ts`'s, re-exported here
+// directly because `generation-priorities.ts` — the only other re-exporter of that module's types —
+// is not touched for the U.
 export type {
   UKitchenCompositionPlan,
   UPlannedGenerationBase,

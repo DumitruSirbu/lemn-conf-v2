@@ -3,7 +3,7 @@
 // all three walls, RQ17's remainder and a dropped fridge's wall included (ADR 0110 N9.2); and the
 // hob wall's fitting rule (ADR 0110 N10.3), AC1 (a)-(e): no drawer extra after the tower, the bottle
 // directly after the hob, the bottle never costing a drawer unit, the tower's bound, and no tower,
-// pantry or fridge-wall body lost or gained against `84bab2e`. Swept over the same range S1's own
+// pantry or fridge-wall body lost or gained against the layout with nothing added. Swept over the same range S1's own
 // property suite uses (A 2700-6000, B and C 1000-6000, h 2200/2600/3900), a drop-band sweep (both side
 // walls under 1700 mm, where the fridge is dropped), plus the same fixed boundary sweep. A fixed grid
 // counts each arm the rule branches on and holds it at 1 or more, so no property can pass by landing
@@ -398,7 +398,7 @@ function towerStoodBeforeN10(room: DesignRoom, plan: Plan): boolean {
   );
 }
 
-/** AC1 (e), the tower's half: no room loses or gains its tower against `84bab2e`. */
+/** AC1 (e), the tower's half: no room loses or gains its tower against the layout with nothing added. */
 function checkTheTowerIsNeitherLostNorGained(room: DesignRoom): void {
   const plan = planFor(room);
   if (!plan.minimumMet) return;
@@ -556,16 +556,14 @@ interface GridMeasurement {
   readonly fridgeWallDigest: string;
 }
 
-/** What `84bab2e` produced over N4's grid (A 2700-6000, B and C 1000-6000, step 100, h 2600), read
- *  from a build of that commit with the same definitions this file uses. The towers and the far wall's
- *  pantries are exactly what N10.3 promises not to move.
- *
- *  **The fridge-wall digest is no longer `84bab2e`'s** (`803680d6…4b34fe`). ADR 0110 N11.1 moved the
- *  fridge wall in 10 178 rooms: a fridge at the free end now stands right after its door storage, with
- *  the bare remainder beyond it, where `84bab2e` put the remainder between the corner and the first
- *  body. `5d2962d4…fdfc2` is the digest of N11.1's rule, reproduced from a build of the fix and equal
- *  to the value the architect's model recorded in N11.1. Every other field is still `84bab2e`'s. */
-const RECORDED_AT_84BAB2E: GridMeasurement = {
+/** What the U planner produces over N4's grid (A 2700-6000, B and C 1000-6000, step 100, h 2600), read
+ *  with the same definitions this file uses: how many rooms compose, where their towers stand, the far
+ *  wall's pantries, and a digest of every fridge wall. ADR 0110 N10.5 records the towers and the far
+ *  wall's pantries as what N10.3 promises not to move, and N11.5 records the fridge wall as what N11.1
+ *  moved: a fridge at the free end stands right after its door storage, with the bare remainder
+ *  beyond it, in 10 178 rooms. The fridge-wall digest is N11.1's (`5d2962d4…fdfc2`), and the other
+ *  fields are the ones N10.5 records, unchanged by N11. */
+const RECORDED_U_GRID_MEASUREMENT: GridMeasurement = {
   composed: 86_706,
   towersByPosition: { n2: 16_487, n3: 13_600, freeEnd: 26_216, none: 30_403 },
   farWallPantryCount: 680,
@@ -683,7 +681,7 @@ describe("planUKitchenComposition holds AC1's S2 share", () => {
   );
 
   propertyTest.prop([sweptRoomArb], { numRuns: RUNS })(
-    "no room loses or gains its tower against 84bab2e (AC1 e)",
+    "no room loses or gains its tower against the layout with nothing added (AC1 e)",
     checkTheTowerIsNeitherLostNorGained,
   );
 
@@ -715,10 +713,10 @@ describe("planUKitchenComposition holds AC1's S2 share", () => {
     for (const room of gridRooms) checkTheHobWallFittingRule(room);
   });
 
-  it("leaves the towers and the far wall's pantries as 84bab2e had them, and moves the fridge wall exactly as N11.1 rules (AC1 e, AC3 vi)", () => {
+  it("leaves the towers and the far wall's pantries as N10.5 records them, and moves the fridge wall exactly as N11.1 rules (AC1 e, AC3 vi)", () => {
     const measured = measureTheRecordedGrid();
 
-    expect(measured).toStrictEqual(RECORDED_AT_84BAB2E);
+    expect(measured).toStrictEqual(RECORDED_U_GRID_MEASUREMENT);
   });
 
   it("holds over the boundaries N3r 3 and N3r 10 name", () => {

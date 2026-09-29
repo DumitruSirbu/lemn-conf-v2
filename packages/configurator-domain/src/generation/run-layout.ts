@@ -8,6 +8,8 @@
 // below reach it through `generation-priorities.ts`, under the names they always had.
 
 import type { DesignRoom, DesignWall } from "../design.js";
+import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
+import { STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 
 // M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
 // this composer reads exactly two walls — `readingOrderWallsFor` never returns a third — so its own
@@ -126,23 +128,72 @@ export interface UGenerationRun {
  *  neither restates it for the other (ADR 0102). */
 export const LARGE_U_TOTAL_MM = 10_000;
 
-export function isLargeU(room: DesignRoom): boolean {
+/** The three **entered** lengths of a U, summed: the key `isLargeU` and the drawer target both read. */
+export function enteredTotalMm(room: DesignRoom): number {
   if (room.wallCMm === undefined) {
     throw new Error(
-      "isLargeU: the room carries no wallCMm to sum a U's total run from",
+      "enteredTotalMm: the room carries no wallCMm to sum a U's total run from",
     );
   }
-  return room.widthMm + room.depthMm + room.wallCMm >= LARGE_U_TOTAL_MM;
+  return room.widthMm + room.depthMm + room.wallCMm;
 }
+
+export function isLargeU(room: DesignRoom): boolean {
+  return enteredTotalMm(room) >= LARGE_U_TOTAL_MM;
+}
+
+/** *N3 revised* 3's boundaries on a wall's entered length: at most 3000 mm is a short wall, up to
+ *  4000 mm a middle one, and beyond that a long one. The fridge wall's count from the corner and the
+ *  far wall's tower both read them, so they are stated once. */
+export const SHORT_SIDE_WALL_MAX_MM = 3000;
+export const MIDDLE_SIDE_WALL_MAX_MM = 4000;
 
 /** *N3 revised* 3's own table (RQ3's *"both from corner"*): `n` base cabinets stand between a
  *  corner and the fridge, or — RQ5's *"both from corner"* again — between a corner and the tower on
  *  a long far wall. One function, so `u-composition.ts`'s own count and `u-tall-layout.ts`'s cannot
  *  part on the same boundary (ADR 0102). Zero at 3000 mm or less; two at 3001-4000; three above. */
 export function baseCountFromTheCorner(enteredLengthMm: number): 0 | 2 | 3 {
-  if (enteredLengthMm <= 3000) return 0;
-  if (enteredLengthMm <= 4000) return 2;
+  if (enteredLengthMm <= SHORT_SIDE_WALL_MAX_MM) return 0;
+  if (enteredLengthMm <= MIDDLE_SIDE_WALL_MAX_MM) return 2;
   return 3;
+}
+
+/** The one place a `UPlannedGenerationBase` literal is built: a base's end is always its start plus
+ *  its width. */
+export function plannedBaseAt(
+  spec: Omit<UPlannedGenerationBase, "endMm">,
+): UPlannedGenerationBase {
+  const { id, role, buildId, widthMm, wall, startMm } = spec;
+  return {
+    id,
+    role,
+    buildId,
+    widthMm,
+    wall,
+    startMm,
+    endMm: startMm + widthMm,
+  };
+}
+
+/** `count` plain door bases side by side from `startMm` in increasing along-wall order, each named
+ *  `${idPrefix}:${wall}:${index}`. */
+export function doorBasesFrom(spec: {
+  readonly wall: DesignWall;
+  readonly startMm: number;
+  readonly count: number;
+  readonly idPrefix: string;
+}): readonly UPlannedGenerationBase[] {
+  const { wall, startMm, count, idPrefix } = spec;
+  return Array.from({ length: count }, (_, index) =>
+    plannedBaseAt({
+      id: `${idPrefix}:${wall}:${String(index)}`,
+      role: "storage",
+      buildId: DOOR_BASE_BUILD_ID,
+      widthMm: STORAGE_BODY_WIDTH_MM,
+      wall,
+      startMm: startMm + index * STORAGE_BODY_WIDTH_MM,
+    }),
+  );
 }
 
 export function fitsAcrossTheCorner(

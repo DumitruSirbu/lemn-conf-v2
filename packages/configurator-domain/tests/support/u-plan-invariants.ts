@@ -558,7 +558,7 @@ function overflowOf({ room, plan }: UPlanContext): readonly Base[] {
 }
 
 /** N10.3 step 2, re-derived: the tower stands exactly when it would stand with nothing but the
- *  overflowed core before it (the layout at `84bab2e`). Needs the room's height, a whole core, and on
+ *  overflowed core before it (the layout with nothing added). Needs the room's height, a whole core, and on
  *  a far wall ≤ 3000 one free module; above 3000, room for the tower after `max(n, overflow)`
  *  bodies. */
 export function towerIsOwed(context: UPlanContext): boolean {
