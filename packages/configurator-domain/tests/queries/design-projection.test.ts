@@ -20,6 +20,7 @@ import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import {
   compareDisplayOrder,
   projectDesignForDisplay,
+  type DisplayEntry,
 } from "../../src/queries/design-projection.js";
 import {
   bodyOf,
@@ -97,6 +98,36 @@ describe("projectDesignForDisplay grouping", () => {
       "p20",
     ]);
     expect(groups.every((group) => group.band !== ("top" as never))).toBe(true);
+  });
+});
+
+// M7B U1 slice S4: wall C's display rank, set alongside A and B in S1 and confirmed here — the
+// reading order the mockup counts in (ADR 0132 decision 1: A, then B, then C).
+describe("compareDisplayOrder — wall rank (ADR 0132 decision 1)", () => {
+  function entryOn(wall: DesignPlacement["wall"]): DisplayEntry {
+    return {
+      placementId: "p0",
+      buildId: "wall-cabinet",
+      label: { kind: "entry", buildId: "wall-cabinet" },
+      wall,
+      band: "wall",
+      rawBand: "wall",
+      alongMm: 0,
+      y0Mm: 0,
+      widthMm: 600,
+      heightMm: 700,
+    };
+  }
+
+  it("ranks wall A before wall B before wall C", () => {
+    const a = entryOn("A");
+    const b = entryOn("B");
+    const c = entryOn("C");
+
+    expect(compareDisplayOrder(a, b)).toBeLessThan(0);
+    expect(compareDisplayOrder(b, c)).toBeLessThan(0);
+    expect(compareDisplayOrder(a, c)).toBeLessThan(0);
+    expect(compareDisplayOrder(c, a)).toBeGreaterThan(0);
   });
 });
 

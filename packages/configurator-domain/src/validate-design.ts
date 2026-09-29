@@ -612,16 +612,24 @@ function findUncontainedEmptyColumns(
  * The bound is the wall's **own** normal run: §2 sends wall A's depth into the room's depth and
  * wall B's into its width, and no shipped body comes near either.
  *
+ * **ADR 0132 decision 7 (D10) extends wall A's bound to a U.** Wall A backs onto both side walls,
+ * so its own reach into the room is bounded by whichever one the floor is actually drawn to —
+ * `max(depthMm, wallCMm)` — never `depthMm` alone once a second side wall exists. Wall C's own
+ * bound is the room's width, the same run wall B's already reads: its depth reaches in from
+ * `x = W` toward `−X`, over the same `widthMm` wall B's reach starts counting from `x = 0`
+ * (`room-transforms.ts`'s α frames, ADR 0132 decision 1) — so the non-A arm needed no change.
+ * `wallCMm` is `undefined` on an L or a straight room, where `Math.max` with `0` is a no-op and
+ * this stays exactly `room.depthMm`.
+ *
  * Per-wall, and the along-wall bound agrees — see `wallLengthMm`.
  */
 function reachesPastRoomAcrossWall(
   emptyColumn: EmptyColumn,
   room: DesignRoom,
 ): boolean {
-  return (
-    emptyColumn.depthMm >
-    (emptyColumn.wall === "A" ? room.depthMm : room.widthMm)
-  );
+  if (emptyColumn.wall !== "A") return emptyColumn.depthMm > room.widthMm;
+  const drawnFloorDepthMm = Math.max(room.depthMm, room.wallCMm ?? 0);
+  return emptyColumn.depthMm > drawnFloorDepthMm;
 }
 
 /**
@@ -913,7 +921,15 @@ function groupSpansByWall(
  *
  * **One code for both stored arrays**, because the fact asserted is one fact and the path is what
  * says which array carries it — the shape ADR 0069 decision 2 asks a code to have.
- */
+ *
+ * **ADR 0132 decision 7 (D10) adds the A∩C corner, swept exactly as A∩B is and never merged with
+ * it.** Wall A carries both corners, so it is compared against wall B at the A∩B origin and against
+ * wall C at the A∩C origin — but wall A's own along-wall coordinate is measured from A∩B (§2), so a
+ * run near A∩C is mirrored onto `W − alongMm` before the comparison, the same reflection ADR 0132
+ * decision 1 gives wall C's own frame. Wall C's along is already measured from A∩C and needs no
+ * mirroring. **Wall B and wall C are never compared**: they are opposite side runs facing each
+ * other across the room, not two walls that share a corner, and `sweepOneCorner`'s own wall filter
+ * is what keeps that pair unreachable rather than a predicate a caller could forget. */
 function findCornerOverlaps(
   design: Design,
   catalog: BodyCatalog,
@@ -922,11 +938,39 @@ function findCornerOverlaps(
   if (recorded.length === 0) return [];
   const bodies = bodyCornerRuns(design.placements, catalog);
   const issues = new Map<string, DesignValidationIssue>();
+  sweepOneCorner(issues, recorded, bodies, "B");
+  sweepOneCorner(
+    issues,
+    mirroredForTheFarCorner(recorded, design.room.widthMm),
+    mirroredForTheFarCorner(bodies, design.room.widthMm),
+    "C",
+  );
+  return [...issues.values()];
+}
+
+/** One corner's sweep: wall A's runs against `farWall`'s, and no other pair — the filter that keeps
+ *  wall B and wall C from ever being compared, since neither shares a corner with the other. */
+function sweepOneCorner(
+  issues: Map<string, DesignValidationIssue>,
+  recorded: readonly CornerRun[],
+  bodies: readonly CornerRun[],
+  farWall: DesignWall,
+): void {
+  const isAtThisCorner = (candidate: CornerRun): boolean =>
+    candidate.run.wall === "A" || candidate.run.wall === farWall;
+  const recordedHere = recorded.filter(isAtThisCorner);
+  const bodiesHere = bodies.filter(isAtThisCorner);
   // Only the runs that reach the corner at all can meet across it, and the two filters bound each
   // other: a document's recorded spans are compared against its bodies over the few hundred
   // millimetres either side of the origin rather than against all of them.
-  for (const span of nearerTheCornerThan(recorded, deepestReachMm(bodies))) {
-    for (const body of nearerTheCornerThan(bodies, deepestReachMm(recorded))) {
+  for (const span of nearerTheCornerThan(
+    recordedHere,
+    deepestReachMm(bodiesHere),
+  )) {
+    for (const body of nearerTheCornerThan(
+      bodiesHere,
+      deepestReachMm(recordedHere),
+    )) {
       if (span.run.wall === body.run.wall) continue;
       if (!intersectsAcrossTheCorner(span, body)) continue;
       const issue = issueAt(
@@ -936,7 +980,29 @@ function findCornerOverlaps(
       issues.set(issue.path, issue);
     }
   }
-  return [...issues.values()];
+}
+
+/** Wall A's runs, restated in the A∩C corner's own coordinates — `W − alongMm`, reversing the
+ *  interval order the same way `alongMm ↦ W − alongMm` reverses any interval — so they compare
+ *  against wall C's runs, which are already measured from A∩C (ADR 0132 decision 1), on equal
+ *  footing. Every other wall's runs, including wall C's own, pass through untouched: only wall A's
+ *  coordinate is measured from the *other* corner. */
+function mirroredForTheFarCorner(
+  runs: readonly CornerRun[],
+  widthMm: number,
+): CornerRun[] {
+  return runs.map((corner) =>
+    corner.run.wall === "A"
+      ? {
+          ...corner,
+          run: {
+            ...corner.run,
+            alongStartMm: widthMm - corner.run.alongEndMm,
+            alongEndMm: widthMm - corner.run.alongStartMm,
+          },
+        }
+      : corner,
+  );
 }
 
 /** One run as the corner comparison reads it: where it stands along its own wall, and how far it
