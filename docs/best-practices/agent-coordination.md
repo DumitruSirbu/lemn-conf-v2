@@ -235,8 +235,11 @@ session's own model instead of the role's declared one.
 explicit model and may have run on the session's Opus model rather than `configurator-developer.md`'s
 declared Sonnet. The owner's instruction: *"don't stop just take into account to use correct the
 model"* — i.e. this is a going-forward dispatch discipline, not a reason to redo the affected waves.
-The owner also asked about "Sonnet 5.5"; the coordinator's answer at the time was that Sonnet 5 is the
-latest it knows of, and the `sonnet` alias resolves to whatever the installed Claude Code maps it to.
+**Owner ruling, 2026-09-29 (later the same day): Sonnet roles run on Sonnet 5.5.** The four Sonnet
+role cards (developer, scribe, verify-visual, review-clean-code) pin the full model ID
+`claude-sonnet-5-5` rather than the `sonnet` alias, so the model a role runs on is recorded in git
+instead of depending on what an installed Claude Code maps the alias to. When the dispatch tool
+accepts only an alias, pass `sonnet` — it resolves to Sonnet 5.5 as of this ruling.
 
 ## Spending review effort well
 
