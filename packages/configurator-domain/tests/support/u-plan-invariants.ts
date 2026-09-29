@@ -32,6 +32,7 @@ const SHORT_WALL_MAX_MM = 3000;
 const MAX_DRAWER_UNITS = 5;
 const PANTRY_MIN_MM = 400;
 const PANTRY_MAX_MM = 800;
+const BOTTLE_WIDTH_MM = 300;
 
 const DRAWER_BUILD_IDS = new Set(["base-3drawer", "base-panbank"]);
 const PAN_DRAWER = "base-panbank";
@@ -120,7 +121,69 @@ export function uPlanFindings(context: UPlanContext): readonly string[] {
     ...bottleFindings(context),
     ...drawersBeatTheBottleFindings(context),
     ...towerFindings(context),
+    ...sinkOnWallAFindings(context),
+    ...wallABottleFindings(context),
   ];
+}
+
+/** ADR 0108 H3, re-derived from the free runs alone: a U holds its minimum kitchen when wall A's free
+ *  run takes the sink and the hob, or takes the sink while the far side wall takes the hob. The plan's
+ *  `minimumMet` must agree in both directions (ADR 0110 N11.3). */
+export function holdsTheMinimumKitchen({ room, runs }: UPlanContext): boolean {
+  const freeAMm = runs.A.endMm - runs.A.startMm;
+  const far = runs[farWallOf(room)];
+  const freeFarMm = far.endMm - far.startMm;
+  return (
+    freeAMm >= 2 * MODULE_MM || (freeAMm >= MODULE_MM && freeFarMm >= MODULE_MM)
+  );
+}
+
+/** N11.3, N3 item 4: the sink stands on wall A. */
+function sinkOnWallAFindings({ plan }: UPlanContext): readonly string[] {
+  const sink = plan.bases.find((base) => base.role === "sink");
+  return sink?.wall === "A" ? [] : ["the sink is not on wall A"];
+}
+
+/** Wall A's run left after a wall-A hob, read in run direction (away from the fridge corner). */
+export function freeAfterAWallAHobMm(
+  context: UPlanContext,
+): number | undefined {
+  const hob = context.plan.bases.find((base) => base.role === "hob");
+  if (hob?.wall !== "A") return undefined;
+  const runA = context.runs.A;
+  return fridgeWallOf(context.room) === "B"
+    ? runA.endMm - hob.endMm
+    : hob.startMm - runA.startMm;
+}
+
+/** N11.2 with RQ23, on a wall-A hob. With `free` mm after the hob and the 300 mm bottle:
+ *  - under 300 the bottle cannot stand;
+ *  - 600-899: a drawer fits without the bottle and none with it, so the drawer takes the place;
+ *  - where the bottle costs wall A no door slot (`free mod 600 >= 300`, from 300 up), it cannot cost
+ *    the room a drawer either (RQ21), so it stands.
+ *  Where it costs wall A one slot but leaves it one or more (1200-1499 and so on), RQ21 decides by the
+ *  room's count; `drawersBeatTheBottleFindings` holds that half. */
+function wallABottleFindings(context: UPlanContext): readonly string[] {
+  const freeMm = freeAfterAWallAHobMm(context);
+  if (freeMm === undefined) return [];
+  const order = runOrderOf(context);
+  const afterTheHob = order[order.findIndex((base) => base.role === "hob") + 1];
+  const hasBottle = afterTheHob?.buildId === BOTTLE;
+  if (freeMm < BOTTLE_WIDTH_MM)
+    return hasBottle ? ["a bottle in under 300 mm"] : [];
+  if (freeMm >= MODULE_MM && freeMm < MODULE_MM + BOTTLE_WIDTH_MM) {
+    return afterTheHob !== undefined && isDrawerExtra(afterTheHob)
+      ? []
+      : [
+          `${String(freeMm)} mm after a wall-A hob is not a drawer unit (N11.2)`,
+        ];
+  }
+  if (freeMm % MODULE_MM >= BOTTLE_WIDTH_MM && !hasBottle) {
+    return [
+      `no bottle with ${String(freeMm)} mm after a wall-A hob, though it costs wall A no slot`,
+    ];
+  }
+  return [];
 }
 
 /** Every body inside its wall's run, no two overlapping, no gap between two bodies, and every bare
