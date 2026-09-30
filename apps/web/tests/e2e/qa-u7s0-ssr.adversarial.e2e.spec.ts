@@ -17,15 +17,8 @@
 //
 // Rows minted here are deleted in `afterEach` (ADR 0006), and the count deleted is asserted.
 import {
-  APPROVED_ROOM_POLICY,
-  validateRoomInput,
-  type Design,
-  type RoomInput,
-} from "@lemnaria/configurator-domain";
-import {
   expect,
   test,
-  type APIRequestContext,
   type Browser,
   type Page,
   type TestInfo,
@@ -33,114 +26,35 @@ import {
 
 import { ro } from "../support/romanian-content.e2e";
 import {
+  collectHydrationComplaints,
+  installFrameSampler,
+  readPaintedFrames,
+} from "./support/first-frame";
+import {
   deleteMintedDesigns,
   findMintedDesignIds,
 } from "./support/minted-designs";
-import { issueShareLink } from "./support/seeded-design";
-import { composeKitchen, seedDesign } from "./support/u-design";
+import {
+  cameraChipCount,
+  fingerprintOf,
+  htmlOf,
+  L_OWN,
+  SHARE_VIEW_SESSION_ID,
+  seedKitchen,
+  selectionDebugAttribute,
+  STRAIGHT,
+  U_LARGE,
+  U_MIDDLE,
+  type Fingerprint,
+} from "./support/ssr-html";
 
-const HEIGHT_MM = 2600;
-const SHARE_VIEW_SESSION_ID = "shared-view";
 const REQUESTS_PER_ROUTE = 8;
 const SAVE_TIMEOUT_MS = 15_000;
 /** A client transition fetches the next route's RSC payload, which under a parallel run can take
  *  longer than `expect.poll`'s 5 s default. */
 const TRANSITION_TIMEOUT_MS = 15_000;
-
-interface KitchenSpec {
-  readonly name: string;
-  readonly input: RoomInput;
-  readonly cameraChips: number;
-  /** Seeded distinct per kitchen, so the fingerprint names its design even where price could tie. */
-  readonly updatedAt: string;
-}
-
-const U_MIDDLE: KitchenSpec = {
-  name: "U 4500/3000/3600",
-  input: {
-    shape: "U",
-    wallAMm: 4500,
-    wallBMm: 3000,
-    wallCMm: 3600,
-    heightMm: HEIGHT_MM,
-    cornerDirection: "left",
-  },
-  cameraChips: 4,
-  updatedAt: "2026-01-02T00:00:00.000Z",
-};
-const U_LARGE: KitchenSpec = {
-  name: "U 6000/3000/3000",
-  input: {
-    shape: "U",
-    wallAMm: 6000,
-    wallBMm: 3000,
-    wallCMm: 3000,
-    heightMm: HEIGHT_MM,
-    cornerDirection: "left",
-  },
-  cameraChips: 4,
-  updatedAt: "2026-01-03T00:00:00.000Z",
-};
-/** Not the seeded L (3560 x 2920): same chip count, different kitchen. */
-const L_OWN: KitchenSpec = {
-  name: "L 3700/3400",
-  input: {
-    shape: "L",
-    wallAMm: 3700,
-    wallBMm: 3400,
-    heightMm: HEIGHT_MM,
-    cornerDirection: "left",
-  },
-  cameraChips: 3,
-  updatedAt: "2026-01-04T00:00:00.000Z",
-};
-const STRAIGHT: KitchenSpec = {
-  name: "straight 3700",
-  input: { shape: "linear", wallAMm: 3700, heightMm: HEIGHT_MM },
-  cameraChips: 2,
-  updatedAt: "2026-01-05T00:00:00.000Z",
-};
-
-interface Seeded {
-  readonly spec: KitchenSpec;
-  readonly id: string;
-  readonly revision: string;
-  readonly designPath: string;
-  readonly sharePath: string;
-}
-
-interface Fingerprint {
-  readonly cameraChips: number;
-  readonly sessionId: string;
-  readonly price: string;
-  readonly updatedAt: string;
-  readonly cabinetDepth: string;
-}
-
-function designFor(spec: KitchenSpec): Design {
-  const validation = validateRoomInput(spec.input, APPROVED_ROOM_POLICY);
-  if (!validation.ok) {
-    throw new Error(`the approved policy refuses ${spec.name}`);
-  }
-  return { ...composeKitchen(validation.room), updatedAt: spec.updatedAt };
-}
-
-async function seed(
-  page: Page,
-  minted: string[],
-  spec: KitchenSpec,
-): Promise<Seeded> {
-  const seeded = await seedDesign(page, designFor(spec));
-  minted.push(seeded.id);
-  const sharePath = await issueShareLink(page, seeded);
-  return {
-    spec,
-    id: seeded.id,
-    revision: seeded.revision,
-    designPath: `/ro/d/${seeded.id}`,
-    sharePath: `/ro${sharePath}`,
-  };
-}
+/** A journey that seeds several kitchens, reads many responses and drives a real edit to its save. */
+const LONG_JOURNEY_TIMEOUT_MS = 120_000;
 
 async function ownerPage(browser: Browser, testInfo: TestInfo): Promise<Page> {
   const baseURL = testInfo.project.use.baseURL;
@@ -150,42 +64,6 @@ async function ownerPage(browser: Browser, testInfo: TestInfo): Promise<Page> {
     viewport: { width: 390, height: 844 },
   });
   return context.newPage();
-}
-
-function attribute(html: string, name: string): string {
-  const match = new RegExp(
-    `data-testid="selection-debug"[^>]*\\s${name}="([^"]*)"`,
-  ).exec(html);
-  if (match === null) throw new Error(`the HTML carries no ${name}`);
-  return match[1] ?? "";
-}
-
-function cameraChipCount(html: string): number {
-  const row = new RegExp(
-    `role="group"\\s+aria-label="${ro.configure.cameraGroupLabel}"[^>]*>([\\s\\S]*?)</div>`,
-  ).exec(html);
-  if (row === null) return 0;
-  return (row[1] ?? "").split("<button").length - 1;
-}
-
-function fingerprintOf(html: string): Fingerprint {
-  const price = /data-testid="price-bar-total">([^<]*)</.exec(html);
-  return {
-    cameraChips: cameraChipCount(html),
-    sessionId: attribute(html, "data-design-id"),
-    price: price?.[1] ?? "",
-    updatedAt: attribute(html, "data-updated-at"),
-    cabinetDepth: attribute(html, "data-cabinet-depth"),
-  };
-}
-
-async function htmlOf(
-  requests: APIRequestContext,
-  path: string,
-): Promise<string> {
-  const response = await requests.get(path);
-  expect(response.status(), path).toBe(200);
-  return response.text();
 }
 
 async function deleteAndCount(minted: string[]): Promise<void> {
@@ -205,16 +83,16 @@ test.describe("U7 S0 adversarial: isolation across users and within a shape", ()
     browser,
     request: stranger,
   }, testInfo) => {
-    test.setTimeout(120_000);
+    test.setTimeout(LONG_JOURNEY_TIMEOUT_MS);
     const ownerA = await ownerPage(browser, testInfo);
     const ownerB = await ownerPage(browser, testInfo);
     const kitchensA = [
-      await seed(ownerA, minted, U_MIDDLE),
-      await seed(ownerA, minted, L_OWN),
+      await seedKitchen(ownerA, minted, U_MIDDLE),
+      await seedKitchen(ownerA, minted, L_OWN),
     ];
     const kitchensB = [
-      await seed(ownerB, minted, U_LARGE),
-      await seed(ownerB, minted, STRAIGHT),
+      await seedKitchen(ownerB, minted, U_LARGE),
+      await seedKitchen(ownerB, minted, STRAIGHT),
     ];
     const owned = [
       ...kitchensA.map((kitchen) => ({ kitchen, owner: ownerA.request })),
@@ -297,13 +175,15 @@ test.describe("U7 S0 adversarial: isolation across users and within a shape", ()
     page,
     request: stranger,
   }) => {
-    const kitchen = await seed(page, minted, U_MIDDLE);
+    const kitchen = await seedKitchen(page, minted, U_MIDDLE);
 
     const response = await stranger.get(kitchen.sharePath);
     const html = await response.text();
 
     expect(response.status()).toBe(200);
-    expect(attribute(html, "data-design-id")).toBe(SHARE_VIEW_SESSION_ID);
+    expect(selectionDebugAttribute(html, "data-design-id")).toBe(
+      SHARE_VIEW_SESSION_ID,
+    );
     expect(html.includes(kitchen.id), "the design id").toBe(false);
     // A revision is a small integer, so it is looked for as a value under a `revision` key (plain
     // or RSC-escaped JSON), not as a bare substring: the only one allowed is the view's sentinel.
@@ -329,53 +209,6 @@ test.describe("U7 S0 adversarial: isolation across users and within a shape", ()
   });
 });
 
-/** React's hydration complaints in **both** builds. Development names them ("Hydration failed …");
- *  a production build throws the minified codes instead (418 text/content, 419 and 423 recoverable
- *  hydration errors, 425 text), which a `/hydrat/` pattern alone never sees — measured on this
- *  branch: a provoked text mismatch under `next start` reports only "Minified React error #418". */
-const HYDRATION_COMPLAINT =
-  /hydrat|did not match|didn't match|React error #(418|419|423|425)\b/i;
-
-function collectHydrationComplaints(page: Page): string[] {
-  const complaints: string[] = [];
-  page.on("console", (message) => {
-    if (
-      message.type() === "error" &&
-      HYDRATION_COMPLAINT.test(message.text())
-    ) {
-      complaints.push(message.text());
-    }
-  });
-  page.on("pageerror", (error) => {
-    if (HYDRATION_COMPLAINT.test(error.message)) complaints.push(error.message);
-  });
-  return complaints;
-}
-
-interface SamplerOptions {
-  readonly groupLabel: string;
-}
-
-/** From the document's first moment, on every frame: the chip count and the price total. */
-function sampleEveryFrame({ groupLabel }: SamplerOptions): void {
-  const samples: { chips: number; price: string }[] = [];
-  Reflect.set(window, "__qaFrames", samples);
-  const sample = (): void => {
-    const row = document.querySelector(
-      `[role="group"][aria-label="${groupLabel}"]`,
-    );
-    const price = document.querySelector('[data-testid="price-bar-total"]');
-    if (row !== null && price !== null) {
-      samples.push({
-        chips: row.querySelectorAll("button").length,
-        price: price.textContent,
-      });
-    }
-    requestAnimationFrame(sample);
-  };
-  requestAnimationFrame(sample);
-}
-
 test.describe("U7 S0 adversarial: no painted frame shows another kitchen", () => {
   const minted: string[] = [];
 
@@ -387,27 +220,19 @@ test.describe("U7 S0 adversarial: no painted frame shows another kitchen", () =>
     test(`a reload of ${route === "designPath" ? "/d" : "/s"} for an L that is not the seeded L paints only its own price, with no hydration complaint`, async ({
       page,
     }) => {
-      const kitchen = await seed(page, minted, L_OWN);
+      const kitchen = await seedKitchen(page, minted, L_OWN);
       const serverPrice = fingerprintOf(
         await htmlOf(page.request, kitchen[route]),
       ).price;
       const complaints = collectHydrationComplaints(page);
-      await page.addInitScript(sampleEveryFrame, {
-        groupLabel: ro.configure.cameraGroupLabel,
-      });
+      await installFrameSampler(page);
 
       await page.goto(kitchen[route]);
       await page.reload();
       await page.waitForSelector("canvas", { state: "attached" });
       await expect(page.getByTestId("price-bar-total")).toHaveText(serverPrice);
 
-      const frames = await page.evaluate(
-        () =>
-          Reflect.get(window, "__qaFrames") as {
-            chips: number;
-            price: string;
-          }[],
-      );
+      const frames = await readPaintedFrames(page);
       expect(frames.length).toBeGreaterThan(0);
       expect(
         frames.filter(
@@ -446,9 +271,9 @@ test.describe("U7 S0 adversarial: after hydration, the session store is the load
   test("/s → /d → another /d by client transition lands on each, and an edit saves to the last one only", async ({
     page,
   }) => {
-    test.setTimeout(120_000);
-    const first = await seed(page, minted, U_MIDDLE);
-    const second = await seed(page, minted, STRAIGHT);
+    test.setTimeout(LONG_JOURNEY_TIMEOUT_MS);
+    const first = await seedKitchen(page, minted, U_MIDDLE);
+    const second = await seedKitchen(page, minted, STRAIGHT);
     const firstHtml = await htmlOf(page.request, first.designPath);
     const secondHtml = await htmlOf(page.request, second.designPath);
     const navigationsBefore: string[] = [];

@@ -43,7 +43,7 @@ import {
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
-import { createContext, useContext, useSyncExternalStore } from "react";
+import { useContext, useSyncExternalStore } from "react";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
@@ -54,6 +54,7 @@ import {
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
+import { ServerSnapshotStoreContext } from "./server-snapshot-context";
 import {
   preflightWholeKitchenSettings,
   type WholeKitchenSetting,
@@ -738,22 +739,17 @@ const sessionStore = createConfiguratorStore({
   onOverwriteRequested: overwriteConflictingDesign,
 });
 
-/**
- * The store a server render (and React's hydration pass over it) answers from, when the tree was
- * mounted under a `ConfiguratorSnapshotProvider` (ADR 0133 decision 3). `null` means no provider,
- * and the session store's own initial state answers, as it did before. Only the provider writes
- * it; it is a per-render store, so it can hold a loaded design without any module state moving.
- */
-export const ServerSnapshotStoreContext =
-  createContext<StoreApi<ConfiguratorState> | null>(null);
-
 function selectWholeState(state: ConfiguratorState): ConfiguratorState {
   return state;
 }
 
+function useSessionStoreSlice(): ConfiguratorState;
 function useSessionStoreSlice<Selected>(
   selector: (state: ConfiguratorState) => Selected,
-): Selected {
+): Selected;
+function useSessionStoreSlice(
+  selector: (state: ConfiguratorState) => unknown = selectWholeState,
+): unknown {
   const snapshotStore = useContext(ServerSnapshotStoreContext);
   return useSyncExternalStore(
     sessionStore.subscribe,
@@ -777,18 +773,19 @@ function useSessionStoreSlice<Selected>(
  * `ConfiguratorSnapshotProvider`'s per-render store, and the subscription, `getState`, `setState`
  * and `subscribe` all still address the one session store, so the save coalescer's wiring (ADR 0010
  * decision 2) is untouched.
+ *
+ * **During the hydration render the hook reads that snapshot store**, so an action selected through
+ * it is the snapshot store's own. On the client the provider makes those the session store's actions
+ * (`configurator-snapshot.tsx`), so one called before the first post-hydration re-render still
+ * reaches the session and its save.
  */
 export const useConfiguratorStore: UseBoundStore<StoreApi<ConfiguratorState>> =
-  Object.assign(
-    (selector: (state: ConfiguratorState) => unknown = selectWholeState) =>
-      useSessionStoreSlice(selector),
-    {
-      getState: sessionStore.getState,
-      getInitialState: sessionStore.getInitialState,
-      setState: sessionStore.setState,
-      subscribe: sessionStore.subscribe,
-    },
-  ) as UseBoundStore<StoreApi<ConfiguratorState>>;
+  Object.assign(useSessionStoreSlice, {
+    getState: sessionStore.getState,
+    getInitialState: sessionStore.getInitialState,
+    setState: sessionStore.setState,
+    subscribe: sessionStore.subscribe,
+  });
 
 /** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
  *  decision 2). Built on first use rather than at module load for two reasons: this module is

@@ -18,7 +18,7 @@ import {
   type RoomInput,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
-import { createElement, type ReactElement } from "react";
+import { createElement, useContext, type ReactElement } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -27,7 +27,12 @@ import { HydrateAndConfigure } from "@/app/d/[id]/hydrate-and-configure";
 import { SharedDesignView } from "@/app/s/[token]/shared-design-view";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import { useSceneMeasurement } from "@/scene/scene-measurement-store";
-import { useConfiguratorStore } from "@/store/configurator-store";
+import { ConfiguratorSnapshotProvider } from "@/store/configurator-snapshot";
+import {
+  useConfiguratorStore,
+  type ConfiguratorState,
+} from "@/store/configurator-store";
+import { ServerSnapshotStoreContext } from "@/store/server-snapshot-context";
 
 import roMessages from "../../src/messages/ro.json";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -165,6 +170,32 @@ describe("the hook without a provider (the plain configure route)", () => {
     const html = serverRender(createElement(ConfigureScreen));
 
     expect(cameraChipCount(html)).toBe(L_CAMERA_CHIPS);
+    expectNoModuleStoreWasWritten();
+  });
+});
+
+describe("the snapshot store a server render is handed", () => {
+  it("throws, outside production, if any action is called on it", () => {
+    const captured: { state: ConfiguratorState | null } = { state: null };
+    function Capture(): null {
+      captured.state =
+        useContext(ServerSnapshotStoreContext)?.getState() ?? null;
+      return null;
+    }
+
+    serverRender(
+      createElement(ConfiguratorSnapshotProvider, {
+        loaded: {
+          design: STRAIGHT_DESIGN,
+          designId: "an-owners-design-id",
+          revision: "3",
+          canWrite: "checking",
+        },
+        children: createElement(Capture),
+      }),
+    );
+
+    expect(() => captured.state?.remove()).toThrow(/read-only/);
     expectNoModuleStoreWasWritten();
   });
 });

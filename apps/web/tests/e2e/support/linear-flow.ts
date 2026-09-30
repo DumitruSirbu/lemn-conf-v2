@@ -53,12 +53,9 @@ function idInEditorUrl(url: string): string {
 
 /** The camera group's own buttons — two for a straight design (ADR 0130 D9), never three.
  *
- *  **A retrying assertion, never a `count()`.** The page's server render and its hydration read the
- *  store's *initial* state (zustand answers `getInitialState()` to `useSyncExternalStore`'s server
- *  snapshot), which is the seeded L with its three presets; the loaded design replaces it on the first
- *  client commit. So a `count()` taken the moment the title is visible can land before that commit and
- *  read three (seen once in a full run and once in eight repeats). `toHaveCount` polls until the
- *  loaded design's answer stands. */
+ *  The first server-rendered frame is already the loaded design (ADR 0133), so the row is right from
+ *  first paint. `toHaveCount` is kept because it retries: the row is read while the editor's client
+ *  tree is still settling (hydration, the write-access probe), and a `count()` is one sample of it. */
 async function expectCameraPresetButtons(
   page: Page,
   expected: number,

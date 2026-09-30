@@ -13,19 +13,13 @@ import {
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 /** Puts the loaded design in front of the editor: the first server-rendered frame, React's hydration
- *  pass and every later render all show it.
+ *  pass and every later render all show it. The session store is written here, in the browser and
+ *  during render, guarded by the id; the server render and the hydration pass read the provider's
+ *  snapshot instead. Why, and why the guard asks `getState()` and not the hook: ADR 0133 and
+ *  `hydrateSessionStoreInBrowser`.
  *
- *  **Two stores, one design.** The browser's session store is written during render, guarded by the
- *  id comparison rather than an effect, so by the time `ConfigureScreen` reads it for a client render
- *  this component's body has already run. On the server that write is skipped — the store is a
- *  process-wide singleton and would carry one request's design into the next — so the server render
- *  and the hydration pass read a per-render snapshot store from `ConfiguratorSnapshotProvider`
- *  instead (ADR 0133). The guard therefore asks the session store directly, never the hook, which
- *  under the provider would answer the snapshot and skip the write.
- *
- *  This closes backlog 98 (the seeded L showing before the loaded design). It does not close backlog
- *  83, whose warning on a client transition between two designs comes from the write staying in
- *  render. */
+ *  This closes backlog 98. It does not close backlog 83, whose warning on a client transition between
+ *  two designs comes from the write staying in render. */
 export function HydrateAndConfigure({
   design,
   designId,

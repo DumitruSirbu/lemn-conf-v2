@@ -27,11 +27,9 @@ const SHARED_VIEW_REVISION = "shared";
  * `canWrite` is always `false`, never `"checking"`. It is deliberately the *only other* file the
  * single-mount guard admits (`configure-screen-single-mount.test.ts`).
  *
- * **Hydrates during render, in the browser only**, on the same pattern `HydrateAndConfigure` uses, so
- * `ConfigureScreen`'s first client render already shows the shared design. The server render and the
- * hydration pass read it from a per-render `ConfiguratorSnapshotProvider` instead, so the first
- * server-rendered frame is the shared design too and no request writes the process-wide store
- * (ADR 0133). The guard reads the session store's `getState()`, never the hook.
+ * **Hydrates during render, in the browser only**, on the same pattern `HydrateAndConfigure` uses;
+ * the server render and the hydration pass read a `ConfiguratorSnapshotProvider`'s store instead
+ * (ADR 0133, and `hydrateSessionStoreInBrowser` for why the guard asks `getState()`).
  *
  * **Guarded by the design object, not the id** (D6: *"re-hydrates whenever the store's design is not
  * the object it was handed"*) — every share view shares the one sentinel id, so an id comparison
