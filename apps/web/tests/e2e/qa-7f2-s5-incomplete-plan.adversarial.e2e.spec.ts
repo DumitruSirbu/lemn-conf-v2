@@ -96,8 +96,8 @@ for (const locale of LOCALES) {
     await page.getByTestId("room-shape-chip-U").click();
     await expect(page.locator("[data-testid='room-plan'] rect")).toHaveCount(0);
     const emptied = await layoutOf(page);
-    // The U chip also brings S4's shape refusal in above the card, which moves the card down by the
-    // refusal's height; that move is S4's and expected. The empty box itself keeps the drawn size.
+    // The approved policy builds the U, so the chip brings no shape refusal in above the card: the card
+    // keeps its place and both it and the empty box keep the drawn size.
     expect([emptied.box.width, emptied.box.height]).toEqual([
       drawn.box.width,
       drawn.box.height,

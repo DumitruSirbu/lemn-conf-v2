@@ -111,8 +111,8 @@ describe("ENGINE_ROOM_LIMITS — never presented as the owner's", () => {
 
   // ADR 0130 D2 (7J S1): the engine's own limits now derive a straight kitchen's bounds too, ahead
   // of the owner-approved policy stating them (ADR 0108 Amendment G, wave 7J S5) — this object was
-  // always the floor and ceiling a product policy sits inside. M7B U2 S2 adds the U's own bounds
-  // here, still `interim-unapproved`; the owner's own U bounds land in `APPROVED_ROOM_POLICY` at U6.
+  // always the floor and ceiling a product policy sits inside. M7B U2 S2 added the U's own bounds
+  // here; the owner's U bounds are in `APPROVED_ROOM_POLICY` (M7B U6), held inside these.
   it("builds the L, the straight kitchen and the U, and no other shape", () => {
     expect(Object.keys(ENGINE_ROOM_LIMITS.buildableShapes)).toEqual([
       "L",
@@ -251,7 +251,7 @@ describe("ENGINE_ROOM_LIMITS.linear — derived, and states no minimumKitchen", 
   });
 });
 
-// M7B U2 S2 (AC5): the U's three walls, still `interim-unapproved` and derived the same way the L's
+// M7B U2 S2 (AC5): the U's three walls, the engine's own and derived the same way the L's
 // and the straight kitchen's are — no chosen number, only what `corner-assembly-size.ts` and
 // `design-bounds.ts` already state. The regex sweep above already proves no numeric literal stands
 // in `room-policy.ts`'s text; these compare the *values* with the sources ADR 0132 decision 4 names.
@@ -304,7 +304,7 @@ describe("ENGINE_ROOM_LIMITS.U — derived, with its minimum kitchen", () => {
     });
   });
 
-  it("keeps the derived minimum informational in the engine envelope; the owner's literals are U6's", () => {
+  it("keeps the derived minimum informational in the engine envelope; the owner's literals are the approved policy's", () => {
     expect(engineUWallBounds().minimumKitchen.isRequired).toBe(false);
   });
 });

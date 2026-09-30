@@ -85,11 +85,10 @@ for (const locale of LOCALES) {
 /** `.dimensionsBody`'s `gap`, written out: the empty status region must give it back. */
 const COLUMN_GAP_PX = 16;
 
-/** `holdsItsFieldsAtOneB`: whether the whole 1B column fits, so a region that cost anything would push
- *  the last field out. **Not a U's since slice S4**, when its shape refusal sat under the chips from 1B
- *  on and outgrew the U's 2.6 px of slack (Q-7F2-2 (a)); the fits spec measures that column by reach
- *  instead. Census E10 (M7B U6 S1): the refusal cannot draw any more, so this flag is to be re-measured
- *  and may become `true`. The region's own cost is still the first two claims, in every shape. */
+/** Each shape's 1B and 1C rooms. Every shape's whole 1B column fits, so a status region that cost
+ *  anything would push the last field out and the test below claims it does not. QA measured the U's
+ *  1B column at 709 px of content in a 709 px column with 82 px to spare (slice S4's shape refusal had
+ *  outgrown its 2.6 px of slack; the approved policy builds the U now and that refusal cannot draw). */
 const ONE_B_AND_ONE_C = {
   // 7J S5: the straight kitchen is buildable now (ADR 0108 Amendment G), so it reaches 1C for real
   // — a wall A too short for it (0.8 m) is this shape's own worst case, restated from `oneC: null`,
@@ -97,19 +96,16 @@ const ONE_B_AND_ONE_C = {
   linear: {
     oneB: "shape=linear",
     oneC: "shape=linear&wallA=0.8&height=2.6",
-    holdsItsFieldsAtOneB: true,
   },
   L: {
     oneB: "shape=L&direction=left",
     oneC: TOO_SMALL,
-    holdsItsFieldsAtOneB: true,
   },
   U: {
     oneB: "shape=U&direction=left",
     // Census E10: 3.6 / 2.4 / 2.4 is a room the approved policy accepts, so it is 1D and has no
     // status region to measure. A U with a real field reason stands here instead: wall C too short.
     oneC: "shape=U&wallA=3.6&wallB=2.4&wallC=0.8&height=2.6&direction=left",
-    holdsItsFieldsAtOneB: false,
   },
 } as const;
 
@@ -126,12 +122,10 @@ for (const locale of LOCALES) {
         Math.abs(atOneB.statusTopPx - atOneB.fieldsBottomPx),
         JSON.stringify(atOneB),
       ).toBeLessThan(SUB_PIXEL_PX);
-      if (rooms.holdsItsFieldsAtOneB) {
-        expect(
-          atOneB.columnContentBottomPx - atOneB.fieldsBottomPx,
-          JSON.stringify(atOneB),
-        ).toBeGreaterThanOrEqual(-SUB_PIXEL_PX);
-      }
+      expect(
+        atOneB.columnContentBottomPx - atOneB.fieldsBottomPx,
+        JSON.stringify(atOneB),
+      ).toBeGreaterThanOrEqual(-SUB_PIXEL_PX);
 
       // 7J S5: every shape now has a reachable 1C (`ONE_B_AND_ONE_C`'s own `oneC`, no longer
       // `null` for linear), so there is no early-return arm left to guard.

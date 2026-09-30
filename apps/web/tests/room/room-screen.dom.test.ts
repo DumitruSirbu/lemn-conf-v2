@@ -106,11 +106,6 @@ const QUERY_FOR: Readonly<Record<Substate, RoomSearchParams>> = {
 /** Every shape the picker draws, in the frame's order down the screen. */
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
-/** The shapes `POLICY_WITHOUT_U` refuses. `APPROVED_ROOM_POLICY` refuses none since M7B U6 (ADR 0108 H4),
- *  so every test whose subject is the refusal renders against the fabricated policy below and says
- *  so (census rows W26-W35). */
-const REFUSED_SHAPES: readonly ["U"] = ["U"];
-
 /** Read by path rather than through `new URL(…, import.meta.url)`: under `happy-dom` the module URL
  *  is not a `file:` one, and `readFileSync` refuses it. */
 const SOURCE_ROOT = resolve(import.meta.dirname, "../../src");
@@ -393,17 +388,14 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
 
   // The pre-U6 dead end, kept as the fabricated arm (ADR 0116): the card **is** chosen — the owner ruled
   // all three are drawn and selectable — and the dead end is the CTA's.
-  it.each(REFUSED_SHAPES)(
-    "records the choice of %s and still refuses to continue, under a policy that states none",
-    (shape) => {
-      render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
+  it("records the choice of U and still refuses to continue, under a policy that states none", () => {
+    render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
 
-      choose(shape);
+    choose("U");
 
-      expect(shapeControl(shape).checked).toBe(true);
-      expect(continueButton().disabled).toBe(true);
-    },
-  );
+    expect(shapeControl("U").checked).toBe(true);
+    expect(continueButton().disabled).toBe(true);
+  });
 
   it("continues once the L is chosen", () => {
     render(QUERY_FOR["1A"]);
@@ -443,10 +435,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
       expect(lengthField(field).value).toBe("");
     }
   });
-
-  // The wave's real claim: the CTA reads the policy. Waves 7J and U6 added the straight kitchen's and the
-  // U's approved bounds to `APPROVED_ROOM_POLICY` and changed nothing under `apps/web/src/room` — the
-  // continue tests above and the fabricated arm are what say they may.
 
   it("pushes the chosen shape as the canonical query", () => {
     render(QUERY_FOR["1A"]);
@@ -645,21 +633,16 @@ describe("the shape refusal is the policy's, at 1A (7F2 criterion 9)", () => {
     },
   );
 
-  it.each(REFUSED_SHAPES)(
-    "describes the cards' group by the refusal while %s is chosen, and by nothing once L is",
-    (shape) => {
-      render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
-      const group = elementAt("room-shapes");
+  it("describes the cards' group by the refusal while U is chosen, and by nothing once L is", () => {
+    render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
+    const group = elementAt("room-shapes");
 
-      choose(shape);
-      expect(group.getAttribute("aria-describedby")).toBe(
-        elementAt(REFUSAL).id,
-      );
+    choose("U");
+    expect(group.getAttribute("aria-describedby")).toBe(elementAt(REFUSAL).id);
 
-      choose("L");
-      expect(group.hasAttribute("aria-describedby")).toBe(false);
-    },
-  );
+    choose("L");
+    expect(group.hasAttribute("aria-describedby")).toBe(false);
+  });
 
   // 7J S5: linear is real now, so `POLICY_BUILDING_NOTHING` keeps both cards refused — this test's
   // own subject is the re-announcement mechanics, not which two shapes the real policy happens to
@@ -704,21 +687,18 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
     },
   );
 
-  it.each(REFUSED_SHAPES)(
-    "follows a chip to %s and back at once, in the region that was already there",
-    (shape) => {
-      render(QUERY_FOR["1B"], { policy: POLICY_WITHOUT_U });
-      const region = elementAt(REFUSAL_STATUS);
-      expect(region.childNodes).toHaveLength(0);
+  it("follows a chip to U and back at once, in the region that was already there", () => {
+    render(QUERY_FOR["1B"], { policy: POLICY_WITHOUT_U });
+    const region = elementAt(REFUSAL_STATUS);
+    expect(region.childNodes).toHaveLength(0);
 
-      chooseChip(shape);
-      expect(elementAt(REFUSAL_STATUS)).toBe(region);
-      expect(isRefusalShown()).toBe(true);
+    chooseChip("U");
+    expect(elementAt(REFUSAL_STATUS)).toBe(region);
+    expect(isRefusalShown()).toBe(true);
 
-      chooseChip("L");
-      expect(isRefusalShown()).toBe(false);
-    },
-  );
+    chooseChip("L");
+    expect(isRefusalShown()).toBe(false);
+  });
 
   // 7J S5: linear is buildable now, so following its chip from 1B draws no refusal at all —
   // restated from "follows a chip to linear and back at once", which held while it was refused.

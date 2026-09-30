@@ -16,11 +16,11 @@
 // too short and the ceiling too low) claims what the customer needs: every field and *Continuă* can be
 // reached by scrolling, and nothing scrolls sideways.
 //
-// **Restated at M7B U6 S1 (census E7-E9).** Slice S4 gave a U room the shape refusal from 1B on, and a
-// U's column had 2.6 px to spare at 1B (7F2 S0), so a U joined 1C in the reach claim. The approved
-// policy builds the U now, so that refusal cannot draw in the shipped app: the U at 1B keeps its reach
-// claim (restated without the refusal, and to be re-measured against the strict 1B claim by the first
-// e2e run), and the 1A column under a refused card (E9) is removed with no replacement.
+// **The U at 1B fits.** The approved policy builds the U, so the shape refusal that once made its 1B
+// column outgrow the 2.6 px of slack it had (7F2 S0) cannot draw in the shipped app. QA measured the
+// U's 1B column at 709 px of content in a 709 px column, with 82 px to spare, so the U carries the
+// strict 1B claim like the L and the straight room. The 1A column under a refused card has nothing
+// left to measure.
 //
 // **Since slice S5b a field left holding text it refuses carries a sentence under it** (Q-7F2-4). A U
 // room is where that stacks highest: three walls, each explained. Those sentences follow a blur, which
@@ -34,10 +34,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const SHAPES = ["linear", "L", "U"] as const;
 
-/** The shapes whose 1B column is measured to have nothing to scroll. The U had 2.6 px to spare at 1B
- *  before its shape refusal (7F2 S0) and the refusal cannot draw since M7B U6 S1, so it may join this
- *  list once the first e2e run measures it (census E7). */
-const SHAPES_FITTING_AT_ONE_B = ["linear", "L"] as const;
+/** The shapes whose 1B column has nothing to scroll. Measured by QA at M7B U6: the U's is 709 px of
+ *  content in a 709 px column with 82 px to spare (the U drew a shape refusal here before U6). */
+const SHAPES_FITTING_AT_ONE_B = ["linear", "L", "U"] as const;
 
 /** Romanian is the longer hint and Russian the shorter, so the pair brackets the line the hint takes. */
 const LOCALES = ["ro", "ru"] as const;
@@ -113,8 +112,8 @@ interface ReachWitness {
 }
 
 /** 1C's vertical worst case: 800 x 800 mm walls under a 2000 mm ceiling — three reasons in an L (7F2
- *  criterion 14). The U is given the same values and a third wall: four field reasons and the note
- *  (census E7; it carried the shape refusal before M7B U6), and the straight room its one wall. And
+ *  criterion 14). The U is given the same values and a third wall: four field reasons and the note,
+ *  which QA measured at 765 px of content in a 709 px column, and the straight room its one wall. And
  *  the U at 1B, where nothing of 1C shows. */
 const REACH_WITNESSES: readonly ReachWitness[] = [
   {
@@ -197,7 +196,7 @@ for (const locale of LOCALES) {
       );
     }
 
-    // Measured by QA: 919 px of content in a 709 px column, in ro and ru.
+    // Three explained walls outgrow the 709 px column, so the reach below is a claim about scrolling.
     await expectEveryTargetReachable(page, true);
   });
 }

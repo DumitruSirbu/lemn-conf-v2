@@ -78,10 +78,8 @@ export interface GenerationStepsProps {
 }
 
 /** The shape's short name, as the summary line reads it. A `Record` over `DesignRoom["shape"]`, so a
- *  shape the domain learns to store is a compile error here rather than a missing word. Only the L
- *  reaches this screen today; wave 7J's straight kitchen made the second arm live, and this U arm is
- *  data-only — the U card itself stays unreachable until U6 widens `APPROVED_ROOM_POLICY`
- *  (M7B plan, *Why nothing is reachable before U6*). */
+ *  shape the domain learns to store is a compile error here rather than a missing word. All three
+ *  arms are live: the approved policy builds the L, the straight kitchen and (since M7B U6) the U. */
 const SHAPE_SHORT_MESSAGE_KEY = {
   L: "room.shapes.L.short",
   linear: "room.shapes.linear.short",

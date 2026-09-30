@@ -7,17 +7,17 @@
 // on -> wall A fixed -> 1D -> 1F -> the editor -> reload -> a share link opened by a stranger.
 import { readFileSync } from "node:fs";
 
-import {
-  expect,
-  type Browser,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { expect, type Browser, type Page } from "@playwright/test";
 
-import { ro } from "../../support/romanian-content.e2e";
 import { issueShareLink, openSharedDesign } from "./seeded-design";
-
-const ROOM = "/ro/configurator/room";
+import { lengthField, roomScreen, type LengthField } from "./step-one-by-touch";
+import {
+  cameraPresetButtons,
+  chooseUAndContinue,
+  composeAndReload,
+  ROOM,
+  U_CAMERA_PRESETS,
+} from "./u-steps";
 
 /** The owner's H3 floor pair: wall A at its 2700 minimum, both side walls at 1000 — every field
  *  valid, and the kitchen refused. 3000 on wall A is the smallest fix with the side walls unmoved. */
@@ -26,13 +26,10 @@ const TOO_SMALL = {
   wallB: "1000",
   wallC: "1000",
   height: "2600",
-} as const;
+} as const satisfies Record<LengthField, string>;
 const FIXED_WALL_A = "3000";
 const FIXED_U_ROOM = `${ROOM}?shape=U&wallA=3&wallB=1&wallC=1&height=2.6`;
 const TOO_SMALL_U_ROOM = `${ROOM}?shape=U&wallA=2.7&wallB=1&wallC=1&height=2.6`;
-
-/** A U's four camera presets: overview and one per wall (`CameraPresetId`). */
-const U_CAMERA_PRESETS = 4;
 
 interface RoomIssueLeaves {
   readonly room: {
@@ -43,6 +40,8 @@ interface RoomIssueLeaves {
   };
 }
 
+/** Read from `ro.json` by hand because `ro` (`romanian-content.e2e.ts`) resolves the content the
+ *  screens read, and these two 1C leaves are not among them. */
 const ROMANIAN = JSON.parse(
   readFileSync(
     new URL("../../../src/messages/ro.json", import.meta.url),
@@ -50,37 +49,8 @@ const ROMANIAN = JSON.parse(
   ),
 ) as RoomIssueLeaves;
 
-function roomScreen(page: Page): Locator {
-  return page.locator("main[data-room-substate]");
-}
-
-function lengthField(page: Page, field: keyof typeof TOO_SMALL): Locator {
-  return page.getByTestId(`room-length-${field}`);
-}
-
-function idInEditorUrl(url: string): string {
-  const id = new URL(url).pathname.split("/").pop();
-  if (id === undefined || id === "") throw new Error(`no design id in ${url}`);
-  return decodeURIComponent(id);
-}
-
-function cameraPresetButtons(page: Page): Locator {
-  return page
-    .getByRole("group", { name: ro.configure.cameraGroupLabel })
-    .getByRole("button");
-}
-
-async function chooseUAndContinue(page: Page): Promise<void> {
-  await page.goto(ROOM);
-  await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1A");
-  await page.getByTestId("room-shape-card-U").click();
-  await page.getByTestId("room-continue").click();
-  await expect(page).toHaveURL(`${ROOM}?shape=U`);
-  await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1B");
-}
-
 async function typeTooSmallRoom(page: Page): Promise<void> {
-  for (const field of ["wallA", "wallB", "wallC", "height"] as const) {
+  for (const field of Object.keys(TOO_SMALL) as LengthField[]) {
     const input = lengthField(page, field);
     await input.click();
     await input.pressSequentially(TOO_SMALL[field]);
@@ -112,24 +82,6 @@ async function fixWallA(page: Page): Promise<void> {
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");
   await expect(page.getByTestId("room-room-reason")).toHaveCount(0);
   await expect(page.getByTestId("room-continue")).toBeEnabled();
-}
-
-/** 1D -> 1F -> `/ro/d/{id}`, reloaded; returns the minted id, pushed onto the caller's own list. */
-async function composeAndReload(
-  page: Page,
-  mintedIds: string[],
-): Promise<string> {
-  await page.getByTestId("room-continue").click();
-  await expect(page.getByTestId("room-compose")).toBeVisible();
-  await page.waitForURL(/\/ro\/d\/[^/]+$/);
-  const id = idInEditorUrl(page.url());
-  mintedIds.push(id);
-  await expect(cameraPresetButtons(page)).toHaveCount(U_CAMERA_PRESETS);
-
-  await page.reload();
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
-  await expect(cameraPresetButtons(page)).toHaveCount(U_CAMERA_PRESETS);
-  return id;
 }
 
 async function expectStrangerSeesTheU(

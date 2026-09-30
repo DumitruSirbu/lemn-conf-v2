@@ -25,6 +25,7 @@ import {
   engineLinearWallBounds,
   engineLWallBounds,
   engineUWallBounds,
+  uWallBoundsOf,
 } from "./support/room-input.js";
 
 const OCCURRED_AT = "2026-09-29T12:00:00.000Z";
@@ -32,14 +33,16 @@ const SHELL_CABINET_DEPTH_MM = 600;
 const CATALOGUE = buildKitchenLBodyCatalog(SHELL_CABINET_DEPTH_MM);
 const RUNS = 200;
 
-/** ADR 0108 H4: wall A 2700–6000, walls B and C 1000–6000, height 2200–3900. The approved policy
- *  carries no U until U6 (`isShapeBuildable("U", APPROVED_ROOM_POLICY)` stays false), so the box is
- *  written here from the record rather than read from a policy that does not state it. */
-const APPROVED_U = {
-  wallA: { minMm: 2700, maxMm: 6000 },
-  side: { minMm: 1000, maxMm: 6000 },
-  height: { minMm: 2200, maxMm: 3900 },
-} as const;
+/** ADR 0108 H4: wall A 2700–6000, walls B and C 1000–6000, height 2200–3900, read off the approved
+ *  policy the product ships, so the box this sweeps is the one a customer can enter. */
+function approvedUBox() {
+  const walls = uWallBoundsOf(APPROVED_ROOM_POLICY);
+  return {
+    wallA: walls.wallA,
+    side: walls.wallB,
+    height: APPROVED_ROOM_POLICY.heightBounds,
+  };
+}
 
 interface Bounds {
   readonly minMm: number;
@@ -105,7 +108,7 @@ function recordsCornersAndCornerOfAgree(design: Design): {
 describe("a record's corner is cornerOf's answer on the original placement", () => {
   it("over the approved U, and it has both a left and a right corner piece every time", () => {
     fc.assert(
-      fc.property(uRoomsWithin(APPROVED_U), (room) => {
+      fc.property(uRoomsWithin(approvedUBox()), (room) => {
         const { corners } = recordsCornersAndCornerOfAgree(
           buildUShellDesign({ room, occurredAt: OCCURRED_AT }),
         );
