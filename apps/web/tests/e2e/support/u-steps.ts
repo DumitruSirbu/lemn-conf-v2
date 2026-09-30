@@ -3,9 +3,17 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
-import { idInEditorUrl, roomPath, roomScreen } from "./step-one-by-touch";
+import {
+  emulateNetworkLatency,
+  idInEditorUrl,
+  roomPath,
+  roomScreen,
+} from "./step-one-by-touch";
 
 export const ROOM = roomPath("ro");
+
+/** Latency every request pays while 1F is asserted, so the composing screen outlives the check. */
+const COMPOSE_HOLD_MS = 1_500;
 
 /** A U's four camera presets: overview and one per wall (`CameraPresetId`). */
 export const U_CAMERA_PRESETS = 4;
@@ -38,9 +46,13 @@ export async function composeAndReload(
   page: Page,
   mintedIds: string[],
 ): Promise<string> {
+  // 1F is transient: a fast write leaves it before a visibility check can see it (seen twice under
+  // full-suite load, 2026-09-30), so the write is held long enough for 1F to be asserted.
+  const restoreTheNetwork = await emulateNetworkLatency(page, COMPOSE_HOLD_MS);
   await page.getByTestId("room-continue").click();
   await expect(page.getByTestId("room-compose")).toBeVisible();
   await expect(page.getByTestId("room-compose-rows")).toBeVisible();
+  await restoreTheNetwork();
   await page.waitForURL(/\/ro\/d\/[^/]+$/);
   const id = idInEditorUrl(page.url());
   mintedIds.push(id);
