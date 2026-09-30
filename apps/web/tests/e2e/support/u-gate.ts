@@ -1,17 +1,19 @@
-// M7B U7 S1 — the U's mobile gate, by touch (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*,
-// D3 and D4). The steps, readouts and named assertions `u-gate.e2e.spec.ts` is written from; the desktop
-// twin (S2) is meant to run the same journey through this module.
+// M7B U7 S1 and S2 — the U's gate on the phone (by touch) and on the desktop line (by click)
+// (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, D3 and D4). The steps, readouts and named
+// assertions `u-gate-journeys.ts` is written from, run by `u-gate.e2e.spec.ts` and its desktop twin.
 //
-// **Imports, never copies** (D4): the Step 1 recorders and `typeDigits` come from `step-one-by-touch`,
+// **Imports, never copies** (D4): the Step 1 recorders and readouts come from `step-one-by-touch`,
 // the shared U steps from `u-steps`, the design records and voids from `u-design`, the scene projection
 // from `u-cutaway-scene` and `mirror-flow`, the raw-HTML readers from `ssr-html` and the per-frame
 // sampler from `first-frame` (the spec imports the last two). What is written here is what none of them
 // holds: a touch variant of the U's first steps (`u-steps` clicks), the wall-C edit steps, and the
 // persistence and share readouts.
 //
-// **By touch** (7K's rule): every control is reached with `tap()` and every digit with
-// `pressSequentially`. The exception is a `goto` to a design's own URL, which is a reload rather than a
-// gesture.
+// **One gesture seam** (U7 S2): every control is reached through `press`, which taps where the browser
+// has touch (the `mobile` project, 7K's rule) and clicks where it does not (the `desktop` project), and
+// every digit is `pressSequentially`, which is what a soft or a hard keyboard produces. `tapScene`
+// (`u-cutaway-scene`) already made the same choice for the canvas. The exception is a `goto` to a
+// design's own URL, which is a reload rather than a gesture.
 import { readFileSync } from "node:fs";
 
 import {
@@ -28,6 +30,7 @@ import {
 import {
   expect,
   type BrowserContextOptions,
+  type Locator,
   type Page,
   type TestInfo,
 } from "@playwright/test";
@@ -46,14 +49,12 @@ import { storedRevision, waitForFirstSave } from "./panel";
 import {
   continueButton,
   editorPath,
-  eraseDigits,
   idInEditorUrl,
   isEditorUrl,
   lengthField,
   readStoredDesign,
   roomScreen,
   stepSentence,
-  typeDigits,
   type LengthField,
 } from "./step-one-by-touch";
 import {
@@ -100,6 +101,13 @@ export const TOO_SMALL_U = {
  *  minimal corner, D1). */
 export const NARROWEST_WALKWAY_MM = "1600";
 
+/** `TOO_SMALL_U` with wall B and wall C corrected to the narrowest walkway: the room 1D accepts. */
+export const NARROWEST_WALKWAY_U = {
+  ...TOO_SMALL_U,
+  wallB: NARROWEST_WALKWAY_MM,
+  wallC: NARROWEST_WALKWAY_MM,
+} as const satisfies TypedRoom;
+
 /** RQ7's large U: wall A is long enough that its back wall is base-only. */
 export const LARGE_U = {
   wallA: "6000",
@@ -129,38 +137,93 @@ export function storedRoomOf(room: TypedRoom): DesignRoom {
 }
 
 // -------------------------------------------------------------------------------------------
-// Step 1, by touch.
+// The gesture seam: tap on a phone, click on a desktop.
+// -------------------------------------------------------------------------------------------
+
+const pageHasTouch = new WeakMap<Page, boolean>();
+
+async function hasTouch(page: Page): Promise<boolean> {
+  const known = pageHasTouch.get(page);
+  if (known !== undefined) return known;
+  const isTouch = await page.evaluate(() => navigator.maxTouchPoints > 0);
+  pageHasTouch.set(page, isTouch);
+  return isTouch;
+}
+
+/** A finger where the browser has touch, a pointer where it does not. Never both, so a phone run is
+ *  taps and nothing else, and a desktop run is clicks and nothing else. */
+export async function press(page: Page, target: Locator): Promise<void> {
+  if (await hasTouch(page)) await target.tap();
+  else await target.click();
+}
+
+/** The line under test has the input device its name claims: a phone spec that ran without touch would
+ *  click, and pass. */
+export async function expectInputDevice(
+  page: Page,
+  device: "touch" | "pointer",
+): Promise<void> {
+  expect(await hasTouch(page), `the ${device} line's browser`).toBe(
+    device === "touch",
+  );
+}
+
+/** Focuses a length field with the line's gesture, then types its digits one keystroke at a time. */
+export async function typeInField(
+  page: Page,
+  field: LengthField,
+  digits: string,
+): Promise<void> {
+  const input = lengthField(page, field);
+  await press(page, input);
+  await input.pressSequentially(digits);
+}
+
+/** Takes the last `count` digits back off a field from the keyboard, so a correction is typed and
+ *  never written over with `fill`. */
+export async function eraseFromField(
+  page: Page,
+  field: LengthField,
+  count: number,
+): Promise<void> {
+  const input = lengthField(page, field);
+  await press(page, input);
+  await input.press("End");
+  for (let erased = 0; erased < count; erased += 1) {
+    await input.press("Backspace");
+  }
+}
+
+// -------------------------------------------------------------------------------------------
+// Step 1.
 // -------------------------------------------------------------------------------------------
 
 /** 1A -> the U card -> *Continuă* -> 1B, with no shape refusal drawn on the way. */
-export async function chooseUByTouch(page: Page): Promise<void> {
+export async function chooseU(page: Page): Promise<void> {
   await page.goto(ROOM);
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1A");
-  await page.getByTestId("room-shape-card-U").tap();
+  await press(page, page.getByTestId("room-shape-card-U"));
   await expect(page.getByTestId("room-shape-refusal")).toHaveCount(0);
-  await continueButton(page).tap();
+  await press(page, continueButton(page));
   // No `direction` key: a U has one hand and the URL it writes names none (ADR 0132 decision 8).
   await expect(page).toHaveURL(`${ROOM}?shape=U`);
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1B");
 }
 
-export async function typeRoomByTouch(
-  page: Page,
-  room: TypedRoom,
-): Promise<void> {
+export async function typeRoom(page: Page, room: TypedRoom): Promise<void> {
   for (const field of ROOM_FIELDS) {
-    await typeDigits(page, field, room[field]);
+    await typeInField(page, field, room[field]);
   }
 }
 
 /** Corrects one field by the keyboard: its digits taken back off, then the new ones typed. */
-export async function retypeByTouch(
+export async function retype(
   page: Page,
   field: LengthField,
   { from, to }: { from: string; to: string },
 ): Promise<void> {
-  await eraseDigits(page, field, from.length);
-  await typeDigits(page, field, to);
+  await eraseFromField(page, field, from.length);
+  await typeInField(page, field, to);
 }
 
 export async function expectStepPill(page: Page, step: number): Promise<void> {
@@ -190,10 +253,12 @@ const roMessages = JSON.parse(
  *  catalogue the page renders and never spelled here. */
 export const ROOM_TOO_SMALL_SENTENCE = roMessages.room.issue.roomTooSmall;
 
-/** After a *client transition* to another design the write-access check answers about 3.7 s under
- *  `next dev` and 2.7 s under `next start` (measured while writing this gate), and a second transition
- *  begun before it has answered is held up by about as long. An assertion's default 5 s is too tight
- *  for that under load, so the wait names its own bound, as `openSeededDesign`'s probe wait does. */
+/** After a *client transition* to another design the page's main thread is busy for about 2.5 s under
+ *  `next start` (3 s and more under `next dev`) linking the new stage's WebGL programs, and every
+ *  read this test makes of the page waits behind it. The write-access check itself is not the wait: it
+ *  is issued about 50 ms after the push and answers in about 50 ms (U7 S2's trace, backlog note). An
+ *  assertion's default 5 s is too tight for that block under load, so the wait names its own bound,
+ *  as `openSeededDesign`'s probe wait does. */
 const WRITE_ACCESS_TIMEOUT_MS = 15_000;
 
 /** The editor is drawn on `designId` with its own chips, the write-access check has answered, and the
@@ -216,17 +281,17 @@ export async function expectEditorReady(
   await waitForSettleAfter(page, 0);
 }
 
-/** 1A -> 1D -> 1F -> the editor for `room`, by touch. Returns the minted design's id once the editor
+/** 1A -> 1D -> 1F -> the editor for `room`. Returns the minted design's id once the editor
  *  is ready. The caller's fixture deletes the row (`step-one-by-touch`'s `designWrites`, ADR 0006). */
-export async function composeUByTouch(
+export async function composeUThroughStepOne(
   page: Page,
   room: TypedRoom,
 ): Promise<string> {
-  await chooseUByTouch(page);
-  await typeRoomByTouch(page, room);
+  await chooseU(page);
+  await typeRoom(page, room);
   await expect(page).toHaveURL(roomQueryOf(room));
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");
-  await continueButton(page).tap();
+  await press(page, continueButton(page));
   await page.waitForURL((url) => isEditorUrl(url, "ro"));
   const designId = idInEditorUrl(page.url());
   await expectEditorReady(page, designId);
@@ -284,11 +349,11 @@ export const PRESET = ro.configure.cameraPresets;
 
 /** Taps a camera chip and waits for the ease to land. A chip already pressed is left alone: pressing
  *  it again does not settle, so waiting for a settle would hang. */
-export async function standAtByTap(page: Page, label: string): Promise<void> {
+export async function standAtChip(page: Page, label: string): Promise<void> {
   const chip = page.getByRole("button", { name: label });
   if ((await chip.getAttribute("aria-pressed")) === "true") return;
   const before = await readSettleCount(page);
-  await chip.tap();
+  await press(page, chip);
   await waitForSettleAfter(page, before);
 }
 
@@ -300,8 +365,8 @@ export async function standAtByTap(page: Page, label: string): Promise<void> {
  */
 export async function republishScene(page: Page, label: string): Promise<void> {
   const detour = label === PRESET.overview ? PRESET.wallA : PRESET.overview;
-  await standAtByTap(page, detour);
-  await standAtByTap(page, label);
+  await standAtChip(page, detour);
+  await standAtChip(page, label);
 }
 
 export async function bodiesInScene(
@@ -383,13 +448,13 @@ export async function replaceWallCBase(
   page: Page,
   designId: string,
 ): Promise<WallCReplacement> {
-  await standAtByTap(page, PRESET.wallC);
+  await standAtChip(page, PRESET.wallC);
   const before = await storedDesignOf(page, designId);
   const target = await findBaseBodyInView(page, before, "C");
   await tapBody(page, target);
   const replacementBuildId = await firstOtherOffer(page);
   const after = await editAndAwaitSave(page, designId, async () => {
-    await offerRow(page, replacementBuildId).tap();
+    await press(page, offerRow(page, replacementBuildId));
   });
   const slot = before.placements.findIndex(
     (placement) => placement.id === target.id,
@@ -454,6 +519,20 @@ export async function tapVoid(
 // The panel.
 // -------------------------------------------------------------------------------------------
 
+/** The editor's back link to Step 1: tapped on a phone. A desktop hides that arm (the wordmark stands in
+ *  for it), so a click would wait on an element that never shows — its own `href` is followed instead,
+ *  as `u-flow.ts` does. Both land on 1D with the room the customer typed. */
+export async function followBackLink(page: Page): Promise<void> {
+  const back = page.getByTestId("top-bar-back");
+  if (await hasTouch(page)) {
+    await back.tap();
+    return;
+  }
+  const href = await back.getAttribute("href");
+  if (href === null) throw new Error("top-bar-back carries no href");
+  await page.goto(href);
+}
+
 /** The sheet covers most of the canvas; closing it is what lets the next tap reach the scene. */
 export async function closeSheet(page: Page): Promise<void> {
   await dismissSheet(page);
@@ -462,7 +541,7 @@ export async function closeSheet(page: Page): Promise<void> {
 
 async function dismissSheet(page: Page): Promise<void> {
   if ((await page.getByTestId("editor-panel").count()) === 0) return;
-  await page.getByTestId("panel-close").tap();
+  await press(page, page.getByTestId("panel-close"));
 }
 
 /** The offer row of `buildId`, in the replace list of an occupied slot or the insert list of a void. */
@@ -482,18 +561,18 @@ export async function firstOtherOffer(page: Page): Promise<string> {
   return testId.slice("offer-".length);
 }
 
-/** Applies a cabinet depth through the whole-kitchen sheet, by touch — `u-cutaway-scene`'s own
- *  `chooseCabinetDepth` clicks, and ADR 0023 found a click and a tap differ under this sheet. */
-export async function chooseCabinetDepthByTap(
+/** Applies a cabinet depth through the whole-kitchen sheet with the line's own gesture — `u-cutaway-scene`'s
+ *  own `chooseCabinetDepth` always clicks, and ADR 0023 found a click and a tap differ under this sheet. */
+export async function chooseCabinetDepth(
   page: Page,
   depthMm: string,
 ): Promise<void> {
-  await page.getByTestId("global-settings-trigger").tap();
+  await press(page, page.getByTestId("global-settings-trigger"));
   const option = page
     .getByTestId("global-settings-depth-option")
     .filter({ has: page.locator(`input[value="${depthMm}"]`) });
-  await option.getByRole("radio").tap();
-  await page.getByTestId("global-settings-apply").tap();
+  await press(page, option.getByRole("radio"));
+  await press(page, page.getByTestId("global-settings-apply"));
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
   await expect(page.getByTestId("selection-debug")).toHaveAttribute(
     "data-cabinet-depth",
@@ -716,9 +795,9 @@ function cornersOf(body: SceneBodyBounds): Vec3[] {
 // The share view: the bodies it draws, and the builds its server sent.
 // -------------------------------------------------------------------------------------------
 
-/** The options of a browser of its own that looks like the project's phone: the project's viewport and
- *  touch, and nothing of the owner's cookies. */
-export function phoneContextOptions(
+/** The options of a browser of its own that looks like the project's: its viewport and touch, and
+ *  nothing of the owner's cookies. */
+export function contextOptionsLikeProject(
   use: TestInfo["project"]["use"],
 ): BrowserContextOptions {
   return {
@@ -832,10 +911,10 @@ interface TransitionOptions {
 
 const TRANSITION_PROBE_KEY = "__uGateTransitionProbe";
 
-/** A transition normally lands in 60 to 500 ms, but now and then one is held up for seconds (2.3 s
- *  and 2.7 s were measured under `next start`; the tree before ADR 0133's snapshot store showed
- *  outliers too). The bound only separates *slow* from *never*: the slow ones are the measurement, so
- *  they are reported and not failed. */
+/** A transition normally paints the target's chips in 60 to 500 ms, but now and then one lands behind
+ *  the same main-thread block (2.3 s and 2.7 s were measured under `next start`). The bound only
+ *  separates *slow* from *never*: the slow ones are the measurement, so they are reported and not
+ *  failed. */
 const TRANSITION_TIMEOUT_MS = 20_000;
 
 /** Runs in the page (serialised, so it captures nothing): pushes `path` through Next's own client
