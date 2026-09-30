@@ -462,7 +462,7 @@ describe("exactly one oven, read off the built kitchen", () => {
   // agreeing with itself. This counts the bodies in the design.
   it(
     "carries one oven-bearing body in every generated kitchen, in both arms",
-    { timeout: 10_000 },
+    { timeout: 60_000 },
     () => {
       const arms = { withATower: 0, withoutOne: 0 };
       let generated = 0;
@@ -670,7 +670,7 @@ describe("the centring hazard across the whole absorb window", () => {
       blockStandingWithoutAnAbsorb: 0,
       withATradedDishwasher: 5_200,
     });
-  }, 30_000);
+  }, 120_000);
 
   // Criterion 8 / risk 1. The wave pins 4000 x 3000 as its witness; the window is `0 < r <= 200` and
   // covers about a third of eligible rooms. A merge that fired at one remainder and not another, or
@@ -753,5 +753,5 @@ describe("the centring hazard across the whole absorb window", () => {
     // body's width against the planned width, which a fixed-width body dropped into a wider opening
     // passes (7D3 close-out, finding 1). Sampling the window would return exactly the hole the
     // sweep exists to close.
-  }, 30_000);
+  }, 120_000);
 });

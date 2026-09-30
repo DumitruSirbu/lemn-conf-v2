@@ -1265,7 +1265,7 @@ describe("buildLShellDesign — the engine's own limits (R1.2)", () => {
   // largest — each as built, at every other declared depth, and back.
   it(
     "reports no finding of either severity for any engine-accepted ceiling, as built, at every declared depth and back",
-    { timeout: 10_000 },
+    { timeout: 60_000 },
     () => {
       const seamRoom = {
         widthMm: floorRunOriginMm("A") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,

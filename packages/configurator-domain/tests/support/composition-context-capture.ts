@@ -70,6 +70,7 @@ let recorded: RecordedComposition | undefined;
 let isTheLeafSwitchable = false;
 let isTheLeafOff = false;
 let areTheTradesOff = false;
+let isRecordingTheLeafReads = false;
 let readByTheLeaf: KitchenCompositionPlan[] = [];
 
 /** The module under the mock: the real one, with its entry point recording what it was called with. */
@@ -94,10 +95,14 @@ export function lastComposition(): RecordedComposition {
   return recorded;
 }
 
-/** Forgets any recorded composition and every plan the leaf read. Call it before composing each room. */
+/** Forgets any recorded composition and every plan the leaf read, and starts the leaf's reads being
+ *  kept for `plansTheLeafRead`. Call it before composing each room. A file that never calls it keeps
+ *  nothing: its sweep composes hundreds of thousands of rooms, and a plan kept per call is a heap that
+ *  grows with the sweep (the 2 GB CI worker died of it). */
 export function forgetTheLastComposition(): void {
   recorded = undefined;
   readByTheLeaf = [];
+  isRecordingTheLeafReads = true;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -113,7 +118,7 @@ export function withTheDishwasherLeafSwitchable(
   isTheLeafSwitchable = true;
   const switchable: typeof real.withTheDishwasherBesideTheSink = (plan) => {
     if (isTheLeafOff) return plan;
-    readByTheLeaf.push(plan);
+    if (isRecordingTheLeafReads) readByTheLeaf.push(plan);
     return real.withTheDishwasherBesideTheSink(plan);
   };
   const tradeGate: typeof real.hasADishwasher = (plan) =>
