@@ -52,6 +52,7 @@ import {
   dishwasherChangeBetween,
   type DishwasherChange,
 } from "../support/pre-tower-run-recording.js";
+import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 
 vi.mock(
   "../../src/generation/dishwasher-beside-the-sink.js",
@@ -399,9 +400,9 @@ type InvariantName =
 describe("7D5b S1 — QA's census over the approved L rectangle, 10 mm, at 2200, 2600 and 3900 mm, S2's trades off", () => {
   const censusByCeiling = new Map<number, DishwasherCensus>();
 
-  beforeAll(() => {
+  beforeAll(async () => {
     for (const ceilingMm of CEILINGS_MM) {
-      censusByCeiling.set(ceilingMm, dishwasherCensusAt(ceilingMm));
+      censusByCeiling.set(ceilingMm, await dishwasherCensusAt(ceilingMm));
     }
   }, SWEEP_TIMEOUT_MS);
 
@@ -500,7 +501,9 @@ const BOTTLE_BACK_REMAINDER_GAIN_MM: Record<number, number> = {
   ),
 };
 
-function dishwasherCensusAt(ceilingMm: number): DishwasherCensus {
+async function dishwasherCensusAt(
+  ceilingMm: number,
+): Promise<DishwasherCensus> {
   const census = emptyDishwasherCensus();
   const approved = APPROVED_ROOM_POLICY.buildableShapes.L;
   if (!approved) throw new Error("the approved policy has no L");
@@ -522,6 +525,7 @@ function dishwasherCensusAt(ceilingMm: number): DishwasherCensus {
         heightMm: ceilingMm,
       });
     }
+    await yieldToTheEventLoop();
   }
   return census;
 }

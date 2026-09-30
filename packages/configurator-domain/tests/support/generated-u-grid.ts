@@ -7,6 +7,7 @@ import type { DesignRoom, GenerateKitchenResult } from "../../src/index.js";
 import { generateU, spanMismatchesOf } from "./generated-u.js";
 import { upperFindings } from "./generated-u-uppers.js";
 import { gateVerdictFor } from "./u-gate-verdict.js";
+import { yieldToTheEventLoop } from "./yield-to-the-event-loop.js";
 
 export interface GridSliceReport {
   readonly composed: number;
@@ -22,10 +23,10 @@ const GRID_HEIGHT_MM = 2600;
 
 /** Every approved grid room (A from `fromWallAMm` to `toWallAMm`, B and C 1000-6000, step 100, h 2600)
  *  generated: none may throw, and none may differ from its plan. */
-export function sweepGridSlice(
+export async function sweepGridSlice(
   fromWallAMm: number,
   toWallAMm: number,
-): GridSliceReport {
+): Promise<GridSliceReport> {
   let composed = 0;
   let refused = 0;
   const problems: string[] = [];
@@ -70,6 +71,7 @@ export function sweepGridSlice(
           refused += 1;
         }
       }
+      await yieldToTheEventLoop();
     }
   }
   return { composed, refused, problems };
@@ -96,8 +98,8 @@ export function describeGridSlice(
   toWallAMm: number,
 ): void {
   describe(`every approved grid room with A ${String(fromWallAMm)}-${String(toWallAMm)} generates (U3b AC1, N11.6)`, () => {
-    it("without a throw, every body stands where the plan put it on all three walls, the uppers keep the U's rules, and the minimum-kitchen gate agrees with the generator", () => {
-      const report = sweepGridSlice(fromWallAMm, toWallAMm);
+    it("without a throw, every body stands where the plan put it on all three walls, the uppers keep the U's rules, and the minimum-kitchen gate agrees with the generator", async () => {
+      const report = await sweepGridSlice(fromWallAMm, toWallAMm);
 
       expect(report.problems.slice(0, 10)).toStrictEqual([]);
       expect(report.composed).toBeGreaterThan(0);

@@ -109,6 +109,7 @@ import {
   roomFromRecordedKey,
   towerOverBottleChangeBetween,
 } from "../support/pre-tower-run-recording.js";
+import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 
 vi.mock(
   "../../src/generation/optional-run-items.js",
@@ -281,9 +282,9 @@ type MetreBand =
 
 const CENSUS_BY_CEILING = new Map<number, Census>();
 
-beforeAll(() => {
+beforeAll(async () => {
   for (const ceilingMm of CEILINGS_MM) {
-    CENSUS_BY_CEILING.set(ceilingMm, censusAt(ceilingMm));
+    CENSUS_BY_CEILING.set(ceilingMm, await censusAt(ceilingMm));
   }
 }, SWEEP_TIMEOUT_MS);
 
@@ -586,7 +587,7 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
 // The sweep.
 // ---------------------------------------------------------------------------------------------
 
-function censusAt(ceilingMm: number): Census {
+async function censusAt(ceilingMm: number): Promise<Census> {
   const census = emptyCensus();
   for (
     let widthMm = APPROVED_L.wallA.minMm;
@@ -601,6 +602,7 @@ function censusAt(ceilingMm: number): Census {
       census.head.swept += 1;
       countRoom(census, { shape: "L", widthMm, depthMm, heightMm: ceilingMm });
     }
+    await yieldToTheEventLoop();
   }
   return census;
 }

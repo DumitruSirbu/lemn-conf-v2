@@ -42,6 +42,7 @@ import {
   dishwasherTradeBetween,
   type DishwasherTrade,
 } from "../support/pre-tower-run-recording.js";
+import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 
 vi.mock(
   "../../src/generation/dishwasher-beside-the-sink.js",
@@ -410,9 +411,9 @@ type TradeInvariant =
 describe("7D5b S2 — QA's census over the approved L rectangle, 10 mm, at 2200, 2600 and 3900 mm", () => {
   const censusByCeiling = new Map<number, TradeCensus>();
 
-  beforeAll(() => {
+  beforeAll(async () => {
     for (const ceilingMm of CEILINGS_MM) {
-      censusByCeiling.set(ceilingMm, tradeCensusAt(ceilingMm));
+      censusByCeiling.set(ceilingMm, await tradeCensusAt(ceilingMm));
     }
   }, SWEEP_TIMEOUT_MS);
 
@@ -491,7 +492,7 @@ describe("7D5b S2 — QA's census over the approved L rectangle, 10 mm, at 2200,
   );
 });
 
-function tradeCensusAt(ceilingMm: number): TradeCensus {
+async function tradeCensusAt(ceilingMm: number): Promise<TradeCensus> {
   const census = emptyTradeCensus();
   const approved = APPROVED_ROOM_POLICY.buildableShapes.L;
   if (!approved) throw new Error("the approved policy has no L");
@@ -513,6 +514,7 @@ function tradeCensusAt(ceilingMm: number): TradeCensus {
         heightMm: ceilingMm,
       });
     }
+    await yieldToTheEventLoop();
   }
   return census;
 }

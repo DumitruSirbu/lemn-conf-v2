@@ -128,6 +128,29 @@ Any package with a workspace dependency must build it before `lint`, `typecheck`
 script that relies on a `dist/` left behind by an earlier command works on a developer machine and
 fails in a fresh clone — which is exactly what a CI runner is.
 
+### A synchronous block of a minute fails the `test` job, and passes every test
+
+Vitest 3.2 gives each worker-to-main RPC call a fixed 60 s timeout, with no option to change it
+(`birpc`'s `DEFAULT_TIMEOUT`, `vitest/dist/chunks/index.B521nVV-.js:3`). A worker whose event loop is
+blocked for that long cannot read the main process's reply to its task-status call, so the run ends
+with `Error: [vitest-worker]: Timeout calling "onTaskUpdate"` as an **unhandled error**: every file and
+test reports passed and vitest still exits 1. Reproduced 2026-09-30 with a 65 s busy loop (a 58 s one
+was fine). The runner hit it in PR run 36756620268, where `qa-7d5b-s0-pre-state-census` ran 68 s, nearly all of it one
+`beforeAll` and the six U grid files ran 38-57 s each as one test.
+
+The runner runs a sweep about 1.5-3x slower than a laptop, so what matters is the block, not the test
+count. Two rules in `packages/configurator-domain`:
+
+- **A sweep that loops over rooms awaits `yieldToTheEventLoop()`** (`tests/support`) between rows,
+  keeping every block to seconds. A census in a `beforeAll` and a sweep inside one `it` are both blocks.
+- **`tests/support/yield-between-tests.setup.ts`** yields after every test, because the runner steps
+  from one test to the next on microtasks and a file of back-to-back synchronous tests is one block for
+  their sum (`qa-7d3-tall-end-block` failed this way at 22 s against a 20 s stand-in).
+
+To rehearse a runner locally, lower the timeout in every process with a preload that rewrites
+`setTimeout(fn, 60000)` to 20000 and pass it as `NODE_OPTIONS="--import <file>"`: 3x slower than this
+machine. The same run is red before those two changes and green after.
+
 ## Formatting and linting configuration
 
 Formatting is pinned by `.prettierrc.json` — an explicit statement of Prettier's own defaults
