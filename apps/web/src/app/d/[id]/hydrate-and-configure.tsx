@@ -6,22 +6,26 @@ import { useEffect } from "react";
 
 import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import {
+  ConfiguratorSnapshotProvider,
+  hydrateSessionStoreInBrowser,
+} from "@/store/configurator-snapshot";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-/** Replaces the store with a loaded design before the configurator screen mounts, so a client render
- *  of `ConfigureScreen` reads the loaded design. Hydrating during render (guarded by the id
- *  comparison, not an effect) is what makes that ordering hold on the client: by the time the screen
- *  reads the store for its own render, this component's body has already run.
+/** Puts the loaded design in front of the editor: the first server-rendered frame, React's hydration
+ *  pass and every later render all show it.
  *
- *  **It does not hold for the server render or for the hydration render, and a flash of the seeded
- *  design is known.** zustand answers `useSyncExternalStore`'s *server snapshot* with
- *  `getInitialState()`, so the server-rendered HTML — and React's hydration pass over it — shows the
- *  store's initial, seeded L (three camera presets, its title and price) until the first client commit
- *  swaps in the loaded design. Measured 2026-09-30: the HTML of a straight design's editor holds three
- *  preset buttons though the design has two, which is what made `linear-flow` race. **Deliberately
- *  not fixed in M7B U5**: it affects every non-L design on load and is tracked as a backlog item
- *  (docs/backlog/open.md). Until it is fixed, a test that reads the chrome must poll for the loaded
- *  design's answer (`toHaveCount`), never take a `count()` the moment the title is visible. */
+ *  **Two stores, one design.** The browser's session store is written during render, guarded by the
+ *  id comparison rather than an effect, so by the time `ConfigureScreen` reads it for a client render
+ *  this component's body has already run. On the server that write is skipped — the store is a
+ *  process-wide singleton and would carry one request's design into the next — so the server render
+ *  and the hydration pass read a per-render snapshot store from `ConfiguratorSnapshotProvider`
+ *  instead (ADR 0133). The guard therefore asks the session store directly, never the hook, which
+ *  under the provider would answer the snapshot and skip the write.
+ *
+ *  This closes backlog 98 (the seeded L showing before the loaded design). It does not close backlog
+ *  83, whose warning on a client transition between two designs comes from the write staying in
+ *  render. */
 export function HydrateAndConfigure({
   design,
   designId,
@@ -31,18 +35,21 @@ export function HydrateAndConfigure({
   designId: DesignId;
   revision: DesignRevision;
 }) {
-  const currentDesignId = useConfiguratorStore((state) => state.designId);
-  if (currentDesignId !== designId) {
-    // `"checking"`, not a guess in either direction: this page's own request could not have carried
-    // the `Path=/api/designs/{id}` write-token cookie, so nothing here knows. `useWriteAccessProbe`
-    // below asks the one route that does, and until it answers the panel offers no edit — see
-    // `WriteAccess`.
-    useConfiguratorStore
-      .getState()
-      .hydrate({ design, designId, revision, canWrite: "checking" });
-  }
+  // `"checking"`, not a guess in either direction: this page's own request could not have carried
+  // the `Path=/api/designs/{id}` write-token cookie, so nothing here knows. `useWriteAccessProbe`
+  // below asks the one route that does, and until it answers the panel offers no edit — see
+  // `WriteAccess`.
+  const loaded = { design, designId, revision, canWrite: "checking" } as const;
+  hydrateSessionStoreInBrowser(
+    loaded,
+    (session) => session.designId === designId,
+  );
   useWriteAccessProbe(designId);
-  return <ConfigureScreen />;
+  return (
+    <ConfiguratorSnapshotProvider loaded={loaded}>
+      <ConfigureScreen />
+    </ConfiguratorSnapshotProvider>
+  );
 }
 
 /**

@@ -21,6 +21,7 @@ import {
   wallCarcassDepthMm,
   type BodyProbeFactory,
   type Design,
+  type DesignRoom,
   type DesignWall,
   type PlacementRecord,
   type VoidRecord,
@@ -55,14 +56,20 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
 /** The domain's generated U, exactly as Step 1's composition would write it. Throws by name on a
  *  refusal, so a room the engine cannot build fails in setup rather than as an empty scene. */
 export function composeU(room: URoomMm): Design {
+  return composeKitchen({ shape: "U", ...room });
+}
+
+/** Any shape's generated kitchen, composed exactly as `composeU` is — for a spec that seeds an L or a
+ *  straight room beside a U. Throws by name on a refusal, so setup fails rather than an empty scene. */
+export function composeKitchen(room: DesignRoom): Design {
   const composed = generateKitchen({
-    room: { shape: "U", ...room },
+    room,
     occurredAt: OCCURRED_AT,
     probeAt: realProbeFactory(),
   });
   if (!composed.ok) {
     throw new Error(
-      `composeU: generateKitchen refused ${JSON.stringify(room)}; the U cannot be seeded`,
+      `composeKitchen: generateKitchen refused ${JSON.stringify(room)}; it cannot be seeded`,
     );
   }
   return composed.design;
