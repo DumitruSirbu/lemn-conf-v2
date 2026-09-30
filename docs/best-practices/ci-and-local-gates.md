@@ -354,6 +354,13 @@ Third-party actions are pinned by full commit SHA, with the tag recorded in a tr
 `permissions: contents: read`; in-flight runs are cancelled only for pull requests, so post-merge
 `main` runs always complete.
 
+**The `test` job's ceiling is raised, not split (owner ruling, 2026-09-30).** It runs every package's
+unit suite serially in one job with `timeout-minutes: 30`. The limit was 15 until PR run 36765806056
+cancelled it: the domain package alone took 14.9 min on the runner. The owner chose to raise the
+ceiling over splitting the job per package: unit tests are cheap, and each extra machine repeats
+install and build. ADR 0105 A's split-per-machine budget governs the **e2e** legs only. If the
+`test` job nears 30 minutes, put the choice to the owner again rather than raising it silently.
+
 The `test` job needs the `TEST_DATABASE_URL` repository secret, pointing at the dedicated Neon test
 database. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
 application database for the isolation guard to compare against. A Postgres service container is not
