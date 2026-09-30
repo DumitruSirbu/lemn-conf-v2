@@ -35,6 +35,9 @@ import { gateVerdictFor } from "../support/u-gate-verdict.js";
 const GENERATED_AT = "2026-09-30T08:00:00.000Z";
 const WALL_ROW_FLOOR_MM = 1500;
 const WALL_CABINET_MIN_MM = 200;
+/** The proxy-watching property runs 100 rooms through the generator: 3.0 s alone, 5.1 s inside the
+ *  suite's own parallelism, which is the default 5 s limit. */
+const WATCHED_GENERATION_TIMEOUT_MS = 20_000;
 
 function generate(room: DesignRoom) {
   return generateKitchen({
@@ -150,6 +153,7 @@ describe("a generated U keeps every rule (U3b AC1, AC2, AC5)", () => {
 
       expect(readers).toStrictEqual([]);
     },
+    WATCHED_GENERATION_TIMEOUT_MS,
   );
 
   // Restated at M7B U6 S1 (census D7): the properties above run under the policy the product ships,

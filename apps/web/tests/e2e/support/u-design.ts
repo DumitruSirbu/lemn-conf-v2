@@ -53,14 +53,14 @@ export const U_3000: URoomMm = {
 const OCCURRED_AT = "2026-01-01T00:00:00.000Z";
 const EXPECTED_REVISION_HEADER = "x-expected-revision";
 
-/** The domain's generated U, exactly as Step 1's composition would write it. Throws by name on a
- *  refusal, so a room the engine cannot build fails in setup rather than as an empty scene. */
+/** `composeKitchen` for a U: the domain's generated U, exactly as Step 1's composition would write it. */
 export function composeU(room: URoomMm): Design {
   return composeKitchen({ shape: "U", ...room });
 }
 
-/** Any shape's generated kitchen, composed exactly as `composeU` is — for a spec that seeds an L or a
- *  straight room beside a U. Throws by name on a refusal, so setup fails rather than an empty scene. */
+/** Any shape's generated kitchen, exactly as Step 1's composition would write it — for a spec that
+ *  seeds an L or a straight room beside a U. Throws by name on a refusal, so a room the engine cannot
+ *  build fails in setup rather than as an empty scene. */
 export function composeKitchen(room: DesignRoom): Design {
   const composed = generateKitchen({
     room,
