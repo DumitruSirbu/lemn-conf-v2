@@ -75,7 +75,7 @@ export interface LMinimumKitchen {
 /** The U's coupled fit rule's own figures (ADR 0108 Amendment H3, landed by M7B U3b S3): the sink
  *  stands on the back wall, and the hob follows it on wall A or round the far corner onto the far side
  *  wall. `ENGINE_ROOM_LIMITS` carries the derived figures as a guard source and leaves the rule off,
- *  as it does for the L; the owner-approved literals enter `APPROVED_ROOM_POLICY` at U6. */
+ *  as it does for the L; the owner-approved literals entered `APPROVED_ROOM_POLICY` at M7B U6. */
 export interface UMinimumKitchen {
   readonly isRequired: boolean;
   readonly sinkWidthMm: number;
@@ -101,8 +101,8 @@ export interface UWallBounds {
 }
 
 /** A shape is buildable exactly when its walls' bounds are stated here, so a buildable shape cannot
- *  lack them. The L and the straight kitchen can be stated (ADR 0108 decision 8, extended by ADR
- *  0130 decision 2); the U's own bounds are M7B U2 S2's, still `interim-unapproved` until U6. */
+ *  lack them. The L, the straight kitchen and the U can be stated (ADR 0108 decision 8, extended by
+ *  ADR 0130 decision 2 and M7B U2 S2); the approved policy states all three since U6. */
 export interface BuildableShapes {
   readonly L?: LWallBounds;
   readonly linear?: LinearWallBounds;
@@ -180,7 +180,7 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
       // ADR 0108 H3, derived like the L's, as a guard floor and not the product's figures: wall A's
       // allowance is the two X-legs its own minimum already clears, and a side wall's is the narrowest
       // corner's reach, which excludes the 100 mm slide reserve. The approved 1800 and 1000 are U6's
-      // literals, and enter `APPROVED_ROOM_POLICY` guarded against these.
+      // literals, and sit in `APPROVED_ROOM_POLICY` guarded against these.
       minimumKitchen: {
         isRequired: false,
         sinkWidthMm: generatedRequiredWidthMm("sink"),
@@ -225,9 +225,9 @@ function generatedRequiredWidthMm(
  *  **The approved minima are deliberately above it**: `approved-room-policy.ts` holds the owner's
  *  900 and 1000 while this reads 880 on both walls, and that margin is pinned — not merely allowed
  *  — by `approved-room-policy.test.ts` (ADR 0108 B1 permits a margin; only the owner may choose
- *  one, which is M7's Q-K1). That pin is the L's. Nothing pins a margin for the U's figures yet:
- *  `room-policy.test.ts` pins only that the engine's U bounds and minimum kitchen are derived from
- *  the sources named above, and the approved U literals arrive with their own pin at U6. */
+ *  one, which is M7's Q-K1). That pin is the L's. The U's approved literals are pinned beside it in
+ *  `approved-room-policy.test.ts` (M7B U6), and `room-policy.test.ts` pins that the engine's U bounds
+ *  and minimum kitchen are derived from the sources named above. */
 function wallMinimumMm(wall: DesignWall): number {
   return narrowestCornerReachMm(wall).wallMinimumMm;
 }

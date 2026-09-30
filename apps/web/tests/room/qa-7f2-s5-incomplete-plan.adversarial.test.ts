@@ -14,6 +14,7 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   type CornerDirection,
+  type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -37,6 +38,7 @@ import {
   type RoomLengthField,
 } from "@/room/room-draft";
 import { roomDraftFromQuery } from "@/room/room-query-sync";
+import { policyWithoutU } from "../support/policy-without-u";
 import {
   parseRoomUrlState,
   requiredFieldsFor,
@@ -325,11 +327,12 @@ describe("a deep link draws a plan exactly when its parser reading has every req
 function surfacesOf(
   draft: RoomDraft,
   draftBeforeTyping: RoomDraft | undefined,
+  policy: RoomPolicy = APPROVED_ROOM_POLICY,
 ) {
   return presentOneC({
     draft,
-    draftState: draftStateOf(draft, APPROVED_ROOM_POLICY),
-    policy: APPROVED_ROOM_POLICY,
+    draftState: draftStateOf(draft, policy),
+    policy,
     typing:
       draftBeforeTyping === undefined
         ? NOT_TYPING
@@ -387,8 +390,9 @@ describe("no reason, red wall or 1C note stands beside an empty plan", () => {
     },
   );
 
-  // S4: a U is refused on its shape and its fields are not judged. A filled U is 1C and draws; the
-  // same U with C emptied is 1B and draws nothing — and in neither does a field or a wall carry 1C.
+  // S4: under a policy that states no U (census W20: the approved policy states it since M7B U6), a U
+  // is refused on its shape and its fields are not judged. A filled U is 1C and draws; the same U with
+  // C emptied is 1B and draws nothing — and in neither does a field or a wall carry 1C.
   it("keeps a U's shape refusal alone, drawn when filled and empty when wall C is cleared", () => {
     const filledU = draftWithTexts("U", {
       wallA: "800",
@@ -402,12 +406,43 @@ describe("no reason, red wall or 1C note stands beside an empty plan", () => {
       [filledU, "drawn"],
       [uMissingC, "empty"],
     ] as const) {
-      const surfaces = surfacesOf(draft, filledU);
+      const surfaces = surfacesOf(draft, filledU, policyWithoutU());
       expect(planOf(draft).kind).toBe(kind);
       expect(surfaces.isShapeRefused).toBe(true);
       expect(surfaces.fieldReasons).toEqual([]);
       expect(surfaces.markedWalls).toEqual([]);
     }
+  });
+
+  // Census W20, the approved arm: the same U is field-judged. Every wall and the height carry a
+  // reason, the walls are marked, no shape is refused; with C cleared the plan is empty and nothing
+  // of 1C stands beside it (the rule this describe is about).
+  it("judges a U's fields under the approved policy, and shows nothing of 1C beside an empty plan", () => {
+    const filledU = draftWithTexts("U", {
+      wallA: "800",
+      wallB: "7000",
+      wallC: "50",
+      height: "1500",
+    });
+    const uMissingC = withEnteredText(filledU, { field: "wallC", text: "" });
+
+    const filled = surfacesOf(filledU, undefined);
+
+    expect(planOf(filledU).kind).toBe("drawn");
+    expect(filled.isShapeRefused).toBe(false);
+    expect(filled.fieldReasons.map((reason) => reason.field)).toEqual([
+      "wallA",
+      "wallB",
+      "wallC",
+      "height",
+    ]);
+    expect(filled.markedWalls.map((mark) => mark.wall)).toEqual([
+      "A",
+      "B",
+      "C",
+    ]);
+    expect(planOf(uMissingC).kind).toBe("empty");
+    expect(showsAnyOneCSurface(surfacesOf(uMissingC, undefined))).toBe(false);
   });
 });
 

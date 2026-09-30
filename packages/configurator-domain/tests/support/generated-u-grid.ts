@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { DesignRoom, GenerateKitchenResult } from "../../src/index.js";
 import { generateU, spanMismatchesOf } from "./generated-u.js";
 import { upperFindings } from "./generated-u-uppers.js";
-import { gateVerdictFor } from "./u-witness-policy.js";
+import { gateVerdictFor } from "./u-gate-verdict.js";
 
 export interface GridSliceReport {
   readonly composed: number;

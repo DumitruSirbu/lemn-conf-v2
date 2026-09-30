@@ -10,19 +10,22 @@ import {
   type RoomPolicy,
   type RoomShape,
 } from "../../src/index.js";
-import { engineUWallBounds } from "../support/room-input.js";
+import {
+  engineUWallBounds,
+  linearWallBoundsOf,
+  lWallBoundsOf,
+} from "../support/room-input.js";
 
 const EVERY_ROOM_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
 /**
  * The shapes the owner has approved bounds for — a running record, not a prohibition. `linear`
- * joined the L in wave 7J (ADR 0108 Amendment G, D11); `U` has never been put to the owner and is
- * M7B.
+ * joined the L in wave 7J (ADR 0108 Amendment G, D11); `U` joined in M7B wave U6 (ADR 0108 H4).
  *
  * **When a wave adds a shape here:** add it to this list too, and change nothing under
  * `apps/web/src/room` — an edit needed there means a caller named a shape instead of asking.
  */
-const SHAPES_WITH_APPROVED_BOUNDS: readonly RoomShape[] = ["linear", "L"];
+const SHAPES_WITH_APPROVED_BOUNDS: readonly RoomShape[] = ["linear", "L", "U"];
 
 /** What a reader of the failure needs, since the expected set is meant to grow. */
 const BUILDABLE_SHAPES_MOVED = [
@@ -32,17 +35,15 @@ const BUILDABLE_SHAPES_MOVED = [
   "A shape that lost its bounds is a policy change the owner has to have ruled on.",
 ].join(" ");
 
-/** A policy that is not the product's: it states the U's bounds the way `APPROVED_ROOM_POLICY` will
- *  once the owner rules on them (U6). `ENGINE_ROOM_LIMITS`' own U bounds stand in — real
- *  `UWallBounds` (M7B U2 S2), not a cast borrowed from the L's differently-shaped bounds — so this
- *  fabrication only ever moves *which* policy states them, never their type. 7J S5 discharged the
- *  equivalent fabrication for `linear`, whose bounds are `APPROVED_ROOM_POLICY`'s own now. */
-function policyAlsoStating(shape: "U"): RoomPolicy {
+/** A policy that is not the product's: the approved one with the U's bounds taken away, so a test can
+ *  show the predicate answers from the policy's data (ADR 0116). The fabrication U6 discharged was the
+ *  opposite one, a policy *adding* the U. */
+function policyWithoutU(): RoomPolicy {
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: {
-      ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: engineUWallBounds(),
+      L: lWallBoundsOf(APPROVED_ROOM_POLICY),
+      linear: linearWallBoundsOf(APPROVED_ROOM_POLICY),
     },
   };
 }
@@ -73,11 +74,11 @@ describe("isShapeBuildable — against the owner-approved policy", () => {
 
 describe("isShapeBuildable — it reads the policy rather than naming a shape", () => {
   // 7J S5: `linear` is real now — `APPROVED_ROOM_POLICY` itself is the policy that turned it
-  // buildable, discharging this cast (D11). Only U still needs a fabricated policy, and its own
-  // wave is M7B.
-  it("turns U buildable as soon as a policy states its bounds, with no change to the predicate", () => {
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(false);
-    expect(isShapeBuildable("U", policyAlsoStating("U"))).toBe(true);
+  // buildable, discharging this cast (D11). M7B U6 S1 (census D4) did the same for U: the contrast the
+  // predicate needs is a policy that states no U.
+  it("answers for U from the policy's own data: buildable when it states the U, not when it does not", () => {
+    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(true);
+    expect(isShapeBuildable("U", policyWithoutU())).toBe(false);
   });
 
   it("is already buildable for linear, under the real approved policy, with no cast", () => {
@@ -88,7 +89,7 @@ describe("isShapeBuildable — it reads the policy rather than naming a shape", 
     const statesOnlyU: RoomPolicy = {
       ...APPROVED_ROOM_POLICY,
       buildableShapes: {
-        // `APPROVED_ROOM_POLICY` has no U bounds of its own yet; the engine's real ones stand in.
+        // A policy that states only the U; the engine's real bounds stand in.
         U: engineUWallBounds(),
       },
     };

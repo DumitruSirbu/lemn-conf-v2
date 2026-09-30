@@ -120,11 +120,13 @@ for (const { locale, direction } of L_JOURNEYS) {
   }) => {
     test.setTimeout(JOURNEY_TIMEOUT_MS);
 
-    await test.step("1A — U refused, L taken, and a reload forgets the card (criterion 2)", async () => {
+    await test.step("1A — U taken with no refusal, L taken, and a reload forgets the card (criterion 2)", async () => {
       await openStepOne(page, locale);
+      // Restated at M7B U6 S1 (census E2): the approved policy builds the U, so its card draws no
+      // refusal and Continue leads on.
       await page.getByTestId("room-shape-card-U").tap();
-      await expect(page.getByTestId("room-shape-refusal")).toBeVisible();
-      await expect(continueButton(page)).toBeDisabled();
+      await expect(page.getByTestId("room-shape-refusal")).toHaveCount(0);
+      await expect(continueButton(page)).toBeEnabled();
 
       await page.getByTestId("room-shape-card-L").tap();
       await expect(page.getByTestId("room-shape-refusal")).toHaveCount(0);

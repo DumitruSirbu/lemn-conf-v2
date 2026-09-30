@@ -1,11 +1,17 @@
 // **Adversarial QA for M7 wave 7F2, slice S4, in a real browser** — what the fits spec leaves open.
 //
 // - **1C's colours after `--refusal-*` moved to `.screen`**, computed on a refused field, its reason and
-//   the badge, and on the shape refusal at 1A (which the move exists to reach).
-// - **The empty refusal region costs nothing**, measured to the pixel: an L's 63 px and a straight
-//   room's 227 px of slack at 1B would hide a forgotten `:empty` rule entirely.
-// - **1A under a refused card**: its own note is not clipped by the column that cannot scroll.
-// - **Targets**: every control of a refused U or straight room keeps 44 px, at 1A, 1B and 1C.
+//   the badge.
+// - **The empty refusal region costs nothing**, measured to the pixel: an L's 63 px of slack at 1B and
+//   the 1A column's own would hide a forgotten `:empty` rule entirely.
+// - **Targets**: every control of a U keeps 44 px, at 1B and 1D.
+//
+// **Restated at M7B U6 S1 (census E3-E6).** The approved policy builds all three shapes, so no card,
+// chip or URL in the shipped app draws the shape refusal any more, and a seam to draw it is barred. The
+// tests that measured that region's colours (E3), its one gap at 1B (E4's U half) and the 1A column
+// under it (E5) are removed with no replacement: there is nothing left to measure, and the tokens they
+// checked are the ones the 1C field test below measures. The unit suites keep the refusal's logic under
+// a fabricated policy that states no U (ADR 0116).
 import { expect, test, type Page } from "@playwright/test";
 
 const LOCALES = ["ro", "ru"] as const;
@@ -67,27 +73,6 @@ test("a refused field, its reason and its badge keep frame 1C's colours after th
   });
 });
 
-test("the shape refusal under a card at 1A is drawn in the same colours", async ({
-  page,
-}) => {
-  await page.goto("/ro/configurator/room");
-  await page.getByTestId("room-shape-card-U").click();
-  const refusal = page.getByTestId("room-shape-refusal");
-  await expect(refusal).toBeVisible();
-
-  const colours = await refusal.evaluate((element) => ({
-    background: getComputedStyle(element).backgroundColor,
-    ink: getComputedStyle(element).color,
-    badge: getComputedStyle(element, "::before").backgroundColor,
-  }));
-
-  expect(colours).toEqual({
-    background: FRAME_SURFACE,
-    ink: FRAME_INK,
-    badge: FRAME_RED,
-  });
-});
-
 for (const locale of LOCALES) {
   test(`the empty refusal region costs 1A's column nothing, before a card and under L, in ${locale}`, async ({
     page,
@@ -115,9 +100,7 @@ for (const locale of LOCALES) {
     }
   });
 
-  // 7J S5: `shape=linear` alone no longer carries a shape refusal (ADR 0108 Amendment G) — `U` is
-  // this measurement's fixture instead, restated from a straight room's own refusal.
-  test(`the empty refusal region costs an L's 1B column nothing, and a U's refusal one gap, in ${locale}`, async ({
+  test(`the empty refusal region costs an L's 1B column nothing, in ${locale}`, async ({
     page,
   }) => {
     await page.goto(`/${locale}/configurator/room?shape=L&direction=left`);
@@ -129,69 +112,10 @@ for (const locale of LOCALES) {
       Math.abs(underL.nextTopPx - underL.previousBottomPx - DIMENSIONS_GAP_PX),
       detailL,
     ).toBeLessThan(SUB_PIXEL_PX);
-
-    await page.goto(`/${locale}/configurator/room?shape=U`);
-    await expect(page.getByTestId("room-shape-refusal")).toBeVisible();
-    const underU = await regionAfter(page, "room-shape-chips");
-    const detailU = JSON.stringify(underU);
-    expect(
-      Math.abs(
-        underU.regionTopPx - underU.previousBottomPx - DIMENSIONS_GAP_PX,
-      ),
-      detailU,
-    ).toBeLessThan(SUB_PIXEL_PX);
-    expect(
-      Math.abs(
-        underU.nextTopPx -
-          (underU.regionTopPx + underU.regionHeightPx) -
-          DIMENSIONS_GAP_PX,
-      ),
-      detailU,
-    ).toBeLessThan(SUB_PIXEL_PX);
   });
 
-  // 7J S5: only U is refused on its shape alone at 1A now (ADR 0108 Amendment G).
-  for (const shape of ["U"] as const) {
-    test(`1A under a refused ${shape} card clips neither its note nor any target, and every target is ${String(TOUCH_TARGET_PX)} px, in ${locale}`, async ({
-      page,
-    }) => {
-      await page.goto(`/${locale}/configurator/room`);
-      await page.getByTestId(`room-shape-card-${shape}`).click();
-      await expect(page.getByTestId("room-shape-refusal")).toBeVisible();
-
-      const note = page.locator(
-        "[data-testid='room-shape-refusal-status'] ~ p",
-      );
-      await expect(note).toHaveCount(1);
-      const clip = await note.evaluate((element) => {
-        const column = element.parentElement;
-        if (column === null) throw new Error("the note has no column");
-        const box = element.getBoundingClientRect();
-        const columnBox = column.getBoundingClientRect();
-        const paddingBottom = Number.parseFloat(
-          getComputedStyle(column).paddingBottom,
-        );
-        return {
-          overflowY: getComputedStyle(column).overflowY,
-          noteBottomPx: box.bottom,
-          contentBottomPx: columnBox.bottom - paddingBottom,
-        };
-      });
-      expect(clip.noteBottomPx, JSON.stringify(clip)).toBeLessThanOrEqual(
-        clip.contentBottomPx + SUB_PIXEL_PX,
-      );
-
-      const sides = await targetSides(page, [
-        "[data-testid^='room-shape-card-']",
-        "[data-testid='room-continue']",
-      ]);
-      expectEveryTargetFull(sides);
-      expect(await documentScrollsSideways(page)).toBe(false);
-    });
-  }
-
-  // 7J S5: an empty or filled straight room is no longer refused on its shape (ADR 0108 Amendment
-  // G) — `room-length-fields-fit.e2e.spec.ts` covers its own targets at 1B/1D/1C now.
+  // Census E6, restated at M7B U6 S1: the same 44 px scan on a U at 1B and at 1D (3.6 / 2.4 / 2.4 is a
+  // room the approved policy accepts), where it used to wait for the shape refusal.
   for (const [name, query] of [
     ["an empty U", "shape=U&direction=left"],
     [
@@ -199,11 +123,11 @@ for (const locale of LOCALES) {
       "shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left",
     ],
   ] as const) {
-    test(`every control of ${name} under its refusal is ${String(TOUCH_TARGET_PX)} px and nothing scrolls sideways, in ${locale}`, async ({
+    test(`every control of ${name} is ${String(TOUCH_TARGET_PX)} px and nothing scrolls sideways, in ${locale}`, async ({
       page,
     }) => {
       await page.goto(`/${locale}/configurator/room?${query}`);
-      await expect(page.getByTestId("room-shape-refusal")).toBeVisible();
+      await expect(page.getByTestId("room-shape-refusal")).toHaveCount(0);
 
       const sides = await targetSides(page, [
         "[data-testid^='room-shape-chip-control-']",

@@ -1,13 +1,14 @@
-// M7B U5 S1, acceptance criteria 1, 2 and 8: Step 1 carries a U, proved under a policy that states one.
+// M7B U5 S1, acceptance criteria 1, 2 and 8: Step 1 carries a U.
 //
-// **The witness policy** (`policyStatingU`, ADR 0116) is a new value, so `isShapeBuildable("U",
-// APPROVED_ROOM_POLICY)` stays false and the U card stays refused until U6 enters the owner's bounds;
-// the approved policy is touched by nothing here. A U has one hand (ADR 0132 decision 8, Q-U4 (b)),
-// so nothing below reads, writes or mirrors a direction for one.
+// Until U6 this ran under a witness policy (ADR 0116), because the approved policy stated no U. Since
+// M7B U6 S1 (census W39) it runs under `APPROVED_ROOM_POLICY` itself, and the witness is retired. A U
+// has one hand (ADR 0132 decision 8, Q-U4 (b)), so nothing below reads, writes or mirrors a direction
+// for one.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
+  validateRoomInput,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
 import { readdirSync, readFileSync } from "node:fs";
@@ -22,13 +23,13 @@ import {
   type RoomSearchParams,
 } from "@/room/room-url-state";
 
-import {
-  approvedUWallBoundsStandIn,
-  policyStatingU,
-} from "../support/fabricated-u-policy";
+import { policyWithoutU } from "../support/policy-without-u";
 
-const WITNESS = policyStatingU();
-const BOUNDS = approvedUWallBoundsStandIn();
+const APPROVED_U = APPROVED_ROOM_POLICY.buildableShapes.U;
+if (APPROVED_U === undefined) {
+  throw new Error("the approved policy states no U to draw rooms from");
+}
+const BOUNDS = APPROVED_U;
 const HEIGHT = APPROVED_ROOM_POLICY.heightBounds;
 const RUNS = 500;
 
@@ -36,15 +37,18 @@ function within(bounds: { readonly minMm: number; readonly maxMm: number }) {
   return fc.integer({ min: bounds.minMm, max: bounds.maxMm });
 }
 
-/** A U every wall of which the witness policy accepts. */
-const anyValidU = fc.record({
-  shape: fc.constant<"U">("U"),
-  wallAMm: within(BOUNDS.wallA),
-  wallBMm: within(BOUNDS.wallB),
-  wallCMm: within(BOUNDS.wallC),
-  heightMm: within(HEIGHT),
-  cornerDirection: fc.constant<"left">("left"),
-});
+/** A U the approved policy accepts: every wall inside its bounds, and the room clear of the minimum
+ *  kitchen's refusal (about 2 % of the rectangle, ADR 0108 H3), which the domain itself answers. */
+const anyValidU = fc
+  .record({
+    shape: fc.constant<"U">("U"),
+    wallAMm: within(BOUNDS.wallA),
+    wallBMm: within(BOUNDS.wallB),
+    wallCMm: within(BOUNDS.wallC),
+    heightMm: within(HEIGHT),
+    cornerDirection: fc.constant<"left">("left"),
+  })
+  .filter((input) => validateRoomInput(input, APPROVED_ROOM_POLICY).ok);
 
 function paramsOf(input: ParsedRoomInput): RoomSearchParams {
   return Object.fromEntries(serialiseRoomInput(input).entries());
@@ -57,7 +61,7 @@ function queryOf(href: string): RoomSearchParams {
 }
 
 function reached1D(query: RoomSearchParams) {
-  const state = parseRoomUrlState(query, WITNESS);
+  const state = parseRoomUrlState(query, APPROVED_ROOM_POLICY);
   if (state.substate !== "1D") {
     throw new Error(`expected 1D, got ${state.substate}`);
   }
@@ -131,7 +135,10 @@ describe("a valid U reaches 1D and comes back out of a URL unchanged (criteria 1
   });
 
   it("does not mark a missing direction on a U, and marks exactly the missing walls", () => {
-    const state = parseRoomUrlState({ shape: "U", wallA: "4.5" }, WITNESS);
+    const state = parseRoomUrlState(
+      { shape: "U", wallA: "4.5" },
+      APPROVED_ROOM_POLICY,
+    );
 
     expect(state).toEqual({
       substate: "1B",
@@ -140,17 +147,20 @@ describe("a valid U reaches 1D and comes back out of a URL unchanged (criteria 1
     });
   });
 
-  it("is still refused by shape under the approved policy, whose bounds this test never touches", () => {
-    const state = parseRoomUrlState({
+  // Restated at M7B U6 S1 (census W39): the approved policy builds the U, so the same URL reaches 1D
+  // under it, and is refused by shape only under a policy that states no U (ADR 0116).
+  it("reaches 1D under the approved policy, and is refused by shape under one that states no U", () => {
+    const query = {
       shape: "U",
       wallA: "4.5",
       wallB: "3",
       wallC: "3.6",
       height: "2.6",
-    });
+    };
 
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(false);
-    expect(state).toMatchObject({
+    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(true);
+    expect(parseRoomUrlState(query)).toMatchObject({ substate: "1D" });
+    expect(parseRoomUrlState(query, policyWithoutU())).toMatchObject({
       substate: "1C",
       issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
     });

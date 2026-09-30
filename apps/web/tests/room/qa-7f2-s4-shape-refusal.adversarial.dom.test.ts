@@ -57,7 +57,7 @@ import {
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
-import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
+import { policyWithoutU } from "../support/policy-without-u";
 
 const REFUSAL = "room-shape-refusal";
 const REFUSAL_STATUS = "room-shape-refusal-status";
@@ -230,18 +230,10 @@ afterEach(() => {
 // Policies — ADR 0116's fabricated shape, plus one that stops building L
 // ---------------------------------------------------------------------------------------------
 
-/** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L-derived bounds.
- *  Only U is fabricated through this path now — linear's own real bounds are the approved policy's
- *  since 7J S5, so "also stating linear" would just restate "approved". */
-function policyAlsoStating(shape: "U"): RoomPolicy {
-  return {
-    ...APPROVED_ROOM_POLICY,
-    buildableShapes: {
-      ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedUWallBoundsStandIn(),
-    },
-  };
-}
+/** ADR 0116's R8 fabricated policy: the approved one with no U. The approved policy refuses no shape
+ *  since M7B U6 (ADR 0108 H4), so every test here whose subject is the shape refusal renders against
+ *  this (census W10-W18). */
+const POLICY_WITHOUT_U: RoomPolicy = policyWithoutU();
 
 /** The approved policy with L withdrawn: criterion 9's ↑ sabotage (`shape !== "L"`) in reverse. The
  *  cast is only for the empty literal's inference, not a fabrication — `BuildableShapes`' L and linear
@@ -253,7 +245,7 @@ const POLICY_BUILDING_NOTHING: RoomPolicy = {
 
 const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
   ["approved", APPROVED_ROOM_POLICY],
-  ["also stating U", policyAlsoStating("U")],
+  ["stating no U", POLICY_WITHOUT_U],
   ["building nothing", POLICY_BUILDING_NOTHING],
 ];
 
@@ -408,7 +400,7 @@ describe("a deep link is refused on its first frame, whatever its fields hold", 
       "shape=U&wallA=abc&wallB=2.4&wallB=3&height=-1",
     ],
   ])("refuses %s, marks no field and suggests nothing", (_, search) => {
-    render(search);
+    render(search, POLICY_WITHOUT_U);
 
     expect(isRefusalShown()).toBe(true);
     expect(timesTheRefusalIsSaid()).toBe(1);
@@ -423,7 +415,7 @@ describe("a deep link is refused on its first frame, whatever its fields hold", 
 
 describe("a traversal mid-burst is refused or cleared on the frame it lands", () => {
   it("refuses the U a Back lands on while the customer was typing an L, and clears on the way back", () => {
-    render(A_VALID_ROOM);
+    render(A_VALID_ROOM, POLICY_WITHOUT_U);
     type("wallA", "8");
 
     arriveAt(A_FILLED_U);
@@ -500,7 +492,7 @@ describe("what a chip tap announces", () => {
   });
 
   it("empties and refills the same region on refused, then L, then refused", () => {
-    render("shape=U&direction=left");
+    render("shape=U&direction=left", POLICY_WITHOUT_U);
     const region = elementAt(REFUSAL_STATUS);
 
     click("room-shape-chip-control-L");
@@ -518,7 +510,7 @@ describe("what a chip tap announces", () => {
     // 7L D9: the note is its own region now (`room-one-c-note`), not the reasons' — this room's own
     // reasons stay silent (`room-one-c-reasons` does not change), which is what "the refusal and the
     // note" always meant here.
-    render(A_FILLED_U);
+    render(A_FILLED_U, POLICY_WITHOUT_U);
     click("room-shape-chip-control-L");
     expect(isRefusalShown()).toBe(false);
     expect(maybeAt("room-presets-after-valid")).toBe(null);
@@ -534,7 +526,7 @@ describe("what a chip tap announces", () => {
   });
 
   it("changes only the refusal region on a tap to an empty U, which is 1B", () => {
-    render(A_VALID_ROOM);
+    render(A_VALID_ROOM, POLICY_WITHOUT_U);
 
     const changed = regionsChangedBy(() => {
       click("room-shape-chip-control-U");
@@ -562,7 +554,7 @@ describe("the refusal in Russian", () => {
     const [locale, messages] = russianCatalogue();
     screenMessages = messages;
     screenLocale = locale;
-    render(A_FILLED_U);
+    render(A_FILLED_U, POLICY_WITHOUT_U);
 
     expect(elementAt(REFUSAL).textContent).toBe(
       requireLeafAt(screenMessages, "room.issue.shapeNotBuildable"),

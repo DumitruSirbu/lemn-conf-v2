@@ -14,6 +14,7 @@
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
+  type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
@@ -49,6 +50,7 @@ import { RoomScreen } from "@/room/room-screen";
 import { requiredFieldsFor } from "@/room/room-url-state";
 
 import { CATALOGUES } from "../support/catalogues";
+import { policyWithoutU } from "../support/policy-without-u";
 
 const SHAPES: readonly RoomShape[] = ["linear", "L", "U"];
 const WALL_FIELDS: readonly RoomLengthField[] = ["wallA", "wallB", "wallC"];
@@ -70,10 +72,11 @@ const A_ONE_C_L = "shape=L&wallA=3.6&wallB=0.45&height=2.6&direction=left";
 
 let container: HTMLDivElement;
 let root: Root;
+let screenPolicy: RoomPolicy = APPROVED_ROOM_POLICY;
 
 function theScreen(): ReactElement {
   return createElement(NextIntlClientProvider, {
-    children: createElement(RoomScreen, { policy: APPROVED_ROOM_POLICY }),
+    children: createElement(RoomScreen, { policy: screenPolicy }),
     locale: CATALOGUES[0][0],
     messages: CATALOGUES[0][1],
     timeZone: "Europe/Chisinau",
@@ -202,6 +205,7 @@ beforeEach(() => {
     arriveAt(searchOf(href));
   });
   browser.search = "";
+  screenPolicy = APPROVED_ROOM_POLICY;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -395,7 +399,10 @@ describe("1C never stands beside an empty plan", () => {
     },
   );
 
+  // Census W19: the approved policy states the U (M7B U6), so this room is field-judged there — see
+  // the next test — and the shape refusal is read under a policy that states no U.
   it("shows a filled U's refusal with the plan drawn, and with the plan empty once C is cleared, marking nothing", () => {
+    screenPolicy = policyWithoutU();
     arriveAt("shape=U&wallA=0.8&wallB=7&wallC=0.05&height=1.5&direction=left");
     expect(paintedBars()).toHaveLength(3);
     expect(maybeAt("room-shape-refusal")).not.toBeNull();
@@ -407,6 +414,23 @@ describe("1C never stands beside an empty plan", () => {
 
     expect(paintedBars()).toHaveLength(0);
     expect(maybeAt("room-shape-refusal")).not.toBeNull();
+    expect(oneCSurfacesOnScreen()).toEqual([]);
+  });
+
+  it("judges the same U field by field under the approved policy, and shows none of 1C once C is cleared", () => {
+    arriveAt("shape=U&wallA=0.8&wallB=7&wallC=0.05&height=1.5&direction=left");
+    expect(paintedBars()).toHaveLength(3);
+    expect(maybeAt("room-shape-refusal")).toBeNull();
+    expect(oneCSurfacesOnScreen()).toEqual([
+      "a field reason",
+      "aria-invalid",
+      "a red bar",
+      "the 1C note",
+    ]);
+
+    type("wallC", "");
+
+    expect(paintedBars()).toHaveLength(0);
     expect(oneCSurfacesOnScreen()).toEqual([]);
   });
 });

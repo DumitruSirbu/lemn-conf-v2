@@ -1702,12 +1702,20 @@ land a U on 1D where it landed on 1C). Any of these may go red in the first e2e 
    import at `:23`). ADR 0116 A2 counted seven at `8cd084b`; 7J deleted the linear ones. S1 item (4) and AC4 say "the
    seven", and both mean this one. That test's U branch borrows the L's bounds (`[shape, lBounds]`), which S1 makes
    unnecessary. Whether `Object.fromEntries` then types without a cast is not tried here.
+   **Dated 2026-09-30, at U6 S1: the count is one, and S1 item (4)'s and AC4's "seven" read as one.** The helper now
+   spreads each stated shape's own typed entry instead of `Object.fromEntries` (whether that could have typed without
+   the cast was not tried), and `git grep "as BuildableShapes"` under `packages/` and `apps/` finds nothing.
 4. **Green tests that S1 may retire, not reds:** the fabricated U policies `U_WITNESS_POLICY`
    (`packages/configurator-domain/tests/support/u-witness-policy.ts`), `policyStatingU` and
    `approvedUWallBoundsStandIn` (`apps/web/tests/support/fabricated-u-policy.ts`), and the four `policyAlsoStating("U")`
    copies. Their `interim-unapproved` or `isRequired: false` values now differ from the approved policy's.
    `tests/room/room-screen.dom.test.ts:428` ("enables U against a policy that states its bounds") passes and
    is now vacuous. Stale comments: `apps/web/tests/e2e/support/u-design.ts:3`, `room-desktop-line.desktop.e2e.spec.ts:161`.
+   **Dated 2026-09-30, at U6 S1: retired.** `U_WITNESS_POLICY` went, and its file became
+   `tests/support/u-gate-verdict.ts` (the gate verdict under the approved policy). `policyStatingU`,
+   `approvedUWallBoundsStandIn` and the four `policyAlsoStating("U")` copies went, and their file became
+   `apps/web/tests/support/policy-without-u.ts` (the approved policy without its U, for the refusal's tests).
+   The vacuous test at `:428` was replaced by the AC5 test and a fabricated-arm test; the stale comments are fixed.
 5. **No test now pins the approved U's guard.** `POLICY_FIELDS` in `approved-room-policy.test.ts` lists the L's
    walls A and B, the height and the straight wall A only, and the storability property at `:442` draws L rooms
    only (`approvedRoomInput`, `:420`). So S1 (1) and (2) add tests for the U, not only edits.

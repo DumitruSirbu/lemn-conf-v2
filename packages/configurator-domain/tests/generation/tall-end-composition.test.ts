@@ -741,7 +741,8 @@ describe("the room rule is unmoved (criterion 17)", () => {
     // (ADR 0120 Amendment B2). Everything else here is still what 7D3 found.
     //
     // 7J S5, ADR 0108 Amendment G: the straight kitchen's own wall A, 1200–6000, joins the L here —
-    // the one shape this fixed snapshot did not carry before wave 7J admitted it.
+    // the one shape this fixed snapshot did not carry before wave 7J admitted it. M7B U6 S1 (census D8)
+    // adds the U the same way: ADR 0108 H1–H4's literals, which `approved-room-policy.test.ts` pins.
     expect(APPROVED_ROOM_POLICY).toEqual({
       approval: "owner-approved",
       buildableShapes: {
@@ -753,6 +754,17 @@ describe("the room rule is unmoved (criterion 17)", () => {
             sinkWidthMm: 600,
             hobWidthMm: 600,
             cornerReachMm: { wallA: 900, wallB: 1000 },
+          },
+        },
+        U: {
+          wallA: { minMm: 2700, maxMm: 6000 },
+          wallB: { minMm: 1000, maxMm: 6000 },
+          wallC: { minMm: 1000, maxMm: 6000 },
+          minimumKitchen: {
+            isRequired: true,
+            sinkWidthMm: 600,
+            hobWidthMm: 600,
+            cornerReachMm: { wallA: 1800, sideWall: 1000 },
           },
         },
         linear: {

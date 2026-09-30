@@ -293,6 +293,30 @@ function marksOn(plan: PlanPreview): readonly MarkedPlanWall[] {
   );
 }
 
+const APPROVED_U_WALL_MINIMUM_MM = { A: 2700, B: 1000, C: 1000 } as const;
+const APPROVED_U_WALL_MAXIMUM_MM = 6000;
+
+/** The marks a U typed at `wallsMm` must carry: a short wall marks TOO_SHORT, a long one TOO_LONG. */
+function expectedUMarks(
+  wallsMm: Readonly<Record<"A" | "B" | "C", number>>,
+): readonly MarkedPlanWall[] {
+  return (["A", "B", "C"] as const).flatMap((wall) => {
+    if (wallsMm[wall] < APPROVED_U_WALL_MINIMUM_MM[wall]) {
+      return [{ wall, labelKey: TOO_SHORT }];
+    }
+    if (wallsMm[wall] > APPROVED_U_WALL_MAXIMUM_MM) {
+      return [{ wall, labelKey: TOO_LONG }];
+    }
+    return [];
+  });
+}
+
+function sortedByWall(
+  marks: readonly MarkedPlanWall[],
+): readonly MarkedPlanWall[] {
+  return [...marks].sort((left, right) => left.wall.localeCompare(right.wall));
+}
+
 function drawnWall(plan: PlanPreview, wallId: PlanWallId): PlanWallRect {
   const found =
     plan.kind === "drawn"
@@ -409,10 +433,11 @@ describe("markPlanWalls — the marked set is the refused wall fields, and only 
     },
   );
 
-  // A U is refused on its shape and its fields are not judged (ADR 0108 decision 2), so every wall
-  // it draws, C included, stays unmarked however far out of range it is typed.
+  // M7B U6 S1 (census W2, W3): a U's fields are judged now (ADR 0108 H1), so each of its walls, C
+  // included, is marked exactly when it is outside its approved bounds — wall A 2700-6000, walls B
+  // and C 1000-6000, spelled here so the oracle does not follow the policy it checks.
   it.each(DIRECTIONS)(
-    "marks no wall of a U, refused on its shape, with the corner turning %s",
+    "marks each wall of a U that its own bound refuses, wall C included, with the corner turning %s",
     (direction) => {
       const anyWall = fc.integer(SWEPT_WALL_MM);
       fc.assert(
@@ -423,7 +448,9 @@ describe("markPlanWalls — the marked set is the refused wall fields, and only 
             direction,
           );
 
-          expect(marksOn(markedPlanOf(draft))).toEqual([]);
+          expect(sortedByWall(marksOn(markedPlanOf(draft)))).toEqual(
+            expectedUMarks({ A: a, B: b, C: c }),
+          );
         }),
         { numRuns: SAMPLES_PER_ARM },
       );

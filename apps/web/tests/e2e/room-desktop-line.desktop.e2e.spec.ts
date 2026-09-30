@@ -158,7 +158,7 @@ const TYPED_L_ROOM = {
   query: "shape=L&wallA=3.6&wallB=2.4&height=2.6&direction=left",
 } as const;
 
-/** The four 1B states criterion 6 and 16 walk: both L corners, the straight room, the refused U. */
+/** The four 1B states criterion 6 and 16 walk: both L corners, the straight room, the U. */
 const ONE_B_STATES = [
   {
     name: "an L room, left corner",
@@ -387,7 +387,7 @@ test.describe("criterion 5: D1A", () => {
       }
     });
 
-    test(`Continue is right-aligned in the footer, 52 px tall and narrower than it; U refused and Continue disabled, in ${locale}`, async ({
+    test(`Continue is right-aligned in the footer, 52 px tall and narrower than it; the U card draws no refusal and enables Continue, in ${locale}`, async ({
       page,
     }) => {
       await openRoom(page, locale);
@@ -403,9 +403,11 @@ test.describe("criterion 5: D1A", () => {
         layout.footerContentWidth,
       );
 
+      // Restated at M7B U6 S1 (census E1): the approved policy builds the U, so its card draws no
+      // refusal and Continue leads on.
       await page.getByTestId("room-shape-card-U").click();
-      await expect(page.getByTestId("room-shape-refusal")).toBeVisible();
-      await expect(continueButton(page)).toBeDisabled();
+      await expect(page.getByTestId("room-shape-refusal")).toHaveCount(0);
+      await expect(continueButton(page)).toBeEnabled();
     });
   }
 });

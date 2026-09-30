@@ -9,7 +9,7 @@
 // The window losing focus is not driven: headless Chromium keeps a backgrounded page's focus, so the
 // blur a phone sends when the app is switched away cannot be produced here.
 //
-// It also measures the fits spec's new U witness (three explained walls under the refusal), which was
+// It also measures the fits spec's U witness (three explained walls; under the shape refusal until U6), which was
 // asserted with `mustScroll: false` and never measured, and every control's 44 px there.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
@@ -141,7 +141,7 @@ for (const locale of LOCALES) {
     await expect(wallC).toBeFocused();
   });
 
-  test(`measures the U with three explained walls under its refusal: scroll, reach and 44 px, in ${locale}`, async ({
+  test(`measures the U with three explained walls: scroll, reach and 44 px, in ${locale}`, async ({
     page,
   }) => {
     await page.goto(`/${locale}/configurator/room?shape=U&direction=left`);

@@ -30,7 +30,7 @@ import {
 } from "../support/generated-u-findings.js";
 import { SHELL_CATALOG } from "../support/shell-design.js";
 import { uRoom } from "../support/u-plan-fixtures.js";
-import { gateVerdictFor } from "../support/u-witness-policy.js";
+import { gateVerdictFor } from "../support/u-gate-verdict.js";
 
 const GENERATED_AT = "2026-09-30T08:00:00.000Z";
 const WALL_ROW_FLOOR_MM = 1500;
@@ -152,8 +152,10 @@ describe("a generated U keeps every rule (U3b AC1, AC2, AC5)", () => {
     },
   );
 
-  it("keeps a U off the approved policy until U6", () => {
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(false);
+  // Restated at M7B U6 S1 (census D7): the properties above run under the policy the product ships,
+  // which states the U since U6.
+  it("runs its gate under an approved policy that states the U", () => {
+    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(true);
   });
 });
 

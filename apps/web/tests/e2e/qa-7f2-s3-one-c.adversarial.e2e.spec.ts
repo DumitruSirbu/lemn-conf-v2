@@ -86,9 +86,10 @@ for (const locale of LOCALES) {
 const COLUMN_GAP_PX = 16;
 
 /** `holdsItsFieldsAtOneB`: whether the whole 1B column fits, so a region that cost anything would push
- *  the last field out. **Not a U's since slice S4**: its shape refusal sits under the chips from 1B on
- *  and outgrows the U's 2.6 px of slack by design (Q-7F2-2 (a)); the fits spec measures that column
- *  by reach instead. The region's own cost is still the first two claims, in every shape. */
+ *  the last field out. **Not a U's since slice S4**, when its shape refusal sat under the chips from 1B
+ *  on and outgrew the U's 2.6 px of slack (Q-7F2-2 (a)); the fits spec measures that column by reach
+ *  instead. Census E10 (M7B U6 S1): the refusal cannot draw any more, so this flag is to be re-measured
+ *  and may become `true`. The region's own cost is still the first two claims, in every shape. */
 const ONE_B_AND_ONE_C = {
   // 7J S5: the straight kitchen is buildable now (ADR 0108 Amendment G), so it reaches 1C for real
   // — a wall A too short for it (0.8 m) is this shape's own worst case, restated from `oneC: null`,
@@ -105,7 +106,9 @@ const ONE_B_AND_ONE_C = {
   },
   U: {
     oneB: "shape=U&direction=left",
-    oneC: "shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left",
+    // Census E10: 3.6 / 2.4 / 2.4 is a room the approved policy accepts, so it is 1D and has no
+    // status region to measure. A U with a real field reason stands here instead: wall C too short.
+    oneC: "shape=U&wallA=3.6&wallB=2.4&wallC=0.8&height=2.6&direction=left",
     holdsItsFieldsAtOneB: false,
   },
 } as const;
