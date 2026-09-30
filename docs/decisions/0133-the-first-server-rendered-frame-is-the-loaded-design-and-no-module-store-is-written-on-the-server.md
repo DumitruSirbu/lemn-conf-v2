@@ -183,7 +183,7 @@ That is **a latent lost write**, not a flash.
   server render (d2).
 
 State stays per-render and actions stay single-sourced. d3's *"no side-effect options"* now reads:
-*"no state of its own that an action can write"*.
+*"no state of its own that an action can write"* — on the client. (Round-2 logic review, 2026-09-30: in a production server render the replacement is skipped and the snapshot keeps its own actions; no caller reaches them, and the per-render store is dropped.)
 
 ### A5 — a known cost, not a defect (logic 5)
 
