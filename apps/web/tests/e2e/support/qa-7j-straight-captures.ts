@@ -52,8 +52,15 @@ async function composeLinearThroughStepOne(
   await page.goto(ROOM);
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1A");
 
-  await page.getByTestId("room-shape-card-linear").click();
-  await page.getByTestId("room-continue").click();
+  // A click that lands before hydration is dropped and leaves Continue disabled (seen once under
+  // full-suite load, 2026-09-30); the card is a radio, so clicking it again is idempotent.
+  const linearCard = page.getByTestId("room-shape-card-linear");
+  const continueButton = page.getByTestId("room-continue");
+  await expect(async () => {
+    await linearCard.click();
+    await expect(continueButton).toBeEnabled({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await continueButton.click();
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1B");
 
   const wallA = page.getByTestId("room-length-wallA");
