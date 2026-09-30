@@ -22,6 +22,7 @@
 // implementing any of them.
 import type { RoomShape } from "@lemnaria/configurator-domain";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef, type RefObject } from "react";
 
 import { SHAPE_REFUSAL_MESSAGE_KEY } from "./room-issue-model";
 import styles from "./room.module.css";
@@ -111,9 +112,12 @@ export function ShapePicker({
   onChoose,
 }: ShapePickerProps) {
   const translate = useTranslations();
+  const groupRef = useRef<HTMLDivElement>(null);
+  useAdoptShapeChosenBeforeHydration(groupRef, onChoose);
 
   return (
     <div
+      ref={groupRef}
       className={styles.shapes}
       role="radiogroup"
       aria-labelledby={labelledBy}
@@ -150,6 +154,34 @@ export function ShapePicker({
       ))}
     </div>
   );
+}
+
+/**
+ * **A card tapped before React hydrated the screen is still the customer's choice.** The server draws
+ * every radio unchecked; a tap that lands first checks the DOM radio natively, and hydration neither
+ * unchecks it nor reports it — React takes the radio's *already checked* value as its baseline, so the
+ * tap raises no `onChange` and neither does any later tap on the same radio. Left alone the card draws
+ * as chosen while the screen's state holds nothing, and *Continuă* stays disabled for good.
+ *
+ * Once mounted, the checked radio in the DOM is therefore reported once. After the first commit React
+ * keeps the DOM equal to `chosenShape`, so on any later run this reports what is already chosen —
+ * `onChoose` with the same shape is a no-op — and it never reports a shape the customer did not tap.
+ */
+function useAdoptShapeChosenBeforeHydration(
+  groupRef: RefObject<HTMLElement | null>,
+  onChoose: (shape: RoomShape) => void,
+): void {
+  useEffect(() => {
+    const tappedShape = shapeCheckedIn(groupRef.current);
+    if (tappedShape !== undefined) onChoose(tappedShape);
+  }, [groupRef, onChoose]);
+}
+
+function shapeCheckedIn(group: HTMLElement | null): RoomShape | undefined {
+  const checkedValue = group?.querySelector<HTMLInputElement>(
+    "input[type=radio]:checked",
+  )?.value;
+  return SHAPES_IN_FRAME_ORDER.find((shape) => shape === checkedValue);
 }
 
 export interface ShapeChipsProps {
