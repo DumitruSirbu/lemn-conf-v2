@@ -12,6 +12,7 @@ import {
 
 import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { canonicaliseRowIds } from "./support/rsc-row-ids";
 import {
   issueShareLink,
   mintSeededDesign,
@@ -107,13 +108,16 @@ async function normalisedBody(
   response: APIResponse,
   token: string,
 ): Promise<string> {
-  return (await response.text())
+  const body = (await response.text())
     .replaceAll(nonceOf(response), "{nonce}")
     .replaceAll(token, "{token}")
     .replace(DEV_REQUEST_ID, "{dev-request-id}");
+  return IS_PRODUCTION_SERVER ? body : canonicaliseRowIds(body);
 }
 
-/** `next dev` stamps a fresh per-request id into every document; a production build does not. */
+/** `next dev` stamps a fresh per-request id into every document; a production build does not. Nor
+ *  does it renumber the flight rows between two renders of one page, which `next dev` does under
+ *  load (see `support/rsc-row-ids.ts`) — so the row ids are compared up to renaming there only. */
 const DEV_REQUEST_ID = /self\.__next_r="[^"]*"/g;
 
 function headerNamesExceptDate(response: APIResponse): string[] {
