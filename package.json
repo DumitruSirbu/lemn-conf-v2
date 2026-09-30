@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gate:boundary": "sh scripts/gates/boundary.sh",
+    "gate:e2e-shard-budget": "node scripts/gates/e2e-shard-budget.mjs",
     "gate:lockfile": "sh scripts/gates/lockfile.sh",
     "gate:sca": "pnpm audit --audit-level=high --prod",
     "lint": "pnpm --workspace-concurrency=1 --recursive run lint",

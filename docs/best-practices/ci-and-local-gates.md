@@ -223,7 +223,9 @@ private repository are a limited monthly allowance (2,000 on Free, 3,000 on Pro)
 free. A push that would fail CI must fail on this machine instead.
 
 `.githooks/pre-push` runs `pnpm ci:local`, which mirrors `.github/workflows/ci.yml` gate for gate:
-format, lint, typecheck, test, **e2e**, build, boundary, lockfile, sca.
+format, lint, typecheck, test, **e2e-shard-budget**, **e2e**, build, boundary, lockfile, sca. Locally
+`e2e` is not sharded: the CI shards partition the suite by whole files, so one local run covers
+exactly what the CI legs cover between them, and sharding would only add a dev-server boot per shard.
 
 It runs **every** gate rather than stopping at the first failure, because CI reports all ten jobs
 independently — a local gate that hides the second failure until the first is fixed wastes the round
@@ -319,9 +321,11 @@ rather than here so there is one home for it.
 
 ## CI workflow shape
 
-`.github/workflows/ci.yml` runs nine jobs so each can be a separate required status check: install,
-format, lint, typecheck, test, build, boundary, lockfile:single-source, sca. Job names are a
-contract — renaming one breaks its branch-protection binding.
+`.github/workflows/ci.yml` runs these jobs so each can be a separate required status check: install,
+format, lint, typecheck, test, build, boundary, lockfile:single-source, sca, and the e2e family
+described in the next section (`e2e (desktop)`, `e2e (mobile)`, `e2e-shard-budget`, and the shard
+jobs behind the first two). Job names are a contract — renaming one breaks its branch-protection
+binding.
 
 Third-party actions are pinned by full commit SHA, with the tag recorded in a trailing comment.
 `permissions: contents: read`; in-flight runs are cancelled only for pull requests, so post-merge
@@ -357,6 +361,137 @@ so "non-live" must be established by the file's own gate, not by inspection. To 
 non-live, empty the three connection variables on the command line: `TEST_DATABASE_URL=
 DATABASE_URL= MIGRATION_DATABASE_URL= pnpm --filter @lemnaria/persistence exec vitest run …`
 (measured 2026-09-23, M7 wave 7E3c: a live file then skips instead of connecting).
+
+## e2e in CI: shards, the two summary checks, and the per-shard test budget
+
+*Added 2026-09-30, [ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)
+Amendment A, on the owner's ruling "3 shards per project" and the direction to budget how many tests a CI
+machine carries. Read the workflow's own comments for the history; this section is the rule.*
+
+### Job layout
+
+| Job id | Name in the checks list | Runs | On a pull request |
+| --- | --- | --- | --- |
+| `e2e-desktop-shard` | `e2e shard (desktop, i/3)` | `playwright test --project=desktop --shard=i/3` | skipped |
+| `e2e-mobile-shard` | `e2e shard (mobile, i/4)` | `playwright test --project=mobile --shard=i/4` | skipped |
+| `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
+| `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
+| `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |
+
+**The contract with branch protection is the two summary names, `e2e (desktop)` and `e2e (mobile)`.**
+They are the names the single `e2e` job carried, so sharding changes nothing a required-checks list
+says. The shard names are free to change and must **not** be required checks.
+
+- Each summary `needs` only its own project's shard job, runs `if: always()` and **fails unless that
+  job's result is `success`** — a skipped or cancelled shard is a failure, so it cannot go green by
+  absence. (`always()` is what lets it fail: without it a failed `needs` leaves it skipped, and a
+  skipped required check counts as passing.) On a pull request it carries the shards' own
+  `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
+  counts a skipped required check as passing, so nothing new can block a pull request.
+- There are **two shard jobs, not one six-leg matrix**, because a job's `needs` names whole jobs and a
+  matrix job's result aggregates all its legs: one matrix could feed only one summary, and
+  `e2e (desktop)` would go red for a mobile failure. Two jobs also let each project carry its own
+  shard count. The price is one step list written twice; change both together.
+- Artifact names are per project, shard and attempt (`playwright-trace-desktop-1-attempt-1`):
+  `actions/upload-artifact@v4` fails on a duplicate name (checked against the pinned SHA's README),
+  and an artifact belongs to the *run*, so re-running a failed shard would otherwise collide with its
+  own first trace.
+- `workers` stays 1 and `fullyParallel` false (ADR 0105 decision 2). Sharding adds machines, not
+  contention. The e2e legs stay behind `needs: [install, test]` and stay off pull requests.
+
+**Something the owner may need to change in branch protection.** Nothing for the existing checks:
+`e2e (desktop)` and `e2e (mobile)` keep their names. `e2e-shard-budget` is a new job name; it reports on
+every event, so it may be added to the required list, and nothing breaks if it is not. One correction
+to an old note: before the summaries existed, the skipped job on a pull request was named with the
+*unexpanded* `e2e (${{ matrix.project }})` (run 36734585613), so nothing ever reported under
+`e2e (desktop)` on a pull request; now something does, as `skipped`.
+
+### The per-shard test budget
+
+**Rule (owner, 2026-09-30): every e2e shard is budgeted to at most 30 minutes on the runner, from
+measured per-test rates, and the tests per shard are counted, not guessed.** The figures live in one
+place, `scripts/gates/e2e-shard-budget.mjs` (`MEASURED_RUNNER_RATES`, `TARGET_MINUTES_PER_SHARD`,
+`SHARDS_PER_PROJECT`); do not copy them into prose that can drift. As of 2026-09-30:
+
+| | desktop | mobile |
+| --- | --- | --- |
+| Measured on the runner [measured: run 34580253814's job logs] | 84 tests, 37.8 min | 109 tests, 26.1 min |
+| Seconds per test | 37.8 x 60 / 84 = **27.0** | 26.1 x 60 / 109 = **14.4** |
+| Budget at 30 min | 1800 / 27.0 = 66.7, so **66** a shard | 1800 / 14.4 = 125.3, so **125** a shard |
+| Tests on the branch | 185 | 393 |
+| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest |
+
+**What the rates are, stated so nobody over-trusts them.** They come from `main` at `995ad03`, the
+only runner evidence there is; this branch's suite had never run on a runner. The two rows are on
+different bases, both erring toward a smaller budget: desktop is Playwright's own
+`82 passed, 2 failed (37.8m)`, and a failed test runs to its 120 s timeout; mobile is the job's wall
+clock (26.1 min), where Playwright's own figure was 24.9. Each rate includes one `next build` (about a
+minute) that every shard now pays again. The 30-minute target leaves 15 minutes under the 45-minute
+job ceiling for setup (about 0.8 minutes outside the E2E step in that run) and that build.
+
+**The guard** is `pnpm gate:e2e-shard-budget`, the `e2e-shard-budget` job and a gate in
+`scripts/local-ci.sh`. For each project it runs `playwright test --list --shard=i/N` for every shard,
+fails when any shard lists more tests than its budget, and prints how many shards the project needs
+(it tries larger counts until one fits). It also fails if `ci.yml`'s `matrix.total` or `matrix.shard`
+disagree with `SHARDS_PER_PROJECT`, and if the shards do not add up to the whole project's tests. Its
+own logic is under `node --test scripts/gates/e2e-shard-budget.test.mjs`, which the CI job and the
+local gate run first. Watched failing on 2026-09-30: with mobile set to three shards it reports the
+three shards at 138, 129 and 126 and says "mobile needs 4 shards". Listing needs the workspace built
+and `TEST_DATABASE_URL` set, because `--list` loads the Playwright config and every spec.
+
+**When a shard is over budget, add a shard.** Raise `matrix.total` and `matrix.shard` in the job in
+`ci.yml` and `SHARDS_PER_PROJECT` together. **Never raise `timeout-minutes`**: the 45-minute ceiling is
+a hang detector, not a schedule (ADR 0105, Alternatives and A2 rule 4).
+
+**Re-measure after any `ci` run where a shard's e2e time drifts more than 20% from what the budget
+predicts** (predicted minutes = tests in the shard x that project's seconds per test / 60). Read each
+shard's `N passed (Xm)` line from its job log, derive `X x 60 / N` per project, update
+`MEASURED_RUNNER_RATES` (including `sourceRun`) and the table above in the same commit, and let the
+guard say whether the shard counts still hold. The first full sharded run is the first real
+measurement of this branch's suite on a runner; treat its numbers as replacing the projection below.
+
+### Two things the count does not tell you
+
+**1. A file is never split, so one file can exceed the budget by itself.** `fullyParallel` is false and
+Playwright shards by whole file. `room-desktop-line.desktop.e2e.spec.ts` alone holds 69 desktop tests
+against a budget of 66, so no shard count can satisfy a count budget of 66 for desktop. The guard
+enforces a **ratchet** of 70 for desktop instead (`RATCHETED_CEILINGS`): today's largest shard, which
+stops growth and lets the tree pass. It only comes down; lower it when that file is split and delete it
+once the derived budget is enough. **This is an exception the guard carries, not a finding that 70 is
+acceptable**, and it is the owner's to keep or remove.
+
+**2. Tests are not equal, so a count budget can pass a slow shard.** Measured locally 2026-09-30 with
+`--workers=1`, through `next dev` on the maintainer's laptop (full run green: desktop 185 passed;
+mobile 391 passed, 2 skipped), desktop costs 5.1 s a test on average but `room-desktop-line` costs
+0.4 s a test, while a handful of one-test journeys (`qa-7i-mirror-captures` 71 s, `qa-7j-straight-captures`
+60 s, `mirror-real-flow` 44 s) cost more than a minute each. Playwright balances shards by count, so
+time is not balanced.
+
+**Projected minutes per shard.** *[inference] — local per-test durations times a runner-to-local
+factor; nothing here was run on a runner.* The factor is calibrated on the files `main`'s run had, which
+today hold exactly the same test counts (84 desktop, 109 mobile): desktop 37.8 min on the runner
+against 8.6 locally is **4.4x** (about 3.8x once the two failed tests' timeouts and the build are taken
+out); mobile 24.9 min against 9.6 locally is **2.6x** (about 2.5x without the build). The runner's
+software GL makes the factor project-specific, which is why one number is not used for both.
+
+| Shard | Tests | Local min | Projected runner test phase | Job (phase + ~0.8 min setup) |
+| --- | --- | --- | --- | --- |
+| desktop 1/3 | 63 | 9.0 | 34 to 39 (3.8x to 4.4x) | 35 to 40 |
+| desktop 2/3 | 70 | 0.6 | 2 to 3 | 3 to 4 |
+| desktop 3/3 | 52 | 6.3 | 24 to 27 | 25 to 28 |
+| mobile 1/4 | 106 | 7.7 | 19 to 20 | 20 to 21 |
+| mobile 2/4 | 114 | 4.9 | 12 to 13 | 13 to 14 |
+| mobile 3/4 | 88 | 5.1 | 13 | 14 |
+| mobile 4/4 | 85 | 6.4 | 16 to 17 | 17 to 18 |
+
+**Read it plainly: mobile is comfortably inside the budget, and desktop shard 1 is not.** It passes the
+count guard (63 of 66) and projects 34 to 39 test-phase minutes, over the 30-minute target and inside
+the 45-minute ceiling with about five to ten minutes of margin. The count cannot see that, because
+desktop shard 2 is 69 nearly-free tests. Four desktop shards would balance by time (largest 5.4 local
+minutes, about 21 to 24 on the runner) but split the counts 48/85/30/22, and 85 is over the ratchet, so
+the guard as written rejects the better layout. Whether to weight the guard by per-file time, raise the
+ratchet with a fourth shard, or split `room-desktop-line` is a decision for the owner; none of them is
+taken here. **Replace this table with the first real sharded run's numbers.**
 
 ## Mutation testing across the package boundary: `apps/web` reads `dist/`, not `src/`
 
