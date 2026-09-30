@@ -15,6 +15,8 @@ import {
   type RoomSearchParams,
 } from "@/room/room-url-state";
 
+import { policyWithoutU } from "../support/policy-without-u";
+
 const ANY_SAFE_LENGTH_MM = fc.integer({
   min: 1,
   max: Number.MAX_SAFE_INTEGER,
@@ -445,20 +447,28 @@ describe("room URL state boundary", () => {
 });
 
 describe("room URL state domain hand-off", () => {
-  // 7J S5: only U reaches the domain's shape-alone refusal now — `inputFor("linear")`'s 3600 × 2500
-  // is inside the straight kitchen's own approved range, so the round trip reaches 1D instead.
-  it.each(["U"] as const)(
-    "lets the domain refuse the fully parsed %s shape",
-    (shape) => {
-      const query = asNextSearchParams(serialiseRoomInput(inputFor(shape)));
+  // 7J S5 moved the straight kitchen out of the domain's shape-alone refusal, and M7B U6 S1 (census
+  // W38) the U: under the approved policy the round trip reaches 1D, and the refusal is read under a
+  // policy that states no U (ADR 0116).
+  it("lets the domain accept the fully parsed U shape", () => {
+    const query = asNextSearchParams(serialiseRoomInput(inputFor("U")));
 
-      expect(parseRoomUrlState(query)).toMatchObject({
-        substate: "1C",
-        issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
-        markedFields: ["shape"],
-      });
-    },
-  );
+    expect(parseRoomUrlState(query)).toMatchObject({
+      substate: "1D",
+      input: inputFor("U"),
+      markedFields: [],
+    });
+  });
+
+  it("lets a policy that states no U refuse the fully parsed U shape", () => {
+    const query = asNextSearchParams(serialiseRoomInput(inputFor("U")));
+
+    expect(parseRoomUrlState(query, policyWithoutU())).toMatchObject({
+      substate: "1C",
+      issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+      markedFields: ["shape"],
+    });
+  });
 
   // 7J S5: the round trip a straight kitchen now completes, ADR 0108 Amendment G's own bounds.
   it("lets the domain accept the fully parsed linear shape", () => {

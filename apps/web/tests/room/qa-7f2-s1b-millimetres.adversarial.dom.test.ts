@@ -206,8 +206,9 @@ describe("an old link arriving in either locale refills millimetres and settles 
     (inLocale) => {
       render(AN_OLD_U_LINK, inLocale);
 
-      // Every field reads, so the screen is past 1B; the U is a shape the policy refuses, so 1C.
-      expect(roomSubstate()).toBe("1C");
+      // Every field reads, so the screen is past 1B; and since M7B U6 S1 (census W6, W7) the U is a
+      // room the approved policy accepts (4000 on A, 2400 and 2180 beside it), so 1D.
+      expect(roomSubstate()).toBe("1D");
       expect(fieldValues(requiredFieldsFor("U"))).toEqual([
         "4000",
         "2400",

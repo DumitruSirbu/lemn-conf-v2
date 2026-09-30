@@ -24,6 +24,7 @@
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
+  type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
@@ -82,6 +83,7 @@ import {
   DEPART_TO_SHAPES,
   DepartureProbe,
 } from "../support/departure-probe";
+import { policyWithoutU } from "../support/policy-without-u";
 
 /** Wide enough that a transition between two readings of a length cannot hide between examples. */
 const SWEEP_RUNS = 500;
@@ -384,8 +386,8 @@ let theWithheldEcho: string | undefined;
 /** Whether `arriveAt` re-renders the departure probe rather than the screen (7F2 criterion 13). */
 let mountsTheDepartureProbe = false;
 
-function render(search: string): void {
-  screenProps = {};
+function render(search: string, policy?: RoomPolicy): void {
+  screenProps = policy === undefined ? {} : { policy };
   mountsTheDepartureProbe = false;
   arriveAt(search);
 }
@@ -1094,19 +1096,23 @@ describe("the sub-state markers read the live query and lag the field by the set
 });
 
 describe("the policy stays the only buildability answer under a hostile query", () => {
-  it("offers no way on from a room the approved policy does not state", () => {
-    // A U room fully answered by the URL is 1C, not 1D: the CTA is refused because the policy
-    // states no U bounds, and never because a component spelled the letter. 7J S5 added the
-    // straight kitchen's — this premise line is restated to that, and the U subject below is
-    // unmoved: the policy still states no U bounds, so this stays a live case rather than a
-    // refusal — the premise is asserted, not assumed.
-    expect(Object.keys(APPROVED_ROOM_POLICY.buildableShapes)).toEqual([
+  it("offers no way on from a room the policy does not state", () => {
+    // A U room fully answered by the URL is 1C, not 1D, when the policy states no U bounds: the CTA
+    // is refused because of the policy, and never because a component spelled the letter. 7J S5
+    // added the straight kitchen's and M7B U6 S1 (census W4) the U's, so the premise line is
+    // restated to the three shapes and the subject moves to a policy that states no U — the
+    // premise is asserted, not assumed.
+    expect(Object.keys(APPROVED_ROOM_POLICY.buildableShapes).sort()).toEqual([
       "L",
+      "U",
       "linear",
     ]);
+    const policy = policyWithoutU();
+    expect(Object.keys(policy.buildableShapes).sort()).toEqual(["L", "linear"]);
 
     render(
       "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",
+      policy,
     );
     settle();
 

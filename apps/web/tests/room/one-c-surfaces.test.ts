@@ -22,6 +22,8 @@ import {
   type RoomIssueView,
 } from "@/room/room-issue-model";
 
+import { policyWithoutU } from "../support/policy-without-u";
+
 /** An L of the given millimetres, typed as the customer types them. */
 function lRoom(wallA: string, wallB = "2400", height = "2600"): RoomDraft {
   const typed: readonly (readonly [RoomLengthField, string])[] = [
@@ -112,12 +114,16 @@ describe("presentOneC applies the rule to the draft a burst began from", () => {
   });
 });
 
+// M7B U6 S1 (census W1): the approved policy refuses no shape now, so the refusal is read under a policy
+// that states no U (ADR 0116).
 describe("the shape refusal answers the chip, not the clock (7F2 S4)", () => {
+  const policy = policyWithoutU();
+
   function midBurst(before: RoomDraft, now: RoomDraft) {
     return presentOneC({
       draft: now,
-      draftState: draftStateOf(now, APPROVED_ROOM_POLICY),
-      policy: APPROVED_ROOM_POLICY,
+      draftState: draftStateOf(now, policy),
+      policy,
       typing: typingFrom(before, now),
     }).surfaces;
   }

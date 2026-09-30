@@ -20,7 +20,6 @@ import {
   APPROVED_ROOM_POLICY,
   isShapeBuildable,
   validateRoomInput,
-  type BuildableShapes,
   type CornerDirection,
   type RoomIssue,
   type RoomPolicy,
@@ -637,20 +636,24 @@ describe("the linear suggestion is catalogued and shows exactly when the domain 
 // ---------------------------------------------------------------------------------------------
 
 /** R8's fabricated policy (ADR 0116), generalised: the approved policy restricted to exactly
- *  `shapes`. Linear and L keep the approved policy's own real bounds (7J S5) — only U still borrows
- *  the L's, because U has none of its own yet (M7B's, ADR 0116); that borrowing is the only reason
- *  this still casts to `BuildableShapes`, whose type has no `U` key to fabricate honestly. */
+ *  `shapes`, each shape keeping the approved policy's own real bounds. Since M7B U6 S1 the U has
+ *  bounds of its own, so nothing is borrowed and the cast to `BuildableShapes` (ADR 0116 A2, AC4) is
+ *  gone: each stated shape is a spread of its own typed entry. */
 function policyStating(shapes: readonly RoomShape[]): RoomPolicy {
-  const lBounds = APPROVED_ROOM_POLICY.buildableShapes.L;
+  const approved = APPROVED_ROOM_POLICY.buildableShapes;
   return {
     ...APPROVED_ROOM_POLICY,
-    buildableShapes: Object.fromEntries(
-      shapes.map((shape) =>
-        shape === "U"
-          ? [shape, lBounds]
-          : [shape, APPROVED_ROOM_POLICY.buildableShapes[shape]],
-      ),
-    ) as BuildableShapes,
+    buildableShapes: {
+      ...(shapes.includes("L") && approved.L !== undefined
+        ? { L: approved.L }
+        : {}),
+      ...(shapes.includes("linear") && approved.linear !== undefined
+        ? { linear: approved.linear }
+        : {}),
+      ...(shapes.includes("U") && approved.U !== undefined
+        ? { U: approved.U }
+        : {}),
+    },
   };
 }
 

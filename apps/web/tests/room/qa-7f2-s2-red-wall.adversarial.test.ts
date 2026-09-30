@@ -435,17 +435,19 @@ describe("the marks are exactly the refused walls, taken from the domain directl
     },
   );
 
-  it("marks no wall of a U, which is refused on its shape before any field is judged", () => {
+  // Restated at M7B U6 S1 (census W8): a U is field-judged now (ADR 0108 H1), so its walls are marked
+  // exactly as the domain's own issues say, wall C included — the same oracle as every other shape.
+  it("marks exactly the walls the domain refuses on a U, wall C included", () => {
     fc.assert(
       fc.property(anyTypedRoom, (room) => {
-        const draft = draftOf({ ...room, shape: "U" });
+        const uRoom = { ...room, shape: "U" } as const;
+        const draft = draftOf(uRoom);
 
-        expect(markedWallsFromTheIssueModel(draft)).toEqual([]);
         expect(
           marksOn(
             markPlanWalls(planOf(draft), markedWallsFromTheIssueModel(draft)),
           ),
-        ).toEqual([]);
+        ).toEqual(expectedMarksFor(uRoom));
       }),
       { numRuns: SAMPLES_PER_ARM },
     );

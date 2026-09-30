@@ -1,5 +1,5 @@
-// M7B U3b S3 — ADR 0108 Amendment H3, the U's minimum kitchen. Under a witness policy (the owner's
-// approved U bounds with the rule switched on; `APPROVED_ROOM_POLICY` states no U until U6), a room is
+// M7B U3b S3 — ADR 0108 Amendment H3, the U's minimum kitchen. Under the approved policy (the owner's
+// U bounds with the rule switched on; since U6 `APPROVED_ROOM_POLICY` states them), a room is
 // refused with `ROOM_TOO_SMALL_FOR_KITCHEN` on the room-level field and no number (RQ8) exactly when
 // wall A's free run takes neither the sink and the hob together nor the sink while the far side wall's
 // takes the hob. And the gate agrees with the generator, which places a sink and a hob exactly then.
@@ -12,12 +12,9 @@ import {
   type DesignRoom,
 } from "../../src/index.js";
 import { generateU } from "../support/generated-u.js";
-import { engineUWallBounds } from "../support/room-input.js";
+import { engineUWallBounds, uWallBoundsOf } from "../support/room-input.js";
 import { uRoom } from "../support/u-plan-fixtures.js";
-import {
-  gateVerdictFor,
-  U_WITNESS_POLICY,
-} from "../support/u-witness-policy.js";
+import { gateVerdictFor } from "../support/u-gate-verdict.js";
 
 const REFUSED_FOR_THE_KITCHEN = {
   ok: false,
@@ -92,7 +89,7 @@ describe("validateRoomInput's U gate at H3's boundary pairs (U3b AC2)", () => {
 
   it("applies only where the policy requires it: the engine's own U leaves the rule off", () => {
     const engineOnly = {
-      ...U_WITNESS_POLICY,
+      ...APPROVED_ROOM_POLICY,
       buildableShapes: {
         U: {
           ...engineUWallBounds(),
@@ -103,8 +100,13 @@ describe("validateRoomInput's U gate at H3's boundary pairs (U3b AC2)", () => {
     expect(gateVerdictFor(uRoom(2999, 1000, 1000), engineOnly).ok).toBe(true);
   });
 
-  it("leaves a U unbuildable under the approved policy, whose literals enter at U6", () => {
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(false);
+  // Restated at M7B U6 S1 (census D6): the approved policy states the U, and the gate above now runs
+  // under it, so the H3 pairs are the product's own verdicts.
+  it("states the U under the approved policy, whose gate is the one every pair above ran under", () => {
+    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(true);
+    expect(uWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen.isRequired).toBe(
+      true,
+    );
   });
 });
 

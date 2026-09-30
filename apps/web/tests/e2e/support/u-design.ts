@@ -1,6 +1,7 @@
 // M7B U5 adversarial QA: **a U in the editor before U6 lets one through Step 1.**
 //
-// No U reaches `/d/{id}` under the approved policy until U6 widens it, so this puts one there without a
+// No U reached `/d/{id}` under the approved policy before U6 widened it, and a test that needs a
+// *particular* U still seeds one rather than typing it, so this puts one there without a
 // production seam: mint an ordinary row, then replace its document with the domain's own generated U
 // through the same `PUT /api/designs/{id}` the editor's autosave uses. The write path validates the
 // schema and the catalogue (`app/api/designs/[id]/route.ts`), not the room policy, so the U is accepted

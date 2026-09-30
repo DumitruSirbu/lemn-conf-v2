@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 //
 // M7B U5 review: **the screen's `policy` reaches the URL parse**, proved by walking a U from 1A to 1D to
-// 1F through the real `RoomScreen` under the witness policy (ADR 0116).
+// 1F through the real `RoomScreen`. Renamed from `room-screen.u-witness.dom.test.ts` at U6 S1 (census
+// W36, W37): the walk runs under the approved policy, which states the U, and the contrast is a policy
+// that states none (ADR 0116).
 //
 // `RoomScreen` took a `policy` for its cards and its *Continuă* and then parsed the URL, and the draft's
 // own canonical query, against the *approved* policy — so a screen handed a policy that builds a U
-// offered the U card, enabled *Continuă*, and never reached 1D. `isShapeBuildable("U",
-// APPROVED_ROOM_POLICY)` stays false throughout: the witness is a new value, and this file touches no
-// approved bound.
+// offered the U card, enabled *Continuă*, and never reached 1D. The walk below and its contrast are the
+// pair that says the parse follows the policy the screen is handed.
 //
 // The mocks are `room-composition.dom.test.ts`'s and stand for the same reasons: `next/navigation` one
 // layer down, the adapter's `makeKit`/`createBodyProbe`/`disposeKit` only (so the composition runs the
@@ -54,18 +55,14 @@ vi.mock("@lemnaria/three-adapter", async (importOriginal) => {
   };
 });
 
-import {
-  APPROVED_ROOM_POLICY,
-  isShapeBuildable,
-} from "@lemnaria/configurator-domain";
+import { APPROVED_ROOM_POLICY } from "@lemnaria/configurator-domain";
 
 import { RoomScreen } from "@/room/room-screen";
 
 import roMessages from "../../src/messages/ro.json";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import { policyStatingU } from "../support/fabricated-u-policy";
+import { policyWithoutU } from "../support/policy-without-u";
 
-const WITNESS = policyStatingU();
 const A_U = { wallA: "4.5", wallB: "3.01", wallC: "3.62", height: "2.6" };
 const A_U_QUERY = `shape=U&wallA=${A_U.wallA}&wallB=${A_U.wallB}&wallC=${A_U.wallC}&height=${A_U.height}`;
 const RUN_TIMEOUT_MS = 3000;
@@ -74,7 +71,7 @@ const POLL_MS = 5;
 let container: HTMLDivElement;
 let root: Root;
 
-function render(search: string, policy = WITNESS): void {
+function render(search: string, policy = APPROVED_ROOM_POLICY): void {
   browser.search = search;
   act(() => {
     root.render(
@@ -143,7 +140,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("a U through the real screen under the witness policy, 1A to 1D to 1F", () => {
+describe("a U through the real screen under the approved policy, 1A to 1D to 1F", () => {
   it("walks 1A, 1B, 1D and 1F, and composes a kitchen that names all three walls", async () => {
     // 1A: no shape named; the U card is offered because the policy builds it.
     render("");
@@ -155,8 +152,8 @@ describe("a U through the real screen under the witness policy, 1A to 1D to 1F",
     expect(substate()).toBe("1B");
     expect(maybeAt("room-corner")).toBeNull();
 
-    // Typing the four lengths makes the draft a room the *witness* accepts, and Continue leads on.
-    // Under the approved policy it never would (asserted last).
+    // Typing the four lengths makes the draft a room the approved policy accepts, and Continue leads
+    // on. Under a policy that states no U it never would (asserted last).
     typeInto("wallA", "4500");
     typeInto("wallB", "3010");
     typeInto("wallC", "3620");
@@ -187,12 +184,10 @@ describe("a U through the real screen under the witness policy, 1A to 1D to 1F",
     }
     expect(elementAt("room-plan-label-C").textContent).toContain("3620");
     expect(maybeAt("room-corner")).toBeNull();
-
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(false);
   });
 
-  it("stays at 1C under the approved policy for the very same URL, so the walk above is the policy's doing", () => {
-    render(A_U_QUERY, APPROVED_ROOM_POLICY);
+  it("stays at 1C under a policy that states no U for the very same URL, so the walk above is the policy's doing", () => {
+    render(A_U_QUERY, policyWithoutU());
 
     expect(substate()).toBe("1C");
   });

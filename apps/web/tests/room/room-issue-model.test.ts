@@ -43,7 +43,7 @@ import {
   requireLeafAt,
   translatorFor,
 } from "../support/catalogues";
-import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
+import { policyWithoutU } from "../support/policy-without-u";
 
 const SAMPLES_PER_ARM = 100;
 
@@ -111,9 +111,13 @@ function lDraft(room: LRoomMm, direction: CornerDirection = "left"): RoomDraft {
 }
 
 /** The draft's own parse — the question `room-screen.tsx`'s `roomInDraft` asks. */
-function stateOfDraft(draft: RoomDraft): RoomUrlState {
+function stateOfDraft(
+  draft: RoomDraft,
+  policy: RoomPolicy = APPROVED_ROOM_POLICY,
+): RoomUrlState {
   return parseRoomUrlState(
     queryEntriesOf(canonicalRoomQuery(draft).toString()),
+    policy,
   );
 }
 
@@ -123,7 +127,7 @@ function viewOf(
 ): RoomIssueView {
   return deriveRoomIssueView({
     draft,
-    draftState: stateOfDraft(draft),
+    draftState: stateOfDraft(draft, policy),
     policy,
   });
 }
@@ -139,17 +143,9 @@ function approvedL(): LWallBounds {
   return bounds;
 }
 
-/** R8's fabricated policy (ADR 0116): a second shape stated with L-derived bounds — only ever
- *  called with U below. Linear needs no such fabrication since 7J S5: it is real. */
-function policyAlsoStating(shape: "U"): RoomPolicy {
-  return {
-    ...APPROVED_ROOM_POLICY,
-    buildableShapes: {
-      ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedUWallBoundsStandIn(),
-    },
-  };
-}
+/** R8's fabricated policy (ADR 0116): the approved one with no U. No shape is refused by the approved
+ *  policy since M7B U6 (ADR 0108 H4), so the shape refusal is exercised against this. */
+const POLICY_WITHOUT_U: RoomPolicy = policyWithoutU();
 
 // ---------------------------------------------------------------------------------------------
 // Arms, built from the approved policy's bounds
@@ -533,11 +529,20 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     },
   );
 
-  // 7J S5: the straight kitchen joins the L under the approved policy (ADR 0108 Amendment G), so
-  // only the U — never put to the owner — is refused as its shape alone now.
-  it("refuses the one shape the approved policy does not build, and not the L or linear", () => {
+  // 7J S5 moved the straight kitchen under the approved policy and M7B U6 S1 (census W21) the U: no
+  // shape is refused by it now, and the refusal is the policy's answer for whichever shape it omits.
+  it("refuses no shape under the approved policy", () => {
     const refused = ROOM_SHAPES.filter(
       (shape) => viewOf(createRoomDraft(shape)).isShapeRefused,
+    );
+
+    expect(refused).toEqual([]);
+  });
+
+  it("refuses the one shape a policy does not build, and not the L or linear", () => {
+    const refused = ROOM_SHAPES.filter(
+      (shape) =>
+        viewOf(createRoomDraft(shape), POLICY_WITHOUT_U).isShapeRefused,
     );
 
     expect(refused).toEqual(["U"]);
@@ -549,27 +554,39 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
       texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
     });
 
-    const view = viewOf(draft, policyAlsoStating("U"));
-
-    expect(view.isShapeRefused).toBe(false);
+    expect(viewOf(draft, POLICY_WITHOUT_U).isShapeRefused).toBe(true);
+    expect(viewOf(draft).isShapeRefused).toBe(false);
   });
 
-  it.each(["U"] as const)(
-    "keeps the %s refusal out of the room-level slot at 1C",
-    (shape) => {
-      const draft = draftTyped({
-        shape,
-        texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
-      });
+  it("keeps the U refusal out of the room-level slot at 1C, under a policy that states none", () => {
+    const draft = draftTyped({
+      shape: "U",
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
+    });
 
-      const view = viewOf(draft);
+    const view = viewOf(draft, POLICY_WITHOUT_U);
 
-      expect(stateOfDraft(draft).substate).toBe("1C");
-      expect(view.roomReasons).toEqual([]);
-      expect(view.fieldReasons).toEqual([]);
-      expect(view.isShapeRefused).toBe(true);
-    },
-  );
+    expect(stateOfDraft(draft, POLICY_WITHOUT_U).substate).toBe("1C");
+    expect(view.roomReasons).toEqual([]);
+    expect(view.fieldReasons).toEqual([]);
+    expect(view.isShapeRefused).toBe(true);
+  });
+
+  // Census W22: a U's fields are judged now, so the same entry is 1C for wall A's own reason (2200 is
+  // under the approved 2700) and carries no shape refusal at all.
+  it("judges a U's fields at 1C under the approved policy: wall A's reason, no shape refusal", () => {
+    const draft = draftTyped({
+      shape: "U",
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
+    });
+
+    const view = viewOf(draft);
+
+    expect(stateOfDraft(draft).substate).toBe("1C");
+    expect(reasonFieldsOf(view)).toEqual(["wallA"]);
+    expect(view.roomReasons).toEqual([]);
+    expect(view.isShapeRefused).toBe(false);
+  });
 
   // 7J S5: this same entry — wall A 2200, height 2500 — is now a straight room the approved policy
   // accepts, so it reaches 1D rather than stopping at a shape refusal.
@@ -626,13 +643,27 @@ describe("the straight kitchen is suggested exactly when 1C has a reason and wal
     },
   );
 
-  it("suggests nothing for a refused U shape", () => {
+  // Census W23. Owner, 2026-09-30, relayed selection, on whether a too-short U also gets the
+  // straight-kitchen suggestion: *"Yes, suggest straight (Recommended)"*. The gate is the L's,
+  // shape-independent (`validatesAsStraightRoom`): a reason at 1C, and wall A and the height valid as a
+  // straight room. Wall A 2200 is under the U's 2700 and inside the straight kitchen's 1200-6000.
+  it("suggests the straight kitchen for a too-short U, by the same shape-independent rule as the L", () => {
     const draft = draftTyped({
       shape: "U",
       texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
     });
 
-    expect(viewOf(draft).isLinearSuggested).toBe(false);
+    expect(reasonFieldsOf(viewOf(draft))).toEqual(["wallA"]);
+    expect(viewOf(draft).isLinearSuggested).toBe(true);
+  });
+
+  it("suggests nothing for a U refused by its shape alone, which has no reason to append it to", () => {
+    const draft = draftTyped({
+      shape: "U",
+      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
+    });
+
+    expect(viewOf(draft, POLICY_WITHOUT_U).isLinearSuggested).toBe(false);
   });
 
   // 7J S5: this entry is no longer a refused shape — it is itself a straight room the policy

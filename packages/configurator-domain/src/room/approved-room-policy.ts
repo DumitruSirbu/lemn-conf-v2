@@ -6,8 +6,8 @@
 // **Literals, on purpose** (Amendment B decision B1): the owner approved numbers, not formulas, so a
 // later engineering change must not move them silently. They are held inside `ENGINE_ROOM_LIMITS`
 // by `approved-room-policy.test.ts`, which also pins each value, so editing one here is a deliberate,
-// visible change. The L and, since wave 7J, the straight kitchen; a U-shaped room stays refused
-// until its own wave puts its bounds to the owner (decision B2).
+// visible change. The L, the straight kitchen (wave 7J) and, since M7B wave U6, the U: each shape
+// entered only once its own wave had put its bounds to the owner (decision B2).
 import { LINEAR_ROOM_DEPTH_MM } from "../design-bounds.js";
 import type { RoomPolicy } from "./room-policy.js";
 
@@ -47,6 +47,18 @@ const APPROVED_CEILING_MAX_MM = 3900;
 const APPROVED_LINEAR_WALL_A_MIN_MM = 1200;
 const APPROVED_LINEAR_WALL_A_MAX_MM = 6000;
 
+// ADR 0108 Amendment H (owner, 2026-09-29, relayed selections): the U's bounds. Wall A's 2700 is RQ1's
+// answer — 4 mm above the measured 1200 mm walkway floor of 2696 (H2) — and each side wall keeps the
+// L's approved wall-B minimum (H1). The maxima are Amendment G's one 6000.
+const APPROVED_U_WALL_A_MIN_MM = 2700;
+const APPROVED_U_SIDE_WALL_MIN_MM = 1000;
+const APPROVED_U_WALL_MAX_MM = 6000;
+
+/** H3's corner allowances, one per kind of run: wall A gives up an X-leg of 900 at each end (1800), and a
+ *  side wall gives up one corner's 900 mm reach plus the 100 mm slide reserve it keeps at its end (1000). */
+const APPROVED_U_CORNER_REACH_WALL_A_MM = 1800;
+const APPROVED_U_CORNER_REACH_SIDE_WALL_MM = 1000;
+
 export const APPROVED_ROOM_POLICY: RoomPolicy = {
   approval: "owner-approved",
   buildableShapes: {
@@ -66,6 +78,29 @@ export const APPROVED_ROOM_POLICY: RoomPolicy = {
         cornerReachMm: {
           wallA: APPROVED_L_CORNER_REACH_WALL_A_MM,
           wallB: APPROVED_L_CORNER_REACH_WALL_B_MM,
+        },
+      },
+    },
+    U: {
+      wallA: {
+        minMm: APPROVED_U_WALL_A_MIN_MM,
+        maxMm: APPROVED_U_WALL_MAX_MM,
+      },
+      wallB: {
+        minMm: APPROVED_U_SIDE_WALL_MIN_MM,
+        maxMm: APPROVED_U_WALL_MAX_MM,
+      },
+      wallC: {
+        minMm: APPROVED_U_SIDE_WALL_MIN_MM,
+        maxMm: APPROVED_U_WALL_MAX_MM,
+      },
+      minimumKitchen: {
+        isRequired: true,
+        sinkWidthMm: APPROVED_GENERATED_SINK_WIDTH_MM,
+        hobWidthMm: APPROVED_GENERATED_HOB_WIDTH_MM,
+        cornerReachMm: {
+          wallA: APPROVED_U_CORNER_REACH_WALL_A_MM,
+          sideWall: APPROVED_U_CORNER_REACH_SIDE_WALL_MM,
         },
       },
     },

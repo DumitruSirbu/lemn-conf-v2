@@ -453,7 +453,9 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
       "wallC",
       "height",
     ]);
-    expect(continueButton().disabled).toBe(true);
+    // Restated at M7B U6 S1 (census W5): this U is a room the approved policy accepts (3560 on A,
+    // 2920 and 2180 on the sides), so Continue leads on.
+    expect(continueButton().disabled).toBe(false);
   });
 });
 

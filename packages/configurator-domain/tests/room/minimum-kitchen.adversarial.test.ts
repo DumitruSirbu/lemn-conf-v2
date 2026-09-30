@@ -180,19 +180,26 @@ describe("validateRoomInput — 7A2 coupled predicate", () => {
     ]);
   });
 
-  it.each([
-    {
+  // M7B U6 S1 (census D5): `APPROVED_ROOM_POLICY` states the U's bounds now, so this input is judged
+  // field by field, as the straight kitchen's is below — restated from "refuses another shape alone".
+  it("judges a U field by field rather than refusing its shape alone", () => {
+    const input = {
       shape: "U",
       wallAMm: undefined,
       wallBMm: -1,
       wallCMm: Number.POSITIVE_INFINITY,
       heightMm: 0,
       cornerDirection: "right",
-    },
-  ] satisfies readonly RoomInput[])("refuses another shape alone", (input) => {
+    } satisfies RoomInput;
+
     expect(validateRoomInput(input, APPROVED_ROOM_POLICY)).toStrictEqual({
       ok: false,
-      issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+      issues: [
+        { field: "wallA", code: "VALUE_MISSING" },
+        { field: "wallB", code: "WALL_TOO_SHORT" },
+        { field: "wallC", code: "VALUE_NOT_WHOLE_MILLIMETRES" },
+        { field: "height", code: "HEIGHT_TOO_LOW" },
+      ],
     });
   });
 

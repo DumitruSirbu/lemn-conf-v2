@@ -18,6 +18,7 @@ import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
   type LWallBounds,
+  type RoomPolicy,
   type RoomShape,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
@@ -66,6 +67,7 @@ import {
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
+import { policyWithoutU } from "../support/policy-without-u";
 
 const SAMPLES_PER_ARM = 100;
 
@@ -87,13 +89,17 @@ const EVERY_LENGTH_FIELD: readonly RoomLengthField[] = [
 let container: HTMLDivElement;
 let root: Root;
 let rendered: readonly [CatalogueLocale, Catalogue] = CATALOGUES[0];
+/** The policy a test fabricates; `undefined` is the component's own default, the approved policy. */
+let renderedPolicy: RoomPolicy | undefined;
 let echoesEveryWrite = true;
 
 function render(
   search: string,
   catalogue: readonly [CatalogueLocale, Catalogue] = CATALOGUES[0],
+  policy?: RoomPolicy,
 ): void {
   rendered = catalogue;
+  renderedPolicy = policy;
   arriveAt(search);
 }
 
@@ -107,7 +113,10 @@ function arriveAt(search: string): void {
 function theScreen(): ReactElement {
   const [locale, messages] = rendered;
   return createElement(NextIntlClientProvider, {
-    children: createElement(RoomScreen, {}),
+    children: createElement(
+      RoomScreen,
+      renderedPolicy === undefined ? {} : { policy: renderedPolicy },
+    ),
     locale,
     messages,
     timeZone: "Europe/Chisinau",
@@ -403,8 +412,11 @@ function searchFor(draft: RoomDraft): string {
 }
 
 /** The criterion's own reference: the parser, over the draft's canonical query. */
-function parsed(search: string): RoomUrlState {
-  return parseRoomUrlState(queryEntriesOf(search));
+function parsed(
+  search: string,
+  policy: RoomPolicy = APPROVED_ROOM_POLICY,
+): RoomUrlState {
+  return parseRoomUrlState(queryEntriesOf(search), policy);
 }
 
 function oneCLengthFieldsOf(state: RoomUrlState): readonly RoomLengthField[] {
@@ -687,11 +699,23 @@ describe("the Continue button leads on exactly when the room is one the domain a
     );
   });
 
-  it("is inactive for a filled U room, which the policy does not build", () => {
+  // Census W24: under the approved policy this same U (3000 / 3000 / 3000, h 2600) is a room it builds,
+  // so it reaches 1D and leads Continue on; the dead end is read under a policy that states no U.
+  it("is active for a filled U room, which the approved policy now builds", () => {
     const search = refusedShapeSearch("U");
-    expect(parsed(search).substate).toBe("1C");
+    expect(parsed(search).substate).toBe("1D");
 
     render(search);
+
+    expect(continueButton().disabled).toBe(false);
+  });
+
+  it("is inactive for a filled U room, under a policy that does not build the U", () => {
+    const search = refusedShapeSearch("U");
+    const policy = policyWithoutU();
+    expect(parsed(search, policy).substate).toBe("1C");
+
+    render(search, undefined, policy);
 
     expect(continueButton().disabled).toBe(true);
   });
@@ -803,8 +827,9 @@ describe("the note shows at 1C and nowhere else (criterion 11)", () => {
     },
   );
 
+  // Census W25: a room refused by shape alone exists only under a policy that omits its shape.
   it("shows for a room the policy refuses by shape alone", () => {
-    render(refusedShapeSearch("U"));
+    render(refusedShapeSearch("U"), undefined, policyWithoutU());
 
     expect(isNoteShown()).toBe(true);
   });

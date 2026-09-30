@@ -1,8 +1,8 @@
 // M7B U5 S2 (5) — the e2e the implementer could not run, written by adversarial QA (ADR 0132 A2, A8.2,
 // A8.3). Registered by the mobile and the desktop spec alike, so the two viewports are one contract.
 //
-// The U is seeded through the write path (`support/u-design.ts`): no U reaches the editor through Step 1
-// until U6. Every tap point is projected from the published camera onto a body the domain says stands on
+// The U is seeded through the write path (`support/u-design.ts`): none reached the editor through Step 1
+// before U6, and seeding stays the way to a *particular* U (`u-flow.ts` walks Step 1 for one). Every tap point is projected from the published camera onto a body the domain says stands on
 // the wall under test, and every tap on a side preset first proves its sight line really crosses the
 // run the cutaway removes — without that, a green tap would prove nothing about the cutaway.
 import type {

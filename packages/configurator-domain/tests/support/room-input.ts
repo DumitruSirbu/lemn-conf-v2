@@ -74,8 +74,8 @@ export function engineLWallBounds(): LWallBounds {
   return lWallBoundsOf(ENGINE_ROOM_LIMITS);
 }
 
-/** A policy's linear wall. Optional in `RoomPolicy`; ADR 0130 S1 states it in `ENGINE_ROOM_LIMITS`,
- *  never yet in `APPROVED_ROOM_POLICY` (that is wave 7J S5's). */
+/** A policy's linear wall. Optional in `RoomPolicy`; ADR 0130 S1 states it in `ENGINE_ROOM_LIMITS`
+ *  and wave 7J S5 in `APPROVED_ROOM_POLICY`. */
 export function linearWallBoundsOf(policy: RoomPolicy): LinearWallBounds {
   const walls = policy.buildableShapes.linear;
   if (walls === undefined) {
@@ -88,8 +88,8 @@ export function engineLinearWallBounds(): LinearWallBounds {
   return linearWallBoundsOf(ENGINE_ROOM_LIMITS);
 }
 
-/** A policy's U walls. Optional in `RoomPolicy`; M7B U2 S2 states it in `ENGINE_ROOM_LIMITS`, never
- *  yet in `APPROVED_ROOM_POLICY` (that is U6's). */
+/** A policy's U walls. Optional in `RoomPolicy`; M7B U2 S2 states it in `ENGINE_ROOM_LIMITS` and
+ *  M7B U6 in `APPROVED_ROOM_POLICY`. */
 export function uWallBoundsOf(policy: RoomPolicy): UWallBounds {
   const walls = policy.buildableShapes.U;
   if (walls === undefined) {

@@ -15,8 +15,9 @@
 // which is also what makes the two-locale pass meaningful: the same assertions run against `ru`.
 //
 // **Wave 7F2 slice S4 lives here too** — the shape refusal at 1A, 1B and 1C and the linear-suggestion
-// hook (criteria 2, 9, 10, 12 and 16) — because its fabricated-policy arm needs a second shape's
-// bounds; `../support/fabricated-u-policy` is the one place that fabrication is written (C1.4).
+// hook (criteria 2, 9, 10, 12 and 16) — because its fabricated-policy arm needs a shape the policy
+// does not build. Since M7B U6 every shape is buildable under the approved policy, so
+// `../support/policy-without-u` is the one place that fabrication is written (C1.4, ADR 0116).
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -70,7 +71,7 @@ import {
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
-import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
+import { policyWithoutU } from "../support/policy-without-u";
 
 /** One locale's catalogue as one argument, so a render cannot be given the Russian messages under
  *  the Romanian locale. `CATALOGUES` is the shared pair every i18n sweep travels with. */
@@ -105,9 +106,9 @@ const QUERY_FOR: Readonly<Record<Substate, RoomSearchParams>> = {
 /** Every shape the picker draws, in the frame's order down the screen. */
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
-/** The shapes `APPROVED_ROOM_POLICY` refuses today. `linear` joined the L in wave 7J (ADR 0108
- *  Amendment G); `U` waits on M7B — its card is drawn and its dead end is deliberate (the owner's
- *  F8 ruling, 2026-09-14). */
+/** The shapes `POLICY_WITHOUT_U` refuses. `APPROVED_ROOM_POLICY` refuses none since M7B U6 (ADR 0108 H4),
+ *  so every test whose subject is the refusal renders against the fabricated policy below and says
+ *  so (census rows W26-W35). */
 const REFUSED_SHAPES: readonly ["U"] = ["U"];
 
 /** Read by path rather than through `new URL(…, import.meta.url)`: under `happy-dom` the module URL
@@ -126,22 +127,11 @@ const ROOM_PAGE_SOURCE = readFileSync(
 /**
  * **R8, and the fabrication it confines** (ADR 0116). Criterion 3's real claim is that the CTA asks
  * `isShapeBuildable` instead of spelling `L`, and the only way to prove it is to render against a
- * policy that states a *second* shape's bounds — which `BuildableShapes` used to declare only `L?`
- * for, before wave 7J widened it to the straight kitchen's own `linear?` too.
- *
- * **7J S5 discharges this fabrication for `linear`** (D11): `APPROVED_ROOM_POLICY` itself is now
- * the policy that states its bounds, the twin of `configurator-domain`'s own
- * `tests/room/is-shape-buildable.test.ts`. Only `U` still needs a fabricated policy, until U6.
+ * policy whose answer differs from the approved one's. 7J S5 discharged the fabrication for `linear`
+ * (D11) and M7B U6 for the U: `APPROVED_ROOM_POLICY` builds all three, so the contrast is now a
+ * policy that states no U.
  */
-function policyAlsoStating(shape: "U"): RoomPolicy {
-  return {
-    ...APPROVED_ROOM_POLICY,
-    buildableShapes: {
-      ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedUWallBoundsStandIn(),
-    },
-  };
-}
+const POLICY_WITHOUT_U: RoomPolicy = policyWithoutU();
 
 /** Refuses every shape, so any two of the three cards can stand in for "two refused shapes" in a
  *  test about the announcement mechanics rather than about which shapes the real policy builds. */
@@ -390,15 +380,26 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(true);
   });
 
+  // M7B U6 S1, AC5 (census W26): the approved policy builds the U, so choosing its card enables the
+  // CTA with no component edit.
+  it("records the choice of U and continues, under the approved policy", () => {
+    render(QUERY_FOR["1A"]);
+
+    choose("U");
+
+    expect(shapeControl("U").checked).toBe(true);
+    expect(continueButton().disabled).toBe(false);
+  });
+
+  // The pre-U6 dead end, kept as the fabricated arm (ADR 0116): the card **is** chosen — the owner ruled
+  // all three are drawn and selectable — and the dead end is the CTA's.
   it.each(REFUSED_SHAPES)(
-    "records the choice of %s and still refuses to continue",
+    "records the choice of %s and still refuses to continue, under a policy that states none",
     (shape) => {
-      render(QUERY_FOR["1A"]);
+      render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
 
       choose(shape);
 
-      // Both halves matter: the card **is** chosen — the owner ruled all three are drawn and
-      // selectable — and the dead end is the CTA's, which is where wave 7F2 will put the reason.
       expect(shapeControl(shape).checked).toBe(true);
       expect(continueButton().disabled).toBe(true);
     },
@@ -425,19 +426,27 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(false);
   });
 
-  it.each(REFUSED_SHAPES)(
-    "enables %s against a policy that states its bounds, with no edit to the component",
-    (shape) => {
-      // The wave's real claim: the CTA reads the policy. Wave 7J adds the straight kitchen's
-      // approved bounds to `APPROVED_ROOM_POLICY` and changes nothing under `apps/web/src/room` —
-      // this is the test that says it may.
-      render(QUERY_FOR["1A"], { policy: policyAlsoStating(shape) });
+  // M7B U6 S1, AC5: *În formă de U* → *Continuă* → 1B, with no component edit. The navigation is the
+  // canonical query, and that query is a U at 1B: three wall fields and the height, none typed yet.
+  it("takes the U card through Continue to the U's 1B, with no component edit", () => {
+    render(QUERY_FOR["1A"]);
+    choose("U");
 
-      choose(shape);
+    act(() => {
+      continueButton().click();
+    });
 
-      expect(continueButton().disabled).toBe(false);
-    },
-  );
+    expect(browser.push).toHaveBeenCalledWith("/ro/configurator/room?shape=U");
+    render({ shape: "U" });
+    expect(screenElement().getAttribute("data-room-substate")).toBe("1B");
+    for (const field of ["wallA", "wallB", "wallC", "height"]) {
+      expect(lengthField(field).value).toBe("");
+    }
+  });
+
+  // The wave's real claim: the CTA reads the policy. Waves 7J and U6 added the straight kitchen's and the
+  // U's approved bounds to `APPROVED_ROOM_POLICY` and changed nothing under `apps/web/src/room` — the
+  // continue tests above and the fabricated arm are what say they may.
 
   it("pushes the chosen shape as the canonical query", () => {
     render(QUERY_FOR["1A"]);
@@ -559,14 +568,11 @@ const REFUSAL = "room-shape-refusal";
 const REFUSAL_STATUS = "room-shape-refusal-status";
 const LINEAR_SUGGESTION = "room-linear-suggestion";
 
-/** The policies criterion 9 is swept over: the approved one, and R8's fabrication of each refused
- *  shape — under which that shape's refusal must go with no component edit. */
+/** The policies criterion 9 is swept over: the approved one, which refuses no shape, and R8's
+ *  fabrication that states no U — under which the U's refusal comes with no component edit. */
 const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
   ["the approved policy", APPROVED_ROOM_POLICY],
-  ...REFUSED_SHAPES.map(
-    (shape) =>
-      [`a policy also stating ${shape}`, policyAlsoStating(shape)] as const,
-  ),
+  ["a policy stating no U", POLICY_WITHOUT_U],
 ];
 
 /** Every text a field can arrive holding, from the address bar: empty, a length in metres, or junk. */
@@ -603,8 +609,8 @@ function everyChipControl(): readonly HTMLInputElement[] {
   return EVERY_SHAPE.map(chipControl);
 }
 
-/** A filled room of each refused shape: 1C for its shape alone (fields are not judged, ADR 0108
- *  decision 2). */
+/** A filled room of each shape. Under `POLICY_WITHOUT_U` the U's is 1C for its shape alone (fields are
+ *  not judged, ADR 0108 decision 2); under the approved policy it is 1D. */
 const FILLED: Readonly<Record<RoomShape, RoomSearchParams>> = {
   linear: { shape: "linear", wallA: "3.6", height: "2.6" },
   L: QUERY_FOR["1D"],
@@ -642,7 +648,7 @@ describe("the shape refusal is the policy's, at 1A (7F2 criterion 9)", () => {
   it.each(REFUSED_SHAPES)(
     "describes the cards' group by the refusal while %s is chosen, and by nothing once L is",
     (shape) => {
-      render(QUERY_FOR["1A"]);
+      render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
       const group = elementAt("room-shapes");
 
       choose(shape);
@@ -701,7 +707,7 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
   it.each(REFUSED_SHAPES)(
     "follows a chip to %s and back at once, in the region that was already there",
     (shape) => {
-      render(QUERY_FOR["1B"]);
+      render(QUERY_FOR["1B"], { policy: POLICY_WITHOUT_U });
       const region = elementAt(REFUSAL_STATUS);
       expect(region.childNodes).toHaveLength(0);
 
@@ -729,7 +735,7 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
   it("describes only the chosen chip by the refusal while it is refused, and no chip once L is", () => {
     // Coordinator ruling, 2026-09-22 (review R1.2): an unchosen chip — the buildable L among them —
     // is never described by a sentence about another shape, which browse mode would read on it.
-    render(QUERY_FOR["1B"]);
+    render(QUERY_FOR["1B"], { policy: POLICY_WITHOUT_U });
 
     chooseChip("U");
     const refusalId = elementAt(REFUSAL).id;
@@ -757,9 +763,9 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
   });
 
   it("shows the refusal and the note for a filled U, and no room reason", () => {
-    expect(parseRoomUrlState(FILLED.U).substate).toBe("1C");
+    expect(parseRoomUrlState(FILLED.U, POLICY_WITHOUT_U).substate).toBe("1C");
 
-    render(FILLED.U);
+    render(FILLED.U, { policy: POLICY_WITHOUT_U });
 
     expect(isRefusalShown()).toBe(true);
     expect(maybeAt("room-presets-after-valid")).not.toBe(null);
@@ -784,7 +790,10 @@ describe("the refusal's words (7F2 criteria 2 and 9)", () => {
   it.each(CATALOGUES)(
     "says why without a digit, a code, a unit or an internal reason, and suggests no shape, in %s",
     (locale, messages) => {
-      render(QUERY_FOR["1A"], { catalogue: [locale, messages] });
+      render(QUERY_FOR["1A"], {
+        catalogue: [locale, messages],
+        policy: POLICY_WITHOUT_U,
+      });
       choose("U");
 
       const text = textAt(REFUSAL);
@@ -812,20 +821,43 @@ describe("the refusal's words (7F2 criteria 2 and 9)", () => {
 });
 
 describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7F2 criterion 10)", () => {
-  /** One room per code 1C can carry. `SHAPE_NOT_BUILDABLE`'s own witness is `FILLED.U` alone now —
-   *  `FILLED.linear` (7J S5, ADR 0108 Amendment G) is itself an *accepted* straight room, so it
-   *  reaches 1D rather than witnessing a 1C code. */
-  const WITNESSES: readonly (readonly [string, RoomSearchParams])[] = [
-    ["SHAPE_NOT_BUILDABLE", FILLED.U],
-    ["ROOM_TOO_SMALL_FOR_KITCHEN", QUERY_FOR["1C"]],
-    ["WALL_TOO_SHORT", { ...QUERY_FOR["1D"], wallB: "0.45" }],
-    ["WALL_TOO_LONG", { ...QUERY_FOR["1D"], wallA: "6.5" }],
-    ["HEIGHT_TOO_LOW", { ...QUERY_FOR["1D"], height: "2" }],
-    ["HEIGHT_TOO_HIGH", { ...QUERY_FOR["1D"], height: "4" }],
+  /** One room per code 1C can carry, and the policy it is read under. `SHAPE_NOT_BUILDABLE`'s witness is
+   *  `FILLED.U` under `POLICY_WITHOUT_U` (census W33, W34): no shape is refused by the approved policy
+   *  since M7B U6, and the code is still one the domain can answer under any policy that omits a shape. */
+  const WITNESSES: readonly (readonly [
+    string,
+    RoomSearchParams,
+    RoomPolicy,
+  ])[] = [
+    ["SHAPE_NOT_BUILDABLE", FILLED.U, POLICY_WITHOUT_U],
+    ["ROOM_TOO_SMALL_FOR_KITCHEN", QUERY_FOR["1C"], APPROVED_ROOM_POLICY],
+    [
+      "WALL_TOO_SHORT",
+      { ...QUERY_FOR["1D"], wallB: "0.45" },
+      APPROVED_ROOM_POLICY,
+    ],
+    [
+      "WALL_TOO_LONG",
+      { ...QUERY_FOR["1D"], wallA: "6.5" },
+      APPROVED_ROOM_POLICY,
+    ],
+    [
+      "HEIGHT_TOO_LOW",
+      { ...QUERY_FOR["1D"], height: "2" },
+      APPROVED_ROOM_POLICY,
+    ],
+    [
+      "HEIGHT_TOO_HIGH",
+      { ...QUERY_FOR["1D"], height: "4" },
+      APPROVED_ROOM_POLICY,
+    ],
   ];
 
-  function issueCodesOf(query: RoomSearchParams): readonly string[] {
-    const state = parseRoomUrlState(query);
+  function issueCodesOf(
+    query: RoomSearchParams,
+    policy: RoomPolicy,
+  ): readonly string[] {
+    const state = parseRoomUrlState(query, policy);
     return state.substate === "1C"
       ? state.issues.map((issue) => issue.code)
       : [];
@@ -834,8 +866,11 @@ describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7
   /** The real gate (`room-issue-model.ts`'s `isLinearSuggested`), read from the same 1C state the
    *  screen renders from: a reason other than the shape's own, and wall A with the height
    *  validating as a straight room on their own. */
-  function expectedSuggestionFor(query: RoomSearchParams): boolean {
-    const state = parseRoomUrlState(query);
+  function expectedSuggestionFor(
+    query: RoomSearchParams,
+    policy: RoomPolicy,
+  ): boolean {
+    const state = parseRoomUrlState(query, policy);
     if (state.substate !== "1C") return false;
     const hasAReason = state.issues.some(
       (issue) => issue.code !== "SHAPE_NOT_BUILDABLE",
@@ -855,8 +890,8 @@ describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7
     expect(new Set(WITNESSES.map(([code]) => code))).toEqual(
       new Set(Object.keys(ROOM_ISSUE_MESSAGE_KEYS)),
     );
-    for (const [code, query] of WITNESSES) {
-      expect(issueCodesOf(query), code).toContain(code);
+    for (const [code, query, policy] of WITNESSES) {
+      expect(issueCodesOf(query, policy), code).toContain(code);
     }
   });
 
@@ -864,13 +899,13 @@ describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7
   // absence, which held while every straight room was refused. `WALL_TOO_SHORT`'s witness (wall A
   // 3600, height 2500, wall B too short) is the one case among these where it now shows.
   it.each(WITNESSES)(
-    "matches the real gate at 1C for %s under the approved policy",
-    (code, query) => {
-      render(query);
+    "matches the real gate at 1C for %s under the policy that witnesses it",
+    (code, query, policy) => {
+      render(query, { policy });
 
       expect(maybeAt("room-presets-after-valid")).not.toBe(null);
       expect(maybeAt(LINEAR_SUGGESTION) !== null, code).toBe(
-        expectedSuggestionFor(query),
+        expectedSuggestionFor(query, policy),
       );
     },
   );
@@ -887,7 +922,7 @@ describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7
 
 describe("1C with the refusal removes nothing (7F2 criterion 12)", () => {
   it("keeps the three chips and the corner toggle beside the refusal, and both still work", () => {
-    render(FILLED.U);
+    render(FILLED.U, { policy: POLICY_WITHOUT_U });
     expect(isRefusalShown()).toBe(true);
     expect(everyChipControl()).toHaveLength(3);
     // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): the U itself draws no toggle, so the toggle is

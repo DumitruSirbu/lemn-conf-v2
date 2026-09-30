@@ -69,7 +69,7 @@ import {
 
 import roMessages from "../../src/messages/ro.json";
 import { requireLeafAt } from "../support/catalogues";
-import { approvedUWallBoundsStandIn } from "../support/fabricated-u-policy";
+import { policyWithoutU } from "../support/policy-without-u";
 
 const EVERY_LENGTH_FIELD: readonly RoomLengthField[] = [
   "wallA",
@@ -577,9 +577,13 @@ describe("the parse of the draft is never older than the draft (parse-once refac
 
 describe("a chip or the corner never starts a burst", () => {
   it("shows the refused shape's note at once when a chip is chosen outside any burst", () => {
-    // A filled U is refused for its shape alone. Back to L (valid), then U again with no keystroke
+    // Under a policy that states no U (census W9: the approved policy refuses no shape since M7B U6),
+    // a filled U is refused for its shape alone. Back to L (valid), then U again with no keystroke
     // anywhere: nothing is being typed, so 1C shows as soon as the chip is chosen.
-    render("shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left");
+    render(
+      "shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left",
+      policyWithoutU(),
+    );
     expect(isNoteShown()).toBe(true);
     click("room-shape-chip-control-L");
     expect(isNoteShown()).toBe(false);
@@ -831,22 +835,11 @@ describe("edits that are not a digit keep to the one clock", () => {
 // The one clock, over sequences — including a fabricated policy
 // ---------------------------------------------------------------------------------------------
 
-/** ADR 0116's R8 fabricated policy: the approved one, also stating `shape` with L-derived bounds.
- *  Only U is left to fabricate this way — linear's own real bounds are the approved policy's since
- *  7J S5, so stating it again here would just restate what "approved" already covers. */
-function policyAlsoStating(shape: "U"): RoomPolicy {
-  return {
-    ...APPROVED_ROOM_POLICY,
-    buildableShapes: {
-      ...APPROVED_ROOM_POLICY.buildableShapes,
-      [shape]: approvedUWallBoundsStandIn(),
-    },
-  };
-}
-
+/** ADR 0116's R8 fabricated policy: the approved one with no U, which since M7B U6 is the only way
+ *  to give the sequences a shape the policy refuses. */
 const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
   ["approved", APPROVED_ROOM_POLICY],
-  ["also stating U", policyAlsoStating("U")],
+  ["stating no U", policyWithoutU()],
 ];
 
 /** Texts that cross every reading a field has: empty, unreadable, each too-short prefix of a valid

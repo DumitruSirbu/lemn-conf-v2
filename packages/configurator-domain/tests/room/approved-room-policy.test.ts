@@ -25,13 +25,16 @@ import {
   type DesignRoom,
   type LRoomInput,
   type MillimetreBounds,
+  type RoomInput,
   type RoomPolicy,
+  type URoomInput,
 } from "../../src/index.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import {
   lInputFromRoom,
   linearWallBoundsOf,
   lWallBoundsOf,
+  uWallBoundsOf,
   validateRoom,
 } from "../support/room-input.js";
 
@@ -101,6 +104,22 @@ const POLICY_FIELDS: readonly PolicyField[] = [
       };
     },
   },
+  // M7B U6 S1, ADR 0108 H1-H4: the U's three walls, guarded like the L's and the straight wall.
+  ...(["wallA", "wallB", "wallC"] as const).map(
+    (wall): PolicyField => ({
+      name: `U ${wall}`,
+      boundsOf: (policy) => uWallBoundsOf(policy)[wall],
+      withMaximum: (policy, maxMm) => {
+        const walls = uWallBoundsOf(policy);
+        return {
+          ...policy,
+          buildableShapes: {
+            U: { ...walls, [wall]: { ...walls[wall], maxMm } },
+          },
+        };
+      },
+    }),
+  ),
 ];
 
 const NAMED_POLICY_FIELDS = POLICY_FIELDS.map(
@@ -196,14 +215,71 @@ describe("APPROVED_ROOM_POLICY — the owner's ruling", () => {
   });
 });
 
+// M7B U6 S1, ADR 0108 H1-H4 (owner, 2026-09-29; RQ1 answered 2700; RQ8 answered refuse): the U's
+// bounds, pinned as literals here so an edit to the approved data is a deliberate, visible change.
+describe("APPROVED_ROOM_POLICY — the U's approved bounds (ADR 0108 H)", () => {
+  it("pins wall A at 2700-6000 and walls B and C at 1000-6000", () => {
+    const walls = uWallBoundsOf(APPROVED_ROOM_POLICY);
+
+    expect({
+      wallA: walls.wallA,
+      wallB: walls.wallB,
+      wallC: walls.wallC,
+    }).toStrictEqual({
+      wallA: { minMm: 2700, maxMm: 6000 },
+      wallB: { minMm: 1000, maxMm: 6000 },
+      wallC: { minMm: 1000, maxMm: 6000 },
+    });
+  });
+
+  it("pins the minimum kitchen as required, with 600 mm bodies and reaches of 1800 and 1000", () => {
+    expect(uWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen).toStrictEqual({
+      isRequired: true,
+      sinkWidthMm: 600,
+      hobWidthMm: 600,
+      cornerReachMm: { wallA: 1800, sideWall: 1000 },
+    });
+  });
+
+  // The engine's own flag is false, so copying the engine's shape without flipping it would admit
+  // rooms the generator refuses with MINIMUM_NOT_MET (U5 logic finding 6).
+  it("requires the coupled rule where the engine's own U leaves it off", () => {
+    expect(uWallBoundsOf(ENGINE_ROOM_LIMITS).minimumKitchen.isRequired).toBe(
+      false,
+    );
+    expect(uWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen.isRequired).toBe(
+      true,
+    );
+  });
+});
+
+describe("APPROVED_ROOM_POLICY — one maximum for every wall of every shape (ADR 0108 Amendment G)", () => {
+  it("states the same 6000 mm ceiling on the L's, the U's and the straight wall", () => {
+    const l = lWallBoundsOf(APPROVED_ROOM_POLICY);
+    const u = uWallBoundsOf(APPROVED_ROOM_POLICY);
+    const linear = linearWallBoundsOf(APPROVED_ROOM_POLICY);
+
+    const everyWallMaximumMm = [
+      l.wallA.maxMm,
+      l.wallB.maxMm,
+      u.wallA.maxMm,
+      u.wallB.maxMm,
+      u.wallC.maxMm,
+      linear.wallA.maxMm,
+    ];
+
+    expect(new Set(everyWallMaximumMm)).toEqual(new Set([RULED_WALL_MAX_MM]));
+  });
+});
+
 describe("APPROVED_ROOM_POLICY — held inside the engine's limits", () => {
-  // 7J S5: the straight kitchen joins the L (ADR 0108 Amendment G); a U stays engine-only until its
-  // own wave, so the guard's "every approved shape is one the engine can build" still has content.
-  it("builds the L and the straight kitchen — only shapes the engine can build", () => {
+  // 7J S5: the straight kitchen joins the L (ADR 0108 Amendment G); M7B U6 S1 (census D2) adds the U,
+  // the last shape the engine states, so every approved shape is one the engine can build.
+  it("builds the L, the U and the straight kitchen — only shapes the engine can build", () => {
     const approvedShapes = Object.keys(APPROVED_ROOM_POLICY.buildableShapes);
     const engineShapes = Object.keys(ENGINE_ROOM_LIMITS.buildableShapes);
 
-    expect(approvedShapes).toEqual(["L", "linear"]);
+    expect([...approvedShapes].sort()).toEqual(["L", "U", "linear"]);
     expect(approvedShapes.every((shape) => engineShapes.includes(shape))).toBe(
       true,
     );
@@ -236,6 +312,20 @@ describe("APPROVED_ROOM_POLICY — held inside the engine's limits", () => {
       }).toThrow(`to be less than or equal to ${String(ceilingMm)}`);
     },
   );
+
+  it("keeps every approved U generated-minimum figure at or above the engine's derivation", () => {
+    const approved = uWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen;
+    const engine = uWallBoundsOf(ENGINE_ROOM_LIMITS).minimumKitchen;
+
+    expect(approved.sinkWidthMm).toBeGreaterThanOrEqual(engine.sinkWidthMm);
+    expect(approved.hobWidthMm).toBeGreaterThanOrEqual(engine.hobWidthMm);
+    expect(approved.cornerReachMm.wallA).toBeGreaterThanOrEqual(
+      engine.cornerReachMm.wallA,
+    );
+    expect(approved.cornerReachMm.sideWall).toBeGreaterThanOrEqual(
+      engine.cornerReachMm.sideWall,
+    );
+  });
 
   it("keeps every approved generated-minimum figure at or above the engine's derivation", () => {
     const approved = lWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen;
@@ -401,7 +491,11 @@ describe("APPROVED_ROOM_POLICY — the ruled margin above the engine's floor (7D
 
 /** The approved rectangle's eight corners, each drawn as a room input, so the property below always
  *  reaches the extremes the policy states rather than hoping a random draw lands on them. */
-function approvedCornerInputs(): LRoomInput[] {
+function approvedCornerInputs(): RoomInput[] {
+  return [...approvedLCornerInputs(), ...approvedUCornerInputs()];
+}
+
+function approvedLCornerInputs(): LRoomInput[] {
   const walls = lWallBoundsOf(APPROVED_ROOM_POLICY);
   const height = APPROVED_ROOM_POLICY.heightBounds;
   return [walls.wallA.minMm, walls.wallA.maxMm].flatMap((wallAMm) =>
@@ -417,7 +511,32 @@ function approvedCornerInputs(): LRoomInput[] {
   );
 }
 
-function approvedRoomInput(): fc.Arbitrary<LRoomInput> {
+/** The U's sixteen corners (two heights on each of A, B and C at min and max). */
+function approvedUCornerInputs(): URoomInput[] {
+  const walls = uWallBoundsOf(APPROVED_ROOM_POLICY);
+  const height = APPROVED_ROOM_POLICY.heightBounds;
+  const ends = (bounds: MillimetreBounds) => [bounds.minMm, bounds.maxMm];
+  return ends(walls.wallA).flatMap((wallAMm) =>
+    ends(walls.wallB).flatMap((wallBMm) =>
+      ends(walls.wallC).flatMap((wallCMm) =>
+        ends(height).map((heightMm) => ({
+          shape: "U" as const,
+          wallAMm,
+          wallBMm,
+          wallCMm,
+          heightMm,
+          cornerDirection: "left" as const,
+        })),
+      ),
+    ),
+  );
+}
+
+function approvedRoomInput(): fc.Arbitrary<RoomInput> {
+  return fc.oneof(approvedLRoomInput(), approvedURoomInput());
+}
+
+function approvedLRoomInput(): fc.Arbitrary<LRoomInput> {
   const walls = lWallBoundsOf(APPROVED_ROOM_POLICY);
   const height = APPROVED_ROOM_POLICY.heightBounds;
   return fc.record({
@@ -425,6 +544,23 @@ function approvedRoomInput(): fc.Arbitrary<LRoomInput> {
     wallAMm: fc.integer({ min: walls.wallA.minMm, max: walls.wallA.maxMm }),
     wallBMm: fc.integer({ min: walls.wallB.minMm, max: walls.wallB.maxMm }),
     heightMm: fc.integer({ min: height.minMm, max: height.maxMm }),
+    cornerDirection: fc.constant("left" as const),
+  });
+}
+
+/** The U's approved rectangle. Some draws fall under the minimum kitchen and are refused; the property
+ *  reads only the rooms the policy accepts. */
+function approvedURoomInput(): fc.Arbitrary<URoomInput> {
+  const walls = uWallBoundsOf(APPROVED_ROOM_POLICY);
+  const height = APPROVED_ROOM_POLICY.heightBounds;
+  const within = (bounds: MillimetreBounds) =>
+    fc.integer({ min: bounds.minMm, max: bounds.maxMm });
+  return fc.record({
+    shape: fc.constant("U" as const),
+    wallAMm: within(walls.wallA),
+    wallBMm: within(walls.wallB),
+    wallCMm: within(walls.wallC),
+    heightMm: within(height),
     cornerDirection: fc.constant("left" as const),
   });
 }
@@ -448,6 +584,8 @@ describe("APPROVED_ROOM_POLICY — a room it accepts is a room a design can stor
     let acceptedCount = 0;
     let acceptedPastTheOldBoundOnWallB = 0;
     let acceptedPastTheOldBoundOnWallA = 0;
+    let acceptedUCount = 0;
+    let acceptedUPastTheOldBoundOnWallC = 0;
     fc.assert(
       fc.property(approvedRoomInput(), (input) => {
         const result = validateRoom(input, APPROVED_ROOM_POLICY);
@@ -458,6 +596,13 @@ describe("APPROVED_ROOM_POLICY — a room it accepts is a room a design can stor
         }
         if (result.room.widthMm > OLD_DEPTH_WIRE_BOUND_MM) {
           acceptedPastTheOldBoundOnWallA += 1;
+        }
+        if (result.room.shape === "U") {
+          acceptedUCount += 1;
+          const { wallCMm } = result.room;
+          if (wallCMm !== undefined && wallCMm > OLD_DEPTH_WIRE_BOUND_MM) {
+            acceptedUPastTheOldBoundOnWallC += 1;
+          }
         }
 
         expect(storageRefusalsOf(result.room)).toEqual([]);
@@ -471,6 +616,9 @@ describe("APPROVED_ROOM_POLICY — a room it accepts is a room a design can stor
     expect(acceptedCount).toBeGreaterThan(0);
     expect(acceptedPastTheOldBoundOnWallB).toBeGreaterThanOrEqual(1);
     expect(acceptedPastTheOldBoundOnWallA).toBeGreaterThanOrEqual(1);
+    // M7B U6 S1: the U's rooms are drawn too, wall C's own band past the old bound included.
+    expect(acceptedUCount).toBeGreaterThan(0);
+    expect(acceptedUPastTheOldBoundOnWallC).toBeGreaterThanOrEqual(1);
   });
 });
 

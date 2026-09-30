@@ -638,7 +638,9 @@ describe("AC5 — validateRoomInput under a witness policy stating a U", () => {
     },
   );
 
-  it("still refuses a U under the approved policy, whatever its dimensions", () => {
+  // Restated at M7B U6 S1 (census D1): the approved policy states the U (ADR 0108 H4), so this room is
+  // judged and accepted rather than refused as its shape alone.
+  it("accepts a U under the approved policy, judged field by field", () => {
     expect(
       validateRoomInput(
         {
@@ -651,8 +653,14 @@ describe("AC5 — validateRoomInput under a witness policy stating a U", () => {
         APPROVED_ROOM_POLICY,
       ),
     ).toEqual({
-      ok: false,
-      issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+      ok: true,
+      room: {
+        shape: "U",
+        widthMm: 3000,
+        depthMm: 2000,
+        wallCMm: 2500,
+        heightMm: 2600,
+      },
     });
   });
 });
