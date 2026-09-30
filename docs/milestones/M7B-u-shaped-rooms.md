@@ -373,7 +373,7 @@ test or a capture in U4.
 | **U4** — **Done 2026-09-29, closed at `7f129fa`** (see *U4 close-out*; AC2, AC4 [visual], AC5 and the D14 light rig deferred to U5 AC9–AC11) | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** — **Done 2026-09-30, closed at `8a30dbb`** (S0 `664eee6`, S1 merge `739f9e2`, S2 merge `2001c55`, QA `0166e7a`, QA fixes merge `93e2a2b`, review fixes merge `8a30dbb`; see *U5 close-out*) | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
 | **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
-| **U7** | Mobile gate, desktop line, e2e, captures — the phase gate | Light | **Yes** | U6 | — |
+| **U7** — **re-planned 2026-09-30** (see *U7 — the plan*) | Mobile gate, desktop line, e2e, captures — the phase gate | Light (S1–S3); S4 coordinator-only | **Yes** | U6 (QA and review closed) | Q-U7-1, Q-U7-2 (non-blocking); Q-U7-3 (blocks S4 (2) only) |
 
 Order **U0 → U1 → U2 → {U3 ∥ U4} → U5 → U6 → U7**. **2026-09-29: U3 is U3a → U3b, so the order is
 U0 → U1 → U2 → {U3a → U3b ∥ U4} → U5 → U6 → U7.** U3 (domain) and U4 (adapter) touch disjoint
@@ -1725,6 +1725,237 @@ land a U on 1D where it landed on 1C). Any of these may go red in the first e2e 
 ### Wave U7 — the mobile gate, the desktop line, captures (the phase gate)
 
 **Goal.** Prove the whole U path on a phone first (the gate), then on desktop, with captures.
+
+> **Re-planned 2026-09-30 by the architect, at `45b3a61` (U6 S1 merged; U6's QA still running).** The
+> plan in *U7 — the plan (2026-09-30)* below replaces the slice table and the criteria under
+> *Superseded U7 plan (kept as the record)*. Every dated line that pointed at U7 is carried into the
+> new criteria, and each one is cited where it lands.
+
+### U7 — the plan (2026-09-30)
+
+**What "the gate" is, in one sentence.** It is 7K's pattern, taken from the archived M7 plan's *Wave
+7K* D3 and D4 as a pattern only: **the U journeys earlier waves wrote, inherited unchanged, plus one
+new touch-driven spec and its desktop twin that close the gaps they leave, plus a capture pass on a
+production build.** It is not a rewrite of any of them.
+
+**This is a test-writing and capture wave.** No production file changes. A defect U7 finds goes back
+to the wave that owns the surface, under that wave's tier. It is not fixed here.
+
+- **Tier: Light** for S1–S3: adversarial QA, then one combined reviewer.
+- **Visual: yes, the phase gate.** A visual reviewer walks the capture list on a production build.
+- **S4 is coordinator-only** (docs and git), except for S4 (3), the ADR the architect writes.
+
+#### U7-G — ground truth
+
+Tiers: **[src]** read in the tree at `45b3a61`; **[doc]** quoted from a record; **[git]** from a git
+command run for this plan; **[inf]** inference, owed a measurement. No suite was run for this plan.
+
+| # | Fact | Tier |
+| --- | --- | --- |
+| G1 | **The inherited U journeys.** `u-flow.e2e.spec.ts` and `u-flow.desktop.e2e.spec.ts` share `support/u-flow.ts`. They drive 1A → the U card → 1B → 1D → 1F → the editor at 4500/3000/3600, and cover the reload at the room query and at `/d/{id}`, the four camera chips, and the back link. **They click, they never tap** (the 1D reload and the back link are read, then followed). They were written by U6 S1 to AC2's dated line (*"an e2e walks 1A→1D→1F for a U once the approved policy carries it (U6 or U7)"*). `qa-u5-cutaway.adversarial{,.desktop}.e2e.spec.ts` (with `support/qa-u5-cutaway.ts` and `u-cutaway-scene.ts`) and U5's QA e2e run through a U seeded by `PUT` (`support/u-design.ts`), not through Step 1 | [src] |
+| G2 | **The touch helpers exist.** `support/step-one-by-touch.ts` (a `test` fixture, `typeDigits`, `readStoredDesign`, `recordPageErrors`, `findBaseRowTapTarget`); `support/canvas-taps.ts` (`tapCanvas`); `support/u-cutaway-scene.ts` (`tapScene`, `selectedId`, `chooseCabinetDepth`); `support/seeded-design.ts` (`issueShareLink`, `openSharedDesign`). `mobile-gate.e2e.spec.ts` has 18 `.tap(` calls | [src] |
+| G3 | **Full e2e at U6 S1's merge: 537 passed, 2 skipped, 0 failed** (the coordinator's dispatch; not re-run here). CI's e2e job is split by Playwright project, `mobile` and `desktop` (ADR 0105), with **`timeout-minutes: 45` per leg** (`ci.yml:265`). CI runs on pull requests to `main`, pushes to `main` and manual `workflow_dispatch` (`ci.yml:10-18`). **The e2e job is skipped on pull requests** (`ci.yml:289`, `if: github.event_name != 'pull_request'`), so a PR's checks never include it. A branch gets runner e2e only by a manual dispatch. The coordinator's token was refused that with HTTP 403, and the owner agreed on 2026-09-17 to trigger it by hand from the Actions tab (STATUS, *CI*). **No runner run of the e2e job is recorded for M7 or M7B.** `main`'s last recorded run (`34580253814`, `995ad03`) failed on `e2e (desktop)` (STATUS). The last runner figures, in `ci.yml`'s own comment, are 28.6 minutes (mobile) and 19.4 (desktop), for a smaller suite | [doc] + [src] |
+| G4 | **M7 is not on `main`.** `git merge-base --is-ancestor 5fbcad7 origin/main` is false. `origin/main` is at `995ad03` (M6B's merge, PR #8). `origin/m7-room-and-presets` (`8e7b59f`) **is an ancestor of** `origin/m7b-u-shaped-rooms`. So a pull request from M7B into `main` carries all of M7 unless M7's merges first. `gh pr list` answered `HTTP 401: Bad credentials`, so **whether M7's PR exists is not known** | [git] |
+| G5 | **The smallest accepted U** (U5 logic finding 6, U6 AC2's dated line, checked against ADR 0108 H3): 2700/1000/1000 is refused (`ROOM_TOO_SMALL_FOR_KITCHEN`); **3000/1000/1000 and 2700/1600/1600 are accepted**. H3's predicate has two minimal corners: the shortest wall A (2700 with side walls ≥ 1600) and the shortest side walls (1000 with A ≥ 3000) | [doc] |
+| G6 | **U5's visual review did not verify** (the coordinator's list): the editor's byte-identical control for L and straight; a production build; AC10's other two rooms (the engine minimum and 2700/1600/1600); a single-door wall-C cabinet's hinge side; real touch targets. U5 AC7 was proved for Step 1 only (18 screenshots pixel-identical to `dd9f63a`); the editor was compared by inspection | [doc] |
+| G7 | **The capture route renders its own stage**, not a customer's design. `/internal/scene-shot` takes `view=wallC` since U5 (`shot-request.ts:36-45`), but it frames the room the stage holds. **So U captures go through the editor at `/d/{id}` on a design composed through Step 1**, as 7I's and 7J's captures did (`support/qa-7i-captures.ts`, `qa-7j-straight-captures.ts`) | [src] |
+| G8 | **Backlog 98:** a reload of `/d/{id}` renders the seeded L (3 chips) before the loaded design, for about 130 ms in dev, for every non-L design. It pre-dates M7B. `u-flow.ts` already waits for four chips through a retrying assertion for this reason (`expectCameraPresetButtons`). There is also a latent cross-request store write on the server | [doc] + [src] |
+| G9 | **Backlog 96, 97, 99, 100** (`docs/backlog/open.md:1952-2000`). 96: the engine's minimum-kitchen figures omit the 100 mm reserve; U6 brought the approved figure. 97: generation throws below 2200 mm; unreachable under approved heights. 99: plan-preview label fit, three known limits. 100: six orphan rows in the test database; the owner decides | [doc] |
+| G10 | **The refusal region is dead in the shipped product** (U6 S0, flag 2). `room-shape-refusal` and `room.issue.shapeNotBuildable` draw only under a fabricated policy. Removing them moves the copy lock and the golden manifest (ADR 0113) | [doc] |
+| G11 | **"No new 1C suggestion for a U" lives only in this plan** (*Owner questions*, *Not asked, recorded instead*). U6 S0's W23 kept the straight-room suggestion's shape-independent gate: a U whose A is under 2700, but which validates as a straight room, is told *"a straight kitchen would fit"*. No ADR records this | [src] |
+
+#### U7-D — decisions *(the architect, 2026-09-30)*
+
+- **D1 — "The smallest accepted U" is both of H3's minimal corners, 2700/1600/1600 and
+  3000/1000/1000** (G5). Either alone would leave the other corner's geometry uncaptured: the
+  narrowest walkway, or the fridge dropped with bare side walls.
+- **D2 — The engine minimum leaves the visual list** (G6, AC10's other room). Under the approved
+  policy no customer reaches it (A < 2700 is refused). Its framing is proved by U4 AC4 (c) and (d) at
+  unit level, which stay. **Rejected:** seeding it through `PUT` for a capture. It would be a picture
+  of a room the product never shows.
+- **D3 — Inherit, do not rewrite** (7K D3's rule). `u-flow*`, `qa-u5-cutaway*` and U5's `PUT`-seeded
+  specs are unchanged. **Rejected:** converting `u-flow`'s `.click()` to `.tap()`. A click journey
+  beside a touch journey is itself coverage, since ADR 0023 found the two differ in this product.
+- **D4 — One new journey, two specs, one support module.** `u-gate.e2e.spec.ts` (mobile, by touch)
+  and `u-gate.desktop.e2e.spec.ts` (desktop, by click) both run `support/u-gate.ts`, the pattern of
+  `u-flow` and `linear-flow`. The journey reuses G2's helpers **by import and never by copy**.
+- **D5 — Backlog 98 is measured, not gated, in U7.** The gate asserts the restored end state, with
+  four chips, the same design id and the same stored document. It also **reports** how long the L
+  state is visible on each reload. Its fix is not U7's: it is pre-existing and crosses shapes. Its
+  owner is **Q-U7-1**.
+- **D6 — Backlog 99 is probed, not fixed, in U7.** The capture list includes the Russian 1C of a U
+  with marked walls at 390 × 844. If an overflow shows in the product, the visual reviewer **stops
+  and reports**. The remedy is a copy or layout decision for the owner, and U7 does not choose it.
+- **D7 — The security reviewer's notes are backlog candidates, not U7 work.** The js-yaml and
+  vitest advisories are dev-only and ship nothing. Node's own bundled undici is a runtime version
+  (Vercel and CI), not a dependency this repository pins; `565dd54` already pins the one it does, under
+  `@vercel/blob`. The scribe files them at S4, owned by the pre-launch security pass (STATUS,
+  *Pre-launch, after M7*).
+
+#### U7 slices
+
+**Order:** U6 closed (QA and review) → S1 → S2 → S3 → S4. S1 and S2 may run in one dispatch if the
+shared support module lands first. **S3 needs the tree frozen for the whole capture run**
+(`browser-and-visual-qa.md`, *The tree a verifier measures must not move under it*): no QA, no
+implementer and no scribe writes to it while S3 runs.
+
+| Slice | Must-fix items (≤ 5) | Files | Reading |
+| --- | --- | --- | --- |
+| **S1 — the mobile gate, by touch** | (1) **Step 1 by touch.** 1A → *În formă de U* → 1B. Three fields, no corner toggle. Type **2700/1000/1000** and reach **1C** with the room-level reason (`ROOM_TOO_SMALL_FOR_KITCHEN`), no digit in any reason. Correct wall B and wall C to **1600** by erasing and typing, and reach **1D**; then *Continuă* → 1F → the editor at `/d/{id}`. The step pill reads 1 of 4, then 2. **No pathname between 1D and 1F** (`recordCommittedPathnames`). (2) **The chip row.** Four camera chips, each ≥ 44 × 44 CSS px, with no horizontal overflow at 390. The `wallC` chip frames wall C. (3) **Wall-C edits by touch**, in a middle U composed through Step 1 (4500/3000/3600), from the `wallC` preset: tap a wall-C base, and the readout's selection is that body. Replace it (the panel's swap list): the same id, the new build id. Delete it: the freed opening is a void. Tap that void and insert a base. Step its width once. Change the cabinet depth 600 → 700: every wall-C body's back face stays on wall C's plane, and wall C's run starts where the corner rule puts it at 700 (read from the scene readout). (4) **The large U (RQ7).** Compose **6000/6000/6000** through Step 1: wall A carries a hood and no generated upper. Tap wall A's wall-row void above a base and insert a `wall-cabinet`: accepted. (5) **Persistence and the share view.** Reload at the room query (1D, same fields) and at `/d/{id}`: after the reload, `readStoredDesign` equals the stored document before it, and the chips are 4. **Report** each reload's L-flash duration (D5). Issue a share link: `/s/{token}` draws the same bodies (the scene readout's ids and build ids equal the editor's) with 4 chips. **Every minted row is deleted in `afterAll`, and the run reports minted = deleted** | new `apps/web/tests/e2e/u-gate.e2e.spec.ts`, `support/u-gate.ts`; no production file | this slice's AC1 and AC5; G1, G2, G5, G8; `mobile-gate.e2e.spec.ts` and `step-one-by-touch.ts` as the pattern; `u-flow.ts`; `u-cutaway-scene.ts`; ADR 0023; ADR 0006 (row cleanup); ADR 0132 A2 and A8 (the cutaway from `wallC`); ADR 0110 *N3 revised* 11 (RQ7) |
+| **S2 — the desktop line** | (1) `u-gate.desktop.e2e.spec.ts` runs S1's journey at 1440 × 900 through **D1B, D1C, D1F**. D1C shows the room reason for 2700/1000/1000 and the desktop suggestion rules exactly as the phone does. D1F's static plan aside draws three walls. (2) Every S1 assertion except touch-specific ones (items 1–5, by click). (3) **The phone is untouched by it:** S1's run and S3's phone frames are taken at the same commit before and after S2 lands, and are identical. (4) **ADR 0105's budget:** the local minutes each leg adds are reported, and a leg projected past 40 of its 45 minutes is flagged for S4 (6) before it reaches a runner | new `u-gate.desktop.e2e.spec.ts` | AC2, AC6; `room-desktop-line.desktop.e2e.spec.ts` (7L's pattern); ADR 0104 B, C; ADR 0105 |
+| **S3 — captures and the visual pass** (the tree frozen) | (1) **A production build** (`pnpm --filter @lemnaria/web build`, then `next start`). **Evidence is written outside the repository**, and the console is read for every frame (`browser-and-visual-qa.md`, the trap). (2) **The capture matrix** below: the core rooms at every preset and both viewports, and the targeted frames, each with the checklist verdict. (3) **The byte-identical control for L and straight**, in the editor, against `dd9f63a` (G6; 7L S6's method): the same frames at both commits, compared pixel for pixel. Any differing pixel is a finding, explained or sent back. (4) **Real touch targets**: the reviewer confirms S1's 44 px measures on the rendered page, at 390 × 844, in both locales. (5) **Backlog 99 probe (D6):** the Russian 1C of a U with marked walls, at 390 × 844. If it overflows, stop and report | captures outside the repo; a capture spec only if QA writes one (`qa-u7-*`) | AC3, AC4; the capture list; *The 3D contract for a U*; ADR 0132 A, A8, B; ADR 0110 N11.8–N11.9; the 7H, 7I, 7J and U5 close-outs' *not a bug* lists; `browser-and-visual-qa.md` whole |
+| **S4 — the phase close** (coordinator-only, and the architect for (3)) | (1) **Gates.** Whole-tree `pnpm format:check` last, then `pnpm ci:local` green on a clean tree. Push. (2) **Runner evidence and the pull request.** The `ci` workflow is dispatched by hand on `m7b-u-shaped-rooms` from the Actions tab, **by the owner** (G3), and every job goes green, both e2e legs included. Then the pull request into `main` on GitHub, in the order Q-U7-3 decides, with its PR checks green. The PR's checks do not include e2e, which is why the dispatch comes first (G3, G4). (3) **Durable reasoning.** The architect writes the dated ADR for G11: "a U gets no 1C suggestion of its own; the straight-room suggestion keeps its shape-independent gate", as ADR 0116 Amendment B or ADR 0108 I, whichever the sweep finds holds the suggestion rule. It checks that every rule this plan alone states is in an ADR. (4) **The milestone close-out** here: shipped, verification, deviations, deferrals with owners. Then STATUS: M7B → **Done**, *What is open right now* and *What to do next* rewritten to point at M8. (5) **The archive** (`WORKFLOW.md` step 7): `git mv` this plan to `docs/milestones/done/` with the stop-reading banner. Add a row in `done/README.md` naming the live knowledge: ADR 0108 H, ADR 0110 N (N1–N11.9), ADR 0129, ADR 0132 (A, A8, B), ADR 0116 A, ADR 0104 C. The scribe updates backlog: 96 (U6 landed the approved figure; the engine gate stays off), 98 and 100 (per Q-U7-1 and Q-U7-2), 99 (S3's probe result), and D7's security candidates. Scratch artefacts are removed | docs; git; GitHub | `WORKFLOW.md` step 7 and *A milestone's branch is kept, pushed, and merged on GitHub*; `documentation.md`; `ci-and-local-gates.md`; this plan's close-outs |
+
+**Reading lines.**
+
+- **QA (S1, S2):** this section; the specs and `support/u-gate.ts`; G1–G5; ADR 0105;
+  `browser-and-visual-qa.md`; skill `javascript-testing-expert` for the reload loop's bound.
+- **Combined reviewer (S1, S2):** the specs; `browser-and-visual-qa.md`; `engineering-conventions.md`;
+  D3 and D4.
+- **Visual reviewer (S3):** the capture list and its checklist; *The 3D contract for a U*; ADR 0132 A,
+  A8 and B; ADR 0110 N11.8–N11.9; the 7H, 7I, 7J and U5 *not a bug* lists; `browser-and-visual-qa.md`
+  whole.
+
+#### U7 capture list *(S3; both viewports unless a row says otherwise; `ro` unless it says `ru`)*
+
+Viewports: **390 × 844** (the gate; the `mobile` project's device, touch) and **1440 × 900** (the
+line). Every frame is taken in the editor on a design composed **through Step 1** (G7), on a
+production build, with evidence written outside the repository.
+
+**Core matrix — 4 rooms × 4 presets × 2 viewports = 32 frames.**
+
+| Room | Why | Presets |
+| --- | --- | --- |
+| **R1 2700/1600/1600, h 2600** | The smallest accepted U by wall A (D1): the narrowest walkway. The fridge is on B (a tie) | `overview`, `wallA`, `wallB`, `wallC` |
+| **R2 3000/1000/1000, h 2600** | The smallest accepted U by side walls (D1): the fridge dropped, and the side walls bare or door-filled (N9.2) | the same |
+| **R3 4500/3000/3600, h 2600** | The middle U, the one `u-flow` composes. The fridge is on C, so wall A reads from the right corner (N11.8) | the same |
+| **R4 6000/6000/6000, h 3900** | The maximum, and a large U: wall A base-only with its hood (RQ7), and the tallest room | the same |
+
+**The checklist for every core frame:**
+
+- wall C's plane is present;
+- fronts face the room;
+- no corner piece floats;
+- the right corner reads as the left's mirror;
+- nothing is drawn past a wall's end;
+- the top row is visible from each wall's own preset, and vertically from the overview (U4 AC4);
+- from a side preset, the opposite run is cut away wherever A2 and A8.1 cut it, and nothing drawn
+  stands between the eye and the subject;
+- the overview faces every run's fronts (ADR 0132 A3);
+- a hood stands over every hob;
+- R4 has no upper on wall A;
+- the console shows no page error.
+
+**Targeted frames — 31.**
+
+| # | Frame | Viewports | What it proves |
+| --- | --- | --- | --- |
+| T1 | **2700/1600/1700**, `wallA` | both (2) | The fridge on C: the sink at A's left run, and **a one-door 300 mm `base-cabinet` between the sink and the right corner, with no bare gap** (N11.8, N11.9) |
+| T2 | **R3, a single-door (300–499) base on wall C beside its wall-B twin**, `wallC` and `wallB` | both (4) | Wall C's hinge and handle sides are its own, not wall B's reflected (Q-U5; G6) |
+| T3 | **R3, the selection outline** on a wall-C body and on the right X-leg, `wallC` | 390 (2) | 7I's 0-pixel class on the only −1 bodies, now through the real flow (R3) |
+| T4 | **R4, a `wall-cabinet` inserted above a base on wall A**, `wallA` | both (2) | RQ7: the void accepts an upper, and it sits flush |
+| T5 | **R3 after depth 600 → 700**, `wallC` | both (2) | Wall C slides, backs stay on the plane, and the right corner re-seats |
+| T6 | **Step 1 for a U:** 1B (three fields, no toggle), 1C for 2700/1000/1000, 1D, and 1F; on desktop D1B, D1C, D1F | 390 in `ro` and `ru` (8); desktop in `ro` and `ru` (6) | Labels fit; one reason per state; no digit (Q-U4 (b); ADR 0104 B) |
+| T7 | **The Russian 1C of a U with wall B and wall C marked** | 390, `ru` (1) | Backlog 99's probe (D6) |
+| T8 | **The share view `/s/{token}`** of R3, `overview` | both (2) | The same U, read-only |
+| T9 | **The four-chip row**, in `ro` and `ru` | 390 (2) | Real touch targets (G6), none clipped |
+
+**The byte-identical control — 10 frame pairs** (S3 (3)): an L (3700/3400/2600, the L room `stage.u-cameras.test.ts` samples)
+at `overview`, `wallA` and `wallB`, and a straight room at `overview` and `wallA`, at both viewports.
+Each is taken at `dd9f63a` and at the U7 commit and compared pixel for pixel. A difference is
+explained by a dated record or sent back.
+
+#### U7 acceptance criteria
+
+1. **The mobile gate** (S1, 390 × 844, **by touch**). Everything in S1 (1)–(5) holds, asserted
+   through retrying assertions and never a snapshot `count()` (G8). This carries the superseded AC1,
+   and U6 AC2's dated e2e line, now by touch. **Must not:** a pathname between 1D and 1F; a digit in
+   a 1C reason; a corner toggle for a U; a minted row left behind; a page error. **[e2e]**
+2. **The desktop line** (S2, 1440 × 900). The same journey through D1B, D1C and D1F, by click. The
+   phone's S1 run and phone frames are identical before and after S2 lands. **[e2e]**
+3. **The captures** (S3). Every core and targeted frame in the capture list, **inspected**, with the
+   checklist verdict per frame recorded in the close-out. The engine minimum is out, by D2. **A frame
+   that fails is a finding**, returned to the owning wave, and the phase stays open until it is
+   closed. **[visual]**
+4. **The byte-identical control** (S3 (3)). All 10 pairs are pixel-identical, or each difference is
+   explained by a dated record. **[visual] + [measured]**
+5. **Persistence hygiene.** Across S1, S2 and S3, rows minted equal rows deleted, reported from the
+   run. The six rows of backlog 100 are **not** touched (add-only; Q-U7-2). **[e2e] + [report]**
+6. **The e2e budget** (R6). Minutes added per leg are reported, and on the **dispatched** runner run
+   (S4 (2)) **each leg finishes inside `timeout-minutes: 45`**. A leg that would not is split by project or shard (ADR 0105's
+   direction), never given a raised ceiling. **[gate]**
+7. **The gates.** Whole-tree `pnpm format:check` last; `pnpm ci:local` green on a clean tree; the
+   branch pushed; the owner-dispatched `ci` run on the branch green, every job, e2e included; the
+   pull request's own checks green. **[gate]**
+8. **Must not:**
+   - a production file changed in U7;
+   - an inherited spec rewritten (D3);
+   - a test helper copied rather than imported (D4);
+   - a defect fixed inside U7 rather than in its owning wave;
+   - M7B declared closed with any criterion 1–7 unmet.
+
+   **[review]**
+
+#### What closes the phase
+
+M7B closes when U7's criteria 1–8 are met and S4 (1)–(5) are done:
+
+- gates green: the owner-dispatched runner run green, e2e included, and the PR's checks green;
+- G11 recorded in an ADR;
+- the close-out written, and STATUS saying **Done**;
+- the plan archived with its banner and its `done/README.md` row;
+- backlog updated, and scratch removed.
+
+The pull request merges into `main` **through GitHub** (`WORKFLOW.md`, owner rule 2026-09-07). The
+merge itself is the owner's click and is not a criterion. Until M7's own PR is resolved (G4, Q-U7-3),
+M7B's PR cannot be a reviewable unit of M7B alone.
+
+#### Owed before M7B can close, which no wave owned until now
+
+| Item | Owner | Where |
+| --- | --- | --- |
+| The ADR for "no new 1C suggestion for a U" (G11) | architect | S4 (3) |
+| Runner evidence for the e2e job, which has not run for M7 or M7B and never runs on a PR (G3) | **the owner** (the Actions-tab dispatch; the coordinator's token gets HTTP 403); then the coordinator reads the run | S4 (2), AC6, AC7 |
+| M7's pull request into `main`, and its order relative to M7B's (G4) | the owner (Q-U7-3); then the coordinator | S4 (2) |
+| Backlog 96's entry: U6 landed the approved figure, and the engine gate stays off | scribe | S4 (5) |
+| Backlog 98 (the reload flash) and its security side note | the owner (Q-U7-1); default M8's first wave | S4 (5) |
+| Backlog 100 (six orphan rows) | the owner (Q-U7-2) | S4 (5) |
+| The security reviewer's advisories (D7) | the pre-launch security pass, filed by the scribe | S4 (5) |
+| The dead refusal region (G10) | **Kept, not owed**: it is the refusal any future shape without bounds would draw; removing it moves the copy lock. Filed as a backlog note by the scribe | S4 (5) |
+| U6's QA and review, which are still running | coordinator | before S1 |
+
+#### Owner questions (U7)
+
+**Q-U7-1 — The reload flash (backlog 98). Non-blocking; default (A).**
+
+> *"When you reload a saved kitchen that isn't the standard L (a U, or a straight one), the page shows
+> the standard L for a split second before your kitchen appears. It has been like this since before
+> the U work, and it never changes what is saved. When should we fix it? (A) Recommended: right after
+> the U-shaped rooms are merged, as the first job of the next milestone (the review screen), which
+> works in the same part of the app. (B) Now, before the U-shaped rooms are merged. That adds a wave
+> which changes how every saved kitchen loads."*
+
+**Q-U7-2 — Six leftover test rows (backlog 100). Non-blocking; default (A).**
+
+> *"A test run left six practice kitchens in the test database. Their ids were lost, so they can only
+> be found by the time they were made. (A) Recommended: leave them. They are harmless, and a delete by
+> time window could remove something else in that shared test database. (B) Delete them, found by the
+> run's time window, after you confirm the list we show you."*
+
+**Q-U7-3 — How the M7 and M7B work reaches `main`. Blocks only S4 (2), not S1–S3; default (A).**
+
+> *"The room-screen work (M7) and the U-shaped rooms (M7B) are both still off the main branch, and
+> M7B sits on top of M7. (A) Recommended: merge M7's pull request first, then open M7B's, so each is
+> reviewed as its own piece. (B) One pull request carrying both. (C) Open M7B's pull request against
+> M7's branch now, and merge them in order."*
+
+**Q-U7-4 — An action, not a choice, needed at S4 (2).**
+
+> *"When the U work is ready to merge, please press 'Run workflow' on the `ci` workflow for the branch
+> `m7b-u-shaped-rooms`, in GitHub's Actions tab. The browser tests only run that way (a pull request
+> skips them), and our access token isn't allowed to start it."*
+
+### Superseded U7 plan (kept as the record)
 
 | Slice | Must-fix items (≤ 5) | Production files | Reading |
 | --- | --- | --- | --- |
