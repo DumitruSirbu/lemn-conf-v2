@@ -154,6 +154,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md) | The preset story is deferred past M8, and every room goes from its dimensions straight to composition | Accepted |
 | [0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) | Wall C is a world wall, and only the right corner is drawn in a reflection | Accepted |
 | [0133](0133-the-first-server-rendered-frame-is-the-loaded-design-and-no-module-store-is-written-on-the-server.md) | The first server-rendered frame is the loaded design, and no module store is written on the server | Accepted (security review owed at U7 S0) |
+| [0134](0134-a-u-gets-no-step-one-suggestion-of-its-own-and-the-straight-kitchen-suggestion-keeps-its-shape-independent-gate.md) | A U gets no Step 1 suggestion of its own, and the straight-kitchen suggestion keeps its shape-independent gate | Accepted |
 
 ## Adding the next one
 

@@ -1869,10 +1869,74 @@ implementer and no scribe writes to it while S3 runs.
 | --- | --- | --- | --- |
 | **S0 — the first frame is the loaded design (backlog 98; ADR 0133). Added 2026-09-30 on Q-U7-1's answer. Tier: Full + security review** (server state, share links; `WORKFLOW.md` step 4) **— production code, the one U7 slice that has any** | (1) **The snapshot provider.** A new `src/store/configurator-snapshot.tsx` exports `ConfiguratorSnapshotProvider`. It builds a **per-render** store with `createConfiguratorStore` from the loaded design, with no side-effect options, and holds it in `useState`. `useConfiguratorStore(selector)` (`configurator-store.ts`) keeps its call shape: it subscribes to the browser singleton and answers the **server snapshot** from the nearest provider, falling back to the singleton's initial state. `getState`, `setState` and `subscribe` still address the singleton. **All 15 hook sites and 7 api sites are unchanged in shape** (ADR 0133 d3). (2) **The two hydrators.** `HydrateAndConfigure` and `SharedDesignView` wrap `ConfigureScreen` in the provider, with `canWrite` `"checking"` and `false` respectively. They write the singleton **only in the browser**, deciding by reading the singleton itself (`getState().designId`, or `getState().design` for the share view), never through the hook (d4). The flash comment at `hydrate-and-configure.tsx:16-24` is rewritten. (3) **The server-isolation test** (a Vitest `node` test). Server-render `HydrateAndConfigure` for a U, then `SharedDesignView` for a straight design, then the reverse order. **Subscribe-and-fail on `useConfiguratorStore`, `useCameraPreset` and `useSceneMeasurement`:** any write during a server render fails the test, and each store's `getState()` is still `getInitialState()` afterwards. Each HTML carries its own design's chip count. R6: put the unguarded write back, and the test goes red. (4) **The SSR-body e2e** (raw HTML through Playwright's `request.get`, no JavaScript). `/ro/d/{id}` and `/ro/s/{token}` for an L (3700/3400), a straight room and a U (4500/3000/3600): **the camera-chip count in the HTML equals the design's (3 / 2 / 4)**, ~~and the title is the design's~~ **and (2026-09-30, ADR 0133 A2: no per-design title exists; the top bar's is static copy) the price total equals the value the browser settles on, and the session id `data-design-id` (debug flag) is the design's, or `shared-view` on `/s`**. Plus **cross-request isolation under concurrency:** 20 interleaved requests for the U and the straight design each return their own count. R6: revert (1), and the counts read 3. (5) **No flash, no regressions.** A reload of `/d/{id}` for the U and the straight design: an init-script `requestAnimationFrame` sampler records the chip count from first paint, with **zero frames at the wrong count**. The console has no hydration-mismatch error. Backlog 83's dev warning count on its two transitions does not rise. `qa-7e3c-share`, `share-design`, `u-flow*`, `linear-flow*` and `mirror-real-flow*` stay green | `src/store/configurator-store.ts`; new `src/store/configurator-snapshot.tsx`; `src/app/d/[id]/hydrate-and-configure.tsx`; `src/app/s/[token]/shared-design-view.tsx`; tests: a node server-render test, a new `ssr-first-frame.e2e.spec.ts` | **ADR 0133 (all of it)**; backlog 98 and 83; ADR 0010 d2 (the coalescer); ADR 0130 D9; ADR 0019; `configurator-store.ts:380-776`; both hydrators; `app/[locale]/d/[id]/page.tsx`, `app/[locale]/s/[token]/page.tsx`; `configure-screen-single-mount.test.ts`; zustand's `esm/react.mjs:6-10` |
 | **S0 review record (2026-09-30), at `0d462aa`, QA `3c27ad6`** | Security **PASS** (one Low); logic minor; clean-code approve. Recorded in ADR 0133 Amendment A: A1, the guard's mechanism and limits (a new module store or server-rendered tree joins `server-render-isolation.test.ts`); A2, "title" replaced by the price total and the session id; A3, the deferred-store trigger widened; A4, the snapshot store's actions are the session store's on the client and throw in dev on the server (the developer's fix); A5, a client transition builds an unread snapshot store, a known cost **S1 may measure** | the developer's fix commit (A4) | ADR 0133 A |
-| **S1 — the mobile gate, by touch** | (1) **Step 1 by touch.** 1A → *În formă de U* → 1B. Three fields, no corner toggle. Type **2700/1000/1000** and reach **1C** with the room-level reason (`ROOM_TOO_SMALL_FOR_KITCHEN`), no digit in any reason. Correct wall B and wall C to **1600** by erasing and typing, and reach **1D**; then *Continuă* → 1F → the editor at `/d/{id}`. The step pill reads 1 of 4, then 2. **No pathname between 1D and 1F** (`recordCommittedPathnames`). (2) **The chip row.** Four camera chips, each ≥ 44 × 44 CSS px, with no horizontal overflow at 390. The `wallC` chip frames wall C. (3) **Wall-C edits by touch**, in a middle U composed through Step 1 (4500/3000/3600), from the `wallC` preset: tap a wall-C base, and the readout's selection is that body. Replace it (the panel's swap list): the same id, the new build id. Delete it: the freed opening is a void. Tap that void and insert a base. Step its width once. Change the cabinet depth 600 → 700: every wall-C body's back face stays on wall C's plane, and wall C's run starts where the corner rule puts it at 700 (read from the scene readout). (4) **The large U (RQ7).** Compose **6000/6000/6000** through Step 1: wall A carries a hood and no generated upper. Tap wall A's wall-row void above a base and insert a `wall-cabinet`: accepted. (5) **Persistence and the share view.** Reload at the room query (1D, same fields) and at `/d/{id}`: after the reload, `readStoredDesign` equals the stored document before it, and the chips are 4. ~~**Report** each reload's L-flash duration (D5).~~ **Gate, after S0: zero frames at the wrong chip count on each reload (ADR 0133).** Issue a share link: `/s/{token}` draws the same bodies (the scene readout's ids and build ids equal the editor's) with 4 chips. **Every minted row is deleted in `afterAll`, and the run reports minted = deleted** | new `apps/web/tests/e2e/u-gate.e2e.spec.ts`, `support/u-gate.ts`; no production file | this slice's AC1 and AC5; G1, G2, G5, G8; `mobile-gate.e2e.spec.ts` and `step-one-by-touch.ts` as the pattern; `u-flow.ts`; `u-cutaway-scene.ts`; ADR 0023; ADR 0006 (row cleanup); ADR 0132 A2 and A8 (the cutaway from `wallC`); ADR 0110 *N3 revised* 11 (RQ7) |
+| **S1 — the mobile gate, by touch** | (1) **Step 1 by touch.** 1A → *În formă de U* → 1B. Three fields, no corner toggle. Type **2700/1000/1000** and reach **1C** with the room-level reason (`ROOM_TOO_SMALL_FOR_KITCHEN`), no digit in any reason. Correct wall B and wall C to **1600** by erasing and typing, and reach **1D**; then *Continuă* → 1F → the editor at `/d/{id}`. The step pill reads 1 of 4, then 2. **No pathname between 1D and 1F** (`recordCommittedPathnames`). (2) **The chip row.** Four camera chips, each ≥ 44 × 44 CSS px, with no horizontal overflow at 390. The `wallC` chip frames wall C. (3) **Wall-C edits by touch**, in a middle U composed through Step 1 (4500/3000/3600), from the `wallC` preset: tap a wall-C base, and the readout's selection is that body. Replace it (the panel's swap list): ~~the same id,~~ **the same slot, a fresh body id (corrected 2026-09-30: a swap re-inserts, by design, `insert-body.ts:305`, `DEVELOPMENT-SPEC.md` §5.3)**, the new build id. Delete it: the freed opening is a void. Tap that void and insert a base. Step its width once. Change the cabinet depth 600 → 700: every wall-C body's back face stays on wall C's plane, and wall C's run starts where the corner rule puts it at 700 (read from the scene readout). (4) **The large U (RQ7).** Compose **6000/6000/6000** through Step 1: wall A carries a hood and no generated upper. Tap wall A's wall-row void above a base and insert a `wall-cabinet`: accepted. (5) **Persistence and the share view.** Reload at the room query (1D, same fields) and at `/d/{id}`: after the reload, `readStoredDesign` equals the stored document before it, and the chips are 4. ~~**Report** each reload's L-flash duration (D5).~~ **Gate, after S0: zero frames at the wrong chip count on each reload (ADR 0133).** Issue a share link: `/s/{token}` draws the same bodies (the scene readout's ids and build ids equal the editor's) with 4 chips. **Every minted row is deleted in `afterAll`, and the run reports minted = deleted** | new `apps/web/tests/e2e/u-gate.e2e.spec.ts`, `support/u-gate.ts`; no production file | this slice's AC1 and AC5; G1, G2, G5, G8; `mobile-gate.e2e.spec.ts` and `step-one-by-touch.ts` as the pattern; `u-flow.ts`; `u-cutaway-scene.ts`; ADR 0023; ADR 0006 (row cleanup); ADR 0132 A2 and A8 (the cutaway from `wallC`); ADR 0110 *N3 revised* 11 (RQ7) |
 | **S2 — the desktop line** | (1) `u-gate.desktop.e2e.spec.ts` runs S1's journey at 1440 × 900 through **D1B, D1C, D1F**. D1C shows the room reason for 2700/1000/1000 and the desktop suggestion rules exactly as the phone does. D1F's static plan aside draws three walls. (2) Every S1 assertion except touch-specific ones (items 1–5, by click). (3) **The phone is untouched by it:** S1's run and S3's phone frames are taken at the same commit before and after S2 lands, and are identical. (4) **ADR 0105's budget:** the local minutes each leg adds are reported, and a leg projected past 40 of its 45 minutes is flagged for S4 (6) before it reaches a runner | new `u-gate.desktop.e2e.spec.ts` | AC2, AC6; `room-desktop-line.desktop.e2e.spec.ts` (7L's pattern); ADR 0104 B, C; ADR 0105 |
 | **S3 — captures and the visual pass** (the tree frozen) | (1) **A production build** (`pnpm --filter @lemnaria/web build`, then `next start`). **Evidence is written outside the repository**, and the console is read for every frame (`browser-and-visual-qa.md`, the trap). (2) **The capture matrix** below: the core rooms at every preset and both viewports, and the targeted frames, each with the checklist verdict. (3) **The byte-identical control for L and straight**, in the editor, against `dd9f63a` (G6; 7L S6's method): the same frames at both commits, compared pixel for pixel. Any differing pixel is a finding, explained or sent back. (4) **Real touch targets**: the reviewer confirms S1's 44 px measures on the rendered page, at 390 × 844, in both locales. (5) **Backlog 99 probe (D6):** the Russian 1C of a U with marked walls, at 390 × 844. If it overflows, stop and report | captures outside the repo; a capture spec only if QA writes one (`qa-u7-*`) | AC3, AC4; the capture list; *The 3D contract for a U*; ADR 0132 A, A8, B; ADR 0110 N11.8–N11.9; the 7H, 7I, 7J and U5 close-outs' *not a bug* lists; `browser-and-visual-qa.md` whole |
 | **S4 — the phase close** (coordinator-only, and the architect for (3)) | (1) **Gates.** Whole-tree `pnpm format:check` last, then `pnpm ci:local` green on a clean tree. Push. (2) **Runner evidence, then the owner's pull request.** The `ci` workflow is dispatched by hand on `m7b-u-shaped-rooms` from the Actions tab, **by the owner** (G3). The coordinator reads the run and reports it: every job green, both e2e legs included. **Q-U7-3, answered 2026-09-30: "One combined PR".** M7 and M7B reach `main` together, in one pull request from `m7b-u-shaped-rooms`, which already contains M7 (G4). **The owner opens that PR, 2026-09-30: *"i will make the PR"*.** The coordinator's part of (2) ends at `ci:local` green, the branch pushed, and the dispatched run read and reported. The coordinator does not open the PR. (3) **Durable reasoning.** The architect writes the dated ADR for G11: "a U gets no 1C suggestion of its own; the straight-room suggestion keeps its shape-independent gate", as ADR 0116 Amendment B or ADR 0108 I, whichever the sweep finds holds the suggestion rule. It checks that every rule this plan alone states is in an ADR. (4) **The milestone close-out** here: shipped, verification, deviations, deferrals with owners. Then STATUS: M7B → **Done**, *What is open right now* and *What to do next* rewritten to point at M8. (5) **The archive** (`WORKFLOW.md` step 7): `git mv` this plan to `docs/milestones/done/` with the stop-reading banner. Add a row in `done/README.md` naming the live knowledge: ADR 0108 H, ADR 0110 N (N1–N11.9), ADR 0129, ADR 0132 (A, A8, B), ADR 0116 A, ADR 0104 C. The scribe updates backlog: 96 (U6 landed the approved figure; the engine gate stays off), 98 and 100 (per Q-U7-1 and Q-U7-2), 99 (S3's probe result), and D7's security candidates. Scratch artefacts are removed | docs; git; GitHub | `WORKFLOW.md` step 7 and *A milestone's branch is kept, pushed, and merged on GitHub*; `documentation.md`; `ci-and-local-gates.md`; this plan's close-outs |
+
+#### U7 S1–S3 results — 2026-09-30 *(the coordinator's report, recorded by the architect; figures are the implementers', QA's and the visual reviewer's, not re-run here)*
+
+**S1, `3ff5197` — the phone, by touch.**
+
+- `u-gate.e2e.spec.ts`: **30 / 30 on dev and 30 / 30 under `CI=1`**. Full e2e: **563 passed**.
+- **Reload flash: zero wrong-chip frames** (S1 (5), AC1). The same sampler is **red at `508dd4c`**,
+  the base before S0, so the gate is falsifiable.
+- **ADR 0133 A5's transition cost:** about **62 ms after `0d462aa`, against about 97 ms before it**.
+  So it is not slower, and A5 stays a known cost, not a defect.
+- **Plan wording corrected:** a replace keeps the slot and gives the body a fresh id, by design (S1 (3),
+  dated).
+- **Process, recorded plainly.** The S1 developer **leaked 27 test rows** and then deleted them
+  itself, by explicit id.
+  - The test table held **8 rows before and 8 after**. The owner's rows of backlog 100 were untouched.
+    *(Backlog 100 says six, the coordinator's count is 8; the scribe reconciles the figure.)*
+  - A self-clean by an implementer in a shared test database is exactly what the add-only rule
+    exists to prevent (`environments-and-resources.md`), even when it happens to delete only the
+    implementer's own rows.
+  - **Implementers are now told never to self-clean: they report the ids, and the coordinator
+    decides.**
+
+**S2, `a75753f` — the desktop line.**
+
+- `describeUGate(line)` is shared by both specs. Desktop: **30 / 30 on dev and 30 / 30 under
+  `CI=1`**.
+- Full e2e: **572 passed, 1 failed**. The failure was `u-flow` (mobile) timing out under load; that
+  spec alone gave 10 / 10. It is a load-sensitivity signal for R6, not a U defect.
+- **Leg-minute risk (AC6).** The local sums are **mobile 33.3 min and desktop 21.7 min** against the
+  **45-min** ceiling.
+  - This is an estimate from dev, under 8-worker contention. **Only the owner-dispatched `ci` run
+    decides.**
+  - If a leg fails the ceiling, ADR 0105's direction is to split (shard), never to raise it.
+- **A correction to S1's claim about `/d` → `/d` transitions.**
+  - The delay is a **main-thread block of about 2.5 s from the WebGL program compile on the software
+    renderer**. The write check answers in about 100 ms.
+  - In dev only, the previous design's probe re-fires; that is backlog 83's render-time write.
+  - **Both predate M7B at `995ad03`.** Neither is a U7 finding.
+
+**S3 — captures** (evidence in the session scratchpad's `u7s3/`, outside the repository; production
+build).
+
+- **All 32 core and 31 targeted frames pass the checklist.** Over **139 frames: 0 page errors and 0
+  hydration complaints.**
+- **T3 substituted:** the right X-leg cannot be tapped at 390 × 844 in R3 from any preset, so its
+  outline was captured in R1. The criterion is met on a different room. That R3's X-leg is untappable
+  at the phone is §6.4's *known unsolved* class, not new.
+- **T7, the Russian overflow (backlog 99), found.** In a U of 2700/900/1600 with only wall B marked,
+  *"B слишком короткая"* overlaps wall C's bar by 12 × 11 px.
+  - **Owner answer, 2026-09-30 (relayed selection): "Record, fix later (Recommended)."** It goes into
+    backlog 99, with the room and the measurement. Not a U7 blocker.
+  - *(A wall B of 900 is below the U's 1000 floor, so this is a 1C room the customer can type, and
+    the overflow is reachable.)*
+- **The AC4 control:** see AC4's dated line below.
+- **Touch targets below 44 px, which predate M7B.** `top-bar-locale` (about 46 × 25) and
+  `global-settings-trigger` (about 136 × 30) are under 44 px tall in both locales, and are
+  byte-identical at `dd9f63a`. **A backlog candidate** for the scribe, not a U7 finding.
+- **The share view** still shows the *"Atinge un dulap pentru a-l edita"* hint and dashed voids.
+  **It was not compared with `dd9f63a`.** So it is **a candidate for checking**, not a finding. The
+  scribe files it with that wording, and the next change to the share view compares it.
+- **Reload flash: zero, over 12 loads** on the production build.
+
+**Owner direction, 2026-09-30, verbatim:** *"i will make the PR"*. The owner dispatches `ci` and
+opens the combined PR (S4 (2)).
 
 **Reading lines.**
 
@@ -1940,19 +2004,37 @@ explained by a dated record or sent back.
    frames at the wrong chip count on every reload of `/d/{id}` and `/s/{token}` (ADR 0133).** This carries the superseded AC1,
    and U6 AC2's dated e2e line, now by touch. **Must not:** a pathname between 1D and 1F; a digit in
    a 1C reason; a corner toggle for a U; a minted row left behind; a page error. **[e2e]**
+   **Met 2026-09-30 (`3ff5197`):** 30 / 30 on dev and under `CI=1`; zero wrong-chip frames, and red
+   at `508dd4c`.
 2. **The desktop line** (S2, 1440 × 900). The same journey through D1B, D1C and D1F, by click. The
    phone's S1 run and phone frames are identical before and after S2 lands. **[e2e]**
+   **Met 2026-09-30 (`a75753f`):** 30 / 30 on dev and under `CI=1`.
 3. **The captures** (S3). Every core and targeted frame in the capture list, **inspected**, with the
    checklist verdict per frame recorded in the close-out. The engine minimum is out, by D2. **A frame
    that fails is a finding**, returned to the owning wave, and the phase stays open until it is
    closed. **[visual]**
+   **Met 2026-09-30:** 32 of 32 core and 31 of 31 targeted frames pass (T3 captured in R1); 0 page
+   errors in 139 frames. T7's overflow is recorded to backlog 99 by the owner's answer (*"Record, fix
+   later"*), so it does not hold the phase open.
 4. **The byte-identical control** (S3 (3)). All 10 pairs are pixel-identical, or each difference is
    explained by a dated record. **[visual] + [measured]**
+   **Amended 2026-09-30 (owner, relayed selection: "Accept as noise (Recommended)").**
+   - At 390 × 844, 0 px differ, 5 of 5.
+   - At 1440 × 900, 14 px differ in each of the 5 frames, with a maximum channel delta of 1, at the
+     anti-aliased corner of the top-bar settings pill. There is no layout or CSS change.
+   - A difference of that kind (≤ 1 per channel, anti-aliasing only, no geometry) is accepted as
+     rendering noise. **Met.**
 5. **Persistence hygiene.** Across S1, S2 and S3, rows minted equal rows deleted, reported from the
    run. The six rows of backlog 100 are **not** touched (add-only; Q-U7-2). **[e2e] + [report]**
+   **2026-09-30:** the table held 8 rows before and 8 after, and the owner's rows were untouched. But
+   S1's developer leaked 27 rows and self-deleted them by id, which is a process breach, recorded in
+   *U7 S1–S3 results*. **Met on the numbers; the breach is recorded, and implementers no longer
+   self-clean.**
 6. **The e2e budget** (R6). Minutes added per leg are reported, and on the **dispatched** runner run
    (S4 (2)) **each leg finishes inside `timeout-minutes: 45`**. A leg that would not is split by project or shard (ADR 0105's
    direction), never given a raised ceiling. **[gate]**
+   **2026-09-30: open.** The local estimates are mobile 33.3 and desktop 21.7 minutes (dev, 8-worker
+   contention). The owner-dispatched run decides.
 7. **The gates.** Whole-tree `pnpm format:check` last; `pnpm ci:local` green on a clean tree; the
    branch pushed; the owner-dispatched `ci` run on the branch green, every job, e2e included, read
    and reported by the coordinator. The combined PR is the owner's to open (Q-U7-3, *"i will make the
@@ -1985,7 +2067,7 @@ and M7B, opened by the owner** (Q-U7-3; *"i will make the PR"*).
 
 | Item | Owner | Where |
 | --- | --- | --- |
-| The ADR for "no new 1C suggestion for a U" (G11) | architect | S4 (3) |
+| The ADR for "no new 1C suggestion for a U" (G11) | architect. **Done 2026-09-30: ADR 0134** (records the rule and W23's answer, "Yes, suggest straight") | S4 (3) |
 | Runner evidence for the e2e job, which has not run for M7 or M7B and never runs on a PR (G3) | **the owner** (the Actions-tab dispatch; the coordinator's token gets HTTP 403); then the coordinator reads the run | S4 (2), AC6, AC7 |
 | M7's pull request into `main`, and its order relative to M7B's (G4) | **Answered 2026-09-30: one combined PR, opened by the owner** | S4 (2) |
 | Backlog 96's entry: U6 landed the approved figure, and the engine gate stays off | scribe | S4 (5) |
