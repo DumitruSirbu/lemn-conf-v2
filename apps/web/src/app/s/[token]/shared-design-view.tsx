@@ -3,7 +3,10 @@
 import type { Design } from "@lemnaria/configurator-domain";
 
 import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
-import { useConfiguratorStore } from "@/store/configurator-store";
+import {
+  ConfiguratorSnapshotProvider,
+  hydrateSessionStoreInBrowser,
+} from "@/store/configurator-snapshot";
 
 /**
  * The sentinel id this view hydrates the store under (D6, G5/G8) — deliberately never a real design
@@ -24,8 +27,11 @@ const SHARED_VIEW_REVISION = "shared";
  * `canWrite` is always `false`, never `"checking"`. It is deliberately the *only other* file the
  * single-mount guard admits (`configure-screen-single-mount.test.ts`).
  *
- * **Hydrates during render**, on the same pattern `HydrateAndConfigure` uses, so `ConfigureScreen`'s
- * first render already shows the shared design rather than a flash of the seeded fixture.
+ * **Hydrates during render, in the browser only**, on the same pattern `HydrateAndConfigure` uses, so
+ * `ConfigureScreen`'s first client render already shows the shared design. The server render and the
+ * hydration pass read it from a per-render `ConfiguratorSnapshotProvider` instead, so the first
+ * server-rendered frame is the shared design too and no request writes the process-wide store
+ * (ADR 0133). The guard reads the session store's `getState()`, never the hook.
  *
  * **Guarded by the design object, not the id** (D6: *"re-hydrates whenever the store's design is not
  * the object it was handed"*) — every share view shares the one sentinel id, so an id comparison
@@ -41,14 +47,16 @@ const SHARED_VIEW_REVISION = "shared";
  * mount only if this exact object already made it there, which a fresh server render never repeats.
  */
 export function SharedDesignView({ design }: { design: Design }) {
-  const currentDesign = useConfiguratorStore((state) => state.design);
-  if (currentDesign !== design) {
-    useConfiguratorStore.getState().hydrate({
-      design,
-      designId: SHARED_VIEW_DESIGN_ID,
-      revision: SHARED_VIEW_REVISION,
-      canWrite: false,
-    });
-  }
-  return <ConfigureScreen variant="shared" />;
+  const loaded = {
+    design,
+    designId: SHARED_VIEW_DESIGN_ID,
+    revision: SHARED_VIEW_REVISION,
+    canWrite: false,
+  } as const;
+  hydrateSessionStoreInBrowser(loaded, (session) => session.design === design);
+  return (
+    <ConfiguratorSnapshotProvider loaded={loaded}>
+      <ConfigureScreen variant="shared" />
+    </ConfiguratorSnapshotProvider>
+  );
 }

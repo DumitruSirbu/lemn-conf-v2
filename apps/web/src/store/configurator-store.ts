@@ -43,6 +43,7 @@ import {
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
@@ -725,15 +726,69 @@ function advanceSaveGeneration(): void {
   saveGeneration += 1;
 }
 
-/** The single store instance the app mounts against — no hard-coded canvas id anywhere, per the
- *  milestone's "Shared" acceptance bullet: the selection owns the target, not any one canvas. */
-export const useConfiguratorStore = createConfiguratorStore({
+/** The store the browser's session runs on — no hard-coded canvas id anywhere, per the milestone's
+ *  "Shared" acceptance bullet: the selection owns the target, not any one canvas. Not exported: the
+ *  app reads it through `useConfiguratorStore` below, which is the one place that answers a *server*
+ *  snapshot from anywhere but this store's own initial state. */
+const sessionStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
   catalogAt: buildKitchenLBodyCatalog,
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
   onOverwriteRequested: overwriteConflictingDesign,
 });
+
+/**
+ * The store a server render (and React's hydration pass over it) answers from, when the tree was
+ * mounted under a `ConfiguratorSnapshotProvider` (ADR 0133 decision 3). `null` means no provider,
+ * and the session store's own initial state answers, as it did before. Only the provider writes
+ * it; it is a per-render store, so it can hold a loaded design without any module state moving.
+ */
+export const ServerSnapshotStoreContext =
+  createContext<StoreApi<ConfiguratorState> | null>(null);
+
+function selectWholeState(state: ConfiguratorState): ConfiguratorState {
+  return state;
+}
+
+function useSessionStoreSlice<Selected>(
+  selector: (state: ConfiguratorState) => Selected,
+): Selected {
+  const snapshotStore = useContext(ServerSnapshotStoreContext);
+  return useSyncExternalStore(
+    sessionStore.subscribe,
+    () => selector(sessionStore.getState()),
+    () =>
+      selector(
+        snapshotStore === null
+          ? sessionStore.getInitialState()
+          : snapshotStore.getState(),
+      ),
+  );
+}
+
+/**
+ * The single store instance the app mounts against, with zustand's own call shape.
+ *
+ * **It differs from a bound zustand store in one thing: the server snapshot.** zustand answers
+ * `useSyncExternalStore`'s server snapshot with `getInitialState()`, which for a module singleton is
+ * the seeded L — so the server HTML, and React's hydration pass over it, showed the seeded L for
+ * every design that was not (backlog 98). Here the server snapshot comes from the nearest
+ * `ConfiguratorSnapshotProvider`'s per-render store, and the subscription, `getState`, `setState`
+ * and `subscribe` all still address the one session store, so the save coalescer's wiring (ADR 0010
+ * decision 2) is untouched.
+ */
+export const useConfiguratorStore: UseBoundStore<StoreApi<ConfiguratorState>> =
+  Object.assign(
+    (selector: (state: ConfiguratorState) => unknown = selectWholeState) =>
+      useSessionStoreSlice(selector),
+    {
+      getState: sessionStore.getState,
+      getInitialState: sessionStore.getInitialState,
+      setState: sessionStore.setState,
+      subscribe: sessionStore.subscribe,
+    },
+  ) as UseBoundStore<StoreApi<ConfiguratorState>>;
 
 /** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
  *  decision 2). Built on first use rather than at module load for two reasons: this module is

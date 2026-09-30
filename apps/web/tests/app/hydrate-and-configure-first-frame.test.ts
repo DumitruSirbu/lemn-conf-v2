@@ -1,3 +1,9 @@
+// @vitest-environment happy-dom
+//
+// The **browser's** ordering: a client render of `HydrateAndConfigure` has written the session store
+// before `ConfigureScreen` reads it. A `window` is what makes this a browser render — the same
+// component writes nothing on the server (ADR 0133 decision 4), which `tests/app/
+// server-render-isolation.test.ts` owns under the node environment.
 import {
   KITCHEN_L_DESIGN,
   type Design,
