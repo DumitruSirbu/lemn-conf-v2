@@ -1938,6 +1938,22 @@ build).
 **Owner direction, 2026-09-30, verbatim:** *"i will make the PR"*. The owner dispatches `ci` and
 opens the combined PR (S4 (2)).
 
+**S4 notes — runner evidence, 2026-09-30 (the coordinator's report, recorded by the architect).**
+
+- **The owner-dispatched `ci` evidence so far was `main`'s run, not the branch's:** run
+  `34580253814` at `995ad03` (about 84 desktop tests in 37.8 min, about 109 mobile in 26.1 min). AC6
+  and AC7 are **not** met by it. **The branch's e2e suite has never run on the runner.**
+- **The PR run `36734585613` failed on the `test` job**, not on e2e: a heap OOM from a leaking test
+  mock, plus tight timeouts. **Fixed at `befc689`** (*"stop the mock keeping every plan the leaf
+  read"*).
+- **The e2e job is re-planned before its first branch run.** At the measured rates, the branch's 185
+  desktop and 393 mobile tests need about 80–90 minutes per project, against the 45-minute ceiling.
+  - The owner chose **three shards per project**, with every shard budgeted to ≤ 30 runner minutes
+    and a guard that fails over budget (**ADR 0105 Amendment A**). The owner also directed, verbatim:
+    *"for future to take into account how many tests should be run per ci pod or machine"*.
+  - **The branch's first real e2e run follows the sharding commit.** AC6 is judged per shard, against
+    ADR 0105 A2's budget, and a shard over budget adds a shard rather than raising a ceiling.
+
 **Reading lines.**
 
 - **QA (S1, S2):** this section; the specs and `support/u-gate.ts`; G1–G5; ADR 0105;
