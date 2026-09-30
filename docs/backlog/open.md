@@ -1995,3 +1995,26 @@ phase.
 `TEST_DATABASE_URL` (`lemn-conf-v2-staging`). Their ids were lost because run cleanup had no
 `DATABASE_URL` in the worker environment. **They were not deleted**, per the add-only rule
 (`docs/best-practices/environments-and-resources.md`); the owner decides whether to remove them.
+
+**Answered 2026-09-30 (Q-U7-2, relayed selection, not verbatim): "Leave them (Recommended)."** The six
+rows stay; nothing removes them. The architect recorded the answer in the milestone
+(`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
+
+## 101. The shape-refusal region is kept on purpose, though no shipped path draws it — RECORDED 2026-09-30, NO OWNER
+
+**Recorded at M7B wave U6's close-out.** `room-shape-refusal` and `room.issue.shapeNotBuildable` stay:
+ADR 0116 reads buildability from policy data, so a policy that stops stating a shape refuses it again.
+**If any future policy stops stating a shape, the e2e tests removed in U6 must come back:** census E3, E4's
+U half, E5 and E9 (the region's colours, its gap, and its clipping;
+`docs/milestones/M7B-u-shaped-rooms.md`, *U6 S0 census*). No owner, no phase.
+
+## 102. Dev-only security candidates from the undici review — FOUND 2026-09-30, NOT SCHEDULED
+
+**Found by the review that produced the `undici` override** (commits `565dd54` / `52c0a94`). All three are
+development tooling; none is in the shipped runtime.
+- **js-yaml 4.3.1** (high, via eslint → @eslint/eslintrc): a lockfile refresh fixes it.
+- **vitest / @vitest/mocker 3.2.6** (moderate): needs a major upgrade to ≥ 4.1.11, its own wave.
+- **Node's bundled undici:** local Node 24.19.0 has 7.29.0, inside the advisories' 7.x range. It needs a
+  Node patch release, not the lockfile.
+
+No owner, no phase.

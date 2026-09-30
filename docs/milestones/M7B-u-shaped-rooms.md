@@ -372,7 +372,7 @@ test or a capture in U4.
 | **U3b** — **Done 2026-09-30** (S0 `939a6ed`, S1 `2e028ac`, S2 `5bf8582`, S3 `b0cf2cc`, QA `8775b7c`, plus a comment fix commit (`5fb03ed`); see *U3b close-out*) | Generating a U: dispatch, uppers and hood, the minimum kitchen | **Full** | No | U3a | — |
 | **U4** — **Done 2026-09-29, closed at `7f129fa`** (see *U4 close-out*; AC2, AC4 [visual], AC5 and the D14 light rig deferred to U5 AC9–AC11) | Drawing a U: shell, ~~reflected group~~ right-corner wrappers, picking, cameras, lights | **Full** | **Yes** | U2 | ~~Q-U5 (non-blocking)~~ none — Q-U5 answered 2026-09-29 (ADR 0132 d1–d2) |
 | **U5** — **Done 2026-09-30, closed at `8a30dbb`** (S0 `664eee6`, S1 merge `739f9e2`, S2 merge `2001c55`, QA `0166e7a`, QA fixes merge `93e2a2b`, review fixes merge `8a30dbb`; see *U5 close-out*) | The editor and Step 1 carry a U (behind a test witness policy) | Light | **Yes** | U2, U4 | Q-U4 (wording) |
-| **U6** | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
+| **U6** — **Done 2026-09-30, closed at `f06b7af`** (S0 census `7d87c41`, merge `0729c2f`; S1 `cb0bb0c`; QA `064c0e1`; review fixes `d5e933a`, merge `f06b7af`; see *U6 close-out*) | The switch: U's approved bounds; the card goes live; casts deleted | **Full** | No | ~~U3~~ U3b (2026-09-29), U4, U5; **Q-U1, Q-U2, RQ1, RQ8** (all answered 2026-09-29) | — |
 | **U7** — **re-planned 2026-09-30** (see *U7 — the plan*) | Mobile gate, desktop line, e2e, captures — the phase gate | Light (S1–S3); S4 coordinator-only | **Yes** | U6 (QA and review closed) | Q-U7-1–3 answered 2026-09-30 (flash now: S0; leave the rows; one combined PR, opened by the owner); Q-U7-4, the owner's Actions-tab dispatch |
 
 Order **U0 → U1 → U2 → {U3 ∥ U4} → U5 → U6 → U7**. **2026-09-29: U3 is U3a → U3b, so the order is
@@ -962,6 +962,67 @@ a new e2e line (dated below); ADR 0132 Amendment B; `docs/STATUS.md`; `docs/BACK
    owner.
 3. **Backlog 99** (plan-preview label fit, three known limits): needs a copy or layout decision; no owner.
 4. **Backlog 100** (six orphan test-database rows): the owner decides.
+
+---
+
+### U6 close-out — 2026-09-30, at `f06b7af`
+
+**Shipped.** The switch. A U is buildable under `APPROVED_ROOM_POLICY`, so the U card continues to 1B and on
+to 1F. Origin was last pushed at `0729c2f`; the local branch is ahead. Commits, in order, on
+`m7b-u-shaped-rooms`:
+- **S0 census** `7d87c41` (merge `0729c2f`): the table above.
+- **S1 the switch** `cb0bb0c`: `U` in `APPROVED_ROOM_POLICY` with wall A 2700–6000, walls B and C
+  1000–6000, `minimumKitchen.isRequired: true`, corner reaches 1800 / 1000, sink and hob 600; the census's
+  restatements; the `as BuildableShapes` cast removed.
+- **QA** `064c0e1`: the U under the approved policy. ADR 0133 itself landed inside this commit because of a
+  commit race; its content is the architect's. Architect docs from the same span: `4dd3c3b` (the U7 plan)
+  and `508dd4c` (U7 S0 and the owner's answers).
+- **Review fixes** `d5e933a` (merge `f06b7af`): U added to `SHAPES_FITTING_AT_ONE_B` because U fits at 1B
+  (709 = 709, 82 px spare), so the `holdsItsFieldsAtOneB` flag, now always true, was removed; stale comments
+  corrected; one `support/u-steps.ts`.
+
+**Verification.** Tier Full. Every figure below was reported to the scribe by the coordinator or a
+reviewer; the scribe ran none of it.
+- Coordinator, full e2e at the S1 merge: 537 passed, 2 skipped, 0 failed.
+- QA: domain 5608, web 4917, the flagged e2e specs 87 passed.
+- **AC1** (sequencing, per commit over 362 commits): U is buildable only from `cb0bb0c` on.
+- **AC4** (casts): no `as BuildableShapes` anywhere. The plan said "seven"; there was one (flag 3 above).
+- Logic reviewer: gate against generator on 3080 rooms, 0 disagreements.
+- **Not yet run in a browser:** the e2e specs changed by the review fixes (`d5e933a`). The coordinator runs
+  them next, with U7 S0. `pnpm ci:local` has not been run for U6.
+
+**Reviews.** Logic: approve. Clean-code: approve, with minors. The two findings owed (U in
+`SHAPES_FITTING_AT_ONE_B` with the flag removed; the stale comments) and the single `support/u-steps.ts` were
+fixed in `d5e933a`.
+
+**Owner answers, recorded 2026-09-30 (relayed selections, not verbatim):**
+- Census W23 row and flag 1: **"Yes, suggest straight (Recommended)"**. A too-short U also gets the "a
+  straight kitchen would fit" suggestion through the shape-independent gate; no production change. Both
+  marked answered above.
+- `room.issue.roomTooSmall` copy: **"Keep as is (Recommended)"**. The singular "dulapul de colț" stays for a
+  U, even though a U has two corners.
+
+**Deviations, with rationale.**
+- AC4's "seven" casts were one (counted by S0; dated line in flag 3).
+- The four census rows E3, E4 (U half), E5 and E9 were removed with no replacement: no card, chip or URL in
+  the shipped app draws the refusal region once all three shapes build.
+- ADR 0133 landed in QA's commit rather than its own (a commit race).
+
+**Known limit, kept on purpose.** `room-shape-refusal` and `room.issue.shapeNotBuildable` remain (ADR 0116
+reads buildability from policy data); recorded as backlog 101.
+
+**Documentation updated.** This close-out and the wave-table row; the W23 row and flag 1; `docs/STATUS.md`
+(M7B row, *What is open right now*, a new RESUME HERE); `docs/BACKLOG.md` and `docs/backlog/open.md`
+(entries 101 and 102, and the answer on 100).
+
+**Deferred work, with owners.**
+1. **U7 S0** (the reload flash, backlog 98; ADR 0133; Full tier plus security): in progress, coordinator.
+   Then U7 S1 → S2 → S3 → S4. At S4 the owner dispatches the `ci` workflow from the Actions tab and opens
+   the single combined PR himself (Q-U7-3, *"i will make the PR"*).
+2. **Minor clean-code items, no owner yet:** a single shared `APPROVED_WALL_MAX_MM`; one shared "owner's
+   ruled U figures" test export; the older `idInEditorUrl` copies.
+3. **Backlog 101** (the refusal region kept on purpose) and **102** (dev-only security candidates): see
+   `docs/backlog/open.md`.
 
 ---
 
@@ -1641,7 +1702,7 @@ policy that states no U.
 | W20 | `qa-7f2-s5-incomplete-plan.adversarial.test.ts:407` [407] | a U's shape refusal stands alone: no field reason, no marked wall, plan drawn or empty | restate in S1: as W19 | B2→H4; H |
 | W21 | `room-issue-model.test.ts:538` [543] | the shapes the approved policy refuses are `["U"]`; observed `[]` | restate in S1: `[]`. The `ROOM_SHAPES` sweep at :526 still carries the general claim and passes | B2→H4 |
 | W22 | `room-issue-model.test.ts:557` [569] | a U 2200/2000/2000 at h 2500 is 1C with no field reason and a shape refusal; observed one field reason (wallA) | restate in S1: 1C from wall A's `WALL_TOO_SHORT`, no shape refusal | H1 |
-| W23 | `room-issue-model.test.ts:629` [635] | "suggests nothing for a refused U shape"; observed `isLinearSuggested: true` for that room | restate in S1: the suggestion follows its shape-independent gate. See the flag below | plan, *Owner questions* (dated line "no new 1C suggestion for a U"); `validatesAsStraightRoom` |
+| W23 | `room-issue-model.test.ts:629` [635] | "suggests nothing for a refused U shape"; observed `isLinearSuggested: true` for that room | restate in S1: the suggestion follows its shape-independent gate. See the flag below. **Answered 2026-09-30 (owner, relayed selection): "Yes, suggest straight (Recommended)"; the restatement stands, no production change.** | plan, *Owner questions* (dated line "no new 1C suggestion for a U"); `validatesAsStraightRoom` |
 | W24 | `room-one-c.dom.test.ts:690` [692] | Continue is inactive for a filled U (substate 1C) | restate in S1: 1D, Continue active | B2→H4; AC5 |
 | W25 | `room-one-c.dom.test.ts:806` [809] | the note shows for a room refused by shape alone (a U) | restate in S1: fabricated | B2→H4; 116 |
 | W26 | `room-screen.dom.test.ts:394` [403] | choosing the U card records it and Continue stays disabled | restate in S1: Continue is enabled. This is AC5 | B2→H4; AC5 |
@@ -1694,6 +1755,9 @@ land a U on 1D where it landed on 1C). Any of these may go red in the first e2e 
    suggestion for a U (the straight-room suggestion keeps its shape-independent gate)". I read that as keeping
    the gate as is, so W23 restates. If the owner meant a U gets none, that is a production change and a new decision,
    not a test edit.
+   **Answered 2026-09-30 (owner, relayed selection, not verbatim): "Yes, suggest straight (Recommended)".** A
+   too-short U also gets the "a straight kitchen would fit" suggestion, through the shape-independent gate, with no
+   production change.
 2. **The refusal region becomes dead in the product.** After S1 only a fabricated policy reaches
    `room-shape-refusal` and the `room.issue.shapeNotBuildable` leaf. Removing them touches the copy lock and the
    golden hashes (ADR 0113), so this census does not; the four *removed* e2e rows are the only cost of leaving them.

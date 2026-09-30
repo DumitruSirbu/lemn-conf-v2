@@ -541,7 +541,7 @@ gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The 
 `milestones/done/M7-room-and-presets.md`, and ADRs
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125, 0129, 0131 |
-| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ ~~plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0 (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only)~~ **U0 is DONE (Light tier, one logic reviewer, no blockers): ADR 0132 Accepted; owner answers Q-U1–Q-U5 and RQ1–RQ17 recorded in ADR 0108 Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C; backlog 91. No wave now waits on an owner answer. Next wave U1** (the stored U and wall C; domain; Full tier plus security on S2). ~~**Update 2026-09-29: U0–U2 done; U3 re-cut into U3a and U3b. U3a is implemented through `3f53a62` (N10 fitting rule), in adversarial QA, then review; not closed. U3b next. See *What to do next*.**~~ ~~**Update 2026-09-29, later: U0–U2 and U3a are DONE (U3a closed at `38d6be7`; close-out in the milestone file). U3b S0 (test fixtures and the deferred clean-code minors) is in progress, then S1–S3. U4 is in review round 3, not closed. See *What to do next*.**~~ **Update 2026-09-29, latest: ~~U0–U2, U3a and U4 are DONE (U4 closed at `7f129fa`; close-out in the milestone file; U4's visual criteria and the D14 light rig moved to U5). U3b S1 is in progress (ADR 0110 N11.8–N11.9 plus generation), then S2–S3.~~ 2026-09-30: U0–U5 are DONE (U5 closed at `8a30dbb`; D14 decided: keep the rig, ADR 0132 Amendment B). Next: U6 (the switch), then U7 (the phase gate). Not pushed; `ci:local` not run. See *What to do next*.** | Yes — `milestones/M7B-u-shaped-rooms.md` |
+| M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ ~~plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0 (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only)~~ **U0 is DONE (Light tier, one logic reviewer, no blockers): ADR 0132 Accepted; owner answers Q-U1–Q-U5 and RQ1–RQ17 recorded in ADR 0108 Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C; backlog 91. No wave now waits on an owner answer. Next wave U1** (the stored U and wall C; domain; Full tier plus security on S2). ~~**Update 2026-09-29: U0–U2 done; U3 re-cut into U3a and U3b. U3a is implemented through `3f53a62` (N10 fitting rule), in adversarial QA, then review; not closed. U3b next. See *What to do next*.**~~ ~~**Update 2026-09-29, later: U0–U2 and U3a are DONE (U3a closed at `38d6be7`; close-out in the milestone file). U3b S0 (test fixtures and the deferred clean-code minors) is in progress, then S1–S3. U4 is in review round 3, not closed. See *What to do next*.**~~ **Update 2026-09-29, latest: ~~U0–U2, U3a and U4 are DONE (U4 closed at `7f129fa`; close-out in the milestone file; U4's visual criteria and the D14 light rig moved to U5). U3b S1 is in progress (ADR 0110 N11.8–N11.9 plus generation), then S2–S3.~~ ~~2026-09-30: U0–U5 are DONE (U5 closed at `8a30dbb`; D14 decided: keep the rig, ADR 0132 Amendment B). Next: U6 (the switch), then U7 (the phase gate). Not pushed; `ci:local` not run.~~ 2026-09-30, latest: U0–U6 are DONE (U6 closed at `f06b7af`: S0 census `7d87c41`, S1 the switch `cb0bb0c`, QA `064c0e1`, review fixes `d5e933a`; a U is now buildable under `APPROVED_ROOM_POLICY` and the card is live). U7 (the phase gate) is in progress, starting with S0 (the reload flash, ADR 0133). Origin was last pushed at `0729c2f`; the local branch is ahead. See *What to do next*.** | Yes — `milestones/M7B-u-shaped-rooms.md` |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
 | M5B — Manual UX remediation (branch `ux-manual-fixes`, merged) | **Done, 2026-09-02** — all eleven waves shipped | No — `milestones/done/M5B-manual-ux-remediation.md`, ADRs 0043–0051 |
@@ -616,9 +616,11 @@ PASS.
   `7f129fa`, 2026-09-29). U3b S1 is in progress (N11.8–N11.9 plus generation); U5 follows U3b
   and starts with S0** ~~U3b S1 is in progress~~ ~~2026-09-30: U0–U2, U3a, U3b and U4 are DONE. U5 is
   in progress: S0 merged at `664eee6`, S1 merged at `739f9e2`, S2 in progress. Next: U5 S2 → U5
-  QA/review/visual (AC9–AC11; D14 lights owed before U6) → U6 → U7.~~ **2026-09-30, latest: U0–U5 are
+  QA/review/visual (AC9–AC11; D14 lights owed before U6) → U6 → U7.~~ ~~**2026-09-30: U0–U5 are
   DONE (U5 closed at `8a30dbb`; the D14 gate is discharged, ADR 0132 Amendment B). Next: U6 → U7.
-  Not pushed; `ci:local` not run.**
+  Not pushed; `ci:local` not run.**~~ **2026-09-30, latest: U0–U6 are DONE (U6 closed at `f06b7af`).
+  U7 S0 (the reload flash, ADR 0133) is in progress; then U7 S1 → S2 → S3 → S4. Origin was last pushed at
+  `0729c2f`; the local branch is ahead.**
   See the RESUME HERE entry
   under *What to do next*; see `milestones/M7B-u-shaped-rooms.md`. Deferred past M8 by ADR 0131: the preset story (search, evaluation,
   application, the in-repo thumbnail rig — 7P1, 7P2, 7G, 7B, 7C, 7F3).
@@ -1119,7 +1121,28 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-09-30, latest. M7B waves U0–U5 are DONE — the editor and Step 1 carry a U (behind
+> **RESUME HERE — 2026-09-30, latest. M7B waves U0–U6 are DONE — the switch: a U is buildable under
+> `APPROVED_ROOM_POLICY` and the card is live, closed at `f06b7af`.** Branch `m7b-u-shaped-rooms`. Origin
+> was last pushed at `0729c2f`; the local branch is ahead. Close-out:
+> `milestones/M7B-u-shaped-rooms.md`, *U6 close-out — 2026-09-30, at `f06b7af`*.
+>
+> **U6 commits:** S0 census `7d87c41` (merge `0729c2f`); S1 the switch `cb0bb0c`; QA `064c0e1`; review
+> fixes `d5e933a` (merge `f06b7af`). ADR 0133 landed inside `064c0e1` because of a commit race; its content
+> is the architect's.
+>
+> **In progress: U7 S0** (the reload flash, backlog 98; ADR 0133; Full tier plus security). **Then U7 S1 →
+> S2 → S3 → S4.** The review fixes' e2e specs (`d5e933a`) have **not yet run in a browser**; the coordinator
+> runs them next, with U7 S0.
+>
+> **At S4 the owner dispatches the `ci` workflow from the Actions tab and opens the single combined PR for
+> M7 and M7B himself** (Q-U7-3, verbatim: *"i will make the PR"*).
+>
+> **Owner answers recorded (relayed selections, 2026-09-30):** a too-short U also gets *"a straight
+> kitchen would fit"* (census W23 and flag 1: "Yes, suggest straight (Recommended)"); `room.issue.roomTooSmall`
+> keeps its singular "dulapul de colț" for a U ("Keep as is (Recommended)"); backlog 100's six rows stay
+> ("Leave them", Q-U7-2). New backlog entries 101 and 102.
+
+> **RESUME HERE — 2026-09-30, superseded by the entry above. M7B waves U0–U5 are DONE — the editor and Step 1 carry a U (behind
 > a test witness policy), closed at `8a30dbb`.** Branch `m7b-u-shaped-rooms`, not pushed; `pnpm ci:local`
 > has not been run, and the coordinator runs it before U6.
 >

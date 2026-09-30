@@ -130,7 +130,9 @@ status corrections, in one of these two files:
 | 97 | Generation below the approved ceiling floor (2200) throws for every shape | open.md — found 2026-09-30 at M7B wave U3b's close-out; a U throws from 1900 (RQ7's hood), the L succeeds at 2000; unreachable under approved heights; no owner, no phase |
 | 98 | A reload shows the seeded L (3 chips) before the loaded design | open.md — found 2026-09-30 at M7B wave U5's close-out; pre-existing since zustand 5, beside 83; latent cross-request store write for a security reviewer; not a U6 blocker; no owner, no phase |
 | 99 | Plan-preview label fit has known limits (three cases) | open.md — found 2026-09-30 at M7B wave U5's review; recorded in test comments, not fixed; needs a copy or layout decision; no owner, no phase |
-| 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); owner decides |
+| 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); **owner answered 2026-09-30 (Q-U7-2): "Leave them"** |
+| 101 | The shape-refusal region is kept on purpose, though no shipped path draws it | open.md — recorded 2026-09-30 at M7B wave U6's close-out; if a future policy stops stating a shape, the e2e tests removed in U6 (E3, E4's U half, E5, E9) must come back; no owner |
+| 102 | Dev-only security candidates from the undici review (js-yaml, vitest, Node's bundled undici) | open.md — found 2026-09-30; lockfile refresh, a major vitest upgrade and a Node patch release respectively; not scheduled, no owner |
 
 ## 2026-09-06 audit note
 
