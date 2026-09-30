@@ -685,9 +685,8 @@ describe("the composed plan aside maps a DesignRoom the one way parsedRoomLength
  * **M7B U5 S1, acceptance criterion 2, and the 1F aside for a U.** A U's 1F summary shows wall A,
  * wall B, wall C and the height, and the desktop aside draws the plan with all three walls. The
  * sentence is `room.compose.roomSummaryU`, drafted 2026-09-30 by the coordinator's ruling: the approved
- * leaf's own shape with a third length. Rendered here straight through `GenerationSteps` because no
- * U reaches 1F under the approved policy until U6 (`isShapeBuildable("U", APPROVED_ROOM_POLICY)` is
- * false) — the witness is the room handed to the screen, which is what a U 1D would hand it.
+ * leaf's own shape with a third length. Rendered here straight through `GenerationSteps`, handed the
+ * room a U 1D would hand it, so the summary is tested without the screen's route to it.
  * The unit is spelled here, as the block above does, so a template that lost it or grouped thousands
  * could not agree with itself.
  */

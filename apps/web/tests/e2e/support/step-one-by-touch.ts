@@ -31,8 +31,8 @@ import {
 
 export type Locale = "ro" | "ru";
 
-/** The length fields the gate types into. `wallC` is the U's, and the U never gets past 1A here. */
-export type LengthField = "wallA" | "wallB" | "height";
+/** The length fields a journey types into. `wallC` is the U's (`u-steps.ts`). */
+export type LengthField = "wallA" | "wallB" | "wallC" | "height";
 
 const DESIGNS_ENDPOINT = "/api/designs";
 

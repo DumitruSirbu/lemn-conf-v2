@@ -1,14 +1,10 @@
 // @vitest-environment happy-dom
 //
-// M7B U5 review: **the screen's `policy` reaches the URL parse**, proved by walking a U from 1A to 1D to
-// 1F through the real `RoomScreen`. Renamed from `room-screen.u-witness.dom.test.ts` at U6 S1 (census
-// W36, W37): the walk runs under the approved policy, which states the U, and the contrast is a policy
-// that states none (ADR 0116).
-//
-// `RoomScreen` took a `policy` for its cards and its *Continuă* and then parsed the URL, and the draft's
-// own canonical query, against the *approved* policy — so a screen handed a policy that builds a U
-// offered the U card, enabled *Continuă*, and never reached 1D. The walk below and its contrast are the
-// pair that says the parse follows the policy the screen is handed.
+// **The screen's `policy` reaches the URL parse**, proved by walking a U from 1A to 1D to 1F through the
+// real `RoomScreen` under the approved policy, with a policy that states no U as the contrast (ADR
+// 0116). The invariant: the cards, *Continuă*, the URL parse and the draft's own canonical query all
+// read the one policy the screen is handed, so a screen that builds a U reaches 1D and one that does
+// not stays at 1C.
 //
 // The mocks are `room-composition.dom.test.ts`'s and stand for the same reasons: `next/navigation` one
 // layer down, the adapter's `makeKit`/`createBodyProbe`/`disposeKit` only (so the composition runs the

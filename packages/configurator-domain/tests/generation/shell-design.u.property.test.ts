@@ -1,5 +1,5 @@
-// M7B U2 S2, AC2: `buildUShellDesign`'s rules as properties over the engine's own U range (still
-// `interim-unapproved` — the owner's bounds land at U6), the same shape wave 7D1's L property suite
+// M7B U2 S2, AC2: `buildUShellDesign`'s rules as properties over the engine's own U range (the
+// engine's limits, which the owner's approved U bounds sit inside), the same shape wave 7D1's L property suite
 // already holds the L to. **The oracle recomputes each corner's reach from `corner-assembly-size.ts`'s
 // own public entry points** — the module `shell-design.ts` itself reads for the identical number —
 // rather than from the built shell's placements: a placement a low ceiling excludes still reserves

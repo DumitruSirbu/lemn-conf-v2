@@ -9,8 +9,8 @@
 // The window losing focus is not driven: headless Chromium keeps a backgrounded page's focus, so the
 // blur a phone sends when the app is switched away cannot be produced here.
 //
-// It also measures the fits spec's U witness (three explained walls; under the shape refusal until U6), which was
-// asserted with `mustScroll: false` and never measured, and every control's 44 px there.
+// It also measures the fits spec's U witness (three explained walls typed unreadable), which the fits spec
+// asserts with `mustScroll: true`, and every control's 44 px there.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const LOCALES = ["ro", "ru"] as const;
@@ -173,9 +173,9 @@ for (const locale of LOCALES) {
       };
     });
     expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
-    // Measured 2026-09-22: 919 px of content in a 709 px column, ro and ru alike. The fits spec runs
-    // this witness with `mustScroll: false`; it does scroll, so its reach claims are claims about
-    // scrolling, and this pins that they stay so.
+    // Three explained walls outgrow the column, so the fits spec's reach claims for this witness are
+    // claims about scrolling, and this pins that they stay so. (The 919 px measured on 2026-09-22 was
+    // taken under the shape refusal, which the U no longer draws, so no figure is quoted.)
     expect(column.scrollHeight).toBeGreaterThan(column.clientHeight);
 
     const sides = await targetSides(page, [
