@@ -2018,3 +2018,50 @@ development tooling; none is in the shipped runtime.
   Node patch release, not the lockfile.
 
 No owner, no phase.
+
+## 103. Editing the room's size keeps none of the customer's changes — WANTED BY THE OWNER 2026-10-01, NOT BUILT, NO PHASE
+
+The owner, verbatim (M7C Q1): *"what if I done a lot of changes but I need only to edit the size, going
+back will wipe out all my changes, looks like I need the ability to edit room size withgout loosing
+current work. I know this can change a lot, especially when will be reduced the size, there should be
+decission what to drop from cabinets."* **Today:** continuing from Step 1 generates a new design; no edit
+is carried over; the old design stays stored (ADR 0111 d5) and opens only from its own link until M8
+(ADR 0114 d4). M7C C1 S3's confirmation is the owner's stated minimum, not this entry. **Cost:** a room
+change applied to a stored design, not a regeneration. Growing a wall adds empty space; shrinking one
+needs an undecided rule for what is dropped or narrowed. A domain milestone of its own, with owner
+questions first.
+
+## 104. A cabinet cannot be resized through a fixed-width neighbour — ASKED BY THE OWNER 2026-10-01, NOT BUILT, NO PHASE
+
+The owner asked on 2026-10-01 (M7-FB-010) how hard it is to widen a cabinet without removing the fridge
+beside it, and on M7C Q6 sent this half to the backlog; the generator half is M7C wave C5. A resize is
+funded by adjacent empty space only (ADR 0031); moving the fridge inside the command is §13.2's rejected
+auto-shift. **Cost:** a new funding arm in `plan-width-funding.ts`, column moves, the frozen map and every
+body stacked over the neighbour; one Full-tier domain wave.
+
+## 105. Step 1's desktop footer departs from the mockup frames in three places — FOUND 2026-10-01 BY C1 S1's REVIEW, NOT FIXED, NO OWNER
+
+**Found by the review of M7C wave C1 S1 (`8269440`), which centred the footer controls and left these
+alone [relayed from that review].** (1) *"Înapoi"* ships as a 96 × 52 bordered button where frames
+D1B, D1C and D1F draw bare text. (2) The disabled *"Continuă"* lacks the frames' 1 px border. (3) On 1F,
+`.composeCta` keeps `flex: 1` (`apps/web/src/room/room.module.css:1054-1056`, read 2026-10-01), so the
+call to action spans the footer where frame D1F draws it content-width at the right. The mockups are the
+chrome specification (ADR 0104); each of the three is a departure from them with no recorded ruling. No
+owner, no phase.
+
+## 106. The e2e desktop shard 2/3 sits at exactly its 70-test budget — FOUND 2026-10-01 BY C1 S1's QA, NOT SCHEDULED
+
+**Found when C1 S1's QA spec was added [relayed].** `docs/best-practices/ci-and-local-gates.md`,
+*The per-shard test budget* (`:453-466`), names 70 tests as the largest shard and the ratchet; the guard
+is `pnpm gate:e2e-shard-budget`. The next desktop e2e spec lands the shard over the budget unless the
+shards are rebalanced or a fourth is added. M7C waves C1 S3 and C2 to C4 each add or restate e2e specs.
+Not measured by the scribe. No owner, no phase.
+
+## 107. A design stored before ADR 0135 keeps the old corner geometry — ACCEPTED PRE-RELEASE, 2026-10-01, READ-SIDE FIX NOT BUILT
+
+[ADR 0135](../decisions/0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md),
+*Consequences*, holds the measurement and the reasoning; it is not repeated here. In short: a design
+stored before C4 S2 (`48bbc0c`) shows a permanent 10 mm slit in the carcass and the worktop stone at the
+corner, and one depth-changed before C4 S1 (`c4eeea6`) stands 5 mm off the wall. A load-time re-derivation
+of the structural return's width would amend ADR 0089 and count as a migration under ADR 0038 decision 1.
+The owner was told. No owner, no phase.

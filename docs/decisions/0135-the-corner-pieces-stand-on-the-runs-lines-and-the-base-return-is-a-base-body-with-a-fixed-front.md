@@ -1,15 +1,14 @@
 # ADR 0135 — The corner pieces stand on the run's lines, and the base return is a base body with a fixed front
 
-Status: Accepted (decision). Slice S1 is committed as `c4eeea6`. Slice S2 is implemented, QA-green and
-logic-approved, awaiting a visual pass and a comment-fix batch, and is not yet committed; neither is
-described here as shipped beyond that.
+Status: Accepted (decision). Slice S1 is committed as `c4eeea6` and slice S2 as `48bbc0c`, both on branch
+`m7c-m7-feedback-fixes`, not pushed (hashes read from the branch's reflog).
 Date: 2026-10-01
 Type: Finding + Decision (owner rulings, relayed selections)
 Milestone: M7C, wave C4 (`docs/milestones/M7C-m7-feedback-fixes.md`, *C4 — the corner seam*); owner feedback
 M7-FB-006 (`docs/M7-FEEDBACK.md`)
 
 **Decided and landed are kept apart.** Everything below is the decision and the result its implementer
-or QA measured. S2's hash is added at wave close. Labels: **[doc-quoted]** from the plan
+or QA measured. Neither slice has been run on the CI runner. Labels: **[doc-quoted]** from the plan
 or a record, **[relayed]** measured by C0, QA, the implementer or the visual reviewer and relayed to the
 scribe, who did not re-run it, **[source-verified]** read at the file and line named, **[inference]**.
 
@@ -74,7 +73,7 @@ for one line makes a base-cabinet relation the right one, and the owner sees it 
 It occurs in generated U rooms: 2,630 left and 2,708 right of 47,691 composed, witnessed by U 4200 / 1600
 / 1700 and U 4200 / 1700 / 1600 [relayed]. The seam reads +10, as any base cabinet's does.
 
-**4. S2, the joint moves to the run's carcass front, `D − 30` (implemented and measured, not committed).**
+**4. S2, the joint moves to the run's carcass front, `D − 30` (`48bbc0c`; measured by QA, not run on the runner).**
 
 - The X-leg is built `D − 10` deep (590 at 600) and stays seated at −0.020, so ADR 0025 decision 3's
   pinned −0.020 and §11 row 19's named exception are unchanged. Its frame depth is `D − 50` (550 at

@@ -1,8 +1,8 @@
 # M7C — M7 feedback fixes
 
-**Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA. The owner
+**Status: IN PROGRESS, 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA. The owner
 has answered Q1, Q1b, Q3, Q4, Q5, Q6, Q7 and the corner joint (J). Done: C1 S1 (`8269440`), C1 S2
-(`21c702b`), C4 S0. C4 S1 passed QA, review and visual. Next: C4 S2. C2 is re-planned on the owner's Q2 answer; S0 is done and reviewed; S1 follows C4 S2; S2 waits on the owner seeing S1's capture (gate G-C2). Wave CE runs last, by the owner's word.** Branch `m7c-m7-feedback-fixes`,
+(`21c702b`), and wave C4 (S0; S1 `c4eeea6`; S2 `48bbc0c`). Next: C2, which is re-planned on the owner's Q2 answer; its S0 is done and reviewed, S1 is in implementation, S2 waits on the owner seeing S1's capture (gate G-C2). Then C1 S3, C3, C5, and wave CE last, by the owner's word. Nothing is pushed, and `pnpm check`, `pnpm ci:local` and e2e have not been run on this branch.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
 Source: `docs/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
@@ -174,11 +174,11 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 
 | Wave | Covers | Pri | Tier | State |
 | --- | --- | --- | --- | --- |
-| C0 | Census and measurements; the questions | — | Light | **Ready** |
-| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1, S2 **done**; S3 **ready**, after C2 |
-| C2 | FB-004, FB-011 | P0 | Full + visual | S0 done, reviewed (round 2). S1 after C4 S2. S2 after gate G-C2 |
+| C0 | Census and measurements; the questions | — | Light | **Done**, confirmed by QA |
+| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **open**, after C2 |
+| C2 | FB-004, FB-011 | P0 | Full + visual | S0 done, reviewed (round 2). S1 in implementation. S2 after gate G-C2 |
 | C3 | FB-003 | P1 | Full + visual | After C2 |
-| C4 | FB-006 | P1 | Full + visual | S0, S1 done; S2 **ready** once S1 is committed |
+| C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
 | C5 | FB-010 | P2 | Full | After C3 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | After C5 (owner) |
 | C6 | Phase gate | — | Coordinator + visual | Last |

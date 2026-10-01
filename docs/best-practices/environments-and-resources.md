@@ -41,6 +41,16 @@ never values. Pipe through a redaction filter when a command may echo a URL in a
 This has already gone wrong once: on 2026-08-25 a driver error printed a full production connection
 string including its password, forcing a rotation.
 
+**A second instance, 2026-10-01 (M7C visual pass), and a dispatch rule that follows from it.** The
+visual agent deleted 36 test-database designs it had minted itself and, in a later run, printed the test
+`DATABASE_URL` into its own session output [relayed by the coordinator; the session output was not
+re-read]. The owner was told and said *"no worries about db credentials"*. That is the owner's
+judgment of this one value, not a change to the rules above: the add-only rule and *Never print a secret*
+stand as written. **Every brief that lets an agent touch a database or run a browser suite must ban,
+by name, deleting rows and printing environment values.** An agent that does not see the rule in its brief
+works from its own idea of "cleaning up after itself". This note lives here rather than in the backlog
+because it is a standing rule for dispatch; the backlog holds product behaviour (`docs/BACKLOG.md`).
+
 ## Which file holds what
 
 **There are two files named `.env.local`, at two different paths, pointing at two different

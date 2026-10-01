@@ -133,6 +133,11 @@ status corrections, in one of these two files:
 | 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); **owner answered 2026-09-30 (Q-U7-2): "Leave them"** |
 | 101 | The shape-refusal region is kept on purpose, though no shipped path draws it | open.md — recorded 2026-09-30 at M7B wave U6's close-out; if a future policy stops stating a shape, the e2e tests removed in U6 (E3, E4's U half, E5, E9) must come back; no owner |
 | 102 | Dev-only security candidates from the undici review (js-yaml, vitest, Node's bundled undici) | open.md — found 2026-09-30; lockfile refresh, a major vitest upgrade and a Node patch release respectively; not scheduled, no owner |
+| 103 | Editing the room's size keeps none of the customer's changes | open.md — wanted by the owner 2026-10-01 (M7C Q1); not built, no phase |
+| 104 | A cabinet cannot be resized through a fixed-width neighbour | open.md — asked by the owner 2026-10-01 (M7-FB-010, M7C Q6); the generator half is M7C wave C5; not built, no phase |
+| 105 | Step 1's desktop footer departs from the mockup frames in three places | open.md — found 2026-10-01 by C1 S1's review; not fixed, no owner |
+| 106 | The e2e desktop shard 2/3 sits at exactly its 70-test budget | open.md — found 2026-10-01 by C1 S1's QA; not scheduled, no owner |
+| 107 | A design stored before ADR 0135 keeps the old corner geometry | open.md — accepted pre-release 2026-10-01; read-side fix not built; the record is ADR 0135 |
 
 ## 2026-09-06 audit note
 
