@@ -15,7 +15,12 @@ import {
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
-import { wearsTheBodysFinish } from "./body-finish-surfaces.js";
+import {
+  CORNER_WALL_CLOSURE_MESH_NAME,
+  CORNER_WALL_STILE_MESH_NAME,
+  wearsTheBodysFinish,
+  wearsTheBodysFinishOnTheCornerWallUnit,
+} from "./body-finish-surfaces.js";
 import { kitOwnedResources } from "./kit-ownership.js";
 import { context2d, isMaterial, isMesh } from "./three-guards.js";
 
@@ -158,6 +163,7 @@ export interface Factories {
     D?: number,
     pushOpen?: boolean,
   ) => THREE.Group;
+  wallCornerX: (W: number, H?: number, pushOpen?: boolean) => THREE.Group;
   openShelf: (
     W?: number,
     D?: number,
@@ -1693,6 +1699,31 @@ export function makeKit(options: KitOptions = {}): Kit {
   const HOOD_DEPTH_M = 0.5;
   const HOOD_SEAT_OFFSET_M = cabinetDepthM - HOOD_DEPTH_M / 2;
 
+  /** How an ordinary wall door hangs on its carcass: 6 mm narrower and 6 mm shorter than the body (3 mm of
+   *  reveal on each side, top and bottom), standing 3 mm below the top edge. */
+  const WALL_DOOR_WIDTH_REVEAL_M = 0.006,
+    WALL_DOOR_HEIGHT_REVEAL_M = 0.006,
+    WALL_DOOR_TOP_REVEAL_M = 0.003;
+
+  /** What is left of the height reveal under the door: it is the bottom edge's, and equals the top's only
+   *  while both are 3 mm. */
+  const WALL_DOOR_BOTTOM_REVEAL_M =
+    WALL_DOOR_HEIGHT_REVEAL_M - WALL_DOOR_TOP_REVEAL_M;
+
+  /** A wall door at or under this height takes its bar on the bottom edge, where a hand reaches it. */
+  const SHORT_WALL_DOOR_MAX_HEIGHT_M = 0.5;
+
+  /** Where a wall door's bar goes: none on a push-to-open door, the bottom edge on a short door, else a
+   *  vertical bar on `tallDoorEdge`. The one reader of `SHORT_WALL_DOOR_MAX_HEIGHT_M`. */
+  function wallDoorHandleEdge(
+    H: number,
+    pushOpen: boolean,
+    tallDoorEdge: "left" | "right",
+  ): HandleEdge {
+    if (pushOpen) return "none";
+    return H <= SHORT_WALL_DOOR_MAX_HEIGHT_M ? "bottom" : tallDoorEdge;
+  }
+
   function wallCabinet(
     W: number,
     doors: number,
@@ -1703,18 +1734,140 @@ export function makeKit(options: KitOptions = {}): Kit {
     const g = G("wall_cabinet");
     const shellD = wallCarcassDepth(D);
     g.add(carcass(W, H, shellD, 0));
-    const fz = shellD / 2 + TH / 2,
-      short = H <= 0.5;
-    const hL: HandleEdge = pushOpen ? "none" : short ? "bottom" : "right";
-    const hR: HandleEdge = pushOpen ? "none" : short ? "bottom" : "left";
+    const fz = shellD / 2 + TH / 2;
+    const hL = wallDoorHandleEdge(H, pushOpen, "right");
+    const hR = wallDoorHandleEdge(H, pushOpen, "left");
     if (doors === 1)
-      g.add(doorSlab(W - 0.006, H - 0.006, 0, H - 0.003, fz, hL));
+      g.add(
+        doorSlab(
+          W - WALL_DOOR_WIDTH_REVEAL_M,
+          H - WALL_DOOR_HEIGHT_REVEAL_M,
+          0,
+          H - WALL_DOOR_TOP_REVEAL_M,
+          fz,
+          hL,
+        ),
+      );
     if (doors === 2) {
       const dw = (W - 0.009) / 2;
-      g.add(doorSlab(dw, H - 0.006, -(dw + GAP) / 2, H - 0.003, fz, hL));
-      g.add(doorSlab(dw, H - 0.006, (dw + GAP) / 2, H - 0.003, fz, hR));
+      const doorH = H - WALL_DOOR_HEIGHT_REVEAL_M,
+        doorTop = H - WALL_DOOR_TOP_REVEAL_M;
+      g.add(doorSlab(dw, doorH, -(dw + GAP) / 2, doorTop, fz, hL));
+      g.add(doorSlab(dw, doorH, (dw + GAP) / 2, doorTop, fz, hR));
     }
     return g;
+  }
+
+  /** Where the corner wall unit's parts stand, in `wallCabinet`'s own frame (x centred on the body, z
+   *  centred on the shell). The unit is the base X-leg's shape one level up (ADR 0135's sibling, M7C
+   *  wave C2): `blindM` of its width stands behind the side wall's corner cabinet, whose finished depth
+   *  from its own wall is the wall depth; the rest carries one door. */
+  interface CornerWallUnitLayout {
+    readonly shellDepthM: number;
+    readonly frontPlaneZ: number;
+    readonly closureCentreX: number;
+    readonly closureCentreZ: number;
+    readonly stileWidthM: number;
+    readonly stileCentreX: number;
+    readonly leafWidthM: number;
+    readonly leafCentreX: number;
+  }
+
+  function cornerWallUnitLayout(W: number): CornerWallUnitLayout {
+    const shellDepthM = wallCarcassDepth(wallDepthM);
+    const blindM = wallDepthM;
+    // The clearance beside the blind part is the base X-leg's: the same physical rule (30 mm past the
+    // side cabinet's front), so its constants are read rather than restated.
+    const leafLeftClearanceM =
+      (CORNER_X_LEAF_TOTAL_CLEARANCE_M +
+        CORNER_X_LEAF_LEFT_MINUS_RIGHT_CLEARANCE_M) /
+      2;
+    const leafLeftX = -W / 2 + blindM + leafLeftClearanceM;
+    // The far edge takes an ordinary wall door's reveal, half of its width reveal (not the base corner
+    // cabinet's 10 mm), so a neighbouring wall cabinet's door meets it in a joint of twice that.
+    const leafRightX = W / 2 - WALL_DOOR_WIDTH_REVEAL_M / 2;
+    const leafWidthM = leafRightX - leafLeftX;
+    const closureRightX = -W / 2 + shellDepthM;
+    const stileRightX = leafLeftX - GAP;
+    return {
+      shellDepthM,
+      frontPlaneZ: shellDepthM / 2 + TH / 2,
+      closureCentreX: -W / 2 + shellDepthM / 2,
+      closureCentreZ: wallDepthM / 2,
+      stileWidthM: stileRightX - closureRightX,
+      stileCentreX: (closureRightX + stileRightX) / 2,
+      leafWidthM,
+      leafCentreX: leafLeftX + leafWidthM / 2,
+    };
+  }
+
+  /** The carcass the unit is one body of: the same box a wall cabinet is built on. */
+  function cornerWallCarcass(W: number, H: number, shellDepthM: number) {
+    return carcass(W, H, shellDepthM, 0);
+  }
+
+  /** **The blind closure.** The carcass is the shell, `FRONT_ASSEMBLY_D` short of the declared depth,
+   *  and the side wall's corner cabinet stands against the declared depth: this fills the difference
+   *  over the shell's width, so no slot shows beside the cabinet. Its front lies on the cabinet's near
+   *  side face, one shared hidden face. */
+  function cornerWallClosure(H: number, layout: CornerWallUnitLayout) {
+    return box(
+      layout.shellDepthM,
+      H,
+      wallDepthM - layout.shellDepthM,
+      M.carcass,
+      CORNER_WALL_CLOSURE_MESH_NAME,
+      layout.closureCentreX,
+      0,
+      layout.closureCentreZ,
+    );
+  }
+
+  /** **The fixed stile**, on the leaf's plane, from the closure's edge to one `GAP` short of the leaf:
+   *  with the leaf it covers the unit's front from the closure to the far end, so nothing recesses. */
+  function cornerWallStile(H: number, layout: CornerWallUnitLayout) {
+    return box(
+      layout.stileWidthM,
+      H - WALL_DOOR_HEIGHT_REVEAL_M,
+      TH,
+      M.door,
+      CORNER_WALL_STILE_MESH_NAME,
+      layout.stileCentreX,
+      WALL_DOOR_BOTTOM_REVEAL_M,
+      layout.frontPlaneZ,
+    );
+  }
+
+  /** **The one leaf**, hinged on the edge away from the corner, so its bar is on the corner side. A
+   *  top-row unit takes its bar on the bottom edge like any short door; `pushOpen` leaves it out. */
+  function cornerWallLeaf(
+    H: number,
+    pushOpen: boolean,
+    layout: CornerWallUnitLayout,
+  ) {
+    const handleEdge = wallDoorHandleEdge(H, pushOpen, "left");
+    return doorSlab(
+      layout.leafWidthM,
+      H - WALL_DOOR_HEIGHT_REVEAL_M,
+      layout.leafCentreX,
+      H - WALL_DOOR_TOP_REVEAL_M,
+      layout.frontPlaneZ,
+      handleEdge,
+    );
+  }
+
+  /** **The corner wall unit**: one structural body on the back wall above the corner base, `W` wide from
+   *  the corner. A blind part (the side wall's corner cabinet stands in front of it), a closure and a
+   *  stile so no recess shows, and one leaf on the rest. Built for the left corner; a U's right corner
+   *  is the scene's mirror of it. `H` is 0.7 in the wall row and 0.4 in the top row. */
+  function wallCornerX(W: number, H = 0.7, pushOpen = false): THREE.Group {
+    const g = G("wall_corner_x");
+    const layout = cornerWallUnitLayout(W);
+    g.add(cornerWallCarcass(W, H, layout.shellDepthM));
+    g.add(cornerWallClosure(H, layout));
+    g.add(cornerWallStile(H, layout));
+    g.add(cornerWallLeaf(H, pushOpen, layout));
+    return wearsTheBodysFinishOnTheCornerWallUnit(g);
   }
 
   // A lift-up: no hinged doors at all, one full-face flap. `DEVELOPMENT-SPEC.md` §6.5 puts its
@@ -2558,6 +2711,7 @@ export function makeKit(options: KitOptions = {}): Kit {
   const make: Factories = {
     baseCabinet,
     wallCabinet,
+    wallCornerX,
     openShelf,
     wallLift,
     hood,

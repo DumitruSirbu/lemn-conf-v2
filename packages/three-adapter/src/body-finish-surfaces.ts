@@ -46,6 +46,11 @@
 // | | `front_liner` | `M.shadowGap` | no — the gap reads as a shadow or not at all |
 // | | `door_front` | `M.door` | yes, already |
 // | | handles | `M.steel` | no |
+// | `wall-corner-x-900` (and `-top`; M7C wave C2) | `carcass_shell` | `M.carcass` | **yes** — sides and underside |
+// | | `corner_closure` | `M.carcass` | **yes** — fills the depth behind the side wall's corner cabinet |
+// | | `corner_stile` | `M.door` | **yes** — carries the door plane across the blind part |
+// | | `carcass_back`, `front_liner`, handle | as the wall returns | no |
+// | | `door_front` | `M.door` | yes, already |
 //
 // **All four carcasses are solid volumes**, which is what makes "paint the box" safe to say: none of
 // them has a cavity, so a declaration on one cannot reach an interior surface. What a door would
@@ -94,6 +99,18 @@ export function wearsTheBodysFinish(mesh: THREE.Mesh): THREE.Mesh {
  *  and the `front_liner` that darkens the shadow gap. */
 const CARCASS_SHELL_MESH_NAME = "carcass_shell";
 
+/** The two meshes the corner wall unit (`wallCornerX`, `kitchen-parts.ts`) builds beyond its carcass, and
+ *  which belong to the body's own surface: the closure that fills the depth the carcass leaves behind the
+ *  side wall's corner cabinet, and the stile that carries the door plane across the blind part. */
+export const CORNER_WALL_CLOSURE_MESH_NAME = "corner_closure";
+export const CORNER_WALL_STILE_MESH_NAME = "corner_stile";
+
+const CORNER_WALL_UNIT_FINISH_SURFACES: readonly string[] = [
+  CARCASS_SHELL_MESH_NAME,
+  CORNER_WALL_CLOSURE_MESH_NAME,
+  CORNER_WALL_STILE_MESH_NAME,
+];
+
 /** A body that was declared paintable on a mesh it does not build. Thrown rather than returned so a
  *  rename in `carcass` fails the build that depends on it, instead of silently un-painting a corner
  *  the way `collectFronts` once silently un-painted the open shelf. */
@@ -128,6 +145,28 @@ export function wearsTheBodysFinishOnItsCarcassShell(
     throw new NoSuchFinishSurfaceError(CARCASS_SHELL_MESH_NAME);
   }
   for (const shell of shells) wearsTheBodysFinish(shell);
+  return body;
+}
+
+/**
+ * **Declares that the corner wall unit wears its colour on its carcass shell, its closure and its
+ * stile** — every one of its surfaces that is not a leaf (the leaf is a front, so `isFrontMesh` already
+ * answers for it) and not the board or liner inside the box.
+ *
+ * Thrown rather than returned when one of the three is missing, so a rename in the builder fails the
+ * build that depends on it, as `wearsTheBodysFinishOnItsCarcassShell` does for the wall returns.
+ */
+export function wearsTheBodysFinishOnTheCornerWallUnit(
+  body: THREE.Group,
+): THREE.Group {
+  for (const meshName of CORNER_WALL_UNIT_FINISH_SURFACES) {
+    const surfaces: THREE.Mesh[] = [];
+    body.traverse((node) => {
+      if (isMesh(node) && node.name === meshName) surfaces.push(node);
+    });
+    if (surfaces.length === 0) throw new NoSuchFinishSurfaceError(meshName);
+    for (const surface of surfaces) wearsTheBodysFinish(surface);
+  }
   return body;
 }
 

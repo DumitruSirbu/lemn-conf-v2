@@ -350,6 +350,33 @@ describe("handles", () => {
   });
 });
 
+describe("the corner wall unit on the kit's surface", () => {
+  it("is a member of the kit's factories, building one group with one leaf and its own closure and stile", () => {
+    expect(kit.make.wallCornerX).toBeTypeOf("function");
+
+    const unit = kit.make.wallCornerX(0.9);
+
+    expect(unit.name).toBe("wall_corner_x");
+    expect(meshNames(unit).sort()).toEqual(
+      [
+        "carcass_back",
+        "carcass_shell",
+        "corner_closure",
+        "corner_stile",
+        "door_front",
+        "front_liner",
+        "handle_bar",
+        "handle_stem",
+        "handle_stem",
+      ].sort(),
+    );
+  });
+
+  it("is not a reference builder: the builders keep exactly the reference's keys", () => {
+    expect(Object.keys(kit.builders)).not.toContain("wall-corner-x");
+  });
+});
+
 describe("the two corner legs", () => {
   it("computes each leg's plinth recess from its own depth only", () => {
     const xLeg = kit.make.cornerBaseX(0.9);
