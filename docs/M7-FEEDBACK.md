@@ -44,7 +44,7 @@ the classification and the evidence for each item. The reporter's text above and
 | M7-FB-003 | Read as the top row (2200–2600). Generation skips it in every shape, by the owner's ruling of 2026-09-14 (ADR 0110 E11). Changing it overturns that ruling. | M7C wave C3, on Q4 |
 | M7-FB-004 | Read as the wall-row and top-row stretch of wall A above each corner base, which generation leaves empty on purpose. The base corner units and the side-wall corner cabinets are generated. | M7C wave C2, on Q2 |
 | M7-FB-005 | The request was recorded with a size threshold: base-only when the three walls total 10 m or more (ADR 0110 N1.3). Whether the output follows that record depends on the screenshot room's size, which Q3 asks for: a defect if the walls total 10 m or more. | M7C wave C2, on Q3 |
-| M7-FB-006 | No record names this setback. The cause is not established: the builders' arithmetic does not explain a corner that sits behind at depth 700. Reproduced and measured first, then fixed. | M7C waves C0 and C4, on Q5 |
+| M7-FB-006 | No record names this setback. Measured by C0 (QA pending): the side-wall corner piece is behind its neighbour, worktop 20 mm and front 8–10 mm, at 600 and 700; the back-wall corner cabinet is 10 mm in front. The screenshot is reproduced for the side-wall pieces. | M7C wave C4, on Q5 |
 | M7-FB-007 | Vertical centring is missing against the desktop mockup. The button stays on the right, as the mockup draws it. | M7C wave C1 S1 |
 | M7-FB-008 | Romanian as given. The Russian question and its two answers change together and are a draft for the owner to read. | M7C wave C1 S2, on Q7 |
 | M7-FB-009 | Same cause as M7-FB-007, in a second rule. | M7C wave C1 S1 |
