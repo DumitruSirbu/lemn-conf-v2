@@ -1,8 +1,8 @@
 # M7C — M7 feedback fixes
 
-**Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured the same day and folded in below.
-Every C0 figure is *measured by C0, QA pending*. C1 S1 is done (`8269440`). Dispatchable after the owner's
-answers: C2 (Q2, Q3), C3 (Q4), C4 (Q5), C5 (Q6); C1 S2 on Q7, C1 S3 on Q1.** Branch `m7c-m7-feedback-fixes`,
+**Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and folded in (QA pending); the
+owner answered Q1, Q3, Q4 and Q7 the same day. C1 S1 is done (`8269440`). Dispatchable: C1 S2. C1 S3
+waits on the owner reading its warning (Q1b). C2 on Q2; C3 after C2; C4 on Q5; C5 on Q6.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
 Source: `docs/M7-FEEDBACK.md`, eleven items from the owner's hands-on check of M7 and M7B, with
@@ -46,7 +46,7 @@ web items are small and independent. Splitting would add a branch and a PR and r
 | 002 | Named interim | A `<span>`, *"inert until M8 because no review route exists"* (`configure-screen.tsx:232-247`); ADR 0104 d6: *"drawn exactly as the frames draw it and is wired to nothing"*. | [src] [doc] | M8 | P3 |
 | 003 | Owner ruling to overturn | Generation inserts uppers at `WALL_ROW_Y0_MM` only (`generate-kitchen.ts:451-482`). ADR 0110 E11.1: *"Composition places no body in the top row (2200–2600)"*, owner 2026-09-14: *"let's stick to what we have now. Get some feedback."* Every shape, not only the U. | [src] [doc] | C3 | P1 |
 | 004 | Architect adjudication to overturn | Wall A's wall and top rows over each corner base are empty shell tiles (`shell-design.ts:381-398, 750-786`). Archived M7 plan, *Adjudication 7D1-Q1*, criterion 14: *"composition places nothing in the wall band over wall A's corner zone … left as an empty column the customer can fill"*. Not an owner ruling. The base corner legs and the side-wall returns **are** generated in a U (`shell-design.ts:652-718`). The stretch is exactly 900 mm in every approved room, tiled 800 + 100; the side wall's corner cabinet covers its first 330 mm at 600 and at 700. | [src] [doc] [C0] | C2 | P0 |
-| 005 | Conditional: a defect if the room's A + B + C ≥ 10 m, else it conforms to the record | `isBackWallBaseOnly` requires `isLargeU` (`upper-policy.ts:46-56`), `LARGE_U_TOTAL_MM = 10_000` (`run-layout.ts:136`). ADR 0110 N1.3: *"Depends on size"*, then a relayed selection: *"A + B + C ≥ 10 m … the base-only wall is the back wall (A)"*. So the request was recorded, with a threshold. The screenshot's room size is not known; Q3 asks for it. | [src] [doc] | C2 | P1 |
+| 005 | Conforms to the record (owner, 2026-10-01: the room was under 10 m; rule kept) | `isBackWallBaseOnly` requires `isLargeU` (`upper-policy.ts:46-56`), `LARGE_U_TOTAL_MM = 10_000` (`run-layout.ts:136`). ADR 0110 N1.3: *"Depends on size"*, then a relayed selection: *"A + B + C ≥ 10 m … the base-only wall is the back wall (A)"*. So the request was recorded, with a threshold. | [src] [doc] | none | P1 |
 | 006 | Contract gap, two seams in opposite directions | No record states a front-line contract at the corner. Against its neighbour, the side-wall corner piece (return) is **behind**: worktop −20 mm, front −8 mm (−10 beside a hob). The back-wall corner cabinet (X-leg) is **proud**: worktop +10, front +11. Identical at 600 and after a change to 700, in an L, a right-hand L and both corners of a U (32 seams). The owner's screenshot is reproduced for the side-wall pieces only. | [C0] | C4 | P1 |
 | 007 | Defect against the mockup | Frame D1A `:92` declares `align-items:center` on the 88 px footer; the shipped rule has none (`room.module.css:1240-1246`), so the 52 px button sits at the top. The button stays right-aligned, as the frame draws it. | [src] [doc] | C1 S1 | P2 |
 | 008 | Copy change, owner's wording | `room.cornerQuestion` (`ro.json:51`, `ru.json:51`); ADR 0113: *"I will adjust when I will decide later"*. | [src] [doc] | C1 S2 | P3 |
@@ -91,15 +91,36 @@ direction and a prototype defect.
 
 Each answer is recorded verbatim, or marked relayed, in the record named.
 
-**Q1 — FB-001. Blocks C1 S3 only.** Recorded in ADR 0104 Amendment D.
-(a) Show the back-to-room control on desktop, as on the phone. It opens Step 1 with the room filled in;
-*Continuă* makes a new kitchen and the old one stays stored. (b) Also add *Bucătărie nouă* with a
-warning that the current kitchen is lost. (c) Neither.
-*Recommended: (a).* The old kitchen is not deleted, but until M8 it is hard to get back to: `/` resumes
-only the newest design (ADR 0114 d4), so the old one opens only from its own `/d/…` link in the same
-browser, which the customer may not have kept. So (a) should say so in one line of copy at Step 1; that
-line is drafted in C1 S3 and read by the owner. (b)'s *"will be lost"* is still stronger than the truth.
-Idea B is M8. Idea C is already true for edits.
+**Q1 — FB-001. ANSWERED 2026-10-01.** Recorded in ADR 0104 Amendment D. Verbatim, typos included:
+
+> *"so i saw on mobile the back link exists, but what if I done a lot of changes but I need only to edit
+> the size, going back will wipe out all my changes, looks like I need the ability to edit room size
+> withgout loosing current work. I know this can change a lot, especially when will be reduced the size,
+> there should be decission what to drop from cabinets. So I think the simple solution is to show at
+> least a big warning, with mention, if you go back you loose all the custom changes you done so far,
+> please confirm. So this is simple and minimum needed doesn't matter on desktop or mobile I do this"*
+
+Read as three things. (i) The back-to-room control is shown on desktop too. (ii) On phone and desktop,
+using it asks for confirmation behind a prominent warning. (iii) Editing the room while keeping the
+customised kitchen is the real wish, named by the owner as hard; **not this milestone**, recorded as a
+new backlog entry with these words.
+
+**Q1b — the warning's wording. Blocks C1 S3.** The owner's *"you loose all"* is not literally true:
+going back erases nothing (ADR 0111 d5); the changes are lost only if the customer then continues, and
+the old kitchen stays stored but opens only from its own link until M8 (ADR 0114 d4). The warning must
+say what happens. It is asked **on leaving the editor**, as the owner said: both back links are in one
+component, and Step 1 cannot tell a returning customer from a new one without a new signal. Draft:
+
+| Leaf | Romanian (draft) | Russian (draft) |
+| --- | --- | --- |
+| title | Modificările făcute nu se păstrează | Сделанные изменения не сохранятся |
+| body | Dacă schimbi dimensiunile camerei și continui, bucătăria se construiește din nou. Dulapurile, culorile și lățimile pe care le-ai modificat aici nu trec în bucătăria nouă. | Если вы измените размеры комнаты и продолжите, кухня будет построена заново. Шкафы, цвета и ширины, которые вы изменили здесь, не перейдут в новую кухню. |
+| confirm | Înapoi la cameră | Назад к комнате |
+| stay | Rămân aici | Остаться здесь |
+
+The owner reads this set before S3 is dispatched: the wording is the substance of the fix, it differs
+from the owner's own phrase, and no agent approves copy (ADR 0095 d2). ADR 0113's *approved as drafted*
+covered Step 1's leaves, not this one.
 
 **Q2 — FB-004, FB-011. Blocks C2.** Recorded in ADR 0110 Amendment O.
 *On the back wall, above the corner base cabinet, there is a 900 mm stretch at the middle and top levels
@@ -118,26 +139,14 @@ or a new product. 570 is inside the cabinet's 200–800 mm range and is the widt
 cabinet already has; the width stepper then moves it in 50 mm steps from 570. That the pocket is hidden
 is [inf] until the captures for (a) and (b) are in. Also confirms: *middle* is the wall row.
 
-**Q3 — FB-005. Blocks C2.** Recorded in ADR 0110 Amendment O.
-First: what were the three wall lengths of the kitchen in the screenshot? If they total 10 m or more,
-FB-005 is a defect and is fixed in C2 whatever the answer below.
-(a) Keep: the back wall is base-only when the three walls total 10 m or more. (b) Base-only in every U.
-(c) Another threshold.
-*Recommended: (a).* It is the recorded answer, and in a small U the side walls carry the fridge and
-tall block, so (b) leaves little upper storage. Under (b) the corner stretch on wall A stays empty too.
+**Q3 — FB-005. ANSWERED 2026-10-01** (relayed selection): *"Was under 10 m; keep rule"*. The output
+conformed; the 10 m threshold of ADR 0110 N1.3 stands. No code change; C2 S2 is dropped.
 
-**Q4 — FB-003. Blocks C3.** Recorded in ADR 0110 Amendment O; overturns E11.
-*On 2026-09-14 you ruled: no top-level cabinets for now, wait for feedback, and later make the middle
-cabinets taller instead. FB-003 asks for top cabinets. Which stands?*
-(a) **A top cabinet (400 mm high, push-to-open doors) above every middle cabinet**, same width, in every
-kitchen shape, when the room is at least 2600 mm high. Adds about 6 cabinets to a kitchen on average
-[C0], each with its price. (b) Taller middle cabinets instead; a larger change, not in this milestone.
-(c) Keep the 2026-09-14 ruling.
-*Recommended: (a), with the 2026-09-14 ruling withdrawn by name.* Three details, defaults in brackets:
-- Above the hood too, as the reference kitchen has? [yes]
-- Above the tall cabinets (oven tower, pantry, 2200 mm high)? The space is there and takes a deeper
-  cabinet. [no; the fridge is 1850 mm and is never covered]
-- Doors, not the lift-up fronts you described for stretch ceilings? [doors, as FB-003 says]
+**Q4 — FB-003. ANSWERED 2026-10-01** (relayed selection): *"Generate a top row"*. A 400 mm push-to-open
+cabinet above every wall cabinet and above the hood, in every shape, in rooms at least 2600 mm high;
+doors, not lift fronts; none above tall columns. About 6 more cabinets per kitchen [C0], so the price
+rises. **ADR 0110 E11 is withdrawn** (E11.1 and E11.3 struck by name in Amendment O; F9's lift rule is
+recorded as not applied, its 120–165 mm clearance note kept).
 
 **Q5 — FB-006. Blocks C4.** Recorded in a new ADR 0135.
 *Measured at every corner, at depth 600 and 700 [C0]. The small corner piece on the side wall sits
@@ -163,18 +172,16 @@ design reference rejects. Three things to know:
 - We could not reproduce your steps: after removing the fridge and widening the cabinet to 750, the
   fridge did not go back [C0]. What were the wall lengths of that kitchen?
 
-**Q7 — FB-008. Blocks C1 S2.** Recorded as a pointer in ADR 0113.
-The new question asks *where*, the shipped one *whither*, so the answers must follow. Draft set:
+**Q7 — FB-008. ANSWERED 2026-10-01** (relayed selection): *"Approve both"*. Recorded as a pointer in
+ADR 0113.
 
-| Leaf | Romanian | Russian (draft) |
+| Leaf | Romanian | Russian |
 | --- | --- | --- |
 | `room.cornerQuestion` | În care parte se află colțul bucătăriei? | В какой стороне находится угол кухни? |
-| `room.cornerHint` | nu se deduce din lățimi (kept) | по ширинам не определить (kept) |
-| `room.cornerLeft` | La stânga (kept) | Слева (was *Налево*) |
-| `room.cornerRight` | La dreapta (kept) | Справа (was *Направо*) |
+| `room.cornerLeft` | La stânga (unchanged) | Слева |
+| `room.cornerRight` | La dreapta (unchanged) | Справа |
 
-The Romanian answers read correctly after either question, so they are kept; the owner may prefer
-*În stânga / În dreapta*. The owner reads the whole set before S2 is dispatched.
+`room.cornerHint` is unchanged in both (default; the owner did not object).
 
 **Non-blocking, default built.** FB-007: the button stays right, centred vertically.
 
@@ -183,9 +190,9 @@ The Romanian answers read correctly after either question, so they are kept; the
 | Wave | Covers | Pri | Tier | State |
 | --- | --- | --- | --- | --- |
 | C0 | Census and measurements; the questions | — | Light | **Ready** |
-| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **ready**; S2 on Q7; S3 on Q1 |
-| C2 | FB-004, FB-011, FB-005 | P0 | Full + visual | On Q2, Q3, C0 |
-| C3 | FB-003 | P1 | Full + visual | On Q4, C2 |
+| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done**; S2 **ready**; S3 on Q1b |
+| C2 | FB-004, FB-011 | P0 | Full + visual | On Q2 |
+| C3 | FB-003 | P1 | Full + visual | After C2 |
 | C4 | FB-006 | P1 | Full + visual | On Q5, C0 |
 | C5 | FB-010 | P2 | Full | On Q6, C0 |
 | C6 | Phase gate | — | Coordinator + visual | Last |
@@ -233,10 +240,12 @@ and *proud* cannot be confused. *QA reading:* the three scripts and their output
 | --- | --- | --- | --- |
 | S1 | `align-items: center` on the three desktop footers. | `room.module.css` | Desktop mockup `:92, :190`; `room.module.css:207-225, 780-810, 1234-1246, 1598-1620`; ADR 0104 d1 |
 | S2 | Q7's approved set in both locales, the type file, the copy lock, the golden manifest. | `ro.json`, `ru.json`, `ro.d.json.ts` | ADR 0113 d2–d3; ADR 0095 d2; `tests/support/approved-romanian-messages.ts`; `dimensions-form.tsx:125-210` |
-| S3 | The back-to-room link shown from 900 px. | `configure.module.css`, `configure/top-bar-fit.ts` if the fit ladder must count it | ADR 0104 d8 and Amendment C; `configure-screen.tsx:100-120, 232-250`; `configure.module.css:176-200, 371-400, 549-700` |
+| S3 | The back-to-room link shown from 900 px; both back links, on every viewport, open a confirmation before navigating. The dialog is the one the material change already uses. | `configure-screen.tsx`, `configure.module.css`, the settings confirmation component (extracted for reuse, not copied), `i18n/content.ts`, `ro.json` / `ru.json` / `ro.d.json.ts`; `configure/top-bar-fit.ts` only if the fit ladder must count the link | Q1, Q1b; ADR 0104 d8 and Amendment C; ADR 0111 d5; ADR 0081, 0086 (the existing confirmation); `settings/global-settings.tsx`, `global-settings-model.ts`; `configure-screen.tsx:100-120, 232-250`; `configure.module.css:176-200, 371-400, 549-700`; `browser-and-visual-qa.md` |
 
-Up to six production files against the limit of about five. Accepted because S2's three message files
-are one leaf set changed mechanically, and the three slices are reviewed as three diffs.
+The wave exceeds the five-file limit, so each slice is its own dispatch and its own review. S3 alone is
+about five production files plus the three message files, which change as one leaf set. **S3's tier is
+Light plus visual, with QA owning the interaction**: it adds a behaviour to the phone, but no domain
+rule, persistence or endpoint.
 
 *Criteria.*
 1. At 1280, 1440 and 1920 px wide, in 1A, 1B, 1C and 1F, each footer control's vertical centre is
@@ -244,24 +253,31 @@ are one leaf set changed mechanically, and the three slices are reviewed as thre
 2. The four leaves hold exactly the set the owner approved under Q7. No leaf outside
    `room.cornerQuestion`, `cornerHint`, `cornerLeft`, `cornerRight` changes in either file. The label does not wrap or clip at 390 px or at 520 px form width, in both
    locales.
-3. From 900 px the editor shows one back-to-room control whose `href` equals the phone's. It is absent
-   in the shared variant. The top bar's containment test stays green at 900–1920 px; price, CTA and
-   locale chip are never clipped.
+3. From 900 px the editor shows one back-to-room control whose destination equals the phone's. It is
+   absent in the shared variant. The top bar's containment test stays green at 900–1920 px; price, CTA
+   and locale chip are never clipped.
+3a. At 390 × 844 and at 1440 px, activating either back link opens the confirmation and does **not**
+   navigate. *Stay* closes it, returns focus to the link and leaves the URL and the design unchanged.
+   *Confirm* opens Step 1 with the room filled in. Escape and a backdrop press behave as *Stay*.
+3b. *Must not:* confirming writes, deletes or re-mints anything (no request other than the navigation);
+   the design is still at its `/d/…` link afterwards, and `/` still resumes it until a new kitchen is
+   made. The dialog holds exactly the four leaves the owner approved under Q1b, in both locales.
+3c. The shared variant shows neither the link nor the dialog. Keyboard: the link is reachable by Tab, the
+   dialog traps focus (backlog 48: no DOM in vitest, so this is the visual agent's check).
 4. *Must not:* the review CTA gains a handler, role or pointer cursor.
 
 *Visual evidence:* captures of 1A and 1B at 1440 px, the editor at 900 and 1440 px, 1B at 390 px in
-`ro` and `ru`. *QA reading:* the criteria, `room.module.css` desktop block, `top-bar-fit.ts`.
+`ro` and `ru`, and the open confirmation at 390 × 844 and 1440 px in both locales. *QA reading:* the criteria, `room.module.css` desktop block, `top-bar-fit.ts`.
 *Reviewer reading (combined):* the diff, both mockup frames, ADR 0104 d8. *Visual reading:* the frames
 and the captures.
 
 ### C2 — the corner stretch on wall A, and the U back wall (domain)
 
-Written for Q2 (a), the 570 mm cabinet, and Q3 (a). Another answer returns this wave to planning.
+Written for Q2 (a), the 570 mm cabinet. Q3 kept the 10 m rule, so the back-wall rule is untouched.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S1 | The shell tiles wall A's strip as one 570 mm tile, 330–900 (and `W − 900` to `W − 330` at a U's right corner), with no tile over the pocket. Generation puts one `wall-cabinet` in it, through `insertBody`. L, right-hand L, U (both corners). | `upper-policy.ts`, `generate-kitchen.ts`, `shell-design.ts` | ADR 0110 decisions 1–2, B2, C, E7, N3r 9–11; C0 S2; `shell-design.ts:379-407, 739-795`; `generate-kitchen.ts:449-482, 583-628` |
-| S2 | Q3's rule in `isBackWallBaseOnly`. | `upper-policy.ts`, `run-layout.ts` | ADR 0110 N1, N3r 11, RQ7 |
 
 *3D contract.* Each strip cabinet is an ordinary wall-A body: back face on wall A's plane at 0.000
 (§11 row 19), `y0` 1500, drawn unmirrored at both corners. Its near edge is the plane of the side
@@ -295,7 +311,7 @@ draft, the diff. *Clean-code reviewer:* the diff, `engineering-conventions.md`. 
 
 ### C3 — the top row (domain)
 
-Written for Q4 (a).
+Q4 answered: a top row, above the hood too, not above tall columns, doors.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -305,11 +321,11 @@ Written for Q4 (a).
 below. Handles hidden, not removed (§13.1).
 
 *Criteria.*
-1. In a room at least 2600 mm high, every generated wall cabinet, and the hood if Q4 says so, has
-   exactly one top-row body over exactly its span. Below 2600, none, and generation does not throw across the approved height range.
+1. In a room at least 2600 mm high, every generated wall cabinet and the hood has exactly one top-row
+   body over exactly its span. Below 2600, none, and generation does not throw across the approved height range.
    **[prop]**
-2. A top-row body stands over the hood, or not, as Q4 answers (default: yes, as the reference). *Must
-   not:* one over a full-height column (unless Q4 says so), or on a base-only back wall.
+2. *Must not:* a top-row body over a full-height column, over the fridge, or on a base-only back wall
+   (there the hood, if on wall A, is the one body with a top cabinet over it).
 3. Each top-row body resolves push-to-open with no customer action; a kitchen-wide handle change does
    not show a bar on it.
 4. Everything below 2200 is byte-identical to C2's output. No finding on any generated design.
@@ -394,7 +410,9 @@ criteria and captures.
   (strikes E11.1 and E11.3 if Q4 = a), the absorb (departs from A4, D2, N3r 4, RQ25a).
 - **ADR 0135**: the corner seam's front-line contract; amends ADR 0025's 630 figure and `SPEC.md`.
 - **ADR 0104 Amendment D**: the desktop back control.
-- A pointer in ADR 0113 for the reworded leaf.
+- A pointer in ADR 0113 for the reworded leaves (Q7).
+- **Backlog 104** (filed by the coordinator; 103 is the red e2e shards): editing the room's size while keeping the customised kitchen, with Q1's words and the
+  owner's own note that a smaller room needs a rule for what to drop.
 
 ## Risks
 
