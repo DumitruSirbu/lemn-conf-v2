@@ -84,7 +84,7 @@ export interface UMinimumKitchen {
    *  The approved literals (U6) are H3's 1800 on wall A, both X-legs together, and 1000 on a side wall,
    *  one corner's 900 mm reach plus the 100 mm slide reserve its run keeps at its end. The engine's
    *  values are a guard floor beneath them: wall A's is `twoCornersWallAMinimumMm()`, which is 1800 too,
-   *  and a side wall's is `wallMinimumMm("B")`, 880, which leaves the slide reserve out. */
+   *  and a side wall's is `wallMinimumMm("B")`, 870 (880 before ADR 0135), which leaves the slide reserve out. */
   readonly cornerReachMm: {
     readonly wallA: number;
     readonly sideWall: number;
@@ -223,7 +223,7 @@ function generatedRequiredWidthMm(
  *  records why the quantifier lives in its three entry points' names.
  *
  *  **The approved minima are deliberately above it**: `approved-room-policy.ts` holds the owner's
- *  900 and 1000 while this reads 880 on both walls, and that margin is pinned — not merely allowed
+ *  900 and 1000 while this reads 870 on both walls, and that margin is pinned — not merely allowed
  *  — by `approved-room-policy.test.ts` (ADR 0108 B1 permits a margin; only the owner may choose
  *  one, which is M7's Q-K1). That pin is the L's. The U's approved literals are pinned beside it in
  *  `approved-room-policy.test.ts` (M7B U6), and `room-policy.test.ts` pins that the engine's U bounds

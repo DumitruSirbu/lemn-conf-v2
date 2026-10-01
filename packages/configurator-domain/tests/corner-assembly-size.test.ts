@@ -22,7 +22,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
-  baseSeatDepthMm,
   buildKitchenLBodyCatalog,
   buildLShellDesign,
   CORNER_ASSEMBLY_PIECES,
@@ -181,9 +180,14 @@ function assemblyReachMm(
  *  than read back off the derivation: the base row starts at the X-leg's front plane (`d − 20`) and
  *  the upper rows at §7's head-clearance depth. This is the independent side of criterion 2′ — the
  *  derivation supplies the far edges, the catalogue supplies where each row begins. */
+/** How far the base run's carcass front stands inside the cabinet-depth line: 30 mm (ADR 0135), the
+ *  40 mm its fronts take less the 10 mm its carcass stands off the wall. Written as arithmetic here and
+ *  not read from the catalogue, so the test's side of criterion 2′ is independent of the derivation's. */
+const RUN_CARCASS_FRONT_INSET_MM = 30;
+
 function nearEdgeOnWallBMm(band: CornerBand, cabinetDepthMm: number): number {
   return band === "base"
-    ? baseSeatDepthMm(cabinetDepthMm)
+    ? cabinetDepthMm - RUN_CARCASS_FRONT_INSET_MM
     : wallCarcassDepthMm(cabinetDepthMm);
 }
 
@@ -236,11 +240,12 @@ describe("criterion 1 — the derived reach at 600 mm in the reference room", ()
     );
   });
 
-  it("sizes all four pieces from it — 900 on wall A, 320 at wall B's base and 570 in each upper row", () => {
+  it("sizes all four pieces from it — 900 on wall A, 330 at wall B's base and 570 in each upper row", () => {
     const widths = widthsIn(REFERENCE_ROOM, SHIPPED_CABINET_DEPTH_MM);
 
     expect(widthMm(widths, { wall: "A", band: "base" })).toBe(900);
-    expect(widthMm(widths, { wall: "B", band: "base" })).toBe(320);
+    // 320 → 330 (ADR 0135): the reference reach less the base run's carcass front, 900 − 570.
+    expect(widthMm(widths, { wall: "B", band: "base" })).toBe(330);
     expect(widthMm(widths, { wall: "B", band: "wall" })).toBe(570);
     expect(widthMm(widths, { wall: "B", band: "top" })).toBe(570);
   });
@@ -492,8 +497,8 @@ describe("criterion 6 — the run origins at the shipped depth", () => {
 
 describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => {
   it.each([
-    { baseWidthMm: 320, upperWidthMm: 570, expectedReachMm: 1000 },
-    { baseWidthMm: 200, upperWidthMm: 200, expectedReachMm: 880 },
+    { baseWidthMm: 330, upperWidthMm: 570, expectedReachMm: 1000 },
+    { baseWidthMm: 200, upperWidthMm: 200, expectedReachMm: 870 },
     { baseWidthMm: 200, upperWidthMm: 570, expectedReachMm: 970 },
   ])(
     "takes both wall-B rows at 700 mm: base $baseWidthMm / upper $upperWidthMm reaches $expectedReachMm",
@@ -517,7 +522,7 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
       const wallFarMm = farEdgeMm(widths, { wall: "B", band: "wall" });
       const topFarMm = farEdgeMm(widths, { wall: "B", band: "top" });
 
-      expect(baseFarMm).toBe(680 + baseWidthMm);
+      expect(baseFarMm).toBe(670 + baseWidthMm);
       expect(wallFarMm).toBe(400 + upperWidthMm);
       expect(topFarMm).toBe(wallFarMm);
       expect(Math.max(baseFarMm, wallFarMm, topFarMm)).toBe(expectedReachMm);
@@ -554,8 +559,11 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
     },
   );
 
-  it("keeps the actual engine floor at 880 mm while the approved wall-B minimum stays 1000 mm", () => {
-    expect(narrowestCornerReachMm("B").wallMinimumMm).toBe(880);
+  // 880 → 870 (ADR 0135): the engine's floor is the narrowest corner's reach at the deepest declared
+  // depth, 670 (the run's carcass front at 700 mm) plus the 200 mm one-door floor, where it was the
+  // run's seat, 680, plus the same 200. The approved minima do not move.
+  it("keeps the actual engine floor at 870 mm while the approved wall-B minimum stays 1000 mm", () => {
+    expect(narrowestCornerReachMm("B").wallMinimumMm).toBe(870);
     expect(approvedL().wallB.minMm).toBe(1000);
   });
 
@@ -742,7 +750,7 @@ describe("criterion 12 — what makes the policy's reader well-defined", () => {
 
   // **Attainment, as the bound can state it.** The adjudication words this as *"the reach at the
   // approved minimum room equals `narrowestCornerReachMm`"*; that is unsatisfiable while the owner's
-  // minima stay 900 / 1000 above a derived 880 (owner ruling, 2026-09-17), and no slice but the
+  // minima stay 900 / 1000 above a derived 870 (owner ruling, 2026-09-17), and no slice but the
   // joint bound slice may move them. So tightness is asserted where it is a property of the bound
   // itself: **the smallest room the bound admits attains it exactly**, which is what "tight, not
   // merely safe" means, and the margin above the owner's minima is S3's criterion 4′.
@@ -773,7 +781,7 @@ describe("criterion 12 — what makes the policy's reader well-defined", () => {
       const approved =
         wall === "A" ? approvedL().wallA.minMm : approvedL().wallB.minMm;
 
-      expect(narrowestCornerReachMm(wall).wallMinimumMm).toBe(880);
+      expect(narrowestCornerReachMm(wall).wallMinimumMm).toBe(870);
       expect(narrowestCornerReachMm(wall).wallMinimumMm).toBeLessThan(approved);
     },
   );
@@ -820,7 +828,7 @@ describe("criterion 13 — the bound's question and the shell's are different qu
     const bound = narrowestCornerReachMm("B").wallMinimumMm;
     const shellOrigin = lShellFloorRuns(REFERENCE_ROOM).B.startMm;
 
-    expect(bound).toBe(880);
+    expect(bound).toBe(870);
     expect(shellOrigin).toBe(900);
     expect(bound).not.toBe(shellOrigin);
   });
@@ -831,7 +839,7 @@ describe("criterion 13 — the bound's question and the shell's are different qu
         expect(
           narrowestCornerReachMm(wall).wallMinimumMm,
           JSON.stringify(room),
-        ).toBe(880);
+        ).toBe(870);
       }
     }
   });

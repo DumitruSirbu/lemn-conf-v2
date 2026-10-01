@@ -524,7 +524,8 @@ function reseat(input: ReseatInput): DesignPlacement {
   const { placement } = input;
   if (input.seatRule.seatedOn === "joint") {
     // **A joint-seated body is never measured** (ADR 0077 decision 1). There is no plane of its own
-    // to measure: `base-corner-x-900` declares 560 and its bounding box reports 600, and persisting
+    // to measure: `base-corner-x-900` declares 550 and its bounding box reports 590 (560 and 600 when
+    // this was found, before ADR 0135 moved the joint), and persisting
     // the measurement made the leg flush and drove 0.00835 m³ of its carcass into
     // `base-corner-return-320`. The stored seat is **removed** rather than rewritten, so
     // `deriveFrame` falls through to the declaration at whatever depth is current — one authority,

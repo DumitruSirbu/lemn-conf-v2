@@ -10,7 +10,8 @@ import { findMesh, worldBox } from "./support/structure.js";
 
 const reference: KitchenCornerWidthsM = {
   xM: 0.9,
-  baseReturnM: 0.32,
+  // 0.32 → 0.33 (ADR 0135): the reference reach less the run's carcass front, 900 − 570.
+  baseReturnM: 0.33,
   upperReturnM: 0.57,
 };
 const hingedFloorMm = required(
@@ -47,8 +48,9 @@ describe("buildKitchen corner width dependencies", () => {
 
   for (const depthMm of declaredDepthsMm) {
     propertyTest.prop([
-      fc.integer({ min: depthMm - 20 + hingedFloorMm, max: 900 }),
-      fc.integer({ min: hingedFloorMm, max: 320 }),
+      // The run's carcass front is 30 mm inside the depth line, and the reference return is 330 (ADR 0135).
+      fc.integer({ min: depthMm - 30 + hingedFloorMm, max: 900 }),
+      fc.integer({ min: hingedFloorMm, max: 330 }),
       fc.integer({ min: hingedFloorMm, max: 570 }),
     ])(
       `should move each dependent seat only with its own supplied corner width at ${String(depthMm)} mm depth`,
@@ -121,7 +123,7 @@ describe("buildKitchen corner width dependencies", () => {
           ).toBeCloseTo(du, 6);
         }
         expect(oneChild(changed, "corner_base_return").position.z).toBeCloseTo(
-          (depthMm - 20) / 1000 + widths.baseReturnM / 2,
+          (depthMm - 30) / 1000 + widths.baseReturnM / 2,
           6,
         );
       },

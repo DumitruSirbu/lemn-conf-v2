@@ -1017,15 +1017,16 @@ interface CornerRun {
  * **The reach across the corner is the carcass line, and deliberately not the space the body
  * fills** — ruled 2026-09-09 on the measurement below, against this wave's own first attempt.
  *
- * The two disagree at exactly the place this comparison looks. `base-corner-x-900` seats on 560 and
- * *occupies* 630, because ADR 0025 gives its corner worktop ten millimetres more reach than a
- * straight run's, and `base-corner-return-320`'s slab stands 50 mm proud of its own 570 carcass front (ADR 0135). So the
+ * The two disagree at exactly the place this comparison looks. `base-corner-x-900` seats on 550 and
+ * *occupies* 620 (560 and 630 until ADR 0135 moved the joint, when its worktop stood ten millimetres
+ * past a straight run's), and `base-corner-return-320`'s slab stands 50 mm proud of its own 570
+ * carcass front (ADR 0135). So the
  * shipped kitchen's two corner legs share 50 mm of plan area **by design**: it is two worktop slabs
  * meeting at an L-joint, which is what a corner is. Measured against the occupied depth this gate
  * marks the demo kitchen on its own declared geometry, and a gate that does that is not read the
  * first time it fires on something real. Measured against the seat it is silent there, and the two
- * defects backlog 50 was opened for reproduce exactly: 560 − 480 = 80 mm on the base return and
- * 291 − 260 = 31 mm on the wall return, which are the entry's own figures.
+ * defects backlog 50 was opened for reproduce: 560 − 480 = 80 mm on the base return as the entry
+ * recorded it (550 − 480 = 70 mm since ADR 0135) and 291 − 260 = 31 mm on the wall return.
  *
  * **And this number is a fiction everywhere else, which the next reader must meet rather than
  * infer.** `frameDepthMm` is ADR 0018's encoding of twice a body's rear overhang and is not a depth:

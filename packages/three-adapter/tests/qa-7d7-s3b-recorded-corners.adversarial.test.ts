@@ -36,8 +36,10 @@ const corners = [
   {
     id: "p26",
     buildId: "base-corner-return-320",
-    referenceMm: 320,
-    narrowMm: 300,
+    // 320 → 330 and 300 → 310 (ADR 0135): the return starts at the run's carcass front, 570, so the
+    // reference width is 900 − 570 and the 880 mm room leaves it 880 − 570.
+    referenceMm: 330,
+    narrowMm: 310,
     mesh: "carcass",
   },
   {

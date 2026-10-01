@@ -215,7 +215,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     }
     expect([...blockers.keys()].sort()).toEqual([
       "B|0.61",
-      "B|0.74",
+      "B|0.73", // B|0.74 until ADR 0135 moved the return's centre from 740 to 735
       "B|1.20",
       "B|2.45",
     ]);

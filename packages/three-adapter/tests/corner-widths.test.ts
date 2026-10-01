@@ -24,7 +24,8 @@ import {
 } from "./support/structure.js";
 
 const REFERENCE_X_WIDTH_MM = 900;
-const REFERENCE_RETURN_WIDTH_MM = 320;
+// 320 → 330 (ADR 0135): the reference reach less the run's carcass front, 900 − 570.
+const REFERENCE_RETURN_WIDTH_MM = 330;
 const DECLARED_DEPTHS_MM = [600, 700] as const;
 const DOOR_ALLOWANCE_MM = 40;
 const RIGHT_INSET_MM = 10;
@@ -56,10 +57,14 @@ function axisWidth(box: THREE.Box3, axis: "x" | "y" | "z") {
   return box.max[axis] - box.min[axis];
 }
 
-/** How far inside the cabinet-depth line the X-leg ends and the return begins: the run's seat, 20 mm.
- *  It was the return's own depth until ADR 0135 built the return 10 mm shallower; the joint did not
- *  move with it. */
-const L_JOINT_INSET_M = 0.02;
+/** How far the X-leg's carcass stands behind the wall plane: ADR 0025 decision 3's pin, 20 mm. */
+const X_LEG_BEHIND_WALL_M = 0.02;
+
+/** Where the X-leg's group stands off its wall: its carcass runs from `X_LEG_BEHIND_WALL_M` behind
+ *  the wall to the joint, which is the return's own depth, so the seat is half the difference. */
+function xLegSeatM(jointM: number): number {
+  return (jointM - X_LEG_BEHIND_WALL_M) / 2;
+}
 
 function placedCorner(
   cabinetDepthMm: number,
@@ -72,13 +77,9 @@ function placedCorner(
     kit.depths.cornerReturnDepthM,
     returnWidthMm / 1000,
   );
-  const jointM = cabinetDepthMm / 1000 - L_JOINT_INSET_M;
-  x.position.set(xWidthMm / 2000, 0, jointM - cabinetDepthMm / 2000);
-  ret.position.set(
-    kit.depths.cornerReturnDepthM / 2,
-    0,
-    jointM + returnWidthMm / 2000,
-  );
+  const jointM = kit.depths.cornerReturnDepthM;
+  x.position.set(xWidthMm / 2000, 0, xLegSeatM(jointM));
+  ret.position.set(jointM / 2, 0, jointM + returnWidthMm / 2000);
   ret.rotation.y = Math.PI / 2;
   const room = new THREE.Group();
   room.add(x, ret);
@@ -87,13 +88,13 @@ function placedCorner(
 }
 
 describe("the sized corner base legs", () => {
-  it("keeps the reference room's derived widths at 900 / 320 / 570 / 570 mm", () => {
+  it("keeps the reference room's derived widths at 900 / 330 / 570 / 570 mm", () => {
     const widths = cornerAssemblyWidthsMm({
       cabinetDepthMm: 600,
       room: KITCHEN_L_DESIGN.room,
     });
     expect(widths.pieces.map(({ widthMm }) => widthMm)).toEqual([
-      900, 320, 570, 570,
+      900, 330, 570, 570,
     ]);
   });
 
@@ -101,22 +102,26 @@ describe("the sized corner base legs", () => {
     expect(deriveDoorCount(oneDoorFloorMm)).toBe(1);
   });
 
-  it("keeps the 600 mm reference leaf at 280 mm and x = 300 mm", () => {
+  it("keeps the 600 mm reference leaf at 290 mm and x = 295 mm", () => {
     const x = kitAt(600).make.cornerBaseX(0.9);
     const door = worldBox(x, findMesh(x, "door_front"));
     const top = worldBox(x, findMesh(x, "countertop"));
-    expect(axisWidth(door, "x")).toBeCloseTo(0.28, 6);
-    expect((door.min.x + door.max.x) / 2).toBeCloseTo(0.3, 6);
+    // 280 → 290 and 300 → 295 (ADR 0135): the accessible front is 900 less the 570 joint, 330, so
+    // the leaf is 330 − 40 and sits 5 mm nearer the corner.
+    expect(axisWidth(door, "x")).toBeCloseTo(0.29, 6);
+    expect((door.min.x + door.max.x) / 2).toBeCloseTo(0.295, 6);
     expect(axisWidth(top, "x")).toBeCloseTo(0.9, 6);
   });
 
   it("clears the measured 700 mm door/return carcass collision in world space", () => {
-    const { room, x, ret } = placedCorner(700, 900, 320);
+    const { room, x, ret } = placedCorner(700, 900, REFERENCE_RETURN_WIDTH_MM);
     const door = worldBox(room, findMesh(x, "door_front"));
     const returnCarcass = worldBox(room, findMesh(ret, "carcass"));
 
-    expect(axisWidth(door, "x")).toBeCloseTo(0.18, 6);
-    expect(door.min.x).toBeCloseTo(0.71, 6);
+    // 0.18 → 0.19 and 0.71 → 0.70 (ADR 0135): the leaf is 900 less the 670 joint less 40, and starts
+    // 30 mm past the return's carcass as before.
+    expect(axisWidth(door, "x")).toBeCloseTo(0.19, 6);
+    expect(door.min.x).toBeCloseTo(0.7, 6);
     // 0.68 → 0.67 (ADR 0135): the return is built to the run's carcass front, 670 at 700.
     expect(returnCarcass.max.x).toBeCloseTo(0.67, 6);
     expect(door.min.x - returnCarcass.max.x).toBeGreaterThan(0.029);
@@ -143,14 +148,14 @@ describe("the sized corner base legs", () => {
       fc.tuple(
         fc.constant(600),
         fc.integer({
-          min: 600 - 20 + oneDoorFloorMm,
+          min: 600 - 30 + oneDoorFloorMm,
           max: REFERENCE_X_WIDTH_MM,
         }),
       ),
       fc.tuple(
         fc.constant(700),
         fc.integer({
-          min: 700 - 20 + oneDoorFloorMm,
+          min: 700 - 30 + oneDoorFloorMm,
           max: REFERENCE_X_WIDTH_MM,
         }),
       ),
@@ -182,7 +187,7 @@ describe("the sized corner base legs", () => {
       expect(axisWidth(xPlinth, "x")).toBeCloseTo((xWidthMm - 4) / 1000, 6);
       expect(axisWidth(xTop, "x")).toBeCloseTo(xWidthMm / 1000, 6);
       expect(axisWidth(leaf, "x")).toBeCloseTo(
-        (xWidthMm - (depthMm - 20) - DOOR_ALLOWANCE_MM) / 1000,
+        (xWidthMm - (depthMm - 30) - DOOR_ALLOWANCE_MM) / 1000,
         6,
       );
       expect(xCarcass.max.x - leaf.max.x).toBeCloseTo(RIGHT_INSET_MM / 1000, 6);
@@ -213,7 +218,7 @@ describe("the sized corner base legs", () => {
       x.position.set(
         xWidthMm / 2000,
         0,
-        kit.depths.cornerReturnDepthM - depthMm / 2000,
+        xLegSeatM(kit.depths.cornerReturnDepthM),
       );
       ret.position.set(
         kit.depths.cornerReturnDepthM / 2,
@@ -286,13 +291,13 @@ describe("the pre-edit 600 mm corner census at c6ea1bb", () => {
   // Literal digests of `structure` in /private/tmp/lemnaria-7d7-s0-c6ea1bb/
   // corner-census-600mm.json, taken before S1. Do not regenerate them from this implementation.
   //
-  // `base-corner-return-320` left this table with ADR 0135 (M7C wave C4): it is the one corner body
-  // that deliberately moved. Its departures from the vendored reference are declared with exact
-  // deltas in `kitchen-parts.parity.test.ts` and its new figures are asserted in
-  // `base-corner-return-lines.test.ts`; a regenerated digest would only record what the code does.
+  // `base-corner-x-900` and `base-corner-return-320` left this table with ADR 0135 (M7C wave C4): they
+  // are the two corner bodies that deliberately moved, the return in slice S1 and the X-leg in S2.
+  // Their departures from the vendored reference are declared with exact deltas in
+  // `kitchen-parts.parity.test.ts`, and their new figures are asserted in
+  // `base-corner-return-lines.test.ts` and `base-corner-x-lines.test.ts`; a regenerated digest would
+  // only record what the code does.
   const expectedSha256: Readonly<Record<string, string>> = {
-    "base-corner-x-900":
-      "8db941b852ac008adbe9ecea8bf2a344c61812efb98e09328fecfa0f71133f14",
     "wall-corner-return-570":
       "106b954c9cf9c16d6e372cacb4b7431e9764952d4c932aeb7e471f229e760f2c",
     "wall-corner-return-570-top":

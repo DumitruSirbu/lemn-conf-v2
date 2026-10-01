@@ -5,8 +5,6 @@
 // the return and a base cabinet, rather than of a constant either is built from, so a figure tuned to
 // close the gap would still have to agree with the run. The seam-by-seam measurement of whole rooms
 // is the C0 script's; this file is what stays in the suite.
-import { createHash } from "node:crypto";
-
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -16,7 +14,7 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
-import { describeStructure, findMesh, worldBox } from "./support/structure.js";
+import { findMesh, worldBox } from "./support/structure.js";
 import { mountedById, mountU, namedMeshBox } from "./support/u-scene.js";
 
 const RETURN_WIDTH_M = 0.32;
@@ -32,13 +30,6 @@ const RUN_CARCASS_FRONT_M_BY_DEPTH_MM = [
 
 /** The panel's size at the reference width: `W - 6 mm` wide, `CARC_H - 10 mm` tall, one door thick. */
 const FIXED_FRONT_SIZE_M = [0.314, 0.71, 0.018] as const;
-
-/** `describeStructure` digests of `cornerBaseX(0.9)` taken on the tree before this slice, at 600 and
- *  700. The X-leg is slice S2's and must not move in this one. */
-const X_LEG_DIGEST_BEFORE_ADR_0135: Readonly<Record<number, string>> = {
-  600: "8db941b852ac008adbe9ecea8bf2a344c61812efb98e09328fecfa0f71133f14",
-  700: "d5e67a9c261f6053c74ef3575fe675a3b8157245526f5173d67b21f2e29454c4",
-};
 
 beforeAll(() => {
   installHeadlessDocument();
@@ -154,21 +145,6 @@ describe.each(RUN_CARCASS_FRONT_M_BY_DEPTH_MM)(
     });
   },
 );
-
-describe("the X-leg stays where it was in this slice", () => {
-  it.each(Object.entries(X_LEG_DIGEST_BEFORE_ADR_0135))(
-    "builds the same 900 mm X-leg at a %s mm kitchen as the tree before ADR 0135",
-    (cabinetDepthMm, expected) => {
-      const structure = describeStructure(
-        kitAt(Number(cabinetDepthMm)).make.cornerBaseX(0.9),
-      );
-
-      expect(
-        createHash("sha256").update(JSON.stringify(structure)).digest("hex"),
-      ).toBe(expected);
-    },
-  );
-});
 
 describe("tapping the return's fixed front", () => {
   const SWEPT_U = {

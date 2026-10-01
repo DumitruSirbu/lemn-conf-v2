@@ -33,10 +33,11 @@
 // domain does not use cannot honestly claim to follow a fixture that moves.
 //
 // **The reach used is the corner body's carcass seat, not the space it fills** — ruled 2026-09-09,
-// against this file's own first answer. The seat is 560 mm and the occupied depth is 630, and the
-// 70 mm between them is `base-corner-x-900`'s corner worktop (ADR 0025). Measured against 630 the
+// against this file's own first answer. The seat is 550 mm and the occupied depth is 620 (560 and 630
+// before ADR 0135 moved the joint), and the 70 mm between them is the leg's 20 mm behind the wall
+// plane and its worktop's 50 mm overhang (ADR 0025). Measured against 620 the
 // gate marks the **shipped** kitchen, whose two corner legs share 50 mm of plan area because their
-// worktops meet at the L-joint; measured against 560 it is silent there and reproduces both defects
+// worktops meet at the L-joint; measured against 550 it is silent there and reproduces both defects
 // backlog 50 was opened for, to the millimetre. The block at the foot of this file is that
 // reproduction, and it is the reason the number is what it is.
 import { describe, expect, it } from "vitest";
@@ -198,10 +199,10 @@ describe("the corner, which it now sees", () => {
   });
 
   // **Where the reach ends is a decision, so it is asserted as one rather than left as a number
-  // that happened to change.** The corner body has two fronts: its carcass at 560 and its corner
-  // worktop at 630, ten millimetres further than a straight run's slab reaches (ADR 0025). The gate
-  // reads the first. The seventy millimetres between them are deliberately **outside** the reach,
-  // because the shipped kitchen puts `base-corner-return-320` at 580 — inside the worktop and clear
+  // that happened to change.** The corner body has two fronts: its carcass at 550 and its corner
+  // worktop at 620, the line a straight run's slab reaches (ADR 0135; 560 and 630 under ADR 0025). The
+  // gate reads the first. The seventy millimetres between them are deliberately **outside** the reach,
+  // because the shipped kitchen puts `base-corner-return-320` at 570 — inside the worktop and clear
   // of the carcass — and two worktop slabs meeting at an L-joint is what a corner is, not a finding.
   it("takes its reach from the corner body's carcass and not from its worktop", () => {
     const definition = catalog.get(cornerBody().body.buildId);
@@ -427,8 +428,11 @@ describe("the two overlaps backlog 50 was opened for, reproduced", () => {
   const BASE_RETURN_START_MM = 480;
   const WALL_RETURN_START_MM = 260;
 
-  it("reproduces the base return's 80 mm off the reach the gate reads", () => {
-    expect(seatOf("base-corner-x-900") - BASE_RETURN_START_MM).toBe(80);
+  // 80 → 70 (ADR 0135): the entry's 80 mm is the X-leg's 560 seat less the 480 the return then
+  // started at. The leg's seat is 550 now that the joint moved, so the same arithmetic reads 70; the
+  // 80 was a property of the geometry at `14cef90`, which this fixture no longer builds.
+  it("reproduces the base return's 70 mm off the reach the gate reads", () => {
+    expect(seatOf("base-corner-x-900") - BASE_RETURN_START_MM).toBe(70);
   });
 
   it("reproduces the wall return's 31 mm off the same reach, one band up", () => {

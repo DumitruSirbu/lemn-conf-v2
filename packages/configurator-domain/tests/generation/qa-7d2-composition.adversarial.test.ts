@@ -30,6 +30,7 @@ import {
   type GenerationCommand,
   type GenerationStep,
 } from "../../src/index.js";
+import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
 import { twoWallPlanOf } from "../support/two-wall-plan-of.js";
 import {
@@ -635,10 +636,30 @@ describe("7D2 planned shell and leftover invariants", () => {
       .update(canonicalSerializeDesign(shell))
       .digest("hex");
 
-    // 8f1066f1… → 696559ab… (ADR 0135): one value moved, the return's recorded column depth
-    // `depthMm` 600 → 620. The shell with that one field put back hashes to the old value.
+    // 8f1066f1… → 46526a61… (ADR 0135): the base return's centre, width and recorded column depth and
+    // the X-leg's recorded column depth, nothing else. The next test puts those four fields back.
     expect(digest).toBe(
-      "696559abb11527526891b7b300c2191ecb0a0ad84cc86ccb8c1e4fde6c691901",
+      "46526a6143d8805327b55da56f6ea85018b878ba8e7a271263aecd079d12ddb9",
+    );
+  });
+
+  it("differs from the 7D1 recording only by the fields ADR 0135 moved", () => {
+    const shell = buildLShellDesign({
+      room: KITCHEN_L_DESIGN.room,
+      occurredAt: OCCURRED_AT,
+    });
+    const digest = createHash("sha256")
+      .update(
+        canonicalSerializeDesign(
+          asBeforeAdr0135(shell) as Parameters<
+            typeof canonicalSerializeDesign
+          >[0],
+        ),
+      )
+      .digest("hex");
+
+    expect(digest).toBe(
+      "8f1066f10268207a28501f6a3ba14123693d04ede27fca63b18eafc45b5d4237",
     );
   });
 });

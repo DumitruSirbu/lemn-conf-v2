@@ -206,6 +206,18 @@ const BASE_RETURN_WORKTOP_DEPTH_GROWTH_M = 0.02;
 const BASE_RETURN_WORKTOP_CENTRE_SHIFT_EXPLICIT_M = 0.02;
 const BASE_RETURN_WORKTOP_CENTRE_SHIFT_DEFAULT_M = 0.015;
 const BASE_RETURN_SEAT_SHIFT_M = -0.005;
+const BASE_RETURN_WIDTH_GROWTH_M = 0.01;
+
+// The X-leg's departures (ADR 0135, the joint move). It is built 590 deep (the run's carcass front, 570,
+// plus its pinned 20 mm behind the wall) where the reference is 600, with a 290 mm leaf where the
+// reference's is 280 (the accessible front is 330, not 320), on the run's door plane without the
+// reference's extra millimetre, and seated 275 mm off the wall where the reference is 280.
+const X_LEG_DEPTH_SHIFT_M = -0.01;
+const X_LEG_SEAT_SHIFT_M = -0.005;
+const X_LEG_LEAF_GROWTH_M = 0.01;
+const X_LEG_LEAF_X_SHIFT_M = -0.005;
+const X_LEG_LEAF_Z_SHIFT_M = -0.006;
+const X_LEG_HANDLE_X_SHIFT_M = -0.005;
 const BASE_RETURN_FIXED_FRONT_WHY =
   "ADR 0135: the doorless return carries a fixed panel on the run's door plane, so its face is level with the doors beside it";
 
@@ -236,11 +248,25 @@ function baseReturnWorktopDivergences(
   ];
 }
 
-/** The return built at the kit's own depth: its carcass and plinth are 10 mm shallower as well. */
+/** The return built at the kit's own depth: its carcass and plinth are 10 mm shallower as well, and
+ *  10 mm wider, because its default width is the derived 330 (900 less the run's carcass front, 570)
+ *  where the reference's is 320. */
 function defaultBaseReturnDivergences(prefix: string): DeclaredDivergence[] {
   const why =
     "ADR 0135: the return is built to the run's carcass front, `D - 30`, not the run's seat, `D - 20`";
+  const widerWhy =
+    "ADR 0135 (the joint move): the return starts at the run's carcass front, so its reference width is 330, not 320";
   return [
+    ...(["carcass", "plinth", "countertop"] as const).map(
+      (mesh): DeclaredDivergence => ({
+        node: `${prefix}${mesh}`,
+        field: "size",
+        index: 0,
+        deltaM: BASE_RETURN_WIDTH_GROWTH_M,
+        nodes: 1,
+        why: widerWhy,
+      }),
+    ),
     {
       node: `${prefix}carcass`,
       field: "size",
@@ -276,6 +302,32 @@ function baseReturnSeatDivergence(groupPath: string): DeclaredDivergence {
   };
 }
 
+/** Where a composition seats the corner pair along the joint: the X-leg half its footprint off the wall
+ *  (275 mm, was 280) and the return's centre along the wall (735 mm, was 740). */
+function cornerPairSeatDivergences(
+  xLegGroupPath: string,
+  returnGroupPath: string,
+): DeclaredDivergence[] {
+  return [
+    {
+      node: xLegGroupPath,
+      field: "position",
+      index: 2,
+      deltaM: X_LEG_SEAT_SHIFT_M,
+      nodes: 1,
+      why: "ADR 0135: the X-leg is seated at half its 550 mm frame, 275 mm off the wall, not 280",
+    },
+    {
+      node: returnGroupPath,
+      field: "position",
+      index: 2,
+      deltaM: -0.005,
+      nodes: 1,
+      why: "ADR 0135: the return starts at the joint, 570, and is 330 wide, so its centre is 735 along the wall, not 740",
+    },
+  ];
+}
+
 function baseReturnFixedFront(parent: string): DeclaredStructuralChange {
   return {
     parent,
@@ -285,6 +337,76 @@ function baseReturnFixedFront(parent: string): DeclaredStructuralChange {
     nodes: 1,
     why: BASE_RETURN_FIXED_FRONT_WHY,
   };
+}
+
+/** The X-leg's own meshes, relative to `prefix` (the path down to its `corner_base_x` group). */
+function cornerBaseXDivergences(prefix: string): DeclaredDivergence[] {
+  const why = "ADR 0135: the joint moved to the run's carcass front";
+  const at = (
+    node: string,
+    field: string,
+    index: number,
+    deltaM: number,
+    because: string,
+  ): DeclaredDivergence => ({
+    node: `${prefix}${node}`,
+    field,
+    index,
+    deltaM,
+    nodes: 1,
+    why: `${why} — ${because}`,
+  });
+  return [
+    at(
+      "carcass",
+      "size",
+      2,
+      X_LEG_DEPTH_SHIFT_M,
+      "the leg is 590 deep, not 600",
+    ),
+    at(
+      "plinth",
+      "size",
+      2,
+      X_LEG_DEPTH_SHIFT_M,
+      "its plinth follows its own depth",
+    ),
+    at(
+      "countertop",
+      "size",
+      2,
+      X_LEG_DEPTH_SHIFT_M,
+      "its slab follows it, the front overhang unchanged",
+    ),
+    at(
+      "door",
+      "position",
+      0,
+      X_LEG_LEAF_X_SHIFT_M,
+      "the leaf sits 5 mm nearer the corner, its accessible front being 330",
+    ),
+    at(
+      "door",
+      "position",
+      2,
+      X_LEG_LEAF_Z_SHIFT_M,
+      "the leaf hangs on the run's door plane, 5 mm back with the carcass and 1 mm for the dropped offset",
+    ),
+    at(
+      "door > door_front",
+      "size",
+      0,
+      X_LEG_LEAF_GROWTH_M,
+      "the leaf is 290 wide, not 280",
+    ),
+    at(
+      "door > handle",
+      "position",
+      0,
+      X_LEG_HANDLE_X_SHIFT_M,
+      "the bar follows the leaf's edge",
+    ),
+  ];
 }
 
 /** The depths M1's gate hands `cornerBaseReturn` explicitly. */
@@ -300,6 +422,11 @@ function explicitReturnKey(depthM: number): string {
 const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
   ...sinkCentringDivergences("kitchen_l_shape > "),
   baseReturnSeatDivergence("kitchen_l_shape > corner_base_return"),
+  ...cornerBaseXDivergences("kitchen_l_shape > corner_base_x > "),
+  ...cornerPairSeatDivergences(
+    "kitchen_l_shape > corner_base_x",
+    "kitchen_l_shape > corner_base_return",
+  ),
   ...defaultBaseReturnDivergences("kitchen_l_shape > corner_base_return > "),
   ...wallCabinetDivergences("kitchen_l_shape > wall_cabinet > ", 26).map(
     (declared) =>
@@ -340,12 +467,18 @@ const DECLARED_DIVERGENCES: ReadonlyMap<string, readonly DeclaredDivergence[]> =
       "base-corner-return",
       defaultBaseReturnDivergences("corner_base_return > "),
     ],
+    ["base-corner-x", cornerBaseXDivergences("corner_base_x > ")],
     [
       "base-corner",
       [
         baseReturnSeatDivergence("corner_base_pair > corner_base_return"),
         ...defaultBaseReturnDivergences(
           "corner_base_pair > corner_base_return > ",
+        ),
+        ...cornerBaseXDivergences("corner_base_pair > corner_base_x > "),
+        ...cornerPairSeatDivergences(
+          "corner_base_pair > corner_base_x",
+          "corner_base_pair > corner_base_return",
         ),
       ],
     ],

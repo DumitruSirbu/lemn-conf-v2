@@ -34,7 +34,7 @@
 //
 // | Body | Mesh | Material | Painted? |
 // | --- | --- | --- | --- |
-// | `base-corner-x-900` | `carcass` | `M.carcass` | **yes** — 900 mm of box behind a 280 mm door |
+// | `base-corner-x-900` | `carcass` | `M.carcass` | **yes** — 900 mm of box behind a 290 mm door (280 until ADR 0135) |
 // | | `door_front` | `M.door` | yes, already, through `isFrontMesh` |
 // | | `susan_pole`, `susan_tray` ×2 | `M.steel`, `M.interior` | no — the fittings inside it |
 // | | `plinth`, `countertop`, handles | `M.dark`, `M.stone`, `M.steel` | no — not the body's finish |
@@ -59,9 +59,9 @@
 // `box(0.9, 0.72, 0.6)`; the pole and both trays sit at z = −0.010, buried inside a volume spanning
 // z ∈ [−0.30, +0.30], visible from no camera; and **this kit has no open-door state at all** —
 // nothing in `scene-sync.ts` or the stage animates or hides a `door_front`. So the door never opens,
-// and if it did it would show the same solid face that already stands bare for 620 mm beside it.
-// `base-corner-x-900` and `base-corner-return-320` differ in how much of the box is uncovered — 620
-// of 900 against all of it — and not in kind.
+// and if it did it would show the same solid face that already stands bare for 610 mm beside it (620 with the 280 mm door it had until ADR 0135).
+// `base-corner-x-900` and `base-corner-return-320` differ in how much of the box is uncovered — 610
+// of 900 (620 before ADR 0135) against all of it — and not in kind.
 //
 // The two base legs are wrapped in their own builders, as the shelf is. The two wall returns cannot
 // be: `wallCabinet` builds five other seeded bodies, so a wrapper inside it would paint the wall run

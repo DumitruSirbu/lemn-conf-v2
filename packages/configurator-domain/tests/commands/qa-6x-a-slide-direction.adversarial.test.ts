@@ -359,7 +359,7 @@ describe("the declared document, which is a fixture the test writes and the prod
     ]);
     expect(groundLevel.map(({ fromMm, toMm }) => [fromMm, toMm])).toStrictEqual(
       [
-        [580, 900],
+        [570, 900], // 580 until ADR 0135 moved the return's near edge to the run's carcass front
         [900, 1100],
         [1100, 1300],
         [1500, 2100],
@@ -425,16 +425,18 @@ const OCCUPIED_DEEPENING: OccupiedRung = {
   label: "600 → 700",
   startsAtMm: SHALLOW_MM,
   endsAtMm: DEEP_MM,
-  arrivingKeys: ["B|0.69", "B|0.84", "B|1.30", "B|1.90", "B|2.55"],
-  occupiedArrivesAtMm: [685, 840, 1900, 2550],
+  // 0.84 → 0.83 and 840 → 835 (ADR 0135): the return is centred at 835 at 700.
+  arrivingKeys: ["B|0.69", "B|0.83", "B|1.30", "B|1.90", "B|2.55"],
+  occupiedArrivesAtMm: [685, 835, 1900, 2550],
 };
 
 const OCCUPIED_SHALLOWING: OccupiedRung = {
   label: "700 → 600",
   startsAtMm: DEEP_MM,
   endsAtMm: SHALLOW_MM,
-  arrivingKeys: ["B|0.61", "B|0.74", "B|1.20", "B|1.80", "B|2.45"],
-  occupiedArrivesAtMm: [615, 740, 1800, 2450],
+  // 0.74 → 0.73 and 740 → 735 (ADR 0135): the return is centred at 735 at 600.
+  arrivingKeys: ["B|0.61", "B|0.73", "B|1.20", "B|1.80", "B|2.45"],
+  occupiedArrivesAtMm: [615, 735, 1800, 2450],
 };
 
 const BOTH_RUNGS: readonly OccupiedRung[] = [

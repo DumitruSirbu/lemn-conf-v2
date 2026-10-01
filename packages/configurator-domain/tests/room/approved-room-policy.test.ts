@@ -357,13 +357,14 @@ interface WallFiguresMm {
  *  no room at all (`corner-assembly-size.ts`, entry point 3). Spelled as literals so a derivation
  *  that moves is read here as a failing number instead of following the code it is guarding. That
  *  these are also `ENGINE_ROOM_LIMITS`' wall minima is `room-policy.test.ts`'s pin, not this one's. */
-const DERIVED_WALL_FLOOR_REACH_MM: WallFiguresMm = { wallA: 880, wallB: 880 };
+// 880 → 870 on both walls (ADR 0135): the joint moved to the run's carcass front, `D − 30`.
+const DERIVED_WALL_FLOOR_REACH_MM: WallFiguresMm = { wallA: 870, wallB: 870 };
 
 /** The owner's approved wall minima (ADR 0108 Amendment B), spelled again for the same reason. */
 const APPROVED_WALL_MINIMUM_MM: WallFiguresMm = { wallA: 900, wallB: 1000 };
 
 /** The gap between the two, and it is **ruled rather than owed**: the owner kept 900 and 1000
- *  although the kitchen can be built against 880 on each wall, so the product refuses rooms it
+ *  although the kitchen can be built against 870 on each wall, so the product refuses rooms it
  *  could furnish, on purpose (ADR 0125, owner ruling 2026-09-17, answering M7's Q-K1 with option 3;
  *  ADR 0125 proposes `WALL_MINIMUM_APPROVED_MARGIN_MM` for the same constant). It was
  *  `WALL_MINIMUM_MARGIN_OWED_ON_Q_K1_MM` while Q-K1 was open, and that name is false now the
@@ -373,7 +374,9 @@ const APPROVED_WALL_MINIMUM_MM: WallFiguresMm = { wallA: 900, wallB: 1000 };
  *  and fails; a derivation that grows toward the approved bound shrinks it and fails. The approved
  *  bound can therefore move only in a commit that edits the owner's literal and this margin
  *  together, which is the whole of J4: no approved bound moves silently, in either direction. */
-const RULED_WALL_MINIMUM_MARGIN_MM: WallFiguresMm = { wallA: 20, wallB: 120 };
+// 20 / 120 → 30 / 130 (ADR 0135): the approved minima stand and the derived floor fell by 10 mm, so
+// the gap the owner ruled grew by the same 10 — the owner's relayed ruling of 2026-10-01 names it.
+const RULED_WALL_MINIMUM_MARGIN_MM: WallFiguresMm = { wallA: 30, wallB: 130 };
 
 function derivedFloorReachMm(): WallFiguresMm {
   return {

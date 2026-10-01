@@ -538,29 +538,30 @@ describe("the depths this wave promised not to move", () => {
     "at the default setting": {
       columns: {
         "A|0.30": 0.32999999999999996,
-        "A|0.45": 0.63,
+        "A|0.45": 0.62, // 0.630 → 0.620 (ADR 0135): the X-leg's worktop is on the run's line
         "A|0.75": 0.32999999999999996,
         "A|1.30": 0.62,
         "A|2.00": 0.62,
         "A|2.60": 0.62,
         "A|3.20": 0.62,
         "B|0.61": 0.32999999999999996,
-        // 0.600 → 0.620 (ADR 0135): the base return carries the run's 50 mm worktop overhang.
-        "B|0.74": 0.62,
+        // 0.600 → 0.620 (ADR 0135): the base return carries the run's 50 mm worktop overhang. The key
+        // moved with its centre, 740 → 735, since the joint moved to the run's carcass front.
+        "B|0.73": 0.62,
         "B|1.20": 0.638,
         "B|1.80": 0.6000000000000001,
         "B|2.45": 0.742,
       },
       saved: {
         "A|300": 330,
-        "A|450": 630,
+        "A|450": 620, // 630 → 620 (ADR 0135), the same figure
         "A|750": 330,
         "A|1300": 620,
         "A|2000": 620,
         "A|2600": 620,
         "A|3200": 620,
         "B|615": 330,
-        "B|740": 620, // 600 → 620 (ADR 0135), the same figure
+        "B|735": 620, // 600 → 620 and 740 → 735 (ADR 0135), the same figures
         "B|1200": 638,
         "B|1800": 600,
         "B|2450": 742,
@@ -575,15 +576,15 @@ describe("the depths this wave promised not to move", () => {
     "at the deeper setting": {
       columns: {
         "A|0.30": 0.39999999999999997,
-        "A|0.45": 0.73,
+        "A|0.45": 0.72, // 0.730 → 0.720 (ADR 0135), as at the default setting
         "A|0.75": 0.39999999999999997,
         "A|1.30": 0.72,
         "A|2.00": 0.72,
         "A|2.60": 0.72,
         "A|3.20": 0.72,
         "B|0.69": 0.39999999999999997,
-        // 0.700 → 0.720 (ADR 0135), as at the default setting.
-        "B|0.84": 0.72,
+        // 0.700 → 0.720 and key 0.84 → 0.83 (ADR 0135), as at the default setting.
+        "B|0.83": 0.72,
         "B|1.30": 0.738,
         // **0.700 since ADR 0101, and it is the top that states it.** The pantry finishes at 699 and
         // the deep top above it at 700, so §3.2's MAX is the top's by a millimetre. It read 0.699
@@ -594,14 +595,14 @@ describe("the depths this wave promised not to move", () => {
       },
       saved: {
         "A|300": 400,
-        "A|450": 730,
+        "A|450": 720, // 730 → 720 (ADR 0135)
         "A|750": 400,
         "A|1300": 720,
         "A|2000": 720,
         "A|2600": 720,
         "A|3200": 720,
         "B|685": 400,
-        "B|840": 720, // 700 → 720 (ADR 0135)
+        "B|835": 720, // 700 → 720 and 840 → 835 (ADR 0135)
         "B|1300": 738,
         // The saved half of the same millimetre; see the published table above.
         "B|1900": 700,

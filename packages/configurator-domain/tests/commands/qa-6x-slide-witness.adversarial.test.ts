@@ -357,7 +357,7 @@ describe("the design wave 6X declares is a design the product accepts", () => {
         .filter((placement) => placement.wall === "B")
         .map((placement) => placement.alongMm)
         .sort((left, right) => left - right),
-    ).toStrictEqual([615, 615, 740, 1200, 1200, 1800, 1800, 2450, 2450]);
+    ).toStrictEqual([615, 615, 735, 1200, 1200, 1800, 1800, 2450, 2450]);
   });
 });
 

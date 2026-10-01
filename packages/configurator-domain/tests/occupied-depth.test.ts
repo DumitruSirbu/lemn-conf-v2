@@ -153,7 +153,8 @@ describe("the shipped kitchen, body by body", () => {
    *  than as a dozen cases: the finding is that four **families** were wrong at once, so the
    *  regression that matters is a number moving anywhere in this map. */
   const OCCUPIED_DEPTH_MM_BY_BUILD_ID: Readonly<Record<string, number>> = {
-    "base-corner-x-900": 630,
+    // 630 → 620 (ADR 0135): the X-leg's worktop is on the run's line, so it finishes where a base run does.
+    "base-corner-x-900": 620,
     // 600 → 620 (ADR 0135): the return carries the run's 50 mm worktop overhang, so it finishes on
     // the same line as every base run.
     "base-corner-return-320": 620,

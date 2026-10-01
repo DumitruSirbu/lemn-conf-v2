@@ -11,7 +11,7 @@
 // reddens two of that file's 60-odd cases. This file gives the room term a witness: the transition is
 // swept at whole millimetres and located, rather than sampled where it cannot occur.
 //
-// **2. The engine's 880 mm window, which slice S2 recorded for review.** `ENGINE_ROOM_LIMITS` now
+// **2. The engine's window (880 mm when recorded, 870 since ADR 0135), which slice S2 recorded for review.** `ENGINE_ROOM_LIMITS` now
 // admits walls from 880 mm because the *narrowest* corner reaches 880, while `buildLShellDesign`
 // originally placed the **reference-sized** corner from the fixture. Wave 7D7 S3a now writes the
 // room-sized width and centre and the expected-failure marker below is a passing assertion.
@@ -30,7 +30,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
-  baseSeatDepthMm,
   buildLShellDesign,
   CORNER_ASSEMBLY_PIECES,
   cornerAssemblyWidthsMm,
@@ -139,13 +138,17 @@ function assemblyReachMm(
 /** Where a piece starts along its own wall, restated from the catalogue's own depth formulas rather
  *  than read back off the derivation (`corner-assembly-size.test.ts` takes the same independent
  *  route): wall A owns the corner, and wall B starts past wall A's body in the same row. */
+/** The base run's carcass front, inside the cabinet-depth line (ADR 0135): 30 mm. It was the run's
+ *  seat, 20 mm, until the joint moved. Arithmetic, not a catalogue read, so this side stays independent. */
+const RUN_CARCASS_FRONT_INSET_MM = 30;
+
 function nearEdgeMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
 ): number {
   if (piece.wall === "A") return 0;
   return piece.band === "base"
-    ? baseSeatDepthMm(cabinetDepthMm)
+    ? cabinetDepthMm - RUN_CARCASS_FRONT_INSET_MM
     : wallCarcassDepthMm(cabinetDepthMm);
 }
 
@@ -169,7 +172,8 @@ function oneDoorFloorMm(
   if (oneDoorMm === undefined) {
     throw new Error(`${rowId} declares no width floor`);
   }
-  const blindSpanMm = piece.wall === "A" ? baseSeatDepthMm(cabinetDepthMm) : 0;
+  const blindSpanMm =
+    piece.wall === "A" ? cabinetDepthMm - RUN_CARCASS_FRONT_INSET_MM : 0;
   return blindSpanMm + oneDoorMm;
 }
 

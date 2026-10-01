@@ -155,7 +155,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) | Wall C is a world wall, and only the right corner is drawn in a reflection | Accepted |
 | [0133](0133-the-first-server-rendered-frame-is-the-loaded-design-and-no-module-store-is-written-on-the-server.md) | The first server-rendered frame is the loaded design, and no module store is written on the server | Accepted (security review owed at U7 S0) |
 | [0134](0134-a-u-gets-no-step-one-suggestion-of-its-own-and-the-straight-kitchen-suggestion-keeps-its-shape-independent-gate.md) | A U gets no Step 1 suggestion of its own, and the straight-kitchen suggestion keeps its shape-independent gate | Accepted |
-| [0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md) | The corner pieces stand on the run's lines, and the base return is a base body with a fixed front | Accepted (S1 decided and implemented, S2 decided and not built) |
+| [0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md) | The corner pieces stand on the run's lines, and the base return is a base body with a fixed front | Accepted (S1 committed; S2 implemented and measured, not yet committed) |
 
 ## Adding the next one
 

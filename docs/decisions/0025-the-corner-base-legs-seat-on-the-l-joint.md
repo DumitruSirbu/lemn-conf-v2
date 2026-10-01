@@ -10,8 +10,8 @@ Milestone: post-M4 handset fixes — reported from production by the owner
 Owner ruling for M7-FB-006: the corner pieces stand on the run's lines. The return leg's depth and
 `p26`'s `frameDepthMm` (decision 1) become 570, not 580, and the sentence at `:43-45` — the seam at
 z = 0.58 *"which is the return leg's own depth"* — stops being an identity: the seam holds, but the
-return is no longer 580 deep. A later slice moves the seam to 0.57 and the X-leg's frame to 550. The
-X-leg's −0.020 seat and decision 3's pinned exception are **unchanged**. The measurements and
+return is no longer 580 deep. A second slice (built and measured, not yet committed) moves the seam to 0.57 and the X-leg's frame to
+550. The X-leg's −0.020 seat and decision 3's pinned exception are **unchanged**. The measurements and
 reasoning below stand as written for 2026-08-26. Nothing here is struck.
 
 ## Context

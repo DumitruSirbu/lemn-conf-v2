@@ -586,7 +586,8 @@ describe("the decomposed base return is the builder the parity gate pins", () =>
         describeStructure(buildDecomposedBody(kit, "base-corner-return-320")),
       ).toEqual(
         describeStructure(
-          kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32),
+          // 0.32 → 0.33 (ADR 0135): the decomposed return's default width is the derived 330.
+          kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.33),
         ),
       );
     },

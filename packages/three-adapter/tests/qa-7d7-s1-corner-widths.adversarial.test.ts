@@ -21,6 +21,10 @@ const ONE_DOOR_FLOOR_MM = (() => {
   return base.minWidthMm;
 })();
 const DEPTHS_MM = [600, 700] as const;
+/** ADR 0025 decision 3's pin: the X-leg's carcass stands 20 mm behind the wall plane. */
+const X_LEG_BEHIND_WALL_M = 0.02;
+/** The run's carcass front, inside the cabinet-depth line (ADR 0135); it was the run's seat, 20. */
+const RUN_CARCASS_FRONT_INSET_MM = 30;
 
 function width(box: THREE.Box3, axis: "x" | "y" | "z") {
   return box.max[axis] - box.min[axis];
@@ -36,11 +40,12 @@ function corner(depthMm: number, xWidthMm: number, returnWidthMm: number) {
     kit.depths.cornerReturnDepthM,
     returnWidthMm / 1000,
   );
-  // Real L-joint seats: the X-leg occupies the cabinet depth; the return begins at its front.
+  // Real L-joint seats: the X-leg ends 20 mm behind the wall and its front is the joint, which is the
+  // return's own depth (ADR 0135); the return begins at it.
   x.position.set(
     xWidthMm / 2000,
     0,
-    kit.depths.cornerReturnDepthM - depthMm / 2000,
+    (kit.depths.cornerReturnDepthM - X_LEG_BEHIND_WALL_M) / 2,
   );
   ret.position.set(
     kit.depths.cornerReturnDepthM / 2,
@@ -57,7 +62,8 @@ describe("7D7 S1 adversarial corner geometry", () => {
   it.each(DEPTHS_MM)(
     "keeps the minimum-width door, carousel and worktop inside the corner at %i mm depth",
     (depthMm) => {
-      const minimumXWidthMm = depthMm - 20 + ONE_DOOR_FLOOR_MM;
+      const minimumXWidthMm =
+        depthMm - RUN_CARCASS_FRONT_INSET_MM + ONE_DOOR_FLOOR_MM;
       const { room, x, ret } = corner(
         depthMm,
         minimumXWidthMm,
@@ -100,11 +106,12 @@ describe("7D7 S1 adversarial corner geometry", () => {
   propertyTest.prop([
     fc.constantFrom(...DEPTHS_MM),
     fc.integer({ min: 0, max: 120 }),
-    fc.integer({ min: ONE_DOOR_FLOOR_MM, max: 320 }),
+    fc.integer({ min: ONE_DOOR_FLOOR_MM, max: 330 }),
   ])(
     "preserves a clear door and a butt seam across admitted width pairs",
     (depthMm, aboveFloorMm, returnWidthMm) => {
-      const minimumXWidthMm = depthMm - 20 + ONE_DOOR_FLOOR_MM;
+      const minimumXWidthMm =
+        depthMm - RUN_CARCASS_FRONT_INSET_MM + ONE_DOOR_FLOOR_MM;
       const xWidthMm = Math.min(900, minimumXWidthMm + aboveFloorMm);
       const { room, x, ret } = corner(depthMm, xWidthMm, returnWidthMm);
       const door = worldBox(room, findMesh(x, "door_front"));

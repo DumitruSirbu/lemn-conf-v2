@@ -194,7 +194,7 @@ describe("where the frozen extents land", () => {
 
     expect(wallB.sort()).toEqual([
       "B|0.69",
-      "B|0.84",
+      "B|0.83", // B|0.84 until ADR 0135 (return centred at 835 at 700, was 840)
       "B|1.30",
       "B|1.90",
       "B|2.55",

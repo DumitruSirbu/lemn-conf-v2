@@ -21,7 +21,8 @@ function room(widthMm: number, depthMm: number): DesignRoom {
   return { shape: "L", widthMm, depthMm, heightMm: 2600 };
 }
 
-const BOUNDARY_ROOMS = [room(880, 880), room(881, 881)] as const;
+// 880 → 870 (ADR 0135): the engine's floor is the narrowest corner's reach, now 870 on both walls.
+const BOUNDARY_ROOMS = [room(870, 870), room(871, 871)] as const;
 
 describe("wave 7D7 S3a — sized shell corners", () => {
   it.each(BOUNDARY_ROOMS)(
@@ -42,10 +43,12 @@ describe("wave 7D7 S3a — sized shell corners", () => {
       ]);
 
       expect(corners).toStrictEqual([
-        ["p25", "A", 0, "base-corner-x-900", 880, 440, 880],
-        ["p26", "B", 0, "base-corner-return-320", 300, 730, 880],
-        ["p9", "B", 1500, "wall-corner-return-570", 550, 605, 880],
-        ["p21", "B", 2200, "wall-corner-return-570-top", 550, 605, 880],
+        // Each row is the room's 870 less the near edge (570 for the base return, 330 for the upper
+        // two), and the X-leg takes the whole wall: 880 / 300 / 550 / 550 before ADR 0135.
+        ["p25", "A", 0, "base-corner-x-900", 870, 435, 870],
+        ["p26", "B", 0, "base-corner-return-320", 300, 720, 870],
+        ["p9", "B", 1500, "wall-corner-return-570", 540, 600, 870],
+        ["p21", "B", 2200, "wall-corner-return-570-top", 540, 600, 870],
       ]);
       for (const placement of shell.placements) {
         expect(
@@ -55,8 +58,8 @@ describe("wave 7D7 S3a — sized shell corners", () => {
       }
       expect(findOverflowingPlacementIds(shell)).toStrictEqual([]);
       expect(lShellFloorRuns(inRoom)).toStrictEqual({
-        A: { wall: "A", startMm: 880, endMm: 880 },
-        B: { wall: "B", startMm: 880, endMm: 880 },
+        A: { wall: "A", startMm: 870, endMm: 870 },
+        B: { wall: "B", startMm: 870, endMm: 870 },
       });
       // Wall A's upper row covers the corner; wall B has no upper-only run.
       expect(
@@ -116,7 +119,7 @@ describe("wave 7D7 S3a — sized shell corners", () => {
 
   it("still refuses an outside-engine wall at the shell boundary by its typed input error", () => {
     try {
-      buildLShellDesign({ room: room(879, 880), occurredAt: OCCURRED_AT });
+      buildLShellDesign({ room: room(869, 870), occurredAt: OCCURRED_AT });
       throw new Error("the outside-engine room unexpectedly built");
     } catch (error) {
       expect(error).toBeInstanceOf(LShellInputError);
@@ -129,7 +132,7 @@ describe("wave 7D7 S3a — sized shell corners", () => {
 
 describe("wave 7D7 S3a — largest even widths across rooms and depths", () => {
   const wallLengthsMm = [
-    880, 881, 882, 899, 900, 970, 1000, 1300, 6300,
+    870, 871, 880, 881, 882, 899, 900, 970, 1000, 1300, 6300,
   ] as const;
   const depthsMm = [600, 700] as const;
 
@@ -142,7 +145,7 @@ describe("wave 7D7 S3a — largest even widths across rooms and depths", () => {
           occurredAt: OCCURRED_AT,
         });
         const xMm = Math.floor(Math.min(900, wallAMm) / 2) * 2;
-        const baseReturnMm = Math.floor(Math.min(320, wallBMm - 580) / 2) * 2;
+        const baseReturnMm = Math.floor(Math.min(330, wallBMm - 570) / 2) * 2;
         const upperReturnMm = Math.floor(Math.min(570, wallBMm - 330) / 2) * 2;
         const where = `${String(wallAMm)} × ${String(wallBMm)}`;
 
@@ -155,7 +158,7 @@ describe("wave 7D7 S3a — largest even widths across rooms and depths", () => {
           where,
         ).toStrictEqual([
           ["p25", xMm, xMm / 2],
-          ["p26", baseReturnMm, 580 + baseReturnMm / 2],
+          ["p26", baseReturnMm, 570 + baseReturnMm / 2],
           ["p9", upperReturnMm, 330 + upperReturnMm / 2],
           ["p21", upperReturnMm, 330 + upperReturnMm / 2],
         ]);
@@ -166,7 +169,7 @@ describe("wave 7D7 S3a — largest even widths across rooms and depths", () => {
           startMm: xMm,
           endMm: xMm + Math.floor((wallAMm - xMm) / 2) * 2,
         });
-        const wallBStartMm = Math.max(580 + baseReturnMm, 330 + upperReturnMm);
+        const wallBStartMm = Math.max(570 + baseReturnMm, 330 + upperReturnMm);
         expect(runs.B, where).toStrictEqual({
           wall: "B",
           startMm: wallBStartMm,
@@ -195,18 +198,18 @@ describe("wave 7D7 S3a — largest even widths across rooms and depths", () => {
             room: inRoom,
           });
           for (const piece of widths.pieces) {
-            // These are independent reference measurements: 900/320/570 mm at the 600 mm
+            // These are independent reference measurements: 900/330/570 mm at the 600 mm
             // fixture, and the catalogue's base/upper near planes at each declared depth.
             const nearMm =
               piece.wall === "A"
                 ? 0
                 : piece.band === "base"
-                  ? cabinetDepthMm - 20
+                  ? cabinetDepthMm - 30
                   : cabinetDepthMm === 600
                     ? 330
                     : 400;
             const referenceWidthMm =
-              piece.wall === "A" ? 900 : piece.band === "base" ? 320 : 570;
+              piece.wall === "A" ? 900 : piece.band === "base" ? 330 : 570;
             const wallMm = piece.wall === "A" ? wallAMm : wallBMm;
             const expectedWidthMm =
               Math.floor(Math.min(referenceWidthMm, wallMm - nearMm) / 2) * 2;

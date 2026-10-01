@@ -96,7 +96,8 @@ export interface CornerReachQuery {
 /** **How far wall A's corner body reaches into wall B's along-wall coordinate**, on this chain.
  *
  *  - **`base-formula`** — the base run's carcass, `baseCarcassDepthMm`: 560 at 600 and 660 at 700.
- *    It is `base-corner-x-900`'s own declared `frameDepthMm`, read through the formula rather than
+ *    It was `base-corner-x-900`'s own declared `frameDepthMm` (550 and 650 since ADR 0135, so the
+ *    chain's reach is the run's formula, not that entry), read through the formula rather than
  *    off that entry, so this module names no catalogue row and a fixture rename cannot silently
  *    zero the shift.
  *  - **`wall-map`** — the wall band's carcass seat, `wallCarcassSeatDepthMm`: 291 and 361. The wall

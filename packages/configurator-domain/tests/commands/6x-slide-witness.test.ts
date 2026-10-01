@@ -104,11 +104,13 @@ const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
     regionsMm: [[1500, 2600]],
   },
   {
-    key: "B|0.84",
-    recordedAtAlongMm: 740,
+    // B|0.84 → B|0.83, recorded at 735 not 740, 320 → 330 wide (ADR 0135): the return starts at the
+    // run's carcass front, 570 / 670, and its far edge stays on the 900 / 1000 reach.
+    key: "B|0.83",
+    recordedAtAlongMm: 735,
     y0Mm: 0,
     topMm: 820,
-    widthMm: 320,
+    widthMm: 330,
     // 700 → 720 (ADR 0135): the return carries the run's worktop overhang, so it finishes on the run's line.
     depthMm: 720,
     depthFromBuildId: "base-corner-return-320",
@@ -167,10 +169,11 @@ const LEAVING_WALL_B: readonly (CarriedExtentMm & { readonly key: string })[] =
       regionsMm: [[1500, 2600]],
     },
     {
-      key: "B|0.74",
+      // B|0.74 → B|0.73 and 320 → 330 wide (ADR 0135), as above.
+      key: "B|0.73",
       y0Mm: 0,
       topMm: 820,
-      widthMm: 320,
+      widthMm: 330,
       // 600 → 620 (ADR 0135), as above.
       depthMm: 620,
       depthFromBuildId: "base-corner-return-320",
@@ -213,7 +216,7 @@ const ARRIVING_WITHOUT_THE_SLIDE: ReadonlyMap<
   readonly (readonly [number, number])[]
 > = new Map([
   ["B|0.69", [[1500, 2200] as const, [2200, 2600] as const]],
-  ["B|0.84", [[0, 820] as const]],
+  ["B|0.83", [[0, 820] as const]],
   ["B|1.30", [[0, 2200] as const, [2200, 2600] as const]],
   ["B|1.90", [[0, 2200] as const, [2200, 2600] as const]],
   ["B|2.55", [[0, 1850] as const, [1850, 2600] as const]],

@@ -21,8 +21,14 @@ import {
 /** ADR 0025, row 19's named exception: the corner X-leg seats 20 mm into wall A. */
 const X_LEG_SEAT_M = -0.02;
 const EXACT_M = 1e-6;
-/** A shared face between two touching boxes computes to a sliver of this order, never a volume. */
-const NO_VOLUME_M3 = 1e-9;
+/** A shared face between two touching boxes computes to a sliver of this order, never a volume.
+ *
+ *  1e-9 → 1e-7 (ADR 0135): geometry is float32, whose step near 0.6 m is 6e-8 m, and a butt at 570 mm
+ *  (the X-leg's carcass front against the return's near edge) lands 2.4e-8 m apart in that
+ *  representation where 580 mm happened to land exactly. Over the largest shared face, 0.9 × 0.72 m,
+ *  that is a sliver of about 1.5e-8 m³. A real interpenetration of even 1 mm is 6e-4 m³, four orders
+ *  above this. */
+const NO_VOLUME_M3 = 1e-7;
 const LEFT_TO_RIGHT_TWIN = [
   ["p25", "right-p25"],
   ["p26", "right-p26"],

@@ -6,8 +6,8 @@ import {
   type SeatRule,
 } from "../seat-rule.js";
 import {
-  baseCarcassDepthMm,
   baseCarcassFrontMm,
+  baseCornerXFrameDepthMm,
   baseFinishedDepthMm,
   baseSeatDepthMm,
   buildInsertableBodyDefinitions,
@@ -101,22 +101,6 @@ import {
  *  is held to the built meshes by `cabinet-handle-count.parity.test.ts` in `@lemnaria/three-adapter`.
  *  The seeded rows all take a `declared-count` rule rather than a per-door one: ADR 0011 Gap A gives
  *  each of them one already-built body at one width, so there is no width for a count to follow. */
-
-/** How much further the X-leg's **corner** worktop reaches than a straight run's: 630 mm from the wall
- *  plane at 600 against the run's 620, which ADR 0040 records as the measured figure (ADR 0080 carries
- *  it as the 630/730 chain). The 10 mm is the difference of those two recorded figures, not a quotation
- *  from ADR 0025, which does not contain either. It is the leg's wider slab meeting the base run's, so
- *  it is a constant and the run it is measured from is what follows the setting. */
-const CORNER_BASE_X_WORKTOP_REACH_MM = 10;
-
-/** The X-leg carries a corner worktop (ADR 0025's leg; the figures are ADR 0040's), which reaches this far from the wall plane — 630 at
- *  a 600 mm kitchen and 730 at a 700 mm one, both measured on `cornerBaseX`'s own `countertop`. The
- *  leg's seat is `baseCarcassDepthMm` and its own footprint is the full declared depth, so it stands
- *  20 mm inside the wall at every depth; that is the anomaly the record is about and it is preserved
- *  rather than derived away. */
-function cornerBaseXFinishedDepthMm(cabinetDepthMm: number): number {
-  return baseFinishedDepthMm(cabinetDepthMm) + CORNER_BASE_X_WORKTOP_REACH_MM;
-}
 
 /** **The seat of a deep top cabinet — one that hangs over a full-height column** (ADR 0101).
  *
@@ -381,8 +365,9 @@ export function buildSeededBodyDefinitions(
 
   return [
     // ADR 0025. The two base legs of the L. `frameDepthMm` is the seat, not the depth: the X-leg's
-    // carcass is 600 deep but seats at 560/2 = 280 mm off the wall, because the L-joint — not the
-    // wall — decides where it stands. The return leg's 570 is both at once.
+    // carcass is 590 deep but seats at 550/2 = 275 mm off the wall, because the L-joint — not the
+    // wall — decides where it stands (ADR 0135 restates the 560 and 600 this comment used to carry).
+    // The return leg's 570 is both at once.
     [
       "base-corner-x-900",
       {
@@ -392,17 +377,22 @@ export function buildSeededBodyDefinitions(
         ...STRUCTURAL_CORNER,
         kind: "corner_base_x",
         // **Seated by the joint, not by the wall** (ADR 0077 decision 1). There is no plane of its
-        // own to measure: the return leg decides where it stands, which is why the declared 560
-        // disagrees with the 600 its bounding box reports and why measuring it re-seated the leg
+        // own to measure: the return leg decides where it stands, which is why the declared 550
+        // disagrees with the 590 its bounding box reports and why measuring it re-seated the leg
         // 20 mm forward into its neighbour.
         seatRule: seatedByAJoint,
-        // ADR 0025's anomaly, preserved: the seat is the **base run's carcass depth** and not this
-        // leg's own 600 mm footprint, because the L-joint decides where it stands. It therefore
-        // stands 20 mm inside the wall — at 600 and at 700 alike.
-        frameDepthMm: baseCarcassDepthMm(cabinetDepthMm),
-        occupiedDepth: finishesAtMm(cornerBaseXFinishedDepthMm(cabinetDepthMm)),
+        // ADR 0025's anomaly, preserved (ADR 0135): the seat is not this leg's own footprint, because
+        // the L-joint decides where it stands. Its front is the base run's carcass front and its back
+        // stands 20 mm inside the wall — at 600 and at 700 alike — so it finishes on the run's worktop
+        // line like every other base body.
+        frameDepthMm: baseCornerXFrameDepthMm(cabinetDepthMm),
+        occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
       },
     ],
+    // **The id says 320 and the body is 330 wide**: ADR 0135 widened the reference return by 10 mm when
+    // the joint moved. The id is a stored name — persisted in designs, keyed by the price book
+    // (`sample-price-book.ts`) and switched on in `decomposed-bodies.ts` — and is deliberately not
+    // renamed.
     [
       "base-corner-return-320",
       {
@@ -941,7 +931,7 @@ const KITCHEN_L_ROOM: Design["room"] = {
 };
 
 /** The reference kitchen's own corner, sized by the derivation for this room at the declared cabinet
- *  depth (7D6's J1′, `corner-assembly-size.ts`): 900 mm on wall A, 320 on wall B's base row and 570
+ *  depth (7D6's J1′, `corner-assembly-size.ts`): 900 mm on wall A, 330 on wall B's base row and 570
  *  in each of its upper rows, all four landing flush at a **900 mm far edge on both walls** — the
  *  figure ADR 0108 Amendment B's approved wall-A minimum was taken from.
  *

@@ -10,7 +10,8 @@
 // **What wave S9 changed (DOM-002).** The conversion used to be a two-armed `kind` switch with a
 // catch-all `return record.frame.d`, and the catch-all was wrong for every body it caught: a base
 // run publishes 580 for a 620 mm worktop, a pantry 560 for 599, a freestanding fridge 680 for 742,
-// the corner leg 560 for 630. An opening derived from those is **shallower than the body that just
+// the corner leg 560 for 630 (as measured then; 550 for 620 since ADR 0135). An opening derived from
+// those is **shallower than the body that just
 // vacated it**, so the body no longer fits back into the space it left. The catch-all is gone: a
 // body's finished depth is now declared by its catalogue entry, and a definition that declares
 // nothing throws instead of guessing.

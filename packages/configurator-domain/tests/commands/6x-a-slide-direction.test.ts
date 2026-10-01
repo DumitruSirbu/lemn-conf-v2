@@ -111,7 +111,8 @@ const DEEPENING: DirectionOfTravel = {
   arrivesAtMmSwapped: 1100,
   arrivesAtKeySwapped: "B|1.10",
   recordedSource: "tall-oven-tower-600",
-  occupiedWallBKeys: ["B|0.69", "B|0.84", "B|1.90", "B|2.55"],
+  // B|0.84 → B|0.83 (ADR 0135): the return is centred at 835 at 700, was 840.
+  occupiedWallBKeys: ["B|0.69", "B|0.83", "B|1.90", "B|2.55"],
   wallAKeys: [
     "A|0.30",
     "A|0.45",
@@ -133,7 +134,8 @@ const SHALLOWING: DirectionOfTravel = {
   arrivesAtMmSwapped: 1400,
   arrivesAtKeySwapped: "B|1.40",
   recordedSource: "tall-oven-tower",
-  occupiedWallBKeys: ["B|0.61", "B|0.74", "B|1.80", "B|2.45"],
+  // B|0.74 → B|0.73 (ADR 0135): the return is centred at 735 at 600, was 740.
+  occupiedWallBKeys: ["B|0.61", "B|0.73", "B|1.80", "B|2.45"],
   wallAKeys: [
     "A|0.30",
     "A|0.45",

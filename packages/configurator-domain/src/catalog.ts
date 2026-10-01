@@ -316,16 +316,32 @@ export function baseCarcassDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm - BASE_FRONT_OVERHANG_MM;
 }
 
+/** How far the corner X-leg's carcass stands behind the wall plane: 20 mm, **pinned by value** since
+ *  ADR 0025 decision 3 (`KNOWN_WALL_GAP_M`, §11 row 19's named exception). The leg is seated by the
+ *  L-joint and not by the wall (ADR 0077), so its back face is 20 mm inside the wall at every depth
+ *  while its front is the base run's carcass front. */
+const CORNER_BASE_X_BEHIND_WALL_MM = 20;
+
 /** Where a base run's carcass **front** stands, measured from the wall plane: the seat's half plus the
  *  carcass's half, so 570 at 600 and 670 at 700. The base return is built this deep — its back face on
  *  the wall — so its front face and the run's doors share one line (ADR 0135).
  *
  *  The adapter derives the same figure from its own constants (`CORNER_RETURN_DEPTH_M`,
- *  `kitchen-parts.ts`); `declared-frame-depth-sweep.test.ts` holds the pair to each other. */
+ *  `kitchen-parts.ts`); `declared-frame-depth-sweep.test.ts` and
+ *  `kitchen-parts.decomposition.parity.test.ts` go red when the pair parts. */
 export function baseCarcassFrontMm(cabinetDepthMm: number): number {
   return (
     (baseSeatDepthMm(cabinetDepthMm) + baseCarcassDepthMm(cabinetDepthMm)) / 2
   );
+}
+
+/** The corner X-leg's recorded seat, doubled (ADR 0018): 550 at 600 and 650 at 700. The leg's carcass
+ *  front is the run's (`baseCarcassFrontMm`) and its back face stands `CORNER_BASE_X_BEHIND_WALL_MM`
+ *  inside the wall, so its footprint is `D − 10` and its seat is half of this. It was
+ *  `baseCarcassDepthMm` (`D − 40`) while the leg's footprint was the whole declared depth and its front
+ *  stood 10 mm past the run's (ADR 0025 decision 1, restated by ADR 0135). */
+export function baseCornerXFrameDepthMm(cabinetDepthMm: number): number {
+  return baseCarcassFrontMm(cabinetDepthMm) - CORNER_BASE_X_BEHIND_WALL_MM;
 }
 /** A wall entry's nominal depth: §7's head-clearance cap, which is what a wall carcass is built to
  *  over a worktop. It is the `frameDepthMm` fallback for a placement with no measured seat of its

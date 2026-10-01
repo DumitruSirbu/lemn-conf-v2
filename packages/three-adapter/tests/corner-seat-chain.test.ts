@@ -6,7 +6,7 @@ import { createHeadlessCanvas } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
 import { findMesh, worldBox } from "./support/structure.js";
 
-// Widths are deliberately different from the 900 / 320 / 570 mm reference. The X-leg's 880 mm
+// Widths are deliberately different from the 900 / 330 / 570 mm reference. The X-leg's 880 mm
 // total still gives a one-door accessible front at either declared cabinet depth.
 const NARROW_CORNERS: KitchenCornerWidthsM = {
   xM: 0.88,
@@ -14,23 +14,25 @@ const NARROW_CORNERS: KitchenCornerWidthsM = {
   upperReturnM: 0.35,
 };
 
+// Every wall-B base figure below is 10 mm nearer the corner than before ADR 0135: the chain starts at
+// the joint, the run's carcass front (570 at 600, 670 at 700), where it started at the run's seat.
 const CASES = [
   {
     cabinetDepthMm: 600,
     wallDepthMm: 330,
-    returnCentreMm: 705,
-    ovenCentreMm: 1130,
-    pantryCentreMm: 1730,
-    fridgeCentreMm: 2380,
+    returnCentreMm: 695,
+    ovenCentreMm: 1120,
+    pantryCentreMm: 1720,
+    fridgeCentreMm: 2370,
     upperCentreMm: 505,
   },
   {
     cabinetDepthMm: 700,
     wallDepthMm: 400,
-    returnCentreMm: 805,
-    ovenCentreMm: 1230,
-    pantryCentreMm: 1830,
-    fridgeCentreMm: 2480,
+    returnCentreMm: 795,
+    ovenCentreMm: 1220,
+    pantryCentreMm: 1820,
+    fridgeCentreMm: 2470,
     upperCentreMm: 575,
   },
 ] as const;
@@ -78,7 +80,7 @@ describe("the reference builder's width-fed corner seat chains", () => {
       mm(
         worldBox(room, findMesh(ret, "carcass")).getSize(new THREE.Vector3()).z,
       ),
-    ).toBe(320);
+    ).toBe(330);
     expect(
       mm(
         worldBox(room, findMesh(upper, "carcass_shell")).getSize(
@@ -198,6 +200,6 @@ describe("the reference builder's width-fed corner seat chains", () => {
     );
 
     expect(mm(x.position.x)).toBe(440);
-    expect(mm(ret.position.z)).toBe(705);
+    expect(mm(ret.position.z)).toBe(695);
   });
 });

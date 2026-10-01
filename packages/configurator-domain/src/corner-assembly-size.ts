@@ -35,7 +35,7 @@
 // every value against it silently, the failure `room/room-policy.ts`'s own head comment names.
 import { cornerTakingWallsOf } from "./along-wall-chain-shift.js";
 import {
-  baseSeatDepthMm,
+  baseCarcassFrontMm,
   INSERTABLE_BODY_DEFINITIONS,
   wallCarcassDepthMm,
 } from "./catalog.js";
@@ -367,7 +367,8 @@ export function rightCornerAlongWallCentreMm(
 
 /** The least length wall A may have and still hold both of a U's corners without their X-legs
  *  overlapping (ADR 0132 decision 4) — the sum of each X-leg's own reference width, and deliberately
- *  **not** twice `narrowestCornerReachMm("A")`'s 880: U0 measured the two X-legs overlapping only
+ *  **not** twice `narrowestCornerReachMm("A")`'s 870 (880 before ADR 0135):
+ *  U0 measured the two X-legs overlapping only
  *  below 1800 mm, which is `2 × REFERENCE_CORNER_REACH_MM`, because each X-leg's own ceiling is the
  *  whole of wall A (`widthInRoomMm`) and both reach the reference 900 mm whenever their own side of
  *  wall A is at least that long. This is `ENGINE_ROOM_LIMITS.U.wallA.minMm`'s derivation source; the
@@ -380,7 +381,7 @@ export function twoCornersWallAMinimumMm(): number {
  *  the one measurement in this module. It is the corner ADR 0108 Amendment B's owner-approved wall-A
  *  minimum was taken from and the figure 7D6 criterion 1 pins.
  *
- *  The three other pieces' reference widths are **derived from it** — 320 mm for the base return and
+ *  The three other pieces' reference widths are **derived from it** — 330 mm for the base return and
  *  570 for the two upper ones — rather than restated as three more literals, which is the second
  *  authority ADR 0102 forbids: four numbers that agree at one depth always eventually part. */
 const REFERENCE_CORNER_REACH_MM = 900;
@@ -396,18 +397,19 @@ function referenceWidthMm(piece: CornerAssemblyPiece): number {
  *
  *  Wall A owns the corner and starts at 0 (`cornerTakingWallsOf` names the asymmetry: wall A is
  *  never in the set a corner is taken from, on any shape). Wall B starts past wall A's own body in
- *  the same row — the base run's X-leg front plane in the
- *  base row (ADR 0025's `d − 20`, so 580 at 600 mm and 680 at 700) and §7's head-clearance depth in
- *  the wall and top rows (330 and 400). **The two rows therefore part by 250 mm at 600 and 280 at
- *  700 rather than by a constant**, which is the arithmetic ADR 0089's two chains express and the
- *  reason no depth-independent width pair makes the rows agree at both depths. */
+ *  the same row — the base run's carcass front, where the X-leg's
+ *  carcass ends, in the base row (570 at 600 mm and 670 at 700; ADR 0135 moved it from ADR 0025's
+ *  `d − 20`) and §7's head-clearance depth in the wall and top rows (330 and 400). **The two rows
+ *  therefore part by 240 mm at 600 and 270 at 700 rather than by a constant**, which is the
+ *  arithmetic ADR 0089's two chains express and the reason no depth-independent width pair makes
+ *  the rows agree at both depths. */
 function nearEdgeMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
 ): number {
   if (ownsTheCorner(piece)) return 0;
   return standsInTheBaseRow(piece)
-    ? baseSeatDepthMm(cabinetDepthMm)
+    ? baseCarcassFrontMm(cabinetDepthMm)
     : wallCarcassDepthMm(cabinetDepthMm);
 }
 
@@ -441,15 +443,16 @@ function narrowestWidthMm(
 /** How much of a piece's own width the other wall's body stands in front of.
  *
  *  **Only the blind X-leg has any.** The return leg butts against the X-leg's front face, so the
- *  X-leg is a cabinet only past `d − 20`: today's 900 decomposes as 580 of the other wall's depth
- *  plus a 320 mm accessible front (7D7's derivation, and the 280 mm door the builder puts in it).
+ *  X-leg is a cabinet only past `d − 30`, the run's carcass front: today's 900 decomposes as 570 of
+ *  the other wall's depth plus a 330 mm accessible front (7D7's derivation, and the 290 mm door the
+ *  builder puts in it; 580, 320 and 280 until ADR 0135 moved the joint).
  *  A wall-B piece has none — what stands in front of it moves its **near edge** instead, which is
  *  `nearEdgeMm` above, and wall A carries no piece in the rows where that would differ. */
 function blindSpanMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
 ): number {
-  return ownsTheCorner(piece) ? baseSeatDepthMm(cabinetDepthMm) : 0;
+  return ownsTheCorner(piece) ? baseCarcassFrontMm(cabinetDepthMm) : 0;
 }
 
 /** The owner's rule of 2026-09-16 — *"corner cabinet should have at least one door so calculate to

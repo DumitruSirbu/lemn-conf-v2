@@ -184,6 +184,7 @@ describe("PUT /api/designs/[id] — a kitchen at either declared depth", () => {
       .map((entry) => entry.alongMm)
       .sort((left, right) => left - right);
 
-    expect(wallB).toStrictEqual([685, 840, 1300, 1900, 2550]);
+    // 840 → 835 (ADR 0135): the base return is centred 5 mm nearer the corner at 700 mm.
+    expect(wallB).toStrictEqual([685, 835, 1300, 1900, 2550]);
   });
 });

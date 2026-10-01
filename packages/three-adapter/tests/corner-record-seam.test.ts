@@ -274,7 +274,7 @@ describe("wave 7D7 S3b — a corner record reaches the mounted body", () => {
       .map(({ id, body }) => [id, body.widthMm]);
     expect(cornersAt600).toStrictEqual([
       ["p25", 900],
-      ["p26", 320],
+      ["p26", 330], // 320 → 330 (ADR 0135)
       ["p9", 570],
       ["p21", 570],
     ]);
