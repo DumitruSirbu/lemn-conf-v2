@@ -4697,8 +4697,8 @@ and the price book), not a composition change. It would be its own item.
 **Written for M7C wave C2** (`docs/milestones/M7C-m7-feedback-fixes.md`, *C2 — the corner wall unit*, and
 `docs/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
 as `075529b` (the builder, nothing mounted). C2 S2 (the domain, the shell, the prices, the validator) is
-implemented, QA-green and logic-approved, and is **not committed**; it is described as built and
-measured, and its hash is added at wave close. **O9 (the top row) and O10 (the fridge-gap absorb) are
+committed as `0a1a69a` (hashes read from the branch's reflog). Both are on branch `m7c-m7-feedback-fixes`,
+not pushed and not run on the CI runner; the figures in O8 were measured by QA before the commit. **O9 (the top row) and O10 (the fridge-gap absorb) are
 decided and not built**: waves C3 and C5. Labels: **[doc-quoted]** from the plan or a record,
 **[relayed]** measured or stated by QA, a reviewer or the coordinator and not re-run by the scribe,
 **[source-verified]** read at the file named, **[inference]**.

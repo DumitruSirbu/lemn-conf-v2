@@ -2,7 +2,7 @@
 
 **Status: IN PROGRESS, 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA. The owner
 has answered Q1, Q1b, Q3, Q4, Q5, Q6, Q7 and the corner joint (J). Done: C1 S1 (`8269440`), C1 S2
-(`21c702b`), and wave C4 (S0; S1 `c4eeea6`; S2 `48bbc0c`). Next: C2, which is re-planned on the owner's Q2 answer; its S0 is done and reviewed, S1 is built and in its fix batch, gate G-C2 is passed (Q9: handles kept as built), and S2 is ready once S1 is committed. Then C1 S3, C3, C5, and wave CE last, by the owner's word. Nothing is pushed, and `pnpm check`, `pnpm ci:local` and e2e have not been run on this branch.** Branch `m7c-m7-feedback-fixes`,
+(`21c702b`), and wave C4 (S0; S1 `c4eeea6`; S2 `48bbc0c`). Wave C2 is done too (S1 `075529b`; S2 `0a1a69a`; gate G-C2 passed, Q9: handles kept as built). Next: C1 S3 (in implementation), then C3, C5, and wave CE last, by the owner's word. Nothing is pushed, and `pnpm check`, `pnpm ci:local` and e2e have not been run on this branch.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
 Source: `docs/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
@@ -205,9 +205,9 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | Wave | Covers | Pri | Tier | State |
 | --- | --- | --- | --- | --- |
 | C0 | Census and measurements; the questions | — | Light | **Done**, confirmed by QA |
-| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **open**, after C2 |
-| C2 | FB-004, FB-011 | P0 | Full + visual | S0 done. S1 built, in its fix batch. S2 **ready** once S1 is committed |
-| C3 | FB-003 | P1 | Full + visual | After C2 |
+| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **open**, in implementation |
+| C2 | FB-004, FB-011 | P0 | Full + visual | **Done**: S0; S1 `075529b`; S2 `0a1a69a` |
+| C3 | FB-003 | P1 | Full + visual | Next after C1 S3 |
 | C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
 | C5 | FB-010 | P2 | Full | After C3 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | After C5 (owner) |

@@ -1405,6 +1405,15 @@ then marks. Dropping it from the offer would be a new rule — "an entry that wo
 offered" — for the owner. **Composition never produces it**: M7 wave 7D2 places nothing over wall A's
 corner zone (milestone, *Adjudication 7D1-Q1*).
 
+**Narrowed 2026-10-01 by M7C wave C2 (`0a1a69a`), not closed.** [ADR 0110 Amendment O](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb)
+(O8) records that the opening no longer exists in any room that gets the corner wall unit. It remains on
+**the seeded reference kitchen**, on **the back wall of a U of 10 m or more** (where the unit is
+deliberately absent), and on **designs stored before `0a1a69a`**. **A narrowed validator case came with
+it** (Amendment O5): a wall-B wall-row body that starts between the unit's 291 mm seat and 330 mm is no
+longer flagged, though the closure is solid there. It is reachable only by a hand-made or corrupted
+document, and safe because the side return's near edge and the closure's front come from one wall-depth
+map and no command moves a structural piece [relayed from the logic review R6.2].
+
 ## 65. An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm — RECORDED 2026-09-11, PRE-EXISTING, NOT REACHABLE, NO OWNER
 
 Found by M7 wave 7D1's QA, round 3 (finding Q3.1, Low), and pre-existing rather than introduced by the
@@ -2065,3 +2074,27 @@ stored before C4 S2 (`48bbc0c`) shows a permanent 10 mm slit in the carcass and 
 corner, and one depth-changed before C4 S1 (`c4eeea6`) stands 5 mm off the wall. A load-time re-derivation
 of the structural return's width would amend ADR 0089 and count as a migration under ADR 0038 decision 1.
 The owner was told. No owner, no phase.
+
+## 108. `wallCabinet`'s two-door leaves are 3 mm apart where the kit's `GAP` is 4 mm — FOUND 2026-10-01 BY C2 S1's REVIEW, PRE-EXISTING, NOT CHANGED
+
+**Found by the review of M7C wave C2 slice S1 (`075529b`) [relayed].** In `wallCabinet`, a two-door body
+sizes each leaf `dw = (W - 0.009) / 2` (`packages/three-adapter/src/kitchen-parts.ts:1752`, read
+2026-10-01), which leaves 3 mm between the two leaves, where the kit's `GAP` is 0.004
+(`kitchen-parts.ts:838`). Nothing was changed, because every parity pin of an ordinary wall cabinet would
+move. No owner, no phase.
+
+## 109. The corner wall unit's names and prices are placeholders — AWAITING THE OWNER, BUILT WITH DEFAULTS 2026-10-01
+
+M7C plan Q8 (i) and (ii). The unit (`wall-corner-x-900` and `-top`) reuses the side corner pieces' names
+(*Dulap suspendat de colț*, *Dulap de colț rând de sus*, ADR 0066) and their placeholder prices, 160 000
+and 90 000 in the book's units, each plus the leaf's hardware line
+([ADR 0110 Amendment O](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb),
+O7). Both are marked *pending owner input*. The owner has not answered. Non-blocking; no phase.
+
+## 110. A wall door beside a hood or fridge at the corner unit's far edge cannot open past about 90° — RECORDED 2026-10-01, A MANUFACTURING NOTE, NOT A DEFECT
+
+Beside a body standing proud at the unit's far edge (x 900), a hood (291–321 mm proud) or a fridge
+(317–387 mm), the unit's leaf cannot open past about 90° [doc-quoted: M7C plan, C2 S2, *At the far edge*].
+The kit draws no hinge, so this is true of any wall door beside such a body, and a real cranked hinge
+moves the door clear. C2 S2 carries a note and no criterion, since a criterion would test the model's
+pivot. No generation rule: a hood stands at 900 only over a hob. No owner, no phase.
