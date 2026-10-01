@@ -2,7 +2,7 @@
 
 **Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA. The owner
 has answered Q1, Q1b, Q3, Q4, Q5, Q6, Q7 and the corner joint (J). Done: C1 S1 (`8269440`), C1 S2
-(`21c702b`), C4 S0. Dispatchable: CE S0 (local half), C4 S1, C1 S3 (after CE). Held: C2 on Q2.** Branch `m7c-m7-feedback-fixes`,
+(`21c702b`), C4 S0. Dispatchable: CE S0 (local half), C4 S1, C1 S3 (after CE). C2 is re-planned on the owner's Q2 answer: S0 ready.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
 Source: `docs/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
@@ -69,7 +69,7 @@ Verifică designul, cornerQuestion, proud, flush*.
 | --- | --- | --- |
 | ADR 0110 E11 (owner, 2026-09-14) | No generated top row; the eventual fix is *"the middle and the top cabinets to be just higher"*, not a composed row. | **FB-003 asks the opposite.** Not overturned without Q4. If overturned: Amendment O, E11.1 and E11.3 struck by name. |
 | ADR 0110 F9 | The top row, when composed, is lift cabinets (stretch-ceiling reason); a lift needs 120–165 mm above it. Trigger: *"the first wave that composes a top row"*. | **Triggered by C3.** FB-003 asks for push-to-open doors. Put in Q4. |
-| Archived M7 plan, 7D1-Q1, criterion 14; ADR 0130 sweep row (`:102`, *"7D2 c. 14 … no uppers over the corner"*) | Nothing composed over wall A's corner zone. | **Overturned by FB-004 and FB-011** (owner). Its property, no `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, is kept. |
+| Archived M7 plan, 7D1-Q1, criterion 14; ADR 0130 sweep row (`:102`, *"7D2 c. 14 … no uppers over the corner"*); ADR 0110 B2 (*"0 for wall A's wall and top bands, where nothing structural stands above the corner base"*) | Nothing composed over wall A's corner zone; the stretch is an empty column the customer can fill. | **Overturned by the owner's Q2 answer**: a structural piece stands there, so the stretch is no longer an opening. Criterion 14's property, no `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, holds trivially. |
 | ADR 0110 N1.3, *N3 revised* 11, RQ7 | Back wall base-only in a large U (≥ 10 m), hood kept, voids left for the editor. | **Kept unless Q3 changes the threshold.** |
 | ADR 0110 A4, D2, E6, *N3 revised* 4, N11.9 (RQ25a/b) | Remainder ≤ 599 stays bare; E6 absorbs ≤ 200 beside a tower; a U's wall A fills from 300; side-wall ends stay bare; under 400 beyond the fridge stays bare. | **FB-010 departs from A4, D2, N3r 4 and RQ25a** for one case. Needs Q6, then Amendment O. E6 is the precedent. |
 | ADR 0110 F7 / ADR 0108 H3 | Wall B and wall C keep a 100 mm reserve for the 600 → 700 slide. | **Kept.** The absorb never spends it. |
@@ -81,8 +81,9 @@ Verifică designul, cornerQuestion, proud, flush*.
 | ADR 0104 d6, d8, Amendments B, C | Mockups are the chrome contract; a departure needs the owner. D2A draws no back control. | **FB-001 on desktop is a departure**: Amendment D, on Q1. FB-007 and FB-009 restore the frames. |
 | ADR 0111 d5, ADR 0114 d4, ADR 0115 | Back never erases; `/` resumes the newest design; profiles hold several, in M8. | **Unchanged.** Idea A's discard warning would contradict 0111 d5. |
 | ADR 0113, ADR 0095 d2 | Step 1 copy approved as drafted; a leaf enters the copy lock in the commit that changes it; no agent approves a translation. | **Followed.** The Russian leaf is a draft the owner reads. |
-| ADR 0117, ADR 0110 E12.4 | Cheap baseline; new catalogue rows wait for beta. | **Followed**: no new body in this milestone. |
-| Backlog 63 | A hood over wall A's corner is offered, accepted, then marked. | **Not fixed here.** C2 must not make it worse: no hood in the strip. |
+| ADR 0117, ADR 0110 E12.4 | Cheap baseline. E12.4 is *"new **tall body types** wait for beta"*, about catalogue rows composition chooses from (backlog 66). | **E12.4 is not reached**: a structural corner piece is a seeded entry no customer chooses, like the four that exist. **ADR 0117 is narrowed by the owner's own instruction**: every cornered kitchen gains two priced pieces. |
+| Backlog 63 | A hood over wall A's corner is offered, accepted, then marked. | **Closed by C2**: no opening remains over the corner. The scribe moves the entry. |
+| ADR 0021, 0066, §13.1, §11 row 16 | Corners are structural: no replace, delete, width, finish or handle control; each corner body has its own kind and name. | **Fits.** The new unit takes `STRUCTURAL_CORNER` unchanged; `panel.structuralReasons.corner` already says it. Names: Q8. |
 
 No record was found that names the corner setback as accepted or deferred. The owner's recollection
 matches `SPEC.md`'s *"the corner unit protruded, the plinth stood proud"*, which is the opposite
@@ -121,22 +122,27 @@ buttons; the owner answered *"Approve as proposed"* (relayed selection). The app
 **The wording is the owner's.** Storage is unchanged: the old design remains stored (ADR 0111 d5) and
 opens only from its own link until M8. The warning is asked on leaving the editor, on phone and desktop.
 
-**Q2 — FB-004, FB-011. Blocks C2.** Recorded in ADR 0110 Amendment O.
-*On the back wall, above the corner base cabinet, there is a 900 mm stretch at the middle and top levels
-that is empty today. The side wall's corner cabinet (570 mm wide) stands in front of the first 330 mm of
-it. What should stand there?*
-(a) **One 570 mm two-door cabinet**, from where the side wall's corner cabinet ends to the end of the
-900 mm. It mirrors the 570 mm corner cabinet on the side wall, both doors open, and it lines up with the
-base cabinets below. The 330 × 330 mm pocket in the very corner stays unbuilt behind the two cabinets.
-(b) **A 600 mm and a 300 mm cabinet from the corner**, as the first reference kitchen had. The 600's
-corner-side door (0–300 mm) is wholly behind the side wall's cabinet and cannot open.
-(c) A dedicated corner wall unit: a new product with its own drawing and price; after beta.
-(d) Leave it empty.
-*Recommended: (a).* Why not the variants: 550 mm would leave a 20 mm slit; 600 mm would run 30 mm into
-the side wall's cabinet; (b) with a fixed blind 300 mm front is a priced cabinet nobody can see or open,
-or a new product. 570 is inside the cabinet's 200–800 mm range and is the width the side wall's corner
-cabinet already has; the width stepper then moves it in 50 mm steps from 570. That the pocket is hidden
-is [inf] until the captures for (a) and (b) are in. Also confirms: *middle* is the wall row.
+**Q2 — FB-004, FB-011. ANSWERED 2026-10-01, in the owner's own words; none of the offered options.**
+Recorded in ADR 0110 Amendment O.
+
+> *"I think in the reference there is a good example of how the corner cabinets should be placed, even
+> that is not perfect but at least is exists. I now that corner is somehow a 2 cabinets cabinet (it has 2
+> parts) and only one has door the wider part has door. So I gave no idea on what sizes should be there,
+> make calculations yourselve but corner should be fixed, non editable and cover all empty space withing
+> the corner"*
+
+Read as: one fixed corner wall unit on the back wall, covering the whole stretch above the corner base;
+two parts, a blind one behind the side wall's corner cabinet and a wider one with a door; structural
+like the other corner pieces. Sizes are ours. The 570 mm ordinary cabinet this plan recommended is
+withdrawn. Design and what remains open: wave C2 and Q8.
+
+**Q8 — the corner wall unit's price, name, and the large U. Does not block C2** (defaults are built and
+labelled). (i) *Price:* no price row exists. Default: the side wall's corner cabinet's own placeholder
+figures, for the middle and the top unit. (ii) *Name:* default, the same names as the side wall's
+(*Dulap suspendat de colț*, *Dulap de colț rând de sus*); two lines with one name and one amount do
+not confuse a breakdown, a different amount under one name would (ADR 0066). (iii) *A U of 10 m or
+more,* whose back wall you ruled base-only: does the corner unit still stand on it? Default: yes, the
+corner is the corner, and the side walls' corner cabinets already stand there.
 
 **Q3 — FB-005. ANSWERED 2026-10-01** (relayed selection): *"Was under 10 m; keep rule"*. The output
 conformed; the 10 m threshold of ADR 0110 N1.3 stands. No code change; C2 S2 is dropped.
@@ -178,14 +184,15 @@ ADR 0113.
 | --- | --- | --- | --- | --- |
 | C0 | Census and measurements; the questions | — | Light | **Ready** |
 | C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1, S2 **done**; S3 **ready**, after CE |
-| C2 | FB-004, FB-011 | P0 | Full + visual | On Q2 |
+| C2 | FB-004, FB-011 | P0 | Full + visual | S0 **ready** (design, no production code); S1, S2 after C4 S2 |
 | C3 | FB-003 | P1 | Full + visual | After C2 |
 | C4 | FB-006 | P1 | Full + visual | S0 done; S1 **ready**; S2 after S1 |
 | C5 | FB-010 | P2 | Full | After C3 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | S0 **ready** |
 | C6 | Phase gate | — | Coordinator + visual | Last |
 
-**Order: CE S0 ∥ C4 S1 → C4 S2 → CE fixes → C1 S3 → C2 → C3 → C5 → C6.** C4 moved ahead of C2 and C3:
+**Order: CE S0 ∥ C4 S1 → C4 S2 → C2 → CE fixes → C1 S3 → C3 → C5 → C6.** C2 follows C4 S2 directly: both
+write `kitchen-parts.ts`, `corner-assembly-size.ts` and the fixture, and neither needs a figure from the other. C4 moved ahead of C2 and C3:
 S0 found it shares no file and no figure with them. **C4 and CE confound each other unless CE S0 is
 pinned:** C4 changes built geometry, and CE S0 classifies captures and pixel counts. So CE S0 runs in
 its own worktree at commit `9f89b4d`, never at a moving `HEAD`, and C4 S1 works in the main tree on unit
@@ -262,43 +269,89 @@ rule, persistence or endpoint.
 *Reviewer reading (combined):* the diff, both mockup frames, ADR 0104 d8. *Visual reading:* the frames
 and the captures.
 
-### C2 — the corner stretch on wall A, and the U back wall (domain)
+### C2 — the corner wall unit (adapter and domain)
 
-Written for Q2 (a), the 570 mm cabinet. Q3 kept the 10 m rule, so the back-wall rule is untouched.
+Re-planned 2026-10-01 on the owner's Q2 answer. **The design below is the architect's, from source and
+C0's figures; S0 confirms it before S1.**
+
+**What the reference has** [src]. On the back wall above the corner base: `p8` `wall-2door-600` at 0–600
+and `p10` `wall-1door-300` at 600–900, with `p15` / `p16` above them (`kitchen-l-design.ts`, the seeded
+placements). The 600's corner-side door is behind the side wall's corner cabinet: the owner's *"not
+perfect"*. The base corner is the two-part model the owner describes: `base-corner-x-900` is one 900 mm
+body, blind for the span the side wall's piece covers, with one door on the rest. The side wall's
+`wall-corner-return-570` and `-top` are 570 mm, one door each, `STRUCTURAL_CORNER`.
+
+**The unit: the base X-leg's shape, one level up.**
+
+| | Middle unit | Top unit |
+| --- | --- | --- |
+| Build id (new, seeded, structural) | `wall-corner-x-900` | `wall-corner-x-900-top` |
+| Span on the back wall | 0–900 from the corner (the corner reach; the base X-leg's own width in that room) | same |
+| Height, `y0` | 700, 1500 | 400, 2200; not built in a room under 2600 (the existing ceiling rule) |
+| Depth | the wall-cabinet depth: 330 at 600, 400 at 700 [C0] | same |
+| Blind part | 330 mm, the side wall's corner cabinet's own depth, at 600 **and** 700 [C0] | same |
+| Door part | 570 mm, **one door**, as the 570 mm cabinet beside it has | same, push-to-open (§13.1) |
+| Hinge | on the edge away from the corner, so the door opens clear of the side wall's door [inf; S0 reads the side cabinet's own side, the visual gate judges] | same |
+| Right corner of a U | the same body in its own mirrored wrapper (ADR 0132 d2), `cornerOf` = right | same |
+| Flags | `STRUCTURAL_CORNER`: no replace, delete, width, finish or handle control; follows the kitchen's colour (ADR 0099) | same |
+| Kind and name | the side wall's kinds, pending Q8 (ii) | same |
+| Price | a flat rule under its own build id, at the side wall piece's placeholder, pending Q8 (i) | same |
+
+*"The wider part has door"* holds: 570 > 330. The blind part is not seen from the room; it closes the
+pocket from above and below, which is the owner's *"cover all empty space"*.
+
+**The shell.** A wall's run starts at the far edge of the corner assembly's pieces in that band (ADR 0110
+B2), so once the assembly has a wall-A piece in the wall and top bands, the 800 + 100 strip tiles
+disappear and nothing is insertable over the corner. The U's explicit strips
+(`shell-design.ts`, `wallAFreeRunTilesForU`) are removed with them.
+
+**Where the pieces come from: generated shells only, not the seeded kitchen** [architect's choice, S0
+confirms]. The shell takes its corner from the seeded kitchen's structural placements. Putting the unit
+in the seeded kitchen means removing `p8`, `p10`, `p15`, `p16`, which 62 files under `packages` and
+`apps/web` name [src: a grep for the four ids; `p10` may over-count]. The seeded kitchen is a development
+fixture no customer route mounts. So the two pieces are declared in the corner assembly
+(`CORNER_ASSEMBLY_PIECES`) and built by the shell, and the seeded kitchen keeps its four cabinets. S0
+measures the cost of the other way before this is final.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
-| S1 | The shell tiles wall A's strip as one 570 mm tile, 330–900 (and `W − 900` to `W − 330` at a U's right corner), with no tile over the pocket. Generation puts one `wall-cabinet` in it, through `insertBody`. L, right-hand L, U (both corners). | `upper-policy.ts`, `generate-kitchen.ts`, `shell-design.ts` | ADR 0110 decisions 1–2, B2, C, E7, N3r 9–11; C0 S2; `shell-design.ts:379-407, 739-795`; `generate-kitchen.ts:449-482, 583-628` |
+| S0 | Design check, no production code: the count of files and assertions naming `p8`, `p10`, `p15`, `p16`; how the shell would build a piece the seeded kitchen lacks; the leaf's width, clearances and hinge side from `cornerBaseX` and the side return; the unit's depth and blind span at 700 on built geometry; which front, handle and finish censuses a one-door 900 mm wall body enters. | — | this section; ADR 0110 d1, B2; ADR 0021, 0066, 0099, 0132 d2; `shell-design.ts:235-410, 560-800`; `corner-assembly-size.ts`; `kitchen-parts.ts` `wallCabinet` and `cornerBaseX`; `kitchen-l-design.ts` corner entries; C0 `s2-*` |
+| S1 | Adapter: a `wallCornerX` builder (carcass over the whole span, one leaf on the door part, handle or push-to-open), its two build ids, the finish census. Nothing mounts it yet. | `three-adapter/src/kitchen-parts.ts`, `decomposed-bodies.ts`, `body-finish-surfaces.ts` | S0's output; `SPEC.md` wall cabinet and corner elements; `product-invariants.md` |
+| S2 | Domain: the two seeded entries, the two assembly pieces, the shell's corner pieces and runs, the two price rules. | `configurator-domain/src/fixtures/kitchen-l-design.ts`, `corner-assembly-size.ts`, `generation/shell-design.ts`, `pricing/sample-price-book.ts`, `body-kinds.ts` only if Q8 (ii) gives own names | S0's output; ADR 0110 d1, B2; ADR 0089; ADR 0066; `corner-of.ts`; `validate-design.ts` corner sweeps |
 
-*3D contract.* Each strip cabinet is an ordinary wall-A body: back face on wall A's plane at 0.000
-(§11 row 19), `y0` 1500, drawn unmirrored at both corners. Its near edge is the plane of the side
-wall's return front (330 mm from the side wall, at 600 and 700); its far edge is the corner base's far
-edge (900). Depth from the wall-depth map: 330 at 600, 400 at 700. It may not intersect the side wall's
-corner return.
+*3D contract.* Back face on the back wall's plane at 0.000 (§11 row 19). Near edge at the corner, far
+edge at the base X-leg's far edge. The door part's near edge is the plane of the side wall's corner
+cabinet's front. Scaling: width is the corner reach, recorded at generation and frozen at a depth change
+(ADR 0089); depth follows the wall-depth map; the handle is a fixed size. The right corner's units have
+determinant −1, each through its own wrapper; every other wall-A body +1.
 
 *Criteria.*
-1. For every room on the approved L, right-hand L and U grids at 600, when the back wall is not
-   base-only: wall A carries exactly one wall cabinet over each corner base, 570 mm wide, spanning
-   330–900 from that corner, two doors. The right corner of a U is the left's mirror: the pocket is at
-   the corner end at both. No empty column lies over the pocket. **[prop]**
-1a. **Every door opens.** No door leaf of a strip cabinet lies, in whole or in part, within the
-   side-wall return's depth of the corner. Checked on the leaf's own along-wall span, at both corners.
-2. No generated design carries `RECORDED_SPAN_OVERLAPS_CORNER_BODY` or any other finding. *Must not:* a
-   hood in a strip. With the strip cabinet deleted in the editor, the opening offers no hood.
-2a. After a change to 700 the strip cabinet keeps its span and width, and no finding appears.
-3. In a base-only U, wall A's wall row carries the hood if the hob is on wall A and otherwise nothing
-   (the hob may go round the corner, N3r 5); both strips stay empty and insertable.
-4. The four corner pieces, every base and every upper outside the strips are byte-identical to
-   `2615b51` for every room. A straight kitchen's output is byte-identical.
-5. A strip cabinet can be deleted, replaced and resized in the editor like any wall cabinet. It is not
-   structural.
-6. The price rises by exactly the strip cabinets' own lines.
+1. Every generated L, right-hand L and U on the approved grids carries the middle unit at each corner,
+   spanning exactly the base X-leg's span; and the top unit iff the room is at least 2600 high. **[prop]**
+2. No empty column and no void lies over a corner base on the back wall, at any level, in any generated
+   design. The editor offers nothing there; no hood can be placed there (backlog 63's witness inverted).
+3. Selecting either unit shows the structural panel: no replace list, no delete, no width, finish or
+   handle section. `removePlacement`, a replace and `setWidth` each refuse it.
+4. The leaf lies wholly outside the side wall's corner cabinet's depth from the corner, at 600 and 700,
+   at both corners. No finding on any generated design; `findCornerOverlaps` is silent.
+5. After a change to 700 the unit keeps its span; its front and the side cabinet's near edge meet.
+6. Every other placement of every generated design is byte-identical to the tree before C2. A straight
+   kitchen is byte-identical. The seeded kitchen is byte-identical.
+7. The price rises by exactly the two units' lines per corner. A kitchen colour paints the unit.
+8. *Must not:* a literal 330, 570 or 900 in the builder or the assembly; a new catalogue row a customer
+   can choose; the unit in an offer list.
 
-*Visual evidence:* overview and wall-A captures of one L, one right-hand L, one U below 10 m and one at
-or above it, at 390 × 844 and 1440 px. *QA reading:* the criteria, C0 S2, `generate-kitchen.u.uppers.test.ts`,
-`qa-7d3-upper-suppression.adversarial.test.ts`. *Logic reviewer:* ADR 0110 C, E7, N3r, Amendment O
-draft, the diff. *Clean-code reviewer:* the diff, `engineering-conventions.md`. *Visual:* the captures,
-`SPEC.md` wall cabinet and L-scene elements.
+*Visual evidence:* overview, back-wall and top-down captures of an L, a right-hand L and a U (both
+corners), at 600 and 700, 390 × 844 and 1440 px, with the leaf open-side visible; one room under 2600.
+*QA reading:* the criteria, S0's output, `generate-kitchen.u.uppers.test.ts`,
+`qa-7d3-upper-suppression.adversarial.test.ts`, `qa-7d7-sized-shell.test.ts`. *Logic reviewer:* ADR 0110
+d1, B2, Amendment O draft, ADR 0021, 0066, 0089, the diff. *Clean-code reviewer:* the diff. *Visual:* the
+captures, `SPEC.md`.
+
+**What the neighbours need.** *C3:* nothing for the corner; the top unit is the shell's. C3's count of
+top-row bodies excludes structural pieces. *C4 S2:* nothing; it moves the base row's joint, and the wall
+rows' near edge is a separate arm. They share three files, so C2 lands after C4 S2. *Large U:* under Q8
+(iii)'s default the unit stands on a base-only back wall, and C2 criterion 1 has no exception.
 
 ### C3 — the top row (domain)
 
@@ -306,7 +359,7 @@ Q4 answered: a top row, above the hood too, not above tall columns, doors.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
-| S1 | For each generated wall-row cabinet, strip cabinets included, one top-row cabinet of the same width above it, push-to-open. | `upper-policy.ts`, `generate-kitchen.ts` | ADR 0110 E11, F9, Amendment O draft; `push-to-open.ts`; §13.1 *Top row ships push-to-open*; C0 S3 |
+| S1 | For each generated wall-row cabinet (the structural corner units carry their own top unit, C2), one top-row cabinet of the same width above it, push-to-open. | `upper-policy.ts`, `generate-kitchen.ts` | ADR 0110 E11, F9, Amendment O draft; `push-to-open.ts`; §13.1 *Top row ships push-to-open*; C0 S3 |
 
 *3D contract.* `y0` 2200, height 400, back face on the wall plane, same along-wall span as the cabinet
 below. Handles hidden, not removed (§13.1).
@@ -321,7 +374,7 @@ below. Handles hidden, not removed (§13.1).
    not show a bar on it.
 4. Everything below 2200 is byte-identical to C2's output. No finding on any generated design.
 5. The largest generated design stays under `MAX_PLACEMENTS`; the measured peak is restated (C0
-   predicts 54 before C2's strip cabinets).
+   predicts 54 before C2's corner units, at most four more in a U).
 
 *Visual evidence:* as C2, plus one room at 2500 and one at 2600 high. *Readings:* as C2, with ADR 0110
 E11 and F9 for the logic reviewer.
@@ -351,7 +404,7 @@ the same day. S1 and S2 are both concrete; S1 goes first.**
 - The X-leg's worktop alone could move (overhang 50 → 40) without the joint, but if the joint moves the
   worktop lands on the line with no constant changed. So S2 is one decision, not two.
 - **The wall-row return does not move with the X-leg.** Its near edge is the wall-cabinet depth (330 /
-  400), a separate arm of `nearEdgeMm`. **C2's 570 mm strip cabinet is unaffected under either ruling,
+  400), a separate arm of `nearEdgeMm`. **C2's corner wall unit is unaffected under either ruling,
   and C4 does not depend on C2 or C3** except for complete captures.
 
 **The ruling: (J), move the joint to `D − 30`. Owner, 2026-10-01** (relayed selection of the offered
@@ -576,6 +629,16 @@ Q6 answered: absorb under 300 mm.
 | S0 | No tracked file changes. **Local half, dispatchable now and not waiting on the runner:** the agent runs each of the nine tests alone, locally, three times, on `main`'s tree at `2615b51` and on `HEAD`, and reads the saved log to attach each `toBeEnabled` failure to its test. **Runner half, owed:** a re-run of run 36841795476's failed jobs was refused on 2026-10-01 (*"Resource not accessible by personal access token"*) and is not worked around; the owner re-runs it, or the first push of this branch supplies a fresh run. Until then no row is classed *runner-only*, only *not reproduced locally*. Output: one table, test → deterministic or intermittent → local or runner-only → cause group → class (flake, test-fidelity, defect). | — | `M7-FEEDBACK.md` *M7-FB-012*; scratchpad `run-36841795476.log`; `ci-and-local-gates.md`; `agent-coordination.md` (port 4320, `TEST_DATABASE_URL`); ADR 0105; `playwright.config.ts`; `.github/workflows/ci.yml` e2e jobs; the nine spec files and `support/u-gate-journeys.ts`, `support/u-gate.ts` |
 | S1… | One slice per cause group from S0, each named in this table before dispatch, with its files and reading. | from S0 | from S0 |
 
+*Read from the CI log by S0's agent, 2026-10-01 [log-verified; nothing run].* Group 1, four tests:
+`toBeEnabled` on `global-settings-trigger`, stuck at *"Se verifică accesul"*; A5 still so after 15 s,
+which points at the write-access probe not answering on a production build rather than at a tight
+timeout [inf]. Group 2: `pixel-counter-witness:352` reads its probe *"off"*; both mirror capture sets.
+Group 3: `top-bar-pill-containment:788`, pill x 389.67 against 481.67 at 1440 and the price cell 180.11
+against 196.11; `room-desktop-line:551`, 6 pre-hydration paints against a CI bound of 4. That bound is
+`CI ? 4 : 7`, so a local run cannot exercise it. **S0's local half is held:** no document sanctions how
+a worktree obtains the e2e environment (`agent-coordination.md:189` says only that it has none); asked
+of the owner.
+
 *Expected groups, [inf] from the log, for S0 to confirm or replace.* (1) Write access arriving late:
 `share-design:96`, `qa-7e3c-share:638`, `qa-u7s0-ssr:271`, `u-gate-journeys:648`. (2) Captures and pixel
 counts: `pixel-counter-witness.desktop:352`, both `qa-7i-mirror-captures:18`. (3) Desktop layout:
@@ -610,7 +673,7 @@ criteria and captures.
 
 ## ADRs this milestone needs
 
-- **ADR 0110 Amendment O**: the corner stretch (overturns criterion 14), the back-wall rule, the top row
+- **ADR 0110 Amendment O**: the structural corner wall unit (the owner's Q2 words; overturns criterion 14 and B2's zero start), the back-wall rule, the top row
   (strikes E11.1 and E11.3 if Q4 = a), the absorb (departs from A4, D2, N3r 4, RQ25a).
 - **ADR 0135**: the corner seam's front-line contract; amends ADR 0025's 630 figure and `SPEC.md`.
 - **ADR 0104 Amendment D**: the desktop back control.
@@ -640,7 +703,7 @@ criteria and captures.
   `tests/generation/` are restated per wave with the reason, never regenerated silently.
 - **Parity gate.** C4 changes geometry the M1 gate pins at 1e-6 m. The pins move only by ADR 0135's list.
 - **Depth change.** At 700 the return starts at 400 along its wall and the strip tiles are 400 deep [C0],
-  so the strip cabinet and the return still meet. C2 criterion 2a holds it; ADR 0089's 30 mm residue on
+  so the corner wall unit's front and the return still meet. C2 criterion 5 holds it; ADR 0089's 30 mm residue on
   the side walls is untouched.
 - **Top bar fit.** A desktop back control enters a row whose fit ladder is ruled (ADR 0104). S3 may need
   to return to planning.
