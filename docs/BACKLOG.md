@@ -133,7 +133,6 @@ status corrections, in one of these two files:
 | 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); **owner answered 2026-09-30 (Q-U7-2): "Leave them"** |
 | 101 | The shape-refusal region is kept on purpose, though no shipped path draws it | open.md — recorded 2026-09-30 at M7B wave U6's close-out; if a future policy stops stating a shape, the e2e tests removed in U6 (E3, E4's U half, E5, E9) must come back; no owner |
 | 102 | Dev-only security candidates from the undici review (js-yaml, vitest, Node's bundled undici) | open.md — found 2026-09-30; lockfile refresh, a major vitest upgrade and a Node patch release respectively; not scheduled, no owner |
-| 103 | Six of seven e2e shards are red on `main` after the M7B merge (nine tests, CI run 36841795476) | open.md — owner asked 2026-10-01 to check and fix; log read, nothing re-run, no cause established; four shards share a *write access stays disabled* assertion (a lead); owed before M7C's phase gate; no owner |
 
 ## 2026-09-06 audit note
 
