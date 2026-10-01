@@ -14,8 +14,8 @@ name: ci
 on:
   pull_request:
     branches: [main]
-    # `labeled` so that adding `run-e2e` to a pull request starts a run that includes the e2e shards
-    # (owner, 2026-10-01). Without the label a pull request stays e2e-free, for the Actions minutes.
+    # `labeled` so that adding `run-e2e` to a pull request starts a one-shot e2e-only run (owner,
+    # 2026-10-01); the label is removed when that run ends. Pushes never run e2e on a pull request.
     types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
@@ -393,7 +393,7 @@ jobs:
       ${{ !cancelled()
       && needs.install.result == 'success'
       && (needs.test.result == 'success' || needs.prior-unit-tests.result == 'success')
-      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
+      && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
     env:
       # Same secret, same reasoning as the `test` job above, and the same
       # deliberate omission of DATABASE_URL. Note what that omission costs here:
@@ -488,7 +488,7 @@ jobs:
       ${{ !cancelled()
       && needs.install.result == 'success'
       && (needs.test.result == 'success' || needs.prior-unit-tests.result == 'success')
-      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
+      && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
     env:
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     steps:
@@ -571,7 +571,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: e2e-desktop-shard
-    if: ${{ always() && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
     steps:
       - name: Require every desktop shard to have passed
         env:
@@ -597,7 +597,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: e2e-mobile-shard
-    if: ${{ always() && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
     steps:
       - name: Require every mobile shard to have passed
         env:
@@ -619,6 +619,23 @@ jobs:
   #
   # `e2e-shard-budget` is a new job name. It is the owner's choice whether to make it a required
   # status check; it reports on every event, so requiring it cannot block a pull request.
+  remove-run-e2e-label:
+    name: remove run-e2e label
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # The label is one-shot (owner, 2026-10-01): once its e2e run ends, pass or fail, the label comes off,
+    # so adding it again is how the next e2e run is asked for.
+    needs: [e2e-desktop, e2e-mobile]
+    if: ${{ always() && github.event.action == 'labeled' && github.event.label.name == 'run-e2e' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Remove the run-e2e label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label run-e2e
+
   e2e-shard-budget:
     name: e2e-shard-budget
     if: github.event.action != 'labeled'

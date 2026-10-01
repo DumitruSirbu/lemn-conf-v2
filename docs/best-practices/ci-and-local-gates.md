@@ -409,20 +409,18 @@ machine carries. Read the workflow's own comments for the history; this section 
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
 | `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |
 
-**A pull request runs e2e when it carries the `run-e2e` label** (owner, 2026-10-01). Without it a pull
-request stays e2e-free, as before, for the Actions minutes; the Actions-tab `workflow_dispatch` on a
-branch remains the other way in.
+**Adding the `run-e2e` label to a pull request starts one e2e-only run** (owner, 2026-10-01). It is
+one-shot: pushes to a pull request never run e2e, labelled or not, and the Actions-tab
+`workflow_dispatch` on a branch remains the other way in.
 
-- **Adding the label fires an e2e-only run.** The `labeled` run skips every gate except `install`, because
-  the same commit's push run already ran them. It runs in its own concurrency group, so it never cancels
-  that push run.
+- **The labelled run is e2e-only.** It skips every gate except `install`, because the same commit's push
+  run already ran them, and runs in its own concurrency group so it never cancels that push run.
 - **`prior unit tests` keeps a skipped `test` honest.** GitHub counts a skipped required check as passing,
   so on every `labeled` run this job reads the commit's `test` check runs and fails unless the latest
-  non-skipped one is `success`. Add the label after the push run's `test` is green; if it is still
-  running, the labelled run goes red, and re-adding the label once it passes starts a fresh one.
-- **Every later push to a labelled pull request runs everything**, unit tests and e2e, until the label is
-  removed.
-- Any label fires a `labeled` event; one other than `run-e2e` runs only `install` and `prior unit tests`.
+  non-skipped one is `success`. Add the label once the push run's `test` is green.
+- **`remove run-e2e label` takes the label off when the e2e run ends**, pass or fail, so asking for the
+  next run is adding it again. It needs `pull-requests: write`, granted to that job alone.
+- Any other label fires a `labeled` run too; it runs only `install` and `prior unit tests`.
 
 **The contract with branch protection is the two summary names, `e2e (desktop)` and `e2e (mobile)`.**
 They are the names the single `e2e` job carried, so sharding changes nothing a required-checks list
