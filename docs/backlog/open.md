@@ -2098,3 +2098,26 @@ Beside a body standing proud at the unit's far edge (x 900), a hood (291–321 m
 The kit draws no hinge, so this is true of any wall door beside such a body, and a real cranked hinge
 moves the door clear. C2 S2 carries a note and no criterion, since a criterion would test the model's
 pivot. No generation rule: a hood stands at 900 only over a hob. No owner, no phase.
+
+## 111. On the 900 px desktop card the back confirmation's text is left-aligned and its buttons are centred — FOUND 2026-10-02 BY C1 S3's QA, OWNER ASKED FOR THE BUTTONS ONLY
+
+**Found by QA of M7C wave C1 slice S3 (`01c40be`) [relayed].** The owner asked, verbatim, *"also the
+buttons center to modal"*, and the buttons were centred. The heading and body stay left-aligned. In
+Russian, with a two-line body, the buttons sit visibly off the text's axis: the text starts at x 297 and the
+buttons are around x 720 at 1440 px [relayed, QA]. Not changed, because the owner asked for the buttons
+only. A one-line decision for the owner if it reads wrong. No owner, no phase.
+
+## 112. The settings confirmation's alignment has no unit-level guard — FOUND 2026-10-02 BY C1 S3's QA, NOT SCHEDULED
+
+**Found by QA of C1 S3 [relayed].** The back confirmation centres its buttons and the settings
+(material-change) confirmation keeps `justify-content: space-between`; the difference is a property of the
+asker. Adding the centred class to the settings call site leaves the unit suite green. Only QA's browser
+specs catch it, `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts` and its mobile counterpart
+(the file names are the coordinator's; not re-read by the scribe). No owner, no phase.
+
+## 113. The shared confirmation component lives under `apps/web/src/settings/` though `configure/` now uses it — RECORDED 2026-10-02, MOVE WHEN A THIRD ASKER APPEARS
+
+**Recorded at the close of C1 S3 [relayed].** The component and its styles
+(`global-settings.module.css`) stay under `apps/web/src/settings/`, although the editor's back links, in
+`configure/`, now use it as well as the settings strip. The extraction was for reuse and not a move
+(M7C plan, C1 S3). **Trigger:** a third asker. Then move it to a shared location. No owner, no phase.

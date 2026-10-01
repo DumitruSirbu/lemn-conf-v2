@@ -39,7 +39,7 @@ coordinator's drafts. The owner approved the set on 2026-10-01 by selecting *"Ap
 selection and not prose. The strings are in
 [ADR 0104 Amendment D](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-d-2026-10-01--q1-answered-the-back-to-room-link-is-drawn-on-desktop-and-both-back-links-ask-before-they-leave)
 (D1). As decisions 2 and 4 require, they enter the copy lock in the commit that adds them. The code is
-implemented and not yet committed; this note records the decision.
+committed as `01c40be` (hash read from the branch's reflog).
 
 ## Context
 

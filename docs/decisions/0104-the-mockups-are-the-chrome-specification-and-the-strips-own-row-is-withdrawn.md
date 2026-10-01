@@ -786,8 +786,8 @@ Step 1 is M7B wave U5's.
 recorded here. **Nothing above is struck.** Decision 8's widths gain a dated note (D3). Amendment C
 (above) is the corner toggle and is not this. Written for M7C wave C1 slice S3
 (`docs/milestones/M7C-m7-feedback-fixes.md`, *Q1*, *Q1b*, *C1*; `docs/M7-FEEDBACK.md`, M7-FB-001).
-**S3 is implemented, QA-green in a browser and reviewed; it is not committed.** It is described as built
-and measured; its hash is added at wave close. Labels: **[doc-quoted]**, **[relayed]** (stated by QA, a
+**S3 is committed as `01c40be`** (hash read from the branch's reflog; QA-green in a browser and
+reviewed; not pushed, and not run on the CI runner). Labels: **[doc-quoted]**, **[relayed]** (stated by QA, a
 reviewer or the coordinator, not re-run by the scribe), **[inference]**.
 
 ### D1 — the owner's words
@@ -856,6 +856,14 @@ Measured examples [relayed, QA]: at 930 px the pill now names **one** setting wh
 at 1025 px the wordmark is no longer drawn where it was. These are the ruled ladder working as decision 8
 describes, and the wordmark's absence in the window is still the owner's 2026-09-09 ruling (give C).
 
+**The two buttons are centred in the back confirmation.** The owner's later instruction, 2026-10-01,
+verbatim: *"also the buttons center to modal"*. It holds on desktop and on the phone sheet. **The settings
+material-change confirmation keeps its alignment**: the alignment is a property of the asker, not of the
+shared component. QA measured in a browser at 1440 and 390 px, in `ro` and `ru`, that the button group's
+centre is within 0.01 px of the dialog's, that the heading is 20 px / 700 over a 15 px / 400 body at 1440
+(18 / 700 over 14 / 400 at 390), the same as the material dialog's title, and that the settings
+confirmation is unchanged (`justify-content: space-between`) [relayed, QA].
+
 **The desktop link stays the small `‹` glyph** (owner, 2026-10-01, selected *"Keep the small ‹"*); the
 34 px cost above stands as written.
 
@@ -863,7 +871,7 @@ describes, and the wordmark's absence in the window is still the owner's 2026-09
 
 **Decided 2026-10-01 (owner, selected *"Yes, warn on browser Back too"*): the browser's own Back button
 will also warn.** It is a separate, later slice of M7C, which needs browser-history interception; the
-architect is planning it. **Until it lands, the browser's Back leaves the editor for Step 1 with no
+architect is planning it as **slice C1 S4**. **Until it lands, the browser's Back leaves the editor for Step 1 with no
 warning**, and the design stays saved at its link. **Editing the room size while keeping the customised kitchen** is what the owner
 actually wants and calls hard; it is backlog 103 and not this amendment.
 

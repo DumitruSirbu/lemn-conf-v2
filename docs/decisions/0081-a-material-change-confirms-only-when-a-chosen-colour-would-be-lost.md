@@ -7,8 +7,8 @@ Milestone: M6 — amends [ADR 0057](0057-a-material-change-resets-an-unavailable
 adds wave 6Q-c
 
 **Pointer, 2026-10-01.** The confirmation component this record introduced is now shared: the editor's
-two back links open it too, with other copy (M7C wave C1 slice S3, decided and implemented,
-not yet committed; [ADR 0104 Amendment D](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-d-2026-10-01--q1-answered-the-back-to-room-link-is-drawn-on-desktop-and-both-back-links-ask-before-they-leave)).
+two back links open it too, with other copy (M7C wave C1 slice S3, committed as
+`01c40be`; [ADR 0104 Amendment D](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-d-2026-10-01--q1-answered-the-back-to-room-link-is-drawn-on-desktop-and-both-back-links-ask-before-they-leave)).
 When a material change owes a confirmation is unchanged. Nothing here is struck.
 
 ## Context

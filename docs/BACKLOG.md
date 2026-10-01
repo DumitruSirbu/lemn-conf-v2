@@ -141,6 +141,9 @@ status corrections, in one of these two files:
 | 108 | `wallCabinet`'s two-door leaves are 3 mm apart where the kit's `GAP` is 4 mm | open.md — found 2026-10-01 by C2 S1's review; pre-existing, not changed; no owner |
 | 109 | The corner wall unit's names and prices are placeholders awaiting the owner | open.md — M7C plan Q8 (i)/(ii); built with defaults 2026-10-01; owner input pending |
 | 110 | A wall door beside a hood or fridge at the unit's far edge cannot open past about 90° | open.md — a manufacturing note, not a defect; recorded 2026-10-01 from C2 S2 |
+| 111 | On the 900 px desktop card the back confirmation's text is left-aligned and its buttons centred | open.md — found 2026-10-02 by C1 S3's QA; the owner asked for the buttons only; no owner |
+| 112 | The settings confirmation's alignment has no unit-level guard | open.md — found 2026-10-02 by C1 S3's QA; only the browser specs catch it; not scheduled |
+| 113 | The shared confirmation component still lives under `apps/web/src/settings/` | open.md — recorded 2026-10-02; move when a third asker appears |
 
 ## 2026-09-06 audit note
 
