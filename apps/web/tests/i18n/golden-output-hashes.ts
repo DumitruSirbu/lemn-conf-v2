@@ -79,6 +79,10 @@
  * `room.compose.roomSummaryU`, a U's 1F summary: `roomSummary`'s own sentence with a third length.
  * Drafted, not approved (no frame draws it), by the coordinator's ruling of 2026-09-30. **One added
  * and no existing hash moved.**
+ *
+ * **Rebaselined over exactly one — `room.cornerQuestion` — by M7C wave C1 slice S2** (FB-008; plan
+ * question Q7, approved by the owner 2026-10-01). The Step 1 corner question is reworded. **One moved
+ * and no others.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -785,7 +789,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.cornerLeft":
     "86dcbf5c87dc08b9ef49f2b0de4e96b2ccb572727795df8ddbde7bbd63d83e62",
   "room.cornerQuestion":
-    "498eb900296c7dfda503e3451c1e9f25f642d0b75b6f2df378e898bcccf3b435",
+    "7371593167fc420150b133fc608ee4cffe16b6352ad95ce26b433af76096aab3",
   "room.cornerRight":
     "22ac05eb611df45e116bcbec6a8d48544680d714dd7b7f5343a2ea2794d141d1",
   "room.dimensionsLater":

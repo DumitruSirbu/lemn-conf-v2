@@ -51,7 +51,7 @@ declare const messages: {
     "dimensionsLater": "Dimensiunile se cer după ce alegi forma.",
     "planCaption": "Plan de sus · previzualizare",
     "planWallLabel": "{wall} · {millimetres, number, ::group-off} mm",
-    "cornerQuestion": "Încotro merge cotul?",
+    "cornerQuestion": "În care parte se află colțul bucătăriei?",
     "cornerHint": "nu se deduce din lățimi",
     "cornerLeft": "La stânga",
     "cornerRight": "La dreapta",

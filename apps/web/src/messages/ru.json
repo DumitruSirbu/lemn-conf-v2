@@ -48,10 +48,10 @@
     "dimensionsLater": "Размеры спросим после выбора формы.",
     "planCaption": "Вид сверху · предпросмотр",
     "planWallLabel": "{wall} · {millimetres, number, ::group-off} мм",
-    "cornerQuestion": "Куда уходит угол?",
+    "cornerQuestion": "В какой стороне находится угол кухни?",
     "cornerHint": "по ширинам не определить",
-    "cornerLeft": "Налево",
-    "cornerRight": "Направо",
+    "cornerLeft": "Слева",
+    "cornerRight": "Справа",
     "wallLabel": {
       "wallA": "Стена A",
       "wallB": "Стена B",

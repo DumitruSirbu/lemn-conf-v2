@@ -14,6 +14,22 @@ where a frame has it"* still governs how frame wording is worded once it is draw
 authority for shipping a sentence that only one of the two mockup files draws; for that, see that
 amendment's B4. Nothing here is struck.
 
+**Pointer, 2026-10-01 — decision 4 exercised: the Step 1 L-shape corner question is reworded
+(M7-FB-008, M7C plan Q7).** This is the adjustment the owner said they would make later. They
+approved it on 2026-10-01 by selecting the offered option *"Approve both"*: a selection, not verbatim
+prose. Recorded as the decision; the code change is not shipped by this note.
+
+- `ro` `room.cornerQuestion`: "Încotro merge cotul?" → "În care parte se află colțul bucătăriei?".
+  The wording is the owner's own, from the M7-FB-008 annotation ("New text : In care parte se afla
+  coltul bucatariei?", diacritics restored). `cornerHint`, `cornerLeft` ("La stânga") and
+  `cornerRight` ("La dreapta") are unchanged.
+- `ru` `room.cornerQuestion`: "Куда уходит угол?" → "В какой стороне находится угол кухни?";
+  `cornerLeft`: "Налево" → "Слева"; `cornerRight`: "Направо" → "Справа"; the hint is unchanged. An
+  agent drafted the Russian; the owner read and approved it in the same selection.
+- The mobile mockup frame still draws the old question, so the leaf now departs from the frame on the
+  owner's word. Decision 5's *"used as written where a frame has it"* yields to that word for this
+  leaf only.
+
 ## Context
 
 The M7 plan's Q8 asked whether the owner wanted to review Step 1's new wording once, at the end of

@@ -38,8 +38,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     reviewCta: "Verifică designul",
   },
   // Step 1's screen, approved by ADR 0113 decision 2 in the wave that adds it. Every leaf is frame
-  // 1A's or 1B's wording used as written; `wallLabel.wallC` is the one drafted leaf, because no
-  // frame draws a U's third wall.
+  // 1A's or 1B's wording used as written, except `cornerQuestion` (the owner's wording, noted beside
+  // it) and `wallLabel.wallC`, which is drafted because no frame draws a U's third wall.
   room: {
     title: "Cameră",
     shapeQuestion: "Ce formă are camera?",
@@ -67,7 +67,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // summary read whole millimetres, the unit the fields take, in the editor's own number form. A
     // departure from frame 1B's *"A · 3,60 m"*, recorded against ADR 0104.
     planWallLabel: "{wall} · {millimetres, number, ::group-off} mm",
-    cornerQuestion: "Încotro merge cotul?",
+    // M7C wave C1 slice S2 (FB-008; plan question Q7, owner-approved 2026-10-01, recorded in ADR
+    // 0113): the owner's wording, a departure from frame 1B's *"Încotro merge cotul?"*.
+    cornerQuestion: "În care parte se află colțul bucătăriei?",
     cornerHint: "nu se deduce din lățimi",
     cornerLeft: "La stânga",
     cornerRight: "La dreapta",
