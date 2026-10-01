@@ -195,8 +195,8 @@ jobs:
   #
   # **Layout since 2026-09-30: four kinds of job, and only two names are contracts.**
   #
-  #   e2e-desktop-shard  `e2e shard (desktop, 1/3)` .. `(desktop, 3/3)`  — three parallel legs
-  #   e2e-mobile-shard   `e2e shard (mobile, 1/4)`  .. `(mobile, 4/4)`   — four parallel legs
+  #   e2e-desktop-shard  `e2e shard (desktop) (1, 3)` .. `(3, 3)`       — three parallel legs
+  #   e2e-mobile-shard   `e2e shard (mobile) (1, 4)`  .. `(4, 4)`       — four parallel legs
   #   e2e-desktop        `e2e (desktop)`  — the summary; needs the desktop shards
   #   e2e-mobile         `e2e (mobile)`   — the summary; needs the mobile shards
   #   e2e-shard-budget   `e2e-shard-budget` — lists the tests per shard, runs no browser (below)
@@ -238,7 +238,7 @@ jobs:
   # was sized on. The budget guard then asked for a fourth mobile shard, which ADR 0105 A4 had
   # anticipated; the owner's rule is that the budget governs and shards are added, never the ceiling.
   e2e-desktop-shard:
-    name: e2e shard (desktop, ${{ matrix.shard }}/${{ matrix.total }})
+    name: e2e shard (desktop)
     runs-on: ubuntu-latest
     # **Split by Playwright project, 2026-09-10** — ADR 0105, the owner's ruling that the
     # fourth raise should not happen. The seam is not invented for CI: `playwright.config.ts`
@@ -438,7 +438,7 @@ jobs:
   # that job except for the project name and four shards rather than three: three put 138 tests on
   # the largest shard against a budget of 125.
   e2e-mobile-shard:
-    name: e2e shard (mobile, ${{ matrix.shard }}/${{ matrix.total }})
+    name: e2e shard (mobile)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -538,7 +538,7 @@ jobs:
         run: |
           echo "e2e desktop shards: $SHARDS_RESULT"
           if [ "$SHARDS_RESULT" != "success" ]; then
-              echo "Not every desktop shard succeeded; see the e2e shard (desktop, n/N) jobs."
+              echo "Not every desktop shard succeeded; see the e2e shard (desktop) jobs."
               exit 1
           fi
 
@@ -564,7 +564,7 @@ jobs:
         run: |
           echo "e2e mobile shards: $SHARDS_RESULT"
           if [ "$SHARDS_RESULT" != "success" ]; then
-              echo "Not every mobile shard succeeded; see the e2e shard (mobile, n/N) jobs."
+              echo "Not every mobile shard succeeded; see the e2e shard (mobile) jobs."
               exit 1
           fi
   # Added 2026-09-30 with the sharding (ADR 0105 Amendment A): fails when any e2e shard would carry
