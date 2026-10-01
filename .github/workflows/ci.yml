@@ -131,8 +131,9 @@ jobs:
     runs-on: ubuntu-latest
     # Owner ruling 2026-09-30: the unit-test job raises its ceiling rather than splitting (the
     # split-per-machine rule of ADR 0105 A is for e2e). Measured: the domain package alone took
-    # 14.9 min on the runner (run 36765806056), cancelled at 15.
-    timeout-minutes: 30
+    # 14.9 min on the runner (run 36765806056), cancelled at 15. Raised again to 45 (owner, 2026-10-01):
+    # the whole job took 28m59s in run 36828202847, leaving almost no margin under 30.
+    timeout-minutes: 45
     needs: install
     env:
       # Points at the dedicated Neon test database and nothing else, and it
