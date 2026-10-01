@@ -185,11 +185,122 @@ function sinkCentringDivergences(prefix: string): DeclaredDivergence[] {
   ];
 }
 
+// ---------------------------------------------------------------------------------------------
+// The ADR 0135 re-baseline: the base return stands on the run's lines (M7C wave C4, slice S1).
+// ---------------------------------------------------------------------------------------------
+//
+// The owner ruled (2026-10-01) that everything at a corner ends on one line, and measured the side
+// piece 20 mm behind its worktop and 8-10 mm behind its neighbour's doors. `cornerBaseReturn` is now
+// built to the run's carcass front (`D - 30` against the reference's `D - 20`), its worktop takes
+// the run's 50 mm front overhang (the reference's 20), and a `fixed_front` stands on the run's door
+// plane. The reference is not ours to edit, so each consequence is declared here with its exact
+// delta, and each is held to the number of nodes that carry it.
+//
+// Two builds are declared, because the delta depends on the depth handed in. The **default** build
+// (`base-corner-return`, `base-corner`, `kitchen-l`) takes the kit's own `D - 30` and so shrinks its
+// carcass and plinth by 10 mm against the reference's 0.58. The **explicit** build
+// (`cornerBaseReturn(LD, W)`, which M1's gate calls at 0.56, 0.58 and 0.6) is handed its `LD`, keeps
+// its carcass and plinth, and moves only its worktop and its front.
+const BASE_RETURN_CARCASS_DEPTH_SHIFT_M = -0.01;
+const BASE_RETURN_WORKTOP_DEPTH_GROWTH_M = 0.02;
+const BASE_RETURN_WORKTOP_CENTRE_SHIFT_EXPLICIT_M = 0.02;
+const BASE_RETURN_WORKTOP_CENTRE_SHIFT_DEFAULT_M = 0.015;
+const BASE_RETURN_SEAT_SHIFT_M = -0.005;
+const BASE_RETURN_FIXED_FRONT_WHY =
+  "ADR 0135: the doorless return carries a fixed panel on the run's door plane, so its face is level with the doors beside it";
+
+/** The return's worktop moves in both builds: 620 deep instead of 600, its back face on the wall. */
+function baseReturnWorktopDivergences(
+  prefix: string,
+  centreShiftM: number,
+): DeclaredDivergence[] {
+  const why =
+    "ADR 0135: the return's worktop carries the run's 50 mm front overhang, the reference's 20";
+  return [
+    {
+      node: `${prefix}countertop`,
+      field: "size",
+      index: 2,
+      deltaM: BASE_RETURN_WORKTOP_DEPTH_GROWTH_M,
+      nodes: 1,
+      why: `${why} — so the slab is 20 mm deeper`,
+    },
+    {
+      node: `${prefix}countertop`,
+      field: "position",
+      index: 2,
+      deltaM: centreShiftM,
+      nodes: 1,
+      why: `${why} — and its centre follows its front edge`,
+    },
+  ];
+}
+
+/** The return built at the kit's own depth: its carcass and plinth are 10 mm shallower as well. */
+function defaultBaseReturnDivergences(prefix: string): DeclaredDivergence[] {
+  const why =
+    "ADR 0135: the return is built to the run's carcass front, `D - 30`, not the run's seat, `D - 20`";
+  return [
+    {
+      node: `${prefix}carcass`,
+      field: "size",
+      index: 2,
+      deltaM: BASE_RETURN_CARCASS_DEPTH_SHIFT_M,
+      nodes: 1,
+      why,
+    },
+    {
+      node: `${prefix}plinth`,
+      field: "size",
+      index: 2,
+      deltaM: BASE_RETURN_CARCASS_DEPTH_SHIFT_M,
+      nodes: 1,
+      why,
+    },
+    ...baseReturnWorktopDivergences(
+      prefix,
+      BASE_RETURN_WORKTOP_CENTRE_SHIFT_DEFAULT_M,
+    ),
+  ];
+}
+
+/** Where a composition places the return: half its depth off the wall, so it moves 5 mm. */
+function baseReturnSeatDivergence(groupPath: string): DeclaredDivergence {
+  return {
+    node: groupPath,
+    field: "position",
+    index: 0,
+    deltaM: BASE_RETURN_SEAT_SHIFT_M,
+    nodes: 1,
+    why: "ADR 0135: the return's seat is half its 570 mm depth, not half 580",
+  };
+}
+
+function baseReturnFixedFront(parent: string): DeclaredStructuralChange {
+  return {
+    parent,
+    node: "fixed_front",
+    change: "added",
+    meshes: ["fixed_front"],
+    nodes: 1,
+    why: BASE_RETURN_FIXED_FRONT_WHY,
+  };
+}
+
+/** The depths M1's gate hands `cornerBaseReturn` explicitly. */
+const EXPLICIT_RETURN_DEPTHS_M = [0.56, 0.58, 0.6] as const;
+
+function explicitReturnKey(depthM: number): string {
+  return `cornerBaseReturn(${String(depthM)})`;
+}
+
 /** The seeded scene: fifteen wall bodies carrying 26 doors between them, ten seated on wall A and
  *  five on wall B, plus the one hood — and, since ADR 0098, its one sink base. Counted rather than
  *  derived, so a body that stopped being drawn cannot pass by making its divergence disappear. */
 const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
   ...sinkCentringDivergences("kitchen_l_shape > "),
+  baseReturnSeatDivergence("kitchen_l_shape > corner_base_return"),
+  ...defaultBaseReturnDivergences("kitchen_l_shape > corner_base_return > "),
   ...wallCabinetDivergences("kitchen_l_shape > wall_cabinet > ", 26).map(
     (declared) =>
       declared.field === "position" && declared.node.endsWith("door")
@@ -225,6 +336,28 @@ const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
 const DECLARED_DIVERGENCES: ReadonlyMap<string, readonly DeclaredDivergence[]> =
   new Map([
     ["base-sink", sinkCentringDivergences("")],
+    [
+      "base-corner-return",
+      defaultBaseReturnDivergences("corner_base_return > "),
+    ],
+    [
+      "base-corner",
+      [
+        baseReturnSeatDivergence("corner_base_pair > corner_base_return"),
+        ...defaultBaseReturnDivergences(
+          "corner_base_pair > corner_base_return > ",
+        ),
+      ],
+    ],
+    ...EXPLICIT_RETURN_DEPTHS_M.map(
+      (depthM): [string, DeclaredDivergence[]] => [
+        explicitReturnKey(depthM),
+        baseReturnWorktopDivergences(
+          "corner_base_return > ",
+          BASE_RETURN_WORKTOP_CENTRE_SHIFT_EXPLICIT_M,
+        ),
+      ],
+    ),
     ["wall-1door", wallCabinetDivergences("wall_cabinet > ", 1)],
     ["wall-2door", wallCabinetDivergences("wall_cabinet > ", 2)],
     // A lift-up is `wallCabinet(W, 0, …)` plus one full-face flap, and the flap is a `door` too.
@@ -400,9 +533,26 @@ const DECLARED_STRUCTURAL_CHANGES: ReadonlyMap<
 > = new Map([
   ["base-dishwasher", dishwasherHousingChanges("", 1)],
   ["base-dishwasher-450", dishwasherHousingChanges("", 1)],
+  ["base-corner-return", [baseReturnFixedFront("corner_base_return")]],
+  [
+    "base-corner",
+    [baseReturnFixedFront("corner_base_pair > corner_base_return")],
+  ],
+  ...EXPLICIT_RETURN_DEPTHS_M.map(
+    (depthM): [string, DeclaredStructuralChange[]] => [
+      explicitReturnKey(depthM),
+      [baseReturnFixedFront("corner_base_return")],
+    ],
+  ),
   // The seeded kitchen holds exactly one niche, at 2.0 m along wall A. Counted rather than
   // derived, so a second one appearing — or this one ceasing to be drawn — turns the gate red.
-  ["kitchen-l", dishwasherHousingChanges("kitchen_l_shape > ", 1)],
+  [
+    "kitchen-l",
+    [
+      ...dishwasherHousingChanges("kitchen_l_shape > ", 1),
+      baseReturnFixedFront("kitchen_l_shape > corner_base_return"),
+    ],
+  ],
   ["dishwasherHousing(0.45)", dishwasherHousingChanges("", 1)],
   ["dishwasherHousing(0.6)", dishwasherHousingChanges("", 1)],
 ]);
@@ -838,16 +988,16 @@ describe("width-parameterised factories reproduce the reference tree", () => {
     );
   });
 
-  it.each([0.56, 0.58, 0.6])(
+  it.each(EXPLICIT_RETURN_DEPTHS_M)(
     "cornerBaseReturn(%s) matches the reference",
     (depth) => {
       const reference = describeStructure(
         referenceKit.make.cornerBaseReturn(depth),
       );
-      expectStructureMatches(
+      expectStructureMatchesReference(
         describeStructure(portedKit.make.cornerBaseReturn(depth, 0.32)),
         reference,
-        `cornerBaseReturn(${String(depth)})`,
+        explicitReturnKey(depth),
       );
     },
   );

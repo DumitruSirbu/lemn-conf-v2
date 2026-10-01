@@ -267,13 +267,14 @@ describe("every catalogue entry's capability flags match what its builder draws"
   /** The second half of that premise, and the one the widened rule turns on: **a painted surface
    *  that is not a front is counted.** Without this the two numbers could be the same field twice
    *  and the sweep above would still pass everywhere. `base-corner-return-320` is the sharpest case
-   *  in the catalogue — no door, no drawer, one declared carcass — and `open-shelf-600` is the case
+   *  in the catalogue — no door, no drawer, a declared carcass and (ADR 0135) a declared fixed front,
+   *  neither of which is a front the regex can name — and `open-shelf-600` is the case
    *  the mechanism was built for. */
   it("counts a declared painted surface that no front regex can name", () => {
     expect(censusOf("base-corner-return-320")).toMatchObject({
       canFinish: true,
       fronts: 0,
-      paintedSurfaces: 1,
+      paintedSurfaces: 2,
     });
     expect(censusOf("open-shelf-600")).toMatchObject({
       fronts: 0,

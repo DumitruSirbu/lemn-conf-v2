@@ -467,17 +467,24 @@ describe("backlog 60 — the corner base return's one outward surface, repainted
     );
   });
 
-  /** Unchanged and still true: three meshes, no front among them. It is the premise both claims rest
-   *  on — a body that grew a `door_front` would be a different body, and one that lost its `carcass`
-   *  would make the repaint below assert nothing. */
-  it("mounts only a plinth, a carcass and a countertop", () => {
+  /** Still true, with ADR 0135's one addition: four meshes, no front among them. The `fixed_front`
+   *  is the panel on the run's door plane and is deliberately not a `door_front`, so no front, handle
+   *  or hinge census counts it. It is the premise both claims rest on — a body that grew a
+   *  `door_front` would be a different body, and one that lost its `carcass` would make the repaint
+   *  below assert nothing. */
+  it("mounts only a plinth, a carcass, a fixed front and a countertop", () => {
     drawn(withKitchenColour(followingOn("material.melamine"), ANTRACIT));
 
     const names: string[] = [];
     mounted(RETURN_LEG_ID).traverse((node) => {
       if (isMesh(node)) names.push(node.name);
     });
-    expect(names.sort()).toEqual(["carcass", "countertop", "plinth"]);
+    expect(names.sort()).toEqual([
+      "carcass",
+      "countertop",
+      "fixed_front",
+      "plinth",
+    ]);
   });
 
   /** **And the claim that reverses it**: that carcass repaints under a kitchen colour. Measured the
@@ -494,6 +501,7 @@ describe("backlog 60 — the corner base return's one outward surface, repainted
     // Named, not just counted: `expectRepainted` is satisfied by any mesh moving, and the whole
     // reversal is about *which* one.
     expect(with_.get("carcass")).not.toBe(without.get("carcass"));
+    expect(with_.get("fixed_front")).not.toBe(without.get("fixed_front"));
     expect(with_.get("countertop")).toBe(without.get("countertop"));
     expect(with_.get("plinth")).toBe(without.get("plinth"));
   });

@@ -103,11 +103,11 @@ export function buildDecomposedBody(
       return kit.make.cornerBaseX(cornerWidthM(buildId, size));
     case "base-corner-return-320":
       // The return leg's depth is a **placement variable**, not a property of the body
-      // (`kitchen-parts.ts`): it has to equal the front plane of whatever the leg butts into. In the
-      // seeded L that neighbour is the tall run, and the kit derives that plane from its own cabinet
-      // depth — 0.58 at the declared 600 mm and 0.68 at 700. **Read rather than typed since M6 wave
-      // 6I**: it was the literal 0.58, which built a 600 mm kitchen's leg into a 700 mm one and left
-      // the seeded body 100 mm behind the run it closes, with only the depth sweep to notice.
+      // (`kitchen-parts.ts`): it is the carcass front of the base run it stands in line with, which the
+      // kit derives from its own cabinet depth — 0.57 at the declared 600 mm and 0.67 at 700 (ADR 0135;
+      // it was the run's seat, 0.58 / 0.68). **Read rather than typed since M6 wave 6I**: it was the
+      // literal 0.58, which built a 600 mm kitchen's leg into a 700 mm one and left the seeded body
+      // 100 mm behind the run it closes, with only the depth sweep to notice.
       return kit.make.cornerBaseReturn(
         kit.depths.cornerReturnDepthM,
         cornerWidthM(buildId, size),

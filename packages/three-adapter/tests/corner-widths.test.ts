@@ -56,6 +56,11 @@ function axisWidth(box: THREE.Box3, axis: "x" | "y" | "z") {
   return box.max[axis] - box.min[axis];
 }
 
+/** How far inside the cabinet-depth line the X-leg ends and the return begins: the run's seat, 20 mm.
+ *  It was the return's own depth until ADR 0135 built the return 10 mm shallower; the joint did not
+ *  move with it. */
+const L_JOINT_INSET_M = 0.02;
+
 function placedCorner(
   cabinetDepthMm: number,
   xWidthMm: number,
@@ -67,15 +72,12 @@ function placedCorner(
     kit.depths.cornerReturnDepthM,
     returnWidthMm / 1000,
   );
-  x.position.set(
-    xWidthMm / 2000,
-    0,
-    kit.depths.cornerReturnDepthM - cabinetDepthMm / 2000,
-  );
+  const jointM = cabinetDepthMm / 1000 - L_JOINT_INSET_M;
+  x.position.set(xWidthMm / 2000, 0, jointM - cabinetDepthMm / 2000);
   ret.position.set(
     kit.depths.cornerReturnDepthM / 2,
     0,
-    kit.depths.cornerReturnDepthM + returnWidthMm / 2000,
+    jointM + returnWidthMm / 2000,
   );
   ret.rotation.y = Math.PI / 2;
   const room = new THREE.Group();
@@ -115,7 +117,8 @@ describe("the sized corner base legs", () => {
 
     expect(axisWidth(door, "x")).toBeCloseTo(0.18, 6);
     expect(door.min.x).toBeCloseTo(0.71, 6);
-    expect(returnCarcass.max.x).toBeCloseTo(0.68, 6);
+    // 0.68 → 0.67 (ADR 0135): the return is built to the run's carcass front, 670 at 700.
+    expect(returnCarcass.max.x).toBeCloseTo(0.67, 6);
     expect(door.min.x - returnCarcass.max.x).toBeGreaterThan(0.029);
     expect(door.min.z).toBeLessThan(returnCarcass.max.z);
     expect(door.max.z).toBeGreaterThan(returnCarcass.min.z);
@@ -282,11 +285,14 @@ describe("the sized wall and top corner returns", () => {
 describe("the pre-edit 600 mm corner census at c6ea1bb", () => {
   // Literal digests of `structure` in /private/tmp/lemnaria-7d7-s0-c6ea1bb/
   // corner-census-600mm.json, taken before S1. Do not regenerate them from this implementation.
+  //
+  // `base-corner-return-320` left this table with ADR 0135 (M7C wave C4): it is the one corner body
+  // that deliberately moved. Its departures from the vendored reference are declared with exact
+  // deltas in `kitchen-parts.parity.test.ts` and its new figures are asserted in
+  // `base-corner-return-lines.test.ts`; a regenerated digest would only record what the code does.
   const expectedSha256: Readonly<Record<string, string>> = {
     "base-corner-x-900":
       "8db941b852ac008adbe9ecea8bf2a344c61812efb98e09328fecfa0f71133f14",
-    "base-corner-return-320":
-      "1c6b15afc16d036a21c500c471359a0f927b2ea6aa86c0b13072477da93b0a0e",
     "wall-corner-return-570":
       "106b954c9cf9c16d6e372cacb4b7431e9764952d4c932aeb7e471f229e760f2c",
     "wall-corner-return-570-top":

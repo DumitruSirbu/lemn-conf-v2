@@ -1019,7 +1019,7 @@ interface CornerRun {
  *
  * The two disagree at exactly the place this comparison looks. `base-corner-x-900` seats on 560 and
  * *occupies* 630, because ADR 0025 gives its corner worktop ten millimetres more reach than a
- * straight run's, and `base-corner-return-320`'s slab stands 20 mm proud of its own 580 seat. So the
+ * straight run's, and `base-corner-return-320`'s slab stands 50 mm proud of its own 570 carcass front (ADR 0135). So the
  * shipped kitchen's two corner legs share 50 mm of plan area **by design**: it is two worktop slabs
  * meeting at an L-joint, which is what a corner is. Measured against the occupied depth this gate
  * marks the demo kitchen on its own declared geometry, and a gate that does that is not read the

@@ -7,6 +7,7 @@ import {
 } from "../seat-rule.js";
 import {
   baseCarcassDepthMm,
+  baseCarcassFrontMm,
   baseFinishedDepthMm,
   baseSeatDepthMm,
   buildInsertableBodyDefinitions,
@@ -101,29 +102,20 @@ import {
  *  The seeded rows all take a `declared-count` rule rather than a per-door one: ADR 0011 Gap A gives
  *  each of them one already-built body at one width, so there is no width for a count to follow. */
 
-/** How much further the X-leg's **corner** worktop reaches than a straight run's — ADR 0025's own
- *  framing of the same measurement, *"630 mm from the wall plane, 10 more than a straight run's"*.
- *  It is the leg's wider slab meeting the base run's, so it is a constant and the run it is measured
- *  from is what follows the setting. */
+/** How much further the X-leg's **corner** worktop reaches than a straight run's: 630 mm from the wall
+ *  plane at 600 against the run's 620, which ADR 0040 records as the measured figure (ADR 0080 carries
+ *  it as the 630/730 chain). The 10 mm is the difference of those two recorded figures, not a quotation
+ *  from ADR 0025, which does not contain either. It is the leg's wider slab meeting the base run's, so
+ *  it is a constant and the run it is measured from is what follows the setting. */
 const CORNER_BASE_X_WORKTOP_REACH_MM = 10;
 
-/** ADR 0025: the X-leg carries a corner worktop, which reaches this far from the wall plane — 630 at
+/** The X-leg carries a corner worktop (ADR 0025's leg; the figures are ADR 0040's), which reaches this far from the wall plane — 630 at
  *  a 600 mm kitchen and 730 at a 700 mm one, both measured on `cornerBaseX`'s own `countertop`. The
  *  leg's seat is `baseCarcassDepthMm` and its own footprint is the full declared depth, so it stands
  *  20 mm inside the wall at every depth; that is the anomaly the record is about and it is preserved
  *  rather than derived away. */
 function cornerBaseXFinishedDepthMm(cabinetDepthMm: number): number {
   return baseFinishedDepthMm(cabinetDepthMm) + CORNER_BASE_X_WORKTOP_REACH_MM;
-}
-
-/** The return leg's worktop finishes on the front plane of the tall run it butts into, which is what
- *  its placement depth is chosen to make true (`decomposed-bodies.ts`,
- *  `SEEDED_CORNER_RETURN_DEPTH_M`). That lands it on the **cabinet-depth line**: the leg is built
- *  `baseSeatDepthMm` deep and its slab stands 20 mm proud of that, so the two cancel — 600 at a
- *  600 mm kitchen and 700 at a 700 mm one, measured on the built leg in
- *  `cabinet-depth-sweep.parity.test.ts`, where it sits the shipped 1 mm proud of the column run. */
-function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
-  return cabinetDepthMm;
 }
 
 /** **The seat of a deep top cabinet — one that hangs over a full-height column** (ADR 0101).
@@ -390,7 +382,7 @@ export function buildSeededBodyDefinitions(
   return [
     // ADR 0025. The two base legs of the L. `frameDepthMm` is the seat, not the depth: the X-leg's
     // carcass is 600 deep but seats at 560/2 = 280 mm off the wall, because the L-joint — not the
-    // wall — decides where it stands. The return leg's 580 is both at once.
+    // wall — decides where it stands. The return leg's 570 is both at once.
     [
       "base-corner-x-900",
       {
@@ -420,10 +412,10 @@ export function buildSeededBodyDefinitions(
         fronts: NO_OPENING_FRONTS,
         ...STRUCTURAL_CORNER,
         kind: "corner_base_return",
-        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
-        occupiedDepth: finishesAtMm(
-          cornerBaseReturnFinishedDepthMm(cabinetDepthMm),
-        ),
+        // Built to the run's carcass front with its back face on the wall (ADR 0135), so the seat is
+        // its depth; its worktop carries the run's own overhang and finishes where a base run does.
+        frameDepthMm: baseCarcassFrontMm(cabinetDepthMm),
+        occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
       },
     ],
     [

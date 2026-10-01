@@ -5,6 +5,11 @@ Date: 2026-09-02
 Type: Decision + Finding
 Milestone: M6 — gates waves 6H, 6I and 6J
 
+**Pointer, 2026-10-01.** `:30` says *"1 mm proud — flush"* of top cabinet `p23` only. It is not the
+source of any relation for the base corner return, and
+[ADR 0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md)
+retires the return's older *"1 mm proud of the column run"* relation without touching this row.
+
 ## Context
 
 M5's *Not established* question 5, carried to M6 because it reaches the control:

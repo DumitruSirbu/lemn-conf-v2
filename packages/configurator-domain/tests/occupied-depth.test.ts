@@ -154,7 +154,9 @@ describe("the shipped kitchen, body by body", () => {
    *  regression that matters is a number moving anywhere in this map. */
   const OCCUPIED_DEPTH_MM_BY_BUILD_ID: Readonly<Record<string, number>> = {
     "base-corner-x-900": 630,
-    "base-corner-return-320": 600,
+    // 600 → 620 (ADR 0135): the return carries the run's 50 mm worktop overhang, so it finishes on
+    // the same line as every base run.
+    "base-corner-return-320": 620,
     "base-sink-800": 620,
     // ADR 0051 re-baselined this from 632 to an ordinary base run's 620: the 632 was the
     // appliance's own door bar, and inside a housing the machine is now built fully integrated.

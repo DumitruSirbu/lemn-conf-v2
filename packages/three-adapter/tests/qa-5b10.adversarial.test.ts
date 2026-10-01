@@ -140,6 +140,36 @@ function expectOnlyDrawerFrontsRenamed(
   );
 }
 
+/** The one other structural change this file tolerates: ADR 0135 gave the base return a
+ *  `fixed_front` panel, drawn between its carcass and its worktop. The return's three meshes are the
+ *  only place in any tree where a `plinth` is followed by a `carcass` and then a `countertop`, so the
+ *  position is found by that sequence and asserted to be unique rather than assumed. */
+const BASE_RETURN_REFERENCE_MESHES = ["plinth", "carcass", "countertop"];
+const BASE_RETURN_FIXED_FRONT_MESH_NAME = "fixed_front";
+const KEYS_DRAWING_THE_BASE_RETURN: ReadonlySet<string> = new Set([
+  "base-corner-return",
+  "base-corner",
+  "kitchen-l",
+]);
+
+function withBaseReturnFixedFront(referenceNames: readonly string[]): string[] {
+  const starts = referenceNames.flatMap((_name, at) =>
+    BASE_RETURN_REFERENCE_MESHES.every(
+      (mesh, offset) => referenceNames[at + offset] === mesh,
+    )
+      ? [at]
+      : [],
+  );
+  expect(starts, "the base return's mesh sequence, once").toHaveLength(1);
+  const carcassAt = (starts[0] ?? Number.NaN) + 1;
+
+  return [
+    ...referenceNames.slice(0, carcassAt + 1),
+    BASE_RETURN_FIXED_FRONT_MESH_NAME,
+    ...referenceNames.slice(carcassAt + 1),
+  ];
+}
+
 function expectedNicheSequence(referenceNames: readonly string[]): string[] {
   const at = referenceNames.indexOf("dw_body");
   expect(at, "the reference tree has no dw_body").toBeGreaterThanOrEqual(0);
@@ -197,7 +227,7 @@ describe("5B10: the declared structural change is exactly what the port builds",
 
     expectOnlyDrawerFrontsRenamed(
       meshNames(kit.builders["kitchen-l"]()),
-      expectedNicheSequence(referenceNames),
+      withBaseReturnFixedFront(expectedNicheSequence(referenceNames)),
       "kitchen-l",
     );
   });
@@ -215,12 +245,21 @@ describe("5B10: the declared structural change is exactly what the port builds",
 
     for (const key of untouched) {
       const ported = kit.builders[key as keyof typeof kit.builders];
+      const referenceNames = meshNames(
+        required(referenceKit.builders[key], key)(),
+      );
       expectOnlyDrawerFrontsRenamed(
         meshNames(ported()),
-        meshNames(required(referenceKit.builders[key], key)()),
+        KEYS_DRAWING_THE_BASE_RETURN.has(key)
+          ? withBaseReturnFixedFront(referenceNames)
+          : referenceNames,
         key,
       );
     }
+    // The return's declaration is used where it is declared: both standalone keys are in the sweep.
+    expect(
+      untouched.filter((key) => KEYS_DRAWING_THE_BASE_RETURN.has(key)),
+    ).toEqual(["base-corner-return", "base-corner"]);
 
     // No declaration goes unused: a builder listed as drawing drawers and no longer drawing any is
     // as much a change as an undeclared rename, and would otherwise pass silently above.

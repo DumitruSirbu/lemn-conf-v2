@@ -109,7 +109,8 @@ const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
     y0Mm: 0,
     topMm: 820,
     widthMm: 320,
-    depthMm: 700,
+    // 700 → 720 (ADR 0135): the return carries the run's worktop overhang, so it finishes on the run's line.
+    depthMm: 720,
     depthFromBuildId: "base-corner-return-320",
     regionsMm: [[0, 820]],
   },
@@ -170,7 +171,8 @@ const LEAVING_WALL_B: readonly (CarriedExtentMm & { readonly key: string })[] =
       y0Mm: 0,
       topMm: 820,
       widthMm: 320,
-      depthMm: 600,
+      // 600 → 620 (ADR 0135), as above.
+      depthMm: 620,
       depthFromBuildId: "base-corner-return-320",
       regionsMm: [[0, 820]],
     },

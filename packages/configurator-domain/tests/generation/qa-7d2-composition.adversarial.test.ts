@@ -635,8 +635,10 @@ describe("7D2 planned shell and leftover invariants", () => {
       .update(canonicalSerializeDesign(shell))
       .digest("hex");
 
+    // 8f1066f1… → 696559ab… (ADR 0135): one value moved, the return's recorded column depth
+    // `depthMm` 600 → 620. The shell with that one field put back hashes to the old value.
     expect(digest).toBe(
-      "8f1066f10268207a28501f6a3ba14123693d04ede27fca63b18eafc45b5d4237",
+      "696559abb11527526891b7b300c2191ecb0a0ad84cc86ccb8c1e4fde6c691901",
     );
   });
 });

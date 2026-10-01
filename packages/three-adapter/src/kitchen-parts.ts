@@ -48,7 +48,7 @@ export const PARTS: readonly PartGroup[] = [
       {
         id: "base-corner-return",
         label: "Corner return leg",
-        note: "320 × 580",
+        note: "320 × 570",
       },
       { id: "base-dishwasher", label: "Dishwasher housing", note: "600 mm" },
     ],
@@ -227,8 +227,8 @@ export interface KitDepths {
   /** ADR 0039 decision 2 and §11 row 19's second named exception: a front-hung hood's group origin
    *  sits this far off the wall plane, leaving `cabinetDepth − hoodDepth` of gap behind it. */
   readonly hoodSeatOffsetM: number;
-  /** The corner **return** leg's depth — a placement variable, so it is the front plane of the run
-   *  the leg butts into rather than a property of the leg. Published because the seeded
+  /** The corner **return** leg's depth — a placement variable, so it is the carcass front of the
+   *  base run it stands in line with rather than a property of the leg. Published because the seeded
    *  decomposition builds that leg by name and has to ask for the same number `buildKitchen()` uses;
    *  a literal on either side is how the two silently part company at a depth nothing ships at. */
   readonly cornerReturnDepthM: number;
@@ -312,6 +312,12 @@ const COUNTER_FORWARD_OFFSET_MM = 20;
  *  it butts into cannot drift apart — the drift ADR 0028 exists to stop. */
 const COUNTER_REAR_OVERHANG_MM =
   COUNTER_OVERHANG_MM / 2 - COUNTER_FORWARD_OFFSET_MM;
+
+/** How far the worktop stands proud of the **front** of that carcass: the other half of the oversize,
+ *  plus the forward seat — the 50 mm a base run's counter hangs over its own doors. The base return
+ *  takes it from here so its slab ends on the run's line rather than on a figure of its own. */
+const COUNTER_FRONT_OVERHANG_MM =
+  COUNTER_OVERHANG_MM / 2 + COUNTER_FORWARD_OFFSET_MM;
 
 /** How deep the induction plate itself is. A **manufactured size**
  *  (`docs/best-practices/product-invariants.md`): a 590 × 520 hob is bought, and a 620 mm-deep one
@@ -880,6 +886,13 @@ export function makeKit(options: KitOptions = {}): Kit {
     // front, appliance fascia and worktop in this kit is offset from, written once.
     carcassFrontM = CARC_D / 2,
     CTOP = 0.04;
+
+  // How a base door hangs on its carcass, named for the fronts built from it afterwards: 6 mm
+  // narrower, 10 mm shorter, and standing 6 mm above the carcass bottom (the 4 mm it sits below the
+  // top plus the 10 mm it is short). `baseCabinet` still types the same numbers at its own call sites.
+  const DOOR_WIDTH_REVEAL_M = 0.006,
+    DOOR_HEIGHT_REVEAL_M = 0.01,
+    DOOR_BOTTOM_REVEAL_M = 0.006;
 
   function plinth(w: number, d: number, name = "plinth"): THREE.Mesh {
     return box(w - 0.004, PLINTH, d - 0.06, M.dark, name, 0, 0, -0.03);
@@ -1957,6 +1970,16 @@ export function makeKit(options: KitOptions = {}): Kit {
   const CORNER_X_LEAF_TOTAL_CLEARANCE_M = 0.04;
   const CORNER_X_LEAF_LEFT_MINUS_RIGHT_CLEARANCE_M = 0.02;
 
+  /** The return depth the X-leg's leaf is sized against: `D − 20`, which is what the return's depth was
+   *  (the run's recorded seat, `cabinetDepth − 2 × COUNTER_REAR_OVERHANG`) before ADR 0135 built it to
+   *  the run's carcass front. Held there so the return's move does not move this leg.
+   *
+   *  **Temporary, and removed by M7C wave C4 slice S2 (the joint move, ADR 0135;
+   *  `docs/milestones/M7C-m7-feedback-fixes.md`, "C4 S1 / S2").** S2 moves the joint to `D − 30`, after
+   *  which the leaf reads `CORNER_RETURN_DEPTH_M` again and this constant is deleted. */
+  const LEGACY_CORNER_X_LEAF_RETURN_DEPTH_M =
+    (cabinetDepthMm - 2 * COUNTER_REAR_OVERHANG_MM) / 1000;
+
   // X-leg: width supplied by its caller, as deep as the kitchen's cabinets. Owns a leaf sized to
   // the accessible front and the fixed-size lazy susan.
   //
@@ -2012,11 +2035,12 @@ export function makeKit(options: KitOptions = {}): Kit {
     }
     // The perpendicular return hides all but W - its own depth of this front. The leaf leaves
     // 30 mm beside the return and 10 mm at the accessible right edge.
-    const accessibleFrontM = W - CORNER_RETURN_DEPTH_M;
+    const accessibleFrontM = W - LEGACY_CORNER_X_LEAF_RETURN_DEPTH_M;
     // Group the total clearance with the return depth so the reference width is the exact 0.28
     // already in the 600 mm census, without snapping other supplied widths to a grid.
     const leafWidthM =
-      W - (CORNER_RETURN_DEPTH_M + CORNER_X_LEAF_TOTAL_CLEARANCE_M);
+      W -
+      (LEGACY_CORNER_X_LEAF_RETURN_DEPTH_M + CORNER_X_LEAF_TOTAL_CLEARANCE_M);
     const leafX =
       W / 2 -
       (accessibleFrontM - CORNER_X_LEAF_LEFT_MINUS_RIGHT_CLEARANCE_M) / 2;
@@ -2048,39 +2072,58 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
-  /** The return leg's default depth: the front plane of the base run it butts into, which is that
-   *  run's own recorded seat — the carcass plus the 10 mm its worktop hangs off the back at each end.
-   *  0.58 at the declared 600 mm kitchen, 0.68 at a 700 mm one.
+  /** The return leg's default depth: the **carcass front** of the base run it stands in line with —
+   *  that run's carcass, plus the 10 mm of it that stands off the wall at the back. 0.57 at the
+   *  declared 600 mm kitchen, 0.67 at a 700 mm one. The leg's own back face is on the wall, so this is
+   *  also where its front face is, level with the carcasses beside it.
    *
-   *  **Derived rather than typed since M6 wave 6I** (criterion 1): the leg's whole job is to meet its
-   *  neighbour's front plane, so a literal here is the one number guaranteed to be wrong as soon as
-   *  the neighbour moves — it would leave the return standing 100 mm behind the run it closes. */
+   *  **Derived rather than typed since M6 wave 6I** (criterion 1): the leg's whole job is to stand on
+   *  its neighbour's front plane, so a literal here is the one number guaranteed to be wrong as soon
+   *  as the neighbour moves. It was the run's recorded seat (`D − 20`) until ADR 0135 put the corner
+   *  on the run's lines: the seat is where the worktop's back face is, not where the carcass ends.
+   *
+   *  The domain states the same figure as `baseCarcassFrontMm` (`catalog.ts`) for the return's
+   *  `frameDepthMm`; `declared-frame-depth-sweep.test.ts` holds the pair to each other at both depths. */
   const CORNER_RETURN_DEPTH_M =
-    (cabinetDepthMm - 2 * COUNTER_REAR_OVERHANG_MM) / 1000;
+    (cabinetDepthMm - BASE_FRONT_OVERHANG_MM + COUNTER_REAR_OVERHANG_MM) / 1000;
 
-  /** How far the return leg's own worktop stands proud of its carcass front — the one number the
-   *  slab's *placement* needs, and the reference's own, taken from `LD`. */
-  const CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M = 0.02;
+  /** How far the return leg's worktop stands proud of its carcass front: the run's own 50 mm, so the
+   *  slab's front edge is on the run's worktop line. */
+  const CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M =
+    COUNTER_FRONT_OVERHANG_MM / 1000;
 
-  /** How deep that slab is cut.
+  /** How deep that slab is cut: the leg's default depth plus the overhang, so its back face is flush
+   *  with the carcass's — on the wall. 0.62 at 600 and 0.72 at 700.
    *
    *  **Read from the kitchen's cabinet depth — through `CORNER_RETURN_DEPTH_M`, which is that same
-   *  derivation — and deliberately not from `LD`.** The reference cuts it
-   *  at a flat 0.6, which is `LD + 0.02` at the shipped 0.58 and at no other `LD` — M1's parity gate
-   *  builds this leg at 0.56 and at 0.6 and pins the slab at 0.6 for both, so the slab is a property
-   *  of the *kitchen* and not of the placement variable the leg meets its neighbour with. Following
-   *  `LD` would move it under those two calls and fail the gate.
-   *
-   *  It still has to follow the setting (M6 wave 6I): at the default `LD` the slab's back face is
-   *  flush with the carcass's, and a slab held at 0.6 in a 700 mm kitchen would leave 100 mm of open
-   *  carcass behind it. 0.6 at 600 and 0.7 at 700, and 0.6 for every parity call, because those are
-   *  made on a kit built at the declared depth. */
+   *  derivation — and deliberately not from `LD`.** M1's parity gate builds this leg at 0.56 and at
+   *  0.6 and pins the slab at one depth for both, so the slab is a property of the *kitchen* and not
+   *  of the placement variable the leg meets its neighbour with. Following `LD` would move it under
+   *  those two calls and fail the gate. It still has to follow the setting (M6 wave 6I): a slab held
+   *  at 0.6 in a 700 mm kitchen would leave 100 mm of open carcass behind it. */
   const CORNER_RETURN_WORKTOP_DEPTH_M =
     CORNER_RETURN_DEPTH_M + CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M;
 
-  // Return leg: width supplied by its caller; depth is the PLACEMENT VARIABLE — it
-  // must equal the front plane of the neighbour it butts into (0.56 against a
-  // standard base cabinet, 0.58 against a deeper tall unit).
+  /** The base return's front: a fixed panel on the plane a base door of the same carcass would hang on
+   *  (`baseCabinet`'s `carcassFront + TH / 2`), with the door's own reveals. It is not a `door_front`:
+   *  nothing opens and no handle, hinge or door count attaches to it (ADR 0021, ADR 0135). */
+  function baseReturnFixedFront(W: number, carcassFrontM: number): THREE.Mesh {
+    return wearsTheBodysFinish(
+      box(
+        W - DOOR_WIDTH_REVEAL_M,
+        CARC_H - DOOR_HEIGHT_REVEAL_M,
+        TH,
+        M.door,
+        "fixed_front",
+        0,
+        PLINTH + DOOR_BOTTOM_REVEAL_M,
+        carcassFrontM + TH / 2,
+      ),
+    );
+  }
+
+  // Return leg: width supplied by its caller; depth is the PLACEMENT VARIABLE — it is handed the
+  // carcass front of the base run it stands in line with (0.57 in the 600 mm kitchen, ADR 0135).
   function cornerBaseReturn(LD: number, W: number): THREE.Group {
     const g = G("corner_base_return");
     const cFront = LD / 2;
@@ -2110,6 +2153,8 @@ export function makeKit(options: KitOptions = {}): Kit {
         box(W, CARC_H, LD, M.carcass, "carcass", 0, PLINTH, 0),
       ),
     );
+    // Without a front the bare carcass would end 18 mm behind the doors beside it (ADR 0135).
+    g.add(baseReturnFixedFront(W, cFront));
     // Butts the X-leg slab (which already covers the corner) instead of running
     // through it — the two stone volumes share a face, no coplanar overlap.
     const wFront = cFront + CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M,
@@ -2279,10 +2324,10 @@ export function makeKit(options: KitOptions = {}): Kit {
     // seated by the wall at all — the **L-joint** decides where it stands, so the X-leg's footprint
     // — its supplied width × the declared cabinet depth — deliberately overhangs the plane by 20 mm
     // at every depth, because the overhang is the carcass's 40 mm front give-up halved, not a proportion
-    // of the depth. The return leg meets the base run's
-    // front. Both seats are half the seat depth the domain records for them
-    // (`baseCarcassDepthMm` and `baseSeatDepthMm`, `catalog.ts`), which is what ADR 0018 means by a
-    // seat: 0.28 / 0.29 at a 600 mm kitchen and 0.33 / 0.34 at a 700 mm one.
+    // of the depth. The return leg, by contrast, has its back face on the wall and stands as deep as
+    // the base run's carcass front (ADR 0135). Both seats are half the seat depth the domain records
+    // for them (`baseCarcassDepthMm` and `baseCarcassFrontMm`, `catalog.ts`), which is what ADR 0018
+    // means by a seat: 0.28 / 0.285 at a 600 mm kitchen and 0.33 / 0.335 at a 700 mm one.
     //
     // **They were literals until M6 wave 6I2's QA**, and that is where the wave's depth
     // parameterisation stopped one level short: the legs' own depths followed the setting while

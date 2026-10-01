@@ -7,13 +7,20 @@
 // that already carried `STRUCTURAL_CORNER`, and adding them changed no derived state anywhere else.
 import { describe, expect, it } from "vitest";
 
-import { isKnownKind, kindLabel } from "../../src/catalog.js";
+import {
+  baseCarcassFrontMm,
+  baseFinishedDepthMm,
+  isKnownKind,
+  kindLabel,
+} from "../../src/catalog.js";
 
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import { occupiedDepthOfEntryM } from "../../src/occupied-depth.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import {
@@ -236,18 +243,23 @@ describe("the corner legs' seat is the L-joint, not the wall (ADR 0025)", () => 
     );
 
   // The whole point of the ADR, expressed as numbers `buildKitchen()` also produces: the X-leg's
-  // carcass is 600 deep but seats 280 mm off the wall, because it must meet the 580 mm return leg
-  // on a shared face at z = 0.58. `frameDepthMm` is the seat, doubled — never a depth.
-  it("seats the X-leg so its carcass front meets the return leg's own depth", () => {
+  // carcass is 600 deep but seats 280 mm off the wall, because it must meet the return leg at the
+  // joint, z = 0.58 — the return's near edge along its wall. `frameDepthMm` is the seat, doubled —
+  // never a depth. Since ADR 0135 the return's own depth is 570, so the joint is no longer the same
+  // number as the return's depth: it is the return's near edge, read from its frame.
+  it("seats the X-leg so its carcass front meets the return leg's near edge", () => {
     const xLeg = recordFor("p25");
     const returnLeg = recordFor("p26");
     expect(xLeg?.frame.z).toBeCloseTo(0.28, 9);
-    expect(returnLeg?.frame.x).toBeCloseTo(0.29, 9);
+    // 0.29 → 0.285: the return is built 570 deep with its back face on the wall.
+    expect(returnLeg?.frame.x).toBeCloseTo(0.285, 9);
 
     const X_LEG_CARCASS_DEPTH_M = 0.6;
-    const RETURN_LEG_DEPTH_M = 0.58;
     const xLegCarcassFront = (xLeg?.frame.z ?? 0) + X_LEG_CARCASS_DEPTH_M / 2;
-    expect(xLegCarcassFront).toBeCloseTo(RETURN_LEG_DEPTH_M, 9);
+    const returnNearEdge =
+      (returnLeg?.frame.z ?? 0) - (returnLeg?.frame.w ?? 0) / 2;
+    expect(xLegCarcassFront).toBeCloseTo(returnNearEdge, 9);
+    expect(xLegCarcassFront).toBeCloseTo(0.58, 9);
   });
 
   // Along the wall the two legs butt their neighbours exactly, which is what a gap or an overlap
@@ -278,4 +290,45 @@ describe("the corner legs' seat is the L-joint, not the wall (ADR 0025)", () => 
       recomputeVoids(records, columns),
     );
   });
+});
+
+describe("the base return stands on the run's lines (ADR 0135)", () => {
+  const BASE_RETURN_BUILD_ID = "base-corner-return-320";
+  const RUN_CARCASS_FRONT_MM_BY_DEPTH = [
+    [600, 570],
+    [700, 670],
+  ] as const;
+
+  it.each(RUN_CARCASS_FRONT_MM_BY_DEPTH)(
+    "names the run's carcass front at a %i mm kitchen as %i mm",
+    (cabinetDepthMm, carcassFrontMm) => {
+      expect(baseCarcassFrontMm(cabinetDepthMm)).toBe(carcassFrontMm);
+    },
+  );
+
+  it.each(RUN_CARCASS_FRONT_MM_BY_DEPTH)(
+    "seats the return on the run's carcass front at a %i mm kitchen",
+    (cabinetDepthMm, carcassFrontMm) => {
+      const definition =
+        buildKitchenLBodyCatalog(cabinetDepthMm).get(BASE_RETURN_BUILD_ID);
+
+      expect(definition?.frameDepthMm).toBe(carcassFrontMm);
+    },
+  );
+
+  it.each(RUN_CARCASS_FRONT_MM_BY_DEPTH)(
+    "finishes the return where a base run does at a %i mm kitchen",
+    (cabinetDepthMm) => {
+      const definition =
+        buildKitchenLBodyCatalog(cabinetDepthMm).get(BASE_RETURN_BUILD_ID);
+      if (!definition) throw new Error(`${BASE_RETURN_BUILD_ID} is missing`);
+
+      const finishedMm = Math.round(
+        occupiedDepthOfEntryM({ buildId: BASE_RETURN_BUILD_ID, definition }) *
+          1000,
+      );
+
+      expect(finishedMm).toBe(baseFinishedDepthMm(cabinetDepthMm));
+    },
+  );
 });

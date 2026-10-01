@@ -315,6 +315,18 @@ const BASE_FRONT_OVERHANG_MM = 40;
 export function baseCarcassDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm - BASE_FRONT_OVERHANG_MM;
 }
+
+/** Where a base run's carcass **front** stands, measured from the wall plane: the seat's half plus the
+ *  carcass's half, so 570 at 600 and 670 at 700. The base return is built this deep — its back face on
+ *  the wall — so its front face and the run's doors share one line (ADR 0135).
+ *
+ *  The adapter derives the same figure from its own constants (`CORNER_RETURN_DEPTH_M`,
+ *  `kitchen-parts.ts`); `declared-frame-depth-sweep.test.ts` holds the pair to each other. */
+export function baseCarcassFrontMm(cabinetDepthMm: number): number {
+  return (
+    (baseSeatDepthMm(cabinetDepthMm) + baseCarcassDepthMm(cabinetDepthMm)) / 2
+  );
+}
 /** A wall entry's nominal depth: §7's head-clearance cap, which is what a wall carcass is built to
  *  over a worktop. It is the `frameDepthMm` fallback for a placement with no measured seat of its
  *  own, **not** the depth anything gets built to — that is decided per opening by

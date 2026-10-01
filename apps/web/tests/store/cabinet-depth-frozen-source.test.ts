@@ -545,7 +545,8 @@ describe("the depths this wave promised not to move", () => {
         "A|2.60": 0.62,
         "A|3.20": 0.62,
         "B|0.61": 0.32999999999999996,
-        "B|0.74": 0.6,
+        // 0.600 → 0.620 (ADR 0135): the base return carries the run's 50 mm worktop overhang.
+        "B|0.74": 0.62,
         "B|1.20": 0.638,
         "B|1.80": 0.6000000000000001,
         "B|2.45": 0.742,
@@ -559,7 +560,7 @@ describe("the depths this wave promised not to move", () => {
         "A|2600": 620,
         "A|3200": 620,
         "B|615": 330,
-        "B|740": 600,
+        "B|740": 620, // 600 → 620 (ADR 0135), the same figure
         "B|1200": 638,
         "B|1800": 600,
         "B|2450": 742,
@@ -581,7 +582,8 @@ describe("the depths this wave promised not to move", () => {
         "A|2.60": 0.72,
         "A|3.20": 0.72,
         "B|0.69": 0.39999999999999997,
-        "B|0.84": 0.7,
+        // 0.700 → 0.720 (ADR 0135), as at the default setting.
+        "B|0.84": 0.72,
         "B|1.30": 0.738,
         // **0.700 since ADR 0101, and it is the top that states it.** The pantry finishes at 699 and
         // the deep top above it at 700, so §3.2's MAX is the top's by a millimetre. It read 0.699
@@ -599,7 +601,7 @@ describe("the depths this wave promised not to move", () => {
         "A|2600": 720,
         "A|3200": 720,
         "B|685": 400,
-        "B|840": 700,
+        "B|840": 720, // 700 → 720 (ADR 0135)
         "B|1300": 738,
         // The saved half of the same millimetre; see the published table above.
         "B|1900": 700,

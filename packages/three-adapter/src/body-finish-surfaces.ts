@@ -39,6 +39,7 @@
 // | | `susan_pole`, `susan_tray` ×2 | `M.steel`, `M.interior` | no — the fittings inside it |
 // | | `plinth`, `countertop`, handles | `M.dark`, `M.stone`, `M.steel` | no — not the body's finish |
 // | `base-corner-return-320` | `carcass` | `M.carcass` | **yes** — a doorless solid box, all outward |
+// | | `fixed_front` | `M.door` | **yes** — the panel on the run's door plane (ADR 0135); not a `door_front`, so no handle or front census counts it |
 // | | `plinth`, `countertop` | `M.dark`, `M.stone` | no |
 // | `wall-corner-return-570` (and `-top`) | `carcass_shell` | `M.carcass` | **yes** — sides and underside |
 // | | `carcass_back` | `M.interior` | no — the board inside the box |
@@ -131,9 +132,9 @@ export function wearsTheBodysFinishOnItsCarcassShell(
 }
 
 /** Whether a builder declared this mesh a surface the body's colour belongs on. Absent means no,
- *  which is the right answer for every mesh in the kit but the open shelf's six boards and the four
- *  corner bodies' carcasses — and it is safe to read absence as *no* here, unlike a catalogue
- *  declaration, because the alternative is a mesh that simply keeps the material its builder gave
+ *  which is the right answer for every mesh in the kit but the open shelf's six boards, the four
+ *  corner bodies' carcasses and the base return's fixed front — and it is safe to read absence as
+ *  *no* here, unlike a catalogue declaration, because the alternative is a mesh that simply keeps the material its builder gave
  *  it. */
 export function declaresItWearsTheBodysFinish(node: THREE.Object3D): boolean {
   return node.userData[WEARS_THE_BODYS_FINISH_KEY] === true;

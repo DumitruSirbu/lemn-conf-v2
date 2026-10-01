@@ -104,7 +104,8 @@ const CORNERS: readonly Corner[] = [
   {
     placementId: "p26",
     buildId: "base-corner-return-320",
-    painted: ["carcass"],
+    // The `fixed_front` joined it with ADR 0135: the panel on the run's door plane is an outward face.
+    painted: ["carcass", "fixed_front"],
     unpainted: ["plinth", "countertop"],
   },
   {

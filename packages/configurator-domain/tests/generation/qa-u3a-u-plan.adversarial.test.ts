@@ -32,7 +32,39 @@ const SAMPLES = 1500;
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
  *  module). 933 rooms: 900 L rooms (no corner direction, left, right) and 33 straight rooms. */
 const PRE_WAVE_L_AND_LINEAR_DIGEST =
+  "cceab23f3e1c2531d88b789ad24e0a6ce001eb6081a63841d89625619d13e3c0";
+/** The recording above before ADR 0135, which moved exactly one value in it: the base return's
+ *  recorded column depth, `depthMm` 600 → 620. Re-deriving this value from the new tree with that one
+ *  field put back reproduces it, which is what makes the move one value and not a regenerated
+ *  baseline. */
+const DIGEST_BEFORE_THE_RETURNS_COLUMN_DEPTH_MOVED =
   "3ed0b98c05af4526f8ee6a7dda466d68e3b79fcfd4f605185663b0b453713fd1";
+
+const BASE_RETURN_BUILD_ID = "base-corner-return-320";
+const RETURN_COLUMN_DEPTH_AFTER_0135_MM = 620;
+const RETURN_COLUMN_DEPTH_BEFORE_0135_MM = 600;
+
+function withReturnColumnDepthBefore0135(result: unknown): unknown {
+  return JSON.parse(JSON.stringify(result), (_key, value: unknown) =>
+    isReturnColumnExtentAt(value, RETURN_COLUMN_DEPTH_AFTER_0135_MM)
+      ? { ...value, depthMm: RETURN_COLUMN_DEPTH_BEFORE_0135_MM }
+      : value,
+  ) as unknown;
+}
+
+function isReturnColumnExtentAt(
+  value: unknown,
+  depthMm: number,
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "depthFromBuildId" in value &&
+    value.depthFromBuildId === BASE_RETURN_BUILD_ID &&
+    "depthMm" in value &&
+    value.depthMm === depthMm
+  );
+}
 
 function findingsFor(room: DesignRoom): readonly string[] {
   const runs = uShellFloorRuns(room);
@@ -315,5 +347,19 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
     );
 
     expect(digest).toBe(PRE_WAVE_L_AND_LINEAR_DIGEST);
+  });
+
+  it("differs from the recording only by the return's recorded column depth (ADR 0135)", () => {
+    const digest = digestGeneratedKitchens((room) =>
+      withReturnColumnDepthBefore0135(
+        generateKitchen({
+          room: room as DesignRoom,
+          occurredAt: DIGEST_OCCURRED_AT,
+          probeAt: createFakeProbeFactory(),
+        }),
+      ),
+    );
+
+    expect(digest).toBe(DIGEST_BEFORE_THE_RETURNS_COLUMN_DEPTH_MOVED);
   });
 });
