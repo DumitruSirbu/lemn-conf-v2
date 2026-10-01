@@ -432,6 +432,15 @@ determinant −1, each through its own wrapper; every other wall-A body +1.
 6. Every other placement of every generated design is byte-identical to the tree before C2. A straight
    kitchen is byte-identical. The seeded kitchen is byte-identical.
 7. The price rises by exactly the two units' lines per corner. A kitchen colour paints the unit.
+6a. **Item 6 changes no finding that is right today.** (i) On the seeded kitchen and on every design
+   the generated grids produce at `HEAD`, the validator's findings are byte-identical before and after.
+   (ii) Over arbitrary valid documents, the findings after are a subset of the findings before.
+   **[prop]** (iii) Backlog 63's witness, a hood in the opening over the corner (the seeded kitchen
+   with `p8` and `p15` cleared, and a U of 10 m or more), reports exactly the findings it reports at
+   `HEAD`. (iv) A wall-level body deliberately placed in the X-leg's column so that its own seat
+   reaches past the side cabinet's start still reports. (v) A column with a base member and nothing at
+   the body's height keeps the column-wide reach. Sabotage both ways (R6): the old whole-column reach
+   must turn the new shell red; a reach of zero must turn (iii) and (iv) red.
 7a. The mounted top unit has its handle meshes present and hidden, and its declared handle count equals
    them. Either unit picks as one group, `wall_corner_x`. Exactly four of its meshes wear the finish:
    shell, closure, stile, leaf.
@@ -487,13 +496,35 @@ intent first; stop and report on a conflict.*
    `hidePushOpenHandles` (`decomposed-bodies.ts:153-160`). **Not** `pushOpen = true`, which builds no
    bar and breaks the declared handle count against the meshes.
 5. Restate, each with its reason: the assembly's count of four, B2's zero start, the shell baselines.
+6. **The corner sweep's reach becomes band-aware** (adjudicated 2026-10-01 on S2's stop-and-report; an
+   eighth file, `validate-design.ts`). The unit and the base X-leg share the column `A|0.45`, recorded
+   as one entry, y 0–2600. `deepestSeatByColumnMm` gives that whole column the X-leg's 550, so it meets
+   the side wall's corner cabinet (along from 330, reach 291, y 1500–2200) and every shell reports
+   `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, though at that height the column reaches 291. S0 and review
+   round 2 checked the geometry and missed this sweep. The seeded kitchen never met it: its `p8` stands
+   at 300, a different column from the X-leg's.
+   **The rule.** When a recorded column that holds members is compared with a body across the corner,
+   its reach is the deepest carcass seat among the members whose vertical span overlaps that body's
+   (a positive overlap; abutting is not overlapping). If no member overlaps the body's span, the reach
+   is the column's deepest seat, as today. Rungs 2 and 3 (member-less entries) are untouched. The reach
+   stays the carcass seat (backlog 50). This amends one sentence of that ruling, *"over the whole
+   column … an entry describes a column and not a band of one"* (`validate-design.ts`,
+   `deepestSeatByColumnMm`'s comment), named in Amendment O.
+   **It can only remove a finding, never add one**: the banded reach is never greater than the
+   column's deepest seat.
+   Rejected: another column key (the key is wall and along only); exempting structural pairs (hides a
+   real check); splitting the unit into two bodies (it is one cabinet).
 
 *Files:* `fixtures/kitchen-l-design.ts`, `corner-assembly-size.ts`, `generation/shell-design.ts`,
 `pricing/sample-price-book.ts`, `generation/run-layout.ts` and `upper-policy.ts` (the predicate lifted,
 no rule changed), `three-adapter/src/decomposed-bodies.ts` (the two cases, and a default width that
-reads the reference reach, not a seeded placement). Seven files against the limit of about five: the
-predicate lift is two of them and changes no behaviour; said here, and the logic reviewer checks that
-lift first. *Criteria:* C2's eight above. *Pins expected to move:* every generated
+reads the reference reach, not a seeded placement), `validate-design.ts` (item 6). **Eight files
+against the limit of about five**, accepted and said here: two are the predicate lift with no behaviour
+change, and one is a single function of validator logic the wave cannot pass without. **The logic
+reviewer checks item 6 first, then the lift, before anything else.** *Reading added for item 6:*
+`validate-design.ts` from `findCornerOverlaps` to `reachesInto`; backlog 50's entry; ADR 0069; ADR 0132
+d7; ADR 0090 d2; `backlog-50-the-corner-the-validator-cannot-see.test.ts`;
+`qa-m7b-u1-wall-c.adversarial.test.ts`. *Criteria:* C2's eight above. *Pins expected to move:* every generated
 L, and every U under 10 m, loses its 800 + 100 wall-A tiles at both rows and gains one or two placements per corner; the
 recorded generation baselines under `tests/generation/`; `qa-7d7-sized-shell.test.ts`; the tests that
 pin four corner pieces (`corner-assembly-size*.test.ts`, `kitchen-l-corner-base.test.ts`,
