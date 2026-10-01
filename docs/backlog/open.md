@@ -2018,3 +2018,38 @@ development tooling; none is in the shipped runtime.
   Node patch release, not the lockfile.
 
 No owner, no phase.
+
+## 103. Six of seven e2e shards are red on `main` after the M7B merge — FOUND 2026-10-01, OWNER ASKED TO CHECK AND FIX, NOT SCHEDULED
+
+**Reported by the owner, 2026-10-01**: *"add to backlog to check and fix e2e tests"*, with
+[CI run 36841795476](https://github.com/DumitruSirbu/lemn-conf-v2/actions/runs/36841795476) — the `push`
+run on `main` at `2615b51` (the merge of pull request 9, M7B). Every non-e2e job is green; `e2e shard
+(mobile) (1, 4)` is the only green shard.
+
+**What the run's log shows** (read with `gh run view --log-failed`, 2026-10-01; nothing was re-run and
+no cause is established):
+
+| Shard | Result | Failed test |
+| --- | --- | --- |
+| desktop 1/3 | 2 failed, 61 passed (38.3m) | `pixel-counter-witness.desktop.e2e.spec.ts:352` *a near neighbour of it* (`toBe`); `qa-7i-mirror-captures.desktop.e2e.spec.ts:18` (`toBeGreaterThan`; the file ran 5.1m against a 300 s test timeout) |
+| desktop 2/3 | 1 failed, 69 passed (2.2m) | `room-desktop-line.desktop.e2e.spec.ts:551` *criterion 8*, at 1440 px |
+| desktop 3/3 | 2 failed, 50 passed (32.1m) | `top-bar-pill-containment.desktop.e2e.spec.ts:788` (120 s test timeout); `support/u-gate-journeys.ts:648` *A5: a client transition between two designs' editors* |
+| mobile 2/4 | 1 failed, 113 passed (14.0m) | `qa-7e3c-share.adversarial.e2e.spec.ts:638` *criterion 14* |
+| mobile 3/4 | 2 failed, 86 passed (11.2m) | `qa-7i-mirror-captures.e2e.spec.ts:18`; `qa-u7s0-ssr.adversarial.e2e.spec.ts:271` |
+| mobile 4/4 | 1 failed, 84 passed (13.6m) | `share-design.e2e.spec.ts:96` *the owner's own share link is read-only; /d/{id} restores write access* |
+
+Nine tests. `seeded-design.qa.e2e.spec.ts:35` *a deliberately failing test still hands its row to
+teardown* also prints `✘` in mobile 4/4 and is not in that shard's failed count, so it is read as the
+expected failure it names (inference).
+
+**A lead, not a diagnosis.** Four shards (desktop 3/3, mobile 2/4, 3/4, 4/4) each log
+`expect(locator).toBeEnabled()` — *Expected: enabled, Received: disabled* — and desktop 3/3 quotes
+`WRITE_ACCESS_TIMEOUT_MS` beside it. Which of the nine tests each of those belongs to was not traced.
+If they share it, one cause (write access not arriving in time on the runner) may account for most of
+the list; the two capture sets and the pixel-counter witness look like a separate, timing- or
+render-dependent group. Check contention and runner speed before treating any of them as a product
+defect (`docs/WORKFLOW.md`, *Evidence standards*: a gate failing on e2e is a contention suspect first).
+
+**Cost to decide.** Re-run the failed shards once to split flaky from deterministic; then one
+investigation per group. M7C's phase gate needs a green runner, so this is owed before M7C can close.
+No owner, no phase.
