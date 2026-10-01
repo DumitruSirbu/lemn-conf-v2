@@ -137,7 +137,33 @@ two parts, a blind one behind the side wall's corner cabinet and a wider one wit
 like the other corner pieces. Sizes are ours. The 570 mm ordinary cabinet this plan recommended is
 withdrawn. Design and what remains open: wave C2 and Q8.
 
-**Q8 — the corner wall unit.** (i) and (ii) are non-blocking; their defaults are built and labelled.
+**Q9 — which edge the corner doors' handles are on. Blocks only the handle literal in C2 S1's fix
+batch.** The owner asked for the handles on the outer edges, away from the corner, to avoid a door
+conflict. The kit draws no hinge, so the handle edge is the hinge side's opposite. By arithmetic on the
+built figures (plan view; a leaf turning about its hinge-edge back corner; 18 mm slab; bar 40 mm in,
+reaching 39 mm proud) [not measured; QA measures before this is put]:
+
+| | (a) as asked: both handles outer, hinges at the corner | (b) as built: handles at the corner, hinges outer | (c) only the new unit's handle outer |
+| --- | --- | --- | --- |
+| The unit's door alone | opens to about 93° (94° at 700), 33 mm from the side door | free to 110°, at least 34.9 mm clear (QA) | opens to about 91°, 12 mm from the side cabinet's bar |
+| The side cabinet's door alone | meets the unit's bar at about 88° | free; passes the unit's bar 12.0 mm clear (QA) | free |
+| One door open, then the other | **blocked**: the open side door stands 6 mm in front of the unit's whole door; the open unit door stops the side door within about 4° | free in either order | free only if the side door is opened first |
+| Both open at 90° | **impossible**: they would occupy the same place by the corner | possible; they stand apart, away from the corner | possible |
+| Both moved at the same moment | collide | cross at about 45° | collide |
+| Bars | 500 mm and more apart | 64 mm apart at the corner | apart |
+
+**The real conflict is in (a), not in (b).** Doors hinged at an inside corner swing into each other's
+fronts; doors hinged away from it swing apart. What (b) has is two bars close together.
+*Recommended: (b).* If the two bars are the objection, a fourth option removes it without moving a
+hinge: (d) the two corner doors push-to-open, no bars. **What (a) or (c) would touch:** the handle edge
+is derived in the builder, not stored (`wallCabinet`, `kitchen-parts.ts` about `:1701`), so no stored
+design changes. The new unit's edge is one literal and moves no pin. The side cabinet's is
+`wallCabinet`'s one-door rule, shared with every ordinary one-door wall cabinet, so it needs its own
+parameter; it stands in every L and U and in the seeded kitchen, so its bar and stems become named
+departures in the parity gate. The top units' bars are on the bottom edge and hidden; nothing of theirs
+moves. Whether the base corner cabinet (handle on the corner side today) is meant too was not said.
+
+\1 (i) and (ii) are non-blocking; their defaults are built and labelled.
 (i) *Price:* no price row exists. Default: the side wall's corner cabinet's placeholder figures.
 (ii) *Name:* default, the side wall's names (*Dulap suspendat de colț*, *Dulap de colț rând de sus*);
 one name at one amount twice does not confuse a breakdown (ADR 0066).
@@ -255,8 +281,8 @@ body, blind for the span the side wall's piece covers, with one door on the rest
 | Height, `y0` | 700, 1500 | 400, 2200; not built in a room under 2600 (the existing ceiling rule) |
 | Depth | the wall-cabinet depth: 330 at 600, 400 at 700 | same |
 | Blind part | the side wall's corner cabinet's depth: 330 at 600, 400 at 700 | same |
-| Door part | 570 at 600, 500 at 700; **one door**, 530 / 460 wide, beside a fixed stile | same, push-to-open (§13.1) |
-| Hinge | on the edge away from the corner; handle on the corner side (S0 below) | same; bar on the bottom edge, hidden |
+| Door part | 570 at 600, 500 at 700; **one door**, 537 / 467 wide, beside a fixed stile | same, push-to-open (§13.1) |
+| Hinge | **pending Q9.** As built: on the edge away from the corner; handle on the corner side | same; bar on the bottom edge, hidden |
 | Right corner of a U | the same body in its own mirrored wrapper (ADR 0132 d2), `cornerOf` = right | same |
 | Flags | `STRUCTURAL_CORNER`: no replace, delete, width, finish or handle control; follows the kitchen's colour (ADR 0099) | same |
 | Kind and name | the side wall's kinds, pending Q8 (ii) | same |
@@ -289,11 +315,18 @@ return's finished depth from its own wall). Size, then centre x and z:
 | `carcass` | 0.900 × `H` × 0.291; x 0, z 0 | 0.900 × `H` × 0.361; x 0, z 0 |
 | blind closure (new, wears the finish): `shellD` wide, `D − shellD` deep | 0.291 × `H` × 0.039; x −0.3045, z 0.165 | 0.361 × `H` × 0.039; x −0.2695, z 0.200 |
 | fixed stile (new, wears the finish), on the leaf's plane, from the closure to the leaf less one `GAP` | 0.065 × (`H` − 0.006) × 0.018; x −0.1265, z 0.1545 | 0.065 × (`H` − 0.006) × 0.018; x −0.0565, z 0.1895 |
-| leaf (`doorSlab`), `W − (blind + 0.04)` wide, far edge at `W/2 − 0.01` | 0.530 × (`H` − 0.006); x 0.175, z 0.1545 | 0.460 × (`H` − 0.006); x 0.210, z 0.1895 |
-| handle | middle unit: vertical bar, `"left"` edge (the corner side), 40 mm in. Top unit: `"bottom"` edge, built and hidden | same |
+| leaf (`doorSlab`), `W − (blind + 0.03) − 0.003` wide, far edge at `W/2 − 0.003` | 0.537 × (`H` − 0.006); x 0.1785, z 0.1545 | 0.467 × (`H` − 0.006); x 0.2135, z 0.1895 |
+| handle | **side pending Q9.** As built, middle unit: vertical bar, `"left"` edge (the corner side), 40 mm in. Top unit: `"bottom"` edge, built and hidden | same |
 
-`H` is 0.7 (middle) or 0.4 (top); the leaf and stile hang from `H − 0.003`. The two clearances are
-`cornerBaseX`'s own constants, reused. **Split: 330 blind + 570 door part at 600; 400 + 500 at 700.**
+`H` is 0.7 (middle) or 0.4 (top); the leaf and stile hang from `H − 0.003`. **Ruled 2026-10-01 on QA's Q3.1: the far edge takes an ordinary wall door's 3 mm reveal, not the base
+corner cabinet's 10 mm.** The leaf was first built 530 / 460 wide with 10 mm at the far edge, which
+left a 10 mm strip of carcass 18 mm back and a 12.5 mm joint to the next door where two wall cabinets
+leave 5.5. The 10 mm is the supplier's literal on `cornerBaseX` with no reason recorded; a hinge at
+that edge does not need it, since every ordinary hinged door stands 2.5–3 mm from its cabinet's side.
+Old → new: leaf 530 → 537 and 460 → 467; centre x 0.175 → 0.1785 and 0.210 → 0.2135; far-edge reveal
+10 → 3; joint to a two-door neighbour 12.5 → 5.5. The near clearance stays `cornerBaseX`'s 30 mm; the
+far reveal is `wallCabinet`'s own (half its `0.006`), named once. The base X-leg's own 10 mm is not
+touched. **Split: 330 blind + 570 door part at 600; 400 + 500 at 700.**
 *"The wider part has the door"* holds at both.
 
 **Why 400 at 700, against C0 and QA.** The side return is `FOLLOWS_CABINET_DEPTH_ON_WALL_MAP` and is
@@ -308,11 +341,11 @@ builds it; the 700 column above is the expected result, and a different one stop
 *What meets the side wall's corner cabinet.* The blind closure's front face lies at `D` from the back
 wall, on the return's near side face: one shared, hidden face. The return's door face is at `D − 0.021`
 from the side wall and its handle reaches `D`. The stile and the leaf together cover the unit's front
-from the closure's edge to 10 mm from the far end, with only `GAP`-wide joints, so **no carcass face
+from the closure's edge to 3 mm from the far end, with one `GAP`-wide joint between them, so **no carcass face
 shows between the return's door and the unit's far edge**. The unit lies wholly within `D` of the back
 wall and the return wholly beyond it: nothing interpenetrates and no two visible faces are coplanar.
 
-*Hinge and swing.* Left corner: hinge on the unit's right edge, away from the corner; handle at the
+*Hinge and swing, as built (the side is pending Q9).* Left corner: hinge on the unit's right edge, away from the corner; handle at the
 left. The base X-leg's leaf does exactly this (`doorSlab(…, "left")`, `kitchen-parts.ts:2030`); the
 side return's door has its handle on its corner side too; and a door hinged away from the corner opens
 toward the blind part. Right corner of a U: the mirrored wrapper puts the hinge on the left edge. Both
@@ -346,9 +379,9 @@ at 90 000 (the book's own units), both marked *pending owner input* (Q8 (i)). Th
 suspendat de colț* and *Dulap de colț rând de sus*, the side pieces' kinds reused (Q8 (ii)).
 
 *Against C4 S2.* After the joint moves, the base X-leg is 570 blind + 330 with a 290 door; the unit
-above is 330 blind + 570 with a 530 door. **The split lines do not align, and should not:** each blind
+above is 330 blind + 570 with a 537 door. **The split lines do not align, and should not:** each blind
 span is the depth of the piece on the other wall at that level. The far edge, 900, aligns at every
-level, and so do the doors' far edges, 10 mm inside it.
+level. The doors' far edges differ: 3 mm inside it on the unit, 10 on the base X-leg (the supplier's).
 
 *Against C3, and low ceilings.* The top unit is instantiated only where its top fits under the ceiling
 (`cornerPiecesUnder`, `:348-349`), so from 2600. Below that nothing stands above the middle unit and its
@@ -362,11 +395,12 @@ at all, where today it is that strip (`shell-design.ts:497-500`). The customer g
 Step 1 refuses that room as too small for a kitchen (ADR 0110 A2 names it). *Measure that its shell
 still builds and validates (S2).*
 
-**Gate G-C2, before S2 is dispatched:** the owner is shown S1's captures of the built unit beside a
-built side cabinet. The owner's *"two parts, only the wider has a door"* also fits the reference's base
-corner read as two cabinets (the 900 with a door, the 320 without), and under this plan's reading the
-corner has two doored parts at the wall level, the unit and the side cabinet. The capture settles which
-was meant; S2 does not start on the reading alone.
+**Gate G-C2: the owner saw S1's captures and answered, 2026-10-01, verbatim:** *"so put handles opposite
+to be able to open it from edges to not have door opening conflict"*. The answer is about the handles
+only; the unit's two-part shape drew no objection, which is not the same as approval and is recorded
+as that. The handle side is Q9. S2 does not read the handle side (it is one literal in the adapter's
+builder), so S2 is not blocked by Q9.
+
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -412,7 +446,7 @@ Never `git stash`, `git stash pop`, `git checkout -- .`, `git reset --hard` or `
    `wallDepthMm` as `kitchen-stage.tsx` builds it. Expected 0.400. Anything else: stop and report.
 2. `wallCornerX(W, H, pushOpen)` in `kitchen-parts.ts`: carcass, blind closure, fixed stile, one leaf,
    handle, as the parts table; every dimension from `wallDepthM`, `wallCarcassDepth`, `TH`, `GAP` and
-   `cornerBaseX`'s two clearance constants.
+   `cornerBaseX`'s near clearance and `wallCabinet`'s door reveal.
 3. `kit.make.wallCornerX` on the kit's surface and its contract test.
 4. A helper in `body-finish-surfaces.ts` so the carcass shell, the closure and the stile wear the finish.
 
@@ -423,7 +457,9 @@ red between the slices, so the two cases land in S2 with the catalogue rows.
 product's wall depth. (b) No mesh of an existing builder moves; every parity pin unchanged. (c) Placed
 beside a built `wall-corner-return-570` at a left corner, at both depths: no two meshes intersect, no
 two visible faces are coplanar. (d) **No recess:** between the return's door face and the unit's far
-edge, every point of the unit's front is on the leaf's plane, joints of at most `GAP` aside. (e) Both
+edge, every point of the unit's front is on the leaf's plane, except exactly two strips: the `GAP`
+(4 mm) joint between stile and leaf, and the 3 mm reveal at the far edge. Beside an ordinary two-door
+wall cabinet the door-to-door joint is 5.5 mm. A strip wider than that fails. (e) Both
 swing envelopes clear at both depths. *Pins expected to move:* none; the kit-surface contract gains one
 member. *Visual evidence, and gate G-C2's input:* captures of the unit beside the side cabinet, front
 and top-down, middle and top unit, 600 and 700. *Reading:* S1's row.
@@ -457,6 +493,11 @@ kitchen: unchanged.
 *Measure:* an odd-`W` U; the approved L 900 × 1000's shell; a design stored before the change loads with no
 new finding; a 600 → 700 → 600 round trip leaves the unit's span and the design's findings unchanged;
 placements against `MAX_PLACEMENTS`. *Reading:* S2's row.
+
+*At the far edge, x 900 (QA's Q3.3).* The leaf hinges there and swings out on the unit's own side; it
+needs no room on the neighbour's side beyond the ordinary reveal, the same as any wall cabinet beside
+a hood or a column today. **No generation rule and no new criterion in S2.** A hood can stand at 900
+only over a hob, and that pairing is the hob rule's, not the corner's.
 
 **What the neighbours need.** *C3:* nothing for the corner; the top unit is the shell's. C3's count of
 top-row bodies excludes structural pieces. *C4 S2:* nothing; it moves the base row's joint, and the wall
