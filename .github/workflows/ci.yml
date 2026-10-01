@@ -28,7 +28,9 @@ on:
 # are cancelled; post-merge `main` runs always complete so the branch's gate
 # history is never left half-finished by a fast follow-up push.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A `labeled` run is e2e-only and gets its own group, so adding `run-e2e` never cancels the push run's
+  # unit tests still in flight for the same pull request.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.action == 'labeled' && 'e2e' || 'gates' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege: these gates never write to the repo.
@@ -63,6 +65,7 @@ jobs:
 
   format:
     name: format
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: install
@@ -85,6 +88,7 @@ jobs:
 
   lint:
     name: lint
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: install
@@ -109,6 +113,7 @@ jobs:
 
   typecheck:
     name: typecheck
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: install
@@ -131,6 +136,7 @@ jobs:
 
   test:
     name: test
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     # Owner ruling 2026-09-30: the unit-test job raises its ceiling rather than splitting (the
     # split-per-machine rule of ADR 0105 A is for e2e). Measured: the domain package alone took
@@ -241,6 +247,29 @@ jobs:
   # outgrew the project split: 185 desktop and 393 mobile tests, against the 84 and ~109 the split
   # was sized on. The budget guard then asked for a fourth mobile shard, which ADR 0105 A4 had
   # anticipated; the owner's rule is that the budget governs and shards are added, never the ceiling.
+  prior-unit-tests:
+    name: prior unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # On every `labeled` run (owner, 2026-10-01; any label fires one). That run skips `test`, and GitHub counts a
+    # skipped required check as passing, so this job fails unless the same commit's `test` already passed.
+    if: github.event.action == 'labeled'
+    permissions:
+      checks: read
+    steps:
+      - name: The same commit already passed `test`
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          conclusion=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs?check_name=test" \
+            --jq '[.check_runs[] | select(.conclusion != "skipped")] | sort_by(.completed_at) | last | .conclusion // "missing"')
+          echo "Latest non-skipped \`test\` on $SHA: $conclusion"
+          if [ "$conclusion" != "success" ]; then
+            echo "The push run's unit tests have not passed on this commit; wait for them (or fix them), then re-add run-e2e."
+            exit 1
+          fi
+
   e2e-desktop-shard:
     name: e2e shard (desktop)
     runs-on: ubuntu-latest
@@ -340,7 +369,7 @@ jobs:
     # database". An e2e `POST /api/designs` landing in that window fails for a
     # reason nobody can reproduce locally, because `scripts/local-ci.sh` runs the
     # two serially. Serialising them here costs wall-clock and buys determinism.
-    needs: [install, test]
+    needs: [install, test, prior-unit-tests]
     # **Not on pull requests.** This repository has 2000 private Actions minutes
     # a month and this job alone costs ~33 of them; a branch pushed five times
     # would spend a sixth of the month's allowance re-proving the same flows.
@@ -360,7 +389,11 @@ jobs:
     # was the unexpanded `e2e (${{ matrix.project }})`, because a job skipped
     # before its matrix expands cannot name itself — as run 36734585613 shows — so
     # nothing reported under the name `e2e (desktop)` on a pull request.)
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
+    if: >-
+      ${{ !cancelled()
+      && needs.install.result == 'success'
+      && (needs.test.result == 'success' || needs.prior-unit-tests.result == 'success')
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
     env:
       # Same secret, same reasoning as the `test` job above, and the same
       # deliberate omission of DATABASE_URL. Note what that omission costs here:
@@ -450,8 +483,12 @@ jobs:
         shard: [1, 2, 3, 4]
         total: [4]
     timeout-minutes: 45
-    needs: [install, test]
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
+    needs: [install, test, prior-unit-tests]
+    if: >-
+      ${{ !cancelled()
+      && needs.install.result == 'success'
+      && (needs.test.result == 'success' || needs.prior-unit-tests.result == 'success')
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
     env:
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     steps:
@@ -584,6 +621,7 @@ jobs:
   # status check; it reports on every event, so requiring it cannot block a pull request.
   e2e-shard-budget:
     name: e2e-shard-budget
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: install
@@ -618,6 +656,7 @@ jobs:
 
   build:
     name: build
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     needs: install
@@ -641,6 +680,7 @@ jobs:
 
   boundary:
     name: boundary
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -653,6 +693,7 @@ jobs:
 
   lockfile:
     name: lockfile:single-source
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -664,6 +705,7 @@ jobs:
 
   sca:
     name: sca
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     needs: install
