@@ -203,7 +203,8 @@ describe("every catalogue entry's capability flags match what its builder draws"
   // document was ever stored.
   it("gates both populations of the one map, not just the insertable half", () => {
     expect(CATALOG_BUILD_IDS.length).toBe(16);
-    expect(SEEDED_BUILD_IDS.length).toBe(22);
+    // 22 → 24 (M7C wave C2): the corner wall unit's two rows.
+    expect(SEEDED_BUILD_IDS.length).toBe(24);
     expect(ALL_BUILD_IDS.length).toBe(
       CATALOG_BUILD_IDS.length + SEEDED_BUILD_IDS.length,
     );

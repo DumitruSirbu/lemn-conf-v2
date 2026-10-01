@@ -5,6 +5,12 @@ Date: 2026-09-03
 Type: Decision
 Milestone: M6 wave 6A4 — mirrors [ADR 0025](0025-the-corner-base-legs-seat-on-the-l-joint.md) for the wall band
 
+**Pointer, 2026-10-01.** The new structural corner wall unit on wall A
+(`wall-corner-x-900`, `-top`) reuses these two kinds and names as placeholders, pending the owner's
+Q8 (ii): [ADR 0110 Amendment O](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb),
+O7. The plan's own reading was that one name at one amount twice does not confuse a breakdown. Nothing
+here is struck.
+
 ## Context
 
 `wall-corner-return-570` (570 × 700) and `wall-corner-return-570-top` (570 × 400) both declare

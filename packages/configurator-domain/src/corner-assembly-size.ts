@@ -13,7 +13,7 @@
 // silently acquires the policy's number. The second answers in two halves — an edge and a centre —
 // which share that one quantifier and differ by half a width:
 //
-// 1. `cornerAssemblyWidthsMm` — the four along-wall widths at one (depth, room). **The room enters
+// 1. `cornerAssemblyWidthsMm` — the six along-wall widths at one (depth, room). **The room enters
 //    as a ceiling and never as a target** (ADR 0120 Amendment A): a corner is built to the
 //    reference kitchen's own size unless the wall cannot hold it, and never wider.
 // 2. `cornerFarEdgeMm` — where one piece stops along its wall — and `cornerAlongWallCentreMm`, the
@@ -53,15 +53,16 @@ export interface CornerAssemblyPiece {
   readonly band: CornerBand;
 }
 
-/** The four shipped corner bodies, as the questions this module answers them by. **Wall A carries
- *  the blind X-leg in the base row alone** — nothing structural stands above it, which is why wall
- *  A's wall row starts at the corner itself and its wall-only run stands over the corner's base
- *  (ADR 0110 Amendment B2).
+/** The six corner bodies, as the questions this module answers them by. **Wall A carries the blind
+ *  X-leg in the base row and the corner wall unit in the wall and top rows**: the same shape one
+ *  level up, 900 mm from the corner like the X-leg, so the back wall's corner is covered at every
+ *  level (the owner's *"cover all empty space within the corner"*; ADR 0110 Amendment O).
  *
- *  **No piece is added or removed here** (7D6's J2): the assembly is the four bodies the catalogue
- *  already seeds, and none of them becomes insertable. */
+ *  None is insertable (7D6's J2): the assembly is the bodies the catalogue seeds. */
 export const CORNER_ASSEMBLY_PIECES: readonly CornerAssemblyPiece[] = [
   { wall: "A", band: "base" },
+  { wall: "A", band: "wall" },
+  { wall: "A", band: "top" },
   { wall: "B", band: "base" },
   { wall: "B", band: "wall" },
   { wall: "B", band: "top" },
@@ -367,7 +368,7 @@ export function rightCornerAlongWallCentreMm(
 
 /** The least length wall A may have and still hold both of a U's corners without their X-legs
  *  overlapping (ADR 0132 decision 4) — the sum of each X-leg's own reference width, and deliberately
- *  **not** twice `narrowestCornerReachMm("A")`'s 870 (880 before ADR 0135):
+ *  **not** twice `narrowestCornerReachMm("A")`'s 870 (ADR 0135 moved it from 880):
  *  U0 measured the two X-legs overlapping only
  *  below 1800 mm, which is `2 × REFERENCE_CORNER_REACH_MM`, because each X-leg's own ceiling is the
  *  whole of wall A (`widthInRoomMm`) and both reach the reference 900 mm whenever their own side of
@@ -442,12 +443,12 @@ function narrowestWidthMm(
 
 /** How much of a piece's own width the other wall's body stands in front of.
  *
- *  **Only the blind X-leg has any.** The return leg butts against the X-leg's front face, so the
- *  X-leg is a cabinet only past `d − 30`, the run's carcass front: today's 900 decomposes as 570 of
- *  the other wall's depth plus a 330 mm accessible front (7D7's derivation, and the 290 mm door the
- *  builder puts in it; 580, 320 and 280 until ADR 0135 moved the joint).
- *  A wall-B piece has none — what stands in front of it moves its **near edge** instead, which is
- *  `nearEdgeMm` above, and wall A carries no piece in the rows where that would differ. */
+ *  **Only wall A's pieces have any**, and the same in every row: the return leg butts against the
+ *  X-leg's front face, so the X-leg is a cabinet only past `d − 30`, the run's carcass front. Today's
+ *  900 decomposes as 570 of the other wall's depth plus a 330 mm accessible front (7D7's derivation,
+ *  and the 290 mm door the builder puts in it). The corner wall unit above it is built to the X-leg's
+ *  width, so it has the one floor and the two widths agree by construction. A wall-B piece has none:
+ *  what stands in front of it moves its **near edge** instead, which is `nearEdgeMm` above. */
 function blindSpanMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,

@@ -6,6 +6,11 @@ Type: Decision (owner ruling)
 Milestone: M7 — wave 7D6 (the corner's derivation) and wave 7D7 (the corner builders), the joint
 bound slice both waves share; the ADR 0108 amendment it authorises for that slice is separately owed.
 
+**Pointer, 2026-10-01.** The approved minima stay 900 / 1000 under M7C. The engine's derived corner floor
+moves 880 → 870 in wave C4 slice S2 ([ADR 0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md)),
+which widens this margin; and in wave C2 [ADR 0110 Amendment O](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb)
+records that L 900 × 1000 is still refused by Step 1 and that L 900 × 2200 composes. Nothing here is struck.
+
 ## Context
 
 The 7D6 adjudication (`docs/milestones/M7-room-and-presets.md`, *7D6 adjudication — S2's shape,

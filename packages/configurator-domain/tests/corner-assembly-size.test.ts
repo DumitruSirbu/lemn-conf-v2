@@ -584,11 +584,13 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
         "corner",
     );
 
-    // Three, not four: the top-row return's own top is above a 2200 mm ceiling, and an excluded
-    // piece still reserves its footprint (ADR 0110 decision 1).
+    // Four, not six: the top-row return's and the top-row unit's own tops are above a 2200 mm ceiling,
+    // and an excluded piece still reserves its footprint (ADR 0110 decision 1). `p27` is the corner wall
+    // unit, which joined the assembly in M7C wave C2.
     expect(corners.map(({ id }) => id).sort()).toStrictEqual([
       "p25",
       "p26",
+      "p27",
       "p9",
     ]);
     expect(findOverflowingPlacementIds(shell)).toStrictEqual([]);
@@ -651,61 +653,55 @@ describe("criterion 9 — the same room and depth give a byte-identical shell", 
 
 describe("criterion 11 — the wall-only runs", () => {
   // Criteria 1 and 8 are structurally blind to this: both read the **floor** run, and the run this
-  // criterion is about is the wall-only one standing over wall A's corner base. A derivation that
-  // moved `wallRowStartMm("A")` off 0 would delete it — and, in the smallest admitted room, the
-  // entire frozen map — while every other criterion in this file stayed green (adjudication D3).
-  it("keeps wall A's at two tiles totalling 900 mm from 0, in the reference room", () => {
-    const tiles = wallOnlyTilesOn(shellIn(REFERENCE_ROOM), "A");
+  // criterion is about is the wall-only one over wall A's corner base. **Restated by M7C wave C2:** it
+  // was two tiles totalling 900 mm from 0 (B2's zero start); the corner wall unit now stands over the
+  // corner base, so wall A's wall row starts past it and there is no wall-only tile to record. A
+  // derivation that moved `wallRowStartMm("A")` back to 0 would tile the span the unit stands in.
+  const UNIT_BUILD_IDS = ["wall-corner-x-900", "wall-corner-x-900-top"];
 
+  it("records no wall-only tile over wall A's corner base in the reference room, the unit standing there", () => {
+    const shell = shellIn(REFERENCE_ROOM);
+
+    expect(wallOnlyTilesOn(shell, "A")).toStrictEqual([]);
     expect(
-      tiles.map((tile) => [
-        tile.alongMm,
-        tile.widthMm,
-        tile.y0Mm,
-        tile.topMm,
-        tile.depthFromBuildId,
-      ]),
+      shell.placements
+        .filter((placement) => UNIT_BUILD_IDS.includes(placement.body.buildId))
+        .map((placement) => [
+          placement.wall,
+          placement.alongMm - placement.body.widthMm / 2,
+          placement.alongMm + placement.body.widthMm / 2,
+          placement.y0Mm,
+        ]),
     ).toStrictEqual([
-      [400, 800, 1500, 2600, "wall-cabinet"],
-      [850, 100, 1500, 2600, "wall-cabinet"],
+      ["A", 0, 900, 1500],
+      ["A", 0, 900, 2200],
     ]);
-    expect(
-      Math.min(...tiles.map((tile) => tile.alongMm - tile.widthMm / 2)),
-    ).toBe(0);
-    expect(
-      Math.max(...tiles.map((tile) => tile.alongMm + tile.widthMm / 2)),
-    ).toBe(900);
-    expect(tiles.reduce((sum, tile) => sum + tile.widthMm, 0)).toBe(900);
   });
 
-  it("makes those two tiles the whole of the smallest approved room's recorded space", () => {
+  it("leaves the smallest approved room with no recorded empty space at all", () => {
     const shell = shellIn(SMALLEST_APPROVED_ROOM);
 
-    expect(shell.emptyColumns).toStrictEqual(
-      wallOnlyTilesOn(shell, "A") as typeof shell.emptyColumns,
-    );
-    expect(wallOnlyTilesOn(shell, "A")).toHaveLength(2);
-    expect(
-      wallOnlyTilesOn(shell, "A").reduce((sum, tile) => sum + tile.widthMm, 0),
-    ).toBe(900);
+    expect(shell.emptyColumns ?? []).toStrictEqual([]);
+    expect(wallOnlyTilesOn(shell, "A")).toStrictEqual([]);
   });
 
-  it("spans exactly from wall A's zero to its floor run's origin, over the approved range", () => {
+  it("stands the unit exactly over wall A's corner span, where the wall-only tiles used to be, over the approved range", () => {
     fc.assert(
       fc.property(approvedRoom(), (room) => {
         const shell = shellIn(room);
-        const tiles = wallOnlyTilesOn(shell, "A");
         const where = JSON.stringify(room);
+        const unit = shell.placements.find(
+          (placement) => placement.body.buildId === "wall-corner-x-900",
+        );
 
-        expect(tiles.length, where).toBeGreaterThan(0);
-        expect(
-          Math.min(...tiles.map((tile) => tile.alongMm - tile.widthMm / 2)),
-          `wall A's wall row no longer starts at the corner, ${where}`,
-        ).toBe(0);
-        expect(
-          Math.max(...tiles.map((tile) => tile.alongMm + tile.widthMm / 2)),
-          where,
-        ).toBe(
+        expect(wallOnlyTilesOn(shell, "A"), where).toStrictEqual([]);
+        expect(unit?.alongMm, where).toBeDefined();
+        const [from, to] = [
+          (unit?.alongMm ?? 0) - (unit?.body.widthMm ?? 0) / 2,
+          (unit?.alongMm ?? 0) + (unit?.body.widthMm ?? 0) / 2,
+        ];
+        expect(from, where).toBe(0);
+        expect(to, where).toBe(
           Math.min(lShellFloorRuns(room).A.startMm, wallLengthMm("A", room)),
         );
         // Wall B's own wall row starts where its floor run does, so its wall-only run is empty and

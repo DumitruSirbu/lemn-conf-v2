@@ -9,6 +9,7 @@ import {
   APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   buildLShellDesign,
+  buildUShellDesign,
   canonicalSerializeDesign,
   CURRENT_SCHEMA_VERSION,
   declaredCabinetDepthsMm,
@@ -110,6 +111,25 @@ function shellIn(room: DesignRoom): Design {
 /** The shell as the persistence adapter hands it back: through the wire and `migrateDesign`. */
 function loadedShellIn(room: DesignRoom): Design {
   const stored: unknown = JSON.parse(JSON.stringify(shellIn(room)));
+  return migrateDesign(CURRENT_SCHEMA_VERSION, stored);
+}
+
+/** A U of 11 100 mm in total, whose back wall is base-only: the one shell that still tiles wall A's strips. */
+function loadedLargeUShell(): Design {
+  const stored: unknown = JSON.parse(
+    JSON.stringify(
+      buildUShellDesign({
+        room: {
+          shape: "U",
+          widthMm: 4500,
+          depthMm: 3000,
+          wallCMm: 3600,
+          heightMm: 2600,
+        },
+        occurredAt: BUILT_AT,
+      }),
+    ),
+  );
   return migrateDesign(CURRENT_SCHEMA_VERSION, stored);
 }
 
@@ -309,7 +329,10 @@ describe("every body the panel offers in a shell opening, tapped through the sto
         }
       }
 
-      expect(taps).toBeGreaterThan(0);
+      // The smallest approved room has no opening at all since M7C wave C2: wall A is all corner and the
+      // corner wall unit stands over the base where the wall-only strip used to be offered.
+      const hasNoOpening = room === SMALLEST_ROOM;
+      expect(taps > 0).toBe(!hasNoOpening);
       expect(failures).toStrictEqual([]);
     },
   );
@@ -384,7 +407,13 @@ describe("criterion 4's 600 mm sink, which a fit-width body cannot take by inser
   );
 });
 
-describe("the wall row over wall A's corner, tiled 800 + 100 where the reference hangs 600 + 300", () => {
+describe("the wall row over wall A's corner (M7C wave C2)", () => {
+  it("offers no opening in an L: the corner wall unit stands over the corner base", () => {
+    const store = createStore(loadedShellIn(REFERENCE_ROOM));
+
+    expect(cornerWallOpenings(store)).toStrictEqual([]);
+  });
+
   /** The wall-band openings over wall A's corner base, nearest the corner first. */
   function cornerWallOpenings(store: Store): VoidRecord[] {
     return store
@@ -399,8 +428,8 @@ describe("the wall row over wall A's corner, tiled 800 + 100 where the reference
       .sort((left, right) => openingStartMm(left) - openingStartMm(right));
   }
 
-  it("still reaches the reference's 600 + 300 by the customer's own commands, the 100 mm strip not stranded", () => {
-    const store = createStore(loadedShellIn(REFERENCE_ROOM));
+  it("on a base-only back wall, a large U, still reaches the reference's 600 + 300 by the customer's own commands, the 100 mm strip not stranded", () => {
+    const store = createStore(loadedLargeUShell());
     const [nearest] = cornerWallOpenings(store);
     if (!nearest) throw new Error("no wall opening over the corner");
 

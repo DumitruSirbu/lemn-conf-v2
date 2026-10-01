@@ -64,17 +64,30 @@ export function generatedUppersOf(
   });
 }
 
-/** The spans the shell leaves as wall-only empty space over a corner's base: wall row and up, where no
- *  floor run stands. Composition places nothing over them (7D2 criterion 14). */
+/** The spans over a corner's base, wall row and up, that composition places nothing in (7D2 criterion 14):
+ *  the wall-only empty space the shell leaves there on a base-only back wall, and where the corner wall unit
+ *  stands everywhere else (M7C wave C2: it covers the strip that used to be recorded). */
 export function cornerZonesOf(room: DesignRoom): readonly Span[] {
   const shell = buildUShellDesign({ room, occurredAt: U_GENERATED_AT });
-  return (shell.emptyColumns ?? [])
+  const empty = (shell.emptyColumns ?? [])
     .filter((column: EmptyColumn) => column.y0Mm >= WALL_ROW_FLOOR_MM)
     .map((column) => ({
       wall: column.wall,
       startMm: column.alongMm - column.widthMm / 2,
       endMm: column.alongMm + column.widthMm / 2,
     }));
+  const units = shell.placements
+    .filter(
+      (placement) =>
+        placement.y0Mm >= WALL_ROW_FLOOR_MM &&
+        placement.body.buildId.startsWith("wall-corner-x-900"),
+    )
+    .map((placement) => ({
+      wall: placement.wall,
+      startMm: placement.alongMm - placement.body.widthMm / 2,
+      endMm: placement.alongMm + placement.body.widthMm / 2,
+    }));
+  return [...empty, ...units];
 }
 
 /** Every rule of the U's uppers a design breaks; `[]` when it keeps them all. */

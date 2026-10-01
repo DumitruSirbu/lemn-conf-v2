@@ -325,7 +325,7 @@ function evaluateFormula(
  * only: that is correct for a label, and it would fail whole on every seeded body here, because
  * ADR 0011 Gap A gives every seeded entry a non-insertable id that no §7 rule is written for.
  *
- * The fallback is not a guess — it is the four corner bodies, which are structural (ADR 0021),
+ * The fallback is not a guess — it is the six corner bodies, which are structural (ADR 0021),
  * which nothing in §7 builds, and for which having no equivalent is the correct answer rather than
  * a missing one. A book therefore prices them under their own ids.
  */

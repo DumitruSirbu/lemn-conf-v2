@@ -1011,6 +1011,16 @@ function mirroredForTheFarCorner(
 interface CornerRun {
   readonly run: WallSpan;
   readonly reachMm: number;
+  /** For a recorded column that holds members: where each stands vertically and its carcass seat. The
+   *  column's `reachMm` is the deepest of them; a body at one height is met by the deepest member
+   *  that stands at that height (M7C wave C2). Absent on a body and on a member-less entry. */
+  readonly memberBands?: readonly MemberBand[];
+}
+
+interface MemberBand {
+  readonly floorMm: number;
+  readonly topMm: number;
+  readonly seatMm: number;
 }
 
 /**
@@ -1063,10 +1073,15 @@ function bodyCornerRuns(
 /** Both stored arrays, each entry carrying the carcass line of the column it records. */
 function recordedCornerRuns(design: Design, catalog: BodyCatalog): CornerRun[] {
   const seatsByColumn = deepestSeatByColumnMm(design.placements, catalog);
-  const runOf = (run: WallSpan, entry: EmptyColumn): CornerRun => ({
-    run,
-    reachMm: recordedReachMm({ run, entry, seatsByColumn, catalog }),
-  });
+  const bandsByColumn = memberBandsByColumn(design.placements, catalog);
+  const runOf = (run: WallSpan, entry: EmptyColumn): CornerRun => {
+    const memberBands = bandsByColumn.get(run.columnKey);
+    return {
+      run,
+      reachMm: recordedReachMm({ run, entry, seatsByColumn, catalog }),
+      ...(memberBands === undefined ? {} : { memberBands }),
+    };
+  };
   return [
     ...(design.emptyColumns ?? []).map((entry, index) =>
       runOf(toEmptyColumnSpan(entry, index), entry),
@@ -1091,8 +1106,12 @@ interface RecordedReachQuery {
  * ordered by how much the document actually knows, the shape ADR 0090 decision 2 already uses for
  * this same map on the along-wall axis, read here on the depth axis.
  *
- * 1. **The column holds members** — the deepest seat among them. Exact, and it reads no recorded
- *    field at all: an entry *is* the column those bodies stand in. This is the rung that keeps a
+ * 1. **The column holds members** — the deepest seat among them, **at the height of the body it is
+ *    compared with** where any member stands there, and the column's deepest seat where none does (M7C
+ *    wave C2: a column of a base X-leg and the wall unit over it reaches 550 at the base and 291 at the
+ *    wall row, and the whole column's 550 met a side wall cabinet it never stands against; backlog 50's
+ *    *"the whole column"* ruling is amended by that one clause and nothing else). Exact, and it reads
+ *    no recorded field at all: an entry *is* the column those bodies stand in. This is the rung that keeps a
  *    document written before ADR 0073 quiet, because it needs nothing the document carries.
  * 2. **Member-less, with a recorded source** — that body's seat. ADR 0073 decision 1's field, read
  *    for a second axis: no new field, no migration.
@@ -1126,6 +1145,42 @@ function deepestSeatByColumnMm(
   return deepest;
 }
 
+/** Every member of each column with its vertical span and carcass seat, by the key `deriveColumnKeyAt`
+ *  gives it: what `deepestSeatByColumnMm` takes the maximum over, kept whole so a body at one height can
+ *  be met by the members that stand at that height. */
+function memberBandsByColumn(
+  placements: readonly DesignPlacement[],
+  catalog: BodyCatalog,
+): Map<string, MemberBand[]> {
+  const bands = new Map<string, MemberBand[]>();
+  for (const placement of placements) {
+    const seatMm = carcassSeatMmOf(placement.body.buildId, catalog);
+    if (seatMm === undefined) continue;
+    const key = deriveColumnKeyAt(placement.wall, toMetres(placement.alongMm));
+    const band = {
+      floorMm: placement.y0Mm,
+      topMm: placement.y0Mm + placement.body.heightMm,
+      seatMm,
+    };
+    bands.set(key, [...(bands.get(key) ?? []), band]);
+  }
+  return bands;
+}
+
+/** How far a recorded column reaches across the corner **at the height of `other`**: the deepest seat
+ *  among the members that stand at that height, and the column's deepest seat where none does (as every
+ *  column read before). A column of a base X-leg and the wall unit over it reaches 550 at the base and 291
+ *  at the wall row, which is what each stands at, and not 550 all the way up. Never deeper than the
+ *  column's own reach, so this can remove a finding and never add one. */
+function reachAtTheHeightOf(column: CornerRun, other: WallSpan): number {
+  const standingThere = (column.memberBands ?? []).filter(
+    (band) => band.floorMm < other.topMm && band.topMm > other.floorMm,
+  );
+  return standingThere.length === 0
+    ? column.reachMm
+    : Math.max(...standingThere.map((band) => band.seatMm));
+}
+
 /** The two runs stand in one another's solid: a rectangle in plan — each reaching into the other's
  *  along-wall interval — and an overlap in elevation. All three, because a base cabinet on wall A
  *  and a wall cabinet on wall B share the corner's plan area and no space at all. */
@@ -1134,8 +1189,8 @@ function intersectsAcrossTheCorner(
   second: CornerRun,
 ): boolean {
   return (
-    reachesInto(first.run, second.reachMm) &&
-    reachesInto(second.run, first.reachMm) &&
+    reachesInto(first.run, reachAtTheHeightOf(second, first.run)) &&
+    reachesInto(second.run, reachAtTheHeightOf(first, second.run)) &&
     overlapVertically(first.run, second.run)
   );
 }
@@ -1229,7 +1284,7 @@ function findBodyDimensionIssues(
  * The width rule the entry itself states, asked through the one predicate both width paths already
  * use (`acceptsWidthMm`), so a stored width is judged by exactly the rule a resize is.
  *
- * A body with no catalogue equivalent — the four corner returns and legs, which §13.1 makes
+ * A body with no catalogue equivalent — the six corner bodies (returns, legs and wall units), which §13.1 makes
  * structural — has no row stating its widths, and that is the correct answer for them rather than a
  * missing one. The floors in `findBodyDimensionIssues` still govern those.
  */

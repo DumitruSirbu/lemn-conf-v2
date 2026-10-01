@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildKitchenLBodyCatalog,
   buildLShellDesign,
+  buildUShellDesign,
   declaredCabinetDepthsMm,
   DesignSchema,
   KITCHEN_L_DESIGN,
@@ -61,6 +62,16 @@ import {
 } from "../support/shell-design.js";
 
 const REFERENCE_ROOM: DesignRoom = { ...KITCHEN_L_DESIGN.room };
+
+/** A U of 11 100 mm in total: large (10 000 and over), so its back wall is base-only and wall A keeps its
+ *  wall-only strips (M7C wave C2). */
+const LARGE_U_ROOM: DesignRoom = {
+  shape: "U",
+  widthMm: 4500,
+  depthMm: 3000,
+  wallCMm: 3600,
+  heightMm: 2600,
+};
 
 /** The smallest room the owner approved, which the 7A logic reviewer's failing case was run in. */
 const SMALLEST_APPROVED_ROOM: DesignRoom = {
@@ -428,13 +439,23 @@ describe("buildLShellDesign — a room no taller than the wall row (R1.2)", () =
   });
 
   it("records the wall-only run again one millimetre above the wall row's floor", () => {
-    const shell = shellIn(atHeight(REFERENCE_ROOM, WALL_ROW_FLOOR_MM + 1));
+    // On a base-only back wall, the one place wall A's wall-only run is still recorded (M7C wave C2).
+    const shell = buildUShellDesign({
+      room: atHeight(LARGE_U_ROOM, WALL_ROW_FLOOR_MM + 1),
+      occurredAt: SHELL_OCCURRED_AT,
+    });
+    const lShell = shellIn(atHeight(REFERENCE_ROOM, WALL_ROW_FLOOR_MM + 1));
 
     expect(
       (shell.emptyColumns ?? []).filter(
         (tile) => tile.y0Mm === WALL_ROW_FLOOR_MM,
       ).length,
     ).toBeGreaterThan(0);
+    expect(
+      (lShell.emptyColumns ?? []).filter(
+        (tile) => tile.y0Mm === WALL_ROW_FLOOR_MM,
+      ),
+    ).toStrictEqual([]);
   });
 });
 
@@ -529,8 +550,10 @@ describe("buildLShellDesign — the free runs (criteria 3 and 8)", () => {
     expect(unionOf(emptyIntervalsIn(shell, "A", baseBand))).toStrictEqual([
       { startMm: 900, endMm: REFERENCE_ROOM.widthMm },
     ]);
+    // [0, W] → [900, W] (M7C wave C2): the corner wall unit stands over wall A's corner base, so the
+    // wall row's recorded space starts where the floor run's full-height tiles do, past it.
     expect(unionOf(emptyIntervalsIn(shell, "A", wallBand))).toStrictEqual([
-      { startMm: 0, endMm: REFERENCE_ROOM.widthMm },
+      { startMm: 900, endMm: REFERENCE_ROOM.widthMm },
     ]);
     expect(unionOf(emptyIntervalsIn(shell, "B", baseBand))).toStrictEqual([
       { startMm: 900, endMm: REFERENCE_ROOM.depthMm - WALL_B_RESERVE_TODAY_MM },
@@ -573,7 +596,12 @@ describe("buildLShellDesign — the free runs (criteria 3 and 8)", () => {
   ])(
     "in a %i mm kitchen, records floor tiles at %i mm and wall-only tiles at %i mm",
     (cabinetDepthMm, floorTileMm, wallOnlyTileMm) => {
-      const shell = shellIn(REFERENCE_ROOM);
+      // Wall-only tiles exist only over a base-only back wall since M7C wave C2 (the corner wall unit
+      // stands over wall A's corner base elsewhere), so the room is a large U, whose wall A is that.
+      const shell = buildUShellDesign({
+        room: LARGE_U_ROOM,
+        occurredAt: SHELL_OCCURRED_AT,
+      });
       const moved =
         cabinetDepthMm === SHELL_CABINET_DEPTH_MM
           ? shell

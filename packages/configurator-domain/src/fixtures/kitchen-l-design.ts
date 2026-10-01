@@ -93,6 +93,10 @@ import {
  * where the seat is deliberately larger than the space the body fills.
  */
 
+/** The two build ids of the corner wall unit: the middle unit at the wall row and the top unit above it. */
+export const WALL_CORNER_X_BUILD_ID = "wall-corner-x-900";
+export const WALL_CORNER_X_TOP_BUILD_ID = "wall-corner-x-900-top";
+
 /** **`cabinetHandles` is deliberately not in any of the shared shapes below** (ADR 0061 decision 3).
  *  Every seeded row states its own, because the shapes cannot: `wallCarcass` is spread by a one-door
  *  300 and a two-door 800 alike, and a count inherited from a shape is the accident DOM-002 was.
@@ -157,7 +161,7 @@ const oneBaseLeaf: FrontPopulationRule = baseLeaves(1);
  *  row 16. Shared by the two wall returns and, since ADR 0025, by the two base legs, which is what
  *  makes §11 row 16 reachable at all: it names the *base* corner, and until the legs became
  *  placements there was no base corner to select. `kind` is deliberately **not** part of this shape
- *  — the four bodies that wear it are three different kinds.
+ *  — the six bodies that wear it share four kinds.
  *
  *  **Structural is about shape, not about colour** (owner's ruling, 2026-09-09). §13.1's list is
  *  *replace, delete, width donor* and says nothing about finish; the corner carried `canFinish:
@@ -180,7 +184,7 @@ const STRUCTURAL_CORNER: Pick<
   canDelete: false,
   // **The corner carries a colour of its own** — §9's *Finisaj* section renders for it, `setFinish`
   // accepts it, and `dropFinishFromBodiesThatCannotWearOne` stops stripping what it stores. This
-  // reverses ADR 0099 decision 8 and Amendment B for these four bodies and for no others: the hood
+  // reverses ADR 0099 decision 8 and Amendment B for these six bodies and for no others: the hood
   // and the freestanding fridge are appliances and keep both `false` and `IS_NEVER_PAINTED`.
   canFinish: true,
   // **Set with `canFinish` above and never apart from it.** `bodyFinishRuleOf` refuses an entry
@@ -202,8 +206,8 @@ const STRUCTURAL_CORNER: Pick<
  *  — `decomposed-bodies.ts` for the seeded instance, `catalog-bodies.ts` for the §7 entry — and
  *  points at the entry that builds the *same* body: `base-drawer2-600` is
  *  `baseCabinet(0.6, { drawers: 2 })`, which is exactly what `base-panbank` builds, so the two-drawer
- *  base is the pan bank at 600. Four entries carry no pointer because nothing in §7 builds them:
- *  the four corner bodies — §13.1 is explicit that a corner is not a body a customer chooses, so
+ *  base is the pan bank at 600. Six entries carry no pointer because nothing in §7 builds them:
+ *  the six corner bodies — §13.1 is explicit that a corner is not a body a customer chooses, so
  *  having no catalogue equivalent is the correct answer for them, not a missing one.
  *
  *  **The pointer now carries a second fact, and it is the one M5 needs.** A seeded entry declares no
@@ -332,7 +336,7 @@ export function buildSeededBodyDefinitions(
     // Ordinary cabinetry: the customer may colour this body alone, and where they have not it
     // follows the kitchen and then the material's default (ADR 0099 decision 1's order). The four
     // seeded rows this is wrong for — the hood, the shelf and the fridge — say so on their own line,
-    // and `STRUCTURAL_CORNER` says it for the four corner bodies.
+    // and `STRUCTURAL_CORNER` says it for the six corner bodies.
     finishRule: CHOOSES_ITS_OWN_COLOUR,
     canHandle: true,
     canReplace: true,
@@ -735,6 +739,35 @@ export function buildSeededBodyDefinitions(
         frameHeightMm: 400,
       },
     ],
+    // The corner wall unit (ADR 0110 Amendment O), the base X-leg's shape one level up. Copied from the
+    // side returns' shape: structural, one handle, one leaf, the wall map's depth, and **their kinds**, so
+    // the priced document names it as the side corner pieces are named (owner's Q8 (ii), a default
+    // pending an answer). Never in the seeded kitchen: the shell places it (`shell-design.ts`).
+    [
+      WALL_CORNER_X_BUILD_ID,
+      {
+        ...wallCarcass,
+        depthRule: FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
+        cabinetHandles: carriesHandles(1),
+        fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 1 }),
+        ...STRUCTURAL_CORNER,
+        kind: WALL_CORNER_RETURN_KIND,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
+      },
+    ],
+    [
+      WALL_CORNER_X_TOP_BUILD_ID,
+      {
+        ...topCarcass,
+        depthRule: FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
+        cabinetHandles: carriesHandles(1),
+        fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 1 }),
+        ...STRUCTURAL_CORNER,
+        kind: WALL_CORNER_RETURN_TOP_KIND,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
+        frameHeightMm: 400,
+      },
+    ],
     [
       "wall-2door-600-deep-top",
       {
@@ -935,7 +968,7 @@ const KITCHEN_L_ROOM: Design["room"] = {
  *  in each of its upper rows, all four landing flush at a **900 mm far edge on both walls** — the
  *  figure ADR 0108 Amendment B's approved wall-A minimum was taken from.
  *
- *  **Derived rather than stored**, so the four widths cannot drift from the reach the room policy
+ *  **Derived rather than stored**, so the corner's widths cannot drift from the reach the room policy
  *  and the shell's run origins read (ADR 0102: four literals agreeing at one depth always
  *  eventually part). A corner in a narrower room is narrower; a corner in a larger one is **not**
  *  wider — the room is a ceiling and never a target (ADR 0120 Amendment A). */
@@ -984,6 +1017,27 @@ function cornerWidthMm(piece: CornerAssemblyPiece): number {
   }
   return sized.widthMm;
 }
+
+/** The corner wall unit's two placements, as the shell templates them (`shell-design.ts`), at the reference
+ *  corner's own width and centre. **Not** in `KITCHEN_L_PLACEMENTS`: the seeded kitchen keeps the supplier's
+ *  corner on wall A (`p8`, `p10`, `p15`, `p16`), and only generated shells carry the unit. Ids appended
+ *  after `p26` for the same reason the corner's own were (persisted ids are never reused). */
+export const CORNER_WALL_UNIT_TEMPLATES: readonly DesignPlacement[] = [
+  cornerPlacement(
+    "p27",
+    { wall: "A", band: "wall" },
+    1500,
+    WALL_CORNER_X_BUILD_ID,
+    700,
+  ),
+  cornerPlacement(
+    "p28",
+    { wall: "A", band: "top" },
+    2200,
+    WALL_CORNER_X_TOP_BUILD_ID,
+    400,
+  ),
+];
 
 export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
   placement("p0", "A", 1300, 0, "base-sink-800", 800, 820),

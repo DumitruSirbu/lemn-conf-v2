@@ -3,10 +3,10 @@
 //
 // The owner's ruling of 2026-09-09: *"structural cabinetry follows the kitchen, appliances never
 // do"*, and *"open shelves can have and by default should inherit global set color"*. That splits a
-// class `canFinish: false` used to hold whole. Four seeded corner bodies, an open shelf, a hood and
-// a freestanding fridge all declared the same `false`, and ADR 0099 decision 8 read it as *"painted
-// at neither level"* for all of them. After the ruling the corners and the shelf take the kitchen's
-// colour and the two machines take none, so **one boolean can no longer carry the answer**.
+// class `canFinish: false` used to hold whole. The four corner bodies seeded then (six since M7C wave
+// C2), an open shelf, a hood and a freestanding fridge all declared the same `false`, and ADR 0099
+// decision 8 read it as *"painted at neither level"* for all of them. After the ruling the corners and the shelf
+// take the kitchen's colour and the two machines take none, so **one boolean can no longer carry the answer**.
 //
 // It is a second declaration rather than a widening of `canFinish`, because the two answer different
 // questions and only one of them moved:

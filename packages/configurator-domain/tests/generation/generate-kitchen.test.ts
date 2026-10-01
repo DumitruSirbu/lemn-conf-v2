@@ -107,14 +107,18 @@ describe("generateKitchen", () => {
         (placement) => placement.body.buildId === "hood",
       ),
     ).toBe(true);
+    // Only the shell's own corner wall unit stands in the corner wall band (M7C wave C2); nothing is
+    // generated there.
     expect(
-      result.design.placements.some(
-        (placement) =>
-          placement.wall === "A" &&
-          placement.y0Mm === 1500 &&
-          placement.alongMm < 900,
-      ),
-    ).toBe(false);
+      result.design.placements
+        .filter(
+          (placement) =>
+            placement.wall === "A" &&
+            placement.y0Mm === 1500 &&
+            placement.alongMm < 900,
+        )
+        .map((placement) => placement.id),
+    ).toEqual(["p27"]);
 
     const placedSteps = result.log.steps.filter(
       (step) => step.status === "placed",

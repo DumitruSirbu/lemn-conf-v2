@@ -4,7 +4,13 @@
 // reproduces its hardcoded placement rather than a physical depth. Shared by the decomposition
 // parity test and the scene mount so the two never drift apart.
 import * as THREE from "three";
-import { KITCHEN_L_DESIGN, toMetres } from "@lemnaria/configurator-domain";
+import {
+  cornerAssemblyWidthsMm,
+  CORNER_WALL_UNIT_TEMPLATES,
+  KITCHEN_L_DESIGN,
+  toMetres,
+  WORKTOP_DEPTH_MM,
+} from "@lemnaria/configurator-domain";
 
 import { wearsTheBodysFinishOnItsCarcassShell } from "./body-finish-surfaces.js";
 import { forEachCabinetHandleMesh } from "./cabinet-handle-meshes.js";
@@ -77,7 +83,7 @@ export function hidePushOpenHandles(group: THREE.Group): THREE.Group {
 }
 
 /** The direct two-argument reference/parity route reads the fixture's own authored width. The
- * scene and probe pass a size through `buildAnyBody`, so their four corner arms draw the recorded
+ * scene and probe pass a size through `buildAnyBody`, so their six corner arms draw the recorded
  * width even after a depth change slides the placement without resizing it (ADR 0089). */
 function cornerWidthM(
   buildId: string,
@@ -91,6 +97,35 @@ function cornerWidthM(
     throw new Error(`No reference corner width for buildId "${buildId}"`);
   }
   return toMetres(reference.body.widthMm);
+}
+
+/** The corner wall unit's width where the caller names none: the reference corner's own reach on wall A,
+ *  read from the assembly's derivation and not from a seeded placement (the seeded kitchen carries no
+ *  unit, M7C wave C2). The wall and top pieces are one width, so one lookup answers for both. */
+function cornerWallUnitWidthM(
+  size: Pick<CatalogBodySize, "widthM"> | undefined,
+): number {
+  if (size !== undefined) return size.widthM;
+  const reference = cornerAssemblyWidthsMm({
+    cabinetDepthMm: WORKTOP_DEPTH_MM,
+    room: KITCHEN_L_DESIGN.room,
+  }).pieces.find(({ wall, band }) => wall === "A" && band === "wall");
+  if (reference === undefined) {
+    throw new Error("No reference width for the corner wall unit");
+  }
+  return toMetres(reference.widthMm);
+}
+
+/** The unit's height as its own placement declares it (700 in the wall row, 400 in the top row), so the
+ *  mounted body and the structural placement it stands for cannot part. */
+function cornerWallUnitHeightM(buildId: string): number {
+  const template = CORNER_WALL_UNIT_TEMPLATES.find(
+    (placement) => placement.body.buildId === buildId,
+  );
+  if (template === undefined) {
+    throw new Error(`No corner wall unit template for ${buildId}`);
+  }
+  return toMetres(template.body.heightMm);
 }
 
 export function buildDecomposedBody(
@@ -141,6 +176,22 @@ export function buildDecomposedBody(
     case "wall-corner-return-570":
       return wearsTheBodysFinishOnItsCarcassShell(
         kit.make.wallCabinet(cornerWidthM(buildId, size), 1),
+      );
+    // M7C wave C2: the corner wall unit, one body for the wall row and one for the top row. Built like every
+    // top-row body: **with** its bar, then hidden (`hidePushOpenHandles`), so the declared handle count
+    // matches the meshes and the customer can switch the bar back on (§6.5). It wears its own finish
+    // surfaces (`wallCornerX` declares them), which is why no wrapper is applied here.
+    case "wall-corner-x-900":
+      return kit.make.wallCornerX(
+        cornerWallUnitWidthM(size),
+        cornerWallUnitHeightM(buildId),
+      );
+    case "wall-corner-x-900-top":
+      return hidePushOpenHandles(
+        kit.make.wallCornerX(
+          cornerWallUnitWidthM(size),
+          cornerWallUnitHeightM(buildId),
+        ),
       );
     case "wall-1door-300":
       return kit.make.wallCabinet(0.3, 1);

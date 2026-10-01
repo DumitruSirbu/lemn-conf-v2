@@ -15,6 +15,7 @@ import {
   type DesignWall,
 } from "../../src/index.js";
 import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
+import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   DIGEST_OCCURRED_AT,
@@ -33,11 +34,15 @@ const SAMPLES = 1500;
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
  *  module). 933 rooms: 900 L rooms (no corner direction, left, right) and 33 straight rooms. */
 const PRE_WAVE_L_AND_LINEAR_DIGEST =
-  "3448d4b12bb46f955e9f5cbe23e32d7d7523f3a89149ce063bb741e453278734";
+  "f34c9d8ad5fed98bbd31a9733ed59503a757f0fd3fedc796caed48f9cabd74f1";
 /** The recording as U3a took it, before ADR 0135. ADR 0135 moved the base return's centre, width and
  *  recorded column depth and the X-leg's recorded column depth (`support/before-adr-0135.ts` names
  *  each); the sweep below reproduces this value from today's output with exactly those fields put
  *  back, which is what makes the move four fields and not a regenerated baseline. */
+/** The recording as ADR 0135 restated it, before the corner wall unit (M7C wave C2). */
+const DIGEST_AFTER_ADR_0135 =
+  "3448d4b12bb46f955e9f5cbe23e32d7d7523f3a89149ce063bb741e453278734";
+
 const DIGEST_BEFORE_ADR_0135 =
   "3ed0b98c05af4526f8ee6a7dda466d68e3b79fcfd4f605185663b0b453713fd1";
 
@@ -312,7 +317,7 @@ describe("the fridge wall never carries a drawer unit (owner, 2026-09-29)", () =
 });
 
 describe("the L, the mirrored L and the straight kitchen are byte-identical to the pre-wave tree (U3a AC4)", () => {
-  it("reproduces the recorded digest over 933 generated kitchens (restated by ADR 0135)", () => {
+  it("reproduces the recorded digest over 933 generated kitchens (restated by ADR 0135 and M7C wave C2)", () => {
     const digest = digestGeneratedKitchens((room) =>
       generateKitchen({
         room: room as DesignRoom,
@@ -324,14 +329,30 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
     expect(digest).toBe(PRE_WAVE_L_AND_LINEAR_DIGEST);
   });
 
-  it("differs from the recording only by the fields ADR 0135 moved", () => {
+  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers", () => {
     const digest = digestGeneratedKitchens((room) =>
-      asBeforeAdr0135(
+      withTheCornerUnitPutBack(
         generateKitchen({
           room: room as DesignRoom,
           occurredAt: DIGEST_OCCURRED_AT,
           probeAt: createFakeProbeFactory(),
         }),
+      ),
+    );
+
+    expect(digest).toBe(DIGEST_AFTER_ADR_0135);
+  });
+
+  it("differs from the pre-wave recording only by the fields ADR 0135 and the corner unit moved", () => {
+    const digest = digestGeneratedKitchens((room) =>
+      asBeforeAdr0135(
+        withTheCornerUnitPutBack(
+          generateKitchen({
+            room: room as DesignRoom,
+            occurredAt: DIGEST_OCCURRED_AT,
+            probeAt: createFakeProbeFactory(),
+          }),
+        ),
       ),
     );
 

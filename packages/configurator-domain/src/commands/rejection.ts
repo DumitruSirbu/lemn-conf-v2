@@ -25,7 +25,7 @@ interface LabelParams {
  *
  *  **`unresolvable` wins when both are true.** A row that is `fixedWidth` *and* unfinished has
  *  nothing to say about a *cabinet*, so its label falls back to its kind — which is a real word and
- *  not a fallback of last resort: all four corner kinds are named (`corner_base_x`,
+ *  not a fallback of last resort: all four corner kinds (shared by the six corner bodies) are named (`corner_base_x`,
  *  `corner_base_return`, `corner_wall_return`, `corner_wall_return_top`, ADR 0025 and ADR 0066), so
  *  the refusal reads *"Dulap bază de colț"* rather than the generic `catalog.unknownKind`. Only a
  *  kind `KNOWN_BODY_KINDS` does not carry falls that far, and no shipped row has one. */

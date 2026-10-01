@@ -1,6 +1,7 @@
 // ADR 0110 decision 1, built as its Amendment B rules: the design generation starts from. It holds
 // the entered room, the reference kitchen's settings and cabinet depth, the structural corner pieces
-// that fit under the ceiling, and every free run of each wall recorded as empty space — a document
+// that fit under the ceiling (the reference's own and, M7C wave C2, the corner wall unit over wall A's base
+// corner, except on a base-only back wall), and every free run of each wall recorded as empty space — a document
 // `insertBody` can place into and nothing else has touched.
 //
 // **Authored for its room, never derived by removal** (Amendment B1). `removePlacement` records
@@ -59,6 +60,7 @@ import {
 } from "../design.js";
 import {
   buildKitchenLBodyCatalog,
+  CORNER_WALL_UNIT_TEMPLATES,
   KITCHEN_L_DESIGN,
 } from "../fixtures/kitchen-l-design.js";
 import { toExactMillimetres, toMetres } from "../millimetres.js";
@@ -76,6 +78,7 @@ import {
   type BodyDefinition,
 } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
+import { isBackWallBaseOnly } from "./run-layout.js";
 
 // =================================================================================================
 // ADR 0130 D5 (wave 7J S2) — the straight kitchen's shell: no corner, no structural placement, one
@@ -249,6 +252,16 @@ const CORNER_DIRECTION_VALIDATION_NEVER_READS = "left";
  *  reserves its footprint, so `p21`'s zone stays unrecorded (Adjudication 7D1-P, P5 (iii)). */
 const STRUCTURAL_ASSEMBLY = REFERENCE_KITCHEN.placements.filter(isStructural);
 
+/** The assembly a room's corners are cut from: the reference's own structural pieces and, over wall A's
+ *  base X-leg, the corner wall unit (M7C wave C2) — except where the back wall is base-only, a large U,
+ *  which keeps its wall-A strips tiled as before (owner, Q8 (iii)). The unit is the shell's template and
+ *  never the reference kitchen's: the seeded kitchen keeps the supplier's corner. */
+function assemblyFor(room: DesignRoom): readonly DesignPlacement[] {
+  return isBackWallBaseOnly(room)
+    ? STRUCTURAL_ASSEMBLY
+    : [...STRUCTURAL_ASSEMBLY, ...CORNER_WALL_UNIT_TEMPLATES];
+}
+
 /** Where the wall row starts (`LEVELS[1]`), which is the floor of a wall-only run. */
 const WALL_ROW_FLOOR_MM = wholeMillimetresOf(
   LEVELS[1]?.[0],
@@ -337,17 +350,22 @@ function isInsideTheEngineLimits(room: DesignRoom): boolean {
   ).ok;
 }
 
-/** ADR 0110 decision 1 and ADR 0109 Amendment B's correction: a structural piece whose top is above
- *  the ceiling is not instantiated — excluded here by selection, never removed by a command, which
- *  refuses a structural body as `NOT_DELETABLE`. */
+/** The structural placements the room's ceiling admits (ADR 0110 decision 1, ADR 0109 Amendment B's
+ *  correction): a piece whose top is above the ceiling is excluded here by selection, never removed by
+ *  a command, which refuses a structural body as `NOT_DELETABLE`. */
+function piecesUnderTheCeiling(room: DesignRoom): DesignPlacement[] {
+  return assemblyFor(room).filter(
+    (placement) => placement.y0Mm + placement.body.heightMm <= room.heightMm,
+  );
+}
+
+/** The left corner's structural placements, each sized and centred from the corner assembly. */
 function cornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
   const widths = cornerAssemblyWidthsMm({
     cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
     room,
   });
-  return STRUCTURAL_ASSEMBLY.filter(
-    (placement) => placement.y0Mm + placement.body.heightMm <= room.heightMm,
-  ).map((placement) => {
+  return piecesUnderTheCeiling(room).map((placement) => {
     const piece = CORNER_ASSEMBLY_PIECES.find(
       ({ wall, band }) =>
         wall === placement.wall &&
@@ -377,7 +395,8 @@ function cornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
 }
 
 /** One wall's free runs: the floor run from the corner's far edge to the planned end, and — where
- *  nothing structural stands above the corner's base, as on wall A — the wall-only run over it. */
+ *  nothing structural stands above the corner's base — the wall-only run over it. That is wall A on a
+ *  base-only back wall (a large U) alone: elsewhere the corner wall unit stands there. */
 function freeRunTiles(
   wall: LWall,
   room: DesignRoom,
@@ -462,20 +481,30 @@ function floorRunStartMm(wall: DesignWall, room: DesignRoom): number {
 }
 
 /** The wall and top rows start past the structural pieces that reach above the wall row's floor on
- *  that wall — at the corner itself where there are none, as over wall A's corner base. */
+ *  that wall: past the corner wall unit on wall A, and at the
+ *  corner itself on a base-only back wall, where no unit stands and the run over the corner's base is
+ *  tiled as it always was. */
 function wallRowStartMm(wall: DesignWall, room: DesignRoom): number {
-  return cornerReachMm({ wall, room }, BANDS_ABOVE_THE_WALL_ROW_FLOOR);
+  // Reverting this start reddens, by mutation, corner-wall-unit.test.ts's approved L 900 × 1000, odd-width U and
+  // stored-design tests; an ordinary room is unchanged by it.
+  const bands =
+    wall === "A" && isBackWallBaseOnly(room)
+      ? NO_BANDS
+      : BANDS_ABOVE_THE_WALL_ROW_FLOOR;
+  return cornerReachMm({ wall, room }, bands);
 }
+
+const NO_BANDS: readonly CornerBand[] = [];
 
 /** How far the corner assembly reaches along one wall in the given rows — **sized for this room and
  *  the shell's own depth** (7D6's J1′, through `corner-assembly-size.ts`' entry points 1 and 2),
  *  where it used to be read off the reference kitchen's stored widths.
  *
- *  `Math.max(0, …)` over an **empty** set of bands is what answers for wall A above the base row:
- *  the assembly stands on no wall-A piece there, so the wall row starts at the corner itself and its
- *  run stands over the corner's base (ADR 0110 Amendment B2). That zero is load-bearing — it is the
- *  900 mm of wall-A wall-only run, in two tiles, that the smallest admitted room's frozen map is
- *  made of entirely. */
+ *  `Math.max(0, …)` over an **empty** set of bands is what answers for wall A above the base row **on a
+ *  base-only back wall**: no wall-A piece stands there, so the wall row starts at the corner itself and its
+ *  run stands over the corner's base (ADR 0110 Amendment B2). Everywhere else the corner wall unit
+ *  stands over the corner base, so the wall row starts past it and no wall-A wall-only run is recorded
+ *  over the corner. */
 function cornerReachMm(
   on: { readonly wall: DesignWall; readonly room: DesignRoom },
   bands: readonly CornerBand[],
@@ -564,8 +593,9 @@ function floorRunSpan(wall: DesignWall, room: DesignRoom): AlongWallSpan {
 // made against the right corner's own synthetic room (`corner-assembly-size.ts`'s "the along values
 // the corner rule gives for the L room (W, C)") and its output relabelled from wall B to wall C — no
 // new geometry, only a second call and a relabel, the way U2 S1 sized the right corner itself. Wall
-// A alone is genuinely new: a U's two corners share it, so its one run splits into a wall-only strip
-// at each end and a floor run between them, rather than one run open at the far end.
+// A alone is genuinely new: a U's two corners share it, so its one run splits into a floor run between
+// them and, on a base-only back wall (a large U), a wall-only strip at each end, rather than one run
+// open at the far end.
 // =================================================================================================
 
 export interface UShellDesignInput {
@@ -644,19 +674,19 @@ function isInsideTheEngineLimitsU(room: DesignRoom): boolean {
   ).ok;
 }
 
-/** The right corner's four structural placements: `cornerPiecesUnder`'s own rule, run against the
- *  right corner's own sizing and centring instead of the left corner's, and given a distinct id so
- *  a U's eight structural placements never collide (ADR 0132 D12). **The build id is never changed**
- *  — the same four bodies the left corner places, at the right corner's own width and position — which
+/** The right corner's structural placements (six, four on a base-only back wall): `cornerPiecesUnder`'s
+ *  own rule, run against the right corner's own sizing and centring instead of the left corner's, and
+ *  given a distinct id so a U's structural placements never collide (ADR 0132 D12). **The build id is never changed**
+ *  — the same bodies the left corner places, at the right corner's own width and position — which
  *  is the build-id half of AC1: a fourth catalogue entry needs no second selection here to be found. */
 function rightCornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
   const widths = rightCornerAssemblyWidthsMm({
     cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
     room,
   });
-  return STRUCTURAL_ASSEMBLY.filter(
-    (placement) => placement.y0Mm + placement.body.heightMm <= room.heightMm,
-  ).map((placement) => assembledAtTheRightCorner(placement, widths));
+  return piecesUnderTheCeiling(room).map((placement) =>
+    assembledAtTheRightCorner(placement, widths),
+  );
 }
 
 /** One left-corner placement, moved to its own right-corner counterpart: the same body, at the
@@ -736,11 +766,12 @@ function asLShellPlan(
     : { floorWidthsMm: { A: [], B: widthsMm } };
 }
 
-/** Wall A's free run in a U, shared by both corners at once (ADR 0132 decision 4): a wall-only strip
- *  over each corner's own base band, and one floor run between them — never one wall-only run the
- *  whole width of the wall, because nothing stands above either corner's base band anywhere else on
- *  wall A (the same reasoning `linearFreeRunTiles`' comment already gives for a straight room's one
- *  corner-free wall, applied here at both ends instead of neither).
+/** Wall A's free run in a U, shared by both corners at once (ADR 0132 decision 4): one floor run
+ *  between the corners and, only on a base-only back wall (a large U), a wall-only strip over each
+ *  corner's own base band. Never one wall-only run the whole width of the wall, because nothing stands
+ *  above either corner's base band anywhere else on wall A (the reasoning `linearFreeRunTiles` gives
+ *  for a straight room, applied at both ends). Elsewhere the corner wall unit stands over each
+ *  corner's base, so neither strip is recorded.
  *
  *  **The two corners' reach is the identical number** (`corner-assembly-size.ts`'s own proof, on
  *  `rightCornerAssemblyWidthsMm`'s head comment): wall A's X-leg is sized from `wallLengthMm("A",
@@ -780,7 +811,12 @@ function wallAFreeRunTilesForU(
 
   return [
     ...tilesOver(runs.wallOnly, leftWallOnlySpan),
-    ...tilesOver(runs.wallOnly, rightWallOnlySpan),
+    // Where the corner wall unit stands at the right corner too, nothing is left for a strip to cover.
+    // Observable only in an odd-width U: reverting this guard reddens corner-wall-unit.test.ts, "an odd-width U
+    // whose two units end on the base X-legs' own ends" (checked by mutation); ordinary rooms clamp to empty.
+    ...(isBackWallBaseOnly(room)
+      ? tilesOver(runs.wallOnly, rightWallOnlySpan)
+      : []),
     ...(widthsMm === undefined
       ? tilesOver(runs.floor, floorSpan)
       : plannedFloorTiles(runs.floor, floorSpan, widthsMm)),

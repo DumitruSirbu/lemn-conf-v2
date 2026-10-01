@@ -149,6 +149,15 @@ export function isLargeU(room: DesignRoom): boolean {
   return enteredTotalMm(room) >= LARGE_U_TOTAL_MM;
 }
 
+/** *N3 revised* 11 (and C2, Q8 (iii)): whether the back wall, wall A, carries no wall-row or top-row body
+ *  in this room. Only a large U's does: its wall-A strips are tiled and its hood is the one body above
+ *  its base row. Read by the shell, for which pieces stand over a corner and which rows its wall-A run
+ *  starts past, and by the upper policy, for which bases are owed an upper, so the two cannot disagree
+ *  (ADR 0102). */
+export function isBackWallBaseOnly(room: DesignRoom): boolean {
+  return room.shape === "U" && isLargeU(room);
+}
+
 /** *N3 revised* 3's boundaries on a wall's entered length: at most 3000 mm is a short wall, up to
  *  4000 mm a middle one, and beyond that a long one. The fridge wall's count from the corner and the
  *  far wall's tower both read them, so they are stated once. */

@@ -55,11 +55,14 @@ import {
 
 const DECLARED_DEPTHS_MM = [600, 700] as const;
 
-/** The two structural corner returns, named so a third `wall-map` entry has to be added here
- *  deliberately rather than slipping in behind a `toBeGreaterThan`. */
+/** The four structural corner bodies on the wall map (the two side returns and, since M7C wave C2, the
+ *  corner wall unit's two), named so a fifth `wall-map` entry has to be added here deliberately rather
+ *  than slipping in behind a `toBeGreaterThan`. */
 const WALL_MAP_BUILD_IDS = [
   "wall-corner-return-570",
   "wall-corner-return-570-top",
+  "wall-corner-x-900",
+  "wall-corner-x-900-top",
 ] as const;
 
 function designAt(cabinetDepthMm: number): Design {

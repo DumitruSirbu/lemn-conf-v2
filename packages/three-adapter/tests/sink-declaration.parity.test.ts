@@ -112,7 +112,8 @@ function buildsASink(body: GatedBody): boolean {
 describe("every catalogue entry's sink declaration matches what its builder draws", () => {
   it("gates both populations of the one map, at every width an insertable row declares", () => {
     expect(CATALOG_BUILD_IDS.length).toBe(16);
-    expect(SEEDED_BUILD_IDS.length).toBe(22);
+    // 22 → 24 (M7C wave C2): the corner wall unit's two rows.
+    expect(SEEDED_BUILD_IDS.length).toBe(24);
 
     const gatedIds = new Set(GATED_BODIES.map(({ buildId }) => buildId));
     expect([...gatedIds].sort()).toEqual(

@@ -8,6 +8,11 @@ Type: Finding + Decision (architect), on owner rulings of 2026-09-29 relayed by 
 Milestone: M7B, wave U0 (`docs/milestones/M7B-u-shaped-rooms.md`, *Wave U0*, *U0 census*, *U0
 measurements*)
 
+**Pointer, 2026-10-01.** Decision 7's D10 gives `findCornerOverlaps` the A∩C corner. M7C wave C2 bands
+that sweep's reach for a recorded column that holds members, so a wall-A column spanning two bands no
+longer reports a finding the bodies do not produce: [ADR 0110 Amendment O](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb),
+O5. The right corner's unit is drawn in this record's reflection (decision 2). Nothing here is struck.
+
 **How to read the citations.** Source lines are read at `dd9f63a` (branch `m7-room-and-presets`),
 where no production file differs from `5fbcad7`, the commit the M7B plan was read at. Every
 load-bearing claim is labelled **[doc-quoted]**, **[source-verified]** (read or `git grep`ped at

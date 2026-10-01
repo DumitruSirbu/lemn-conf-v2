@@ -26,6 +26,8 @@ const DECLARED_CABINET_DEPTHS_MM = [600, 700] as const;
 const CATALOGUE = buildKitchenLBodyCatalog(SHELL_CABINET_DEPTH_MM);
 
 const RIGHT_CORNER_IDS = ["right-p25", "right-p26", "right-p9", "right-p21"];
+// The corner wall unit's two (M7C wave C2): in every U but a large one, whose back wall is base-only.
+const RIGHT_CORNER_UNIT_IDS = ["right-p27", "right-p28"];
 
 describe("rightCornerRecordIds agrees with cornerOf on the original placements", () => {
   propertyTest.prop(
@@ -37,7 +39,9 @@ describe("rightCornerRecordIds agrees with cornerOf on the original placements",
       const design = uShell(dimensions);
       const placedRightPieces = design.placements
         .map((placement) => placement.id)
-        .filter((id) => RIGHT_CORNER_IDS.includes(id))
+        .filter((id) =>
+          [...RIGHT_CORNER_IDS, ...RIGHT_CORNER_UNIT_IDS].includes(id),
+        )
         .sort();
 
       const adapter = [

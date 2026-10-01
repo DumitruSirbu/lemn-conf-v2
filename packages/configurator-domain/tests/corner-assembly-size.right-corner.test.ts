@@ -48,13 +48,14 @@ function mirroredLRoom(room: DesignRoom): DesignRoom {
 }
 
 describe("rightCornerAssemblyWidthsMm — sizing (D5)", () => {
-  it("sizes the four pieces on walls A and C, none on B", () => {
+  it("sizes the six pieces on walls A and C, none on B", () => {
     const widths = rightCornerAssemblyWidthsMm({
       cabinetDepthMm: 600,
       room: uRoom(),
     });
 
-    expect(widths.pieces).toHaveLength(4);
+    // 4 → 6 (M7C wave C2): wall A gains the corner wall unit's wall and top pieces.
+    expect(widths.pieces).toHaveLength(6);
     expect(new Set(widths.pieces.map((piece) => piece.wall))).toStrictEqual(
       new Set(["A", "C"]),
     );

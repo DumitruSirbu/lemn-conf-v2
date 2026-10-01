@@ -48,16 +48,18 @@ describe("7D7 S3a room-sized corner widths", () => {
       (wallAMm, wallBMm) => {
         const inRoom = room(wallAMm, wallBMm);
         const widths = cornerAssemblyWidthsMm({ cabinetDepthMm, room: inRoom });
-        expect(widths.pieces).toHaveLength(4);
+        expect(widths.pieces).toHaveLength(6); // 4 → 6 (M7C wave C2)
 
         for (const piece of widths.pieces) {
           const wallMm = piece.wall === "A" ? wallAMm : wallBMm;
           const nearMm = nearEdgeMm(cabinetDepthMm, piece.wall, piece.band);
           const referenceMm =
             piece.wall === "A" ? 900 : piece.band === "base" ? 330 : 570;
+          // Wall A's piece in each row is blind for what stands in front of it on wall B in that row: the
+          // run's carcass front in the base row, the wall depth in the wall and top rows (M7C wave C2).
           const minimumMm =
             piece.wall === "A"
-              ? cabinetDepthMm - 30 + hingedFloorMm
+              ? nearEdgeMm(cabinetDepthMm, "B", piece.band) + hingedFloorMm
               : hingedFloorMm;
           const ceilingMm = Math.min(referenceMm, wallMm - nearMm);
           const farEdge = cornerFarEdgeMm({
@@ -95,7 +97,7 @@ describe("7D7 S3a room-sized corner widths", () => {
     KITCHEN_L_DESIGN.room,
     room(6300, 6300),
   ])(
-    "writes four in-wall structural records and no inverted empty spans for %o",
+    "writes six in-wall structural records and no inverted empty spans for %o",
     (inRoom) => {
       const shell = buildLShellDesign({ room: inRoom, occurredAt });
       expect(shell.placements.map(({ id }) => id)).toEqual([
@@ -103,6 +105,9 @@ describe("7D7 S3a room-sized corner widths", () => {
         "p26",
         "p9",
         "p21",
+        // The corner wall unit's two (M7C wave C2).
+        "p27",
+        "p28",
       ]);
       expect(findOverflowingPlacementIds(shell)).toEqual([]);
 
@@ -136,7 +141,7 @@ describe("7D7 S3a room-sized corner widths", () => {
     const shell = buildLShellDesign({ room: room(871, 871), occurredAt });
     expect(
       shell.placements.map(({ alongMm, body }) => alongMm + body.widthMm / 2),
-    ).toEqual([870, 870, 870, 870]);
+    ).toEqual([870, 870, 870, 870, 870, 870]); // the unit's two (M7C wave C2) end at 870 too
     expect(lShellFloorRuns(room(871, 871))).toEqual({
       A: { wall: "A", startMm: 870, endMm: 870 },
       B: { wall: "B", startMm: 870, endMm: 870 },

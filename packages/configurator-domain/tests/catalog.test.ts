@@ -92,7 +92,7 @@ describe("every declared catalogue equivalent resolves to an insertable row", ()
 
   it("leaves the structural corners pointing at nothing, and that is the right answer", () => {
     // The other half: a sweep that only checked declared pointers would pass on a catalogue that
-    // declared none. ADR 0021 makes these four structural and §13.1 says a customer never chooses
+    // declared none. ADR 0021 makes these six structural and §13.1 says a customer never chooses
     // one, so having no equivalent is correct for them and is what a book prices under their own id.
     const withoutPointer = [...KITCHEN_L_BODY_CATALOG]
       .filter(
@@ -107,6 +107,8 @@ describe("every declared catalogue equivalent resolves to an insertable row", ()
       "base-corner-x-900",
       "wall-corner-return-570",
       "wall-corner-return-570-top",
+      "wall-corner-x-900",
+      "wall-corner-x-900-top",
     ]);
   });
 });

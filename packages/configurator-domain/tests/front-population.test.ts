@@ -115,7 +115,7 @@ describe("a body's fronts are declared, per entry", () => {
 
     expect(undeclared).toEqual([]);
     // Not a vacuous sweep over an empty map.
-    expect(KITCHEN_L_BODY_CATALOG.size).toBe(38);
+    expect(KITCHEN_L_BODY_CATALOG.size).toBe(40); // 38 → 40 (M7C wave C2)
   });
 
   it("sweeps every width an insertable row declares, not one row per entry", () => {
@@ -471,10 +471,10 @@ describe("a contradictory declaration is refused where it is written", () => {
     }).not.toThrow();
   });
 
-  // All 38 shipped rows are constructed as the catalogue is assembled, which is module load — so
+  // All 40 shipped rows are constructed as the catalogue is assembled, which is module load — so
   // this sweep is a statement that the refusal above has already run over every one of them.
   it("has already run over both populations by the time this file loads", () => {
-    expect(KITCHEN_L_BODY_CATALOG.size).toBe(38);
+    expect(KITCHEN_L_BODY_CATALOG.size).toBe(40); // 38 → 40 (M7C wave C2)
     for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
       const bands = doorBandHeightsMm({
         buildId,

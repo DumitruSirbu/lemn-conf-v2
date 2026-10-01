@@ -212,7 +212,7 @@ export function resolveRebuildBody(
  *
  *  It publishes a descriptor rather than the raw `kind`: every caller puts the resolved string
  *  inside a refusal sentence the customer reads, and a bare `kind` is an internal identifier. The
- *  four corner rows are the ones exposed — they are the bodies with no catalogue equivalent to
+ *  six corner rows are the ones exposed — they are the bodies with no catalogue equivalent to
  *  inherit a name from (ADR 0022) — so before this, `setWidth` on a wall corner return answered
  *  `„corner_wall_return" nu își poate schimba lățimea.`
  *

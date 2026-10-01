@@ -167,6 +167,18 @@ function sceneOf(design: Design, label: string): Scene {
     ),
     room: design.room,
   });
+  // Since S2 the generated design carries the units itself. This harness places them where its own
+  // arithmetic says, so the mounted ones are taken out first rather than doubled (S2's one edit here).
+  const mountedUnits = design.placements
+    .filter((placement) =>
+      placement.body.buildId.startsWith("wall-corner-x-900"),
+    )
+    .map((placement) => placement.id);
+  for (const child of [...root.children]) {
+    if (mountedUnits.includes(String(child.userData["placementId"]))) {
+      root.remove(child);
+    }
+  }
   const wallDepthM = wallCarcassDepthMm(cabinetDepthMm) / 1000;
   const roomWidthM = design.room.widthMm / 1000;
   const rows =

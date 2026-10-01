@@ -211,7 +211,7 @@ export interface CabinetPriceRule {
   /** Unique across the whole book, and what a price line traces back to. */
   readonly ruleId: string;
   /** The catalogue entry this rule prices: a §7 row, or a seeded row that has no §7 equivalent —
-   *  the four corner bodies, which ADR 0021 makes structural and which nothing in §7 builds. */
+   *  the six corner bodies, which ADR 0021 makes structural and which nothing in §7 builds. */
   readonly buildId: string;
   readonly formula: PriceFormula;
   /** Optional, and absent means `DEFAULT_CABINET_SUPPLIER`: the overwhelming majority of rows are

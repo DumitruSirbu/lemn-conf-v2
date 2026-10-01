@@ -88,13 +88,14 @@ function placedCorner(
 }
 
 describe("the sized corner base legs", () => {
-  it("keeps the reference room's derived widths at 900 / 330 / 570 / 570 mm", () => {
+  it("keeps the reference room's derived widths at 900 (×3) / 330 / 570 / 570 mm", () => {
     const widths = cornerAssemblyWidthsMm({
       cabinetDepthMm: 600,
       room: KITCHEN_L_DESIGN.room,
     });
+    // Wall A's three pieces (base, wall, top: M7C wave C2 added the last two), then wall B's.
     expect(widths.pieces.map(({ widthMm }) => widthMm)).toEqual([
-      900, 330, 570, 570,
+      900, 900, 900, 330, 570, 570,
     ]);
   });
 

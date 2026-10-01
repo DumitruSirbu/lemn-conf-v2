@@ -231,13 +231,16 @@ function expectJunctionGeometry(
 }
 
 function expectWallAUpperOriginAtZero(design: Design): void {
-  const wallAUpperTiles = (design.emptyColumns ?? []).filter(
-    (tile) => tile.wall === "A" && tile.y0Mm === 1500,
-  );
-  expect(wallAUpperTiles.length).toBeGreaterThan(0);
+  // The wall row over wall A's corner starts at 0 with the corner wall unit (M7C wave C2), where it
+  // started at 0 with the first wall-only tile before it.
+  const unit = design.placements.find(({ id }) => id === "p27");
+  expect(unit).toBeDefined();
+  expect((unit?.alongMm ?? 0) - (unit?.body.widthMm ?? 0) / 2).toBe(0);
   expect(
-    Math.min(...wallAUpperTiles.map((tile) => tile.alongMm - tile.widthMm / 2)),
-  ).toBe(0);
+    (design.emptyColumns ?? []).filter(
+      (tile) => tile.wall === "A" && tile.y0Mm === 1500,
+    ),
+  ).toStrictEqual([]);
 }
 
 describe("wave 7D7 S3b — a corner record reaches the mounted body", () => {

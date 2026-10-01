@@ -13,10 +13,14 @@
 // - **No upper over either corner zone (7D2 criterion 14, backlog 63's class at A∩C) needs no test
 //   here**: a base stands only in its wall's floor run, and each run starts past its corner's reach
 //   (`uShellFloorRuns`), so an upper over a base is never over a corner zone. What guards it is the
-//   property over generated designs, which reads the shell's own wall-only strips.
+//   property over generated designs, which reads the shell's own wall-only strips,
+//   which only a large U's back wall records (the corner wall unit covers the others).
 import type { DesignRoom } from "../design.js";
 import type { BodyCatalog } from "../void-engine.js";
-import { isLargeU, type UPlannedGenerationBase } from "./run-layout.js";
+import {
+  isBackWallBaseOnly,
+  type UPlannedGenerationBase,
+} from "./run-layout.js";
 
 export const WALL_ROW_Y0_MM = 1500;
 export const WALL_CABINET_BUILD_ID = "wall-cabinet";
@@ -39,19 +43,16 @@ export function isAnUpperOwedOver(
   context: { readonly room: DesignRoom; readonly catalog: BodyCatalog },
 ): boolean {
   if (risesIntoWallRow(context.catalog, planned.buildId)) return false;
-  return !isBackWallBaseOnly(planned, context.room);
+  return !isOverABaseOnlyBackWall(planned, context.room);
 }
 
 /** *N3 revised* 11: in a large U wall A's wall and top rows carry no generated body, the hood aside. */
-function isBackWallBaseOnly(
+function isOverABaseOnlyBackWall(
   planned: UPlannedGenerationBase,
   room: DesignRoom,
 ): boolean {
   return (
-    room.shape === "U" &&
-    isLargeU(room) &&
-    planned.wall === "A" &&
-    planned.role !== "hob"
+    isBackWallBaseOnly(room) && planned.wall === "A" && planned.role !== "hob"
   );
 }
 

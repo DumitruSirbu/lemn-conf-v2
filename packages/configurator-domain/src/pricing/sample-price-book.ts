@@ -210,10 +210,11 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
     buildId: "fridge-free",
     ...drawnButNotSupplied(),
   },
-  // The four bodies with no §7 equivalent — the corners, which ADR 0021 makes structural and which
+  // The bodies with no §7 equivalent — the six corner bodies, which ADR 0021 makes structural and which
   // §13.1 is explicit a customer never chooses. Having no equivalent is the correct answer for them
-  // rather than a missing one, so a book prices them under their own ids. Without these four rules
-  // the seeded kitchen fails whole, which is the behaviour, not a workaround for it.
+  // rather than a missing one, so a book prices them under their own ids. Without the four rules
+  // below the seeded kitchen fails whole, and without the corner wall unit's two after them a generated
+  // shell does; that is the behaviour, not a workaround for it.
   {
     ruleId: "cabinet.base-corner-x-900",
     buildId: "base-corner-x-900",
@@ -232,6 +233,19 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
   {
     ruleId: "cabinet.wall-corner-return-570-top",
     buildId: "wall-corner-return-570-top",
+    formula: pricedFlat(90_000),
+  },
+  // M7C wave C2: the corner wall unit, one level up from the base X-leg. **PENDING OWNER INPUT** (Q8 (i)):
+  // a placeholder at each side corner piece's own amount, 160 000 at the wall row and 90 000 at the top
+  // row, in the book's units. The owner was told it is a default; the figure traces to no supplier.
+  {
+    ruleId: "cabinet.wall-corner-x-900",
+    buildId: "wall-corner-x-900",
+    formula: pricedFlat(160_000),
+  },
+  {
+    ruleId: "cabinet.wall-corner-x-900-top",
+    buildId: "wall-corner-x-900-top",
     formula: pricedFlat(90_000),
   },
 ];

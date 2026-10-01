@@ -13,6 +13,7 @@ import {
   type DesignRoom,
 } from "../../src/index.js";
 import { cornerAlongWallCentreMm } from "../../src/corner-assembly-size.js";
+import { CORNER_WALL_UNIT_TEMPLATES } from "../../src/fixtures/kitchen-l-design.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-18T10:00:00.000Z";
@@ -26,7 +27,7 @@ const BOUNDARY_ROOMS = [room(870, 870), room(871, 871)] as const;
 
 describe("wave 7D7 S3a — sized shell corners", () => {
   it.each(BOUNDARY_ROOMS)(
-    "writes four exact widths and centres, keeps identity, and leaves the unused millimetre at the far end in %o",
+    "writes six exact widths and centres, keeps identity, and leaves the unused millimetre at the far end in %o",
     (inRoom) => {
       const shell = buildLShellDesign({
         room: inRoom,
@@ -49,6 +50,9 @@ describe("wave 7D7 S3a — sized shell corners", () => {
         ["p26", "B", 0, "base-corner-return-320", 300, 720, 870],
         ["p9", "B", 1500, "wall-corner-return-570", 540, 600, 870],
         ["p21", "B", 2200, "wall-corner-return-570-top", 540, 600, 870],
+        // The corner wall unit (M7C wave C2) is the X-leg's width and span, one and two rows up.
+        ["p27", "A", 1500, "wall-corner-x-900", 870, 435, 870],
+        ["p28", "A", 2200, "wall-corner-x-900-top", 870, 435, 870],
       ]);
       for (const placement of shell.placements) {
         expect(
@@ -61,19 +65,20 @@ describe("wave 7D7 S3a — sized shell corners", () => {
         A: { wall: "A", startMm: 870, endMm: 870 },
         B: { wall: "B", startMm: 870, endMm: 870 },
       });
-      // Wall A's upper row covers the corner; wall B has no upper-only run.
+      // Wall A's upper rows are covered by the corner wall unit (it was two wall-only tiles before M7C
+      // wave C2); wall B has no upper-only run.
       expect(
         (shell.emptyColumns ?? [])
           .filter((tile) => tile.y0Mm > 0)
           .map((tile) => tile.wall),
-      ).toStrictEqual(["A", "A"]);
+      ).toStrictEqual([]);
       expect(
         (shell.emptyColumns ?? []).filter((tile) => tile.y0Mm === 0),
       ).toStrictEqual([]);
     },
   );
 
-  it("keeps the reference shell's four structural records byte-identical", () => {
+  it("keeps the reference shell's four seeded structural records byte-identical, and adds the unit's two", () => {
     const shell = buildLShellDesign({
       room: KITCHEN_L_DESIGN.room,
       occurredAt: OCCURRED_AT,
@@ -81,7 +86,11 @@ describe("wave 7D7 S3a — sized shell corners", () => {
     const referenceCorners = KITCHEN_L_DESIGN.placements.filter((placement) =>
       ["p25", "p26", "p9", "p21"].includes(placement.id),
     );
-    expect(shell.placements).toStrictEqual(referenceCorners);
+    // The corner wall unit (M7C wave C2) follows the seeded four, at the reference corner's own width.
+    expect(shell.placements).toStrictEqual([
+      ...referenceCorners,
+      ...CORNER_WALL_UNIT_TEMPLATES,
+    ]);
     expect(lShellFloorRuns(KITCHEN_L_DESIGN.room)).toStrictEqual({
       A: { wall: "A", startMm: 900, endMm: 3560 },
       B: { wall: "B", startMm: 900, endMm: 2820 },
@@ -161,6 +170,9 @@ describe("wave 7D7 S3a — largest even widths across rooms and depths", () => {
           ["p26", baseReturnMm, 570 + baseReturnMm / 2],
           ["p9", upperReturnMm, 330 + upperReturnMm / 2],
           ["p21", upperReturnMm, 330 + upperReturnMm / 2],
+          // The corner wall unit stands at the X-leg's own width and centre (M7C wave C2).
+          ["p27", xMm, xMm / 2],
+          ["p28", xMm, xMm / 2],
         ]);
         expect(findOverflowingPlacementIds(shell), where).toStrictEqual([]);
         const runs = lShellFloorRuns(inRoom);

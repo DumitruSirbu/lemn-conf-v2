@@ -36,6 +36,7 @@ import { MAX_DESIGN_DIMENSION_MM } from "../src/design-bounds.js";
 import type { Design, DesignPlacement, Handle } from "../src/design.js";
 import { deriveDoorCount } from "../src/door-count.js";
 import {
+  CORNER_WALL_UNIT_TEMPLATES,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   KITCHEN_L_PLACEMENTS,
@@ -298,9 +299,11 @@ function legalWidthsMm(
 
   const alreadyBuiltMm = [
     ...new Set(
-      KITCHEN_L_PLACEMENTS.filter(
-        (placement) => placement.body.buildId === buildId,
-      ).map((placement) => placement.body.widthMm),
+      // The corner wall unit stands in no seeded design; the shell's templates are its built widths
+      // (M7C wave C2).
+      [...KITCHEN_L_PLACEMENTS, ...CORNER_WALL_UNIT_TEMPLATES]
+        .filter((placement) => placement.body.buildId === buildId)
+        .map((placement) => placement.body.widthMm),
     ),
   ];
   if (alreadyBuiltMm.length > 0) return alreadyBuiltMm;

@@ -25,6 +25,7 @@ import {
   APPROVED_ROOM_POLICY,
   buildKitchenLBodyCatalog,
   buildLShellDesign,
+  buildUShellDesign,
   cabinetDepthRuleOf,
   canonicalSerializeDesign,
   CURRENT_SCHEMA_VERSION,
@@ -606,7 +607,10 @@ describe("buildLShellDesign — the offer list and the command agree on every op
         }
       }
 
-      expect(faces.voids.length).toBeGreaterThan(0);
+      // The smallest approved room's shell has no opening at all since M7C wave C2: wall A is all corner
+      // and the unit stands over its base, where the strip used to be. Every other room still has some.
+      const isAllCorner = room.widthMm === 900 && room.depthMm === 1000;
+      expect(faces.voids.length > 0).toBe(!isAllCorner);
       expect(disagreements).toStrictEqual([]);
     },
   );
@@ -827,7 +831,7 @@ describe("buildLShellDesign — wall A's floor run and the wall-end panel veto, 
     );
   }
 
-  it("records the floor band from the corner to the wall's end, odd spans one short, and the wall band over the corner untouched", () => {
+  it("records the floor band from the corner to the wall's end, odd spans one short, and no strip over the corner (the unit stands there)", () => {
     const parities = new Set<number>();
 
     for (const room of sweptRooms) {
@@ -846,10 +850,9 @@ describe("buildLShellDesign — wall A's floor run and the wall-end panel veto, 
         unionOf(emptyIntervalsIn(shell, "A", wall)),
         `A ${String(room.widthMm)}`,
       ).toStrictEqual(
-        unionOf([
-          { startMm: 0, endMm: CORNER_FAR_EDGE_MM },
-          ...segmentOf(CORNER_FAR_EDGE_MM, floorEndMm),
-        ]),
+        // The strip over the corner is gone (M7C wave C2): the corner wall unit stands there, so the
+        // wall band's recorded space is the floor run's alone.
+        unionOf(segmentOf(CORNER_FAR_EDGE_MM, floorEndMm)),
       );
     }
 
@@ -1317,11 +1320,22 @@ describe("buildLShellDesign — the engine's own limits (R1.2)", () => {
   );
 
   it("records no wall-only run in a room no taller than the wall row's floor, and a real one just above it", () => {
+    const LARGE_U: DesignRoom = {
+      shape: "U",
+      widthMm: 4500,
+      depthMm: 3000,
+      wallCMm: 3600,
+      heightMm: 2600,
+    };
     const wallRowFloorMm = toMillimetres(LEVELS[1]?.[0] ?? Number.NaN);
+    // On a base-only back wall, the one place a wall-only run is still recorded (M7C wave C2): a large U.
     const wallOnlyTiles = (heightMm: number) =>
-      (shellIn({ ...ROOM, heightMm }).emptyColumns ?? []).filter(
-        (tile) => tile.y0Mm > 0,
-      );
+      (
+        buildUShellDesign({
+          room: { ...LARGE_U, heightMm },
+          occurredAt: SHELL_OCCURRED_AT,
+        }).emptyColumns ?? []
+      ).filter((tile) => tile.y0Mm > 0);
 
     expect(wallOnlyTiles(engineL.height.minMm)).toStrictEqual([]);
     expect(wallOnlyTiles(wallRowFloorMm)).toStrictEqual([]);

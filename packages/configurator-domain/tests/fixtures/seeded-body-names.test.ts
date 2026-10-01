@@ -242,13 +242,14 @@ describe("a seeded body's name does not depend on the cabinet depth", () => {
   });
 
   // Guards the assertion above from passing vacuously: eighteen rows take their name from a
-  // catalogue equivalent, and the four corner rows deliberately declare none (ADR 0022).
-  it("has eighteen named rows to compare, and four deliberately unnamed", () => {
+  // catalogue equivalent, and the six corner rows deliberately declare none (ADR 0022; the corner wall
+  // unit's two joined them in M7C wave C2).
+  it("has eighteen named rows to compare, and six deliberately unnamed", () => {
     const named = namesAt(600).filter(
       ([, equivalentId]) => equivalentId !== undefined,
     );
 
     expect(named).toHaveLength(18);
-    expect(namesAt(600)).toHaveLength(22);
+    expect(namesAt(600)).toHaveLength(24);
   });
 });

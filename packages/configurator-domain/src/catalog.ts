@@ -1259,7 +1259,7 @@ export interface LabelledBody {
  *  Three sources, in the order a body's identity is actually decided. A §7 entry is named by the row
  *  the customer picked. A seeded instance is named by the row a §5.4 resize would rebuild it through
  *  (ADR 0064), so it is called the same thing before and after that resize migrates its `buildId`.
- *  Everything else — the four corner bodies, which declare no equivalent because §13.1 says a corner
+ *  Everything else — the six corner bodies, which declare no equivalent because §13.1 says a corner
  *  is not a body a customer chooses — is named by its kind. */
 export function describeBodyName(body: LabelledBody): BodyLabel {
   const { definition } = body;
@@ -1492,7 +1492,7 @@ export interface CatalogEquivalent {
  *  catalogue row by kind + band + width would be that mistake once more, and would be wrong
  *  silently: `base-drawer2-600` is a 600 mm two-drawer base and so is `base-3drawer`'s sibling row.
  *
- *  `undefined` for a body with no declared equivalent — the hob and the four corner bodies — which
+ *  `undefined` for a body with no declared equivalent — the hob and the six corner bodies — which
  *  is the correct answer for them rather than a missing one. */
 export function resolveCatalogEquivalent(
   catalog: BodyCatalog,
