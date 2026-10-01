@@ -409,6 +409,12 @@ machine carries. Read the workflow's own comments for the history; this section 
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
 | `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |
 
+**A pull request runs e2e when it carries the `run-e2e` label** (owner, 2026-10-01). Adding the label
+fires a `labeled` run whose shards and summaries run; every later push to that pull request runs them
+too, until the label is removed. Without it a pull request stays e2e-free, as before, for the Actions
+minutes. Any `labeled` event re-runs the workflow, so adding an unrelated label also starts a run. The
+Actions-tab `workflow_dispatch` on a branch remains the other way in.
+
 **The contract with branch protection is the two summary names, `e2e (desktop)` and `e2e (mobile)`.**
 They are the names the single `e2e` job carried, so sharding changes nothing a required-checks list
 says. The shard names are free to change and must **not** be required checks.

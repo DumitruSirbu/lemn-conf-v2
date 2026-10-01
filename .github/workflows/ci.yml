@@ -14,6 +14,9 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    # `labeled` so that adding `run-e2e` to a pull request starts a run that includes the e2e shards
+    # (owner, 2026-10-01). Without the label a pull request stays e2e-free, for the Actions minutes.
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
   # Lets the e2e jobs be asked for by hand from the Actions tab on any ref. They
@@ -357,7 +360,7 @@ jobs:
     # was the unexpanded `e2e (${{ matrix.project }})`, because a job skipped
     # before its matrix expands cannot name itself — as run 36734585613 shows — so
     # nothing reported under the name `e2e (desktop)` on a pull request.)
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
     env:
       # Same secret, same reasoning as the `test` job above, and the same
       # deliberate omission of DATABASE_URL. Note what that omission costs here:
@@ -448,7 +451,7 @@ jobs:
         total: [4]
     timeout-minutes: 45
     needs: [install, test]
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
     env:
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     steps:
@@ -531,7 +534,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: e2e-desktop-shard
-    if: ${{ always() && github.event_name != 'pull_request' }}
+    if: ${{ always() && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
     steps:
       - name: Require every desktop shard to have passed
         env:
@@ -557,7 +560,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: e2e-mobile-shard
-    if: ${{ always() && github.event_name != 'pull_request' }}
+    if: ${{ always() && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
     steps:
       - name: Require every mobile shard to have passed
         env:
