@@ -1,8 +1,7 @@
 # M7C — M7 feedback fixes
 
 **Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA; the
-owner answered Q1, Q3, Q4 and Q7 the same day. C1 S1 is done (`8269440`); C1 S2 is running. Dispatchable: CE S0 and C4 S0 (neither writes
-production code). The owner answered Q5 and Q6. C1 S3 waits on the owner confirming two points of the warning (Q1b); C2 on
+owner answered Q1, Q3, Q4 and Q7 the same day. C1 S1 is done (`8269440`); C1 S2 is running. Dispatchable: CE S0. C4 S0 is done: S1 is concrete, S2 is stopped on a ruling (the joint). The owner answered Q5 and Q6. C1 S3 waits on the owner confirming two points of the warning (Q1b); C2 on
 Q2; C3 after C2; C4 S1 after C3; C5 after C4.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
@@ -187,7 +186,7 @@ ADR 0113.
 | C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done**; S2 **ready**; S3 on Q1b |
 | C2 | FB-004, FB-011 | P0 | Full + visual | On Q2 |
 | C3 | FB-003 | P1 | Full + visual | After C2 |
-| C4 | FB-006 | P1 | Full + visual | S0 **ready** |
+| C4 | FB-006 | P1 | Full + visual | S0 done; S1 ready after C3; S2 **stopped**, on a ruling |
 | C5 | FB-010 | P2 | Full | After C3 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | S0 **ready** |
 | C6 | Phase gate | — | Coordinator + visual | Last |
@@ -334,39 +333,139 @@ E11 and F9 for the logic reviewer.
 
 ### C4 — the corner seam (adapter and domain)
 
-Q5 answered: everything on one line. Two seams, opposite directions [C0]: the side-wall return is behind (worktop −20,
-carcass +10; its bare carcass is 8 / 10 mm behind the neighbour's door), the back-wall X-leg is proud
-(worktop +10, door +11, carcass +10).
+Q5 answered: everything on one line. **S0 (design) ran 2026-10-01. S1 is concrete. S2 is STOPPED:
+the X-leg's door cannot move back without moving the joint, which ADR 0025 pins. It waits on a ruling.**
+
+**S0 — what the source says** (figures at depth D; world distance from the piece's own wall plane).
+
+| Piece | Carcass front | Face | Worktop front | Plinth front | Source |
+| --- | --- | --- | --- | --- | --- |
+| A base run body | D − 30 | D − 11 (door; C0 reads 588 at 600) | D + 20 | D − 90 | `kitchen-parts.ts:297-314, 426-429, 884-886, 942` |
+| Return today | D − 20 | D − 20 (bare carcass) | D | D − 80 | `:2058-2063, 2084-2131` |
+| X-leg today | D − 20 | D − 1 (door) | D + 30 | D − 80 | `:1943, 1968-2047` |
+
+- **The return** is behind because it is built `D − 20` deep with a 20 mm worktop overhang and no front.
+  Built `D − 30` deep, with the run's own 50 mm overhang and a fixed front at the run's own door
+  offset (`carcass front + TH/2 + 0.001`, the expression `baseCabinet` uses at `:942`), all four of its
+  lines equal a base run's **by construction**, at every depth. Its back face stays on the wall (row 19).
+- **The X-leg's door stands on its carcass front** (`:2029`), and that carcass is a solid box whose front
+  is the joint: the return's near edge along its wall is `baseSeatDepthMm` = `D − 20`
+  (`corner-assembly-size.ts:404-411`), the same plane. To bring the door back 11 mm the carcass front
+  must go to `D − 30`. Then either a 10 mm open slit appears between the X-leg and the return, or the
+  return's near edge moves to `D − 30` too. **That is moving the joint.**
+- The X-leg's worktop alone could move (overhang 50 → 40) without the joint, but if the joint moves the
+  worktop lands on the line with no constant changed. So S2 is one decision, not two.
+- **The wall-row return does not move with the X-leg.** Its near edge is the wall-cabinet depth (330 /
+  400), a separate arm of `nearEdgeMm`. **C2's 570 mm strip cabinet is unaffected under either ruling,
+  and C4 does not depend on C2 or C3** except for complete captures.
+
+**The ruling S2 waits on** (coordinator, with the owner if the visible result differs):
+- **(J) Move the joint to `D − 30`.** Meets Q5 in full. The base return becomes 330 mm wide (570–900 at
+  600), the X-leg's blind span 570, its door 290. Touches: ADR 0025 d1–d3 (frame 560 and its −0.020
+  pin: the X-leg is either seated −30, or built `D − 10` deep and kept at −20; S2 chooses and says why),
+  `corner-assembly-size.ts` (`nearEdgeMm`, `blindSpanMm`), the engine's corner floor (880 → 870 by
+  `narrowestCornerReachMm`; the approved 900 / 1000 of ADR 0125 do not move), `SPEC.md`'s *"Carcass
+  faces meet at z = 0.580"*, the id `base-corner-return-320` (a name, kept), every generated design's
+  base return, and designs already stored in preview and test databases, whose return stays 320 wide
+  and would show the 10 mm slit (ADR 0038: pre-release, no migration owed; stated, not hidden).
+- **(K) Keep the joint.** Only the X-leg's worktop moves (overhang 50 → 40; the return's slab then starts
+  10 mm earlier). Its door stays 11 mm proud and its carcass and plinth 10 mm. Q5 is then half met on
+  the back wall, and the owner must be told.
+- *Architect's lean: (J)*, because Q5's answer is the owner's and (K) does not deliver it. Not decided here.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
-| S0 | Design, no production code: which constants move each of the four offsets to zero, and whether the X-leg's front can move without moving the joint (its carcass front is the return's along-wall start, 580 at 600). If it cannot, S0 stops and reports. | — | `kitchen-parts.ts:290-314, 1932-2131`; ADR 0025, 0077; `corner-assembly-size.ts`; C0 S1's script and output |
-| S1 | The return: worktop front +20; a front on its bare carcass so its face meets its neighbour's. | `three-adapter/src/kitchen-parts.ts`; `configurator-domain/src/catalog.ts`, `fixtures/kitchen-l-design.ts` (declared occupied depths, fronts) | as S0; ADR 0135 draft; ADR 0021 d2; `product-invariants.md` |
-| S2 | The X-leg: worktop front −10; front −11, as S0 designed it. | as S1; `docs/design/SPEC.md` | as S1; backlog 50 |
+| S1 | The return leg, as below. Independent of J / K. | `three-adapter/src/kitchen-parts.ts`, `three-adapter/src/body-finish-surfaces.ts`; `configurator-domain/src/fixtures/kitchen-l-design.ts`, `catalog.ts` (only if `baseCarcassDepthMm`'s neighbour needs a named sibling); `docs/design/SPEC.md` | this section; ADR 0135 draft; ADR 0025, 0077, 0021 d2, 0099 (corner colour); `kitchen-parts.ts:290-314, 884-962, 1932-2131`; `kitchen-l-design.ts:105-128, 385-428`; C0 `s1-seams.mts`, QA `c0-qa/qa-s1s2.mts`; `product-invariants.md` |
+| S2 | The X-leg, under the ruling. Not dispatchable. | set by the ruling | set by the ruling |
+
+**S1 — constants, old → new** (`kitchen-parts.ts`; values at 600 / 700):
+
+| Constant or expression | Old | New |
+| --- | --- | --- |
+| `CORNER_RETURN_DEPTH_M` (`:2058`), the return's carcass depth | `D − 20` (580 / 680) | `D − 30` (570 / 670), written as the run's carcass front, not as a literal |
+| `CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M` (`:2063`) | 0.02 | the run's own front overhang, 0.05, read from the counter's constants |
+| `CORNER_RETURN_WORKTOP_DEPTH_M` (`:2078`) | 600 / 700 | 620 / 720 (derived; back face still on the wall) |
+| New mesh `fixed_front` in `cornerBaseReturn` | — | a box `W − 0.006` × `CARC_H − 0.01`, 18 mm, at `cFront + TH/2 + 0.001`, wearing the body's finish; no handle |
+| The X-leg's leaf: `accessibleFrontM`, `leafWidthM` (`:2015-2019`) | read `CORNER_RETURN_DEPTH_M` | read a constant of their own, held at `D − 20`, so the leaf does not move in S1 |
+| Domain: return's `frameDepthMm` (`kitchen-l-design.ts:423`) | `baseSeatDepthMm` (580) | `D − 30` (570) |
+| Domain: `cornerBaseReturnFinishedDepthMm` (`:125`) | `D` | `baseFinishedDepthMm(D)` (620 / 720) |
+
+Expected result, to be measured by S1's implementer with C0's script [inf until then]: return against
+a base neighbour, worktop −20 → 0, face −8 → 0 (−2 beside a hob), carcass +10 → 0, plinth +10 → 0.
+
+*Checked in S0, from source.* **Price:** the return is priced by its build id
+(`sample-price-book.ts:223-224`), so a new mesh adds no line; `fronts: NO_OPENING_FRONTS` stays, so no
+hardware line. **Picking and outline:** the front is a child mesh of the return's own group [inf that
+picking resolves it to the placement; S1 verifies]. **Finish:** `body-finish-surfaces.ts`'s census gains
+one painted mesh for the return. **Name:** not `door_front`, so no front, handle or push-to-open census
+counts it. **`findCornerOverlaps`:** reads the seat, which shrinks by 10; no new overlap [inf; S1's
+criterion 5].
+
+*Parity pins that move in S1* (`kitchen-parts.parity.test.ts:842-850` builds the return against the
+vendored reference at each depth): the return's `carcass` (depth, z), `plinth` (depth, z), `countertop`
+(depth, z) and the added `fixed_front`. Each is entered as a named departure with old and new value, the
+way ADR 0098's sink slabs are (`:138-170`). Also restated, each with its reason:
+`cabinet-depth-sweep.parity.test.ts` (the return *"1 mm proud of the column run"*),
+`declared-frame-depth-sweep.test.ts`, `corner-seat-chain.test.ts`, `the-corner-wears-a-colour.test.ts`,
+`fixtures/kitchen-l-corner-base.test.ts`, `occupied-depth.test.ts`,
+`backlog-50-the-corner-the-validator-cannot-see.test.ts`. This list is from a grep, not a run; a pin
+outside it that moves is reported, not absorbed.
+
+**One consequence to show the owner at the visual gate.** The return was drawn to meet a *tall* run:
+its worktop finishes on the cabinet-depth line, 1 mm proud of a column (`kitchen-l-design.ts:119-124`).
+A base run's door is about 10 mm behind a column's [inf]. So where the return's side-wall neighbour is a
+tall column, as in the seeded reference kitchen, S1 leaves the return about 10 mm behind that column and
+its worktop 20 mm in front, exactly as any base cabinet beside a column stands. S1 measures both
+neighbour kinds.
 
 *3D contract.* Anchor: each wall's own plane. At depth D every base body on a wall, corner pieces
-included, has its worktop front edge at one distance from that plane (620 at 600, 720 at 700) and its
-front face at one distance (588 / 688). Scaling: follows the depth setting. Dependencies kept: the
-X-leg's −20 seat; each leg's plinth recess from its own depth only; no two stone volumes interpenetrate
-and no coplanar faces; the right corner's four pieces mirror the left's.
+included, has its carcass front at `D − 30`, its worktop front at `D + 20`, its plinth front at `D − 90`
+and its front face on the run's door plane. Scaling: follows the depth setting. Dependencies kept: each
+leg's plinth recess from its own depth only; no two stone volumes interpenetrate and no coplanar faces
+(the return's slab still butts the X-leg's); the right corner's pieces mirror the left's; the X-leg's
+seat is not touched in S1.
 
-*Criteria.*
-1. For L, right-hand L and U at 600 and after a change to 700, at all four kinds of seam, the signed
-   worktop difference (corner minus neighbour) is 0 ± 1 mm. C0 S1's script is the instrument; today it
-   reads −20 and +10.
-2. At the same seams the signed front-face difference is 0 ± 1 mm beside a door or drawer front.
-   Today: −8, −10 (beside a hob; the return's carcass against a door) and +11 (door against door). Beside a hob the bound is ADR 0135's, stated with its reason.
-3. *Must not:* the two legs' slabs intersect; the X-leg's seat changes; a plinth stands proud of its own
-   carcass front; any non-corner body's geometry moves; the return gains a handle, a finish control or a
-   door count (ADR 0021 d2), or a price line.
-4. The M1 parity gate's corner pins change only for the meshes ADR 0135 lists, each with its old and
-   new value. An unlisted change is a failure.
-5. `findCornerOverlaps` reports nothing on the seeded kitchen and on every generated one.
+*Criteria (S1).*
+1. For L, right-hand L and U at 600 and after a change to 700, at every return seam with a base
+   neighbour, the signed worktop, face, carcass and plinth differences are 0 ± 1 mm; beside a hob
+   cabinet the face is within 2 mm. C0's script is the instrument; today it reads −20, −8 / −10, +10.
+2. Beside a tall column the differences are measured and stated, and are those of a base cabinet
+   beside the same column.
+3. The X-leg's meshes are byte-identical to `HEAD`'s at both depths. *Must not:* the return gains a
+   handle, a door count, a finish control or a price line (ADR 0021 d2); its back face leaves the wall;
+   the two legs' slabs intersect; any non-corner body moves.
+4. The parity gate's pins move only for the meshes listed above.
+5. `findCornerOverlaps` and `validateDesignForCatalog` report nothing on the seeded kitchen and on
+   every generated one, at 600 and 700.
+6. Tapping the fixed front selects the return and shows its structural explanation; a kitchen colour
+   paints it.
 
 *Visual evidence:* top-down captures of both corners of a U and of an L at 600 and 700, beside
-`M7-FB-006.png`. *QA reading:* the criteria, C0 S1's script, `kitchen-parts.decomposition.parity.test.ts`.
-*Logic reviewer:* ADR 0025, 0077, 0135, S0's design, the diff. *Clean-code reviewer:* the diff.
-*Visual:* the captures.
+`M7-FB-006.png`, and the seeded kitchen's corner against its tower. *QA reading:* the criteria, C0's
+and QA's scripts, the parity test. *Logic reviewer:* ADR 0025, 0077, 0135 draft, this section, the
+diff. *Clean-code reviewer:* the diff. *Visual:* the captures.
+
+**ADR 0135 — draft decision text, for the scribe.** *The corner pieces stand on the run's lines, and
+the base return is a base body with a fixed front.*
+1. Owner, 2026-10-01 (M7C Q5, relayed selection): *"Everything on one line"*. At a corner, every base
+   piece's worktop front edge and front face stand on the same line as the base cabinets beside it.
+2. Measured before the change (C0, confirmed by QA): the base return's worktop 20 mm behind, its bare
+   carcass 8–10 mm behind the neighbour's door; the X-leg's worktop 10 mm and door 11 mm in front.
+   Identical at 600 and 700.
+3. The base return is built to the run's carcass depth (`D − 30`), carries the run's worktop overhang
+   and a fixed front on the run's door plane. Each figure is derived from the run's own constants, never
+   tuned to a measured gap. It stays structural (ADR 0021): no handle, no door count, no control, no
+   price line of its own.
+4. This amends ADR 0025's table and decision 1 for the return (580 → 570 deep, frame 580 → 570). Its
+   back face stays on the wall plane; §11 row 19 is untouched.
+5. The X-leg: *[the ruling on (J) or (K), with the alternatives and the reason]*. If (J): the joint is
+   the run's carcass front, `D − 30`; ADR 0025 d2's `0.58` seam and d3's pin are restated by value; the
+   engine's corner floor follows the derivation and the approved minima (ADR 0125) do not move.
+6. Rejected: an 8 mm panel on the unchanged carcass (a thickness chosen to close a measured gap, and the
+   carcass and plinth stay 10 mm proud); a door on the return (it would be a front that opens onto a
+   blind box).
+7. The supplier's reference geometry is departed from on purpose; each moved mesh is a named departure
+   in the parity gate.
 
 ### C5 — the leftover beside a fixed-width end body (domain)
 
