@@ -213,6 +213,7 @@ function seatedBackFace(
     alongM: 1.2,
     y0M: 1.5,
     depthM: persistedMm / 1000,
+    roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
   });
 
   const body = buildCatalogBody(kit, buildId, request);

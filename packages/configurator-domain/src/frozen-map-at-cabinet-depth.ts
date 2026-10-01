@@ -118,6 +118,10 @@ export interface FrozenExtentsSlideQuery {
   readonly cabinetDepthMm: number;
   readonly previousCabinetDepthMm: number;
   readonly membersShiftMmByColumn: ReadonlyMap<string, number>;
+  /** Which walls take a corner on this room (M7B U2 S3, D9) — a U's wall C slides on its own corner
+   *  exactly as wall B does on the left one, and `cornerTakingWallsOf` is what tells the two ladder
+   *  functions below which walls that is, for this design's shape. */
+  readonly room: DesignRoom;
 }
 
 /** ADR 0090 decisions 1 and 2: every positioned fact in the map moved onto the chain the body it
@@ -161,6 +165,7 @@ function alongWallQueryFor(
     fromCabinetDepthMm: input.previousCabinetDepthMm,
     toCabinetDepthMm: input.cabinetDepthMm,
     membersShiftMm: input.membersShiftMmByColumn.get(extent.key),
+    shape: input.room.shape,
   };
 }
 
@@ -235,6 +240,7 @@ function atCurrentCabinetDepth(
   slid: ReadonlyMap<string, Column>,
   input: FrozenMapAtCabinetDepthInput,
 ): ReadonlyMap<string, Column> {
+  const roomWidthM = toMetres(input.room.widthMm);
   // No stored half on either call: these two maps are only ever read for the depth their **members**
   // imply, and restoring the frozen entries into them would answer with the very numbers being
   // re-measured.
@@ -265,7 +271,7 @@ function atCurrentCabinetDepth(
     ) {
       continue;
     }
-    republished.set(key, atDepthM(column, published));
+    republished.set(key, atDepthM(column, published, roomWidthM));
   }
   return republished;
 }
@@ -504,14 +510,19 @@ const FROZEN_SURPLUS_EPSILON_M = 1e-9;
  *  the guarantee: this is the one seam in the product that has ever written a `Column.d` without the
  *  source that explains it, and a caller that tries to now fails to compile rather than shipping a
  *  record that lies about where its own depth came from. */
-function atDepthM(column: Column, published: PublishedDepth): Column {
-  const wall = getWallTransform(column.wall);
+function atDepthM(
+  column: Column,
+  published: PublishedDepth,
+  roomWidthM: number,
+): Column {
+  const wall = getWallTransform(column.wall, roomWidthM);
   const alongM = wall.tangent.x * column.x + wall.tangent.z * column.z;
   const { position } = deriveCabinetWorldTransform({
     wall: column.wall,
     alongM,
     y0M: columnFloorM(column),
     depthM: published.d,
+    roomWidthM,
   });
   const moved: MutableColumn = {
     ...column,

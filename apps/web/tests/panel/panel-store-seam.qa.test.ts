@@ -16,10 +16,16 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   buildableWidthSpanMm,
+  columnWidthChoices,
+  cornerDirectionOf,
   describeSelection,
   KITCHEN_L_DESIGN,
   offersFor,
+  widthOptionsFor,
+  widthStepsFor,
   type Design,
+  type WidthOption,
+  type WidthSteps,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -32,11 +38,55 @@ import { paletteFinish } from "@lemnaria/configurator-domain";
 import { PAL_KITCHEN } from "../support/panel-material";
 import { swatchSectionOf } from "../support/panel-sections";
 
+/** `useSelectionWidthAnswers`'s own composition (`use-panel-view.ts`): both width answers run the
+ *  real resize command once per candidate, off `state.recordedColumns` and a borrowed probe — empty
+ *  and `undefined` without one, which is the honest answer rather than a degraded one. */
+function widthAnswersFromStore(state: ConfiguratorState): {
+  options: WidthOption[];
+  steps: WidthSteps | undefined;
+} {
+  const {
+    design,
+    recordedColumns: columns,
+    catalog,
+    selection,
+    probeAt,
+  } = state;
+  if (!selection || !probeAt) return { options: [], steps: undefined };
+  return probeAt(cabinetDepthMmOf(design)).use((probe) => ({
+    options: widthOptionsFor({
+      design,
+      columns,
+      catalog,
+      target: selection,
+      probe,
+    }),
+    steps: widthStepsFor({
+      design,
+      columns,
+      catalog,
+      target: selection,
+      probe,
+    }),
+  }));
+}
+
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
   const { records, voids, columns, catalog, selection } = state;
+  const widthAnswers = widthAnswersFromStore(state);
   return describePanel({
     content: ro,
+    // ADR 0129 D8, QA 7I coverage gap: `usePanelView` selects this straight off the store
+    // (`cornerDirectionOf(state.design.room)`). Review L1.5: this mirror computes it the same way,
+    // so no test in this file — including "reads the reflected width note on a right-hand room"
+    // below — can catch the real `use-panel-view.ts` hook dropping this wiring; only a suite that
+    // renders (or drives) the real hook can. The real guard is the e2e at
+    // `tests/e2e/support/qa-7i-captures.ts:196`, which asserts the reflected note against the
+    // actually-rendered app. What this file's own test *does* still buy: proof that `describePanel`
+    // renders the right note once handed a right-hand direction, which is the half of the wiring a
+    // pure-function suite can reach.
+    direction: cornerDirectionOf(state.design.room),
     material: PAL_KITCHEN,
     meta: selection
       ? describeSelection({ records, voids, catalog, target: selection })
@@ -56,7 +106,15 @@ function panelFromStore(state: ConfiguratorState): PanelView {
     // passing it stayed green here.
     buildableWidthSpanMm: buildableWidthSpanMm(catalog),
     rejection: state.lastRejection,
-    widthOptions: [],
+    widthOptions: widthAnswers.options,
+    widthSteps: widthAnswers.steps,
+    widthRanges: selection
+      ? (columnWidthChoices({
+          design: state.design,
+          catalog,
+          target: selection,
+        })?.widthRangesMm ?? [])
+      : [],
     isBodyProbeAttached: state.isBodyProbeAttached,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,
@@ -263,5 +321,28 @@ describe("the panel over the store's own state", () => {
       expect(attempt.getState().lastRejection, row.buildId).toBeNull();
       expect(row.isDisabled, row.buildId).toBe(false);
     }
+  });
+
+  // ADR 0129 D8, QA 7I coverage gap. `usePanelView` reads `cornerDirectionOf(state.design.room)`
+  // straight off the store and passes it to `describePanel` — nothing else in this file exercises
+  // a room whose `cornerDirection` is `"right"`. Review L1.5: because `panelFromStore` (above) is a
+  // seam mirror that re-derives `direction` itself rather than calling the real hook, this proves
+  // `describePanel` renders the reflected note given a right-hand direction, not that the real
+  // hook still passes one — that half is guarded by the e2e at
+  // `tests/e2e/support/qa-7i-captures.ts:196`.
+  it("reads the reflected width note on a right-hand room", () => {
+    const rightHandDesign: Design = {
+      ...KITCHEN_L_DESIGN,
+      room: { ...KITCHEN_L_DESIGN.room, cornerDirection: "right" },
+    };
+    const store = createStore({ design: rightHandDesign });
+    store.getState().select({ kind: "placement", id: "p0" });
+
+    const section = openPanel(store.getState()).sections.find(
+      (candidate) => candidate.kind === "width",
+    );
+    if (section?.kind !== "width") throw new Error("no width section");
+    expect(section.note).toBe(ro.panel.widthStepNoteRight);
+    expect(section.note).not.toBe(ro.panel.widthStepNote);
   });
 });

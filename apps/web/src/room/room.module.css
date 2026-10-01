@@ -1,0 +1,1621 @@
+/**
+ * **Step 1's screen, drawn as frames 1A and 1B draw it**
+ * (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:48-99` and `:101-187`). Every figure
+ * below is the frame's own. Where wave 7F1 departs from the frames it says so by name — see
+ * *Departures from frames 1A and 1B* in `docs/milestones/M7-room-and-presets.md` — and the one
+ * departure it declares is the plan preview's **scale**, which is arithmetic this file never does.
+ * Nothing here departs silently.
+ */
+
+/* **1C's surface colours** (frame 1C `:226`, `:228-229`): the pale fill of a refused field and of a
+ * reason, the reason's dark red ink, and the white of its `!` badge. The red itself is the global
+ * `--refusal`. Declared on the screen because a reason is drawn at 1A as well as from 1B on: the shape
+ * refusal sits under the cards and under the chips (7F2 S4). */
+.screen {
+  --refusal-surface: #fdf3f3;
+  --refusal-ink: #8f2020;
+  --refusal-badge-ink: #fff;
+
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--paper);
+}
+
+/**
+ * **The band's rule is drawn by the cells rather than by the bar**, which is
+ * `configure.module.css`'s own mechanism and its head comment carries the argument. It is load
+ * bearing here for one concrete reason: until ruling R5 lands, the locale cell **is** that
+ * stylesheet's `.locale` — wave 7F1 renders the editor's `LocaleMenu` where it stands
+ * (`room-screen.tsx`'s import comment records why R5 was deferred) — and `.locale` draws
+ * `border-bottom` itself, so a rule on the bar as well would paint a second line under the chip.
+ *
+ * Two things follow, and both are the deferral's conditions rather than taste. `configure.module.css`
+ * keeps **every** rule it has: nothing here reaches into it, and the coupling is paid for entirely on
+ * this side. And `.locale`'s `grid-area: locale` is inert in the flex row below, because no grid here
+ * names that area — which is what lets the cell be borrowed without its positioning coming too.
+ *
+ * The frame's `padding: 11px 14px` is split across the row's outer cells, so the rule underneath
+ * runs the whole width while the contents keep the frame's inset, and the 9 px the frame puts
+ * between the title and the chip is the locale cell's own left padding.
+ */
+.topBar {
+  display: flex;
+  align-items: stretch;
+}
+
+.topBarCell {
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 0 11px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.wordmark {
+  flex: 0 0 auto;
+  font: 700 12px/1 var(--font-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* The step, as the frame draws it. `tabular-nums` is the mockups' own `.num` class: the numerator
+ * changes with the step and a proportional `1` would move the slash. */
+.stepPill {
+  flex: 0 0 auto;
+  padding: 5px 6px;
+  font: 700 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--paper);
+  background: var(--accent);
+  border-radius: 5px;
+}
+
+/* `min-width: 0` is what makes the ellipsis possible: a flex item's automatic minimum size is its
+ * min-content width, so without it a long title grows the row and pushes the locale chip off a
+ * 390 px screen (ADR 0082 decision 1, one level down). */
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 700 15px/1 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  --column-gap: 18px;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--column-gap);
+  padding: 22px 18px;
+  overflow: hidden;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.question {
+  margin: 0;
+  font: 700 24px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+.lead {
+  margin: 0;
+  font: 400 13.5px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.shapes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Frame 1A `:70`: the card is `min-height: 88px`, which is the 44 px target twice over — no
+ * expansion is needed and none is declared (ADR 0104 decision 5). `position: relative` is the
+ * control's positioning context; see `.shapeControl`. */
+.shapeCard {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  min-height: 88px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+/**
+ * **The radio fills its card rather than hiding in a corner of it.** A clipped one-pixel input is
+ * the usual way to hide a native control, and it would fail criterion 14: `elementFromPoint` at the
+ * corners of the input's 44 px box would answer with the label *around* it, which is an ancestor and
+ * not "that element or its own descendant". Stretched over the card the control **is** the target it
+ * looks like, and the card's own box is what the customer's thumb lands on.
+ *
+ * It keeps its focus ring through `.shapeCard:focus-within` below, so nothing opts out of the
+ * browser's focus indicator.
+ */
+.shapeControl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.shapeCard:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* The chosen card, in the frame's own language for a chosen thing: frame 1B's selected shape chip
+ * (`:123`) is `#ece7dd` behind a 2 px accent border with its label at 700 on `--accent-strong`. The
+ * border replaces the 1 px one rather than adding to it, so the row does not move when a card is
+ * chosen. */
+.shapeCard:has(.shapeControl:checked) {
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+  padding: 17px;
+}
+
+.shapeCard:has(.shapeControl:checked) .shapeName {
+  color: var(--accent-strong);
+}
+
+.shapeGlyph {
+  flex: 0 0 auto;
+}
+
+.shapeText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shapeName {
+  font: 700 16px/1.2 var(--font-ui);
+}
+
+.shapeDetail {
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.note {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.footer {
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+/**
+ * Frame 1A draws the inactive CTA (`:94`) and frame 1B the active one (`:183`), and this is both.
+ * It is a real `<button>` where the frames draw a `<div>`: ADR 0104 decision 6 asks for a `div` on a
+ * control **wired to nothing**, and this one is wired — it pushes the canonical query. A `div` here
+ * would be the opposite error, a thing that acts as a control while announcing itself as text.
+ *
+ * 52 px is the frame's height and is already past the 44 px target.
+ */
+.cta {
+  display: flex;
+  width: 100%;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  font: 700 15px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.cta:disabled {
+  color: #a89c8e;
+  background: #ece7dd;
+  border: 1px solid var(--line);
+  cursor: default;
+}
+
+/* ── Sub-state 1B (frame `:114-186`) ──────────────────────────────────────────────────────────── */
+
+/**
+ * The frame's own column (`:114`), **scrolling vertically when 1C outgrows it** — owner ruling
+ * Q-7F2-2 (a), the remedy `.composeBody` already carries (7D5b W7). A reason adds 64 px to its field
+ * and the note 18 px, against 2.6 px of slack in a U and 63 px in an L at 1B (7F2 S0), so under the
+ * frame's `overflow: hidden` a refused field or *Continuă*'s explanation would be cut off with no way
+ * to reach it. The column scrolls, the footer stays put, and nothing is removed or compressed.
+ *
+ * Both axes are declared because a lone `overflow-y: auto` computes `overflow-x` to `auto` as well,
+ * and ADR 0082 decision 2 refuses a horizontal scroller.
+ *
+ * The column's gap is named — as 1A's `.body` names its own — so an empty status region can give
+ * exactly that much back. 1C's surface colours are the screen's (`.screen`).
+ */
+.dimensionsBody {
+  --column-gap: 16px;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--column-gap);
+  padding: 20px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/**
+ * **The shape refusal's status region** (7F2 S4), under the cards at 1A and under the chips from 1B
+ * on; its sentence is a `.reason`. It is in the tree while empty so its sentence is announced, and an
+ * empty region gives back the gap in front of it, as `.oneCStatus` does (the rule below that one).
+ */
+.shapeRefusal {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The three shapes again, compressed (`:116-131`). The chip is 71 px tall, so the 44 px target is
+ * the painted box and no expansion is declared (ADR 0104 decision 5). */
+.shapeChips {
+  display: flex;
+  gap: 10px;
+}
+
+.shapeChip {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+/* Stretched over the chip for `.shapeControl`'s reason: a clipped one-pixel input would make
+ * `elementFromPoint` answer with the label around it, which is an ancestor and not the control. */
+.shapeChipControl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.shapeChip:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* The chosen chip, `:123`. The 2 px border replaces the 1 px one out of the padding, so choosing a
+ * chip does not move the row. */
+.shapeChip:has(.shapeChipControl:checked) {
+  padding: 10px 7px;
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+}
+
+.shapeChipName {
+  font: 400 12px/1 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.shapeChip:has(.shapeChipControl:checked) .shapeChipName {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.planCaption {
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/**
+ * The frame's box (`:134`), and the coordinate space the plan is drawn in: `plan-preview.tsx` hands
+ * the model the pixels *inside* this border, so a wall's rectangle and the label beside it are placed
+ * in the units they are painted in. Its height comes from that one constant rather than from a
+ * figure repeated here.
+ *
+ * **The border's width is published by `plan-preview.tsx`, not written here.** Every element is
+ * `border-box` (`globals.css:53-55`), so this line is spent out of the box's own width and height:
+ * stated here it would be a second figure, and a drawing laid out against the first one runs under
+ * it. One number, declared where the box the model is handed is worked out.
+ *
+ * `overflow: hidden` is the frame's own, and it is what makes a narrower viewport clip the drawing
+ * instead of widening the document — the refusal ADR 0082 decision 2 states.
+ */
+.planBox {
+  /* Frame 1C's red wall and its label (`Mobil.dc.html:210-211`), the global `--refusal` — the red a
+   * refused field and its reason are set in too. Published here under the plan's own name:
+   * `plan-preview.tsx` fills a marked bar from it and the label below is set in it. */
+  --plan-wall-issue: var(--refusal);
+
+  position: relative;
+  background: var(--paper);
+  border: var(--plan-box-border) solid var(--line-soft);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.planDrawing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}
+
+/* The frame's label type (`:137-138`), at the frame's own size. `--plan-label-line` is published by
+ * `plan-preview.tsx` from the line height the model keeps a lane clear for: set here as a figure of
+ * its own, a change to it would shrink or overflow that lane silently. */
+.planWallLabel {
+  position: absolute;
+  font: 700 var(--plan-label-line) / 1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.planWallLabel[data-marked="true"] {
+  color: var(--plan-wall-issue);
+}
+
+.corner {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cornerHeading {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.cornerQuestion {
+  font: 700 12.5px/1 var(--font-ui);
+}
+
+.cornerHint {
+  font: 400 11px/1 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.cornerChoices {
+  display: flex;
+  gap: 10px;
+}
+
+.cornerChoice {
+  position: relative;
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 11px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/**
+ * **The control is the 44 px target, and the chip stays the 42 px the frame draws** (criterion 14,
+ * ADR 0104 decision 5). The surplus is taken by the absolutely positioned input growing one pixel
+ * past its chip on each side rather than by a `min-height` on the painted box, so it costs no
+ * layout — and it is the *input* that grows, because `elementFromPoint` at the corners of a 44 px
+ * box must answer with the control itself and a pseudo-element on the label around it would answer
+ * with an ancestor. A pseudo-element on the input is not an option either: `input` is a replaced
+ * element and renders none.
+ *
+ * **The surplus is vertical only**, which is the same care `configure.module.css:259-274` takes:
+ * a horizontally overflowing target would make ADR 0082 decision 1's clip predicate read this row
+ * as truncated.
+ */
+.cornerControl {
+  position: absolute;
+  inset-block: calc((100% - var(--touch-target)) / 2);
+  inset-inline: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.cornerChoice:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.cornerChoice:has(.cornerControl:checked) {
+  padding: 7px 10px;
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+}
+
+.cornerGlyph {
+  flex: 0 0 auto;
+}
+
+.cornerName {
+  font: 700 12.5px/1.25 var(--font-ui);
+  min-width: 0;
+}
+
+.cornerChoice:has(.cornerControl:checked) .cornerName {
+  color: var(--accent-strong);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/**
+ * **Wave 7A3's hint above the wall fields**, in `.cornerHint`'s quiet voice rather than a type of its
+ * own. Its line height is its own, so a locale whose hint wraps does not set two lines touching.
+ *
+ * **It leads the group at the label's distance, not the fields'.** The negative margin gives back half
+ * of `.fields`' 12 px gap, so the hint sits 6 px above the first label — the same 6 px a label sits
+ * above its box — and reads as belonging to what follows. Half of the space the U layout below wins
+ * back (7A3 defect D1).
+ */
+.lengthsHint {
+  margin-block-end: -6px;
+  font: 400 11px/1.4 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.fieldLabel {
+  font: 700 12.5px/1 var(--font-ui);
+}
+
+/**
+ * **The label's row, and the wall's help at its right end.** The help button is absolutely placed, so
+ * it contributes no height and the row stays the 12.5 px line the frame draws: the fields' vertical
+ * rhythm does not move (7A3 criterion 22). `position: relative` makes this row the anchor of both the
+ * button and the explanation.
+ */
+.fieldHeading {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+/**
+ * **The help sits above the unit, at the right end of the label row — owner ruling, 2026-09-17 (7A3
+ * defect D2).** Its target is a full 44 x 44 (`--touch-target`, ADR 0104 decision 5), and **no part of
+ * it may lie over an input**. Beside the label that cannot hold: at 390 x 844 a wall's input ends
+ * 32.5 px above the next one begins, so any 44 px-tall target there takes taps from a box. To the
+ * right of the inputs it can — the unit and the box's own padding end each input at least 33 px short
+ * of the box's edge — so the button is placed there, and reaches `--length-help-bleed` into the
+ * column's 18 px padding to clear the input. It stops inside that padding, so it never meets the
+ * screen's edge, and being absolutely placed it adds nothing to the clipping column's scroll width.
+ *
+ * The button **is** the target: 44 px square, with no pseudo-element to widen it, so what a
+ * measurement reads off its box is what a thumb can hit. **That is also why the tap highlight is
+ * cleared**: a mobile browser paints it over the whole box, and here the box is an invisible square
+ * hanging off the field's corner rather than anything the customer sees. The explanation opening is
+ * the tap's feedback, and the keyboard's focus ring below is untouched.
+ */
+.lengthHelpButton {
+  --length-help-bleed: 16px;
+
+  position: absolute;
+  top: calc((100% - var(--touch-target)) / 2);
+  right: calc(-1 * var(--length-help-bleed));
+  width: var(--touch-target);
+  height: var(--touch-target);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The glyph is centred over the unit rather than in its target: the unit's centre is 20 px in from the
+ * box's edge (a 1 px border, 14 px of padding and half a one-letter unit), so from the target's right
+ * edge it is that plus the bleed, less the glyph's own half-width of 8 px. */
+.lengthHelpGlyph {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--length-help-bleed) + 20px - 8px);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.lengthHelpButton:focus-visible {
+  outline: none;
+}
+
+.lengthHelpButton:focus-visible .lengthHelpGlyph {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* Opens **above** the label rather than over the field, so the box the customer is about to type in
+ * stays visible beside the explanation of what to type. Neutral surface and ink: nothing here reads as
+ * an error. No `display` is declared, so the `hidden` attribute still removes it while closed. */
+.lengthHelpText {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 10px 28px rgb(28 24 20 / 14%);
+}
+
+/* The frame draws a 54 px box holding the value and its unit (`:167`). The box is the frame's; the
+ * control inside it is the text field the frame is depicting — the wave's recorded non-departure. */
+.fieldBox {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  height: 54px;
+  padding: 0 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/**
+ * **A group of four fields — a U room — draws its boxes 48 px tall rather than 54** (7A3 defect D1).
+ *
+ * Before the hint a U's column had no pixel to spare at 390 x 844: its height box ended exactly on
+ * `.dimensionsBody`'s padding edge. The hint's 15.4 px line and its gap then pushed that box 27 px
+ * under the footer, and `.dimensionsBody` clips rather than scrolls (ADR 0082 decision 2). The hint's
+ * shortened gap above returns 6 px and four boxes at 48 px return 24, which leaves 2.6 px measured
+ * slack in both locales. Frame 1B draws an L's three fields and no frame draws a U's four, so linear
+ * and L keep the frame's 54 px untouched. 48 px keeps the input 46 px tall, above the 44 px target.
+ *
+ * Counted by `.field` siblings rather than read from a shape, so the stylesheet never spells a room
+ * shape and the rule follows `requiredFieldsFor`'s list (criterion 4).
+ */
+.fields:has(> .field ~ .field ~ .field ~ .field) .fieldBox {
+  height: 48px;
+}
+
+/* `tabular-nums` is the mockups' own `.num` class (`:16`): a proportional `1` would shift the digits
+ * as the customer types and the three fields would stop lining up. */
+.fieldValue {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  font: 700 20px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+}
+
+.fieldUnit {
+  flex: 0 0 auto;
+  font: 400 13px/1 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+/**
+ * **Frame 1C's refused field** (`:224-226`): the label in red, and the box on the pale fill with a
+ * 2 px red border. **Painted from `aria-invalid`, never from a class of its own**, so a field cannot
+ * be red without a screen reader being told it is invalid — and at 1B, where nothing carries the
+ * attribute, nothing is red (7F1 criterion 10).
+ */
+.field:has(.fieldValue[aria-invalid="true"]) .fieldLabel {
+  color: var(--refusal);
+}
+
+.fieldBox:has(> .fieldValue[aria-invalid="true"]) {
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+/**
+ * **1C's two status regions** — the room's reason (`.oneCReasons`) and the note (`.oneCNote`), each
+ * announced politely (`one-c-status.tsx`). Both are in the tree from 1B on, empty, so an announcement
+ * fires when their own content changes; the suggestion (D9) is a plain sibling between them, in
+ * neither region. `.oneCStatus` itself carries no role — it is a layout wrapper only.
+ *
+ * **Spacing is per pair, not a blanket `gap`** (wave 7L D9): `.oneCReasons` and `.oneCNote` are
+ * unconditionally present, so a `gap` here would reserve one even between two regions that are both
+ * empty — exactly the space a U's column has none to spare (2.6 px at 1B, 7F2 S0). Each piece's own
+ * leading margin fires only when something visible actually precedes it, by `:has(p)` reading whether
+ * a region (or the suggestion, which is never empty while mounted) holds a paragraph.
+ */
+.oneCStatus {
+  display: flex;
+  flex-direction: column;
+}
+
+.oneCReasons,
+.oneCNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--column-gap);
+}
+
+.oneCReasons:has(p) + .suggestionGroup,
+.oneCReasons:has(p) + .oneCNote:has(p) {
+  margin-block-start: var(--column-gap);
+}
+
+.suggestionGroup + .oneCNote:has(p) {
+  margin-block-start: var(--column-gap);
+}
+
+/**
+ * Both status regions, empty, give back the gap of whichever column they stand in. `.oneCStatus`
+ * itself is never childless (its two regions are always present), so its own version of the trick
+ * reads whether either region — or the suggestion between them — actually holds a paragraph.
+ *
+ * **Known quirk, measured and left as-is (7L review finding F7): this margin does nothing in the
+ * desktop grid.** `.dimensionsBody`'s desktop rule makes `.shapeRefusal`/`.oneCStatus` grid items
+ * (`grid-template-rows: repeat(5, auto) 1fr`); a grid item's margin only repositions the item within
+ * its own row's track — it cannot reach into a *different* track's row-gap the way a flex item's
+ * margin reaches into the single gap between two flow siblings. Measured 2026-09-29 at 1440 x 900: an
+ * empty `.shapeRefusal` still costs a full 32 px between `.shapeChips` and `.fields` (two 16 px
+ * row-gaps either side of its own now-0-height track) instead of flex's single 16 px — a real,
+ * visible doubling in the common case (no shape refused). `.oneCStatus`'s own case is not visible:
+ * it is the grid's *last* content row, so the same waste is absorbed by the trailing `1fr` filler
+ * track with nothing positioned relative to that boundary. A grid-native fix was attempted — moving
+ * an empty `.shapeRefusal` out of the auto-placed row order via `grid-row` and a `:has()`-driven
+ * shorter `grid-template-rows` — and rejected: giving `.shapeRefusal` an explicit `grid-row` makes
+ * the *sparse* auto-placement algorithm skip that row for every item placed after it in the DOM,
+ * which pushed `.shapeChips` (declared first, but auto-placed) into the *next* row instead of
+ * sharing it, undoing the fix and shifting the whole column. Left as a known, bounded visual quirk
+ * (an extra 16 px above the fields row, not below any other visible content) rather than risking a
+ * layout regression across every 1B/1D shape combination for a spacing difference this small.
+ */
+.shapeRefusal:empty,
+.oneCStatus:not(:has(p)) {
+  margin-block-start: calc(-1 * var(--column-gap));
+}
+
+/**
+ * **Frame 1C's reason box** (`:227-230`), beside its field and, for a reason about the whole room,
+ * below the fields. The frame's `!` badge is drawn by the stylesheet with an empty alternative text,
+ * so the sentence a screen reader reads through `aria-describedby` is the reason and nothing else.
+ *
+ * Its words are shared with `.suggestion`, frame 1C's closing clause (*"sau alege o formă liniară"*,
+ * `:230`), drawn below the last reason in the reason's own ink and without its box — and only once
+ * wave 7J makes a straight kitchen buildable.
+ */
+.reason,
+.suggestion {
+  margin: 0;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--refusal-ink);
+}
+
+.reason {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 11px 12px;
+  background: var(--refusal-surface);
+  border-radius: 10px;
+}
+
+.reason::before {
+  content: "!";
+  content: "!" / "";
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: var(--refusal-badge-ink);
+  text-align: center;
+  background: var(--refusal);
+  border-radius: 50%;
+}
+
+/**
+ * **D1C's *Sugestii* card** (`validation-suggestion.tsx`, `Desktop.dc.html:247-253`), wave 7L D8.
+ * `.suggestionGroup` wraps the clause both shells draw and the card the desktop layout adds; on the
+ * phone the group is a plain column of one visible child, since `.suggestionCard` below is hidden by
+ * the base shell (7L criterion 14 — desktop-only means no box and no tab stop on the phone, not a
+ * conditional render). The desktop block below fills it in.
+ */
+.suggestionGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.suggestionCard {
+  display: none;
+}
+
+/* The frame's two-control footer (`:180-185`). `Înapoi` is 96 px wide and `Continuă` takes the rest. */
+.dimensionsFooter {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.back {
+  display: flex;
+  flex: 0 0 auto;
+  width: 96px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.dimensionsFooter .cta {
+  flex: 1;
+}
+
+/* ── Sub-state 1F, the composition (frame `:404-461`) ─────────────────────────────────────────── */
+
+/**
+ * **This block adds classes and edits none**, which is wave 7F4a's boundary on this file: the form's
+ * and the plan's rules are 7F1's and stay byte-identical. `.back` is *reused* by 1F's footer rather
+ * than re-declared — it is the same 96 x 52 control the frame draws in both footers, and a second
+ * copy of it is two places to change one button.
+ *
+ * Every figure is frame 1F's own. Two values are deliberately **not** the frame's, and both are
+ * already-ruled overrides rather than departures: the quiet text is `--ink-faint`, which the owner
+ * darkened from the mockups' `#7d7a72` for WCAG AA on 2026-09-03, and the surfaces are the tokens
+ * the frame's hexes are the source of.
+ */
+
+/**
+ * **The composition scrolls vertically when it outgrows the space above the fixed footer** (7D5b
+ * defect W7). Russian at 390 x 844 with the fridge dropped wraps two rows and adds the dropped-roles
+ * sentence: the body's content measured 757 px against 709, and under `overflow: hidden` the rule
+ * paragraph was cut off with no way to reach it. The remedy is the one the owner chose for frame 1C
+ * (Q-7F2-2): the column scrolls, the footer stays put, nothing is removed or compressed.
+ *
+ * Both axes are declared because a lone `overflow-y: auto` computes `overflow-x` to `auto` as well,
+ * and ADR 0082 decision 2 refuses a horizontal scroller. `min-height: 0` is not declared: a flex item
+ * that is a scroll container already has an automatic minimum height of zero, so `flex: 1` bounds it.
+ */
+.composeBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.composeIntro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The frame's 22 px (`:418`), a size below 1A's question, because 1F is a transient the customer
+ * reads once rather than a screen they act on. */
+.composeHeading {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+.composeSummary {
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* The frame's amber band (`:421`). Its three hexes are the frame's own and belong to this one
+ * surface — nothing else in the application draws a *this is taking a moment* notice — so they are
+ * literals here rather than four new global tokens with one user each. */
+.composeNotice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 13px;
+  background: #f7ecdc;
+  border: 1px solid #e6cfa8;
+  border-radius: 11px;
+}
+
+.composeNoticeText {
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: #7c4a0c;
+}
+
+/**
+ * The same band, carrying the sentence a run that did not finish leaves behind (criterion 35).
+ *
+ * **No frame draws this state**, so the treatment is drafted like its copy: the amber of *this is
+ * taking a moment* is dropped for the application's own quiet surface, and nothing turns red.
+ * Nothing was written, nothing navigated, and *Înapoi* still works — a dead end is not an error the
+ * customer caused, and a room that is too small has its own sentence at 1C (ruling R16).
+ */
+.composeNoticeFailed {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.composeNoticeFailed .composeNoticeText {
+  color: var(--ink);
+}
+
+.composeSpinner {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #e6cfa8;
+  border-top-color: #b45309;
+  border-radius: 50%;
+  animation: composeTurn 1s linear infinite;
+}
+
+.composeSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.composeStepsLabel {
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.composeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.composeRow {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 12px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+/**
+ * **The row an item was struck from the composition in** (wave 7F4 ruling R10).
+ *
+ * A dashed border, a muted background, a grey glyph and grey text — the frame's own drawing
+ * (`:448-452`), and **not** `text-decoration: line-through`. The earlier criterion's word *"struck"*
+ * describes the item being struck from the *composition*; a reader took it for a text decoration and
+ * the frame draws none. The row stays in the list: a customer who cannot see why their fridge is
+ * missing has been told less, not more.
+ */
+.composeRowDropped {
+  background: var(--paper);
+  border: 1px dashed var(--line);
+}
+
+/* `min-width: 0` for `.title`'s reason one level down: without it the flex item's automatic minimum
+ * is its min-content width, and the longest Russian role name would widen the row past 390 px. */
+.composeRowName {
+  flex: 1;
+  min-width: 0;
+  font: 400 13px/1.35 var(--font-ui);
+}
+
+.composeRowDropped .composeRowName,
+.composeRowDropped .composeRowStatus {
+  color: var(--ink-faint);
+}
+
+.composeRowStatus {
+  flex: 0 0 auto;
+  font: 400 11.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/**
+ * **The mark is drawn by the stylesheet, and the word beside it is the meaning.**
+ *
+ * `✓` and `−` are decoration: the status a row is in is announced by `room.compose.status.*` in the
+ * span next to this one, so the glyph is `aria-hidden` and carries no information of its own. Drawing
+ * it as generated content keeps a mark no locale translates out of the JSX the copy gate reads.
+ */
+.composeRowGlyph {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  font: 700 12px/22px var(--font-ui);
+  text-align: center;
+  border-radius: 50%;
+}
+
+.composeRowPlaced .composeRowGlyph {
+  color: var(--paper);
+  background: #2d5016;
+}
+
+.composeRowPlaced .composeRowGlyph::before {
+  content: "✓";
+}
+
+.composeRowPending .composeRowGlyph {
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: composeTurn 1s linear infinite;
+}
+
+.composeRowDropped .composeRowGlyph {
+  font-size: 13px;
+  color: #8d8377;
+  background: #ece7dd;
+}
+
+.composeRowDropped .composeRowGlyph::before {
+  content: "−";
+}
+
+.composeRule {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-faint);
+  text-wrap: pretty;
+}
+
+/* The dropped-roles sentence, in the state the screen already has and with no per-role explanation
+ * and no recovery flow. The ruling lives in `docs/milestones/M7-room-and-presets.md`, wave 7D4; it is
+ * owed ADR 0110 Amendment F, which is 7D4's slice S0 and is not yet written. */
+.composeDropped {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/**
+ * **The 1F aside — the room's own static plan, desktop only** (wave 7L D10). Hidden by the base shell
+ * rather than left unrendered, so a phone customer's screen reader never meets it and it holds no tab
+ * stop (7L criterion 14); the desktop block gives it its grid position and its own width cap.
+ */
+.composeAside {
+  display: none;
+}
+
+.composeFooter {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px 20px;
+  border-top: 1px solid var(--line);
+}
+
+/**
+ * **The primary control, drawn as the frame draws it and wired to nothing** (`:458-460`).
+ *
+ * A `<div>` rather than a `<button>`, which is ADR 0104 decision 6's rule for a control with no
+ * destination: in 7F4a there is none — the hand-off to the editor is wave 7F4b's — and a `<button>`
+ * here would announce an action nothing performs. 52 px is the frame's height and is already past the
+ * 44 px target.
+ */
+.composeCta {
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  font: 700 15px/1 var(--font-ui);
+  color: #a89c8e;
+  background: #ece7dd;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* The retry the failed hand-off offers (wave 7F4b, criterion 41), which is the form's own primary
+ * button rather than a second one: `.dimensionsFooter .cta` carries the identical rule one footer
+ * up, for the identical reason — a 96 px *Înapoi* beside it and the rest of the row to fill. The
+ * class's own declarations are 7F1's and are untouched. */
+.composeFooter .cta {
+  flex: 1;
+}
+
+.composeCtaSpinner {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: #a89c8e;
+  border-radius: 50%;
+  animation: composeTurn 1s linear infinite;
+}
+
+@keyframes composeTurn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* A composition the customer cannot stop watching is still a composition; a spinner they asked not
+ * to see is not information. The rows resolve in one frame either way (ruling R12), so nothing is
+ * lost by standing still. */
+@media (prefers-reduced-motion: reduce) {
+  .composeSpinner,
+  .composeCtaSpinner,
+  .composeRowPending .composeRowGlyph {
+    animation: none;
+  }
+}
+
+/**
+ * ── M7 wave 7L: the desktop shell (frames D1A–D1C, `Lemnaria Configurator Desktop.dc.html:45-272`) ──
+ *
+ * **One breakpoint, the codebase's own** (7L D2): `900px` is what `configure.module.css`, the editor
+ * rail and every other desktop surface already branch at, so the room and the editor never disagree
+ * about which shell a width is. Every declaration below is inside this block — a width belongs to
+ * this file's media query and nowhere else under `src/room` (7L A2).
+ *
+ * **Same components, same copy, a CSS fork only** (7L §10.1): nothing here is a new element, a new
+ * string or a new rule — only the geometry a wider viewport affords. Q-7L-1's three phone-absent
+ * strings (D1B's heading, its on-site-measurement note, and the plan hint) are not drawn by this
+ * slice: two of the three name a promise or a mechanism no shipped leaf anywhere in the product makes
+ * today (confirmed by a search of every locale file), so reusing "the phone's already-shipped
+ * wording" for them has no source to reuse from, and inventing new desktop-only copy is exactly what
+ * the override forbids. Left for the coordinator to settle a source string for, or to accept as a
+ * named departure — see the wave's close-out.
+ */
+@media (min-width: 900px) {
+  /* ── The top bar, D1A/D1B/D1C `:52-60` — a 76 px band, `padding: 0 40px`, `gap: 20px` ──────────── */
+
+  .topBar {
+    height: 76px;
+    padding: 0 40px;
+    gap: 20px;
+  }
+
+  .topBarCell {
+    gap: 20px;
+    padding: 11px 0;
+  }
+
+  .wordmark {
+    font-size: 15px;
+    letter-spacing: 0.22em;
+  }
+
+  .stepPill {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .title {
+    font-size: 19px;
+  }
+
+  /**
+   * **D3: the borrowed locale cell's divider and inset, overridden from this side.** The cell is
+   * `configure.module.css`'s own `.locale` (`room-screen.tsx`'s import), and that stylesheet keeps
+   * every declaration it has — its head comment requires it, and R5's extraction is deferred (7K
+   * ground truth). A class selector cannot reach into another CSS module's scoped name, so the
+   * override is rooted in `.topBar` and reaches the cell structurally, through the one thing about it
+   * that is this screen's own: the locale trigger's `data-testid`.
+   *
+   * `configure.module.css`'s desktop rule adds a 28 px `padding-right` and a 28 px `::before`
+   * divider, both of which are D2A's own row-fit arithmetic — meaningless here, where the row is a
+   * plain two-cell flex and the frame draws no divider before the chip at all. Overridden to nothing
+   * so the chip's right edge lands the frame's own 40 px in from `.topBar`'s padding alone (7L A4).
+   */
+  .topBar > div:has([data-testid="top-bar-locale"]) {
+    padding-right: 0;
+  }
+
+  .topBar > div:has([data-testid="top-bar-locale"])::before {
+    display: none;
+  }
+
+  /* ── D1A `:61-96` — three cards in one row, in a 1120 px column centred in the body ─────────────── */
+
+  .body {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 34px;
+    padding: 0 40px;
+  }
+
+  .body > .intro,
+  .body > .shapes,
+  .body > .shapeRefusal,
+  .body > .note {
+    width: 100%;
+    max-width: 1120px;
+  }
+
+  .intro {
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .question {
+    font-size: 38px;
+    line-height: 1.15;
+  }
+
+  .lead {
+    max-width: 52ch;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .shapes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+
+  .shapeCard {
+    flex-direction: column;
+    gap: 18px;
+    padding: 38px 26px;
+  }
+
+  /* The frame's own glyph, 176 x 128 (`:69`) — scoped to the card so 1B/1C's chip glyph, which
+   * shares `.shapeGlyph`, is untouched (frame D1B `:123` keeps the chip small). An SVG's own
+   * `width`/`height` attributes are presentation defaults; a stylesheet rule overrides them. */
+  .shapeCard .shapeGlyph {
+    width: 176px;
+    height: 128px;
+  }
+
+  .shapeText {
+    align-items: center;
+    text-align: center;
+  }
+
+  .shapeName {
+    font-size: 20px;
+  }
+
+  .shapeDetail {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* The frame's inactive CTA sits alone, right-aligned in an 88 px footer (`:92-94`) — the same
+   * treatment D1B/D1C/D1F's two-button footer gets below, minus the *Înapoi* this one has none of. */
+  .footer {
+    display: flex;
+    height: 88px;
+    padding: 0 40px;
+    justify-content: flex-end;
+    border-top-color: var(--line-soft);
+  }
+
+  /* ── D1B/D1C `:99-272` — a 520 px form column beside a plan panel that fills the body ────────────── */
+
+  /**
+   * **The row's own two tracks** (7L A6): a fixed 520 px form column and a flexible one capped at
+   * 900 px, `56px` apart (`:115`). The flexible track is `1fr` rather than `minmax(0, 900px)` alone,
+   * because a non-`fr` track sizes to its content and never grows to fill the row — which would leave
+   * `.planCard` at whatever width its (still phone-sized, pre-7L-S2) contents ask for instead of the
+   * frame's "big, live" panel. The 900 px cap is spent on the item (`.planCard`) rather than the
+   * track, so a track wider than 900 (a viewport past D1B's own 1556 px content width) leaves its
+   * surplus after the panel rather than centring the pair — untested at 7L-A17's widths and named
+   * here rather than silently decided.
+   *
+   * **The row and the panel share one scroll container** (7L A10's "reachable by scrolling the form
+   * column"): splitting the panel from the form column's own scroll would need a wrapper element this
+   * slice's file list (`room.module.css` alone) does not reach — flagged for the wave's close-out
+   * rather than added as a silent departure.
+   */
+  .dimensionsBody {
+    display: grid;
+    grid-template-columns: 520px minmax(0, 1fr);
+    /*
+     * **A trailing `1fr` row, so `.planCard`'s `grid-row: 1 / -1` (below) has a real last line to
+     * reach.** `-1` counts from the end of the *explicit* grid — with no `grid-template-rows` at
+     * all, that explicit grid has exactly one line, so `1 / -1` collapsed to a single implicit row
+     * and the panel stood only as tall as `.shapeChips`, measured (7L QA). Five rows generously
+     * covers column 1's own list just below (`.shapeChips`, `.shapeRefusal`, `.corner`, `.fields`,
+     * `.oneCStatus`); a shape that skips one leaves that row's track empty and 0 px tall, exactly as
+     * it did before this line existed. The `1fr` track takes every pixel the five content rows do
+     * not, so the panel's bottom always lands at the column's own last pixel, whatever the shape.
+     */
+    grid-template-rows: repeat(5, auto) 1fr;
+    column-gap: 56px;
+    justify-content: center;
+    align-items: stretch;
+    padding: 52px 40px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .shapeChips,
+  .shapeRefusal,
+  .corner,
+  .fields,
+  .oneCStatus {
+    grid-column: 1;
+  }
+
+  .shapeChips {
+    gap: 12px;
+  }
+
+  .shapeChip {
+    gap: 9px;
+    padding: 13px 10px;
+  }
+
+  .shapeChip .shapeGlyph {
+    width: 66px;
+    height: 42px;
+  }
+
+  .shapeChipName {
+    font-size: 13px;
+  }
+
+  .corner {
+    gap: 10px;
+  }
+
+  .cornerQuestion {
+    font-size: 13px;
+  }
+
+  .cornerHint {
+    font-size: 12.5px;
+  }
+
+  .cornerChoices {
+    gap: 12px;
+  }
+
+  .cornerChoice {
+    gap: 12px;
+    padding: 13px 15px;
+  }
+
+  .cornerGlyph {
+    width: 48px;
+    height: 34px;
+  }
+
+  .cornerName {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  /**
+   * **The panel, D1B `:179-188` / D1C `:256-264`.** `.planCard` is the phone's own flex column
+   * (`:335-343`), so stretching it to the row's full height (`grid-row: 1 / -1`) leaves `.planBox`
+   * free to take the remainder with `flex: 1` below — the panel "fills as the field column grows"
+   * without a height figure written anywhere in this file (7L D6c).
+   */
+  .planCard {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    width: 100%;
+    max-width: 900px;
+    padding: 26px;
+    gap: 16px;
+  }
+
+  .planCaption {
+    font-size: 11px;
+  }
+
+  /**
+   * **`--plan-fill: 1` is the flag `plan-preview.tsx` reads off this element** (7L D6c) — the only
+   * width test in the whole of `PlanPreview`, and it lives here rather than as a breakpoint in
+   * TypeScript (7L D2). The custom property is unset below 900 px, so `getComputedStyle` there reads
+   * back an empty string — never `"1"` — with no base-shell declaration needed to say so. `flex: 1`
+   * with `min-height: 0` gives the box a real, contentful height from the flex column above instead
+   * of the inline height the phone still writes: the drawing's absolutely positioned bars and labels
+   * contribute no intrinsic height of their own, so a box with `flex: 1` and no floor would otherwise
+   * collapse to its content's zero.
+   */
+  .planBox {
+    --plan-fill: 1;
+
+    flex: 1;
+    min-height: 0;
+    border-radius: 11px;
+  }
+
+  /**
+   * **The fields in one row, in field order** (7L A6, D5), reasons below the row and spanning it.
+   * `.field` becomes `display: contents`: its children join `.fields`' grid directly, so each input
+   * keeps its own `.field` ancestor in the DOM (`aria-describedby` targets and 7F2's structure are
+   * untouched) while its box moves. Column count follows the same "`:has()` counts the siblings"
+   * technique this file already uses for the U room's field height, because a shape's field count
+   * (2, 3 or 4) is exactly the three values a shape can have and CSS cannot count an arbitrary N.
+   *
+   * **The hint is row 1, headings row 2, boxes row 3** (frame `:135-157`), each explicit on both
+   * axes — the hint spans every column so the auto-placement pass below it can never mistake a
+   * partly-filled row 2 or 3 for free space. **A reason has a definite column (it spans every one)
+   * and an auto row**: the grid placement algorithm walks rows 1–3, finds each already partly taken
+   * by a shape with fewer than the full field count, and lands every reason at row 4 or below, in
+   * DOM order — so a room with two field reasons at once (the domain judges every field, ADR 0108
+   * decision 2) stacks them rather than drawing one over the other.
+   */
+  /**
+   * **`minmax(0, 1fr)`, not a bare `1fr`** (7L QA finding): a bare `1fr` track's implicit minimum is
+   * `auto` — the widest a field's own content asks to be, unclamped — so three or four fields'
+   * combined minimums came out wider than `.fields`' own 520 px column, and CSS Grid does not clip an
+   * explicit grid to its container for that: the row simply overflowed onto `.planCard` once the
+   * panel actually reached that far down the column (D1B's own "filling" is what exposed it — at the
+   * short, pre-S2 box nothing painted that far to notice against). `minmax(0, 1fr)` floors each
+   * track's minimum at zero, so equal division of the 520 px column is what a bare `1fr` was meant to
+   * give and a field's own text wraps or truncates inside its own cell instead of pushing the row wide.
+   */
+  .fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: 7px;
+  }
+
+  .fields:has(> .field ~ .field ~ .field) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fields:has(> .field ~ .field ~ .field ~ .field) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lengthsHint {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin-block-end: 0;
+  }
+
+  .field {
+    display: contents;
+  }
+
+  .field:nth-of-type(1) > .fieldHeading,
+  .field:nth-of-type(1) > .fieldBox {
+    grid-column: 1;
+  }
+
+  .field:nth-of-type(2) > .fieldHeading,
+  .field:nth-of-type(2) > .fieldBox {
+    grid-column: 2;
+  }
+
+  .field:nth-of-type(3) > .fieldHeading,
+  .field:nth-of-type(3) > .fieldBox {
+    grid-column: 3;
+  }
+
+  .field:nth-of-type(4) > .fieldHeading,
+  .field:nth-of-type(4) > .fieldBox {
+    grid-column: 4;
+  }
+
+  .field > .fieldHeading {
+    grid-row: 2;
+  }
+
+  .field > .fieldBox {
+    grid-row: 3;
+  }
+
+  .field > .reason {
+    grid-column: 1 / -1;
+  }
+
+  /**
+   * **D1C's *Sugestii* card** (`Desktop.dc.html:247-253`). `.suggestionGroup` becomes the frame's
+   * own gap between the clause and the card; `.suggestionCard` is un-hidden here, the one base-shell
+   * `display: none` this file names rather than leaves silent (criterion 2, 14), and is itself the
+   * frame's title-above-row column. `.suggestionAction` is the row: the button frame `:250-252` draws.
+   */
+  .suggestionGroup {
+    gap: 10px;
+  }
+
+  .suggestionCard {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .suggestionTitle {
+    font: 700 13px/1 var(--font-ui);
+  }
+
+  .suggestionAction {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 15px 16px;
+    font: 400 14px/1 var(--font-ui);
+    color: inherit;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .suggestionArrow {
+    font-size: 18px;
+    color: var(--accent);
+  }
+
+  /**
+   * **The help target moves from bleeding past the field into the next column's own** (7L A16):
+   * mobile bleeds it into the page's empty 18 px padding, which a row of fields has none of between
+   * columns — the next field's own box starts there instead. Flush against the field's own right
+   * edge (`right: 0` rather than a negative bleed), the 44 px target stays inside its own column at
+   * every field count, including a U room's narrowest (`Perete C` beside a 44 px square in a
+   * ~118 px column) — checked by hand against the shortest label and the tightest column this file
+   * has. **The glyph's own offset is re-measured below (7L review finding F6)**, against where the
+   * unit text actually centres once it is centred rather than read off the "12 px inside the box's
+   * own edge" reading (`:565`'s comment), which assumed a box sized to its content — no longer true
+   * once the floor two rules down gives the box more width than a short locale's text fills.
+   */
+  .lengthHelpButton {
+    right: 0;
+  }
+
+  /**
+   * **19 px, not the un-floored box's 12 px (7L review finding F6).** Measured against
+   * `.fieldUnit`'s own centred text, in a headless Chromium at 1440 x 900, both locales: with the
+   * unit centred in its (now floored) box, its visual centre sits at the *same* point in `ro` and
+   * `ru` — because both "mm" and "мм" are narrower than the 24 px floor, the floor alone decides the
+   * centre, not the glyph. 19 px puts the glyph's own centre within a sub-pixel of that point in
+   * both. The button's own 44 px hit area is `.lengthHelpButton`'s, untouched by this — only the
+   * icon inside it moves.
+   */
+  .lengthHelpGlyph {
+    right: 19px;
+  }
+
+  /**
+   * **The unit keeps the button clear of the input, in every locale** (7L QA finding, defect 3): the
+   * checked-by-hand case above still measured the input's box, not its right *edge* against the
+   * button flush at `right: 0` above it — the two share the same column, so the only thing standing
+   * between them is `.fieldBox`'s own trailing content, `.fieldUnit`. Romanian's "mm" happens to hold
+   * that line; Russian's narrower "мм" does not, and the button's 44 px square reaches over the
+   * input's own top-right corner by a couple of pixels. A floor under the unit's own width, rather
+   * than a number added to the button, keeps the fix where the two boxes actually meet and asks
+   * nothing of a locale this file has not seen yet — `.fieldValue`'s `flex: 1` gives back whatever
+   * width the floor takes.
+   *
+   * **Centred, not left-aligned (7L review finding F6).** Left-aligned (the default), the unit's own
+   * visual centre drifts toward the box's left edge as the gap between the text and the 24 px floor
+   * grows — by a *different* amount per locale, since "mm" and "мм" are not the same width — which is
+   * what knocked `.lengthHelpGlyph` above off-centre once that floor could exceed either locale's own
+   * content. Centred, the text's own visual centre is the floor's own centre in both locales alike,
+   * whichever text is narrower than it (measured above): one glyph offset serves both.
+   */
+  .fieldUnit {
+    min-width: 24px;
+    text-align: center;
+  }
+
+  /* ── D1F `:464-526` — a 620 px steps column beside a plan panel that fills what is left ─────────── */
+
+  /**
+   * **The same two-track shape `.dimensionsBody` draws, with D1F's own figures** (7L D10, A15):
+   * `56px 64px` padding and a 620 px column (`Desktop.dc.html:475`) rather than D1B's 520 and
+   * `52px 40px`. `grid-template-rows: repeat(5, auto) 1fr` gives `.composeAside`'s row span (below) a
+   * real last line to stretch to, exactly as `.dimensionsBody`'s own trailing `1fr` does for
+   * `.planCard` — this column's five rows are `.composeIntro`, `.composeNotice`, `.composeSteps`,
+   * `.composeDropped` and `.composeRule`; a run with nothing dropped leaves that row's track empty,
+   * 0 px tall, as it already is on the phone.
+   */
+  .composeBody {
+    display: grid;
+    grid-template-columns: 620px minmax(0, 1fr);
+    grid-template-rows: repeat(5, auto) 1fr;
+    column-gap: 56px;
+    justify-content: center;
+    align-items: stretch;
+    padding: 56px 64px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .composeIntro,
+  .composeNotice,
+  .composeSteps,
+  .composeDropped,
+  .composeRule {
+    grid-column: 1;
+  }
+
+  /**
+   * **The plan itself, unmarked and static** (D10). `.planCard`'s own desktop rule (D1B's section,
+   * above) already sets its width, padding and gap — this wrapper exists only so the base shell has
+   * one thing to hide (criterion 14) and so D1F's own 840 px cap (`Desktop.dc.html:509`) can override
+   * D1B's 900, since the one `.planCard` is shared by both frames. `display: flex` with a single
+   * child gives that child the wrapper's full stretched height for free, the same way a grid item
+   * would — no inline height is written here or anywhere below it.
+   */
+  .composeAside {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    max-width: 840px;
+  }
+
+  /* ── The two-button footers, D1B/D1C/D1F `:190-193, 266-269` — *Înapoi* left, the CTA right ──────── */
+
+  .dimensionsFooter,
+  .composeFooter {
+    height: 88px;
+    padding: 0 40px;
+    justify-content: space-between;
+    border-top-color: var(--line-soft);
+  }
+
+  .dimensionsFooter .cta,
+  .composeFooter .cta {
+    flex: 0 0 auto;
+  }
+
+  .cta {
+    width: auto;
+    padding: 0 30px;
+  }
+}

@@ -34,6 +34,9 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+/** The room the void sets stand in: the seeded L, which is never cut. */
+const L_ROOM = KITCHEN_L_DESIGN.room;
+
 const TOP_ROW_Y0_M = 2.2;
 const WALL_ROW_Y0_M = 1.5;
 const REPEATED_CYCLES = 10;
@@ -111,7 +114,7 @@ function makeVoidRecord(id: string, y0: number): VoidRecord {
 }
 
 function sync(records: readonly PlacementRecord[]): void {
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
 }
 
 function mounted(placementId: string): THREE.Object3D | undefined {
@@ -313,7 +316,11 @@ describe("push-to-open by slot", () => {
 
 describe("syncVoidMeshes", () => {
   it("mounts one mesh per void, keyed by void id", () => {
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v0", 1.5)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v0", 1.5)],
+      room: L_ROOM,
+    });
 
     expect(voidsRoot.children).toHaveLength(1);
     expect(voidsRoot.children[0]?.userData["voidId"]).toBe("v0");
@@ -323,7 +330,11 @@ describe("syncVoidMeshes", () => {
   // `void-mesh.ts` and never goes through the kit's shared `chamferBox` cache, which is why
   // `disposeVoidMesh` may dispose everything it finds while `disposeSolidBody` may not.
   it("owns every geometry it renders, unlike a body", () => {
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v0", 1.5)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v0", 1.5)],
+      room: L_ROOM,
+    });
 
     let checked = 0;
     voidsRoot.traverse((node) => {
@@ -336,20 +347,28 @@ describe("syncVoidMeshes", () => {
 
   it("does not churn when the void set is unchanged", () => {
     const voids = [makeVoidRecord("v0", 1.5)];
-    syncVoidMeshes({ voidsRoot, voids });
+    syncVoidMeshes({ voidsRoot, voids, room: L_ROOM });
     const before = voidsRoot.children[0];
 
-    syncVoidMeshes({ voidsRoot, voids });
+    syncVoidMeshes({ voidsRoot, voids, room: L_ROOM });
 
     expect(voidsRoot.children[0]).toBe(before);
   });
 
   it("replaces the whole set on any change, disposing geometries and its own materials", () => {
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v0", 1.5)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v0", 1.5)],
+      room: L_ROOM,
+    });
     const renderables = countRenderables(voidsRoot);
     const disposed = countDisposals();
 
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v1", 2.2)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v1", 2.2)],
+      room: L_ROOM,
+    });
 
     expect(voidsRoot.children).toHaveLength(1);
     expect(voidsRoot.children[0]?.userData["voidId"]).toBe("v1");
@@ -359,17 +378,22 @@ describe("syncVoidMeshes", () => {
   });
 
   it("returns to its baseline over ten recompute cycles", () => {
-    syncVoidMeshes({ voidsRoot, voids: [makeVoidRecord("v0", 1.5)] });
+    syncVoidMeshes({
+      voidsRoot,
+      voids: [makeVoidRecord("v0", 1.5)],
+      room: L_ROOM,
+    });
     const perCycle = countRenderables(voidsRoot);
-    syncVoidMeshes({ voidsRoot, voids: [] });
+    syncVoidMeshes({ voidsRoot, voids: [], room: L_ROOM });
     const disposed = countDisposals();
 
     for (let cycle = 0; cycle < REPEATED_CYCLES; cycle += 1) {
       syncVoidMeshes({
         voidsRoot,
         voids: [makeVoidRecord(`v${String(cycle)}`, 1.5)],
+        room: L_ROOM,
       });
-      syncVoidMeshes({ voidsRoot, voids: [] });
+      syncVoidMeshes({ voidsRoot, voids: [], room: L_ROOM });
     }
 
     expect(perCycle).toBeGreaterThan(0);

@@ -137,6 +137,146 @@ describe("evasions the screen already holds against", () => {
   });
 });
 
+describe("the on-delete exemption (D2, M7 wave 7E3c) stays narrow", () => {
+  // Acceptance criterion 3: the screen still refuses each of these, even though `0006` needs
+  // `create table if not exists ... on delete cascade` to pass.
+  it("refuses an on-delete cascade added to a table that may already exist", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add constraint designs_owner_fk " +
+          "foreign key (owner_id) references owners (id) on delete cascade;",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses on update cascade, inside or outside a create table if not exists", () => {
+    expect(
+      refusalsFor(
+        "alter table designs add constraint designs_owner_fk " +
+          "foreign key (owner_id) references owners (id) on update cascade;",
+      ),
+    ).not.toEqual([]);
+    expect(
+      refusalsFor(
+        "create table if not exists t (id text, parent_id text references t (id) on update cascade);",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a bare delete over existing rows", () => {
+    expect(refusalsFor("delete from designs;")).not.toEqual([]);
+  });
+
+  it("refuses a delete statement that follows a create table if not exists in the same file", () => {
+    // Two statements: the first is the exempted shape, the second is an ordinary delete. Passing
+    // the first must not launder the second past the screen.
+    expect(
+      refusalsFor(
+        "create table if not exists t (id text primary key); delete from t;",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a create table if not exists whose on-delete clause hides a second, bare delete", () => {
+    expect(
+      refusalsFor(
+        "create table if not exists t (id text references t (id) on delete cascade, note text default 'delete me too');",
+      ),
+    ).not.toEqual([]);
+  });
+});
+
+// Security review, M7 wave 7E3c S1. `executableStatementsOf` used to strip `--`/`/* */` comments and
+// split on `$$` before it knew anything about quotes, so a comment or dollar-quote marker written
+// *inside* a string literal was read exactly as if it stood in ordinary code. Each case below is a
+// migration Postgres reads as two statements — one that would clear the screen on its own, one that
+// would not — where the old scanner read it as one, and either erased the dangerous statement
+// entirely or merged it into the safe one's anchor.
+describe("SEC-7E3c.1: the comment and statement scanner is quote-aware", () => {
+  it("refuses a delete hidden behind a `--` inside a single-quoted default", () => {
+    // The old scanner read `--` as a line comment the instant it saw it, with no idea it was
+    // inside `'...'`, and a line comment with no later newline swallows the rest of the file —
+    // including the real `delete from designs;` sitting right after the closing quote.
+    expect(
+      refusalsFor(
+        "create table if not exists t (a text default '--'); delete from designs;",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a delete hidden behind a `/* */` pair split across a quoted default and a real comment", () => {
+    // The `/*` here is two characters inside a string literal, not a comment start — but the old
+    // scanner does not know that, and it greedily pairs it with the *next* `*/` it finds anywhere
+    // in the file, which is the real trailing comment. Everything between, including the delete,
+    // vanished from what the screen saw.
+    expect(
+      refusalsFor(
+        "create table if not exists t (a text default '/*'); delete from designs; /* closer */",
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("refuses a grant smuggled past the create-table anchor by a `$$` inside a quoted default", () => {
+    // The old dollar-quote toggle also did not know about single-quoted strings: a `$$` inside
+    // `'...'` switched it on anyway, and with no second `$$` to switch it back off, every semicolon
+    // for the rest of the file — including the one that should have ended the create-table
+    // statement — stopped counting as a separator. The whole file became one "statement" whose
+    // *start* still matched `create table if not exists`, with an unscreened `grant` merged into
+    // its tail. Quote-aware scanning keeps the two statements apart, so the grant is refused on its
+    // own — unrecognised, exactly as a bare `grant` always has been.
+    const refusals = refusalsFor(
+      "create table if not exists t (a text default '$$'); grant select on designs to public;",
+    );
+
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]).toContain("does not recognise");
+  });
+
+  it("still treats `''` inside a single-quoted string as an escaped quote, not a close", () => {
+    // The escaped-quote case must keep working after the rewrite: `'it''s fine'` is one string,
+    // not two adjacent ones with a bare `s fine` in between.
+    expect(
+      refusalsFor(
+        "create table if not exists t (a text default 'it''s fine');",
+      ),
+    ).toEqual([]);
+  });
+
+  it('still treats a double-quoted identifier\'s `""` as an escaped quote', () => {
+    expect(refusalsFor('create table if not exists "a""b" (id text);')).toEqual(
+      [],
+    );
+  });
+});
+
+// Security review, M7 wave 7E3c S1. `create table if not exists` only ever anchored the *start* of
+// a statement, so `create table if not exists name as select …` — CREATE TABLE AS SELECT, a query
+// that runs during the migration — cleared the allowlist the same way a plain column list does.
+describe("SEC-7E3c.2: create table if not exists refuses a query (CTAS)", () => {
+  it("refuses a table created from a query that calls a function with side effects", () => {
+    expect(
+      refusalsFor("create table if not exists t as select lo_unlink(1);"),
+    ).not.toEqual([]);
+  });
+
+  it.each([
+    "select 1",
+    "with x as (select 1) select * from x",
+    "values (1)",
+    "table designs",
+  ])("refuses create table if not exists ... as %s", (query) => {
+    expect(
+      refusalsFor(`create table if not exists t as ${query};`),
+    ).not.toEqual([]);
+  });
+
+  it("does not refuse an ordinary column list, which is not a query", () => {
+    expect(
+      refusalsFor("create table if not exists t (id text, note text);"),
+    ).toEqual([]);
+  });
+});
+
 describe("the false-positive direction: additive migrations that must still pass", () => {
   it("allows a column whose name contains a refused keyword", () => {
     // `deleted_at`, `dropped_at` and `update_count` are ordinary column names. A screen that

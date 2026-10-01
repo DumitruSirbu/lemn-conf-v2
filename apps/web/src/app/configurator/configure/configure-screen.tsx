@@ -1,6 +1,6 @@
 "use client";
 
-import { CAMERA_PRESETS } from "@lemnaria/three-adapter";
+import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
@@ -10,14 +10,17 @@ import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
+import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { roomHrefFromDesignRoom } from "@/room/room-url-state";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
 import { useCameraPreset } from "@/scene/camera-preset-store";
-import type { SceneView } from "@/scene/scene-view";
+import { presetForRoom, type SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
+import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
 import { LocaleMenu } from "./locale-menu";
@@ -37,12 +40,21 @@ function ConfigureLoading() {
 
 type SupportState = "probing" | "supported" | "unsupported";
 
+/** `"owner"` is the default and every existing mount's answer (G9). `"shared"` is the share view's
+ *  own (M7 wave 7E3c D6, criterion 12): it drops the two Step 1 links and the review CTA row, which
+ *  lead nowhere useful without the owner's write credential — `canWrite: false` already disables
+ *  every control inside the panel and the settings surface, so this variant only ever removes
+ *  navigation, never re-implements the read-only gating those already do. */
+export type ConfigureScreenVariant = "owner" | "shared";
+
 export function ConfigureScreen({
-  webglUnavailableTitleMobile,
+  variant = "owner",
 }: {
-  webglUnavailableTitleMobile?: string;
-} = {}) {
+  variant?: ConfigureScreenVariant;
+}) {
   const content = useContent();
+  const room = useConfiguratorStore((state) => state.design.room);
+  const roomHref = roomHrefFromDesignRoom(room);
   const [support, setSupport] = useState<SupportState>("probing");
   // Module-scope, not `useState`: a language switch changes the `[locale]` segment and remounts this
   // subtree, and the camera was the one thing on the screen that did not survive it. See
@@ -62,15 +74,19 @@ export function ConfigureScreen({
     () => ({ kind: "preset", id: presetId }),
     [presetId],
   );
+  // ADR 0130 D9: the room decides how many buttons this row draws — two for a straight kitchen,
+  // three for an L — so a re-render that leaves `room` the same object does not rebuild the list.
+  const cameraPresets = useMemo(() => cameraPresetsForRoom(room), [room]);
+  // QA finding Q1: `presetId` is the camera store's own, possibly-stale id (a straight room that
+  // outgrew a stored `"wallB"`, ADR 0130 D9) — `presetForRoom` is the same fallback `scene-view.ts`
+  // resolves the scene's own camera with, so the button marked pressed is the one actually shown.
+  const resolvedPresetId = useMemo(
+    () => presetForRoom(presetId, room).id,
+    [presetId, room],
+  );
 
   if (support === "unsupported") {
-    return (
-      <WebGLUnavailable
-        {...(webglUnavailableTitleMobile === undefined
-          ? {}
-          : { titleMobile: webglUnavailableTitleMobile })}
-      />
-    );
+    return <WebGLUnavailable />;
   }
 
   return (
@@ -88,17 +104,21 @@ export function ConfigureScreen({
           the back control there, frame D2A the wordmark. Both are rendered and
           `configure.module.css` hides one. */}
       <header className={styles.nav}>
-        {/* Frame 2A `:483` draws the glyph alone. The word is the control's **accessible name** —
-            `role="img"` over the ruled string, the pattern the step pill below already uses, because
-            a `‹` read aloud is not a name. */}
-        <span
-          className={styles.back}
-          role="img"
-          aria-label={content.configure.back}
-          data-testid="top-bar-back"
-        >
-          ‹
-        </span>
+        {/* Frame 2A `:483` draws the glyph alone. The word is the link's accessible name, because a
+            `‹` read aloud is not a destination.
+
+            Absent in the shared variant: Step 1 is the owner's own screen, and a link there from a
+            share session would hand a visitor with no write credential a dead end (criterion 12). */}
+        {variant === "owner" && (
+          <Link
+            className={styles.back}
+            aria-label={content.configure.back}
+            data-testid="top-bar-back"
+            href={roomHref}
+          >
+            <span aria-hidden="true">‹</span>
+          </Link>
+        )}
         <span className={styles.wordmark}>{content.brand}</span>
         {/* The step, twice over and from one source (`src/messages/ro.json`): the pill the frames
             draw, and — as its accessible name — the sentence the caption it replaced said. "2/4"
@@ -157,12 +177,12 @@ export function ConfigureScreen({
             role="group"
             aria-label={content.configure.cameraGroupLabel}
           >
-            {CAMERA_PRESETS.map((preset) => (
+            {cameraPresets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
                 className={styles.preset}
-                aria-pressed={preset.id === presetId}
+                aria-pressed={preset.id === resolvedPresetId}
                 onClick={() => {
                   standAt(preset.id);
                 }}
@@ -209,19 +229,25 @@ export function ConfigureScreen({
           <PriceBreakdown />
         </div>
       </div>
-      {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. **Both are drawn and
-          wired to nothing** (ADR 0104 decision 6): they lead to M8's review step, which is not built
-          and has no route. Not buttons, no `role`, no `tabindex` — the frames use non-interactive
-          elements in both files, and an element with a control's affordances and no behaviour is
-          worse than static text. */}
-      <div className={styles.actions}>
-        <span className={styles.backAction} data-testid="bottom-bar-back">
-          {content.configure.backAction}
-        </span>
-        <span className={styles.reviewCta} data-testid="review-cta">
-          {content.configure.reviewCta}
-        </span>
-      </div>
+      {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. The room back link is
+          live in M7; the review CTA remains inert until M8 because no review route exists.
+
+          The whole row is absent in the shared variant (criterion 12): both controls lead back to
+          the owner's own Step 1 or M8's review, neither of which a share session may reach. */}
+      {variant === "owner" && (
+        <div className={styles.actions}>
+          <Link
+            className={styles.backAction}
+            data-testid="bottom-bar-back"
+            href={roomHref}
+          >
+            {content.configure.backAction}
+          </Link>
+          <span className={styles.reviewCta} data-testid="review-cta">
+            {content.configure.reviewCta}
+          </span>
+        </div>
+      )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the
           measurement that would put it back. */}

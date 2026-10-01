@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  applyCornerDirection,
+  applyCornerDirectionToLightRig,
+  applyCutaway,
   applyFinish,
   buildKitchenShell,
   buildOverflowMark,
@@ -13,6 +16,7 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  cutawayWallsFor,
   disposeKit,
   disposeKitAndStage,
   disposeOverflowMark,
@@ -21,24 +25,33 @@ import {
   makeKit,
   type Kit,
   pick,
+  resizeShellToRoom,
   seatObjectOnStage,
   syncSolidBodies,
   syncVoidMeshes,
+  type Vector3Tuple,
 } from "@lemnaria/three-adapter";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import {
+  cornerDirectionOf,
   DEFAULT_CABINET_DEPTH_MM,
   wallCarcassDepthMm,
   createBodyProbeLease,
+  resolvedDefaultFinishOf,
   type BodyProbeFactory,
+  type CornerDirection,
+  type DesignWall,
   type Finish,
+  type PlacementRecord,
+  type VoidRecord,
 } from "@lemnaria/configurator-domain";
 
 import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
+import { publishSceneMeasurement } from "./scene-measurement-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
 import { useOverflowingPlacementIds } from "./use-overflowing-placements";
 
@@ -96,6 +109,10 @@ const SETTLED_METRES = 1e-4;
 interface OrbitTarget {
   target: THREE.Vector3;
   update: () => void;
+  /** `OrbitControls` dispatches `change` whenever a drag, a wheel, damping or `update()` moves the
+   *  camera, which is every way the camera moves but a direct write to its position. */
+  addEventListener: (type: "change", listener: () => void) => void;
+  removeEventListener: (type: "change", listener: () => void) => void;
 }
 
 interface CameraGoal {
@@ -108,6 +125,41 @@ export interface KitchenStageProps {
   view: SceneView;
   finish?: Finish;
   onSettled?: () => void;
+}
+
+interface ReseatInput {
+  readonly object: THREE.Object3D;
+  readonly camera: THREE.PerspectiveCamera;
+  readonly controls: OrbitTarget | null;
+  readonly ground: THREE.Mesh;
+  readonly blob: THREE.Mesh;
+  readonly key: THREE.DirectionalLight;
+  readonly direction: CornerDirection;
+}
+
+/**
+ * Review C1.1: the one place `seatObjectOnStage` is called while holding the camera's own position
+ * and orbit target through it — shared by the mount/depth-rebuild seating effect and the in-place
+ * direction-flip re-seat (QA 7I-Q2), which were the same five lines twice.
+ *
+ * `restoreCamera` is the caller's own answer to "does a camera already exist to hold": the very
+ * first seat of a session has none, so `seatObjectOnStage`'s own framing is left standing; every
+ * later seat — a depth rebuild, or a direction flip — restores what the customer already had.
+ */
+function reseatHoldingCamera(input: ReseatInput, restoreCamera: boolean): void {
+  const { object, camera, controls, ground, blob, key, direction } = input;
+  const heldPosition = camera.position.clone();
+  const heldTarget = controls?.target.clone();
+
+  seatObjectOnStage({ object, camera, ground, blob, key, direction });
+
+  if (restoreCamera) {
+    camera.position.copy(heldPosition);
+    if (controls && heldTarget) {
+      controls.target.copy(heldTarget);
+      controls.update();
+    }
+  }
 }
 
 /**
@@ -134,6 +186,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const invalidate = useThree((state) => state.invalidate);
 
   const records = useConfiguratorStore((state) => state.records);
+  // The room object itself: no command rewrites it, so this re-renders only when the room changes.
+  // The run-end panel's wall-end veto reads wall A's length from it (ADR 0045 Amendment A).
+  const designRoom = useConfiguratorStore((state) => state.design.room);
   const voids = useConfiguratorStore((state) => state.voids);
   const selection = useConfiguratorStore((state) => state.selection);
   const select = useConfiguratorStore((state) => state.select);
@@ -151,6 +206,18 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     (state) =>
       state.design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,
   );
+  // **The kitchen's own colour, resolved by the domain and never re-derived here** (ADR 0099
+  // decision 1). Every cabinet's colour reaches the scene as its record's `drawnFinish`; the
+  // run-end panel is *shell*, carries no record, and since the owner's ruling of 2026-09-17 —
+  // "end pannel should inherit the kitchen global color" — this is the only value that reaches it.
+  //
+  // Selected rather than derived in the body for the reason the depth above is: this is one
+  // already-existing object per design — `settings.finish`, or a material's declared default, which
+  // is a module constant — so the selector's result is stable and no command re-renders this
+  // component that did not change what is painted.
+  const kitchenFinish = useConfiguratorStore((state) =>
+    resolvedDefaultFinishOf(state.design),
+  );
 
   const stage = useMemo(() => {
     // **The kit is built at the depth the held design declares, never at a constant and never at the
@@ -165,7 +232,12 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       cabinetDepthMm,
       wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
     });
-    const shell = buildKitchenShell(kit);
+    // **The room decides the shell's extent, and it is deliberately not a dependency of this memo**
+    // (ADR 0074 decision 1: keyed on the depth and on nothing else). A depth change owns GPU
+    // resources and must rebuild the kit; a room change owns none and must not. The shell is drawn
+    // here at the room the design holds when the stage is built, and re-drawn in place by the
+    // effect below whenever that room changes.
+    const shell = buildKitchenShell(kit, designRoom);
 
     const solidsRoot = new THREE.Group();
     solidsRoot.name = "solids";
@@ -181,6 +253,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     return {
       kit,
       room,
+      shell,
       solidsRoot,
       voidsRoot,
       lights: createLightRig(),
@@ -195,25 +268,108 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     // kit, which can then be neither released nor kept.
     //
     // **The reference-ghost guarantee is the shell's fixed manifest, never the number of builds.**
-    // `buildKitchenShell` takes a `Kit` and *no records*; it keeps `KITCHEN_L_SHELL_CHILD_NAMES` and
-    // disposes the other 27 children, so building it N times yields N identical shells with no
-    // customer body in any of them. This comment said "built once per mount" until 2026-09-04, which
+    // `buildKitchenShell` takes a `Kit` and a `DesignRoom` and *no records*; it keeps
+    // `KITCHEN_L_SHELL_CHILD_NAMES` and disposes the other 27 children, so building it N times
+    // yields N shells of that room with no customer body in any of them. The room decides the
+    // shell's extent and nothing else about it, and it is deliberately **not** in the dependency
+    // array below — see the read above. This comment said "built once per mount" until 2026-09-04, which
     // read as if the empty dependency array were the safety property — it was not, and the invariant
     // would have died silently the moment this was keyed. `syncSolidBodies` remains the sole owner
     // of every customer body, and `syncRunEndPanel` re-seats the freshly built panel from the
     // current records on the new generation's first sync (ADR 0045).
   }, [cabinetDepthMm]);
 
+  // **The drawn room follows the design's room, in place.**
+  //
+  // A room change owns no GPU resource the stage holds: it replaces four geometries and two maps
+  // the shell allocated for itself, and leaves the kit's shared buffers, every mounted cabinet and
+  // the run-end panel exactly as they are. So it is redrawn here rather than by keying the memo
+  // above, which would tear down the kit and rebuild all 27 bodies to move a floor (ADR 0074
+  // decision 1).
+  //
+  // **The camera is deliberately absent from this.** The seating effect further down is keyed on
+  // the stage and not on the room, so a customer who has orbited their kitchen and then corrects a
+  // wall length keeps the view they chose (ADR 0074 decision 7).
+  //
+  // **It runs unconditionally on mount, and that is load-bearing rather than tidy.** The memo above
+  // reads `designRoom` while keyed on `[cabinetDepthMm]`, so it carries a **stale closure**: a
+  // depth change that arrives after a room change rebuilds the shell at whichever room the memo
+  // last captured. This effect redraws on every `stage` identity, so the stale draw is corrected
+  // before a frame is asked for — and `react-hooks/exhaustive-deps` is not configured in this
+  // repository, so nothing else will tell the next reader that closure is there.
+  //
+  // The redundant redraw it implies on an ordinary mount costs nothing: `resizeShellToRoom` keeps a
+  // record of the three numbers it last drew and returns immediately when they have not moved. That
+  // record is a fact about work already done — the same category as `hasSeatedAStage` below — and
+  // not a second authority on what the room is, which the design still answers alone.
+  // QA 7I-Q2. Undefined on the very first render of a stage, so the re-seat below never fires on
+  // mount — `seatObjectOnStage` already runs there (the effect further down, keyed on `stage`).
+  const lastSeatedDirection = useRef<CornerDirection | undefined>(undefined);
+
+  useEffect(() => {
+    resizeShellToRoom({
+      kit: stage.kit,
+      shell: stage.shell,
+      room: designRoom,
+    });
+    // ADR 0129 D4/D6, applied **in place** (7H's pattern, same reason as the resize above): the
+    // root's own scale and the two directional lights are the whole of what a direction change
+    // touches, so this mirrors them without disposing or rebuilding a single mesh, geometry or
+    // material — `stage` is not keyed on the direction any more than it is on the room's size.
+    const direction = cornerDirectionOf(designRoom);
+    applyCornerDirection(stage.room, direction);
+    applyCornerDirectionToLightRig(stage.lights, direction);
+
+    // QA 7I-Q2: a direction flip moves the kitchen's whole bounding box across x = 0, but the
+    // contact blob and the shadow ground were positioned by `seatObjectOnStage` at whatever side
+    // the room stood on when *that* effect last ran (keyed on `stage`, which a direction-only
+    // change never rebuilds) — left standing on the old side otherwise. Re-seat in place, holding
+    // the camera's own position and orbit target the same way a depth rebuild does (review C1.1:
+    // `reseatHoldingCamera` is the one place either does this), so only the blob, the ground and
+    // the near/far planes follow the flip and the customer's own view does not move under them.
+    if (
+      lastSeatedDirection.current !== undefined &&
+      lastSeatedDirection.current !== direction
+    ) {
+      reseatHoldingCamera(
+        {
+          object: stage.room,
+          camera: camera as THREE.PerspectiveCamera,
+          controls,
+          ground: stage.ground,
+          blob: stage.blob,
+          key: stage.lights.key,
+          direction,
+        },
+        true,
+      );
+    }
+    lastSeatedDirection.current = direction;
+    invalidate();
+  }, [stage, designRoom, invalidate]);
+
   // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
   // meshes that vanished are removed and disposed, and an unchanged body keeps its exact instance
   // — rebuilding it would discard its applied finish and re-run its wall seating. The finish is
   // re-applied over the fronts *after* the sync, since a body mounted this pass has none yet.
   useEffect(() => {
-    syncSolidBodies({ kit: stage.kit, solidsRoot: stage.solidsRoot, records });
-    syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids });
+    syncSolidBodies({
+      kit: stage.kit,
+      solidsRoot: stage.solidsRoot,
+      records,
+      room: designRoom,
+      // **Whichever colour the fronts in this same picture are taking.** In the editor `finish` is
+      // absent and the kitchen's resolved colour is the answer; the capture route hands the whole
+      // room one finish through the prop and repaints every front with it, so a panel that ignored
+      // it would be the one surface in a reference shot matching nothing around it. This is not a
+      // second precedence chain over ADR 0099's — it is the harness's whole-room override reaching
+      // one more surface it already overrides the rest of.
+      kitchenFinish: finish ?? kitchenFinish,
+    });
+    syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids, room: designRoom });
     if (finish) applyFinish(collectFronts(stage.room), stage.kit.M, finish);
     invalidate();
-  }, [stage, records, voids, finish, invalidate]);
+  }, [stage, records, designRoom, voids, finish, kitchenFinish, invalidate]);
 
   // ADR 0011 Gap B: `insert` measures the body it is about to place, and the probe needs a `Kit`
   // and the mounted room — neither of which exists until this component runs. The store therefore
@@ -250,29 +406,45 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     //
     // Restored around the call rather than split out of the adapter, because `near`/`far` *should*
     // be re-derived: the room's bounding sphere moves with the depth, and framing distance is what
-    // they are computed from. Only the customer's own two vectors are put back.
-    const orbit = controls;
-    const heldPosition = camera.position.clone();
-    const heldTarget = orbit?.target.clone();
-
-    seatObjectOnStage({
-      object: stage.room,
-      camera: camera as THREE.PerspectiveCamera,
-      ground: stage.ground,
-      blob: stage.blob,
-      key: stage.lights.key,
-    });
-
-    if (hasSeatedAStage.current) {
-      camera.position.copy(heldPosition);
-      if (orbit && heldTarget) {
-        orbit.target.copy(heldTarget);
-        orbit.update();
-      }
-    }
+    // they are computed from. Only the customer's own two vectors are put back — `reseatHoldingCamera`
+    // (review C1.1) is shared with the direction-flip re-seat above, which restores unconditionally
+    // because it never runs on a session's first seat.
+    reseatHoldingCamera(
+      {
+        object: stage.room,
+        camera: camera as THREE.PerspectiveCamera,
+        controls,
+        ground: stage.ground,
+        blob: stage.blob,
+        key: stage.lights.key,
+        direction: cornerDirectionOf(designRoom),
+      },
+      hasSeatedAStage.current,
+    );
     hasSeatedAStage.current = true;
     invalidate();
   }, [stage, camera, controls, invalidate]);
+
+  // **The cut set's own functions are declared here, ahead of the picking effect that reads them**;
+  // the effect that applies them on every change of what they depend on is further down, after the
+  // two overlay effects (see its own comment).
+  const cutWallsKey = useRef("");
+  const applyCutSet = (walls: readonly DesignWall[]): void => {
+    applyCutaway(stage.solidsRoot, stage.voidsRoot, walls);
+    cutWallsKey.current = walls.join(",");
+    // A8.3: a hidden cabinet is not an editable one. A selection on a wall that has just been cut
+    // away is cleared, and the panel closes with it.
+    const selectedWall = wallOfSelection(selection, records, voids);
+    if (selectedWall !== undefined && walls.includes(selectedWall)) deselect();
+    invalidate();
+  };
+  const cutWallsNow = (): readonly DesignWall[] =>
+    cutawayWallsFor(eyeOf(camera), designRoom, cabinetDepthMm);
+  const followCameraRef = useRef<() => void>(() => undefined);
+  followCameraRef.current = () => {
+    const walls = cutWallsNow();
+    if (walls.join(",") !== cutWallsKey.current) applyCutSet(walls);
+  };
 
   // Row 2 / row 22 / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
   // listeners, not R3F's declarative pointer props: the drag-vs-click distinction needs the raw
@@ -300,6 +472,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       });
       if (movedLikeAnOrbit) return;
 
+      // The cut set is brought up to the camera as it is *now*, before the ray is cast: nothing a
+      // change event or a frame missed may be picked (A2, "no cut wall is ever picked").
+      followCameraRef.current();
       toNdc(event);
       raycaster.setFromCamera(pointerNdc, camera);
       const target = pick(raycaster, stage.solidsRoot, stage.voidsRoot);
@@ -393,6 +568,45 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     };
   }, [overflowingIds, stage, records, voids, invalidate]);
 
+  // **The cutaway, in the scene** (ADR 0132 Amendment A2, A8.2, A8.3; M7B U5 S2): in a U, a wall whose
+  // body zone the camera's eye stands in or behind is not drawn and not picked. *No cut wall is ever
+  // drawn or picked*, so this is the one place the answer is recomputed and applied, and it is
+  // recomputed from **the camera's position alone** — so a preset's ease, a free orbit and a wheel
+  // zoom get the same answer, and no preset id is read anywhere.
+  //
+  // **Declared after both overlay effects on purpose**, because the outline and the overflow marks
+  // are mounted by them, and a mark or outline mounted onto a cut wall is drawn until this has run:
+  // React runs effects in declaration order, so by the time this one does, both have mounted. The
+  // adapter's own syncs apply the recorded cut to the bodies and voids they mount
+  // (`applyRecordedCutaway`); the overlays are the web's, and this is where the web re-applies.
+  //
+  // **Keyed on everything that can change the answer or what it is applied to**: the room and the
+  // depth (`cutawayWallsFor` reads both — an in-place U resize moves wall C's plane, and a depth change
+  // rebuilds the stage with no record while `reseatHoldingCamera` holds the camera still), the stage,
+  // and the records, voids, selection and marks whose remount puts something new in the scene. The
+  // camera itself moves between renders, so it is followed by the controls' `change` event, by the
+  // frame loop's ease, and once more at the moment of a pick.
+  useEffect(() => {
+    applyCutSet(cutWallsNow());
+    const follow = () => {
+      followCameraRef.current();
+    };
+    controls?.addEventListener("change", follow);
+    return () => {
+      controls?.removeEventListener("change", follow);
+    };
+  }, [
+    stage,
+    designRoom,
+    cabinetDepthMm,
+    camera,
+    controls,
+    selection,
+    records,
+    voids,
+    overflowingIds,
+  ]);
+
   // R3F never disposes a `<primitive>`, by design: its reconciler skips disposal when
   // `instance.type === 'primitive'` because a primitive's lifetime is owned outside React. Every
   // object below is one, so without this a client-side remount strands a whole room's buffers,
@@ -409,8 +623,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   }, [stage]);
 
   const goal = useRef<CameraGoal | null>(null);
-  const viewKey = sceneViewKey(view);
-  const resolved = resolveSceneView(view);
+  const viewKey = sceneViewKey(view, designRoom);
+  const resolved = resolveSceneView(view, designRoom);
   const resolvedRef = useRef(resolved);
   resolvedRef.current = resolved;
 
@@ -433,6 +647,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     camera.position.lerp(pending.position, step);
     controls?.target.lerp(pending.target, step);
     controls?.update();
+    // Every step of a preset's ease is a camera move, so the cut set follows it frame by frame.
+    followCameraRef.current();
     const cameraSettled =
       camera.position.distanceTo(pending.position) < SETTLED_METRES;
     const targetSettled =
@@ -442,6 +658,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       controls?.target.copy(pending.target);
       controls?.update();
       goal.current = null;
+      // The one moment a projection is worth measuring: the camera is where the preset put it and
+      // is no longer moving. Off unless the build opted in (`scene-measurement-store.ts`).
+      publishSceneMeasurement({ camera, solidsRoot: stage.solidsRoot });
       onSettled?.();
     }
     invalidate();
@@ -492,4 +711,22 @@ function findMountedPlacement(
       (child) => child.userData.placementId === placementId,
     ) ?? null
   );
+}
+
+function eyeOf(camera: THREE.Camera): Vector3Tuple {
+  return [camera.position.x, camera.position.y, camera.position.z];
+}
+
+/** The wall the selected body or void stands on, or `undefined` for no selection or a selection the
+ *  store no longer holds a record of. Read off the records the scene was synced from, so it is the
+ *  same wall the adapter tagged the mounted object with. */
+function wallOfSelection(
+  selection: Selection,
+  records: readonly PlacementRecord[],
+  voids: readonly VoidRecord[],
+): DesignWall | undefined {
+  if (!selection) return undefined;
+  const held: readonly { readonly id: string; readonly wall: DesignWall }[] =
+    selection.kind === "placement" ? records : voids;
+  return held.find((record) => record.id === selection.id)?.wall;
 }

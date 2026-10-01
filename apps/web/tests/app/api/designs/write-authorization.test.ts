@@ -12,10 +12,14 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  SaveOutcome,
+  MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ownerVisitorCookiePair } from "../../../support/owned-design-lookup";
 
 /**
  * An in-memory stand-in for the Neon repository that reproduces the one property these route tests
@@ -29,13 +33,30 @@ const FIRST_REVISION = "1";
 class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rows = new Map<
     DesignId,
-    { design: Design; writeTokenHash: string | null; revision: string }
+    {
+      design: Design;
+      writeTokenHash: string | null;
+      // `undefined` for a pre-ADR-0019/pre-7E3a row (`seedTokenlessRow`): no value a real request
+      // could ever carry equals it, so `loadOwned` answers `none` for it, the way a pre-`0005` row
+      // with `visitor_hash is null` does for the real repository (ADR 0114 decision 5).
+      visitorHash: string | undefined;
+      revision: string;
+    }
   >();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({
+    design,
+    writeTokenHash,
+    visitor,
+  }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
-    this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
+    this.rows.set(id, {
+      design,
+      writeTokenHash,
+      visitorHash: visitor.visitorHash,
+      revision: FIRST_REVISION,
+    });
     return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
@@ -44,7 +65,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     // The order the real repository uses: the credential decides between 403 and 409, so a caller
     // without one can never see a conflict and never learn the design exists.
@@ -56,7 +77,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {
@@ -66,11 +87,32 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
       : Promise.reject(new DesignNotFoundError(id));
   }
 
-  /** A design minted before ADR 0019: readable, and carrying no credential anyone can present. */
+  loadOwned({
+    id,
+    visitorHash,
+  }: {
+    id: DesignId;
+    visitorHash: string;
+  }): Promise<
+    { kind: "found"; design: Design; revision: string } | { kind: "none" }
+  > {
+    const row = this.rows.get(id);
+    if (!row || row.visitorHash !== visitorHash)
+      return Promise.resolve({ kind: "none" });
+    return Promise.resolve({
+      kind: "found",
+      design: row.design,
+      revision: row.revision,
+    });
+  }
+
+  /** A design minted before ADR 0019, and before the visitor column (M7 wave 7E3a): readable by
+   *  nobody under the current gate, and writable by nobody either. */
   seedTokenlessRow(id: DesignId, design: Design): void {
     this.rows.set(id, {
       design,
       writeTokenHash: null,
+      visitorHash: undefined,
       revision: FIRST_REVISION,
     });
   }
@@ -103,15 +145,45 @@ beforeEach(() => {
   repository.current = fakeRepository;
 });
 
-async function mintDesign(): Promise<{ id: string; cookie: string }> {
-  const response = await POST();
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
+/** M7 wave 7E3b: every mint also sets the visitor cookie (ADR 0114 decision 5), which the read gate
+ *  now requires on every `GET` regardless of the write token — `visitorCookie` is that identity, and
+ *  `cookie` stays the write-token pair this file's own name is about. */
+async function mintDesign(): Promise<{
+  id: string;
+  cookie: string;
+  visitorCookie: string;
+}> {
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
-  return { id, cookie: cookiePairOf(response.headers.get("set-cookie") ?? "") };
+  const setCookies = response.headers.getSetCookie();
+  const writeTokenLine =
+    setCookies.find((line) => line.startsWith("lemnaria_write_token_")) ?? "";
+  const visitorLine =
+    setCookies.find((line) => line.startsWith("__Host-lemnaria_visitor=")) ??
+    "";
+  return {
+    id,
+    cookie: cookiePairOf(writeTokenLine),
+    visitorCookie: cookiePairOf(visitorLine),
+  };
 }
 
 /** The `name=value` pair a browser would send back, stripped of the response-only attributes. */
 function cookiePairOf(setCookieHeader: string): string {
   return setCookieHeader.split(";")[0] ?? "";
+}
+
+/** Joins cookie pairs the way a browser's own `Cookie` header does, dropping any that are empty —
+ *  so a caller can combine a write-token pair with the visitor pair, or send only one of them. */
+function combinedCookie(...pairs: readonly string[]): string {
+  return pairs.filter((pair) => pair !== "").join("; ");
 }
 
 /** Every save this file sends states a revision, because the route refuses one that does not
@@ -166,7 +238,7 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
 
 describe("POST /api/designs", () => {
   it("mints a design and hands the creating browser its write token", async () => {
-    const response = await POST();
+    const response = await POST(mintRequest());
 
     expect(response.status).toBe(201);
     expect(response.headers.get("set-cookie")).toMatch(
@@ -175,7 +247,7 @@ describe("POST /api/designs", () => {
   });
 
   it("never puts the token in the response body, where script could read it", async () => {
-    const response = await POST();
+    const response = await POST(mintRequest());
     const setCookie = response.headers.get("set-cookie") ?? "";
     const token = cookiePairOf(setCookie).split("=")[1] ?? "";
 
@@ -246,13 +318,16 @@ describe("PUT /api/designs/[id] — the write-token guard", () => {
     expect(storedSerialization(victim.id)).toBe(before);
   });
 
-  it("leaves a pre-ADR-0019 design readable but not writable", async () => {
+  it("leaves a pre-ADR-0019 design unreadable and unwritable, by anyone (Amendment H2)", async () => {
+    // No visitor hash was ever recorded for this row (it predates the column, ADR 0114 decision 5),
+    // so no value any browser could present matches it — the same "have no owner and are therefore
+    // unreadable" consequence a pre-`0005` row gets from the real repository.
     const legacyId = "legacy-design";
     fakeRepository.seedTokenlessRow(legacyId, KITCHEN_L_DESIGN);
     const anyCookie = `lemnaria_write_token_${legacyId}=anything-at-all`;
 
     const read = await GET(
-      new NextRequest(`https://example.test/api/designs/${legacyId}`),
+      readRequest(legacyId, ownerVisitorCookiePair()),
       routeParams(legacyId),
     );
     const write = await PUT(
@@ -260,7 +335,7 @@ describe("PUT /api/designs/[id] — the write-token guard", () => {
       routeParams(legacyId),
     );
 
-    expect(read.status).toBe(200);
+    expect(read.status).toBe(404);
     expect(write.status).toBe(403);
     expect(storedSerialization(legacyId)).toBe(
       canonicalSerializeDesign(KITCHEN_L_DESIGN),
@@ -465,10 +540,10 @@ async function readBodyOf(
 }
 
 describe("GET /api/designs/[id]", () => {
-  it("needs no write token — a shared link still reads", async () => {
-    const { id } = await mintDesign();
+  it("needs no write token — only the owning browser's visitor cookie (Amendment H2)", async () => {
+    const { id, visitorCookie } = await mintDesign();
 
-    const { status, body } = await readBodyOf(id);
+    const { status, body } = await readBodyOf(id, visitorCookie);
 
     expect(status).toBe(200);
     expect(body).toEqual({
@@ -479,14 +554,22 @@ describe("GET /api/designs/[id]", () => {
     });
   });
 
-  it("reports canWrite: false to a caller holding no cookie — a 200, never a 401 or 403", async () => {
-    const { id } = await mintDesign();
+  it("reports canWrite: false to the owning browser that sends no write-token cookie — a 200, never a 401 or 403", async () => {
+    const { id, visitorCookie } = await mintDesign();
 
-    const { status, body } = await readBodyOf(id);
+    const { status, body } = await readBodyOf(id, visitorCookie);
 
     expect(status).toBe(200);
     expect((body as { canWrite: boolean }).canWrite).toBe(false);
     expect((body as { design: Design }).design).toEqual(KITCHEN_L_DESIGN);
+  });
+
+  it("refuses a caller holding no cookie at all — 404, never a 401 or 403 (ADR 0114 decision 5)", async () => {
+    const { id } = await mintDesign();
+
+    const { status } = await readBodyOf(id);
+
+    expect(status).toBe(404);
   });
 
   it("marks the response uncacheable and cookie-varying — canWrite is per-credential", async () => {
@@ -494,34 +577,45 @@ describe("GET /api/designs/[id]", () => {
     // cached copy would hand one visitor another browser's `canWrite: true`, and a panel offering
     // edits every save is then refused for. Nothing caches this today; these headers are what
     // keeps that true if `s-maxage` is ever added to a payload that looks public.
-    const { id, cookie } = await mintDesign();
+    const { id, cookie, visitorCookie } = await mintDesign();
 
-    const response = await GET(readRequest(id, cookie), routeParams(id));
+    const response = await GET(
+      readRequest(id, combinedCookie(cookie, visitorCookie)),
+      routeParams(id),
+    );
 
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("vary")).toBe("Cookie");
   });
 
   it("reports canWrite: true to the browser that minted the design", async () => {
-    const { id, cookie } = await mintDesign();
+    const { id, cookie, visitorCookie } = await mintDesign();
 
-    const { status, body } = await readBodyOf(id, cookie);
+    const { status, body } = await readBodyOf(
+      id,
+      combinedCookie(cookie, visitorCookie),
+    );
 
     expect(status).toBe(200);
     expect((body as { canWrite: boolean }).canWrite).toBe(true);
   });
 
-  it("reports canWrite: false when the cookie belongs to a different design", async () => {
+  it("refuses a foreign design outright — never canWrite: false (Amendment H2)", async () => {
+    // Before M7 wave 7E3b, a write-token cookie named and pathed for the wrong design still read
+    // the design with `canWrite: false`. Since decision 5, the read itself needs this browser's own
+    // visitor identity to match the row, and `mine`'s never does for `theirs` — so the read is
+    // refused wholesale, and `canWrite` is never computed at all.
     const mine = await mintDesign();
     const theirs = await mintDesign();
 
-    const { status, body } = await readBodyOf(theirs.id, mine.cookie);
+    const response = await GET(
+      readRequest(theirs.id, mine.visitorCookie),
+      routeParams(theirs.id),
+    );
 
-    expect(status).toBe(200);
-    // The cookie is real, but it is named and pathed for `mine.id`. Reading `theirs.id` with it
-    // must not report edit access this browser does not have on that design.
-    expect((body as { canWrite: boolean }).canWrite).toBe(false);
-    // And the corresponding write is refused, which is the guarantee `canWrite` merely describes.
+    expect(response.status).toBe(404);
+    // The corresponding write is refused too, which is the guarantee the old `canWrite: false`
+    // merely described.
     const write = await PUT(
       saveRequest(theirs.id, {
         design: ATTACKER_DESIGN,
@@ -533,9 +627,12 @@ describe("GET /api/designs/[id]", () => {
   });
 
   it("reports canWrite as a boolean and never any part of the credential", async () => {
-    const { id, cookie } = await mintDesign();
+    const { id, cookie, visitorCookie } = await mintDesign();
 
-    const response = await GET(readRequest(id, cookie), routeParams(id));
+    const response = await GET(
+      readRequest(id, combinedCookie(cookie, visitorCookie)),
+      routeParams(id),
+    );
     const raw = await response.text();
     const token = cookie.split("=")[1] ?? "";
 
@@ -708,9 +805,12 @@ describe("PUT /api/designs/[id] — the revision the save is conditional on (WEB
   it("reports the design's revision on the read that hands it out", async () => {
     // Without this a browser could not state a revision on its first save at all: the credential
     // cookie and the document arrive together, and the revision has to travel with them.
-    const { id, cookie } = await mintDesign();
+    const { id, cookie, visitorCookie } = await mintDesign();
 
-    const response = await GET(readRequest(id, cookie), routeParams(id));
+    const response = await GET(
+      readRequest(id, combinedCookie(cookie, visitorCookie)),
+      routeParams(id),
+    );
 
     expect((await response.json()) as { revision: string }).toMatchObject({
       revision: FIRST_REVISION,
@@ -718,7 +818,7 @@ describe("PUT /api/designs/[id] — the revision the save is conditional on (WEB
   });
 
   it("mints a design already carrying its first revision", async () => {
-    const response = await POST();
+    const response = await POST(mintRequest());
 
     expect((await response.json()) as { revision: string }).toMatchObject({
       revision: FIRST_REVISION,

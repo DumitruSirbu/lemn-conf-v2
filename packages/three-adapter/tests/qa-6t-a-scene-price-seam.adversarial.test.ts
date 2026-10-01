@@ -56,7 +56,7 @@ beforeEach(() => {
 
 function mount(design: Design): readonly PlacementRecord[] {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: design.room });
   return records;
 }
 

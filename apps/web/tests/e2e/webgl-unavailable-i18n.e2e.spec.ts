@@ -1,5 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+
+import { openSeededDesign, test } from "./support/seeded-design";
 
 const ro = JSON.parse(
   readFileSync(new URL("../../src/messages/ro.json", import.meta.url), "utf8"),
@@ -36,8 +38,11 @@ async function forceWebGLUnavailable(page: Page): Promise<void> {
   });
 }
 
+// Moved onto `openSeededDesign` (wave 7E4 D3): the only difference from the configure route is
+// G9's `titleMobile` source, and every ro/ru string below is still asserted visible.
 test("the real request and client providers render the Romanian WebGL exit", async ({
   page,
+  seededDesign,
 }) => {
   const runtimeErrors: string[] = [];
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
@@ -51,7 +56,7 @@ test("the real request and client providers render the Romanian WebGL exit", asy
 
   await forceWebGLUnavailable(page);
 
-  const response = await page.goto("/configurator/configure");
+  const response = await openSeededDesign(page, seededDesign);
   expect(response?.ok()).toBe(true);
   expect(
     await page.evaluate(
@@ -76,6 +81,7 @@ test("the real request and client providers render the Romanian WebGL exit", asy
 test("an explicit Russian route keeps its internal navigation locale despite a contradictory cookie", async ({
   page,
   context,
+  seededDesign,
 }) => {
   await context.addCookies([
     {
@@ -87,7 +93,7 @@ test("an explicit Russian route keeps its internal navigation locale despite a c
   ]);
   await forceWebGLUnavailable(page);
 
-  await page.goto("/ru/configurator/configure");
+  await openSeededDesign(page, seededDesign, { locale: "ru" });
   const exit = page.getByTestId("webgl-unavailable");
   await expect(exit).toBeVisible();
   for (const [key, expected] of Object.entries(ru.webglUnavailable)) {

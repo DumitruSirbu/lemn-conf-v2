@@ -8,7 +8,12 @@ import {
 } from "../support/approved-romanian-messages";
 
 describe("Romanian catalogue copy lock", () => {
-  it("matches every approved leaf without snapshot update semantics", () => {
+  // Not *"every approved leaf"*: the assertion is a deep equality in both directions, and the corpus
+  // carries a few marked-drafted leaves alongside the approved ones so that it can be one (see
+  // `approved-romanian-messages.ts`'s header). What goes red here is a catalogue leaf that changed,
+  // appeared or disappeared — approved or drafted alike — which is more than approval and is the
+  // point.
+  it("holds ro.json to the locked corpus leaf for leaf, without snapshot update semantics", () => {
     expect(ro).toEqual(APPROVED_ROMANIAN_MESSAGES);
   });
 

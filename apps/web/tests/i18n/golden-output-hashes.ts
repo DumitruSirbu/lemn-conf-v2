@@ -10,6 +10,75 @@
  * and the one `priceBreakdown.placementLabel` fixture built from one now read *Dulap* where the
  * domain said *Corp*. That is the owner's rename at `3564c7c` reaching the refusal sentences, which
  * had been the last surface still saying the old word.
+ *
+ * **Grown, never rebaselined, by wave 7F4a** (ADR 0113 decision 2). Twenty `room.compose.*` entries
+ * are added for sub-state 1F's copy and **no existing hash moved**, which is the shape a copy-adding
+ * wave owes: a moved hash would mean an approved sentence changed, and none did. The new leaves
+ * arrive hashed because `ROOM_FIXTURES` is built from `ro.json`'s own `room` subtree rather than
+ * from a hand-listed set.
+ *
+ * **Rebaselined a second time, 2026-09-15, over exactly four of those twenty** —
+ * `room.compose.status.placed`, `room.compose.status.notPlaced`, `room.compose.rule` and
+ * `room.compose.dropped`. The owner reworded 1F's two statuses (*așezat* → *inclus*, *nu încape* →
+ * *nu poate fi inclus*), `rule` restates the second one in running text and follows it, and
+ * `dropped` now names the wall sizes as the reason. **Four moved and no others**, which is the check
+ * a copy ruling owes: a fifth would mean something changed underneath the ruling.
+ *
+ * **Rebaselined a third time, 2026-09-15, over exactly one — `room.compose.stepsLabel`.** The same
+ * day's second ruling (*"not Ce includem but Ce este inclus"*) made 1F's list heading passive, so it
+ * says *inclus* in the voice its own `status.placed` rows use. **One moved and no others**, verified
+ * by diffing the 64-hex values alone rather than the file.
+ *
+ * **Grown again, never rebaselined, by wave 7F4b** — `room.compose.retry` and
+ * `room.compose.saveFailed`, the two sentences the hand-off owes and no frame draws. **Two added and
+ * no existing hash moved**, which is what a copy-adding wave owes: a moved hash would mean an
+ * approved sentence changed, and none did.
+ *
+ * **Grown again, never rebaselined, by wave 7A3 S3** (ADR 0113 decision 2) — `room.lengthsHint` and
+ * the six `room.lengthHelp.*` leaves, the Step 1 copy that says the number is the run to furnish
+ * (owner ruling Q-7A3-1). **Seven added and no existing hash moved.**
+ *
+ * **Grown by one and rebaselined over exactly two, in the same wave's fix round** — the owner's
+ * ruling of 2026-09-17 that in a room with a corner the length is measured from the corner, corner
+ * cabinet included. `room.lengthHelp.wallB.text` and `room.lengthHelp.wallC.text` gain that clause
+ * and move, because walls B and C exist only in a room with a corner; `room.lengthHelp.wallA.cornerText`
+ * is added, because wall A stands in a straight room too and keeps `room.lengthHelp.wallA.text`, whose
+ * hash does not move. **Two moved, one added, no others.**
+ *
+ * **Grown again, never rebaselined, by wave 7D5b slice SW** (ADR 0113 decision 2; ADR 0110
+ * Amendment M3) — `room.compose.dishwasher`, frame 1F's sixth row, whose wording the owner approved
+ * in session on 2026-09-21. **One added and no existing hash moved.**
+ *
+ * **Grown again, never rebaselined, by wave 7F2 slice S1** (ADR 0113 decision 2) — frame 1C's copy,
+ * owner-approved in session on 2026-09-21 (Q-7F2-1 and Q-7F2-4): the six `room.issue.*` reasons, one
+ * per issue code 1C can carry, `room.issue.unreadable`, `room.issue.orChooseLinear` (wired off until
+ * wave 7J), the two `room.planWallIssue.*` labels and `room.presetsAfterValid`. A departure from frame
+ * 1C's sentence, recorded in the copy lock. **Eleven added and no existing hash moved.**
+ *
+ * **Rebaselined over exactly three, with one leaf renamed, by wave 7F2 slice S1b** (ADR 0126; ADR 0113
+ * decision 2) — the owner's ruling of 2026-09-21 that Step 1's lengths are typed and shown in whole
+ * millimetres. `room.issue.unreadable` moves to the approved millimetre sentence; `room.planWallLabel`
+ * and `room.compose.roomSummary` move because they now render whole millimetres through ICU's
+ * `::group-off` number form with the unit *mm*; and `room.unitMetres` is removed and replaced by
+ * `room.unitMillimetres`, the box's new suffix. **Three moved, one renamed, no others** — the count of
+ * fixtures is unchanged.
+ *
+ * **Grown again, never rebaselined, by M7 wave 7E3c slice S5** (ADR 0113; ADR 0114 Amendment B
+ * *Copy*) — the twelve `share.*` leaves for D10's share control, approved and locked in the same
+ * commit. **Twelve added and no existing hash moved.**
+ *
+ * **Grown by one, never rebaselined, by M7 wave 7E3c review round 2 (R2.1)** — `share.retry`, the
+ * error state's own label once its retry button stopped always reading `share.create`. **One added
+ * and no existing hash moved.**
+ *
+ * **Grown again, never rebaselined, by M7 wave 7L slice S3** (ADR 0113 decision 2) —
+ * `room.suggestion.title` and `room.suggestion.switchToLinear`, D1C's *Sugestii* card as written.
+ * **Two added and no existing hash moved.**
+ *
+ * **Grown by one, never rebaselined, by M7B wave U5 slice S1** (ADR 0113 decision 2) —
+ * `room.compose.roomSummaryU`, a U's 1F summary: `roomSummary`'s own sentence with a third length.
+ * Drafted, not approved (no frame draws it), by the coordinator's ruling of 2026-09-30. **One added
+ * and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -340,6 +409,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "093642fdd3ae144d6efee42eefcf43c9154528c47e2d692700ef8ff3481de870",
   "content.static.configure.cameraPresets.wallB":
     "0fe4c619c2a80b68bc95fd2d2c66e91880ebbf887c4213cceaff0a2209277f97",
+  "content.static.configure.cameraPresets.wallC":
+    "3c9eb93e9ab7686ae3bb2a8b146948e745a027877479fdca591dc25c758047d3",
   "content.static.configure.loading":
     "fff58e0d5274b9323b1d417339767816cc64fdbb2be12d731af5db285f61b75a",
   "content.static.configure.locale":
@@ -368,6 +439,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "7939b8956d8f17fca2ff3dd0b2bf59e4927868693c66406f85841bcfe86d75f5",
   "content.static.designLoadError.bodyNotFound":
     "044b94e8669ef281e8a9015474dd79e4f1ea0dc865b86b89401e14ecfe642e2c",
+  "content.static.designLoadError.bodyUnavailable":
+    "62e841d6fa2ad1cb1b76225f9fd56c1feb8fb7df598a4c1375057a2385ced330",
   "content.static.designLoadError.startOver":
     "f8bd1e318dbd3207ab51234b0fb230f5f56670d0076c392747c50bcaa5e53f66",
   "content.static.designLoadError.title":
@@ -494,6 +567,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "429579e6f6810cccda9c01507bc98f17e4c2406050aa66689979ffd9f22d858e",
   "content.static.panel.widthStepNote":
     "25b5cf5f5ce36e60cddf47954fa3ef301a00423d5dd7d4f8a8dc02673e1b64fa",
+  "content.static.panel.widthStepNoteRight":
+    "26044a3db5b29b9c452edaeee385bd8df5907c21b1552f2b5c8c1b55913681c8",
   "content.static.panel.widthTitle":
     "7032317e22f0150cde3c67663e1a940f619d7df1847ea3f9cec8f685c46a83ab",
   "content.static.price.emptyKitchenPrompt":
@@ -526,6 +601,32 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6f5e8a6a2dbf05583c1bc68be44e1405667bad92cdb8a9e1df182ff15709999d",
   "content.static.priceBreakdown.wholeKitchenCategories.material":
     "616cb218a65b982f61fd738e24ebe00d5a2ae039c0d386fed975a51d51b772f8",
+  "content.static.share.active":
+    "11e24fed2e008b9990cc09c79c5b906ea690de596fbb8779585693695717fea4",
+  "content.static.share.copied":
+    "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
+  "content.static.share.copy":
+    "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.share.create":
+    "85c7c4cba9850b92a4ee2f5544e0b0a1e03028581438ed36d295b24a9e707e4d",
+  "content.static.share.description":
+    "ec6db86d72dcd834feeba64df026e146ea4dab87e79fb20bfcedd71b7aa91a1e",
+  "content.static.share.error":
+    "b84b802ffd760ded9905b73b749fb836523b213f8a52cd8bca93e910f3eeb2ef",
+  "content.static.share.reissue":
+    "e7ee7ce07294ca9a5b9016e464519bfbde88a90b1171bbcb9ad5acbe3a8e10e8",
+  "content.static.share.reissueWarning":
+    "ff70236eb0ad89805e9b29faa2832c4303a21cb2917136500eb533a4f1b528e1",
+  "content.static.share.retry":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
+  "content.static.share.revoke":
+    "feb9b21ba9dd8ffc4fc97b296e2d8a42bf006d3b9b447f4421ad83facd5425d9",
+  "content.static.share.revoked":
+    "fb21d510279e562b9b3f3de19742e03b68b4c96627e962f04e5cef7c98d89ea5",
+  "content.static.share.shownOnce":
+    "16ad18d502ad86cacf194a15647b858df41e6c927c4bdc69aac87de1f530bf6c",
+  "content.static.share.title":
+    "f910ad5d811172c1eda26732321a8cd035c7f9d5beb9d55893ccb821004c121e",
   "content.static.webglUnavailable.bodyDesktop":
     "07b37eca3d8331107c7faa08978372485a5a8f648a165582bdd7466b2b6112e1",
   "content.static.webglUnavailable.bodyMobile":
@@ -622,4 +723,151 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "6013427f303715ac1cd4a7a42779c8803e3f1c700d1cdc0e509edc87920dfc84",
   "rejection.width-unchanged":
     "29dbd133f142f0e3c48d4080dc7b115c9349eb0f8124d6f00465c37b6f548c75",
+  // M7 wave 7F1: Step 1's 26 leaves, added with the copy they pin (ADR 0113 decision 2). Nothing
+  // above this line moved — a moved hash here would mean a shipped string changed, which this wave
+  // does not do.
+  "room.back":
+    "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
+  "room.compose.busy":
+    "241c8d13d3518b3c04ad55b494606e9881603d46959fedbbd3551955bcc48e6b",
+  "room.compose.dishwasher":
+    "6f6d6df0ab30e50a647f955e6083a343801693e981a43f2d6bc7714c08b981ad",
+  "room.compose.dropped":
+    "e2e503d5f26f8329749eb2c313b0d28378b6a91e035f9b93fd5d2b106f14071d",
+  "room.compose.failed":
+    "316e6aa5b4b22f9d0e800976cff039b40656ba294a987587d99174d6f14e40ee",
+  "room.compose.heading":
+    "33c0c8a4c64822a0b5c87f68a299d4594477b4212cb8cdecc2d5ea8b12ca64a2",
+  "room.compose.noPresetNotice":
+    "feac196b98380da021c1e927c609160ff0643754fb66b1eda93860532c596ed7",
+  "room.compose.retry":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
+  "room.compose.role.fridge":
+    "47759269b7057594ed4fd329b9bcde97d9f43c5b6d22bc39590e269421680a41",
+  "room.compose.role.hob":
+    "29199b0f413a7abff06b47a3115e0af885456bef3442d0f64bab03763a493d57",
+  "room.compose.role.preparation":
+    "a9a9a7ff3f216a699805275160057cdb3b2b8dde942712240a7efc8f1f8a64ef",
+  "room.compose.role.sink":
+    "4cc69b547ca47a397f305d7eb2ab063699f361eca1a3621bf066cda3a4795ba8",
+  "room.compose.role.storage":
+    "cb18c899f3227071b5f242aacd6f90a6c56afc0744daa32771a6946d4c5844b7",
+  "room.compose.roomSummary":
+    "06065b68375cce3c5819420945aecfb25e48f7f57fba6d780bdf635dc77c5f15",
+  "room.compose.roomSummaryLinear":
+    "f9beb57a2564c46d0537452a037ebc9c342634d8962561d03e9dc1180218dffa",
+  "room.compose.roomSummaryU":
+    "0aa60830d53eb2b51215311ea072060585e1d8b625811400d079c77c793c4304",
+  "room.compose.rowLabel":
+    "4d23f6e72dbf5825d76c75e692b6f3771038943e7899c38c93cb9a9040bc8d32",
+  "room.compose.rowWidth":
+    "284b7e6d788f363f910f7beb1910473e23ce9d6c871f1ce0f31f22a982d48ad4",
+  "room.compose.rule":
+    "c0ab39bf9a66816c8300e8280ba3e05f2d5424c92edf56ad4b7cc3da62c4c3e6",
+  "room.compose.saveFailed":
+    "60b62ebef7456c982be74a1c02b1eebabc5306eee0486c43e95c81d875998887",
+  "room.compose.status.notPlaced":
+    "91af24868a56435376f937ac4c6ae9baf820e9fd618a37f24b3aeae36f7764f0",
+  "room.compose.status.pending":
+    "1aadbf0b4f291714f5f2437447231809bd99051f8f90228fa97702cbce6e0749",
+  "room.compose.status.placed":
+    "92b1126dbb94d72bbbd873b7f4ac99384adb16792d6bd4ad7798e0083bc70b06",
+  "room.compose.stepsLabel":
+    "73eb498be716fb8ae0eb4f6f181ec686207089d5c508f3b20d37f9117dd0193b",
+  "room.compose.storageExtent":
+    "d4ad0b77e156fdc4e1109eb7a61c66e64a1517d5feaf306cf844f99cd4aaecb0",
+  "room.compose.title":
+    "7252e7ce008587e1180459d95c2536df954971d6c51e6ac753518a6fe15da563",
+  "room.continue":
+    "5fc4497d148a38a8edd26e8536196fc907abc9394274fd067fa54f5d457755c9",
+  "room.cornerHint":
+    "bd5a2c4d03bb1b66072c20e300c0329e90c91fd11a03014c01db1e803001a3c1",
+  "room.cornerLeft":
+    "86dcbf5c87dc08b9ef49f2b0de4e96b2ccb572727795df8ddbde7bbd63d83e62",
+  "room.cornerQuestion":
+    "498eb900296c7dfda503e3451c1e9f25f642d0b75b6f2df378e898bcccf3b435",
+  "room.cornerRight":
+    "22ac05eb611df45e116bcbec6a8d48544680d714dd7b7f5343a2ea2794d141d1",
+  "room.dimensionsLater":
+    "1b00450091831491e1b4128640374d6a2a3ac0ad3e84ebc083e6b5a5310803f1",
+  "room.heightLabel":
+    "ff63771df164dbfdaf4e10f822bac40675197de9117bce6a26d7ae15afd8312c",
+  "room.issue.heightTooHigh":
+    "3e6a99398e3aa0ec776428d1195096df8232b37a3770a8ae0e0840a428228918",
+  "room.issue.heightTooLow":
+    "25307f65aea86b45bd44b4ba2337a66faa73b28d0bab7fdfb189699430119e16",
+  "room.issue.orChooseLinear":
+    "bdd9b039fc0b9967e4fa6d8a5cd31ea2cd43de4b3fe92e9b864917a6cb917efe",
+  "room.issue.roomTooSmall":
+    "11973ac50edb81bce3a89f20f336c30261e8c1b3a274501a18f3a3ac70fb62cb",
+  "room.issue.shapeNotBuildable":
+    "628ecbc794dce0fc76080277d023a4cccc61eb782634c83d4a6af553396def0d",
+  "room.issue.unreadable":
+    "e513d50c33a80043f27f317772e7cca043b44ef751dd816f4f4bd63a99c9e299",
+  "room.issue.wallTooLong":
+    "9e19b58541c57b01ae1a292bb4c9c6da6ebc6c154ef98c573fb8f5959da5f3d5",
+  "room.issue.wallTooShort":
+    "a9c20cf482fb9a645c516d47a70c92760d7c371398f96c103a282d88e78fbe08",
+  "room.lengthHelp.wallA.name":
+    "f59dc3455abaf89693b4f767601a0c89f30310e2508fc680587366da1bfc4c74",
+  "room.lengthHelp.wallA.cornerText":
+    "e31da365de218a724565d06a46c451f7e3fbfa087fd30b3573af0f6f905c1fe0",
+  "room.lengthHelp.wallA.text":
+    "4b1d825d422d671cc85328d60d76529e813fc2a957ddb56221cff4259fd5456e",
+  "room.lengthHelp.wallB.name":
+    "7f35661bbee984f9608fd74a46b9611bfa107c2bcf97d47b1c2d33fd5f7beb29",
+  "room.lengthHelp.wallB.text":
+    "4962e4e9c18165a85c2eab914d2e72e45ad439eb3fd987f35705c009fce99d81",
+  "room.lengthHelp.wallC.name":
+    "bf17e5275ea69b6434e21b1efc654f2f5a7382267307d65b98a4b493c4cb0ee4",
+  "room.lengthHelp.wallC.text":
+    "a093a2ab04649d6501876be0a26beb21ea122d85b8e53e5ab45bc2991eeef77a",
+  "room.lengthsHint":
+    "a70ffb130edcd7653af7ccac3fbb8553e9874223c33717155d6f9c6798406655",
+  "room.planCaption":
+    "8dc37f456be3e5385df4820512a22970029bfccee43021d3e4d6d190c5dba4f5",
+  "room.planWallLabel":
+    "614b5f112027663ae7071d5fe3e99dfd69d482a66fe3d093f6f6123c8928eb73",
+  "room.planWallIssue.tooLong":
+    "c0ac4ab811bd5c78132f7921697c90b638fc25e9cf7c221054f5e209262e493c",
+  "room.planWallIssue.tooShort":
+    "7c94c349fcefcb48459040e9e62eff16fc7c509d4482345cd395e57bb499044d",
+  "room.presetsAfterValid":
+    "771f54d4059e4683596180f6853994a4bd86e12620e0dee2abcbc64c58e62a5d",
+  "room.shapeLead":
+    "4f30d5a158a82f441223af41a0a888c31f0ab0b47164b083f04fb7a16b8a87ee",
+  "room.shapeQuestion":
+    "88c85dac054b1bfef5587343154d205bd6a2400cce0635469e58c153039cd06a",
+  "room.shapes.L.detail":
+    "1dc3b5342f95611dca2bbf0d27ddf0d3b8f2b05a24c208d4c88b7a59ef16e284",
+  "room.shapes.L.name":
+    "e8c1b7c652b78671b20b12103391a6bc57dbba201df8b84857e2b024cfa78180",
+  "room.shapes.L.short":
+    "55dec6e9ea140c3315d27216f4666fbd72908dec0ab344499aefcbdcd44e7af1",
+  "room.shapes.U.detail":
+    "5333657fa5bbd81aebd848ff037cf01a63a76be92096d7b65453cddfc1542cd9",
+  "room.shapes.U.name":
+    "311c3de6c0a039ba6f720ab4e1824b8744616f1cee458042de72b79fdd4620b1",
+  "room.shapes.U.short":
+    "829f5c03174b4fd8b2fa5c300888623cb96d24bf72c57ce41e219dc053f32c6a",
+  "room.shapes.linear.detail":
+    "0bd2afe77a8ac5c486aa19f09b032dd73373e5c781ddb05a8bdea876cd17aac5",
+  "room.shapes.linear.name":
+    "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
+  "room.shapes.linear.short":
+    "6ea2bf6b154b0c7549029887011ecaaf33afd39df44a1e206cdaa48bb525e68d",
+  "room.suggestion.switchToLinear":
+    "68a5810059a860e72ea1a261376ab4d0ebd1a3bf929a34010dc635fd9c3d8c10",
+  "room.suggestion.title":
+    "c23397d70ed65e109abe6595fb567572033196460be1c8d98c2f3165910faa0a",
+  "room.title":
+    "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
+  "room.unitMillimetres":
+    "8fa1dddd53606ceb933c5c6a12e714ed41e11d37a2b7bc48e91d15b54171d033",
+  "room.wallLabel.wallA":
+    "093642fdd3ae144d6efee42eefcf43c9154528c47e2d692700ef8ff3481de870",
+  "room.wallLabel.wallB":
+    "0fe4c619c2a80b68bc95fd2d2c66e91880ebbf887c4213cceaff0a2209277f97",
+  "room.wallLabel.wallC":
+    "3c9eb93e9ab7686ae3bb2a8b146948e745a027877479fdca591dc25c758047d3",
 };

@@ -41,10 +41,22 @@ export function placementExtendsPastOwnWall(
  * This was once `Math.max(widthMm, depthMm)` for both walls to accommodate a bad 2400 mm fixture
  * depth. The seeded wall B is 2920 mm and wall A 3560; lending either wall the other axis would
  * again hide the exact overrun this fact exists to report (ADR 0065 decision 5).
+ *
+ * **ADR 0130 D4 extends the rule to a shape with one wall:** a straight room has no wall B, so its
+ * run is 0 rather than `room.depthMm` — which for a straight room is the drawn floor's depth, never
+ * a wall (ADR 0130 D3). A wall-B placement in a straight document therefore always reads as
+ * overflowing, never as fitting a wall that is not there.
+ *
+ * **ADR 0132 decision 5 extends the same rule to wall C:** its run is `room.wallCMm` for a U and 0
+ * for an L or a straight room, neither of which has one. A wall-C placement in a document with no
+ * wall C is marked overflowing, never refused — the schema stores it (ADR 0132 decision 6) whether
+ * or not the room it names has anywhere for it to fit.
  */
 export function wallLengthMm(
   wall: DesignPlacement["wall"],
   room: DesignRoom,
 ): number {
-  return wall === "A" ? room.widthMm : room.depthMm;
+  if (wall === "A") return room.widthMm;
+  if (wall === "B") return room.shape === "linear" ? 0 : room.depthMm;
+  return room.shape === "U" ? (room.wallCMm ?? 0) : 0;
 }

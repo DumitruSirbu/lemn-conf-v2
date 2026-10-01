@@ -1,8 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { readSelection } from "./support/panel";
-import { tapCanvas } from "./support/canvas-taps";
+import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
+import {
+  issueShareLink,
+  mintSeededDesign,
+  openDesignAndAwaitAccessProbe,
+  openSharedDesign,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * Wave 4C's read-only path, end to end for the first time (M4 hand-offs 2 and 3, ADR 0019
@@ -26,9 +33,7 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * in this suite carries.
  */
 
-const SINK_CABINET_TAP = { x: 215, y: 500 };
 const SCENE_SETTLE_MS = 2000;
-const PROBE_TIMEOUT_MS = 15_000;
 
 const mintedDesignIds: string[] = [];
 
@@ -36,34 +41,36 @@ test.afterAll(async () => {
   await deleteMintedDesigns(mintedDesignIds);
 });
 
-async function mintDesign(page: Page): Promise<string> {
-  await page.goto("/configurator/configure");
-  const { status, id } = await page.evaluate(async () => {
-    const response = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const payload = (await response.json()) as { id: string };
-    return { status: response.status, id: payload.id };
-  });
-  // Registered before it is asserted on, so a failing assertion still cleans up.
-  if (id) mintedDesignIds.push(id);
-  expect(status).toBe(201);
-  return id;
+// Re-pointed onto `mintSeededDesign` (wave 7E4 D3); re-pointed again onto a share link, not a
+// cleared cookie jar, for the read-only half (M7 wave 7E3c S6).
+async function mintDesign(page: Page): Promise<SeededDesign> {
+  const design = await mintSeededDesign(page);
+  // `mintSeededDesign` itself throws by name on an empty id (wave 7E4 Q3), so there is nothing left
+  // here to check — the row is registered for cleanup as soon as it exists.
+  mintedDesignIds.push(design.id);
+  return design;
 }
 
-/** Opens the shared link and selects a body, waiting for the write-access probe on the way. Returns
- *  once §9's panel is on screen for a body the design's author could delete. */
+/** Opens the owner's own `/d/{id}` and selects a body, waiting for the write-access probe on the
+ *  way. Returns once §9's panel is on screen for a body the design's author could delete. Built on
+ *  the shared navigation-and-probe helper (review round 1, R1.3), which every `/d/{id}` caller in
+ *  this suite shares. */
 async function openAndSelect(page: Page, designId: string): Promise<void> {
-  const probe = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      new URL(response.url()).pathname === `/api/designs/${designId}`,
-    { timeout: PROBE_TIMEOUT_MS },
-  );
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
-  await probe;
+  await openDesignAndAwaitAccessProbe(page, `/d/${designId}`, designId);
+  await page.waitForTimeout(SCENE_SETTLE_MS);
+
+  await tapCanvas(page, SINK_CABINET_TAP);
+  await expect(page.getByTestId("editor-panel")).toHaveCount(1);
+  await expect(async () => {
+    expect((await readSelection(page)).selectionId).toBe("p0");
+  }).toPass({ timeout: 5000 });
+}
+
+/** The share view's own counterpart: no probe exists to wait for (D6/G15), so this only waits for
+ *  the canvas before selecting — {@link openSharedDesign} already covers the WebGL-unavailable
+ *  branch. */
+async function openSharedAndSelect(page: Page, path: string): Promise<void> {
+  await openSharedDesign(page, path);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 
   await tapCanvas(page, SINK_CABINET_TAP);
@@ -81,15 +88,15 @@ async function disabledFlagsOf(page: Page, selector: string) {
     );
 }
 
-test("a shared link opened without the write-token cookie renders a read-only panel", async ({
+test("a share link renders a read-only panel (M7 wave 7E3c S6)", async ({
   page,
-  context,
 }) => {
-  const designId = await mintDesign(page);
+  const design = await mintDesign(page);
 
-  // The control, and the reason the assertions below are earned by the missing credential rather
-  // than by `/d/{id}` being read-only for everyone: the browser that minted it can still edit.
-  await openAndSelect(page, designId);
+  // The control, and the reason the assertions below are earned by the share view's own
+  // never-writable contract rather than by `/d/{id}` being read-only for everyone: the browser
+  // that minted it can still edit its own `/d/{id}`.
+  await openAndSelect(page, design.id);
   await expect(page.getByTestId("panel-notice")).toHaveAttribute(
     "data-empty",
     "true",
@@ -97,9 +104,12 @@ test("a shared link opened without the write-token cookie renders a read-only pa
   await expect(page.getByTestId("panel-remove")).toBeEnabled();
   await expect(page.getByTestId("finish-pal.antracit")).toBeEnabled();
 
-  // Same browser, same viewport, no credential — a link opened by someone who never held one.
-  await context.clearCookies();
-  await openAndSelect(page, designId);
+  // The **same** browser, still holding both credential cookies — deliberately not cleared. A
+  // share link answers read-only regardless of whose browser opens it (G5: the view reads no
+  // cookie at all), which this proves more strongly than the old "without the cookie" shape did:
+  // the owner's own valid credential sitting in the jar changes nothing.
+  const sharePath = await issueShareLink(page, design);
+  await openSharedAndSelect(page, sharePath);
 
   await expect(page.getByTestId("panel-notice")).toHaveAttribute(
     "data-notice",

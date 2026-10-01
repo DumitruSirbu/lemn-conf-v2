@@ -63,14 +63,20 @@ export const MAX_EMPTY_COLUMN_WIDTH_MM = 800;
  *  column at the extent it vacates, and that column has no member either. `set-width.ts` also uses
  *  it to ask whether the key it is about to create is one the map already holds. ADR 0046 gives it a
  *  third and a fourth — a split writes two keys where one was, and a merge writes one where two
- *  were. */
+ *  were.
+ *
+ *  **The prefix is the wall letter itself, never a two-way fallback** (M7B U1 slice S3, AC8): before
+ *  ADR 0132 a wall-C key would have rendered `A|…` — anything that was not `"B"` fell to `"A|"` — and
+ *  collided with a real wall-A key at the same along value. `DesignWallSchema`'s whole domain is `A`,
+ *  `B` or `C`, so naming the wall directly is exhaustive and needs no fallback branch. */
 export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
-  return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
+  return `${wall}|${alongM.toFixed(2)}`;
 }
 
-/** The half of a column's origin that moves along its wall: `x` on wall A, `z` on wall B. The other
- *  coordinate is the column's own half-depth and is carried across untouched — a column starts at
- *  the wall, whatever stands in it (`deriveColumns`).
+/** The half of a column's origin that moves along its wall: `x` on wall A, `z` on wall B or C — wall
+ *  C's tangent is `+Z`, the same axis wall B's is (ADR 0132 decision 1), so this along/across split
+ *  needs no third arm. The other coordinate is the column's own half-depth and is carried across
+ *  untouched — a column starts at the wall, whatever stands in it (`deriveColumns`).
  *
  *  One function rather than the same ternary written out wherever a column's centre moves. It is
  *  three callers now — a resize, a split and a merge — and the shape it replaces is the mirrored
@@ -83,8 +89,8 @@ export function alongWallPosition(
   return wall === "A" ? { x: centreM } : { z: centreM };
 }
 
-/** The along-wall coordinate of anything that has a world position: `x` on wall A, `z` on wall B —
- *  the same axis `deriveColumnKeyAt` buckets on, and the reading counterpart of
+/** The along-wall coordinate of anything that has a world position: `x` on wall A, `z` on wall B or
+ *  C — the same axis `deriveColumnKeyAt` buckets on, and the reading counterpart of
  *  `alongWallPosition`. */
 export function alongWallCoordinate(
   wall: DesignWall,

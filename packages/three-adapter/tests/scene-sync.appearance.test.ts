@@ -11,6 +11,7 @@
 // the fixture states it in moved, and it moved onto the one the renderer is contracted to read, so
 // a regression back to `finishKey` fails this file rather than passing it.
 import {
+  KITCHEN_L_DESIGN,
   NO_FRONT_ASSEMBLY_MM,
   shellPlusFrontMm,
   type Frame,
@@ -81,7 +82,7 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
 }
 
 function sync(records: readonly PlacementRecord[]): void {
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
 }
 
 function mounted(placementId: string): THREE.Object3D {

@@ -531,22 +531,42 @@ function keyOf(entry: { wall: string; alongMm: number }): string {
 describe("the caps", () => {
   it("bounds the occupied half by the placements, not by the wall's keys", () => {
     expect(MAX_COLUMN_EXTENTS).toBe(MAX_PLACEMENTS);
-    expect(MAX_COLUMN_EXTENTS).toBe(168);
+    expect(MAX_COLUMN_EXTENTS).toBe(279);
   });
 
-  // The cap-left-behind mutant: leaving `MAX_DESIGN_BYTES` at 248 576 refuses the largest document
-  // the schema accepts, which is the failure ADR 0044's own byte-cap comment names.
+  // M7 7A3 criterion 5: ADR 0124 gave wall B wall A's 6300 mm run, which moves SEC-002's request cap.
+  // M7B wave U1 slice S2 (ADR 0132 decision 5): a U's wall C moved it a second time, the same shape
+  // of change — a third wall run at the same 6300 mm ceiling, since wall C is bounded like wall B.
+  // Pinned as literals so the budget cannot drift with a derivation nobody re-reads: 279 placements
+  // and 523 972 bytes now (186 and 349 656 before this wave; 168 and 337 290 before ADR 0124).
+  it("pins the four caps ADR 0132 sized, as numbers", () => {
+    expect({
+      MAX_EMPTY_COLUMNS,
+      MAX_PLACEMENTS,
+      MAX_COLUMN_EXTENTS,
+      MAX_DESIGN_BYTES,
+    }).toStrictEqual({
+      MAX_EMPTY_COLUMNS: 1893,
+      MAX_PLACEMENTS: 279,
+      MAX_COLUMN_EXTENTS: 279,
+      MAX_DESIGN_BYTES: 523_972,
+    });
+  });
+
+  // The cap-left-behind mutant: leaving `MAX_DESIGN_BYTES` at an earlier wave's figure refuses the
+  // largest document the schema accepts, which is the failure ADR 0044's own byte-cap comment names.
   //
-  // It has moved twice and is re-derived rather than assumed each time: ADR 0053 added the second
-  // array, and ADR 0073 widened the entry **both** arrays share, because `depthFromBuildId` does not
-  // fit inside ADR 0053's 128-byte allowance. The per-entry allowance is read back out of the cap
-  // rather than restated, so the two cannot be moved independently of each other.
+  // It has moved three times and is re-derived rather than assumed each time: ADR 0053 added the
+  // second array, ADR 0073 widened the entry **both** arrays share (because `depthFromBuildId` does
+  // not fit inside ADR 0053's 128-byte allowance), and ADR 0132 added a third wall run. The per-entry
+  // allowance is read back out of the cap rather than restated, so the two cannot be moved
+  // independently of each other.
   it("raises the byte cap by exactly the allowance both frozen-map arrays share", () => {
     const perEntryBytes =
       (MAX_DESIGN_BYTES - MAX_PLACEMENTS * 512 - 1024) /
       (MAX_EMPTY_COLUMNS + MAX_COLUMN_EXTENTS);
 
-    expect(MAX_DESIGN_BYTES).toBe(337_290);
+    expect(MAX_DESIGN_BYTES).toBe(523_972);
     expect(perEntryBytes).toBe(175);
   });
 

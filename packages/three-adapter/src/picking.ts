@@ -68,13 +68,29 @@ export function climbToSelectable(object: THREE.Object3D): Selection | null {
   return null;
 }
 
-/** The nearest hit (three.js sorts `intersectObject` results by distance) that actually climbs to
- *  a selectable — a non-selectable mesh in the same group (the room shell sharing `solids` with the
- *  cabinet bodies) must not shadow a real hit or a fallback to `voids` behind it. */
+/** Whether the object is drawn: three.js raycasts an invisible mesh all the same, so `visible` is
+ *  read here, on the object and on every ancestor (a hidden group hides its children). */
+function isDrawn(object: THREE.Object3D): boolean {
+  for (
+    let current: THREE.Object3D | null = object;
+    current;
+    current = current.parent
+  ) {
+    if (!current.visible) return false;
+  }
+  return true;
+}
+
+/** The nearest hit (three.js sorts `intersectObject` results by distance) that is drawn and
+ *  actually climbs to a selectable — a non-selectable mesh in the same group (the room shell
+ *  sharing `solids` with the cabinet bodies) must not shadow a real hit or a fallback to `voids`
+ *  behind it, and neither may anything not drawn: a cut-away run (`cutaway.ts`) or a hidden
+ *  push-to-open handle, whose door behind it is the same placement (§6.5). */
 function firstSelectableHit(
   hits: readonly THREE.Intersection[],
 ): Selection | null {
   for (const hit of hits) {
+    if (!isDrawn(hit.object)) continue;
     const target = climbToSelectable(hit.object);
     if (target) return target;
   }

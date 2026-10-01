@@ -65,9 +65,16 @@ const BAND_DISPLAY_RANK: Readonly<Record<NormalisedBand, number>> = {
   column: 2,
 };
 
-/** §2: both runs start at the corner the walls meet at, and wall A is the run the customer faces
- *  first in every camera preset. */
-const WALL_DISPLAY_RANK: Readonly<Record<DesignWall, number>> = { A: 0, B: 1 };
+/** §2: every run starts at the corner the walls meet at, and wall A is the run the customer faces
+ *  first in every camera preset. Wall C ranks after wall B (ADR 0132 decision 1's reading order,
+ *  A then B then C) — no design a customer can reach carries a wall-C placement yet
+ *  (`isShapeBuildable("U", …)` stays false through this wave), so the rank is unreached, not chosen
+ *  as a display decision here. */
+const WALL_DISPLAY_RANK: Readonly<Record<DesignWall, number>> = {
+  A: 0,
+  B: 1,
+  C: 2,
+};
 
 /**
  * **The repository's one display-order comparator.** Wall, then normalised band, then `y0Mm` — the

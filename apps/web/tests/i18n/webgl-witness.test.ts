@@ -1,14 +1,11 @@
-import { createElement, type ReactElement } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import ro from "@/messages/ro.json";
 import ru from "@/messages/ru.json";
-
-const getTranslations = vi.fn();
-vi.mock("next-intl/server", () => ({ getTranslations }));
 
 function renderClient(locale: "ro" | "ru", messages: typeof ro) {
   return renderToStaticMarkup(
@@ -22,8 +19,6 @@ function renderClient(locale: "ro" | "ru", messages: typeof ro) {
 }
 
 describe("webglUnavailable next-intl witness", () => {
-  beforeEach(() => getTranslations.mockReset());
-
   it("renders the complete Romanian client namespace without key or empty leakage", () => {
     const markup = renderClient("ro", ro);
     for (const message of Object.values(ro.webglUnavailable)) {
@@ -51,23 +46,9 @@ describe("webglUnavailable next-intl witness", () => {
     );
   });
 
-  it("resolves the server-provided witness value for each isolated locale", async () => {
-    for (const messages of [ro, ru]) {
-      getTranslations.mockResolvedValueOnce(
-        (key: keyof typeof ro.webglUnavailable) =>
-          messages.webglUnavailable[key],
-      );
-      const { default: ConfigurePage } = await import(
-        "@/app/[locale]/configurator/configure/page"
-      );
-      const page = (await ConfigurePage()) as ReactElement<{
-        webglUnavailableTitleMobile: string;
-      }>;
-      expect(page.props.webglUnavailableTitleMobile).toBe(
-        messages.webglUnavailable.titleMobile,
-      );
-    }
-    expect(getTranslations).toHaveBeenNthCalledWith(1, "webglUnavailable");
-    expect(getTranslations).toHaveBeenNthCalledWith(2, "webglUnavailable");
-  });
+  // Test 3, "resolves the server-provided witness value for each isolated locale", removed here
+  // rather than in S4 as the plan's D7 originally scheduled: M7 wave 7E3a S3 deletes
+  // `[locale]/configurator/configure/page.tsx` (replaced by a Route Handler that never renders
+  // `ConfigureScreen`), which was this test's only subject, so the deletion could not wait. Tests
+  // 1-2 above and `webgl-unavailable-i18n` (both, on `/d/{id}`) keep the client path witnessed.
 });

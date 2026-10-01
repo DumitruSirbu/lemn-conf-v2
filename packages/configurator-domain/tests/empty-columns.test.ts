@@ -119,8 +119,10 @@ describe("DesignSchema.emptyColumns", () => {
     ).toBeLessThanOrEqual(MAX_DESIGN_BYTES);
   });
 
-  it("caps the array at the distinct column keys two walls can present", () => {
-    expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 2);
+  it("caps the array at the distinct column keys the wire shape's walls can present", () => {
+    // 6300 is the longest run's, and since ADR 0124 (wall B) and ADR 0132 decision 6 (wall C) every
+    // run is 6300, so a third wall widens the multiplier alone, not the run.
+    expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 3);
   });
 });
 

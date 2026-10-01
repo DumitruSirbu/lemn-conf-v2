@@ -175,10 +175,14 @@ function planningOperandsOf(
     catalog,
   );
 
-  const frozen = deriveRecordedColumns(heldRecords, {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  const frozen = deriveRecordedColumns(
+    heldRecords,
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    toMetres(design.room.widthMm),
+  );
 
   return {
     records,
@@ -192,6 +196,7 @@ function planningOperandsOf(
         heldRecords,
         slidRecords,
       ),
+      room: design.room,
     }),
     room: design.room,
   };

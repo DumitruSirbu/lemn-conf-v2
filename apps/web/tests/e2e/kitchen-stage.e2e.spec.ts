@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import {
   dismissPanel,
@@ -6,10 +6,14 @@ import {
   pressPanelControl,
   readSelection,
   requireInFridgeColumn,
-  waitForMintedDesignId,
+  waitForFirstSave,
 } from "./support/panel";
-import { deleteMintedDesigns } from "./support/minted-designs";
-import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
+import {
+  SINK_CABINET_TAP,
+  tapCanvas,
+  tapSceneStripAboveSheet,
+} from "./support/canvas-taps";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * M2's mobile picking gate (`docs/milestones/M2-void-engine.md`, "Surfaces"): tapping a body and
@@ -33,9 +37,25 @@ import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
  *  canvas in front of the browser by `tapCanvas`. `support/canvas-taps.ts` carries the conversion
  *  and the measurements behind it. They are left as the numbers that were measured rather than
  *  re-typed for today's chrome: this is the second time a band added above the stage has moved them,
- *  and a constant silently re-typed each time stops being a measurement of anything. */
-const SINK_CABINET_TAP = { x: 215, y: 500 };
-const WALL_CABINET_TAP = { x: 195, y: 165 };
+ *  and a constant silently re-typed each time stops being a measurement of anything.
+ *
+ *  **Re-measured 2026-09-16, and this time it was not a band above the stage — it was the camera.**
+ *  Wave 7H made the three camera presets a function of the customer's room, so *Vedere generală*
+ *  moved from the reference triple to the room's own and every world point took a different pixel:
+ *  the seeded bodies shifted 36–49 px right and about 22 px up on this canvas, which put p2 off the
+ *  right edge entirely. Twenty-eight e2e specs failed on it.
+ *
+ *  **Re-found by tapping, never computed.** A grid of real taps was walked across the running scene
+ *  and the selected id read back out of `[data-testid="selection-debug"]`, exactly as the originals
+ *  were found; both sit in the middle of their body's region in that map — `SINK_CABINET_TAP` on
+ *  `p0`, `WALL_CABINET_TAP` on `p17` — and each was then confirmed by a single tap. Computing them from the new projection would have made these
+ *  tests agree with the camera by construction — a wrong camera would have produced matching wrong
+ *  constants and the suite would have gone green while testing nothing.
+ *
+ *  `SINK_CABINET_TAP` is **imported** rather than declared: four specs needed it and all four went
+ *  stale together, so `support/canvas-taps.ts` holds it now. `WALL_CABINET_TAP` stays here because
+ *  this file is its only user. */
+const WALL_CABINET_TAP = { x: 230, y: 110 }; // was (195, 165); re-tapped, selects p17
 /** Background in the overview preset that is **above** the sheet, so it can be tapped while a body
  *  is selected. M3's background constant, (195, 150), cannot be: it sits below the sheet's top edge.
  *
@@ -56,9 +76,15 @@ const HIGHLIGHT_REGION = { x: 110, y: 380, width: 160, height: 280 };
  *  leaves behind is the 860 mm base slot of that column, whose id encodes its column and its floor
  *  line. Canvas coordinates on the reference canvas, like the two above, and converted the same way. */
 const VACATED_VOID_TAP = { x: 65, y: 560 };
-/** Above the column's ceiling line, where nothing stands in this preset.
- *  `BACKGROUND_ABOVE_SHEET_TAP` is an overview-preset constant and means nothing here. */
-const WALL_B_BACKGROUND_TAP = { x: 65, y: 120 };
+/** Empty scene in the *Perete B* preset. `BACKGROUND_ABOVE_SHEET_TAP` is an overview-preset
+ *  constant and means nothing here.
+ *
+ *  **Re-measured 2026-09-16: (65, 120) → (370, 320).** Wave 7H's room-driven *Perete B* moved the
+ *  columns across the canvas and (65, 120) now lands on `p23`. It is no longer *above* the ceiling
+ *  line — the scan found no empty scene left up there at this preset — but to the right of the
+ *  last column, which is the empty region this preset still has. Re-found by tapping the running
+ *  scene, and empty at every y the scan sampled around it. */
+const WALL_B_BACKGROUND_TAP = { x: 370, y: 320 };
 const VACATED_VOID_ID = "B|2.45:v0:0.00";
 /** ~30 real taps against a live WebGL scene to find the fridge, plus a command and three
  *  screenshots. */
@@ -71,17 +97,8 @@ async function readTarget(page: import("@playwright/test").Page) {
   return { kind: selectionKind, id: selectionId };
 }
 
-/** The last case in this file deletes a body, and the first successful command mints a design row.
- *  Deleted afterwards: the suite writes to the test database and leaves it as it found it. */
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   // The scene mounts, seats the camera, and settles its easing before picking is meaningful.
   await page.waitForTimeout(2000);
 });
@@ -174,10 +191,13 @@ test.skip("a selected body renders a visible highlight distinct from no selectio
  * panel instead: `editor-rail.desktop.e2e.spec.ts`. What this case keeps is M2's gate proper —
  * that a real touch at 390 x 844 selects the intended empty slot.
  */
-test("tapping an empty void slot selects it at 390 x 844", async ({ page }) => {
+test("tapping an empty void slot selects it at 390 x 844", async ({
+  page,
+  seededDesign,
+}) => {
   test.setTimeout(VOID_SELECTION_TIMEOUT_MS);
 
-  await openFridgeColumnView(page);
+  await openFridgeColumnView(page, seededDesign);
   const fridge = await requireInFridgeColumn(page, {
     matches: (readout) => readout.selectionId === "p7",
     description: "the seeded fridge, p7",
@@ -185,11 +205,10 @@ test("tapping an empty void slot selects it at 390 x 844", async ({ page }) => {
   expect(fridge.metaKind).toBe("fridge_freestanding");
 
   await pressPanelControl(page, "panel-remove");
-  // The mutation mints a design row. Registered for deletion before it is asserted on: a slow
-  // mint must fail loudly without also leaking its row into the test database.
-  const designId = await waitForMintedDesignId(page);
-  if (designId) mintedDesignIds.push(designId);
-  expect(designId).not.toBe("");
+  // The mutation writes rather than mints (wave 7E4 G4): the id is the fixture's own, and this is
+  // the stronger claim that the removal actually landed — `waitForFirstSave` itself throws unless
+  // the stored revision moved past the seeded one, so there is nothing left here to check.
+  await waitForFirstSave(page, seededDesign);
 
   // The remove leaves the vacated void selected. Deselect first, so what the tap below proves is
   // the tap and not the command that preceded it — and so the sheet is off the scene.

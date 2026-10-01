@@ -7,6 +7,7 @@ import {
   CSP_ENFORCED_HEADER,
   CSP_REPORT_ONLY_HEADER,
   NONCE_HEADER,
+  SHARE_VIEW_HEADERS,
   STATIC_SECURITY_HEADERS,
 } from "../src/lib/security-headers";
 
@@ -115,6 +116,7 @@ describe("proxy security headers", () => {
     const matches = new RegExp(`^${String(pattern)}$`);
     expect(matches.test("/")).toBe(true);
     expect(matches.test("/configurator/configure")).toBe(true);
+    expect(matches.test("/configurator/room")).toBe(true);
     expect(matches.test("/d/abc123")).toBe(true);
     expect(matches.test("/api/designs")).toBe(true);
     expect(matches.test("/internal/scene-shot")).toBe(true);
@@ -180,6 +182,62 @@ describe("proxy locale routing", () => {
     expect(response.headers.get("set-cookie")).toContain("NEXT_LOCALE=ro");
   });
 
+  it.each(["/ro/configurator/room", "/ru/configurator/room"])(
+    "keeps the CSP and nonce on the new localized room route %s",
+    (path) => {
+      const response = respondTo(path);
+      const nonce = requestHeader(response, NONCE_HEADER);
+
+      expect(nonce).toBeTruthy();
+      expect(requestHeader(response, CSP_ENFORCED_HEADER)).toContain(
+        `'nonce-${String(nonce)}'`,
+      );
+      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toContain(
+        `'nonce-${String(nonce)}'`,
+      );
+    },
+  );
+
+  it.each(["ro", "ru"] as const)(
+    "leaves the localized %s room query in place while decorating the response",
+    (locale) => {
+      const response = respondTo(
+        `/${locale}/configurator/room?shape=L&wallA=3.6&tag=a&tag=b`,
+      );
+      const nonce = requestHeader(response, NONCE_HEADER);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(requestHeader(response, "x-next-intl-locale")).toBe(locale);
+      expect(nonce).toBeTruthy();
+      expect(requestHeader(response, CSP_ENFORCED_HEADER)).toContain(
+        `'nonce-${String(nonce)}'`,
+      );
+      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toContain(
+        `'nonce-${String(nonce)}'`,
+      );
+    },
+  );
+
+  it.each(["ro", "ru"] as const)(
+    "preserves the complete room query and CSP on a negotiated %s redirect",
+    (locale) => {
+      const response = respondTo(
+        "/configurator/room?shape=L&wallA=3.6&tag=a&tag=b",
+        { "accept-language": locale },
+      );
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        `https://lemnaria.test/${locale}/configurator/room?shape=L&wallA=3.6&tag=a&tag=b`,
+      );
+      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toMatch(
+        /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
+      );
+    },
+  );
+
   it("preserves the complete query on a negotiated redirect", () => {
     const response = respondTo(
       "/d/design-123?mode=read%20only&intent=callback",
@@ -198,6 +256,8 @@ describe("proxy locale routing", () => {
     "/ru/configurator/configure",
     "/ro/configurator/contact",
     "/ru/configurator/contact",
+    "/ro/configurator/room",
+    "/ru/configurator/room",
     "/ro/d/design-123",
     "/ru/d/design-123",
   ])("routes the localized customer entrypoint %s", (path) => {
@@ -214,8 +274,13 @@ describe("proxy locale routing", () => {
 
   it.each([
     "/en/configurator/configure",
+    "/en/configurator/room",
+    "/fr/configurator/room",
     "/ro/api/designs",
     "/ru/internal/scene-shot",
+    "/ro/configurator/Room",
+    "/ro/configurator/room/x",
+    "/ru/configurator/room/x",
     "/ro/not-a-customer-route",
   ])("does not reinterpret the unsupported path %s", (path) => {
     const response = respondTo(path, {
@@ -233,6 +298,8 @@ describe("proxy locale routing", () => {
   it.each([
     "/RO/configurator/configure",
     "/rO/configurator/contact",
+    "/Ro/configurator/room",
+    "/RU/configurator/room",
     "/Ru/d/design-123",
   ])(
     "returns a CSP-decorated public 404 for case-variant locale path %s",
@@ -267,6 +334,74 @@ describe("proxy locale routing", () => {
     expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toMatch(
       /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
     );
+  });
+});
+
+describe("proxy share-view routing and headers (M7 wave 7E3c D7)", () => {
+  it.each(["/ro/s/abcDEF123456", "/ru/s/abcDEF123456"])(
+    "routes the localized share view %s through locale routing",
+    (path) => {
+      const response = respondTo(path);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+    },
+  );
+
+  it("redirects the unprefixed link to the negotiated locale, carrying the share headers (criterion 8)", () => {
+    const response = respondTo("/s/abcDEF123456", {
+      "accept-language": "ru",
+    });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://lemnaria.test/ru/s/abcDEF123456",
+    );
+    // QA round 1, Q4: pinned to the literal values, not to `SHARE_VIEW_HEADERS` itself — a test
+    // asserting a module's own constant against itself passes however that constant is edited and
+    // proves nothing about the response.
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("carries the three share headers on the localized page response too", () => {
+    const response = respondTo("/ro/s/abcDEF123456");
+
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("carries no share header on an ordinary customer route", () => {
+    const response = respondTo("/ro/d/design-123");
+
+    for (const { key } of SHARE_VIEW_HEADERS) {
+      expect(response.headers.get(key)).toBeNull();
+    }
+  });
+
+  it.each(["/en/s/abcDEF123456", "/ro/s/abcDEF123456/extra"])(
+    "does not reinterpret the unsupported share path %s",
+    (path) => {
+      const response = respondTo(path, {
+        cookie: "NEXT_LOCALE=ru",
+        "accept-language": "ru",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(requestHeader(response, "x-next-intl-locale")).toBeNull();
+    },
+  );
+
+  it("returns the CSP-decorated public 404 for a case-variant locale on the share path", () => {
+    const response = respondTo("/RO/s/abcDEF123456");
+
+    expect(response.status).toBe(404);
+    expect(requestHeader(response, "x-next-intl-locale")).toBeNull();
   });
 });
 

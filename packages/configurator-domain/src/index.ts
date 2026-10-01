@@ -221,3 +221,108 @@ export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";
 export * from "./migrate-design.js";
+// The room a customer types, judged against policy data (ADR 0108). The policy is a parameter of
+// the validator and not an import of it; the owner-approved one is exported for `apps/web`'s
+// composition root to hand in — the price book's shape (ADR 0062 seam 1). The engine's own limits
+// are deliberately not exported (Amendment B): they are what the approved policy is guarded
+// against, never a policy a surface may run on.
+export { APPROVED_ROOM_POLICY } from "./room/approved-room-policy.js";
+// The one question a surface asks about a shape it offers. Exported beside the policy's types so a
+// card reads the policy instead of spelling a shape's letter; `ENGINE_ROOM_LIMITS` stays unexported.
+export { isShapeBuildable } from "./room/room-policy.js";
+export type {
+  BuildableShapes,
+  LinearWallBounds,
+  LMinimumKitchen,
+  LWallBounds,
+  MillimetreBounds,
+  RoomPolicy,
+  RoomPolicyApproval,
+  UMinimumKitchen,
+  UWallBounds,
+} from "./room/room-policy.js";
+export {
+  validateRoomInput,
+  type CornerDirection,
+  type EnteredMillimetres,
+  type LinearRoomInput,
+  type LRoomInput,
+  type RoomField,
+  type RoomInput,
+  type RoomIssue,
+  type RoomIssueCode,
+  type RoomShape,
+  type RoomValidation,
+  type URoomInput,
+} from "./room/validate-room.js";
+// The one production reader of `DesignRoom.cornerDirection` (ADR 0129 D2).
+export {
+  carriesCornerDirection,
+  cornerDirectionOf,
+} from "./room/corner-direction.js";
+// Which walls a shape has (ADR 0132 decision 5, M7B plan D7).
+export { wallsOf } from "./room/walls-of-shape.js";
+// **How wide the corner assembly is built** (7D6's J1′, ADR 0120 Amendment A). Three entry points
+// published and no fourth: `narrowestCornerReachMm` answers the *bound* and takes no room, the
+// other two answer one (depth, room), and their return types differ so the two questions cannot be
+// confused at a call site. Exported for wave 7D7's builders, which take the corner's size as a
+// parameter instead of holding it as a literal. The module's `cornerAlongWallCentreMm` — the far
+// edge's other half, which refuses a centre that is not a whole millimetre — stays in the package:
+// the fixture is its only caller, and nothing outside the domain places a corner.
+export {
+  CORNER_ASSEMBLY_PIECES,
+  cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
+  narrowestCornerReachMm,
+  type CornerAssemblyPiece,
+  type CornerAssemblyQuery,
+  type CornerAssemblyWidthsMm,
+  type CornerBand,
+  type CornerFarEdge,
+  type CornerFarEdgeQuery,
+  type NarrowestCornerReach,
+  type SizedCornerPiece,
+} from "./corner-assembly-size.js";
+// ADR 0121, ADR 0132 decision 2 (M7B U2 slice S1): which of a U's two corners a structural piece
+// belongs to — the one fact the adapter reads to choose a right corner's mirrored wrapper, and
+// never a position it compares itself (`cornerOf`'s own head comment). The right corner's own
+// sizing and placement stay unexported, the same choice `cornerAlongWallCentreMm` already made:
+// nothing outside the domain places a corner, only reads which one a piece is in.
+export { cornerOf, type Corner } from "./corner-assembly-size.js";
+// The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the
+// corner that fits under its ceiling, and every free run recorded as empty space.
+export {
+  buildLinearShellDesign,
+  buildLShellDesign,
+  buildUShellDesign,
+  linearShellFloorRuns,
+  LinearShellInputError,
+  lShellFloorRuns,
+  LShellInputError,
+  uShellFloorRuns,
+  UShellInputError,
+  type LinearShellCompositionPlan,
+  type LinearShellDesignInput,
+  type LinearShellInputRefusal,
+  type LShellCompositionPlan,
+  type LShellDesignInput,
+  type LShellInputRefusal,
+  type UShellCompositionPlan,
+  type UShellDesignInput,
+  type UShellInputRefusal,
+} from "./generation/shell-design.js";
+export * from "./generation/leftover-rule.js";
+export * from "./generation/body-choice.js";
+export { DISHWASHER_PLANNED_WIDTH_MM } from "./generation/dishwasher-beside-the-sink.js";
+export * from "./generation/generation-priorities.js";
+// The U's own three-wall plan (ADR 0110 Amendment N), pure, and the plan `generateKitchen` composes a U from.
+// `UKitchenCompositionPlan` and `UPlannedGenerationBase` are `run-layout.ts`'s, re-exported here
+// directly because `generation-priorities.ts` — the only other re-exporter of that module's types —
+// is not touched for the U.
+export type {
+  UKitchenCompositionPlan,
+  UPlannedGenerationBase,
+} from "./generation/run-layout.js";
+export * from "./generation/u-composition.js";
+export * from "./generation/generate-kitchen.js";
+export * from "./commands/reconcile-command-result.js";

@@ -1,7 +1,7 @@
 ---
 name: configurator-review-clean-code
 description: Read-only code-quality reviewer for the Lemnaria configurator. Applies docs/best-practices/engineering-conventions.md. Dispatched alongside the logic reviewer in docs/WORKFLOW.md step 4 for a real diff. Do NOT run unless the user requests a review. Do NOT use for correctness, geometry, or pricing concerns.
-model: sonnet
+model: claude-sonnet-5-5
 effort: medium
 tools: [Read, Grep, Glob, Bash]
 ---

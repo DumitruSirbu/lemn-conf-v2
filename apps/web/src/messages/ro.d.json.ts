@@ -19,12 +19,117 @@ declare const messages: {
     "cameraPresets": {
       "overview": "Vedere generală",
       "wallA": "Perete A",
-      "wallB": "Perete B"
+      "wallB": "Perete B",
+      "wallC": "Perete C"
     },
     "loading": "Se încarcă modelul 3D…",
     "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     "backAction": "Înapoi",
     "reviewCta": "Verifică designul"
+  },
+  "room": {
+    "title": "Cameră",
+    "shapeQuestion": "Ce formă are camera?",
+    "shapeLead": "Alege conturul pereților pe care va sta bucătăria.",
+    "shapes": {
+      "linear": {
+        "name": "Liniară",
+        "detail": "Un singur perete",
+        "short": "Liniară"
+      },
+      "L": {
+        "name": "În formă de L",
+        "detail": "Doi pereți, un colț",
+        "short": "În L"
+      },
+      "U": {
+        "name": "În formă de U",
+        "detail": "Trei pereți",
+        "short": "În U"
+      }
+    },
+    "dimensionsLater": "Dimensiunile se cer după ce alegi forma.",
+    "planCaption": "Plan de sus · previzualizare",
+    "planWallLabel": "{wall} · {millimetres, number, ::group-off} mm",
+    "cornerQuestion": "Încotro merge cotul?",
+    "cornerHint": "nu se deduce din lățimi",
+    "cornerLeft": "La stânga",
+    "cornerRight": "La dreapta",
+    "wallLabel": {
+      "wallA": "Perete A",
+      "wallB": "Perete B",
+      "wallC": "Perete C"
+    },
+    "lengthsHint": "Introdu lungimea dulapurilor dorite, nu lungimea peretelui.",
+    "lengthHelp": {
+      "wallA": {
+        "name": "Ce lungime introduc la Perete A?",
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele A. Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el.",
+        "cornerText": "Lungimea pe care vrei să o ocupe dulapurile pe peretele A, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+      },
+      "wallB": {
+        "name": "Ce lungime introduc la Perete B?",
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele B, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+      },
+      "wallC": {
+        "name": "Ce lungime introduc la Perete C?",
+        "text": "Lungimea pe care vrei să o ocupe dulapurile pe peretele C, măsurată de la colț (inclusiv dulapul de colț). Poate fi mai mică decât peretele, dacă vrei dulapuri doar pe o parte din el."
+      }
+    },
+    "heightLabel": "Înălțimea camerei",
+    "unitMillimetres": "mm",
+    "back": "Înapoi",
+    "continue": "Continuă",
+    "issue": {
+      "wallTooShort": "Lungimea aceasta e mai mică decât putem mobila. Mărește valoarea.",
+      "wallTooLong": "Lungimea aceasta e mai mare decât putem mobila. Introdu doar porțiunea pe care vrei dulapuri.",
+      "heightTooLow": "La înălțimea aceasta nu încap dulapurile de sus. Verifică valoarea.",
+      "heightTooHigh": "Înălțimea aceasta e mai mare decât putem construi. Verifică valoarea.",
+      "roomTooSmall": "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
+      "shapeNotBuildable": "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
+      "orChooseLinear": "Sau alege o formă liniară.",
+      "unreadable": "Scrie valoarea în milimetri, doar cu cifre."
+    },
+    "planWallIssue": {
+      "tooShort": "{wall} prea scurt",
+      "tooLong": "{wall} prea lung"
+    },
+    "presetsAfterValid": "Presetele apar după ce toate valorile sunt valide.",
+    "suggestion": {
+      "title": "Sugestii",
+      "switchToLinear": "Treci la formă liniară pe peretele A"
+    },
+    "compose": {
+      "title": "Preset",
+      "heading": "Ți-o construim pe a ta",
+      "roomSummary": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm",
+      "roomSummaryLinear": "{shape} · {wallA, number, ::group-off} mm · h {height, number, ::group-off} mm",
+      "roomSummaryU": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} mm · h {height, number, ::group-off} mm",
+      "noPresetNotice": "Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.",
+      "stepsLabel": "Ce este inclus, în ordinea priorității",
+      "role": {
+        "fridge": "Frigider",
+        "sink": "Spălător",
+        "preparation": "Blat de lucru",
+        "hob": "Plită și cuptor",
+        "storage": "Depozitare"
+      },
+      "dishwasher": "Nișă mașină de spălat vase",
+      "rowLabel": "{role} · {extent}",
+      "rowWidth": "{millimetres, number, ::group-off}",
+      "storageExtent": "restul peretelui",
+      "status": {
+        "pending": "se calculează",
+        "placed": "inclus",
+        "notPlaced": "nu poate fi inclus"
+      },
+      "rule": "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
+      "busy": "Se compune…",
+      "dropped": "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
+      "failed": "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
+      "saveFailed": "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
+      "retry": "Încearcă din nou"
+    }
   },
   "panel": {
     "close": "Închide panoul",
@@ -90,6 +195,7 @@ declare const messages: {
       "wider": "Mărește lățimea cu 50 mm"
     },
     "widthStepNote": "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre dreapta, apoi spre stânga. Când un buton este gri, sub el scrie de ce.",
+    "widthStepNoteRight": "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre stânga, apoi spre dreapta. Când un buton este gri, sub el scrie de ce.",
     "widthChoiceNote": "Coloana e formată din lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui dulap.",
     "structuralTitle": "Dulap structural",
     "structuralReasons": {
@@ -175,7 +281,23 @@ declare const messages: {
     "title": "Nu am putut deschide acest link",
     "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
     "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
+    "bodyUnavailable": "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
     "startOver": "Începe o configurare nouă"
+  },
+  "share": {
+    "title": "Link de vizualizare",
+    "description": "Oricine are linkul poate vedea designul, dar nu îl poate modifica.",
+    "create": "Creează link",
+    "reissue": "Creează un link nou",
+    "active": "Un link de vizualizare este activ.",
+    "reissueWarning": "Linkul vechi nu va mai funcționa.",
+    "shownOnce": "Copiază linkul acum — nu îl vom mai putea afișa.",
+    "copy": "Copiază",
+    "copied": "Copiat",
+    "revoke": "Dezactivează linkul",
+    "revoked": "Linkul a fost dezactivat.",
+    "error": "Nu am putut actualiza linkul. Încearcă din nou.",
+    "retry": "Încearcă din nou"
   },
   "contactPlaceholder": {
     "title": "Formularul de contact urmează",

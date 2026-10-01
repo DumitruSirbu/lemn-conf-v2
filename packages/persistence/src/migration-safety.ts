@@ -67,10 +67,32 @@ interface AdditiveStatementShape {
 
 const TABLE_NAME = String.raw`[\w".]+`;
 
+/** Anchors the one shape both the allowlist and the `on delete` exemption below need to agree on:
+ *  a statement is only ever read as "creating a table that may not already exist", never as
+ *  altering one that does. */
+const CREATE_TABLE_IF_NOT_EXISTS = /^create\s+table\s+if\s+not\s+exists\s/;
+
+/**
+ * `INSERT INTO table [(cols)] VALUES (…) [, (…) …] [ON CONFLICT … DO NOTHING]` — a fixed, literal
+ * row set, never a query. Review round 1, SEC-7E3c.9: the old shape was bare `^insert\s+into\s`,
+ * which cleared `INSERT INTO … SELECT …` the same way `CREATE TABLE … AS SELECT` once cleared on
+ * `create table if not exists` alone — a query runs during the migration and is not guaranteed to
+ * produce the same rows on a re-run, which is exactly the CTAS diagnosis's own reasoning one row
+ * lower. `ON CONFLICT DO NOTHING` is the only conflict clause admitted, for the same idempotence
+ * promise `IF NOT EXISTS` makes elsewhere in this allowlist — `DO UPDATE` rewrites an existing row
+ * and belongs with the other rewrite diagnoses, not with an "adds new rows only" shape. No shipped
+ * migration uses `insert` as executable SQL at all (only in prose), so nothing here is a rebaseline.
+ */
+const INSERT_VALUES_SHAPE = new RegExp(
+  String.raw`^insert\s+into\s+${TABLE_NAME}\s*(\([^()]*\)\s*)?` +
+    String.raw`values\s*\([^()]*\)(\s*,\s*\([^()]*\))*` +
+    String.raw`(\s+on\s+conflict\b[^;]*\bdo\s+nothing)?$`,
+);
+
 const ADDITIVE_STATEMENT_SHAPES: readonly AdditiveStatementShape[] = [
   {
     what: "create table if not exists",
-    isMatchedBy: matchesAnchored(/^create\s+table\s+if\s+not\s+exists\s/),
+    isMatchedBy: matchesAnchored(CREATE_TABLE_IF_NOT_EXISTS),
   },
   {
     what: "alter table … add column if not exists",
@@ -86,8 +108,8 @@ const ADDITIVE_STATEMENT_SHAPES: readonly AdditiveStatementShape[] = [
   },
   { what: "comment on", isMatchedBy: matchesAnchored(/^comment\s+on\s/) },
   {
-    what: "insert into … (new rows only)",
-    isMatchedBy: matchesAnchored(/^insert\s+into\s/),
+    what: "insert into … values (…) (new rows only)",
+    isMatchedBy: matchesAnchored(INSERT_VALUES_SHAPE),
   },
 ];
 
@@ -119,7 +141,7 @@ const DESTRUCTIVE_DIAGNOSES: readonly DestructiveDiagnosis[] = [
     // Bare, for the reason `drop` is bare: `UPDATE designs d SET`, `UPDATE designs AS d SET` and
     // `UPDATE ONLY designs SET` all put something unexpected between the table and `SET`.
     // `updated_at` and `update_count` are untouched by the word boundary.
-    isBrokenBy: matches(/\bdelete\b/, /\bupdate\b/),
+    isBrokenBy: rewritesExistingRows,
   },
   {
     what: "changes a column's type",
@@ -146,7 +168,43 @@ const DESTRUCTIVE_DIAGNOSES: readonly DestructiveDiagnosis[] = [
       /\balter\s+type\b[\s\S]*?\badd\s+value\b/,
     ),
   },
+  {
+    what: "creates a table that inherits from, or partitions, an existing one",
+    why: "INHERITS and PARTITION OF both attach the new table to another table's existing rows and structure, which is not the plain 'a new table, empty until code writes to it' promise this allowlist's create-table shape makes, and this screen cannot certify the interaction with an already-populated parent is safe (SEC-7E3c.9)",
+    isBrokenBy: (statement) =>
+      CREATE_TABLE_IF_NOT_EXISTS.test(statement) &&
+      /\binherits\b|\bpartition\s+of\b/.test(statement),
+  },
+  {
+    what: "runs dynamic SQL inside a DO block",
+    why: "EXECUTE, PERFORM, format(…) and string concatenation (||) can construct and run a statement this screen never sees, so a DO block using any of them cannot be certified additive and idempotent by pattern alone (SEC-7E3c.8)",
+    isBrokenBy: (statement) =>
+      /^do\s+\$\$/.test(statement) && usesDynamicSql(statement),
+  },
+  {
+    what: "creates a table from a query (CTAS)",
+    why: "the query runs during the migration and can call arbitrary functions with side effects (e.g. lo_unlink), which is not what a plain column list's 'additive and idempotent' promise covers, and a second run over the same query is not guaranteed to produce the same rows",
+    // Scoped to the shape it is smuggled inside, the same pattern the module's own comment
+    // describes: `create table if not exists` only ever anchors the *start* of a statement (SEC-
+    // 7E3c.2), so a `create table if not exists name as select …` cleared the allowlist on that
+    // anchor alone, with nothing reading what followed it.
+    isBrokenBy: (statement) =>
+      CREATE_TABLE_IF_NOT_EXISTS.test(statement) && CTAS_QUERY.test(statement),
+  },
 ];
+
+/** `CREATE TABLE [IF NOT EXISTS] name AS query` and `CREATE TABLE [IF NOT EXISTS] name AS TABLE
+ *  source` are both a query, not a column list, and cover every keyword PostgreSQL accepts after
+ *  the `AS` of a CTAS: `SELECT`, `WITH` (a `SELECT` wrapped in a CTE), `VALUES`, and `TABLE` itself.
+ *  A column named `as` cannot collide with this: `\bas\b` requires it to stand alone, and none of
+ *  the four words following it is a valid next token inside an ordinary column-list clause.
+ *
+ *  **QA round 1, Q2.** PostgreSQL's `AS` before a CTAS query takes the query parenthesised or not,
+ *  and the parenthesised form takes any amount of whitespace around each paren — `AS (SELECT …)`,
+ *  `AS(SELECT …)` and `AS ((SELECT …))` are all one statement to Postgres. `\s*\(*\s*` is what
+ *  `\s+` was missing: zero or more parens, with the whitespace optional on both sides of the run
+ *  rather than required once. */
+const CTAS_QUERY = /\bas\s*\(*\s*(select|with|values|table)\b/;
 
 /**
  * Every reason the pipeline must not apply these files unattended — empty when it may.
@@ -162,6 +220,17 @@ export function unattendedMigrationRefusals(
 }
 
 function refusalsForFile(file: MigrationFile): string[] {
+  // SEC-7E3c.4: checked before the statement split is trusted at all — a file that hits one of
+  // these constructs can no longer trust `executableStatementsOf`'s own idea of where one statement
+  // ends and the next begins, so nothing downstream of that split is asked to say anything further.
+  const constructRefusals = [...new Set(unmodelledConstructsOf(file.sql))].map(
+    (construct) =>
+      `"${file.fileName}" contains ${construct}, so it may not be applied by the ` +
+      `pipeline: an unattended screen that cannot lex a construct correctly cannot certify what ` +
+      `stands beside it either. ${APPLY_BY_HAND_INSTEAD}`,
+  );
+  if (constructRefusals.length > 0) return constructRefusals;
+
   return executableStatementsOf(file.sql)
     .map(refusalForStatement)
     .filter((refusal): refusal is string => refusal !== undefined)
@@ -218,42 +287,295 @@ const APPLY_BY_HAND_INSTEAD =
  * `drop constraint if exists` by name, and `0004`'s discusses `not null default`. Screening the raw
  * bytes would refuse the entire existing set.
  *
- * The split respects `$$` quoting, so `0003`'s `DO` block arrives as one statement rather than as
- * three fragments of one. A `$tag$` quote is not tracked, and does not need to be: its fragments
- * would each fail to match a recognised shape and the file would be refused, which is the direction
- * this module errs in everywhere.
+ * Splitting and comment-stripping happen together, in one quote-aware pass (`rawStatementsOf`), for
+ * the reason SEC-7E3c.1 exists: `--`, `/* *\/` and `;` are only ever read as meaningful outside a
+ * quoted region, exactly as Postgres reads them.
  */
 export function executableStatementsOf(sql: string): string[] {
-  const withoutComments = sql
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\n]*/g, " ")
-    .toLowerCase();
-  return splitOutsideDollarQuotes(withoutComments)
-    .map((statement) => statement.replace(/\s+/g, " ").trim())
+  return scanSql(sql)
+    .statements.map((statement) =>
+      statement.toLowerCase().replace(/\s+/g, " ").trim(),
+    )
     .filter((statement) => statement !== "");
+}
+
+/**
+ * SEC-7E3c.4 (QA round 1, Q1; SEC-7E3c.7, review round 1). One construct this scanner still cannot
+ * lex correctly costs the *whole file* its unattended status, named — the fail-closed correction to
+ * SEC-7E3c.1's own quote-aware pass, which QA and review broke six ways without writing anything a
+ * person would call unusual: a Postgres E-string's backslash escape (`E'\''`), an unquoted identifier
+ * ending in the bare delimiter (`qa_b$$`), a nested block comment (Postgres nests them; this scanner
+ * does not), a tagged dollar quote (`$q$…$q$`) holding a single quote or a literal `$$`, and a bare
+ * `\r` (Postgres ends a `--` comment at `\n` **or** `\r`; the old scanner read only `\n`). Each merged
+ * a hidden, unscreened statement into a preceding `create table if not exists`.
+ *
+ * **Modelling more of Postgres's lexer is not the fix that generalises** — the next construct nobody
+ * pictured would still get through, and every patch to a growing lexer looks exactly as complete as
+ * the last one did. So this refuses by *construct*, not by scenario: the shapes this module does not
+ * model at all, checked once per file rather than embedded in each separate evasion QA or review
+ * wrote. `refusalsForFile` checks this before running the allowlist at all, because a file that hits
+ * one of these can no longer trust its own statement split.
+ */
+export function unmodelledConstructsOf(sql: string): string[] {
+  return scanSql(sql).unmodelledConstructs;
+}
+
+interface RawScan {
+  readonly statements: string[];
+  readonly unmodelledConstructs: string[];
 }
 
 const DOLLAR_QUOTE = "$$";
 
-function splitOutsideDollarQuotes(sql: string): string[] {
-  const statements: string[] = [];
-  let statementStart = 0;
-  let isInsideDollarQuote = false;
+type ScanState = "code" | "single-quote" | "double-quote" | "dollar-quote";
 
-  for (let index = 0; index < sql.length; index += 1) {
-    if (sql.startsWith(DOLLAR_QUOTE, index)) {
-      isInsideDollarQuote = !isInsideDollarQuote;
-      index += DOLLAR_QUOTE.length - 1;
+/** The four string-type prefixes PostgreSQL recognises immediately before an opening quote — `E'`,
+ *  `U&'`/`U&"`, `B'`, `X'` — each with escaping or encoding rules this module's plain quote-tracker
+ *  does not implement. Matched only against what stands immediately before the quote, with a
+ *  non-word character (or the start of the file) before *that*, so an ordinary one-character string
+ *  like `'b'` is never mistaken for a bit-string's `B'…'`: the `b` there is quoted content, not a
+ *  prefix standing in code. */
+const STRING_TYPE_PREFIX = /(?:^|[^\w$])(u&|e|b|x)$/i;
+
+function precedingStringPrefix(
+  sql: string,
+  quoteIndex: number,
+): string | undefined {
+  const lookback = sql.slice(Math.max(0, quoteIndex - 4), quoteIndex);
+  return STRING_TYPE_PREFIX.exec(lookback)?.[1];
+}
+
+/**
+ * One quote-aware pass over the raw file, splitting into statements with `--` and `/* *\/` comments
+ * blanked to a single space — never inside a single-quoted string, a double-quoted identifier, or a
+ * `$$`-delimited body, and never splitting on a `;` inside one either. Also collects `SEC-7E3c.4`'s
+ * unmodelled-construct reasons in the same pass, since it is already the one place in this module
+ * that knows which state each character stands in.
+ *
+ * **SEC-7E3c.1.** The version this replaces stripped comments with a plain regex before ever looking
+ * at quotes, so `default '--'` inside a string literal was read as a comment start: everything after
+ * it — including the statement's own closing quote, its closing paren and semicolon, and a second,
+ * real statement sitting right behind it — vanished from what the screen saw, while Postgres reads
+ * the same bytes correctly and executes both statements. The same held for `/* *\/` (a quoted `/*`
+ * with a real, later `*\/` could swallow everything between into one "comment") and for `$$` (a
+ * quoted `$$` could wedge the old dollar-quote toggle on, merging two real statements into one whose
+ * *start* still matched `create table if not exists` while its tail carried an unrelated,
+ * unrecognised statement no diagnosis happened to name).
+ *
+ * `''` inside a single-quoted literal and `""` inside a double-quoted identifier are the standard SQL
+ * escapes for an embedded quote; both keep the scanner inside the same quoted region rather than
+ * closing it early. A `$tag$…$tag$` body is not tracked — only the bare `$$` this repository's own
+ * migrations use — for the reason the original comment already gave: an untracked tagged body falls
+ * apart into fragments that fail to match a recognised shape, and this module always errs toward
+ * refusing rather than silently accepting. SEC-7E3c.4 makes that refusal explicit and named, rather
+ * than trusting that whatever the fragments happen to match is not itself a recognised shape.
+ */
+function scanSql(sql: string): RawScan {
+  const statements: string[] = [];
+  const unmodelledConstructs: string[] = [];
+  let buffer = "";
+  let state: ScanState = "code";
+  let index = 0;
+
+  while (index < sql.length) {
+    if (state === "single-quote") {
+      // SEC-7E3c.4: a backslash's meaning inside a single-quoted string depends on
+      // `standard_conforming_strings`, a session setting this module never reads — `E'\''` is a
+      // one-character string to Postgres and a still-open one to a scanner that reads `\` as
+      // ordinary content, which is exactly QA's E-string case. Flagged once per statement's worth
+      // of harm regardless of how many backslashes it holds; the file is refused either way.
+      if (sql[index] === "\\") {
+        unmodelledConstructs.push(
+          "a backslash inside a single-quoted string, whose meaning depends on a session setting " +
+            "this screen does not read",
+        );
+      }
+      const step = stepThroughQuote(sql, index, "'");
+      buffer += step.consumed;
+      index = step.nextIndex;
+      if (step.closesQuote) state = "code";
       continue;
     }
-    if (sql[index] === ";" && !isInsideDollarQuote) {
-      statements.push(sql.slice(statementStart, index));
-      statementStart = index + 1;
+    if (state === "double-quote") {
+      const step = stepThroughQuote(sql, index, '"');
+      buffer += step.consumed;
+      index = step.nextIndex;
+      if (step.closesQuote) state = "code";
+      continue;
     }
+    if (state === "dollar-quote") {
+      if (sql.startsWith(DOLLAR_QUOTE, index)) {
+        buffer += DOLLAR_QUOTE;
+        state = "code";
+        index += DOLLAR_QUOTE.length;
+        continue;
+      }
+      buffer += sql[index] ?? "";
+      index += 1;
+      continue;
+    }
+
+    // state === "code"
+    if (sql.startsWith("--", index)) {
+      // Review round 1, SEC-7E3c.7: Postgres's own lexer ends a line — and so a `--` comment — at
+      // `\n` **or** `\r`, and the old `indexOf("\n", …)` alone let a bare `\r` carry a comment
+      // straight through a real statement sitting on the next line: `-- note\rdelete from
+      // designs;` read as one un-terminated comment here while Postgres executed the delete.
+      const lineEnd = indexOfEither(sql, "\n", "\r", index);
+      index = lineEnd === -1 ? sql.length : lineEnd;
+      buffer += " ";
+      continue;
+    }
+    if (sql[index] === "\r" && sql[index + 1] !== "\n") {
+      // SEC-7E3c.7: a bare `\r` is fixed above for the one place this screen currently reads a
+      // line ending, but nothing in this module models what Postgres's own lexer does with one
+      // anywhere else a line ending could matter later. Refused by construct, the same rule the
+      // other unmodelled shapes follow, rather than trusted because today's one fix happens to
+      // cover today's one probe.
+      unmodelledConstructs.push(
+        "a bare \\r (carriage return) not immediately followed by \\n, whose line-ending " +
+          "behaviour this screen does not track",
+      );
+      buffer += sql[index] ?? "";
+      index += 1;
+      continue;
+    }
+    if (sql.startsWith("/*", index)) {
+      const blockEnd = sql.indexOf("*/", index + 2);
+      // No closing delimiter: Postgres's own lexer would refuse this as an unterminated comment
+      // rather than reading the rest of the file as one, so these two characters are read as
+      // ordinary code — refused for being unrecognised rather than silently swallowed.
+      if (blockEnd === -1) {
+        buffer += "/*";
+        index += 2;
+        continue;
+      }
+      // SEC-7E3c.4: PostgreSQL nests `/* */`, so `/* /* */ … */` is one comment that keeps running
+      // past this scanner's first `*/` — the wrong direction here is silence, not a false refusal,
+      // and a genuinely non-nested prose comment (every shipped header's own shape) never trips
+      // this: `indexOf("/*", …)` inside the body finds nothing to find.
+      if (sql.slice(index + 2, blockEnd).includes("/*")) {
+        unmodelledConstructs.push(
+          "a nested block comment, which PostgreSQL nests and this screen does not",
+        );
+      }
+      index = blockEnd + 2;
+      buffer += " ";
+      continue;
+    }
+    if (sql[index] === "'") {
+      const prefix = precedingStringPrefix(sql, index);
+      if (prefix !== undefined) {
+        unmodelledConstructs.push(
+          `a "${prefix.toUpperCase()}'…'" string, whose escaping or encoding this screen does not track`,
+        );
+      }
+      buffer += "'";
+      state = "single-quote";
+      index += 1;
+      continue;
+    }
+    if (sql[index] === '"') {
+      const prefix = precedingStringPrefix(sql, index);
+      if (prefix !== undefined && prefix.toLowerCase() === "u&") {
+        unmodelledConstructs.push(
+          `a "U&"…"" identifier, whose unicode escaping this screen does not track`,
+        );
+      }
+      buffer += '"';
+      state = "double-quote";
+      index += 1;
+      continue;
+    }
+    if (sql[index] === "$") {
+      // SEC-7E3c.4: two of QA's cases hinge on this one character. A `$` glued to the end of a bare
+      // identifier (`qa_b$$`) is a legal identifier this scanner would otherwise read as a
+      // dollar-quote *open*; a `$` starting a tagged quote (`$q$…$q$`) is a body this scanner would
+      // otherwise read as ordinary code once the untagged toggle failed to arm. Both merge whatever
+      // follows into the wrong statement. The one shape left alone is the bare, untagged `$$` this
+      // repository's own migrations use, standing free of any identifier on either side.
+      const precededByIdentifierChar =
+        index > 0 && /[\w$]/.test(sql[index - 1] ?? "");
+      if (precededByIdentifierChar) {
+        unmodelledConstructs.push(
+          "an identifier containing $, which this screen's dollar-quote detection cannot tell apart " +
+            "from a delimiter",
+        );
+        buffer += "$";
+        index += 1;
+        continue;
+      }
+      if (sql.startsWith(DOLLAR_QUOTE, index) && sql[index + 2] !== "$") {
+        buffer += DOLLAR_QUOTE;
+        state = "dollar-quote";
+        index += DOLLAR_QUOTE.length;
+        continue;
+      }
+      unmodelledConstructs.push(
+        "a $ that is not part of the bare, untagged $$ delimiter (a tag, or a lone $), which this " +
+          "screen does not track",
+      );
+      buffer += "$";
+      index += 1;
+      continue;
+    }
+    if (sql[index] === ";") {
+      statements.push(buffer);
+      buffer = "";
+      index += 1;
+      continue;
+    }
+    buffer += sql[index] ?? "";
+    index += 1;
   }
 
-  statements.push(sql.slice(statementStart));
-  return statements;
+  statements.push(buffer);
+  return { statements, unmodelledConstructs };
+}
+
+/** The earliest of two single-character delimiters at or after `from`, or `-1` if neither occurs
+ *  again — `String.indexOf` only ever takes one needle, and a `--` comment ends at whichever of
+ *  `\n`/`\r` comes first (SEC-7E3c.7). */
+function indexOfEither(
+  sql: string,
+  first: string,
+  second: string,
+  from: number,
+): number {
+  const firstIndex = sql.indexOf(first, from);
+  const secondIndex = sql.indexOf(second, from);
+  if (firstIndex === -1) return secondIndex;
+  if (secondIndex === -1) return firstIndex;
+  return Math.min(firstIndex, secondIndex);
+}
+
+interface QuoteStep {
+  readonly consumed: string;
+  readonly nextIndex: number;
+  readonly closesQuote: boolean;
+}
+
+/** One step inside a single- or double-quoted region: `''`/`""` is the SQL escape for an embedded
+ *  quote and stays inside the region; a lone quote character ends it; anything else is ordinary
+ *  content that cannot itself be a quote character, since a bare occurrence of `quoteChar` is always
+ *  handled by one of the two branches above. */
+function stepThroughQuote(
+  sql: string,
+  index: number,
+  quoteChar: "'" | '"',
+): QuoteStep {
+  const doubled = quoteChar + quoteChar;
+  if (sql.startsWith(doubled, index)) {
+    return { consumed: doubled, nextIndex: index + 2, closesQuote: false };
+  }
+  if (sql[index] === quoteChar) {
+    return { consumed: quoteChar, nextIndex: index + 1, closesQuote: true };
+  }
+  return {
+    consumed: sql[index] ?? "",
+    nextIndex: index + 1,
+    closesQuote: false,
+  };
 }
 
 /** `ALTER TABLE [ONLY|IF EXISTS] t ADD [COLUMN] IF NOT EXISTS …`, one or more clauses, each of them
@@ -281,9 +603,15 @@ function alterTableClausesOf(statement: string): string[] | undefined {
 const ADD_COLUMN_CLAUSE = /^add\s+(column\s+)?if\s+not\s+exists\s+[\w"]+\b/;
 
 function isSafeAddColumnClause(clause: string): boolean {
-  return (
-    ADD_COLUMN_CLAUSE.test(clause.trim()) && !isNotNullWithoutDefault(clause)
-  );
+  if (!ADD_COLUMN_CLAUSE.test(clause.trim())) return false;
+  if (isNotNullWithoutDefault(clause)) return false;
+  // SEC-7E3c.11, widened by review round 3's SEC-7E3c.13: a function call anywhere in the clause —
+  // a `default`, or (the gap .13 found) an inline `check (…)` an added column carries — runs during
+  // the migration, the same hazard a guarded DO block's own CHECK expression carries. Scoped to the
+  // whole clause rather than to `default` alone, because `add column … check (lo_unlink(1) = 1 or
+  // true)` has no `default` for the old, narrower check to find.
+  if (containsDisallowedFunctionCall(clause)) return false;
+  return true;
 }
 
 /** Asked of one clause, never of the statement. The statement-wide question was the seventh
@@ -328,11 +656,195 @@ function isIdempotentCreateIndex(statement: string): boolean {
   return /^create\s+(unique\s+)?index\s+if\s+not\s+exists\s/.test(statement);
 }
 
-/** `0003`'s shape. The guard is what makes it idempotent — Postgres has no `add constraint if not
- *  exists`, so the file asks `pg_constraint` itself whether the work is already done. A `DO` block
- *  without that guard is an arbitrary procedural body and is not recognised. */
+/**
+ * `0003`'s shape, matched structurally rather than by the mere presence of `pg_constraint`
+ * somewhere in the body (review round 1, SEC-7E3c.8). The old check accepted any `DO` block that
+ * *mentioned* `pg_constraint` — including inside a string a dynamic statement built from, or a
+ * comment naming it for cover — so `do $$ begin execute 'drop table designs'; -- pg_constraint end
+ * $$;` cleared the allowlist despite running a statement this screen never read. The guard is what
+ * makes `0003`'s shape idempotent at all — Postgres has no `add constraint if not exists`, so the
+ * file asks `pg_constraint` itself whether the work is already done — so this now requires the
+ * *entire* body to be exactly that question and exactly one guarded `alter table … add constraint`,
+ * naming the same constraint on both halves. Anything else, dynamic SQL above all, is an arbitrary
+ * procedural body and is not recognised.
+ *
+ * **The `conrelid` clause is optional in the pattern, required in the check when present.** `0003`
+ * and `0005` both scope the guard to one table (`and conrelid = 'designs'::regclass`), and where a
+ * body carries it, it must name the same table the `alter table` below it does. A body that narrows
+ * on `conname` alone is a real, valid PostgreSQL guard too — a constraint name is not required to be
+ * unique across tables — and this allowlist has held that shape since before this wave.
+ *
+ * **The `check (…)` clause is not captured by `(.+)` any more (review round 2, SEC-7E3c.10).** A
+ * greedy, unbounded capture spans `;`, so `check (true); alter table designs enable row level
+ * security; alter table designs add constraint c check (true); end if; end $$` matched this
+ * template's *literal tail* on the **last** `check (…); end if; end $$` in the file and ran
+ * everything in between unscreened. The condition is now read with a balanced-paren scan
+ * ({@link balancedParenContent}) that stops at the matching `)`, and what follows it must be
+ * *exactly* `); end if; end $$` — nothing may stand between the guarded `alter table` and the two
+ * closing keywords the template ends on. The condition itself may hold no `;` (nothing inside a
+ * `check` expression legitimately needs one), and the whole body is required to name `begin` and
+ * `end if;` exactly once each — the same anchoring stated twice, once structurally and once by
+ * count, because a bug in one must not be the only thing standing between an attacker and the other.
+ */
+const CONSTRAINT_GUARD_HEAD = new RegExp(
+  String.raw`^do \$\$ begin if not exists \(\s*select 1 from pg_constraint where conname = '([^']*)'` +
+    String.raw`(?: and conrelid = '([^']*)'::regclass)?\s*\) then alter table (${TABLE_NAME}) ` +
+    String.raw`add constraint (\S+) check \(`,
+);
+
+const CONSTRAINT_GUARD_TAIL = "); end if; end $$";
+
+/** Dynamic SQL inside a `DO` block can construct and run a statement this screen never sees —
+ *  `execute`, `perform` (PL/pgSQL's fire-and-forget call, which reaches a function the same way),
+ *  `format(…)` and string concatenation (`||`) are the ways a body builds one. Checked on every `DO`
+ *  block regardless of whether it otherwise matches the guard template, so a future loosening of
+ *  that template can never accidentally admit one — the same "regardless" the finding asked for.
+ *
+ * **Review round 3, SEC-7E3c.12.** `scanSql`'s comment-stripping treats a `$$…$$` body as opaque
+ * text — correctly, since the *outer* SQL lexer never looks inside one — but PL/pgSQL's own
+ * compiler does strip a block comment and a line comment from the body before running it. A
+ * function call split by an empty block comment reaches `containsDisallowedFunctionCall` below as
+ * one broken token and one paren, matching no function call at all, while Postgres runs the two
+ * halves joined as one call. `0003` and `0005` carry no comment marker inside their own `$$…$$`
+ * bodies (checked by hand), so refusing either kind anywhere in a `DO` body is not a rebaseline. */
 function isConstraintGuardedDoBlock(statement: string): boolean {
-  return /^do\s+\$\$/.test(statement) && statement.includes("pg_constraint");
+  if (!/^do\s+\$\$/.test(statement)) return false;
+  if (usesDynamicSql(statement)) return false;
+  if (containsCommentMarker(statement)) return false;
+
+  const head = CONSTRAINT_GUARD_HEAD.exec(statement);
+  if (head === null) return false;
+  const [
+    wholeHead,
+    guardedName,
+    guardedTable,
+    alteredTable,
+    addedConstraintName,
+  ] = head;
+
+  const afterOpenParen = statement.slice(wholeHead.length);
+  const condition = balancedParenContent(afterOpenParen);
+  if (condition === undefined) return false;
+  if (condition.includes(";")) return false;
+  if (containsDisallowedFunctionCall(condition)) return false;
+  if (afterOpenParen.slice(condition.length) !== CONSTRAINT_GUARD_TAIL)
+    return false;
+
+  // SEC-7E3c.10's second, independent anchor: the exact-tail check above already pins everything
+  // between the guarded `alter table` and `end $$`, but a second `begin` or a second `end if;`
+  // anywhere else in the body — ahead of the guard, or smuggled into the condition itself despite
+  // the `;`-free rule above — is refused here too, rather than trusted to the first check alone.
+  if (countOccurrences(statement, /\bbegin\b/g) !== 1) return false;
+  if (countOccurrences(statement, /\bend\s+if\s*;/g) !== 1) return false;
+
+  if (guardedName !== addedConstraintName) return false;
+  return (
+    guardedTable === undefined ||
+    guardedTable === stripQuotes(alteredTable ?? "")
+  );
+}
+
+function usesDynamicSql(statement: string): boolean {
+  return /\bexecute\b|\bperform\b|\bformat\s*\(|\|\|/.test(statement);
+}
+
+/** Anything left that looks like a comment marker, checked against a statement `scanSql` has
+ *  already stripped comments from *outside* every `$$…$$` body — so a survivor here can only be
+ *  inside one (SEC-7E3c.12). */
+function containsCommentMarker(statement: string): boolean {
+  return statement.includes("/*") || statement.includes("--");
+}
+
+/** The content strictly between a `(` already consumed by the caller and its matching `)`, tracking
+ *  nested parens so `check (a and (b or c))` is read as one balanced expression rather than closing
+ *  on the first `)` it meets. `undefined` if the text never returns to depth zero — Postgres would
+ *  refuse that as an unterminated expression, and this screen refuses it the same way, by finding no
+ *  shape to recognise rather than by guessing where it was supposed to end. */
+function balancedParenContent(text: string): string | undefined {
+  let depth = 1;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === "(") depth += 1;
+    else if (character === ")") {
+      depth -= 1;
+      if (depth === 0) return text.slice(0, index);
+    }
+  }
+  return undefined;
+}
+
+function countOccurrences(text: string, pattern: RegExp): number {
+  return text.match(pattern)?.length ?? 0;
+}
+
+/**
+ * Review round 2, SEC-7E3c.11. A function call inside a `CHECK` expression or a column's `DEFAULT`
+ * runs during the migration, the same hazard CTAS and `INSERT … SELECT` carry — `lo_unlink(42)` is
+ * this module's own standing example of a side-effecting one. Refused by *syntax* (an identifier,
+ * schema-qualified or quoted, immediately followed by `(`) rather than by a denylist of dangerous
+ * names, for the reason every other diagnosis in this file is refuse-by-default: the next dangerous
+ * function nobody has heard of yet still has to be typed as `name(`.
+ *
+ * **`now()` is the one exception, matched whole, never by its last segment** (review round 3,
+ * SEC-7E3c.14 — the old check split the call on `.` and compared only the tail, so `evil.now()`
+ * read as `now` and passed). Exactly two spellings are allowed: unqualified `now` and
+ * schema-qualified `pg_catalog.now`, because `0001` and `0006` both use the unqualified form as a
+ * column default and neither is going anywhere. Nothing else shipped uses a function call in either
+ * position — checked by hand against `0001`–`0006` before this rule was written — so the allowlist
+ * stays these two spellings of one function until a migration genuinely needs a second.
+ */
+const ALLOWED_FUNCTION_CALLS = new Set(["now", "pg_catalog.now"]);
+
+const FUNCTION_CALL_HEAD = /("[^"]*"|[a-z_][\w$]*(?:\.[a-z_][\w$]*)*)\s*\(/g;
+
+function containsDisallowedFunctionCall(expression: string): boolean {
+  for (const match of expression.matchAll(FUNCTION_CALL_HEAD)) {
+    const rawName = match[1] ?? "";
+    const qualifiedName = rawName
+      .split(".")
+      .map((segment) => stripQuotes(segment))
+      .join(".");
+    if (!ALLOWED_FUNCTION_CALLS.has(qualifiedName)) return true;
+  }
+  return false;
+}
+
+/** `conrelid = 'designs'::regclass` names the table as a string; `alter table designs` names it as
+ *  a bare or double-quoted identifier. Comparing the two for the structural match above means
+ *  stripping the identifier's own quotes, if it has any — the string literal carries none to strip. */
+function stripQuotes(identifier: string): string {
+  return identifier.replace(/^"|"$/g, "");
+}
+
+/** The one referential action this screen ever reads out of a `delete` occurrence rather than into
+ *  it (D2, M7 wave 7E3c): `on delete cascade|restrict|no action|set null|set default`, the shape
+ *  `0006` needs for `design_share_links.design_id ... references designs (id) on delete cascade`. */
+const ON_DELETE_REFERENTIAL_ACTION =
+  /\bon\s+delete\s+(cascade|restrict|no\s+action|set\s+null|set\s+default)\b/g;
+
+/**
+ * `delete` and `update` both name a statement that rewrites existing rows — with one narrow
+ * exemption. Inside a statement this screen has already anchored as `create table if not exists`,
+ * an `on delete …` referential-action clause is part of the table's own definition, not a rewrite,
+ * and a table that does not yet exist has no rows to rewrite regardless of what its foreign keys
+ * say. Stripping just that clause and re-testing is what keeps the exemption narrow: any other
+ * `delete` inside the same statement — there is none in `0006`, but the screen must not assume that
+ * of a future one — still trips this diagnosis.
+ *
+ * `update` gets no such exemption: `on update cascade` inside a `create table if not exists` is
+ * still refused, because nothing about this wave needs it and a broader exemption is a broader
+ * promise than D2 made.
+ */
+function rewritesExistingRows(statement: string): boolean {
+  if (/\bupdate\b/.test(statement)) return true;
+  if (!/\bdelete\b/.test(statement)) return false;
+  if (!CREATE_TABLE_IF_NOT_EXISTS.test(statement)) return true;
+
+  const withoutReferentialActions = statement.replace(
+    ON_DELETE_REFERENTIAL_ACTION,
+    " ",
+  );
+  return /\bdelete\b/.test(withoutReferentialActions);
 }
 
 function matchesAnchored(pattern: RegExp): (statement: string) => boolean {

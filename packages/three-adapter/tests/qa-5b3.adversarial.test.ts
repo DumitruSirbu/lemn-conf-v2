@@ -89,7 +89,7 @@ interface MountedScene {
 }
 
 function mountShell(): MountedScene {
-  const shell = buildKitchenShell(kit);
+  const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);
@@ -103,7 +103,12 @@ function mountThrough(
 ): MountedScene {
   const mounted = mountShell();
   for (const records of recordSets) {
-    syncSolidBodies({ kit, solidsRoot: mounted.solidsRoot, records });
+    syncSolidBodies({
+      kit,
+      solidsRoot: mounted.solidsRoot,
+      records,
+      room: KITCHEN_L_DESIGN.room,
+    });
   }
   return mounted;
 }

@@ -110,6 +110,20 @@ fails on a key present in one catalogue and missing from the other, and on misma
 placeholders between them. The Russian is a drafted translation awaiting owner sign-off — draft it,
 never mark it approved.
 
+**The generated declaration is part of that same commit, and forgetting it fails somewhere else
+entirely.** `apps/web/src/messages/ro.d.json.ts` is written by next-intl **and checked in**, and it —
+not `ro.json` — is what types `translate(…)`. next-intl regenerates it during `next dev` and
+`next build` only, so a wave that edits the catalogue and then runs `tsc` first sees
+**`TS2554: Expected 2-3 arguments, but got 1`** at the **call site**: an unknown key falling through
+to the `(namespace, key)` overload, wearing the costume of an ICU-arguments problem, with nothing in
+the message naming the catalogue. Measured on 2026-09-15 during M7 wave 7F4b. **Mirror the JSON into
+the declaration by hand** — a `next build` afterwards rewrote the file byte-identically.
+
+So the full set a new message leaf touches is: `ro.json`, `ru.json`, **`ro.d.json.ts`**, the copy lock
+(`apps/web/tests/support/approved-romanian-messages.ts`, a deep equality — a missing leaf fails it),
+and `apps/web/tests/i18n/golden-output-hashes.ts` with the fixture counts in
+`apps/web/tests/i18n/golden-output.test.ts`.
+
 **5. The copy lock is an inline literal table, and never a snapshot.**
 `apps/web/tests/support/approved-romanian-messages.ts` holds the approved Romanian wording as a
 literal object; `tests/i18n/romanian-copy-lock.test.ts` compares the catalogue against it. A new
@@ -193,6 +207,32 @@ comment saying why the descriptor would not do.
   the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it
   claims to test.
+- **Two harness behaviours make a test pass over code that never ran. Both were measured, and both
+  read exactly like a production defect when they bite.**
+
+  **`act` coalesces transient renders, so a guard against a state the screen must *never* show passes
+  vacuously.** Two `setState`s inside one `await act(async () => …)` window produce **one** render;
+  the intermediate state never reaches the DOM. Measured 2026-09-14 on M7 wave 7F4a: with
+  `use-generation.ts`'s run token deliberately deleted, an abandoned run's `failed` state and the
+  fresh run's `composed` state both settled inside a single 5 ms `act` poll, the trail read
+  `composing → none → composing → composed`, and the guard stayed green. Polling **outside** `act`
+  gave `composing → none → composing → failed → composed` and the guard went red. **For any claim
+  about a state the screen must never enter, poll outside `act`** and read the sequence off a
+  `MutationObserver` with `attributeOldValue` — a sampled poll cannot see a transient, and happy-dom
+  delivers all records in one late callback, so reconstruct the order from `oldValue` rather than from
+  the live DOM.
+
+  **Two concurrent dynamic imports of a `vi.mock`-ed module return different namespaces, and the
+  second is the *real* module.** Under Vitest 3.2, `Promise.all([import(x), import(x)])` gives
+  `a !== b`: the factory runs once, `a` is the mock, `b` is unmocked. A sequential second import gets
+  the mock correctly. Measured 2026-09-14 writing adversarial tests for two overlapping composition
+  runs: `apps/web/src/room/use-generation.ts:460` takes `await import("@lemnaria/three-adapter")` on
+  the run path, so two runs started in one tick issue two concurrent imports — and the second
+  received the real `makeKit` and died on *"Cannot bake a procedural texture: no 2D canvas context"*.
+  **That is a harness artefact, not a defect**: a browser's module cache returns one namespace per
+  specifier. When a test starts two runs that each take the same dynamic import, drain microtasks
+  between them so the first import resolves before the second is issued.
+
 - **A comment claiming a guard is not a guard.** When a test file, a fixture or a manifest says in
   prose that it protects something — *"this is the gate that bites"*, *"an unknown key cannot reach
   the screen"* — that sentence is a claim to be falsified, not a fact to inherit. Break the thing it
@@ -203,3 +243,94 @@ comment saying why the descriptor would not do.
   The same rule covers the two ways a gate disarms itself quietly: a helper that is module-private is
   invisible to the totality test that should be sweeping it, and a guard that returns early on some
   precondition reports success on every run where the precondition is false.
+
+## Coverage an adversarial pass owes
+
+`../WORKFLOW.md` decides *when* QA runs and that it gates review. This is *what* it tests.
+
+- Every production path gets normal-path coverage plus boundaries, empty and invalid inputs,
+  transitions, and anti-invariants. **Test what must not happen**, not only the desired output.
+- Sweep a meaningful input range when arithmetic or generation is involved; a few hand-picked
+  examples are not evidence that the transitions work. For generated data assert properties — no
+  overlap, no unclassified gap, valid schema output.
+- **A clean report from an adversarial pass is a weak result, not a strong one.** This project has
+  shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
+  reporting green, and two commands that reported success while doing nothing. "No findings" must be
+  earned and evidenced.
+
+### A deferred test has two shapes and they mean different things
+
+| Shape | What it means | Clears |
+| --- | --- | --- |
+| `it.fails` / `test.fails` | The test **runs** and asserts the current wrong behaviour. It goes **red the moment the behaviour is fixed** | Itself |
+| `describe.skip` / `test.skip` | The test **cannot run at all** — the surface it needs does not exist | Only when someone remembers |
+
+**Use `it.fails` whenever a named wave is expected to change the behaviour**, because the debt clears
+itself instead of depending on memory. That is the same argument that rules out simply leaving the
+gate red: a red gate stops being information the second wave that sees it, whereas an expected failure
+keeps `ci:local` green *and* fires the moment it is obsolete. Use `skip` only where there is nothing
+to self-clear — the test cannot execute, so there is no assertion to invert.
+
+**Flip it, do not delete it.** A deleted expected failure is indistinguishable from one that never
+existed. Say so in the test's name and in a header comment, and name the wave that owes the flip, so
+the inheriting implementer meets the instruction rather than a puzzle.
+
+**Verify that the mechanism self-clears; do not assume it.** Make the assertion pass artificially,
+confirm the expected-failure marker itself goes red, then restore. This is `ci-and-local-gates.md`'s
+*"when adding a gate, prove it fails"* applied to the inverse case, and it is the only thing
+separating a self-clearing test from a permanently-green one that asserts nothing.
+
+## Three guards that look thorough and cannot fail
+
+### Both sides fed by the same source
+
+A test that compares an expected value against an actual one proves nothing if **the same thing
+supplies both sides.** It passes, it looks specific, and it cannot fail for the reason it was written.
+
+**The cheap general check, and it takes one question:** ask what *else* could supply the expected
+side. If the answer is "the same thing that supplies the actual side", **make the two disagree and
+assert which one wins.**
+
+Three instances found in one wave on 2026-09-03, all in guards that read as thorough:
+
+- A two-way refusal comparing the groups it was **handed** against the lines it was **handed** — so
+  the component could stop calling the projection entirely and rebuild a plausible, correctly ordered
+  breakdown from price lines, with **187 tests and the e2e still green**. Closed by capturing the
+  argument at the hand-over and requiring two designs whose group structures differ.
+- A count of rendered amounts whose expected list was derived from **the same view the surface
+  renders**, so a subtotal added by the model landed on both sides and cancelled out. Closed by
+  counting against the projection and the price book instead.
+- A label assertion that could not tell whether the model read the projection's entry or the price
+  line, because `CabinetPriceLine` carries the **same** `label` and `widthMm`. Closed by making the
+  two disagree.
+
+None of these is a careless test. Each compares a real property; each was fed by one source wearing
+two hats.
+
+### A surviving mutation may not have been applied
+
+When a mutation is expected to turn a test red and does not, **prove the mutation reached the code
+under test before concluding the guard is weak.** The web suites resolve
+`@lemnaria/configurator-domain` to `dist/`, so editing `packages/configurator-domain/src` and
+re-running a web test mutates nothing — the build still holds the original. Rebuild, or mutate the
+build, then re-run. The one-directional consequence, and which stale results remain salvageable, are
+in `ci-and-local-gates.md`.
+
+Observed on 2026-09-03: a scene-population assertion looked like a restatement because the mutation
+meant to falsify it was a no-op. Against the build it died, and the assertion turned out to be
+genuinely falsifiable. **A survivor is a claim about the guard only once the mutation is known to have
+landed** — otherwise it is a claim about the build.
+
+### A predicate over a band, and a sweep with no floor per arm
+
+`top` folds into `wall` (ADR 0011 Gap C) for every reader that groups or counts by band. A predicate
+that reads the raw `band` field instead of going through `normaliseBand` is silently wrong for every
+top-row body, and it looks correct in isolation because nothing about it fails to compile or to run.
+
+**The same shape bites a set-membership assertion specifically.** A property asserted as "true over
+every member of a set" needs a **minimum count per arm** of whatever it is branching on, not only a
+total count — otherwise the sweep can pass while landing entirely on the arm nobody changed, and it
+certifies nothing about the arm that moved. Found at M6 wave 6I2's close-out (2026-09-04): the wave's
+strongest property was first swept without a floor per arm, and the fixture the sweep reached happened
+to be the arm 6I2 did **not** touch — see `../milestones/M6-price-and-global-settings.md` wave 6I2's
+close-out for the specific instance.

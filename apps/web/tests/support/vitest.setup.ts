@@ -12,4 +12,26 @@ declare global {
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+// M7 wave 7E3b S6 (ADR 0114 Amendment H6, D2): recent Node ships a real `navigator.locks`, which
+// no test before this wave was written expecting. Left alone, `withCreateDesignLock`
+// (`create-design-lock.ts`) would wrap every unit test's own `mint()` in a genuine, if
+// uncontended, Web Lock acquisition — an extra task hop that breaks tests asserting a request was
+// dispatched synchronously after a store action, for a concern those tests never meant to cover.
+//
+// Only the one property is shadowed, never the whole `navigator` (a `vi.stubGlobal("navigator",
+// {})` once did exactly that here, and took `userAgent` down with it — `react-dom`'s own
+// environment detection reads it, so every `.dom.test.ts` file broke). `"locks" in navigator` is
+// false under happy-dom, which does not implement the Web Locks API at all, so this is a no-op
+// there; it only has work to do in the plain `node` environment, where the property is an
+// inherited getter on `Navigator.prototype`, not an own property `delete` could remove — an own
+// `undefined` here shadows it instead. `create-design-lock.test.ts` and
+// `fetch-configuration-repository.test.ts`'s own wiring test replace `navigator` outright, per
+// test, to exercise the lock itself.
+if (typeof navigator !== "undefined" && "locks" in navigator) {
+  Object.defineProperty(navigator, "locks", {
+    value: undefined,
+    configurable: true,
+  });
+}
+
 export {};

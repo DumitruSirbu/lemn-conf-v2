@@ -1,6 +1,7 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * **Frame 2E's sheet at 390 × 844, and the half of it no value assertion can see.**
@@ -25,9 +26,8 @@ const SEEDED_BODY_COUNT = 26;
  *  what is asserted. */
 const MORE_TAB_STOPS_THAN_THE_SHEET_HAS = 14;
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

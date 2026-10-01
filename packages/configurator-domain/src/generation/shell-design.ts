@@ -1,0 +1,949 @@
+// ADR 0110 decision 1, built as its Amendment B rules: the design generation starts from. It holds
+// the entered room, the reference kitchen's settings and cabinet depth, the structural corner pieces
+// that fit under the ceiling, and every free run of each wall recorded as empty space — a document
+// `insertBody` can place into and nothing else has touched.
+//
+// **Authored for its room, never derived by removal** (Amendment B1). `removePlacement` records
+// nothing in the document; the space a delete frees survives only through the web store's frozen map.
+// Building the shell by deleting the reference kitchen would restate that store's order here and
+// carry the reference's own column boundaries and depth sources — a fridge's, on wall B — into rooms
+// where none of them ever stood. So the shell is two parts:
+//
+// - **the corner's own columns**, derived from the kept structural placements, never tiled;
+// - **every free run**, cut by `splitEmptySpanAtCap` (ADR 0052's ceiling) from the run's start to
+//   its planned end, each piece keyed from its own centre, its depth read off a neutral declared
+//   source (`occupiedDepthOfEntryM`) so the extent names a body that explains it (ADR 0073, 0102).
+//
+// **Nothing is clipped**, so ADR 0090 Amendment B has nothing to say here (Amendment B4): each run is
+// tiled to where it ends, and `clipEmptyColumnsAtWallEnd` — a published-face pass — is not applied to
+// this recorded face.
+//
+// **Wall B's runs end short of the wall** by the corner's chain shift to the deepest declared depth
+// (Amendment B3, ADR 0109 Amendment C): a deeper corner slides wall B's whole run, and a proposal
+// must still fit after the customer changes the depth. **Wall A's floor run reaches the wall's end**:
+// the run-end panel is not drawn where a run comes within its gap and slab of the wall (ADR 0045
+// Amendment A), so nothing composed can push it past the wall, and B3a's reserve went with that veto.
+//
+// **An odd span gives up its last millimetre.** A document holds whole-millimetre centres, so from a
+// whole-millimetre edge every piece is even; the millimetre an odd span cannot carry is left at the
+// far end — the same give `widestOnTheGrid` makes (Adjudication 7D1-P, P3).
+//
+// No probe, no price book, and no body but the corner's: composition places every other body through
+// `insertBody` (ADR 0110 decision 2).
+import {
+  alongWallShiftMm,
+  cornerTakingWallsOf,
+} from "../along-wall-chain-shift.js";
+import { cabinetDepthRuleOf } from "../cabinet-depth-rule.js";
+import { isValidOccurredAt } from "../commands/command-result.js";
+import {
+  CORNER_ASSEMBLY_PIECES,
+  cornerAlongWallCentreMm,
+  cornerAssemblyWidthsMm,
+  cornerFarEdgeMm,
+  rightCornerAlongWallCentreMm,
+  rightCornerAssemblyWidthsMm,
+  roomForTheRightCorner,
+  type CornerAssemblyWidthsMm,
+  type CornerBand,
+  type SizedCornerPiece,
+} from "../corner-assembly-size.js";
+import {
+  cabinetDepthMmOf,
+  DesignRoomSchema,
+  type Design,
+  type DesignPlacement,
+  type DesignRoom,
+  type DesignWall,
+  type EmptyColumn,
+} from "../design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
+} from "../fixtures/kitchen-l-design.js";
+import { toExactMillimetres, toMetres } from "../millimetres.js";
+import { LEVELS } from "../module-grid.js";
+import { occupiedDepthOfEntryM } from "../occupied-depth.js";
+import { wallLengthMm } from "../queries/overflowing-placements.js";
+import { ENGINE_ROOM_LIMITS } from "../room/room-policy.js";
+import { validateRoomInput } from "../room/validate-room.js";
+import { splitEmptySpanAtCap } from "../split-empty-span.js";
+import {
+  deriveRecordedColumns,
+  derivePlacementRecords,
+  projectFrozenMap,
+  withFrozenMap,
+  type BodyDefinition,
+} from "../void-engine.js";
+import { declaredCabinetDepthsMm } from "../worktop-depth.js";
+
+// =================================================================================================
+// ADR 0130 D5 (wave 7J S2) — the straight kitchen's shell: no corner, no structural placement, one
+// wall. The tiling primitives above (`tileRunsOn`, `tilesOver`, `plannedFloorTiles`,
+// `wholeMillimetreReachableEndMm`) are shared rather than copied: a straight room's free run is the
+// same shape of thing an L's is, with the corner's reach and the depth-change reserve both at zero
+// rather than a second code path computing them.
+// =================================================================================================
+
+export interface LinearShellDesignInput {
+  /** A room `validateRoomInput` accepted for the straight policy; the shell passes it through
+   *  untouched. */
+  readonly room: DesignRoom;
+  readonly occurredAt: string;
+  /** Composition's private row plan for wall A, the straight room's only wall. Omit it to retain the
+   *  un-composed 800-first shell exactly, the same contract `LShellDesignInput.compositionPlan` has. */
+  readonly compositionPlan?: LinearShellCompositionPlan;
+}
+
+export interface LinearShellCompositionPlan {
+  readonly floorWidthsMm: readonly number[];
+}
+
+export type LinearShellInputRefusal =
+  | "ROOM_NOT_A_DESIGN_ROOM"
+  | "ROOM_NOT_LINEAR"
+  | "ROOM_OUTSIDE_ENGINE_LIMITS"
+  | "INVALID_OCCURRED_AT";
+
+/** The builder sits behind the room validator, so a bad input here is a programming error. */
+export class LinearShellInputError extends Error {
+  constructor(readonly refusal: LinearShellInputRefusal) {
+    super(`buildLinearShellDesign refused its input: ${refusal}`);
+    this.name = "LinearShellInputError";
+  }
+}
+
+/** The shell for a straight `input.room`: no structural placement (D5) and wall A's one free run,
+ *  recorded the same way an L's floor and wall-only runs are. */
+export function buildLinearShellDesign(input: LinearShellDesignInput): Design {
+  refuseUnbuildableLinearInput(input);
+  const shell: Design = {
+    room: input.room,
+    presetId: null,
+    settings: { ...REFERENCE_KITCHEN.settings },
+    placements: [],
+    createdAt: input.occurredAt,
+    updatedAt: input.occurredAt,
+  };
+  const tiles = linearFreeRunTiles(input.room, input.compositionPlan);
+  return canonicalised(withFrozenMap(shell, { emptyColumns: tiles }));
+}
+
+function refuseUnbuildableLinearInput(input: LinearShellDesignInput): void {
+  if (!DesignRoomSchema.safeParse(input.room).success) {
+    throw new LinearShellInputError("ROOM_NOT_A_DESIGN_ROOM");
+  }
+  if (input.room.shape !== "linear") {
+    throw new LinearShellInputError("ROOM_NOT_LINEAR");
+  }
+  if (!isInsideTheEngineLimitsLinear(input.room)) {
+    throw new LinearShellInputError("ROOM_OUTSIDE_ENGINE_LIMITS");
+  }
+  if (!isValidOccurredAt(input.occurredAt)) {
+    throw new LinearShellInputError("INVALID_OCCURRED_AT");
+  }
+}
+
+/** The engine's own linear limits (ADR 0130 D2), never the approved policy — the same split
+ *  `isInsideTheEngineLimits` keeps for the L. Generation never reads `room.depthMm` (D3, A7), so no
+ *  check here touches it. */
+function isInsideTheEngineLimitsLinear(room: DesignRoom): boolean {
+  return validateRoomInput(
+    { shape: "linear", wallAMm: room.widthMm, heightMm: room.heightMm },
+    ENGINE_ROOM_LIMITS,
+  ).ok;
+}
+
+/** Wall A's free run: `[0, W]` less the odd millimetre (7D1-P P3), with no corner reach to subtract
+ *  and no depth-change reserve — wall A never slides (D5), because there is no corner on wall B to
+ *  slide it.
+ *
+ *  **One run, not two.** The L's `freeRunTiles` also records a *wall-only* run, but only over the
+ *  horizontal strip where the corner's base band is occupied while its wall/top bands have already
+ *  ended — the space directly above the corner's own base piece. A straight room places no structural
+ *  piece at all (D5), so that strip never exists: `wallRowStartMm`'s corner reach and
+ *  `floorRunStartMm`'s both equal 0, which is exactly the input that collapses the L's own wall-only
+ *  span to zero length (`Math.min(floorSpan.startMm, …)` clamped against a `wallOnlyStartMm` that is
+ *  the same 0). Tiling only the floor run reaches the identical, non-overlapping result the shared
+ *  clamp would, without a call that is provably always empty. */
+function linearFreeRunTiles(
+  room: DesignRoom,
+  compositionPlan: LinearShellCompositionPlan | undefined,
+): EmptyColumn[] {
+  const runs = tileRunsOn("A", room);
+  const span = linearFloorRunSpan(room);
+  return compositionPlan === undefined
+    ? tilesOver(runs.floor, span)
+    : plannedFloorTiles(runs.floor, span, compositionPlan.floorWidthsMm);
+}
+
+/** Wall A's one run, exported for the composer the same way `lShellFloorRuns` is — so the plan's
+ *  declared widths and the shell's tiles are cut from the identical span. */
+export function linearShellFloorRuns(room: DesignRoom): Readonly<{
+  readonly wall: "A";
+  readonly startMm: number;
+  readonly endMm: number;
+}> {
+  return { wall: "A", ...linearFloorRunSpan(room) };
+}
+
+function linearFloorRunSpan(room: DesignRoom): AlongWallSpan {
+  const physicalSpan = { startMm: 0, endMm: wallLengthMm("A", room) };
+  return {
+    ...physicalSpan,
+    endMm: wholeMillimetreReachableEndMm(physicalSpan),
+  };
+}
+
+export interface LShellDesignInput {
+  /** A room `validateRoomInput` accepted; the shell passes it through untouched. */
+  readonly room: DesignRoom;
+  readonly occurredAt: string;
+  /** Composition's private row plan (ADR 0110 Amendment D, revised). Omit it to retain the 7D1
+   *  800-first shell exactly. Widths are ordered from the corner toward each wall's free end. */
+  readonly compositionPlan?: LShellCompositionPlan;
+}
+
+// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
+// this builder is the L's own — `refuseUnbuildableInput` throws `ROOM_NOT_L` for any other shape —
+// so its tiling primitives stay keyed on the two walls it actually tiles. Wall C's own shell is U2's
+// (ADR 0132 D12), not a third key forced onto this one.
+type LWall = Extract<DesignWall, "A" | "B">;
+const L_SHELL_WALLS: readonly LWall[] = ["A", "B"];
+
+export interface LShellCompositionPlan {
+  readonly floorWidthsMm: Readonly<Record<LWall, readonly number[]>>;
+}
+
+/** Why the builder refused its input — a code, never a sentence (ADR 0095 decision 3). */
+export type LShellInputRefusal =
+  | "ROOM_NOT_A_DESIGN_ROOM"
+  | "ROOM_NOT_L"
+  | "ROOM_OUTSIDE_ENGINE_LIMITS"
+  | "INVALID_OCCURRED_AT";
+
+/** The builder sits behind the room validator, so a bad input here is a programming error. */
+export class LShellInputError extends Error {
+  constructor(readonly refusal: LShellInputRefusal) {
+    super(`buildLShellDesign refused its input: ${refusal}`);
+    this.name = "LShellInputError";
+  }
+}
+
+/** The reference kitchen the shell's corner, settings and cabinet depth are taken from (ADR 0109
+ *  decision 2: derived, never copied). */
+const REFERENCE_KITCHEN = KITCHEN_L_DESIGN;
+const SHELL_CABINET_DEPTH_MM = cabinetDepthMmOf(REFERENCE_KITCHEN);
+const SHELL_CATALOG = buildKitchenLBodyCatalog(SHELL_CABINET_DEPTH_MM);
+
+/** The neutral sources a tile's depth is read off: the bodies composition fills a floor run and a
+ *  wall-only run with (Amendment B2). Never a body the reference happened to stand there. */
+const FLOOR_TILE_SOURCE = "base-cabinet";
+const WALL_ONLY_TILE_SOURCE = "wall-cabinet";
+
+/** The input `validateRoomInput` requires and never reads (ADR 0108 decision 5); the shell is the
+ *  canonical left-corner L, and a mirrored one is presentation (ADR 0109 Amendment A2). */
+const CORNER_DIRECTION_VALIDATION_NEVER_READS = "left";
+
+/** The whole structural assembly, including pieces a low ceiling excludes: an excluded piece still
+ *  reserves its footprint, so `p21`'s zone stays unrecorded (Adjudication 7D1-P, P5 (iii)). */
+const STRUCTURAL_ASSEMBLY = REFERENCE_KITCHEN.placements.filter(isStructural);
+
+/** Where the wall row starts (`LEVELS[1]`), which is the floor of a wall-only run. */
+const WALL_ROW_FLOOR_MM = wholeMillimetresOf(
+  LEVELS[1]?.[0],
+  "LEVELS' wall-row floor",
+);
+
+/** The corner's three rows, in §2's own order, and each row's floor read off `LEVELS`. */
+const CORNER_BANDS: readonly CornerBand[] = ["base", "wall", "top"];
+const CORNER_BAND_FLOORS_MM: Readonly<Record<CornerBand, number>> = {
+  base: wholeMillimetresOf(LEVELS[0]?.[0], "LEVELS' base-row floor"),
+  wall: WALL_ROW_FLOOR_MM,
+  top: wholeMillimetresOf(LEVELS[2]?.[0], "LEVELS' top-row floor"),
+};
+
+/** Which rows a wall-only run has to start past: the ones standing at or above its own floor.
+ *  Filtered from the grid rather than listed, so a row that moves takes this filter with it.
+ *
+ *  **Exported to be pinned, not to be used.** The wall row's own floor is the bound this compares
+ *  against, so the equality is the whole of the operator — and the wall and top pieces read the same
+ *  catalogue row and the same near-edge branch, so their far edges are equal in every room at every
+ *  depth and a `>` here moves no origin the shell computes. The membership is therefore asserted
+ *  directly (7D6 QA's band-filter mutant). */
+export const BANDS_ABOVE_THE_WALL_ROW_FLOOR: readonly CornerBand[] =
+  CORNER_BANDS.filter(
+    (band) => CORNER_BAND_FLOORS_MM[band] >= WALL_ROW_FLOOR_MM,
+  );
+
+/** §2's last module line: no body stands above it, so no recorded space reaches past it. */
+const MODULE_GRID_TOP_MM = wholeMillimetresOf(
+  Math.max(...LEVELS.map(([, topM]) => topM)),
+  "LEVELS' top",
+);
+
+/** The shell for `input.room`: the corner that fits under its ceiling and every free run recorded,
+ *  canonicalised as a load followed by a save would write it. */
+export function buildLShellDesign(input: LShellDesignInput): Design {
+  refuseUnbuildableInput(input);
+  const corner: Design = {
+    room: input.room,
+    presetId: null,
+    settings: { ...REFERENCE_KITCHEN.settings },
+    placements: cornerPiecesUnder(input.room),
+    createdAt: input.occurredAt,
+    updatedAt: input.occurredAt,
+  };
+  const tiles = L_SHELL_WALLS.flatMap((wall) =>
+    freeRunTiles(wall, input.room, input.compositionPlan),
+  );
+  return canonicalised(withFrozenMap(corner, { emptyColumns: tiles }));
+}
+
+/** The room is passed through untouched, so it must already be exactly what a stored design may say:
+ *  one carrying any other key would yield a document `DesignSchema` refuses (Adjudication 7D1-Q1,
+ *  Q1.5). Refused rather than copied field by field, because building a room here is what the
+ *  room-writer guard (`demo-room-envelope.test.ts`) forbids every module but two to do.
+ *
+ *  In that order — the document's shape, then the room's, then what the engine can build (a wall
+ *  shorter than its corner is storable and unbuildable), then the moment — so the first refusal names
+ *  the most basic thing wrong, and the limits are only asked of the one shape they state. */
+function refuseUnbuildableInput(input: LShellDesignInput): void {
+  if (!DesignRoomSchema.safeParse(input.room).success) {
+    throw new LShellInputError("ROOM_NOT_A_DESIGN_ROOM");
+  }
+  if (input.room.shape !== "L") throw new LShellInputError("ROOM_NOT_L");
+  if (!isInsideTheEngineLimits(input.room)) {
+    throw new LShellInputError("ROOM_OUTSIDE_ENGINE_LIMITS");
+  }
+  if (!isValidOccurredAt(input.occurredAt)) {
+    throw new LShellInputError("INVALID_OCCURRED_AT");
+  }
+}
+
+/** The engine's own limits (ADR 0108 decision 6, Amendment A) and never the approved policy: the shell
+ *  holds what the engine can build, and which rooms a customer may enter is the caller's policy. The
+ *  corner direction is carried and never read by validation (ADR 0108 decision 5). */
+function isInsideTheEngineLimits(room: DesignRoom): boolean {
+  return validateRoomInput(
+    {
+      shape: "L",
+      wallAMm: room.widthMm,
+      wallBMm: room.depthMm,
+      heightMm: room.heightMm,
+      cornerDirection: CORNER_DIRECTION_VALIDATION_NEVER_READS,
+    },
+    ENGINE_ROOM_LIMITS,
+  ).ok;
+}
+
+/** ADR 0110 decision 1 and ADR 0109 Amendment B's correction: a structural piece whose top is above
+ *  the ceiling is not instantiated — excluded here by selection, never removed by a command, which
+ *  refuses a structural body as `NOT_DELETABLE`. */
+function cornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
+  const widths = cornerAssemblyWidthsMm({
+    cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+    room,
+  });
+  return STRUCTURAL_ASSEMBLY.filter(
+    (placement) => placement.y0Mm + placement.body.heightMm <= room.heightMm,
+  ).map((placement) => {
+    const piece = CORNER_ASSEMBLY_PIECES.find(
+      ({ wall, band }) =>
+        wall === placement.wall &&
+        CORNER_BAND_FLOORS_MM[band] === placement.y0Mm,
+    );
+    if (piece === undefined) {
+      throw new Error(`buildLShellDesign: no corner piece for ${placement.id}`);
+    }
+    const sized = widths.pieces.find(
+      ({ wall, band }) => wall === piece.wall && band === piece.band,
+    );
+    if (sized === undefined) {
+      throw new Error(`buildLShellDesign: no width for ${placement.id}`);
+    }
+    const centre = cornerAlongWallCentreMm({
+      widths,
+      cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+      wall: piece.wall,
+      band: piece.band,
+    });
+    return {
+      ...placement,
+      alongMm: centre.alongMm,
+      body: { ...placement.body, widthMm: sized.widthMm },
+    };
+  });
+}
+
+/** One wall's free runs: the floor run from the corner's far edge to the planned end, and — where
+ *  nothing structural stands above the corner's base, as on wall A — the wall-only run over it. */
+function freeRunTiles(
+  wall: LWall,
+  room: DesignRoom,
+  compositionPlan: LShellCompositionPlan | undefined,
+): EmptyColumn[] {
+  const runs = tileRunsOn(wall, room);
+  const floorSpan = floorRunSpan(wall, room);
+  const wallOnlyStartMm = wallRowStartMm(wall, room);
+  return [
+    // The reserve may leave this upper span ending before its corner origin. Record zero length
+    // there, exactly as for a spent floor run; neither span offers capacity in that case.
+    ...tilesOver(runs.wallOnly, {
+      startMm: wallOnlyStartMm,
+      endMm: Math.max(
+        wallOnlyStartMm,
+        Math.min(floorSpan.startMm, plannedEndMm(runs.wallOnly, room)),
+      ),
+    }),
+    ...(compositionPlan === undefined
+      ? tilesOver(runs.floor, floorSpan)
+      : plannedFloorTiles(
+          runs.floor,
+          floorSpan,
+          compositionPlan.floorWidthsMm[wall],
+        )),
+  ];
+}
+
+/** One tile per composed body, then the ordinary 800-capped leftover. `deriveColumns` may merge a
+ *  final 600 mm fit-body tile with a remainder of at most 200 mm; generation is the sole caller
+ *  allowed to step that body back to its planned width (ADR 0110 revised D4). */
+function plannedFloorTiles(
+  run: TileRun,
+  span: AlongWallSpan,
+  widthsMm: readonly number[],
+): EmptyColumn[] {
+  if (widthsMm.some((widthMm) => !Number.isInteger(widthMm) || widthMm <= 0)) {
+    throw new Error(
+      "buildLShellDesign: planned widths must be positive whole millimetres",
+    );
+  }
+  const plannedWidthMm = widthsMm.reduce((sum, widthMm) => sum + widthMm, 0);
+  if (plannedWidthMm > span.endMm - span.startMm) {
+    throw new Error(
+      "buildLShellDesign: composition plan exceeds its floor run",
+    );
+  }
+
+  let cursorMm = span.startMm;
+  const planned = widthsMm.map((widthMm) => {
+    const tile = tileOver(run, cursorMm, cursorMm + widthMm);
+    cursorMm += widthMm;
+    return tile;
+  });
+  return [
+    ...planned,
+    ...tilesOver(run, { startMm: cursorMm, endMm: span.endMm }),
+  ];
+}
+
+/** A wall's two kinds of run, up to the same ceiling: full-height on the floor, and from the wall row
+ *  up where it stands over the corner's base (Amendment B2). */
+function tileRunsOn(
+  wall: DesignWall,
+  room: DesignRoom,
+): { readonly floor: TileRun; readonly wallOnly: TileRun } {
+  const topMm = Math.min(room.heightMm, MODULE_GRID_TOP_MM);
+  return {
+    floor: { wall, y0Mm: 0, topMm, source: FLOOR_TILE_SOURCE },
+    wallOnly: {
+      wall,
+      y0Mm: WALL_ROW_FLOOR_MM,
+      topMm,
+      source: WALL_ONLY_TILE_SOURCE,
+    },
+  };
+}
+
+/** A floor run starts past every structural piece on its wall, whatever row the piece stands in. */
+function floorRunStartMm(wall: DesignWall, room: DesignRoom): number {
+  return cornerReachMm({ wall, room }, CORNER_BANDS);
+}
+
+/** The wall and top rows start past the structural pieces that reach above the wall row's floor on
+ *  that wall — at the corner itself where there are none, as over wall A's corner base. */
+function wallRowStartMm(wall: DesignWall, room: DesignRoom): number {
+  return cornerReachMm({ wall, room }, BANDS_ABOVE_THE_WALL_ROW_FLOOR);
+}
+
+/** How far the corner assembly reaches along one wall in the given rows — **sized for this room and
+ *  the shell's own depth** (7D6's J1′, through `corner-assembly-size.ts`' entry points 1 and 2),
+ *  where it used to be read off the reference kitchen's stored widths.
+ *
+ *  `Math.max(0, …)` over an **empty** set of bands is what answers for wall A above the base row:
+ *  the assembly stands on no wall-A piece there, so the wall row starts at the corner itself and its
+ *  run stands over the corner's base (ADR 0110 Amendment B2). That zero is load-bearing — it is the
+ *  900 mm of wall-A wall-only run, in two tiles, that the smallest admitted room's frozen map is
+ *  made of entirely. */
+function cornerReachMm(
+  on: { readonly wall: DesignWall; readonly room: DesignRoom },
+  bands: readonly CornerBand[],
+): number {
+  const widths = cornerAssemblyWidthsMm({
+    cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+    room: on.room,
+  });
+  const farEdgesMm = CORNER_ASSEMBLY_PIECES.filter(
+    (piece) => piece.wall === on.wall && bands.includes(piece.band),
+  ).map(
+    (piece) =>
+      cornerFarEdgeMm({
+        widths,
+        cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+        wall: piece.wall,
+        band: piece.band,
+      }).farEdgeMm,
+  );
+  return Math.max(0, ...farEdgesMm);
+}
+
+/** What every tile of one run shares: its wall, its vertical extent and its declared source. */
+interface TileRun {
+  readonly wall: DesignWall;
+  readonly y0Mm: number;
+  readonly topMm: number;
+  readonly source: string;
+}
+
+interface AlongWallSpan {
+  readonly startMm: number;
+  readonly endMm: number;
+}
+
+/** Where a run's tiles must stop: the wall's own end, less the reserve the run's source slides by
+ *  at the deepest declared depth. */
+function plannedEndMm(run: TileRun, room: DesignRoom): number {
+  return wallLengthMm(run.wall, room) - slideReserveMm(run);
+}
+
+/** The two floor runs composition is allowed to plan, from the same private arithmetic the shell
+ *  itself uses. Exporting the result prevents the planner from restating either corner reach or B's
+ *  dynamic deepest-depth reserve.
+ *
+ *  **`DesignWall` narrowed to the L's own two walls** (M7B U1 slice S1's minimal type-level fix):
+ *  this builder is `refuseUnbuildableInput`'s, which throws `ROOM_NOT_L` for any other shape, so a
+ *  wall-C entry here would be a key this function can never produce. Wall C's own floor-run planner
+ *  is U2/U3's, on the U shell, not a third key forced onto this one. */
+export function lShellFloorRuns(room: DesignRoom): Readonly<
+  Record<
+    LWall,
+    {
+      readonly wall: LWall;
+      readonly startMm: number;
+      readonly endMm: number;
+    }
+  >
+> {
+  return {
+    A: { wall: "A", ...floorRunSpan("A", room) },
+    B: { wall: "B", ...floorRunSpan("B", room) },
+  };
+}
+
+function floorRunSpan(wall: DesignWall, room: DesignRoom): AlongWallSpan {
+  const run = tileRunsOn(wall, room).floor;
+  const physicalSpan = {
+    startMm: floorRunStartMm(wall, room),
+    endMm: plannedEndMm(run, room),
+  };
+  return {
+    ...physicalSpan,
+    // A short wall-B run may be consumed completely by the depth-change reserve. Keep the
+    // planner's public span non-inverted, without reducing that reserve or manufacturing a tile.
+    endMm: Math.max(
+      physicalSpan.startMm,
+      wholeMillimetreReachableEndMm(physicalSpan),
+    ),
+  };
+}
+
+// =================================================================================================
+// M7B U2 S2 — the U shell (ADR 0132 D12; ADR 0130 D5's own pattern, extended to a third wall and a
+// second corner). Wall B's own tiling primitives above answer for wall C too, once the same call is
+// made against the right corner's own synthetic room (`corner-assembly-size.ts`'s "the along values
+// the corner rule gives for the L room (W, C)") and its output relabelled from wall B to wall C — no
+// new geometry, only a second call and a relabel, the way U2 S1 sized the right corner itself. Wall
+// A alone is genuinely new: a U's two corners share it, so its one run splits into a wall-only strip
+// at each end and a floor run between them, rather than one run open at the far end.
+// =================================================================================================
+
+export interface UShellDesignInput {
+  /** A room `validateRoomInput` accepted for the U policy; the shell passes it through untouched. */
+  readonly room: DesignRoom;
+  readonly occurredAt: string;
+  /** Composition's private row plan (ADR 0110 Amendment D, revised, extended to wall C). Omit it to
+   *  retain the 7D1 800-first shell exactly. */
+  readonly compositionPlan?: UShellCompositionPlan;
+}
+
+export interface UShellCompositionPlan {
+  readonly floorWidthsMm: Readonly<Record<DesignWall, readonly number[]>>;
+}
+
+export type UShellInputRefusal =
+  | "ROOM_NOT_A_DESIGN_ROOM"
+  | "ROOM_NOT_U"
+  | "ROOM_OUTSIDE_ENGINE_LIMITS"
+  | "INVALID_OCCURRED_AT";
+
+/** The builder sits behind the room validator, so a bad input here is a programming error. */
+export class UShellInputError extends Error {
+  constructor(readonly refusal: UShellInputRefusal) {
+    super(`buildUShellDesign refused its input: ${refusal}`);
+    this.name = "UShellInputError";
+  }
+}
+
+/** The shell for a U `input.room`: both structural corners under the ceiling, and every free run of
+ *  wall A, B and C recorded — canonicalised the same way the L's own shell is. */
+export function buildUShellDesign(input: UShellDesignInput): Design {
+  refuseUnbuildableUInput(input);
+  const shell: Design = {
+    room: input.room,
+    presetId: null,
+    settings: { ...REFERENCE_KITCHEN.settings },
+    placements: [
+      ...cornerPiecesUnder(input.room),
+      ...rightCornerPiecesUnder(input.room),
+    ],
+    createdAt: input.occurredAt,
+    updatedAt: input.occurredAt,
+  };
+  const tiles = uShellFreeRunTiles(input.room, input.compositionPlan);
+  return canonicalised(withFrozenMap(shell, { emptyColumns: tiles }));
+}
+
+function refuseUnbuildableUInput(input: UShellDesignInput): void {
+  if (!DesignRoomSchema.safeParse(input.room).success) {
+    throw new UShellInputError("ROOM_NOT_A_DESIGN_ROOM");
+  }
+  if (input.room.shape !== "U") throw new UShellInputError("ROOM_NOT_U");
+  if (!isInsideTheEngineLimitsU(input.room)) {
+    throw new UShellInputError("ROOM_OUTSIDE_ENGINE_LIMITS");
+  }
+  if (!isValidOccurredAt(input.occurredAt)) {
+    throw new UShellInputError("INVALID_OCCURRED_AT");
+  }
+}
+
+/** The engine's own U limits (ADR 0132 decision 4, M7B U2 S2), never the approved policy — the split
+ *  every shell keeps. The corner direction is carried and never read (ADR 0108 decision 5); a U
+ *  never carries one at all past this constant (ADR 0132 decision 8). */
+function isInsideTheEngineLimitsU(room: DesignRoom): boolean {
+  return validateRoomInput(
+    {
+      shape: "U",
+      wallAMm: room.widthMm,
+      wallBMm: room.depthMm,
+      wallCMm: room.wallCMm,
+      heightMm: room.heightMm,
+      cornerDirection: CORNER_DIRECTION_VALIDATION_NEVER_READS,
+    },
+    ENGINE_ROOM_LIMITS,
+  ).ok;
+}
+
+/** The right corner's four structural placements: `cornerPiecesUnder`'s own rule, run against the
+ *  right corner's own sizing and centring instead of the left corner's, and given a distinct id so
+ *  a U's eight structural placements never collide (ADR 0132 D12). **The build id is never changed**
+ *  — the same four bodies the left corner places, at the right corner's own width and position — which
+ *  is the build-id half of AC1: a fourth catalogue entry needs no second selection here to be found. */
+function rightCornerPiecesUnder(room: DesignRoom): DesignPlacement[] {
+  const widths = rightCornerAssemblyWidthsMm({
+    cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+    room,
+  });
+  return STRUCTURAL_ASSEMBLY.filter(
+    (placement) => placement.y0Mm + placement.body.heightMm <= room.heightMm,
+  ).map((placement) => assembledAtTheRightCorner(placement, widths));
+}
+
+/** One left-corner placement, moved to its own right-corner counterpart: the same body, at the
+ *  right corner's own wall, width and along-wall centre. The two lookups below are what the left
+ *  corner's placement names — which wall and band the right corner puts it on, and how wide that
+ *  piece was built — so this assembles from two already-answered facts rather than interleaving the
+ *  search with the object literal (C1.2). */
+function assembledAtTheRightCorner(
+  placement: DesignPlacement,
+  widths: CornerAssemblyWidthsMm,
+): DesignPlacement {
+  const { wall, band } = rightCornerPieceOf(placement);
+  const sized = sizedRightCornerPiece(widths, wall, band);
+  const centre = rightCornerAlongWallCentreMm({
+    widths,
+    cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+    wall,
+    band,
+  });
+  return {
+    ...placement,
+    id: `right-${placement.id}`,
+    wall,
+    alongMm: centre.alongMm,
+    body: { ...placement.body, widthMm: sized.widthMm },
+  };
+}
+
+/** Which wall and band the right corner puts `placement`'s own body on: the left corner's own piece,
+ *  reflected to the right corner's own wall (A stays A; B becomes C). */
+function rightCornerPieceOf(placement: DesignPlacement): {
+  readonly wall: DesignWall;
+  readonly band: CornerBand;
+} {
+  const leftPiece = CORNER_ASSEMBLY_PIECES.find(
+    ({ wall, band }) =>
+      wall === placement.wall && CORNER_BAND_FLOORS_MM[band] === placement.y0Mm,
+  );
+  if (leftPiece === undefined) {
+    throw new Error(`buildUShellDesign: no corner piece for ${placement.id}`);
+  }
+  return { wall: leftPiece.wall === "A" ? "A" : "C", band: leftPiece.band };
+}
+
+function sizedRightCornerPiece(
+  widths: CornerAssemblyWidthsMm,
+  wall: DesignWall,
+  band: CornerBand,
+): SizedCornerPiece {
+  const sized = widths.pieces.find(
+    (piece) => piece.wall === wall && piece.band === band,
+  );
+  if (sized === undefined) {
+    throw new Error(
+      `buildUShellDesign: no width for the right corner's ${wall} ${band} piece`,
+    );
+  }
+  return sized;
+}
+
+function uShellFreeRunTiles(
+  room: DesignRoom,
+  compositionPlan: UShellCompositionPlan | undefined,
+): EmptyColumn[] {
+  return [
+    ...wallAFreeRunTilesForU(room, compositionPlan?.floorWidthsMm.A),
+    ...freeRunTiles("B", room, asLShellPlan(compositionPlan?.floorWidthsMm.B)),
+    ...wallCFreeRunTiles(room, compositionPlan?.floorWidthsMm.C),
+  ];
+}
+
+function asLShellPlan(
+  widthsMm: readonly number[] | undefined,
+): LShellCompositionPlan | undefined {
+  return widthsMm === undefined
+    ? undefined
+    : { floorWidthsMm: { A: [], B: widthsMm } };
+}
+
+/** Wall A's free run in a U, shared by both corners at once (ADR 0132 decision 4): a wall-only strip
+ *  over each corner's own base band, and one floor run between them — never one wall-only run the
+ *  whole width of the wall, because nothing stands above either corner's base band anywhere else on
+ *  wall A (the same reasoning `linearFreeRunTiles`' comment already gives for a straight room's one
+ *  corner-free wall, applied here at both ends instead of neither).
+ *
+ *  **The two corners' reach is the identical number** (`corner-assembly-size.ts`'s own proof, on
+ *  `rightCornerAssemblyWidthsMm`'s head comment): wall A's X-leg is sized from `wallLengthMm("A",
+ *  room)` and the cabinet depth alone, which neither corner's query differs on, so the left corner's
+ *  own `cornerReachMm` answers for the right corner's reach too — measured from wall A's far end
+ *  instead of its near one, which is `room.widthMm` less that same number. */
+function wallAFreeRunTilesForU(
+  room: DesignRoom,
+  widthsMm: readonly number[] | undefined,
+): EmptyColumn[] {
+  const runs = tileRunsOn("A", room);
+  const reachMm = cornerReachMm({ wall: "A", room }, CORNER_BANDS);
+  const wallOnlyStartMm = wallRowStartMm("A", room);
+  const floorSpan = { startMm: reachMm, endMm: room.widthMm - reachMm };
+
+  const leftWallOnlySpan = {
+    startMm: wallOnlyStartMm,
+    endMm: Math.max(
+      wallOnlyStartMm,
+      Math.min(reachMm, plannedEndMm(runs.wallOnly, room)),
+    ),
+  };
+  // The floor tile's own odd-span trim (7D1-P P3) must decide where the right wall-only strip
+  // starts too, or an odd `floorSpan` leaves an unrecorded millimetre between the two: the floor
+  // run's tiles never reach past `wholeMillimetreReachableEndMm(floorSpan)`, so the strip above the
+  // right corner's own base band starts there rather than at the raw, untrimmed `floorSpan.endMm`.
+  // Any millimetre this gives up lands in the strip's own span instead, and that span's own trim
+  // (still `tilesOver`'s) carries it on to wall A's true far end — the one place the invariant
+  // puts it.
+  const rightWallOnlySpan = {
+    startMm: Math.max(
+      floorSpan.startMm,
+      wholeMillimetreReachableEndMm(floorSpan),
+    ),
+    endMm: room.widthMm,
+  };
+
+  return [
+    ...tilesOver(runs.wallOnly, leftWallOnlySpan),
+    ...tilesOver(runs.wallOnly, rightWallOnlySpan),
+    ...(widthsMm === undefined
+      ? tilesOver(runs.floor, floorSpan)
+      : plannedFloorTiles(runs.floor, floorSpan, widthsMm)),
+  ];
+}
+
+/** Wall C's free run: wall B's own `freeRunTiles`, called against the right corner's synthetic room
+ *  (ADR 0132's "the along values the corner rule gives for the L room (W, C)") and relabelled from
+ *  wall B to wall C afterward. Wall C's own along direction runs the same way wall B's does (ADR
+ *  0132 decision 1), so no coordinate is reflected — only the `wall` key changes. Wall B's slide
+ *  reserve gate (`cornerTakingWallsOf`) fires unchanged inside this call, which is how wall C keeps
+ *  F7's 100 mm reserve the way wall B does through the same reuse rather than a second formula. */
+function wallCFreeRunTiles(
+  room: DesignRoom,
+  widthsMm: readonly number[] | undefined,
+): EmptyColumn[] {
+  const mirroredRoom = roomForTheRightCorner(room);
+  return freeRunTiles("B", mirroredRoom, asLShellPlan(widthsMm)).map(
+    (tile): EmptyColumn => ({ ...tile, wall: "C" }),
+  );
+}
+
+/** Wall A's, B's and C's floor runs, exported for the composer the same way `lShellFloorRuns` is —
+ *  wall C's read off the identical mirrored-room reuse `wallCFreeRunTiles` tiles from, so the
+ *  planner and the shell are always cut from the same span. */
+export function uShellFloorRuns(room: DesignRoom): Readonly<
+  Record<
+    DesignWall,
+    {
+      readonly wall: DesignWall;
+      readonly startMm: number;
+      readonly endMm: number;
+    }
+  >
+> {
+  const reachMm = cornerReachMm({ wall: "A", room }, CORNER_BANDS);
+  const wallAPhysicalSpan = { startMm: reachMm, endMm: room.widthMm - reachMm };
+  const wallASpan = {
+    ...wallAPhysicalSpan,
+    endMm: Math.max(
+      wallAPhysicalSpan.startMm,
+      wholeMillimetreReachableEndMm(wallAPhysicalSpan),
+    ),
+  };
+  const wallCSpan = floorRunSpan("B", roomForTheRightCorner(room));
+  return {
+    A: { wall: "A", ...wallASpan },
+    B: { wall: "B", ...floorRunSpan("B", room) },
+    C: { wall: "C", ...wallCSpan },
+  };
+}
+
+/** Wall A is anchored at the corner and never slides; wall B and wall C slide by the chain the
+ *  run's source declares, read through the production reader `setCabinetDepth` itself uses.
+ *
+ *  **`cornerTakingWallsOf("U")` rather than a bare wall-B comparison** (R1.3): a direct wall-C
+ *  `TileRun` — this reuse's own `wallCFreeRunTiles` never builds one, but a future caller that did
+ *  — must get the same reserve wall B does, not zero. Calling it with `"U"` rather than threading a
+ *  shape through is sound for an L's own runs too: wall C never appears in an L's `TileRun`s, so the
+ *  wider set answers identically to the L's own `{B}` for every wall this function is ever asked
+ *  about outside a U. */
+function slideReserveMm(run: TileRun): number {
+  if (!cornerTakingWallsOf("U").has(run.wall)) return 0;
+  const chain = cabinetDepthRuleOf({
+    buildId: run.source,
+    rule: sourceDefinition(run.source).depthRule,
+  }).alongWallPositionFollows;
+  const shiftsMm = declaredCabinetDepthsMm().map((toCabinetDepthMm) =>
+    alongWallShiftMm({
+      fromCabinetDepthMm: SHELL_CABINET_DEPTH_MM,
+      toCabinetDepthMm,
+      chain,
+    }),
+  );
+  return Math.max(0, ...shiftsMm);
+}
+
+/** The run cut at ADR 0052's ceiling, the near end first, to the last millimetre a whole-millimetre
+ *  centre can reach. */
+function tilesOver(run: TileRun, span: AlongWallSpan): EmptyColumn[] {
+  const lengthMm = span.endMm - span.startMm;
+  // A run with no length, or with no height — a wall-only run in a room no taller than the wall
+  // row's floor — has nothing to record, and a tile with its floor at its top is a refusal
+  // (`EMPTY_COLUMN_INVERTED`).
+  if (lengthMm <= 0 || run.topMm <= run.y0Mm) return [];
+  const reachMm = wholeMillimetreReachableEndMm(span);
+  return splitEmptySpanAtCap(span.startMm, reachMm).map((piece) =>
+    tileOver(
+      run,
+      piece.centreMm - piece.widthMm / 2,
+      piece.centreMm + piece.widthMm / 2,
+    ),
+  );
+}
+
+/** From a whole-millimetre edge every recorded piece needs an even width to retain a whole-
+ *  millimetre centre. An odd span therefore gives up its far-end millimetre (7D1-P P3). This is the
+ *  shared reach used both by the shell and by the composition planner's exported floor runs. */
+function wholeMillimetreReachableEndMm(span: AlongWallSpan): number {
+  const lengthMm = span.endMm - span.startMm;
+  return lengthMm > 0 ? span.endMm - (lengthMm % 2) : span.endMm;
+}
+
+function tileOver(run: TileRun, startMm: number, endMm: number): EmptyColumn {
+  return {
+    wall: run.wall,
+    alongMm: (startMm + endMm) / 2,
+    widthMm: endMm - startMm,
+    y0Mm: run.y0Mm,
+    topMm: run.topMm,
+    depthMm: tileDepthMm(run.source),
+    depthFromBuildId: run.source,
+  };
+}
+
+/** The source's own declared clearance at the shell's depth — the existing reader, no new rule. */
+function tileDepthMm(source: string): number {
+  const depthMm = toExactMillimetres(
+    occupiedDepthOfEntryM({
+      buildId: source,
+      definition: sourceDefinition(source),
+    }),
+  );
+  if (depthMm === undefined) {
+    throw new Error(
+      `buildLShellDesign: ${source}'s declared depth is not a whole millimetre`,
+    );
+  }
+  return depthMm;
+}
+
+function sourceDefinition(source: string): BodyDefinition {
+  const definition = SHELL_CATALOG.get(source);
+  if (!definition) {
+    throw new Error(`buildLShellDesign: the catalogue holds no ${source}`);
+  }
+  return definition;
+}
+
+/** The frozen map written the way the depth command writes its own: derived over the document, then
+ *  projected back — so the corner's own columns come from its placements and the stored arrays are
+ *  in the order a later save would put them. */
+function canonicalised(design: Design): Design {
+  const records = derivePlacementRecords(design, SHELL_CATALOG);
+  return withFrozenMap(
+    design,
+    projectFrozenMap(
+      deriveRecordedColumns(records, design, toMetres(design.room.widthMm)),
+      records,
+    ),
+  );
+}
+
+function isStructural(placement: DesignPlacement): boolean {
+  return (
+    SHELL_CATALOG.get(placement.body.buildId)?.structuralReason !== undefined
+  );
+}
+
+function wholeMillimetresOf(valueM: number | undefined, what: string): number {
+  const valueMm = valueM === undefined ? undefined : toExactMillimetres(valueM);
+  if (valueMm === undefined) {
+    throw new Error(`buildLShellDesign: ${what} is not a whole millimetre`);
+  }
+  return valueMm;
+}

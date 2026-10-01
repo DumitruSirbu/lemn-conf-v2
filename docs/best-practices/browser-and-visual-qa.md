@@ -41,6 +41,27 @@ Found writing evidence into `testing-reports/` (inside the watched project tree)
 project tree instead — that is why that run's reported numbers are trustworthy. **The rule: evidence
 goes outside the watched tree, or the dev server is not watching while evidence is written.**
 
+### It bit a second time, past an agent that had read the rule above
+
+On 2026-09-09 a visual agent reported that *"the kitchen reverted to white after setting a
+per-cabinet colour"* and was about to file it as an ADR 0099 defect. The reversion was its **own
+screenshot write** resetting the design. It caught this from the console lines sitting between the
+apply and the capture — `[Fast Refresh] rebuilding` followed by
+`THREE.WebGLRenderer: Context Lost` — and not from anything in its own method.
+
+The reason knowing the rule was not enough: **the MCP screenshot tool can only write inside the
+repository**, so the obvious compliance path is closed and an agent that means to obey ends up
+writing into the watched tree anyway. Three things make a run survive it:
+
+1. **Capture to a path the dev server does not watch.** If the tool cannot, use a production
+   `pnpm --filter @lemnaria/web build` and `next start`, which has no watcher at all; it costs about a
+   minute and is worth it for any long check. Note that `next build` writes the same `.next`
+   directory a dev server owns, so the two cannot run together (`docs/WORKFLOW.md`, *Port 4320*).
+2. **Guard every step with a stable readout** — the price line works — so a mid-step reset is
+   *detectable* rather than silent.
+3. **Read the console before believing any "it reverted" observation.** A reset announces itself
+   there and nowhere else.
+
 ## The tree a verifier measures must not move under it
 
 **A visual verifier owns the working tree exclusively for the length of its run.** Nothing else may

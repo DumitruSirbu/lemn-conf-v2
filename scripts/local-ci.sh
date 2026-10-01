@@ -125,6 +125,14 @@ run_gate format pnpm format:check
 run_gate lint pnpm lint
 run_gate typecheck pnpm typecheck
 run_gate test pnpm test
+# Lists tests per e2e shard and fails if one is over its runner-minutes budget (ADR 0105 Amendment A).
+# After `test` on purpose: listing loads the specs, which import the workspace packages' built `dist/`.
+run_gate e2e-shard-budget sh -c \
+    'node --test scripts/gates/e2e-shard-budget.test.mjs && pnpm gate:e2e-shard-budget'
+# CI runs this as shards per Playwright project (`--shard=i/N`: three desktop, four mobile), behind the
+# `e2e (desktop)` and `e2e (mobile)` summary jobs. The shards partition the suite by whole files, so
+# running everything here covers exactly the tests the seven CI legs cover between them; a local run
+# gains nothing from sharding and would pay a dev-server boot per shard.
 run_gate e2e pnpm test:e2e
 run_gate build pnpm build
 run_gate boundary sh scripts/gates/boundary.sh

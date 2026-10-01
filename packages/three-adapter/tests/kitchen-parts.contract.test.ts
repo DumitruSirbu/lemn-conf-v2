@@ -351,11 +351,11 @@ describe("handles", () => {
 
 describe("the two corner legs", () => {
   it("computes each leg's plinth recess from its own depth only", () => {
-    const xLeg = kit.make.cornerBaseX();
+    const xLeg = kit.make.cornerBaseX(0.9);
     const xPlinth = worldBox(xLeg, findMesh(xLeg, "plinth"));
     expect(xPlinth.max.z).toBeCloseTo(0.6 / 2 - 0.06, 6);
     for (const depth of [0.56, 0.58, 0.62]) {
-      const leg = kit.make.cornerBaseReturn(depth);
+      const leg = kit.make.cornerBaseReturn(depth, 0.32);
       const plinth = worldBox(leg, findMesh(leg, "plinth"));
       expect(plinth.max.z, `return leg at depth ${String(depth)}`).toBeCloseTo(
         depth / 2 - 0.06,

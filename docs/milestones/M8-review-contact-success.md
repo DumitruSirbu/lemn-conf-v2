@@ -1,6 +1,10 @@
 # M8 — Screens 3, 4 and 5: review, contact, success and failure
 
 > **STATUS: PLANNED.** Depends on M7. Summary: `docs/STATUS.md`.
+>
+> **Scope added 2026-09-11 by the owner: customer profiles (e-mail + password)** — see *Customer
+> profiles* below and [ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md). Recorded as a decision and a list of
+> obligations; this phase's waves are not planned here.
 
 Status: planned. Depends on M7.
 Reference: mockup frames 3A, 3B, 4A, 4B, 4C, 5A, 5B; `ARCHITECTURE_PROPOSAL.md` §8, §9;
@@ -44,8 +48,9 @@ endpoint the owner named as most needing throttling.
 - **Retention cron**: designs that never reached the contact step and have not been modified for 30
   days are deleted by the existing nightly cron, which also prunes expired counters. This is the
   answer to the retention question this plan lists as open — it is now closed by ADR 0019.
-- **Emailed edit link**, not a password: the design link is emailed with its write token so the
-  customer can edit from another device. Storing passwords for people who never made an account was
+- ~~**Emailed edit link**, not a password: the design link is emailed with its write token so the
+  customer can edit from another device.~~ **Superseded 2026-09-11 by the owner's profile ruling
+  ([ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)); see *Customer profiles* below.** Storing passwords for people who never made an account was
   considered and rejected — see ADR 0019 Alternatives.
 
 ### Added 2026-09-06, owner-ruled: a driver error must not print the connection string
@@ -75,6 +80,63 @@ where the URL is read. `packages/persistence` is the only place a Postgres drive
 password, no log line, thrown message or stack frame produced by any of the four construction sites
 contains that password — asserted by a test, not by reading the code. The error still names which
 environment variable is wrong, because an error that hides the variable too is a support call.
+
+## Customer profiles — owner decision, 2026-09-11
+
+**The owner's words**, proposing it: *"maybe we can advise user to make a profile, and in this way he
+will be able to store all its configurations there and will get access to a small dashboard to manage
+the configurations. After he plays with intitial configuration we can show a modal to propose to
+create profile. email plus password"* — then, through structured prompts, **"Profile replaces PIN"**
+and **"In M8, with e-mail"**. The durable record is [ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md).
+
+**What it is:** a customer account — e-mail and password — holding every configuration the customer
+made, with a small dashboard to open, rename, share and delete them; offered by a modal after the
+first configuration. It is the way a customer edits from another device or after clearing their
+browser. **It supersedes ADR 0019 decision 8** (e-mailed edit link, never a password) **and that
+record's rejection of passwords and accounts** — whose reasons are the checklist below, not arguments
+set aside.
+
+**What M7 leaves for this phase to build on:** a design is readable and editable only in the browser
+holding its owning visitor cookie (`__Host-lemnaria_visitor`, ADR 0114); a customer can make a short,
+read-only, revocable share link (ADR 0114 Amendments B–C); nothing else.
+
+**Obligations — each owed an acceptance criterion when this phase is planned:**
+
+1. **Password storage.** A slow, salted, memory-hard hash — **argon2id** preferred (the choice ADR 0019
+   Alternative 1 already named), scrypt acceptable where argon2id is unavailable on the runtime — with
+   parameters stated and measured on the deployment target. **A new hashing dependency is a dependency
+   change and gets the security review tier.** Passwords never logged, never in an error, never in a
+   response.
+2. **Password reuse — ADR 0019's first reason.** A minimum length and a check against known-breached
+   passwords, so a leak of this database is not a key to other services; the privacy notice says what
+   is stored.
+3. **E-mail verification** before the profile can claim designs or reset anything.
+4. **Password reset** by a **single-use, expiring, hash-stored** token sent by e-mail — ADR 0019's
+   *"no reset path"* objection answered by the verified address.
+5. **Login and sign-up rate limiting** — per account and per client, with growing back-off — added to
+   the application limiter ADR 0019 decisions 2–5 already assign to this phase, and to the launch gate
+   below.
+6. **The session.** An `HttpOnly`, `Secure`, `SameSite=Lax`, host-only (`__Host-`) session cookie,
+   rotated at login and at privilege change (no session fixation), revocable server-side, with CSRF
+   protection on every state-changing profile endpoint. It must coexist with, not replace, the
+   per-design write token and the visitor cookie until a design is claimed.
+7. **Claiming anonymous designs.** On sign-up (and on login from a browser holding a visitor cookie),
+   every design that cookie owns is attached to the profile, atomically; a design already claimed by
+   another profile is never re-claimed. After claiming, the profile — not the browser — is what opens
+   the design on any device.
+8. **The modal's trigger:** after the customer's **first real edit** in the editor (not on page load,
+   not on Step 1), dismissible, and not shown again in that session once dismissed. It never blocks
+   editing.
+9. **Personal data.** A privacy notice at sign-up; **account deletion** that removes the profile and
+   either deletes or detaches its designs as the notice says; retention of profile data stated beside
+   ADR 0019 decision 7's design retention.
+10. **Separation of credentials.** A profile never grants preset authoring (ADR 0112's owner gate
+    stays separate), and never exposes a share token's plaintext after creation (ADR 0114 B2).
+11. **The dashboard** lists, opens, renames, shares (ADR 0114's share link) and deletes the profile's
+    designs; every action is authorised against the session, never against a design id alone.
+12. **What happens to the e-mailed edit link** (ADR 0019 decision 8, superseded): keep it for a
+    customer who submits the contact form without a profile, or drop it — this phase decides, and the
+    contact flow's copy follows.
 
 ## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off
 
@@ -230,9 +292,11 @@ Success (5A):
 - Shows the request identifier with a copy action.
 - **Promises no timeframe.** The mockup deliberately omits one because it is an unresolved business
   decision. "What happens next" lists the steps without dates.
-- States that the design is saved and can be reopened. Because designs are stored server-side under
+- States that the design is saved and can be reopened. ~~Because designs are stored server-side under
   a shareable identifier, that promise is now literally true rather than device-bound, and the copy
-  should reflect what actually happens.
+  should reflect what actually happens.~~ **Corrected 2026-09-11:** after M7 a design opens only in the
+  browser that made it (ADR 0114) — the copy must say *in this browser, or from your profile*, and
+  offer the profile if the customer has none.
 
 Failure (5B):
 

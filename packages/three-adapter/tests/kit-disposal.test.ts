@@ -23,7 +23,11 @@ import { applyFinish, collectFronts } from "../src/finishes.js";
  *  lifetime under test, not its colour — and *Salvie* is the one it has used since M4, reached by
  *  the free colour wave 6P mapped it to. */
 const SAGE = freeColourFinish("#8d9a84");
-import { disposeKitAndStage, type KitStage } from "../src/kit-disposal.js";
+import {
+  disposeKit,
+  disposeKitAndStage,
+  type KitStage,
+} from "../src/kit-disposal.js";
 import { kitOwnedResources } from "../src/kit-ownership.js";
 import { buildKitchenShell } from "../src/kitchen-shell.js";
 import { kitMaterialList, makeKit, type Kit } from "../src/kitchen-parts.js";
@@ -130,7 +134,7 @@ interface MountedStage extends KitStage {
 function mountStage(kit: Kit): MountedStage {
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
-  solidsRoot.add(buildKitchenShell(kit));
+  solidsRoot.add(buildKitchenShell(kit, KITCHEN_L_DESIGN.room));
 
   const voidsRoot = new THREE.Group();
   voidsRoot.name = "voids";
@@ -139,8 +143,17 @@ function mountStage(kit: Kit): MountedStage {
   room.name = "kitchen_l_shape";
   room.add(solidsRoot, voidsRoot);
 
-  syncSolidBodies({ kit, solidsRoot, records: SEEDED_RECORDS });
-  syncVoidMeshes({ voidsRoot, voids: [MOUNTED_VOID] });
+  syncSolidBodies({
+    kit,
+    solidsRoot,
+    records: SEEDED_RECORDS,
+    room: KITCHEN_L_DESIGN.room,
+  });
+  syncVoidMeshes({
+    voidsRoot,
+    voids: [MOUNTED_VOID],
+    room: KITCHEN_L_DESIGN.room,
+  });
 
   return {
     kit,
@@ -328,7 +341,9 @@ describe("a kit released by its stage's teardown", () => {
     disposeKitAndStage(stage);
     const spies = spyOnDisposals(cached);
 
-    expect(() => buildKitchenShell(kit)).toThrow(/released/);
+    expect(() => buildKitchenShell(kit, KITCHEN_L_DESIGN.room)).toThrow(
+      /released/,
+    );
 
     for (const [resource, spy] of spies) {
       expect(spy, describeResource(resource)).not.toHaveBeenCalled();
@@ -342,6 +357,38 @@ describe("a kit released by its stage's teardown", () => {
 
     disposeKitAndStage(stage);
     disposeKitAndStage(stage);
+
+    expectDisposedOnce(spies);
+  });
+});
+
+describe("disposeKit, handed a kit whose room was never built", () => {
+  it("frees everything makeKit allocated and marks the kit released", () => {
+    const kit = newKit();
+    // The geometry cache of a kit that has built nothing is empty, so what a roomless kit is holding
+    // is its materials and the canvas textures they baked — which is the memory the defect this
+    // covers stranded on a low-end phone.
+    const materials = kitMaterialList(kit.M);
+    const textures = materials.flatMap((material) => texturesOf(material));
+    const spies = spyOnDisposals([...materials, ...textures]);
+
+    // A `BodyProbeFactory` allocates the kit first and builds its room second (M7 wave 7F4a), so a
+    // builder that throws leaves this exact state: a fully baked kit and no room at all. Without
+    // this arm there was no call that could free it.
+    disposeKit(kit);
+
+    expect(materials.length).toBeGreaterThan(5);
+    expect(textures.length).toBeGreaterThan(0);
+    expectDisposedOnce(spies);
+    expect(kitOwnedResources(kit.M).isReleased).toBe(true);
+  });
+
+  it("still frees the room's own resources when it is given one", () => {
+    const kit = newKit();
+    const room = kit.builders["kitchen-l"]();
+    const spies = spyOnDisposals(reachableResources(room));
+
+    disposeKit(kit, room);
 
     expectDisposedOnce(spies);
   });
@@ -374,7 +421,7 @@ function buildShellOverSpiedRoom(kit: Kit): StrippedShell {
     spies = spyOnDisposals(reachableResources(room));
     return room;
   };
-  const shell = buildKitchenShell(kit);
+  const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
   kit.builders["kitchen-l"] = buildReferenceRoom;
 
   expect(discarded.length).toBeGreaterThan(20);

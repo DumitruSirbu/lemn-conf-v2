@@ -28,6 +28,7 @@ import {
   setHardwareTier as setHardwareTierOnDesign,
   setMaterialTier as setMaterialTierOnDesign,
   setWidth as setWidthOnDesign,
+  toMetres,
   type BodyCatalog,
   type BodyProbeFactory,
   type Column,
@@ -42,6 +43,7 @@ import {
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
+import { useContext, useSyncExternalStore } from "react";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
@@ -52,6 +54,7 @@ import {
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
+import { ServerSnapshotStoreContext } from "./server-snapshot-context";
 import {
   preflightWholeKitchenSettings,
   type WholeKitchenSetting,
@@ -377,7 +380,11 @@ function deriveGeometry(design: Design, catalog: BodyCatalog) {
   // bounds what is published and does not rewrite what is recorded — otherwise a space flush to a
   // wall's end loses 100 mm at 700 and keeps the loss at 600, one command at a time.
   const columns = deriveColumns(records, stored, design.room);
-  const recordedColumns = deriveRecordedColumns(records, stored);
+  const recordedColumns = deriveRecordedColumns(
+    records,
+    stored,
+    toMetres(design.room.widthMm),
+  );
   const voids = recomputeVoids(records, columns);
   return { records, columns, recordedColumns, voids };
 }
@@ -720,15 +727,65 @@ function advanceSaveGeneration(): void {
   saveGeneration += 1;
 }
 
-/** The single store instance the app mounts against — no hard-coded canvas id anywhere, per the
- *  milestone's "Shared" acceptance bullet: the selection owns the target, not any one canvas. */
-export const useConfiguratorStore = createConfiguratorStore({
+/** The store the browser's session runs on — no hard-coded canvas id anywhere, per the milestone's
+ *  "Shared" acceptance bullet: the selection owns the target, not any one canvas. Not exported: the
+ *  app reads it through `useConfiguratorStore` below, which is the one place that answers a *server*
+ *  snapshot from anywhere but this store's own initial state. */
+const sessionStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
   catalogAt: buildKitchenLBodyCatalog,
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
   onOverwriteRequested: overwriteConflictingDesign,
 });
+
+function selectWholeState(state: ConfiguratorState): ConfiguratorState {
+  return state;
+}
+
+function useSessionStoreSlice(): ConfiguratorState;
+function useSessionStoreSlice<Selected>(
+  selector: (state: ConfiguratorState) => Selected,
+): Selected;
+function useSessionStoreSlice(
+  selector: (state: ConfiguratorState) => unknown = selectWholeState,
+): unknown {
+  const snapshotStore = useContext(ServerSnapshotStoreContext);
+  return useSyncExternalStore(
+    sessionStore.subscribe,
+    () => selector(sessionStore.getState()),
+    () =>
+      selector(
+        snapshotStore === null
+          ? sessionStore.getInitialState()
+          : snapshotStore.getState(),
+      ),
+  );
+}
+
+/**
+ * The single store instance the app mounts against, with zustand's own call shape.
+ *
+ * **It differs from a bound zustand store in one thing: the server snapshot.** zustand answers
+ * `useSyncExternalStore`'s server snapshot with `getInitialState()`, which for a module singleton is
+ * the seeded L — so the server HTML, and React's hydration pass over it, showed the seeded L for
+ * every design that was not (backlog 98). Here the server snapshot comes from the nearest
+ * `ConfiguratorSnapshotProvider`'s per-render store, and the subscription, `getState`, `setState`
+ * and `subscribe` all still address the one session store, so the save coalescer's wiring (ADR 0010
+ * decision 2) is untouched.
+ *
+ * **During the hydration render the hook reads that snapshot store**, so an action selected through
+ * it is the snapshot store's own. On the client the provider makes those the session store's actions
+ * (`configurator-snapshot.tsx`), so one called before the first post-hydration re-render still
+ * reaches the session and its save.
+ */
+export const useConfiguratorStore: UseBoundStore<StoreApi<ConfiguratorState>> =
+  Object.assign(useSessionStoreSlice, {
+    getState: sessionStore.getState,
+    getInitialState: sessionStore.getInitialState,
+    setState: sessionStore.setState,
+    subscribe: sessionStore.subscribe,
+  });
 
 /** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
  *  decision 2). Built on first use rather than at module load for two reasons: this module is

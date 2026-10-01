@@ -1,5 +1,8 @@
+import type { DesignRoom } from "@lemnaria/configurator-domain";
 import {
-  findCameraPreset,
+  cameraPresetsForRoom,
+  findCameraPresetForRoom,
+  type CameraPreset,
   type CameraPresetId,
   type Vector3Tuple,
 } from "@lemnaria/three-adapter";
@@ -20,9 +23,15 @@ export interface ResolvedView {
   readonly isImmediate: boolean;
 }
 
-export function resolveSceneView(view: SceneView): ResolvedView {
+/** **A preset is a function of the room**, so this takes one (wave 7H criterion 9). A *fixed* view
+ *  is the fidelity capture's own two vectors and the room reaches it nowhere — that is the whole
+ *  point of the kind, which must land on exactly the numbers it was given. */
+export function resolveSceneView(
+  view: SceneView,
+  room: DesignRoom,
+): ResolvedView {
   if (view.kind === "preset") {
-    const preset = findCameraPreset(view.id);
+    const preset = presetForRoom(view.id, room);
     return {
       position: preset.position,
       target: preset.target,
@@ -32,8 +41,30 @@ export function resolveSceneView(view: SceneView): ResolvedView {
   return { position: view.position, target: view.target, isImmediate: true };
 }
 
-/** Stable identity for a view, so a re-render with an equivalent object does not restart the ease. */
-export function sceneViewKey(view: SceneView): string {
-  const resolved = resolveSceneView(view);
+/** ADR 0130 D9: `useCameraPreset` (`camera-preset-store.ts`) is a module-scope singleton that
+ *  outlives a room edit, so a customer who stood on *Perete B* and then shrank the room to a
+ *  straight kitchen still has `"wallB"` recorded when this next resolves — a room that offers no
+ *  such preset. Falls back to `overview` rather than throwing `findCameraPresetForRoom`'s own
+ *  refusal, which is right for a genuinely unknown id but wrong for one only this room has outgrown.
+ *
+ *  **Exported for `configure-screen.tsx`'s own reason (QA finding Q1):** the preset row's
+ *  `aria-pressed` must mark the button this same fallback actually frames, not the store's raw,
+ *  possibly-stale id — a straight room stood on the store's stale `"wallB"` would otherwise press no
+ *  button at all, while the scene itself was already showing `overview`. */
+export function presetForRoom(
+  id: CameraPresetId,
+  room: DesignRoom,
+): CameraPreset {
+  const offered = cameraPresetsForRoom(room).find((preset) => preset.id === id);
+  return offered ?? findCameraPresetForRoom("overview", room);
+}
+
+/** Stable identity for a view, so a re-render with an equivalent object does not restart the ease.
+ *
+ *  **It is the resolved vectors, not the preset's id**, so a customer standing on *Perete A* who
+ *  corrects a wall length eases to where *Perete A* now is rather than staying framed on the room
+ *  they no longer have. */
+export function sceneViewKey(view: SceneView, room: DesignRoom): string {
+  const resolved = resolveSceneView(view, room);
   return `${view.kind}:${resolved.position.join(",")}|${resolved.target.join(",")}`;
 }

@@ -42,8 +42,7 @@ vi.mock("@/i18n/use-locale-menu", async (importOriginal) => {
     await importOriginal<typeof import("@/i18n/use-locale-menu")>();
   return {
     ...original,
-    useLocaleMenu: () =>
-      original.describeLocaleMenu("ro", "/configurator/configure"),
+    useLocaleMenu: () => original.describeLocaleMenu("ro", "/d/qa-design"),
   };
 });
 

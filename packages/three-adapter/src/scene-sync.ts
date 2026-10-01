@@ -11,25 +11,33 @@ import {
   isPushToOpen,
   toMetres,
   toMillimetres,
+  type DesignRoom,
+  type Finish,
   type PlacementRecord,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { rebuildDepthM } from "./catalog-bodies.js";
+import { applyRecordedCutaway } from "./cutaway.js";
 import {
   applyBlackHandleMaterial,
   setHandlesVisible,
 } from "./decomposed-bodies.js";
 import { applyBodyFinish, finishSignature } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
-import { syncRunEndPanel } from "./kitchen-shell.js";
+import { paintRunEndPanel, syncRunEndPanel } from "./kitchen-shell.js";
+import {
+  rightCornerRecordIds,
+  wrapInRightCornerMirror,
+} from "./right-corner-wrapper.js";
 import {
   disposeUnsharedGeometries,
   isLine,
   isMesh,
   toMaterials,
 } from "./three-guards.js";
+import { tagWall } from "./wall-tag.js";
 import { buildVoidMesh } from "./void-mesh.js";
 
 /** What picking climbs to (`picking.ts`) and what the selection highlight looks up. */
@@ -46,23 +54,47 @@ export interface SolidSyncInput {
    *  touched, so decomposition stays this function's caller's business. */
   readonly solidsRoot: THREE.Object3D;
   readonly records: readonly PlacementRecord[];
+  /** The room the records stand in, handed to the run-end panel's sync for the domain's wall-end
+   *  veto (ADR 0045 Amendment A). Required: without it that veto could not fire. */
+  readonly room: DesignRoom;
+  /** The colour the whole kitchen is wearing, resolved by the domain (`resolvedDefaultFinishOf`)
+   *  and passed through to the run-end panel, which is shell and so carries no record of its own
+   *  (owner's ruling, 2026-09-17).
+   *
+   *  **Optional, because a caller that owns no design cannot answer it.** Every headless suite that
+   *  exercises `syncSolidBodies` alone mounts bodies into a bare group with no shell in it, so
+   *  there is no panel for the answer to reach; and a document whose material id names nothing
+   *  declared has no colour to give (ADR 0078 decision 3), which is the same `undefined` arriving
+   *  from the other side. Both leave the panel on the oak its builder gave it. */
+  readonly kitchenFinish?: Finish | undefined;
 }
 
 export interface VoidSyncInput {
   readonly voidsRoot: THREE.Object3D;
   readonly voids: readonly VoidRecord[];
+  /** The room the voids stand in. Required: given a room that is not a U, the recorded cut set is
+   *  discarded rather than applied (`applyRecordedCutaway`), so a caller that could not name it
+   *  would leave a cut recorded for a U applied to an L. */
+  readonly room: DesignRoom;
 }
 
 /** Mounts the bodies that appeared, removes and disposes the ones that vanished or changed, and
  *  leaves the rest untouched. */
 export function syncSolidBodies(input: SolidSyncInput): void {
   const missing = new Map(input.records.map((record) => [record.id, record]));
+  // ADR 0132 decision 2: the right corner's pieces are drawn mirrored, each in its own wrapper. A
+  // piece's side is part of what it is drawn as, so it is part of its signature below.
+  const rightCornerIds = rightCornerRecordIds(input);
 
   for (const child of [...input.solidsRoot.children]) {
     const placementId = child.userData[PLACEMENT_ID_KEY] as string | undefined;
     if (placementId === undefined) continue;
     const record = missing.get(placementId);
-    if (record && child.userData[BODY_SIGNATURE_KEY] === signBody(record)) {
+    if (
+      record &&
+      child.userData[BODY_SIGNATURE_KEY] ===
+        signatureOnScreen(record, rightCornerIds)
+    ) {
       missing.delete(placementId);
       continue;
     }
@@ -71,13 +103,28 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   }
 
   for (const record of missing.values()) {
-    input.solidsRoot.add(mountBody(input.kit, record));
+    input.solidsRoot.add(
+      mountOnScreen({ kit: input.kit, record, rightCornerIds }),
+    );
   }
 
   // ADR 0045: the shell's run-end panel closes whatever base run is on screen, so it is re-derived
   // here — the one place that already sees both the mounted scene and the current records — rather
   // than at build, where its seat was baked and stayed put through every resize and delete.
-  syncRunEndPanel({ solidsRoot: input.solidsRoot, records: input.records });
+  syncRunEndPanel({
+    solidsRoot: input.solidsRoot,
+    records: input.records,
+    room: input.room,
+  });
+  // Its colour is a function of the kitchen's finish where its seat is a function of the records,
+  // so the two are derived by two calls rather than one (owner's ruling, 2026-09-17).
+  paintRunEndPanel({
+    kit: input.kit,
+    solidsRoot: input.solidsRoot,
+    kitchenFinish: input.kitchenFinish,
+  });
+  // ADR 0132 A8.2: a body mounted while a wall is cut away is mounted cut.
+  applyRecordedCutaway(input.solidsRoot, input.room);
 }
 
 /** Replaces the whole void set whenever anything about it changed, and does nothing when nothing
@@ -98,6 +145,8 @@ export function syncVoidMeshes(input: VoidSyncInput): void {
     group.userData[VOID_SIGNATURE_KEY] = signVoid(voidRecord);
     input.voidsRoot.add(group);
   }
+  // ADR 0132 A8.2: the whole void set is replaced on any change, so the cut set is re-applied to it.
+  applyRecordedCutaway(input.voidsRoot, input.room);
 }
 
 /** What this body alone owns. Its materials come from `kit.M` and its cached geometries are shared
@@ -150,19 +199,66 @@ function signVoid(voidRecord: VoidRecord): string {
   ].join("|");
 }
 
+/** What `solidsRoot` holds for `record`: the body itself, or — for a right-corner piece — the
+ *  wrapper that mirrors it. */
+function mountOnScreen(input: {
+  readonly kit: Kit;
+  readonly record: PlacementRecord;
+  readonly rightCornerIds: ReadonlySet<string>;
+}): THREE.Group {
+  return input.rightCornerIds.has(input.record.id)
+    ? mountMirroredBody(input.kit, input.record)
+    : mountBody(input.kit, input.record);
+}
+
+function signatureOnScreen(
+  record: PlacementRecord,
+  rightCornerIds: ReadonlySet<string>,
+): string {
+  return rightCornerIds.has(record.id)
+    ? signMirroredBody(record)
+    : signBody(record);
+}
+
 function mountBody(kit: Kit, record: PlacementRecord): THREE.Group {
   const body = buildBody(kit, record);
-  body.position.set(record.frame.x, record.frame.y0, record.frame.z);
-  body.rotation.y = record.frame.ry;
-  body.userData[PLACEMENT_ID_KEY] = record.id;
-  body.userData[BODY_SIGNATURE_KEY] = signBody(record);
+  dressBody(kit, body, record);
+  return seatMounted(body, record, signBody(record));
+}
+
+function mountMirroredBody(kit: Kit, record: PlacementRecord): THREE.Group {
+  const body = buildBody(kit, record);
+  dressBody(kit, body, record);
+  return seatMounted(
+    wrapInRightCornerMirror(body),
+    record,
+    signMirroredBody(record),
+  );
+}
+
+/** What picking and the highlight find by `placementId` is the outer object — the body, or the
+ *  wrapper that mirrors it — so the frame and both tags belong to it, and a mirrored piece is
+ *  seated, found, outlined and marked exactly as an unmirrored one is. */
+function seatMounted(
+  mounted: THREE.Group,
+  record: PlacementRecord,
+  signature: string,
+): THREE.Group {
+  mounted.position.set(record.frame.x, record.frame.y0, record.frame.z);
+  mounted.rotation.y = record.frame.ry;
+  mounted.userData[PLACEMENT_ID_KEY] = record.id;
+  tagWall(mounted, record.wall);
+  mounted.userData[BODY_SIGNATURE_KEY] = signature;
+  return mounted;
+}
+
+function dressBody(kit: Kit, body: THREE.Group, record: PlacementRecord): void {
   // Set both ways, never only hidden: `buildDecomposedBody` ships the seeded `*-top` bodies with
   // their handles already hidden — the decomposition-parity gate holds them to the reference
   // room's own hide — so a recorded non-push mode has to *un*-hide them or a choice the domain
   // accepted would never reach the screen, which is the failure §6.5 exists to prevent.
   setHandlesVisible(body, !hidesHandles(record));
   applyRecordedAppearance(kit, body, record);
-  return body;
 }
 
 /** §5.5: finish and handle are recorded **per placement**, so they are applied to this body alone
@@ -280,3 +376,11 @@ function signBody(record: PlacementRecord): string {
     finishSignature(record.drawnFinish),
   ].join("|");
 }
+
+/** `signBody`'s signature with the mirror appended, so every unmirrored body keeps the signature it
+ *  always had and a piece changing sides is a changed signature. */
+function signMirroredBody(record: PlacementRecord): string {
+  return `${signBody(record)}|${MIRRORED_SIGNATURE_PART}`;
+}
+
+const MIRRORED_SIGNATURE_PART = "right-corner-mirror";

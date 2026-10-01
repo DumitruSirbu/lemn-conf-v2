@@ -1,7 +1,7 @@
 # ADR 0002 — Persistence: a managed Postgres database with shareable design links
 
 Status: Accepted (the Vercel-managed Neon provisioning recorded in Consequences is superseded by
-ADR 0007, which moves the database to a standalone Neon project)
+ADR 0007, which moves the database to a standalone Neon project; **the open read of a shared link is superseded 2026-09-11 by the owner's F5 ruling — a design link opens only in its owning browser; [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)**)
 Date: 2026-08-24
 Type: Decision
 Milestone: M2 — Void engine, picking, persistence
@@ -363,3 +363,27 @@ above does not yet state.
    where the `pg_dump` binary is not available. The equivalent — for a schema this small, a driver-level
    read of the designs table serialised to a file — is almost certainly the right answer, but the
    choice is unmade and an implementer following the wording literally will hit the missing binary.
+
+## Supersession note — 2026-09-11: a design link opens only in the browser that owns it
+
+The owner answered the M7 plan's follow-up F5 on 2026-09-11 with the option labelled **"Only its own
+browser"**: a design's link opens only in the browser holding the owning visitor cookie, and sharing
+comes later as an explicit share action. **What this supersedes here:** the premise that a design is
+*shareable to anyone holding its link*, and the *Consequences* sentence *"A shared link exposes a
+design to anyone holding it."* **What stands:** one self-contained document per design, addressed by an
+opaque identifier in the URL; the round-trip invariant; decision 17 (no link before a successful
+write). The mechanism is [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+decision 5; it is **implemented by M7 wave 7E3b**, and until that wave lands the code still serves a
+link to whoever holds it.
+
+**Revised the same day, 2026-09-11.** The owner replaced *"Only its own browser"* with **"Own browser +
+private share link"**. The design link still opens only in its owning browser; **sharing is no longer
+deferred** — the owner creates a separate, read-only, revocable share link whose token is not the
+design id ([ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+Amendment B), built by M7 wave 7E3c before 7E3b closes the open read. The note above stands except
+where it says sharing *"comes later"*.
+
+**Settled later the same day, 2026-09-11** ([ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)). The design link opens only in its
+owning browser, and sharing is a **short** (12-character), read-only, password-free, revocable share
+link — *"short link only to share"*; the design's own identifier is unchanged. Cross-device access
+comes with M8's customer profiles.

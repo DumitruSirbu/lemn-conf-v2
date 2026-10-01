@@ -206,6 +206,104 @@ describe("derivePlacementRecords", () => {
       UnknownBodyError,
     );
   });
+
+  // M7B U1 slice S3 (ADR 0132 decisions 1, 2): wall C is a world wall of its own, not wall B's
+  // canonical frame reflected — its along axis is `+z`, the same axis wall B's is, so it keys and
+  // reads exactly as wall B does; only its world `x` differs.
+  describe("wall C (ADR 0132 decision 1)", () => {
+    it("keys the column C|<z>, same axis as wall B, and reads rotated", () => {
+      const design = makeDesign([
+        makePlacement({ id: "c", wall: "C", alongMm: 1200 }),
+      ]);
+      const [record] = derivePlacementRecords(design, catalog);
+      expect(record?.col).toBe("C|1.20");
+      expect(record?.rotated).toBe(true);
+    });
+
+    it("never collides a wall-C key with wall A's at the same along value (AC8)", () => {
+      const design = makeDesign([
+        makePlacement({ id: "a", wall: "A", alongMm: 1200 }),
+        makePlacement({ id: "c", wall: "C", alongMm: 1200 }),
+      ]);
+      const [wallA, wallC] = derivePlacementRecords(design, catalog);
+      expect(wallA?.col).not.toBe(wallC?.col);
+      expect(wallA?.col).toBe("A|1.20");
+      expect(wallC?.col).toBe("C|1.20");
+    });
+
+    // ADR 0132 decision 1: wall C's world position is pulled in from `x = W`, the mirror image of
+    // wall B's own push out from `x = 0` — reflected about wall C's own plane, never about the
+    // room's centre line (ADR 0129's rejected alternative).
+    it("places a wall-C body's world x pulled in from the room's width", () => {
+      const widthM = 3.6; // ROOM.widthMm / 1000
+      const design = makeDesign([
+        makePlacement({
+          id: "c",
+          wall: "C",
+          alongMm: 1200,
+          body: { buildId: "base-600", widthMm: 600, heightMm: 720 },
+        }),
+      ]);
+      const [record] = derivePlacementRecords(design, catalog);
+      // frame.d is the seated depth (0.56 for base-600 via the fixture's own catalog); the pushed-
+      // in x is W minus half that depth.
+      expect(record?.frame.x).toBeCloseTo(
+        widthM - (record?.frame.d ?? 0) / 2,
+        9,
+      );
+      expect(record?.frame.z).toBeCloseTo(1.2, 9);
+    });
+
+    // AC6's mirror-equivariance, exercised directly rather than through the reviewed test utility:
+    // a wall-B body and a wall-C body at the same along value and depth are each other's reflection
+    // in the room's width, `x ↦ W − x`, with `z` shared and the column's own key differing only by
+    // its wall letter.
+    it("mirrors wall B's world x about the room's width, with z shared (AC6)", () => {
+      const widthM = 3.6;
+      const design = makeDesign([
+        makePlacement({
+          id: "b",
+          wall: "B",
+          alongMm: 1200,
+          body: { buildId: "base-600", widthMm: 600, heightMm: 720 },
+        }),
+        makePlacement({
+          id: "c",
+          wall: "C",
+          alongMm: 1200,
+          body: { buildId: "base-600", widthMm: 600, heightMm: 720 },
+        }),
+      ]);
+      const [wallB, wallC] = derivePlacementRecords(design, catalog);
+      expect(wallB?.frame.x).toBeDefined();
+      expect(wallC?.frame.x).toBeCloseTo(widthM - (wallB?.frame.x ?? 0), 9);
+      expect(wallC?.frame.z).toBeCloseTo(wallB?.frame.z ?? Number.NaN, 9);
+    });
+
+    it("keeps the column's off-wall origin pulled in from the room's width", () => {
+      const widthM = 3.6;
+      const record = makeRecord({
+        id: "c",
+        wall: "C",
+        frame: {
+          x: widthM - 0.28,
+          z: 1.3,
+          ry: -Math.PI / 2,
+          y0: 0,
+          w: 0.6,
+          h: 0.86,
+          d: 0.56,
+        },
+        col: "C|1.30",
+      });
+      const columns = deriveColumns([record], {}, ROOM);
+      const column = columns.get("C|1.30");
+      // Wall C: the normal axis is x, pulled in from W, and the along-wall z still comes from a
+      // member — the same split wall A's own test above pins, mirrored.
+      expect(column?.x).toBeCloseTo(widthM - 0.28, 9);
+      expect(column?.z).toBe(1.3);
+    });
+  });
 });
 
 describe("deriveColumns", () => {

@@ -1,3 +1,10 @@
+export { applyCornerDirection, mirroredX } from "./corner-direction.js";
+
+export {
+  RIGHT_CORNER_WRAPPER_NAME,
+  rightCornerRecordIds,
+} from "./right-corner-wrapper.js";
+
 export {
   makeKit,
   PARTS,
@@ -27,7 +34,11 @@ export {
   setHandlesVisible,
 } from "./decomposed-bodies.js";
 
-export { buildKitchenShell } from "./kitchen-shell.js";
+export {
+  buildKitchenShell,
+  resizeShellToRoom,
+  type ShellResizeInput,
+} from "./kitchen-shell.js";
 
 export {
   disposeDiscardedBodies,
@@ -101,6 +112,8 @@ export {
   type VoidMesh,
 } from "./void-mesh.js";
 
+export { applyCutaway, cutawayWallsFor } from "./cutaway.js";
+
 export {
   climbToSelectable,
   createPickingRaycaster,
@@ -114,14 +127,18 @@ export {
 } from "./picking.js";
 
 export {
+  applyCornerDirectionToLightRig,
   CAMERA_FIELD_OF_VIEW_DEGREES,
   CAMERA_PRESETS,
+  cameraPresetsForRoom,
   configureRenderer,
   createContactBlob,
   createLightRig,
   createShadowGround,
   createStudioEnvironment,
   findCameraPreset,
+  findCameraPresetForRoom,
+  KITCHEN_TOP_M,
   MAX_DEVICE_PIXEL_RATIO,
   RENDERER_PARAMETERS,
   seatObjectOnStage,

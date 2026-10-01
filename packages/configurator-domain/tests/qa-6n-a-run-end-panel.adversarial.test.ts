@@ -19,7 +19,8 @@ import {
   RUN_END_PANEL_THICKNESS_M,
   runEndPanelSeatM,
 } from "../src/run-end-panel.js";
-import { type DesignWall } from "../src/design.js";
+import { type DesignRoom, type DesignWall } from "../src/design.js";
+import { MAX_ROOM_WIDTH_MM } from "../src/design-bounds.js";
 import {
   derivePlacementRecords,
   type Band,
@@ -31,10 +32,21 @@ const SEEDED_RECORDS = derivePlacementRecords(
   KITCHEN_L_BODY_CATALOG,
 );
 
+/** The room those records stand in: every seeded-based case below ends its run inside it. */
+const SEEDED_ROOM = KITCHEN_L_DESIGN.room;
+
+/** A wall A twice as long as any a design can store, so no run this file sweeps comes near its end.
+ *  These cases pin the seat's arithmetic and the column veto at every run length; the wall-end veto
+ *  (ADR 0045 Amendment A) has its own cases in `run-end-panel.test.ts`. */
+const WALL_A_PAST_EVERY_RUN: DesignRoom = {
+  ...SEEDED_ROOM,
+  widthMm: MAX_ROOM_WIDTH_MM * 2,
+};
+
 /** `p4` — `base-drawer3-600` at 3200 — is the right-most wall-A base placement. */
 const RIGHT_MOST_BASE = requireRecord("p4");
 const RUN_END_M = RIGHT_MOST_BASE.frame.x + RIGHT_MOST_BASE.frame.w / 2;
-const SEEDED_SEAT_M = requireSeatM(SEEDED_RECORDS);
+const SEEDED_SEAT_M = requireSeatM(SEEDED_RECORDS, SEEDED_ROOM);
 
 /** The panel's own along-wall interval, which is what `blocksSeat` tests a body against. */
 const SEAT_INNER_FACE_M = SEEDED_SEAT_M - RUN_END_PANEL_THICKNESS_M / 2;
@@ -51,8 +63,11 @@ function requireRecord(id: string): PlacementRecord {
   return record;
 }
 
-function requireSeatM(records: readonly PlacementRecord[]): number {
-  const seatM = runEndPanelSeatM(records);
+function requireSeatM(
+  records: readonly PlacementRecord[],
+  room: DesignRoom,
+): number {
+  const seatM = runEndPanelSeatM(records, room);
   if (seatM === undefined) throw new Error("expected a visible panel");
   return seatM;
 }
@@ -95,12 +110,12 @@ function bodyAt(placement: BodyPlacement): PlacementRecord {
 }
 
 function seatWith(...extras: readonly PlacementRecord[]): number | undefined {
-  return runEndPanelSeatM([...SEEDED_RECORDS, ...extras]);
+  return runEndPanelSeatM([...SEEDED_RECORDS, ...extras], SEEDED_ROOM);
 }
 
 describe("only wall A's own bodies contest wall A's seat", () => {
-  // A wall-B body at 3.51 m along wall B is reachable: `MAX_ROOM_DEPTH_MM` is 5100, so wall B can
-  // be half again as long as the seeded 2920 mm room's. Dropping the `wall` filter in the veto
+  // A wall-B body at 3.51 m along wall B is reachable: `MAX_ROOM_DEPTH_MM` is 6300, so wall B can
+  // be more than twice as long as the seeded 2920 mm room's. Dropping the `wall` filter in the veto
   // would hide wall A's finished end for a column standing on the opposite wall.
   const VETOING_BANDS: readonly Band[] = ["column", "wall", "top"];
 
@@ -256,7 +271,7 @@ describe("the seat over the range, not at the shipped point", () => {
     (soleBase: PlacementRecord) => {
       const runEndM = soleBase.frame.x + soleBase.frame.w / 2;
 
-      expect(runEndPanelSeatM([soleBase])).toBe(
+      expect(runEndPanelSeatM([soleBase], WALL_A_PAST_EVERY_RUN)).toBe(
         runEndM + RUN_END_PANEL_EDGE_OFFSET_M,
       );
     },
@@ -269,7 +284,7 @@ describe("the seat over the range, not at the shipped point", () => {
     (soleBase: PlacementRecord) => {
       const runEndM = soleBase.frame.x + soleBase.frame.w / 2;
 
-      const seatM = requireSeatM([soleBase]);
+      const seatM = requireSeatM([soleBase], WALL_A_PAST_EVERY_RUN);
       const outerFaceM = seatM + RUN_END_PANEL_THICKNESS_M / 2;
 
       expect((outerFaceM - runEndM) * 1000).toBeCloseTo(19, 9);
@@ -280,7 +295,7 @@ describe("the seat over the range, not at the shipped point", () => {
 
 describe("the smallest record sets the rule can be handed", () => {
   it("hides the panel for no records at all", () => {
-    expect(runEndPanelSeatM([])).toBeUndefined();
+    expect(runEndPanelSeatM([], SEEDED_ROOM)).toBeUndefined();
   });
 
   it("seats the panel on a lone base placement", () => {
@@ -293,7 +308,7 @@ describe("the smallest record sets the rule can be handed", () => {
       widthM: 0.6,
     });
 
-    expect(runEndPanelSeatM([soleBase])).toBe(
+    expect(runEndPanelSeatM([soleBase], SEEDED_ROOM)).toBe(
       1.6 + RUN_END_PANEL_EDGE_OFFSET_M,
     );
   });
@@ -321,9 +336,11 @@ describe("the smallest record sets the rule can be handed", () => {
 
     // Non-vacuity: the run alone seats the panel, so the `undefined` below is the veto's answer and
     // not the missing-run branch's.
-    expect(runEndPanelSeatM([soleBase])).toBe(
+    expect(runEndPanelSeatM([soleBase], SEEDED_ROOM)).toBe(
       1.6 + RUN_END_PANEL_EDGE_OFFSET_M,
     );
-    expect(runEndPanelSeatM([soleBase, columnInTheSeat])).toBeUndefined();
+    expect(
+      runEndPanelSeatM([soleBase, columnInTheSeat], SEEDED_ROOM),
+    ).toBeUndefined();
   });
 });

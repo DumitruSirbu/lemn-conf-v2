@@ -84,7 +84,37 @@ describe("FetchConfigurationRepository", () => {
     ).toEqual(["POST /api/designs", "PUT /api/designs/design-1"]);
     // The mint route takes no body and seeds the fixture design, so without the PUT the
     // customer's first edit would never reach the database.
+    expect(requests[0]?.body).toBeUndefined();
     expect(requests[1]?.body).toBe(JSON.stringify(KITCHEN_L_DESIGN));
+  });
+
+  it("mints through the create-design lock, exclusive, and only the mint (M7 wave 7E3b S6, D2)", async () => {
+    const requestedLocks: { name: string; mode: string }[] = [];
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: (
+          name: string,
+          options: { mode: string },
+          callback: () => Promise<unknown>,
+        ) => {
+          requestedLocks.push({ name, mode: options.mode });
+          return callback();
+        },
+      },
+    });
+    const repository = new FetchConfigurationRepository();
+    scriptSuccessfulMint("design-1");
+
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
+
+    // Exactly one lock request, for the mint alone — the PUT that follows takes no lock at all.
+    expect(requestedLocks).toEqual([
+      { name: "lemnaria:create-design", mode: "exclusive" },
+    ]);
   });
 
   it("sends every request with same-origin credentials, so the write-token cookie travels", async () => {

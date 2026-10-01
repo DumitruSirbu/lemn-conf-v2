@@ -128,12 +128,21 @@ function disposeLightRig(lights: LightRig): void {
  * why ADR 0074 refused the narrow kit-swap shape. A factory that returns the *standing* stage's own
  * probe must therefore return a lease whose `release` does nothing; only a kit this call created may
  * be passed here.
+ *
+ * **The room is optional because a kit can outlive the failure to build one** (M7 wave 7F4a). A
+ * `BodyProbeFactory` allocates the kit first and builds its room second, so a builder that throws —
+ * a device out of memory once the textures have baked — leaves a fully allocated kit and no room at
+ * all. Without this arm there was no call that could free it, and the allocating site could not keep
+ * ADR 0076 decision 3's promise. Nothing is lost by the omission: a room that threw mid-build was
+ * never returned, so its part-built objects are unreachable from here either way, and the kit's own
+ * shared geometries, materials and canvas textures — which is what `makeKit` allocated — are freed
+ * exactly as they are on the ordinary path.
  */
-export function disposeKit(kit: Kit, room: THREE.Object3D): void {
+export function disposeKit(kit: Kit, room?: THREE.Object3D): void {
   if (kitOwnedResources(kit.M).isReleased) return;
 
   const resources = createGpuResources();
-  collectObjectResources(room, resources);
+  if (room !== undefined) collectObjectResources(room, resources);
   addGpuResources(kitOwnedResources(kit.M), resources);
 
   disposeGpuResources(resources);

@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { alongThisCanvas } from "./canvas-taps";
+import { openSeededDesign, type SeededDesign } from "./seeded-design";
 
 /**
  * Navigation and selector helpers for the specs that drive §9's panel by touch. No assertion lives
@@ -26,8 +27,19 @@ import { alongThisCanvas } from "./canvas-taps";
  *  the y positions below are already fractions of the live canvas, so running the whole point
  *  through `atThisCanvas` would scale them twice. A shorter canvas widens the camera's horizontal
  *  field, so a world position moves *toward* the centre — wave 6G's band moves this line from 65 to
- *  73.75 — which no fraction of the height can express. See `support/canvas-taps.ts`. */
-export const FRIDGE_COLUMN_TAP_X = 65;
+ *  73.75 — which no fraction of the height can express. See `support/canvas-taps.ts`.
+ *
+ *  **Re-measured 2026-09-16: 65 → 45.** Wave 7H made the camera presets a function of the
+ *  customer's room, so *Perete B* now frames that room rather than the reference one and the
+ *  columns moved across the canvas. At 65 the scan walked the **next** column down and reported
+ *  `p23, p6` and a void where it wanted `p24, p7` — which is the error this constant's own message
+ *  was written to produce, working exactly as intended.
+ *
+ *  **Re-found by tapping, not computed.** A grid of real taps was walked across the running scene
+ *  in this preset and the selected id read back; the fridge column stands at x ∈ [20, 45] and 45 was
+ *  confirmed at every y in the scan. Deriving it from the new camera would have made this scan agree
+ *  with the camera by construction. */
+export const FRIDGE_COLUMN_TAP_X = 45;
 
 /** Top of the column (the 2.6 m ceiling line) down to the floor, in steps of ~2.5% of the canvas.
  *  The column is ~62% of the canvas here, so the shortest opening M3 can produce in it — a 400 mm
@@ -69,10 +81,10 @@ const CAMERA_SETTLE_MS = 1500;
 /** One frame plus React's commit, after a tap or a command. */
 const PICK_SETTLE_MS = 80;
 const COMMAND_SETTLE_MS = 300;
-/** The first mutation mints a design row, which is a real network round trip to the database —
- *  no fixed settle can be sized for one, so it is waited for rather than assumed. */
-const MINT_TIMEOUT_MS = 5000;
-const MINT_POLL_MS = 100;
+/** The first mutation on `/d/{id}` writes — it no longer mints (wave 7E4 G4) — and a save is a real
+ *  network round trip to the database, so it is polled for rather than assumed. */
+const SAVE_TIMEOUT_MS = 5000;
+const SAVE_POLL_MS = 100;
 
 /** What `SelectionDebug` publishes: the selection, `describeSelection`'s `meta` numbers, and the
  *  write-path state. Every field is a string because it arrives through `dataset`; empty means
@@ -92,9 +104,11 @@ export interface SelectionReadout {
   readonly rejection: string;
 }
 
-export async function openFridgeColumnView(page: Page): Promise<void> {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+export async function openFridgeColumnView(
+  page: Page,
+  design: SeededDesign,
+): Promise<void> {
+  await openSeededDesign(page, design);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   await page.getByRole("button", { name: "Perete B" }).tap();
   await page.waitForTimeout(CAMERA_SETTLE_MS);
@@ -217,21 +231,57 @@ export function describeOpenings(
   }));
 }
 
+/** The design's own stored revision, read the same way the client repository does — a fresh `GET`,
+ *  never the value a page happens to hold in memory. Throws by name on anything but `200`, rather
+ *  than parsing a body that answered the failure instead of the design. */
+export async function storedRevision(page: Page, id: string): Promise<string> {
+  return page.evaluate(async (designId) => {
+    const response = await fetch(`/api/designs/${designId}`, {
+      credentials: "same-origin",
+    });
+    if (!response.ok) {
+      throw new Error(
+        `storedRevision: GET /api/designs/${designId} answered ${String(response.status)}, wanted 200`,
+      );
+    }
+    const payload = (await response.json()) as { revision: string };
+    return payload.revision;
+  }, id);
+}
+
 /**
- * Waits for the design id the first successful mutation mints, and returns `""` if it has not
- * arrived in time.
+ * Waits for the first save whose revision moves past `baselineRevision`, and returns that revision.
  *
- * Deliberately never throws. The caller's first job with this id is to register it for deletion
- * (ADR 0006) and only then to assert on it: a helper that threw on the slow case would skip that
- * registration and leak into the test database the very row that arrives a moment later — which
- * is the failure this helper exists to prevent.
+ * On `/d/{id}` the first successful mutation **writes** — it does not mint (wave 7E4 G4): the id
+ * was already fixed by the fixture's own mint, so "an id exists" proves nothing any more. This
+ * polls the design's own stored revision until it has moved past the baseline, which only a
+ * `PUT`/`PATCH` answered `200` can do — `saveAuthorized`'s whole contract refuses to move it
+ * otherwise — rather than racing a single `page.waitForResponse` against a save that may already
+ * have landed by the time this is called.
+ *
+ * **`baselineRevision` defaults to `seededDesign.revision`, which is what makes the default call the
+ * *first* save after minting** — the name's own claim. `seededDesign.revision` is fixed at mint time
+ * and this function never updates it, so calling it a second time against the same design with the
+ * default would find the revision already past that stale baseline and return at once, proving
+ * nothing about the write it was asked to wait for. A caller confirming a **later** save passes the
+ * revision the previous `waitForFirstSave` (or an equivalent read) returned, as `baselineRevision` —
+ * "first" then means the first save after that explicit point, not after the mint.
+ *
+ * Throws by name if the deadline passes with the revision unmoved.
  */
-export async function waitForMintedDesignId(page: Page): Promise<string> {
-  const deadline = Date.now() + MINT_TIMEOUT_MS;
+export async function waitForFirstSave(
+  page: Page,
+  seededDesign: SeededDesign,
+  baselineRevision: string = seededDesign.revision,
+): Promise<string> {
+  const deadline = Date.now() + SAVE_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    const { designId } = await readSelection(page);
-    if (designId) return designId;
-    await page.waitForTimeout(MINT_POLL_MS);
+    const revision = await storedRevision(page, seededDesign.id);
+    if (BigInt(revision) > BigInt(baselineRevision)) return revision;
+    await page.waitForTimeout(SAVE_POLL_MS);
   }
-  return (await readSelection(page)).designId;
+  throw new Error(
+    `waitForFirstSave: no save for ${seededDesign.id} moved its revision past ` +
+      `${baselineRevision} within ${String(SAVE_TIMEOUT_MS)}ms`,
+  );
 }

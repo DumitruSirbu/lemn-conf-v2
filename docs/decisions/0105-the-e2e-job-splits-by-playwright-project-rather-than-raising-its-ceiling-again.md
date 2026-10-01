@@ -2,7 +2,8 @@
 
 Status: Accepted — **implemented 2026-09-10**, with decision 2's reasoning amended in place (see the
 strike under *Alternatives*). Decision 1 shipped in `.github/workflows/ci.yml`; the ceiling came down
-75 → 45 per leg.
+75 → 45 per leg. **Amendment A, 2026-09-30:** each project is further split into three shards,
+and every shard is held to a test budget derived from measured runner rates (owner).
 Date: 2026-09-10
 Type: Decision (owner ruling)
 Milestone: Engineering — falls between M6B and M7
@@ -108,7 +109,7 @@ waiting. **75 minutes is sized to carry M6B to its close** and is not expected t
   runner's 6-hour limit."* A ceiling generous enough never to be hit stops catching a genuine hang.
   Retained once more, at 75, only to unblock M6B.
 - **Raise `workers` to 2.** Rejected on the merits above.
-- **Shard with `--shard=i/N` across three or more jobs.** Rejected for now: it cuts wall-clock
+- **Shard with `--shard=i/N` across three or more jobs.** ~~Rejected for now~~ **Taken 2026-09-30, Amendment A: the project split stopped being enough, which is the condition this bullet named.** The original text: it cuts wall-clock
   further but multiplies the `next build` cost by N and splits the suite at an arbitrary boundary
   rather than a designed one. Reconsider only if the project split stops being enough.
 - **Trim or skip slow specs.** Rejected. The two slowest files are the pixel-counter and top-bar
@@ -124,3 +125,76 @@ waiting. **75 minutes is sized to carry M6B to its close** and is not expected t
 - A cancelled run is no longer evidence of a defect by itself. This record exists so the next
   session reads a cancelled `e2e` the way this one did — check whether the tests that ran passed
   before assuming anything broke.
+
+## Amendment A — 2026-09-30: three shards per project, and a per-shard test budget derived from measured runner rates
+
+**The owner, verbatim:** *"i need you to record this and for future to take into account how many
+tests should be run per ci pod or machine"*.
+
+**The owner's selection** (relayed, 2026-09-30): e2e is split into **"3 shards per project
+(Recommended)"**. Summary jobs keep the check names `e2e (desktop)` and `e2e (mobile)`.
+
+### A1 — why decision 1 is no longer enough
+
+**What the evidence is and is not.** The only runner evidence is **`main`'s** run at `995ad03`, run
+**34580253814**: about 84 desktop tests in 37.8 min and about 109 mobile tests in 26.1 min
+[doc-quoted, the coordinator's relay of the run the owner pasted]. **The M7/M7B branch's e2e suite
+has never run on the runner.**
+
+**What follows from it.**
+
+- The measured rates are about **27 s a test (desktop)** and about **14 s a test (mobile)**.
+- The branch has **185 desktop and 393 mobile tests**.
+- *Inference, from those rates:* about **83 and 92 minutes per project**, against the 45-minute
+  ceiling.
+
+**That is this record's own trigger.** The rejected sharding alternative said *"reconsider only if
+the project split stops being enough"*, and it has stopped being enough.
+
+### A2 — the rule (standing, for every future change to the suite)
+
+1. **Every e2e shard is budgeted to ≤ 30 minutes on the runner.** The test count a shard may carry is
+   derived from the **measured per-test rate** of its project, never guessed from a local run.
+2. **A guard, run in CI and locally, fails when any shard's `--list` count exceeds its budget**, and
+   prints how many shards the project needs. The guard is the script the implementing change adds
+   under `scripts/`, named in `docs/best-practices/ci-and-local-gates.md` by that change. **The exact
+   per-shard figures live in the guard and its doc, not here**, so there is one number to update.
+3. **The rates are re-derived** from any `ci` run whose measured shard time drifts more than **20%**
+   from the prediction.
+4. **Exceeding the budget raises the shard count, never the ceiling.** Decision 1's direction,
+   *split, don't raise*, now applies per shard. The job's `timeout-minutes` stays what the
+   *Alternatives* bullet says a ceiling is for: catching a hang, not scheduling a suite.
+5. **Unchanged:**
+   - decision 2 (`workers: 1` within a job, for the cores and 3D-timing reasons);
+   - `fullyParallel: false`;
+   - `needs: [install, test]`;
+   - e2e does not run on pull requests.
+
+### A3 — what this costs, stated because the original rejection named it
+
+- Each shard runs its own `next build`. That is the reason sharding was *"rejected for now"*: *"it …
+  multiplies the `next build` cost by N"*.
+- **The owner accepted that cost by choosing three shards per project.**
+- **Billed minutes (inference):** about the suite's spec minutes plus six builds per full run,
+  against the month's 2000. E2e runs only on a push to `main` and on a manual dispatch.
+- **The boundary:** Playwright's `--shard` cuts at file order, not at a designed seam. That was the
+  other half of the original rejection, and it is still true. The budget guard is what keeps an
+  arbitrary cut from quietly overrunning.
+
+### A4 — a flag for the implementing change *(inference, from the relayed rates)*
+
+At about 14 s a test, **393 mobile tests in three shards is about 131 a shard, or about 30.6 minutes,
+at the budget's edge**. Desktop at 27 s a test is about 62 a shard, or about 27.8 minutes. If the
+measured mobile rate holds, the guard may already ask for a **fourth mobile shard**. A2 (4) answers
+that ahead of time: add the shard.
+
+### A5 — sweep
+
+| Record | Effect |
+| --- | --- |
+| Decision 1 | Kept, and extended to shards within each project |
+| Decision 2 | Unchanged |
+| *Alternatives*: sharding | Taken, on its own stated trigger |
+| *Consequences*: "two required-status names" | The two names are kept, carried by summary jobs over the shards. The note that e2e must not be a required PR check still holds |
+| `docs/best-practices/ci-and-local-gates.md` | Gains the guard and its figures, in the implementing change (not this record's edit) |
+

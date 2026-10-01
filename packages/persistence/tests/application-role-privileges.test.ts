@@ -114,4 +114,38 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
 
     expect(typeof rows[0]?.count).toBe("number");
   });
+
+  // M7 wave 7E3c, D9: migration `0006` creates `design_share_links`, but the grant on it is a
+  // separate, owner-run step (ADR 0008's 2026-09-23 note; ADR 0114 Amendment G3). Conditional on the
+  // table's existence rather than skipped outright, so local gates stay green before the owner acts
+  // and go red the moment the table exists without its grant — the same "a property nothing checks
+  // quietly decays" argument the file's own header makes.
+  it("holds exactly select, insert and update on design_share_links, once it exists — no delete", async (context) => {
+    const sql = neon(readDatabaseUrl());
+
+    const [tableProbe] = (await sql`
+      select to_regclass('public.design_share_links') is not null as exists
+    `) as { exists: boolean }[];
+    context.skip(
+      tableProbe?.exists !== true,
+      "design_share_links does not exist yet on this database",
+    );
+
+    const grants = (await sql`
+      select privilege_type
+      from information_schema.role_table_grants
+      where grantee = current_user and table_name = 'design_share_links'
+      order by privilege_type
+    `) as { privilege_type: string }[];
+
+    expect(grants.map((row) => row.privilege_type)).toEqual([
+      "INSERT",
+      "SELECT",
+      "UPDATE",
+    ]);
+
+    await expectRefused(
+      "delete from design_share_links where token_hash = 'no-such-token'",
+    );
+  });
 });

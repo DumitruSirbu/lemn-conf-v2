@@ -49,9 +49,10 @@ import {
 
 import { resolveContent } from "../../src/i18n/content";
 import correctedRomanian from "../../src/messages/ro.json";
+import { catalogueLeaves } from "../support/catalogues";
 import { ro as romanianContent } from "../support/romanian-content";
 
-export type GoldenFixtureGroup = "content" | "rejection" | "catalog";
+export type GoldenFixtureGroup = "content" | "rejection" | "catalog" | "room";
 
 export interface GoldenFixture {
   readonly id: string;
@@ -541,6 +542,83 @@ export const CONTENT_FIXTURES: readonly GoldenFixture[] = [
   ...FUNCTION_CONTENT_FIXTURES,
 ];
 
+/** **Step 1's leaves, and the arguments each ICU one is rendered with.**
+ *
+ *  `room.planWallLabel` was wave 7F1's only ICU leaf here. Since wave 7F2 S1b (ADR 0126) it reads
+ *  *"A · 3600 mm"*: the wall letter and the whole millimetres arrive as arguments and ICU writes the
+ *  number with `::group-off`, so the fixture passes a number, as the screen does.
+ *
+ *  Wave 7F4a's four are sub-state 1F's. `room.compose.roomSummary` takes its three lengths the same
+ *  way since S1b, and `room.compose.rowWidth`'s millimetres are a body's declared width, also
+ *  formatted by ICU itself.
+ *
+ *  **The argument *values* here are neutral tokens rather than the words the screen passes.** They
+ *  are hash inputs: what the manifest pins is the sentence around them, and a Romanian role name
+ *  spelled here would pin this file to the role catalogue as well as to the message. */
+const ROOM_RENDER_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "room.planWallLabel": { wall: "A", millimetres: 3600 },
+  "room.compose.roomSummary": {
+    shape: "L",
+    wallA: 3600,
+    wallB: 2400,
+    height: 2600,
+  },
+  "room.compose.roomSummaryLinear": {
+    shape: "linear",
+    wallA: 3600,
+    height: 2600,
+  },
+  "room.compose.roomSummaryU": {
+    shape: "U",
+    wallA: 3600,
+    wallB: 2400,
+    wallC: 1200,
+    height: 2600,
+  },
+  "room.compose.rowLabel": { role: "Sink", extent: "600" },
+  "room.compose.rowWidth": { millimetres: 600 },
+  "room.compose.dropped": { roles: "Fridge" },
+  "room.planWallIssue.tooShort": { wall: "B" },
+  "room.planWallIssue.tooLong": { wall: "B" },
+};
+
+/**
+ * **M7 Step 1's copy, hashed straight from the catalogue (ADR 0113 decision 2).**
+ *
+ * A fourth group rather than rows in `content`, for the reason the head comment gives: these leaves
+ * are not on `Content` — the room screen reads `room.*` through next-intl — so the static walk
+ * cannot see them, and there is **no second author** to compare against. Declaring a `renderLegacy`
+ * here would be a fixture comparing a resolver to itself, which is the shape this file refuses.
+ * `GOLDEN_OUTPUT_SHA256` is this group's gate, exactly as it is the rejection group's.
+ *
+ * Built from `ro.json`'s own `room` subtree rather than from a hand-listed set, so a leaf added by a
+ * later 7F slice arrives hashed instead of arriving unwatched.
+ */
+export const ROOM_FIXTURES: readonly GoldenFixture[] = catalogueLeaves(
+  correctedRomanian.room,
+).map(([path, message]) => {
+  const sourceKey = `room.${path}`;
+  return {
+    id: sourceKey,
+    group: "room" as const,
+    sourceKey,
+    renderCorrected: () => {
+      const values = ROOM_RENDER_ARGUMENTS[sourceKey];
+      if (values !== undefined) return translateRuntime(sourceKey, values);
+      if (message.includes("{")) {
+        throw new Error(
+          `Room message ${sourceKey} is ICU without an explicit rendered fixture`,
+        );
+      }
+      return translateRuntime(sourceKey);
+    },
+  };
+});
+
+export const ROOM_RENDER_ARGUMENT_PATHS = Object.keys(ROOM_RENDER_ARGUMENTS);
+
 type RejectionMessageKey = Exclude<
   keyof typeof correctedRomanian.rejection,
   "parts"
@@ -881,6 +959,7 @@ export const CATALOGUE_FIXTURES: readonly GoldenFixture[] =
 
 export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...CONTENT_FIXTURES,
+  ...ROOM_FIXTURES,
   ...REJECTION_FIXTURES,
   ...CATALOGUE_FIXTURES,
 ];

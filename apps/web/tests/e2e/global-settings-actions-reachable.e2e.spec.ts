@@ -1,4 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **The settings sheet's two actions, measured against the screen they are drawn on** — the owner's
@@ -45,9 +51,11 @@ interface Box {
   readonly height: number;
 }
 
-async function openConfigurator(page: Page): Promise<void> {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+async function openConfigurator(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<void> {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 
@@ -120,9 +128,10 @@ for (const viewport of SHORT_VIEWPORTS) {
 
   test(`keeps both settings actions inside the visual viewport at ${label}`, async ({
     page,
+    seededDesign,
   }) => {
     await page.setViewportSize(viewport);
-    await openConfigurator(page);
+    await openConfigurator(page, seededDesign);
     await openSheet(page);
 
     const visual = await visualViewportOf(page);
@@ -149,11 +158,12 @@ for (const viewport of SHORT_VIEWPORTS) {
 
   test(`keeps both settings actions pointer-clickable at ${label}`, async ({
     page,
+    seededDesign,
   }) => {
     // Inside the viewport is not the same claim as reachable: a scrim, an overlapping band or a
     // stacking-context mistake can put something else under the pointer at the button's own centre.
     await page.setViewportSize(viewport);
-    await openConfigurator(page);
+    await openConfigurator(page, seededDesign);
     await openSheet(page);
 
     for (const action of ACTIONS) {
@@ -174,8 +184,9 @@ for (const viewport of SHORT_VIEWPORTS) {
 
 test("declares the home indicator's inset on the sheet itself", async ({
   page,
+  seededDesign,
 }) => {
-  await openConfigurator(page);
+  await openConfigurator(page, seededDesign);
   await openSheet(page);
 
   const declared = await page.evaluate(() => {

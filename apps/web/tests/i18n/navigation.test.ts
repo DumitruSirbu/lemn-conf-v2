@@ -1,12 +1,30 @@
-import { createElement, type ReactNode } from "react";
+import {
+  Children,
+  createElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import ContactPage from "../../src/app/[locale]/configurator/contact/page";
 import { DesignLoadError } from "../../src/app/d/[id]/design-load-error";
-import { getPathname } from "../../src/i18n/navigation";
+import { getPathname, Link } from "../../src/i18n/navigation";
 import roMessages from "../../src/messages/ro.json";
+
+/** Depth-first search for the first element of `type` in a tree — `prefetch` is a prop `next/link`
+ *  consumes client-side and never renders into markup, so the only way to pin it is to read the
+ *  element the server component actually built, before `renderToStaticMarkup` throws that away. */
+function findElement(node: ReactNode, type: unknown): ReactElement | undefined {
+  if (!isValidElement(node)) return undefined;
+  if (node.type === type) return node;
+  const children = (node.props as { children?: ReactNode }).children;
+  return Children.toArray(children)
+    .map((child) => findElement(child, type))
+    .find((found): found is ReactElement => found !== undefined);
+}
 
 const getTranslations = vi.hoisted(() => vi.fn());
 vi.mock("next-intl/server", () => ({ getTranslations }));
@@ -52,8 +70,21 @@ describe("locale-aware customer navigation", () => {
         createElement(DesignLoadError, { reason: "not-found" }),
       );
 
-      expect(contact).toContain(`href="/${locale}/configurator/configure"`);
-      expect(loadError).toContain(`href="/${locale}/configurator/configure"`);
+      expect(contact).toContain(`href="/${locale}"`);
+      expect(loadError).toContain(`href="/${locale}/configurator/room"`);
     },
   );
+
+  it("never prefetches the back link — a prefetch would run the resume route as a side effect (L1.7)", async () => {
+    getTranslations.mockResolvedValueOnce(
+      createTranslator({ locale: "ro", messages: roMessages }),
+    );
+    const contactElement = await ContactPage();
+
+    const backLink = findElement(contactElement, Link);
+
+    expect(backLink).toBeDefined();
+    expect((backLink?.props as { href?: string }).href).toBe("/");
+    expect((backLink?.props as { prefetch?: boolean }).prefetch).toBe(false);
+  });
 });

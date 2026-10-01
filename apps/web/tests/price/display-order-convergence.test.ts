@@ -64,6 +64,7 @@ const THE_COMPARATOR = compareDisplayOrder;
 const WALL_RANK: Readonly<Record<DisplayEntry["wall"], number>> = {
   A: 0,
   B: 1,
+  C: 2,
 };
 const BAND_RANK: Readonly<Record<DisplayEntry["band"], number>> = {
   base: 0,
@@ -137,11 +138,12 @@ beforeAll(() => {
     cabinetDepthMm: WORKTOP_DEPTH_MM,
     createCanvas: createHeadlessCanvas,
   });
-  solidsRoot.add(buildKitchenShell(kit));
+  solidsRoot.add(buildKitchenShell(kit, KITCHEN_L_DESIGN.room));
   syncSolidBodies({
     kit,
     solidsRoot,
     records: derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    room: KITCHEN_L_DESIGN.room,
   });
 });
 

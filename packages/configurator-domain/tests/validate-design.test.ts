@@ -10,7 +10,7 @@ import {
   NARROWEST_CATALOG_WIDTH_MM,
 } from "../src/design-bounds.js";
 import { DesignSchema } from "../src/design.js";
-import type { Design, DesignPlacement } from "../src/design.js";
+import type { Design, DesignPlacement, EmptyColumn } from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -222,6 +222,76 @@ describe("validateDesignForCatalog", () => {
      *  first. */
     it("declares the two runs the demo room is built to clear", () => {
       expect(BOUND_BY_WALL).toStrictEqual({ A: 3560, B: 2920 });
+    });
+  });
+
+  /** ADR 0132 decision 7 (D10): a U's wall A backs onto both side walls, so its own across-room
+   *  bound is `max(depthMm, wallCMm)` — whichever side wall the floor is actually drawn to — never
+   *  `depthMm` alone once a second side wall exists. Wall C's own bound is `widthMm`, the same run
+   *  wall B's already reads, so only the wall-A arm changes. */
+  describe("the across-room bound follows the drawn floor (D10)", () => {
+    function emptyColumnAt(patch: Partial<EmptyColumn>): EmptyColumn {
+      return {
+        wall: "A",
+        alongMm: 300,
+        widthMm: 300,
+        y0Mm: 0,
+        topMm: 820,
+        depthMm: 2830,
+        ...patch,
+      };
+    }
+
+    function withEmptyColumn(room: Design["room"], entry: EmptyColumn): Design {
+      return {
+        ...VALID_DESIGN,
+        room,
+        placements: [],
+        emptyColumns: [entry],
+      };
+    }
+
+    const U_ROOM: Design["room"] = {
+      shape: "U",
+      widthMm: 2000,
+      depthMm: 2000,
+      wallCMm: 2800,
+      heightMm: 2600,
+    };
+
+    it("still reads plain depthMm for wall A on an L, which has no wallCMm", () => {
+      expect(
+        codesFor(
+          withEmptyColumn(VALID_DESIGN.room, emptyColumnAt({ depthMm: 2830 })),
+        ),
+      ).toEqual([]);
+      expect(
+        codesFor(
+          withEmptyColumn(VALID_DESIGN.room, emptyColumnAt({ depthMm: 2831 })),
+        ),
+      ).toEqual(["EMPTY_COLUMN_DEEPER_THAN_ROOM"]);
+    });
+
+    it("reads max(depthMm, wallCMm) for wall A on a U, where wallCMm is the deeper side", () => {
+      expect(
+        codesFor(withEmptyColumn(U_ROOM, emptyColumnAt({ depthMm: 2800 }))),
+      ).toEqual([]);
+      expect(
+        codesFor(withEmptyColumn(U_ROOM, emptyColumnAt({ depthMm: 2801 }))),
+      ).toEqual(["EMPTY_COLUMN_DEEPER_THAN_ROOM"]);
+    });
+
+    it("bounds wall C by the room's width, the same run wall B already reads", () => {
+      expect(
+        codesFor(
+          withEmptyColumn(U_ROOM, emptyColumnAt({ wall: "C", depthMm: 2000 })),
+        ),
+      ).toEqual([]);
+      expect(
+        codesFor(
+          withEmptyColumn(U_ROOM, emptyColumnAt({ wall: "C", depthMm: 2001 })),
+        ),
+      ).toEqual(["EMPTY_COLUMN_DEEPER_THAN_ROOM"]);
     });
   });
 

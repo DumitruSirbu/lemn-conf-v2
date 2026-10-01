@@ -1,4 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **The whole-kitchen settings modal, centred in the viewport** — the owner's ruling of 2026-09-09,
@@ -19,6 +25,8 @@ import { expect, test, type Page } from "@playwright/test";
  * number it produces against the one measured before the change: **90.5 at every width**.
  */
 
+/** A viewport resize re-projects the scene over several frames; `openSeededDesign` does not wait on
+ *  that, and a box read the instant it returns can race it (review round 1, R1.2). */
 const SCENE_SETTLE_MS = 2000;
 
 /** Sub-pixel layout rounding: a centre at 719.9999 is centred. The owner's ruling is about where the
@@ -43,10 +51,13 @@ interface Box {
   readonly height: number;
 }
 
-async function openSettingsAt(page: Page, width: number): Promise<Box> {
+async function openSettingsAt(
+  page: Page,
+  seededDesign: SeededDesign,
+  width: number,
+): Promise<Box> {
   await page.setViewportSize({ width, height: 900 });
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   await page.getByTestId("global-settings-trigger").click();
   await expect(page.getByTestId("global-settings-surface")).toBeVisible();
@@ -60,8 +71,9 @@ test.describe("the settings modal is centred in the viewport", () => {
   for (const width of WIDTHS) {
     test(`puts its horizontal centre on the viewport's at ${String(width)} px`, async ({
       page,
+      seededDesign,
     }) => {
-      const surface = await openSettingsAt(page, width);
+      const surface = await openSettingsAt(page, seededDesign, width);
 
       expect(surface.x + surface.width / 2).toBeCloseTo(width / 2, 1);
       // Stated as the two margins as well, because a centred box and a box that happens to have a
@@ -78,8 +90,9 @@ test.describe("the settings modal is centred in the viewport", () => {
      *  that moved the modal at a single width fails naming it. */
     test(`keeps the hang it already had at ${String(width)} px`, async ({
       page,
+      seededDesign,
     }) => {
-      const surface = await openSettingsAt(page, width);
+      const surface = await openSettingsAt(page, seededDesign, width);
 
       expect(surface.y).toBeCloseTo(HANG_TOP_PX, 1);
     });
@@ -91,9 +104,10 @@ test.describe("the settings modal is centred in the viewport", () => {
    *  the box off both edges here. */
   test("clamps to the viewport at 900 px and stays centred inside the clamp", async ({
     page,
+    seededDesign,
   }) => {
     const width = 900;
-    const surface = await openSettingsAt(page, width);
+    const surface = await openSettingsAt(page, seededDesign, width);
 
     expect(surface.width).toBeCloseTo(width - VIEWPORT_MARGIN_PX, 1);
     expect(surface.width).toBeLessThan(DRAWN_WIDTH_PX);
@@ -104,8 +118,9 @@ test.describe("the settings modal is centred in the viewport", () => {
    *  the new width. */
   test("keeps frame D2E's own 900 px wherever the screen has room", async ({
     page,
+    seededDesign,
   }) => {
-    const surface = await openSettingsAt(page, 1440);
+    const surface = await openSettingsAt(page, seededDesign, 1440);
 
     expect(surface.width).toBeCloseTo(DRAWN_WIDTH_PX, 1);
   });
@@ -115,10 +130,10 @@ test.describe("the settings modal is centred in the viewport", () => {
    *  the divergence is asserted on screen rather than left to the stylesheets' comments. */
   test("leaves the breakdown's popover hanging from its own trigger", async ({
     page,
+    seededDesign,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/configurator/configure");
-    await page.waitForSelector("canvas", { state: "attached" });
+    await openSeededDesign(page, seededDesign);
     await page.waitForTimeout(SCENE_SETTLE_MS);
     await page.getByTestId("price-breakdown-trigger").click();
 

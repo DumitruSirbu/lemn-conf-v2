@@ -1,6 +1,6 @@
 # ADR 0045 — The run-end panel follows the run it closes, and hides when there is no run
 
-Status: Accepted
+Status: Accepted (**Amendment A, 2026-09-11** — owner ruling: no panel where the run reaches the end of its wall)
 Date: 2026-09-01
 Type: Decision
 Milestone: M5B — Manual UX remediation, wave 5B3
@@ -127,3 +127,41 @@ and the formula was a reconstruction that never matched it. Nothing else in this
 the wrong arithmetic — the Decision, the `db9c402` analysis, the records swept, and the
 Consequences section all cite `x = 3.51` as a measured fact, not as something derived from
 `TH/2`.
+
+## Amendment A — 2026-09-11: no panel where the run reaches the end of its wall
+
+**The owner's ruling**, the option chosen verbatim: **"No panel when run hits wall"**, on the rule as
+put to them — *when the cabinets reach the wall's end, or come within the panel's footprint of it, the
+finishing panel is neither drawn nor priced; a real fitter closes that gap with a filler strip.*
+Raised by M7 wave 7D1's QA (backlog 64, now closed as ruled): with wall A at 900–918 mm the structural
+corner base alone fills the wall, and the panel's outer face lands at 919 — past the wall, in the bare
+composition shell, before anything is added.
+
+**The rule, made exact.** The panel's outer face is `run end + RUN_END_PANEL_GAP_M +
+RUN_END_PANEL_THICKNESS_M` (19 mm today). **The panel is hidden when that face would pass wall A's
+end**, and drawn when it lands on or before it — equality fits, as everywhere else
+(ADR 0083 decision 3). So a run ending more than 19 mm short of the wall keeps its panel, and a run
+ending within 19 mm of it, or at it, has none. It joins this record's existing *"if possible"* as a second
+veto beside the column one; `runEndPanelSeatM` is the one place both live, and it now needs wall A's
+length.
+
+**"Nor priced" costs nothing to implement:** the panel carries no price line today — no pricing module
+or price surface reads it (`pricing/`, `apps/web/src/price/`). The rule is recorded so that a later
+wave pricing the finished end prices it exactly when it is drawn.
+
+**What does not change.** Wall A's minimum stays the approved 900 (ADR 0108 Amendment B). Wall B still
+carries no finished end (ADR 0083 decision 5). When the panel is drawn it is still part of wall A's
+occupied width (ADR 0083 decision 5); when it is vetoed it occupies nothing. **The seeded kitchen is
+untouched:** its run ends at 3500 on a 3560 wall, a 60 mm gap, so the panel stays at 3.510 and the M1
+fidelity capture does not move.
+
+## Pointer, 2026-09-17: this amendment's stated *reason* is false; its *ruling* stands
+
+This amendment's own words above — *"a real fitter closes that gap with a filler strip"* — are the
+reason the owner was given at the time. [ADR 0120](0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md)
+Amendment D2 found that sentence **false** under the run reading D1 rules: it describes a physical
+wall the run-reading model no longer has. **The ruling in this amendment is unaffected and stands as
+written** — D2 verified the shipped veto already fires exactly where the owner's ruling wants it to.
+Only the recorded *reason* was wrong, and the correction — a comment-only edit at
+`run-end-panel.ts:94-98` — landed at M7 wave 7D8's `b83e4f2` (slice S4). This paragraph is not a
+rewrite of the ruling above; it is the pointer ADR 0120 D2 itself said was owed.

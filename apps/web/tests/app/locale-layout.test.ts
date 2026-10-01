@@ -17,17 +17,22 @@ vi.mock("next-intl/server", () => ({ getTranslations }));
 const appDirectory = new URL("../../src/app/", import.meta.url);
 
 describe("localized route tree", () => {
-  it("owns only the four customer entrypoint families beneath [locale]", () => {
+  it("owns only the five customer entrypoints beneath [locale]", () => {
+    // The first two are Route Handlers, not pages, since M7 wave 7E3a S3 (D5): resume needs to set
+    // and clear a cookie, which a Server Component cannot do (G6). Still exactly five entrypoints,
+    // still one per customer route.
     const localizedEntrypoints = [
-      "[locale]/page.tsx",
-      "[locale]/configurator/configure/page.tsx",
+      "[locale]/route.ts",
+      "[locale]/configurator/configure/route.ts",
       "[locale]/configurator/contact/page.tsx",
+      "[locale]/configurator/room/page.tsx",
       "[locale]/d/[id]/page.tsx",
     ];
     const legacyEntrypoints = [
       "page.tsx",
       "configurator/configure/page.tsx",
       "configurator/contact/page.tsx",
+      "configurator/room/page.tsx",
       "d/[id]/page.tsx",
     ];
 

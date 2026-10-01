@@ -27,6 +27,8 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  SaveOutcome,
+  MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
@@ -47,7 +49,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   >();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -58,7 +60,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
@@ -68,7 +70,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {
@@ -98,8 +100,15 @@ beforeEach(() => {
   repository.current = fakeRepository;
 });
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 async function mintDesign(): Promise<{ id: string; cookie: string }> {
-  const response = await POST();
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
   const setCookie = response.headers.get("set-cookie") ?? "";
   return { id, cookie: setCookie.split(";")[0] ?? "" };

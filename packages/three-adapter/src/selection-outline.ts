@@ -27,6 +27,7 @@ import type { SelectionKind } from "./picking.js";
 import { transformRelativeTo } from "./relative-transform.js";
 import { isMesh, toMaterials } from "./three-guards.js";
 import { NOOP_RAYCAST } from "./void-mesh.js";
+import { inheritWallTag } from "./wall-tag.js";
 
 /**
  * Signal red, chosen for contrast against the **declared** palette: the warm paper/stage background
@@ -214,6 +215,7 @@ export function buildSelectionOutline(
 
   const group = new THREE.Group();
   group.name = "selection_outline";
+  inheritWallTag(group, input.target);
   group.add(occludedLine, casingLine, visibleLine);
   group.matrixAutoUpdate = false;
   group.matrix.copy(transformRelativeTo(input.parent, input.target));
@@ -264,6 +266,16 @@ function buildOutlinePass(
     // several shades off, which is how a "contrasting" highlight ends up not contrasting — and it
     // is what keeps the two passes exactly as far apart on screen as they are declared to be.
     toneMapped: false,
+    // QA 7I-Q1. `LineSegments2`'s vertex shader builds each segment's quad in **screen space** — a
+    // winding the model matrix never touches — but three still flips `gl.frontFace` for any object
+    // whose `matrixWorld` determinant is negative (`WebGLRenderer.js:1180`), which is *right* for an
+    // ordinary mesh (D4/A8: the model's own winding is reflected with it) and *wrong* here, where
+    // there is no model winding to compensate for: under a mirrored root the flip culls every
+    // segment of this outline, invisibly, because a `FrontSide` line still renders on an unmirrored
+    // one. D5's "no `DoubleSide`" is about **body geometry**, where it would hide a genuine
+    // inside-out carcass; a screen-space line quad has no inside to hide, so double-siding it is in
+    // scope and carries none of D5's risk.
+    side: THREE.DoubleSide,
   });
 
   const line = new LineSegments2(geometry, material);

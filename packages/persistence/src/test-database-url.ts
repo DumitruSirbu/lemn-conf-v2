@@ -14,8 +14,12 @@ import { readDatabaseUrl } from "./read-database-url.js";
  * Adding a name here is a deliberate, reviewable one-line change. It is the third mechanism
  * `docs/decisions/0006-tests-never-touch-the-application-database.md` asks for, in its cheapest
  * form: positive proof that the target is a test database, required before any DELETE.
+ *
+ * Exported so `migration-target.ts` can list `test`'s names as this same array reference rather than
+ * a second copy of it — a second list of test-database names would be a second authority for one
+ * fact (ADR 0102).
  */
-const ALLOWED_TEST_DATABASE_NAMES: readonly string[] = [
+export const ALLOWED_TEST_DATABASE_NAMES: readonly string[] = [
   // ADR 0006's default: the database `resolveTestDatabaseUrl` derives when nothing overrides it.
   "lemnaria_test",
   // What `TEST_DATABASE_URL` has actually pointed at since the live suites were written, and a

@@ -17,6 +17,12 @@ import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
  * looks broken until one of them tries to save. Exporting it is safe by the same argument that
  * justifies hashing at rest: the column holds a SHA-256 digest, never a token, so a leaked backup
  * yields values that cannot be presented as credentials.
+ *
+ * It carries `visitor_hash` for the same reason, one column over: since M7 wave 7E3a that column
+ * *is* read access (ADR 0114 decision 5). A restore that drops it brings every design back
+ * unreadable to the visitor who owns it — the row exists, the id still resolves, and the "not
+ * available in this browser" page is all that loads. Safe to export by the same digest argument:
+ * it is a SHA-256 hash of the visitor cookie, never the cookie.
  */
 export interface DesignBackupRow {
   readonly id: string;
@@ -25,6 +31,7 @@ export interface DesignBackupRow {
   readonly created_at: string;
   readonly updated_at: string;
   readonly write_token_hash: string | null;
+  readonly visitor_hash: string | null;
 }
 
 /**
@@ -79,13 +86,15 @@ export function createNeonDesignRowSource(
       const rows = await retryOnComputeRestart(() =>
         afterId === undefined
           ? sql`
-              select id, schema_version, document, created_at, updated_at, write_token_hash
+              select id, schema_version, document, created_at, updated_at, write_token_hash,
+                     visitor_hash
               from designs
               order by id
               limit ${pageSize}
             `
           : sql`
-              select id, schema_version, document, created_at, updated_at, write_token_hash
+              select id, schema_version, document, created_at, updated_at, write_token_hash,
+                     visitor_hash
               from designs
               where id > ${afterId}
               order by id

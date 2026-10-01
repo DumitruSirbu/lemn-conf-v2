@@ -12,15 +12,16 @@
 // so "pressing *Aplică* without choosing anything writes nothing" is a claim about the comparison in
 // `global-settings.tsx` and about nothing else. Unguarded it is a full rebuild of every body plus a
 // whole-scene teardown (ADR 0074 decision 1), which is the most expensive no-op in the product.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+
+import { openSeededDesign, test } from "./support/seeded-design";
 
 const SCENE_SETTLE_MS = 2000;
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, seededDesign }) => {
   // Before app boot: the hook has to exist when three.js dispatches `observe` for the renderer.
   await page.addInitScript(CAMERA_SAMPLER);
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

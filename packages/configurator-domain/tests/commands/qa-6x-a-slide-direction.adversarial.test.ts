@@ -38,6 +38,7 @@ import {
   frozenExtentsSlidAlongTheWall,
   type FrozenExtentsSlideQuery,
 } from "../../src/frozen-map-at-cabinet-depth.js";
+import { toMetres } from "../../src/millimetres.js";
 import { alongWallCoordinate } from "../../src/module-grid.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
 import {
@@ -142,14 +143,19 @@ function slideOperandsOf(
     previousCatalog,
   );
   return {
-    frozen: deriveRecordedColumns(heldRecords, {
-      emptyColumns: design.emptyColumns,
-      columnExtents: design.columnExtents,
-    }),
+    frozen: deriveRecordedColumns(
+      heldRecords,
+      {
+        emptyColumns: design.emptyColumns,
+        columnExtents: design.columnExtents,
+      },
+      toMetres(design.room.widthMm),
+    ),
     catalog: buildKitchenLBodyCatalog(cabinetDepthMm),
     cabinetDepthMm,
     previousCabinetDepthMm,
     membersShiftMmByColumn: alongWallShiftByColumnMm(heldRecords, slidRecords),
+    room: design.room,
   };
 }
 

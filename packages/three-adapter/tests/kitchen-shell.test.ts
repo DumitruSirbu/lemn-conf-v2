@@ -17,7 +17,7 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { required } from "./support/required.js";
-import { describeStructure } from "./support/structure.js";
+import { describeStructure, type StructureNode } from "./support/structure.js";
 
 const SHELL_CHILD_NAMES = [
   "floor",
@@ -51,11 +51,11 @@ interface MountedScene {
 }
 
 function mountFirstScene(records: readonly PlacementRecord[]): MountedScene {
-  const shell = buildKitchenShell(kit);
+  const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
   const solidsRoot = new THREE.Group();
   solidsRoot.name = "solids";
   solidsRoot.add(shell);
-  syncSolidBodies({ kit, solidsRoot, records });
+  syncSolidBodies({ kit, solidsRoot, records, room: KITCHEN_L_DESIGN.room });
   return { shell, solidsRoot };
 }
 
@@ -88,6 +88,22 @@ function buildForbiddenRecordDerivedShell(
     }
   }
   return shell;
+}
+
+/** Everything `describeStructure` records **except** the two fields wave 7H made a function of the
+ *  entered room — a mesh's outer size and its seat. Listed rather than subtracted, so a field added
+ *  to `StructureNode` one day joins this comparison only by someone's decision. */
+function withoutRoomSizedFields(node: StructureNode): unknown {
+  return {
+    name: node.name,
+    kind: node.kind,
+    geometry: node.geometry,
+    material: node.material,
+    visible: node.visible,
+    rotation: node.rotation,
+    scale: node.scale,
+    children: node.children.map(withoutRoomSizedFields),
+  };
 }
 
 function placementIdsAbove(node: THREE.Object3D): string[] {
@@ -143,7 +159,15 @@ function expectOnlyCurrentPlacements(
 }
 
 describe("the immutable kitchen shell", () => {
-  it("contains exactly the five documented room children at their reference geometry", () => {
+  /** **What "the same as the reference builder's" means since wave 7H.** The shell's five children
+   *  are still the reference builder's own objects, with its hierarchy, its mesh types, its
+   *  materials and its visibility — but the drawn room is now the room the customer entered, so
+   *  their **size and seat** are a function of `DesignRoom` and no longer match the builder's one
+   *  L-shape. Those two fields are therefore compared by
+   *  `kitchen-shell.characterisation.test.ts`, which is the file that owns the shell's geometry;
+   *  everything else the builder decides is still compared here, so a child replaced by a different
+   *  mesh, a swapped material or an added node still turns this red. */
+  it("contains exactly the five documented room children, built from the reference room", () => {
     const expected = kit.builders["kitchen-l"]();
     for (const child of [...expected.children]) {
       if (!SHELL_CHILD_NAMES.some((name) => name === child.name)) {
@@ -151,7 +175,7 @@ describe("the immutable kitchen shell", () => {
       }
     }
 
-    const shell = buildKitchenShell(kit);
+    const shell = buildKitchenShell(kit, KITCHEN_L_DESIGN.room);
 
     expect(shell.children.map((child) => child.name)).toEqual(
       SHELL_CHILD_NAMES,
@@ -160,7 +184,9 @@ describe("the immutable kitchen shell", () => {
       shell.children.flatMap((child) => child.children),
       "an allowed shell child must not hide nested customer geometry",
     ).toEqual([]);
-    expect(describeStructure(shell)).toEqual(describeStructure(expected));
+    expect(withoutRoomSizedFields(describeStructure(shell))).toEqual(
+      withoutRoomSizedFields(describeStructure(expected)),
+    );
   });
 
   it("mounts only the shell when the persisted design has zero placements", () => {

@@ -17,6 +17,8 @@ import {
   REJECTION_CATALOGUE_MESSAGE_KEYS,
   REJECTION_CODES,
   REJECTION_FIXTURES,
+  ROOM_FIXTURES,
+  ROOM_RENDER_ARGUMENT_PATHS,
   STATIC_CONTENT_FIXTURES,
   STATIC_RENDER_ARGUMENT_PATHS,
 } from "./golden-output-fixtures";
@@ -99,6 +101,23 @@ describe("golden-output fixture coverage", () => {
     }
   });
 
+  it("covers every room leaf, with every ICU one given rendered arguments", () => {
+    // Read out of `ro.json` rather than out of the fixture list, so a leaf a later 7F slice adds
+    // without a fixture fails here instead of shipping unhashed (ADR 0113 decision 2).
+    const roomKeys = catalogueLeaves(correctedRomanian.room).map(
+      ([key]) => `room.${key}`,
+    );
+    expect(ROOM_FIXTURES.map((fixture) => fixture.sourceKey)).toEqual(roomKeys);
+    const roomIcuKeys = catalogueLeaves(correctedRomanian.room).flatMap(
+      ([key, message]) => (message.includes("{") ? [`room.${key}`] : []),
+    );
+    expect([...ROOM_RENDER_ARGUMENT_PATHS].sort()).toEqual(roomIcuKeys.sort());
+    for (const fixture of ROOM_FIXTURES) {
+      expect(fixture.renderCorrected(), fixture.id).not.toBe("");
+      expect(fixture.renderCorrected(), fixture.id).not.toContain("{");
+    }
+  });
+
   it("covers every rejection code and all 38 top-level rejection messages", () => {
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.code)),
@@ -168,12 +187,17 @@ describe("golden-output fixture coverage", () => {
   });
 
   it("has one unique stable id for every fixture", () => {
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(107);
+    // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(123);
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
+    // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
+    expect(ROOM_FIXTURES).toHaveLength(72);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
-    expect(GOLDEN_FIXTURES).toHaveLength(305);
+    // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
+    // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
+    expect(GOLDEN_FIXTURES).toHaveLength(393);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

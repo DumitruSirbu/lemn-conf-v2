@@ -181,6 +181,7 @@ function rebuildEveryBodyAt(
       cabinetDepthMm: input.cabinetDepthMm,
       previousCabinetDepthMm: held.previousCabinetDepthMm,
       membersShiftMmByColumn: held.membersShiftMmByColumn,
+      room: planning.room,
     }),
     planning.room,
   );
@@ -298,7 +299,11 @@ function heldRunAcrossTheCommand(
     previousCatalog,
   );
   return {
-    frozen: deriveRecordedColumns(heldRecords, storedFrozenMapOf(input.design)),
+    frozen: deriveRecordedColumns(
+      heldRecords,
+      storedFrozenMapOf(input.design),
+      toMetres(input.design.room.widthMm),
+    ),
     membersShiftMmByColumn: alongWallShiftByColumnMm(heldRecords, slidRecords),
     previousRecords: slidRecords,
     previousCabinetDepthMm,
@@ -475,6 +480,7 @@ function slidAlongItsWall(planning: PlannedPlacementInput): DesignPlacement {
     catalog: planning.catalog,
     fromCabinetDepthMm: cabinetDepthMmOf(planning.input.design),
     toCabinetDepthMm: planning.input.cabinetDepthMm,
+    shape: planning.input.design.room.shape,
   });
   return alongMm === placement.alongMm ? placement : { ...placement, alongMm };
 }

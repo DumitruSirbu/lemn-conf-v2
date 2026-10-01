@@ -26,6 +26,66 @@ recorded elsewhere" appendix closes the file, for items whose full record lives 
 
 ## Ruled or scheduled, awaiting a wave
 
+## 66. The catalogue has three full-height rows and no broom / utility unit — DEFERRED TO AFTER BETA, 2026-09-14
+
+> **Ruled by the owner, 2026-09-14**, while settling wave 7D3's tall-unit composition: *"add pantry and
+> other cabinets let for later, adding new cabinets will be like after having the beta testing… lets
+> focus now on building algorithm"*. Recorded at
+> [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+> Amendment E, **E12.4**. **Not part of wave 7D3, not planned, and gated on beta feedback** — it has no
+> wave and must not be given one before the owner has run the built product.
+
+**What is true in the code.** `buildInsertableBodyDefinitions` (`packages/configurator-domain/src/catalog.ts`)
+declares exactly three full-height rows: `tall-oven-tower` (fixed 600, an oven and a microwave),
+`tall-fridge-housing` (fixed 600, the niche for an integrated fridge) and `tall-pantry` (`'fit'`
+400–800, two tiers of door leaves, ADR 0048). `fridge-free` is full height in the drawn sense but is a
+free-standing appliance, priced at zero under ADR 0107, and is not a column.
+
+**The gap, against the ordinary industry taxonomy.** The notable absence is a **broom / utility
+unit** — a full-height cupboard with **one tall internal space** rather than shelves, for an ironing
+board, a vacuum cleaner or a broom. The pantry cannot stand in for it: its two door tiers imply a
+mid-height carcass division, so a customer who wants one tall void has nothing to choose. Behind that,
+in rough order of how often they are offered: a **pull-out larder** (full-height wire or solid
+pull-out), an **internal-drawer larder** (drawers behind full-height doors) and a **compact / midi
+housing** for a single built-in oven or a microwave at eye level in a shorter column.
+
+**Why it matters now.** Wave 7D3 composes a **block of up to three full-height columns** at a run's
+free end (ADR 0110 E2, E12). Its door columns are `tall-pantry` because that is the only door column
+the catalogue has — so **every generated three-column block is an oven tower plus two identical
+pantries**. A broom unit is the first body that would make a generated block look like the owner's own
+photographs rather than like a repetition, and the same argument applies to backlog entry 2's
+long-storage-run question and to wave **7D4**.
+
+**What deciding it would cost.** Each new row is a `catalog.ts` entry, a builder in
+`packages/three-adapter`, a price rule, a `kind` leaf in both message catalogues (ADR 0095), and the
+fidelity and parity coverage every body carries. The composition side is cheap by comparison: ADR 0110
+E12.1 already says *"any number of door columns"*, so a new door column enters the block as **data**
+with no rule change. **The expensive half is the body; the cheap half is using it.**
+
+## 91. There is no full-height oven column without a microwave — RECORDED 2026-09-29, NOT IN M7B
+
+> **Owner, 2026-09-29, relayed by the coordinator** while answering M7B's Q-U3 (how a U kitchen is
+> composed), verbatim with its typos: *"can be 2 ovens like 2 near full heigh cabinets with ovens (but
+> in that case no need to have 2 microwaves (we miss an oven cabinets wiithout microwave)"*. The
+> coordinator's relay adds: note it for the backlog as a catalogue gap, and **do not add it in M7B**.
+> Recorded at [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+> Amendment N, N5.
+
+**What is true in the code** (read at `dd9f63a`). `buildInsertableBodyDefinitions`
+(`packages/configurator-domain/src/catalog.ts`) declares one oven column, `tall-oven-tower`: fixed at
+600 mm, and it holds an oven and a microwave. No column holds an oven alone. This is the *"compact /
+midi housing"* gap that entry 66 lists, now named by the owner for a particular use.
+
+**Why it matters for M7B.** ~~In a large U, Amendment N lets the generator place two oven columns.~~
+**2026-09-29, RQ5:** the generator places **one** oven column. The owner's *"allow second and third"*
+leaves further ovens to the customer, and today the only column a customer can add is
+`tall-oven-tower`, so every extra oven brings a microwave the owner says is not needed.
+
+**What deciding it would cost.** Entry 66 lists the cost: a catalogue row, an adapter builder, a price
+rule, a `kind` leaf in both message catalogues and fidelity coverage. On the composition side, a U's
+second oven column then changes build id, which is data only. Entry 66's gate, beta feedback before
+new cabinets, applies unless the owner rules otherwise. No owner, no phase.
+
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
 > **STILL OPEN, and now half planned.** ~~The re-split half now has its mechanism: [ADR 0037](../decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
@@ -1330,6 +1390,39 @@ exactly those three meshes and renders identically with and without a kitchen co
 edited by either wave.
 
 
+## 63. A hood is offered over wall A's corner, accepted, and then marked — RECORDED 2026-09-11, PRE-EXISTING, NO OWNER
+
+Found by M7 wave 7D1's QA (finding Q1.3) and reproduced on the seeded kitchen: clear `p8` and `p15`
+(the wall and top cabinets over the corner base), and the wall-band opening over wall A's corner offers
+`hood`. The insert is accepted, and the design then carries `RECORDED_SPAN_OVERLAPS_CORNER_BODY`,
+because the hood's depth reaches past wall B's corner return (which starts at 330 mm along wall B).
+That code is a **mark** by the owner's ruling of 2026-09-09 (`validate-design.ts`, severity table), so
+the design saves and loads.
+
+**What deciding it would cost.** [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+decision 3 removes from the offer list only an entry the engine *refuses*; this one it accepts and
+then marks. Dropping it from the offer would be a new rule — "an entry that would be marked is not
+offered" — for the owner. **Composition never produces it**: M7 wave 7D2 places nothing over wall A's
+corner zone (milestone, *Adjudication 7D1-Q1*).
+
+## 65. An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm — RECORDED 2026-09-11, PRE-EXISTING, NOT REACHABLE, NO OWNER
+
+Found by M7 wave 7D1's QA, round 3 (finding Q3.1, Low), and pre-existing rather than introduced by the
+wave. `insert-fit.ts:636/675` lets a body stand up to `FIT_TOLERANCE_M` (12 mm) above the room while
+`validate-design.ts`'s check is strict, with no matching tolerance. In an **engine-limit** shell — one
+built at the engine's own bounds rather than the owner-approved ones — at a room height in
+**2188–2199 mm**, a 2200 mm column body fits by the insert's tolerance and then reads
+`PLACEMENT_ABOVE_ROOM` from the validator.
+
+**Not reachable by a customer today.** `APPROVED_ROOM_POLICY`'s ceiling starts at **2200 mm** (ADR
+0108 Amendment B), so no approved room falls in the 2188–2199 band; only a shell built directly against
+`ENGINE_ROOM_LIMITS` (860 mm floor) can reach it, and nothing in M7 does that yet.
+
+**What deciding it would cost.** Either the insert's `FIT_TOLERANCE_M` and the validator's strict check
+converge on one tolerance, or the gap is left as a known asymmetry documented at both sites. Worth
+revisiting if a later wave (linear kitchens, M7B) ever builds a shell at the engine's own limits rather
+than the approved ones.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command
@@ -1522,3 +1615,406 @@ per-shell fork and its comment, and re-point
 `qa-0104-the-stacking-table.adversarial.test.ts`'s desktop cases — the mobile ones already assert the
 `3` this would restore. If it meets something, record what and close this entry: the fork is then the
 right answer and the table should say so.
+
+## 67. Tapping the overflow warning should move the camera to the marked body — WANTED BY THE OWNER 2026-09-16, NOT BUILT, NOT SCHEDULED
+
+> **Numbered 66 when first written, on 2026-09-16, and corrected to 67 the same day at wave 7H's
+> close-out.** **66 was already taken** — by *The catalogue has three full-height rows and no broom /
+> utility unit* at the top of this file, ruled 2026-09-14 — and that number is cited as *"backlog 66"*
+> in [ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md),
+> [ADR 0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md)
+> and roughly ten places in `../milestones/M7-room-and-presets.md`, so **the newer item is the one
+> that moves.** The collision is recorded rather than silently fixed because 7H's own close-out and
+> `../STATUS.md` were written against the wrong number first.
+
+**Wanted, unscheduled, and deliberately unbuilt** — recorded in
+[ADR 0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md)'s
+shape, with a trigger a later reader can check.
+
+**Where it came from.** M7 wave 7H made the camera presets a function of the customer's room. The
+bodies [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) **marks**
+are the ones past the end of a wall, and a preset that frames the middle of the room does not frame
+them — measured on the narrowed-room document, **not one of the six marked bodies is on the canvas at
+any pixel**, and the mark's wash reaches 333 px against the 7 875 it measured before the wave.
+
+**The owner ruled that state accepted on 2026-09-16** (wave 7H's Q7H-8): the warning band tells the
+customer their kitchen overflows, the body stays editable through the rail, and nothing is built. On
+being shown the alternative they added: *"you can somewhere mark that it's great to have what you
+propose on the second option."*
+
+**The improvement.** The overflow warning band becomes a control: tapping it moves the camera to the
+marked body, so a customer who is told their cabinets do not fit can see which ones without orbiting
+for them.
+
+## 69. Two gate runs against one test database corrupt its migration ledger — OBSERVED 2026-09-18, ENVIRONMENTAL, NOT SCHEDULED
+
+**What happened, and it is recorded because a retry made it disappear.** On 2026-09-18 `pnpm ci:local`
+passed in full on `0d79ce9` (wave 7D6). The push started minutes later, and its pre-push gate —
+the same script, the same commit — **failed**: `LOCAL CI FAILED: test e2e`.
+
+- **`test`:** 3 failed / 216 passed / **63 skipped** in `@lemnaria/persistence`, against 20 files /
+  282 passed with no skips in the run ten minutes earlier. Every failure was one error:
+  `MigrationSequenceError: Migration 4 ("0004_add_design_revision.sql") is recorded as applied, but 2
+  ("0002_add_write_token_hash.sql") is not`, plus `NeonDbError: column "write_token_hash" does not
+  exist`.
+- **`e2e`:** `http://localhost:4320/configurator/configure is already used` — the previous run's
+  server had not released the port.
+
+**The database was healthy again when inspected**, read-only, straight afterwards: all four
+migrations present with their checksums (applied_at 22:29 and 22:31) and `designs` carrying
+`write_token_hash`. So the ledger was observed **mid-reset**: the live suites migrate and reset the
+shared test database as part of running, and a second runner entering while the first is still
+finishing sees a schema that is neither the old one nor the new one.
+
+**Read as a defect in the arrangement, not in the wave.** Nothing in 7D6 touches persistence, and the
+retry — with port 4320 free and no vitest or next process alive — passed every gate and pushed.
+**The retry is not offered as evidence that the first run was wrong**: what the first run showed was
+real, and it will recur for anyone who starts a second gate run before the first has fully released
+its port and its database.
+
+**Whose it is: wave 7T** owns the live persistence suites (*"the live persistence suite actually
+runs"*), and this is exactly its subject — a live suite whose isolation is the runner's good manners
+rather than a mechanism. **Not scheduled here, and no fix attempted.** Two things a fix would have to
+decide: whether each runner gets its own database or branch, and whether the pre-push hook should
+refuse to start while a port it needs is held rather than failing eight minutes later.
+
+**Not done, deliberately:** nothing was repaired by hand. The error's own text says to resolve the gap
+by hand before migrating again, and the gap had already resolved itself.
+
+## 68. A large wood-decor run-end panel shows a visible grain tiling seam — OBSERVED 2026-09-17, OWNER QUESTION, NOT BUILT, NOT SCHEDULED
+
+**Where it came from.** M7 wave 7D8's visual check of the panel-colour fix (`dcec03f`), a production
+build at 390 × 844 and 1440 × 900, on the desktop crop for **Stejar Halifax**: on a large wood-decor
+panel the grain texture shows a visible tiling seam — **horizontal at half height, vertical down the
+middle**.
+
+**Suspected mechanism, marked as an inference and not measured.** Likely the texture's repeat set to
+`1, 1` on a panel-sized mesh, so one texture tile is stretched across the whole panel rather than
+repeating at the plank/board scale; **not verified against the material or geometry source**.
+
+**What is not known.** The check that found it was **not compared against a pre-`dcec03f` build**, so
+whether the seam pre-dates this wave — and would therefore show on M.oak too — is unmeasured. Only
+Stejar Halifax was observed; the other wood decors (Nuc Warmia, Stejar Bardolino) were checked for
+colour-following in the same pass but not inspected for this seam specifically.
+
+**Owner question, not yet asked: does it matter?** No wave is assigned and none is proposed here.
+
+**The trigger.** The owner asks for it, **or** usage shows customers reaching the overflow state and
+not resolving it. Until one of those, the band alone is the report and Q7H-8's ruling stands — a
+marked body framed off screen is **not** a defect and must not be filed as one.
+
+**What it would restore if built.** `apps/web/tests/e2e/overflow-mark.e2e.spec.ts` lost its
+browser-level witness that the mark's wash is not a raycast target, because there is no marked body
+on screen to tap through. The adapter's suite still holds that claim at unit level. Building this
+makes the running-scene half assertable again, and the spec carries a tripwire — `MIN_MARK_PIXELS`,
+kept at its measured 2 000 — that turns red the day a marked body is framed again.
+
+## 70. The editor allows a kitchen with no oven — RECORDED 2026-09-21, NO OWNER, NO PHASE
+
+**Owner principle** ([ADR 0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+Amendment M, M12, 2026-09-21): *"only one oven is not correct, at least one oven is correct, a
+kitchen can have multiple ovens, but at least one is a must."*
+
+**What is true in the code, source-verified at M7 wave 7D5b's planning HEAD.** Generation enforces
+this through `assertExactlyOneOven` (`packages/configurator-domain/src/generation/generate-kitchen.ts:646-658`),
+which is stricter than the principle — it throws unless a generated kitchen carries **exactly one**
+oven, never zero and never two — and is kept deliberately, because generation always composes
+exactly one oven by construction. The **editor** — `validate-design.ts`, `src/commands/` and
+`src/queries/` — has **no oven-count rule of any kind**, so a customer's own edits (removing the
+hob's oven and never adding a tall oven tower, for instance) can reach a kitchen with zero ovens,
+which the owner's principle forbids.
+
+**No owner, no phase yet.** Whether the editor should refuse the edit, warn, or do nothing is an
+open product question for a later wave; M7 wave 7D5b records the gap and does not close it.
+
+## 71. Re-tapping the selected *Vedere generală* chip does not reset the camera — RECORDED 2026-09-21, NO OWNER, NO PHASE
+
+**Observed by the M7 wave 7D5b visual gate** (production build, 390 × 844, touch, 2026-09-21): after
+orbiting the editor's camera, tapping the *Vedere generală* chip that is already selected leaves the
+view where it was instead of returning to the overview. The gate's `*-700-overview.png` captures
+stayed top-down because of it (`testing-reports/7d5b/`, gitignored). Outside wave 7D5b's scope — no
+camera or chip code changed in it. Whether re-selecting the current view should reset the camera is
+an open product question; nothing asserts either behaviour today.
+
+## 72. Wide-U facing labels overlap — PRE-EXISTING, CONFIRMED 2026-09-22, NO OWNER, NO PHASE
+
+**Confirmed on screen by M7 wave 7F2's closing visual gate** (production build, 390 × 844, touch,
+2026-09-22): a wide U room (e.g. 4000 × 2400 × 2400) draws two facing wall labels that overlap and
+read as one run-together string, *"B · 24002400 mm"*. Pre-existing per wave 7F2's S2 close-out note
+(S2 only changed a label's side or its `topPx`, never its overlap behaviour); needs a new placement
+rule for the facing-label case, not a fix inside S2's own change. Severity: medium — cosmetic on a
+plan the customer reads to confirm their room, not a validation defect. No owner, no phase yet.
+
+## 73. Language switch at Step 1B drops the room — CONFIRMED 2026-09-22, NO OWNER, NO PHASE
+
+**Confirmed on screen during M7 wave 7F2's closing visual gate**, 2026-09-22: `locale-menu.tsx`
+links to `menu.pathname` without the room's query string, so switching ro/ru at frame 1B loses the
+typed room instead of carrying it to the new locale. This contradicts `use-locale-menu.ts`'s own
+documented contract, which describes the query as preserved. Severity: medium — a customer who
+switches language mid-entry loses typed work, silently. No owner, no phase yet.
+
+## 74. An open help popover covers the field above it — FOUND 2026-09-22, LOW, NO OWNER, NO PHASE
+
+**Found during M7 wave 7F2's S5b × 7A3 interaction**, 2026-09-22, visual gate: `.lengthHelpText`
+opens upward and covers wall A's new unreadable-input sentence (ADR 0126) while both are on screen;
+the sentence becomes visible again once the popover is dismissed. New in this wave's combination of
+S5b's field reason and 7A3's per-wall help button — neither alone reaches the case. Severity: low.
+No owner, no phase yet.
+
+## 75. A second field problem is not re-announced while the note already shows — NEEDS COPY, RECORDED 2026-09-22
+
+**Raised by M7 wave 7F2's S3 logic review, R1.6**, and routed here per the wave's close-out
+(2026-09-22): if a second field becomes invalid while 1C's room-level note is already showing for a
+first, the note does not re-announce — a screen-reader customer is not told a second thing is now
+wrong. Needs new copy (a plural or "also" form) before it can be built; not scheduled. No owner, no
+phase yet.
+
+## 76. `DRAWABLE_WALLS` has no exhaustiveness tie to `requiredFieldsFor` — RECORDED 2026-09-22
+
+**Raised by M7 wave 7F2's S5 logic review, R1.4**, 2026-09-22: `DRAWABLE_WALLS` (which walls a
+shape draws) and `requiredFieldsFor` (which fields a shape requires) are two independent
+enumerations over the same underlying fact — which walls a room shape has — with nothing that fails
+to compile if a new shape is added to one and not the other. The domain is the natural owner of
+"which walls a shape has"; today it is duplicated in `apps/web/src/room`. No owner, no phase yet.
+
+## 77. Press completion assumes `click` fires in the same task as `mouseup` — RECORDED 2026-09-22
+
+**Recorded in `src/lib/use-after-press.ts`'s own header comment**, surfaced by M7 wave 7F2's S5b
+close-out, 2026-09-22: the press-completion logic assumes a synthesised `click` event fires in the
+same task as the `mouseup` that produced it. Verified true in Chromium (the visual gate's engine);
+**not verified in WebKit**, which this project's visual gates do not currently cover. No owner, no
+phase yet — a WebKit-specific check is owed before this can be closed either way.
+
+## 78. Mid-typing slivers under mm entry — CAPTURED, NOT JUDGED, OWNER QUESTION, 2026-09-22
+
+**Captured by M7 wave 7F2's closing visual gate** (production build, 390 × 844, touch, 2026-09-22),
+under ADR 0126's millimetre entry: a wall mid-typing (e.g. `3`, `36` on the way to `3600`) draws as
+a red sliver on the plan, labelled *"A prea scurt"*, for the length of the 400 ms typing pause. This
+is the S5 slice's own recorded note (*"36 mm beside 2400"*) now visible in a production build, not a
+new defect — it is deliberate under C-7F2-1's single-clock ruling. Recorded as an owner question:
+whether this reads acceptably to a first-time customer has not been asked. No owner, no phase yet.
+
+## 79. 16 rows leaked in the test database, pre-S1 configure-route specs — FOUND 2026-09-23, LEAK CLOSED, ROWS NOT DELETED
+
+**Found by M7 wave 7E4's adversarial QA, 2026-09-23.** 16 design rows in the test database were
+minted and never deleted, created 2026-09-22 in four batches of four, at roughly 09:33Z, 11:07Z,
+19:48Z and 20:32Z. The cause: configure-route e2e specs that predate wave 7E4's S1 minted a design
+through the store's own client but never registered it for teardown deletion — the pattern S1
+replaced with `mintSeededDesign`'s guaranteed cleanup.
+
+**The leak is closed going forward, not retroactively.** A full e2e run after wave 7E4's S3
+(`d00212a`) left 0 leaked rows; every remaining spec that mints now deletes what it minted, including
+on a failing test (criterion 4's teardown proof). **The 16 existing rows are untouched** — under
+ADR 0006 (environments and provisioned resources are add-only), no agent deletes a database row on
+its own judgment; that is the owner's call. No owner, no phase yet.
+
+## 80. The store's mint-on-first-command branch has no reaching route since 7E3a — FOUND 2026-09-23, NOT RETIRED
+
+**Found by M7 wave 7E3a's review, 2026-09-23** (finding L1.3). Since 7E3a moved Step 1's
+`/[locale]/configurator/configure` and `/[locale]` to route handlers and every remaining editor entry
+opens `/{locale}/d/{id}`, the store's `designId: null` / `canWrite: true` mint-on-first-command
+branch — ADR 0010's path, still witnessed by `client-write-path.test.ts` — is no longer reachable
+from any production route. The mechanism stays in code; the plan's own ground truth (G5) already
+observed this route was the *only* one that could reach it. **Not retired in 7E3a**, because
+retiring ADR 0010's write path is its own dated decision, not a residue of the wave that removed the
+last caller. Trigger: whenever ADR 0010's write path is next revisited, or before M8 closes. No
+owner, no phase yet.
+
+## 82. `/{l}/s/{t}/` (a share link with a trailing slash) gets Next's own headerless 308 before the proxy runs — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's close-out, coordinator ruling (b).** Criterion 8 expects every malformed or
+mis-shaped share path to carry criterion 7's headers (`no-referrer`, `noindex, nofollow`, `private,
+no-store`). A trailing-slash variant of a share link is instead answered by Next's own built-in
+redirect, which runs **before** the proxy and therefore carries none of them. Accepted by the
+coordinator and upheld by the security reviewer as out of this wave's scope — it is a general Next.js
+routing behaviour, not specific to the share surface. No owner, no phase yet.
+
+## 83. A client-side transition between two hydrated designs logs a dev-only React warning — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's close-out, coordinator ruling (c).** *"Cannot update a component while
+rendering a different component"* fires in `next dev` on a client-side transition between two
+hydrated designs (e.g. share view to share view, or share view to the owner's `/d/{id}`). Reproduced
+as pre-existing in `HydrateAndConfigure`'s render-time hydrate pattern, which 7E3c's
+`SharedDesignView` reuses rather than introduces. Not observed on `next start` (visual pass). No
+owner, no phase yet.
+
+## 84. SEC-7E3c.5 — the platform's own error logger may print a Postgres `detail` carrying a token hash on a share-token primary-key collision — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's security review, 2026-09-23.** A primary-key collision on
+`design_share_links.token_hash` (astronomically unlikely, given rejection-sampled 12-character base62
+tokens) would surface a Postgres constraint-violation error whose `detail` field can include the
+colliding key value. This project's own log lines are clean — `reportDesignFailure("share-issue", …)`
+logs no token or hash — but the platform's own unhandled-error logger sits outside this project's
+control and may print the raw driver error, including that `detail`, if the error is ever rethrown
+uncaught. Not fixed here: no code path in this wave rethrows uncaught to that logger. No owner, no
+phase yet.
+
+## 85. Criterion 9's share-view leak scan did not exercise a camera preset — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's review, finding L1.5.** Criterion 9 requires zero `/api/` requests from the
+share view "during load and after every enabled control (camera presets, a selection tap, a locale
+switch)". QA's scan covered a selection tap and a locale switch but not a camera-preset tap. No
+production defect is suspected — camera presets are a client-only 3D-adapter concern with no
+persistence call in their path — but the criterion as written is not fully discharged. No owner, no
+phase yet.
+
+## 86. Optional hardening: grant `UPDATE (revoked_at)` on `design_share_links` instead of table-wide `UPDATE` — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's security review, SEC-7E3c.3.** D9 grants `app_designs` `SELECT, INSERT,
+UPDATE` on `design_share_links`, table-wide. Revocation only ever needs to write `revoked_at`; a
+column-scoped `GRANT UPDATE (revoked_at) ON design_share_links TO app_designs` would narrow the blast
+radius of an application-layer bug or injection to that one column, at the cost of a second grant
+statement to maintain. Reported to security and recorded as optional hardening, not required for this
+wave's threat model. No owner, no phase yet.
+
+## 87. Visual J6 — a share section on a never-saved design is unreachable via the UI and is covered only by a DOM test — FOUND 2026-09-23
+
+**Found by M7 wave 7E3c's visual pass, journey J6 (PARTIAL).** ADR 0002 decision 17 gates the share
+control on `hasPersistedSuccessfully`, so a never-saved design should show no share section. The
+non-owner `/d/{id}` half of J6 was verified visually; the never-saved-design half could not be reached
+through the UI in the visual pass's session (every reachable design had already persisted) and is
+covered only by the component-level DOM test that asserts the gate directly. No owner, no phase yet.
+
+## 88. SEC-7E3b.1 — an attacker's rows planted under a fixated value move into the victim's identity on rotation, and can surface as the victim's newest design — FOUND 2026-09-23, OWNER TO DECIDE
+
+**Found by M7 wave 7E3b's security review** (R4 in the plan; SEC-7E3b.1 at the
+[7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23)). Rotation (ADR 0114
+H1/H6) moves **every** row under a carried value `P` into the mint's new identity, including rows an
+attacker created while `P` was planted in the victim's browser. Resume lands on the most recently
+updated design, so the attacker's planted design can surface ahead of the victim's own on the next
+resume. Same precondition as backlog 81's, now closed (a same-host script, or physical access to the
+browser). **Owner to decide:** record acceptance, or have resume prefer rows the browser itself
+minted over rows moved in by a rotation. No owner yet; no phase.
+
+## 89. R2.2 / SEC-7E3b.2 — the create-design lock covers only the mint `POST`; a save that commits before a rotation, answered after it, reverts the jar to a value owning nothing — FOUND 2026-09-23, TELL THE OWNER
+
+**Found independently by two reviewers of M7 wave 7E3b**, converging on the same race: the logic
+reviewer's R2.2 (inference) and security's SEC-7E3b.2. ADR 0114 Amendment H6's Web Lock
+(`lemnaria:create-design`) serialises only the mint request, so tab A's first save can run
+concurrently with tab B's rotating mint. If A's save's `UPDATE` commits before B's rotation, but A's
+response reaches the browser after B's `Set-Cookie`, the jar ends holding B's new value — which owns
+none of A's rows. Plausibly rare (the shipped e2e criterion S6-1 is green regardless); widening the
+lock to cover saves would contradict the plan's decision D2 (nothing but the mint rotates).
+**Recorded to tell the owner**, per the close-out; not fixed here. No owner yet; no phase.
+
+## 90. SEC-7E3b.3 — the rotation `UPDATE` has no rate limit — FOUND 2026-09-23, DEFERRED TO M8
+
+**Found by M7 wave 7E3b's security review** (SEC-7E3b.3 at the
+[7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23)). Every mint issues
+one `UPDATE designs SET visitor_hash = …` unconditionally; nothing bounds how often one caller can
+trigger it. ADR 0114 decision 7 already names M8's limiter and WAF scope as the control for mint
+abuse generally; this is that same gap, named for the rotation write specifically rather than built
+here. No owner yet; phase is M8.
+
+## 92. SEC-U1.1 — the largest storable design row grows to 523,972 bytes — FOUND 2026-09-29, DEFERRED TO M8's LAUNCH GATE
+
+**Found by M7B wave U1's security review** (S1.1, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+close-out*). Wave U1's storage-bounds slice (S2, `7e3b99d`) re-derives `MAX_DESIGN_BYTES` from
+186→279 placements and 1262→1893 empty columns for the third wall run: 349,656 → 523,972 bytes, a
+1.5× growth over the two-wall figure. This grows the accepted risk
+[ADR 0019](../decisions/0019-security-baseline-writes-throttling-retention.md)'s SEC-001/DB-002
+section already carries for the write route's per-row body cap. **M8's launch gate should re-measure
+the backup's per-row budget at 523,972 bytes** before it is treated as settled. No owner yet; phase
+is M8.
+
+## 93. SEC-U1.2 — no per-shape empty-column count check bounds an L/straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
+
+**Found by M7B wave U1's security review** (S1.2, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+close-out*). After U1, an L or straight document may carry up to 1893 empty columns and marked
+wall-C entries even though it has no wall C — `MAX_EMPTY_COLUMNS` is a global cap, not a per-shape
+one. An optional per-shape count check (walls × 631) would tighten this; it is recorded, not built.
+No owner, no phase.
+
+## 94. AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens — FOUND 2026-09-29, CLOSED 2026-09-29 (M7B wave U2)
+
+**Found by M7B wave U1's logic review** (R1.3; `docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance
+criterion 6 and *U1 close-out*). The property (1000 runs, `mirrorUDesign` reviewed, sabotage both ways
+confirmed) exercised arbitrary U documents and a restated fixture rather than designs
+`generateKitchen` actually produces for a U shell. This is not a defect in what shipped — U1 has no
+generator arm for a U yet — but the property should be re-run against real generated U shells once
+one exists. **Owed to wave U2's acceptance criterion A2**, not open-ended.
+
+**CLOSED 2026-09-29 — discharged by M7B wave U2.** AC6's mirror property now runs on real
+`buildUShellDesign` outputs through `mirrorUDesign`, 200 samples plus about 80 boundary rooms, zero
+findings, voids mirroring as predicted (`docs/milestones/M7B-u-shaped-rooms.md`, *U2 close-out*). No
+further action owed.
+
+## 95. The A∩C corner sweep also marks a stray wall-C span on an L or straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
+
+**Found by M7B wave U1's logic review** (R1.4, a disagreement rather than a bug;
+`docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance criterion 7 and *U1 close-out*). The A∩C
+corner-overlap sweep (`findCornerOverlaps`) runs unconditionally, so it also fires on an L or straight
+document that happens to carry a stray wall-C span, producing an extra mark-severity finding there.
+Acceptance criterion 2 (old documents load with identical findings) is not at risk, because no
+generated L or straight document carries a wall-C span. Gating the sweep on `wallsOf(shape)` so it
+skips wall C entirely for a shape that lacks it is optional and was left undone. No owner, no phase.
+
+## 96. The engine's minimum-kitchen figures omit the 100 mm reserve, so they cannot be switched on as a gate — FOUND 2026-09-30, LATENT, U6 BRINGS THE APPROVED FIGURE
+
+**Found by M7B wave U3b's close-out** (`docs/milestones/M7B-u-shaped-rooms.md`, *U3b close-out*). The
+engine's minimum-kitchen figures, L and U alike (`wallMinimumMm` 880), exclude the 100 mm reserve, so
+they cannot be turned on as a gate without adding it. With the gate forced on, 2,160 of 36,506 sampled U
+rooms (sides 1480–1599, for example 2400/6000/1599) pass the gate while the generator refuses them.
+**Latent:** the engine gate is `isRequired: false`, and U6 brings the approved 1000. No owner until U6.
+
+## 97. Generation below the approved ceiling floor (2200) throws for every shape — FOUND 2026-09-30, UNREACHABLE UNDER APPROVED HEIGHTS
+
+**Found by M7B wave U3b's close-out** (same source). `generateKitchen` throws below the approved
+ceiling floor of 2200 for every shape. A U throws already at 1900–2199 because of RQ7's mandatory hood
+("a U's hob has no hood over it"), where the L succeeds at 2000. Not reachable under approved heights.
+No owner, no phase.
+
+## 98. A reload shows the seeded L (3 chips) before the loaded design — FOUND 2026-09-30, PRE-EXISTING, NOT A U6 BLOCKER
+
+**Found by M7B wave U5's QA and review** (`docs/milestones/M7B-u-shaped-rooms.md`, *U5 close-out*).
+Zustand 5.0.15's `useStore` server snapshot is `getInitialState()`, so server rendering and the
+hydration render show the seeded L (3 chips) before the loaded design. It affects every `/d/{id}` and
+`/s/{token}` load for every non-L design, and lasted about 130 ms in dev. Pre-existing since zustand 5,
+not a U6 blocker. It sits beside backlog 83, in the same component (`HydrateAndConfigure`); the code
+comment in `hydrate-and-configure.tsx` points here.
+
+**Side risk, for a security reviewer.** On the server, `hydrate` writes each request's design into the
+process-wide singleton store. Nothing server-rendered reads `getState()` today, so it is a latent
+cross-request leak: it becomes a real one the day something server-rendered does. No owner, no phase.
+
+## 99. Plan-preview label fit has known limits — FOUND 2026-09-30, RECORDED IN TEST COMMENTS, NOT FIXED
+
+**Found by M7B wave U5's review** (`212b49a` guarded label width with a glyph-advance table,
+`PLAN_LABEL_REASON_MAX_EM = 11.7`, and added a "beneath" arrangement; these cases remain):
+- two walls both over 6000 draw a sliver with no room beneath, so a 148 px ru reason cannot fit a 190 px
+  box;
+- an unmarked pair at a 283 px box with one deep wall is cramped;
+- mixed marked and unmarked pairs at mid lengths can overflow at the phone.
+
+All of these need a copy or layout decision (a wrapped or shorter reason), not a code fix. No owner, no
+phase.
+
+## 100. Six orphan design rows in the test database — FOUND 2026-09-30, OWNER DECIDES
+
+**Found by M7B wave U5's visual review.** It left 6 orphan design rows in the test database,
+`TEST_DATABASE_URL` (`lemn-conf-v2-staging`). Their ids were lost because run cleanup had no
+`DATABASE_URL` in the worker environment. **They were not deleted**, per the add-only rule
+(`docs/best-practices/environments-and-resources.md`); the owner decides whether to remove them.
+
+**Answered 2026-09-30 (Q-U7-2, relayed selection, not verbatim): "Leave them (Recommended)."** The six
+rows stay; nothing removes them. The architect recorded the answer in the milestone
+(`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
+
+## 101. The shape-refusal region is kept on purpose, though no shipped path draws it — RECORDED 2026-09-30, NO OWNER
+
+**Recorded at M7B wave U6's close-out.** `room-shape-refusal` and `room.issue.shapeNotBuildable` stay:
+ADR 0116 reads buildability from policy data, so a policy that stops stating a shape refuses it again.
+**If any future policy stops stating a shape, the e2e tests removed in U6 must come back:** census E3, E4's
+U half, E5 and E9 (the region's colours, its gap, and its clipping;
+`docs/milestones/M7B-u-shaped-rooms.md`, *U6 S0 census*). No owner, no phase.
+
+## 102. Dev-only security candidates from the undici review — FOUND 2026-09-30, NOT SCHEDULED
+
+**Found by the review that produced the `undici` override** (commits `565dd54` / `52c0a94`). All three are
+development tooling; none is in the shipped runtime.
+- **js-yaml 4.3.1** (high, via eslint → @eslint/eslintrc): a lockfile refresh fixes it.
+- **vitest / @vitest/mocker 3.2.6** (moderate): needs a major upgrade to ≥ 4.1.11, its own wave.
+- **Node's bundled undici:** local Node 24.19.0 has 7.29.0, inside the advisories' 7.x range. It needs a
+  Node patch release, not the lockfile.
+
+No owner, no phase.

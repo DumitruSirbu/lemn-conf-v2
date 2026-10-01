@@ -83,14 +83,15 @@ export default defineConfig({
     command: isContinuousIntegration
       ? `pnpm run build && pnpm exec next start --port ${String(PORT)}`
       : `pnpm exec next dev --port ${String(PORT)}`,
-    // The configurator page, not `/`. Turbopack compiles a route on first
-    // request, and `/` is a bare `redirect()` that compiles in milliseconds —
-    // so waiting on it declares the server ready while the three.js configurator
-    // has not been built yet, and the compile lands inside a 30 s test instead
-    // of this 60 s window. Locally that is invisible on a warm cache; on a cold
-    // CI runner it is the difference between a green suite and an intermittent
-    // timeout nobody can reproduce. Wait on the page the specs actually open.
-    url: `${BASE_URL}/configurator/configure`,
+    // `/ro/d/{id}` — a synthetic id that will not resolve — not `/`. Turbopack compiles a route on
+    // first request, and `/` is a bare `redirect()` that compiles in milliseconds — so waiting on it
+    // declares the server ready while the three.js editor has not been built yet, and the compile
+    // lands inside a 30 s test instead of this 60 s window. Locally that is invisible on a warm
+    // cache; on a cold CI runner it is the difference between a green suite and an intermittent
+    // timeout nobody can reproduce. This is the route the specs now open (wave 7E4 D4): the id
+    // resolves to nothing, so the request answers 200 through `DesignLoadError` rather than the
+    // editor itself, which still compiles the same client graph on the way there.
+    url: `${BASE_URL}/ro/d/e2e-readiness-probe`,
     // Never reused, even locally. The suite now *writes* — `design-write-path.e2e.spec.ts` mints a
     // design — and a server already listening on this port would be one started against
     // `.env.local`, i.e. the application's own database. ADR 0006 exists because a suite pointed

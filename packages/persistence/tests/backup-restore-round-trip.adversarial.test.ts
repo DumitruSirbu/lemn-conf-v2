@@ -27,15 +27,32 @@ import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { readAllDesignRows } from "./support/read-all-design-rows.js";
+import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
+
+// Shared: this file mints rows and needs the schema intact, but tolerates other shared runs
+// (M7 wave 7T, T-J5).
+holdSharedTestSchemaLock();
 
 /** A restored row carries the revision its dump held, and every dump in this suite predates the
  *  revision column — so what comes back is the migration's backfill. */
 const RESTORED_REVISION = "1";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
+/** This file is about write-token edit access, not visitor identity, so every mint that is not
+ *  itself the visitor_hash round-trip below needs one well-formed visitor hash and nothing more. */
+const VISITOR_HASH = "c".repeat(64);
+
+const SUITE_NAME =
+  "a backup round trip preserves edit access (live test database)";
+
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 /** Exactly what `apps/web/src/lib/server/write-token.ts` does, reproduced so the test holds a real
  *  token and can present it after the restore. */
@@ -48,7 +65,7 @@ function toNdjsonLine(row: DesignBackupRow): string {
   return `${JSON.stringify(row)}\n`;
 }
 
-describe("a backup round trip preserves edit access (live test database)", () => {
+describe(SUITE_NAME, () => {
   const mintedIds: DesignId[] = [];
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -66,16 +83,19 @@ describe("a backup round trip preserves edit access (live test database)", () =>
       created_at: string;
       updated_at: string;
       write_token_hash?: string | null;
+      visitor_hash?: string | null;
     };
     await sql`
-      insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash)
+      insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
+                            visitor_hash)
       values (${row.id}, 1, ${row.document as Design}, ${row.created_at}, ${row.updated_at},
-              ${row.write_token_hash ?? null})
+              ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
       on conflict (id) do update
         set schema_version = excluded.schema_version,
             document = excluded.document,
             updated_at = excluded.updated_at,
-            write_token_hash = excluded.write_token_hash
+            write_token_hash = excluded.write_token_hash,
+            visitor_hash = excluded.visitor_hash
     `;
   }
 
@@ -102,10 +122,11 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "lets the original token still write after export, loss and restore",
     async () => {
       const token = "qa-round-trip-token-not-a-real-credential";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
       mintedIds.push(id);
 
       const line = await exportedLineFor(id);
@@ -126,8 +147,9 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           design: edited,
           writeTokenHash: hashWriteToken(token),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
-      ).resolves.toEqual({ id, revision: "2" });
+      ).resolves.toEqual({ id, revision: "2", ownsVisitor: false });
       expect(
         canonicalSerializeDesign((await repository().load(id)).design),
       ).toBe(canonicalSerializeDesign(edited));
@@ -139,10 +161,11 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "does not hand write access to anyone else after the restore",
     async () => {
       const token = "qa-round-trip-token-two";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
       mintedIds.push(id);
       const line = await exportedLineFor(id);
       if (!sql) return;
@@ -157,6 +180,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken("a-different-token"),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -167,10 +191,11 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "carries the hash and never a token, so a leaked backup confers no write access",
     async () => {
       const token = "qa-round-trip-token-three";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
       mintedIds.push(id);
 
       const line = await exportedLineFor(id);
@@ -181,6 +206,35 @@ describe("a backup round trip preserves edit access (live test database)", () =>
       // ndjson and a zero-row one is still a non-empty body.
       expect(line.endsWith("\n")).toBe(true);
     },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "carries visitor_hash through export, loss and restore untouched",
+    async () => {
+      // Since M7 wave 7E3a S2, `mint` writes `visitor_hash` directly — a 64-character lowercase
+      // hex digest, exactly like the write-token hash beside it.
+      const visitorHash = "b".repeat(64);
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken("qa-round-trip-token-visitor"),
+        visitor: { kind: "fresh", visitorHash },
+      });
+      mintedIds.push(id);
+      if (!sql) return;
+
+      const line = await exportedLineFor(id);
+      expect(line).toContain(visitorHash);
+
+      await sql`delete from designs where id = ${id}`;
+      await restoreRow(line);
+
+      const rows = (await sql`
+        select visitor_hash from designs where id = ${id}
+      `) as { visitor_hash: string | null }[];
+      expect(rows[0]?.visitor_hash).toBe(visitorHash);
+      expect(rows[0]?.visitor_hash).toMatch(/^[0-9a-f]{64}$/);
+    },
+    30_000,
   );
 
   it.skipIf(!hasLiveDatabase)(
@@ -210,6 +264,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken("any-token-at-all"),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -220,10 +275,11 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "survives a second restore of the same dump — the conflict branch keeps the hash",
     async () => {
       const token = "qa-round-trip-token-four";
-      const { id } = await repository().mint(
-        KITCHEN_L_DESIGN,
-        hashWriteToken(token),
-      );
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
       mintedIds.push(id);
       const line = await exportedLineFor(id);
 
@@ -239,8 +295,38 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken(token),
           expectedRevision: RESTORED_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
-      ).resolves.toEqual({ id, revision: "2" });
+      ).resolves.toEqual({ id, revision: "2", ownsVisitor: false });
+    },
+    30_000,
+  );
+
+  // M7 wave 7E3a adversarial QA, criterion 13's second half: a restored row is not only stored with
+  // its hash, it is *resumed* — the index-backed lookup finds it again after the loss.
+  it.skipIf(!hasLiveDatabase)(
+    "a restored row is resumed by its visitor hash (criterion 13)",
+    async () => {
+      const visitorHash = "d".repeat(63) + "1";
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken("qa-7e3a-restore-resumes"),
+        visitor: { kind: "fresh", visitorHash },
+      });
+      mintedIds.push(id);
+      if (!sql) return;
+      const line = await exportedLineFor(id);
+
+      await sql`delete from designs where id = ${id}`;
+      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+        kind: "none",
+      });
+      await restoreRow(line);
+
+      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+        kind: "found",
+        id,
+      });
     },
     30_000,
   );

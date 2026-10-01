@@ -19,10 +19,17 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  SaveOutcome,
+  MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  loadOwnedByIdAlone,
+  ownerVisitorCookiePair,
+} from "../../../support/owned-design-lookup";
 
 /**
  * ADR 0065 decision 7 at the HTTP seams: an overflowing design **loads, saves and resumes with the
@@ -42,7 +49,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rawRows = new Map<DesignId, unknown>();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -53,7 +60,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
@@ -63,7 +70,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {
@@ -84,6 +91,12 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     return row
       ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
+  }
+
+  // This file is about the overflow demotion, never visitor identity, so `loadOwned` is `load` by
+  // id alone — see `loadOwnedByIdAlone`.
+  loadOwned({ id }: { id: DesignId; visitorHash: string }) {
+    return loadOwnedByIdAlone((designId) => this.load(designId), id);
   }
 
   seedRawRow(id: DesignId, document: unknown): void {
@@ -112,8 +125,15 @@ beforeEach(() => {
   repository.current = fakeRepository;
 });
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 async function mintDesign(): Promise<{ id: string; cookie: string }> {
-  const response = await POST();
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
   const setCookie = response.headers.get("set-cookie") ?? "";
   return { id, cookie: setCookie.split(";")[0] ?? "" };
@@ -139,7 +159,9 @@ function saveRequest(
 }
 
 function loadRequest(id: string): NextRequest {
-  return new NextRequest(`https://example.test/api/designs/${id}`);
+  return new NextRequest(`https://example.test/api/designs/${id}`, {
+    headers: { cookie: ownerVisitorCookiePair() },
+  });
 }
 
 describe("the seams that read validation, on an overflowing design", () => {

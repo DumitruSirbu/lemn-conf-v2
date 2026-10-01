@@ -124,6 +124,64 @@ const UNKEYED_JSX_TEXT_SELECTORS = [
   },
 ];
 
+/** **The mockup's example room, banned as a number under `apps/web/src/room`** — M7 criterion 16.
+ *
+ *  Frame 1B draws a 3,60 × 2,40 m room 2,60 m high. Those three figures are that drawing's example,
+ *  not the product's rule: a room's bounds are `room/approved-room-policy.ts`'s to state, and the
+ *  plan's scale is derived from the lengths the customer typed. A module that spells one of them has
+ *  taken a measurement off a picture, which is the defect M7 wave 7F1 exists to keep out of the room
+ *  screen while it is being written.
+ *
+ *  **The literal, never the characters.** `3600` is already under this directory, in
+ *  `parse-metres.ts`'s head comment explaining that `3,6000` is 3600 mm — so a text gate would have
+ *  been red the day it landed and would have needed an exclusion that hollowed it out. A selector
+ *  reads the number the code builds against and leaves the prose quoting it alone, which is this
+ *  file's head comment's argument for the Romanian gate, applied again. */
+const ROOM_EXAMPLE_DIMENSIONS = [
+  { value: 3600, drawnAs: "wall A, 3,60 m" },
+  { value: 2400, drawnAs: "wall B, 2,40 m" },
+  { value: 2600, drawnAs: "the room height, 2,60 m" },
+];
+
+const ROOM_EXAMPLE_DIMENSION_SELECTORS = ROOM_EXAMPLE_DIMENSIONS.map(
+  ({ value, drawnAs }) => ({
+    selector: `Literal[value=${String(value)}]`,
+    message:
+      `${String(value)} is frame 1B's ${drawnAs}, and the mockup's example is an example. A room's ` +
+      "bounds come from the approved room policy; the plan's scale is derived from the draft. Quote " +
+      "the figure in a comment if it explains something — do not build against it (M7 criterion 16).",
+  }),
+);
+
+/** **`window.history` is not a way to write the room's URL** — M7 wave 7F1-D45, criterion 9.
+ *
+ *  `history.replaceState` updates the address bar and the client hooks, and Next's own record of the
+ *  history entry does **not** follow it — so on a browser Back the router restores the URL it
+ *  recorded and the room the customer typed is gone. That is defect D4, measured in a production
+ *  build, and ruling R9 replaces the call with a debounced `router.replace`. The ban is a rule rather
+ *  than a promise because the native call is the obvious thing to reach for, it looks like it works,
+ *  and it fails one traversal later.
+ *
+ *  **Partial survival is not a reason to soften this.** The gate's log shows at least one
+ *  `replaceState`-written key surviving a traversal while the later ones did not. A write path that
+ *  persists some keys and silently drops others is worse than one that reliably persists none,
+ *  because nothing at the call site can be reasoned about.
+ *
+ *  The selector reads the member expression rather than the text, so prose naming the call — this
+ *  comment, and `room-query-sync.ts`'s — is exempt for free. */
+const ROOM_HISTORY_WRITE_SELECTORS = [
+  {
+    selector:
+      "MemberExpression[property.name=/^(pushState|replaceState)$/]" +
+      ":matches([object.name='history'], [object.property.name='history'])",
+    message:
+      "window.history.pushState/replaceState does not update Next's record of the history entry, " +
+      "so a browser Back restores the URL the router recorded and the typed room is lost (defect " +
+      "D4). Write the query through a debounced router.replace — see src/room/room-query-sync.ts " +
+      "(M7 criterion 9, ruling R9).",
+  },
+];
+
 /** **The allow-list's file-level shape, and every entry's reason.**
  *
  *  The second shape is at the site: `// eslint-disable-next-line no-restricted-syntax -- …`, with the
@@ -206,6 +264,23 @@ const romanianLiteralAllowanceBlocks = ROMANIAN_LITERAL_FILE_ALLOWANCES.map(
   }),
 );
 
+// **A relative import that climbs out of its package into another workspace directory**, at any
+// depth of `../`. A `regex` pattern rather than a `group` glob, because the glob can only be wrong one
+// of two ways: anchored at one depth (`../../apps/*`), it never matches a module under `src/**`, which
+// sits deeper; unanchored (`**/apps/**`), it also matches a bare specifier that merely has an `apps`
+// or `packages` segment, such as `next/dist/compiled/packages/x`. Anchored at the start, so only a
+// path beginning `./` or `../` can match. `directories` is a regex alternation.
+function relativeClimbInto(directories) {
+  return `^(?:\\./)?(?:\\.\\./)+(?:${directories})(?:/|$)`;
+}
+
+const DOMAIN_IMPORT_BOUNDARY =
+  "The configurator domain must remain independent of React, Next.js, Three.js, UI, adapter, and catalog-data implementations.";
+const ADAPTER_IMPORT_BOUNDARY =
+  "The three-adapter must stay free of React, Next.js and the application shell; it consumes scene contracts and returns Three.js objects.";
+const WEB_IMPORT_BOUNDARY =
+  "Import workspace packages through their public entry point; design-source is reference material, not a runtime dependency.";
+
 export default tseslint.config(
   {
     ignores: [
@@ -279,15 +354,14 @@ export default tseslint.config(
                 "@lemnaria/catalog-data/*",
                 "@lemnaria/web",
                 "@lemnaria/web/*",
-                "../../apps/*",
-                "../../apps/**",
-                "../three-adapter",
-                "../three-adapter/*",
-                "../catalog-data",
-                "../catalog-data/*",
               ],
-              message:
-                "The configurator domain must remain independent of React, Next.js, Three.js, UI, adapter, and catalog-data implementations.",
+              message: DOMAIN_IMPORT_BOUNDARY,
+            },
+            {
+              regex: relativeClimbInto(
+                "apps|(?:packages/)?(?:three-adapter|catalog-data)",
+              ),
+              message: DOMAIN_IMPORT_BOUNDARY,
             },
           ],
         },
@@ -314,11 +388,12 @@ export default tseslint.config(
                 "@react-three/*",
                 "@lemnaria/web",
                 "@lemnaria/web/*",
-                "../../apps/*",
-                "../../apps/**",
               ],
-              message:
-                "The three-adapter must stay free of React, Next.js and the application shell; it consumes scene contracts and returns Three.js objects.",
+              message: ADAPTER_IMPORT_BOUNDARY,
+            },
+            {
+              regex: relativeClimbInto("apps"),
+              message: ADAPTER_IMPORT_BOUNDARY,
             },
           ],
         },
@@ -336,12 +411,13 @@ export default tseslint.config(
               group: [
                 "@lemnaria/three-adapter/*",
                 "@lemnaria/configurator-domain/*",
-                "../../packages/*",
-                "../../packages/**",
                 "**/design-source/**",
               ],
-              message:
-                "Import workspace packages through their public entry point; design-source is reference material, not a runtime dependency.",
+              message: WEB_IMPORT_BOUNDARY,
+            },
+            {
+              regex: relativeClimbInto("packages"),
+              message: WEB_IMPORT_BOUNDARY,
             },
           ],
         },
@@ -384,6 +460,30 @@ export default tseslint.config(
         "error",
         ...ROMANIAN_LITERAL_SELECTORS,
         ...UNKEYED_JSX_TEXT_SELECTORS,
+      ],
+    },
+  },
+  {
+    // **The room's own gate, and why it re-declares two lists it does not own.**
+    //
+    // This block names `no-restricted-syntax` over a *subset* of the files the block directly above
+    // covers, and flat config replaces a rule's options rather than merging them — so spelling only
+    // the new selectors here would disarm both of that block's gates for exactly this directory,
+    // the one M7 grows the most new JSX text in. Its comment says so; this is that warning obeyed.
+    // The four lists therefore travel together, and
+    // `apps/web/tests/lint/room-example-dimensions.test.ts` asserts all four still fire.
+    //
+    // **Adding to this block means re-declaring every list already in it.** Wave 7F1-D45 added the
+    // fourth; dropping a spread while adding one is the exact failure that test exists to catch.
+    name: "7F1: the room screen builds against no drawn example dimension",
+    files: ["apps/web/src/room/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...ROMANIAN_LITERAL_SELECTORS,
+        ...UNKEYED_JSX_TEXT_SELECTORS,
+        ...ROOM_EXAMPLE_DIMENSION_SELECTORS,
+        ...ROOM_HISTORY_WRITE_SELECTORS,
       ],
     },
   },

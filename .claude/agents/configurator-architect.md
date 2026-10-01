@@ -18,7 +18,9 @@ plan would affect, before writing anything.
 Produce a phase plan in `docs/milestones/`: goal, scope, module boundaries, work items, falsifiable
 acceptance criteria, risks, and verification method. Criteria must describe invariants and awkward
 boundaries, including what must not happen. For 3D work, name coordinate anchors, scaling rules, and
-structural dependencies per `docs/best-practices/product-invariants.md`.
+structural dependencies per `docs/best-practices/product-invariants.md`. Every wave plan's slice
+table includes a *Reading* column per slice and a *Reading* line for QA and each reviewer, per
+`docs/WORKFLOW.md`, *Scope discipline*.
 
 When an issue is reported, classify it as implementation defect, contract gap, or test-fidelity
 problem before assigning a fix. Record a decision in `docs/decisions/` with date, alternatives

@@ -15,7 +15,10 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
+import {
+  findOverflowingPlacementIds,
+  wallLengthMm,
+} from "../../src/queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
@@ -287,5 +290,89 @@ describe("findOverflowingPlacementIds", () => {
     expect(
       validateDesignForCatalog(unknown, CATALOG).map((issue) => issue.code),
     ).toEqual(["UNKNOWN_BUILD_ID"]);
+  });
+});
+
+// ADR 0130 D4 (wave 7J S1): a straight room has no wall B, extending ADR 0065 decision 5 to a shape
+// with one wall.
+describe("wallLengthMm — a straight room has no wall B (ADR 0130 D4)", () => {
+  const linearRoom: Design["room"] = {
+    shape: "linear",
+    widthMm: 3700,
+    depthMm: 3400,
+    heightMm: 2600,
+  };
+
+  it("reads wall A as the room's width, same as an L", () => {
+    expect(wallLengthMm("A", linearRoom)).toBe(linearRoom.widthMm);
+  });
+
+  it("reads wall B as 0, never the drawn depth", () => {
+    expect(wallLengthMm("B", linearRoom)).toBe(0);
+    expect(wallLengthMm("B", linearRoom)).not.toBe(linearRoom.depthMm);
+  });
+
+  it("marks a wall-B placement in a straight document as overflowing rather than refusing it", () => {
+    const design = designOf([placement("stray", "B", 0, 200)], linearRoom);
+
+    expect(findOverflowingPlacementIds(design)).toEqual(["stray"]);
+  });
+
+  it("leaves an L's own wall B unaffected — depth, not zero", () => {
+    const lRoom = designOf([]).room;
+
+    expect(wallLengthMm("B", lRoom)).toBe(lRoom.depthMm);
+    expect(wallLengthMm("B", lRoom)).not.toBe(0);
+  });
+});
+
+// ADR 0132 decision 5 (M7B wave U1 slice S1): wall C's run extends ADR 0130 D3/D4's rule — an L or
+// straight room has no wall C, so its run is 0, and a U's is `wallCMm`.
+describe("wallLengthMm — wall C (ADR 0132 decision 5)", () => {
+  const WALL_C_MM = 2000;
+  const uRoom: Design["room"] = {
+    shape: "U",
+    widthMm: 3600,
+    depthMm: 2400,
+    wallCMm: WALL_C_MM,
+    heightMm: 2600,
+  };
+
+  it("reads wall C as the room's wallCMm on a U", () => {
+    expect(wallLengthMm("C", uRoom)).toBe(WALL_C_MM);
+  });
+
+  it.each(["L", "linear"] as const)(
+    "reads wall C as 0 on a %s room, which has none",
+    (shape) => {
+      const room = designOf([]).room;
+      expect(wallLengthMm("C", { ...room, shape })).toBe(0);
+    },
+  );
+
+  it("marks a wall-C placement in an L document as overflowing rather than refusing it", () => {
+    const lRoom = designOf([]).room;
+    const strayOnC = designOf(
+      [{ ...placement("stray", "A", 0, 200), wall: "C" }],
+      lRoom,
+    );
+
+    expect(findOverflowingPlacementIds(strayOnC)).toEqual(["stray"]);
+  });
+
+  it("treats equality as fitting and one millimetre beyond wall C as overflow", () => {
+    const atEnd: DesignPlacement = {
+      ...placement("fits", "A", WALL_C_MM - 100),
+      wall: "C",
+    };
+    const onePast: DesignPlacement = {
+      ...placement("over", "A", WALL_C_MM - 99),
+      wall: "C",
+    };
+
+    expect(findOverflowingPlacementIds(designOf([atEnd], uRoom))).toEqual([]);
+    expect(findOverflowingPlacementIds(designOf([onePast], uRoom))).toEqual([
+      "over",
+    ]);
   });
 });

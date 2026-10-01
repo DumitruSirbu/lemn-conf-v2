@@ -46,6 +46,29 @@ export async function deleteDesignsForTests(
     );
 }
 
+/**
+ * Answers which of `ids` still have a row — read-only, and behind the same guard as
+ * {@link deleteDesignsForTests}. **Test support only.**
+ *
+ * M7 wave 7E3b's own reason for existing (S4, criterion 9): since ADR 0114 decision 5, an e2e spec
+ * proving a row was deleted can no longer do it by reading `GET /api/designs/{id}` and expecting
+ * 404 — every cookie-less caller answers 404 whether or not the row exists, which makes that
+ * assertion true before the delete runs as well as after it. Reading the table directly is the only
+ * way left to tell "deleted" from "never readable here" apart.
+ */
+export async function findDesignIdsForTests(
+  ids: readonly string[],
+): Promise<string[]> {
+  assertRunningUnderATestRunner();
+  if (ids.length === 0) return [];
+
+  const sql = neon(resolveTestDatabaseUrl());
+  const rows = (await retryOnComputeRestart(
+    () => sql`select id from designs where id = any(${ids})`,
+  )) as { id: string }[];
+  return rows.map((row) => row.id);
+}
+
 function assertRunningUnderATestRunner(): void {
   if (process.env["NODE_ENV"] === "production") {
     throw new Error(

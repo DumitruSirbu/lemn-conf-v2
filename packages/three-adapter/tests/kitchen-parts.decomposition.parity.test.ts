@@ -264,6 +264,7 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
         alongM: placement.alongMm / 1000,
         y0M: placement.y0Mm / 1000,
         depthM: record.frame.d,
+        roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
       });
       const position = new THREE.Vector3(
         transform.position.x,

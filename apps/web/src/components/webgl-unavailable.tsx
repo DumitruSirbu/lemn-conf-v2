@@ -8,7 +8,7 @@ import styles from "./webgl-unavailable.module.css";
  * mode: it explains that configuration happens in the model, offers two named ways to continue,
  * shows no price, and renders no stand-in preview of a configuration that was never made.
  */
-export function WebGLUnavailable({ titleMobile }: { titleMobile?: string }) {
+export function WebGLUnavailable() {
   const content = useContent();
   return (
     <main className={styles.screen} data-testid="webgl-unavailable">
@@ -20,7 +20,7 @@ export function WebGLUnavailable({ titleMobile }: { titleMobile?: string }) {
         <div className={styles.panel}>
           <h1 className={styles.title}>
             <span className={styles.mobileOnly}>
-              {titleMobile ?? content.webglUnavailable.titleMobile}
+              {content.webglUnavailable.titleMobile}
             </span>
             <span className={styles.desktopOnly}>
               {content.webglUnavailable.titleDesktop}

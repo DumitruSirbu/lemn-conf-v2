@@ -8,20 +8,50 @@ import { toMillimetres } from "./millimetres.js";
 import { LEVELS, MIN_SPAN_M } from "./void-engine.js";
 
 /**
- * The room shell the scene actually builds, in millimetres.
+ * The **seeded** room shell, in millimetres — the one L-shape the reference builder knows.
  *
  * `packages/three-adapter/src/kitchen-parts.ts` declares `RW = 4.2`, `RD = 3.4`, `WH = 2.6` and
- * builds the floor and both wall planes from them. Restated here rather than imported: the domain
+ * builds its floor and both wall planes from them. Restated here rather than imported: the domain
  * is I/O-free and `three-adapter` depends on **it**, never the reverse, so the adapter is cited as
  * the source of the number instead of being made a dependency.
+ *
+ * **These stopped being "the room shell the scene actually builds" in M7 wave 7H**, which made the
+ * drawn shell a function of the room the customer entered. The wording moved; the **values must
+ * not**. `MAX_ROOM_*` below are 1.5x them — both horizontal bounds 1.5x the **longer** side since
+ * ADR 0124 — and the owner-approved maxima in `room/approved-room-policy.ts` must sit at or under
+ * them, which `approved-room-policy.test.ts` guards. Deriving the shell from `MAX_ROOM_*` would close
+ * the circle the other way round, and deriving `MAX_ROOM_*` from the approved policy would make that
+ * guard unable to fail.
  */
 const SCENE_SHELL_WIDTH_MM = 4200;
 const SCENE_SHELL_DEPTH_MM = 3400;
 const SCENE_SHELL_HEIGHT_MM = 2600;
 
-/** Half as much again as the shell. Deliberate slack, not a product rule — §13.3 question 4 records
- *  that `LEVELS` and both wall planes are constants for this one room, so in practice every room
- *  *is* the shipped one — sized so a room a little larger than it still loads. */
+/**
+ * ADR 0130 D3/D2: a straight room's `depthMm` is never a wall — with no corner there is nothing for
+ * it to measure — so validation fixes it to the one depth the product has drawn without being told,
+ * the seeded shell's own. Exported under this name rather than `SCENE_SHELL_DEPTH_MM` at its call
+ * site in `room/validate-room.ts`, so that reader states what the number is *for* rather than where
+ * it happens to come from.
+ */
+export const LINEAR_ROOM_DEPTH_MM = SCENE_SHELL_DEPTH_MM;
+
+/** Half as much again as the seeded shell. Deliberate slack, not a product rule — sized so a room a
+ *  little larger than the one the scene drew still loads.
+ *
+ *  **Its original justification expired in M7 wave 7H and is corrected here rather than left to
+ *  read true.** It cited §13.3 question 4: *`LEVELS` and both wall planes are constants for this one
+ *  room, so in practice every room is the shipped one.* **Both wall planes stopped being constants
+ *  in that wave** — the drawn shell is now a function of the room the customer entered — so every
+ *  room is emphatically not the shipped one; the owner expects an entered room to match it in about
+ *  1% of cases. `LEVELS` is still fixed, and that half stands.
+ *
+ *  **What follows for the numbers below.** The 1.5x no longer stands for anything the engine needs:
+ *  nothing in `packages/three-adapter/src` reads `MAX_ROOM_*`, `SCENE_SHELL_*` or any room ceiling,
+ *  and the shell is correct at every room in the approved policy and beyond it. The product maxima
+ *  are **owner-approved literals** in `room/approved-room-policy.ts` (ADR 0120 Amendment B2: 6000 mm
+ *  per wall); what this factor still sizes is the storage ceiling those literals are guarded
+ *  against, which is why it keeps a margin over them rather than equalling them. */
 const ROOM_HEADROOM_FACTOR = 1.5;
 
 /**
@@ -32,9 +62,18 @@ const ROOM_HEADROOM_FACTOR = 1.5;
  * `10000 × 10000 × 10000` room accepted cabinets ten metres along either wall and eight metres in
  * the air, because the only operative ceiling was `MAX_DESIGN_DIMENSION_MM`. Bounding the room is
  * what turns containment back into a real limit.
+ *
+ * **Width and depth are one number on purpose — do not "restore" the 4200 / 3400 asymmetry.** Wall A
+ * walks the width and wall B the depth, and ADR 0120 D1 made the two entered numbers the same kind
+ * of quantity: the run the customer wants furnished. The asymmetry was the seeded shell's
+ * proportions, not a fact about either wall, and it left wall B's storage ceiling under the owner's
+ * 6000 mm ruling (ADR 0124). **Never derive it from `APPROVED_ROOM_POLICY`** — see the shell's
+ * comment above.
  */
-export const MAX_ROOM_WIDTH_MM = SCENE_SHELL_WIDTH_MM * ROOM_HEADROOM_FACTOR;
-export const MAX_ROOM_DEPTH_MM = SCENE_SHELL_DEPTH_MM * ROOM_HEADROOM_FACTOR;
+const MAX_ROOM_RUN_MM =
+  Math.max(SCENE_SHELL_WIDTH_MM, SCENE_SHELL_DEPTH_MM) * ROOM_HEADROOM_FACTOR;
+export const MAX_ROOM_WIDTH_MM = MAX_ROOM_RUN_MM;
+export const MAX_ROOM_DEPTH_MM = MAX_ROOM_RUN_MM;
 export const MAX_ROOM_HEIGHT_MM = SCENE_SHELL_HEIGHT_MM * ROOM_HEADROOM_FACTOR;
 
 /**
@@ -52,10 +91,14 @@ export const MAX_DESIGN_DIMENSION_MM = 10_000;
  *  unbounded string is a free multiplier on every accepted placement. */
 export const MAX_IDENTIFIER_LENGTH = 64;
 
-/** The longest run a wall can present, now that the room is bounded: wall A walks the room's width
- *  and wall B its depth (§2). */
+/** The longest run a wall can present, now that the room is bounded: wall A walks the room's width,
+ *  wall B its depth, and wall C its own `wallCMm` (§2; ADR 0132 decision 6). `wallCMm` is bounded by
+ *  `MAX_ROOM_DEPTH_MM` in `design.ts` — the same value as wall B's, since `MAX_ROOM_WIDTH_MM` and
+ *  `MAX_ROOM_DEPTH_MM` are one number (`MAX_ROOM_RUN_MM` above) — so a third entry at that value is
+ *  wall C's run and not a guess at one. */
 const MAX_WALL_RUNS_MM: readonly number[] = [
   MAX_ROOM_WIDTH_MM,
+  MAX_ROOM_DEPTH_MM,
   MAX_ROOM_DEPTH_MM,
 ];
 
@@ -79,12 +122,15 @@ export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
  *  declared elsewhere, so no arithmetic here is a judgement call. Review finding F2 moved the wall
  *  runs from `MAX_DESIGN_DIMENSION_MM` to the room bounds, which is what they always meant.
  *
- *  Today that is `(floor(6300/200) + floor(5100/200)) × 3 = 168`, against 26 in the shipped seeded
- *  kitchen.
+ *  Today that is `(floor(6300/200) + floor(6300/200) + floor(6300/200)) × 3 = 279` (186 before ADR
+ *  0132 gave a U its own third wall, 168 before ADR 0124 gave wall B wall A's run), against 26 in
+ *  the shipped seeded kitchen — `design-bounds.test.ts` packs a U at this cap across all three walls
+ *  and three bands and shows it still serialises under `MAX_DESIGN_BYTES` and parses (M7B wave U1
+ *  slice S2, AC5).
  *
  *  **Containment is no longer what the validation seam enforces.** Since ADR 0069 a body past the
  *  end of its wall is a mark rather than a refusal, so a centre may reach `MAX_DESIGN_DIMENSION_MM`
- *  and the same packing gives 300 non-overlapping placements against this cap of 168. The cap
+ *  and the same packing gives 450 non-overlapping placements against this cap of 279. The cap
  *  therefore now binds slightly before the domain's own rules would — deliberately, and two orders
  *  of magnitude outside any design this product produces. */
 export const MAX_PLACEMENTS =
@@ -103,8 +149,12 @@ const MAX_PLACEMENT_BYTES = 512;
  *  than a centimetre apart address one column. */
 const COLUMN_KEY_RESOLUTION_MM = 10;
 
-/** §2's two walls, A and B — `DesignWallSchema`'s whole domain. */
-const WALL_COUNT = 2;
+/** §2's walls, A, B and C — `DesignWallSchema`'s whole domain since ADR 0132 decision 1 added wall
+ *  C. Used here for the keys a wall can present, never for which shape has which wall (that is
+ *  `wallsOf`, `room/walls-of-shape.ts`) — the empty-column cap over-counts an L's and a straight
+ *  room's own wall-C keys by design, the same way it already over-counts a straight room's wall B:
+ *  a document with no wall C simply never fills them. */
+const WALL_COUNT = 3;
 
 /**
  * The most empty columns a document the domain can execute may carry (ADR 0044).
@@ -118,16 +168,22 @@ const WALL_COUNT = 2;
  *
  * What actually bounds the count is the number of **distinct keys** a wall can present, under
  * physical containment: an entry contained by its wall — by that wall's own run since ADR 0065
- * decision 5, so this stays an upper bound by taking the longer of the two — has its centre
- * somewhere from 0 to `MAX_WALL_RUN_MM` at `COLUMN_KEY_RESOLUTION_MM`, `630 + 1` of them counting
- * both ends, and no two entries may share one. `(6300 / 10 + 1) × 2 = 1262`.
+ * decision 5, so this stays an upper bound by taking the longest of the three (ADR 0132 decision 6
+ * bounds wall C the same as wall B) — has its centre somewhere from 0 to `MAX_WALL_RUN_MM` at
+ * `COLUMN_KEY_RESOLUTION_MM`, `630 + 1` of them counting both ends, and no two entries may share
+ * one. `(6300 / 10 + 1) × 3 = 1893` (1262 before ADR 0132 gave a U a third wall).
  *
  * **The validation seam no longer enforces that containment at the wall's end.** Since ADR 0069 an
  * extent past the end of its wall is a mark rather than a refusal, so centres run to
  * `MAX_DESIGN_DIMENSION_MM` and the same arithmetic gives 2002 distinct keys per wall. This cap
  * therefore now binds slightly before the domain's own rules would — which is a correction to the
- * premise, not to the number: 1262 entries at 1 mm wide and 10 mm apart is already two orders of
+ * premise, not to the number: 1893 entries at 1 mm wide and 10 mm apart is already two orders of
  * magnitude past anything reachable, and the shipped kitchen derives thirteen columns in total.
+ *
+ * **Over-counts an L's and a straight room's own wall-C keys**, exactly as it already over-counts a
+ * straight room's wall-B keys: the cap bounds the keys a *wall letter* can present in the wire
+ * shape, not the keys a shape's own walls can present (ADR 0130 D3's precedent, extended by ADR
+ * 0132 decision 5). A document with no wall C simply never reaches them.
  */
 export const MAX_EMPTY_COLUMNS =
   (Math.max(...MAX_WALL_RUNS_MM) / COLUMN_KEY_RESOLUTION_MM + 1) * WALL_COUNT;

@@ -41,7 +41,7 @@
 // reproduction, and it is the reason the number is what it is.
 import { describe, expect, it } from "vitest";
 
-import type { Design, EmptyColumn } from "../src/design.js";
+import type { Design, DesignPlacement, EmptyColumn } from "../src/design.js";
 import {
   KITCHEN_L_DESIGN,
   buildKitchenLBodyCatalog,
@@ -111,7 +111,7 @@ function seatOf(buildId: string): number {
 /** A recorded space, on whichever wall, in the base band — the shape the frozen map stores and the
  *  sweep reads. */
 function spaceAt(
-  wall: "A" | "B",
+  wall: "A" | "B" | "C",
   alongMm: number,
   widthMm: number,
 ): EmptyColumn {
@@ -332,6 +332,88 @@ describe("and the document still loads, which is what the severity buys", () => 
     );
 
     expect(loaded.emptyColumns).toEqual([space]);
+  });
+});
+
+// M7B U1 slice S4 (ADR 0132 decision 7 / D10): the A∩C corner, swept exactly as A∩B and never
+// merged with it. `isShapeBuildable("U", …)` stays false through this wave, so every design below
+// is hand-built rather than reachable through the product — the same status a hand-crafted wall-C
+// body already has in an L document (ADR 0132's own caveat, U1 S1's close-out).
+describe("the A∩C corner", () => {
+  const ROOM_WIDTH_MM = 3600;
+  // Centred so its mirrored span at A∩C — `W − (alongMm ± 450)` — is `[0, 900]`, exactly
+  // `cornerBodySpanOnWallA()`'s span at A∩B: the far corner is the near one's mirror image.
+  const FAR_CORNER_ALONG_MM = ROOM_WIDTH_MM - 450;
+  const FAR_CORNER_BODY_ID = "far-corner";
+
+  function uRoomDesign(placements: Design["placements"]): Design {
+    return {
+      room: {
+        shape: "U",
+        widthMm: ROOM_WIDTH_MM,
+        depthMm: 2400,
+        wallCMm: 2000,
+        heightMm: 2600,
+      },
+      presetId: null,
+      placements,
+      createdAt: "2026-09-29T00:00:00.000Z",
+      updatedAt: "2026-09-29T00:00:00.000Z",
+    };
+  }
+
+  function withFarCornerBody(): DesignPlacement {
+    return {
+      id: FAR_CORNER_BODY_ID,
+      wall: "A",
+      alongMm: FAR_CORNER_ALONG_MM,
+      y0Mm: 0,
+      body: { buildId: "base-corner-x-900", widthMm: 900, heightMm: 820 },
+    };
+  }
+
+  it("reports a wall-C space standing inside the far corner body's reach", () => {
+    const space = spaceAt("C", 300, WIDTH_OF_A_TEST_SPACE_MM);
+    const design: Design = {
+      ...uRoomDesign([withFarCornerBody()]),
+      emptyColumns: [space],
+    };
+
+    expect(validateDesignForCatalog(design, catalog)).toEqual([
+      { code: "RECORDED_SPAN_OVERLAPS_CORNER_BODY", path: "emptyColumns.0" },
+    ]);
+  });
+
+  it("goes quiet when the far corner body is not in the design", () => {
+    const space = spaceAt("C", 300, WIDTH_OF_A_TEST_SPACE_MM);
+    const design: Design = {
+      ...uRoomDesign([]),
+      emptyColumns: [space],
+    };
+
+    expect(validateDesignForCatalog(design, catalog)).toEqual([]);
+  });
+
+  // AC7: wall B and wall C are opposite side runs, never corner partners. Shaped so a naive
+  // all-pairs sweep — one that compared every two walls rather than only the one that shares a
+  // corner with wall A — would flag them: the wall-B space's own span and the wall-C body's carcass
+  // reach satisfy `intersectsAcrossTheCorner`'s arithmetic exactly as the positive cases above do.
+  // With no wall-A body in the design for either to pair against, nothing is reported.
+  it("never compares a wall-B space against a wall-C body", () => {
+    const wallBSpace = spaceAt("B", 300, WIDTH_OF_A_TEST_SPACE_MM);
+    const wallCBody: DesignPlacement = {
+      id: "wall-c-body",
+      wall: "C",
+      alongMm: 500,
+      y0Mm: 0,
+      body: { buildId: "base-corner-x-900", widthMm: 900, heightMm: 820 },
+    };
+    const design: Design = {
+      ...uRoomDesign([wallCBody]),
+      emptyColumns: [wallBSpace],
+    };
+
+    expect(validateDesignForCatalog(design, catalog)).toEqual([]);
   });
 });
 

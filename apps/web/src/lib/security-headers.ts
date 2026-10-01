@@ -17,15 +17,16 @@ export type ContentSecurityPolicyMode = "report-only" | "enforce";
  * nothing else.
  *
  * **Do not flip it until the prerendered pages render dynamically.** A nonce only reaches the HTML
- * of a dynamically rendered response. Measured against `next build` at this commit:
- * `/[locale]/d/[id]` is dynamic and carries nonces on all of its scripts, but the eight routes in
- * `.next/prerender-manifest.json` — `/_global-error`, `/_not-found`, and the `ro` and `ru` variants
- * of `/`, `/configurator/configure` and `/configurator/contact` — are prerendered and carry
- * **none**. Their same-origin chunk tags and inline RSC flight-payload scripts have page-specific
- * content, so they cannot be admitted by hash either. Under `"enforce"` every one of them would be
- * blocked and those pages would go blank. `/_global-error` is the worst of the eight to lose and the easiest
- * to miss — it is the boundary that has to render when something else has already failed, and the
- * printed build route table does not list it at all.
+ * of a dynamically rendered response. Measured against `next build` after M7 wave 7E3a (`/` and
+ * `/configurator/configure` became Route Handlers — S3 — and answer no HTML at all, so they left
+ * this list): `/[locale]/d/[id]` is dynamic and carries nonces on all of its scripts, but the four
+ * routes in `.next/prerender-manifest.json` — `/_global-error`, `/_not-found`, and the `ro` and
+ * `ru` variants of `/configurator/contact` — are prerendered and carry **none**. Their same-origin
+ * chunk tags and inline RSC flight-payload scripts have page-specific content, so they cannot be
+ * admitted by hash either. Under `"enforce"` every one of them would be blocked and those pages
+ * would go blank. `/_global-error` is the worst of the four to lose and the easiest to miss — it
+ * is the boundary that has to render when something else has already failed, and the printed build
+ * route table does not list it at all.
  *
  * **There is deliberately no report sink.** A collector route would be an unauthenticated,
  * unthrottled POST endpoint anyone could flood — the same shape as SEC-001, which the owner has
@@ -94,6 +95,19 @@ export const STATIC_SECURITY_HEADERS: readonly {
   },
   { key: "Permissions-Policy", value: PERMISSIONS_POLICY },
   { key: "X-DNS-Prefetch-Control", value: "off" },
+];
+
+/**
+ * Every response on a `/s/{token}` path, redirect and page alike (M7 wave 7E3c D7): a share link is
+ * handed out for one recipient, never indexed and never cached by an intermediary. `no-referrer` is
+ * stricter than the site-wide `strict-origin-when-cross-origin` above — a share view must not leak
+ * even the origin to whatever the recipient clicks next — so it is set here rather than folded into
+ * `STATIC_SECURITY_HEADERS`, which every other route still wants the looser default from.
+ */
+export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+  { key: "Cache-Control", value: "private, no-store" },
 ];
 
 export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {

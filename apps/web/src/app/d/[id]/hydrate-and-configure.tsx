@@ -6,13 +6,20 @@ import { useEffect } from "react";
 
 import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import {
+  ConfiguratorSnapshotProvider,
+  hydrateSessionStoreInBrowser,
+} from "@/store/configurator-snapshot";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-/** Replaces the store with a loaded design before the configurator screen mounts, so the first
- *  frame it renders is already the loaded design — never a flash of the seeded fixture. Hydrating
- *  during render (guarded by the id comparison, not an effect) is what makes that ordering hold:
- *  by the time `ConfigureScreen` reads the store for its own first render, this component's body
- *  has already run. */
+/** Puts the loaded design in front of the editor: the first server-rendered frame, React's hydration
+ *  pass and every later render all show it. The session store is written here, in the browser and
+ *  during render, guarded by the id; the server render and the hydration pass read the provider's
+ *  snapshot instead. Why, and why the guard asks `getState()` and not the hook: ADR 0133 and
+ *  `hydrateSessionStoreInBrowser`.
+ *
+ *  This closes backlog 98. It does not close backlog 83, whose warning on a client transition between
+ *  two designs comes from the write staying in render. */
 export function HydrateAndConfigure({
   design,
   designId,
@@ -22,18 +29,21 @@ export function HydrateAndConfigure({
   designId: DesignId;
   revision: DesignRevision;
 }) {
-  const currentDesignId = useConfiguratorStore((state) => state.designId);
-  if (currentDesignId !== designId) {
-    // `"checking"`, not a guess in either direction: this page's own request could not have carried
-    // the `Path=/api/designs/{id}` write-token cookie, so nothing here knows. `useWriteAccessProbe`
-    // below asks the one route that does, and until it answers the panel offers no edit — see
-    // `WriteAccess`.
-    useConfiguratorStore
-      .getState()
-      .hydrate({ design, designId, revision, canWrite: "checking" });
-  }
+  // `"checking"`, not a guess in either direction: this page's own request could not have carried
+  // the `Path=/api/designs/{id}` write-token cookie, so nothing here knows. `useWriteAccessProbe`
+  // below asks the one route that does, and until it answers the panel offers no edit — see
+  // `WriteAccess`.
+  const loaded = { design, designId, revision, canWrite: "checking" } as const;
+  hydrateSessionStoreInBrowser(
+    loaded,
+    (session) => session.designId === designId,
+  );
   useWriteAccessProbe(designId);
-  return <ConfigureScreen />;
+  return (
+    <ConfiguratorSnapshotProvider loaded={loaded}>
+      <ConfigureScreen />
+    </ConfiguratorSnapshotProvider>
+  );
 }
 
 /**

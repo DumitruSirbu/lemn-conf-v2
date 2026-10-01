@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deleteDesignsForTests } from "../src/delete-designs-for-tests.js";
+import {
+  deleteDesignsForTests,
+  findDesignIdsForTests,
+} from "../src/delete-designs-for-tests.js";
 
 const APPLICATION_URL =
   "postgresql://owner:secret@host.neon.tech/neondb?sslmode=require";
@@ -14,7 +17,10 @@ const APPLICATION_URL =
 const driver = vi.hoisted(() => {
   const connectionUrls: string[] = [];
   const statements: string[][] = [];
-  return { connectionUrls, statements };
+  // What the next query resolves with — `findDesignIdsForTests`'s own `select` reads this back;
+  // every other statement here ignores it, the way the real driver's `delete` result is ignored.
+  const nextResult: { current: readonly unknown[] } = { current: [] };
+  return { connectionUrls, statements, nextResult };
 });
 
 vi.mock("@neondatabase/serverless", () => ({
@@ -22,7 +28,7 @@ vi.mock("@neondatabase/serverless", () => ({
     driver.connectionUrls.push(connectionUrl);
     return (fragments: TemplateStringsArray) => {
       driver.statements.push([...fragments]);
-      return Promise.resolve([]);
+      return Promise.resolve(driver.nextResult.current);
     };
   },
 }));
@@ -34,6 +40,7 @@ describe("deleteDesignsForTests", () => {
   beforeEach(() => {
     driver.connectionUrls.length = 0;
     driver.statements.length = 0;
+    driver.nextResult.current = [];
     process.env["DATABASE_URL"] = APPLICATION_URL;
   });
 
@@ -145,6 +152,56 @@ describe("deleteDesignsForTests", () => {
     process.env["TEST_DATABASE_URL"] = APPLICATION_URL;
 
     await expect(deleteDesignsForTests([])).resolves.toBeUndefined();
+    expect(driver.connectionUrls).toEqual([]);
+  });
+});
+
+/**
+ * M7 wave 7E3b, S4 (criterion 9): `findDesignIdsForTests` is what `seeded-design.qa.e2e.spec.ts`
+ * now proves a delete happened with, since ADR 0114 decision 5 makes a cookie-less
+ * `GET /api/designs/{id}` answer 404 whether or not the row still exists. It is read-only, and
+ * shares `deleteDesignsForTests`'s own guard — these tests mirror that file's shape rather than
+ * repeating every one of its cases.
+ */
+describe("findDesignIdsForTests", () => {
+  beforeEach(() => {
+    driver.connectionUrls.length = 0;
+    driver.statements.length = 0;
+    driver.nextResult.current = [];
+    process.env["DATABASE_URL"] = APPLICATION_URL;
+  });
+
+  afterEach(() => {
+    process.env["DATABASE_URL"] = process.env["DATABASE_URL"] ?? "";
+    delete process.env["TEST_DATABASE_URL"];
+  });
+
+  it("shares the same guard: refuses the application database and opens no connection", async () => {
+    process.env["TEST_DATABASE_URL"] = APPLICATION_URL;
+
+    await expect(findDesignIdsForTests(["design-1"])).rejects.toThrow(
+      /Refusing to run live database tests/,
+    );
+    expect(driver.connectionUrls).toEqual([]);
+  });
+
+  it("selects, never deletes, and answers the ids the driver reports back", async () => {
+    process.env["TEST_DATABASE_URL"] =
+      "postgresql://owner:secret@host.neon.tech/lemnaria_test";
+    driver.nextResult.current = [{ id: "design-1" }];
+
+    const found = await findDesignIdsForTests(["design-1", "design-2"]);
+
+    expect(found).toEqual(["design-1"]);
+    expect(driver.statements).toHaveLength(1);
+    expect(driver.statements[0]?.[0]).toContain("select id from designs");
+    expect(driver.statements[0]?.join("")).not.toContain("delete");
+  });
+
+  it("touches the database at all only when there is something to look for", async () => {
+    process.env["TEST_DATABASE_URL"] = APPLICATION_URL;
+
+    await expect(findDesignIdsForTests([])).resolves.toEqual([]);
     expect(driver.connectionUrls).toEqual([]);
   });
 });

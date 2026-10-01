@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * The refreshed top bar on the desktop shell, measured at both ends of its branch (wave W4).
@@ -56,9 +58,8 @@ const STRIP_BAND_AT_BASE_COMMIT_PX = 45;
 
 const SUB_PIXEL_SLACK = 0.5;
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

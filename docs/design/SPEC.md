@@ -68,25 +68,25 @@ Yes — a structured spec per element is much more efficient than "make it match
 - **Priority:** must-have.
 
 ### Element: Corner base + lazy susan — **two independent bodies**
-- **Reference location:** `kitchen-parts.js` — `cornerBaseX()` and `cornerBaseReturn(depth)`; builder keys `base-corner-x`, `base-corner-return`, and `base-corner` (preview of the pair only)
+- **Reference location:** `kitchen-parts.js` — `cornerBaseX(width)` and `cornerBaseReturn(depth, width)`; builder keys `base-corner-x`, `base-corner-return`, and `base-corner` (preview of the pair only)
 - **Model:** this is **not** one L-shaped object. It is two complete, separately-placeable cabinets that happen to abut. Neither is a child of the other; `base-corner` exists only to preview them at their production junction and places them with exactly the same transforms `buildKitchen()` uses.
 
-  **1. X-leg — `cornerBaseX()`** (owns the door and the susan)
-  - Own footprint `LD = 0.60`; carcass `box(0.900, 0.720, 0.600)` at `y = PLINTH`
-  - Plinth `box(0.896, 0.100, 0.520)`, front at `LD/2 − 0.06 = 0.240`
-  - Worktop `box(0.904, 0.040, 0.640)`, front at `LD/2 + 0.05 = 0.350`
-  - Door 280 mm at `x = 0.30`, front plane `LD/2 + TH/2 + 0.001`
+  **1. X-leg — `cornerBaseX(W)`** (owns the door and the susan)
+  - Reference footprint `LD = 0.60`; reference carcass `box(0.900, 0.720, 0.600)` at `y = PLINTH`
+  - Plinth width is `W − 0.004`; its depth and front recess remain functions of `LD`
+  - Worktop width is `W`; its depth and front overhang remain functions of `LD`
+  - Door width and x seat derive from the accessible front `W − (declared cabinet depth − 0.020)`; in the 600 mm reference kitchen this remains 280 mm at `x = 0.30`
   - Susan: `cyl(0.014, 0.660)` pole + 2 × `cyl(0.200, 0.018)` trays at `(−0.02, PLINTH + 0.12 / +0.44, −0.01)`
-  - Placed at `(0.45, 0, 0.28)`
+  - Reference placement: `(0.45, 0, 0.28)`
 
-  **2. Return leg — `cornerBaseReturn(LD = 0.58)`** (no door — it butts the X-leg)
-  - Width `0.320` along its wall; carcass `box(0.320, 0.720, LD)`
-  - Plinth `box(0.316, 0.100, LD − 0.06)`, front at `LD/2 − 0.06`
-  - Worktop `box(0.270, 0.040, 0.600)` at `x = −0.025`, front at `LD/2 + 0.02` — **butts** the X-leg slab, spanning `z 0.630 → 0.900` in the scene
-  - Placed at `(0.29, 0, 0.74)`, rotated `π/2` — a normal wall-B cabinet, same as the tall units
+  **2. Return leg — `cornerBaseReturn(LD = 0.58, W)`** (no door — it butts the X-leg)
+  - Reference width is `0.320` along its wall; the carcass is `box(W, 0.720, LD)`
+  - Plinth width is `W − 0.004`; its depth and front recess remain functions of `LD`
+  - Worktop width is `W − 0.050`, seated 25 mm toward the X-leg; at the reference width this is `0.270`, and it **butts** the X-leg slab without interpenetrating it
+  - Reference placement: `(0.29, 0, 0.74)`, rotated `π/2` — a normal wall-B cabinet, same as the tall units
 - **Junction:** an ordinary seam between two abutting cabinets — **not** a special case. Carcass faces meet at `z = 0.580`; the X-leg worktop covers the corner (`z −0.010 → 0.630`) and the return worktop butts it (`z 0.630 → 0.900`). **No two stone volumes may interpenetrate** — coplanar top/bottom faces z-fight and produce the flickering patches reported earlier. Worktops are also cut to exact module width (no `+0.004` side inset) so every seam along the run butts instead of overlapping.
 - **Material:** `M.carcass`, `M.dark` plinth, `M.stone` worktops, `M.steel` pole, `M.interior` trays, `M.door` front.
-- **Scaling rule:** X-leg **fixed 900 mm wide**. Return leg depth is a **placement parameter**, not a constant — it must equal the front plane of the real neighbour it meets: `0.56` against a standard base cabinet, `0.58` against a deeper tall unit. Pass it in; never hard-code it.
+- **Scaling rule:** both builders take their along-wall width from the caller. The reference room at 600 mm cabinet depth supplies **900 mm** for the X-leg and **320 mm** for the base return; the two upper returns use **570 mm**. Generation chooses, for each structural corner piece, the **largest even whole-millimetre width** that fits the entered wall without exceeding that reference width and without crossing the piece's one-door floor. Those 900 / 320 / 570 values are reference-room dimensions, not fixed builder dimensions. Return-leg depth remains a separate placement parameter and must equal the front plane of the neighbour it meets. A later 600 → 700 mm depth command slides the stored design while keeping its generated corner widths frozen; it does not re-run the room-size derivation.
 - **Structural dependency — the one that broke before:** each leg computes its plinth recess (`CORNER_RECESS = 0.06`) **from its own `LD` only**. Never derive one leg's recess from the other leg's depth or from the combined L footprint. That coupling is what made the plinth protrude past the run in the original build, and splitting the bodies does not remove the risk — it just moves it into whichever function reads a dimension it does not own. If a recess expression references anything outside its own leg, it is wrong.
 - **Priority:** must-have.
 
@@ -142,8 +142,8 @@ Yes — a structured spec per element is much more efficient than "make it match
 - **Reference location:** `kitchen-parts.js:514+`, key `kitchen-l`
 - **Geometry:** room `4.2 × 3.4`, walls 2.6 high. Wall A along X (fronts +Z): corner base → sink base 800 → dishwasher 600 → cooktop base 600 → drawers 600 → oak end panel. Wall B along Z (fronts +X, rotated π/2): oven tower `z 0.9` → pantry `z 1.5` → fridge `z 2.10–2.80`. Uppers 1.50 → 2.20 continuous `z 0.33 → 0.90` around the corner; ceiling row 2.20 → 2.60, push-to-open, widths mirroring the row below.
 - **Material:** floor `M.floor`, walls `M.wall` (single-sided planes so the camera can see in), splashback `M.tile`.
-- **Scaling rule:** fixed layout; module widths snap to the 600 grid.
-- **Structural dependency:** **no gaps anywhere.** Adjacent units must share a face — between runs, at the corner, above the fridge, and between the upper rows. Every unit must sit fully on the floor slab; extend `RD` rather than letting a run overhang.
+- **Scaling rule:** the reference builder retains the documented fixed layout and its 600 mm module chain, but its corner widths are inputs. A generated customer design records room-sized corner widths at 600 mm, and the scene draws those recorded widths; a later depth command keeps them frozen while reseating the affected chains.
+- **Structural dependency:** at the authored 600 mm reference state, adjacent units share a face — between runs, at the corner, above the fridge, and between the upper rows. A 600 → 700 mm depth command preserves ADR 0089's deliberate **30 mm upper-row residue** because the generated widths stay frozen while the two recorded chains slide by different amounts; do not close that residue by resizing the corner. Every unit in the authored reference state sits fully on the floor slab. A post-command overrun is retained and marked under ADR 0065 rather than moved back or resized.
 - **Priority:** must-have.
 
 ---

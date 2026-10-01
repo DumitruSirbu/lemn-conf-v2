@@ -845,7 +845,7 @@ describe("width-parameterised factories reproduce the reference tree", () => {
         referenceKit.make.cornerBaseReturn(depth),
       );
       expectStructureMatches(
-        describeStructure(portedKit.make.cornerBaseReturn(depth)),
+        describeStructure(portedKit.make.cornerBaseReturn(depth, 0.32)),
         reference,
         `cornerBaseReturn(${String(depth)})`,
       );

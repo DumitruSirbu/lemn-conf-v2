@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   canonicalSerializeDesign,
   DesignNotFoundError,
+  InvalidDesignError,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
@@ -13,15 +14,41 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
 import { runMigrations } from "../src/migrate.js";
+import { readMigrationFiles } from "../src/migration-files.js";
 import {
   DesignWriteConflictError,
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
+import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
+// Exclusive: this file drops the revision column, and no other run may use the test database
+// while it is missing (M7 wave 7T, T-J5).
+holdExclusiveTestSchemaLock();
+
+const SUITE_NAME =
+  "the configuration repository's live suite (live test database)";
+
+// Never the application database — `liveTestDatabaseUrl` resolves through `resolveTestDatabaseUrl`,
+// which throws rather than resolving to it. These tests insert and delete rows; pointed at the
+// app's own database they would eventually destroy real customer designs.
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
+
+// Whether an application database URL exists to compare the test database against. CI configures
+// none on purpose, and with nothing to compare, the not-the-application's-own check would assert
+// nothing — so it runs only where both URLs exist (coordinator, 2026-09-22). Deliberately not the
+// file's gate: every other test here needs only the test database.
+const hasApplicationDatabaseUrl =
+  (process.env["DATABASE_URL"]?.trim() ?? "") !== "";
+
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
 // Stand-ins for the SHA-256 hex digests the web layer derives from a real write token. The
@@ -30,15 +57,14 @@ const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 const CORRECT_TOKEN_HASH = "a".repeat(64);
 const WRONG_TOKEN_HASH = "b".repeat(64);
 
+/** A stand-in visitor hash: this file is about the write-token predicate, not visitor identity, so
+ *  every mint below needs one well-formed value and nothing more. */
+const VISITOR_HASH = "d".repeat(64);
+
 /** What `0004_add_design_revision.sql` gives every row, existing or new. Stated rather than read
  *  back, so a migration that quietly changed the default would fail these tests instead of being
  *  followed by them. */
 const FIRST_REVISION = "1";
-
-// Never the application database — `resolveTestDatabaseUrl` throws rather than resolving to it.
-// These tests insert and delete rows; pointed at the app's own database they would eventually
-// destroy real customer designs.
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
 
 describe("NeonConfigurationRepository (live test database)", () => {
   // Rows these tests mint, deleted after each test. Without this the suite is not repeatable in the
@@ -50,7 +76,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
     design: Design = KITCHEN_L_DESIGN,
     writeTokenHash: string = CORRECT_TOKEN_HASH,
   ): Promise<{ id: DesignId; revision: string }> {
-    const minted = await repository.mint(design, writeTokenHash);
+    const minted = await repository.mint({
+      design,
+      writeTokenHash,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+    });
     mintedIds.push(minted.id);
     return minted;
   }
@@ -123,6 +153,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         design: updated,
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: FIRST_REVISION,
+        requestVisitor: { kind: "absent" },
       });
       const loaded = await loadedDesign(repository, id);
 
@@ -162,6 +193,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
           design: { ...KITCHEN_L_DESIGN, presetId: "attacker-preset" },
           writeTokenHash: WRONG_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
 
@@ -194,6 +226,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
           design: { ...KITCHEN_L_DESIGN, presetId: "cross-design-preset" },
           writeTokenHash: WRONG_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
 
@@ -217,6 +250,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
           design: KITCHEN_L_DESIGN,
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
       await expect(repository.load("does-not-exist-00000000")).rejects.toThrow(
@@ -244,6 +278,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
           design: { ...KITCHEN_L_DESIGN, presetId: "legacy-overwrite" },
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
       expect(canonicalSerializeDesign(await loadedDesign(repository, id))).toBe(
@@ -275,7 +310,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
     "refuses to mint a design whose write-token hash is $name",
     async ({ hash }) => {
       await expect(
-        testRepository().mint(KITCHEN_L_DESIGN, hash),
+        testRepository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: hash,
+          visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+        }),
       ).rejects.toThrow(/64-character lowercase hex SHA-256 digest/);
     },
   );
@@ -286,7 +325,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
       const rejected = "' or '1'='1";
 
       await expect(
-        testRepository().mint(KITCHEN_L_DESIGN, rejected),
+        testRepository().mint({
+          design: KITCHEN_L_DESIGN,
+          writeTokenHash: rejected,
+          visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+        }),
       ).rejects.not.toThrow(rejected);
     },
   );
@@ -306,10 +349,11 @@ describe("NeonConfigurationRepository (live test database)", () => {
     "leaves no row behind once its own cleanup has run",
     async () => {
       const repository = testRepository();
-      const { id } = await repository.mint(
-        KITCHEN_L_DESIGN,
-        CORRECT_TOKEN_HASH,
-      );
+      const { id } = await repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
 
       const sql = neon(testDatabaseUrl);
       await sql`delete from designs where id = ${id}`;
@@ -318,7 +362,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
     },
   );
 
-  it.skipIf(!hasLiveDatabase)(
+  it.skipIf(!hasLiveDatabase || !hasApplicationDatabaseUrl)(
     "targets a database that is not the application's own",
     () => {
       const applicationDatabase = new URL(process.env["DATABASE_URL"] ?? "")
@@ -422,7 +466,11 @@ describe("saveAuthorized revisions (WEB-003)", () => {
     repository: NeonConfigurationRepository,
     writeTokenHash: string = CORRECT_TOKEN_HASH,
   ): Promise<{ id: DesignId; revision: string }> {
-    const minted = await repository.mint(KITCHEN_L_DESIGN, writeTokenHash);
+    const minted = await repository.mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+    });
     mintedIds.push(minted.id);
     return minted;
   }
@@ -464,6 +512,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         design: firstTab,
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: revision,
+        requestVisitor: { kind: "absent" },
       });
       await expect(
         repository.saveAuthorized({
@@ -471,6 +520,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
           design: secondTab,
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: revision,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteConflictError);
 
@@ -496,18 +546,21 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         design: designNamed("first"),
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: revision,
+        requestVisitor: { kind: "absent" },
       });
       const second = await repository.saveAuthorized({
         id,
         design: designNamed("second"),
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: first.revision,
+        requestVisitor: { kind: "absent" },
       });
       const third = await repository.saveAuthorized({
         id,
         design: designNamed("third"),
         writeTokenHash: CORRECT_TOKEN_HASH,
         expectedRevision: second.revision,
+        requestVisitor: { kind: "absent" },
       });
 
       expect([
@@ -531,6 +584,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
           design: designNamed("stale"),
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: "9999",
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteConflictError);
 
@@ -557,6 +611,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
             design: designNamed("attacker"),
             writeTokenHash: WRONG_TOKEN_HASH,
             expectedRevision: claimed,
+            requestVisitor: { kind: "absent" },
           }),
         ).rejects.toThrow(DesignWriteForbiddenError);
       }
@@ -576,6 +631,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
           design: KITCHEN_L_DESIGN,
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: FIRST_REVISION,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -606,6 +662,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
           design: designNamed("malformed-revision"),
           writeTokenHash: CORRECT_TOKEN_HASH,
           expectedRevision: value,
+          requestVisitor: { kind: "absent" },
         }),
       ).rejects.toThrow(DesignWriteConflictError);
 
@@ -624,6 +681,456 @@ describe("saveAuthorized revisions (WEB-003)", () => {
       expect((await repository.load(id)).revision).toBe(revision);
     },
   );
+});
+
+/** M7 wave 7E3b S1, D3 / ADR 0114 Amendment H3: `saveAuthorized`'s ownership column, from the same
+ *  statement as the update. */
+describe("saveAuthorized's ownership column (Amendment H3)", () => {
+  const mintedIds: DesignId[] = [];
+  const OWNER_HASH = "18".repeat(32);
+  const STRANGER_HASH = "19".repeat(32);
+
+  function testRepository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  beforeAll(async () => {
+    if (hasLiveDatabase) await runMigrations(testDatabaseUrl);
+  });
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers true when the request's visitor value is the row's own",
+    async () => {
+      const repository = testRepository();
+      const { id, revision } = await repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: OWNER_HASH },
+      });
+      mintedIds.push(id);
+
+      const saved = await repository.saveAuthorized({
+        id,
+        design: { ...KITCHEN_L_DESIGN, presetId: "owned-save" },
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        expectedRevision: revision,
+        requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
+      });
+
+      expect(saved.ownsVisitor).toBe(true);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers false for a foreign visitor value, and for no cookie at all",
+    async () => {
+      const repository = testRepository();
+      const { id, revision } = await repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: OWNER_HASH },
+      });
+      mintedIds.push(id);
+
+      const foreign = await repository.saveAuthorized({
+        id,
+        design: { ...KITCHEN_L_DESIGN, presetId: "foreign-cookie-save" },
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        expectedRevision: revision,
+        requestVisitor: { kind: "present", visitorHash: STRANGER_HASH },
+      });
+      expect(foreign.ownsVisitor).toBe(false);
+
+      const cookieless = await repository.saveAuthorized({
+        id,
+        design: { ...KITCHEN_L_DESIGN, presetId: "cookieless-save" },
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        expectedRevision: foreign.revision,
+        requestVisitor: { kind: "absent" },
+      });
+      expect(cookieless.ownsVisitor).toBe(false);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers false for the value a rotation already moved away from (Amendment H3's own reason)",
+    async () => {
+      const repository = testRepository();
+      const { id, revision } = await repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: OWNER_HASH },
+      });
+      mintedIds.push(id);
+      const rotatedHash = "1a".repeat(32);
+      const { id: rotatedMintId } = await repository.mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: {
+          kind: "rotate",
+          visitorHash: rotatedHash,
+          fromVisitorHash: OWNER_HASH,
+        },
+      });
+      mintedIds.push(rotatedMintId);
+
+      const staleSave = await repository.saveAuthorized({
+        id,
+        design: { ...KITCHEN_L_DESIGN, presetId: "stale-cookie-save" },
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        expectedRevision: revision,
+        requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
+      });
+
+      // The write token alone still authorises the save (decision 2) — the write must land even
+      // though the carried visitor value has already been rotated away.
+      expect(staleSave.revision).not.toBe(revision);
+      expect(staleSave.ownsVisitor).toBe(false);
+    },
+  );
+});
+
+/** M7 wave 7E3a S3, D3: the resume query, run for real rather than only against a repository
+ *  double — the double cannot prove the ordering, the isolation, or that `0005`'s index is even the
+ *  right shape for the columns this file's own SQL names. */
+describe("resumeVisitor (D3)", () => {
+  const mintedIds: DesignId[] = [];
+
+  function testRepository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  async function mintWithVisitor(visitorHash: string): Promise<DesignId> {
+    const { id } = await testRepository().mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: CORRECT_TOKEN_HASH,
+      visitor: { kind: "fresh", visitorHash },
+    });
+    mintedIds.push(id);
+    return id;
+  }
+
+  async function setUpdatedAt(id: DesignId, hoursAgo: number): Promise<void> {
+    await neon(testDatabaseUrl)`
+      update designs set updated_at = now() - (${hoursAgo} * interval '1 hour')
+      where id = ${id}
+    `;
+  }
+
+  beforeAll(async () => {
+    if (hasLiveDatabase) await runMigrations(testDatabaseUrl);
+  });
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers none for a hash no row carries",
+    async () => {
+      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+
+      expect(lookup).toEqual({ kind: "none" });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers the visitor's most recently updated design, not the oldest",
+    async () => {
+      const olderId = await mintWithVisitor(VISITOR_HASH);
+      await setUpdatedAt(olderId, 2);
+      const newerId = await mintWithVisitor(VISITOR_HASH);
+      await setUpdatedAt(newerId, 1);
+
+      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+
+      expect(lookup).toEqual({ kind: "found", id: newerId });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "never returns another visitor's design, or one whose hash is null",
+    async () => {
+      const otherVisitorHash = "9".repeat(64);
+      await mintWithVisitor(otherVisitorHash);
+      const nullHashId = await mintWithVisitor(VISITOR_HASH);
+      // A pre-0005 row, simulated: minted with a hash, then nulled out directly, since `mint` has
+      // no way left to create one.
+      await neon(testDatabaseUrl)`
+        update designs set visitor_hash = null where id = ${nullHashId}
+      `;
+      const mineId = await mintWithVisitor(VISITOR_HASH);
+
+      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+
+      expect(lookup).toEqual({ kind: "found", id: mineId });
+    },
+  );
+});
+
+/** M7 wave 7E3b S1, D1 / ADR 0114 Amendment H1 ("Rotate on mint"): a mint that carries a
+ *  well-formed old visitor value moves that browser's rows to the fresh one, in the same
+ *  transaction as the insert. */
+describe("mint rotation (Amendment H1)", () => {
+  const mintedIds: DesignId[] = [];
+
+  function testRepository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  async function mintFresh(visitorHash: string): Promise<DesignId> {
+    const { id } = await testRepository().mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: CORRECT_TOKEN_HASH,
+      visitor: { kind: "fresh", visitorHash },
+    });
+    mintedIds.push(id);
+    return id;
+  }
+
+  async function rowFor(id: DesignId): Promise<{
+    document: string;
+    revision: string;
+    updated_at: string;
+    write_token_hash: string | null;
+    visitor_hash: string | null;
+  }> {
+    const rows = (await neon(testDatabaseUrl)`
+      select document, revision::text as revision, updated_at::text as updated_at,
+             write_token_hash, visitor_hash
+      from designs where id = ${id}
+    `) as {
+      document: unknown;
+      revision: string;
+      updated_at: string;
+      write_token_hash: string | null;
+      visitor_hash: string | null;
+    }[];
+    const row = rows[0];
+    if (!row) throw new Error(`No row for id "${id}"`);
+    return { ...row, document: JSON.stringify(row.document) };
+  }
+
+  beforeAll(async () => {
+    if (hasLiveDatabase) await runMigrations(testDatabaseUrl);
+  });
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "moves the browser's row to the fresh value, and resume follows the newly minted design there",
+    async () => {
+      const oldHash = "10".repeat(32);
+      const newHash = "11".repeat(32);
+      const id = await mintFresh(oldHash);
+
+      // The rotation is a side effect of minting a second design under the browser's fresh value —
+      // that new design's own id, not the old one, is what resume answers next (it is the newest).
+      const { id: newId } = await testRepository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: {
+          kind: "rotate",
+          visitorHash: newHash,
+          fromVisitorHash: oldHash,
+        },
+      });
+      mintedIds.push(newId);
+
+      expect((await rowFor(id)).visitor_hash).toBe(newHash);
+      await expect(testRepository().resumeVisitor(oldHash)).resolves.toEqual({
+        kind: "none",
+      });
+      await expect(testRepository().resumeVisitor(newHash)).resolves.toEqual({
+        kind: "found",
+        id: newId,
+      });
+      // The moved design is still readable under the fresh value, alongside the one just minted.
+      await expect(
+        testRepository().loadOwned({ id, visitorHash: newHash }),
+      ).resolves.toMatchObject({ kind: "found" });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "leaves document, revision, updated_at and write_token_hash untouched by a rotation",
+    async () => {
+      const oldHash = "12".repeat(32);
+      const newHash = "13".repeat(32);
+      const id = await mintFresh(oldHash);
+      const before = await rowFor(id);
+
+      const { id: newId } = await testRepository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: {
+          kind: "rotate",
+          visitorHash: newHash,
+          fromVisitorHash: oldHash,
+        },
+      });
+      mintedIds.push(newId);
+
+      const after = await rowFor(id);
+      expect(after.document).toBe(before.document);
+      expect(after.revision).toBe(before.revision);
+      expect(after.updated_at).toBe(before.updated_at);
+      expect(after.write_token_hash).toBe(before.write_token_hash);
+      expect(after.visitor_hash).not.toBe(before.visitor_hash);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "a fresh mint moves no other design's visitor_hash, so a plain mint issues no UPDATE",
+    async () => {
+      const untouchedHash = "14".repeat(32);
+      const untouchedId = await mintFresh(untouchedHash);
+
+      // A second, unrelated fresh mint — it carries no old value to rotate away from, so it must
+      // not touch the row above at all.
+      await mintFresh("15".repeat(32));
+
+      expect((await rowFor(untouchedId)).visitor_hash).toBe(untouchedHash);
+    },
+  );
+});
+
+/** M7 wave 7E3b S1, D4 / ADR 0114 Amendment H2: the gated read, driven directly rather than only
+ *  through a repository double — a double cannot prove the predicate is one statement over one
+ *  snapshot, which is the property this port exists for. */
+describe("loadOwned (Amendment H2)", () => {
+  const mintedIds: DesignId[] = [];
+  const OWNER_HASH = "16".repeat(32);
+  const STRANGER_HASH = "17".repeat(32);
+
+  function testRepository(): NeonConfigurationRepository {
+    return new NeonConfigurationRepository(testDatabaseUrl);
+  }
+
+  beforeAll(async () => {
+    if (hasLiveDatabase) await runMigrations(testDatabaseUrl);
+  });
+
+  afterEach(async () => {
+    if (!hasLiveDatabase || mintedIds.length === 0) return;
+    const ids = mintedIds.splice(0, mintedIds.length);
+    await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
+  });
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers found, with the design and revision, for the owning visitor hash",
+    async () => {
+      const { id } = await testRepository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: OWNER_HASH },
+      });
+      mintedIds.push(id);
+
+      const outcome = await testRepository().loadOwned({
+        id,
+        visitorHash: OWNER_HASH,
+      });
+
+      expect(outcome.kind).toBe("found");
+      if (outcome.kind !== "found") throw new Error("unreachable");
+      expect(canonicalSerializeDesign(outcome.design)).toBe(
+        canonicalSerializeDesign(KITCHEN_L_DESIGN),
+      );
+      expect(outcome.revision).toBe(FIRST_REVISION);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers none for a foreign visitor hash",
+    async () => {
+      const { id } = await testRepository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: CORRECT_TOKEN_HASH,
+        visitor: { kind: "fresh", visitorHash: OWNER_HASH },
+      });
+      mintedIds.push(id);
+
+      await expect(
+        testRepository().loadOwned({ id, visitorHash: STRANGER_HASH }),
+      ).resolves.toEqual({ kind: "none" });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers none for a pre-0005 row, whose visitor_hash is null",
+    async () => {
+      const id = await insertTokenlessOwnerlessRow();
+
+      await expect(
+        testRepository().loadOwned({ id, visitorHash: OWNER_HASH }),
+      ).resolves.toEqual({ kind: "none" });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "answers none for an id no row carries",
+    async () => {
+      await expect(
+        testRepository().loadOwned({
+          id: "does-not-exist-00000000",
+          visitorHash: OWNER_HASH,
+        }),
+      ).resolves.toEqual({ kind: "none" });
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "raises InvalidDesignError for the owner's own invalid document, but answers none for a stranger",
+    async () => {
+      const id = await insertInvalidDocumentRow(OWNER_HASH);
+
+      await expect(
+        testRepository().loadOwned({ id, visitorHash: OWNER_HASH }),
+      ).rejects.toThrow(InvalidDesignError);
+      await expect(
+        testRepository().loadOwned({ id, visitorHash: STRANGER_HASH }),
+      ).resolves.toEqual({ kind: "none" });
+    },
+  );
+
+  /** A row as it exists before ADR 0114 (M7 wave 7E3a): no visitor at all. Inserted directly,
+   *  because `mint` has no way left to create one. */
+  async function insertTokenlessOwnerlessRow(): Promise<DesignId> {
+    const id = generateDesignId();
+    await neon(testDatabaseUrl)`
+      insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+      values (${id}, 1, ${KITCHEN_L_DESIGN}, ${CORRECT_TOKEN_HASH}, null)
+    `;
+    mintedIds.push(id);
+    return id;
+  }
+
+  /** A row whose document fails `migrateDesign`'s own validation — inserted directly, because
+   *  `mint` never accepts a document this shape. */
+  async function insertInvalidDocumentRow(
+    visitorHash: string,
+  ): Promise<DesignId> {
+    const id = generateDesignId();
+    await neon(testDatabaseUrl)`
+      insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+      values (${id}, 1, ${{}}, ${CORRECT_TOKEN_HASH}, ${visitorHash})
+    `;
+    mintedIds.push(id);
+    return id;
+  }
 });
 
 describe("the design-revision migration (WEB-003)", () => {
@@ -662,8 +1169,21 @@ describe("the design-revision migration (WEB-003)", () => {
       const sql = neon(testDatabaseUrl);
       const legacyId = generateDesignId();
       try {
+        // Forget the ledger row before dropping the column, never after: killed between the two,
+        // a run leaves only a forgotten tail, which the next `runMigrations` re-applies and
+        // re-records. The other order leaves the ledger claiming a column that is gone, which is
+        // BACKLOG 69's second error and wedges every later run (review finding R1.2).
+        //
+        // Every version from REVISION_VERSION upward, not only REVISION_VERSION itself (WEB-003,
+        // the same argument `neon-configuration-repository.adversarial.test.ts`'s
+        // WRITE_TOKEN_MIGRATION_VERSIONS makes): forgetting 4 while a later migration stays
+        // recorded is itself the gap the runner refuses, and 0005 is exactly such a later migration
+        // now.
+        await forgetAppliedMigrations(
+          testDatabaseUrl,
+          REVISION_AND_LATER_VERSIONS,
+        );
         await sql`alter table designs drop column if exists revision`;
-        await forgetAppliedMigrations(testDatabaseUrl, [REVISION_VERSION]);
         await sql`
           insert into designs (id, schema_version, document, write_token_hash)
           values (${legacyId}, 1, ${KITCHEN_L_DESIGN}, ${"c".repeat(64)})
@@ -671,7 +1191,7 @@ describe("the design-revision migration (WEB-003)", () => {
 
         const summary = await runMigrations(testDatabaseUrl);
 
-        expect(summary.applied).toEqual(["0004_add_design_revision.sql"]);
+        expect(summary.applied).toEqual(REVISION_AND_LATER_FILE_NAMES);
         const rows = (await sql`
           select revision::text as revision from designs where id = ${legacyId}
         `) as { revision: string }[];
@@ -703,6 +1223,20 @@ describe("the design-revision migration (WEB-003)", () => {
 
 /** The version `0004_add_design_revision.sql` occupies in the ledger. */
 const REVISION_VERSION = 4;
+
+/** Every migration at or after `REVISION_VERSION`, read from disk rather than written down — the
+ *  same argument `migrate.test.ts`'s `VERSIONS_AFTER_THE_FIRST` makes: a literal list here would go
+ *  stale the moment a later migration shipped, and staleness here is destructive (a forgotten
+ *  ledger row with a later one left recorded is the gap the runner refuses), not merely wrong. */
+const REVISION_AND_LATER_FILES = readMigrationFiles().filter(
+  (migration) => migration.version >= REVISION_VERSION,
+);
+const REVISION_AND_LATER_VERSIONS = REVISION_AND_LATER_FILES.map(
+  (migration) => migration.version,
+);
+const REVISION_AND_LATER_FILE_NAMES = REVISION_AND_LATER_FILES.map(
+  (migration) => migration.fileName,
+);
 
 describe("NeonConfigurationRepository connection setup", () => {
   it("never disables TLS in its own connection-string handling", () => {

@@ -226,15 +226,39 @@ describe("no production code writes the room's depth", () => {
     expect(commands).toContain(`commands${path.sep}set-cabinet-depth.ts`);
   });
 
-  it("writes a room only in the migration arm that corrects one", () => {
+  /** ADR 0108 decision 8: the one module that builds a room from customer input. Exempt by name and
+   *  never by directory, and only while it reads no depth.
+   *
+   *  **The structural guard for that condition is not the word list below** — `DEPTH_READS` misses
+   *  `baseCarcassDepthMm`, `alongWallPositionAtMm` and `occupiedDepthM`, among others. It is QA's
+   *  *"imports types only"* in `tests/room/validate-room.adversarial.test.ts` (`validate-room.ts can
+   *  read no depth, because it can read nothing but its arguments`): a module with no value import
+   *  can reach no depth by any name. That test and this exemption stand or fall together; the
+   *  word-list test below is a readable second line, not the guard. */
+  const ROOM_FROM_CUSTOMER_INPUT = `room${path.sep}validate-room.ts`;
+
+  /** The ways a module could reach the cabinet-depth setting: the design's `settings`, the setting's
+   *  own field, and the constants and modules that declare a depth. The room's own `depthMm` is a
+   *  wall length and is deliberately not among them. */
+  const DEPTH_READS =
+    /\bsettings\b|cabinetDepth|CABINET_DEPTH|WORKTOP_DEPTH|worktop-depth|cabinet-depth|BuildDepth/;
+
+  it("writes a room only in the migration arm that corrects one and the customer's room input", () => {
     const writers = sourceFiles().filter(
       (file) =>
         file !== MIGRATION &&
+        file !== ROOM_FROM_CUSTOMER_INPUT &&
         !file.startsWith(`fixtures${path.sep}`) &&
         /room:\s*\{/.test(sourceOf(file)),
     );
 
     expect(writers).toStrictEqual([]);
+  });
+
+  // The exemption above keeps ADR 0083 decision 2 only if the room it builds cannot follow the
+  // setting, so the exempted module is held to reading no depth at all.
+  it("builds the customer's room without reading any depth", () => {
+    expect(sourceOf(ROOM_FROM_CUSTOMER_INPUT)).not.toMatch(DEPTH_READS);
   });
 
   // The behavioural half of the same claim, because a grep can be defeated by a helper: the setting

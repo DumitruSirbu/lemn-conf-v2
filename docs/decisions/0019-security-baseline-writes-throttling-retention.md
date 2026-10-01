@@ -1,6 +1,6 @@
 # ADR 0019 — Security baseline: write authorisation, layered throttling, and retention
 
-Status: Accepted
+Status: Accepted (**decision 1's open read is superseded 2026-09-11 by the owner's F5 ruling; its write half stands — [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)**; **decision 8 and Alternatives 1–2 superseded 2026-09-11 by the owner's profile ruling — [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)**)
 Date: 2026-08-25
 Type: Decision
 Milestone: M3 Wave 3C (write authorisation, throttling) and M8 (contact form, recovery)
@@ -197,11 +197,15 @@ control.
 
 ### 7. Retention: abandoned designs are deleted
 
-A design that has never reached the contact step and has not been modified for **30 days** is
+> **RETIRED by owner ruling, 2026-09-15** — see *Supersession note — 2026-09-15: decision 7* below.
+> **Nothing is deleted automatically.** The text below stays in place, struck, because its security
+> argument is the thing a later reader must weigh before proposing a reaper again.
+
+~~A design that has never reached the contact step and has not been modified for **30 days** is
 deleted by the existing nightly cron. This closes the retention question open since 2026-08-25, and
 it is a security control as much as a hygiene one: it bounds how much an attacker who gets past
-every other layer can accumulate, and it bounds free-tier storage. The same cron prunes expired
-rate-limit counters.
+every other layer can accumulate, and it bounds free-tier storage.~~ The same cron prunes expired
+rate-limit counters — **unchanged; that half is not retention and is not retired.**
 
 Designs that reached the contact step are out of scope here and follow whatever the contact
 submission's own retention policy becomes in M8.
@@ -372,3 +376,82 @@ prunes on a 30-day delay while the flood continues, and the WAF rule is per-regi
 construction (decision 2) and was never a hard cap.
 
 A plan or a runbook is not a runtime control. Neither is this record.
+
+## Supersession note — 2026-09-11: decision 1's read half
+
+The owner answered the M7 plan's follow-up F5 on 2026-09-11 with **"Only its own browser"**.
+**Superseded:** decision 1's *"`GET /d/{id}` and `GET /api/designs/{id}` stay open to anyone holding
+the link. Sharing keeps costing nothing."* Reads now require the browser holding the design's owning
+visitor cookie ([ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+decision 5), and a read-only share becomes a later, explicit action. **Unchanged:** the per-design,
+path-scoped write token and everything about writes; decisions 2–11, including decision 7's 30-day
+retention, which the owner kept as the visitor cookie's lifetime too. Implemented by M7 wave 7E3b;
+until it lands the code still answers reads to any link holder.
+
+**Revised the same day, 2026-09-11.** The owner replaced *"Only its own browser"* with **"Own browser +
+private share link"**. Decision 1's open read stays superseded for `/d/{id}`; the read-only view it
+created for link holders **survives behind a separate, revocable share token** that grants no write
+and never carries the design id or either cookie ([ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+Amendment B; M7 wave 7E3c, ahead of 7E3b).
+
+## Supersession note — 2026-09-15: decision 7 — the 30-day reaper is retired, not raised
+
+**The owner retired it**, having first been asked only whether the preset library wanted a longer
+*backup* window than `designs`. Verbatim:
+
+> *"presets will not be removed… just to avoid accidental removal, we can remove for the first period
+> of time this 30 days cleanup. We'll just keep collecting all the configuration of visitors, of
+> users and so on. And later we can implement a functionality or just manually detect a period of
+> time, let's say all the private kitchens that are older than one year, we can remove, not
+> automatically, but we'll make this a script… we can focus now on storing and not removing."*
+
+**Superseded:** decision 7's *"a design… not modified for 30 days is deleted by the existing nightly
+cron"*, and with it the security argument that the deletion bounds what an attacker can accumulate.
+**Nothing deletes a design automatically, and nothing is scheduled to.** Their reasoning, which is
+the test a later reader should apply rather than the number: few visitors are expected, and a stored
+configuration is *"a record in a table and a json format… that has few kbs"*, so storage does not
+bind.
+
+**Unchanged, and each is stated because a reader could reasonably take this note to cover it:**
+
+- **The 14-day backup window.** `BACKUP_RETENTION_DAYS` governs how long an export survives in Blob,
+  not how long a row lives, and **the owner ruled on it separately and explicitly the same day** —
+  *"14 days backups for me is ok"*. **"Nothing is deleted" is about rows. Backups still rotate.**
+- **Decisions 1–6 and 8–11**, including the rate-limit counter pruning that shares decision 7's cron.
+- **The 30-day figure survives in a different role**: it is also the visitor cookie's lifetime
+  ([ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)),
+  which this note does not touch. A cookie expiring is not a row being deleted.
+
+**The later manual script is RECORDED WITH ITS TRIGGER AND NOT BUILT** — the first application of
+[ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md),
+cited because that record is a day old and an example helps it land. The owner's *"later"*, *"let's
+say"* about a year, and above all **"not automatically"** are the whole of what is ruled. **Trigger:
+an owner who asks to remove old private kitchens.** Until then there is no job, no schedule, no
+horizon constant and no column — a constant holding a horizon nothing reads would be the dead
+configuration ADR 0118 decision 2 exists to refuse.
+
+**One thing that script will need, recorded so it is not discovered as a grant request.** It cannot
+run as the application: `packages/persistence/tests/application-role-privileges.test.ts:57-72` asserts
+the application role holds **exactly `INSERT, SELECT, UPDATE`** on `designs`, with a standing
+*"cannot delete a design"* test at `:92` (re-read at `bfc25ed`). **`DELETE` is absent by design and
+must stay absent.** The owner's own *"we'll make this a script"* is already the right shape — a
+deliberate operator action under its own narrow credential, on the pattern `MIGRATION_DATABASE_URL`
+already sets and M7 wave 7P1's ruling P13 restates for the preset administrator. *(The connection is
+the architect's; nothing is designed here and no grant is proposed.)*
+
+**The consequence worth stating plainly, because this record's subject is the data lifecycle: no
+table in this project now has a retention horizon. Everything stored is permanent by default.** That
+changes what a schema mistake costs — there is no point at which an old shape ages out on its own,
+so *"we can fix it when the old rows expire"* is no longer available as an argument anywhere. M7 wave
+7P1 met the narrow form of this first, at the preset table's freeze; **the general form belongs
+here.** *(The generalisation is the architect's; the ruling is the owner's.)*
+
+## Supersession note — 2026-09-11: decision 8 — accounts with passwords, in M8
+
+The owner ruled on 2026-09-11 (**"Profile replaces PIN"**, then **"In M8, with e-mail"**) that
+cross-device editing is a **customer profile with e-mail and password**, built in M8
+([ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)). **Superseded:** decision 8 (*"Cross-device editing uses an emailed link, never a
+password"*) and the rejection of Alternatives 1 (a password) and 2 (accounts). **Not dismissed:** the
+reasons Alternative 1 gave — password reuse, hashing and never-logging duties, the reset path — are now
+M8's obligations, recorded in `docs/milestones/M8-review-contact-success.md`, *Customer profiles*.
+Decisions 1 (write half), 2–7 and 9–11 stand.

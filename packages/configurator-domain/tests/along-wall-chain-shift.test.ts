@@ -15,7 +15,7 @@ import {
   alongWallShiftByColumnMm,
   alongWallShiftMm,
   cornerReachAlongWallMm,
-  WALL_THE_CORNER_IS_TAKEN_FROM,
+  cornerTakingWallsOf,
 } from "../src/along-wall-chain-shift.js";
 import {
   FOLLOWS_CABINET_DEPTH,
@@ -168,10 +168,22 @@ describe("the two chains", () => {
 
 describe("which placements the corner reaches", () => {
   const catalog = buildKitchenLBodyCatalog(DEEP_MM);
-  const move = { fromCabinetDepthMm: SHALLOW_MM, toCabinetDepthMm: DEEP_MM };
+  const move = {
+    fromCabinetDepthMm: SHALLOW_MM,
+    toCabinetDepthMm: DEEP_MM,
+    shape: "L" as const,
+  };
 
-  it("takes the wall it is declared to take from, and no other", () => {
-    expect(WALL_THE_CORNER_IS_TAKEN_FROM).toBe("B");
+  it("takes the wall it is declared to take from on an L, and no other", () => {
+    expect([...cornerTakingWallsOf("L")]).toStrictEqual(["B"]);
+  });
+
+  // R1.3: a direct wall-C call is the superset `{B, C}`'s job, not the L's own singleton — wall C
+  // never appears in an L's `TileRun`s or `CornerAssemblyPiece`s, so this is what `ownsTheCorner`
+  // and `slideReserveMm` read for every wall, and it agrees with the L's own set on "A" and "B".
+  it("takes both wall B and wall C on a U, and neither on a straight room", () => {
+    expect([...cornerTakingWallsOf("U")].sort()).toStrictEqual(["B", "C"]);
+    expect([...cornerTakingWallsOf("linear")]).toStrictEqual([]);
   });
 
   // Wall A is anchored at the corner (ADR 0083 decision 1), so a deeper corner never shortens it.
@@ -221,6 +233,7 @@ describe("which frozen extents the corner reaches", () => {
     fromCabinetDepthMm: SHALLOW_MM,
     toCabinetDepthMm: DEEP_MM,
     membersShiftMm: undefined,
+    shape: "L" as const,
   };
 
   /** A frozen extent at an along-wall centre on wall B, shaped as `deriveColumns` builds one: the
@@ -355,6 +368,7 @@ describe("which frozen extents the corner reaches", () => {
         fromCabinetDepthMm: DEEP_MM,
         toCabinetDepthMm: SHALLOW_MM,
         membersShiftMm: undefined,
+        shape: "L",
       });
 
       expect(back, source).toBe(615);
@@ -364,7 +378,11 @@ describe("which frozen extents the corner reaches", () => {
 
 describe("how far a column's own members moved", () => {
   const catalog = buildKitchenLBodyCatalog(DEEP_MM);
-  const move = { fromCabinetDepthMm: SHALLOW_MM, toCabinetDepthMm: DEEP_MM };
+  const move = {
+    fromCabinetDepthMm: SHALLOW_MM,
+    toCabinetDepthMm: DEEP_MM,
+    shape: "L" as const,
+  };
 
   /** The seeded kitchen's records at 600, and the same bodies where the corner leaves them at 700 —
    *  the exact pair `setCabinetDepth` builds rung 2's operand from. */

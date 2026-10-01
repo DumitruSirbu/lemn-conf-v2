@@ -4,15 +4,58 @@ import { neon } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createNeonDesignRowSource } from "../src/design-row-source.js";
+import type { DesignRowSource } from "../src/design-row-source.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
-import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import {
+  announceSkippedLiveSuite,
+  isLiveTestDatabaseConfigured,
+  liveTestDatabaseUrl,
+} from "./support/live-test-database.js";
 import { readAllDesignRows } from "./support/read-all-design-rows.js";
+import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 
-const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
-const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
+// Shared: this file mints rows and needs the schema intact, but tolerates other shared runs
+// (M7 wave 7T, T-J5).
+holdSharedTestSchemaLock();
+
+const SUITE_NAME = "createNeonDesignRowSource (live test database)";
+
+const hasLiveDatabase = isLiveTestDatabaseConfigured;
+const testDatabaseUrl = liveTestDatabaseUrl;
+if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const WRITE_TOKEN_HASH = "e".repeat(64);
+
+/** This file is about the row source's export, not visitor identity, so every mint needs one
+ *  well-formed visitor hash and nothing more. */
+const VISITOR_HASH = "f".repeat(64);
+
+/** Two full pages and a short one: the walk must resume twice and stop on the short page. */
+const PAGING_ROW_COUNT = 5;
+const SMALL_PAGE_SIZE = 2;
+
+/**
+ * Narrows the production source to the rows whose id starts with `prefix`, so a walk at a tiny page
+ * size costs a few round trips instead of one per two rows of the whole shared table. The paging
+ * itself stays production's: the first page starts after `prefix` (which sorts before every id
+ * extending it), every later `afterId` is the walk's own, and the first row past the prefix ends
+ * the walk with a short page.
+ */
+function scopedToIdPrefix(
+  source: DesignRowSource,
+  prefix: string,
+): DesignRowSource {
+  return {
+    async fetchDesignPage({ afterId, pageSize }) {
+      const page = await source.fetchDesignPage({
+        afterId: afterId ?? prefix,
+        pageSize,
+      });
+      return page.filter((row) => row.id.startsWith(prefix));
+    },
+  };
+}
 
 /**
  * The backup export exists to make a restore possible, and after ADR 0019 a design's
@@ -20,16 +63,38 @@ const WRITE_TOKEN_HASH = "e".repeat(64);
  * and permanently unwritable — the link still works, so nothing looks broken until a customer tries
  * to save and is refused. These tests are what stop that column being dropped again.
  */
-describe("createNeonDesignRowSource (live test database)", () => {
+describe(SUITE_NAME, () => {
   const mintedIds: DesignId[] = [];
 
   async function mintTrackingId(hash = WRITE_TOKEN_HASH): Promise<DesignId> {
-    const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint(
-      KITCHEN_L_DESIGN,
-      hash,
-    );
+    const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
+      design: KITCHEN_L_DESIGN,
+      writeTokenHash: hash,
+      visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+    });
     mintedIds.push(id);
     return id;
+  }
+
+  /** Inserts rows whose ids share `prefix` and end in one digit, so their `id` order is the
+   *  insertion order under any collation. Returns the ids in that order. */
+  async function insertRowsUnderPrefix(
+    prefix: string,
+    count: number,
+  ): Promise<DesignId[]> {
+    const sql = neon(testDatabaseUrl);
+    const ids = Array.from(
+      { length: count },
+      (_, index) => `${prefix}${String(index)}`,
+    );
+    for (const id of ids) {
+      mintedIds.push(id);
+      await sql`
+        insert into designs (id, schema_version, document)
+        values (${id}, 1, ${KITCHEN_L_DESIGN})
+      `;
+    }
+    return ids;
   }
 
   async function exportedRowFor(id: DesignId) {
@@ -104,6 +169,21 @@ describe("createNeonDesignRowSource (live test database)", () => {
   );
 
   it.skipIf(!hasLiveDatabase)(
+    "resumes a small-page walk from each page's last id, returning every row once and in order",
+    async () => {
+      const prefix = `qapaging${String(Date.now())}`;
+      const ids = await insertRowsUnderPrefix(prefix, PAGING_ROW_COUNT);
+
+      const walked = await readAllDesignRows(
+        scopedToIdPrefix(createNeonDesignRowSource(testDatabaseUrl), prefix),
+        SMALL_PAGE_SIZE,
+      );
+
+      expect(walked.map((row) => row.id)).toEqual(ids);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
     "round-trips through a restore with the design still writable afterwards",
     async () => {
       const repository = new NeonConfigurationRepository(testDatabaseUrl);
@@ -129,8 +209,9 @@ describe("createNeonDesignRowSource (live test database)", () => {
           // A restored row carries whatever revision the dump held; this suite restores rows the
           // export wrote before the column existed, so the migration's backfill is the revision.
           expectedRevision: "1",
+          requestVisitor: { kind: "absent" },
         }),
-      ).resolves.toEqual({ id, revision: "2" });
+      ).resolves.toEqual({ id, revision: "2", ownsVisitor: false });
     },
   );
 });

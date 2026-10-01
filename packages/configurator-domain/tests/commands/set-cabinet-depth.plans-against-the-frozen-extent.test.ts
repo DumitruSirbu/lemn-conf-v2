@@ -180,10 +180,14 @@ function recordedMapOf(
   design: Design,
   cabinetDepthMm: number,
 ): ReadonlyMap<string, Column> {
-  return deriveRecordedColumns(recordsAt(design, cabinetDepthMm), {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  return deriveRecordedColumns(
+    recordsAt(design, cabinetDepthMm),
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    toMetres(design.room.widthMm),
+  );
 }
 
 function depthMm(column: Column | undefined): number {
@@ -247,10 +251,14 @@ function witnessRecordedMapOf(
   design: Design,
   cabinetDepthMm: number,
 ): ReadonlyMap<string, Column> {
-  return deriveRecordedColumns(witnessRecordsAt(design, cabinetDepthMm), {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  return deriveRecordedColumns(
+    witnessRecordsAt(design, cabinetDepthMm),
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    toMetres(design.room.widthMm),
+  );
 }
 
 describe("the reproduction ADR 0088 measured", () => {

@@ -15,6 +15,24 @@ through parse → validate → migrate (`migrateDesign` from `@lemnaria/configur
 *that row only* if it doesn't pass — never a bulk `COPY` straight into the table. A dump can carry
 an older schema version, or the very corruption that prompted the restore in the first place.
 
+## Migration `0006` (`design_share_links`) — the grant is a separate, owner-run step
+
+M7 wave 7E3c's migration creates `design_share_links`, but `app_designs` gets no privilege on it
+from the migration itself: `grant` is not a shape `migration-safety.ts` recognises as safe to run
+unattended, and whether `app_designs` exists on every database this file runs against is not
+something a migration file can assume (ADR 0008's 2026-09-23 note; ADR 0114 Amendment G3). The
+owner runs this by hand, **after `0006` and before the deploy that ships the code reading the
+table** — the same order `0005`'s own header states for its column, for the same reason: code that
+ships before both answers every share operation with a 500.
+
+```sql
+GRANT SELECT, INSERT, UPDATE ON TABLE public.design_share_links TO app_designs;
+```
+
+Preview first, then production, each after that environment's own `0006` apply.
+`application-role-privileges.test.ts` asserts the exact grant set whenever the table exists, so a
+missing grant on a database that already has the table turns local gates red.
+
 ## Path 1 — Neon instant restore (PITR)
 
 Use this first if the incident is recent. The restore window is a **hard cap**, not a default, and
@@ -57,6 +75,19 @@ This project is on Neon's Free plan — **6 hours**. Past that, skip to Path 2.
    ```bash
    neon branches delete main_pre_restore_2026-08-25 --project-id <neon-project-id>
    ```
+
+6. **If `design_share_links` exists (M7 wave 7E3c), revoke every link before declaring the
+   incident resolved.** Unlike Path 2's row-level restore below — which excludes share rows
+   deliberately, so an older export can never resurrect a link revoked since (D8) — a PITR restore
+   moves the *whole* database backward, share links included, so a link revoked between the
+   restore point and the incident comes back active:
+
+   ```bash
+   psql "$DATABASE_URL" -c "update design_share_links set revoked_at = now() where revoked_at is null;"
+   ```
+
+   Every outstanding link dies, including any the restore did not actually resurrect — the query
+   cannot distinguish the two, and the owner re-issues.
 
 ## Path 2 — Restore from a dated Blob export
 
@@ -107,7 +138,7 @@ Run the migrations against the target so it has the `designs` table:
 
 ```bash
 MIGRATION_DATABASE_URL="<restore-drill connection string>" \
-  pnpm --filter @lemnaria/persistence run migrate
+  pnpm --filter @lemnaria/persistence run migrate <the target's database name>
 ```
 
 **It is `MIGRATION_DATABASE_URL`, not `DATABASE_URL`.** The migration runner reads only that
@@ -115,6 +146,17 @@ variable, deliberately and with no fallback — the application role cannot run 
 `DATABASE_URL` here does nothing: the runner would fall through to whatever
 `.env.migration.local` holds, which is **production**, and you would believe the drill target had
 been migrated when it had not. This runbook said `DATABASE_URL` until 2026-08-25; see ADR 0013.
+
+**`migrate` now requires the `<environment>` argument and refuses a mismatch before connecting**
+(`docs/milestones/migration-environment-safety-check.md`). `production` and `preview` are checked
+against their own database names, so a throwaway restore target must be declared by its **own exact
+database name** — for example `restore_drill_2026_08_25` — which passes because no listed
+environment claims that name. Declaring it `production` or `preview` is refused even though the
+credential is correct, because those labels are reserved for their real databases. A Neon branch
+restore is the one case this does not fit cleanly: a branch forked from production keeps the
+database name `lemn-conf-v2`, so it can only be declared `production` — this runbook's own
+throwaway-**database** route (above) avoids that ambiguity by giving the drill target a name of its
+own, which is why it is the recommended path over a branch restore.
 
 Confirm the table exists before continuing — do not assume the command worked:
 
@@ -165,6 +207,11 @@ interface BackupRow {
   // customer discovers it only when a save is refused. Older dumps predate the column and carry
   // `undefined`, which lands as NULL and fails closed, exactly as an unminted row does.
   write_token_hash?: string | null;
+  // Read access, since M7 wave 7E3a (ADR 0114 decision 5). A restore that drops this column brings
+  // every design back unreadable to the visitor who owns it — the id still resolves, and the "not
+  // available in this browser" page is all that loads. Older dumps predate the column the same way
+  // `write_token_hash` above does, and land as NULL for the same reason: unowned, not an error.
+  visitor_hash?: string | null;
 }
 
 async function main(): Promise<void> {
@@ -188,14 +235,16 @@ async function main(): Promise<void> {
       DesignSchema.parse(design); // belt-and-braces: migrateDesign already validates internally.
 
       await sql`
-        insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash)
+        insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
+                              visitor_hash)
         values (${row.id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${row.created_at}, ${row.updated_at},
-                ${row.write_token_hash ?? null})
+                ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
         on conflict (id) do update
           set schema_version = excluded.schema_version,
               document = excluded.document,
               updated_at = excluded.updated_at,
-              write_token_hash = excluded.write_token_hash
+              write_token_hash = excluded.write_token_hash,
+              visitor_hash = excluded.visitor_hash
       `;
       restored += 1;
     } catch (error) {

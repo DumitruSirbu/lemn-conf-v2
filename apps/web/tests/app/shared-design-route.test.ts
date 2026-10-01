@@ -15,15 +15,25 @@ interface HydrateProps {
   readonly revision: DesignRevision;
 }
 
-const loadDesign = vi.hoisted(() =>
+/** A well-formed visitor value (M7 wave 7E3b D4) — this file is about page identity through both
+ *  locale routes, not about the gate itself, so one owning cookie for every call is enough. */
+const OWNER_VISITOR_VALUE = "a".repeat(43);
+
+const loadOwned = vi.hoisted(() =>
   vi.fn<
-    (id: string) => Promise<{ design: Design; revision: DesignRevision }>
+    (lookup: {
+      id: string;
+      visitorHash: string;
+    }) => Promise<
+      | { kind: "found"; design: Design; revision: DesignRevision }
+      | { kind: "none" }
+    >
   >(),
 );
 const hydrateAndConfigure = vi.hoisted(() => vi.fn(() => null));
 
 vi.mock("@/lib/server/repository", () => ({
-  getRepository: () => ({ load: loadDesign }),
+  getRepository: () => ({ loadOwned }),
 }));
 vi.mock("@/app/d/[id]/hydrate-and-configure", () => ({
   HydrateAndConfigure: hydrateAndConfigure,
@@ -31,11 +41,21 @@ vi.mock("@/app/d/[id]/hydrate-and-configure", () => ({
 vi.mock("@/app/d/[id]/design-load-error", () => ({
   DesignLoadError: vi.fn(() => null),
 }));
+vi.mock("next/headers", () => ({
+  cookies: () =>
+    Promise.resolve({
+      get: (name: string) =>
+        name === "__Host-lemnaria_visitor"
+          ? { value: OWNER_VISITOR_VALUE }
+          : undefined,
+    }),
+}));
 
 describe("localized shared-design route identity", () => {
   beforeEach(() => {
-    loadDesign.mockReset();
-    loadDesign.mockResolvedValue({
+    loadOwned.mockReset();
+    loadOwned.mockResolvedValue({
+      kind: "found",
       design: KITCHEN_L_DESIGN,
       revision: "shared-revision",
     });
@@ -55,7 +75,7 @@ describe("localized shared-design route identity", () => {
       pages.push(page);
     }
 
-    expect(loadDesign.mock.calls).toEqual([[id], [id]]);
+    expect(loadOwned.mock.calls.map(([lookup]) => lookup.id)).toEqual([id, id]);
     for (const page of pages) {
       expect(page.type).toBe(hydrateAndConfigure);
       expect(page.props).toEqual({

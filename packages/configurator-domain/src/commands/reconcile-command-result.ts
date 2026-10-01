@@ -1,0 +1,88 @@
+// The shared post-command seam for every in-memory consumer of a successful domain command.
+//
+// A command decides which frozen extents moved; this function performs the ADR 0090 Amendment B
+// reconciliation that every holder of the resulting design owes. It deliberately has no selection
+// concept: selection belongs to the web adapter, while generation and replay need the same recorded
+// and published faces without depending on that adapter.
+import type { Design } from "../design.js";
+import {
+  clipEmptyColumnsAtWallEnd,
+  clipEmptyColumnsToFreeGround,
+  derivePlacementRecords,
+  mergeAdjacentEmptyColumns,
+  projectFrozenMap,
+  recomputeVoids,
+  splitOversizedEmptyColumns,
+  withCurrentFullHeightMembers,
+  withFrozenMap,
+  type BodyCatalog,
+  type Column,
+  type ColumnExtent,
+  type PlacementRecord,
+  type VoidRecord,
+} from "../void-engine.js";
+import type { CommandSuccess } from "./command-result.js";
+
+export interface ReconciledCommandResult {
+  readonly design: Design;
+  readonly records: readonly PlacementRecord[];
+  /** ADR 0090's room-independent face, projected into `design`. */
+  readonly recordedColumns: ReadonlyMap<string, Column>;
+  /** The wall-bounded face used for offers and rendering. */
+  readonly columns: ReadonlyMap<string, Column>;
+  readonly voids: readonly VoidRecord[];
+}
+
+/** Applies the ADR-sensitive frozen-map pipeline to one successful command result. */
+export function reconcileSuccessfulCommandResult(input: {
+  readonly result: CommandSuccess;
+  readonly catalog: BodyCatalog;
+  readonly previousRecordedColumns: ReadonlyMap<string, Column>;
+}): ReconciledCommandResult {
+  const records = derivePlacementRecords(input.result.design, input.catalog);
+  const moved = movedColumns(input.result, input.previousRecordedColumns);
+  const recordedColumns = reconcileColumns(moved, records);
+  const columns = reconcileColumns(
+    clipEmptyColumnsAtWallEnd(moved, records, input.result.design.room),
+    records,
+  );
+  const design = withFrozenMap(
+    input.result.design,
+    projectFrozenMap(recordedColumns, records),
+  );
+  return {
+    design,
+    records,
+    recordedColumns,
+    columns,
+    voids: recomputeVoids(records, columns),
+  };
+}
+
+function movedColumns(
+  result: CommandSuccess,
+  previousRecordedColumns: ReadonlyMap<string, Column>,
+): ReadonlyMap<string, Column> {
+  return result.effect.type === "body_inserted" ||
+    result.effect.type === "body_resized" ||
+    result.effect.type === "cabinet_depth_set"
+    ? result.effect.columns
+    : previousRecordedColumns;
+}
+
+/** Clip free ground, split, merge, then re-answer full-height membership—in that exact order. */
+function reconcileColumns(
+  columns: ReadonlyMap<string, ColumnExtent>,
+  records: readonly PlacementRecord[],
+): ReadonlyMap<string, Column> {
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(
+      splitOversizedEmptyColumns(
+        clipEmptyColumnsToFreeGround(columns, records),
+        records,
+      ),
+      records,
+    ),
+    records,
+  );
+}

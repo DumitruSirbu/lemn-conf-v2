@@ -18,6 +18,10 @@
   --accent: #7c5c3d;
   --accent-strong: #5a3e25;
   --accent-pale: #a07850;
+  /* **The red a refusal is drawn in** — frame 1C's own `#dc2626` (`Mobil.dc.html:210-211`, `:224`):
+   * the plan's refused wall, a refused field and its reason's badge. `editor-panel.module.css` still
+   * spells the same value for its own refusal and is not yet pointed here. */
+  --refusal: #dc2626;
 
   --touch-target: 44px;
   --radius-chip: 22px;

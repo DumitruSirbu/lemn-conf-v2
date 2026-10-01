@@ -22,7 +22,10 @@ test("cookie, weighted language preferences, fallback and the full query select 
 }) => {
   const cases = [
     {
-      path: "/configurator/configure?mode=read%20only&tag=a&tag=b",
+      // Re-pointed off the retired editor route (wave 7E4 D3): locale negotiation does not depend
+      // on which allow-listed path is used (G10), and the query string and headers stay
+      // byte-identical.
+      path: "/configurator/room?mode=read%20only&tag=a&tag=b",
       headers: {
         cookie: "NEXT_LOCALE=ru",
         "accept-language": "ro;q=1, ru;q=0.1",
@@ -40,7 +43,8 @@ test("cookie, weighted language preferences, fallback and the full query select 
       locale: "ru",
     },
     {
-      path: "/configurator/configure?from=malformed",
+      // Re-pointed off the retired editor route (wave 7E4 D3), same reasoning as above.
+      path: "/d/qa-route-does-not-exist?from=malformed",
       headers: {
         cookie: "NEXT_LOCALE=en",
         "accept-language": "not-a-language-%%%",
@@ -118,18 +122,21 @@ test("both localized documents expose locale metadata and the environment's nonc
   expect(runtimeErrors).toEqual([]);
 });
 
-test("localized roots and all four customer route families are real runtime routes", async ({
+// Renamed from "…all five customer entrypoints…" (wave 7E4 D3): the configure row moved to
+// `configure-route.e2e.spec.ts`, the one file the wave's gate still allows to name that route, so
+// "all five" is no longer true of the customer entrypoints this test itself checks.
+test("localized roots and the remaining customer entrypoints are real runtime routes", async ({
   request,
 }) => {
   for (const locale of ["ro", "ru"] as const) {
     const root = await request.get(`/${locale}`, { maxRedirects: 0 });
     expect(root.status()).toBe(307);
-    expect(root.headers().location).toBe(`/${locale}/configurator/configure`);
+    expect(root.headers().location).toBe(`/${locale}/configurator/room`);
     assertCsp(root);
 
     for (const path of [
-      "/configurator/configure",
       "/configurator/contact",
+      "/configurator/room",
       "/d/qa-route-does-not-exist",
     ]) {
       const response = await request.get(`/${locale}${path}`, {
@@ -146,9 +153,15 @@ test("invalid locale shapes and prefixed tooling are 404 while unprefixed toolin
   request,
 }) => {
   for (const path of [
-    "/en/configurator/configure",
-    "/RO/configurator/configure",
-    "/ro/configurator/configure/extra",
+    // Re-pointed off the retired editor route's three rows (wave 7E4 D3): locale negotiation does
+    // not depend on which allow-listed path is used (G10). `/ro/configurator/room/x` below already
+    // covers the nested shape for `room`, so the nested row moves to `contact` instead of
+    // duplicating it.
+    "/en/configurator/room",
+    "/RO/configurator/room",
+    "/ro/configurator/contact/extra",
+    "/ro/configurator/room/x",
+    "/ru/configurator/room/x",
     "/ro/api/designs",
     "/ru/internal/scene-shot",
   ]) {

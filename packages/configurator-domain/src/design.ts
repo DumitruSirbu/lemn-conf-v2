@@ -45,10 +45,15 @@ function roomDimensionSchema(maximumMm: number) {
 export const HandleSchema = z.enum(["steel", "black", "push"]);
 export type Handle = z.infer<typeof HandleSchema>;
 
-export const DesignWallSchema = z.enum(["A", "B"]);
+/** ADR 0132 decision 1: wall C is a world wall, its own frame — the same kind of fact wall A and
+ *  wall B's letters already are. `"C"` is additive: every stored placement written before this wave
+ *  named only `"A"` or `"B"`, and stays exactly as valid. */
+export const DesignWallSchema = z.enum(["A", "B", "C"]);
 export type DesignWall = z.infer<typeof DesignWallSchema>;
 
-export const DesignRoomShapeSchema = z.enum(["L", "linear"]);
+/** `"U"` is M7B's addition (ADR 0132 decision 6). Additive for the same reason `"C"` is: every
+ *  stored `"L"` and `"linear"` room parses unchanged. */
+export const DesignRoomShapeSchema = z.enum(["L", "linear", "U"]);
 export type DesignRoomShape = z.infer<typeof DesignRoomShapeSchema>;
 
 /** Storage/wire shape only — no mesh or derived geometry is ever serialised. */
@@ -141,13 +146,55 @@ export type EmptyColumn = z.infer<typeof EmptyColumnSchema>;
 export const StoredColumnExtentSchema = EmptyColumnSchema;
 export type StoredColumnExtent = z.infer<typeof StoredColumnExtentSchema>;
 
-export const DesignRoomSchema = z.strictObject({
+const DesignRoomFieldsSchema = z.strictObject({
   shape: DesignRoomShapeSchema,
   widthMm: roomDimensionSchema(MAX_ROOM_WIDTH_MM),
   depthMm: roomDimensionSchema(MAX_ROOM_DEPTH_MM),
   heightMm: roomDimensionSchema(MAX_ROOM_HEIGHT_MM),
+  /** Wall C's run (ADR 0132 decision 6). Present **iff** `shape` is `"U"` — the refinement below —
+   *  so an L or a straight document can never carry it and a U can never lack it. The bound is wall
+   *  B's own (`MAX_ROOM_DEPTH_MM`, both are `MAX_ROOM_RUN_MM`); storage's own bounds are U1 slice
+   *  S2's to re-derive, not this slice's. */
+  wallCMm: roomDimensionSchema(MAX_ROOM_DEPTH_MM).optional(),
+  /** Which way the corner turns (ADR 0129 D2). Optional, and the product writes it only for a
+   *  right-hand room: an absent key is left, so every left-hand document stays byte-identical to
+   *  what this schema wrote before this key existed — no schema version bump is owed, the same
+   *  argument as `columnExtents` (ADR 0053). A truthful explicit `"left"` still parses. Read only
+   *  through `cornerDirectionOf`, the one production reader (ADR 0129 D2). **Refused on a `"U"` when
+   *  the value is `"right"`** (ADR 0132 decision 6, Q-U4 (b), ADR 0104 Amendment C): a U has no
+   *  right-hand variant, so the product never writes one, and a truthful `"left"` or an absent key
+   *  still parses — refusing those is what ADR 0129 rejected. */
+  cornerDirection: z.enum(["left", "right"]).optional(),
 });
-export type DesignRoom = z.infer<typeof DesignRoomSchema>;
+
+export const DesignRoomSchema = DesignRoomFieldsSchema.superRefine(
+  (room, context) => {
+    const isU = room.shape === "U";
+    if (isU && room.wallCMm === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["wallCMm"],
+        message: "A U room requires wallCMm",
+      });
+    }
+    if (!isU && room.wallCMm !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["wallCMm"],
+        message: "wallCMm is valid only for a U room",
+      });
+    }
+    if (isU && room.cornerDirection === "right") {
+      context.addIssue({
+        code: "custom",
+        path: ["cornerDirection"],
+        message:
+          "A U room carries no corner-direction toggle (ADR 0104 Amendment C)",
+      });
+    }
+  },
+);
+export type DesignRoom = z.infer<typeof DesignRoomFieldsSchema>;
 
 /**
  * The whole-kitchen settings, as one optional container rather than sibling keys on the design.

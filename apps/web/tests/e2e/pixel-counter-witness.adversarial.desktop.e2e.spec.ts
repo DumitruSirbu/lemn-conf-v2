@@ -9,9 +9,13 @@ import {
   SELECTION_HIGHLIGHT_COLOR,
   SELECTION_OUTLINE_CASING_COLOR,
 } from "@lemnaria/three-adapter";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-import { deleteMintedDesigns } from "./support/minted-designs";
+import {
+  FAR_BASE_CABINET,
+  SINK_CABINET_FULL_WIDTH,
+  SINK_PATCH,
+} from "./support/desktop-scene-points";
 import { readSelection } from "./support/panel";
 import {
   MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
@@ -20,8 +24,12 @@ import {
   countPixelsIn,
   toRgb,
   type CapturedPatch,
-  type PixelRect,
 } from "./support/pixels";
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **Adversarial QA against wave 6V**, and it exists because two of that wave's claims are true only
@@ -59,9 +67,6 @@ import {
  *  document reached through `/d/{id}`, which is the route this file drives — five clicks each,
  *  right body 5/5. The patch is unchanged and still contains `p0`'s own region (page x 432–592,
  *  y 479–706). */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
-const FAR_BASE_CABINET = { x: 680, y: 650 };
-const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
 const SCENE_SETTLE_MS = 2500;
 const RENDER_SETTLE_MS = 400;
@@ -103,10 +108,46 @@ const CASING = {
  *  discipline the rim holds; it was departed from once, and this floor is the consequence.
  *
  *  The floor is re-measured rather than lowered until it passes. It still discriminates by a wide
- *  margin: the casing pass is the only near-black source in the patch, and the control below
- *  measures ≤ 10 on the same document — 30x below this floor — so deleting the pass still fails. */
+ *  margin: see `MAX_ABSENT_CASING_PIXELS` below for what else in the scene is near-black and by how
+ *  much this floor still clears it. */
 const MIN_CASING_PIXELS = 300;
-const MAX_ABSENT_CASING_PIXELS = 10;
+
+/**
+ * **What may read near-black in this patch when nothing is selected.**
+ *
+ * **This constant's premise changed on 2026-09-16 and the number followed it.** It used to say *the
+ * casing pass is the only near-black source in the patch*, with 10 as slack over a control measured
+ * at **0**. That was exactly true until M7 wave 7H made the camera a function of the customer's
+ * room; the scene re-framed, and a deliberately black strip came into the patch.
+ *
+ * **What it is, identified rather than tolerated.** `bowl_edge_back` — `kitchen-parts.ts:1455`, in
+ * the `"sink-faucet"` builder — a 558 x 12 x 2 mm box of `M.shadowGap` seated at y = -0.024 under
+ * `sink_rim_back`, whose own comment calls it the *"inner shadow line right under the rim"*. It is
+ * authored black on purpose and is **not** a defect: no seam, no z-fighting, nothing to fix in
+ * geometry. It reads as 14 pixels on one 1 px diagonal, and it cannot be excluded by moving the
+ * box — it sits inside `p0`'s highlight, which is what the patch exists to contain.
+ *
+ * **Two palette members fall inside `CASING_TOLERANCE`, and both are named because the second is a
+ * near miss rather than an absence.** Swept over all 14 of `kitchen-parts.ts`'s declared materials,
+ * measured from `SELECTION_OUTLINE_CASING_COLOR` (`#101010`):
+ *
+ * - `M.shadowGap` `#16181a`, distance **14.1** — the sink rim strips, `drain_hole`, and the
+ *   corner-return carcasses' `front_liner`. This is the one in the patch today.
+ * - `M.glassDark` `#15171a`, distance **13.2** — smoked glass, which is the **hob top**. It sits
+ *   just *outside* this patch's right edge today. A camera change that brings it in would add far
+ *   more than 14, and the next reader needs to know it was a near miss.
+ *
+ * The third-nearest is `M.dark` (graphite, `#3a3d40`) at **78**, comfortably outside the 40-ball, so
+ * nothing else in the palette can enter without a new material.
+ *
+ * **Why 50 and not 15.** The count is anti-aliasing-sensitive: the visible line is about 73 px long
+ * and only 14 samples currently clear the ball, so another GPU or driver moves it by several either
+ * way. A ceiling of 15 would be calibrated to one machine. **The gate keeps its teeth regardless:**
+ * `MIN_CASING_PIXELS` is 300 against a control of 14, which is **~21x separation**, so deleting the
+ * casing pass still fails this spec by a wide margin. That ratio is what justifies the slack, not
+ * the observation.
+ */
+const MAX_ABSENT_CASING_PIXELS = 50;
 
 /** `overflow-mark.e2e.spec.ts`'s own slack for an absence, reused so the two files agree on what
  *  counts as "no mark on screen". **The slack is shared; the threshold is not** — that gate counts a
@@ -173,36 +214,6 @@ const MIN_WOOD_CEILING_PIXELS = 10_000;
 /** The unpainted seeded design reads **16** at the lower of the two edges. */
 const MAX_UNPAINTED_CEILING_PIXELS = 100;
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-interface StoredDesign {
-  readonly id: string;
-  readonly revision: string;
-}
-
-async function mintDesign(page: Page): Promise<StoredDesign> {
-  await page.goto("/configurator/configure");
-  const minted = await page.evaluate(async () => {
-    const created = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const { id } = (await created.json()) as { id: string };
-    const loaded = await fetch(`/api/designs/${id}`);
-    const { revision } = (await loaded.json()) as { revision: string };
-    return { id, revision, status: created.status };
-  });
-
-  // Registered before anything is asserted, so a failing assertion still cleans up.
-  if (minted.id) mintedDesignIds.push(minted.id);
-  expect(minted.status).toBe(201);
-  return { id: minted.id, revision: minted.revision };
-}
-
 /**
  * Repaints the stored seeded kitchen in one finish on one material, built from the document the
  * API returned rather than from a literal, and returns what the saved document then wears so the
@@ -221,7 +232,7 @@ async function mintDesign(page: Page): Promise<StoredDesign> {
  */
 async function storeAKitchenWearing(
   page: Page,
-  stored: StoredDesign,
+  stored: SeededDesign,
   wearing: { readonly materialTierId: string; readonly finish: Finish },
 ): Promise<StoredKitchenColour> {
   const result = await page.evaluate(
@@ -305,9 +316,8 @@ function expectTheWholeKitchenWears(
   expect(stored.finishes).toEqual([JSON.stringify(finish)]);
 }
 
-async function openAndSettle(page: Page, designId: string): Promise<void> {
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
+async function openAndSettle(page: Page, design: SeededDesign): Promise<void> {
+  await openSeededDesign(page, design);
   await expect(async () => {
     expect((await readSelection(page)).probe).toBe("on");
   }).toPass({ timeout: 15_000 });
@@ -355,17 +365,17 @@ async function wholeCanvas(page: Page): Promise<CapturedPatch> {
  */
 test("the near-black casing pass reaches the framebuffer on a front painted the highlight's own colour", async ({
   page,
+  seededDesign,
 }) => {
   const finish = freeColourFinish("#ff2d2d");
-  const stored = await mintDesign(page);
   expectTheWholeKitchenWears(
-    await storeAKitchenWearing(page, stored, {
+    await storeAKitchenWearing(page, seededDesign, {
       materialTierId: MDF,
       finish,
     }),
     finish,
   );
-  await openAndSettle(page, stored.id);
+  await openAndSettle(page, seededDesign);
 
   await clickScene(page, SINK_CABINET_FULL_WIDTH);
   await selectInRail(page, "p0");
@@ -410,16 +420,16 @@ test("the near-black casing pass reaches the framebuffer on a front painted the 
 for (const wood of UNMARKED_WOODS) {
   test(`an unmarked kitchen in ${wood.name} stays under the mark counter in every preset`, async ({
     page,
+    seededDesign,
   }) => {
-    const stored = await mintDesign(page);
     expectTheWholeKitchenWears(
-      await storeAKitchenWearing(page, stored, {
+      await storeAKitchenWearing(page, seededDesign, {
         materialTierId: VENEER,
         finish: wood.finish,
       }),
       wood.finish,
     );
-    await openAndSettle(page, stored.id);
+    await openAndSettle(page, seededDesign);
 
     // Nothing is selected, so no outline is on screen: the outline's own red clears the mark's
     // threshold by 130 and would be counted as a wash.
@@ -465,17 +475,17 @@ for (const wood of UNMARKED_WOODS) {
  */
 test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not", async ({
   page,
+  seededDesign,
 }) => {
   const finish = materialById(VENEER).defaultFinish;
-  const stored = await mintDesign(page);
   expectTheWholeKitchenWears(
-    await storeAKitchenWearing(page, stored, {
+    await storeAKitchenWearing(page, seededDesign, {
       materialTierId: VENEER,
       finish,
     }),
     finish,
   );
-  await openAndSettle(page, stored.id);
+  await openAndSettle(page, seededDesign);
   expect((await readSelection(page)).selectionId).toBe("");
 
   const presetButtons = page.locator('[role="group"] button');
@@ -502,9 +512,9 @@ test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and
  *  margin the way the adversarial reading of 50 suggested. */
 test("the design the mark gate photographs leaves both woods' bands empty", async ({
   page,
+  seededDesign,
 }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   expect((await readSelection(page)).selectionId).toBe("");
 
@@ -535,9 +545,9 @@ test("the design the mark gate photographs leaves both woods' bands empty", asyn
  */
 test("a camera preset round-trip leaves the canvas unchanged at the declared noise floor", async ({
   page,
+  seededDesign,
 }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 
   const before = await wholeCanvas(page);

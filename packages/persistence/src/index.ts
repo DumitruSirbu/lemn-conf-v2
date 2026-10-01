@@ -15,10 +15,30 @@ export type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  LoadOwnedOutcome,
+  MintDesign,
+  MintVisitor,
+  OwnedDesignLookup,
+  OwnedDesignRepository,
+  RequestVisitor,
+  SaveOutcome,
   StoredDesign,
+  VisitorResumeLookup,
+  VisitorResumeRepository,
 } from "./neon-configuration-repository.js";
 export { isDesignRevision } from "./design-revision.js";
 export type { DesignRevision } from "./design-revision.js";
+export { NeonShareLinkRepository } from "./share-link-repository.js";
+export type {
+  IssueShareLink,
+  LoadSharedOutcome,
+  ShareLinkCredentials,
+  ShareLinkIssueOutcome,
+  ShareLinkRepository,
+  ShareLinkRevokeOutcome,
+  ShareLinkStatus,
+  ShareLinkStatusOutcome,
+} from "./share-link-repository.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
@@ -27,7 +47,10 @@ export {
   MigrationExecutionError,
   MigrationSequenceError,
 } from "./migration-errors.js";
-export { deleteDesignsForTests } from "./delete-designs-for-tests.js";
+export {
+  deleteDesignsForTests,
+  findDesignIdsForTests,
+} from "./delete-designs-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,

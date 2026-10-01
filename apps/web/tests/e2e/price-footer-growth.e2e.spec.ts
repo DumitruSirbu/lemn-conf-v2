@@ -1,9 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
-import { readSelection } from "./support/panel";
-import { tapCanvas } from "./support/canvas-taps";
-import { deleteMintedDesigns } from "./support/minted-designs";
+import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * **What happens to §9's sheet when its footer grows a row**, at 390 × 844.
@@ -25,29 +24,17 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * application ever puts one there. That is the model's job, and it is asserted at the model.
  */
 
-const SINK_CABINET_TAP = { x: 215, y: 500 };
 const SCENE_SETTLE_MS = 2000;
 const SETTLE_MS = 400;
 /** A tolerance for sub-pixel layout, not for a real difference. */
 const PIXEL_SLACK = 1;
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
   await tapCanvas(page, SINK_CABINET_TAP);
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   await page.waitForTimeout(SETTLE_MS);
-
-  const { designId } = await readSelection(page);
-  if (designId && !mintedDesignIds.includes(designId))
-    mintedDesignIds.push(designId);
 });
 
 interface SheetMetrics {

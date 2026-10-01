@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
+import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
  * **Frame D2D's popover at 1440 × 900.** The same component and the same model as the mobile sheet;
@@ -23,9 +24,8 @@ const POPOVER_MAX_SHARE_OF_VIEWPORT = 0.5;
  *  to the cell's right edge*, not a restatement of the stylesheet's number. */
 const POPOVER_INSET_FROM_CELL_CEILING_PX = 32;
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/configurator/configure");
-  await page.waitForSelector("canvas", { state: "attached" });
+test.beforeEach(async ({ page, seededDesign }) => {
+  await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 

@@ -1539,3 +1539,54 @@ decision 2's question a third time** — which map does a map-publishing command
 the reconciliation. It touches `setWidth` and `insertBody` rather than the depth track, so it is its
 own wave and not 6J-d's.
 
+## 64. The run-end panel is not checked against the end of wall A — CLOSED 2026-09-11 BY M7 WAVE 7D1b
+
+**Closed in `f61c361` + corrective commit `85091cc`.** `runEndPanelSeatM(records, room)` now hides
+the panel when its outer face would pass wall A's end and keeps it at equality, including the existing
+touching tolerance; the earlier column veto remains. The room is threaded through the adapter and
+`KitchenStage`, and ADR 0110 B3a's compensating 19 mm wall-A reserve is removed in the same wave.
+QA at `85091cc` reported domain **4082**, three-adapter **3037**, web **2587**, with typecheck, lint
+and whole-tree format clean. Full-tier logic review found no defect, and exact 390 × 844 and
+1440 × 900 visual verification kept the seeded panel visibly present. The adapter test, rather than
+the browser pass, establishes its unchanged seat at **3.510**. The coordinator's final frozen-tree
+`pnpm ci:local` run exited **0**: format/lint/typecheck, all four package suites, Playwright, build,
+boundary, lockfile and SCA passed, with no known vulnerabilities.
+
+Original entry follows unedited.
+
+## 64. The run-end panel is not checked against the end of wall A — ~~RECORDED 2026-09-11, LATENT, NO OWNER~~ **RULED 2026-09-11 (ADR 0045 Amendment A, "No panel when run hits wall"), AWAITING WAVE 7D1b**
+
+Found by M7 wave 7D1's QA (finding Q1.1). `runEndPanelSeatM` (`run-end-panel.ts:90-100`) seats the
+finished end 19 mm past the last wall-A base cabinet and vetoes it only for a body in its way; nothing
+checks it against wall A's end, and no validator code covers it. **Nothing the product produces
+reaches it** after ADR 0110 Amendment B3a: the shell's recorded space on wall A stops short by the
+panel's footprint, and the seeded kitchen's run ends 60 mm before its wall with no recorded space
+beyond. A stored document written through `PUT` with recorded space to the wall's end can: a base
+cabinet there draws the panel past the wall.
+
+**What deciding it would cost — and it is a product question.** When a customer's own run genuinely
+reaches the wall, a real kitchen needs no finished end there (the wall closes the run, and the fitter
+uses a filler strip). So the likely answer is a veto at the wall's end, not a mark — but that changes
+what the scene shows and is the owner's to rule.
+
+## 81. SEC-7E3a.1 — cookie fixation is harmless today and becomes durable read access once 7E3b lands — CLOSED 2026-09-23, SHIPPED IN M7 WAVE 7E3b
+
+**CLOSED 2026-09-23 at the [7E3b close-out](../milestones/M7-room-and-presets.md#7e3b-close-out--2026-09-23).**
+The owner's ruling *"Rotate on mint"* ([ADR 0114](../decisions/0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)
+Amendment H1, kept through Amendment H6's *"Web Lock + random"*) ships: every `POST /api/designs`
+issues a fresh random value and moves the browser's rows to it, so a script-planted value owns
+nothing after the next mint. QA's sabotage test (reuse restored) read the victim's design 10/10 —
+confirming the fix is load-bearing — then went red 10/10 against the shipped code, as required by
+plan criterion 6. Commits: plan + ADR 0114 Amendment H `239d87f` … review round 2 fixes `f1e4fc9`
+(full list in the close-out).
+
+### The finding, as recorded before it was closed
+
+Found by M7 wave 7E3a's security review, 2026-09-23. A same-host script (e.g. through an XSS on
+this origin) can plant a well-formed, non-`HttpOnly` visitor cookie value in a fresh browser; the
+next mint adopts it under D1's reuse rule, and any subsequent save keeps it alive. Under 7E3a this is
+harmless, because designs are still readable by id regardless of the cookie. **Once 7E3b gates a
+design's read to its owning visitor hash, the planted value becomes durable read access** to
+whatever designs later mint under it. **Must be decided before 7E3b ships**, one of: (a) record
+acceptance with CSP enforcement (M8) as a named dependency, or (b) rotate the cookie value on every
+mint rather than reusing it. Not blocking 7E3a or 7E3c. No owner yet; phase is 7E3b.

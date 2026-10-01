@@ -1,0 +1,351 @@
+// ADR 0108: the room a customer typed, judged against a policy the caller hands in. Pure and
+// locale-free — it publishes a field and a code per issue and never a sentence (ADR 0095 decision 3)
+// nor a limit (decision 3), and it reads no cabinet depth (ADR 0083 decision 2).
+import type { DesignRoom } from "../design.js";
+import type {
+  LinearWallBounds,
+  LWallBounds,
+  MillimetreBounds,
+  RoomPolicy,
+  UMinimumKitchen,
+  UWallBounds,
+} from "./room-policy.js";
+
+export type RoomShape = "linear" | "L" | "U";
+
+/** Which way the corner turns. Carried and **never read** by validation (ADR 0108 decision 5): the
+ *  frames say it *"nu se deduce din lățimi"*, and what it does to the kitchen is owner question Q6. */
+export type CornerDirection = "left" | "right";
+
+/** A length as the form hands it over: millimetres, or `undefined` when the field is empty. */
+export type EnteredMillimetres = number | undefined;
+
+export interface LinearRoomInput {
+  readonly shape: "linear";
+  readonly wallAMm: EnteredMillimetres;
+  readonly heightMm: EnteredMillimetres;
+}
+
+export interface LRoomInput {
+  readonly shape: "L";
+  readonly wallAMm: EnteredMillimetres;
+  readonly wallBMm: EnteredMillimetres;
+  readonly heightMm: EnteredMillimetres;
+  readonly cornerDirection: CornerDirection;
+}
+
+export interface URoomInput {
+  readonly shape: "U";
+  readonly wallAMm: EnteredMillimetres;
+  readonly wallBMm: EnteredMillimetres;
+  readonly wallCMm: EnteredMillimetres;
+  readonly heightMm: EnteredMillimetres;
+  readonly cornerDirection: CornerDirection;
+}
+
+export type RoomInput = LinearRoomInput | LRoomInput | URoomInput;
+
+export type RoomField = "shape" | "wallA" | "wallB" | "wallC" | "height";
+
+export type RoomIssueCode =
+  | "SHAPE_NOT_BUILDABLE"
+  | "ROOM_TOO_SMALL_FOR_KITCHEN"
+  | "VALUE_MISSING"
+  | "VALUE_NOT_WHOLE_MILLIMETRES"
+  | "WALL_TOO_SHORT"
+  | "WALL_TOO_LONG"
+  | "HEIGHT_TOO_LOW"
+  | "HEIGHT_TOO_HIGH";
+
+/** A field and a code, and **nothing else — in particular no number** (ADR 0108 decision 3). A
+ *  refusal that carried its limit would be one ICU argument away from printing an unapproved bound. */
+export interface RoomIssue {
+  readonly field: RoomField;
+  readonly code: RoomIssueCode;
+}
+
+export type RoomValidation =
+  | { readonly ok: true; readonly room: DesignRoom }
+  | { readonly ok: false; readonly issues: readonly RoomIssue[] };
+
+/** A shape the policy does not build is refused alone, whatever the dimensions say; otherwise every
+ *  field is judged and every issue returned, in field order, so each field carries its own reason
+ *  (ADR 0108 decision 2). */
+export function validateRoomInput(
+  input: RoomInput,
+  policy: RoomPolicy,
+): RoomValidation {
+  switch (input.shape) {
+    case "L": {
+      const lWallBounds = policy.buildableShapes.L;
+      if (lWallBounds === undefined) return shapeNotBuildable();
+      return validateLRoom(input, {
+        walls: lWallBounds,
+        height: policy.heightBounds,
+      });
+    }
+    case "linear": {
+      const linearWallBounds = policy.buildableShapes.linear;
+      if (linearWallBounds === undefined) return shapeNotBuildable();
+      return validateLinearRoom(input, {
+        walls: linearWallBounds,
+        height: policy.heightBounds,
+      });
+    }
+    case "U": {
+      const uWallBounds = policy.buildableShapes.U;
+      if (uWallBounds === undefined) return shapeNotBuildable();
+      return validateURoom(input, {
+        walls: uWallBounds,
+        height: policy.heightBounds,
+      });
+    }
+    default:
+      return shapeNotBuildable();
+  }
+}
+
+/** A fresh object on every call — never a shared constant — so a caller that mutates one refusal
+ *  cannot change what the next call returns (purity, asserted directly). */
+function shapeNotBuildable(): RoomValidation {
+  return {
+    ok: false,
+    issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
+  };
+}
+
+interface LRoomBounds {
+  readonly walls: LWallBounds;
+  readonly height: MillimetreBounds;
+}
+
+interface FieldRule {
+  readonly field: RoomField;
+  readonly bounds: MillimetreBounds;
+  readonly tooSmall: RoomIssueCode;
+  readonly tooLarge: RoomIssueCode;
+}
+
+type FieldJudgement =
+  | { readonly ok: true; readonly valueMm: number }
+  | { readonly ok: false; readonly issue: RoomIssue };
+
+function validateLRoom(input: LRoomInput, bounds: LRoomBounds): RoomValidation {
+  const wallA = judgeField(
+    input.wallAMm,
+    wallRule("wallA", bounds.walls.wallA),
+  );
+  const wallB = judgeField(
+    input.wallBMm,
+    wallRule("wallB", bounds.walls.wallB),
+  );
+  const height = judgeField(input.heightMm, heightRule(bounds.height));
+  if (!wallA.ok || !wallB.ok || !height.ok) {
+    return { ok: false, issues: [wallA, wallB, height].flatMap(issuesOf) };
+  }
+  if (
+    bounds.walls.minimumKitchen.isRequired &&
+    !holdsMinimumKitchen(wallA.valueMm, wallB.valueMm, bounds.walls)
+  ) {
+    return {
+      ok: false,
+      issues: [{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }],
+    };
+  }
+  // ADR 0108 decision 8: `wallLengthMm`'s mapping, so the fit gate reads back the walls entered.
+  // ADR 0129 D2/D3: the direction is carried onto the room, never read to judge it (the issues
+  // above are computed with no reference to `input.cornerDirection`) — and written only for
+  // "right", so a left-hand room stays the same four keys it was before this wave.
+  return {
+    ok: true,
+    room: {
+      shape: "L",
+      widthMm: wallA.valueMm,
+      depthMm: wallB.valueMm,
+      heightMm: height.valueMm,
+      ...(input.cornerDirection === "right"
+        ? { cornerDirection: "right" as const }
+        : {}),
+    },
+  };
+}
+
+interface LinearRoomBounds {
+  readonly walls: LinearWallBounds;
+  readonly height: MillimetreBounds;
+}
+
+/** ADR 0130 D2/D3: one wall, no coupled minimum-kitchen gate (there is no second wall to couple
+ *  against — the wall's own bound already is *sink + hob*), and `depthMm` fixed to the policy's own
+ *  `LinearWallBounds.depthMm` (`LINEAR_ROOM_DEPTH_MM`, handed through the policy rather than imported
+ *  here — see that field's own comment) rather than read from any entered field. No `cornerDirection`
+ *  is ever carried (ADR 0130 D7 / ADR 0129 D2/D3): there is no corner for one to describe. */
+function validateLinearRoom(
+  input: LinearRoomInput,
+  bounds: LinearRoomBounds,
+): RoomValidation {
+  const wallA = judgeField(
+    input.wallAMm,
+    wallRule("wallA", bounds.walls.wallA),
+  );
+  const height = judgeField(input.heightMm, heightRule(bounds.height));
+  if (!wallA.ok || !height.ok) {
+    return { ok: false, issues: [wallA, height].flatMap(issuesOf) };
+  }
+  return {
+    ok: true,
+    room: {
+      shape: "linear",
+      widthMm: wallA.valueMm,
+      depthMm: bounds.walls.depthMm,
+      heightMm: height.valueMm,
+    },
+  };
+}
+
+/** ADR 0108 Amendments C–E. Wall B is the reading-order prefix: if the required bodies split,
+ *  the sink stands on B and the hob on A. The policy owns every dimension used here. */
+function holdsMinimumKitchen(
+  wallAMm: number,
+  wallBMm: number,
+  policy: LWallBounds,
+): boolean {
+  const { sinkWidthMm, hobWidthMm, cornerReachMm } = policy.minimumKitchen;
+  const freeA = wallAMm - cornerReachMm.wallA;
+  const freeB = wallBMm - cornerReachMm.wallB;
+  const bothWidthMm = sinkWidthMm + hobWidthMm;
+  return (
+    freeA >= bothWidthMm ||
+    freeB >= bothWidthMm ||
+    (freeB >= sinkWidthMm && freeA >= hobWidthMm)
+  );
+}
+
+interface URoomBounds {
+  readonly walls: UWallBounds;
+  readonly height: MillimetreBounds;
+}
+
+/** ADR 0132 decision 8 / Q-U4(b): a U carries no corner direction at all — the toggle is hidden at
+ *  entry, so `input.cornerDirection` is never read here (ADR 0108 decision 5's rule, extended) and
+ *  never written onto the room; `DesignRoomSchema` itself refuses a U that carries one. Every field is
+ *  judged first; then, where the policy requires it, the coupled minimum-kitchen gate (ADR 0108 H3),
+ *  refused on the room-level field with no number (RQ8), exactly as for the L. */
+function validateURoom(input: URoomInput, bounds: URoomBounds): RoomValidation {
+  const wallA = judgeField(
+    input.wallAMm,
+    wallRule("wallA", bounds.walls.wallA),
+  );
+  const wallB = judgeField(
+    input.wallBMm,
+    wallRule("wallB", bounds.walls.wallB),
+  );
+  const wallC = judgeField(
+    input.wallCMm,
+    wallRule("wallC", bounds.walls.wallC),
+  );
+  const height = judgeField(input.heightMm, heightRule(bounds.height));
+  if (!wallA.ok || !wallB.ok || !wallC.ok || !height.ok) {
+    return {
+      ok: false,
+      issues: [wallA, wallB, wallC, height].flatMap(issuesOf),
+    };
+  }
+  if (
+    bounds.walls.minimumKitchen.isRequired &&
+    !holdsUMinimumKitchen(
+      {
+        wallAMm: wallA.valueMm,
+        wallBMm: wallB.valueMm,
+        wallCMm: wallC.valueMm,
+      },
+      bounds.walls.minimumKitchen,
+    )
+  ) {
+    return {
+      ok: false,
+      issues: [{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }],
+    };
+  }
+  return {
+    ok: true,
+    room: {
+      shape: "U",
+      widthMm: wallA.valueMm,
+      depthMm: wallB.valueMm,
+      wallCMm: wallC.valueMm,
+      heightMm: height.valueMm,
+    },
+  };
+}
+
+/** ADR 0108 H3: the sink stands on wall A, and the hob follows it on wall A or on the far side wall,
+ *  the narrower of the two (C when they are equal), and never on the fridge wall. So the room holds a
+ *  kitchen when wall A's free run takes both, or takes the sink while the far wall's takes the hob. */
+function holdsUMinimumKitchen(
+  wallsMm: {
+    readonly wallAMm: number;
+    readonly wallBMm: number;
+    readonly wallCMm: number;
+  },
+  minimum: UMinimumKitchen,
+): boolean {
+  const { sinkWidthMm, hobWidthMm, cornerReachMm } = minimum;
+  const freeAMm = wallsMm.wallAMm - cornerReachMm.wallA;
+  const farWallMm = Math.min(wallsMm.wallBMm, wallsMm.wallCMm);
+  const freeFarMm = farWallMm - cornerReachMm.sideWall;
+  return (
+    freeAMm >= sinkWidthMm + hobWidthMm ||
+    (freeAMm >= sinkWidthMm && freeFarMm >= hobWidthMm)
+  );
+}
+
+function wallRule(
+  field: "wallA" | "wallB" | "wallC",
+  bounds: MillimetreBounds,
+): FieldRule {
+  return {
+    field,
+    bounds,
+    tooSmall: "WALL_TOO_SHORT",
+    tooLarge: "WALL_TOO_LONG",
+  };
+}
+
+function heightRule(bounds: MillimetreBounds): FieldRule {
+  return {
+    field: "height",
+    bounds,
+    tooSmall: "HEIGHT_TOO_LOW",
+    tooLarge: "HEIGHT_TOO_HIGH",
+  };
+}
+
+/** Refuses a non-integral value rather than rounding it (ADR 0108 decision 4): `NaN` and `±Infinity`
+ *  are not whole millimetres either. */
+function judgeField(
+  valueMm: EnteredMillimetres,
+  rule: FieldRule,
+): FieldJudgement {
+  if (valueMm === undefined) {
+    return refuseField(rule.field, "VALUE_MISSING");
+  }
+  if (!Number.isInteger(valueMm)) {
+    return refuseField(rule.field, "VALUE_NOT_WHOLE_MILLIMETRES");
+  }
+  if (valueMm < rule.bounds.minMm) {
+    return refuseField(rule.field, rule.tooSmall);
+  }
+  if (valueMm > rule.bounds.maxMm) {
+    return refuseField(rule.field, rule.tooLarge);
+  }
+  return { ok: true, valueMm };
+}
+
+function refuseField(field: RoomField, code: RoomIssueCode): FieldJudgement {
+  return { ok: false, issue: { field, code } };
+}
+
+function issuesOf(judgement: FieldJudgement): readonly RoomIssue[] {
+  return judgement.ok ? [] : [judgement.issue];
+}

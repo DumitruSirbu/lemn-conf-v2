@@ -116,13 +116,19 @@ export const REQUIRED_DESIGN_COLUMNS = [
   // `not null default 1`; a `revision` that is present and *nullable* is that migration half
   // applied, and `updateIfCurrent` fails against it while a name-only guard reports level.
   { name: "revision", dataType: "bigint", isNullable: false },
+  // Nullable by `0005`'s own decision, exactly as `write_token_hash` is by `0002`'s: rows written
+  // before it (ADR 0114 decision 5's pre-launch data) have no visitor to attribute them to, and
+  // requiring `not null` here would refuse a correctly migrated database.
+  { name: "visitor_hash", dataType: "text", isNullable: true },
 ] as const satisfies readonly DeployedColumnReading[];
 
 type RequiredDesignColumn = (typeof REQUIRED_DESIGN_COLUMNS)[number];
 
 /** Named once: it appears in three different refusals, and a fix an operator has to guess at is a
- *  fix they will get wrong against the wrong database. */
-const MIGRATE_COMMAND = "pnpm --filter @lemnaria/persistence run migrate";
+ *  fix they will get wrong against the wrong database. `<environment>` is a required argument
+ *  (`migration-target.ts`'s `readDeclaredEnvironment`), not a placeholder to drop. */
+const MIGRATE_COMMAND =
+  "pnpm --filter @lemnaria/persistence run migrate <environment>";
 
 /**
  * The verdict, from the files on disk and one read of the deployed database.

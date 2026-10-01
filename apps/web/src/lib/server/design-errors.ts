@@ -2,6 +2,7 @@ import {
   DesignNotFoundError,
   InvalidDesignError,
 } from "@lemnaria/configurator-domain";
+import type { DesignId } from "@lemnaria/configurator-domain";
 import {
   DesignWriteConflictError,
   DesignWriteForbiddenError,
@@ -44,8 +45,9 @@ const REVISION_REQUIRED_CODE = "REVISION_REQUIRED";
  * lives beside the response that deliberately carries none — so a reader can see at a glance that
  * the two disagree on purpose (`writeForbiddenResponse` explains why the response says nothing).
  *
- * All three are `save` operations by construction: the load path is open to anyone holding the
- * link and answers none of them.
+ * All three are `save` operations by construction: the load path, since M7 wave 7E3b (ADR 0114
+ * decision 5), answers only the owning browser and shares `designNotFoundResponse`'s refusal with
+ * every other caller — never one of these three.
  */
 const WRITE_FORBIDDEN: DesignRefusal = {
   code: "DESIGN_WRITE_FORBIDDEN",
@@ -59,6 +61,21 @@ const REVISION_REQUIRED: DesignRefusal = {
   code: REVISION_REQUIRED_CODE,
   status: 400,
 };
+
+/**
+ * Every header a **per-credential** response carries (M7 wave 7E3b D4) — `GET`'s 200 body and
+ * `designNotFoundResponse`'s 404 both depend on which browser asked, so a cached copy served to a
+ * second visitor would hand them another browser's design, or another browser's refusal cached as
+ * if it applied to everyone. Reading the request's cookies already opts a route out of static
+ * rendering, and no CDN caches a response without an explicit public directive — this is what keeps
+ * that true the day someone adds `s-maxage` to a route whose payload looks public. Exported as the
+ * one constant rather than two copies, so the gate's refusal and its success can never drift onto
+ * different header sets.
+ */
+export const PER_CREDENTIAL_HEADERS = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie",
+} as const;
 
 /**
  * Maps a repository failure to a clean JSON error response. `InvalidDesignError` here means a
@@ -83,13 +100,37 @@ export function designErrorResponse(
     return writeConflictResponse();
   }
   if (error instanceof DesignNotFoundError) {
-    return NextResponse.json({ error: error.message }, { status: 404 });
+    return notFoundResponseForMessage(error.message);
   }
   if (error instanceof InvalidDesignError) {
     return designUnreadableResponse(operation, error);
   }
   reportDesignFailure(operation, error);
   throw error;
+}
+
+/**
+ * The one refusal every missing-credential, foreign-cookie and unknown-id path answers with (M7
+ * wave 7E3c D4, wave 7E3b D4/H2): `GET /api/designs/{id}`'s own 404 for every refusal case,
+ * extracted so the share route's refusal is provably byte-identical to it rather than merely
+ * written to look the same. Constructs `DesignNotFoundError` for its message alone — the same class
+ * `designErrorResponse`'s own branch above now goes through — so the two can never drift apart.
+ *
+ * **Carries `PER_CREDENTIAL_HEADERS` since wave 7E3b** (`Cache-Control: private, no-store`,
+ * `Vary: Cookie`): the answer now depends on which browser asked — a foreign cookie's refusal must
+ * never be cached and served back to the owner, or to a different stranger. No `Set-Cookie`, either
+ * here or at any refusal case that reaches this function: a request this wave never trusted must
+ * never be handed a fresh identity on the strength of asking for someone else's design.
+ */
+export function designNotFoundResponse(id: DesignId): NextResponse {
+  return notFoundResponseForMessage(new DesignNotFoundError(id).message);
+}
+
+function notFoundResponseForMessage(message: string): NextResponse {
+  return NextResponse.json(
+    { error: message },
+    { status: 404, headers: PER_CREDENTIAL_HEADERS },
+  );
 }
 
 /**

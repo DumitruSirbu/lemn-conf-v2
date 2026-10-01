@@ -3,6 +3,7 @@
 import type { Design } from "@lemnaria/configurator-domain";
 import { finishSignature } from "@lemnaria/three-adapter";
 
+import { useSceneMeasurement } from "@/scene/scene-measurement-store";
 import { useConfiguratorStore } from "@/store/configurator-store";
 import { useSelectionMeta } from "@/panel/use-panel-view";
 
@@ -68,6 +69,7 @@ function SelectionDebugReadout() {
     (state) => state.isBodyProbeAttached,
   );
   const lastRejection = useConfiguratorStore((state) => state.lastRejection);
+  const measurement = useSceneMeasurement((state) => state.measurement);
 
   return (
     <span
@@ -114,6 +116,29 @@ function SelectionDebugReadout() {
       data-global-finish={finishSignature(design.settings?.finish)}
       data-overriding-finishes={String(countOverridingFinishes(design))}
       data-updated-at={design.updatedAt}
+      // M7 wave 7H criterion 11: §11 row 21 proved in a browser rather than in node. The three
+      // below are **observations of the running scene**, published for the reason every attribute
+      // above it is — they are unreadable from outside the canvas, and the criterion forbids
+      // reading them off screenshot pixels. What they are not is a conclusion: the camera's own two
+      // matrices as the renderer holds them once the ease has landed, and every mounted body's
+      // world bounds. Which bodies are the ceiling row, where the 2.20–2.60 band is, and what a tap
+      // target costs in pixels all stay in the spec, so no assertion is checked against the
+      // function that produced it. `scene-measurement-store.ts` carries that argument in full.
+      //
+      // `data-scene-settle-count` is a **counter, not a flag**: the scene is already settled when a
+      // preset button is tapped, so a boolean would let a spec accept the frame before the move.
+      data-scene-settle-count={
+        measurement ? String(measurement.settleCount) : ""
+      }
+      data-scene-camera={
+        measurement
+          ? JSON.stringify({
+              projection: measurement.projection,
+              view: measurement.view,
+            })
+          : ""
+      }
+      data-scene-bodies={measurement ? JSON.stringify(measurement.bodies) : ""}
       hidden
     />
   );

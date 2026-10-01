@@ -17,6 +17,10 @@ import {
 } from "./migration-ledger.js";
 import { planPendingMigrations } from "./migration-plan.js";
 import type { AppliedMigration } from "./migration-plan.js";
+import {
+  assertDeclaredEnvironmentReaches,
+  readDeclaredEnvironment,
+} from "./migration-target.js";
 import { readMigrationDatabaseUrl } from "./read-database-url.js";
 
 /** What a run did, split so a caller — and the operator-facing line — can tell "applied nothing
@@ -262,16 +266,52 @@ function describeErrorType(error: unknown): string {
  * emits. Since every caller here is building a line for an operator to read, a placeholder is the
  * right answer: the run still fails, and it fails without printing the credential that a
  * misconfigured `MIGRATION_DATABASE_URL` would otherwise leak into a deploy log.
+ *
+ * A second placeholder guards a narrower input `new URL` accepts without raising: a scheme other
+ * than `postgres:`/`postgresql:`, or a URL with no `//` authority at all — for example
+ * `postgres:/user:pw@host/lemn-conf-v2`. There, `new URL(...).host` is empty and `pathname` is
+ * `/user:pw@host/lemn-conf-v2`, so the naive pathname-strip below would return the credential
+ * itself as "the database name" (a leak, found by security review). `@neondatabase/serverless`
+ * 1.1.0 re-parses the same string under `http:`, a WHATWG "special" scheme that tolerates the
+ * missing second slash, and resolves a real host and database there — so a label equal to that raw
+ * fragment would otherwise also pass `assertDeclaredEnvironmentReaches` as its own unclaimed ad-hoc
+ * name while the driver actually reaches a listed environment's database (a bypass, found by logic
+ * review, same root cause). Refusing every URL shaped like this before any pathname is read closes
+ * both at once, rather than trying to enumerate every string that can produce them.
+ *
+ * Deliberately returns the pathname **still percent-encoded** and with any backslash untouched —
+ * this is the raw name a connection string's path spells, not the name a driver would connect to.
+ * `assertDeclaredEnvironmentReaches` is what refuses a name shaped like this before it is compared
+ * against anything (see its own doc comment): keeping the decode decision out of this function
+ * means the one place a raw `%`/`\` gets judged is also the one place that already special-cases the
+ * empty and unparseable names, rather than a second copy of that judgment here.
  */
 export function databaseNameOf(connectionUrl: string): string {
   try {
-    return new URL(connectionUrl).pathname.replace(/^\//, "");
+    const url = new URL(connectionUrl);
+    if (!hasTrustedPostgresAuthority(url)) return UNTRUSTED_CONNECTION_SHAPE;
+    return url.pathname.replace(/^\//, "");
   } catch {
     return UNPARSEABLE_DATABASE_NAME;
   }
 }
 
+/** Exactly `postgres:` or `postgresql:`, with a non-empty host — see `databaseNameOf`'s doc
+ *  comment for why a URL failing either test is never trusted to say what it names. */
+function hasTrustedPostgresAuthority(url: URL): boolean {
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:")
+    return false;
+  return url.host !== "";
+}
+
 const UNPARSEABLE_DATABASE_NAME = "<unparseable connection string>";
+
+/** `databaseNameOf`'s placeholder for a URL that parses but is not a plain `postgres:`/`postgresql:`
+ *  URL with a host. Duplicated in `migration-target.ts` for the same reason `UNPARSEABLE_DATABASE_NAME`
+ *  is there too: importing it back would put this CLI file in an import cycle with the pure module
+ *  that calls it. */
+const UNTRUSTED_CONNECTION_SHAPE =
+  "<connection string is not a postgres:// or postgresql:// URL with a host>";
 
 // Compared as filesystem paths, not by string-splicing a `file://` prefix onto `argv[1]`.
 // `import.meta.url` percent-encodes characters that are illegal in a URL — a space becomes `%20` —
@@ -286,8 +326,17 @@ const isDirectCliInvocation =
 
 if (isDirectCliInvocation) {
   loadEnvLocal();
-  const connectionUrl = readMigrationDatabaseUrl();
   try {
+    // Required, and checked before the connect below ever runs: the 2026-09-28 incident was this
+    // argument being silently ignored while the credential in scope happened to be production's.
+    // See docs/milestones/migration-environment-safety-check.md.
+    const environment = readDeclaredEnvironment(process.argv, "migrate");
+    const connectionUrl = readMigrationDatabaseUrl();
+    assertDeclaredEnvironmentReaches({
+      environment,
+      databaseName: databaseNameOf(connectionUrl),
+    });
+
     const summary = await runMigrations(connectionUrl);
     console.log(describeMigrationRun(summary, databaseNameOf(connectionUrl)));
   } catch (error) {

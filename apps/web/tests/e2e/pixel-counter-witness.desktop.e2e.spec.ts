@@ -9,9 +9,15 @@ import {
   OVERFLOW_MARK_COLOR,
   SELECTION_HIGHLIGHT_COLOR,
 } from "@lemnaria/three-adapter";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-import { deleteMintedDesigns } from "./support/minted-designs";
+import {
+  FAR_BASE_CABINET,
+  FRIDGE,
+  NARROWED_ROOM,
+  SINK_CABINET_FULL_WIDTH,
+  SINK_PATCH,
+} from "./support/desktop-scene-points";
 import {
   MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
   capturePatch,
@@ -22,6 +28,11 @@ import {
   type PixelRect,
 } from "./support/pixels";
 import { readSelection } from "./support/panel";
+import {
+  openSeededDesign,
+  test,
+  type SeededDesign,
+} from "./support/seeded-design";
 
 /**
  * **Wave 6V's own evidence: the fixtures that break the counters this milestone retired.**
@@ -71,10 +82,6 @@ import { readSelection } from "./support/panel";
  *  narrowed walnut document as well as the seeded one — five clicks each, right body 5/5 — because
  *  this file drives `/d/{id}` rather than the seeded route. The patch is unchanged: `p0`'s own
  *  region measures page x 432–592, y 479–706 and this box still contains it. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
-const FAR_BASE_CABINET = { x: 680, y: 650 };
-const FRIDGE = { x: 140, y: 560 };
-const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
 /** `p2`'s own region on the **narrowed-room** document, re-measured 2026-09-08 as the bounding box
  *  of the pixels that move when the selection travels between `p0` and `p2` with the rail open,
@@ -88,12 +95,10 @@ const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
  *  widens from 313.28 to 648.16, while the row's height stays 76. So the two documents no longer
  *  differ in canvas origin at all, and this patch is no longer a constant of one of them: it is
  *  simply `p2`'s region, which both documents project identically. */
-const MARKED_BODY_PATCH: PixelRect = {
-  x: 615,
-  y: 547,
-  width: 168,
-  height: 224,
-};
+/** **Re-measured 2026-09-16 and moved into `support/desktop-scene-points.ts`'s narrowed-room
+ *  group**, because it is `p2`'s region on the *narrowed* document and wave 7H made that a
+ *  different rectangle from the seeded one. Was (615, 547, 168 x 224). */
+const MARKED_BODY_PATCH: PixelRect = NARROWED_ROOM.markedBodyPatch;
 
 const SCENE_SETTLE_MS = 2500;
 const RENDER_SETTLE_MS = 400;
@@ -132,42 +137,12 @@ const MIN_MARK_PIXELS = 2000;
 const MDF = "material.painted-mdf";
 const VENEER = "material.veneer";
 
-const mintedDesignIds: string[] = [];
-
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-interface StoredDesign {
-  readonly id: string;
-  readonly revision: string;
-}
-
 /** The three states of the sink patch every case below measures, captured with the rail open in all
  *  three so the canvas size, the camera and the design are identical between them. */
 interface SinkPatchStates {
   readonly whileSelected: CapturedPatch;
   readonly whileAnotherSelected: CapturedPatch;
   readonly whileAThirdSelected: CapturedPatch;
-}
-
-async function mintDesign(page: Page): Promise<StoredDesign> {
-  await page.goto("/configurator/configure");
-  const minted = await page.evaluate(async () => {
-    const created = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    const { id } = (await created.json()) as { id: string };
-    const loaded = await fetch(`/api/designs/${id}`);
-    const { revision } = (await loaded.json()) as { revision: string };
-    return { id, revision, status: created.status };
-  });
-
-  // Registered before anything is asserted, so a failing assertion still cleans up.
-  if (minted.id) mintedDesignIds.push(minted.id);
-  expect(minted.status).toBe(201);
-  return { id: minted.id, revision: minted.revision };
 }
 
 /**
@@ -181,7 +156,7 @@ async function mintDesign(page: Page): Promise<StoredDesign> {
  */
 async function storeAKitchenWearing(
   page: Page,
-  stored: StoredDesign,
+  seededDesign: SeededDesign,
   wearing: {
     readonly materialTierId: string;
     readonly finish: Finish;
@@ -242,7 +217,7 @@ async function storeAKitchenWearing(
       });
       return { status: saved.status, overflowing };
     },
-    { ...stored, ...wearing },
+    { ...seededDesign, ...wearing },
   );
 
   expect(result.status).toBe(200);
@@ -277,9 +252,8 @@ async function expectEveryPlacementWears(
   expect(worn.finishes).toEqual([JSON.stringify(finish)]);
 }
 
-async function openAndSettle(page: Page, designId: string): Promise<void> {
-  await page.goto(`/d/${designId}`);
-  await page.waitForSelector("canvas", { state: "attached" });
+async function openAndSettle(page: Page, design: SeededDesign): Promise<void> {
+  await openSeededDesign(page, design);
   await expect(async () => {
     expect((await readSelection(page)).probe).toBe("on");
   }).toPass({ timeout: 15_000 });
@@ -377,11 +351,11 @@ for (const [label, materialTierId, finish] of [
 ] as const) {
   test(`the outline is still counted over a front wearing ${label}`, async ({
     page,
+    seededDesign,
   }) => {
-    const stored = await mintDesign(page);
-    await storeAKitchenWearing(page, stored, { materialTierId, finish });
-    await expectEveryPlacementWears(page, stored.id, finish);
-    await openAndSettle(page, stored.id);
+    await storeAKitchenWearing(page, seededDesign, { materialTierId, finish });
+    await expectEveryPlacementWears(page, seededDesign.id, finish);
+    await openAndSettle(page, seededDesign);
 
     await expectTheDifferencingCounterIsUnmoved(
       page,
@@ -392,15 +366,15 @@ for (const [label, materialTierId, finish] of [
 
 test("a front painted the highlight's own colour breaks the colour counter and not the differencing one", async ({
   page,
+  seededDesign,
 }) => {
   const finish = freeColourFinish("#ff2d2d");
-  const stored = await mintDesign(page);
-  await storeAKitchenWearing(page, stored, {
+  await storeAKitchenWearing(page, seededDesign, {
     materialTierId: MDF,
     finish,
   });
-  await expectEveryPlacementWears(page, stored.id, finish);
-  await openAndSettle(page, stored.id);
+  await expectEveryPlacementWears(page, seededDesign.id, finish);
+  await openAndSettle(page, seededDesign);
 
   const states = await captureSinkPatchStates(page);
 
@@ -425,17 +399,17 @@ test("a front painted the highlight's own colour breaks the colour counter and n
 
 test("a blue front breaks the void's fill counter and not the differencing one", async ({
   page,
+  seededDesign,
 }) => {
   const finish = freeColourFinish("#2d5fff");
-  const stored = await mintDesign(page);
-  await storeAKitchenWearing(page, stored, {
+  await storeAKitchenWearing(page, seededDesign, {
     materialTierId: MDF,
     finish,
   });
   // The premise `editor-rail.desktop.e2e.spec.ts` asserts before it counts blue, reached from the
   // other side: here every placement wears a finish, so that file's guard would refuse to measure.
-  await expectEveryPlacementWears(page, stored.id, finish);
-  await openAndSettle(page, stored.id);
+  await expectEveryPlacementWears(page, seededDesign.id, finish);
+  await openAndSettle(page, seededDesign);
 
   const states = await captureSinkPatchStates(page);
 
@@ -452,15 +426,15 @@ test("a blue front breaks the void's fill counter and not the differencing one",
 
 test("a wood kitchen does not reach the mark's red excess on the real render, in any preset", async ({
   page,
+  seededDesign,
 }) => {
   const finish = paletteFinish("veneer.nuc");
-  const stored = await mintDesign(page);
-  await storeAKitchenWearing(page, stored, {
+  await storeAKitchenWearing(page, seededDesign, {
     materialTierId: VENEER,
     finish,
   });
-  await expectEveryPlacementWears(page, stored.id, finish);
-  await openAndSettle(page, stored.id);
+  await expectEveryPlacementWears(page, seededDesign.id, finish);
+  await openAndSettle(page, seededDesign);
 
   // Nothing is selected, so no outline is on screen and the whole canvas is the kitchen — which is
   // the state `overflow-mark.e2e.spec.ts` counts its control in.
@@ -496,10 +470,10 @@ test("a wood kitchen does not reach the mark's red excess on the real render, in
 
 test("on a marked walnut kitchen the mark and the selection are each attributed to the right body", async ({
   page,
+  seededDesign,
 }) => {
   const finish = paletteFinish("veneer.nuc");
-  const stored = await mintDesign(page);
-  const overflowing = await storeAKitchenWearing(page, stored, {
+  const overflowing = await storeAKitchenWearing(page, seededDesign, {
     materialTierId: VENEER,
     finish,
     roomWidthMm: NARROWED_ROOM_OVERFLOWING_DESIGN.room.widthMm,
@@ -508,17 +482,23 @@ test("on a marked walnut kitchen the mark and the selection are each attributed 
   // its wall, `p0` is not. Read off the document rather than restated.
   expect(overflowing).toContain("p2");
   expect(overflowing).not.toContain("p0");
-  await openAndSettle(page, stored.id);
+  await openAndSettle(page, seededDesign);
 
-  await clickScene(page, SINK_CABINET_FULL_WIDTH);
+  await clickScene(page, NARROWED_ROOM.sinkCabinetFullWidth);
   await selectInRail(page, "p0");
-  const sinkWithTheSinkSelected = await capturePatch(page, SINK_PATCH);
+  const sinkWithTheSinkSelected = await capturePatch(
+    page,
+    NARROWED_ROOM.sinkPatch,
+  );
   const markedWithTheSinkSelected = await capturePatch(page, MARKED_BODY_PATCH);
   const markedAgain = await capturePatch(page, MARKED_BODY_PATCH);
 
-  await clickScene(page, FAR_BASE_CABINET);
+  await clickScene(page, NARROWED_ROOM.farBaseCabinet);
   await selectInRail(page, "p2");
-  const sinkWithTheMarkedBodySelected = await capturePatch(page, SINK_PATCH);
+  const sinkWithTheMarkedBodySelected = await capturePatch(
+    page,
+    NARROWED_ROOM.sinkPatch,
+  );
   const markedWithTheMarkedBodySelected = await capturePatch(
     page,
     MARKED_BODY_PATCH,

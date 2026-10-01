@@ -1,12 +1,11 @@
 import type { Design } from "@lemnaria/configurator-domain";
-import { expect, test, type Page, type Response } from "@playwright/test";
+import { expect, type Page, type Response } from "@playwright/test";
 
-import { deleteMintedDesigns } from "./support/minted-designs";
-
-interface MintedDesign {
-  readonly id: string;
-  readonly revision: string;
-}
+import {
+  issueShareLink,
+  openSharedDesign,
+  test,
+} from "./support/seeded-design";
 
 interface LoadedDesign {
   readonly id: string;
@@ -15,62 +14,87 @@ interface LoadedDesign {
   readonly canWrite: boolean;
 }
 
-const mintedDesignIds: string[] = [];
+/** `shared-design-view.tsx`'s own `SHARED_VIEW_DESIGN_ID`, not exported (D6: the share view hydrates
+ *  under a sentinel, never the real id — G5, G8). Pinned here rather than imported, the same reason
+ *  the approved copy strings are pinned as literals in the golden fixtures: this spec is the
+ *  regression guard for the value, and importing the constant it is meant to check would let both
+ *  change together silently. */
+const SHARED_VIEW_SENTINEL_DESIGN_ID = "shared-view";
 
-test.afterAll(async () => {
-  await deleteMintedDesigns(mintedDesignIds);
-});
-
-test("Romanian and Russian shared links load one unchanged design identity", async ({
+/**
+ * **Re-pointed onto a real `/s/{token}` link, M7 wave 7E3c S6.** Before this wave no dedicated share
+ * route existed, so this file used `/{locale}/d/{id}` itself as a stand-in for "a shared design,
+ * loaded the same way twice" — its own comment said so (`it already opens /{ro,ru}/d/{id}`). Now
+ * that D6 ships the real thing, this file's actual subject moves there.
+ *
+ * **What could not survive the move, and how it is preserved.** The old assertions read
+ * `GET /api/designs/{id}`'s own JSON, including `canWrite: true` and the id itself — exactly the
+ * probe and the id D6 requires the share view to never carry (G5, G15). So the identity check below
+ * is over what a share view *can* show without becoming the thing this wave forbids: `updatedAt`,
+ * read off `selection-debug` the same way the original test did, is part of the document rather
+ * than the row's identity, and it is asserted identical to the owner's own authenticated read of the
+ * same design, at both locales. The former `data-design-id` assertion becomes its own inverse: proof
+ * that the attribute holds the share view's own sentinel (review round 1, L1.6: pinned to that
+ * literal, not merely asserted absent — `not.toHaveAttribute(..., id)` would also pass on a blank
+ * or a wrong-but-still-not-`id` value, which is not what "never the real id" was meant to prove).
+ * `shared-design-view.tsx`'s own `SHARED_VIEW_DESIGN_ID` is not exported; the literal is pinned here
+ * deliberately, so a change to it is a decision this spec notices rather than one it stays silent on.
+ * And the former per-locale probe wait becomes a positive
+ * assertion that **no** `/api/` request happens at all while the share view is open (criterion 9),
+ * which the old test could not have asserted — it depended on exactly one such request happening.
+ *
+ * Uses the `seededDesign` fixture (wave 7E4 D3) for minting and cleanup only; the identity under
+ * test is the share link's, not `seededDesign`'s own `/d/{id}`.
+ */
+test("Romanian and Russian share links load one unchanged design identity", async ({
   page,
+  seededDesign,
 }) => {
-  await page.goto("/ro/configurator/configure");
-  const minted = await page.evaluate(async (): Promise<MintedDesign> => {
-    const response = await fetch("/api/designs", {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    if (!response.ok)
-      throw new Error(`Mint failed with ${String(response.status)}`);
-    return (await response.json()) as MintedDesign;
-  });
-  if (minted.id) mintedDesignIds.push(minted.id);
+  const before = await loadStoredDesign(page, seededDesign.id);
+  expect(before.id).toBe(seededDesign.id);
+  expect(before.revision).toBe(seededDesign.revision);
 
-  const before = await loadStoredDesign(page, minted.id);
-  expect(before.id).toBe(minted.id);
-  expect(before.revision).toBe(minted.revision);
+  const sharePath = await issueShareLink(page, seededDesign);
+
+  // Scoped to the loop below: `loadStoredDesign`'s own `fetch` calls, before and after it, are
+  // deliberately excluded — they are the owner's authenticated reads, not requests the share view
+  // itself makes.
+  const apiRequests: string[] = [];
+  const recordApiRequest = (url: string): void => {
+    if (new URL(url).pathname.startsWith("/api/")) apiRequests.push(url);
+  };
+  page.on("request", (request) => {
+    recordApiRequest(request.url());
+  });
 
   for (const locale of ["ro", "ru"] as const) {
-    const expectedApiPath = `/api/designs/${minted.id}`;
-    const probePromise = page.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" &&
-        new URL(response.url()).pathname === expectedApiPath,
-    );
-
-    const documentResponse = await page.goto(`/${locale}/d/${minted.id}`);
+    const documentResponse = await openSharedDesign(page, sharePath, {
+      locale,
+    });
     if (documentResponse === null)
-      throw new Error("Shared-design navigation returned no document response");
+      throw new Error("Share-link navigation returned no document response");
     expect(documentResponse.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe(`/${locale}/d/${minted.id}`);
+    expect(new URL(page.url()).pathname).toBe(`/${locale}${sharePath}`);
     const nonce = assertCsp(documentResponse);
     expect(await documentNonces(page)).toEqual([nonce]);
 
-    const probe = await probePromise;
-    expect(new URL(probe.url()).pathname).toBe(expectedApiPath);
-    const loaded = (await probe.json()) as LoadedDesign;
-    expect(loaded).toEqual({ ...before, canWrite: true });
-    expect(loaded).not.toHaveProperty("locale");
-
     const debug = page.getByTestId("selection-debug");
-    await expect(debug).toHaveAttribute("data-design-id", minted.id);
+    // The inverse of the old assertion: the share view hydrates under a sentinel, never the real
+    // id (G5, G8) — pinned to that literal (review round 1, L1.6), not merely asserted absent.
+    await expect(debug).toHaveAttribute(
+      "data-design-id",
+      SHARED_VIEW_SENTINEL_DESIGN_ID,
+    );
     await expect(debug).toHaveAttribute(
       "data-updated-at",
       before.design.updatedAt,
     );
   }
 
-  const after = await loadStoredDesign(page, minted.id);
+  page.removeAllListeners("request");
+  expect(apiRequests).toEqual([]);
+
+  const after = await loadStoredDesign(page, seededDesign.id);
   expect(after).toEqual(before);
 });
 

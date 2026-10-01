@@ -1,5 +1,6 @@
 import {
   buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
   measurableSeatOf,
   type MeasurableSeatedOn,
 } from "@lemnaria/configurator-domain";
@@ -152,6 +153,7 @@ function seatThroughTheDocument(
     alongM: 1.2,
     y0M,
     depthM: toMetres(seatDepthMm),
+    roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
   });
 
   const body = buildCatalogBody(kit, probeRequest.buildId, probeRequest);
@@ -325,7 +327,12 @@ describe("the probe leaves the room exactly as it found it", () => {
     room.add(solids);
     const first = measureBuiltBody({ kit, room, request: seatedCase(2) });
 
-    syncSolidBodies({ kit, solidsRoot: solids, records: [] });
+    syncSolidBodies({
+      kit,
+      solidsRoot: solids,
+      records: [],
+      room: KITCHEN_L_DESIGN.room,
+    });
     const measured = measureBuiltBody({ kit, room, request: seatedCase(2) });
 
     expect(measured).toEqual(first);

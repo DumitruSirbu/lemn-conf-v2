@@ -6,10 +6,10 @@
 //
 // **The defect that made it a field.** `reseat` persisted `2 × measurement.seatOffsetM` — the body's
 // rear overhang as built — over the joint seat `base-corner-x-900` declares. `cornerBaseX()` takes
-// no arguments and reads the kit's own depth, so the `depthM` handed to the probe reached nothing:
-// declared 560, measured 600 at a 600 mm kitchen. Persisting the measurement made the X-leg flush
-// and drove 0.00835 m³ of its carcass into `base-corner-return-320` — the two-solid-volumes case
-// ADR 0025 names by name.
+// the recorded width but no depth argument and reads the kit's own cabinet depth, so the `depthM`
+// handed to the probe reached nothing: declared 560, measured 600 at a 600 mm kitchen. Persisting
+// the measurement made the X-leg flush and drove 0.00835 m³ of its carcass into
+// `base-corner-return-320` — the two-solid-volumes case ADR 0025 names by name.
 //
 // **Three arms rather than a boolean**, because a boolean puts the hood and the corner leg in one
 // bucket when they need opposite handling — which is precisely why the adapter grew its own second

@@ -2,6 +2,9 @@ import {
   KITCHEN_L_DESIGN,
   MAX_DESIGN_BYTES,
   MAX_PLACEMENTS,
+  MAX_ROOM_DEPTH_MM,
+  MAX_ROOM_HEIGHT_MM,
+  MAX_ROOM_WIDTH_MM,
   DesignNotFoundError,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
@@ -14,12 +17,18 @@ import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
   DesignVersion,
+  SaveOutcome,
+  MintDesign,
   StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { flattenLogArguments } from "../../../support/console-log-line";
+import {
+  loadOwnedByIdAlone,
+  ownerVisitorCookiePair,
+} from "../../../support/owned-design-lookup";
 
 /** The one property these tests need from the repository: a save lands only for the credential the
  *  row was minted with, so a rejection can be attributed to the payload and not to authorisation. */
@@ -35,7 +44,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rawRows = new Map<DesignId, unknown>();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
+  mint({ design, writeTokenHash }: MintDesign): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
     this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
     return Promise.resolve({ id, revision: FIRST_REVISION });
@@ -46,7 +55,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     design,
     writeTokenHash,
     expectedRevision,
-  }: AuthorizedSave): Promise<DesignVersion> {
+  }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     // The order the real repository uses: the credential decides between 403 and 409, so a caller
     // without one can never see a conflict and never learn the design exists.
@@ -58,7 +67,7 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     }
     const revision = String(Number(row.revision) + 1);
     this.rows.set(id, { ...row, design, revision });
-    return Promise.resolve({ id, revision });
+    return Promise.resolve({ id, revision, ownsVisitor: false });
   }
 
   load(id: DesignId): Promise<StoredDesign> {
@@ -79,6 +88,12 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
     return row
       ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
+  }
+
+  // This file is about the write seam and the unreadable-row leak, never visitor identity, so
+  // `loadOwned` is `load` by id alone — see `loadOwnedByIdAlone`.
+  loadOwned({ id }: { id: DesignId; visitorHash: string }) {
+    return loadOwnedByIdAlone((designId) => this.load(designId), id);
   }
 
   /** A row already sitting in the database, stored before this validator existed or written by a
@@ -107,8 +122,15 @@ beforeEach(() => {
   repository.current = fakeRepository;
 });
 
+function mintRequest(): NextRequest {
+  return new NextRequest("https://example.test/api/designs", {
+    method: "POST",
+    headers: { "sec-fetch-site": "same-origin" },
+  });
+}
+
 async function mintDesign(): Promise<{ id: string; cookie: string }> {
-  const response = await POST();
+  const response = await POST(mintRequest());
   const { id } = (await response.json()) as { id: string };
   const setCookie = response.headers.get("set-cookie") ?? "";
   return { id, cookie: setCookie.split(";")[0] ?? "" };
@@ -572,7 +594,9 @@ describe("GET /api/designs/[id] with an unreadable stored row", () => {
   const LEAK_CANARY = "LEAK-CANARY-9f3a2b";
 
   function loadRequest(id: string): NextRequest {
-    return new NextRequest(`https://example.test/api/designs/${id}`);
+    return new NextRequest(`https://example.test/api/designs/${id}`, {
+      headers: { cookie: ownerVisitorCookiePair() },
+    });
   }
 
   function seedRowNaming(buildId: string): string {
@@ -646,5 +670,76 @@ describe("GET /api/designs/[id] with an unreadable stored row", () => {
     expect(line.length).toBeLessThan(400);
     expect(line).toContain("issue(s)");
     expect(line).not.toContain(LEAK_CANARY);
+  });
+});
+
+// M7B wave U1 QA, AC5: the write seam's cap at its exact edge, measured with the document the cap was
+// re-derived for — a U packed to `MAX_PLACEMENTS` across walls A, B and C — rather than with junk.
+// Padded with JSON whitespace, so the body is the same document at every size tried.
+describe("PUT /api/designs/[id] — a packed U at the byte cap (M7B U1, AC5)", () => {
+  function packedUDocument(): string {
+    const first = firstSeededPlacement();
+    const walls = ["A", "B", "C"] as const;
+    const placements = Array.from(
+      { length: MAX_PLACEMENTS },
+      (_unused, index) => ({
+        ...first,
+        id: `n${String(index)}`,
+        wall: walls[index % walls.length],
+        alongMm: 100 + index,
+      }),
+    );
+    return JSON.stringify({
+      ...KITCHEN_L_DESIGN,
+      room: {
+        shape: "U",
+        widthMm: MAX_ROOM_WIDTH_MM,
+        depthMm: MAX_ROOM_DEPTH_MM,
+        wallCMm: MAX_ROOM_DEPTH_MM,
+        heightMm: MAX_ROOM_HEIGHT_MM,
+      },
+      placements,
+    });
+  }
+
+  function paddedTo(document: string, totalBytes: number): string {
+    return (
+      document + " ".repeat(totalBytes - Buffer.byteLength(document, "utf8"))
+    );
+  }
+
+  it("builds a document that fits under the cap, so padding it is a fair probe", () => {
+    expect(Buffer.byteLength(packedUDocument(), "utf8")).toBeLessThan(
+      MAX_DESIGN_BYTES,
+    );
+  });
+
+  it("does not answer 413 at exactly MAX_DESIGN_BYTES", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: paddedTo(packedUDocument(), MAX_DESIGN_BYTES),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).not.toBe(413);
+  });
+
+  it("answers 413 at one byte over", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: paddedTo(packedUDocument(), MAX_DESIGN_BYTES + 1),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(413);
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
   });
 });

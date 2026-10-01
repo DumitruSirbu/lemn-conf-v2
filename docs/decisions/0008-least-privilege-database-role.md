@@ -97,3 +97,7 @@ command output *before* running the command, not after a failure has already pri
 - **M8's contact table** will need its own grant decision. It holds personal data, and
   `app_designs` should receive only the privileges the contact flow genuinely needs — very likely
   `INSERT` alone.
+
+## Note — 2026-09-23: a second table, the same three privileges
+
+M7 wave 7E3c adds `design_share_links` (migration `0006`). By this record's *"grant it when a feature actually needs it"*, `app_designs` receives **`SELECT, INSERT, UPDATE`** on it — and still **no `DELETE`**. The decision's *"on `public.designs` and nothing else"* now reads *on `designs` and `design_share_links`, and nothing else*. The grant is issued by the owner, after the migration and before the deploy, as the original grant was. `application-role-privileges.test.ts` asserts the exact set whenever the table exists. See [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) Amendment G3.

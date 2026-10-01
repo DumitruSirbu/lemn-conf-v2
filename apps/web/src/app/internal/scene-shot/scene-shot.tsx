@@ -1,14 +1,12 @@
 "use client";
 
 import type { Finish } from "@lemnaria/configurator-domain";
-import { STAGE_BACKGROUND } from "@lemnaria/three-adapter";
+import { STAGE_BACKGROUND, type CameraPresetId } from "@lemnaria/three-adapter";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { FRAMES_BEFORE_READY } from "@/app/internal/capture-settle";
 import KitchenCanvas from "@/scene/kitchen-canvas";
 import type { SceneView } from "@/scene/scene-view";
-
-/** Frames to let settle after the camera lands, so the capture never reads a half-composited buffer. */
-const FRAMES_BEFORE_READY = 5;
 
 export interface SceneShotProps {
   width: number;
@@ -16,6 +14,8 @@ export interface SceneShotProps {
   position: [number, number, number];
   target: [number, number, number];
   finish: Finish;
+  /** A preset by name; when present it frames the shot and `position` and `target` are unused. */
+  view?: CameraPresetId;
 }
 
 /**
@@ -29,13 +29,17 @@ export function SceneShot({
   position,
   target,
   finish,
+  view: presetId,
 }: SceneShotProps) {
   const [isReady, setReady] = useState(false);
   const hasArmed = useRef(false);
 
   const view = useMemo<SceneView>(
-    () => ({ kind: "fixed", position, target }),
-    [position, target],
+    () =>
+      presetId === undefined
+        ? { kind: "fixed", position, target }
+        : { kind: "preset", id: presetId },
+    [presetId, position, target],
   );
 
   const handleSettled = useCallback(() => {

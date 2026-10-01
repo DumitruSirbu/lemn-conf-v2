@@ -14,8 +14,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   designErrorResponse,
+  designNotFoundResponse,
   invalidBodyResponse,
   payloadTooLargeResponse,
+  PER_CREDENTIAL_HEADERS,
   revisionRequiredResponse,
   writeForbiddenResponse,
 } from "@/lib/server/design-errors";
@@ -24,6 +26,11 @@ import {
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
 import { getRepository } from "@/lib/server/repository";
+import {
+  readVisitorHash,
+  refreshVisitorCookie,
+  resolveRequestVisitor,
+} from "@/lib/server/visitor";
 import {
   hasWriteCredentialFor,
   readWriteTokenHash,
@@ -41,14 +48,6 @@ type ReadDesignOutcome =
   | { readonly ok: false; readonly response: NextResponse };
 
 /**
- * This response is **per-credential and must never be shared between visitors.** The design half is
- * public, but `canWrite` is computed from the request's own write-token cookie, so one cached copy
- * served to a second visitor would hand them another browser's `canWrite: true` and a panel
- * offering edits their saves will be refused for. Reading `request.cookies` already opts this route
- * out of static rendering and no CDN caches it without an explicit public directive — these headers
- * are what keeps that true the day someone adds `s-maxage` to a route whose payload looks public.
- */
-/**
  * Where a save states the revision it edits (WEB-003).
  *
  * A header rather than a field in the body: the body of a save **is** the `Design` document and
@@ -63,20 +62,16 @@ type ReadDesignOutcome =
  */
 const EXPECTED_REVISION_HEADER = "x-expected-revision";
 
-const PER_CREDENTIAL_HEADERS = {
-  "Cache-Control": "private, no-store",
-  Vary: "Cookie",
-} as const;
-
 /**
- * Open to anyone holding the link, and deliberately so: ADR 0019 decision 1 splits read from write
- * precisely so that sharing keeps costing nothing. A caller presenting no credential still gets the
- * design and a 200 — never a 401, never a 403.
+ * Gated to the owning browser alone, since M7 wave 7E3b (ADR 0114 decision 5). A missing or
+ * malformed visitor cookie, a foreign one and an unknown id are one outcome — `designNotFoundResponse`
+ * — answered by `loadOwned`'s own single statement; no branch here can tell a caller which of the
+ * three it hit, and the no-cookie and malformed cases never reach the repository at all.
  *
- * `canWrite` rides along because the request already carried the cookie: the credential is
- * `HttpOnly`, so the browser cannot inspect it, and without this answer a panel could only discover
- * whether it may edit by attempting an edit — the warn-after-click pattern §9 rules out. It is a
- * boolean and nothing else; no token, no hash, and no fragment of either leaves this handler.
+ * `canWrite` rides along because the request already carried the write-token cookie: the credential
+ * is `HttpOnly`, so the browser cannot inspect it, and without this answer a panel could only
+ * discover whether it may edit by attempting an edit — the warn-after-click pattern §9 rules out. It
+ * is a boolean and nothing else; no token, no hash, and no fragment of either leaves this handler.
  *
  * **It is advisory, for the UI, and it is not the authorisation decision.** `PUT`/`PATCH` hand the
  * hash to `saveAuthorized`, which makes it part of the row's own `update` predicate. Nothing may
@@ -89,13 +84,17 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   const { id } = await params;
+  const visitorHash = readVisitorHash(request.cookies);
+  if (visitorHash === undefined) return designNotFoundResponse(id);
+
   try {
-    const { design, revision } = await getRepository().load(id);
+    const outcome = await getRepository().loadOwned({ id, visitorHash });
+    if (outcome.kind === "none") return designNotFoundResponse(id);
     return NextResponse.json(
       {
         id,
-        design,
-        revision,
+        design: outcome.design,
+        revision: outcome.revision,
         canWrite: hasWriteCredentialFor(request.cookies, id),
       },
       { headers: PER_CREDENTIAL_HEADERS },
@@ -154,14 +153,22 @@ async function saveDesign(
       design: body.design,
       writeTokenHash,
       expectedRevision,
+      requestVisitor: resolveRequestVisitor(request.cookies),
     });
 
-    // A save is the proof the design is still in use, so it is also what keeps edit access alive.
+    // A save is the proof the design is still in use, so it is also what keeps edit access alive —
+    // and, since M7 wave 7E3a, what keeps the visitor identity alive on the same clock.
+    // `refreshVisitorCookie` re-emits only the request's own well-formed value; it never mints one,
+    // so a save made without a visitor cookie still sets none (D9: no save changes ownership).
+    // Since M7 wave 7E3b (D3 / Amendment H3) that refresh runs only when `saved.ownsVisitor` —
+    // the row's own current visitor_hash, answered by the same statement as the update — so a
+    // value another tab already rotated away is never re-emitted here.
     const response = NextResponse.json({
       id: saved.id,
       revision: saved.revision,
     });
     refreshWriteTokenCookie({ request, response }, id);
+    if (saved.ownsVisitor) refreshVisitorCookie({ request, response });
     return response;
   } catch (error) {
     return designErrorResponse("save", error);

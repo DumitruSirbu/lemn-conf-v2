@@ -3,6 +3,10 @@
 # `main`. Job names are a contract: renaming one breaks its branch-protection
 # binding, so do not rename without updating the protection rule.
 #
+# The e2e shard jobs (`e2e shard (...)`) are the exception: they are not meant to
+# be required. `e2e (desktop)` and `e2e (mobile)` are the summary jobs that
+# aggregate them, and those two names are the contract.
+#
 # Third-party actions are pinned by full commit SHA (supply-chain hygiene). The
 # trailing `# vX.Y.Z` comment records the tag the SHA maps to.
 name: ci
@@ -10,10 +14,13 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    # `labeled` so that adding `run-e2e` to a pull request starts a one-shot e2e-only run (owner,
+    # 2026-10-01); the label is removed when that run ends. Pushes never run e2e on a pull request.
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
-  # Lets the `e2e` job be asked for by hand from the Actions tab on any ref. It
-  # is skipped on pull requests (see that job's `if:`), so this is how a branch
+  # Lets the e2e jobs be asked for by hand from the Actions tab on any ref. They
+  # are skipped on pull requests (see the shards' `if:`), so this is how a branch
   # gets browser coverage before it is merged rather than after.
   workflow_dispatch:
 
@@ -21,7 +28,9 @@ on:
 # are cancelled; post-merge `main` runs always complete so the branch's gate
 # history is never left half-finished by a fast follow-up push.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A `labeled` run is e2e-only and gets its own group, so adding `run-e2e` never cancels the push run's
+  # unit tests still in flight for the same pull request.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.action == 'labeled' && 'e2e' || 'gates' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege: these gates never write to the repo.
@@ -56,6 +65,7 @@ jobs:
 
   format:
     name: format
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: install
@@ -78,6 +88,7 @@ jobs:
 
   lint:
     name: lint
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: install
@@ -102,6 +113,7 @@ jobs:
 
   typecheck:
     name: typecheck
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: install
@@ -124,14 +136,32 @@ jobs:
 
   test:
     name: test
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Owner ruling 2026-09-30: the unit-test job raises its ceiling rather than splitting (the
+    # split-per-machine rule of ADR 0105 A is for e2e). Measured: the domain package alone took
+    # 14.9 min on the runner (run 36765806056), cancelled at 15. Raised again to 45 (owner, 2026-10-01):
+    # the whole job took 28m59s in run 36828202847, leaving almost no margin under 30.
+    timeout-minutes: 45
     needs: install
     env:
-      # Points at the dedicated Neon test database and nothing else. The
-      # in-repo guard (`resolveTestDatabaseUrl`) refuses to run if the
-      # resolved database name matches the one DATABASE_URL names, so a
-      # mis-set secret fails loudly instead of writing to real data.
+      # Points at the dedicated Neon test database and nothing else, and it
+      # is what the live persistence suites gate on — they ran on
+      # DATABASE_URL until M7 wave 7T, which this job never sets, so they
+      # reported green here without ever having executed. The in-repo guard
+      # (`resolveTestDatabaseUrl`) refuses to run if the resolved database
+      # name matches the one DATABASE_URL names, or if it is not on the
+      # guard's allowlist at all, so a mis-set secret fails loudly instead of
+      # writing to real data or skipping in silence.
+      #
+      # This job and a developer's gate share that one database, so the live
+      # files serialise across runners through an advisory lock each declares
+      # a mode of. Which files run, which mode each takes and which tests
+      # skip by design are checked against a table in
+      # packages/persistence/tests/live-suite-census.test.ts, and the
+      # reasoning is in docs/best-practices/ci-and-local-gates.md. Neither is
+      # restated here: a count written into a comment drifts with nothing to
+      # catch it, which is the failure this wave removed elsewhere.
       #
       # DATABASE_URL is deliberately NOT set: no application runs in CI, so
       # there is no application database for the guard to compare against,
@@ -172,8 +202,76 @@ jobs:
   # days after a catalogue id was renamed under it and no gate said a word. The
   # unit suites cannot cover that class — the rename was consistent everywhere
   # they look, and no unit test asserts a DOM test id.
-  e2e:
-    name: e2e (${{ matrix.project }})
+  #
+  # **Layout since 2026-09-30: four kinds of job, and only two names are contracts.**
+  #
+  #   e2e-desktop-shard  `e2e shard (desktop) (1, 3)` .. `(3, 3)`       — three parallel legs
+  #   e2e-mobile-shard   `e2e shard (mobile) (1, 4)`  .. `(4, 4)`       — four parallel legs
+  #   e2e-desktop        `e2e (desktop)`  — the summary; needs the desktop shards
+  #   e2e-mobile         `e2e (mobile)`   — the summary; needs the mobile shards
+  #   e2e-shard-budget   `e2e-shard-budget` — lists the tests per shard, runs no browser (below)
+  #
+  # **`e2e (desktop)` and `e2e (mobile)` are the branch-protection contract, and they are the
+  # summary jobs, not the shards.** They are the names the single `e2e` job has carried since
+  # ADR 0105, so sharding changes nothing a required-checks list says. The shard names are free to
+  # change; the summary names are not.
+  #
+  # **Why two shard jobs rather than one matrix over project x shard:** a job's `needs` names
+  # whole jobs, and the result of a matrix job is the aggregate of *all* its legs. One six-leg
+  # matrix could therefore feed only one summary, and `e2e (desktop)` would go red for a mobile
+  # failure. Two jobs let each summary see exactly its own project's shards, and let each project
+  # have its own shard count. The price is that the two shard jobs repeat one step list, identical
+  # except for the project name and the matrix; a change to one is a change to the other.
+  #
+  # **Sharding is Playwright's `--shard=i/N`, and it splits by test file here.** `fullyParallel`
+  # is false in `playwright.config.ts`, so a file's tests stay together and a shard is a set of
+  # whole files, balanced by test count. `workers` is still 1 per shard (ADR 0105 decision 2):
+  # each shard is a two-core runner of its own, so this adds machines rather than contention. The
+  # shards share the one Neon test database exactly as the two project legs already did, and for
+  # the same reason it is safe: every spec's database access is row-scoped to ids it minted itself
+  # (ADR 0105).
+  #
+  # **How many shards is not a preference: it is whatever keeps every shard inside its test
+  # budget** (ADR 0105 Amendment A). `scripts/gates/e2e-shard-budget.mjs` holds the measured runner
+  # rates, derives the budget from them and fails when a shard lists more tests than that; the
+  # `e2e-shard-budget` job below runs it. Desktop needs three shards and mobile four. The matrix
+  # `total` here must equal the script's `SHARDS_PER_PROJECT`, and the script checks that it does.
+  #
+  # **Cost, stated plainly:** seven legs each pay their own install, Chromium download and
+  # `next build` (about 2 minutes of fixed cost a leg: ~0.8 outside the E2E step and ~0.9 for the
+  # build before the first test, read from run 34580253814's step timings), against two legs
+  # before. Billed minutes go up by roughly 10 per full run.
+  #
+  # **Sharding was ruled by the owner on 2026-09-30** — *"3 shards per project"* — which is ADR
+  # 0105's "shard with `--shard=i/N`" alternative, reconsidered because this branch's suite
+  # outgrew the project split: 185 desktop and 393 mobile tests, against the 84 and ~109 the split
+  # was sized on. The budget guard then asked for a fourth mobile shard, which ADR 0105 A4 had
+  # anticipated; the owner's rule is that the budget governs and shards are added, never the ceiling.
+  prior-unit-tests:
+    name: prior unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # On every `labeled` run (owner, 2026-10-01; any label fires one). That run skips `test`, and GitHub counts a
+    # skipped required check as passing, so this job fails unless the same commit's `test` already passed.
+    if: github.event.action == 'labeled'
+    permissions:
+      checks: read
+    steps:
+      - name: The same commit already passed `test`
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          conclusion=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs?check_name=test" \
+            --jq '[.check_runs[] | select(.conclusion != "skipped")] | sort_by(.completed_at) | last | .conclusion // "missing"')
+          echo "Latest non-skipped \`test\` on $SHA: $conclusion"
+          if [ "$conclusion" != "success" ]; then
+            echo "The push run's unit tests have not passed on this commit; wait for them (or fix them), then re-add run-e2e."
+            exit 1
+          fi
+
+  e2e-desktop-shard:
+    name: e2e shard (desktop)
     runs-on: ubuntu-latest
     # **Split by Playwright project, 2026-09-10** — ADR 0105, the owner's ruling that the
     # fourth raise should not happen. The seam is not invented for CI: `playwright.config.ts`
@@ -181,13 +279,18 @@ jobs:
     # and names their spec files apart, so a file's viewport is readable from its name.
     # Measured on the tree at the split: 21 mobile spec files / 109 tests, 9 desktop / 84.
     #
-    # `fail-fast: false` because the two halves answer different questions — a mobile
-    # regression should not hide whether desktop is green, and cancelling the other leg to
-    # save minutes would cost a second full run to learn what it was about to tell us.
+    # `fail-fast: false` because the legs answer different questions — a mobile regression
+    # should not hide whether desktop is green, one shard's failure should not hide whether its
+    # siblings are, and cancelling the others to save minutes would cost a second full run to
+    # learn what they were about to tell us.
+    #
+    # `total` is a one-value axis so the shard count is written once per job and read by the job
+    # name, the step name and `--shard`. `shard` must list 1..total.
     strategy:
       fail-fast: false
       matrix:
-        project: [mobile, desktop]
+        shard: [1, 2, 3]
+        total: [3]
     # Longer than `test` (15): this one produces a production build and drives a
     # real browser through it. On CI `playwright.config.ts` serves `next build &&
     # next start` rather than `next dev`, because dev compiles each route on its
@@ -230,14 +333,14 @@ jobs:
     # *files* would trade determinism for time on the gate that exists to
     # protect determinism.
     #
-    # **The `mobile`/`desktop` matrix above runs two legs against that one
-    # shared Neon database at the same time, and that is safe where extra
-    # workers are not.** Checked rather than assumed: neither leg executes DDL,
-    # neither asserts a global row count, and each cleans up with `delete from
-    # designs where id = $1` over ids it minted itself — so the two only ever
-    # touch disjoint rows. Both legs keep `needs: [install, test]` below, which
-    # is what holds them off the live persistence suites that *do* execute DDL.
-    # ADR 0105 carries the reasoning in full.
+    # **The legs run against that one shared Neon database at the same time
+    # (two when this was written, six since the 2026-09-30 sharding), and that
+    # is safe where extra workers are not.** Checked rather than assumed: no
+    # leg executes DDL, none asserts a global row count, and each cleans up
+    # with `delete from designs where id = $1` over ids it minted itself — so
+    # they only ever touch disjoint rows. Every shard keeps `needs: [install,
+    # test]` below, which is what holds them off the live persistence suites
+    # that *do* execute DDL. ADR 0105 carries the reasoning in full.
     #
     # **The split lands, and the ceiling comes down with it — 75 -> 45 per leg.**
     # Whole-suite measurements above are kept because they are what justified each raise
@@ -246,6 +349,14 @@ jobs:
     # since moved — desktop is 84 tests where that run measured 66 — so 45 is sized on the
     # slower leg's measured minutes plus the second `next build` this split adds (~1
     # minute) plus headroom, not on a projection.
+    #
+    # **Sharded 2026-09-30, and the ceiling stays at 45 — now per shard.** The tree moved again:
+    # 185 desktop and 393 mobile tests, and at the last `main` run's rates (84 desktop tests in
+    # 37.8 minutes, ~109 mobile in 26.1) one project would need 80-90 minutes. Each shard is held
+    # to a 30-minute test budget by `scripts/gates/e2e-shard-budget.mjs`, which leaves 15 minutes
+    # under this ceiling for setup and the build. Projected minutes per shard are in
+    # `docs/best-practices/ci-and-local-gates.md`; they are a projection, not a runner
+    # measurement. A shard that goes over budget gets a shard added, never a higher ceiling here.
     #
     # Still a ceiling, not a budget: a suite that stops making progress dies
     # here rather than running to the runner's 6-hour limit.
@@ -258,7 +369,7 @@ jobs:
     # database". An e2e `POST /api/designs` landing in that window fails for a
     # reason nobody can reproduce locally, because `scripts/local-ci.sh` runs the
     # two serially. Serialising them here costs wall-clock and buys determinism.
-    needs: [install, test]
+    needs: [install, test, prior-unit-tests]
     # **Not on pull requests.** This repository has 2000 private Actions minutes
     # a month and this job alone costs ~33 of them; a branch pushed five times
     # would spend a sixth of the month's allowance re-proving the same flows.
@@ -270,10 +381,19 @@ jobs:
     #
     # The cost of this choice, stated plainly: a pull request can be green and
     # still break the signature flow, and nobody learns that until it is on
-    # `main`. That is the trade the allowance forces. If `e2e` is listed as a
-    # required status check on `main`, it must be removed from that list —
-    # a required check that never reports on a pull request blocks every merge.
-    if: github.event_name != 'pull_request'
+    # `main`. That is the trade the allowance forces.
+    #
+    # On a pull request the summary jobs `e2e (desktop)` and `e2e (mobile)` carry
+    # this same condition and report **skipped**, which GitHub counts as passing
+    # for a required check. (Before the summaries existed, the skipped job's name
+    # was the unexpanded `e2e (${{ matrix.project }})`, because a job skipped
+    # before its matrix expands cannot name itself — as run 36734585613 shows — so
+    # nothing reported under the name `e2e (desktop)` on a pull request.)
+    if: >-
+      ${{ !cancelled()
+      && needs.install.result == 'success'
+      && (needs.test.result == 'success' || needs.prior-unit-tests.result == 'success')
+      && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
     env:
       # Same secret, same reasoning as the `test` job above, and the same
       # deliberate omission of DATABASE_URL. Note what that omission costs here:
@@ -313,19 +433,20 @@ jobs:
       # system libraries a headless Chromium needs on a bare runner.
       - name: Install Playwright Chromium
         run: pnpm --filter @lemnaria/web exec playwright install --with-deps chromium
-      # The config starts its own `next dev` with `reuseExistingServer: false`,
-      # so there is no server to stand up here.
+      # The config starts its own `next build && next start` on CI with
+      # `reuseExistingServer: false`, so there is no server to stand up here.
       # `playwright test` directly rather than through `pnpm test:e2e`, because that script
       # is `build:deps && playwright test` and forwarding `--project` through two `pnpm run`
       # layers is the kind of thing that silently runs the whole suite twice instead of
-      # failing. The two commands are spelled out here so the argument reaches the binary.
-      - name: E2E (${{ matrix.project }})
+      # failing. The two commands are spelled out here so the arguments reach the binary —
+      # and `--shard` is one of them: dropped, every shard would run the whole project.
+      - name: E2E (desktop, shard ${{ matrix.shard }}/${{ matrix.total }})
         run: |
           pnpm --filter @lemnaria/web run build:deps
-          pnpm --filter @lemnaria/web exec playwright test --project=${{ matrix.project }}
+          pnpm --filter @lemnaria/web exec playwright test --project=desktop --shard=${{ matrix.shard }}/${{ matrix.total }}
       # Traces are retained on failure only (playwright.config.ts), so this
       # uploads nothing on a green run and the failing run's trace is the first
-      # thing a reader wants.
+      # thing a reader wants. (`reporter` is `list` alone: there is no HTML report to upload.)
       #
       # Know what is in it before widening this: a trace records response headers,
       # and `POST /api/designs` returns the write token in `Set-Cookie`. So a
@@ -337,16 +458,222 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          # Per leg: `upload-artifact@v4` **fails** on a duplicate name rather than merging,
-          # so an unsuffixed name would turn a one-leg failure into a two-leg failure and
-          # lose the trace that mattered.
-          name: playwright-trace-${{ matrix.project }}
+          # Per project, per shard, per attempt: `upload-artifact@v4` **fails** on a duplicate
+          # name rather than merging (checked against the pinned SHA's README), so a name shared
+          # by two legs would turn one leg's failure into two legs' failures and lose the trace
+          # that mattered. `run_attempt` is there because an artifact belongs to the *run*, not to
+          # the attempt: "Re-run failed jobs" on a shard that already uploaded would otherwise
+          # collide with its own first trace — and re-running one failed shard is the point of
+          # having shards.
+          name: playwright-trace-desktop-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: apps/web/test-results/
           retention-days: 7
           if-no-files-found: ignore
 
+  # The mobile half of the layout described above `e2e-desktop-shard`, whose comments on the
+  # timeout, `needs`, the pull-request skip and the database apply here unchanged. Identical to
+  # that job except for the project name and four shards rather than three: three put 138 tests on
+  # the largest shard against a budget of 125.
+  e2e-mobile-shard:
+    name: e2e shard (mobile)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+        total: [4]
+    timeout-minutes: 45
+    needs: [install, test, prior-unit-tests]
+    if: >-
+      ${{ !cancelled()
+      && needs.install.result == 'success'
+      && (needs.test.result == 'success' || needs.prior-unit-tests.result == 'success')
+      && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
+    env:
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Fails before Playwright with a clear message rather than surfacing a
+      # missing secret as a driver error mid-suite, exactly as `test` does.
+      - name: Assert the test database secret is present
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+              echo "TEST_DATABASE_URL is not set. The e2e suite writes designs, so it needs"
+              echo "the dedicated Neon test database. Add it under Settings > Secrets and"
+              echo "variables > Actions as a repository secret named TEST_DATABASE_URL."
+              exit 1
+          fi
+          echo "TEST_DATABASE_URL present; database name: $(node -e "console.log(new URL(process.env.TEST_DATABASE_URL).pathname.slice(1))")"
+      # Chromium alone: both projects in playwright.config.ts pin
+      # `defaultBrowserType: "chromium"`, so installing the full set would cost
+      # download time for browsers no spec can select. `--with-deps` brings the
+      # system libraries a headless Chromium needs on a bare runner.
+      - name: Install Playwright Chromium
+        run: pnpm --filter @lemnaria/web exec playwright install --with-deps chromium
+      # The config starts its own `next build && next start` on CI with
+      # `reuseExistingServer: false`, so there is no server to stand up here.
+      # `playwright test` directly rather than through `pnpm test:e2e`, because that script
+      # is `build:deps && playwright test` and forwarding `--project` through two `pnpm run`
+      # layers is the kind of thing that silently runs the whole suite twice instead of
+      # failing. The two commands are spelled out here so the arguments reach the binary —
+      # and `--shard` is one of them: dropped, every shard would run the whole project.
+      - name: E2E (mobile, shard ${{ matrix.shard }}/${{ matrix.total }})
+        run: |
+          pnpm --filter @lemnaria/web run build:deps
+          pnpm --filter @lemnaria/web exec playwright test --project=mobile --shard=${{ matrix.shard }}/${{ matrix.total }}
+      # Traces are retained on failure only (playwright.config.ts), so this
+      # uploads nothing on a green run and the failing run's trace is the first
+      # thing a reader wants. (`reporter` is `list` alone: there is no HTML report to upload.)
+      #
+      # Know what is in it before widening this: a trace records response headers,
+      # and `POST /api/designs` returns the write token in `Set-Cookie`. So a
+      # failure artifact carries a live write token for a **test-database** row.
+      # Acceptable here — private repo, 7-day retention, a database ADR 0006
+      # keeps separate from the application's — and not a pattern to reuse
+      # against real data.
+      - name: Upload Playwright trace on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          # Per project, per shard, per attempt: `upload-artifact@v4` **fails** on a duplicate
+          # name rather than merging (checked against the pinned SHA's README), so a name shared
+          # by two legs would turn one leg's failure into two legs' failures and lose the trace
+          # that mattered. `run_attempt` is there because an artifact belongs to the *run*, not to
+          # the attempt: "Re-run failed jobs" on a shard that already uploaded would otherwise
+          # collide with its own first trace — and re-running one failed shard is the point of
+          # having shards.
+          name: playwright-trace-mobile-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: apps/web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The required check. Reads only its own project's shards (`needs` names the shard job, whose
+  # result is the aggregate of all its legs), and **fails unless they all succeeded** — a
+  # shard that was skipped or cancelled is not a pass, so this cannot go green by absence.
+  #
+  # `always()` is what lets it run and *fail* when a shard failed; without it a failed `needs`
+  # would leave this job skipped, and a skipped required check counts as passing. The
+  # `pull_request` condition is the shards' own, repeated, because `always()` would otherwise run
+  # this job on a pull request where the shards were deliberately skipped: there it must report
+  # skipped, exactly as the single `e2e` job did.
+  e2e-desktop:
+    name: e2e (desktop)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: e2e-desktop-shard
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
+    steps:
+      - name: Require every desktop shard to have passed
+        env:
+          SHARDS_RESULT: ${{ needs.e2e-desktop-shard.result }}
+        run: |
+          echo "e2e desktop shards: $SHARDS_RESULT"
+          if [ "$SHARDS_RESULT" != "success" ]; then
+              echo "Not every desktop shard succeeded; see the e2e shard (desktop) jobs."
+              exit 1
+          fi
+
+  # The required check. Reads only its own project's shards (`needs` names the shard job, whose
+  # result is the aggregate of all its legs), and **fails unless they all succeeded** — a
+  # shard that was skipped or cancelled is not a pass, so this cannot go green by absence.
+  #
+  # `always()` is what lets it run and *fail* when a shard failed; without it a failed `needs`
+  # would leave this job skipped, and a skipped required check counts as passing. The
+  # `pull_request` condition is the shards' own, repeated, because `always()` would otherwise run
+  # this job on a pull request where the shards were deliberately skipped: there it must report
+  # skipped, exactly as the single `e2e` job did.
+  e2e-mobile:
+    name: e2e (mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: e2e-mobile-shard
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.action == 'labeled' && github.event.label.name == 'run-e2e')) }}
+    steps:
+      - name: Require every mobile shard to have passed
+        env:
+          SHARDS_RESULT: ${{ needs.e2e-mobile-shard.result }}
+        run: |
+          echo "e2e mobile shards: $SHARDS_RESULT"
+          if [ "$SHARDS_RESULT" != "success" ]; then
+              echo "Not every mobile shard succeeded; see the e2e shard (mobile) jobs."
+              exit 1
+          fi
+  # Added 2026-09-30 with the sharding (ADR 0105 Amendment A): fails when any e2e shard would carry
+  # more tests than the runner's measured rate allows in 30 minutes, and says how many shards the
+  # project needs. It lists tests and runs no browser, so it is seconds of work; but `--list` loads
+  # the Playwright config and every spec, which need the workspace built and TEST_DATABASE_URL set
+  # (the config refuses to load without it), hence `build:deps` and the secret below.
+  #
+  # Unlike the e2e jobs it runs on pull requests as well: it is cheap, and a pull request is where a
+  # test is added. The same script runs locally as a gate in `scripts/local-ci.sh`.
+  #
+  # `e2e-shard-budget` is a new job name. It is the owner's choice whether to make it a required
+  # status check; it reports on every event, so requiring it cannot block a pull request.
+  remove-run-e2e-label:
+    name: remove run-e2e label
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # The label is one-shot (owner, 2026-10-01): once its e2e run ends, pass or fail, the label comes off,
+    # so adding it again is how the next e2e run is asked for.
+    needs: [e2e-desktop, e2e-mobile]
+    if: ${{ always() && github.event.action == 'labeled' && github.event.label.name == 'run-e2e' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Remove the run-e2e label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label run-e2e
+
+  e2e-shard-budget:
+    name: e2e-shard-budget
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: install
+    env:
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: Assert the test database secret is present
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+              echo "TEST_DATABASE_URL is not set. Listing the e2e tests loads the Playwright"
+              echo "config, which refuses to load without the dedicated test database. Add it"
+              echo "under Settings > Secrets and variables > Actions as TEST_DATABASE_URL."
+              exit 1
+          fi
+      - name: Build the workspace packages the specs import
+        run: pnpm --filter @lemnaria/web run build:deps
+      - name: The guard's own tests
+        run: node --test scripts/gates/e2e-shard-budget.test.mjs
+      - name: Every e2e shard is within its test budget
+        run: pnpm gate:e2e-shard-budget
+
   build:
     name: build
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     needs: install
@@ -370,6 +697,7 @@ jobs:
 
   boundary:
     name: boundary
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -382,6 +710,7 @@ jobs:
 
   lockfile:
     name: lockfile:single-source
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -393,6 +722,7 @@ jobs:
 
   sca:
     name: sca
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     needs: install

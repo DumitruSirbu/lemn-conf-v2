@@ -32,8 +32,14 @@ export default async function ContactPage() {
       >
         {content.contactPlaceholder.body}
       </p>
+      {/* `prefetch={false}`: Next prefetches a visible `Link` by requesting its target ahead of a
+          click, and `/{locale}` is no longer a page — since M7 wave 7E3a S3 it *is* the resume
+          route (D3/D4). A prefetch would run the lookup and, on a well-formed cookie matching
+          nothing, send the clear as a side effect of the customer merely looking at this link
+          (review round 1, L1.7). */}
       <Link
-        href="/configurator/configure"
+        href="/"
+        prefetch={false}
         style={{ font: "700 14px/1 var(--font-ui)", color: "var(--accent)" }}
       >
         {content.contactPlaceholder.back}

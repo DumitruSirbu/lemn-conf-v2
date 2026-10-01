@@ -116,7 +116,7 @@ jobs:
       # transaction and re-reads the ledger inside that lock (ADR 0042 decision 3), so a second
       # concurrent run blocks and then applies nothing.
       - name: Migrate
-        run: pnpm --filter @lemnaria/persistence run migrate
+        run: pnpm --filter @lemnaria/persistence run migrate "$TARGET_ENVIRONMENT"
 
       # THE GATE. ADR 0020 decision 2, unchanged and restated by ADR 0096 decision 1: the evidence
       # is a read of information_schema, never this or any other command's exit status, and never
