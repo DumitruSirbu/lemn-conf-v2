@@ -5,6 +5,12 @@ Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7E1 and 7E2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-10-01.** Decision 5 (back never erases; choosing again creates a new design and the old
+one stays stored) is **unchanged**. The editor's back links now ask for a confirmation before they
+navigate, on every viewport, and confirming writes, deletes and re-mints nothing: [ADR 0104 Amendment
+D](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-d-2026-10-01--q1-answered-the-back-to-room-link-is-drawn-on-desktop-and-both-back-links-ask-before-they-leave).
+Editing the room while keeping the customised kitchen is backlog 103, not built. Nothing here is struck.
+
 ## Context
 
 The M7 plan requires that applying a preset — or finishing a generated kitchen — **creates the stored

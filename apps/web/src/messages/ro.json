@@ -22,6 +22,12 @@
     "loading": "Se încarcă modelul 3D…",
     "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     "backAction": "Înapoi",
+    "backConfirm": {
+      "title": "Modificările vor fi pierdute",
+      "body": "Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei?",
+      "confirm": "Înapoi la cameră",
+      "stay": "Rămân aici"
+    },
     "reviewCta": "Verifică designul"
   },
   "room": {

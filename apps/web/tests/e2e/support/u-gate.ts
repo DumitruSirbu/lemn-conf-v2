@@ -519,13 +519,15 @@ export async function tapVoid(
 // The panel.
 // -------------------------------------------------------------------------------------------
 
-/** The editor's back link to Step 1: tapped on a phone. A desktop hides that arm (the wordmark stands in
- *  for it), so a click would wait on an element that never shows — its own `href` is followed instead,
- *  as `u-flow.ts` does. Both land on 1D with the room the customer typed. */
+/** The editor's back link to Step 1: tapped on a phone, and the confirmation it opens answered. A
+ *  desktop's `‹` asks the same question, but its journeys follow the link's own `href` instead, as
+ *  `u-flow.ts` does — the dialog has its own desktop spec (`back-confirmation.desktop.e2e.spec.ts`).
+ *  Both land on 1D with the room the customer typed. */
 export async function followBackLink(page: Page): Promise<void> {
   const back = page.getByTestId("top-bar-back");
   if (await hasTouch(page)) {
     await back.tap();
+    await page.getByTestId("back-confirm-confirm").tap();
     return;
   }
   const href = await back.getAttribute("href");

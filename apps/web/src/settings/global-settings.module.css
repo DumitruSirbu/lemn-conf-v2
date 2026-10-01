@@ -447,6 +447,13 @@
   border-top: 1px solid var(--line);
 }
 
+/* The standalone confirmation's variant of `.footer`: its two actions stand in the middle of the
+ * dialog instead of at its start (the owner, 2026-10-01). The settings sheet's confirm step never
+ * takes this class, so its footer stays as it was. Declared after `.footer` to win the tie. */
+.footerCentred {
+  justify-content: center;
+}
+
 /* §13.1 again, on the primary action. `.cancel` deliberately takes none of this: leaving the sheet
  * is never locked. */
 .apply:disabled {
@@ -727,4 +734,15 @@
   .figureAmount {
     font-size: 20px;
   }
+}
+
+/* The standalone confirmation's layer. **`7` is the settings item's own** (the stacking table at the
+ * head of `configure.module.css`): a modal must cover the price bar, the rail and the breakdown's
+ * popover, and its scrim and surface can only paint as high as the context they stand in. Fixed and
+ * out of flow, so it claims no cell of the screen's grid; it is also what `useBackgroundInert` leaves
+ * live. */
+.dialogHost {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
 }

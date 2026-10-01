@@ -33,10 +33,8 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type Ref,
-  type RefObject,
 } from "react";
 
 import { FinishSectionView } from "@/panel/editor-panel";
@@ -50,6 +48,12 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 import { describeEditability, type Editability } from "@/store/editability";
 import { useContent } from "@/i18n/use-content";
 
+import {
+  ConfirmStep,
+  trapTab,
+  useBackgroundInert,
+  useEscapeToDismiss,
+} from "./confirmation-dialog";
 import {
   chooseDepthIn,
   chooseFinishIn,
@@ -78,20 +82,6 @@ const CLOSED_GLYPH = "▾";
 
 /** Frames 2E / D2E carry the same round information mark the breakdown's note does. */
 const NOTE_GLYPH = "i";
-
-/** The tab ring inside the dialog. **A radio group contributes exactly its checked member**, which
- *  is the browser's own rule and is why the unchecked ones are not listed: including them would put
- *  the trap's first and last stops on elements Tab never visits, and the ring would leak past both
- *  ends. Every group here always has a checked member — a choice resolves to the book's default
- *  where the design names none.
- *
- *  **`:not([disabled])` is on both halves for exactly that reason** (wave W2). A locked sheet greys
- *  its radios and its *Aplică* (M6-AUD-001), and a disabled radio is no more tabbable than a
- *  disabled button — listing one would move the ring's first stop onto an element the browser
- *  skips, which is the leak this selector exists to prevent. *Renunță* is never disabled, so the
- *  ring is never empty: leaving must stay possible on every surface. */
-const TAB_STOP_SELECTOR =
-  'button:not([disabled]), input[type="radio"]:checked:not([disabled])';
 
 interface GlobalSettingsProps {
   /** How many settings the pill names, decided from the row's measured track by
@@ -451,60 +441,6 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
 }
 
 /**
- * **Escape dismisses it wherever focus has got to**, which is why this listens on the document
- * rather than on the surface — `price-breakdown.tsx` records what binding it to the dialog cost.
- *
- * Registered only while open. It is the second such handler in the application, which the
- * breakdown's own comment anticipated: the rule it states is that the topmost surface registers last
- * and **no handler calls `stopPropagation`**, and both hold here. The two cannot both be open —
- * this one marks the rest of the screen inert, and the breakdown's trigger is part of it.
- *
- * **Still one listener with the confirm step**, and it dismisses one step rather than the sheet —
- * ADR 0081 decision 3. A second document-level handler for a second dialog is what that decision
- * refuses, and what `dismiss` above exists to make unnecessary.
- */
-function useEscapeToDismiss(isOpen: boolean, dismiss: () => void): void {
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    function dismissOnEscape(event: KeyboardEvent): void {
-      if (event.key === "Escape") dismiss();
-    }
-    document.addEventListener("keydown", dismissOnEscape);
-    return () => {
-      document.removeEventListener("keydown", dismissOnEscape);
-    };
-  }, [isOpen, dismiss]);
-}
-
-/**
- * **The rest of the screen, marked inert while the sheet is open** — the half of "modal" a scrim
- * cannot do, because a keyboard can activate controls a pointer cannot.
- *
- * Applied to the screen's own children rather than to a named list of components: the branch holding
- * this control stays live (its trigger and chips are what the sheet is about) and every sibling band
- * — the header, the stage with its camera presets and §9's panel, the price bar and its breakdown —
- * goes inert together. Walking up to the screen rather than assuming a depth means a later change to
- * where this mounts cannot silently leave a band operable.
- */
-function useBackgroundInert(
-  isOpen: boolean,
-  anchorRef: RefObject<HTMLDivElement | null>,
-): void {
-  useEffect(() => {
-    const anchor = anchorRef.current;
-    const screenElement = anchor?.closest("main");
-    if (!isOpen || !anchor || !screenElement) return undefined;
-    const behind = [...screenElement.children].filter(
-      (band) => !band.contains(anchor),
-    );
-    for (const band of behind) band.setAttribute("inert", "");
-    return () => {
-      for (const band of behind) band.removeAttribute("inert");
-    };
-  }, [isOpen, anchorRef]);
-}
-
-/**
  * The sheet itself, given a view — no store, no pricing, no open state.
  *
  * Separated for `PriceBreakdownSurface`'s reason: the states below are reachable only through a
@@ -670,68 +606,6 @@ interface MaterialResetConfirmStep {
   readonly onStepBack: () => void;
 }
 
-/**
- * **The consequence, and the two ways out of it.** It replaces the sheet's body and footer inside
- * the one dialog above — no second scrim, no second focus trap and no second Escape listener
- * (ADR 0081 decision 3).
- *
- * **The figure and the overflow warning go with the footer they belong to.** A running total beside
- * *Schimbă materialul* invites the reading that the price is what changes, and the estimate is not
- * what this step is about.
- *
- * **It takes the same editability the choosing step does** (M6-AUD-001, found by adversarial QA).
- * *Schimbă materialul* is the same commit as *Aplică*, one step further in — it calls `applyPending`
- * directly — so a step handed no access story rendered a live, unexplained write action on a sheet
- * every other control of which was greyed.
- */
-function ConfirmStep({
-  step,
-  editability,
-}: {
-  readonly step: MaterialResetConfirmStep;
-  readonly editability: Editability;
-}) {
-  return (
-    <>
-      <div className={styles.body}>
-        <p
-          className={styles.confirmBody}
-          data-testid="global-settings-confirm-body"
-        >
-          {step.view.body}
-        </p>
-      </div>
-      <div className={styles.footer}>
-        <div className={styles.actions}>
-          {/* Never locked, on either step: a customer who cannot commit must still be able to keep
-              what they have and leave. It is also what keeps the focus trap's ring non-empty when
-              every other control on the step is greyed. */}
-          <button
-            type="button"
-            className={styles.cancel}
-            data-testid="global-settings-confirm-back"
-            onClick={step.onStepBack}
-          >
-            {step.view.backLabel}
-          </button>
-          <button
-            type="button"
-            className={styles.apply}
-            data-testid="global-settings-confirm"
-            disabled={editability.isReadOnly}
-            {...(editability.isReadOnly
-              ? { title: editability.disabledReason }
-              : {})}
-            onClick={step.onConfirm}
-          >
-            {step.view.confirmLabel}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
 /** The step the sheet opens on: the three groups, the warning, the figure and the apply. */
 function ChoosingStep({
   view,
@@ -874,56 +748,6 @@ function ChoosingStep({
       </div>
     </>
   );
-}
-
-/** **The focus trap.** Bound to the dialog rather than to the document because a trap is about where
- *  focus *is* — which is exactly the property that made a document listener right for Escape and
- *  wrong here. */
-function trapTab(event: ReactKeyboardEvent<HTMLDivElement>): void {
-  if (event.key !== "Tab") return;
-  const stops = [
-    ...event.currentTarget.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR),
-  ];
-  const landing = whereTabMustLand(stops, event.shiftKey);
-  if (landing === undefined) return;
-  event.preventDefault();
-  landing.focus();
-}
-
-/**
- * Where this keypress has to be sent, or `undefined` where the browser's own answer is already
- * inside the ring.
- *
- * **The question is "would this keypress leave the dialog", not "is focus at an end", and the
- * difference is the whole defect this replaced.** A rule written on the ends alone is silent
- * whenever focus is on the container itself — which is exactly where the sheet *starts*, because
- * opening it focuses the dialog (`tabIndex={-1}`, focusable but not a tab stop, the ordinary
- * pattern). Forward from there the browser's next stop happens to be inside and nothing looked
- * wrong. **Backwards from there it is the trigger**, which is in the one band `useBackgroundInert`
- * deliberately leaves live — so a single Shift+Tab from the position every keyboard customer starts
- * in walked straight out of a surface whose whole point is that it cannot be left. Measured in a
- * browser, not reasoned about: one Shift+Tab reached the trigger, a second reached `<body>`.
- *
- * So focus not being on any of this dialog's own stops is a case in its own right, and it takes the
- * end the direction implies.
- *
- * **What this cannot do is fire when focus has left the dialog altogether**, because it hangs off
- * the dialog's own `onKeyDown`. The same defect recurred through that gap — the confirm step
- * unmounted the focused button and dropped focus on `<body>` — so the guarantee above holds only
- * while something keeps focus inside. That something is the step-change effect in `GlobalSettings`,
- * and the two are one mechanism read from its two ends.
- */
-function whereTabMustLand(
-  stops: readonly HTMLElement[],
-  isBackwards: boolean,
-): HTMLElement | undefined {
-  const first = stops.at(0);
-  const last = stops.at(-1);
-  if (first === undefined || last === undefined) return undefined;
-  const at = stops.findIndex((stop) => stop === document.activeElement);
-  if (at === -1) return isBackwards ? last : first;
-  if (isBackwards) return at === 0 ? last : undefined;
-  return at === stops.length - 1 ? first : undefined;
 }
 
 /**

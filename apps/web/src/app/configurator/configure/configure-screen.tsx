@@ -23,8 +23,10 @@ import { detectWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
+import { BackConfirmation } from "./back-confirmation";
 import { LocaleMenu } from "./locale-menu";
 import { SelectionDebug } from "./selection-debug";
+import { useBackConfirmation } from "./use-back-confirmation";
 import { useTopBarFit } from "./use-top-bar-fit";
 
 // The canvas never renders on the server, and its bundle is only fetched on the step that needs 3D.
@@ -65,6 +67,7 @@ export function ConfigureScreen({
   // The top bar's one measurement and the two decisions taken from it — how many settings the pill
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
   const topBar = useTopBarFit();
+  const backConfirmation = useBackConfirmation();
 
   useEffect(() => {
     setSupport(detectWebGLSupport() ? "supported" : "unsupported");
@@ -107,6 +110,9 @@ export function ConfigureScreen({
         {/* Frame 2A `:483` draws the glyph alone. The word is the link's accessible name, because a
             `‹` read aloud is not a destination.
 
+            Both back links ask first (`BackConfirmation`): going back opens a new design from Step 1,
+            and the owner wants the warning before the customer is there rather than after.
+
             Absent in the shared variant: Step 1 is the owner's own screen, and a link there from a
             share session would hand a visitor with no write credential a dead end (criterion 12). */}
         {variant === "owner" && (
@@ -115,6 +121,7 @@ export function ConfigureScreen({
             aria-label={content.configure.back}
             data-testid="top-bar-back"
             href={roomHref}
+            onClick={backConfirmation.ask}
           >
             <span aria-hidden="true">‹</span>
           </Link>
@@ -240,6 +247,7 @@ export function ConfigureScreen({
             className={styles.backAction}
             data-testid="bottom-bar-back"
             href={roomHref}
+            onClick={backConfirmation.ask}
           >
             {content.configure.backAction}
           </Link>
@@ -247,6 +255,9 @@ export function ConfigureScreen({
             {content.configure.reviewCta}
           </span>
         </div>
+      )}
+      {backConfirmation.isAsking && (
+        <BackConfirmation roomHref={roomHref} onStay={backConfirmation.stay} />
       )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the

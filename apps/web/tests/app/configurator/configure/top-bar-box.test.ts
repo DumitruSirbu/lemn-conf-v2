@@ -447,10 +447,14 @@ describe("the row the refreshed frames replaced", () => {
     );
   });
 
-  it("shows exactly one of the back control and the wordmark per shell, and a third state", () => {
+  it("shows the wordmark on desktop only, the top bar's back control on both, and a third state", () => {
     // §10.1's one permitted fork, taken in CSS: two markup branches would be two copies of the row.
+    // M7C FB-001 draws the `‹` on desktop too; the bottom bar's `.backAction` stays the phone's.
     expect(declarationsOf(MOBILE_CSS, "wordmark")).toContain("display: none;");
-    expect(declarationsOf(DESKTOP_CSS, "back")).toContain("display: none;");
+    expect(declarationsOf(DESKTOP_CSS, "back")).not.toContain("display: none;");
+    expect(declarationsOf(DESKTOP_CSS, "backAction")).toContain(
+      "display: none;",
+    );
     expect(declarationsOf(DESKTOP_CSS, "wordmark")).toContain(
       "display: block;",
     );
@@ -464,6 +468,14 @@ describe("the row the refreshed frames replaced", () => {
     );
     expect(screenSource).toContain(
       'data-wordmark={topBar.isWordmarkDrawn ? "drawn" : "dropped"}',
+    );
+  });
+
+  it("declares a margin on the desktop back control that cancels the nav gap (a declaration pin; the measured effect is the e2e containment test's)", () => {
+    // `top-bar-fit.ts` counts three nav gaps; a fourth would move give B's ruled savings. The
+    // control's margin cancels the flex gap that follows it, whichever of the two spacings is drawn.
+    expect(declarationsOf(DESKTOP_CSS, "back")).toContain(
+      "var(--top-bar-nav-gap) * -1",
     );
   });
 

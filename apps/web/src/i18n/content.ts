@@ -648,6 +648,12 @@ export function resolveContent(translate: ContentTranslator) {
       localeMenu: translate("configure.localeMenu"),
       back: translate("configure.back"),
       backAction: translate("configure.backAction"),
+      backConfirm: {
+        title: translate("configure.backConfirm.title"),
+        body: translate("configure.backConfirm.body"),
+        confirm: translate("configure.backConfirm.confirm"),
+        stay: translate("configure.backConfirm.stay"),
+      },
       reviewCta: translate("configure.reviewCta"),
       orbitHint: translate("configure.orbitHint"),
       cameraGroupLabel: translate("configure.cameraGroupLabel"),

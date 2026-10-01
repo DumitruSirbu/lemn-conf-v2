@@ -119,6 +119,7 @@ buttons; the owner answered *"Approve as proposed"* (relayed selection). The app
 | Warning | Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei? | Если вернёшься к предыдущему шагу, внесённые изменения будут потеряны. Точно хочешь заново задать размеры кухни? |
 | Confirm | Înapoi la cameră | Назад к комнате |
 | Stay | Rămân aici | Остаться здесь |
+| Title (`configure.backConfirm.title`; owner, 2026-10-01, relayed selection *"Add a heading"*) | Modificările vor fi pierdute | Изменения будут потеряны |
 
 **The wording is the owner's.** Storage is unchanged: the old design remains stored (ADR 0111 d5) and
 opens only from its own link until M8. The warning is asked on leaving the editor, on phone and desktop.
@@ -167,6 +168,12 @@ parameter; it stands in every L and U and in the seeded kitchen, so its bar and 
 departures in the parity gate. The top units' bars are on the bottom edge and hidden; nothing of theirs
 moves. Whether the base corner cabinet (handle on the corner side today) is meant too was not said.
 
+**Q10 — does an untouched kitchen warn on browser Back? Non-blocking; the default is built.** The
+warning says *"the changes you made will be lost"*. Default: **no warning until the customer has made
+one edit** in the editor. It is true to the text, and a browser may not honour a guard set before any
+interaction. The on-screen back link keeps asking every time, as approved in Q1b; if the owner wants the
+two alike, the link changes, not this.
+
 **Q8 — the corner wall unit.** (i) and (ii) are non-blocking; their defaults are built and labelled.
 (i) *Price:* no price row exists. Default: the side wall's corner cabinet's placeholder figures.
 (ii) *Name:* default, the side wall's names (*Dulap suspendat de colț*, *Dulap de colț rând de sus*);
@@ -205,7 +212,7 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | Wave | Covers | Pri | Tier | State |
 | --- | --- | --- | --- | --- |
 | C0 | Census and measurements; the questions | — | Light | **Done**, confirmed by QA |
-| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **open**, in implementation |
+| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **open**, in implementation; **S4** (browser Back) after C5 |
 | C2 | FB-004, FB-011 | P0 | Full + visual | **Done**: S0; S1 `075529b`; S2 `0a1a69a` |
 | C3 | FB-003 | P1 | Full + visual | Next after C1 S3 |
 | C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
@@ -213,7 +220,7 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | After C5 (owner) |
 | C6 | Phase gate | — | Coordinator + visual | Last |
 
-**Order: C4 S1 → C4 S2 → C2 → C1 S3 → C3 → C5 → CE → C6.** C4 leads: it shares no figure with C2 or
+**Order: C4 S1 → C4 S2 → C2 → C1 S3 → C3 → C5 → C1 S4 → CE → C6.** C4 leads: it shares no figure with C2 or
 C3. C2 follows C4 S2 directly: both write `kitchen-parts.ts`, `corner-assembly-size.ts` and the fixture.
 C3 follows C2 (both write `upper-policy.ts`). C5 moves every baseline, so it is the last change.
 **CE is last, by the owner's word, 2026-10-01: *"e2e do the last after all fixes"*.** One writing agent
@@ -255,10 +262,79 @@ leaf set. **Tier: Light plus visual, with QA owning the interaction.**
    *Confirm* opens Step 1 with the room filled in. Escape and a backdrop press behave as *Stay*.
 3b. *Must not:* confirming writes, deletes or re-mints anything (no request other than the navigation);
    the design is still at its `/d/…` link afterwards, and `/` still resumes it until a new kitchen is
-   made. The dialog holds exactly Q1b's approved set, in both locales.
+   made. The dialog holds exactly Q1b's approved set, title included, in both locales; the title is
+   shown as the material-change confirmation shows its own.
 3c. The shared variant shows neither the link nor the dialog. Keyboard: the link is reachable by Tab, the
    dialog traps focus (backlog 48: no DOM in vitest, so this is the visual agent's check).
 4. *Must not:* the review CTA gains a handler, role or pointer cursor.
+
+**S3 after the visual check, 2026-10-01** (three relayed selections). *"Add a heading"*: the title above,
+added in S3's fix batch. *"Keep the small ‹"*: the desktop link stays as built. QA measured its cost, a
+constant 34 px: at 930 px the settings pill names one setting where it named two, and at 1025 px the
+wordmark is no longer drawn; the fit ladder in `top-bar-fit.ts` is unchanged; recorded in ADR 0104
+Amendment D. *"Yes, warn on browser Back too"*: slice S4 below.
+
+**S4 — the same warning on the browser's Back** (owner, 2026-10-01; offered as *"a separate slice after
+the remaining fixes, with its own QA"*). After C5, before CE. **Tier: Light plus visual, QA owning the
+interaction.**
+
+*What triggers it.* Browser Back, and the phone's swipe-back, pressed in the editor, when **all** hold:
+the editor was reached from Step 1 in this tab; the variant is the owner's; and the customer has made
+at least one edit there (Q10). *Not in:* Forward (nothing is lost by it); a reload (the design is saved
+and the same link reopens it); closing the tab or leaving the site (a `beforeunload` prompt is worded
+by the browser, and nothing is lost); opening another design's link; an editor reached by resume or by
+its link, where Back leaves the site and Step 1 is not behind it; the shared variant.
+
+*Mechanism, at Next 16.3.8.* The App Router has no way to cancel a history traversal: it listens for
+`popstate` and restores the entry (`next/dist/client/components/app-router.js`, `onPopState`) **[src]**.
+Native `history.pushState` is supported and integrates with the router
+(`next/dist/docs/01-app/01-getting-started/04-linking-and-navigating.md:345-347`) **[doc]**. So the
+only available shape is a **guard entry**: once the conditions hold, push one extra history entry with
+the **same URL**; Back then lands on the editor's own first entry, the URL does not change, and a
+`popstate` listener opens S3's dialog. *Stay* pushes the guard again. *Confirm* calls `history.back()`,
+which goes where the browser would have gone. Alternatives, rejected: `beforeunload` (does not fire on
+a same-document traversal, and its text is the browser's); `Link`'s `onNavigate` (links only, not the
+Back button); re-pushing the editor after the URL has already changed to Step 1 (the dialog would
+appear over the wrong screen).
+
+*Known failure modes, each owed a test or a recorded check.* (1) **A duplicate guard** on remount,
+strict mode, a language switch or a reload: mark the guard in its own state and never push while the
+current entry is already one. (2) **The dialog after the URL changed**: excluded by the same-URL guard;
+the test asserts the address bar. (3) **bfcache**: after a return from another site the listener and
+the guard must still agree (`pageshow`). (4) **Swipe-back on a phone**: the browser may show its own
+preview of the previous entry before `popstate`; with a same-URL guard that preview is the editor
+itself [inf]. (5) **Chrome skips entries pushed without a user gesture** when Back is pressed [inf,
+from memory; the developer verifies against current documentation]: the guard is pushed from the
+customer's first edit, which is a gesture, and that is also what makes an untouched kitchen not warn.
+(6) Next's patched `pushState` must leave the guard entry a state the router accepts on Forward [inf;
+read `app-router.js` before writing].
+
+*Criteria.*
+1. From Step 1 into the editor, one edit, Back: the dialog opens, the address bar still shows the
+   design's link, and no request is sent. *Stay*: the dialog closes, the design and URL are unchanged,
+   and a second Back opens it again. *Confirm*: Step 1 opens with the room filled in.
+2. **Never a trap.** With the dialog open, a second Back leaves to Step 1. Confirm always leaves. No
+   sequence of Back, Forward, Stay and reload leaves the customer unable to reach Step 1 in at most
+   two presses of Back.
+3. *Must not warn:* an untouched kitchen (Q10's default); the shared variant; an editor opened from
+   its link or by resume; Forward; a reload; closing the tab.
+4. History holds at most one guard entry per editor visit, after a reload, a language switch and a
+   return from another site.
+5. ADR 0111 d5 and ADR 0114 d4 hold: confirming writes, deletes and re-mints nothing; the design is
+   still at its link; `/` still resumes it until a new kitchen is made.
+6. The dialog is S3's own component and leaves, title included; no second copy of either.
+
+*Files (about four):* a new hook under `apps/web/src/app/configurator/configure/`, `configure-screen.tsx`,
+the store's selector for *has been edited in this visit*, and the place Step 1 hands over to the editor
+(`room/use-generation.ts` or `generation-steps.tsx`) for the *came from Step 1* marker. *Reading:* this
+block; Q1, Q1b, Q10; ADR 0111 d5; ADR 0114 d4; ADR 0104 Amendment D; S3's diff; the two Next sources
+named above; `browser-and-visual-qa.md`; `ci-and-local-gates.md` on the e2e shards.
+*e2e placement:* the new spec runs in the **mobile** project only. The behaviour has no viewport
+branch, and desktop shard 2/3 is at its 70-test budget (backlog 106), so no new desktop test file is
+added; if a desktop assertion is wanted it goes inside S3's existing desktop spec. *Visual evidence:*
+the dialog after Back at 390 × 844 and 1440 px, `ro` and `ru`, with the address bar in frame.
+*QA reading:* the criteria, the hook, S3's spec. *Reviewer reading (combined):* the diff, this block,
+the two Next sources.
 
 *Visual evidence:* the editor at 900 and 1440 px, and the open confirmation at 390 × 844 and 1440 px in both locales. *QA reading:* the criteria, `room.module.css` desktop block, `top-bar-fit.ts`.
 *Reviewer reading (combined):* the diff, both mockup frames, ADR 0104 d8. *Visual reading:* the frames

@@ -8,6 +8,8 @@ decisions 2, 3, 4 and 8.** ADR 0082 decisions 1 (as amended), 5, 6 and 7 stand a
 note and plan hint are not drawn — and how a desktop frame's text is read against decisions 1 and 7.
 **Amendment C (2026-09-29)** records the owner's Q-U4 ruling (M7B): the corner-direction toggle is
 hidden for a U, departing from frame 1B's note *"Toggle-ul apare doar pentru L și U"*.
+**Amendment D (2026-10-01)** records the owner's Q1 ruling (M7C): the back-to-room link is drawn on
+desktop, and both back links confirm before leaving; decision 8's widths carry a dated note.
 Date: 2026-09-09 (decisions 3, 8 and 9 rewritten the same day on the owner's second and third rulings)
 Type: Decision (owner ruling) + adjudication
 Milestone: M6 — opens the wave planned in
@@ -777,3 +779,107 @@ the U half of it, and the L half stands: the toggle still shows for an L.
 decision 8. No U is right-handed. The URL's `direction` is neither written nor read for a U. The plan
 preview draws a U unmirrored. A U document refuses `cornerDirection: "right"`. The wording change in
 Step 1 is M7B wave U5's.
+
+## Amendment D, 2026-10-01 — Q1 answered: the back-to-room link is drawn on desktop, and both back links ask before they leave
+
+**What this amendment does.** It records an owner ruling that departs from frame D2A, which is why it is
+recorded here. **Nothing above is struck.** Decision 8's widths gain a dated note (D3). Amendment C
+(above) is the corner toggle and is not this. Written for M7C wave C1 slice S3
+(`docs/milestones/M7C-m7-feedback-fixes.md`, *Q1*, *Q1b*, *C1*; `docs/M7-FEEDBACK.md`, M7-FB-001).
+**S3 is implemented, QA-green in a browser and reviewed; it is not committed.** It is described as built
+and measured; its hash is added at wave close. Labels: **[doc-quoted]**, **[relayed]** (stated by QA, a
+reviewer or the coordinator, not re-run by the scribe), **[inference]**.
+
+### D1 — the owner's words
+
+**Q1, verbatim, typos included:**
+
+> *"so i saw on mobile the back link exists, but what if I done a lot of changes but I need only to edit
+> the size, going back will wipe out all my changes, looks like I need the ability to edit room size
+> withgout loosing current work. I know this can change a lot, especially when will be reduced the size,
+> there should be decission what to drop from cabinets. So I think the simple solution is to show at
+> least a big warning, with mention, if you go back you loose all the custom changes you done so far,
+> please confirm. So this is simple and minimum needed doesn't matter on desktop or mobile I do this"*
+
+**Q1b, the wording.** The owner rejected the architect's draft and gave the Romanian, verbatim:
+*«The warning in RO : "Daca te intorci la pasul urmator modificarile efectuate vor fi pierdute. Esti sigur
+ca doresti sa reconfigurezi marimea bucatariei?" and translate also in RU»*. The coordinator put back
+*"pasul anterior"* for *"pasul urmator"*, restored the diacritics, drafted the Russian and proposed the two
+button labels. The owner **selected *"Approve as proposed"***, a selection and not prose. The approved
+set, copied from the plan [doc-quoted]:
+
+| | Romanian | Russian |
+| --- | --- | --- |
+| Warning | Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei? | Если вернёшься к предыдущему шагу, внесённые изменения будут потеряны. Точно хочешь заново задать размеры кухни? |
+| Confirm | Înapoi la cameră | Назад к комнате |
+| Stay | Rămân aici | Остаться здесь |
+
+The Romanian warning is the owner's own wording with one word corrected; the Russian and the buttons are
+the coordinator's drafts, approved by that selection. The title was added afterwards (D2). The four leaves
+are `configure.backConfirm.{title,body,confirm,stay}` ([ADR 0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md),
+pointer of the same date).
+
+### D2 — the decision
+
+1. **The back-to-room link is drawn in the desktop top bar from 900 px.** Frame D2A draws no back control
+   (the plan's triage: both back links are `display: none` from 900 px, `configure.module.css:650-653`).
+   Decision 1 makes the frames the specification and says a shipped rule that disagrees with a frame is
+   named and withdrawn; Amendments A, B and C are the precedent that a departure from a frame is the
+   owner's to rule. This is one, and the owner has ruled it.
+2. **On every viewport, both back links open a confirmation before navigating.** The dialog is the one the
+   material change already uses ([ADR 0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md),
+   [ADR 0086](0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)),
+   extracted for reuse and not copied. It carries a **title**, added on the owner's selection of *"Add a heading"* (2026-10-01, after the visual
+check): ro *"Modificările vor fi pierdute"*, ru *«Изменения будут потеряны»*, shown as the
+material-change confirmation shows its title. The dialog is named by the title and described by the body. A modified click
+   (ctrl, meta, shift or alt) bypasses the dialog, by web convention, and is not a way to lose work, since
+   it opens the destination in another tab.
+3. **Confirming navigates and nothing else.** No request other than the navigation; nothing is written,
+   deleted or re-minted. The design stays at its own link, and `/` still resumes it. [ADR 0111](0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md)
+   decision 5 (*"Choosing again creates a **new** design; the one the customer left is still stored"*) and
+   ADR 0114 decision 4 are **unchanged**. **Staying, Escape and a backdrop press** return focus to the
+   link and change neither the URL nor the design [doc-quoted: plan, C1 criterion 3a].
+4. **The shared variant shows neither the link nor the dialog.**
+
+### D3 — what it costs the top bar, and a dated note on decision 8's widths
+
+The link is a **constant 34 px** that the pill's measured track already carries, so the fit ladder in
+`top-bar-fit.ts` is **unchanged** and decision 8's guarantee holds: only the pill, the gaps, the wordmark
+and the title give, and **one readable setting name remains at 900** [relayed: logic review R7.1; QA
+measured]. There is no fifth give.
+
+**What becomes false as written is decision 8's widths.** Every figure in its table (rung 1 at 1264.59,
+rung 3 at 1071.06, the rung-4 floors, and the 105.00 and 114.56 px gives) was measured on 2026-09-09
+without the link. Each viewport width at which a rung is reached **moves up by the link's width**, and
+give C's *"900–966 px"* window moves up with it. The table is not rewritten and not re-measured here.
+Measured examples [relayed, QA]: at 930 px the pill now names **one** setting where it named two before;
+at 1025 px the wordmark is no longer drawn where it was. These are the ruled ladder working as decision 8
+describes, and the wordmark's absence in the window is still the owner's 2026-09-09 ruling (give C).
+
+**The desktop link stays the small `‹` glyph** (owner, 2026-10-01, selected *"Keep the small ‹"*); the
+34 px cost above stands as written.
+
+### D4 — the browser's Back button: decided, NOT built
+
+**Decided 2026-10-01 (owner, selected *"Yes, warn on browser Back too"*): the browser's own Back button
+will also warn.** It is a separate, later slice of M7C, which needs browser-history interception; the
+architect is planning it. **Until it lands, the browser's Back leaves the editor for Step 1 with no
+warning**, and the design stays saved at its link. **Editing the room size while keeping the customised kitchen** is what the owner
+actually wants and calls hard; it is backlog 103 and not this amendment.
+
+### D5 — alternatives considered
+
+| Option | Why it lost |
+| --- | --- |
+| A desktop link with no warning (the first proposal) | The owner's point: going back wipes the customer's changes, so the link needs a warning on both viewports. |
+| A separate *"Bucătărie nouă"* button with a loss warning | A second control for the same destination, and the existing link already is the way back. |
+| Nothing until M8's customer profiles (ADR 0115) | The owner asked for the minimum now, *"doesn't matter on desktop or mobile"*. |
+
+### D6 — sweep
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| This ADR, decisions 1 and 8; Amendments A–C | Frames are the specification; a departure is the owner's; the pill absorbs narrowing. | **Followed**; decision 8's widths carry a dated note (D3). |
+| [0111](0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md) decision 5; ADR 0114 decision 4 | Back never erases; `/` resumes the newest design. | **Unchanged** (D2). |
+| [0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md), [0086](0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md) | When the material-change confirmation is owed, and what it counts. | **Unchanged in meaning**; the component is now shared (pointer added). |
+| [0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md) | New Romanian leaves enter the lock in the commit that adds them. | **Followed** (pointer added). |

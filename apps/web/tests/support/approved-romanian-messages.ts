@@ -35,6 +35,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     overflowWarning:
       "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     backAction: "Înapoi",
+    // M7C wave C1 slice S3 (FB-001; plan question Q1b, owner-approved 2026-10-01): the owner's wording
+    // for the confirmation both back links open. The heading follows below.
+    // The heading was added on the owner's answer to the M7C Q1b follow-up, 2026-10-01.
+    backConfirm: {
+      title: "Modificările vor fi pierdute",
+      body: "Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei?",
+      confirm: "Înapoi la cameră",
+      stay: "Rămân aici",
+    },
     reviewCta: "Verifică designul",
   },
   // Step 1's screen, approved by ADR 0113 decision 2 in the wave that adds it. Every leaf is frame

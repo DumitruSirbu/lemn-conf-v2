@@ -30,6 +30,17 @@ prose. Recorded as the decision; the code change is not shipped by this note.
   owner's word. Decision 5's *"used as written where a frame has it"* yields to that word for this
   leaf only.
 
+**Pointer, 2026-10-01 — decision 2 exercised again: four leaves for the back-link confirmation (M7C
+wave C1 slice S3, M7-FB-001).** Four leaves, `configure.backConfirm.title`, `.body`, `.confirm` and
+`.stay`, in `ro` and `ru`. The title (ro *"Modificările vor fi pierdute"*, ru *«Изменения будут
+потеряны»*) was added after the visual check, on the owner's selection of *"Add a heading"*. The Romanian warning is the owner's own wording with one
+word corrected (*"pasul urmator"* to *"pasul anterior"*); the Russian and the two button labels are the
+coordinator's drafts. The owner approved the set on 2026-10-01 by selecting *"Approve as proposed"*, a
+selection and not prose. The strings are in
+[ADR 0104 Amendment D](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-d-2026-10-01--q1-answered-the-back-to-room-link-is-drawn-on-desktop-and-both-back-links-ask-before-they-leave)
+(D1). As decisions 2 and 4 require, they enter the copy lock in the commit that adds them. The code is
+implemented and not yet committed; this note records the decision.
+
 ## Context
 
 The M7 plan's Q8 asked whether the owner wanted to review Step 1's new wording once, at the end of
