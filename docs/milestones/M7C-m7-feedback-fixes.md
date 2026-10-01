@@ -2,7 +2,7 @@
 
 **Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA. The owner
 has answered Q1, Q1b, Q3, Q4, Q5, Q6, Q7 and the corner joint (J). Done: C1 S1 (`8269440`), C1 S2
-(`21c702b`), C4 S0. Dispatchable: CE S0 (local half), C4 S1, C1 S3 (after CE). C2 is re-planned on the owner's Q2 answer: S0 ready.** Branch `m7c-m7-feedback-fixes`,
+(`21c702b`), C4 S0. Dispatchable: CE S0 (local half), C4 S1, C1 S3 (after CE). C2 is re-planned on the owner's Q2 answer; its S0 design check is done and awaits the plan reviewer.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
 Source: `docs/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
@@ -184,7 +184,7 @@ ADR 0113.
 | --- | --- | --- | --- | --- |
 | C0 | Census and measurements; the questions | — | Light | **Ready** |
 | C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1, S2 **done**; S3 **ready**, after CE |
-| C2 | FB-004, FB-011 | P0 | Full + visual | S0 **ready** (design, no production code); S1, S2 after C4 S2 |
+| C2 | FB-004, FB-011 | P0 | Full + visual | S0 done; S1, S2 after the plan reviewer and C4 S2 |
 | C3 | FB-003 | P1 | Full + visual | After C2 |
 | C4 | FB-006 | P1 | Full + visual | S0 done; S1 **ready**; S2 after S1 |
 | C5 | FB-010 | P2 | Full | After C3 |
@@ -271,8 +271,8 @@ and the captures.
 
 ### C2 — the corner wall unit (adapter and domain)
 
-Re-planned 2026-10-01 on the owner's Q2 answer. **The design below is the architect's, from source and
-C0's figures; S0 confirms it before S1.**
+Re-planned 2026-10-01 on the owner's Q2 answer. **S0 (design check, source only, nothing run) is done
+the same day; its result is *S0 — settled* below. Not dispatched until the plan reviewer has read it.**
 
 **What the reference has** [src]. On the back wall above the corner base: `p8` `wall-2door-600` at 0–600
 and `p10` `wall-1door-300` at 600–900, with `p15` / `p16` above them (`kitchen-l-design.ts`, the seeded
@@ -290,8 +290,8 @@ body, blind for the span the side wall's piece covers, with one door on the rest
 | Height, `y0` | 700, 1500 | 400, 2200; not built in a room under 2600 (the existing ceiling rule) |
 | Depth | the wall-cabinet depth: 330 at 600, 400 at 700 [C0] | same |
 | Blind part | 330 mm, the side wall's corner cabinet's own depth, at 600 **and** 700 [C0] | same |
-| Door part | 570 mm, **one door**, as the 570 mm cabinet beside it has | same, push-to-open (§13.1) |
-| Hinge | on the edge away from the corner, so the door opens clear of the side wall's door [inf; S0 reads the side cabinet's own side, the visual gate judges] | same |
+| Door part | 570 mm, **one door** 530 mm wide (30 mm clear of the side cabinet, 10 mm at the far edge, the base corner's own clearances) | same, push-to-open (§13.1) |
+| Hinge | on the edge away from the corner; handle on the corner side (S0 below) | same; bar on the bottom edge, hidden |
 | Right corner of a U | the same body in its own mirrored wrapper (ADR 0132 d2), `cornerOf` = right | same |
 | Flags | `STRUCTURAL_CORNER`: no replace, delete, width, finish or handle control; follows the kitchen's colour (ADR 0099) | same |
 | Kind and name | the side wall's kinds, pending Q8 (ii) | same |
@@ -305,18 +305,94 @@ B2), so once the assembly has a wall-A piece in the wall and top bands, the 800 
 disappear and nothing is insertable over the corner. The U's explicit strips
 (`shell-design.ts`, `wallAFreeRunTilesForU`) are removed with them.
 
-**Where the pieces come from: generated shells only, not the seeded kitchen** [architect's choice, S0
-confirms]. The shell takes its corner from the seeded kitchen's structural placements. Putting the unit
-in the seeded kitchen means removing `p8`, `p10`, `p15`, `p16`, which 62 files under `packages` and
-`apps/web` name [src: a grep for the four ids; `p10` may over-count]. The seeded kitchen is a development
-fixture no customer route mounts. So the two pieces are declared in the corner assembly
-(`CORNER_ASSEMBLY_PIECES`) and built by the shell, and the seeded kitchen keeps its four cabinets. S0
-measures the cost of the other way before this is final.
+**Where the pieces come from: generated shells only; the seeded kitchen is not touched** [S0, confirmed].
+`STRUCTURAL_ASSEMBLY` is the seeded kitchen's structural placements (`shell-design.ts:250`); the shell
+gains two template placements of its own beside it. The seeded kitchen keeps `p8` (600) and `p10` (300)
+at 1500 and `p15`, `p16` at 2200 over its corner base. **That is not a second corner design in the
+product:** the seeded kitchen is the supplier's reference, ported and pinned mesh for mesh by M1's parity
+gate, mounted by no customer route, and every kitchen a customer gets is a generated shell. Amendment O
+says so in one line: the reference's corner is the supplier's, the product's corner is the shell's.
+Cost avoided: 62 files name those four ids [src: grep; `p10` may over-count].
+
+**S0 — settled** (read from source; figures at kit depth 600 unless said; *measure* marks what S1 or
+S2's implementer confirms on built geometry).
+
+*Parts, group-local metres, in `wallCabinet`'s own frame* (x centred on the body, y from its floor, z
+centred on the shell; `shellD` = `wallCarcassDepth(wallDepthM)` = 0.291; `W` = 0.9; `blind` = the side
+return's finished depth from its wall, 0.33):
+
+| Part | Middle unit, `H` 0.7 | Top unit, `H` 0.4 |
+| --- | --- | --- |
+| `carcass` (`carcass(W, H, shellD, 0)`) | 0.900 × 0.700 × 0.291 at x 0, z 0 | 0.900 × 0.400 × 0.291 |
+| blind front (new mesh, wears the finish) | 0.291 × 0.700 × 0.039, centre x −0.3045, z 0.165 | same, 0.400 high |
+| leaf (`doorSlab`) | 0.530 × 0.694, centre x 0.175, top at `H − 0.003`, z 0.1545 | 0.530 × 0.394 |
+| handle | vertical bar, `"left"` edge (the corner side), 40 mm in | `"bottom"` edge, built and hidden |
+
+Leaf width is `W − (blind + 0.04)` and its far edge `W/2 − 0.01`: `cornerBaseX`'s own two clearance
+constants, reused, not restated. The blind front is `shellD` wide and `wallDepthM − shellD` deep.
+
+*What meets the side wall's corner cabinet.* The blind front's front face, at 330 mm from the back wall,
+meets the return's near side face (the return starts 330 along its wall): one shared, hidden face, as
+between any two adjacent cabinets. Its end face is at 291 from the side wall, the plane of the return's
+carcass front; the return's door starts 3 mm past it. The unit lies wholly at z ≤ 330 and the return
+wholly at z ≥ 330, so **nothing interpenetrates and no two visible faces are coplanar**. Without the
+blind front a 39 mm slot would stay open between the unit's carcass and the return: the reference
+kitchen has that slot, 21 mm, behind `p8`'s hidden door.
+
+*At 700.* `wallDepthM` 0.4, `shellD` 0.361: the unit is 400 deep and the return starts 400 along its
+wall, so the same face is shared. C0 and QA read the return **330 deep from its own wall at 700**;
+this pass could not derive that from source. **The blind span is read from the same value the return is
+built with, never typed**: 330 + 570 at both depths if the measurement holds, 400 + 500 at 700 if it
+does not. *Measure (S1).*
+
+*Hinge and swing.* Left corner: hinge on the unit's right edge, away from the corner; handle at the
+left. Three reasons: the base X-leg's leaf does exactly this (`doorSlab(…, "left")`,
+`kitchen-parts.ts:2030`); the side return's one door has its handle on its corner side too
+(`wallCabinet`'s one-door edge is `"right"`, which a wall-B body's quarter turn puts toward the
+corner); and a door hinged away from the corner opens toward the blind part, which is how one reaches
+into it. Right corner of a U: the mirrored wrapper puts the hinge on the left edge, away from that
+corner. By arithmetic the leaf's free edge never comes nearer than 30 mm to the return's door plane,
+and the return's free edge passes the unit's handle 12 mm clear. *Measure both swing envelopes (S1).*
+
+*How the shell stops tiling the strip.* `wallRowStartMm("A")` is `cornerReachMm` over
+`CORNER_ASSEMBLY_PIECES` in the wall and top bands (`shell-design.ts:466-503`). Add the two wall-A
+pieces and it answers 900, the L's wall-only span collapses to zero length by the existing `Math.max` /
+`Math.min` (`:392-397`), and no tile is written. The U's left strip collapses the same way; its **right
+strip is written explicitly** (`wallAFreeRunTilesForU`, `:773-783`) and is deleted. It also carried an
+odd wall length's odd millimetre to the wall's end; that millimetre then stays where the base row already
+leaves it. *Measure with an odd `W` (S2).* `blindSpanMm` and `narrowestWidthMm` become band-aware (base:
+the base joint; wall and top: the wall depth), so the unit's floor is 630 / 700, below the X-leg's 870,
+and no engine limit moves [arithmetic; S2 confirms].
+
+*Stored designs and depth changes.* A design stored before C2 loads unchanged: it keeps its 800 + 100
+empty columns and whatever the customer put there, and has no unit. No migration (ADR 0038). A depth
+change re-seats a structural body and rebuilds nothing else of it (`set-cabinet-depth.ts:216-241`); the
+unit's 900 mm is the recorded corner reach and stays frozen (ADR 0089), and wall-A pieces do not slide.
+
+*Price and name.* Two flat rules beside the existing four (`sample-price-book.ts:213-235`):
+`cabinet.wall-corner-x-900` at the side piece's placeholder 160 000 and `cabinet.wall-corner-x-900-top`
+at 90 000 (the book's own units), both marked *pending owner input* (Q8 (i)). The lines read *Dulap
+suspendat de colț* and *Dulap de colț rând de sus*, the side pieces' kinds reused (Q8 (ii)).
+
+*Against C4 S2.* After the joint moves, the base X-leg is 570 blind + 330 with a 290 door; the unit above
+is 330 blind + 570 with a 530 door. **The split lines do not align, and should not:** each blind span is
+the depth of the piece on the other wall at that level. What aligns is the far edge, 900, which is the
+seam with the next cabinet at every level, and both doors' far edges, 10 mm inside it.
+
+*Against C3, and low ceilings.* The top unit is instantiated only where its top fits under the ceiling
+(`cornerPiecesUnder`, `:348-349`), so from 2600. Below that nothing stands above the middle unit and its
+footprint stays reserved and untiled, exactly as above the side return today. The middle unit always
+fits (approved heights start at 2200). C3 composes nothing over the corner.
+
+*Different from the re-plan:* the door is 530 mm, not 570; the unit has a third part, the blind front;
+`decomposed-bodies.ts`' default corner width reads a seeded placement and has none for the new ids
+(`:85-95`), so S1 gives it the reference reach; the smallest engine-limit L (wall A all corner) will
+have **no** empty column at all, where today its frozen map is that strip (`:497-500`). *Measure that
+such a shell still builds and validates (S2).*
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
-| S0 | Design check, no production code: the count of files and assertions naming `p8`, `p10`, `p15`, `p16`; how the shell would build a piece the seeded kitchen lacks; the leaf's width, clearances and hinge side from `cornerBaseX` and the side return; the unit's depth and blind span at 700 on built geometry; which front, handle and finish censuses a one-door 900 mm wall body enters. | — | this section; ADR 0110 d1, B2; ADR 0021, 0066, 0099, 0132 d2; `shell-design.ts:235-410, 560-800`; `corner-assembly-size.ts`; `kitchen-parts.ts` `wallCabinet` and `cornerBaseX`; `kitchen-l-design.ts` corner entries; C0 `s2-*` |
-| S1 | Adapter: a `wallCornerX` builder (carcass over the whole span, one leaf on the door part, handle or push-to-open), its two build ids, the finish census. Nothing mounts it yet. | `three-adapter/src/kitchen-parts.ts`, `decomposed-bodies.ts`, `body-finish-surfaces.ts` | S0's output; `SPEC.md` wall cabinet and corner elements; `product-invariants.md` |
+| S1 | Adapter: the `wallCornerX` builder, its two build ids, the finish census. Nothing mounts it yet. | `three-adapter/src/kitchen-parts.ts`, `decomposed-bodies.ts`, `body-finish-surfaces.ts` | S0's output; `SPEC.md` wall cabinet and corner elements; `product-invariants.md` |
 | S2 | Domain: the two seeded entries, the two assembly pieces, the shell's corner pieces and runs, the two price rules. | `configurator-domain/src/fixtures/kitchen-l-design.ts`, `corner-assembly-size.ts`, `generation/shell-design.ts`, `pricing/sample-price-book.ts`, `body-kinds.ts` only if Q8 (ii) gives own names | S0's output; ADR 0110 d1, B2; ADR 0089; ADR 0066; `corner-of.ts`; `validate-design.ts` corner sweeps |
 
 *3D contract.* Back face on the back wall's plane at 0.000 (§11 row 19). Near edge at the corner, far
@@ -347,6 +423,45 @@ corners), at 600 and 700, 390 × 844 and 1440 px, with the leaf open-side visibl
 `qa-7d3-upper-suppression.adversarial.test.ts`, `qa-7d7-sized-shell.test.ts`. *Logic reviewer:* ADR 0110
 d1, B2, Amendment O draft, ADR 0021, 0066, 0089, the diff. *Clean-code reviewer:* the diff. *Visual:* the
 captures, `SPEC.md`.
+
+**C2 S1 — dispatch, to paste.** *Full + visual. Adapter only; nothing mounts the body yet. Never
+`git stash`, `git stash pop`, `git checkout -- .`, `git reset --hard` or `git clean`.*
+1. `wallCornerX(W, H, pushOpen)` in `kitchen-parts.ts`: carcass, blind front, one leaf, handle, as
+   *S0 — settled*; every dimension from `wallDepthM`, `wallCarcassDepth`, `TH` and `cornerBaseX`'s two
+   clearance constants.
+2. `kit.make.wallCornerX` on the kit's surface; `buildDecomposedBody` cases for `wall-corner-x-900` and
+   `wall-corner-x-900-top`; a default width that does not read a seeded placement.
+3. `body-finish-surfaces.ts`: the carcass and the blind front wear the finish; census updated.
+4. The top unit's bar is built and hidden the way the top-row return's is.
+
+*Files:* `three-adapter/src/kitchen-parts.ts`, `decomposed-bodies.ts`, `body-finish-surfaces.ts`.
+*Criteria:* the parts table to 1e-6 at 600 and 700; no mesh of an existing builder moves (every parity
+pin unchanged); placed at a left corner beside a built `wall-corner-return-570`, no two meshes
+intersect and no two visible faces are coplanar, at both depths; both swing envelopes clear. *Pins
+expected to move:* none; the kit-surface contract test gains one member. *Measure:* the return's built
+depth from its wall at 700; both swings; the hidden bar's visibility flag. *Reading:* S1's row.
+
+**C2 S2 — dispatch, to paste.** *Full + visual. Domain. After S1. Check against ADR 0110 d1 and B2's
+intent first; stop and report on a conflict.*
+1. Two seeded structural entries in the fixture catalogue, copied from the side returns' shape:
+   `STRUCTURAL_CORNER`, one handle, one leaf, the side pieces' kinds, wall-map depth.
+2. `CORNER_ASSEMBLY_PIECES` gains wall A's wall and top pieces; `blindSpanMm` and the floor become
+   band-aware.
+3. The shell instantiates them at each corner (ids appended, `right-` prefixed at a U's right corner,
+   under the ceiling rule) and deletes the U's explicit right strip.
+4. Two price rules at the placeholders.
+5. Restate, each with its reason: the assembly's count of four, B2's zero start, the shell baselines.
+
+*Files:* `fixtures/kitchen-l-design.ts`, `corner-assembly-size.ts`, `generation/shell-design.ts`,
+`pricing/sample-price-book.ts`. *Criteria:* C2's eight above. *Pins expected to move:* every generated
+L and U loses its 800 + 100 wall-A tiles at both rows and gains one or two placements per corner; the
+recorded generation baselines under `tests/generation/`; `qa-7d7-sized-shell.test.ts`; the tests that
+pin four corner pieces (`corner-assembly-size*.test.ts`, `kitchen-l-corner-base.test.ts`,
+`wall-corner-return-kinds.test.ts`); any price total a test or e2e spec states for a generated kitchen,
+up by 250 000 per corner at 2600 and over. `ENGINE_ROOM_LIMITS` and the seeded kitchen: unchanged.
+*Measure:* an odd-`W` U; the smallest engine-limit L; a design stored before the change loads with no
+new finding; a 600 → 700 → 600 round trip leaves the unit's span and the design's findings unchanged;
+placements against `MAX_PLACEMENTS`. *Reading:* S2's row.
 
 **What the neighbours need.** *C3:* nothing for the corner; the top unit is the shell's. C3's count of
 top-row bodies excludes structural pieces. *C4 S2:* nothing; it moves the base row's joint, and the wall
@@ -673,6 +788,8 @@ criteria and captures.
 
 ## ADRs this milestone needs
 
+- **ADR 0110 Amendment O** also strikes 7D6's J2 (*"No piece is added or removed here"*,
+  `corner-assembly-size.ts:58-62`): the assembly becomes six pieces.
 - **ADR 0110 Amendment O**: the structural corner wall unit (the owner's Q2 words; overturns criterion 14 and B2's zero start), the back-wall rule, the top row
   (strikes E11.1 and E11.3 if Q4 = a), the absorb (departs from A4, D2, N3r 4, RQ25a).
 - **ADR 0135**: the corner seam's front-line contract; amends ADR 0025's 630 figure and `SPEC.md`.
