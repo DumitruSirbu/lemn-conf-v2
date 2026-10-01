@@ -39,14 +39,14 @@ the classification and the evidence for each item. The reporter's text above and
 
 | ID | Triage note | Owner |
 | -- | ----------- | ----- |
-| M7-FB-001 | Desktop only: both back links are hidden from 900 px. A phone has the link. Going back keeps the old kitchen and makes a new one (ADR 0111). Several kitchens is M8's profile dashboard (ADR 0115). Every edit is already saved. | M7C wave C1 S3, on owner question Q1 |
+| M7-FB-001 | Desktop only: both back links are hidden from 900 px. A phone has the link. Going back keeps the old kitchen and makes a new one (ADR 0111); until M8 the old one opens only from its own link. Several kitchens is M8's profile dashboard (ADR 0115). Every edit is already saved. | M7C wave C1 S3, on owner question Q1 |
 | M7-FB-002 | A named interim: drawn inert until the review screen exists (ADR 0104 decision 6). | M8 |
 | M7-FB-003 | Read as the top row (2200–2600). Generation skips it in every shape, by the owner's ruling of 2026-09-14 (ADR 0110 E11). Changing it overturns that ruling. | M7C wave C3, on Q4 |
 | M7-FB-004 | Read as the wall-row and top-row stretch of wall A above each corner base, which generation leaves empty on purpose. The base corner units and the side-wall corner cabinets are generated. | M7C wave C2, on Q2 |
-| M7-FB-005 | The request was recorded with a size threshold: base-only when the three walls total 10 m or more (ADR 0110 N1.3). The output follows that record. | M7C wave C2, on Q3 |
-| M7-FB-006 | No record names this setback. The corner legs' worktop and front lines differ from a run's by construction. Measured first, then fixed. | M7C waves C0 and C4, on Q5 |
+| M7-FB-005 | The request was recorded with a size threshold: base-only when the three walls total 10 m or more (ADR 0110 N1.3). Whether the output follows that record depends on the screenshot room's size, which Q3 asks for: a defect if the walls total 10 m or more. | M7C wave C2, on Q3 |
+| M7-FB-006 | No record names this setback. The cause is not established: the builders' arithmetic does not explain a corner that sits behind at depth 700. Reproduced and measured first, then fixed. | M7C waves C0 and C4, on Q5 |
 | M7-FB-007 | Vertical centring is missing against the desktop mockup. The button stays on the right, as the mockup draws it. | M7C wave C1 S1 |
-| M7-FB-008 | Romanian as given; the Russian is a draft for the owner to read. | M7C wave C1 S2 |
+| M7-FB-008 | Romanian as given. The Russian question and its two answers change together and are a draft for the owner to read. | M7C wave C1 S2, on Q7 |
 | M7-FB-009 | Same cause as M7-FB-007, in a second rule. | M7C wave C1 S1 |
 | M7-FB-010 | The generator half is planned. The editor half (resize through the fridge) is a rejected direction in the design reference and is not built without the owner's word. | M7C wave C5, on Q6 |
 | M7-FB-011 | The same gap as M7-FB-004, on the L. "The earlier mock" is read as the reference L kitchen, which has wall cabinets over the corner base. | M7C wave C2, on Q2 |
