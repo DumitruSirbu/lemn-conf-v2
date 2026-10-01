@@ -28,8 +28,9 @@ Started 2026-10-01 on branch `m7b-u-shaped-rooms`.
 | M7-FB-009 | Room step (1/4) / footer layout | The "Înapoi" button in the footer is not vertically centered; it should be centered vertically. | [M7-FB-008.png](M7-FEEDBACK-assets/M7-FB-008.png) | P2 | Planned |
 | M7-FB-010 | Layout generation / leftover gap beside fixed-size units | A small leftover gap (under ~250–300 mm) next to the fridge is left empty. The reporter had to remove the fridge, widen the neighbouring cabinet (600 → 750 mm), and re-add the fridge; a first-time user would not know to do that. Wanted: the generator automatically gives the leftover space to the cabinet nearest the edge beside the fridge (fridge and embedded fridge are fixed size), in 50 mm steps as far as the gap allows (e.g. 150 or 200 mm of a 200–250 mm gap). Goal: minimum manual manipulation. Reporter also asks how hard resizing without removing the fridge would be. | [M7-FB-010.png](M7-FEEDBACK-assets/M7-FB-010.png) | P2 | Planned |
 | M7-FB-011 | L-shape / corner cabinet structure | The L-shape corner cabinet, the middle one, is not done properly compared with the earlier mock (the generator it was based on). Expected: the corner is a corner unit from base to top. The other cabinets are then aligned relative to the corner cabinet. Reporter's idea: remove the middle part of the corner cabinet and put a two-door cabinet there; open question: how a two-door cabinet in the corner would open, which suggests a corner cabinet is needed as well. Reporter notes many issues seem to come from the corner cabinets. | None | P1 | Planned |
+| M7-FB-012 | CI / e2e on the runner | The e2e tests are red on `main` and need checking and fixing: CI run 36841795476. | [CI run 36841795476](https://github.com/DumitruSirbu/lemn-conf-v2/actions/runs/36841795476) | P1 | Planned |
 
-<!-- Next row: M7-FB-012 -->
+<!-- Next row: M7-FB-013 -->
 
 
 ## Triage — 2026-10-01
@@ -44,12 +45,13 @@ the classification and the evidence for each item. The reporter's text above and
 | M7-FB-003 | Read as the top row (2200–2600). Generation skips it in every shape, by the owner's ruling of 2026-09-14 (ADR 0110 E11). Changing it overturns that ruling. The owner withdrew that ruling on 2026-10-01: a top row is generated. | M7C wave C3, after C2 |
 | M7-FB-004 | Read as the wall-row and top-row stretch of wall A above each corner base, which generation leaves empty on purpose. The base corner units and the side-wall corner cabinets are generated. | M7C wave C2, on Q2 |
 | M7-FB-005 | The request was recorded with a size threshold: base-only when the three walls total 10 m or more (ADR 0110 N1.3). The owner confirmed the room was under 10 m and kept the rule, so the output conformed. | No change |
-| M7-FB-006 | No record names this setback. Measured by C0 (QA pending): the side-wall corner piece is behind its neighbour, worktop 20 mm and front 8–10 mm, at 600 and 700; the back-wall corner cabinet is 10 mm in front. The screenshot is reproduced for the side-wall pieces. | M7C wave C4, on Q5 |
+| M7-FB-006 | No record names this setback. Measured by C0, confirmed by QA: the side-wall corner piece is behind its neighbour, worktop 20 mm, and its doorless front 8–10 mm behind the neighbour's door, at 600 and 700; the back-wall corner cabinet is 10 mm in front. The screenshot is reproduced for the side-wall pieces. The owner chose one line for everything (2026-10-01). | M7C wave C4 |
 | M7-FB-007 | Vertical centring is missing against the desktop mockup. The button stays on the right, as the mockup draws it. | M7C wave C1 S1 |
 | M7-FB-008 | Romanian as given. The Russian question and its two answers change together and are a draft for the owner to read. Approved by the owner 2026-10-01. | M7C wave C1 S2 |
 | M7-FB-009 | Same cause as M7-FB-007, in a second rule. | M7C wave C1 S1 |
-| M7-FB-010 | The generator half is planned. The editor half (resize through the fridge) is a rejected direction in the design reference and is not built without the owner's word. | M7C wave C5, on Q6 |
+| M7-FB-010 | The generator half is planned. The editor half (resize through the fridge) is a rejected direction in the design reference and is not built without the owner's word. The owner chose the generator half, gaps under 300 mm (2026-10-01); the editor half goes to the backlog. | M7C wave C5 |
 | M7-FB-011 | The same gap as M7-FB-004, on the L. "The earlier mock" is read as the reference L kitchen, which has wall cabinets over the corner base. | M7C wave C2, on Q2 |
+| M7-FB-012 | Nine tests fail across six of seven e2e shards on `main` at `2615b51`; nothing was re-run and no cause is established. Re-run and grouped first, then fixed per group. M7C's phase gate needs a green runner. | M7C wave CE |
 
 ## Details
 
@@ -145,3 +147,33 @@ Voice-style feedback with no screenshot. Points to carry into triage:
   checked here.
 - The suggestion to drop the middle part of the corner cabinet and fill it with a two-door cabinet is
   an idea, not a decision; the reporter raised the opening problem against it and left it open.
+
+### M7-FB-012
+
+Reporter's words, 2026-10-01: *"add to backlog to check and fix e2e tests
+https://github.com/DumitruSirbu/lemn-conf-v2/actions/runs/36841795476"*, then *"sorry not backend but
+milestone feedback"*. First filed by the coordinator as backlog entry 103 and withdrawn on that
+correction; recorded here instead.
+
+The run is the `push` run on `main` at `2615b51` (the merge of pull request 9, M7B). Every non-e2e job is
+green; `e2e shard (mobile) (1, 4)` is the only green shard.
+
+**What the run's log shows** (the coordinator's reading with `gh run view --log-failed`, 2026-10-01;
+nothing was re-run and no cause is established):
+
+| Shard | Result | Failed test |
+| --- | --- | --- |
+| desktop 1/3 | 2 failed, 61 passed (38.3m) | `pixel-counter-witness.desktop.e2e.spec.ts:352` *a near neighbour of it* (`toBe`); `qa-7i-mirror-captures.desktop.e2e.spec.ts:18` (`toBeGreaterThan`; the file ran 5.1m against a 300 s test timeout) |
+| desktop 2/3 | 1 failed, 69 passed (2.2m) | `room-desktop-line.desktop.e2e.spec.ts:551` *criterion 8*, at 1440 px |
+| desktop 3/3 | 2 failed, 50 passed (32.1m) | `top-bar-pill-containment.desktop.e2e.spec.ts:788` (120 s test timeout); `support/u-gate-journeys.ts:648` *A5: a client transition between two designs' editors* |
+| mobile 2/4 | 1 failed, 113 passed (14.0m) | `qa-7e3c-share.adversarial.e2e.spec.ts:638` *criterion 14* |
+| mobile 3/4 | 2 failed, 86 passed (11.2m) | `qa-7i-mirror-captures.e2e.spec.ts:18`; `qa-u7s0-ssr.adversarial.e2e.spec.ts:271` |
+| mobile 4/4 | 1 failed, 84 passed (13.6m) | `share-design.e2e.spec.ts:96` *the owner's own share link is read-only; /d/{id} restores write access* |
+
+Nine tests. `seeded-design.qa.e2e.spec.ts:35` *a deliberately failing test still hands its row to
+teardown* also prints `✘` in mobile 4/4 and is not in that shard's failed count, so it is read as the
+expected failure it names (inference).
+
+**A lead, not a diagnosis.** Four shards (desktop 3/3, mobile 2/4, 3/4, 4/4) each log
+`expect(locator).toBeEnabled()` — *Expected: enabled, Received: disabled* — and desktop 3/3 quotes
+`WRITE_ACCESS_TIMEOUT_MS` beside it. Which of the nine tests each of those belongs to was not traced.

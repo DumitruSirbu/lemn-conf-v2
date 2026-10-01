@@ -1,16 +1,17 @@
 # M7C — M7 feedback fixes
 
-**Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and folded in (QA pending); the
-owner answered Q1, Q3, Q4 and Q7 the same day. C1 S1 is done (`8269440`). Dispatchable: C1 S2. C1 S3
-waits on the owner reading its warning (Q1b). C2 on Q2; C3 after C2; C4 on Q5; C5 on Q6.** Branch `m7c-m7-feedback-fixes`,
+**Status: PLANNED 2026-10-01; plan review round 1 applied; C0 measured and confirmed by QA; the
+owner answered Q1, Q3, Q4 and Q7 the same day. C1 S1 is done (`8269440`); C1 S2 is running. Dispatchable: CE S0 and C4 S0 (neither writes
+production code). The owner answered Q5 and Q6. C1 S3 waits on the owner confirming two points of the warning (Q1b); C2 on
+Q2; C3 after C2; C4 S1 after C3; C5 after C4.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
-Source: `docs/M7-FEEDBACK.md`, eleven items from the owner's hands-on check of M7 and M7B, with
+Source: `docs/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
 screenshots in `docs/M7-FEEDBACK-assets/`.
 
 Evidence tiers used below: **[src]** read at `2615b51` (file:line), **[doc]** quoted from a record,
-**[inf]** inference, owed a measurement; **[C0]** measured by C0 on 2026-10-01, QA pending (scripts and
-outputs kept by name in the session scratchpad, `c0/`).
+**[inf]** inference, owed a measurement; **[C0]** measured by C0, confirmed by QA 2026-10-01 (scripts and
+outputs kept by name in the session scratchpad, `c0/` and `c0-qa/`).
 
 ## Goal
 
@@ -47,12 +48,13 @@ web items are small and independent. Splitting would add a branch and a PR and r
 | 003 | Owner ruling to overturn | Generation inserts uppers at `WALL_ROW_Y0_MM` only (`generate-kitchen.ts:451-482`). ADR 0110 E11.1: *"Composition places no body in the top row (2200–2600)"*, owner 2026-09-14: *"let's stick to what we have now. Get some feedback."* Every shape, not only the U. | [src] [doc] | C3 | P1 |
 | 004 | Architect adjudication to overturn | Wall A's wall and top rows over each corner base are empty shell tiles (`shell-design.ts:381-398, 750-786`). Archived M7 plan, *Adjudication 7D1-Q1*, criterion 14: *"composition places nothing in the wall band over wall A's corner zone … left as an empty column the customer can fill"*. Not an owner ruling. The base corner legs and the side-wall returns **are** generated in a U (`shell-design.ts:652-718`). The stretch is exactly 900 mm in every approved room, tiled 800 + 100; the side wall's corner cabinet covers its first 330 mm at 600 and at 700. | [src] [doc] [C0] | C2 | P0 |
 | 005 | Conforms to the record (owner, 2026-10-01: the room was under 10 m; rule kept) | `isBackWallBaseOnly` requires `isLargeU` (`upper-policy.ts:46-56`), `LARGE_U_TOTAL_MM = 10_000` (`run-layout.ts:136`). ADR 0110 N1.3: *"Depends on size"*, then a relayed selection: *"A + B + C ≥ 10 m … the base-only wall is the back wall (A)"*. So the request was recorded, with a threshold. | [src] [doc] | none | P1 |
-| 006 | Contract gap, two seams in opposite directions | No record states a front-line contract at the corner. Against its neighbour, the side-wall corner piece (return) is **behind**: worktop −20 mm, front −8 mm (−10 beside a hob). The back-wall corner cabinet (X-leg) is **proud**: worktop +10, front +11. Identical at 600 and after a change to 700, in an L, a right-hand L and both corners of a U (32 seams). The owner's screenshot is reproduced for the side-wall pieces only. | [C0] | C4 | P1 |
+| 006 | Contract gap, two seams in opposite directions | No record states a front-line contract at the corner. Against its neighbour, the side-wall corner piece (return) is **behind**: worktop −20 mm, carcass +10 mm; it has no door, so its bare carcass face is 8 mm behind the neighbour's **door** (10 beside a hob). The back-wall corner cabinet (X-leg) is **proud**: worktop +10, front +11. Identical at 600 and after a change to 700, in an L, a right-hand L and both corners of a U (32 seams). The owner's screenshot is reproduced for the side-wall pieces only. | [C0] | C4 | P1 |
 | 007 | Defect against the mockup | Frame D1A `:92` declares `align-items:center` on the 88 px footer; the shipped rule has none (`room.module.css:1240-1246`), so the 52 px button sits at the top. The button stays right-aligned, as the frame draws it. | [src] [doc] | C1 S1 | P2 |
 | 008 | Copy change, owner's wording | `room.cornerQuestion` (`ro.json:51`, `ru.json:51`); ADR 0113: *"I will adjust when I will decide later"*. | [src] [doc] | C1 S2 | P3 |
 | 009 | Defect against the mockup | Frame D1B `:190` declares `align-items:center`; `.dimensionsFooter, .composeFooter` have none (`room.module.css:1604-1610`). Same cause as 007, a second rule. | [src] [doc] | C1 S1 | P2 |
-| 010 | New rule, departs from owner rulings | A4: *"the remainder, at most 599 mm, stays"*; *"let the edges empty"* (D2); RQ25a, 2026-09-29: *"Back wall only"*, side walls' ends stay bare. E6 already absorbs `0 < remainder ≤ 200` into the module beside a **tower**; nothing does so beside the **fridge**. The editor half: a resize is funded by adjacent empty space only (ADR 0031); a fixed neighbour in between blocks it, and moving it is §13.2's rejected *"Auto-shifting a whole run"*. Measured: a resize beside a standing fridge is refused `NO_EMPTY_SPACE`. The owner's successful re-add and the "450" were **not reproduced**. | [doc] [C0] | C5 | P2 |
+| 010 | New rule, departs from owner rulings | A4: *"the remainder, at most 599 mm, stays"*; *"let the edges empty"* (D2); RQ25a, 2026-09-29: *"Back wall only"*, side walls' ends stay bare. E6 already absorbs `0 < remainder ≤ 200` into the module beside a **tower**; nothing does so beside the **fridge**. The editor half: a resize is funded by adjacent empty space only (ADR 0031); a fixed neighbour in between blocks it, and moving it is §13.2's rejected *"Auto-shifting a whole run"*. Measured: a resize beside a standing fridge is refused `NO_EMPTY_SPACE`. QA reproduced the owner's sequence on an L 3000 × 3010 at 600: the fridge goes back at 2250–2950 with 50 mm left and +50 is refused, as `M7-FB-010.png` shows. The "450" is unexplained. | [doc] [C0] | C5 | P2 |
 | 011 | Same gap as 004, on the L | The seeded reference L fills wall A over the corner base: `p8` `wall-2door-600` and `p10` `wall-1door-300` at 1500, `p15`/`p16` at 2200 (`kitchen-l-design.ts:1033-1047`). The generated L leaves it empty (criterion 14). *"The earlier mock"* is read as that reference kitchen [inf]; no file in `docs/design/mockups/` draws a corner unit. | [src] [inf] | C2 | P1 |
+| 012 | Unclassified until re-run: flake, test-fidelity problem or defect, per test | Nine tests red across six of seven e2e shards on `main` at `2615b51` (CI run 36841795476). Four shards log `toBeEnabled` *Expected: enabled, Received: disabled*, one beside `WRITE_ACCESS_TIMEOUT_MS`. Nothing re-run; no cause established. | [doc] the coordinator's log reading | CE | P1 |
 
 **The owner's vocabulary**, from ADR 0110 E11 and F: *middle* is the wall row (1500–2200), *top* is the
 top row (2200–2600). The feedback file's parentheticals read them differently in FB-003 and FB-004; this
@@ -105,22 +107,26 @@ using it asks for confirmation behind a prominent warning. (iii) Editing the roo
 customised kitchen is the real wish, named by the owner as hard; **not this milestone**, recorded as a
 new backlog entry with these words.
 
-**Q1b — the warning's wording. Blocks C1 S3.** The owner's *"you loose all"* is not literally true:
-going back erases nothing (ADR 0111 d5); the changes are lost only if the customer then continues, and
-the old kitchen stays stored but opens only from its own link until M8 (ADR 0114 d4). The warning must
-say what happens. It is asked **on leaving the editor**, as the owner said: both back links are in one
-component, and Step 1 cannot tell a returning customer from a new one without a new signal. Draft:
+**Q1b — the warning's wording. Blocks C1 S3 until the two pending items below are confirmed.** The
+owner rejected the architect's draft and gave the text, verbatim, 2026-10-01:
 
-| Leaf | Romanian (draft) | Russian (draft) |
-| --- | --- | --- |
-| title | Modificările făcute nu se păstrează | Сделанные изменения не сохранятся |
-| body | Dacă schimbi dimensiunile camerei și continui, bucătăria se construiește din nou. Dulapurile, culorile și lățimile pe care le-ai modificat aici nu trec în bucătăria nouă. | Если вы измените размеры комнаты и продолжите, кухня будет построена заново. Шкафы, цвета и ширины, которые вы изменили здесь, не перейдут в новую кухню. |
-| confirm | Înapoi la cameră | Назад к комнате |
-| stay | Rămân aici | Остаться здесь |
+> *«The warning in RO : "Daca te intorci la pasul urmator modificarile efectuate vor fi pierdute. Esti
+> sigur ca doresti sa reconfigurezi marimea bucatariei?" and translate also in RU»*
 
-The owner reads this set before S3 is dispatched: the wording is the substance of the fix, it differs
-from the owner's own phrase, and no agent approves copy (ADR 0095 d2). ADR 0113's *approved as drafted*
-covered Step 1's leaves, not this one.
+**The wording is the owner's.** It says the changes *will be lost*; the owner chose that knowing the
+earlier draft. Storage is unchanged: the old design remains stored (ADR 0111 d5) and opens only from
+its own link until M8. The warning is asked on leaving the editor, on phone and desktop.
+
+**Pending with the owner, put by the coordinator, not decided:**
+1. *"pasul urmator"* is *the next step*, and the control goes to the previous one. Proposed, with
+   diacritics: *"Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur
+   că dorești să reconfigurezi mărimea bucătăriei?"*
+2. The Russian, informal as the shipped copy is: *«Если вернёшься к предыдущему шагу, внесённые
+   изменения будут потеряны. Точно хочешь заново задать размеры кухни?»* The owner reads it before it
+   ships.
+
+Buttons, none given by the owner; proposed: *Înapoi la cameră* / *Rămân aici*, *Назад к комнате* /
+*Остаться здесь*.
 
 **Q2 — FB-004, FB-011. Blocks C2.** Recorded in ADR 0110 Amendment O.
 *On the back wall, above the corner base cabinet, there is a 900 mm stretch at the middle and top levels
@@ -148,29 +154,17 @@ doors, not lift fronts; none above tall columns. About 6 more cabinets per kitch
 rises. **ADR 0110 E11 is withdrawn** (E11.1 and E11.3 struck by name in Amendment O; F9's lift rule is
 recorded as not applied, its 120–165 mm clearance note kept).
 
-**Q5 — FB-006. Blocks C4.** Recorded in a new ADR 0135.
-*Measured at every corner, at depth 600 and 700 [C0]. The small corner piece on the side wall sits
-behind the cabinet next to it: its worktop edge 20 mm back, its front 8–10 mm back. That is what your
-screenshot shows. The corner cabinet on the back wall is the other way: 10 mm in front of its
-neighbour, worktop and front.*
-(a) **Everything on one line**: the side piece comes forward and the back-wall corner cabinet goes back
-10 mm. (b) Fix only the side piece; the back-wall corner cabinet stays 10 mm forward. (c) Leave both.
-*Recommended: (a).* One rule for every seam. It departs from the supplier's geometry on purpose.
+**Q5 — FB-006. ANSWERED 2026-10-01** (relayed selection): *"Everything on one line"*. Recorded in a
+new ADR 0135. The side-wall corner piece gets a front panel level with the doors beside it and its
+worktop comes forward 20 mm; the back-wall corner cabinet goes back 10 mm. Measured today [C0]: the
+side piece's worktop is 20 mm back and its doorless front 8–10 mm behind the neighbour's door; the
+back-wall corner cabinet is 10 mm in front, worktop and door.
 
-**Q6 — FB-010. Blocks C5.** Recorded in ADR 0110 Amendment O.
-*When the fridge is the last thing on a wall and a small gap is left after it:*
-(a) **Under 300 mm: the cabinet next to the fridge grows in 50 mm steps, up to 800 mm wide, and the
-fridge moves out by the same amount.** A 600 mm cabinet takes up to 200 mm; a 250–299 mm gap leaves
-50–99 mm. Gaps under 50 mm stay. (b) The same with another limit (you said 250, then 300). (c) Also let
-the editor resize a cabinet through a standing fridge.
-*Recommended: (a); (c) to the backlog* — it is a Full-tier domain wave of its own and a direction the
-design reference rejects. Three things to know:
-- It only works where the fridge's neighbour is an ordinary door cabinet. Where it is the dishwasher or
-  the sink, nothing changes.
-- On a side wall, 100 mm stays free at the end at depth 600 whatever is chosen: it is the room a change
-  to 700 needs.
-- We could not reproduce your steps: after removing the fridge and widening the cabinet to 750, the
-  fridge did not go back [C0]. What were the wall lengths of that kitchen?
+**Q6 — FB-010. ANSWERED 2026-10-01** (relayed selection): *"Absorb gaps under 300 mm"*. Recorded in
+ADR 0110 Amendment O. Where the fridge ends a run with under 300 mm beyond it, the door cabinet beside
+it grows in 50 mm steps up to 800 mm and the fridge moves out by the same amount. Only where the
+neighbour is a door cabinet. On a side wall 100 mm stays free. Resizing a cabinet through a standing
+fridge in the editor is not built and goes to the backlog (104, below).
 
 **Q7 — FB-008. ANSWERED 2026-10-01** (relayed selection): *"Approve both"*. Recorded as a pointer in
 ADR 0113.
@@ -193,14 +187,18 @@ ADR 0113.
 | C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done**; S2 **ready**; S3 on Q1b |
 | C2 | FB-004, FB-011 | P0 | Full + visual | On Q2 |
 | C3 | FB-003 | P1 | Full + visual | After C2 |
-| C4 | FB-006 | P1 | Full + visual | On Q5, C0 |
-| C5 | FB-010 | P2 | Full | On Q6, C0 |
+| C4 | FB-006 | P1 | Full + visual | S0 **ready** |
+| C5 | FB-010 | P2 | Full | After C3 |
+| CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | S0 **ready** |
 | C6 | Phase gate | — | Coordinator + visual | Last |
 
-**Order: C0 → C1 → C2 → C3 → C4 → C5 → C6.** C0 and C1 S1 need no answer and start now. C2 is first among
-the blocked waves because it is the owner's top item. C3 follows C2 because both write
-`upper-policy.ts`. C4 follows them so its captures show a complete corner. C5 is independent and last
-because it moves every baseline that C2 and C3 also move. One writing agent in the tree at a time (R2).
+**Order: C0 → C1 S1 → C1 S2 → CE S0 → CE fixes → C1 S3 → C2 → C3 → C4 → C5 → C6.** CE comes before C1 S3
+and C2 because both change what the red tests look at (the desktop top bar; the generated kitchen and
+its captures), and a wave that lands on a red baseline cannot tell its own regression from an old one.
+C3 follows C2 because both write `upper-policy.ts`. C4 follows them so its captures show a complete
+corner. C5 is last because it moves every baseline C2 and C3 also move. One writing agent in the tree
+at a time (R2); CE S0 writes no tracked file, so it may run beside C1 S2, but only one e2e run at a
+time uses port 4320 and the test database.
 
 ### C0 — census, measurements, questions (no production code)
 
@@ -210,22 +208,21 @@ because it moves every baseline that C2 and C3 also move. One writing agent in t
 | S2 | The wall-A corner strip: its tile spans over the approved L and U ranges, what the editor's insert offers there, and two captures for Q2 (the reference's 600 + rest; one cabinet from the return's depth to the strip's end). | `shell-design.ts:379-407, 739-795`; `upper-policy.ts`; backlog 63 |
 | S3 | FB-010's witness: an L where the fridge ends a run with 150–299 mm beyond it. The count of approved rooms with such a remainder, per shape and wall. What the top-row voids offer over a wall cabinet and over a column. | `generation-priorities.ts`; `u-fridge-wall.ts`; `tall-end-rule.ts`; ADR 0110 A4, E6, N3r 4 |
 
-**Done 2026-10-01; QA pending.** What it found beyond the triage rows:
-- S2: with the stretch re-tiled as one 330–900 tile, `wall-cabinet` builds to 570 at both rows, and a
-  hood (600–800) no longer fits there, so backlog 63's offer disappears [inf from the offer list].
-  The return's cover of wall A is 330 mm at 600 **and** at 700; only its start along its own wall moves
-  (330 → 400). So the 570 width holds at both depths.
-- S2's direct inserts report `EMPTY_COLUMN_OVERLAPS_PLACEMENT` and `EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT`,
-  even into today's tile. The script inserts without the frozen-map funnel, so this is read as script
-  fidelity, not a product finding; C2 criterion 2 is judged through generation's own funnel.
-- S3: the fridge ends a run with 50–299 mm beyond it and an ordinary door cabinet beside it in 44,766
-  of 245,211 planned L rooms (10 mm grid; wall A 22,995, wall B 21,771) and 4,752 of 86,706 U rooms
-  (100 mm grid; B 2,444, C 2,308). A straight kitchen: none. In 16,300 more L rooms the neighbour is
-  the dishwasher or the sink, or the fridge stands at the corner.
-- S3: after the fridge is removed and its neighbour widened to 750, the two empty spaces beside it are
-  550 and 200 mm and are **not merged**, though their sum is under ADR 0046's 800 mm cap; a second
-  script through the store's funnel prints an empty space overlapping a body. Either script fidelity or
-  a defect against ADR 0046. **Open; QA settles it before C5 is dispatched.**
+**Done 2026-10-01; S1, S2 and the S3 census confirmed by QA the same day** (independent scripts, `c0-qa/`).
+Beyond the triage rows:
+- S2: the strip is 900 mm (800 + 100) in all 256,011 L and 88,434 U grid rooms, also at 1 mm steps. One
+  570 mm `wall-cabinet` inserts with no finding at both corners and both depths. At 600 the return is at
+  330–900 and the strip tiles are 330 deep; at 700, 400–970 and 400 deep, so the strip cabinet's front and
+  the return's start move together. A hood (600–800) no longer fits a 570 tile, so backlog 63's offer
+  disappears there [inf from the offer list].
+- S3 census: the fridge ends a run with 150–299 mm beyond it in 46,425 of 245,211 planned L rooms (10 mm
+  grid) and 3,054 of 86,706 U rooms (100 mm grid); a straight kitchen, none. C0's own output for the
+  rule's range, 50–299 with a door cabinet inboard: 44,766 L rooms (wall A 22,995, B 21,771) and 4,752 U
+  rooms; in 16,300 more L rooms the neighbour is the dishwasher or the sink, or the fridge is at the
+  corner.
+- S3 witness: C0's first replay did not go through the store's path and wrongly reported unmerged empty
+  space. Applied as the store does, the spaces merge and the owner's sequence succeeds. **There is no
+  merge defect.**
 - S3: generated placements peak at 43 (U) and 34 (L); with a top row, 54 / 47 / 22, against
   `MAX_PLACEMENTS` 279.
 
@@ -261,7 +258,7 @@ rule, persistence or endpoint.
    *Confirm* opens Step 1 with the room filled in. Escape and a backdrop press behave as *Stay*.
 3b. *Must not:* confirming writes, deletes or re-mints anything (no request other than the navigation);
    the design is still at its `/d/…` link afterwards, and `/` still resumes it until a new kitchen is
-   made. The dialog holds exactly the four leaves the owner approved under Q1b, in both locales.
+   made. The dialog holds exactly the text and buttons the owner confirmed under Q1b, in both locales.
 3c. The shared variant shows neither the link nor the dialog. Keyboard: the link is reachable by Tab, the
    dialog traps focus (backlog 48: no DOM in vitest, so this is the visual agent's check).
 4. *Must not:* the review CTA gains a handler, role or pointer cursor.
@@ -282,7 +279,7 @@ Written for Q2 (a), the 570 mm cabinet. Q3 kept the 10 m rule, so the back-wall 
 *3D contract.* Each strip cabinet is an ordinary wall-A body: back face on wall A's plane at 0.000
 (§11 row 19), `y0` 1500, drawn unmirrored at both corners. Its near edge is the plane of the side
 wall's return front (330 mm from the side wall, at 600 and 700); its far edge is the corner base's far
-edge (900). Depth from the wall-depth map (330). It may not intersect the side wall's
+edge (900). Depth from the wall-depth map: 330 at 600, 400 at 700. It may not intersect the side wall's
 corner return.
 
 *Criteria.*
@@ -337,8 +334,9 @@ E11 and F9 for the logic reviewer.
 
 ### C4 — the corner seam (adapter and domain)
 
-Written for Q5 (a). Two seams, opposite directions [C0]: the side-wall return is behind (worktop −20,
-front −8 / −10), the back-wall X-leg is proud (worktop +10, front +11).
+Q5 answered: everything on one line. Two seams, opposite directions [C0]: the side-wall return is behind (worktop −20,
+carcass +10; its bare carcass is 8 / 10 mm behind the neighbour's door), the back-wall X-leg is proud
+(worktop +10, door +11, carcass +10).
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -357,7 +355,7 @@ and no coplanar faces; the right corner's four pieces mirror the left's.
    worktop difference (corner minus neighbour) is 0 ± 1 mm. C0 S1's script is the instrument; today it
    reads −20 and +10.
 2. At the same seams the signed front-face difference is 0 ± 1 mm beside a door or drawer front.
-   Today: −8, −10 (beside a hob) and +11. Beside a hob the bound is ADR 0135's, stated with its reason.
+   Today: −8, −10 (beside a hob; the return's carcass against a door) and +11 (door against door). Beside a hob the bound is ADR 0135's, stated with its reason.
 3. *Must not:* the two legs' slabs intersect; the X-leg's seat changes; a plinth stands proud of its own
    carcass front; any non-corner body's geometry moves; the return gains a handle, a finish control or a
    door count (ADR 0021 d2), or a price line.
@@ -372,7 +370,7 @@ and no coplanar faces; the right corner's four pieces mirror the left's.
 
 ### C5 — the leftover beside a fixed-width end body (domain)
 
-Written for Q6 (a).
+Q6 answered: absorb under 300 mm.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -398,9 +396,42 @@ Written for Q6 (a).
 *QA reading:* the criteria, C0 S3, `qa-7d3-tall-end-block.adversarial.test.ts`. *Logic reviewer:* ADR
 0110 A4, E6, N3r 4, N11.9, Amendment O draft. *Clean-code reviewer:* the diff.
 
+### CE — the e2e shards on the runner (FB-012)
+
+| Slice | Does | Files | Reading |
+| --- | --- | --- | --- |
+| S0 | No tracked file changes. **Local half, dispatchable now and not waiting on the runner:** the agent runs each of the nine tests alone, locally, three times, on `main`'s tree at `2615b51` and on `HEAD`, and reads the saved log to attach each `toBeEnabled` failure to its test. **Runner half, owed:** a re-run of run 36841795476's failed jobs was refused on 2026-10-01 (*"Resource not accessible by personal access token"*) and is not worked around; the owner re-runs it, or the first push of this branch supplies a fresh run. Until then no row is classed *runner-only*, only *not reproduced locally*. Output: one table, test → deterministic or intermittent → local or runner-only → cause group → class (flake, test-fidelity, defect). | — | `M7-FEEDBACK.md` *M7-FB-012*; scratchpad `run-36841795476.log`; `ci-and-local-gates.md`; `agent-coordination.md` (port 4320, `TEST_DATABASE_URL`); ADR 0105; `playwright.config.ts`; `.github/workflows/ci.yml` e2e jobs; the nine spec files and `support/u-gate-journeys.ts`, `support/u-gate.ts` |
+| S1… | One slice per cause group from S0, each named in this table before dispatch, with its files and reading. | from S0 | from S0 |
+
+*Expected groups, [inf] from the log, for S0 to confirm or replace.* (1) Write access arriving late:
+`share-design:96`, `qa-7e3c-share:638`, `qa-u7s0-ssr:271`, `u-gate-journeys:648`. (2) Captures and pixel
+counts: `pixel-counter-witness.desktop:352`, both `qa-7i-mirror-captures:18`. (3) Desktop layout:
+`room-desktop-line.desktop:551`, `top-bar-pill-containment.desktop:788`.
+
+*Which of the nine later waves also touch, so they are not fixed twice.* `top-bar-pill-containment` is
+C1 S3's (it adds a link to that row). `room-desktop-line` criterion 8 is checked against C1 S1's footer
+change (`8269440`) first. The capture and pixel-count tests read generated kitchens that C2, C3 and C4
+change: CE fixes their timing or instrument only, and each later wave restates their expected values
+for its own change.
+
+*Criteria.*
+1. S0's table has all nine tests, each with the runs it was judged on. A cause is stated only where a
+   run shows it; otherwise the row says *not established*.
+2. A fix never weakens an assertion, raises a timeout without a measured reason, adds a retry, or skips
+   a test. A timeout that moves is stated with the measured duration it must cover.
+3. A test found to assert a real defect stays red and returns to planning; if the defect is in write
+   access, the visitor cookie or a share link, its fix is Full tier with security review.
+4. After the fixes, all seven shards are green on the runner **twice in a row** on one commit.
+5. *Must not:* any file under `apps/web/src` or `packages/*/src` changes in a slice classed as flake or
+   test-fidelity.
+
+*QA reading:* S0's table and the runs behind it. *Reviewer reading (combined):* the diff, S0's table,
+`engineering-conventions.md` *Three guards that look thorough and cannot fail*. *Security reading, if
+triggered:* ADR 0114, the diff.
+
 ### C6 — phase gate
 
-`pnpm check`, `pnpm ci:local`, a visual pass at 390 × 844 and 1440 px in both locales over one L, one
+`pnpm check`, `pnpm ci:local`, **a green runner** (wave CE; this gate cannot close on a red one), a visual pass at 390 × 844 and 1440 px in both locales over one L, one
 right-hand L, one straight and two U kitchens, then the push and the PR. *Visual reading:* every wave's
 criteria and captures.
 
@@ -411,20 +442,33 @@ criteria and captures.
 - **ADR 0135**: the corner seam's front-line contract; amends ADR 0025's 630 figure and `SPEC.md`.
 - **ADR 0104 Amendment D**: the desktop back control.
 - A pointer in ADR 0113 for the reworded leaves (Q7).
-- **Backlog 104** (filed by the coordinator; 103 is the red e2e shards): editing the room's size while keeping the customised kitchen, with Q1's words and the
-  owner's own note that a smaller room needs a rule for what to drop.
+- **Backlog 104**, for the scribe to file: *A cabinet cannot be resized through a fixed-width
+  neighbour* — the owner asked on 2026-10-01 (M7-FB-010) how hard it is to widen a cabinet without
+  removing the fridge beside it, and on Q6 sent it to the backlog. A resize is funded by adjacent empty
+  space only (ADR 0031); moving the fridge inside the command is §13.2's rejected auto-shift. Cost: a
+  new funding arm in `plan-width-funding.ts`, column moves, the frozen map and every body stacked over
+  the neighbour; one Full-tier domain wave.
+- **Backlog 103**, for the scribe to file:
+
+  > **103. Editing the room's size keeps none of the customer's changes — WANTED BY THE OWNER
+  > 2026-10-01, NOT BUILT, NO PHASE.** The owner, verbatim (M7C Q1): *"what if I done a lot of changes
+  > but I need only to edit the size, going back will wipe out all my changes, looks like I need the
+  > ability to edit room size withgout loosing current work. I know this can change a lot, especially
+  > when will be reduced the size, there should be decission what to drop from cabinets."* **Today:**
+  > continuing from Step 1 generates a new design; no edit is carried over; the old design stays stored
+  > (ADR 0111 d5) and opens only from its own link until M8 (ADR 0114 d4). M7C C1 S3's confirmation is
+  > the owner's stated minimum, not this entry. **Cost:** a room change applied to a stored design, not
+  > a regeneration. Growing a wall adds empty space; shrinking one needs an undecided rule for what is
+  > dropped or narrowed. A domain milestone of its own, with owner questions first.
 
 ## Risks
 
 - **Baselines.** C2, C3 and C5 each change generated output for most rooms. The recorded baselines under
   `tests/generation/` are restated per wave with the reason, never regenerated silently.
 - **Parity gate.** C4 changes geometry the M1 gate pins at 1e-6 m. The pins move only by ADR 0135's list.
-- **Depth change.** At 700 the side wall's return starts 70 mm further along its own wall (330 → 400)
-  while the strip cabinet's front stays at 330, so a 70 mm step opens at the inside corner of the upper
-  rows. It is ADR 0089's residue seen from wall A, exists today in the reference kitchen, and is not
-  closed here; the visual pass captures it for the owner.
-- **The merge finding.** If QA confirms that 550 + 200 mm of adjacent empty space does not merge, that
-  is a defect against ADR 0046 with its own item, and C5 waits on its classification.
+- **Depth change.** At 700 the return starts at 400 along its wall and the strip tiles are 400 deep [C0],
+  so the strip cabinet and the return still meet. C2 criterion 2a holds it; ADR 0089's 30 mm residue on
+  the side walls is untouched.
 - **Top bar fit.** A desktop back control enters a row whose fit ladder is ruled (ADR 0104). S3 may need
   to return to planning.
 - **Price.** C2 and C3 add priced cabinets to every kitchen. The owner sees the new *de la* figure for
