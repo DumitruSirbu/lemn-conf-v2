@@ -54,6 +54,7 @@ web items are small and independent. Splitting would add a branch and a PR and r
 | 010 | New rule, departs from owner rulings | A4: *"the remainder, at most 599 mm, stays"*; *"let the edges empty"* (D2); RQ25a, 2026-09-29: *"Back wall only"*, side walls' ends stay bare. E6 already absorbs `0 < remainder ≤ 200` into the module beside a **tower**; nothing does so beside the **fridge**. The editor half: a resize is funded by adjacent empty space only (ADR 0031); a fixed neighbour in between blocks it, and moving it is §13.2's rejected *"Auto-shifting a whole run"*. Measured: a resize beside a standing fridge is refused `NO_EMPTY_SPACE`. QA reproduced the owner's sequence on an L 3000 × 3010 at 600: the fridge goes back at 2250–2950 with 50 mm left and +50 is refused, as `M7-FB-010.png` shows. The "450" is unexplained. | [doc] [C0] | C5 | P2 |
 | 011 | Same gap as 004, on the L | The seeded reference L fills wall A over the corner base: `p8` `wall-2door-600` and `p10` `wall-1door-300` at 1500, `p15`/`p16` at 2200 (`kitchen-l-design.ts:1033-1047`). The generated L leaves it empty (criterion 14). *"The earlier mock"* is read as that reference kitchen [inf]; no file in `docs/design/mockups/` draws a corner unit. | [src] [inf] | C2 | P1 |
 | 012 | Unclassified until re-run: flake, test-fidelity problem or defect, per test | Nine tests red across six of seven e2e shards on `main` at `2615b51` (CI run 36841795476). Four shards log `toBeEnabled` *Expected: enabled, Received: disabled*, one beside `WRITE_ACCESS_TIMEOUT_MS`. Nothing re-run; no cause established. | [doc] the coordinator's log reading | CE | P1 |
+| 013 | Defect in the void engine, an anchor error; source-read, not yet run | `overlapsAlongWall` (`void-engine.ts`) reads each run's **centre** as its **start**, so two runs of unequal width are compared with an error of half the width difference. A 700 mm fridge beside a 600 mm column reads as a 50 mm overlap where the spans abut; the column then answers `hasFullHeightUnder` and its wall cabinet is built 600 deep (seat 561, not 291). Seen in 351 of 481 straight and 371 of 2,544 L rooms sampled before C3 (QA Q7.1). **Not a generation rule: every design goes through this predicate.** | [QA] [src] | C7 | P1 |
 
 **The owner's vocabulary**, from ADR 0110 E11 and F: *middle* is the wall row (1500–2200), *top* is the
 top row (2200–2600). The feedback file's parentheticals read them differently in FB-003 and FB-004; this
@@ -190,6 +191,9 @@ cabinet above every wall cabinet and above the hood, in every shape, in rooms at
 doors, not lift fronts; none above tall columns. About 6 more cabinets per kitchen [C0], so the price
 rises. **ADR 0110 E11 is withdrawn** (E11.1 and E11.3 struck by name in Amendment O; F9's lift rule is
 recorded as not applied, its 120–165 mm clearance note kept).
+**Confirmed after C3, 2026-10-01** (relayed selection *"Yes, keep it"*), on the app's own figures at
+placeholder prices: U 3000 / 2400 / 2600, 56 000 → 71 000 MDL; L 4100 / 3300, 60 000 → 77 000 MDL.
+Kitchens are generated complete up to the ceiling.
 
 **Q5 — FB-006. ANSWERED 2026-10-01** (relayed selection): *"Everything on one line"*. Recorded in a
 new ADR 0135. The side-wall corner piece gets a front panel level with the doors beside it and its
@@ -214,13 +218,17 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | C0 | Census and measurements; the questions | — | Light | **Done**, confirmed by QA |
 | C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **done** (`01c40be`); **S4** (browser Back warning) **open**, planned after C5 |
 | C2 | FB-004, FB-011 | P0 | Full + visual | **Done**: S0; S1 `075529b`; S2 `0a1a69a` |
-| C3 | FB-003 | P1 | Full + visual | In implementation |
+| C3 | FB-003 | P1 | Full + visual | **Done** (`02b1c7b`) |
 | C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
-| C5 | FB-010 | P2 | Full | After C3 |
+| C7 | FB-013 | P1 | Full + visual | S0 **ready** |
+| C5 | FB-010 | P2 | Full | After C7 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | After C5 (owner) |
 | C6 | Phase gate | — | Coordinator + visual | Last |
 
-**Order: C4 S1 → C4 S2 → C2 → C1 S3 → C3 → C5 → C1 S4 → CE → C6.** C4 leads: it shares no figure with C2 or
+**Order: C4 S1 → C4 S2 → C2 → C1 S3 → C3 → C7 → C5 → C1 S4 → CE → C6.** C7 shares no file with C5 and
+is not merged into it. It goes first because it changes the depth of wall cabinets in hundreds of
+generated rooms: C5 then restates its baselines on a correct engine, once, and carries C7's invariant
+as a must-not. C4 leads: it shares no figure with C2 or
 C3. C2 follows C4 S2 directly: both write `kitchen-parts.ts`, `corner-assembly-size.ts` and the fixture.
 C3 follows C2 (both write `upper-policy.ts`). C5 moves every baseline, so it is the last change.
 **CE is last, by the owner's word, 2026-10-01: *"e2e do the last after all fixes"*.** One writing agent
@@ -672,8 +680,9 @@ below. Handles hidden, not removed (§13.1).
    **[prop]**
 2. *Must not:* a top-row body over a full-height column, over the fridge, or on a base-only back wall
    (there the hood, if on wall A, is the one body with a top cabinet over it).
-3. Each top-row body resolves push-to-open with no customer action; a kitchen-wide handle change does
-   not show a bar on it.
+3. Each top-row body resolves push-to-open with no customer action: no handle is recorded on it, and
+   the slot (`y0` ≥ 2200) resolves push-to-open. There is no kitchen-wide handle command; the
+   per-cabinet handle command can still give it a bar, as on any top-row cabinet.
 4. Everything below 2200 is byte-identical to C2's output. No finding on any generated design.
 5. The largest generated design stays under `MAX_PLACEMENTS`; the measured peak is restated (C0
    predicts 54 before C2's corner units, at most four more in a U).
@@ -941,6 +950,56 @@ the base return is a base body with a fixed front.*
 7. The supplier's reference geometry is departed from on purpose; each moved mesh is a named departure
    in the parity gate.
 
+### C7 — a wall cabinet beside the fridge is built deep (FB-013)
+
+Found by QA during C3 and shown to the owner, who chose *"Fix it in this milestone"* (relayed selection,
+2026-10-01). Witnesses: a straight kitchen 2500 wide and an L 900 / 3500, height 2600; captures in the
+scratchpad, `c3-s1/S25-*`. The deep cabinet is 0.6 against 0.33 neighbours and the fridge's front is at
+0.74, so it stands 270 mm proud of its row and is not flush with the fridge either.
+
+**The cause, read from source by the C3 developer and by the architect; not run. S0 confirms it.**
+`overlapsAlongWall(record, column)` takes `alongWallCoordinate(wall, frame)`, which is the body's
+**centre** (`frame.x` is the transform's position), and computes
+`min(c₁ + w₁, c₂ + w₂) − max(c₁, c₂)`, as if each centre were a start. The true overlap is
+`min(c₁ + w₁/2, c₂ + w₂/2) − max(c₁ − w₁/2, c₂ − w₂/2)`. The two agree when the widths are equal and
+differ by half the width difference otherwise. In the straight 2500 room the fridge (0–700) is read as
+350–1050 and the next column (700–1300) as 1000–1600: a 50 mm overlap where the spans abut. **The
+error runs both ways:** a 200 mm column over the left end of an 800 mm full-height member reads as
+100 mm clear of it and is *not* lifted [arithmetic]. The predicate has two callers, `isFullHeightUnder`
+and the re-plan trigger (`replan-dependent-members.ts`, ADR 0103 d3), and both pass a centre.
+
+**So this is void-engine algebra, not generation.** It reaches every design: generated, edited by a
+customer, stored. It does not share a file with C5.
+
+| Slice | Does | Files | Reading |
+| --- | --- | --- | --- |
+| S0 | No production code. (1) Reproduce both witnesses and print the two runs as the predicate sees them and as they are. (2) Every caller of `overlapsAlongWall`, and the three sibling predicates that say they follow it (`merge-empty-columns.ts`, `validate-width-result.ts`, `split-column.ts`): which pass a centre, which a start. (3) **Stored or derived:** `hasFullHeightUnder` is re-answered on every load (`withCurrentFullHeightMembers`), but the body built deep records its own `seatDepthMm` and its column's `depthMm`; say exactly what a stored design keeps after the fix and what changes on its next load, its next edit and its next depth change. (4) The full census per shape and wall: columns that flip from lifted to capped, **and from capped to lifted**. (5) The seeded kitchen: its pinned deep tops stand over members of their own width, so they should not move [arithmetic]; confirm. (6) What the editor offers in an affected opening before and after. | — | this section; `void-engine.ts` `withCurrentFullHeightMembers` to `overlapsAlongWall`; `module-grid.ts` `alongWallCoordinate`; `insert-fit.ts` about `:820-860`; `cabinet-depth-rule.ts` `columnBuildDepthMm`; `replan-dependent-members.ts`; ADR 0101, 0058, 0060, 0103, 0053, 0038; `DEVELOPMENT-SPEC.md` §3.2, §4, §7 and the §11 rows on wall depth |
+| S1 | The predicate compares spans. One function; its two callers unchanged. Cut finally after S0. | `void-engine.ts`; a sibling predicate only if S0 finds the same error in it | S0's output; the same records |
+
+*Criteria for the fix.*
+1. `overlapsAlongWall` answers true iff the two along-wall **spans** overlap by more than
+   `SPAN_EPSILON_M`, for equal and unequal widths, in either order, on walls A, B and C. **[prop]**
+2. In every generated kitchen, every wall-row and top-row body is the wall depth (330 at 600, 400 at
+   700) unless its span overlaps a full-height member's. S0's census of lifted-to-capped rooms goes
+   to zero; its capped-to-lifted rooms are each explained, and none is beside a fridge.
+3. ADR 0101's rule holds where it is meant, and the seeded kitchen's pinned deep tops (ADR 0058) are
+   byte-identical. No other body of any generated design moves; no finding is gained.
+4. **Stored designs:** none is rewritten by a load. What S0 found a stored design keeps is stated in the
+   close-out and filed, under ADR 0038, beside backlog 107; a stored deep cabinet must not turn into a
+   finding or a refused load.
+5. The re-plan trigger (ADR 0103) is checked on its own: a body inserted under a wall cabinet of a
+   different width re-plans exactly the columns its span crosses.
+6. *Must not:* a depth special-cased by body id or by *"beside a fridge"*; a second definition of the
+   overlap; an upper over the fridge (ADR 0110 E7).
+
+**If S0 shows a stored design changes what a customer sees or what the editor offers in a way the
+records do not cover, the fix returns to planning before S1**, and the owner is told what changes.
+
+*Visual evidence:* both witnesses before and after, the fridge's side in frame, at 600 and 700; one
+room where a narrow wall cabinet over the low end of a wider column becomes lifted, if S0 finds one.
+*QA reading:* the criteria, S0's output and scripts. *Logic reviewer:* ADR 0101, 0058, 0103, S0's
+output, the diff. *Clean-code reviewer:* the diff. *Visual:* the captures.
+
 ### C5 — the leftover beside a fixed-width end body (domain)
 
 Q6 answered: absorb under 300 mm.
@@ -957,7 +1016,8 @@ Q6 answered: absorb under 300 mm.
    Where `r` is 50–299 mm, the adjacent `base-cabinet` is planned at `w + min(floor50(r), 800 − w)`, the
    fixed body moves outward by that amount, and the rest of `r` stays bare beyond it. Boundaries: `r` = 49, 50, 199, 200, 249, 299, 300; a neighbour already at 800; no
    fit-width neighbour. **[prop]**
-2. *Must not:* the 100 mm side-wall reserve is spent; a cabinet exceeds 800; the reading order changes;
+2. *Must not:* the wall cabinet over the widened base, or any wall body beside the moved fridge, is
+   built deeper than the wall depth (C7's invariant); the 100 mm side-wall reserve is spent; a cabinet exceeds 800; the reading order changes;
    the sink, hob, dishwasher or any fixed-width body changes width; an interior gap appears.
 3. The upper over the widened base has the same width.
 4. Rooms outside the rule are byte-identical to C3's output; the count of rooms that change is measured

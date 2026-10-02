@@ -29,8 +29,9 @@ Started 2026-10-01 on branch `m7b-u-shaped-rooms`.
 | M7-FB-010 | Layout generation / leftover gap beside fixed-size units | A small leftover gap (under ~250–300 mm) next to the fridge is left empty. The reporter had to remove the fridge, widen the neighbouring cabinet (600 → 750 mm), and re-add the fridge; a first-time user would not know to do that. Wanted: the generator automatically gives the leftover space to the cabinet nearest the edge beside the fridge (fridge and embedded fridge are fixed size), in 50 mm steps as far as the gap allows (e.g. 150 or 200 mm of a 200–250 mm gap). Goal: minimum manual manipulation. Reporter also asks how hard resizing without removing the fridge would be. | [M7-FB-010.png](M7-FEEDBACK-assets/M7-FB-010.png) | P2 | Planned |
 | M7-FB-011 | L-shape / corner cabinet structure | The L-shape corner cabinet, the middle one, is not done properly compared with the earlier mock (the generator it was based on). Expected: the corner is a corner unit from base to top. The other cabinets are then aligned relative to the corner cabinet. Reporter's idea: remove the middle part of the corner cabinet and put a two-door cabinet there; open question: how a two-door cabinet in the corner would open, which suggests a corner cabinet is needed as well. Reporter notes many issues seem to come from the corner cabinets. | None | P1 | Fixed (`075529b`, `0a1a69a`) |
 | M7-FB-012 | CI / e2e on the runner | The e2e tests are red on `main` and need checking and fixing: CI run 36841795476. | [CI run 36841795476](https://github.com/DumitruSirbu/lemn-conf-v2/actions/runs/36841795476) | P1 | Planned |
+| M7-FB-013 | Layout generation / wall cabinet beside the fridge | The wall cabinet beside the fridge is built 600 mm deep where its neighbours are 330, so it stands out from the row. Found by QA during M7C wave C3 and shown to the owner, who chose to fix it in this milestone. | Captures in the session scratchpad, `c3-s1/S25-*` | P1 | Planned |
 
-<!-- Next row: M7-FB-013 -->
+<!-- Next row: M7-FB-014 -->
 
 
 ## Triage — 2026-10-01
@@ -52,6 +53,7 @@ the classification and the evidence for each item. The reporter's text above and
 | M7-FB-010 | The generator half is planned. The editor half (resize through the fridge) is a rejected direction in the design reference and is not built without the owner's word. The owner chose the generator half, gaps under 300 mm (2026-10-01); the editor half goes to the backlog. | M7C wave C5 |
 | M7-FB-011 | The same gap as M7-FB-004, on the L. "The earlier mock" is read as the reference L kitchen, which has wall cabinets over the corner base. The owner asked for a fixed, non-editable corner unit covering the whole corner (2026-10-01). | M7C wave C2 |
 | M7-FB-012 | Nine tests fail across six of seven e2e shards on `main` at `2615b51`; nothing was re-run and no cause is established. Re-run and grouped first, then fixed per group. M7C's phase gate needs a green runner. | M7C wave CE |
+| M7-FB-013 | Pre-existing: present before C3 in 351 of 481 straight and 371 of 2,544 L rooms QA sampled. Read from source, not yet run: the engine compares two runs by their centres as if they were starts, so a 700 mm fridge beside a 600 mm column reads as overlapping it. It is in the engine every design uses, not in generation. A confirming slice runs first. | M7C wave C7 |
 
 ## Details
 
@@ -177,3 +179,12 @@ expected failure it names (inference).
 **A lead, not a diagnosis.** Four shards (desktop 3/3, mobile 2/4, 3/4, 4/4) each log
 `expect(locator).toBeEnabled()` — *Expected: enabled, Received: disabled* — and desktop 3/3 quotes
 `WRITE_ACCESS_TIMEOUT_MS` beside it. Which of the nine tests each of those belongs to was not traced.
+
+### M7-FB-013
+
+Not reported by the owner in words. QA found it during M7C wave C3 (finding Q7.1) and the coordinator
+showed it to the owner, who selected *"Fix it in this milestone"* on 2026-10-01. Witnesses: a straight
+kitchen 2500 mm wide and an L 900 / 3500, room height 2600. The wall cabinet next to the fridge is
+600 mm deep against 330 mm neighbours; the fridge's front is at 740 mm, so the cabinet is neither in
+line with its row nor flush with the fridge. With the top row generated (C3), a second deep cabinet
+stands on it.
