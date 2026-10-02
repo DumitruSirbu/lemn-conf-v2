@@ -2121,3 +2121,24 @@ specs catch it, `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts` and 
 (`global-settings.module.css`) stay under `apps/web/src/settings/`, although the editor's back links, in
 `configure/`, now use it as well as the settings strip. The extraction was for reuse and not a move
 (M7C plan, C1 S3). **Trigger:** a third asker. Then move it to a shared location. No owner, no phase.
+
+## 114. Two e2e helpers break on the generated top row — FOUND 2026-10-02 BY C3 S1's QA, OWED TO WAVE CE
+
+**Read by QA, not run [relayed].** (1) `apps/web/tests/e2e/support/qa-u5-cutaway.ts:101, :145, :233`: wall
+B's top-row openings in the U 3000 fixture drop from three to one, and the taps aim at the wall's middle and
+expect a void. (2) `apps/web/tests/e2e/support/u-gate-journeys.ts:498-503, :520-531`: `toEqual([hood])` now
+gets the hood and a wall cabinet, and `find` returns the generated top over the hood. Both follow from
+`02b1c7b` and are owed to M7C wave CE, which restates what earlier waves moved. Not re-read by the scribe.
+
+## 115. The 2600 mm top-row line is derived in two places — RECORDED 2026-10-02 BY C3 S1, PINNED, NOT SCHEDULED
+
+The line is `TOP_ROW_Y0_MM + HEIGHT_FLEX_MIN_OPENING_MM` in `upper-policy.ts` and `y0 + height ≤ room
+height` for the corner top unit in `shell-design.ts` [relayed]. They agree while that constant equals the
+unit's 400. QA's test *"agrees with the corner's own top units at every height"* pins that both switch at
+the same millimetre. If either figure moves, the pin goes red first. No owner, no phase.
+
+## 116. A refused top-row insert becomes a `not_placed` step with no customer-visible reason — RECORDED 2026-10-02 BY C3 S1, NOT OBSERVED
+
+Generation continues past a refused top insert, as it does for the wall row. None occurs in the census, and
+a property test now fails if one appears [relayed]. If it ever does, the customer sees a kitchen with no
+top cabinet over that body and no explanation. No owner, no phase.

@@ -144,6 +144,9 @@ status corrections, in one of these two files:
 | 111 | On the 900 px desktop card the back confirmation's text is left-aligned and its buttons centred | open.md — found 2026-10-02 by C1 S3's QA; the owner asked for the buttons only; no owner |
 | 112 | The settings confirmation's alignment has no unit-level guard | open.md — found 2026-10-02 by C1 S3's QA; only the browser specs catch it; not scheduled |
 | 113 | The shared confirmation component still lives under `apps/web/src/settings/` | open.md — recorded 2026-10-02; move when a third asker appears |
+| 114 | Two e2e helpers break on the generated top row | open.md — found 2026-10-02 by C3 S1's QA; owed to M7C wave CE |
+| 115 | The 2600 mm top-row line is derived in two places | open.md — recorded 2026-10-02 by C3 S1; pinned by QA; not scheduled |
+| 116 | A refused top-row insert becomes a `not_placed` step with no customer-visible reason | open.md — recorded 2026-10-02 by C3 S1; not observed in the census |
 
 ## 2026-09-06 audit note
 
