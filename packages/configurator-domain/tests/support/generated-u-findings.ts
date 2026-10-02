@@ -29,6 +29,8 @@ import {
 import { createFakeProbeFactory } from "./fake-probe.js";
 
 const WALL_ROW_FLOOR_MM = 1500;
+const TOP_ROW_FLOOR_MM = 2200;
+const TOP_ROW_MIN_ROOM_HEIGHT_MM = 2600;
 const LARGE_U_TOTAL_MM = 10_000;
 const MODULE_MM = 600;
 const MAX_WALL_A_BARE_MM = 299;
@@ -113,6 +115,7 @@ export function generatedUFindings(
     ...commandFindings(result),
     ...floorFindings(room, result),
     ...upperFindings(room, result),
+    ...topRowFindings(room, result),
     ...ovenFindings(result.design),
     ...designFindings(result.design),
   ];
@@ -221,9 +224,7 @@ function upperFindings(room: DesignRoom, result: Composed): readonly string[] {
   const findings: string[] = [];
   const { design } = result;
   const plan = planOf(result);
-  const uppers = generatedBodies(design).filter(
-    (p) => p.y0Mm >= WALL_ROW_FLOOR_MM,
-  );
+  const uppers = wallRowBodies(design);
   const unmatched = [...uppers];
   for (const base of plan.bases.filter((b) => owesAnUpper(room, b, design))) {
     const buildId = base.role === "hob" ? HOOD : WALL_CABINET;
@@ -272,6 +273,45 @@ function upperFindings(room: DesignRoom, result: Composed): readonly string[] {
         `${upper.body.buildId} on ${upper.wall} over a corner piece`,
       );
     }
+  }
+  return findings;
+}
+
+function wallRowBodies(design: Design): readonly DesignPlacement[] {
+  return generatedBodies(design).filter(
+    (p) => p.y0Mm >= WALL_ROW_FLOOR_MM && p.y0Mm < TOP_ROW_FLOOR_MM,
+  );
+}
+
+/** ADR 0110 Amendment O9: a room 2600 high or more has one top-row wall cabinet over exactly the span of
+ *  each generated wall-row body (the hood's included) and nothing else in the top row; a lower room has
+ *  none. The corner units' top bodies are the shell's and are not counted. */
+function topRowFindings(room: DesignRoom, result: Composed): readonly string[] {
+  const { design } = result;
+  const tops = generatedBodies(design).filter(
+    (p) => p.y0Mm >= TOP_ROW_FLOOR_MM,
+  );
+  const owed =
+    room.heightMm >= TOP_ROW_MIN_ROOM_HEIGHT_MM ? wallRowBodies(design) : [];
+  const unmatched = [...tops];
+  const findings: string[] = [];
+  for (const upper of owed) {
+    const index = unmatched.findIndex(
+      (p) =>
+        p.body.buildId === WALL_CABINET && sameSpan(spanOf(p), spanOf(upper)),
+    );
+    if (index === -1) {
+      findings.push(
+        `no top-row cabinet over ${upper.body.buildId} on ${upper.wall}`,
+      );
+      continue;
+    }
+    unmatched.splice(index, 1);
+  }
+  for (const extra of unmatched) {
+    findings.push(
+      `a top-row ${extra.body.buildId} on ${extra.wall} over no wall-row body`,
+    );
   }
   return findings;
 }

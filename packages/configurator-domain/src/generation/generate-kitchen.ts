@@ -27,6 +27,7 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "../fixtures/kitchen-l-design.js";
+import { TOP_ROW_Y0_MM } from "../push-to-open.js";
 import {
   GENERATION_PRIORITIES,
   hobWithItsOwnOvenBuildId,
@@ -59,10 +60,16 @@ import {
 } from "./tall-end-rule.js";
 import { planUKitchenComposition } from "./u-composition.js";
 import {
+  hasRoomForATopRow,
   isAnUpperOwedOver,
+  WALL_CABINET_BUILD_ID,
   upperBuildIdOver,
+  TOP_ROLE,
+  TOP_STEP_ID_PREFIX,
   upperRoleOver,
   WALL_ROW_Y0_MM,
+  type TopRole,
+  type UpperRole,
 } from "./upper-policy.js";
 
 /** What a generated kitchen was composed from: the L's or the straight room's two-wall plan, or the
@@ -99,10 +106,13 @@ export interface LoggedSetWidth {
 
 export type GenerationCommand = LoggedInsertBody | LoggedSetWidth;
 
+/** Every role a log step carries: a planned base, the upper or hood over one, or the top cabinet over an upper. */
+export type GenerationStepRole = GenerationBaseRole | UpperRole | TopRole;
+
 export type GenerationStep =
   | {
       readonly id: string;
-      readonly role: GenerationBaseRole | "upper" | "hood";
+      readonly role: GenerationStepRole;
       readonly buildId: string;
       readonly status: "placed";
       readonly placementId: string;
@@ -110,7 +120,7 @@ export type GenerationStep =
     }
   | {
       readonly id: string;
-      readonly role: GenerationBaseRole | "upper" | "hood";
+      readonly role: GenerationStepRole;
       readonly buildId: string;
       readonly status: "not_placed";
       readonly reason: RejectionReason | GenerationPlanningReason;
@@ -467,19 +477,30 @@ function compose(args: {
       continue;
     }
     const base = placementById(world.design, baseId);
-    const applied = insertUpper(
+    const applied = insertOver(
       world,
-      base,
-      upperId,
-      upperRole,
-      upperBuildId,
-      args.probe,
-      args.input.occurredAt,
+      {
+        id: upperId,
+        role: upperRole,
+        buildId: upperBuildId,
+        floorMm: WALL_ROW_Y0_MM,
+        over: base,
+      },
+      { probe: args.probe, occurredAt: args.input.occurredAt },
     );
     world = applied.world;
     commands.push(...applied.commands);
     steps.push(applied.step);
   }
+
+  const topRow = insertTopRow(world, steps, {
+    room: args.input.room,
+    occurredAt: args.input.occurredAt,
+    probe: args.probe,
+  });
+  world = topRow.world;
+  commands.push(...topRow.commands);
+  steps.push(...topRow.steps);
 
   const hasMinimum = ["sink", "hob"].every((role) =>
     steps.some((step) => step.id === role && step.status === "placed"),
@@ -580,35 +601,39 @@ function insertPlannedBase(
   };
 }
 
-function insertUpper(
+/** One insert into the opening over `over`: the same span, a row's floor, the body that row takes. */
+interface InsertOverSpec {
+  readonly id: string;
+  readonly role: UpperRole | TopRole;
+  readonly buildId: string;
+  readonly floorMm: number;
+  readonly over: DesignPlacement;
+}
+
+function insertOver(
   world: GenerationWorld,
-  base: DesignPlacement,
-  id: string,
-  role: "upper" | "hood",
-  buildId: string,
-  probe: BodyProbe,
-  occurredAt: string,
+  spec: InsertOverSpec,
+  when: { readonly probe: BodyProbe; readonly occurredAt: string },
 ): {
   readonly world: GenerationWorld;
   readonly step: GenerationStep;
   readonly commands: readonly GenerationCommand[];
 } {
-  const startMm = base.alongMm - base.body.widthMm / 2;
-  const endMm = base.alongMm + base.body.widthMm / 2;
+  const { id, role, buildId, over } = spec;
   const target = plannedVoid(
     world.voids,
-    base.wall,
-    WALL_ROW_Y0_MM,
-    startMm,
-    endMm,
+    over.wall,
+    spec.floorMm,
+    over.alongMm - over.body.widthMm / 2,
+    over.alongMm + over.body.widthMm / 2,
   );
   const command: LoggedInsertBody = {
     type: "insert_body",
     targetVoidId: target.id,
     buildId,
-    occurredAt,
+    occurredAt: when.occurredAt,
   };
-  const applied = runCommand(world, command, probe);
+  const applied = runCommand(world, command, when.probe);
   if (!applied.result.ok) {
     return {
       world,
@@ -619,12 +644,63 @@ function insertUpper(
   if (applied.result.effect.type !== "body_inserted") {
     throw new Error("generateKitchen: insertBody returned a non-insert effect");
   }
-  const placementId = applied.result.effect.placementId;
   return {
     world: applied.world,
-    step: placed(id, role, buildId, placementId, [command]),
+    step: placed(id, role, buildId, applied.result.effect.placementId, [
+      command,
+    ]),
     commands: [command],
   };
+}
+
+/** ADR 0110 Amendment O9: one top-row cabinet over every upper placed in the wall row (the hood
+ *  included), in a room tall enough to hold it. It stands over the upper and not over the base, so a
+ *  full-height body, which has no upper, has none, and neither does a large U's back wall, whose
+ *  hood is the one upper it carries. */
+function insertTopRow(
+  world: GenerationWorld,
+  steps: readonly GenerationStep[],
+  input: {
+    readonly room: Design["room"];
+    readonly occurredAt: string;
+    readonly probe: BodyProbe;
+  },
+): {
+  readonly world: GenerationWorld;
+  readonly steps: readonly GenerationStep[];
+  readonly commands: readonly GenerationCommand[];
+} {
+  const topSteps: GenerationStep[] = [];
+  const commands: GenerationCommand[] = [];
+  let current = world;
+  if (!hasRoomForATopRow(input.room)) {
+    return { world, steps: topSteps, commands };
+  }
+  for (const upper of steps.filter(isAPlacedUpper)) {
+    const applied = insertOver(
+      current,
+      {
+        id: `${TOP_STEP_ID_PREFIX}${upper.id}`,
+        role: TOP_ROLE,
+        buildId: WALL_CABINET_BUILD_ID,
+        floorMm: TOP_ROW_Y0_MM,
+        over: placementById(current.design, upper.placementId),
+      },
+      { probe: input.probe, occurredAt: input.occurredAt },
+    );
+    current = applied.world;
+    commands.push(...applied.commands);
+    topSteps.push(applied.step);
+  }
+  return { world: current, steps: topSteps, commands };
+}
+
+function isAPlacedUpper(
+  step: GenerationStep,
+): step is Extract<GenerationStep, { readonly status: "placed" }> {
+  return (
+    step.status === "placed" && (step.role === "upper" || step.role === "hood")
+  );
 }
 
 function runCommand(

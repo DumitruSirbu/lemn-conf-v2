@@ -1,12 +1,14 @@
 // Which planned bases get an upper, and which upper it is (ADR 0110 Amendments C and E7, and *N3
 // revised* 9-11 for a U). `generateKitchen` places an upper by `insertBody` into the shell's wall-row
 // void above a base, so an upper this policy does not owe leaves its void behind, and the editor's
-// ordinary insert reaches it (N11, RQ7).
+// ordinary insert reaches it (N11, RQ7). The top row (ADR 0110 Amendment O9) follows the upper: one
+// 400 mm cabinet over each upper placed, so it stands over no full-height body and, on a large U's back
+// wall, over the hood alone; `isATopRowFitting` is the one question the room is asked.
 //
 // What a U adds to the L's rule, and no more:
-// - **A large U's back wall is base-only** (*N3 revised* 11, RQ7, owner): no wall-row or top-row body
-//   is generated on wall A, and the hood over the hob stays, because a hood is an appliance and the
-//   owner's reason was the cost of furniture.
+// - **A large U's back wall is base-only** (*N3 revised* 11, RQ7, owner): no other wall-row or top-row
+//   body is generated on wall A, and the hood over the hob stays, with its top cabinet, because a hood
+//   is an appliance and the owner's reason was the cost of furniture.
 // - Below 10 m the uppers follow C and E7 as the L's do: over the back wall (the wall-A fill at its own
 //   width included, N11.9), over the far wall's door bases (RQ14, "Base + uppers"), and never over a
 //   full-height body.
@@ -15,7 +17,9 @@
 //   (`uShellFloorRuns`), so an upper over a base is never over a corner zone. What guards it is the
 //   property over generated designs, which reads the shell's own wall-only strips,
 //   which only a large U's back wall records (the corner wall unit covers the others).
+import { HEIGHT_FLEX_MIN_OPENING_MM } from "../commands/insert-fit.js";
 import type { DesignRoom } from "../design.js";
+import { TOP_ROW_Y0_MM } from "../push-to-open.js";
 import type { BodyCatalog } from "../void-engine.js";
 import {
   isBackWallBaseOnly,
@@ -27,6 +31,25 @@ export const WALL_CABINET_BUILD_ID = "wall-cabinet";
 export const HOOD_BUILD_ID = "hood";
 
 export type UpperRole = "upper" | "hood";
+
+export type TopRole = "top";
+
+/** The role and the step-id prefix of the top cabinet over an upper: `top:upper:sink`, `top:hood:hob`. */
+export const TOP_ROLE: TopRole = "top";
+export const TOP_STEP_ID_PREFIX = "top:";
+
+/** Whether the room is tall enough for the generated top row (ADR 0110 Amendment O: the owner's "rooms
+ *  at least 2600 high"). The line is derived, not typed: the ceiling less `TOP_ROW_Y0_MM` must reach
+ *  `HEIGHT_FLEX_MIN_OPENING_MM`, which is `insertBody`'s own `OPENING_TOO_SHORT` refusal
+ *  (`insert-fit.ts`), so below it every top void stays empty and no insert is attempted.
+ *
+ *  The shell's corner top unit decides by a second expression (`y0 + height <= room height`,
+ *  `piecesUnderTheCeiling`), which agrees with this one only while that constant equals the unit's 400:
+ *  the test "agrees with the corner's own top units at every height" in
+ *  `qa-c3s1-top-row.adversarial.test.ts` pins both switching at the same millimetre. */
+export function hasRoomForATopRow(room: DesignRoom): boolean {
+  return room.heightMm - TOP_ROW_Y0_MM >= HEIGHT_FLEX_MIN_OPENING_MM;
+}
 
 export function upperRoleOver(planned: UPlannedGenerationBase): UpperRole {
   return planned.role === "hob" ? "hood" : "upper";

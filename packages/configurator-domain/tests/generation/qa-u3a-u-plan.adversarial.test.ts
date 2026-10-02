@@ -16,6 +16,7 @@ import {
 } from "../../src/index.js";
 import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
 import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
+import { withTheTopRowTakenOff } from "../support/before-c3-top-row.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   DIGEST_OCCURRED_AT,
@@ -33,8 +34,13 @@ const SAMPLES = 1500;
 /** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` on the tree
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
  *  module). 933 rooms: 900 L rooms (no corner direction, left, right) and 33 straight rooms. */
-const PRE_WAVE_L_AND_LINEAR_DIGEST =
+const DIGEST_AFTER_C2 =
   "f34c9d8ad5fed98bbd31a9733ed59503a757f0fd3fedc796caed48f9cabd74f1";
+/** The recording as M7C wave C3 restated it: every room 2600 high or more gains a top-row cabinet over each
+ *  wall-row body (the straight rooms too), and no room shorter does. The step above reproduces
+ *  `DIGEST_AFTER_C2` from today's output with those bodies taken off. */
+const DIGEST_AFTER_C3 =
+  "78c7bc964d5cdcef2866169400156ecf37d62638cf847c5923aa1de6db70d973";
 /** The recording as U3a took it, before ADR 0135. ADR 0135 moved the base return's centre, width and
  *  recorded column depth and the X-leg's recorded column depth (`support/before-adr-0135.ts` names
  *  each); the sweep below reproduces this value from today's output with exactly those fields put
@@ -317,7 +323,7 @@ describe("the fridge wall never carries a drawer unit (owner, 2026-09-29)", () =
 });
 
 describe("the L, the mirrored L and the straight kitchen are byte-identical to the pre-wave tree (U3a AC4)", () => {
-  it("reproduces the recorded digest over 933 generated kitchens (restated by ADR 0135 and M7C wave C2)", () => {
+  it("reproduces the recorded digest over 933 generated kitchens (restated by ADR 0135, M7C waves C2 and C3)", () => {
     const digest = digestGeneratedKitchens((room) =>
       generateKitchen({
         room: room as DesignRoom,
@@ -326,17 +332,33 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
       }),
     );
 
-    expect(digest).toBe(PRE_WAVE_L_AND_LINEAR_DIGEST);
+    expect(digest).toBe(DIGEST_AFTER_C3);
   });
 
-  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers", () => {
+  it("differs from the C2 recording only by the top row's cabinets, steps and commands", () => {
     const digest = digestGeneratedKitchens((room) =>
-      withTheCornerUnitPutBack(
+      withTheTopRowTakenOff(
         generateKitchen({
           room: room as DesignRoom,
           occurredAt: DIGEST_OCCURRED_AT,
           probeAt: createFakeProbeFactory(),
         }),
+      ),
+    );
+
+    expect(digest).toBe(DIGEST_AFTER_C2);
+  });
+
+  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers", () => {
+    const digest = digestGeneratedKitchens((room) =>
+      withTheCornerUnitPutBack(
+        withTheTopRowTakenOff(
+          generateKitchen({
+            room: room as DesignRoom,
+            occurredAt: DIGEST_OCCURRED_AT,
+            probeAt: createFakeProbeFactory(),
+          }),
+        ),
       ),
     );
 
@@ -347,11 +369,13 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
     const digest = digestGeneratedKitchens((room) =>
       asBeforeAdr0135(
         withTheCornerUnitPutBack(
-          generateKitchen({
-            room: room as DesignRoom,
-            occurredAt: DIGEST_OCCURRED_AT,
-            probeAt: createFakeProbeFactory(),
-          }),
+          withTheTopRowTakenOff(
+            generateKitchen({
+              room: room as DesignRoom,
+              occurredAt: DIGEST_OCCURRED_AT,
+              probeAt: createFakeProbeFactory(),
+            }),
+          ),
         ),
       ),
     );

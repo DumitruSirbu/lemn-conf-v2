@@ -132,7 +132,7 @@ function isTallColumn(base: { readonly buildId: string }): boolean {
 }
 
 function baseSteps(steps: readonly GenerationStep[]) {
-  return steps.filter((step) => !["upper", "hood"].includes(step.role));
+  return steps.filter((step) => !["upper", "hood", "top"].includes(step.role));
 }
 
 function commandKey(command: GenerationCommand): string {
@@ -762,11 +762,18 @@ describe("7D2 command and log truth", () => {
           .flatMap((step) => step.commands)
           .map(commandKey),
       );
+      const topInsertKeys = new Set(
+        result.log.steps
+          .filter((step) => step.role === "top")
+          .flatMap((step) => step.commands)
+          .map(commandKey),
+      );
       const phases = result.log.commands.map((command) => {
         const key = commandKey(command);
         if (baseInsertKeys.has(key)) return 0;
         if (resizeKeys.has(key)) return 1;
         if (upperInsertKeys.has(key)) return 2;
+        if (topInsertKeys.has(key)) return 3;
         throw new Error(`unclassified command ${key}`);
       });
       expect(phases).toEqual([...phases].sort());

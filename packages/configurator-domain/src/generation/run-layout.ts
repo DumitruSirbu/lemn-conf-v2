@@ -150,10 +150,10 @@ export function isLargeU(room: DesignRoom): boolean {
 }
 
 /** *N3 revised* 11 (and C2, Q8 (iii)): whether the back wall, wall A, carries no wall-row or top-row body
- *  in this room. Only a large U's does: its wall-A strips are tiled and its hood is the one body above
- *  its base row. Read by the shell, for which pieces stand over a corner and which rows its wall-A run
- *  starts past, and by the upper policy, for which bases are owed an upper, so the two cannot disagree
- *  (ADR 0102). */
+ *  in this room, the hood and the top cabinet over it aside. Only a large U's does: its wall-A strips
+ *  are tiled and nothing else stands above its base row. Read by the shell, for which pieces stand over
+ *  a corner and which rows its wall-A run starts past, and by the upper policy, for which bases are owed
+ *  an upper, so the two cannot disagree (ADR 0102). */
 export function isBackWallBaseOnly(room: DesignRoom): boolean {
   return room.shape === "U" && isLargeU(room);
 }

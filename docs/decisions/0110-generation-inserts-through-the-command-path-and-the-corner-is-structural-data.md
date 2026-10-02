@@ -7,7 +7,7 @@ Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-
 
 **Pointer, 2026-10-01 — Amendment O (the last section of this file) is the owner's answer to M7C's
 Q2.** It overturns 7D1-Q1 criterion 14, restates B2's zero start for wall A, strikes 7D6 J2, overrides
-E12.4 for one unit, withdraws E11.1 and E11.3 (decided, not built) and records the fridge-gap absorb
+E12.4 for one unit, withdraws E11.1 and E11.3 (the top row is built in C3 S1, not committed) and records the fridge-gap absorb
 (decided, not built). Nothing above is erased.
 
 ## Context
@@ -4698,8 +4698,8 @@ and the price book), not a composition change. It would be its own item.
 `docs/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
 as `075529b` (the builder, nothing mounted). C2 S2 (the domain, the shell, the prices, the validator) is
 committed as `0a1a69a` (hashes read from the branch's reflog). Both are on branch `m7c-m7-feedback-fixes`,
-not pushed and not run on the CI runner; the figures in O8 were measured by QA before the commit. **O9 (the top row) and O10 (the fridge-gap absorb) are
-decided and not built**: waves C3 and C5. Labels: **[doc-quoted]** from the plan or a record,
+not pushed and not run on the CI runner; the figures in O8 were measured by QA before the commit. **O9 (the top row, wave C3) is decided, and its slice S1 is built and measured but not committed;
+O10 (the fridge-gap absorb, wave C5) is decided and not built.** Labels: **[doc-quoted]** from the plan or a record,
 **[relayed]** measured or stated by QA, a reviewer or the coordinator and not re-run by the scribe,
 **[source-verified]** read at the file named, **[inference]**.
 
@@ -4857,16 +4857,53 @@ twice not confusing a breakdown. Both are marked *pending owner input*.
 room that gets the unit. It remains on the seeded kitchen, on the back wall of a U of 10 m or more, and on
 designs stored before this change.
 
-### O9 — the top row (Q4): DECIDED, NOT BUILT (wave C3)
+### O9 — the top row (Q4): decided; wave C3 slice S1 built and measured, NOT COMMITTED
 
 **Q4 (M7-FB-003), a relayed selection: *"Generate a top row"*.** [doc-quoted: plan, Q4.] A 400 mm
 push-to-open cabinet above every wall cabinet and above the hood, in every shape, in rooms at least
 2600 mm high; doors, not lift fronts; none above tall columns. About 6 more cabinets per kitchen
-[plan, C0], so the price rises. **E11 is withdrawn: E11.1 and E11.3 are struck by name** (E11.1: *"Composition
-places no body in the top row (2200–2600)"*, owner 2026-09-14, *"let's stick to what we have now. Get some
-feedback."*). **F9's lift rule is recorded as not applied**, its 120–165 mm clearance note kept; F9's trigger
-(*"the first wave that composes a top row"*) is C3's. **Nothing of this is built.** The corner's top unit
-(O2) is the shell's and is not a top-row body; C3's count excludes structural pieces.
+[plan, C0], so the price rises. The owner was told the price would rise when selecting. **E11 is withdrawn:
+E11.1 and E11.3 are struck by name** (E11.1: *"Composition places no body in the top row (2200–2600)"*,
+owner 2026-09-14, *"let's stick to what we have now. Get some feedback."*; E11.3's taller uppers are
+**withdrawn, not built**: a room of 3900 gets a 400 mm top cabinet with wall above it). **F9's lift rule is
+not taken** (doors, not lifts), its 120–165 mm clearance note kept; F9's trigger (*"the first wave that
+composes a top row"*) is C3's. The corner's top unit (O2) is the shell's and is not a top-row body; C3's
+count excludes structural pieces.
+
+**What C3 S1 built** (implemented, QA green on the full census, logic review approve; clean-code fixes and
+the visual check pending; **not committed**, so its hash is added at wave close). Everything below is
+[relayed: logic review R8.8 and QA, via the coordinator], checked against the plan's *C3* section where the
+plan speaks.
+
+1. **The rule.** Generation inserts, through logged `insert_body` commands, after every upper and hood, one
+   400 mm `wall-cabinet` at y 2200 over each generated wall cabinet and over the hood, of the span of the
+   body below. Its door count follows its width by the catalogue rule the cabinet below follows. **None** over
+   a fridge, a full-height column or a corner piece (the corner carries its own top unit). On a **large U**
+   (10 m or more, O4) only the hood on the back wall gets one, since the back wall is base-only.
+2. **The 2600 line is derived, not stated.** It is `TOP_ROW_Y0_MM` (2200) plus
+   `HEIGHT_FLEX_MIN_OPENING_MM` (400), which mirrors `insertBody`'s own `OPENING_TOO_SHORT` refusal. The
+   corner top unit uses a second expression (its y0 plus its height no more than the room height). The two
+   agree while that constant equals the unit's 400. QA pins that both switch at the same millimetre: no top
+   row to 2599, a top row from exactly 2600, always 400 high. [The plan states only *"at least 2600 mm
+   high"*.]
+3. **No recorded handle.** Push-to-open is resolved by the slot (y0 at or above 2200), as
+   `DEVELOPMENT-SPEC.md` §13.1 has it and as ADR 0011 Gap C decided (`top` is a row, not a catalogue band;
+   push-to-open is decided by the slot, not the body, `0011…md:149`). A top body's record band therefore
+   reads `wall` by design. The per-cabinet handle command can still show a bar, reversibly. **There is no
+   kitchen-wide handle command**: the plan's criterion 3 (*"a kitchen-wide handle change does not show a bar
+   on it"*) names one that does not exist.
+4. **A refused top insert is a `not_placed` step, not a throw**, as for the wall row. QA found none in the
+   census.
+5. **Measured** (QA, full census): L 245,211, U 92,781 and straight 5,101 rooms, heights 2400 to 3900, depth
+   700. The only difference from C2's output is the top bodies. 0 findings; 0 verdict changes. Peak 54
+   placements against the cap of 279 (`design-bounds.ts:133`, read; the plan's C0 predicted 54). Designs
+   stored before the change load unchanged, with no top row forced in.
+6. **Price consequence, placeholders.** One `cabinet.wall-cabinet` line per top body plus its hardware
+   line. L 4100 / 3300 / 2600: 5,999,920 → 7,634,640 (about +27 %). U 4000 / 3000 / 2800: 8,620,720 →
+   10,576,480 (the book's units). **The owner was told the price would rise and has been shown these
+   figures. No answer on the amount has been given, and none is recorded as accepted.**
+7. **Dated notes.** E11.1 and E11.3 are withdrawn by the owner on 2026-10-01. F9's lift rule is not taken.
+   **ADR 0117's *"no top row"* statement (`:283`, read) is superseded for generation**, by this ruling.
 
 ### O10 — the fridge-gap absorb (Q6): DECIDED, NOT BUILT (wave C5)
 
@@ -4882,7 +4919,7 @@ cabinet through a standing fridge, is **not built** and is backlog 104 (§13.2's
 
 | Record | What it says | How it is settled |
 | --- | --- | --- |
-| This ADR, E11.1 and E11.3; F9 | No generated top row; a composed top row is lift cabinets. | **Struck / not applied by O9**, decided, not built. |
+| This ADR, E11.1 and E11.3; F9 | No generated top row; a composed top row is lift cabinets. | **Struck / not applied by O9**: decided; C3 S1 built and measured, not committed. |
 | This ADR, B2; 7D1-Q1 c. 14; 7D6 J2 | Zero start over the corner; an empty column; four corner pieces. | **Restated, overturned and struck by O3.** |
 | This ADR, N1.3, *N3 revised* 11 | The back wall is base-only in a large U. | **Unchanged** (O4). |
 | This ADR, A4, D2, *N3 revised* 4, RQ25a; E6; F7 | Remainders stay bare; E6 absorbs ≤ 200 beside a tower; the 100 mm side reserve. | **Departed from for one case (O10)**, F7 kept. |

@@ -136,10 +136,20 @@ describe("generateKitchen", () => {
       ["upper", "hood"].includes(step.role),
     );
     expect(firstUpperIndex).toBeGreaterThan(0);
+    // The top row (ADR 0110 Amendment O9) closes the log: after the uppers, and only top steps follow.
+    const firstTopIndex = result.log.steps.findIndex(
+      (step) => step.role === "top",
+    );
+    expect(firstTopIndex).toBeGreaterThan(firstUpperIndex);
     expect(
       result.log.steps
-        .slice(firstUpperIndex)
+        .slice(firstUpperIndex, firstTopIndex)
         .every((step) => ["upper", "hood"].includes(step.role)),
+    ).toBe(true);
+    expect(
+      result.log.steps
+        .slice(firstTopIndex)
+        .every((step) => step.role === "top"),
     ).toBe(true);
     for (const step of placedSteps) {
       expect(
@@ -807,7 +817,8 @@ function upperMismatches(input: {
       (step) =>
         !suppressed.has(step.id) &&
         step.role !== "upper" &&
-        step.role !== "hood",
+        step.role !== "hood" &&
+        step.role !== "top",
     )
     .flatMap((baseStep) => {
       const upperRole = baseStep.id === "hob" ? "hood" : "upper";

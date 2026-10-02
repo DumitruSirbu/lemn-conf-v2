@@ -7,6 +7,10 @@ Type: Decision (owner ruling + adjudication)
 Milestone: M7 — cited by waves 7B, 7C, 7P1, 7P2 and 7G (matching, authoring, thumbnail) and binding
 on every generation wave from 7D3 onward (architect's plan, `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-10-01 — *"no top row"* (`:283`) is superseded for generation** by the owner's Q4 selection,
+*"Generate a top row"*; wave C3 S1 builds it (not yet committed): [ADR 0110 Amendment O](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb),
+O9. The baseline is dearer by one top cabinet per upper and hood. Nothing here is struck.
+
 **Pointer, 2026-10-01 — narrowed for one unit.** The owner's Q2 instruction (M7C) puts a new, priced,
 structural corner wall unit into every generated kitchen with a corner, which departs from
 *"new bodies wait for beta"* (ADR 0110 E12.4) for that unit only; see

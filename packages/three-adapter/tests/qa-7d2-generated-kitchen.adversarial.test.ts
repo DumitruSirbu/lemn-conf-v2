@@ -191,11 +191,23 @@ function assertDomainParity(design: Design): void {
       (upper) => upper.wall === "A" && placementInterval(upper).startMm < 900,
     ),
   ).toEqual([]);
+  // M7C wave C3 (ADR 0110 Amendment O9): a room 2600 high or more has one 400 mm wall cabinet over
+  // exactly each upper (the hood included), and a lower room has none — it was none everywhere before.
+  const topRow = design.placements.filter(
+    (placement) => placement.id.startsWith("n") && placement.y0Mm >= 2200,
+  );
+  const owedTopSpans = design.room.heightMm >= 2600 ? uppers : [];
+  expect(topRow.map(spanOf).sort()).toEqual(owedTopSpans.map(spanOf).sort());
   expect(
-    design.placements.filter(
-      (placement) => placement.id.startsWith("n") && placement.y0Mm >= 2200,
+    topRow.every(
+      (top) => top.body.buildId === "wall-cabinet" && top.body.heightMm === 400,
     ),
-  ).toEqual([]);
+  ).toBe(true);
+}
+
+function spanOf(placement: Design["placements"][number]): string {
+  const { startMm, endMm } = placementInterval(placement);
+  return `${placement.wall}:${String(startMm)}-${String(endMm)}`;
 }
 
 function assertWallSeatsAndIntersections(rendered: RenderedDesign): void {
