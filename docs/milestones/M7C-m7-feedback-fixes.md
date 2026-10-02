@@ -220,7 +220,7 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | C2 | FB-004, FB-011 | P0 | Full + visual | **Done**: S0; S1 `075529b`; S2 `0a1a69a` |
 | C3 | FB-003 | P1 | Full + visual | **Done** (`02b1c7b`) |
 | C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
-| C7 | FB-013 | P1 | Full + visual | S0 **ready** |
+| C7 | FB-013 | P1 | Full + visual | S0 confirmed the cause (census finishing); S1 **ready** |
 | C5 | FB-010 | P2 | Full | After C7 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | After C5 (owner) |
 | C6 | Phase gate | — | Coordinator + visual | Last |
@@ -974,31 +974,81 @@ customer, stored. It does not share a file with C5.
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S0 | No production code. (1) Reproduce both witnesses and print the two runs as the predicate sees them and as they are. (2) Every caller of `overlapsAlongWall`, and the three sibling predicates that say they follow it (`merge-empty-columns.ts`, `validate-width-result.ts`, `split-column.ts`): which pass a centre, which a start. (3) **Stored or derived:** `hasFullHeightUnder` is re-answered on every load (`withCurrentFullHeightMembers`), but the body built deep records its own `seatDepthMm` and its column's `depthMm`; say exactly what a stored design keeps after the fix and what changes on its next load, its next edit and its next depth change. (4) The full census per shape and wall: columns that flip from lifted to capped, **and from capped to lifted**. (5) The seeded kitchen: its pinned deep tops stand over members of their own width, so they should not move [arithmetic]; confirm. (6) What the editor offers in an affected opening before and after. | — | this section; `void-engine.ts` `withCurrentFullHeightMembers` to `overlapsAlongWall`; `module-grid.ts` `alongWallCoordinate`; `insert-fit.ts` about `:820-860`; `cabinet-depth-rule.ts` `columnBuildDepthMm`; `replan-dependent-members.ts`; ADR 0101, 0058, 0060, 0103, 0053, 0038; `DEVELOPMENT-SPEC.md` §3.2, §4, §7 and the §11 rows on wall depth |
-| S1 | The predicate compares spans. One function; its two callers unchanged. Cut finally after S0. | `void-engine.ts`; a sibling predicate only if S0 finds the same error in it | S0's output; the same records |
+| S1 | The predicate compares spans, as the dispatch below. | `void-engine.ts` | the dispatch's list |
 
-*Criteria for the fix.*
-1. `overlapsAlongWall` answers true iff the two along-wall **spans** overlap by more than
-   `SPAN_EPSILON_M`, for equal and unequal widths, in either order, on walls A, B and C. **[prop]**
-2. In every generated kitchen, every wall-row and top-row body is the wall depth (330 at 600, 400 at
-   700) unless its span overlaps a full-height member's. S0's census of lifted-to-capped rooms goes
-   to zero; its capped-to-lifted rooms are each explained, and none is beside a fridge.
-3. ADR 0101's rule holds where it is meant, and the seeded kitchen's pinned deep tops (ADR 0058) are
-   byte-identical. No other body of any generated design moves; no finding is gained.
-4. **Stored designs:** none is rewritten by a load. What S0 found a stored design keeps is stated in the
-   close-out and filed, under ADR 0038, beside backlog 107; a stored deep cabinet must not turn into a
-   finding or a refused load.
-5. The re-plan trigger (ADR 0103) is checked on its own: a body inserted under a wall cabinet of a
-   different width re-plans exactly the columns its span crosses.
-6. *Must not:* a depth special-cased by body id or by *"beside a fridge"*; a second definition of the
-   overlap; an upper over the fridge (ADR 0110 E7).
+**Owner ruling, verbatim, 2026-10-02:** *"don't think about existing saved kitchens, we are in
+development we can remove anything as is not used by anybody, just fix this wrong depth on generating
+new kitchen and inserting cabinets"*. So: no stored-design handling, no migration, no read-side healing.
+(For the scribe: this is ADR 0038 d1's pre-release position in the owner's own words.)
 
-**If S0 shows a stored design changes what a customer sees or what the editor offers in a way the
-records do not cover, the fix returns to planning before S1**, and the owner is told what changes.
+**S0, QA on `02b1c7b`; the cause is confirmed, the counts are interim until the census finishes.**
+- The 700 fridge and the 600 column beside it read as overlapping by 50 mm on both witnesses; the true
+  overlap is 0. Both callers pass centres (`void-engine.ts:1523`; `replan-dependent-members.ts:143`).
+- The predicate alone is wrong in 463 of 4,824 cases: 210 false positives, 253 false negatives. A
+  corrected copy is right in all.
+- The deep seat is **stored** on the placement (`seatDepthMm` 561); the column extent's `depthMm` is 620
+  and does not change.
+- **The editor has the defect too:** a wall cabinet, lift or open shelf inserted beside the fridge is
+  built 600 deep; inserting a 700 fridge or a pantry beside a shallow 600 column re-plans the cabinets
+  above that column deep. A 600 oven tower does not trigger it (equal widths).
+- The seeded kitchen does not change: its three deep tops are deep by their declared 561 frame, over
+  members of their own width.
+- Coarse census so far: every changed room differs only by seats 561 → 291; no finding, void, offer,
+  verdict or price changes.
 
-*Visual evidence:* both witnesses before and after, the fridge's side in frame, at 600 and 700; one
-room where a narrow wall cabinet over the low end of a wider column becomes lifted, if S0 finds one.
-*QA reading:* the criteria, S0's output and scripts. *Logic reviewer:* ADR 0101, 0058, 0103, S0's
-output, the diff. *Clean-code reviewer:* the diff. *Visual:* the captures.
+**C7 S1 — dispatch, to paste.** *Full + visual. Void-engine algebra: check the change against ADR 0101
+and ADR 0103's intent before writing; stop and report on a conflict. Never `git stash`, `git stash pop`,
+`git checkout -- .`, `git reset --hard` or `git clean`.*
+1. `overlapsAlongWall` compares the two **spans**: each run from `centre − w/2` to `centre + w/2`,
+   positive overlap beyond `SPAN_EPSILON_M`. One definition; its two callers are not edited.
+2. The three siblings that say they follow it (`merge-empty-columns.ts`, `validate-width-result.ts`,
+   `split-column.ts`): a test each, on unequal widths in both orders. A sibling is changed only if its
+   test fails, and that is reported before it is done.
+3. Restate, each with its reason: the generation digests C2 and C3 last restated, and any test that
+   pins a 561 seat beside a fridge.
+
+*Files:* `packages/configurator-domain/src/void-engine.ts`. *Must not:* any migration, read-side
+healing or other stored-design code (owner, above); a depth special-cased by body id or by *"beside a
+fridge"*; a second definition of the overlap; an upper over the fridge (ADR 0110 E7).
+
+*Criteria.*
+1. The predicate is true iff the spans overlap by more than `SPAN_EPSILON_M`: equal and unequal
+   widths, either order, walls A, B and C, abutting exactly, overlapping by 1 mm. **[prop]** QA's
+   4,824 cases all agree.
+2. **Generated:** on the full census, no wall-row or top-row body is deeper than the wall depth (330 at
+   600, 400 at 700) unless its span overlaps a full-height member's. The count of rooms that change is
+   stated per shape, and every change is a seat 561 → 291 on a body beside, not over, a full-height
+   member.
+3. **Editor, both directions.** *Beside:* inserting a wall cabinet, a lift or an open shelf in the
+   column next to a fridge or a tall column gives the wall depth; inserting a 700 fridge or a pantry
+   beside a shallow column leaves the cabinets above that column as they were. *Over:* a wall or top
+   body whose span truly overlaps a full-height member is built deep, **including a narrow column over
+   the low end of a wider tall member**, which `HEAD` wrongly leaves shallow; and a tall body inserted
+   beneath standing wall cabinets re-plans exactly the columns its span crosses (ADR 0103 d3). Each by
+   insert, by replace and by a resize that makes or ends the overlap.
+4. The seeded kitchen is byte-identical, its three deep tops included (ADR 0058).
+5. **Nothing else moves:** for every generated design, voids, offers, findings, validator verdicts and
+   prices are identical before and after; only seats change.
+6. **The column extent's recorded `depthMm` is not changed by this slice.** It is §3.2's clearance, the
+   MAX over the members' occupied depths (ADR 0060 d1), and the base cabinet in that column supplies it
+   (620). It is not the depth a wall body is built to. A changed `depthMm` is a finding.
+
+*What the customer sees change in the "over" direction.* A narrow wall or top cabinet standing over the
+end of a wider tall cabinet is built flush with that tall cabinet's front, where today it is built
+shallow and sits back from it. **No generated room should hit it:** generation places no upper over a
+full-height body (ADR 0110 E7) and no top-row body over a tall column (Q4). *Measure:* that the census
+shows no capped-to-lifted change; if it shows one, stop and report.
+
+*Also measure:* the final count of changed rooms per shape and wall; a 600 → 700 → 600 round trip on
+both witnesses leaves the cabinet beside the fridge at the wall depth; the digests' old and new values.
+*Reading:* this section; `void-engine.ts` from `withCurrentFullHeightMembers` to `overlapsAlongWall`;
+`module-grid.ts` `alongWallCoordinate`; `insert-fit.ts` about `:820-860`; `cabinet-depth-rule.ts`
+`columnBuildDepthMm`; `replan-dependent-members.ts`; ADR 0101, 0103, 0058, 0060, 0028;
+`DEVELOPMENT-SPEC.md` §3.2, §4, §7 and the §11 rows on wall depth; QA's S0 scripts and outputs.
+*Visual evidence:* both witnesses before and after, the fridge's side in frame, at 600 and 700; the
+editor after inserting a wall cabinet beside the fridge; a narrow cabinet over the end of a pantry.
+*QA reading:* the criteria, S0's scripts. *Logic reviewer:* ADR 0101, 0103, 0058, the diff.
+*Clean-code reviewer:* the diff. *Visual:* the captures.
 
 ### C5 — the leftover beside a fixed-width end body (domain)
 

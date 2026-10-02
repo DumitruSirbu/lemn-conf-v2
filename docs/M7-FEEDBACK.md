@@ -53,7 +53,7 @@ the classification and the evidence for each item. The reporter's text above and
 | M7-FB-010 | The generator half is planned. The editor half (resize through the fridge) is a rejected direction in the design reference and is not built without the owner's word. The owner chose the generator half, gaps under 300 mm (2026-10-01); the editor half goes to the backlog. | M7C wave C5 |
 | M7-FB-011 | The same gap as M7-FB-004, on the L. "The earlier mock" is read as the reference L kitchen, which has wall cabinets over the corner base. The owner asked for a fixed, non-editable corner unit covering the whole corner (2026-10-01). | M7C wave C2 |
 | M7-FB-012 | Nine tests fail across six of seven e2e shards on `main` at `2615b51`; nothing was re-run and no cause is established. Re-run and grouped first, then fixed per group. M7C's phase gate needs a green runner. | M7C wave CE |
-| M7-FB-013 | Pre-existing: present before C3 in 351 of 481 straight and 371 of 2,544 L rooms QA sampled. Read from source, not yet run: the engine compares two runs by their centres as if they were starts, so a 700 mm fridge beside a 600 mm column reads as overlapping it. It is in the engine every design uses, not in generation. A confirming slice runs first. | M7C wave C7 |
+| M7-FB-013 | Pre-existing: present before C3 in 351 of 481 straight and 371 of 2,544 L rooms QA sampled. Read from source, not yet run: the engine compares two runs by their centres as if they were starts, so a 700 mm fridge beside a 600 mm column reads as overlapping it. It is in the engine every design uses, not in generation. Confirmed by QA on 2026-10-02. The owner ruled the same day that saved kitchens are not handled: only newly generated kitchens and newly inserted cabinets are fixed. | M7C wave C7 |
 
 ## Details
 
@@ -188,3 +188,7 @@ kitchen 2500 mm wide and an L 900 / 3500, room height 2600. The wall cabinet nex
 600 mm deep against 330 mm neighbours; the fridge's front is at 740 mm, so the cabinet is neither in
 line with its row nor flush with the fridge. With the top row generated (C3), a second deep cabinet
 stands on it.
+
+The owner's ruling on the fix, verbatim, 2026-10-02: *"don't think about existing saved kitchens, we
+are in development we can remove anything as is not used by anybody, just fix this wrong depth on
+generating new kitchen and inserting cabinets"*.
