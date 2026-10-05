@@ -5,7 +5,8 @@
 // extras and the tower. `u-tall-layout.ts` lays out the fridge gap and the far wall. This module runs
 // the attempts in order and assembles what they return, then finishes wall A in two steps: its bodies
 // are justified to its low end (ADR 0110 N11.8), and its remainder of 300-599 mm takes a door base
-// (N11.9). Both come last, so nothing upstream reads them.
+// (N11.9). Both come last, so nothing upstream reads them. The plan's last step is the owner's Q6 (M7C
+// wave C5 S2): a 50-299 mm leftover beyond an end fridge goes to the door base inboard of it.
 //
 // **A wall letter is read in two places, both in `u-fridge-wall.ts`** (ADR 0110 I's role-versus-letter
 // lesson): `fridgeWallCandidates` compares the two side walls' entered lengths to choose the fridge
@@ -17,6 +18,7 @@
 // 0132 decision 8), and this module never asks the room for one at all.
 import type { DesignRoom, DesignWall } from "../design.js";
 import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
+import { withTheLeftoverBesideTheFridgeAbsorbed } from "./fridge-end-leftover.js";
 import { GENERATION_PRIORITIES } from "./generation-priorities.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
@@ -117,7 +119,7 @@ function composedPlan(context: AttemptContext): UKitchenCompositionPlan {
     runs.A,
   );
   const { towerPosition } = composed;
-  return {
+  return withTheLeftoverBesideTheFridgeAbsorbed({
     room,
     bases,
     floorWidthsMm: floorWidthsMmOf(bases),
@@ -126,7 +128,7 @@ function composedPlan(context: AttemptContext): UKitchenCompositionPlan {
     remainderMm: remainderMmOf(runs, bases),
     fridgePosition: fridge.dropped ? undefined : fridge.position,
     towerPosition,
-  };
+  });
 }
 
 /** ADR 0110 N11.9 (RQ25, owner 2026-09-29): a remainder of at least 300 mm on the back wall takes a

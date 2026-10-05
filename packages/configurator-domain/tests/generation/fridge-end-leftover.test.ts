@@ -9,8 +9,11 @@ import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import type {
+  DesignRoom,
   KitchenCompositionPlan,
   PlannedGenerationBase,
+  UKitchenCompositionPlan,
+  UPlannedGenerationBase,
 } from "../../src/index.js";
 import { withTheLeftoverBesideTheFridgeAbsorbed } from "../../src/generation/fridge-end-leftover.js";
 import {
@@ -128,9 +131,9 @@ function withWidth(widthMm: number, leftoverMm: number): Layout {
 }
 
 function bodyNamed(
-  plan: KitchenCompositionPlan,
+  plan: { readonly bases: readonly UPlannedGenerationBase[] },
   id: string,
-): PlannedGenerationBase {
+): UPlannedGenerationBase {
   const found = plan.bases.find((candidate) => candidate.id === id);
   if (!found) throw new Error(`no ${id} in the plan`);
   return found;
@@ -401,6 +404,170 @@ describe("over every neighbour width and every leftover", () => {
         }
         if (!isInTheWindow) expect(cabinetMm).toBe(widthMm);
       }),
+    );
+  });
+});
+
+// M7C wave C5 S2: the same leaf runs on a U's plan, whose fridge wall is a side wall (B or C) and whose bases
+// are not kept in spatial order.
+describe("on a U's plan", () => {
+  function uBase(
+    spec: Omit<UPlannedGenerationBase, "endMm">,
+  ): UPlannedGenerationBase {
+    return { ...spec, endMm: spec.startMm + spec.widthMm };
+  }
+
+  const U_ROOM: DesignRoom = {
+    shape: "U",
+    widthMm: 4000,
+    depthMm: 2400,
+    wallCMm: 2300,
+    heightMm: 2600,
+  };
+
+  function uPlanOf(args: {
+    readonly fridgeWall: "B" | "C";
+    readonly leftoverMm: number;
+    readonly inboardWidthMm?: number;
+    readonly pantryBeyond?: boolean;
+  }): UKitchenCompositionPlan {
+    const { fridgeWall, leftoverMm } = args;
+    const sink = uBase({
+      id: "sink",
+      role: "sink",
+      buildId: BASE_SINK,
+      wall: "A",
+      startMm: CORNER_END_MM,
+      widthMm: ONE_STORAGE_MODULE_MM,
+    });
+    const nextToTheCorner = uBase({
+      id: NEXT_TO_THE_CORNER,
+      role: "storage",
+      buildId: DOOR_CABINET,
+      wall: fridgeWall,
+      startMm: CORNER_END_MM,
+      widthMm: ONE_STORAGE_MODULE_MM,
+    });
+    const inboard = uBase({
+      id: INBOARD_OF_THE_FRIDGE,
+      role: "storage",
+      buildId: DOOR_CABINET,
+      wall: fridgeWall,
+      startMm: nextToTheCorner.endMm,
+      widthMm: args.inboardWidthMm ?? ONE_STORAGE_MODULE_MM,
+    });
+    const fridge = uBase({
+      id: "fridge",
+      role: "fridge",
+      buildId: "fridge-free",
+      wall: fridgeWall,
+      startMm: inboard.endMm,
+      widthMm: FRIDGE_WIDTH_MM,
+    });
+    const pantry = uBase({
+      id: "fridge-gap:0",
+      role: "storage",
+      buildId: "tall-pantry",
+      wall: fridgeWall,
+      startMm: fridge.endMm,
+      widthMm: 450,
+    });
+    // The fridge first in the array and the cabinet after it: spatial order is the plan's to restore.
+    const onTheWall = [
+      fridge,
+      nextToTheCorner,
+      inboard,
+      ...(args.pantryBeyond ? [pantry] : []),
+    ];
+    const widths = (bases: readonly UPlannedGenerationBase[]) =>
+      [...bases]
+        .sort((left, right) => left.startMm - right.startMm)
+        .map((member) => member.widthMm);
+    return {
+      room: U_ROOM,
+      bases: [sink, ...onTheWall],
+      floorWidthsMm: {
+        A: [ONE_STORAGE_MODULE_MM],
+        B: fridgeWall === "B" ? widths(onTheWall) : [],
+        C: fridgeWall === "C" ? widths(onTheWall) : [],
+      },
+      dropped: [],
+      minimumMet: true,
+      remainderMm: {
+        A: 0,
+        B: fridgeWall === "B" ? leftoverMm : 0,
+        C: fridgeWall === "C" ? leftoverMm : 0,
+      },
+      fridgePosition: 2,
+      towerPosition: undefined,
+    };
+  }
+
+  it.each(["B", "C"] as const)(
+    "gives wall %s's door base the owner's share and moves the fridge out, in spatial order",
+    (fridgeWall) => {
+      const after = withTheLeftoverBesideTheFridgeAbsorbed(
+        uPlanOf({ fridgeWall, leftoverMm: 150 }),
+      );
+
+      expect(bodyNamed(after, INBOARD_OF_THE_FRIDGE).widthMm).toBe(750);
+      expect(bodyNamed(after, "fridge").startMm).toBe(
+        bodyNamed(after, INBOARD_OF_THE_FRIDGE).endMm,
+      );
+      expect(after.remainderMm[fridgeWall]).toBe(0);
+      expect(after.floorWidthsMm[fridgeWall]).toEqual([
+        600,
+        750,
+        FRIDGE_WIDTH_MM,
+      ]);
+      expect(after.remainderMm.A).toBe(0);
+      expect(after.floorWidthsMm.A).toEqual([600]);
+    },
+  );
+
+  it.each([
+    [49, 600, 49],
+    [50, 650, 0],
+    [199, 750, 49],
+    [200, 800, 0],
+    [249, 800, 49],
+    [299, 800, 99],
+    [300, 600, 300],
+  ])(
+    "with %i mm beyond a U's fridge the base stands at %i and %i mm stay bare",
+    (leftoverMm, cabinetMm, bareMm) => {
+      const after = withTheLeftoverBesideTheFridgeAbsorbed(
+        uPlanOf({ fridgeWall: "C", leftoverMm }),
+      );
+
+      expect(bodyNamed(after, INBOARD_OF_THE_FRIDGE).widthMm).toBe(cabinetMm);
+      expect(after.remainderMm.C).toBe(bareMm);
+    },
+  );
+
+  it("keeps a U's own fields and takes nothing where a pantry stands beyond the fridge", () => {
+    const withPantry = uPlanOf({
+      fridgeWall: "B",
+      leftoverMm: 150,
+      pantryBeyond: true,
+    });
+
+    expect(withTheLeftoverBesideTheFridgeAbsorbed(withPantry)).toBe(withPantry);
+    const after = withTheLeftoverBesideTheFridgeAbsorbed(
+      uPlanOf({ fridgeWall: "B", leftoverMm: 150 }),
+    );
+    expect(after.fridgePosition).toBe(2);
+    expect(after.minimumMet).toBe(true);
+  });
+});
+
+describe("a plan that carries a fridge on a wall with no remainder", () => {
+  it("is refused by name, not read as nothing to absorb", () => {
+    const plan = planOf(withWidth(ONE_STORAGE_MODULE_MM, 150));
+    const malformed = { ...plan, remainderMm: { B: 0 } };
+
+    expect(() => withTheLeftoverBesideTheFridgeAbsorbed(malformed)).toThrow(
+      /fridge on wall A but states no remainder/,
     );
   });
 });

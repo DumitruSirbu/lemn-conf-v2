@@ -23,33 +23,35 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   declaredColumnSizes,
-  deriveColumns,
-  derivePlacementRecords,
-  findOverflowingPlacementIds,
-  generateKitchen,
   KITCHEN_L_DESIGN,
   linearShellFloorRuns,
   lShellFloorRuns,
   planKitchenComposition,
-  validateDesignForCatalog,
   wallLengthMm,
-  type Design,
-  type DesignPlacement,
   type DesignRoom,
   type DesignWall,
   type GenerationRun,
   type KitchenCompositionPlan,
 } from "../../src/index.js";
 import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
-import { createFakeProbeFactory } from "../support/fake-probe.js";
-import { unrecordedFloorStripsMm } from "../support/floor-coverage.js";
+import {
+  countTheRoom,
+  emptyCensus,
+  SWEEP_TIMEOUT_MS,
+  type Census,
+} from "../support/fridge-end-census.js";
+import {
+  composed,
+  expectABuiltKitchenThatKeepsEveryRule,
+  fridgeOf,
+  labelOf,
+  spanOf,
+} from "../support/fridge-end-built-kitchen.js";
 import {
   absorbedByTheOwnersRuleMm,
   bodyInboardOfTheEndFridge,
   DOOR_CABINET,
-  OWNERS_CABINET_CEILING_MM,
 } from "../support/fridge-end-leftover.js";
-import { CAPPED_SEAT_AT_600_MM } from "../support/span-overlap-fixtures.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 
 vi.mock(
@@ -62,18 +64,12 @@ vi.mock(
   },
 );
 
-const OCCURRED_AT = "2026-10-05T12:00:00.000Z";
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const COLUMNS = declaredColumnSizes(CATALOG);
 const CEILINGS_MM = [2200, 2600, 3900] as const;
 const GRID_STEP_MM = 10;
-const SWEEP_TIMEOUT_MS = 300_000;
 const SIDE_WALL_RESERVE_MM = 100;
-const ROOMS_KEPT_PER_LEFTOVER = 2;
-const STRIDE_THROUGH_CHANGED_ROOMS = 300;
 type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
-
-const WALLS: readonly TwoWallDispatch[] = ["A", "B"];
 
 type Runs = Readonly<Record<TwoWallDispatch, GenerationRun>>;
 
@@ -81,93 +77,10 @@ function planOf(room: DesignRoom, runs: Runs): KitchenCompositionPlan {
   return planKitchenComposition({ room, runs, columns: COLUMNS });
 }
 
-/** The plan the owner's Q6 makes of a plan the planner made without it: the cabinet inboard of an end
- *  fridge takes the owner's share of the leftover and the fridge moves out by the same amount. Written from
- *  the owner's words and the run's own end, and never from the leaf under test. */
-function planAfterTheOwnersRule(
-  before: KitchenCompositionPlan,
-  runs: Runs,
-): KitchenCompositionPlan {
-  for (const wall of WALLS) {
-    const cabinet = bodyInboardOfTheEndFridge(before, wall);
-    const fridge = before.bases.find(
-      (base) => base.wall === wall && base.role === "fridge",
-    );
-    if (cabinet?.buildId !== DOOR_CABINET || fridge === undefined) continue;
-    const takenMm = absorbedByTheOwnersRuleMm({
-      leftoverMm: runs[wall].endMm - fridge.endMm,
-      cabinetWidthMm: cabinet.widthMm,
-    });
-    if (takenMm === 0) continue;
-    const bases = before.bases.map((base) => {
-      if (base === cabinet) {
-        return {
-          ...base,
-          widthMm: base.widthMm + takenMm,
-          endMm: base.endMm + takenMm,
-        };
-      }
-      return base === fridge
-        ? {
-            ...base,
-            startMm: base.startMm + takenMm,
-            endMm: base.endMm + takenMm,
-          }
-        : base;
-    });
-    return {
-      ...before,
-      bases,
-      floorWidthsMm: {
-        ...before.floorWidthsMm,
-        [wall]: bases
-          .filter((base) => base.wall === wall)
-          .map((base) => base.widthMm),
-      },
-      remainderMm: {
-        ...before.remainderMm,
-        [wall]: before.remainderMm[wall] - takenMm,
-      },
-    };
-  }
-  return before;
-}
+const STRIDE_THROUGH_CHANGED_ROOMS = 300;
 
-interface CensusAt {
-  swept: number;
-  placed: number;
-  /** Rooms the rule changed, by the wall the fridge ends. */
-  changed: Record<TwoWallDispatch, number>;
-  /** Rooms with 50-299 mm beyond an end fridge whose inboard body is not a door cabinet, by that body. */
-  leftBareByInboardBody: Record<string, number>;
-  mismatches: string[];
-  rulesBroken: string[];
-  /** Two rooms per (wall, leftover) the rule changed, and a stride through the rest, for the built design. */
-  changedRooms: ChangedRoom[];
-  keptPerLeftover: Map<string, number>;
-}
-
-interface ChangedRoom {
-  readonly room: DesignRoom;
-  readonly wall: TwoWallDispatch;
-  readonly leftoverMm: number;
-}
-
-function emptyCensus(): CensusAt {
-  return {
-    swept: 0,
-    placed: 0,
-    changed: { A: 0, B: 0 },
-    leftBareByInboardBody: {},
-    mismatches: [],
-    rulesBroken: [],
-    changedRooms: [],
-    keptPerLeftover: new Map(),
-  };
-}
-
-async function censusAt(heightMm: number): Promise<CensusAt> {
-  const census = emptyCensus();
+async function censusAt(heightMm: number): Promise<Census> {
+  const census = emptyCensus(STRIDE_THROUGH_CHANGED_ROOMS);
   const approved = APPROVED_ROOM_POLICY.buildableShapes.L;
   if (!approved) throw new Error("the approved policy has no L");
   for (
@@ -181,91 +94,27 @@ async function censusAt(heightMm: number): Promise<CensusAt> {
       depthMm += GRID_STEP_MM
     ) {
       census.swept += 1;
-      countTheRoom(census, { shape: "L", widthMm, depthMm, heightMm });
+      countTheLRoom(census, { shape: "L", widthMm, depthMm, heightMm });
     }
     await yieldToTheEventLoop();
   }
   return census;
 }
 
-function countTheRoom(census: CensusAt, room: DesignRoom): void {
+function countTheLRoom(census: Census, room: DesignRoom): void {
   const runs = lShellFloorRuns(room);
   const live = planOf(room, runs);
   if (!live.minimumMet) return;
-  census.placed += 1;
-  const where = `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
-  // The leaf takes the first fridge as the only one (`fridge-end-leftover.ts`): one core role, on one wall.
-  if (live.bases.filter((base) => base.role === "fridge").length > 1) {
-    census.rulesBroken.push(`${where}: more than one fridge`);
-  }
-  const before = beforeC5(() => planOf(room, runs));
-  const expected = planAfterTheOwnersRule(before, runs);
-
-  if (JSON.stringify(live) !== JSON.stringify(expected)) {
-    census.mismatches.push(where);
-  }
-  for (const wall of WALLS) {
-    countTheWall(census, { room, runs, live, before, wall, where });
-  }
-}
-
-interface WallInRoom {
-  readonly room: DesignRoom;
-  readonly runs: Runs;
-  readonly live: KitchenCompositionPlan;
-  readonly before: KitchenCompositionPlan;
-  readonly wall: TwoWallDispatch;
-  readonly where: string;
-}
-
-function countTheWall(census: CensusAt, at: WallInRoom): void {
-  const { room, runs, live, before, wall, where } = at;
-  const inboard = bodyInboardOfTheEndFridge(before, wall);
-  const fridgeBefore = before.bases.find(
-    (base) => base.wall === wall && base.role === "fridge",
-  );
-  if (inboard === undefined || fridgeBefore === undefined) return;
-  const leftoverMm = runs[wall].endMm - fridgeBefore.endMm;
-  const isInTheWindow = leftoverMm >= 50 && leftoverMm < 300;
-
-  if (inboard.buildId !== DOOR_CABINET) {
-    if (isInTheWindow) {
-      census.leftBareByInboardBody[inboard.buildId] =
-        (census.leftBareByInboardBody[inboard.buildId] ?? 0) + 1;
-    }
-    return;
-  }
-  const liveInboard = bodyInboardOfTheEndFridge(live, wall);
-  const liveFridge = live.bases.find(
-    (base) => base.wall === wall && base.role === "fridge",
-  );
-  if (liveInboard === undefined || liveFridge === undefined) {
-    census.rulesBroken.push(`${where}: the end fridge or its cabinet is gone`);
-    return;
-  }
-  if (liveInboard.widthMm > OWNERS_CABINET_CEILING_MM) {
-    census.rulesBroken.push(`${where}: a cabinet over 800`);
-  }
-  if (liveFridge.endMm > runs[wall].endMm) {
-    census.rulesBroken.push(`${where}: the fridge passes the free run`);
-  }
-  if (liveInboard.widthMm === inboard.widthMm) return;
-  census.changed[wall] += 1;
-  keepForTheBuiltDesign(census, { room, wall, leftoverMm });
-}
-
-function keepForTheBuiltDesign(census: CensusAt, changed: ChangedRoom): void {
-  const key = `${changed.wall}:${String(changed.leftoverMm)}`;
-  const heldMm = census.keptPerLeftover.get(key) ?? 0;
-  const isTheStride =
-    (census.changed.A + census.changed.B) % STRIDE_THROUGH_CHANGED_ROOMS === 0;
-  if (heldMm >= ROOMS_KEPT_PER_LEFTOVER && !isTheStride) return;
-  census.keptPerLeftover.set(key, heldMm + 1);
-  census.changedRooms.push(changed);
+  countTheRoom(census, {
+    room,
+    runs,
+    live,
+    before: beforeC5(() => planOf(room, runs)),
+  });
 }
 
 describe("every planned L room on the approved 10 mm grid, at three ceilings", () => {
-  const censuses = new Map<number, CensusAt>();
+  const censuses = new Map<number, Census>();
 
   beforeAll(async () => {
     for (const heightMm of CEILINGS_MM) {
@@ -273,35 +122,38 @@ describe("every planned L room on the approved 10 mm grid, at three ceilings", (
     }
   }, SWEEP_TIMEOUT_MS);
 
-  function census(heightMm: number): CensusAt {
+  function census(heightMm: number): Census {
     const found = censuses.get(heightMm);
     if (!found) throw new Error(`no census at ${String(heightMm)} mm`);
     return found;
   }
 
   it.each(CEILINGS_MM)(
-    "at %i mm, a room outside the rule is byte-identical to the plan before C5, and a room inside it differs by the cabinet, the fridge, the remainder and the floor widths alone",
+    "at %i mm, a room outside the rule is unchanged and a room inside it differs by the rule's own fields alone",
     (heightMm) => {
+      expect(census(heightMm).planned).toBeGreaterThan(0);
       expect(census(heightMm).mismatches).toEqual([]);
     },
   );
 
   it.each(CEILINGS_MM)(
-    "at %i mm, the rule changes 44 766 of 245 211 planned rooms: 22 995 on wall A and 21 771 on wall B",
+    "at %i mm, the rule changes the pinned number of rooms on each wall",
     (heightMm) => {
-      const { swept, placed, changed } = census(heightMm);
+      const { swept, planned, changed } = census(heightMm);
 
-      expect({ swept, placed, changed }).toEqual({
+      // C0's prediction, reproduced: 44 766 of 245 211 planned rooms.
+      expect({ swept, planned, changed }).toEqual({
         swept: 256_011,
-        placed: 245_211,
+        planned: 245_211,
         changed: { A: 22_995, B: 21_771 },
       });
     },
   );
 
   it.each(CEILINGS_MM)(
-    "at %i mm, no cabinet passes 800, no fridge passes its wall's free run and none goes missing",
+    "at %i mm, no cabinet passes 800, no fridge passes its free run and none goes missing",
     (heightMm) => {
+      expect(census(heightMm).planned).toBeGreaterThan(0);
       expect(census(heightMm).rulesBroken).toEqual([]);
     },
   );
@@ -310,8 +162,9 @@ describe("every planned L room on the approved 10 mm grid, at three ceilings", (
   // fridge beside it does not move. Fixed-width neighbours are counted so a rule that started
   // widening them (the dishwasher, the sink) would change a figure here as well as fail the oracle.
   it.each(CEILINGS_MM)(
-    "at %i mm, the leftover stays bare beside an end fridge where the inboard body is the dishwasher or the sink: 16 300 and 1 625 rooms",
+    "at %i mm, the leftover stays bare beside an end fridge whose inboard body is fixed-width",
     (heightMm) => {
+      expect(census(heightMm).planned).toBeGreaterThan(0);
       expect(census(heightMm).leftBareByInboardBody).toEqual({
         "base-dishwasher": 16_300,
         "base-sink": 1_625,
@@ -360,10 +213,6 @@ function w(
   bareMm: number,
 ): Witness {
   return { room, wall, runEndMm, leftoverMm, cabinetMm, bareMm };
-}
-
-function labelOf(room: DesignRoom): string {
-  return `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
 }
 
 describe("declared witnesses at the window's boundaries", () => {
@@ -417,114 +266,11 @@ describe("declared witnesses at the window's boundaries", () => {
   });
 });
 
-function composed(room: DesignRoom): Design {
-  const result = generateKitchen({
-    room,
-    occurredAt: OCCURRED_AT,
-    probeAt: createFakeProbeFactory(),
-  });
-  if (!result.ok) throw new Error(`${labelOf(room)} did not compose`);
-  return result.design;
-}
-
-function fridgeOf(design: Design, wall: TwoWallDispatch): DesignPlacement {
-  const found = design.placements.find(
-    (placement) =>
-      placement.wall === wall && placement.body.buildId === "fridge-free",
-  );
-  if (!found) throw new Error(`no fridge on wall ${wall}`);
-  return found;
-}
-
-function spanOf(placement: DesignPlacement): readonly [number, number] {
-  const halfMm = placement.body.widthMm / 2;
-  return [placement.alongMm - halfMm, placement.alongMm + halfMm];
-}
-
-function isInTheWallRow(placement: DesignPlacement): boolean {
-  return placement.y0Mm >= 1500 && placement.body.buildId === "wall-cabinet";
-}
-
-/** What the built kitchen must be, wherever the rule changed it: criteria 2 and 3 read off the design. */
-function expectABuiltKitchenThatKeepsEveryRule(
-  changed: ChangedRoom,
-  design: Design,
-): void {
-  const { room, wall } = changed;
-  const where = `${labelOf(room)} wall ${wall}`;
-  const onTheWall = design.placements.filter(
-    (placement) => placement.wall === wall,
-  );
-  const fridge = fridgeOf(design, wall);
-  const [fridgeStart, fridgeEnd] = spanOf(fridge);
-  const cabinet = onTheWall.find(
-    (placement) =>
-      placement.y0Mm === 0 &&
-      placement.body.buildId === DOOR_CABINET &&
-      spanOf(placement)[1] === fridgeStart,
-  );
-  expect(
-    cabinet,
-    `${where}: a base cabinet stands flush to the fridge`,
-  ).toBeDefined();
-  if (!cabinet) return;
-  const [cabinetStart, cabinetEnd] = spanOf(cabinet);
-
-  // Criterion 3: the upper, and the top cabinet over it, have the base's own width and centre.
-  const over = onTheWall.filter(
-    (placement) =>
-      isInTheWallRow(placement) && placement.alongMm === cabinet.alongMm,
-  );
-  expect(over.map((placement) => placement.y0Mm).sort(), where).toEqual(
-    room.heightMm >= 2600 ? [1500, 2200] : [1500],
-  );
-  for (const upper of over) {
-    expect(upper.body.widthMm, `${where} y0 ${String(upper.y0Mm)}`).toBe(
-      cabinet.body.widthMm,
-    );
-  }
-
-  // Criterion 2: a cabinet over 800; wall bodies deeper than the wall depth beside the moved fridge.
-  expect(cabinet.body.widthMm, where).toBeLessThanOrEqual(
-    OWNERS_CABINET_CEILING_MM,
-  );
-  for (const wallBody of onTheWall.filter(isInTheWallRow)) {
-    const [start, end] = spanOf(wallBody);
-    const standsBesideTheFridge = end === fridgeStart || start === fridgeEnd;
-    if (standsBesideTheFridge) {
-      expect(
-        wallBody.body.seatDepthMm,
-        `${where}: a wall cabinet beside the fridge takes the wall depth`,
-      ).toBe(CAPPED_SEAT_AT_600_MM);
-    }
-  }
-  expect(
-    onTheWall.filter((placement) => spanOf(placement)[0] >= fridgeEnd),
-    `${where}: nothing stands past the fridge`,
-  ).toEqual([]);
-  expect(cabinetEnd, where).toBe(fridgeStart);
-  expect(cabinetStart, where).toBeLessThan(cabinetEnd);
-
-  // Nothing overflows, nothing is invalid, and the floor holds no strip of its own.
-  expect(findOverflowingPlacementIds(design), where).toEqual([]);
-  expect(validateDesignForCatalog(design, CATALOG), where).toEqual([]);
-  const columns = deriveColumns(
-    derivePlacementRecords(design, CATALOG),
-    design,
-    design.room,
-  );
-  expect(unrecordedFloorStripsMm(columns, "A"), where).toEqual([]);
-  expect(unrecordedFloorStripsMm(columns, "B"), where).toEqual([]);
-}
-
 describe("the kitchen built from a changed room", () => {
   it.each(WITNESSES.filter((witness) => witness.cabinetMm > 600))(
     "builds $room.widthMm x $room.depthMm's widened cabinet with its upper, its top cabinet and the wall depth beside the fridge",
-    ({ room, wall, leftoverMm }) => {
-      expectABuiltKitchenThatKeepsEveryRule(
-        { room, wall, leftoverMm },
-        composed(room),
-      );
+    ({ room, wall }) => {
+      expectABuiltKitchenThatKeepsEveryRule({ room, wall }, composed(room));
     },
   );
 

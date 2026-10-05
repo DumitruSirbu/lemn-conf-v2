@@ -18,13 +18,14 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { createHash } from "node:crypto";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
 } from "../../src/index.js";
+import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import {
   basesOn,
   DECLARED_COLUMNS,
@@ -40,6 +41,20 @@ import {
   runOrderOf,
   towerIsOwed,
 } from "../support/u-plan-invariants.js";
+
+// M7C wave C5 S2: the recorded fridge-wall digest below is N11.1's, from before the owner's Q6 gave the leftover
+// beyond a U's end fridge to the cabinet inboard of it, so it is reproduced with the planner asked as it stood
+// before that rule (`beforeC5`); the fridge wall's digest after it is recorded beside it. Every other field is
+// the same either way.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 const RUNS = 200;
 
@@ -651,9 +666,19 @@ describe("planUKitchenComposition holds AC1's S2 share", () => {
   });
 
   it("leaves the towers and the far wall's pantries as N10.5 records them, and moves the fridge wall exactly as N11.1 rules (AC1 e, AC3 vi)", () => {
-    const measured = measureTheRecordedGrid();
+    const measured = beforeC5(measureTheRecordedGrid);
 
     expect(measured).toStrictEqual(RECORDED_U_GRID_MEASUREMENT);
+  });
+
+  it("changes nothing but the fridge wall's digest once the owner's Q6 is applied", () => {
+    const measured = measureTheRecordedGrid();
+
+    expect(measured).toStrictEqual({
+      ...RECORDED_U_GRID_MEASUREMENT,
+      fridgeWallDigest:
+        "063c73f4f37955c0f1c1fc1212909e33ed8217f67c7c3ad5c5675ce5dd1cdf10",
+    });
   });
 
   it("holds over the boundaries N3r 3 and N3r 10 name", () => {

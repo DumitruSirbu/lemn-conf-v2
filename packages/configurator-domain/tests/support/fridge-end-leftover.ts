@@ -4,10 +4,20 @@
 //
 // *"Absorb gaps under 300 mm"*: where the fridge ends a run and a door cabinet stands directly inboard of
 // it, the cabinet grows in 50 mm steps up to 800 mm and the fridge moves out by the same amount.
-import type {
-  KitchenCompositionPlan,
-  PlannedGenerationBase,
-} from "../../src/index.js";
+import type { DesignWall, UPlannedGenerationBase } from "../../src/index.js";
+
+/** What the owner's rule reads and rewrites: an L's, a straight kitchen's or a U's plan, whose walls and
+ *  bases are a superset of the L's. */
+export interface PlanOfWalls {
+  readonly bases: readonly UPlannedGenerationBase[];
+  readonly floorWidthsMm: Readonly<
+    Partial<Record<DesignWall, readonly number[]>>
+  >;
+  readonly remainderMm: Readonly<Partial<Record<DesignWall, number>>>;
+}
+type KitchenCompositionPlan = Pick<PlanOfWalls, "bases">;
+type PlannedGenerationBase = UPlannedGenerationBase;
+type Wall = DesignWall;
 
 export const OWNERS_ABSORB_BELOW_MM = 300;
 export const OWNERS_ABSORB_STEP_MM = 50;
@@ -37,7 +47,7 @@ export function absorbedByTheOwnersRuleMm(args: {
 /** The base standing directly inboard of `wall`'s outermost body, where that body is the fridge. */
 export function bodyInboardOfTheEndFridge(
   plan: KitchenCompositionPlan,
-  wall: "A" | "B",
+  wall: Wall,
 ): PlannedGenerationBase | undefined {
   const alongTheWall = plan.bases
     .filter((base) => base.wall === wall)
@@ -50,7 +60,7 @@ export function bodyInboardOfTheEndFridge(
 /** The door cabinet the owner's rule may widen on `wall`: the door cabinet inboard of its end fridge. */
 export function fridgeEndCabinetOf(
   plan: KitchenCompositionPlan,
-  wall: "A" | "B",
+  wall: Wall,
 ): PlannedGenerationBase | undefined {
   const inboard = bodyInboardOfTheEndFridge(plan, wall);
   return inboard?.buildId === DOOR_CABINET ? inboard : undefined;
@@ -59,7 +69,7 @@ export function fridgeEndCabinetOf(
 /** How far `wall`'s end-fridge cabinet stands past one storage module; 0 where there is none. */
 export function widenedBesideTheEndFridgeMm(
   plan: KitchenCompositionPlan,
-  wall: "A" | "B",
+  wall: Wall,
 ): number {
   const cabinet = fridgeEndCabinetOf(plan, wall);
   return cabinet === undefined ? 0 : cabinet.widthMm - ONE_STORAGE_MODULE_MM;
@@ -72,7 +82,7 @@ export function widenedBesideTheEndFridgeMm(
  */
 export function ruledWidenBesideTheEndFridgeMm(
   plan: KitchenCompositionPlan,
-  wall: "A" | "B",
+  wall: Wall,
   runEndMm: number,
 ): number {
   const fridge = plan.bases.find(
@@ -105,4 +115,63 @@ export function ruledSlotWidthMm(
       ? ruledWidenBesideTheEndFridgeMm(plan, slot.wall, runEndMm)
       : 0)
   );
+}
+
+/** The plan the owner's Q6 makes of a plan the planner made without it: the cabinet inboard of an end
+ *  fridge takes the owner's share of the leftover and the fridge moves out by the same amount. Written from
+ *  the owner's words and the run's own end, and never from the leaf under test. */
+export function planAfterTheOwnersRule<Plan extends PlanOfWalls>(
+  before: Plan,
+  runs: Readonly<Partial<Record<DesignWall, { readonly endMm: number }>>>,
+): Plan {
+  const fridge = before.bases.find((base) => base.role === "fridge");
+  const runEndMm = fridge === undefined ? undefined : runs[fridge.wall]?.endMm;
+  const cabinet =
+    fridge === undefined
+      ? undefined
+      : bodyInboardOfTheEndFridge(before, fridge.wall);
+  if (
+    fridge === undefined ||
+    runEndMm === undefined ||
+    cabinet?.buildId !== DOOR_CABINET
+  ) {
+    return before;
+  }
+  const takenMm = absorbedByTheOwnersRuleMm({
+    leftoverMm: runEndMm - fridge.endMm,
+    cabinetWidthMm: cabinet.widthMm,
+  });
+  if (takenMm === 0) return before;
+  const bases = before.bases.map((base) => {
+    if (base === cabinet) {
+      return {
+        ...base,
+        widthMm: base.widthMm + takenMm,
+        endMm: base.endMm + takenMm,
+      };
+    }
+    return base === fridge
+      ? {
+          ...base,
+          startMm: base.startMm + takenMm,
+          endMm: base.endMm + takenMm,
+        }
+      : base;
+  });
+  const { wall } = fridge;
+  return {
+    ...before,
+    bases,
+    floorWidthsMm: {
+      ...before.floorWidthsMm,
+      [wall]: bases
+        .filter((base) => base.wall === wall)
+        .sort((left, right) => left.startMm - right.startMm)
+        .map((base) => base.widthMm),
+    },
+    remainderMm: {
+      ...before.remainderMm,
+      [wall]: (before.remainderMm[wall] ?? 0) - takenMm,
+    },
+  };
 }
