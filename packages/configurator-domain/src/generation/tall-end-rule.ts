@@ -19,8 +19,10 @@
 //
 // A pure leaf over numbers, beside `leftover-rule.ts` and for the same reason it exists: no
 // catalogue, no probe, no design, and no knowledge of how a run is laid out.
-import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../module-grid.js";
-import { STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
+import {
+  headroomBelowTheCeilingMm,
+  STORAGE_BODY_WIDTH_MM,
+} from "./leftover-rule.js";
 
 /** ADR 0110 E12.1: the oven-and-microwave column, the door column, and the hob that carries drawers
  *  because the oven has moved into a column. */
@@ -160,7 +162,7 @@ function outermostColumnOf(
   const flush = { widthMm: declaredWidthMm, remainderMm: 0 } as const;
 
   if (input.freeEndRemainderMm === 0) return flush;
-  if (mergedWidthMm > MAX_EMPTY_COLUMN_WIDTH_MM) {
+  if (input.freeEndRemainderMm > headroomBelowTheCeilingMm(declaredWidthMm)) {
     return { widthMm: declaredWidthMm, remainderMm: input.freeEndRemainderMm };
   }
   const outermostIsADoorColumn = columnCount > 1;

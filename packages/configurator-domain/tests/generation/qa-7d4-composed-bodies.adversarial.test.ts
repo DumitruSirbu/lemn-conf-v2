@@ -32,6 +32,7 @@ import {
   generateKitchen,
   isComposedStorageSlot,
   KITCHEN_L_DESIGN,
+  lShellFloorRuns,
   replayGenerationLog,
   THREE_DRAWER_BASE_BUILD_ID,
   validateDesignForCatalog,
@@ -44,6 +45,8 @@ import {
 } from "../../src/index.js";
 import { approvedLRoom } from "../support/composed-run-baseline.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
+import { ruledSlotWidthMm } from "../support/fridge-end-leftover.js";
+import { twoWallPlanOf } from "../support/two-wall-plan-of.js";
 import {
   createFakeProbeFactory,
   createLeaseLedger,
@@ -532,14 +535,19 @@ describe("criterion 9 — every generated module is built on the grid", () => {
         const kitchen = generated(room);
         if (!kitchen) return;
 
+        const plan = twoWallPlanOf(kitchen.log);
+        const runs = lShellFloorRuns(room);
         for (const module of composedModules(kitchen)) {
           expect(module.builtWidthMm, module.plannedId).toBe(
             module.plannedWidthMm,
           );
           if (!isComposedSlot(module)) continue;
           composedSlots += 1;
+          // One module, plus what the owner's Q6 gives the cabinet beside an end fridge (M7C wave C5 S1).
+          const slot = plan.bases.find((base) => base.id === module.plannedId);
+          if (!slot) throw new Error(`${module.plannedId} is not in the plan`);
           expect(module.builtWidthMm, module.plannedId).toBe(
-            STORAGE_MODULE_WIDTH_MM,
+            ruledSlotWidthMm(plan, slot, runs[slot.wall].endMm),
           );
         }
       }),

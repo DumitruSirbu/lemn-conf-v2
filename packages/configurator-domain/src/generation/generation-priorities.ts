@@ -5,6 +5,7 @@ import {
   THREE_DRAWER_BASE_BUILD_ID,
 } from "./body-choice.js";
 import { withTheDishwasherBesideTheSink } from "./dishwasher-beside-the-sink.js";
+import { withTheLeftoverBesideTheFridgeAbsorbed } from "./fridge-end-leftover.js";
 import { planLeftover, STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 import {
   planWithPanDrawerThenBottle,
@@ -172,7 +173,10 @@ export function planKitchenComposition(input: {
  *  kitchen whose dishwasher is already decided, and its own candidate plan is given one in turn. The pan
  *  drawer and the bottle never read a plan — only fit and `tallColumnCountOf` — so they stay decided
  *  ahead of it. Applied after the plan is built rather than as a post-pass on the result, which would
- *  let the threshold drawer be decided as though the converted door cabinet still stood. */
+ *  let the threshold drawer be decided as though the converted door cabinet still stood.
+ *
+ *  **And the leftover beside the fridge is absorbed after it** (C5 S1): the dishwasher takes a door
+ *  cabinet at its own width, so the cabinet is widened only once it is known not to be the dishwasher's. */
 function compositionContextFor(
   basis: PlanBasis,
   capacityMm: WallCapacities,
@@ -180,7 +184,9 @@ function compositionContextFor(
   return {
     capacityMm,
     planOf: (run) =>
-      withTheDishwasherBesideTheSink(builtPlan({ ...basis, ...run })),
+      withTheLeftoverBesideTheFridgeAbsorbed(
+        withTheDishwasherBesideTheSink(builtPlan({ ...basis, ...run })),
+      ),
     tallColumnCountOf: (run) => tallColumnCountOf(basis, run),
   };
 }

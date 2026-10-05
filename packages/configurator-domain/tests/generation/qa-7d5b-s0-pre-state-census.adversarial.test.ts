@@ -110,6 +110,21 @@ import {
   towerOverBottleChangeBetween,
 } from "../support/pre-tower-run-recording.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the tests here that compare with a recording of an earlier planner ask the planner as it stood
+// before the leftover beside an end fridge was absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`),
+// by `thePlannerBeforeC5()`; the rest of the file runs on the shipped planner. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 vi.mock(
   "../../src/generation/optional-run-items.js",
@@ -304,6 +319,7 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
   // The re-pointing every HEAD figure below rests on. Refused rooms are included: S0b must not move
   // them, and the reconstruction reads them as the live planner's.
   it("reconstructs HEAD's plan exactly in every room and witness the pre-tower recording holds", () => {
+    thePlannerBeforeC5();
     const recording = readPreTowerRunRecording();
     const recorded = [...recording.rooms, ...recording.witnesses];
 

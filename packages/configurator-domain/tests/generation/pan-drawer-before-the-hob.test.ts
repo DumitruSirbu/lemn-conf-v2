@@ -25,7 +25,7 @@
 // The census derives the three trades from capacities and 7D3's block rule in that precedence, each
 // in the contract's own terms: the named body goes and nothing else — no composed slot, no drawer
 // cabinet, no other column (plan B1/B2).
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
@@ -46,6 +46,24 @@ import {
   type PlannedGenerationBase,
 } from "../../src/index.js";
 import { planTallEndBlock } from "../../src/generation/tall-end-rule.js";
+import {
+  switchTheFridgeEndLeafOff,
+  switchTheFridgeEndLeafOn,
+} from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the census below models a planner that stood before the leftover beside an end fridge was
+// absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`), so it asks the planner as it stood before
+// that rule; every other test in this file runs on the shipped planner, leaf on. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 // M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
 // this census is `lShellFloorRuns`' own two-wall composer, keyed the same way `LWall` is in
@@ -1467,6 +1485,9 @@ function emptyThresholdCensus(): Record<ThresholdDecision, number> {
 }
 
 describe("7D5 S2 — the pan-drawer census over the approved L, 10 mm grid, 2600 mm", () => {
+  beforeAll(switchTheFridgeEndLeafOff);
+  afterAll(switchTheFridgeEndLeafOn);
+
   it("pins the census, and every room's plan against the derived S2 kitchen and the S1 one", () => {
     // S2's own decisions are counted on the kitchen S2 decided, before Q-H5 is applied, so they
     // stay S2's subject; the finished kitchen is counted separately, and the derivation that ends

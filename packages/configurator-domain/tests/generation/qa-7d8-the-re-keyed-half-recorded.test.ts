@@ -39,7 +39,7 @@
 // outermost modules — and pins everything else, including the wall without the hob, to this file.
 // 904x4523x2478 is the room that first reddened here: its hob moved from 2800 to 3400 on wall B.
 import { fc } from "@fast-check/vitest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildKitchenLBodyCatalog,
@@ -65,6 +65,21 @@ import {
 } from "../support/pre-width-run-recording.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { readReKeyedRunRecording } from "../support/re-keyed-run-recording.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the tests here that compare with a recording of an earlier planner ask the planner as it stood
+// before the leftover beside an end fridge was absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`),
+// by `thePlannerBeforeC5()`; the rest of the file runs on the shipped planner. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -98,6 +113,7 @@ function isReKeyed(room: DesignRoom, plan: KitchenCompositionPlan): boolean {
 
 describe("the re-keyed half of the recorded draw, recorded whole", () => {
   it("regresses current output against every recorded re-keyed plan", () => {
+    thePlannerBeforeC5();
     let exact = 0;
     let bottleNormalized = 0;
     let panDrawerNormalized = 0;

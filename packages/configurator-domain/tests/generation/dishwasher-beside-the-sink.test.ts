@@ -53,6 +53,24 @@ import {
   type DishwasherChange,
 } from "../support/pre-tower-run-recording.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
+import {
+  switchTheFridgeEndLeafOff,
+  switchTheFridgeEndLeafOn,
+} from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the census below models a planner that stood before the leftover beside an end fridge was
+// absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`), so it asks the planner as it stood before
+// that rule; every other test in this file runs on the shipped planner, leaf on. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 vi.mock(
   "../../src/generation/dishwasher-beside-the-sink.js",
@@ -401,8 +419,13 @@ describe("7D5b S1 — QA's census over the approved L rectangle, 10 mm, at 2200,
   const censusByCeiling = new Map<number, DishwasherCensus>();
 
   beforeAll(async () => {
-    for (const ceilingMm of CEILINGS_MM) {
-      censusByCeiling.set(ceilingMm, await dishwasherCensusAt(ceilingMm));
+    switchTheFridgeEndLeafOff();
+    try {
+      for (const ceilingMm of CEILINGS_MM) {
+        censusByCeiling.set(ceilingMm, await dishwasherCensusAt(ceilingMm));
+      }
+    } finally {
+      switchTheFridgeEndLeafOn();
     }
   }, SWEEP_TIMEOUT_MS);
 

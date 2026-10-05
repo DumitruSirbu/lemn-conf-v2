@@ -44,6 +44,7 @@ import {
 } from "../../src/index.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
+import { ruledSlotWidthMm } from "../support/fridge-end-leftover.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const OVEN_TOWER = "tall-oven-tower";
@@ -427,7 +428,16 @@ describe("no body is silently planned over its own module", () => {
               [DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID],
               label,
             ).toContain(base.buildId);
-            expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
+            // **One module, plus what the owner's Q6 gives the cabinet beside an end fridge (M7C wave C5
+            // S1)** — and nothing else: the figure is worked out from the run and the fridge's span, so a
+            // slot widened by any other amount still fails on its own width.
+            expect(base.widthMm, label).toBe(
+              ruledSlotWidthMm(
+                plan,
+                base,
+                lShellFloorRuns(room)[base.wall].endMm,
+              ),
+            );
             continue;
           }
           // A column is its declared width, except the outermost one, which is the `'fit'` door

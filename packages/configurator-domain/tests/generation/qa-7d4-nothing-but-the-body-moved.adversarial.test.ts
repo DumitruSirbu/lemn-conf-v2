@@ -25,7 +25,7 @@
 // width: the block's full-height columns carry that role deliberately (ADR 0110 E5.2), and the two
 // naive scopings are wrong on 32.8 % and 14.9 % of placed rooms against output that is right (D12).
 import { fc } from "@fast-check/vitest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   BOTTLE_CARGO_BUILD_ID,
@@ -77,6 +77,21 @@ import {
   parseRecordedCanonicalPlan,
   withTheDishwasherTradeUndone,
 } from "../support/pre-width-run-recording.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the tests here that compare with a recording of an earlier planner ask the planner as it stood
+// before the leftover beside an end fridge was absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`),
+// by `thePlannerBeforeC5()`; the rest of the file runs on the shipped planner. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -950,6 +965,7 @@ function wallRowWithTheThresholdDrawerUndone(row: string): string {
 
 describe("criterion 2 — this wave moves a body's identity and nothing else", () => {
   it("composes 7D3's plan to the millimetre wherever 7D8 did not re-key the run", () => {
+    thePlannerBeforeC5();
     // **This is the comparison working, not the recording going stale, and the split is the whole
     // assertion.** M7 wave 7D8 keyed the reading order onto the wider entered wall, which moves the
     // plan in the rooms where wall B is wider — 82 395 placed rooms, 38.95 % — and in **no** other
@@ -1349,6 +1365,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
 
 describe("criterion 21 — the wall row is asserted, not composed", () => {
   it("reproduces 7D3's wall row character for character wherever 7D8 did not re-key", () => {
+    thePlannerBeforeC5();
     // Criterion 21 asked that **no** character of the wall row moved, and it still asks that of
     // every room outside M7 wave 7D8's re-key. Inside it the row follows the bases it stands over:
     // the run turned around, so the openings did. **The split is asserted, not the aggregate** — a

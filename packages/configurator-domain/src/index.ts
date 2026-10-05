@@ -311,7 +311,13 @@ export {
   type UShellDesignInput,
   type UShellInputRefusal,
 } from "./generation/shell-design.js";
-export * from "./generation/leftover-rule.js";
+// Named, not `export *`: the absorb rule beside `planLeftover` is internal to generation.
+export {
+  MAX_GENERATED_LEFTOVER_MM,
+  planLeftover,
+  STORAGE_BODY_WIDTH_MM,
+  type LeftoverPlan,
+} from "./generation/leftover-rule.js";
 export * from "./generation/body-choice.js";
 export { DISHWASHER_PLANNED_WIDTH_MM } from "./generation/dishwasher-beside-the-sink.js";
 export * from "./generation/generation-priorities.js";

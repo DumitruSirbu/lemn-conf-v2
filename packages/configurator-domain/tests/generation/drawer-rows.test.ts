@@ -48,6 +48,7 @@ import {
   type PlannedGenerationBase,
 } from "../../src/index.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
+import { ruledSlotWidthMm } from "../support/fridge-end-leftover.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -557,13 +558,16 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
     }
   });
 
-  it("stands every composed slot at one module, drawer or door", () => {
+  // One module, plus what the owner's Q6 gives the door cabinet beside an end fridge (M7C wave C5 S1): the
+  // figure is worked out from the run and the fridge's span, so a slot widened by any other amount fails.
+  it("stands every composed slot at one module, drawer or door, but for the one beside an end fridge", () => {
     for (const plan of SWEPT_PLANS) {
+      const runs = lShellFloorRuns(plan.room);
       for (const slot of plan.bases.filter(isComposedStorageSlot)) {
-        expect(slot.widthMm, slot.id).toBe(STORAGE_MODULE_WIDTH_MM);
-        expect(slot.endMm - slot.startMm, slot.id).toBe(
-          STORAGE_MODULE_WIDTH_MM,
-        );
+        const widthMm = ruledSlotWidthMm(plan, slot, runs[slot.wall].endMm);
+
+        expect(slot.widthMm, slot.id).toBe(widthMm);
+        expect(slot.endMm - slot.startMm, slot.id).toBe(widthMm);
       }
     }
   });
