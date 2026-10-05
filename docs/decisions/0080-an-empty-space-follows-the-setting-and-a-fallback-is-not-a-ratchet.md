@@ -560,3 +560,18 @@ the customer is looking at, and — unlike 6K-c — it returns to 700 when the k
 | The shape criterion enumerates chains | **Documentation defect in this record and in the wave's criteria.** No code is wrong. | Section J: the enumeration is withdrawn and replaced by the expressible-at-both-settings form, with its non-vacuity and violation count measured. |
 | The wall-column reason is false | **Documentation defect plus a missing assertion.** The claim is true; the reason is not, and nothing pins the set that makes it true. | Section K: the reason is restated at entry level, and the catalogue-level hazard assertion is added to the wave. Fixture-bounded safety is named as such. |
 | The round trip keeps 20 mm less | **Confirmed as the ruled trade**, not a defect and not reopened. | Section L: section E's *"section C closes it"* is corrected to name the direction it closes. |
+
+## Pointer, 2026-10-05 — the rising direction is held by declared witnesses since M7C C7
+
+Since M7C wave C7 (M7-FB-013; `03d49aa`), `overlapsAlongWall` compares spans, and a predicate that
+rises since the freeze (Amendments A and C, the surplus arm) is no longer reachable by a product
+path. The rule is unchanged. Its rising-direction coverage is now four declared witnesses (ADR 0123) in
+`packages/configurator-domain/tests/frozen-map-declared-witnesses.test.ts`, built from a constructed
+member-less `Column` literal with `hasFullHeightUnder: true`, plus a population pin in
+`apps/web/tests/store/qa-6k-j-fallback-rule.adversarial.test.ts` that turns red if the state becomes
+reachable again. The falling direction is still reachable and keeps its scenario tests. Sabotage: the
+witnesses cannot tell `≤` from equality in the rising direction (they guard Amendment C, not A's operator).
+
+**Open note (inference, not proven):** the population pin covers one fixture. `isFullHeightUnder` has no
+vertical term, so a member-less column sitting only in the top band, off-centre over a pantry, would read
+true; its unreachability is not shown. The old predicate had the same exposure; C7 did not introduce it.

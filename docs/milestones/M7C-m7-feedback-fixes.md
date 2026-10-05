@@ -220,7 +220,7 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | C2 | FB-004, FB-011 | P0 | Full + visual | **Done**: S0; S1 `075529b`; S2 `0a1a69a` |
 | C3 | FB-003 | P1 | Full + visual | **Done** (`02b1c7b`) |
 | C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
-| C7 | FB-013 | P1 | Full + visual | S0 confirmed the cause (census finishing); S1 **ready** |
+| C7 | FB-013 | P1 | Full + visual | **Done** — S1 `03d49aa`, 2026-10-05 |
 | C5 | FB-010 | P2 | Full | After C7 |
 | CE | FB-012 | P1 | S0 Light; fixes Light, or Full + security if a defect | After C5 (owner) |
 | C6 | Phase gate | — | Coordinator + visual | Last |
@@ -950,7 +950,7 @@ the base return is a base body with a fixed front.*
 7. The supplier's reference geometry is departed from on purpose; each moved mesh is a named departure
    in the parity gate.
 
-### C7 — a wall cabinet beside the fridge is built deep (FB-013)
+### C7 — a wall cabinet beside the fridge is built deep (FB-013) — DONE (S1 `03d49aa`, 2026-10-05)
 
 Found by QA during C3 and shown to the owner, who chose *"Fix it in this milestone"* (relayed selection,
 2026-10-01). Witnesses: a straight kitchen 2500 wide and an L 900 / 3500, height 2600; captures in the
@@ -1093,6 +1093,46 @@ population pin red. (c) The falling-direction scenario tests are untouched and g
 *Files:* the two web test files; one new domain test file. *Reading added:* ADR 0080 Amendments A and
 C; ADR 0123; `frozen-map-at-cabinet-depth.ts` `frozenDepthAtThisSetting`. *For the scribe:* a dated
 pointer in ADR 0080 that the rising direction is held by a declared witness since C7.
+
+**C7 S1 close-out — 2026-10-05.** Committed `03d49aa` on `m7c-m7-feedback-fixes` (not pushed); the
+pre-commit hook ran, format and lint passed.
+- **Shipped.** `overlapsAlongWall` (`void-engine.ts`) compares spans (centre ± w/2) instead of reading a
+  centre as a start. Both callers are unedited; the three siblings were already span-correct [logic
+  review, source-verified].
+- **Census** [QA's, relayed]: 7,764 L and 1,404 straight rooms change, no U; every change a seat
+  561 → 291; no capped body became lifted; findings, verdicts and column extents identical; the `qa-u3a`
+  digest restated through a before-C7 oracle.
+- **Adjudication delivered.** The four `apps/web` tests became declared witnesses (ADR 0123) in
+  `packages/configurator-domain/tests/frozen-map-declared-witnesses.test.ts`, plus a population pin in
+  `apps/web/tests/store/qa-6k-j-fallback-rule.adversarial.test.ts`.
+- **Sabotage** (run by the coordinator). Restoring `d − atFreezeM ≤ ε` in `frozenDepthAtThisSetting` reds
+  two witnesses; removing the surplus arm's MAX reds the other two. The rising-direction witness cannot
+  tell `≤` from equality: it guards Amendment C, not A's operator (the replaced store test had the same
+  blind spot). Restoring the centre-as-start predicate reds the population pin.
+- **Final runs** (coordinator): domain 6043/6043; web 4956/4956 against a freshly built domain dist;
+  whole-tree `format:check` exit 0.
+- **Review (Full + visual).** Logic: no blocker, two should-fix (a stale comment; an inverted witness
+  name). Clean-code: no blocker, four should-fix (a test whose name promised a cross-wall check it did not
+  make; duplicated span fixtures and seat constants; the same inverted name; a property witness whose
+  expectation restated the rule). All fixed in a test-only round before the commit: shared
+  `tests/support/span-overlap-fixtures.ts`, literal-mm examples added, the cross-wall-named test deleted
+  as non-discriminating.
+- **Visual** (desktop 1440×900 only; no mobile claim; captures in the session scratchpad
+  `…/7334b855-9fb1-4cf9-9c9b-9caae21ead4f/scratchpad/c7-s1-visual/`). Both witnesses (straight 2500/2600;
+  L 900/3500): the cabinet beside the fridge is 330 at 600 and 400 at 700, flush with its row; the
+  600 → 700 → 600 round trip ends at 330; an editor-inserted wall cabinet beside the fridge is 330/400;
+  the seeded kitchen's three deep tops are 600 over their tall members, all other uppers 330. A top
+  cabinet over a widened pantry was built deep and flush. **Not reached in the browser:** a narrow cabinet
+  over the low end of a wider pantry; in the editor a column over a tall member takes that member's
+  width, so the state could not be built. It is covered by the unit test
+  `wall-depth-beside-a-tall-member.test.ts`.
+- **Open note** (ADR 0080 pointer; inference, not proven): the population pin covers one fixture;
+  `isFullHeightUnder` has no vertical term, so a member-less top-band column off-centre over a pantry
+  would read true. The old predicate had the same exposure; C7 did not introduce it.
+- **Housekeeping.** The visual agent's first attempt ran briefly against the preview database (from
+  `.env.local`) and minted one design there, id not recorded; left in place per the add-only rule, owner
+  informed. Five test-database designs were also left.
+- **Deferred.** Nothing new. Next: C5, then C1 S4, CE, C6, one wave at a time (owner, 2026-10-05).
 
 ### C5 — the leftover beside a fixed-width end body (domain)
 
