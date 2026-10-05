@@ -1,29 +1,19 @@
 "use client";
 
-// Frame 1B's plan card (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:132-141`): the
-// uppercase caption, the box, the walls and a label on each wall reading its own length.
+// The plan card: the caption, the box, the walls and a label on each wall reading its own length.
 //
-// **A renderer with no geometry of its own.** Every coordinate below comes from `derivePlanPreview`,
-// which is pure and swept (criteria 11, 12 and 13). Nothing here multiplies a length by a scale, and
-// nothing here decides which way a wall runs — the anchor is adopted in that module and re-deriving
-// it in a second place is how a 2D plan comes to disagree with the 3D room it produces.
+// A renderer with no geometry of its own: every coordinate comes from `derivePlanPreview`. Nothing
+// here scales a length or decides which way a wall runs; a second derivation is how the 2D plan
+// comes to disagree with the 3D room.
 //
-// **The picture is `aria-hidden` and the labels are real text beside it** (the copy obligation's
-// third deliberate absence): a screen reader reads *"A · 3600 mm"* rather than a drafted description
-// of a drawing.
+// The picture is `aria-hidden` and the labels are real text, so a screen reader reads
+// *"A · 3600 mm"*, not a description of a drawing. A wall the room refuses is marked, never moved:
+// `markPlanWalls` sets a reason, and this paints the wall red and writes the reason where its length was.
 //
-// **Frame 1C's red wall is marked, never drawn** (wave 7F2 criterion 7): `markPlanWalls` sets a
-// reason on the walls the room refuses, and this renderer paints that wall red and writes the reason
-// where its length was. The rectangle is the one `derivePlanPreview` placed, untouched.
-//
-// **Wave 7L D6: the box the plan is drawn in is no longer always a constant.** On the desktop layout
-// `.planBox` publishes a fill-mode flag this component reads off the element itself (`--plan-fill`,
-// `usePlanFillState` below); off that flag, the box is measured (`ResizeObserver`) rather than
-// assumed, and the drawing is derived here, against the measured box, with D1B's own metrics — the
-// same `derivePlanPreview` every phone room draws with, never a second layout function. Without the
-// flag — the phone, a server render, a test with no stylesheet loaded — nothing below moves: the box
-// is `PLAN_BOX`, the metrics are `DEFAULT_PLAN_PREVIEW_METRICS`, byte for byte (D6a, criterion 7's
-// "with `PLAN_BOX` and the default set" clause).
+// On the desktop layout `.planBox` publishes a fill-mode flag (`--plan-fill`, read by
+// `usePlanFillState`); the box is then measured (`ResizeObserver`) and the drawing derived against it
+// with the desktop metrics, by the same `derivePlanPreview`. Without the flag (phone, server render,
+// a test with no stylesheet) the box is `PLAN_BOX` and the metrics are `DEFAULT_PLAN_PREVIEW_METRICS`.
 import { useTranslations } from "next-intl";
 import type { CSSProperties, RefObject } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -46,43 +36,35 @@ import styles from "./room.module.css";
 
 export interface PlanPreviewProps {
   readonly draft: RoomDraft;
-  /** The walls frame 1C draws red (`RoomIssueView.markedWalls`). None until the screen passes them. */
+  /** The walls frame 1C draws red (`RoomIssueView.markedWalls`); none at 1B. */
   readonly markedWalls?: readonly MarkedPlanWall[];
 }
 
 const NO_MARKED_WALLS: readonly MarkedPlanWall[] = [];
 
-/** The one test id `.planBox` is ever rendered with, named once so both render branches below agree
- *  with each other and with `readPlanDrawing`/`readPlanPaints` in the e2e spec. */
+/** Shared by both render branches and by `readPlanDrawing`/`readPlanPaints` in the e2e spec. */
 const PLAN_BOX_TEST_ID = "room-plan-box";
 
-/** A wall's paint: the frame's accent (`:135`), or frame 1C's red (`:210-211`) on a wall the room refuses.
- *  The red is published by `.planBox` as `--plan-wall-issue`, so the bar and its label share one. */
+/** The red is published by `.planBox` as `--plan-wall-issue`, so the bar and its label share one. */
 const WALL_FILL = "var(--accent)";
 const MARKED_WALL_FILL = "var(--plan-wall-issue)";
 
-/** Frame 1B's own box as it is *painted* (`:134`): 104 px tall, and as wide as the card leaves it on
- *  a 390 px screen — the body's 18 px insets and the card's 16 px padding and 1 px border, taken off
- *  390. */
+/** The box as painted on a 390 px screen: 104 px tall, 320 px wide after the body's and card's insets. */
 const PAINTED_PLAN_BOX: PlanBox = { widthPx: 320, heightPx: 104 };
 
-/** The hairline `.planBox` draws. It is **published to the stylesheet** as `--plan-box-border`
- *  instead of being written there, so the line the customer sees and the pixels it costs the drawing
- *  are one number. They were two: `globals.css:53-55` puts every element in `border-box`, so a
- *  border stated only in CSS is spent out of the box's own 320 x 104 — and a drawing laid out in all
- *  of them ran 2 px under the border in every room. */
+/** Published to the stylesheet as `--plan-box-border` rather than written there: `globals.css:53-55`
+ *  sets `border-box`, so a border stated only in CSS is spent out of the 320 x 104 and the drawing
+ *  would run 2 px under it. */
 const PLAN_BOX_BORDER_PX = 1;
 
 /** The border is drawn at both ends of each axis. */
 const PLAN_BOX_BORDER_SPEND_PX = PLAN_BOX_BORDER_PX * 2;
 
-/** **What the border leaves: the pixels the drawing is actually painted in**, and so the box the
- *  model is handed. Both the SVG and the labels are positioned against the padding box, which is
- *  this one — measure the drawing against the painted box instead and every extreme clips. */
+/** The pixels left after the border, and so the box the model is handed: the SVG and the labels are
+ *  positioned against the padding box, and measuring against the painted box clips every extreme. */
 export const PLAN_BOX: PlanBox = insideTheBorder(PAINTED_PLAN_BOX);
 
-/** D1B's own set (`Desktop.dc.html:183, 185`; wave 7L D6b): 26 px walls, 14 px labels, a 20 px label
- *  gap. Declared beside `DEFAULT_PLAN_PREVIEW_METRICS` rather than in the model, which keeps no
+/** The desktop set: 26 px walls, 14 px labels, a 20 px label gap. Kept here because the model has no
  *  opinion about which shell asks for which set. */
 const DESKTOP_PLAN_PREVIEW_METRICS: PlanPreviewMetrics = {
   wallThicknessPx: 26,
@@ -90,9 +72,8 @@ const DESKTOP_PLAN_PREVIEW_METRICS: PlanPreviewMetrics = {
   labelGapPx: 20,
 };
 
-/** The value `.planBox` publishes under the desktop `@media` block (D6c). Read off the element with
- *  `getComputedStyle` rather than assumed from the viewport — CSS is the one place a width is known
- *  (7L D2), so this component asks the box rather than keeping a breakpoint of its own. */
+/** What `.planBox` publishes under the desktop `@media` block. Read with `getComputedStyle`: CSS is
+ *  the one place a width is known, so this component keeps no breakpoint of its own. */
 const FILL_MODE_FLAG = "1";
 
 export function PlanPreview({
@@ -104,8 +85,7 @@ export function PlanPreview({
   const fill = usePlanFillState(boxRef);
 
   if (fill.kind === "awaiting-measurement") {
-    // D6d: fill mode is flagged but no measurement has arrived yet — draw the box and nothing in it,
-    // so no drawing sized for the wrong box is ever visible.
+    // Flagged but not yet measured: draw the box empty, so no drawing sized for the wrong box shows.
     return (
       <div className={styles.planCard} data-testid="room-plan">
         <span className={styles.planCaption}>
@@ -163,9 +143,8 @@ export function PlanPreview({
   );
 }
 
-/** The measurement state `.planBox` is in: never flagged (the phone, a server render, a stylesheet-
- *  free test — D6c), flagged but not yet measured (D6d), or flagged and measured (D6, the desktop
- *  panel's steady state). */
+/** Never flagged (phone, server render, stylesheet-free test), flagged but not yet measured, or
+ *  flagged and measured (the desktop panel's steady state). */
 type PlanFillState =
   | { readonly kind: "not-fill" }
   | { readonly kind: "awaiting-measurement" }
@@ -175,19 +154,13 @@ const NOT_FILL: PlanFillState = { kind: "not-fill" };
 const AWAITING_MEASUREMENT: PlanFillState = { kind: "awaiting-measurement" };
 
 /**
- * **One observer, registered once the flag is read.** The flag and the measurement are asked
- * together, in the observer's own callback, so a box that stops being flagged (a resize back onto
- * the phone layout) is read again rather than trusted from mount. Criterion 9: an environment with no
- * `ResizeObserver` (a bare jsdom) never measures and never throws — the component simply stays
- * unflagged and draws `PLAN_BOX`.
+ * One observer, registered once the flag is read. The flag and the measurement are asked together in
+ * the observer's callback, so a box that stops being flagged (a resize back to the phone layout) is
+ * re-read. With no `ResizeObserver` (a bare jsdom) it never measures or throws and draws `PLAN_BOX`.
  *
- * **`useLayoutEffect`, not `useEffect`** (7L QA finding, defect 1): the server can never know the
- * client's own viewport, so hydration always starts from the not-fill markup (D6c) — deliberately
- * diverging the client's first render from it here (an `initialPlanFillState` read via `useState`'s
- * lazy initializer, tried and reverted) throws a hydration error instead, which is worse than the gap
- * it closes. `useLayoutEffect` still closes most of it: it commits the flag's real answer, and the
- * observer, synchronously after the DOM mutates and before the browser paints, rather than in a
- * passive effect queued a whole extra frame behind that first paint.
+ * `useLayoutEffect`, not `useEffect`: the server cannot know the viewport, so hydration must start
+ * from the not-fill markup, and diverging the client's first render from it throws a hydration error.
+ * The layout effect commits the real answer before the first paint rather than a frame behind it.
  */
 function usePlanFillState(
   boxRef: RefObject<HTMLDivElement | null>,
@@ -224,11 +197,8 @@ function isFlaggedForFill(box: HTMLElement): boolean {
   );
 }
 
-/** `ResizeObserver`'s content box already excludes the border (`globals.css:53-55` puts the element
- *  in `border-box`, but the *content* box is reported net of it either way) — exactly the pixels
- *  `derivePlanPreview` is handed for the phone's own `PLAN_BOX`, so no second subtraction belongs
- *  here. `contentBoxSize` is preferred; `contentRect` is the fallback for an engine reporting an
- *  empty array instead (older Safari's own `ResizeObserverEntry`). */
+/** The content box is already net of the border, like `PLAN_BOX`, so no second subtraction belongs
+ *  here. `contentRect` is the fallback for an engine reporting an empty `contentBoxSize` (older Safari). */
 function contentBoxPxOf(entry: ResizeObserverEntry): PlanBox {
   const contentBoxSize = entry.contentBoxSize.at(0);
   if (contentBoxSize !== undefined) {
@@ -243,8 +213,8 @@ function contentBoxPxOf(entry: ResizeObserverEntry): PlanBox {
   };
 }
 
-/** D6e: a panel a customer's window has made smaller than the set's own minimum is drawn at that
- *  minimum and left to `.planBox`'s `overflow: hidden` to clip — never a thrown `RangeError`. */
+/** A panel smaller than the set's minimum is drawn at that minimum and clipped by `.planBox`'s
+ *  `overflow: hidden`, never a thrown `RangeError`. */
 function flooredAtMinimum(box: PlanBox, metrics: PlanPreviewMetrics): PlanBox {
   const minimum = planPreviewMinimumBoxPx(metrics);
   return {
@@ -253,11 +223,8 @@ function flooredAtMinimum(box: PlanBox, metrics: PlanPreviewMetrics): PlanBox {
   };
 }
 
-/** The figures the stylesheet cannot import: the border already taken off `PLAN_BOX`, and the line
- *  height the drawing's metric set reserves a label lane for. Published rather than repeated in CSS
- *  — the same hop `price-bar.tsx:12-18` takes, and for the same reason. In fill mode this publishes
- *  the **desktop** set's own line height, so the type `.planWallLabel` sets is the type the lane was
- *  reserved for (D6c). */
+/** Publishes the figures the stylesheet cannot import: the border and the label line height the lane
+ *  is reserved for. In fill mode that is the desktop set's line height. */
 function planBoxMetricsStyle(metrics: PlanPreviewMetrics): CSSProperties {
   return {
     ...planBoxBorderStyle(),
@@ -265,11 +232,9 @@ function planBoxMetricsStyle(metrics: PlanPreviewMetrics): CSSProperties {
   } as CSSProperties;
 }
 
-/** The border alone, applied from the box's very first render (including `awaiting-measurement`,
- *  which draws nothing else) — never added a paint later, which is what let `ResizeObserver`'s first
- *  measurement include the 2 px a border added right after it (7L QA finding, defect 2). Without
- *  `--plan-box-border` at all, `room.module.css:374`'s `var()` fails to resolve and the whole `border`
- *  declaration is invalid at computed-value time, so the box is borderless rather than unstyled. */
+/** The border alone, applied from the first render (including `awaiting-measurement`) so the first
+ *  `ResizeObserver` measurement already excludes it. Without `--plan-box-border`, the `var()` in
+ *  `room.module.css` fails to resolve and the whole `border` declaration is invalid, leaving no border. */
 function planBoxBorderStyle(): CSSProperties {
   return {
     "--plan-box-border": `${String(PLAN_BOX_BORDER_PX)}px`,
@@ -304,10 +269,9 @@ function PlanDrawing({ plan }: { readonly plan: PlanPreviewModel }) {
   );
 }
 
-/** The wall's letter and its whole millimetres, joined by the catalogue's own template: both are ICU
- *  arguments, so the number's form and the unit are the locale's to place and this component never
- *  spells either. Millimetres, the unit the customer types (ADR 0126). A marked wall reads its short
- *  reason instead, which names the wall and carries no digit (ADR 0120 decision 3). */
+/** The wall's letter and its whole millimetres (ADR 0126) as ICU arguments, so the locale places
+ *  the number and unit. A marked wall reads its short reason instead, with no digit (ADR 0120
+ *  decision 3). */
 function PlanWallLabel({ wall }: { readonly wall: PlanWallRect }) {
   const translate = useTranslations();
 
@@ -332,10 +296,8 @@ function isMarked(wall: PlanWallRect): boolean {
   return wall.issueLabelKey !== undefined;
 }
 
-/** The label's own box, hung off the anchor the model placed. **Nothing here decides where a label
- *  goes**: which side of its wall it stands on, and the lane it stands clear in, are decided against
- *  the whole drawing — and a second decision taken here, over one rectangle, is how a label comes to
- *  sit on the bar the model placed it clear of. */
+/** The label's box, hung off the anchor the model placed. Which side of its wall a label stands on is
+ *  decided against the whole drawing; a second decision here, over one rectangle, puts a label on a bar. */
 function labelPositionFor(label: PlanWallLabelPx): CSSProperties {
   return {
     left: `${String(label.xPx)}px`,
@@ -344,9 +306,8 @@ function labelPositionFor(label: PlanWallLabelPx): CSSProperties {
   };
 }
 
-/** `left` places the label's left edge, so a label whose text must *end* at its anchor is pulled back
- *  by its own width and a centred one by half of it. This is the one part of the placement the model
- *  cannot do, because only the browser knows how wide the text came out. */
+/** `left` places the label's left edge, so a label that must end at its anchor is pulled back by its
+ *  width and a centred one by half: only the browser knows how wide the text came out. */
 const TEXT_HUNG_OFF_THE_ANCHOR: Readonly<Record<PlanLabelAlignment, string>> = {
   centred: "translateX(-50%)",
   leftAligned: "none",
@@ -360,8 +321,7 @@ function insideTheBorder(box: PlanBox): PlanBox {
   };
 }
 
-/** The element is painted around the box the model was handed: the inverse of `insideTheBorder`, so
- *  the two can never be sized from different figures. */
+/** The inverse of `insideTheBorder`, so the two cannot be sized from different figures. */
 function paintedHeightPx(box: PlanBox): number {
   return box.heightPx + PLAN_BOX_BORDER_SPEND_PX;
 }

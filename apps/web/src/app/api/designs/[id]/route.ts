@@ -41,43 +41,32 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/** Either the design the body carried, or the response that refuses it — tagged rather than left
- *  to an `instanceof` on the value type, so a caller cannot forget which it is holding. */
+/** Either the design the body carried or the response that refuses it, tagged so a caller cannot
+ *  forget which it holds. */
 type ReadDesignOutcome =
   | { readonly ok: true; readonly design: Design }
   | { readonly ok: false; readonly response: NextResponse };
 
 /**
- * Where a save states the revision it edits (WEB-003).
- *
- * A header rather than a field in the body: the body of a save **is** the `Design` document and
- * `CurrentDesignSchema` is strict, so a revision smuggled into it would be rejected by the
- * schema — and putting transport metadata inside the customer's document is how the two come to be
- * confused later.
- *
- * Not `If-Match`, deliberately, even though the semantics are a conditional write. That header's
- * failure is a `412`, and this route answers `409`, which is the status the client's two-way choice
- * — reload, or overwrite — is written against; `If-Match` also invites a proxy or CDN to act on a
- * precondition it does not understand here. A custom header is inert to every intermediary.
+ * Where a save states the revision it edits. A header, not a body field: the body is the `Design`
+ * document and `CurrentDesignSchema` is strict. Not `If-Match`: its failure is a `412` where this
+ * route answers `409`, which the client's reload-or-overwrite choice is written against, and a proxy
+ * or CDN may act on `If-Match`. A custom header is inert to every intermediary.
  */
 const EXPECTED_REVISION_HEADER = "x-expected-revision";
 
 /**
- * Gated to the owning browser alone, since M7 wave 7E3b (ADR 0114 decision 5). A missing or
- * malformed visitor cookie, a foreign one and an unknown id are one outcome — `designNotFoundResponse`
- * — answered by `loadOwned`'s own single statement; no branch here can tell a caller which of the
- * three it hit, and the no-cookie and malformed cases never reach the repository at all.
+ * Gated to the owning browser alone (ADR 0114 decision 5). A missing or malformed visitor cookie, a
+ * foreign one and an unknown id are one outcome, `designNotFoundResponse`, so no branch here can tell
+ * a caller which it hit; the first two never reach the repository.
  *
- * `canWrite` rides along because the request already carried the write-token cookie: the credential
- * is `HttpOnly`, so the browser cannot inspect it, and without this answer a panel could only
- * discover whether it may edit by attempting an edit — the warn-after-click pattern §9 rules out. It
- * is a boolean and nothing else; no token, no hash, and no fragment of either leaves this handler.
+ * `canWrite` exists because the write-token cookie is `HttpOnly`: without it a panel could only learn
+ * whether it may edit by attempting an edit (§9 rules out warn-after-click). It is a boolean; no
+ * token, hash or fragment leaves this handler.
  *
- * **It is advisory, for the UI, and it is not the authorisation decision.** `PUT`/`PATCH` hand the
- * hash to `saveAuthorized`, which makes it part of the row's own `update` predicate. Nothing may
- * ever be written on the strength of a `canWrite` this route returned: that would be a
- * check-then-write window, which is the thing ADR 0019 was written to close. The next reader will be
- * tempted; this paragraph is why they should not be.
+ * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
+ * `canWrite` this route returned: `PUT`/`PATCH` make the hash part of `saveAuthorized`'s own `update`
+ * predicate, and a check-then-write window is what ADR 0019 closes.
  */
 export async function GET(
   request: NextRequest,
@@ -119,15 +108,11 @@ export async function PATCH(
 }
 
 /**
- * Shared by `PUT` and `PATCH`: this route treats a save as a full replacement either way, so both
- * verbs validate and persist identically. The identifier travels only in the URL segment — the
- * request body is the `Design` document itself, nothing else.
- *
- * A request carrying no write-token cookie for this design is refused before its body is read, so
- * an unauthorised caller never reaches the parser. A request carrying one is still not trusted here:
- * the hash is handed to `saveAuthorized`, which makes it part of the `update` predicate. There is no
- * verification step in this file, and there must not be one — a check here followed by a write there
- * is the time-of-check/time-of-use window ADR 0019 rejects.
+ * Shared by `PUT` and `PATCH`: a save is a full replacement either way, and the body is the `Design`
+ * document itself. A request with no write-token cookie for this design is refused before its body is
+ * read. One carrying a cookie is still not trusted here: the hash goes to `saveAuthorized`, part of the
+ * `update` predicate. There must be no verification step in this file; a check here followed by a
+ * write there is the time-of-check/time-of-use window ADR 0019 rejects.
  */
 async function saveDesign(
   request: NextRequest,
@@ -137,14 +122,12 @@ async function saveDesign(
   if (writeTokenHash === undefined) return writeForbiddenResponse();
 
   // After the credential check and before the body is read: an unauthorised caller must not be able
-  // to tell this refusal from the 403, and a request that cannot be enforced is not worth parsing.
+  // to tell this refusal from the 403.
   const expectedRevision = readExpectedRevision(request);
   if (expectedRevision === undefined) return revisionRequiredResponse();
 
   try {
-    // Inside the try, not above it: `readDesign` is not expected to throw — the reader returns its
-    // transport failures — but nothing above a `try` has a handler, and this handler's whole reason
-    // for existing is that a body read once escaped it.
+    // Inside the try: `readDesign` is not expected to throw, but nothing above a `try` has a handler.
     const body = await readDesign(request);
     if (!body.ok) return body.response;
 
@@ -156,13 +139,10 @@ async function saveDesign(
       requestVisitor: resolveRequestVisitor(request.cookies),
     });
 
-    // A save is the proof the design is still in use, so it is also what keeps edit access alive —
-    // and, since M7 wave 7E3a, what keeps the visitor identity alive on the same clock.
-    // `refreshVisitorCookie` re-emits only the request's own well-formed value; it never mints one,
-    // so a save made without a visitor cookie still sets none (D9: no save changes ownership).
-    // Since M7 wave 7E3b (D3 / Amendment H3) that refresh runs only when `saved.ownsVisitor` —
-    // the row's own current visitor_hash, answered by the same statement as the update — so a
-    // value another tab already rotated away is never re-emitted here.
+    // A save keeps edit access and the visitor identity alive on the same clock.
+    // `refreshVisitorCookie` re-emits only the request's own well-formed value and never mints one
+    // (D9: no save changes ownership), and only when `saved.ownsVisitor`, so a value another tab has
+    // rotated away is not re-emitted (ADR 0114 Amendment H3).
     const response = NextResponse.json({
       id: saved.id,
       revision: saved.revision,
@@ -175,9 +155,8 @@ async function saveDesign(
   }
 }
 
-/** The revision the caller claims to be editing, or `undefined` when it did not send a usable one.
- *  Absent and malformed are one case on purpose: neither can be enforced against the row, and
- *  distinguishing them in the response would describe this route's parser to a caller. */
+/** The revision the caller claims to be editing, or `undefined`. Absent and malformed are one case on
+ *  purpose: telling them apart would describe this route's parser to a caller. */
 function readExpectedRevision(
   request: NextRequest,
 ): DesignRevision | undefined {
@@ -187,19 +166,14 @@ function readExpectedRevision(
 }
 
 /**
- * The `Design` the request body carries, or the response that refuses it.
+ * The `Design` the request body carries, or the response that refuses it. Three gates, in the order
+ * their cost demands: the size gate reads the stream itself, so an oversized body is cut off rather
+ * than parsed; then the parse, which throws on a truncated or empty body; then the executable
+ * contract, since a document can pass `CurrentDesignSchema` and still name a body no catalogue entry
+ * covers, which every reader of the shared link would then crash on.
  *
- * Three distinct failures, in the order their cost demands. The **size** gate runs first and reads
- * the stream itself (SEC-002), so an oversized body is cut off rather than parsed. Then the parse —
- * a truncated or empty body throws where a well-formed but wrong-shaped one merely fails the schema
- * — which is the one that used to escape the handler entirely, turning a client's malformed payload
- * into a 500 with a stack trace in the log. Then the **executable** contract (DOM-001): a document
- * can pass `CurrentDesignSchema` and still name a body no catalogue entry covers, which the schema cannot
- * see and every reader of the shared link then crashes on.
- *
- * All of them tell the client the same thing: the payload was rejected, and a stable code, never
- * why (ADR 0014 S2). The reasons are logged as bounded shapes rather than as the body, which is
- * attacker-supplied and unbounded.
+ * The client is told only that the payload was rejected, with a stable code, never why. Reasons are
+ * logged as bounded shapes, not the body, which is attacker-supplied and unbounded.
  */
 async function readDesign(request: NextRequest): Promise<ReadDesignOutcome> {
   const raw = await readUtf8BodyWithLimit(request.body, MAX_DESIGN_BYTES);
@@ -228,17 +202,15 @@ async function readDesign(request: NextRequest): Promise<ReadDesignOutcome> {
   );
 }
 
-/** A body that never arrived, as a handled response. An oversized payload is the caller's document
- *  and answers 413; a stream that broke mid-flight produced no document at all and answers 400,
- *  the same way a truncated JSON body does — which is what it is, one layer down. */
+/** A body that never arrived, as a handled response: an oversized payload answers 413; a stream that
+ *  broke mid-flight produced no document and answers 400, like truncated JSON. */
 function refuseUnreadBody(failure: BoundedBodyFailure): NextResponse {
   return failure === "too-large"
     ? payloadTooLargeResponse()
     : invalidBodyResponse("request body stream failed before it completed");
 }
 
-/** The same validator the load path runs, at the write seam: a document is rejected here rather
- *  than persisted and rejected on every later read. */
+/** The load path's validator, at the write seam: reject here, not on every later read. */
 function refuseUnexecutableDesign(
   design: Design,
 ): { readonly ok: false; readonly response: NextResponse } | undefined {

@@ -1,42 +1,21 @@
 "use client";
 
-// Frame 1B's two controls below the plan: the corner toggle (`:142-163`) and the length fields
-// (`:164-186`).
+// The corner toggle and the length fields below the plan. Lengths are whole millimetres (ADR 0126).
 //
-// **The fields are real `<input>` elements**, where the frame draws a `<span class="num">` inside a
-// styled box. A static mockup cannot draw a text field; the box, its height, its inline unit and its
-// tabular numerals are all the frame's, and the input is the control the frame is depicting. This is
-// recorded in the wave's plan as a **non-departure**, so it is not something to correct back.
+// The fields are `type="text"` with `inputmode="numeric"`, and nothing else: `parse-millimetres.ts`
+// alone says what a length may look like (ADR 0108 decision 4). `type="number"` draws spinners and
+// reads floats, a `pattern` would be a second reading of that parser, a `maxLength` truncates a
+// paste, and a placeholder would put an example figure in the box.
 //
-// **Whole millimetres, where the frame draws metres** (ADR 0126, a departure from frames 1B/1C
-// recorded against ADR 0104): the box reads *"3600"* beside *mm*, where the frame draws *"3,60"*
-// beside *m*.
+// At 1B nothing is painted as an error while the customer is in a field: no `aria-invalid`, message
+// or red. Text the field refuses is explained once the customer leaves it (ADR 0126). At 1C a field
+// the room refuses carries its reason, linked by `aria-describedby` after the hint and help, and the
+// red is painted from `aria-invalid` (`room.module.css`), so nothing is red that a screen reader is
+// not told is invalid.
 //
-// **`type="text"` with `inputmode="numeric"`, and nothing else.** The keypad is the prevention;
-// `parse-millimetres.ts` is the one authority on what a length may look like (ADR 0108 decision 4).
-// `type="number"` draws spinners and reports `valueAsNumber` as a float; a `pattern` would be a second
-// reading of that parser; a `maxLength` truncates a paste into a room nobody entered; and a
-// placeholder would put an example figure in the box.
-//
-// **Nothing is painted as an error at 1B while the customer is in a field.** A field that does not
-// yet read as a length is a field still to be filled, not a wrong one (7F1 criterion 10): no
-// `aria-invalid`, no message, no red. **Text the field refuses is explained once the customer leaves
-// it** (Q-7F2-4 (a), ADR 0126): that one sentence, in the reason's slot and with its wiring. It goes
-// on the keystroke that makes the text readable or empty, and a keystroke that leaves it unreadable
-// keeps it — the rule `stillShowing` applies to every other reason mid-burst: what is showing and
-// still holds stays, what is fixed goes at once, and what is new waits for its trigger, here the blur.
-// **At 1C a field the room refuses carries its reason beside it** (wave 7F2, frame 1C `:224-231`):
-// the reason is linked by `aria-describedby` after the hint and the help, and the input carries
-// `aria-invalid`. The red is painted **from** that attribute (`room.module.css`), so nothing can be
-// red that a screen reader is not told is invalid. Which fields, and which sentence, is the issue
-// model's answer; the screen decides when it shows.
-//
-// **The wall fields say what number to type, twice** (wave 7A3, owner ruling Q-7A3-1). The number is
-// the run the customer wants furnished, not the wall (ADR 0120 Amendments C1 and D1), and the labels
-// stay the frame's *Perete A/B/C*. So one hint line above the fields says it to a customer who never
-// taps anything — which is the criterion, and why a help control alone would not meet it — and a help
-// control per wall carries the longer explanation on top. Neither states a bound (ADR 0108
-// decision 3) and neither refuses anything: the refusal sentence is 7F2's.
+// The wall fields say what number to type twice: a hint line above the fields, so a customer who taps
+// nothing still reads it, and a help control per wall. The number is the run to furnish, not the wall
+// (ADR 0120 Amendments C1 and D1). Neither states a bound (ADR 0108 decision 3).
 import type { CornerDirection, RoomShape } from "@lemnaria/configurator-domain";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
@@ -59,22 +38,19 @@ import { WallLengthHelp } from "./wall-length-help";
 
 export interface DimensionsFormProps {
   readonly draft: RoomDraft;
-  /** The reasons 1C shows beside their fields (`RoomIssueView.fieldReasons`). None until the screen
-   *  passes them, which is 1B's state. */
+  /** The reasons 1C shows beside their fields (`RoomIssueView.fieldReasons`); none at 1B. */
   readonly fieldReasons?: readonly RoomFieldReason[];
-  /** The fields holding text the field's parser refuses (`RoomIssueView.unreadableFields`). The form
-   *  decides when each is explained: after the customer leaves it, never while they type. */
+  /** The fields holding text the parser refuses (`RoomIssueView.unreadableFields`). The form
+   *  explains each after the customer leaves it, never while they type. */
   readonly unreadableFields?: readonly RoomLengthField[];
-  /** The linear suggestion's id while it shows (D9); appended after each offending field's own
-   *  reason, so `aria-describedby` reads the reason then the suggestion. Undefined while it does
-   *  not, and for a field carrying no reason of its own. */
+  /** The linear suggestion's id while it shows (D9), appended after each offending field's own
+   *  reason in `aria-describedby`. */
   readonly suggestionId?: string | undefined;
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
   readonly onChooseCorner: (direction: CornerDirection) => void;
 }
 
-/** The label each field carries. A `Record` over every field the URL parser knows, so a wall added
- *  to a shape there is a compile error here rather than a field with no name (criterion 4). */
+/** A `Record` over every field the URL parser knows, so a wall added there is a compile error here. */
 const FIELD_LABEL = {
   wallA: "room.wallLabel.wallA",
   wallB: "room.wallLabel.wallB",
@@ -82,8 +58,7 @@ const FIELD_LABEL = {
   height: "room.heightLabel",
 } as const satisfies Readonly<Record<RoomLengthField, string>>;
 
-/** The fields that are walls a customer furnishes, named rather than derived as "not the height": a
- *  field the URL parser learns later is not taken for a wall until it is listed here. */
+/** Named rather than derived as "not the height", so a new URL field is not taken for a wall. */
 const WALL_LENGTH_FIELDS = [
   "wallA",
   "wallB",
@@ -92,14 +67,12 @@ const WALL_LENGTH_FIELDS = [
 
 export type WallLengthField = (typeof WALL_LENGTH_FIELDS)[number];
 
-/** The one wall a straight room is entered with (`requiredFieldsFor("linear")`), and so the one wall
- *  whose explanation also has a reading for a room with no corner. */
+/** The one wall a straight room is entered with (`requiredFieldsFor("linear")`). */
 type StraightRoomWall = "wallA";
 
-/** A wall's help copy. **The explanation depends on the room**: in a room that turns a corner the
- *  length is measured from the corner, corner cabinet included (owner ruling, 2026-09-17), and a
- *  straight room has no corner to measure from. The type demands both readings of wall A and admits
- *  only the corner reading of the others, so neither can be forgotten or invented. */
+/** A wall's help copy, which depends on the room: with a corner the length is measured from it,
+ *  corner cabinet included; a straight room has none. The type demands both readings of wall A and
+ *  only the corner reading of the others. */
 interface WallHelpCopy<Wall extends WallLengthField> {
   readonly name: string;
   readonly explanation: Wall extends StraightRoomWall
@@ -107,8 +80,7 @@ interface WallHelpCopy<Wall extends WallLengthField> {
     : { readonly cornerRoom: string };
 }
 
-/** The help each wall's control opens. Keyed over every wall, so a wall without help is a compile
- *  error here (7A3 criterion 21). The height is not a run the customer furnishes, and carries none. */
+/** The help each wall's control opens, keyed over every wall; the height carries none. */
 export const WALL_LENGTH_HELP = {
   wallA: {
     name: "room.lengthHelp.wallA.name",
@@ -127,7 +99,6 @@ export const WALL_LENGTH_HELP = {
   },
 } as const satisfies { readonly [Wall in WallLengthField]: WallHelpCopy<Wall> };
 
-/** Frame 1B's order: *La stânga* first and pre-selected. */
 const CORNER_DIRECTIONS = [
   { direction: "left", name: "room.cornerLeft" },
   { direction: "right", name: "room.cornerRight" },
@@ -136,18 +107,16 @@ const CORNER_DIRECTIONS = [
   readonly name: string;
 }[];
 
-/** The corner radios' shared group name. Not customer-visible, so it is not copy. */
 const CORNER_GROUP_NAME = "room-corner-direction";
 
-/** The corner glyph's coordinate space, frame 1B's own (`:155`). */
 const CORNER_GLYPH_VIEWBOX = { width: 60, height: 44 } as const;
 const CORNER_GLYPH_SIZE = { widthPx: 36, heightPx: 26 } as const;
 
 const NO_FIELD_REASONS: readonly RoomFieldReason[] = [];
 const NO_UNREADABLE_FIELDS: readonly RoomLengthField[] = [];
 
-/** A field whose unreadable text is explained says that and nothing else. A 1C reason cannot stand
- *  beside it — unreadable text keeps the room at 1B — and this keeps the two apart by construction. */
+/** A field whose unreadable text is explained says that and nothing else; unreadable text keeps the
+ *  room at 1B, so no 1C reason can stand beside it. */
 const UNREADABLE_REASON_KEYS: readonly ReasonMessageKey[] = [
   UNREADABLE_LENGTH_MESSAGE_KEY,
 ];
@@ -162,9 +131,8 @@ export function DimensionsForm({
 }: DimensionsFormProps) {
   return (
     <>
-      {/* Criterion 6: for a `linear` room the toggle is **absent** from the tree rather than hidden
-          by CSS — there is no corner to point anywhere. Which shapes turn one is `room-draft.ts`'s
-          single statement of it, so no component here spells a shape's letter. */}
+      {/* A `linear` room has no corner, so the toggle is absent from the tree, not hidden by CSS.
+          `room-draft.ts` alone says which shapes turn one. */}
       {carriesCornerDirection(draft.shape) ? (
         <CornerToggle
           chosen={draft.cornerDirection}
@@ -187,8 +155,7 @@ interface CornerToggleProps {
   readonly onChoose: (direction: CornerDirection) => void;
 }
 
-/** The group is named by the visible question through `aria-labelledby` — no invented accessible
- *  name, which is the copy obligation's second deliberate absence. */
+/** The group is named by the visible question through `aria-labelledby`, with no invented name. */
 function CornerToggle({ chosen, onChoose }: CornerToggleProps) {
   const translate = useTranslations();
   const questionId = useId();
@@ -242,8 +209,7 @@ interface LengthFieldsProps {
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
 }
 
-/** One field per wall of the chosen shape, plus the height — and the list is the URL parser's own,
- *  so a U's third field costs nothing and is never a hand-written branch (criterion 4). */
+/** One field per wall of the chosen shape plus the height, from the URL parser's own list. */
 function LengthFields({
   draft,
   fieldReasons,
@@ -296,11 +262,9 @@ interface LengthFieldProps {
   readonly text: string;
   readonly shape: RoomShape;
   readonly hintId: string;
-  /** This field's reasons: its 1C reasons, or the unreadable text's once the field was left. Never
-   *  both — a field holding unreadable text keeps the room at 1B, where no field carries a 1C reason. */
+  /** This field's 1C reasons, or the unreadable text's once the field was left; never both. */
   readonly reasonKeys: readonly ReasonMessageKey[];
-  /** The linear suggestion's id while shown; appended after this field's own reason when it carries
-   *  one (D9). */
+  /** The linear suggestion's id while shown, appended after this field's own reason (D9). */
   readonly suggestionId: string | undefined;
   readonly onEnter: (field: RoomLengthField, text: string) => void;
   readonly onLeave: (field: RoomLengthField) => void;
@@ -310,10 +274,9 @@ type ReasonMessageKey =
   | RoomIssueMessageKey
   | typeof UNREADABLE_LENGTH_MESSAGE_KEY;
 
-/** A wall's input is described by the hint and by its own help, so a screen reader announces both on
- *  focus without the customer opening anything. The help is referenced while hidden on purpose: a
- *  description is computed from hidden content, and that is what makes the explanation unconditional
- *  for a non-visual customer too. At 1C the reason is described last, after what the field asks for. */
+/** A wall's input is described by the hint and its own help. The help is referenced while hidden on
+ *  purpose: a description is computed from hidden content, so a screen reader announces it on focus.
+ *  The reason is described last. */
 function LengthField({
   id,
   field,
@@ -331,8 +294,7 @@ function LengthField({
   const reasonIds = reasonKeys.map(
     (_, index) => `${id}-reason-${String(index)}`,
   );
-  // D9: only an *offending* field — one that already carries a reason of its own — is described by
-  // the suggestion too, and always after that reason, which is how frame 1C's sentence reads.
+  // D9: only a field that already carries a reason is described by the suggestion, after that reason.
   const suggestionIds =
     suggestionId !== undefined && reasonKeys.length > 0 ? [suggestionId] : [];
   const describedBy = [
@@ -393,33 +355,25 @@ function LengthField({
   );
 }
 
-/** No field left while unreadable: the state every form starts in. Never mutated — `withField` and
- *  `withoutField` return new sets. */
+/** Never mutated: `withField` and `withoutField` return new sets. */
 const NO_FIELDS_LEFT: ReadonlySet<RoomLengthField> = new Set();
 
 interface UnreadableOnLeave {
   readonly isShown: (field: RoomLengthField) => boolean;
   /** The customer left the field: its unreadable text is explained, and readable text forgets it. */
   readonly noteLeave: (field: RoomLengthField) => void;
-  /** A keystroke keeps the explanation only while it is on screen, so a field fixed and then made
-   *  unreadable again says nothing until it is left again. */
+  /** A keystroke keeps the explanation only while it is showing, so a field fixed and then made
+   *  unreadable again stays silent until it is left again. */
   readonly forgetUnlessShown: (field: RoomLengthField) => void;
 }
 
 /**
- * **When unreadable text is explained, per field** (Q-7F2-4 (a)). Shown means *left while unreadable,
- * and unreadable still*: the second half is read from the issue model on every render, so text that
- * turns readable or empty — by a keystroke or by a refill from the URL — hides the sentence on that
- * very render, without waiting for the customer to leave the field.
+ * Shown means left while unreadable and unreadable still: the second half is read from the issue
+ * model on every render, so text that turns readable or empty hides the sentence at once.
  *
- * **A deep link never arrives explained.** The URL's refill writes only whole millimetres, so no field
- * arrives holding unreadable text; and a field is explained only once it has been left, so one that
- * did would wait for its blur too.
- *
- * **A field left by a press is explained once the press is over** (QA finding S5b-1). A browser moves
- * focus on the press, before the click; a sentence inserted then pushes every control below the field
- * down under the finger, and the click lands elsewhere — wall B's help did not open. So the sentence
- * waits for the press's click. A field left from the keyboard is explained at once.
+ * A field left by a press is explained only once the press is over: the browser moves focus before
+ * the click, and a sentence inserted then shifts the controls below the field and the click lands
+ * elsewhere. A field left from the keyboard is explained at once.
  */
 function useUnreadableOnLeave(
   unreadableFields: readonly RoomLengthField[],
@@ -481,8 +435,7 @@ function isWallLengthField(field: RoomLengthField): field is WallLengthField {
   return (WALL_LENGTH_FIELDS as readonly RoomLengthField[]).includes(field);
 }
 
-/** The explanation a wall's help gives in a room of this shape. A straight room carries only wall A,
- *  so the throw is for a wall the shape does not have — never a customer's state. */
+/** The throw is for a wall the shape does not have, never a customer's state. */
 function explanationKeyFor(wall: WallLengthField, shape: RoomShape) {
   const explanation = WALL_LENGTH_HELP[wall].explanation;
   if (turnsACorner(shape)) return explanation.cornerRoom;
@@ -492,9 +445,7 @@ function explanationKeyFor(wall: WallLengthField, shape: RoomShape) {
   );
 }
 
-/** The corner, drawn pointing the way its chip chooses — frame 1B's two glyphs (`:155`, `:159`). The
- *  back wall is the same in both and only the side wall moves, which is the whole of what the toggle
- *  mirrors. `aria-hidden`, because the chip's name already says which way it points. */
+/** The corner, drawn pointing the way its chip chooses. `aria-hidden`: the chip's name says which way. */
 function CornerGlyph({ direction }: { readonly direction: CornerDirection }) {
   return (
     <svg

@@ -1,39 +1,34 @@
-// The room a customer is typing, as a value: what stands in each length field, what that text reads
-// as in whole millimetres, and which way the corner turns. **Presentation state, not domain** — a
-// draft judges nothing. `validateRoomInput` is the only thing that says whether a room is allowed
-// (ADR 0108 decision 1), and a draft that answered the same question would be a second authority on
-// it.
+// The room a customer is typing, as a value: each field's text, what it reads as in whole
+// millimetres, and which way the corner turns. Presentation state, not domain: a draft judges
+// nothing, and `validateRoomInput` alone says whether a room is allowed (ADR 0108 decision 1).
 //
-// Millimetres inward: a field's text is whole millimetres, digits only, and enters through
-// `parse-millimetres.ts`, the one place that reading is written (ADR 0108 decision 4, notation per
-// ADR 0126). A field's `millimetres` is always derived from its own `text`, so the two cannot drift
-// apart into a room the customer never entered. The URL's metres are `room-query-sync.ts`'s concern.
+// A field's text is whole millimetres, digits only, and enters through `parse-millimetres.ts`, the
+// one place that reading is written (ADR 0108 decision 4, notation per ADR 0126). `millimetres` is
+// always derived from its own `text`, so the two cannot drift apart. The URL's metres are
+// `room-query-sync.ts`'s concern.
 import type { CornerDirection, RoomShape } from "@lemnaria/configurator-domain";
 
 import { parseMillimetres } from "./parse-millimetres";
 import { requiredFieldsFor } from "./room-url-state";
 
-/** The length fields a room can be entered with, taken from the URL parser's own list rather than
- *  restated, so a wall added to a shape there cannot leave a field behind here (criterion 4). */
+/** From the URL parser's own list, so a wall added to a shape there cannot leave a field behind here. */
 export type RoomLengthField = ReturnType<typeof requiredFieldsFor>[number];
 
 export interface RoomDraftLength {
   /** Exactly what the field shows, including a half-typed value. */
   readonly text: string;
   /** Whole millimetres, or `undefined` while the text is empty or not yet a readable length. An
-   *  unreadable field stays at 1B and is not painted as an error (criterion 10); its message is shown on
-   *  blur (Q-7F2-4). */
+   *  unreadable field stays at 1B and is not painted as an error; its message is shown on blur. */
   readonly millimetres: number | undefined;
 }
 
 export interface RoomDraft {
   readonly shape: RoomShape;
-  /** Every field, whatever the shape requires: a customer who changes their mind about the shape
-   *  keeps what they already typed. `requiredFieldsFor` decides which of them are asked for. */
+  /** Every field, whatever the shape requires, so changing the shape keeps what was typed.
+   *  `requiredFieldsFor` decides which are asked for. */
   readonly lengths: Readonly<Record<RoomLengthField, RoomDraftLength>>;
-  /** Carried by every draft and shown only by the shapes that turn a corner. A URL that omits
-   *  `direction` shows **left** — frame 1B draws it pre-selected — which is ruling R6's draft
-   *  layer and changes neither the parser nor a stored room's reading. */
+  /** Carried by every draft, shown only by shapes that turn a corner. A URL that omits `direction`
+   *  shows left, pre-selected; this changes neither the parser nor a stored room's reading. */
   readonly cornerDirection: CornerDirection;
 }
 
@@ -52,8 +47,7 @@ export interface StoredLength {
 
 const EMPTY_LENGTH: RoomDraftLength = { text: "", millimetres: undefined };
 
-/** Frame 1B draws *La stanga* pre-selected, and ruling R6 keeps that the draft's starting position
- *  whether or not the URL says so. */
+/** *La stânga* is pre-selected, whether or not the URL says so. */
 const INITIAL_CORNER_DIRECTION: CornerDirection = "left";
 
 export function createRoomDraft(shape: RoomShape): RoomDraft {
@@ -69,8 +63,7 @@ export function createRoomDraft(shape: RoomShape): RoomDraft {
   };
 }
 
-/** A different card chosen at 1A. Every typed length stays where it is: the shape decides which
- *  fields are asked for, never what the customer has already said about a wall. */
+/** A different card chosen. Every typed length stays: the shape decides which fields are asked for. */
 export function withRoomShape(draft: RoomDraft, shape: RoomShape): RoomDraft {
   return { ...draft, shape };
 }
@@ -82,8 +75,8 @@ export function withCornerDirection(
   return { ...draft, cornerDirection };
 }
 
-/** A keystroke. The text is kept exactly as typed — a value that does not read as a length, *"3,6"*,
- *  is neither stripped nor corrected under the caret (ADR 0126). */
+/** A keystroke. The text is kept exactly as typed: *"3,6"* is neither stripped nor corrected under
+ *  the caret (ADR 0126). */
 export function withEnteredText(
   draft: RoomDraft,
   entered: EnteredLength,
@@ -91,9 +84,8 @@ export function withEnteredText(
   return withLengthText(draft, entered.field, entered.text);
 }
 
-/** A length that already exists lands in its field as the whole millimetres the customer types. It
- *  is written as text and read back, rather than carried across as a number, so the field and the
- *  millimetres it reports can never disagree. */
+/** Written as text and read back, not carried across as a number, so the field and the millimetres
+ *  it reports cannot disagree. */
 export function withStoredLength(
   draft: RoomDraft,
   stored: StoredLength,
@@ -101,8 +93,7 @@ export function withStoredLength(
   return withLengthText(draft, stored.field, String(stored.millimetres));
 }
 
-/** The fields this shape asks for that do not yet read as a length. At 1B these are the fields still
- *  to be filled, which is not the same claim as a field being wrong (criterion 10). */
+/** The fields this shape asks for that do not yet read as a length: still to be filled, not wrong. */
 export function missingLengthFields(
   draft: RoomDraft,
 ): readonly RoomLengthField[] {
@@ -111,9 +102,8 @@ export function missingLengthFields(
   );
 }
 
-/** Whether a shape carries the toggle at all (criterion 6) is `room-url-state.ts`'s to say, because
- *  the URL parser needs the same answer and this module already imports that one. Re-exported so the
- *  screens keep reading it from the draft. */
+/** `room-url-state.ts` says whether a shape carries the toggle, as the URL parser needs the same
+ *  answer; re-exported so the screens keep reading it from the draft. */
 export { carriesCornerDirection } from "./room-url-state";
 
 function withLengthText(

@@ -1,41 +1,35 @@
 "use client";
 
-// **Acting once a press is over, so nothing moves under the finger between its down and its click.**
+// Acts once a press is over, so nothing moves under the finger between its down and its click.
 //
-// A browser moves focus on a press, before the click. A `blur` handler that inserts content at that
-// moment pushes every control below it down between the press and the release, and the click lands on
-// whatever is now under the finger (M7 wave 7F2, QA finding S5b-1: wall B's help did not open). This
+// A browser moves focus on a press, before the click. A `blur` handler that inserts content then
+// pushes every control below it down, and the click lands on whatever is now under the finger. This
 // hook runs an action at once when no press is down, and otherwise once the press has completed.
 //
-// **A press completes** on its `click` (listened for on `window`, so every handler below has run), on
+// A press completes on its `click` (listened for on `window`, so every handler has run), on
 // `pointercancel` (a touch that became a scroll), or just after a release that clicks nothing (a
-// disabled button fires no click). **A press is interrupted** — its release lost to a native context
-// menu or an app switch — by a real key or by the window losing focus, and an interruption completes it.
+// disabled button fires no click). A press is interrupted, its release lost to a native context menu
+// or an app switch, by a real key or the window losing focus, and an interruption completes it.
 //
-// **Assumption (review R1.6):** completing on a zero timeout after `mouseup` relies on the browser
-// dispatching the release's `click` in the same task as the `mouseup`, so the timeout runs after the
-// click. Verified in Chromium (QA's e2e, mouse and touch); **not verified in WebKit.**
+// Assumption: completing on a zero timeout after `mouseup` relies on the browser dispatching the
+// release's `click` in the same task, so the timeout runs after it. Verified in Chromium (mouse and
+// touch e2e); not verified in WebKit.
 import { useEffect, useRef } from "react";
 
-/** The events that begin a press. A touch tap moves focus on the `mousedown` the browser synthesises
- *  after the finger lifts, not on its `pointerdown`, so both are listened for. */
+/** A touch tap moves focus on the `mousedown` the browser synthesises after the finger lifts, not on
+ *  its `pointerdown`, so both begin a press. */
 const PRESS_STARTS = ["pointerdown", "mousedown"] as const;
 
-/** The events after which no press is down. */
 const PRESS_RELEASES = ["pointerup", "mouseup", "pointercancel"] as const;
 
-/** The events that complete a press: its click, or a cancel (a touch that became a scroll). */
 const PRESS_COMPLETIONS = ["click", "pointercancel"] as const;
 
-/** The events after which a press's click, if there is one, has been dispatched in the same task. */
 const PRESS_RELEASES_BEFORE_CLICK = ["pointerup", "mouseup"] as const;
 
-/** Past a release, the click is dispatched in the same task; a zero timeout runs after it, and is what
- *  completes a press that produces no click at all. */
+/** A zero timeout runs after the release's click, and completes a press that produces none. */
 const AFTER_THE_CLICK_MS = 0;
 
-/** Keys a customer holds *while* pressing — a Shift-click — which therefore say nothing about whether
- *  the press is over (review R1.1). */
+/** Keys held while pressing (a Shift-click), which say nothing about whether the press is over. */
 const MODIFIER_KEYS: ReadonlySet<string> = new Set([
   "Shift",
   "Control",
@@ -46,7 +40,7 @@ const MODIFIER_KEYS: ReadonlySet<string> = new Set([
   "Fn",
 ]);
 
-/** A key in the capture phase, so a Tab ends the press before it moves focus. */
+/** Capture, so a Tab ends the press before it moves focus. */
 const CAPTURE: AddEventListenerOptions = { capture: true };
 const BUBBLE: AddEventListenerOptions = { capture: false };
 
@@ -121,23 +115,21 @@ function onPressInterrupted(interrupted: () => void): Removal {
   ]);
 }
 
-/** A held modifier, an auto-repeat of a key already down, or a keystroke inside an IME composition can
- *  all happen during a press. Any other key cannot, so its press has ended somewhere the page missed. */
+/** A held modifier, an auto-repeat or an IME keystroke can happen during a press; any other key
+ *  cannot, so the press ended somewhere the page missed. */
 function isKeyThatEndsAPress(event: KeyboardEvent): boolean {
   if (event.repeat || event.isComposing) return false;
   return !MODIFIER_KEYS.has(event.key);
 }
 
-/** Whether the event was dispatched at the listening object itself. A bubble-phase listener on
- *  `window` only ever sees the window's own `blur`, since an element's does not bubble; this guards
- *  against a synthetic `blur` dispatched with `bubbles: true`, and against a test DOM whose `window`
- *  global wraps the object it reports as `target` — hence `currentTarget`, not `window`. */
+/** Whether the event was dispatched at the listening object itself: guards against a synthetic `blur`
+ *  with `bubbles: true`, and a test DOM whose `window` wraps the object reported as `target`, hence
+ *  `currentTarget`, not `window`. */
 function isOwnEventOf(event: Event): boolean {
   return event.target === event.currentTarget;
 }
 
-/** Calls `complete` once, when the press under way completes or is interrupted. Returns its
- *  cancellation. */
+/** Calls `complete` once, when the press under way completes or is interrupted; returns its cancel. */
 function onPressCompleted(complete: () => void): Removal {
   const afterTheClick = restartableTimeout(finish, AFTER_THE_CLICK_MS);
   const stopListening = removingAll([

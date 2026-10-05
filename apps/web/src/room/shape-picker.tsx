@@ -1,25 +1,15 @@
 "use client";
 
-// Frame 1A's three shape cards (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:66-91`),
-// and the owner's F8 ruling of 2026-09-14 written down: **all three are drawn**, whatever the policy
-// says today. *Liniară* is owner-approved and waits on wave 7J's bounds; *U* has never been put to
-// the owner and is M7B. Choosing either selects the card and leaves *Continuă* disabled, which is
-// the deliberate dead end M7 criterion 3 asserts — a card that is drawn but refused says the room is
-// understood and not yet offered, where a hidden card would say it does not exist.
+// Frame 1A's three shape cards. All three are drawn whatever the policy says: a card that is drawn
+// but refused says the room is understood and not yet offered, where a hidden one would say it does
+// not exist. Choosing a refused shape selects the card and leaves *Continuă* disabled.
 //
-// **Nothing here asks whether a shape is buildable.** That question is `isShapeBuildable`'s and the
-// screen asks it. This file draws the choice, reports it, and — told which chosen shape is refused —
-// draws the refusal under it (wave 7F2 S4, criterion 9).
+// Nothing here asks whether a shape is buildable (`isShapeBuildable`, asked by the screen): this file
+// draws the choice, reports it, and draws the refusal under it when told which shape is refused.
 //
-// **Two drawings of one choice.** `ShapePicker` is 1A's column of cards; `ShapeChips` is 1B's row of
-// chips (`:116-131`), where the same three shapes stay changeable while the customer types. They
-// share the glyph table, the copy table and the frame's order, so a shape the domain adds reaches
-// both surfaces or neither — and the chip's picture is the card's picture at a second size rather
-// than a second set of rectangles.
-//
-// **Cards, never a dropdown** (criterion 2), and the control inside each card is a native radio: it
-// carries the group's roving focus, its arrow keys and its checked state without this file
-// implementing any of them.
+// `ShapePicker` (1A's cards) and `ShapeChips` (1B's row) share the glyph table, the copy table and
+// the order, so a shape the domain adds reaches both or neither. The control in each is a native
+// radio, which carries the roving focus, arrow keys and checked state.
 import type { RoomShape } from "@lemnaria/configurator-domain";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, type RefObject } from "react";
@@ -28,17 +18,16 @@ import { SHAPE_REFUSAL_MESSAGE_KEY } from "./room-issue-model";
 import styles from "./room.module.css";
 
 export interface ShapePickerProps {
-  /** The card the customer has chosen, or nothing chosen yet — frame 1A's *nimic selectat*. */
+  /** The card the customer has chosen, or nothing chosen yet. */
   readonly chosenShape: RoomShape | undefined;
-  /** The visible question that names this group. The plan adds no invented accessible name: the
-   *  heading a sighted customer reads is the one a screen reader announces (ADR 0113). */
+  /** The visible question that names this group, with no invented accessible name (ADR 0113). */
   readonly labelledBy: string;
   /** The refusal's id while the chosen card is refused; nothing otherwise. */
   readonly describedBy: string | undefined;
   readonly onChoose: (shape: RoomShape) => void;
 }
 
-/** One wall of the card's 2D plan glyph, in the frame's own 72 × 56 viewBox. */
+/** One wall of the card's 2D plan glyph, in the 72 × 56 viewBox. */
 interface GlyphWall {
   readonly x: number;
   readonly y: number;
@@ -46,34 +35,29 @@ interface GlyphWall {
   readonly height: number;
 }
 
-/** The glyph's own coordinate space, which both sizes below are drawn in: the card's picture and the
- *  chip's are the same drawing at two scales, not two drawings. */
+/** The card's and the chip's glyph are one drawing at two scales, both in this coordinate space. */
 const GLYPH_VIEWBOX_WIDTH = 72;
 const GLYPH_VIEWBOX_HEIGHT = 56;
 
-/** Frame 1A draws the card's glyph at 72 × 56 (`:70`) and frame 1B the chip's at 46 × 30 (`:118`). */
 const CARD_GLYPH_SIZE = { widthPx: 72, heightPx: 56 } as const;
 const CHIP_GLYPH_SIZE = { widthPx: 46, heightPx: 30 } as const;
 
-/** Frame 1A's own rects (`:71`, `:79`, `:87`): the back wall every shape has, the wall the L adds
- *  down the left, and the third the U adds down the right. They agree with the plan preview's
- *  anchor (M7 criterion 12): wall A runs along the top and wall B down the side, from the corner
- *  where they meet. */
+/** The back wall every shape has, the wall the L adds down the left and the one the U adds down the
+ *  right. They agree with the plan preview's anchor: wall A along the top, wall B down the side from
+ *  the corner where they meet. */
 const BACK_WALL: GlyphWall = { x: 10, y: 12, width: 52, height: 8 };
 const LEFT_WALL: GlyphWall = { x: 10, y: 20, width: 8, height: 26 };
 const RIGHT_WALL: GlyphWall = { x: 54, y: 20, width: 8, height: 26 };
 
-/** A `Record` over `RoomShape` rather than three hand-drawn glyphs: a shape added to the domain is a
- *  compile error here instead of a card that silently draws nothing. */
+/** A `Record` over `RoomShape`: a shape added to the domain is a compile error, not a blank card. */
 const GLYPH_WALLS: Readonly<Record<RoomShape, readonly GlyphWall[]>> = {
   linear: [BACK_WALL],
   L: [BACK_WALL, LEFT_WALL],
   U: [BACK_WALL, LEFT_WALL, RIGHT_WALL],
 };
 
-/** The message keys each card reads, written out in full so next-intl checks every one of them. A
- *  built key — `` translate(`room.shapes.${shape}.name`) `` — would defeat the generated declaration,
- *  which is the property ADR 0095 decision 1 chose the library for. */
+/** Keys written out in full so next-intl checks each one: a built key such as
+ *  `` `room.shapes.${shape}.name` `` would defeat the generated declaration (ADR 0095 decision 1). */
 const SHAPE_COPY = {
   linear: {
     name: "room.shapes.linear.name",
@@ -97,12 +81,8 @@ const SHAPE_COPY = {
   >
 >;
 
-/** The frame's order down the screen. The two tables above are `Record`s over `RoomShape`, so a
- *  shape the domain adds cannot reach a card without its copy and its glyph; this line is only where
- *  that card stands. */
 const SHAPES_IN_FRAME_ORDER: readonly RoomShape[] = ["linear", "L", "U"];
 
-/** The radios' shared group name. Not customer-visible, so it is not copy. */
 const SHAPE_GROUP_NAME = "room-shape";
 
 export function ShapePicker({
@@ -157,15 +137,11 @@ export function ShapePicker({
 }
 
 /**
- * **A card tapped before React hydrated the screen is still the customer's choice.** The server draws
- * every radio unchecked; a tap that lands first checks the DOM radio natively, and hydration neither
- * unchecks it nor reports it — React takes the radio's *already checked* value as its baseline, so the
- * tap raises no `onChange` and neither does any later tap on the same radio. Left alone the card draws
- * as chosen while the screen's state holds nothing, and *Continuă* stays disabled for good.
- *
- * Once mounted, the checked radio in the DOM is therefore reported once. After the first commit React
- * keeps the DOM equal to `chosenShape`, so on any later run this reports what is already chosen —
- * `onChoose` with the same shape is a no-op — and it never reports a shape the customer did not tap.
+ * A card tapped before hydration is still the customer's choice. The server draws every radio
+ * unchecked; an early tap checks the DOM radio natively, and hydration takes that as its baseline,
+ * so the tap and every later tap on it raise no `onChange` and *Continuă* stays disabled for good.
+ * Once mounted, the checked radio is therefore reported once. Later runs report what is already
+ * chosen, which `onChoose` treats as a no-op.
  */
 function useAdoptShapeChosenBeforeHydration(
   groupRef: RefObject<HTMLElement | null>,
@@ -187,24 +163,18 @@ function shapeCheckedIn(group: HTMLElement | null): RoomShape | undefined {
 export interface ShapeChipsProps {
   /** At 1B a shape is always chosen: the query names it, and that is what puts the screen here. */
   readonly chosenShape: RoomShape;
-  /** The refusal's id while the chosen chip is refused; nothing otherwise. Only the chosen chip
-   *  carries it. */
+  /** The refusal's id while the chosen chip is refused; only the chosen chip carries it. */
   readonly describedBy: string | undefined;
   readonly onChoose: (shape: RoomShape) => void;
 }
 
 /**
- * The same three choices once the customer is entering lengths — frame 1B's chip row (`:116-131`),
- * the cards above compressed to a glyph and the shape's short name.
+ * The same three choices while the customer enters lengths: a glyph and the shape's short name.
  *
- * **No `role="radiogroup"` and no group label**, unlike the cards: frame 1B draws no question over
- * this row, and the plan adds no invented accessible name for one (ADR 0113). The three radios share
- * a name, so the browser groups them and gives each its own visible label.
- *
- * **So the refusal is described on the chosen radio rather than on a group** (slice S4). A radiogroup
- * needs an accessible name, and this row has no visible text to take one from; the radio is what takes
- * focus, so it is where a screen reader reads a description. Only the chosen one carries it (review
- * R1.2): browse mode would otherwise read a sentence about the chosen shape on the other two.
+ * No `role="radiogroup"` and no group label, unlike the cards: this row has no visible question to
+ * name one, and no accessible name is invented (ADR 0113). The radios share a name, so the browser
+ * groups them. The refusal is therefore described on the chosen radio, the focus target, and only on
+ * that one, so browse mode does not read it on the other two.
  */
 export function ShapeChips({
   chosenShape,
@@ -251,15 +221,13 @@ export interface ShapeRefusalProps {
 }
 
 /**
- * **The refusal under the cards (1A) and under the chips (1B, 1C)** — frame 1C's reason box, saying
- * the chosen shape cannot be offered and naming no internal reason (ADR 0120 decisions 3–4). It is
- * independent of every field.
+ * The refusal under the cards (1A) and the chips (1B, 1C): the chosen shape cannot be offered, naming
+ * no internal reason (ADR 0120 decisions 3-4).
  *
- * **Its own polite status region, not 1C's** (`one-c-status.tsx`): it sits under the shape choice,
- * which 1C's region below the fields cannot, and 1A has no 1C region at all. The region is drawn empty
- * while nothing is refused, so it is in the tree before its sentence arrives. The sentence is keyed
- * by the refused shape, so moving from one refused chip to another replaces it and is announced again
- * rather than read as unchanged.
+ * Its own polite status region, not `one-c-status.tsx`'s, which sits below the fields and does not
+ * exist at 1A. The region is drawn empty while nothing is refused, so it is in the tree before its
+ * sentence arrives; the sentence is keyed by the refused shape, so moving between refused chips is
+ * announced again.
  */
 export function ShapeRefusal({ id, refusedShape }: ShapeRefusalProps) {
   const translate = useTranslations();
@@ -289,8 +257,7 @@ interface GlyphSize {
   readonly heightPx: number;
 }
 
-/** `aria-hidden`, because the card's own name and detail already say what the picture shows: a
- *  drafted description of a drawing would be a second author for copy the frames already wrote. */
+/** `aria-hidden`: the card's own name and detail already say what the picture shows. */
 function ShapeGlyph({
   shape,
   size,

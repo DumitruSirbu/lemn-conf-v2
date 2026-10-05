@@ -1,19 +1,14 @@
 "use client";
 
-// The top bar's language control — frames 2A / D2A's chip, with the menu the owner's 2026-09-10
-// ruling gives it. `i18n/use-locale-menu.ts` carries the ruling and what it supersedes.
+// The top bar's language control; `i18n/use-locale-menu.ts` carries the menu's rules.
 //
-// **The cell is this component's own** rather than the screen's, and that is structural: the popover
-// is absolutely positioned against `.locale`, so the element that establishes the positioning context
-// and the element that fills it belong in one file. It is still a direct grid item of `.screen` —
-// `configure-screen.tsx` renders `<LocaleMenu />` with nothing around it — so the band's five-cell
-// layout and its shared `border-bottom` are unchanged.
+// The cell is this component's own: the popover is positioned against `.locale`, so the positioning
+// context and what fills it belong in one file. It is still a direct grid item of `.screen`
+// (`configure-screen.tsx` renders `<LocaleMenu />` bare), so the band's five-cell layout is unchanged.
 //
-// **A button controlling a list of links, not a `role="menu"`.** The trigger opens something, so it
-// is a button and says `aria-expanded`; each choice *is a URL*, so it stays an anchor and keeps its
-// link semantics — shareable, openable in a new tab, announced as a link, and navigated client-side
-// by next-intl so the store survives the switch. `role="menuitem"` would have taken all of that away
-// to buy a keyboard convention this file implements anyway.
+// A button controlling a list of links, not a `role="menu"`: each choice is a URL, so it stays an
+// anchor (shareable, openable in a new tab, announced as a link) and next-intl navigates it
+// client-side so the store survives the switch. `role="menuitem"` would remove all of that.
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type {
   FocusEvent as ReactFocusEvent,
@@ -29,8 +24,7 @@ import { useDismissOnOutsidePointer } from "@/lib/use-dismiss-on-outside-pointer
 
 import styles from "./configure.module.css";
 
-/** Closed, or the index the open menu is holding focus at. One value rather than two pieces of state
- *  because the second is meaningless without the first. */
+/** Closed, or the index the open menu is holding focus at. */
 type MenuState = number | "closed";
 
 export function LocaleMenu() {
@@ -48,10 +42,8 @@ export function LocaleMenu() {
     setState("closed");
   }, []);
 
-  /** Escape leaves the customer where they started, so focus goes back to the control they opened — and
-   *  so does choosing the language already showing, which navigates nowhere. A different language
-   *  navigates away, and a dismissal by pointer or by Tab has already moved focus somewhere the
-   *  customer chose, so neither of those comes through here. */
+  /** For Escape and for choosing the language already showing: focus returns to the control opened.
+   *  A different language navigates away, and a pointer or Tab dismissal has already moved focus. */
   const closeAndRestoreFocus = useCallback(() => {
     setState("closed");
     triggerRef.current?.focus();
@@ -68,8 +60,7 @@ export function LocaleMenu() {
     setState(isOpen ? "closed" : menu.currentIndex);
   }
 
-  /** Enter and Space are the button's own activation and reach `toggle`; these are the two keys a
-   *  closed menu answers with a position rather than with "open at the current language". */
+  /** Enter and Space reach `toggle`; these two keys open a closed menu at a position instead. */
   function handleTriggerKey(
     event: ReactKeyboardEvent<HTMLButtonElement>,
   ): void {
@@ -101,11 +92,9 @@ export function LocaleMenu() {
   }
 
   /**
-   * Tab closes the menu, and it closes it **here rather than on the keydown** — which is a measured
-   * difference and not a style. Closing on `Tab`'s keydown unmounts the very element the browser is
-   * about to move focus *from*, so sequential navigation restarts at the top of the document and the
-   * customer is thrown to the first control on the page. Waiting until focus has actually left lets
-   * the browser move first, and it covers Shift+Tab and every other way out for free.
+   * Tab closes the menu here, not on its keydown: closing there unmounts the element the browser is
+   * about to move focus from, so sequential navigation restarts at the top of the document. Waiting
+   * until focus has left also covers Shift+Tab and every other way out.
    */
   function handleFocusLeaving(event: ReactFocusEvent<HTMLDivElement>): void {
     const movedTo = event.relatedTarget;
@@ -115,10 +104,8 @@ export function LocaleMenu() {
 
   return (
     <div className={styles.locale} ref={rootRef} onBlur={handleFocusLeaving}>
-      {/* The two-letter code is the frames' own and is **not** the accessible name: `RO` read aloud
-          names neither the language of the page nor what the control does, and which language is
-          current would otherwise be carried by the chip's colour alone. The caret finally means what
-          it draws — `aria-expanded` is the same claim for a screen reader. */}
+      {/* The two-letter code is not the accessible name: `RO` read aloud names neither the page's
+          language nor what the control does. `aria-expanded` states what the caret draws. */}
       <button
         type="button"
         id={triggerId}
@@ -146,13 +133,8 @@ export function LocaleMenu() {
         >
           {menu.choices.map((choice, index) => (
             <li key={choice.locale}>
-              {/* `lang` so the endonym is pronounced in its own language rather than in the page's,
-                  and `aria-current` so the language already showing is marked by something other
-                  than the weight it is drawn at.
-
-                  **The flag is not that mark.** It says which language the row *is*, which is the
-                  one thing the endonym beside it already says twice over; the state stays on
-                  `aria-current` and on `.localeOptionCurrent`'s weight, where it was. */}
+              {/* `lang` so the endonym is pronounced in its own language; `aria-current`, not the
+                  flag, marks the language already showing. */}
               <Link
                 href={menu.pathname}
                 locale={choice.locale}
@@ -190,12 +172,10 @@ export function LocaleMenu() {
 }
 
 /**
- * Choosing the language already showing changes nothing, so it navigates nowhere. It used to follow its
- * own link. Reading Next's source, a soft navigation to the URL the entry already has rewrites that
- * entry's state (`app-router.js:51-66`, `segment-cache/navigation.js:461`), which would strip the
- * marker off the browser-Back guard when the customer is standing on it (M7C C1 S4) — a reading that
- * did **not** reproduce in Chromium, so this is a precaution and a pointless navigation removed, not a
- * fixed defect. A click that opens a new tab or window is left alone: it leaves this page as it is.
+ * Choosing the language already showing navigates nowhere. By Next's source (`app-router.js:51-66`,
+ * `segment-cache/navigation.js:461`) a soft navigation to the entry's own URL rewrites its state and
+ * would strip the browser-Back guard's marker; that did not reproduce in Chromium, so this is a
+ * precaution. A click that opens a new tab or window is left alone.
  */
 function stayWhereTheCustomerIs(
   event: ReactMouseEvent<HTMLAnchorElement>,
