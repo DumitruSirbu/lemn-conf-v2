@@ -80,8 +80,9 @@ test.beforeEach(async ({ page, seededDesign }) => {
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 
-/** Page coordinates: the canvas starts 76 px below the screen top (76 + 824 = 900), so a canvas-relative click
- *  is a different world point. */
+/** Page coordinates: the canvas starts **76 px** below the top of the screen, so a canvas-relative click is a
+ *  different world point. Measured at 1440 × 900 on 2026-09-09: 76 + 824 = 900.
+ *  `qa-w4-top-bar.adversarial.test.ts` parses both sentences; keep their wording. */
 async function clickScene(
   page: Page,
   position: { x: number; y: number },
